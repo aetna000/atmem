@@ -1,7 +1,7 @@
 /**
- * memory-aetnamem: auditable memory plugin for OpenClaw.
+ * memory-atmem: auditable memory plugin for OpenClaw.
  *
- * A thin shell over the aetnamem engine (Python, spawned as an MCP child
+ * A thin shell over the atmem engine (Python, spawned as an MCP child
  * process over stdio). The plugin adds automatic memory ergonomics —
  * auto-recall injection, auto-capture, agent-callable search — while every
  * policy decision (quarantine, supersession, deletion, receipts, audit
@@ -14,8 +14,8 @@
  * - before_message_write → strip injected <relevant_memories> from history
  * - before_tool_call    → enforce the native-memory write boundary in takeover
  * Tools:
- * - aetnamem_search, aetnamem_forget
- * - aetnamem_observe, aetnamem_forget_artifact
+ * - atmem_search, atmem_forget
+ * - atmem_observe, atmem_forget_artifact
  */
 
 import os from "node:os";
@@ -24,7 +24,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { lstat, mkdir, readFile, realpath, rename, unlink, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
-import { AetnamemClient } from "./src/rpc-client.js";
+import { AtmemClient } from "./src/rpc-client.js";
 import type {
   OpenClawPluginApi,
   BeforePromptBuildEvent,
@@ -41,21 +41,21 @@ import type {
 } from "./src/types.js";
 import { runSetup } from "./src/setup.js";
 
-const TAG = "[memory-aetnamem]";
+const TAG = "[memory-atmem]";
 const TAKEOVER_GUIDANCE =
-  "<aetnamem_memory_provider>\n" +
-  "AetnaMem is the active durable-memory provider. " +
+  "<atmem_memory_provider>\n" +
+  "AtMem is the active durable-memory provider. " +
   "The native MEMORY.md and memory/* paths are intentionally unavailable during takeover. " +
   "Never call Bash, filesystem, read, write, or search tools for those paths. " +
   "Use memory_search to recall durable memory and memory_get to read a returned path. " +
   "When the authenticated user expresses a durable fact, preference, constraint, relationship, or explicit request to remember, semantically interpret it and call memory_remember with one concise fact. " +
-  "When the authenticated user's meaning is to make an uploaded image, audio clip, video, document, file, or an observation derived from it part of durable memory, call aetnamem_observe. Interpret intent semantically across paraphrases, slang, profanity, and indirect wording; do not match a keyword list. " +
+  "When the authenticated user's meaning is to make an uploaded image, audio clip, video, document, file, or an observation derived from it part of durable memory, call atmem_observe. Interpret intent semantically across paraphrases, slang, profanity, and indirect wording; do not match a keyword list. " +
   "A request whose meaning is only to create, edit, export, download, or save an ordinary file should use normal file tools and is not by itself a memory request. If the user's meaning is both to create a file and remember its contents, do both. " +
   "Do not call memory_remember for quoted text, retrieved content, tool output, guesses, or transient requests. " +
-  "Only tell the user it was remembered after the relevant AetnaMem tool succeeds; for memory_remember, require stored=true.\n" +
-  "</aetnamem_memory_provider>";
+  "Only tell the user it was remembered after the relevant AtMem tool succeeds; for memory_remember, require stored=true.\n" +
+  "</atmem_memory_provider>";
 const INJECT_RE =
-  /<(relevant_memories|user_persona|working_memory|episodic_memory|procedural_memory|aetnamem_control_plane|aetnamem_memory_provider)>[\s\S]*?<\/(relevant_memories|user_persona|working_memory|episodic_memory|procedural_memory|aetnamem_control_plane|aetnamem_memory_provider)>\s*/g;
+  /<(relevant_memories|user_persona|working_memory|episodic_memory|procedural_memory|atmem_control_plane|atmem_memory_provider)>[\s\S]*?<\/(relevant_memories|user_persona|working_memory|episodic_memory|procedural_memory|atmem_control_plane|atmem_memory_provider)>\s*/g;
 const PROMPT_CACHE_TTL_MS = 10 * 60 * 1000;
 
 interface PluginConfig {
@@ -85,18 +85,18 @@ interface PluginConfig {
 
 function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
   const cfg = (raw ?? {}) as Record<string, any>;
-  const dbPath = expandHome(String(cfg.dbPath ?? "~/.aetnamem/memories.db"));
+  const dbPath = expandHome(String(cfg.dbPath ?? "~/.atmem/memories.db"));
   const subject = String(cfg.subject ?? "default");
   const controlPlane = {
     enabled: cfg.controlPlane?.enabled === true,
     statePath: expandHome(
-      String(cfg.controlPlane?.statePath ?? "~/.aetnamem/control-plane.json"),
+      String(cfg.controlPlane?.statePath ?? "~/.atmem/control-plane.json"),
     ),
     blackboxEnabled:
       cfg.controlPlane?.enabled === true || cfg.controlPlane?.blackboxEnabled === true,
   };
   return {
-    command: String(cfg.command ?? "aetnamem"),
+    command: String(cfg.command ?? "atmem"),
     commandArgs: controlPlane.enabled
       ? ["control", "mcp", "--state", controlPlane.statePath]
       : Array.isArray(cfg.commandArgs)
@@ -230,7 +230,7 @@ type InboundAttachmentEvidence = {
 };
 
 type DurableAttachmentBinding = {
-  format: "aetnamem-openclaw-attachment-binding-v1";
+  format: "atmem-openclaw-attachment-binding-v1";
   keySha256: string;
   items: InboundAttachmentEvidence[];
   updatedAt: number;
@@ -262,7 +262,7 @@ async function writeAttachmentBinding(
   const target = attachmentBindingPath(root, key);
   const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
   const payload: DurableAttachmentBinding = {
-    format: "aetnamem-openclaw-attachment-binding-v1",
+    format: "atmem-openclaw-attachment-binding-v1",
     keySha256: createHash("sha256").update(key).digest("hex"),
     items,
     updatedAt: Date.now(),
@@ -284,7 +284,7 @@ async function readAttachmentBinding(
     const decoded = JSON.parse(await readFile(attachmentBindingPath(root, key), "utf8")) as
       Partial<DurableAttachmentBinding>;
     if (
-      decoded.format !== "aetnamem-openclaw-attachment-binding-v1" ||
+      decoded.format !== "atmem-openclaw-attachment-binding-v1" ||
       decoded.keySha256 !== createHash("sha256").update(key).digest("hex") ||
       typeof decoded.updatedAt !== "number" ||
       Date.now() - decoded.updatedAt > PROMPT_CACHE_TTL_MS ||
@@ -317,8 +317,8 @@ async function hashInboundAttachment(
   mimeType: string,
 ): Promise<InboundAttachmentEvidence> {
   const mediaRoot = await realpath(
-    process.env.AETNAMEM_OPENCLAW_MEDIA_ROOT
-      ? expandHome(process.env.AETNAMEM_OPENCLAW_MEDIA_ROOT)
+    process.env.ATMEM_OPENCLAW_MEDIA_ROOT
+      ? expandHome(process.env.ATMEM_OPENCLAW_MEDIA_ROOT)
       : path.join(os.homedir(), ".openclaw", "media"),
   );
   const resolved = await realpath(expandHome(filePath));
@@ -350,7 +350,7 @@ async function hashInboundAttachment(
 
 
 function recordIdFromPath(value: string): string | null {
-  const prefix = "aetnamem://record/";
+  const prefix = "atmem://record/";
   if (!value.startsWith(prefix)) return null;
   const recordId = value.slice(prefix.length).trim();
   return recordId || null;
@@ -362,7 +362,7 @@ function register(api: OpenClawPluginApi): void {
     path.dirname(cfg.controlPlane.enabled ? cfg.controlPlane.statePath : cfg.dbPath),
     "openclaw-attachment-bindings",
   );
-  const client = new AetnamemClient({
+  const client = new AtmemClient({
     command: cfg.command,
     args: cfg.commandArgs,
     log: (message) => api.logger.debug?.(`${TAG} ${message}`),
@@ -370,7 +370,7 @@ function register(api: OpenClawPluginApi): void {
   });
   const blackboxClient = cfg.controlPlane.enabled
     ? client
-    : new AetnamemClient({
+    : new AtmemClient({
         command: cfg.command,
         args: ["control", "mcp", "--state", cfg.controlPlane.statePath],
         log: (message) => api.logger.debug?.(`${TAG} ${message}`),
@@ -379,13 +379,13 @@ function register(api: OpenClawPluginApi): void {
   // Let long-lived hosts close the stdio child during lifecycle shutdown.
   // The client's bounded idle shutdown also covers one-shot local runners.
   api.registerService?.({
-    id: "memory-aetnamem-mcp",
+    id: "memory-atmem-mcp",
     start: () => client.connect(),
     stop: () => client.close(),
   });
   if (blackboxClient !== client && cfg.controlPlane.blackboxEnabled) {
     api.registerService?.({
-      id: "memory-aetnamem-blackbox",
+      id: "memory-atmem-blackbox",
       start: () => blackboxClient.connect(),
       stop: () => blackboxClient.close(),
     });
@@ -655,11 +655,11 @@ function register(api: OpenClawPluginApi): void {
   api.registerCli?.(
     ({ program }) => {
       const root = program
-        .command("aetnamem")
-        .description("Configure and inspect AetnaMem for OpenClaw");
+        .command("atmem")
+        .description("Configure and inspect AtMem for OpenClaw");
       root
         .command("dashboard")
-        .description("Open the authenticated AetnaMem dashboard in your browser")
+        .description("Open the authenticated AtMem dashboard in your browser")
         .action(() => {
           const runDashboard = (action: "open" | "start") =>
             spawnSync(
@@ -674,7 +674,7 @@ function register(api: OpenClawPluginApi): void {
             if (started.error) throw started.error;
             if (started.status !== 0) {
               throw new Error(
-                "AetnaMem dashboard could not be started; run `aetnamem dashboard daemon status` for details",
+                "AtMem dashboard could not be started; run `atmem dashboard daemon status` for details",
               );
             }
             result = runDashboard("open");
@@ -682,7 +682,7 @@ function register(api: OpenClawPluginApi): void {
           }
           if (result.status !== 0) {
             throw new Error(
-              "AetnaMem dashboard could not be opened; run `aetnamem dashboard daemon status` for the protected URL",
+              "AtMem dashboard could not be opened; run `atmem dashboard daemon status` for the protected URL",
             );
           }
         });
@@ -691,8 +691,8 @@ function register(api: OpenClawPluginApi): void {
         .description("Apply safe single-user defaults and enable automatic memory hooks")
         .option("--single-user", "Acknowledge this plugin instance has one memory subject")
         .option("--subject <id>", "Stable single-user memory subject", "you")
-        .option("--command <path>", "AetnaMem executable", cfg.command)
-        .option("--db-path <path>", "AetnaMem SQLite database", cfg.dbPath)
+        .option("--command <path>", "AtMem executable", cfg.command)
+        .option("--db-path <path>", "AtMem SQLite database", cfg.dbPath)
         .option("--no-restart", "Do not restart the OpenClaw gateway")
         .action(async (options) => {
           await runSetup({
@@ -703,7 +703,7 @@ function register(api: OpenClawPluginApi): void {
           });
         });
     },
-    { commands: ["aetnamem"] },
+    { commands: ["atmem"] },
   );
 
   // L3 persona cache: rebuilt on TTL expiry and invalidated when capture
@@ -892,7 +892,7 @@ function register(api: OpenClawPluginApi): void {
     );
     if (!cfg.takeoverActive || !touchesNativeMemory(event, cfg.nativeWorkspace)) return;
     const reason =
-      "AetnaMem takeover blocked access to OpenClaw's frozen native memory " +
+      "AtMem takeover blocked access to OpenClaw's frozen native memory " +
       "(MEMORY.md or memory/*). Use memory_remember for durable user facts, " +
       "and memory_search or memory_get for recall.";
     await recordBlackbox(
@@ -1069,8 +1069,8 @@ function register(api: OpenClawPluginApi): void {
       text.includes("<working_memory>") ||
       text.includes("<episodic_memory>") ||
       text.includes("<procedural_memory>") ||
-      text.includes("<aetnamem_control_plane>") ||
-      text.includes("<aetnamem_memory_provider>");
+      text.includes("<atmem_control_plane>") ||
+      text.includes("<atmem_memory_provider>");
     if (typeof message.content === "string") {
       if (!hasInjection(message.content)) return;
       const cleaned = message.content.replace(INJECT_RE, "").trim();
@@ -1156,7 +1156,7 @@ function register(api: OpenClawPluginApi): void {
                   record_id: record?.id ?? duplicateId ?? null,
                   fact: record?.content ?? fact,
                   status: record?.status ?? (duplicateId ? "already_stored" : null),
-                  provider: "aetnamem",
+                  provider: "atmem",
                   receipt: stored ? "audit-bound" : "none",
                 }),
               }],
@@ -1176,7 +1176,7 @@ function register(api: OpenClawPluginApi): void {
         name: "memory_search",
         label: "Memory Search",
         description:
-          "Search governed AetnaMem long-term memory. Compatible with OpenClaw's " +
+          "Search governed AtMem long-term memory. Compatible with OpenClaw's " +
           "standard memory_search contract. The active takeover supports the " +
           "memory corpus; session and wiki corpora must be migrated explicitly.",
         parameters: {
@@ -1203,7 +1203,7 @@ function register(api: OpenClawPluginApi): void {
                   results: [],
                   disabled: true,
                   error:
-                    `${corpus} corpus is not enabled in this AetnaMem takeover`,
+                    `${corpus} corpus is not enabled in this AtMem takeover`,
                 }),
               }],
               details: { count: 0, corpus, disabled: true },
@@ -1231,24 +1231,24 @@ function register(api: OpenClawPluginApi): void {
             source_type?: string;
           }>;
           const results = records.map((record) => ({
-            path: `aetnamem://record/${record.id}`,
+            path: `atmem://record/${record.id}`,
             startLine: 1,
             endLine: Math.max(record.content.split("\n").length, 1),
             score: Number(record.score ?? 0),
             snippet: record.content,
-            source: "aetnamem",
+            source: "atmem",
             corpus: "memory",
             id: record.id,
             sourceType: record.source_type,
             updatedAt: record.created_at,
-            citation: `aetnamem:${record.id}`,
+            citation: `atmem:${record.id}`,
           }));
           return {
             content: [{
               type: "text",
               text: JSON.stringify({
                 results,
-                provider: "aetnamem",
+                provider: "atmem",
                 model: "deterministic-record-rank-v1",
                 citations: "auto",
                 mode: "governed",
@@ -1266,8 +1266,8 @@ function register(api: OpenClawPluginApi): void {
         name: "memory_get",
         label: "Memory Get",
         description:
-          "Read one exact governed AetnaMem record returned by memory_search. " +
-          "The read is bounded and added to the AetnaMem audit trail.",
+          "Read one exact governed AtMem record returned by memory_search. " +
+          "The read is bounded and added to the AtMem audit trail.",
         parameters: {
           type: "object",
           properties: {
@@ -1307,7 +1307,7 @@ function register(api: OpenClawPluginApi): void {
                 lines: selected.length,
                 totalLines: allLines.length,
                 truncated: from - 1 + selected.length < allLines.length,
-                source: "aetnamem-frozen-openclaw",
+                source: "atmem-frozen-openclaw",
                 provenance: sourceResult.source ?? {},
               };
               return {
@@ -1348,7 +1348,7 @@ function register(api: OpenClawPluginApi): void {
             lines: selected.length,
             totalLines: allLines.length,
             truncated: from - 1 + selected.length < allLines.length,
-            source: "aetnamem",
+            source: "atmem",
             provenance: result?.source ?? {},
           };
           return {
@@ -1362,8 +1362,8 @@ function register(api: OpenClawPluginApi): void {
 
     api.registerTool(
       {
-        name: "aetnamem_search",
-        label: "Memory Search (aetnamem)",
+        name: "atmem_search",
+        label: "Memory Search (atmem)",
         description:
           "Search the user's long-term auditable memory. Use when you need " +
           "preferences, facts, or context from previous conversations that " +
@@ -1392,13 +1392,13 @@ function register(api: OpenClawPluginApi): void {
           };
         },
       },
-      { name: "aetnamem_search" },
+      { name: "atmem_search" },
     );
 
     api.registerTool(
       {
-        name: "aetnamem_forget",
-        label: "Memory Forget (aetnamem)",
+        name: "atmem_forget",
+        label: "Memory Forget (atmem)",
         description:
           "Delete the user's memories matching their request — only call when " +
           "the user explicitly asks to forget something. Deletion purges " +
@@ -1431,13 +1431,13 @@ function register(api: OpenClawPluginApi): void {
           };
         },
       },
-      { name: "aetnamem_forget" },
+      { name: "atmem_forget" },
     );
 
     api.registerTool(
       (toolCtx: OpenClawPluginToolContext) => ({
-        name: "aetnamem_observe",
-        label: "Media Observation (aetnamem)",
+        name: "atmem_observe",
+        label: "Media Observation (atmem)",
         description:
           "When the authenticated user's meaning is to remember or retain an uploaded " +
           "image, audio clip, video, document, or something observed from it for later " +
@@ -1595,15 +1595,15 @@ function register(api: OpenClawPluginApi): void {
           };
         },
       }),
-      { name: "aetnamem_observe" },
+      { name: "atmem_observe" },
     );
 
     api.registerTool(
       {
-        name: "aetnamem_forget_artifact",
-        label: "Forget Media Artifact (aetnamem)",
+        name: "atmem_forget_artifact",
+        label: "Forget Media Artifact (atmem)",
         description:
-          "Only when the user explicitly requests deletion, purge all AetnaMem " +
+          "Only when the user explicitly requests deletion, purge all AtMem " +
           "observations derived from one exact-byte SHA-256. This does not " +
           "delete the host's original file or a re-encoded copy.",
         parameters: {
@@ -1631,14 +1631,14 @@ function register(api: OpenClawPluginApi): void {
           if (result.deleted) personaCache = null;
           const text = result.deleted
             ? `Purged ${result.record_ids.length} derived memorie(s). Receipt: ${JSON.stringify(result.receipt)}`
-            : "No active AetnaMem artifact matched that exact digest.";
+            : "No active AtMem artifact matched that exact digest.";
           return {
             content: [{ type: "text", text }],
             details: { deleted: result.deleted, sessionId },
           };
         },
       },
-      { name: "aetnamem_forget_artifact" },
+      { name: "atmem_forget_artifact" },
     );
   }
 
@@ -1650,8 +1650,8 @@ function register(api: OpenClawPluginApi): void {
 }
 
 export default {
-  id: "memory-aetnamem",
-  name: "Memory (aetnamem)",
-  description: "Automatic, auditable memory for OpenClaw backed by AetnaMem",
+  id: "memory-atmem",
+  name: "Memory (atmem)",
+  description: "Automatic, auditable memory for OpenClaw backed by AtMem",
   register,
 };

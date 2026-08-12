@@ -1,28 +1,28 @@
-# AetnaMem
+# AtMem
 
-[![Version 1.0.0a6](https://img.shields.io/badge/version-1.0.0a6--experimental-orange)](./docs/releases/v1.0.0a6.md)
-[![CI](https://github.com/aetna000/aetnamem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/aetnamem/actions/workflows/ci.yml)
+[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-blue)](./docs/releases/v1.0.0.md)
+[![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
-**AetnaMem is an experimental Agent Black Box and reversible memory control plane for OpenClaw.**
+**AtMem is an Agent Black Box and reversible memory control plane for OpenClaw.**
 
 It records the boundaries OpenClaw exposes—model input/output fingerprints, context injection, tool requests, tool completions and turn termination—into a tamper-evident flight timeline. When an agent says it completed an action, an operator can inspect whether the host actually observed the corresponding tool lifecycle and export the evidence.
 
-The boundary is deliberate: AetnaMem verifies retained timeline integrity and observed hook closure. It does **not** semantically judge an answer or prove that an external real-world outcome occurred without a system-of-record verifier. Raw prompts, responses, tool parameters and tool results are not stored by the Black Box; their SHA-256 digests and bounded metadata are.
+The boundary is deliberate: AtMem verifies retained timeline integrity and observed hook closure. It does **not** semantically judge an answer or prove that an external real-world outcome occurred without a system-of-record verifier. Raw prompts, responses, tool parameters and tool results are not stored by the Black Box; their SHA-256 digests and bounded metadata are.
 
-Install AetnaMem beside OpenClaw, let it copy and shadow the complete native memory, inspect the result, then activate it when you are ready. Shadow mode does not change the context sent to the model. Activation freezes the verified OpenClaw memory state and replaces native supplemental-memory access with bounded AetnaMem recall. Restore puts the saved OpenClaw configuration and memory paths back.
+Install AtMem beside OpenClaw, let it copy and shadow the complete native memory, inspect the result, then activate it when you are ready. Shadow mode does not change the context sent to the model. Activation freezes the verified OpenClaw memory state and replaces native supplemental-memory access with bounded AtMem recall. Restore puts the saved OpenClaw configuration and memory paths back.
 
-This is **Version 1.0.0a6**, an experimental prerelease. Agent Black Box capture and the automated copy, shadow, activation and restore workflow support OpenClaw first. The underlying memory engine and MCP interface remain model-agnostic.
+This is **Version 1.0.0**, the first stable AtMem release. Agent Black Box capture and the automated copy, shadow, activation and restore workflow support OpenClaw first. The underlying memory engine and MCP interface remain model-agnostic.
 
 ## Inspect an agent flight
 
 After installation, use OpenClaw normally and inspect newly observed runs:
 
 ```bash
-aetnamem blackbox status
-aetnamem blackbox runs
-aetnamem blackbox verify RUN_ID
-aetnamem blackbox export RUN_ID --format text --output flight.txt
-aetnamem dashboard daemon start
+atmem blackbox status
+atmem blackbox runs
+atmem blackbox verify RUN_ID
+atmem blackbox export RUN_ID --format text --output flight.txt
+atmem dashboard daemon start
 ```
 
 The dashboard presents recent flights, tool-request/completion closure, terminal status, the host-observed timeline and downloadable JSON/text evidence. See the [Agent Black Box guide](docs/agent-blackbox.md) for the event model, privacy boundary and exact guarantees.
@@ -31,26 +31,26 @@ The dashboard presents recent flights, tool-request/completion closure, terminal
 
 ```bash
 # 1. Install the engine. Do not install the npm bridge separately.
-python -m pip install --pre aetnamem==1.0.0a6
-aetnamem --version
+python -m pip install atmem==1.0.0
+atmem --version
 
 # 2. Install the matching bridge and copy all existing OpenClaw memory.
-aetnamem openclaw install
+atmem openclaw install
 
 # 3. Inspect the shadow copy. OpenClaw is still the memory provider.
-aetnamem control status
-aetnamem control verify
-aetnamem dashboard daemon start
+atmem control status
+atmem control verify
+atmem dashboard daemon start
 
 # 4. Switch only after the dashboard reports that the copy is verified.
-aetnamem control activate
+atmem control activate
 
 # 5. Restore OpenClaw memory at any time.
-aetnamem control restore --drill
-aetnamem control restore
+atmem control restore --drill
+atmem control restore
 ```
 
-`aetnamem openclaw install` owns both packages: it installs the matching npm bridge, binds the exact Python executable, copies `MEMORY.md` and `memory/*.md` from the beginning of the OpenClaw workspace history, starts change mirroring, restarts the gateway, and verifies the loaded integration. Progress is shown for every stage. If verification fails, it restores the prior plugin configuration. The command is safe to rerun: an existing shadow migration is refreshed and verified in place while its control ID and original restore snapshot are preserved.
+`atmem openclaw install` owns both packages: it installs the matching npm bridge, binds the exact Python executable, copies `MEMORY.md` and `memory/*.md` from the beginning of the OpenClaw workspace history, starts change mirroring, restarts the gateway, and verifies the loaded integration. Progress is shown for every stage. If verification fails, it restores the prior plugin configuration. The command is safe to rerun: an existing shadow migration is refreshed and verified in place while its control ID and original restore snapshot are preserved.
 
 Read the [OpenClaw setup](docs/openclaw-setup.md) and [control-plane guarantees](docs/control-plane.md) before customer deployment.
 
@@ -58,8 +58,8 @@ Read the [OpenClaw setup](docs/openclaw-setup.md) and [control-plane guarantees]
 
 The 1080p walkthrough demonstrates installation, complete native-memory mirroring, shadow-mode search and capture, verified activation, governed text and image memory, human approval, recall, audit investigation, and the available restore path.
 
-- [Watch or download the video](https://github.com/aetna000/aetnamem/raw/v1.0.0a3/docs/showcases/openclaw-memory-control-plane/aetnamem-openclaw-memory-control-plane.mp4)
-- [Read the voice-over transcript](https://github.com/aetna000/aetnamem/blob/v1.0.0a3/docs/showcases/openclaw-memory-control-plane/transcript.txt)
+- [Watch or download the video](https://github.com/aetna000/atmem/raw/v1.0.0/docs/showcases/openclaw-memory-control-plane/atmem-openclaw-memory-control-plane.mp4)
+- [Read the voice-over transcript](https://github.com/aetna000/atmem/blob/v1.0.0/docs/showcases/openclaw-memory-control-plane/transcript.txt)
 
 The demonstration states the product boundaries directly: shadow mode does not alter model context, image recall returns the approved text observation rather than image bytes, and restore is available but is not executed in the recording.
 
@@ -67,7 +67,7 @@ The demonstration states the product boundaries directly: shadow mode does not a
 
 The loopback-only dashboard is the operating and investigation surface:
 
-- current provider: OpenClaw in shadow mode or AetnaMem in active mode;
+- current provider: OpenClaw in shadow mode or AtMem in active mode;
 - copy progress, source manifest, hashes, and verification failures;
 - memory search, record history, source and interpretation evidence;
 - recall scores, context-injection receipts, and agent-response bindings;
@@ -77,12 +77,12 @@ The loopback-only dashboard is the operating and investigation surface:
 - one activation control and one restore control.
 
 ```bash
-aetnamem dashboard daemon start   # background service at http://127.0.0.1:8766/
-aetnamem dashboard daemon open    # open the direct loopback URL
-aetnamem dashboard daemon status
-aetnamem dashboard daemon restart
-aetnamem dashboard daemon stop
-aetnamem dashboard daemon remove  # removes service metadata, not memory/evidence
+atmem dashboard daemon start   # background service at http://127.0.0.1:8766/
+atmem dashboard daemon open    # open the direct loopback URL
+atmem dashboard daemon status
+atmem dashboard daemon restart
+atmem dashboard daemon stop
+atmem dashboard daemon remove  # removes service metadata, not memory/evidence
 ```
 
 ## Model-agnostic engine
@@ -90,7 +90,7 @@ aetnamem dashboard daemon remove  # removes service metadata, not memory/evidenc
 Any host that can launch a stdio MCP server can use the engine directly:
 
 ```bash
-aetnamem mcp --db ~/.aetnamem/memories.db --subject local-user
+atmem mcp --db ~/.atmem/memories.db --subject local-user
 ```
 
 MCP tools: `memory_remember`, `memory_observe`, `memory_recall`, `memory_get_record`, `memory_get_source`, `memory_recall_block`, `memory_persona`, `memory_context_pack`, `memory_capture`, `memory_list`, `memory_forget`, `memory_forget_artifact`, `memory_promote`, `memory_audit`, `memory_verify`, `memory_graph_status`, `memory_graph_merges`, `memory_graph_history`, and `memory_log_action`.
@@ -103,7 +103,7 @@ See the [integration guide](docs/integration-guide.md), [audit search](docs/audi
 
 - Canonical memory, provenance, lifecycle state, and audit evidence are stored in SQLite.
 - Semantic search is optional. Vectors are a derived index and are verified against canonical records before results are returned.
-- External media bytes remain host-controlled. AetnaMem stores a typed text observation, exact byte-stream SHA-256, model identity, and host reference.
+- External media bytes remain host-controlled. AtMem stores a typed text observation, exact byte-stream SHA-256, model identity, and host reference.
 - External observations are quarantined until approved. Confidence is evidence, never an automatic promotion rule.
 - Forget operations cascade through canonical, graph, media, and vector-derived state and return a receipt.
 - The dashboard binds only to loopback and opens without a login. Mutations retain CSRF and origin checks.
@@ -112,6 +112,6 @@ See [data storage and backup](docs/data-storage-and-backup.md) and the [auditing
 
 ## Scope
 
-AetnaMem 1.0 contains one product: the memory control plane. Unrelated legacy experiments remain in Git history and on the unchanged `develop` branch; they are not shipped as part of the 1.0 product.
+AtMem 1.0 contains one product: the memory control plane. Unrelated legacy experiments remain in Git history and on the unchanged `develop` branch; they are not shipped as part of the 1.0 product.
 
 Licensed under [AGPL-3.0-only](LICENSE).

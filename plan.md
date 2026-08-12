@@ -37,11 +37,11 @@ Prerequisite for all three: P0 and P1.
 Conventions that already exist in this codebase — follow them:
 
 - Evidence formats are dicts with a `format` key, digested with
-  `sha256_hex(canonical_json(body))` from `aetnamem/core/canonical.py`.
+  `sha256_hex(canonical_json(body))` from `atmem/core/canonical.py`.
 - Deletion-style operations fail closed and emit receipts
-  (see `Memory.forget_artifact` in `aetnamem/memory.py`).
+  (see `Memory.forget_artifact` in `atmem/memory.py`).
 - New CLI subcommands go into the existing parser structure in
-  `aetnamem/cli.py`; every command supports `--json`.
+  `atmem/cli.py`; every command supports `--json`.
 - Tests are plain pytest in `tests/`; the fake OpenClaw host harness
   pattern is in `tests/test_host_adapter.py` and
   `tests/test_openclaw_control.py`.
@@ -64,16 +64,16 @@ measured state additionally carry `evidence_sha256`:
 
 | format | purpose |
 |---|---|
-| `aetnamem-control-verification-v1` | verify report (B) |
-| `aetnamem-restore-receipt-v1` | real restore outcome (C) |
-| `aetnamem-restore-drill-v1` | drill outcome, explicit claim fields (C) |
-| `aetnamem-restore-journal-v1` | two-phase restore journal (C) |
-| `aetnamem-encryption-receipt-v1` | household encryption outcome (A) |
-| `aetnamem-encryption-journal-v1` | resumable encrypt/decrypt journal (A) |
+| `atmem-control-verification-v1` | verify report (B) |
+| `atmem-restore-receipt-v1` | real restore outcome (C) |
+| `atmem-restore-drill-v1` | drill outcome, explicit claim fields (C) |
+| `atmem-restore-journal-v1` | two-phase restore journal (C) |
+| `atmem-encryption-receipt-v1` | household encryption outcome (A) |
+| `atmem-encryption-journal-v1` | resumable encrypt/decrypt journal (A) |
 
 ## P1 — Control-store schema migration + evidence chain
 
-`aetnamem/control/store.py` currently accepts only schema version 1.
+`atmem/control/store.py` currently accepts only schema version 1.
 Add a versioned migration path (v1 → v2) and the evidence table:
 
 ```sql
@@ -109,7 +109,7 @@ spliced in from another migration_id.
 ### C1. Shared staging helpers
 
 Extract from `restore_takeover` / `_restore_cutover`
-(`aetnamem/control/openclaw_native.py:1463`, `:1634`) pure helpers
+(`atmem/control/openclaw_native.py:1463`, `:1634`) pure helpers
 parameterized by target root:
 
 ```python
@@ -136,7 +136,7 @@ Phase 1 — no live mutation:
 4. Validate every saved config value exists when expected, parses, and
    has the recorded type. Applicability is not claimed until Phase 2
    actually restores and re-reads the value.
-5. Write `aetnamem-restore-journal-v1` with the planned steps.
+5. Write `atmem-restore-journal-v1` with the planned steps.
 
 Phase 2 — journaled swap:
 6. Swap staged files into the live workspace, marking each journal step
@@ -160,7 +160,7 @@ Any interruption: rerun reads the journal and resumes from the first
 incomplete step. A rerun over a completed journal is a no-op returning
 the existing receipt.
 
-### C3. Restore receipt (`aetnamem-restore-receipt-v1`)
+### C3. Restore receipt (`atmem-restore-receipt-v1`)
 
 Two separate proofs, never merged:
 
@@ -190,7 +190,7 @@ receipt with `valid: false` is still written.
 - Runs Phase 1 only (validate + stage + manifest diff) in a sandbox
   staging root, plus config **readability**: `openclaw config get` per
   saved key — never `set`.
-- Emits `aetnamem-restore-drill-v1` with explicit claim fields:
+- Emits `atmem-restore-drill-v1` with explicit claim fields:
 
 ```json
 {
@@ -236,7 +236,7 @@ Live rollback not performed
 
 ---
 
-## B — Continuous run evidence (`aetnamem control verify`)
+## B — Continuous run evidence (`atmem control verify`)
 
 **Invariant: verify is strictly read-only.** It never syncs, repairs,
 restarts, or writes anything except its own report row. A test enforces
@@ -244,13 +244,13 @@ this (B6.2).
 
 ### B1. Engine
 
-New module `aetnamem/control/verify.py`:
+New module `atmem/control/verify.py`:
 
 ```python
 def run_verification(state: ControlState, *, probe: bool = False) -> dict
 ```
 
-Output `aetnamem-control-verification-v1`: header (migration_id, mode from
+Output `atmem-control-verification-v1`: header (migration_id, mode from
 `takeover_status`, host version, bridge version, started/ended),
 `checks: [{name, status: pass|fail|skip|warn, measured, evidence}]`,
 `valid`, `evidence_sha256`, `report_sha256`. Persist to the P1 evidence
@@ -261,10 +261,10 @@ Checks:
 | name | how |
 |---|---|
 | `host_version_tested` | `openclaw --version` vs manifest (B3). Untested minor/major ⇒ FAIL; CLI exits 2 when this is the only failure. Untested patch of a tested minor ⇒ WARN. |
-| `bridge_version_pinned` | plugin entry version equals `OPENCLAW_PLUGIN_VERSION`; reuse `_find_plugin_version` from `aetnamem/control/hosts.py`. |
+| `bridge_version_pinned` | plugin entry version equals `OPENCLAW_PLUGIN_VERSION`; reuse `_find_plugin_version` from `atmem/control/hosts.py`. |
 | `mirror_integrity` | **read-only**: compute the current native source manifest (hash the source files), load the *stored* mirror manifest, compare. Never call `sync_mirror` — repairing before measuring would hide staleness. A stale mirror is a FAIL with the divergent paths in evidence. Empty-but-consistent memory (zero records both sides) passes. Activation's own sequence is `sync → verify → activate`; also relax `activate_takeover`'s `record_count ≥ 1` precondition to the same manifest-equality rule. Mirror audit chain verifies (read-only). |
 | `config_consistency` | compare the **complete applied configuration** recorded at activation (B4a) against live values: memory slot, session-memory hook, plugin enablement and mode, database/workspace/subject, capture and recall settings, allowed memory tools. Cutovers written before B4a carry only four keys — verify those and WARN that the recorded set is partial. |
-| `shadow_configuration_safe` | shadow mode only. The AetnaMem plugin **is expected to be present** because it mirrors and observes. Verify the native provider remains selected and takeover is false. This proves configuration, not absence of injected context. Active mode ⇒ skip with reason. |
+| `shadow_configuration_safe` | shadow mode only. The AtMem plugin **is expected to be present** because it mirrors and observes. Verify the native provider remains selected and takeover is false. This proves configuration, not absence of injected context. Active mode ⇒ skip with reason. |
 | `shadow_context_probe` | shadow mode only. PASS only when B2's isolated on/off comparison proves identical `llm_input`; otherwise SKIP with `isolation unavailable`. Never infer non-interference from the exposures schema. Active mode ⇒ skip with reason. |
 | `frozen_paths_unchanged` | active mode only: re-hash frozen native files against the cutover manifest. |
 | `restore_readiness` | rollback snapshot validates (C Phase 1 validation, sandboxed); drill record present; drill older than last host-version change ⇒ warn. |
@@ -287,7 +287,7 @@ turn with a fixed prompt and returns only the final `llm_input` sha256.
 
 ### B3. Tested-versions manifest
 
-`aetnamem/control/compat.py`:
+`atmem/control/compat.py`:
 `TESTED_OPENCLAW_VERSIONS = ("2026.7.1-2",)` to start, plus
 `evaluate_host_version(version) -> tested | untested_patch | untested`
 with exact version parsing for OpenClaw's scheme (including the `-N`
@@ -307,7 +307,7 @@ in both modes; never silently disable memory.
 - `restore_takeover`: read-only mirror comparison + `gateway_health` at
   the end, embedded in the restore receipt.
 - Dashboard: "Verify now" button on the switch view (existing POST route
-  pattern in `aetnamem/control/web.py`); render last report + digests.
+  pattern in `atmem/control/web.py`); render last report + digests.
 - `control status`: last verify result, `evidence_sha256`, age.
 
 ### B5. CI
@@ -355,7 +355,7 @@ in both modes; never silently disable memory.
 
 ### A1. Approach and packaging
 
-SQLCipher for every SQLite database, as the `aetnamem[encryption]` extra.
+SQLCipher for every SQLite database, as the `atmem[encryption]` extra.
 `sqlcipher3` (source build, needs libsqlcipher) and `sqlcipher3-binary`
 (bundled) have different installation characteristics per platform, and
 environment markers cannot detect wheel availability — so do not promise
@@ -371,8 +371,8 @@ unsupported                      (documented)
 A job that pre-installs Homebrew SQLCipher proves the *second* tier, not
 the first — never conflate them in docs.
 
-Do NOT use the old whole-file seal (`aetnamem/service/encrypted_db.py`,
-`git show 32c0524^:aetnamem/service/encrypted_db.py`) — it left the DB
+Do NOT use the old whole-file seal (`atmem/service/encrypted_db.py`,
+`git show 32c0524^:atmem/service/encrypted_db.py`) — it left the DB
 plaintext while open. Read once for the keychain ideas; set aside.
 
 ### A2. Household policy and state
@@ -412,8 +412,8 @@ def connect(path, *, policy: HouseholdPolicy,
   state, or plaintext header under `encrypted` state ⇒ fail closed, never
   recreate.
 - Replace all direct `sqlite3.connect` call sites:
-  `aetnamem/store/sqlite.py:25`, `aetnamem/semantic/index.py:41`,
-  `aetnamem/control/store.py:23`, `aetnamem/graph.py:430`, `:807`, `:938`.
+  `atmem/store/sqlite.py:25`, `atmem/semantic/index.py:41`,
+  `atmem/control/store.py:23`, `atmem/graph.py:430`, `:807`, `:938`.
 
 ### A3. Household advisory lock
 
@@ -429,13 +429,13 @@ diagnostic metadata only, never stale-lock authority.
 
 ### A4. Key management
 
-`aetnamem/core/keys.py`:
+`atmem/core/keys.py`:
 
-- `aetnamem keys init --backend file` (default) or `--backend keyring` —
+- `atmem keys init --backend file` (default) or `--backend keyring` —
   the chosen backend is recorded in household state, so keyring is
-  actually reachable. `AETNAMEM_DB_KEY` env (64-char hex) is an explicit
+  actually reachable. `ATMEM_DB_KEY` env (64-char hex) is an explicit
   override checked first at runtime, regardless of backend.
-- File backend: `~/.aetnamem/keys/db.key`, 0600, refuse
+- File backend: `~/.atmem/keys/db.key`, 0600, refuse
   group/world-readable. Keyring backend: via `keyring` package (extra
   dependency of `[encryption]`'s keyring option, never core).
 - `keys init` prints the loss-means-loss warning. `keys status --json`
@@ -444,7 +444,7 @@ diagnostic metadata only, never stale-lock authority.
 
 ### A5. Household encryption — crash-recoverable transaction
 
-`aetnamem encrypt <db-path>` operates on the complete household: primary
+`atmem encrypt <db-path>` operates on the complete household: primary
 DB · vector sidecars (via `store.semantic_index_paths`) · graph partition
 files · mirror DB · control evidence DB · A6 control archives.
 
@@ -453,10 +453,10 @@ checkpointing modifies the files:
 
 1. **Lock**: take the A3 exclusive household lock; refuse if any holder
    is registered.
-2. **Quiesce**: close/stop all AetnaMem writers; checkpoint
+2. **Quiesce**: close/stop all AtMem writers; checkpoint
    (`PRAGMA wal_checkpoint(TRUNCATE)`) and close every DB.
 3. **Inventory**: enumerate the household, hash every file, write
-   `aetnamem-encryption-journal-v1` (state → `migration-prepared`).
+   `atmem-encryption-journal-v1` (state → `migration-prepared`).
 4. **Stage** (state → `encrypting`): per DB, one **SQLCipher** connection
    opens the plaintext source with no key, `ATTACH DATABASE <staged> AS
    encrypted KEY '<key>'`, `SELECT sqlcipher_export('encrypted')`,
@@ -469,7 +469,7 @@ checkpointing modifies the files:
    archives; delete plaintext control originals and plaintext-era
    `-wal`/`-shm` files only after their encrypted replacements verify;
    record every deletion in the receipt.
-7. **Finish**: state → `encrypted`; emit `aetnamem-encryption-receipt-v1`
+7. **Finish**: state → `encrypted`; emit `atmem-encryption-receipt-v1`
    (per-file path_sha256, before/after, size, wal_shm_removed,
    `evidence_sha256`, `report_sha256`); audit event `storage.encrypted`
    per subject; receipt row in the evidence table; release the lock.
@@ -479,13 +479,13 @@ completed journal is a no-op returning the receipt.
 
 ### A6. Control archives — scope and ownership boundary
 
-Encrypt **everything AetnaMem owns under its control directory** that
+Encrypt **everything AtMem owns under its control directory** that
 contains memory content: JSON snapshots (`_private_json` / `_read_json`
 in `openclaw_native.py`), cutover archives, preservation trees
 (`_new_preservation_root`), frozen native copies held in the control dir,
 and exported-memory files. Mechanism: Fernet (`cryptography`, same
 extra), key derived from the A4 key via HKDF (info
-`"aetnamem-control-files"`); `.enc` variants written when household state
+`"atmem-control-files"`); `.enc` variants written when household state
 is `encrypted`. Runtime reads are state-strict: `plaintext` requires the
 plaintext file, `encrypted` requires `.enc`, and only migration code may
 resolve both forms according to its journal. An unexpected plaintext
@@ -493,12 +493,12 @@ fallback in encrypted state fails closed. The state file itself (A2) is
 never encrypted.
 
 Ownership boundary: files in the **OpenClaw workspace** belong to the
-host. Never encrypt them in place, in any mode — AetnaMem encrypts its
+host. Never encrypt them in place, in any mode — AtMem encrypts its
 copies, never the host's originals.
 
 ### A7. Decryption — first-class, not "symmetric" hand-waving
 
-`aetnamem decrypt <db-path>` is its own journaled operation
+`atmem decrypt <db-path>` is its own journaled operation
 (state `encrypted → decrypting → plaintext`), same lock and step
 structure as A5 with the export reversed (SQLCipher source opened with
 the key, plaintext destination attached with empty key). It must also:

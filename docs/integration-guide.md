@@ -1,11 +1,11 @@
 # Integration guide
 
-AetnaMem separates the model-agnostic memory engine from host-specific control adapters.
+AtMem separates the model-agnostic memory engine from host-specific control adapters.
 
 ## Python
 
 ```python
-from aetnamem import Memory
+from atmem import Memory
 
 memory = Memory("memories.db")
 memory.remember("user-1", "My preferred editor is Vim.", session_id="s1")
@@ -19,7 +19,7 @@ The embedding provider is optional. The canonical database remains usable withou
 ## MCP
 
 ```bash
-aetnamem mcp --db ~/.aetnamem/memories.db --subject user-1
+atmem mcp --db ~/.atmem/memories.db --subject user-1
 ```
 
 | Tool | Purpose |
@@ -49,10 +49,10 @@ An MCP connection alone does not authenticate the user or prove that returned co
 ## OpenClaw control adapter
 
 ```bash
-aetnamem openclaw install
-aetnamem control status
-aetnamem control activate
-aetnamem control restore
+atmem openclaw install
+atmem control status
+atmem control activate
+atmem control restore
 ```
 
 The OpenClaw adapter provides the host-specific parts that generic MCP cannot: complete native-memory discovery, historical copy, ongoing shadow synchronization, prompt and response binding, semantic model interpretation, native-path protection, gateway verification, and exact restore.

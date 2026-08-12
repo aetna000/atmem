@@ -130,7 +130,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/aetnamem
+      url: https://pypi.org/p/atmem
     permissions:
       contents: read
       id-token: write
@@ -171,9 +171,8 @@ jobs:
         run: |
           node -e '
             const pkg = require("./package.json");
-            const releases = {"v1.0.0a1": "1.0.0-experimental.1", "v1.0.0a2": "1.0.0-experimental.2", "v1.0.0a3": "1.0.0-experimental.3", "v1.0.0a4": "1.0.0-experimental.4", "v1.0.0a5": "1.0.0-experimental.5", "v1.0.0a6": "1.0.0-experimental.6"};
-            const expected = releases[process.env.RELEASE_TAG];
-            if (!expected || pkg.version !== expected) {
+            const expected = `v${pkg.version}`;
+            if (process.env.RELEASE_TAG !== expected) {
               throw new Error(`release ${process.env.RELEASE_TAG} does not match plugin ${pkg.version}`);
             }
           '
@@ -184,10 +183,10 @@ jobs:
         continue-on-error: true
         run: |
           version=$(node -p 'require("./package.json").version')
-          if npm view "openclaw-memory-aetnamem@$version" version >/dev/null 2>&1; then
-            echo "openclaw-memory-aetnamem@$version is already published"
+          if npm view "openclaw-memory-atmem@$version" version >/dev/null 2>&1; then
+            echo "openclaw-memory-atmem@$version is already published"
           else
-            npm publish --access public --provenance --tag experimental
+            npm publish --access public --provenance --tag latest
           fi
       - name: Report registry authorization requirement
         if: steps.npm-publish.outcome == 'failure'
@@ -211,7 +210,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body_path: docs/releases/${{ github.ref_name }}.md
-          prerelease: ${{ contains(github.ref_name, 'a') }}
+          prerelease: false
           files: |
             dist/*
-            docs/showcases/openclaw-memory-control-plane/aetnamem-openclaw-memory-control-plane.mp4
+            docs/showcases/openclaw-memory-control-plane/atmem-openclaw-memory-control-plane.mp4

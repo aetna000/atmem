@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aetnamem import Memory
+from atmem import Memory
 
 
 def test_remember_recall_and_provenance() -> None:

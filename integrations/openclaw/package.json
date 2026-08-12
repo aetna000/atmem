@@ -1,7 +1,7 @@
 {
-  "name": "openclaw-memory-aetnamem",
-  "version": "1.0.0-experimental.6",
-  "description": "OpenClaw Agent Black Box and memory control-plane bridge for AetnaMem",
+  "name": "openclaw-memory-atmem",
+  "version": "1.0.0",
+  "description": "OpenClaw Agent Black Box and memory control-plane bridge for AtMem",
   "type": "module",
   "main": "./dist/index.js",
   "files": [
@@ -19,12 +19,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/aetna000/aetnamem.git",
+    "url": "git+https://github.com/aetna000/atmem.git",
     "directory": "integrations/openclaw"
   },
-  "homepage": "https://github.com/aetna000/aetnamem/tree/main/integrations/openclaw",
+  "homepage": "https://github.com/aetna000/atmem/tree/main/integrations/openclaw",
   "bugs": {
-    "url": "https://github.com/aetna000/aetnamem/issues"
+    "url": "https://github.com/aetna000/atmem/issues"
   },
   "license": "AGPL-3.0-only",
   "publishConfig": {

@@ -4,8 +4,8 @@ from pathlib import Path
 import json
 import re
 
-from aetnamem import Memory
-from aetnamem.mcp import MCPServer
+from atmem import Memory
+from atmem.mcp import MCPServer
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -59,3 +59,31 @@ def test_readme_version_matches_package_metadata() -> None:
     readme = (ROOT / "README.md").read_text()
     assert f"Version {version}" in readme
     assert f"version-{version}" in readme
+
+
+def test_public_product_namespace_is_atmem_only() -> None:
+    legacy = "aetna" + "mem"
+    roots = (
+        ROOT / "atmem",
+        ROOT / "docs",
+        ROOT / "integrations" / "openclaw",
+        ROOT / "tools",
+        ROOT / "README.md",
+        ROOT / "pyproject.toml",
+    )
+    for root in roots:
+        paths = (root,) if root.is_file() else root.rglob("*")
+        for path in paths:
+            if not path.is_file() or path.suffix.lower() not in {
+                ".py",
+                ".md",
+                ".json",
+                ".ts",
+                ".mjs",
+                ".toml",
+                ".yml",
+                ".yaml",
+            }:
+                continue
+            assert legacy not in path.name.casefold(), path
+            assert legacy not in path.read_text(errors="ignore").casefold(), path

@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from aetnamem import Memory
-from aetnamem.maintenance import GraphMaintenanceWorker
+from atmem import Memory
+from atmem.maintenance import GraphMaintenanceWorker
 
 
 def test_graph_maintenance_uses_independent_connection_and_archives(tmp_path: Path) -> None:

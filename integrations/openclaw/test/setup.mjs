@@ -5,13 +5,13 @@ import { setupWrites, runSetup } from "../dist/src/setup.js";
 const options = {
   subject: "alice",
   command: process.execPath,
-  dbPath: "/tmp/aetnamem-test.db",
+  dbPath: "/tmp/atmem-test.db",
   restart: true,
 };
 
 const writes = setupWrites(options);
 assert.equal(writes.length, 10);
-assert.equal(writes[1][0], "plugins.entries.memory-aetnamem.hooks.allowConversationAccess");
+assert.equal(writes[1][0], "plugins.entries.memory-atmem.hooks.allowConversationAccess");
 const configured = Object.fromEntries(
   writes.slice(2).map(([key, value]) => [key.split(".").at(-1), JSON.parse(value)]),
 );

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from aetnamem.openclaw_install import (
+from atmem.openclaw_install import (
     CommandResult,
     OPENCLAW_PLUGIN_VERSION,
     install_openclaw,
@@ -74,8 +74,8 @@ class FakeOpenClaw:
 
     def run(self, arguments: list[str]) -> CommandResult:
         self.commands.append(arguments)
-        if arguments[0].endswith("aetnamem"):
-            return CommandResult(0, "aetnamem 1.0.0a6\n", "")
+        if arguments[0].endswith("atmem"):
+            return CommandResult(0, "atmem 1.0.0\n", "")
         if arguments[1:] == ["--version"]:
             return CommandResult(0, "OpenClaw 2026.7.1-2\n", "")
         if arguments[1:3] == ["plugins", "inspect"]:
@@ -86,7 +86,7 @@ class FakeOpenClaw:
                 json.dumps(
                     {
                         "plugin": {
-                            "id": "memory-aetnamem",
+                            "id": "memory-atmem",
                             "version": self.plugin_version,
                             "status": "loaded",
                         },
@@ -108,7 +108,7 @@ class FakeOpenClaw:
         if arguments[1:3] == ["plugins", "install"]:
             spec = next(item for item in arguments if "@" in item)
             self.plugin_version = spec.rsplit("@", 1)[1]
-            return CommandResult(0, "Installed plugin: memory-aetnamem\n", "")
+            return CommandResult(0, "Installed plugin: memory-atmem\n", "")
         if arguments[1:3] == ["plugins", "uninstall"]:
             self.plugin_version = None
             self.entry = None
@@ -117,7 +117,7 @@ class FakeOpenClaw:
             key = arguments[3]
             if self.entry is None:
                 return CommandResult(1, "", "No value found")
-            if key == "plugins.entries.memory-aetnamem":
+            if key == "plugins.entries.memory-atmem":
                 value: object = self.entry
             elif key.endswith(".config"):
                 value = self.entry.get("config", {})
@@ -127,7 +127,7 @@ class FakeOpenClaw:
         if arguments[1:3] == ["config", "set"]:
             key = arguments[3]
             value = json.loads(arguments[4])
-            if key == "plugins.entries.memory-aetnamem":
+            if key == "plugins.entries.memory-atmem":
                 self.entry = value
             else:
                 self.entry = self.entry or {}
@@ -153,32 +153,32 @@ class FakeOpenClaw:
 def test_installer_owns_bridge_setup_and_starts_shadow_only_migration(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    engine = tmp_path / "aetnamem"
+    engine = tmp_path / "atmem"
     engine.write_text("#!/bin/sh\n", encoding="utf-8")
     engine.chmod(0o755)
     fake = FakeOpenClaw()
     monkeypatch.setattr(
-        "aetnamem.openclaw_install.shutil.which",
+        "atmem.openclaw_install.shutil.which",
         lambda name: "/fake/openclaw" if name == "openclaw" else None,
     )
     monkeypatch.setattr(
-        "aetnamem.openclaw_install.ControlPlaneManager",
+        "atmem.openclaw_install.ControlPlaneManager",
         FakeControlPlaneManager,
     )
 
-    def configure(_state, state_path, *, aetnamem_executable):
+    def configure(_state, state_path, *, atmem_executable):
         assert Path(state_path) == tmp_path / "state.json"
-        assert aetnamem_executable == str(engine.resolve())
+        assert atmem_executable == str(engine.resolve())
         assert fake.entry is not None
         fake.entry.setdefault("config", {})["controlPlane"] = {  # type: ignore[index]
             "enabled": True,
             "statePath": str(state_path),
         }
-        fake.entry["config"]["command"] = aetnamem_executable  # type: ignore[index]
+        fake.entry["config"]["command"] = atmem_executable  # type: ignore[index]
         fake.entry["enabled"] = True
         return {"host": "openclaw", "configured": True}
 
-    monkeypatch.setattr("aetnamem.control.hosts.configure_host", configure)
+    monkeypatch.setattr("atmem.control.hosts.configure_host", configure)
 
     progress: list[tuple[int, int, str]] = []
     result = install_openclaw(
@@ -197,7 +197,7 @@ def test_installer_owns_bridge_setup_and_starts_shadow_only_migration(
     assert fake.entry is not None
     assert fake.entry["config"]["command"] == str(engine.resolve())  # type: ignore[index]
     install = next(command for command in fake.commands if command[1:3] == ["plugins", "install"])
-    assert install[3] == f"npm:openclaw-memory-aetnamem@{OPENCLAW_PLUGIN_VERSION}"
+    assert install[3] == f"npm:openclaw-memory-atmem@{OPENCLAW_PLUGIN_VERSION}"
     assert [step for step, _total, _label in progress] == list(range(1, 9))
     assert all(total == 8 for _step, total, _label in progress)
     assert "memory" in progress[4][2].casefold()
@@ -207,27 +207,27 @@ def test_installer_owns_bridge_setup_and_starts_shadow_only_migration(
 def test_installer_reuses_existing_shadow_without_replacing_restore_snapshot(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    engine = tmp_path / "aetnamem"
+    engine = tmp_path / "atmem"
     engine.write_text("#!/bin/sh\n", encoding="utf-8")
     engine.chmod(0o755)
     fake = FakeOpenClaw()
     monkeypatch.setattr(
-        "aetnamem.openclaw_install.shutil.which",
+        "atmem.openclaw_install.shutil.which",
         lambda name: "/fake/openclaw" if name == "openclaw" else None,
     )
     monkeypatch.setattr(
-        "aetnamem.openclaw_install.ControlPlaneManager",
+        "atmem.openclaw_install.ControlPlaneManager",
         FakeControlPlaneManager,
     )
     snapshot_modes: list[bool] = []
 
     def configure(
-        _state, state_path, *, aetnamem_executable, record_snapshot=True
+        _state, state_path, *, atmem_executable, record_snapshot=True
     ):
         snapshot_modes.append(record_snapshot)
         fake.entry = fake.entry or {"enabled": True, "config": {}}
         config = fake.entry.setdefault("config", {})
-        config["command"] = aetnamem_executable  # type: ignore[index]
+        config["command"] = atmem_executable  # type: ignore[index]
         config["controlPlane"] = {  # type: ignore[index]
             "enabled": True,
             "statePath": str(state_path),
@@ -238,7 +238,7 @@ def test_installer_reuses_existing_shadow_without_replacing_restore_snapshot(
             "original_snapshot_preserved": not record_snapshot,
         }
 
-    monkeypatch.setattr("aetnamem.control.hosts.configure_host", configure)
+    monkeypatch.setattr("atmem.control.hosts.configure_host", configure)
     first = install_openclaw(
         state_path=tmp_path / "state.json",
         control_root=tmp_path / "migrations",
@@ -264,30 +264,30 @@ def test_installer_reuses_existing_shadow_without_replacing_restore_snapshot(
 def test_installer_restores_prior_state_when_gateway_verification_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    engine = tmp_path / "aetnamem"
+    engine = tmp_path / "atmem"
     engine.write_text("#!/bin/sh\n", encoding="utf-8")
     engine.chmod(0o755)
     fake = FakeOpenClaw(gateway_ok=False)
     monkeypatch.setattr(
-        "aetnamem.openclaw_install.shutil.which",
+        "atmem.openclaw_install.shutil.which",
         lambda name: "/fake/openclaw" if name == "openclaw" else None,
     )
     monkeypatch.setattr(
-        "aetnamem.openclaw_install.ControlPlaneManager",
+        "atmem.openclaw_install.ControlPlaneManager",
         FakeControlPlaneManager,
     )
 
-    def configure(_state, state_path, *, aetnamem_executable):
+    def configure(_state, state_path, *, atmem_executable):
         fake.entry = {
             "enabled": True,
             "config": {
-                "command": aetnamem_executable,
+                "command": atmem_executable,
                 "controlPlane": {"enabled": True, "statePath": str(state_path)},
             },
         }
         return {"host": "openclaw", "configured": True}
 
-    monkeypatch.setattr("aetnamem.control.hosts.configure_host", configure)
+    monkeypatch.setattr("atmem.control.hosts.configure_host", configure)
 
     with pytest.raises(ValueError, match="prior OpenClaw plugin configuration was restored"):
         install_openclaw(
@@ -306,36 +306,36 @@ def test_installer_restores_prior_state_when_gateway_verification_fails(
 def test_installer_restores_previous_bridge_version_and_configuration(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    engine = tmp_path / "aetnamem"
+    engine = tmp_path / "atmem"
     engine.write_text("#!/bin/sh\n", encoding="utf-8")
     engine.chmod(0o755)
     fake = FakeOpenClaw(gateway_ok=False)
     fake.plugin_version = "0.4.0"
     prior_entry = {
         "enabled": False,
-        "config": {"command": "/old/aetnamem", "subject": "existing-user"},
+        "config": {"command": "/old/atmem", "subject": "existing-user"},
     }
     fake.entry = json.loads(json.dumps(prior_entry))
     monkeypatch.setattr(
-        "aetnamem.openclaw_install.shutil.which",
+        "atmem.openclaw_install.shutil.which",
         lambda name: "/fake/openclaw" if name == "openclaw" else None,
     )
     monkeypatch.setattr(
-        "aetnamem.openclaw_install.ControlPlaneManager",
+        "atmem.openclaw_install.ControlPlaneManager",
         FakeControlPlaneManager,
     )
 
-    def configure(_state, state_path, *, aetnamem_executable):
+    def configure(_state, state_path, *, atmem_executable):
         assert fake.entry is not None
         fake.entry["enabled"] = True
-        fake.entry.setdefault("config", {})["command"] = aetnamem_executable  # type: ignore[index]
+        fake.entry.setdefault("config", {})["command"] = atmem_executable  # type: ignore[index]
         fake.entry["config"]["controlPlane"] = {  # type: ignore[index]
             "enabled": True,
             "statePath": str(state_path),
         }
         return {"host": "openclaw", "configured": True}
 
-    monkeypatch.setattr("aetnamem.control.hosts.configure_host", configure)
+    monkeypatch.setattr("atmem.control.hosts.configure_host", configure)
 
     with pytest.raises(ValueError, match="prior OpenClaw plugin configuration was restored"):
         install_openclaw(

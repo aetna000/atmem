@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aetnamem.retrieve import query_tokens, rank_records
+from atmem.retrieve import query_tokens, rank_records
 
 
 def _record(record_id: str, content: str, created_at: str) -> dict:

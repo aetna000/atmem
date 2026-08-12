@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from aetnamem.control.blackbox import EVENT_FORMAT, format_flight_report
-from aetnamem.control.manager import ControlPlaneManager
-from aetnamem.control.store import ControlStore
+from atmem.control.blackbox import EVENT_FORMAT, format_flight_report
+from atmem.control.manager import ControlPlaneManager
+from atmem.control.store import ControlStore
 
 
 def _manager(tmp_path: Path) -> ControlPlaneManager:

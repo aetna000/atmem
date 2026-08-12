@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aetnamem.core.policy import (
+from atmem.core.policy import (
     classify_source,
     find_duplicate,
     forget_needle,

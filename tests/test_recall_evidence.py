@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from aetnamem import Memory
-from aetnamem.core.canonical import canonical_json, sha256_hex
+from atmem import Memory
+from atmem.core.canonical import canonical_json, sha256_hex
 
 
 def test_recall_evidence_digest_binds_row_identity_parameters_and_scores() -> None:
@@ -17,7 +17,7 @@ def test_recall_evidence_digest_binds_row_identity_parameters_and_scores() -> No
         if event["event_type"] == "memory.recall"
     ]
     preimage = {
-        "format": "aetnamem-retrieval-evidence-v2",
+        "format": "atmem-retrieval-evidence-v2",
         "retrieval_id": retrieval["id"],
         "subject_id": retrieval["subject_id"],
         "session_id": retrieval["session_id"],

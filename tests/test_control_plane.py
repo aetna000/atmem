@@ -14,16 +14,16 @@ from urllib.request import (
 
 import pytest
 
-from aetnamem import Memory
-from aetnamem.control import ControlPlaneManager, ControlMode
-from aetnamem.control.openclaw_native import (
+from atmem import Memory
+from atmem.control import ControlPlaneManager, ControlMode
+from atmem.control.openclaw_native import (
     inspect_mirror_record,
     list_mirror_reviews,
     review_mirror_record,
     resolve_mirror_review_image,
     sync_mirror,
 )
-from aetnamem.control.server import ControlMCPServer
+from atmem.control.server import ControlMCPServer
 
 
 def _manager(tmp_path: Path) -> ControlPlaneManager:
@@ -259,7 +259,7 @@ def test_state_digest_tampering_turns_integration_off(tmp_path: Path) -> None:
 def test_openclaw_configuration_is_snapshotted_and_restored(
     tmp_path: Path, monkeypatch
 ) -> None:
-    from aetnamem.control.hosts import configure_host, restore_host
+    from atmem.control.hosts import configure_host, restore_host
 
     manager = _manager(tmp_path)
     state = manager.state()
@@ -279,8 +279,8 @@ def test_openclaw_configuration_is_snapshotted_and_restored(
                 json.dumps(
                     {
                         "plugin": {
-                            "id": "memory-aetnamem",
-                            "version": "1.0.0-experimental.6",
+                            "id": "memory-atmem",
+                            "version": "1.0.0",
                         }
                     }
                 ),
@@ -289,7 +289,7 @@ def test_openclaw_configuration_is_snapshotted_and_restored(
         operation = arguments[2]
         key = arguments[3]
         if operation == "get":
-            if key == "plugins.entries.memory-aetnamem":
+            if key == "plugins.entries.memory-atmem":
                 if entry is None:
                     return subprocess.CompletedProcess(arguments, 1, "", "missing")
                 return subprocess.CompletedProcess(arguments, 0, json.dumps(entry), "")
@@ -306,18 +306,18 @@ def test_openclaw_configuration_is_snapshotted_and_restored(
                 # by this test instead of hidden by an overly obliging fake.
                 defaults = {
                     "enabled": False,
-                    "statePath": "~/.aetnamem/control-plane.json",
+                    "statePath": "~/.atmem/control-plane.json",
                     "blackboxEnabled": False,
                 }
                 value = {**defaults, **stored} if stored is not None else None
                 return subprocess.CompletedProcess(arguments, 0, json.dumps(value), "")
         if operation == "set":
             value = json.loads(arguments[4])
-            if key == "plugins.entries.memory-aetnamem":
+            if key == "plugins.entries.memory-atmem":
                 entry = value
             else:
                 assert entry is not None
-                suffix = key.removeprefix("plugins.entries.memory-aetnamem.")
+                suffix = key.removeprefix("plugins.entries.memory-atmem.")
                 if suffix == "enabled":
                     entry["enabled"] = value
                 elif suffix == "hooks.allowConversationAccess":
@@ -332,8 +332,8 @@ def test_openclaw_configuration_is_snapshotted_and_restored(
             return subprocess.CompletedProcess(arguments, 0, "", "")
         raise AssertionError(arguments)
 
-    monkeypatch.setattr("aetnamem.control.hosts.shutil.which", lambda _: "/fake/openclaw")
-    monkeypatch.setattr("aetnamem.control.hosts.subprocess.run", fake_run)
+    monkeypatch.setattr("atmem.control.hosts.shutil.which", lambda _: "/fake/openclaw")
+    monkeypatch.setattr("atmem.control.hosts.subprocess.run", fake_run)
 
     configured = configure_host(state, manager.state_path)
     assert configured["configured"] is True
@@ -352,7 +352,7 @@ def test_openclaw_configuration_is_snapshotted_and_restored(
 def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
     tmp_path: Path,
 ) -> None:
-    from aetnamem.control.web import ControlDashboardServer
+    from atmem.control.web import ControlDashboardServer
 
     manager = _manager(tmp_path)
     server = ControlDashboardServer(("127.0.0.1", 0), manager, html="<html>safe</html>")
@@ -384,7 +384,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         exported = opener.open(
             f"{base}/api/blackbox/export?run_id=dashboard-run&format=text"
         ).read()
-        assert b"AetnaMem Agent Black Box" in exported
+        assert b"AtMem Agent Black Box" in exported
         session = json.loads(opener.open(f"{base}/api/session").read())
 
         unprotected = Request(
@@ -411,7 +411,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
             opener.open(protected)
         assert error.value.code == 409
         result = json.loads(error.value.read())
-        assert "Activate AetnaMem or Restore OpenClaw" in result["error"]
+        assert "Activate AtMem or Restore OpenClaw" in result["error"]
     finally:
         server.shutdown()
         server.server_close()
@@ -419,7 +419,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
 
 
 def test_dashboard_rejects_non_loopback_bindings(tmp_path: Path) -> None:
-    from aetnamem.control.web import ControlDashboardServer
+    from atmem.control.web import ControlDashboardServer
 
     with pytest.raises(ValueError, match="loopback-only"):
         ControlDashboardServer(
@@ -430,14 +430,14 @@ def test_dashboard_rejects_non_loopback_bindings(tmp_path: Path) -> None:
 
 
 def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
-    from aetnamem.control.web import dashboard_html
+    from atmem.control.web import dashboard_html
 
     html = dashboard_html()
 
     assert "Exactly what is mirrored" in html
     assert 'id="sources"' in html
     assert 'id="query"' in html
-    assert "Activate AetnaMem" in html
+    assert "Activate AtMem" in html
     assert "Restore OpenClaw" in html
     assert 'id="progress"' in html
     assert 'id="auditorBackdrop"' in html
@@ -453,12 +453,12 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     assert "Needs approval" in html
     assert "Approve description as memory" in html
     assert "Source image being reviewed" in html
-    assert "What AetnaMem will remember" in html
+    assert "What AtMem will remember" in html
     assert "not the image pixels" in html
     assert "image.src=row.media.preview_url" in html
     assert "Star on GitHub" in html
-    assert "AetnaMem — governed memory for AI agents" in html
-    assert "https://github.com/aetna000/aetnamem" in html
+    assert "AtMem — governed memory for AI agents" in html
+    assert "https://github.com/aetna000/atmem" in html
     assert "OpenClaw guide" in html
     assert "Audit guide" in html
     assert "Feedback" in html
@@ -506,7 +506,7 @@ def test_review_image_preview_requires_exact_host_bytes(
     image_path = inbound / "upload.png"
     image_path.write_bytes(image_bytes)
     digest = hashlib.sha256(image_bytes).hexdigest()
-    monkeypatch.setenv("AETNAMEM_OPENCLAW_MEDIA_ROOT", str(media_root))
+    monkeypatch.setenv("ATMEM_OPENCLAW_MEDIA_ROOT", str(media_root))
     memory = Memory(mirror["mirror_db"])
     try:
         admission = memory.remember_observation(
@@ -537,7 +537,7 @@ def test_review_image_preview_requires_exact_host_bytes(
     assert resolved["media_sha256"] == digest
     assert resolved["content_type"] == "image/png"
 
-    from aetnamem.control.web import ControlDashboardServer
+    from atmem.control.web import ControlDashboardServer
 
     server = ControlDashboardServer(
         ("127.0.0.1", 0), manager, html="<html>safe</html>"
@@ -551,7 +551,7 @@ def test_review_image_preview_requires_exact_host_bytes(
             f"{base}/api/mirror/media-preview?record_id={record_id}"
         )
         assert response.headers["Content-Type"] == "image/png"
-        assert response.headers["X-AetnaMem-Media-SHA256"] == digest
+        assert response.headers["X-AtMem-Media-SHA256"] == digest
         assert response.read() == image_bytes
     finally:
         server.shutdown()
@@ -566,10 +566,10 @@ def test_review_image_preview_requires_exact_host_bytes(
 def test_dashboard_serves_record_investigation_and_downloads(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from aetnamem.control.web import ControlDashboardServer
+    from atmem.control.web import ControlDashboardServer
 
     report = {
-        "format": "aetnamem-record-investigation-v1",
+        "format": "atmem-record-investigation-v1",
         "record_id": "rec_abc123",
         "record": {"content": "User prefers TypeScript."},
         "status": "tombstoned",
@@ -580,18 +580,18 @@ def test_dashboard_serves_record_investigation_and_downloads(
         "audit_chain_valid": True,
         "report_sha256": "b" * 64,
         "deletion_receipt": {
-            "format": "aetnamem-deletion-receipt-v1",
+            "format": "atmem-deletion-receipt-v1",
             "purged_record_ids": ["rec_abc123"],
             "receipt_sha256": "c" * 64,
         },
     }
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native.inspect_mirror_record",
+        "atmem.control.openclaw_native.inspect_mirror_record",
         lambda state, record_id: {**report, "record_id": record_id},
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native.format_mirror_record_report",
-        lambda value: f"AetnaMem record investigation\nRecord: {value['record_id']}\n",
+        "atmem.control.openclaw_native.format_mirror_record_report",
+        lambda value: f"AtMem record investigation\nRecord: {value['record_id']}\n",
     )
     server = ControlDashboardServer(
         ("127.0.0.1", 0), _manager(tmp_path), html="<html>safe</html>"
@@ -612,15 +612,15 @@ def test_dashboard_serves_record_investigation_and_downloads(
             f"{base}/api/mirror/record-report?record_id=rec_abc123&format=text"
         )
         assert text_response.headers["Content-Disposition"].endswith(
-            '"aetnamem-investigation-rec_abc123.txt"'
+            '"atmem-investigation-rec_abc123.txt"'
         )
-        assert b"AetnaMem record investigation" in text_response.read()
+        assert b"AtMem record investigation" in text_response.read()
 
         receipt_response = opener.open(
             f"{base}/api/mirror/deletion-receipt?record_id=rec_abc123"
         )
         assert receipt_response.headers["Content-Disposition"].endswith(
-            '"aetnamem-deletion-rec_abc123.json"'
+            '"atmem-deletion-rec_abc123.json"'
         )
         assert json.loads(receipt_response.read())["receipt_sha256"] == "c" * 64
     finally:
@@ -632,7 +632,7 @@ def test_dashboard_serves_record_investigation_and_downloads(
 def test_dashboard_review_mutation_requires_csrf_and_exact_record_confirmation(
     tmp_path: Path,
 ) -> None:
-    from aetnamem.control.web import ControlDashboardServer
+    from atmem.control.web import ControlDashboardServer
 
     manager = _manager(tmp_path)
     workspace = tmp_path / "openclaw-workspace"
@@ -712,7 +712,7 @@ def test_dashboard_review_mutation_requires_csrf_and_exact_record_confirmation(
 def test_dashboard_audit_explorer_filters_paginates_and_exports(
     tmp_path: Path,
 ) -> None:
-    from aetnamem.control.web import ControlDashboardServer
+    from atmem.control.web import ControlDashboardServer
 
     manager = _manager(tmp_path)
     workspace = tmp_path / "openclaw-workspace"
@@ -743,7 +743,7 @@ def test_dashboard_audit_explorer_filters_paginates_and_exports(
                 "audit-session&include_facets=1&limit=1"
             ).read()
         )
-        assert report["format"] == "aetnamem-audit-explorer-v1"
+        assert report["format"] == "atmem-audit-explorer-v1"
         assert report["audit_chain_valid"] is True
         assert report["matched_total"] >= 2
         assert len(report["events"]) == 1
@@ -756,7 +756,7 @@ def test_dashboard_audit_explorer_filters_paginates_and_exports(
             f"{base}/api/mirror/audit-export?format=csv&session_id=audit-session"
         )
         assert export.headers["Content-Disposition"].endswith(
-            '"aetnamem-audit-investigation.csv"'
+            '"atmem-audit-investigation.csv"'
         )
         payload = export.read().decode("utf-8")
         assert payload.startswith("sequence,created_at,event_type")
@@ -770,7 +770,7 @@ def test_dashboard_audit_explorer_filters_paginates_and_exports(
 def test_control_restore_defaults_to_human_output_and_keeps_json_opt_in(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    from aetnamem.cli import _print_control
+    from atmem.cli import _print_control
 
     result = {
         "host": "openclaw",
@@ -791,12 +791,12 @@ def test_control_restore_defaults_to_human_output_and_keeps_json_opt_in(
 
     _print_control("restore", result, json_output=False)
     human = capsys.readouterr().out
-    assert "AetnaMem restore complete" in human
+    assert "AtMem restore complete" in human
     assert "Host configuration   restored" in human
     assert "Verification         PASSED" in human
     assert "Memory provider      OpenClaw" in human
-    assert "AetnaMem plugin      enabled (restored pre-migration state)" in human
-    assert "AetnaMem itself is still enabled" in human
+    assert "AtMem plugin      enabled (restored pre-migration state)" in human
+    assert "AtMem itself is still enabled" in human
     assert not human.lstrip().startswith("{")
 
     _print_control("restore", result, json_output=True)
@@ -807,7 +807,7 @@ def test_control_restore_defaults_to_human_output_and_keeps_json_opt_in(
 def test_active_control_status_does_not_tell_user_to_activate_again(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    from aetnamem.cli import _print_control
+    from atmem.cli import _print_control
 
     _print_control(
         "status",
@@ -825,7 +825,7 @@ def test_active_control_status_does_not_tell_user_to_activate_again(
     )
 
     human = capsys.readouterr().out
-    assert "AetnaMem is active" in human
+    assert "AtMem is active" in human
     assert "control restore" in human
     assert "Ready: inspect/search" not in human
 
@@ -833,7 +833,7 @@ def test_active_control_status_does_not_tell_user_to_activate_again(
 def test_ready_off_control_status_offers_activation_instead_of_starting_over(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    from aetnamem.cli import _print_control
+    from atmem.cli import _print_control
 
     _print_control(
         "status",

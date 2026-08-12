@@ -8,9 +8,9 @@ import sys
 
 import pytest
 
-from aetnamem import Memory
-from aetnamem.investigate import search_evidence, trace_evidence
-from aetnamem.semantic import HashingEmbedder, SemanticIndex
+from atmem import Memory
+from atmem.investigate import search_evidence, trace_evidence
+from atmem.semantic import HashingEmbedder, SemanticIndex
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -79,17 +79,17 @@ def test_invalid_or_mismatched_digest_fails_closed() -> None:
     assert len(memory.store.list_media_observations("alice")) == 1
 
 
-def test_verified_by_aetnamem_cannot_be_self_certified() -> None:
+def test_verified_by_atmem_cannot_be_self_certified() -> None:
     memory = Memory(":memory:")
     claimed = _envelope()
-    claimed["digest_assurance"] = "verified_by_aetnamem"
+    claimed["digest_assurance"] = "verified_by_atmem"
     with pytest.raises(ValueError, match="reserved"):
         memory.remember_observation("alice", claimed)
     with pytest.raises(ValueError, match="reserved"):
         memory.remember_observation(
             "alice",
             _envelope(),
-            forced_assurance="verified_by_aetnamem",
+            forced_assurance="verified_by_atmem",
         )
     assert memory.store.list_media_artifacts("alice") == []
 
@@ -196,7 +196,7 @@ def test_forget_artifact_has_narrow_verified_receipt() -> None:
 
     assert forgotten["deleted"] is True
     receipt = forgotten["receipt"]
-    assert receipt["format"] == "aetnamem-artifact-deletion-receipt-v1"
+    assert receipt["format"] == "atmem-artifact-deletion-receipt-v1"
     assert receipt["digest_identity"] == "sha256-of-exact-byte-stream"
     assert receipt["host_file_deleted"] is False
     assert receipt["verification"]["valid"] is True
@@ -344,7 +344,7 @@ def test_cli_observe_and_forget_artifact(tmp_path) -> None:
         [
             sys.executable,
             "-m",
-            "aetnamem.cli",
+            "atmem.cli",
             "observe",
             str(db_path),
             "alice",
@@ -363,7 +363,7 @@ def test_cli_observe_and_forget_artifact(tmp_path) -> None:
         [
             sys.executable,
             "-m",
-            "aetnamem.cli",
+            "atmem.cli",
             "forget-artifact",
             str(db_path),
             "alice",

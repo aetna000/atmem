@@ -5,8 +5,8 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from aetnamem.control import ControlPlaneManager
-from aetnamem.control.openclaw_native import (
+from atmem.control import ControlPlaneManager
+from atmem.control.openclaw_native import (
     CUTOVER_NAME,
     NATIVE_BASELINE_MANIFEST_NAME,
     NATIVE_BASELINE_NAME,
@@ -15,8 +15,8 @@ from aetnamem.control.openclaw_native import (
     restore_takeover,
     sync_mirror,
 )
-from aetnamem.control.store import ControlStore
-from aetnamem.core.canonical import canonical_json, sha256_hex
+from atmem.control.store import ControlStore
+from atmem.core.canonical import canonical_json, sha256_hex
 
 
 def _manager(tmp_path: Path) -> ControlPlaneManager:
@@ -47,7 +47,7 @@ def _write_cutover(manager: ControlPlaneManager, workspace: Path) -> None:
         (control_dir / NATIVE_BASELINE_MANIFEST_NAME).read_text(encoding="utf-8")
     )
     cutover = {
-        "format": "aetnamem-openclaw-cutover-v1",
+        "format": "atmem-openclaw-cutover-v1",
         "migration_id": state.migration_id,
         "status": "active",
         "workspace": str(workspace),
@@ -83,19 +83,19 @@ def _fake_openclaw(monkeypatch):
     config: dict[str, object] = {
         "plugins.slots.memory": "none",
         "hooks.internal.entries.session-memory": {"enabled": False},
-        "plugins.entries.memory-aetnamem": {"enabled": True},
-        "tools.alsoAllow": ["memory_remember", "aetnamem_observe"],
+        "plugins.entries.memory-atmem": {"enabled": True},
+        "tools.alsoAllow": ["memory_remember", "atmem_observe"],
     }
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native.shutil.which",
+        "atmem.control.openclaw_native.shutil.which",
         lambda name: "/fake/openclaw" if name == "openclaw" else None,
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._set_json",
+        "atmem.control.openclaw_native._set_json",
         lambda _executable, key, value: config.__setitem__(key, value),
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._optional_json",
+        "atmem.control.openclaw_native._optional_json",
         lambda arguments: config.get(arguments[3]),
     )
 
@@ -104,9 +104,9 @@ def _fake_openclaw(monkeypatch):
             config.pop(arguments[3], None)
         return subprocess.CompletedProcess(arguments, 0, "", "")
 
-    monkeypatch.setattr("aetnamem.control.openclaw_native._run", run)
+    monkeypatch.setattr("atmem.control.openclaw_native._run", run)
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._json_command",
+        "atmem.control.openclaw_native._json_command",
         lambda _arguments: {"rpc": {"ok": True}},
     )
     return config
@@ -122,7 +122,7 @@ def test_restore_drill_proves_only_staging_and_config_readability(
     config_gets: list[str] = []
 
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native.shutil.which",
+        "atmem.control.openclaw_native.shutil.which",
         lambda name: "/fake/openclaw" if name == "openclaw" else None,
     )
 
@@ -131,10 +131,10 @@ def test_restore_drill_proves_only_staging_and_config_readability(
         return {"enabled": True}
 
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._optional_json", optional
+        "atmem.control.openclaw_native._optional_json", optional
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._run",
+        "atmem.control.openclaw_native._run",
         lambda arguments, **_kwargs: subprocess.CompletedProcess(
             arguments, 0, "openclaw 2026.7.1-2\n", ""
         ),
@@ -152,7 +152,7 @@ def test_restore_drill_proves_only_staging_and_config_readability(
     assert set(config_gets) == {
         "plugins.slots.memory",
         "hooks.internal.entries.session-memory",
-        "plugins.entries.memory-aetnamem",
+        "plugins.entries.memory-atmem",
         "tools.alsoAllow",
     }
     assert not (Path(manager.state().control_dir) / RESTORE_STAGING_NAME / "drill").exists()
@@ -181,7 +181,7 @@ def test_restore_drill_rejects_tampered_archive_without_live_mutation(
     frozen = Path(manager.state().control_dir) / NATIVE_BASELINE_NAME / "MEMORY.md"
     frozen.write_text("tampered", encoding="utf-8")
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native.shutil.which",
+        "atmem.control.openclaw_native.shutil.which",
         lambda name: "/fake/openclaw" if name == "openclaw" else None,
     )
 
@@ -202,7 +202,7 @@ def test_restore_receipt_separates_baseline_from_active_additions(
     shutil.rmtree(workspace / "memory")
     (workspace / "MEMORY.md").unlink()
 
-    from aetnamem import Memory
+    from atmem import Memory
 
     mirror = Path(manager.state().control_dir) / "openclaw-mirror.db"
     memory = Memory(mirror)
@@ -218,7 +218,7 @@ def test_restore_receipt_separates_baseline_from_active_additions(
 
     receipt = restore_takeover(manager.state())
 
-    assert receipt["format"] == "aetnamem-restore-receipt-v1"
+    assert receipt["format"] == "atmem-restore-receipt-v1"
     assert receipt["valid"] is True
     assert all(row["matched"] for row in receipt["files"])
     export = receipt["active_memory_export"]
@@ -231,7 +231,7 @@ def test_restore_receipt_separates_baseline_from_active_additions(
     assert receipt["gateway"]["verified"] is True
     assert receipt["mirror_integrity"]["valid"] is True
 
-    from aetnamem import Memory
+    from atmem import Memory
 
     audit = Memory(mirror)
     try:
@@ -295,7 +295,7 @@ def test_interrupted_restore_resumes_without_reapplying_completed_file_step(
     shutil.rmtree(workspace / "memory")
     (workspace / "MEMORY.md").unlink()
 
-    import aetnamem.control.openclaw_native as native
+    import atmem.control.openclaw_native as native
     import pytest
 
     original = native._complete_restore_step

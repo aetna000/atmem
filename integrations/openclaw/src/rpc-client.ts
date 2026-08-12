@@ -1,5 +1,5 @@
 /**
- * Newline-delimited JSON-RPC 2.0 client for the `aetnamem mcp` stdio server.
+ * Newline-delimited JSON-RPC 2.0 client for the `atmem mcp` stdio server.
  *
  * The child process is spawned lazily on first call, the MCP initialize
  * handshake runs once, and calls are matched to responses by request id.
@@ -9,7 +9,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface, type Interface } from "node:readline";
 
-export interface AetnamemClientOptions {
+export interface AtmemClientOptions {
   command: string;
   args: string[];
   log?: (message: string) => void;
@@ -24,7 +24,7 @@ interface Pending {
   timer: ReturnType<typeof setTimeout>;
 }
 
-export class AetnamemClient {
+export class AtmemClient {
   private child: ChildProcessWithoutNullStreams | null = null;
   private reader: Interface | null = null;
   private pending = new Map<number, Pending>();
@@ -33,7 +33,7 @@ export class AetnamemClient {
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private toolNames: Set<string> | null = null;
 
-  constructor(private readonly options: AetnamemClientOptions) {}
+  constructor(private readonly options: AtmemClientOptions) {}
 
   /** Verify that the engine starts and completes the MCP handshake. */
   async connect(): Promise<void> {
@@ -64,7 +64,7 @@ export class AetnamemClient {
       };
       const text = result?.content?.[0]?.text ?? "";
       if (result?.isError) {
-        throw new Error(`aetnamem tool ${name} failed: ${text}`);
+        throw new Error(`atmem tool ${name} failed: ${text}`);
       }
       try {
         return JSON.parse(text);
@@ -127,7 +127,7 @@ export class AetnamemClient {
 
   private startChild(): void {
     const { command, args } = this.options;
-    this.options.log?.(`[aetnamem] spawning: ${command} ${args.join(" ")}`);
+    this.options.log?.(`[atmem] spawning: ${command} ${args.join(" ")}`);
     const child = spawn(command, args, { stdio: ["pipe", "pipe", "pipe"] });
     this.child = child;
 
@@ -136,26 +136,26 @@ export class AetnamemClient {
 
     child.stderr.on("data", (chunk: Buffer) => {
       const text = chunk.toString().trim();
-      if (text) this.options.logError?.(`[aetnamem stderr] ${text}`);
+      if (text) this.options.logError?.(`[atmem stderr] ${text}`);
     });
     child.on("exit", (code) => {
-      this.options.logError?.(`[aetnamem] server exited (code ${code})`);
-      this.teardown(new Error(`aetnamem server exited (code ${code})`));
+      this.options.logError?.(`[atmem] server exited (code ${code})`);
+      this.teardown(new Error(`atmem server exited (code ${code})`));
     });
     child.on("error", (error) => {
       const spawnError = error as NodeJS.ErrnoException;
       const actionable =
         spawnError.code === "ENOENT"
           ? new Error(
-              `AetnaMem engine executable '${command}' was not found. ` +
-                "Install the engine first with `python3 -m pip install aetnamem`, " +
-                "verify `aetnamem --version`, or set the plugin `command` option " +
+              `AtMem engine executable '${command}' was not found. ` +
+                "Install the engine first with `python3 -m pip install atmem`, " +
+                "verify `atmem --version`, or set the plugin `command` option " +
                 "to the executable's absolute path.",
             )
           : error instanceof Error
             ? error
             : new Error(String(error));
-      this.options.logError?.(`[aetnamem] spawn failed: ${actionable.message}`);
+      this.options.logError?.(`[atmem] spawn failed: ${actionable.message}`);
       this.teardown(actionable);
     });
   }
@@ -165,8 +165,8 @@ export class AetnamemClient {
       protocolVersion: "2025-06-18",
       capabilities: {},
       clientInfo: {
-        name: "openclaw-memory-aetnamem",
-        version: "1.0.0-experimental.6",
+        name: "openclaw-memory-atmem",
+        version: "1.0.0",
       },
     });
     this.notify("notifications/initialized", {});
@@ -178,13 +178,13 @@ export class AetnamemClient {
     timeoutMs?: number,
   ): Promise<unknown> {
     const child = this.child;
-    if (!child) return Promise.reject(new Error("aetnamem server not running"));
+    if (!child) return Promise.reject(new Error("atmem server not running"));
     const id = this.nextId++;
     const timeout = timeoutMs ?? this.options.defaultTimeoutMs ?? 10_000;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error(`aetnamem ${method} timed out after ${timeout}ms`));
+        reject(new Error(`atmem ${method} timed out after ${timeout}ms`));
       }, timeout);
       this.pending.set(id, { resolve, reject, timer });
       child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n");
@@ -205,7 +205,7 @@ export class AetnamemClient {
     try {
       message = JSON.parse(line);
     } catch {
-      this.options.logError?.(`[aetnamem] unparseable line: ${line.slice(0, 200)}`);
+      this.options.logError?.(`[atmem] unparseable line: ${line.slice(0, 200)}`);
       return;
     }
     if (message.id === undefined) return;
@@ -214,7 +214,7 @@ export class AetnamemClient {
     this.pending.delete(message.id);
     clearTimeout(pending.timer);
     if (message.error) {
-      pending.reject(new Error(`aetnamem rpc error ${message.error.code}: ${message.error.message}`));
+      pending.reject(new Error(`atmem rpc error ${message.error.code}: ${message.error.message}`));
     } else {
       pending.resolve(message.result);
     }

@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from aetnamem import Memory
-from aetnamem.core.keys import initialize_keys, key_status, resolve_database_key
-from aetnamem.core.storage import HouseholdLock, HouseholdPolicy
+from atmem import Memory
+from atmem.core.keys import initialize_keys, key_status, resolve_database_key
+from atmem.core.storage import HouseholdLock, HouseholdPolicy
 
 
 def test_keys_init_is_inert_for_existing_plaintext_database(
@@ -21,7 +21,7 @@ def test_keys_init_is_inert_for_existing_plaintext_database(
         memory.close()
     before = database.read_bytes()
     key_path = tmp_path / "keys" / "db.key"
-    monkeypatch.setattr("aetnamem.core.keys.DEFAULT_KEY_PATH", key_path)
+    monkeypatch.setattr("atmem.core.keys.DEFAULT_KEY_PATH", key_path)
 
     status = initialize_keys(database, backend="file")
 
@@ -44,10 +44,10 @@ def test_keys_init_is_inert_for_existing_plaintext_database(
 def test_environment_key_overrides_recorded_backend(tmp_path: Path, monkeypatch) -> None:
     database = tmp_path / "memory.db"
     key_path = tmp_path / "keys" / "db.key"
-    monkeypatch.setattr("aetnamem.core.keys.DEFAULT_KEY_PATH", key_path)
+    monkeypatch.setattr("atmem.core.keys.DEFAULT_KEY_PATH", key_path)
     initialize_keys(database, backend="file")
     override = "ab" * 32
-    monkeypatch.setenv("AETNAMEM_DB_KEY", override)
+    monkeypatch.setenv("ATMEM_DB_KEY", override)
 
     policy = HouseholdPolicy.load(database)
 

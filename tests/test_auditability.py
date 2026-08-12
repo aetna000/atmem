@@ -5,8 +5,8 @@ from pathlib import Path
 import subprocess
 import sys
 
-from aetnamem import Memory
-from aetnamem.core.canonical import canonical_json, sha256_hex
+from atmem import Memory
+from atmem.core.canonical import canonical_json, sha256_hex
 
 TOOLS_DIR = Path(__file__).resolve().parents[1] / "tools"
 
@@ -91,7 +91,7 @@ def test_deletion_receipt_binds_to_the_audit_chain() -> None:
     )
 
     receipt = result["receipt"]
-    assert receipt["format"] == "aetnamem-deletion-receipt-v1"
+    assert receipt["format"] == "atmem-deletion-receipt-v1"
     assert receipt["purged_record_ids"] == result["record_ids"]
     assert receipt["purged_episode_ids"]
     assert receipt["purged_graph_ids"]
@@ -135,7 +135,7 @@ def test_checkpoint_roundtrip_verifies(tmp_path: Path) -> None:
     memory.remember("user-1", "My favorite color is teal.", session_id="s1")
 
     document = memory.checkpoint(sink_path=sink)
-    assert document["format"] == "aetnamem-checkpoint-v1"
+    assert document["format"] == "atmem-checkpoint-v1"
     assert "user-1" in document["subjects"]
 
     memory.remember("user-1", "My home city is Sydney.", session_id="s2")

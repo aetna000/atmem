@@ -1,6 +1,6 @@
 # Agent Black Box
 
-AetnaMem Agent Black Box records a content-minimizing, tamper-evident flight timeline from the lifecycle hooks exposed by OpenClaw.
+AtMem Agent Black Box records a content-minimizing, tamper-evident flight timeline from the lifecycle hooks exposed by OpenClaw.
 
 It answers a narrow operational question:
 
@@ -27,12 +27,12 @@ Digests are fingerprints, not encryption or anonymization. Someone who can guess
 ## Inspect and export
 
 ```bash
-aetnamem blackbox status
-aetnamem blackbox runs --limit 20
-aetnamem blackbox show RUN_ID
-aetnamem blackbox verify RUN_ID
-aetnamem blackbox export RUN_ID --format json --output flight.json
-aetnamem blackbox export RUN_ID --format text --output flight.txt
+atmem blackbox status
+atmem blackbox runs --limit 20
+atmem blackbox show RUN_ID
+atmem blackbox verify RUN_ID
+atmem blackbox export RUN_ID --format json --output flight.json
+atmem blackbox export RUN_ID --format text --output flight.txt
 ```
 
 The loopback dashboard shows the same recent runs and opens a flight timeline with integrity, coverage and tool-closure details.
@@ -46,10 +46,10 @@ A structurally complete flight means:
 - every observed, correlated `tool.requested` event has a corresponding `tool.completed` event;
 - there are no orphan or uncorrelated tool-completion events.
 
-Tool errors remain visible and produce a separate verdict. Missing hook events produce `incomplete_evidence`; AetnaMem does not infer success from the assistant's words.
+Tool errors remain visible and produce a separate verdict. Missing hook events produce `incomplete_evidence`; AtMem does not infer success from the assistant's words.
 
 ## What it does not mean
 
 A verified flight does not prove that an external real-world outcome occurred. For example, a completed email tool hook proves that the host observed the tool return; proving delivery requires evidence from the mail system. It also does not semantically validate claims in the assistant response.
 
-This is the first experimental layer. Future system-of-record verifiers can bind independently checked outcomes to the same flight without weakening this claim boundary.
+Future system-of-record verifiers can bind independently checked outcomes to the same flight without weakening this claim boundary.

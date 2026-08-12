@@ -7,8 +7,8 @@ from pathlib import Path
 import subprocess
 import sys
 
-from aetnamem import Memory
-from aetnamem.mcp import MCPServer
+from atmem import Memory
+from atmem.mcp import MCPServer
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -42,7 +42,7 @@ def test_initialize_and_tools_list() -> None:
             "params": {"protocolVersion": "2025-06-18", "capabilities": {}},
         }
     )
-    assert init["result"]["serverInfo"]["name"] == "aetnamem"
+    assert init["result"]["serverInfo"]["name"] == "atmem"
     assert init["result"]["protocolVersion"] == "2025-06-18"
 
     assert (
@@ -86,7 +86,7 @@ def test_tool_roundtrip_with_default_subject() -> None:
         server, 3, "memory_forget", {"utterance": "Forget my favorite color."}
     )
     assert forgotten["deleted"] is True
-    assert forgotten["receipt"]["format"] == "aetnamem-deletion-receipt-v1"
+    assert forgotten["receipt"]["format"] == "atmem-deletion-receipt-v1"
 
     verified = _call(server, 4, "memory_verify", {})
     assert verified["valid"] is True
@@ -201,7 +201,7 @@ def test_digest_verified_frozen_openclaw_source_read(tmp_path: Path) -> None:
         fact="Prefer TypeScript.",
         force=True,
         raw={
-            "format": "aetnamem-openclaw-native-source-v1",
+            "format": "atmem-openclaw-native-source-v1",
             "relative_path": "MEMORY.md",
             "snapshot_path": str(source),
             "source_sha256": digest,
@@ -297,7 +297,7 @@ def test_context_pack_over_mcp() -> None:
         "memory_context_pack",
         {"query": "Which tea do I like?"},
     )
-    assert pack["format"] == "aetnamem-context-pack-v1"
+    assert pack["format"] == "atmem-context-pack-v1"
     assert "oolong" in pack["stable_context"]
     assert pack["dynamic_context"] == ""
     assert record_id in pack["stable_record_ids"]
@@ -356,7 +356,7 @@ def test_stdio_transport_end_to_end(tmp_path: Path) -> None:
         [
             sys.executable,
             "-m",
-            "aetnamem.cli",
+            "atmem.cli",
             "mcp",
             "--db",
             str(tmp_path / "mem.db"),
@@ -379,7 +379,7 @@ def test_stdio_transport_end_to_end(tmp_path: Path) -> None:
             return json.loads(process.stdout.readline())
 
         send({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
-        assert receive()["result"]["serverInfo"]["name"] == "aetnamem"
+        assert receive()["result"]["serverInfo"]["name"] == "atmem"
 
         send({"jsonrpc": "2.0", "method": "notifications/initialized"})
         send(

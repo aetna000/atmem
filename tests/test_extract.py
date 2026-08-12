@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aetnamem.extract import extract_facts
+from atmem.extract import extract_facts
 
 
 def test_copular_statement_yields_keyed_fact() -> None:

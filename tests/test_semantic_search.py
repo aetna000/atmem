@@ -10,9 +10,9 @@ from typing import Sequence
 
 import pytest
 
-from aetnamem import Memory
-from aetnamem.investigate import search_evidence, trace_evidence
-from aetnamem.semantic import (
+from atmem import Memory
+from atmem.investigate import search_evidence, trace_evidence
+from atmem.semantic import (
     OllamaEmbedder,
     OpenAICompatibleEmbedder,
     SemanticIndex,
@@ -347,7 +347,7 @@ def test_forget_removes_vectors_and_returns_verified_v2_receipt(
     try:
         forgotten = memory.forget("u1", utterance="Forget my backup email.")
         receipt = forgotten["receipt"]
-        assert receipt["format"] == "aetnamem-deletion-receipt-v2"
+        assert receipt["format"] == "atmem-deletion-receipt-v2"
         assert receipt["semantic_index_cleanup"]["verified_absent"] is True
 
         reopened = SemanticIndex(f"{tmp_path / 'mem.db'}.vectors.db")
@@ -397,7 +397,7 @@ def test_cli_index_build_hybrid_search_and_verify(tmp_path: Path) -> None:
 
     def run(*arguments: str) -> subprocess.CompletedProcess:
         return subprocess.run(
-            [sys.executable, "-m", "aetnamem.cli", *arguments],
+            [sys.executable, "-m", "atmem.cli", *arguments],
             capture_output=True,
             text=True,
             env=environment,
@@ -416,7 +416,7 @@ def test_cli_index_build_hybrid_search_and_verify(tmp_path: Path) -> None:
         "64",
     )
     assert built.returncode == 0, built.stderr
-    assert json.loads(built.stdout)["format"] == "aetnamem-index-build-v1"
+    assert json.loads(built.stdout)["format"] == "atmem-index-build-v1"
 
     searched = run(
         "search",

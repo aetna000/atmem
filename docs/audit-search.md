@@ -3,15 +3,15 @@
 An investigator does not need a memory ID to begin.
 
 ```bash
-aetnamem search memories.db "preferred airport" --subject user-1
-aetnamem trace memories.db "preferred airport" --subject user-1
-aetnamem trace memories.db --record rec_123 --subject user-1
+atmem search memories.db "preferred airport" --subject user-1
+atmem trace memories.db "preferred airport" --subject user-1
+atmem trace memories.db --record rec_123 --subject user-1
 ```
 
 Search covers canonical memories, media observations, source episodes, retrievals and audit events. Filters include status, session, event type, actor and time range. Semantic or hybrid mode can find paraphrases when a verified semantic index is configured.
 
 ```bash
-aetnamem search memories.db "travel preference" --subject user-1 \
+atmem search memories.db "travel preference" --subject user-1 \
   --mode hybrid --since 2026-08-01 --format json --output investigation.json
 ```
 

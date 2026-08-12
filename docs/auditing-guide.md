@@ -3,8 +3,8 @@
 ## Verify integrity
 
 ```bash
-aetnamem verify memories.db --incremental
-aetnamem audit memories.db user-1
+atmem verify memories.db --incremental
+atmem audit memories.db user-1
 python tools/verify_audit.py memories.db --subject user-1
 ```
 
@@ -23,5 +23,5 @@ Use CLI `--format text|json --output FILE` or dashboard export for JSON, NDJSON,
 - Hash chaining detects changes; it does not authenticate the actor by itself.
 - Local timestamps are not trusted time.
 - Imported historical memory may lack source-message or model evidence.
-- AetnaMem cannot delete host-controlled media or provider logs.
+- AtMem cannot delete host-controlled media or provider logs.
 - Subject IDs and investigator labels are meaningful only when the integrating host authenticates them.

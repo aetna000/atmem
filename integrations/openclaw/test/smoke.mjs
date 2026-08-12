@@ -2,12 +2,12 @@
 /**
  * Protocol-level smoke test for the OpenClaw plugin's server contract.
  *
- * Spawns the real `aetnamem mcp` server and drives the exact tool calls the
+ * Spawns the real `atmem mcp` server and drives the exact tool calls the
  * plugin makes (memory_recall_block, memory_capture, memory_recall,
  * memory_forget, memory_observe, memory_forget_artifact), asserting the
  * payload shapes index.ts depends on.
  *
- * Usage: node test/smoke.mjs [--command /path/to/aetnamem]
+ * Usage: node test/smoke.mjs [--command /path/to/atmem]
  */
 
 import { spawn } from "node:child_process";
@@ -18,9 +18,9 @@ import path from "node:path";
 import assert from "node:assert/strict";
 
 const commandIndex = process.argv.indexOf("--command");
-const command = commandIndex > -1 ? process.argv[commandIndex + 1] : "aetnamem";
+const command = commandIndex > -1 ? process.argv[commandIndex + 1] : "atmem";
 
-const dataDir = mkdtempSync(path.join(tmpdir(), "aetnamem-smoke-"));
+const dataDir = mkdtempSync(path.join(tmpdir(), "atmem-smoke-"));
 const dbPath = path.join(dataDir, "mem.db");
 
 const child = spawn(
@@ -64,7 +64,7 @@ async function callTool(name, args) {
 
 try {
   const init = await request("initialize", { protocolVersion: "2025-06-18" });
-  assert.equal(init.result.serverInfo.name, "aetnamem");
+  assert.equal(init.result.serverInfo.name, "atmem");
   child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
 
   // agent_end capture path: user turn runs the pipeline
@@ -126,7 +126,7 @@ try {
   assert.equal(empty.count, 0);
   assert.equal(empty.block, "");
 
-  // aetnamem_search tool path
+  // atmem_search tool path
   const records = await callTool("memory_recall", { query: "favorite color", limit: 5 });
   assert.ok(Array.isArray(records) && records.length === 1);
 
@@ -153,12 +153,12 @@ try {
   assert.equal(artifactForgotten.deleted, true);
   assert.equal(artifactForgotten.receipt.host_file_deleted, false);
 
-  // aetnamem_forget tool path: receipt comes back
+  // atmem_forget tool path: receipt comes back
   const forgotten = await callTool("memory_forget", {
     utterance: "Forget my favorite color.",
   });
   assert.equal(forgotten.deleted, true);
-  assert.equal(forgotten.receipt.format, "aetnamem-deletion-receipt-v1");
+  assert.equal(forgotten.receipt.format, "atmem-deletion-receipt-v1");
 
   console.log("smoke: all OpenClaw plugin server contracts verified");
 } finally {

@@ -6,9 +6,9 @@ import subprocess
 
 import pytest
 
-from aetnamem import Memory
-from aetnamem.control import ControlPlaneManager
-from aetnamem.control.openclaw_native import (
+from atmem import Memory
+from atmem.control import ControlPlaneManager
+from atmem.control.openclaw_native import (
     CUTOVER_NAME,
     NATIVE_BASELINE_MANIFEST_NAME,
     NATIVE_BASELINE_NAME,
@@ -109,7 +109,7 @@ def test_shadow_mirror_imports_native_planes_and_preserves_provenance(
     assert investigation["deliveries"][0]["score"] is not None
     assert investigation["deliveries"][0]["rank"] >= 1
     assert investigation["deliveries"][0]["context_injected_at"] is None
-    assert "AetnaMem record investigation" in format_mirror_record_report(
+    assert "AtMem record investigation" in format_mirror_record_report(
         investigation
     )
     assert investigation["report_sha256"]
@@ -252,15 +252,15 @@ def test_takeover_freezes_native_files_and_restore_restores_them(
     commands: list[list[str]] = []
 
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native.shutil.which",
+        "atmem.control.openclaw_native.shutil.which",
         lambda name: "/fake/openclaw" if name == "openclaw" else None,
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native.sync_mirror",
+        "atmem.control.openclaw_native.sync_mirror",
         lambda _state, **_kwargs: sync_mirror(_state, workspace=workspace),
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._optional_json",
+        "atmem.control.openclaw_native._optional_json",
         lambda arguments: (
             {"enabled": True}
             if "hooks.internal.entries.session-memory" in arguments
@@ -283,20 +283,20 @@ def test_takeover_freezes_native_files_and_restore_restores_them(
         output = "openclaw 2026.7.1-2\n" if arguments[1:] == ["--version"] else ""
         return subprocess.CompletedProcess(arguments, 0, output, "")
 
-    monkeypatch.setattr("aetnamem.control.openclaw_native._set_json", set_json)
-    monkeypatch.setattr("aetnamem.control.openclaw_native._run", run)
+    monkeypatch.setattr("atmem.control.openclaw_native._set_json", set_json)
+    monkeypatch.setattr("atmem.control.openclaw_native._run", run)
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._json_command",
+        "atmem.control.openclaw_native._json_command",
         lambda arguments: (
             {
                 "plugin": {
                     "status": "loaded",
-                    "version": "1.0.0-experimental.6",
+                    "version": "1.0.0",
                     "toolNames": [
                         "memory_search",
                         "memory_get",
                         "memory_remember",
-                        "aetnamem_observe",
+                        "atmem_observe",
                     ],
                 },
                     "typedHooks": [
@@ -324,21 +324,21 @@ def test_takeover_freezes_native_files_and_restore_restores_them(
     assert not (workspace / "MEMORY.md").exists()
     assert not (workspace / "memory").exists()
     assert configured["plugins.slots.memory"] == "none"
-    assert configured["plugins.entries.memory-aetnamem.config.takeoverActive"] is True
+    assert configured["plugins.entries.memory-atmem.config.takeoverActive"] is True
     assert (
-        configured["plugins.entries.memory-aetnamem.config.dbPath"]
+        configured["plugins.entries.memory-atmem.config.dbPath"]
         == mirror["mirror_db"]
     )
-    assert configured["plugins.entries.memory-aetnamem.config.nativeWorkspace"] == str(
+    assert configured["plugins.entries.memory-atmem.config.nativeWorkspace"] == str(
         workspace
     )
     assert (
-        configured["plugins.entries.memory-aetnamem.hooks.allowConversationAccess"]
+        configured["plugins.entries.memory-atmem.hooks.allowConversationAccess"]
         is True
     )
     assert configured["tools.alsoAllow"] == [
         "memory_remember",
-        "aetnamem_observe",
+        "atmem_observe",
     ]
     assert any(command[1:3] == ["hooks", "disable"] for command in commands)
 
@@ -400,15 +400,15 @@ def test_restore_preserves_post_switch_native_files_before_restore(
     configured: dict[str, object] = {}
 
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native.shutil.which",
+        "atmem.control.openclaw_native.shutil.which",
         lambda name: "/fake/openclaw" if name == "openclaw" else None,
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native.sync_mirror",
+        "atmem.control.openclaw_native.sync_mirror",
         lambda _state, **_kwargs: sync_mirror(_state, workspace=workspace),
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._optional_json",
+        "atmem.control.openclaw_native._optional_json",
         lambda arguments: (
             {"enabled": True}
             if "hooks.internal.entries.session-memory" in arguments
@@ -422,11 +422,11 @@ def test_restore_preserves_post_switch_native_files_before_restore(
         ),
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._set_json",
+        "atmem.control.openclaw_native._set_json",
         lambda _executable, key, value: configured.__setitem__(key, value),
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._run",
+        "atmem.control.openclaw_native._run",
         lambda arguments, **_kwargs: subprocess.CompletedProcess(
             arguments,
             0,
@@ -435,17 +435,17 @@ def test_restore_preserves_post_switch_native_files_before_restore(
         ),
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._json_command",
+        "atmem.control.openclaw_native._json_command",
         lambda arguments: (
             {
                 "plugin": {
                     "status": "loaded",
-                    "version": "1.0.0-experimental.6",
+                    "version": "1.0.0",
                     "toolNames": [
                         "memory_search",
                         "memory_get",
                         "memory_remember",
-                        "aetnamem_observe",
+                        "atmem_observe",
                     ],
                 },
                     "typedHooks": [
@@ -534,19 +534,19 @@ def test_takeover_refuses_unverifiable_native_memory_without_mutation(
     mirror = sync_mirror(manager.state(), workspace=workspace)
     (workspace / "memory" / "linked.md").symlink_to(workspace / "MEMORY.md")
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native.shutil.which",
+        "atmem.control.openclaw_native.shutil.which",
         lambda name: "/fake/openclaw" if name == "openclaw" else None,
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native.sync_mirror",
+        "atmem.control.openclaw_native.sync_mirror",
         lambda _state, **_kwargs: mirror,
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._optional_json",
+        "atmem.control.openclaw_native._optional_json",
         lambda _arguments: None,
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._run",
+        "atmem.control.openclaw_native._run",
         lambda arguments, **_kwargs: subprocess.CompletedProcess(
             arguments,
             0,
@@ -555,11 +555,11 @@ def test_takeover_refuses_unverifiable_native_memory_without_mutation(
         ),
     )
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._json_command",
+        "atmem.control.openclaw_native._json_command",
         lambda _arguments: {
             "plugin": {
                 "status": "loaded",
-                "version": "1.0.0-experimental.6",
+                "version": "1.0.0",
             }
         },
     )
@@ -590,7 +590,7 @@ def test_capability_check_blocks_native_corpora_that_takeover_cannot_preserve(
         return None
 
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native._optional_json",
+        "atmem.control.openclaw_native._optional_json",
         optional,
     )
     report = inspect_native_memory_capabilities("/fake/openclaw")

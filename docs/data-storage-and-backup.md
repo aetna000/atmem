@@ -3,9 +3,9 @@
 Default locations:
 
 ```text
-~/.aetnamem/memories.db
-~/.aetnamem/control-plane.json
-~/.aetnamem/migrations/<migration-id>/
+~/.atmem/memories.db
+~/.atmem/control-plane.json
+~/.atmem/migrations/<migration-id>/
 ```
 
 The migration directory contains the isolated OpenClaw mirror, source snapshots, restore material and control evidence. Dashboard service metadata is separate from memory; removing the dashboard daemon does not delete memory.
@@ -13,8 +13,8 @@ The migration directory contains the isolated OpenClaw mirror, source snapshots,
 Before copying a SQLite database, stop active writers or use SQLite's online backup mechanism. Copy the database together with `-wal` and `-shm` only when following SQLite's documented procedure. After restoration, run:
 
 ```bash
-aetnamem verify /path/to/memories.db --incremental
-aetnamem control status
+atmem verify /path/to/memories.db --incremental
+atmem control status
 ```
 
 Protect backups as personal data. A deletion from the live database does not erase independent backups; retention and backup expiry remain deployment responsibilities.

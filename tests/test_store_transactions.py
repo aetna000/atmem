@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from aetnamem import Memory
+from atmem import Memory
 
 
 def test_remember_and_audit_append_roll_back_together(monkeypatch: pytest.MonkeyPatch) -> None:

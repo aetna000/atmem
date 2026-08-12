@@ -1,9 +1,9 @@
 {
-  "id": "memory-aetnamem",
-  "name": "Memory (aetnamem)",
-  "description": "OpenClaw bridge installed and managed by the AetnaMem memory control plane.",
-  "version": "1.0.0-experimental.6",
-  "commandAliases": ["memory-aetnamem"],
+  "id": "memory-atmem",
+  "name": "Memory (atmem)",
+  "description": "OpenClaw bridge installed and managed by the AtMem memory control plane.",
+  "version": "1.0.0",
+  "commandAliases": ["memory-atmem"],
   "activation": {
     "onStartup": true
   },
@@ -12,10 +12,10 @@
       "memory_search",
       "memory_get",
       "memory_remember",
-      "aetnamem_search",
-      "aetnamem_forget",
-      "aetnamem_observe",
-      "aetnamem_forget_artifact"
+      "atmem_search",
+      "atmem_forget",
+      "atmem_observe",
+      "atmem_forget_artifact"
     ]
   },
   "configSchema": {
@@ -24,8 +24,8 @@
     "properties": {
       "command": {
         "type": "string",
-        "default": "aetnamem",
-        "description": "Executable that serves the engine (absolute path if not on PATH, e.g. /path/to/venv/bin/aetnamem). Use a python binary together with commandArgs [\"-m\",\"aetnamem.cli\",\"mcp\",...] as an alternative."
+        "default": "atmem",
+        "description": "Executable that serves the engine (absolute path if not on PATH, e.g. /path/to/venv/bin/atmem). Use a python binary together with commandArgs [\"-m\",\"atmem.cli\",\"mcp\",...] as an alternative."
       },
       "commandArgs": {
         "type": "array",
@@ -34,8 +34,8 @@
       },
       "dbPath": {
         "type": "string",
-        "default": "~/.aetnamem/memories.db",
-        "description": "SQLite database path (also auditable from outside OpenClaw via `aetnamem verify`)"
+        "default": "~/.atmem/memories.db",
+        "description": "SQLite database path (also auditable from outside OpenClaw via `atmem verify`)"
       },
       "subject": {
         "type": "string",
@@ -49,7 +49,7 @@
       },
       "nativeWorkspace": {
         "type": "string",
-        "description": "Absolute OpenClaw workspace path protected during verified takeover. Set by `aetnamem control activate`; do not configure manually."
+        "description": "Absolute OpenClaw workspace path protected during verified takeover. Set by `atmem control activate`; do not configure manually."
       },
       "recall": {
         "type": "object",
@@ -91,7 +91,7 @@
         "type": "object",
         "description": "Agent-callable explicit memory tools; automatic recall/capture continue when disabled",
         "properties": {
-          "enabled": { "type": "boolean", "default": true, "description": "Register aetnamem_search and aetnamem_forget tool schemas" }
+          "enabled": { "type": "boolean", "default": true, "description": "Register atmem_search and atmem_forget tool schemas" }
         }
       },
       "controlPlane": {
@@ -105,13 +105,13 @@
           },
           "statePath": {
             "type": "string",
-            "default": "~/.aetnamem/control-plane.json",
-            "description": "Digest-bound control file written by `aetnamem control`."
+            "default": "~/.atmem/control-plane.json",
+            "description": "Digest-bound control file written by `atmem control`."
           },
           "blackboxEnabled": {
             "type": "boolean",
             "default": false,
-            "description": "Record content-minimizing agent flights through the private control protocol. Managed automatically by the AetnaMem installer."
+            "description": "Record content-minimizing agent flights through the private control protocol. Managed automatically by the AtMem installer."
           }
         }
       }

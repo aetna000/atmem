@@ -1,15 +1,15 @@
 # Semantic search
 
-AetnaMem always keeps canonical memory in SQLite. Embeddings are an optional, derived investigator index for finding paraphrases and conceptually related memories.
+AtMem always keeps canonical memory in SQLite. Embeddings are an optional, derived investigator index for finding paraphrases and conceptually related memories.
 
 ```bash
-python -m pip install "aetnamem[semantic]"
-aetnamem index build memories.db --subject user-1 --embedder sentence-transformers --model all-MiniLM-L6-v2
-aetnamem index verify memories.db --subject user-1
-aetnamem search memories.db "travel preference" --subject user-1 --mode hybrid
+python -m pip install "atmem[semantic]"
+atmem index build memories.db --subject user-1 --embedder sentence-transformers --model all-MiniLM-L6-v2
+atmem index verify memories.db --subject user-1
+atmem search memories.db "travel preference" --subject user-1 --mode hybrid
 ```
 
-Ollama, OpenAI-compatible and deterministic hashing providers are also supported; use `aetnamem index build --help` for their exact options.
+Ollama, OpenAI-compatible and deterministic hashing providers are also supported; use `atmem index build --help` for their exact options.
 
 ## Integrity model
 

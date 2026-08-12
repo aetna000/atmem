@@ -1,6 +1,6 @@
 # Current product status
 
-Version 1.0.0a6 is an experimental prerelease of the AetnaMem Agent Black Box and memory control plane.
+Version 1.0.0 is the stable release of the AtMem Agent Black Box and memory control plane.
 
 | Capability | Status |
 | --- | --- |
@@ -9,11 +9,11 @@ Version 1.0.0a6 is an experimental prerelease of the AetnaMem Agent Black Box an
 | Typed text observations of host-controlled media | Implemented |
 | MCP interface | Model-agnostic |
 | Dashboard search, review, audit exploration and exports | Implemented, loopback only |
-| Content-minimizing Agent Black Box flight records | Experimental, OpenClaw hooks |
-| Timeline integrity and observed tool-hook closure verification | Experimental |
+| Content-minimizing Agent Black Box flight records | Implemented, OpenClaw hooks |
+| Timeline integrity and observed tool-hook closure verification | Implemented |
 | Semantic claim validation or external outcome proof | Not implemented |
-| Complete native-memory copy and ongoing shadow for OpenClaw | Experimental |
-| Verified activation and restore for OpenClaw | Experimental |
+| Complete native-memory copy and ongoing shadow for OpenClaw | Implemented |
+| Verified activation and restore for OpenClaw | Implemented |
 | Complete reversible switch for other agent hosts | Not yet implemented |
 
-The exact product boundary is: **AetnaMem’s memory engine is model-agnostic, but Agent Black Box capture and the complete reversible memory switch are currently OpenClaw-specific.**
+The exact product boundary is: **AtMem’s memory engine is model-agnostic, but Agent Black Box capture and the complete reversible memory switch are currently OpenClaw-specific.**

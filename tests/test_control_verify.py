@@ -5,16 +5,16 @@ import json
 import shutil
 import subprocess
 
-from aetnamem.control import ControlMode, ControlPlaneManager
-from aetnamem.control.compat import evaluate_host_version, parse_openclaw_version
-from aetnamem.control.openclaw_native import (
+from atmem.control import ControlMode, ControlPlaneManager
+from atmem.control.compat import evaluate_host_version, parse_openclaw_version
+from atmem.control.openclaw_native import (
     CUTOVER_NAME,
     _native_snapshot_digest,
     _tree_manifest,
     mirror_status,
     sync_mirror,
 )
-from aetnamem.control.verify import run_verification, verification_exit_code
+from atmem.control.verify import run_verification, verification_exit_code
 
 
 def _setup(tmp_path: Path) -> tuple[ControlPlaneManager, Path]:
@@ -35,20 +35,20 @@ def _host(
     *,
     slot: str = "memory-native",
     version: str = "2026.7.1-2",
-    bridge_version: str = "1.0.0-experimental.6",
+    bridge_version: str = "1.0.0",
 ) -> dict[str, object]:
     config: dict[str, object] = {
         "plugins.slots.memory": slot,
-        "plugins.entries.memory-aetnamem.enabled": True,
-        "plugins.entries.memory-aetnamem.config.controlPlane": {"enabled": True},
-        "plugins.entries.memory-aetnamem.config.takeoverActive": False,
+        "plugins.entries.memory-atmem.enabled": True,
+        "plugins.entries.memory-atmem.config.controlPlane": {"enabled": True},
+        "plugins.entries.memory-atmem.config.takeoverActive": False,
     }
     monkeypatch.setattr(
-        "aetnamem.control.verify.shutil.which",
+        "atmem.control.verify.shutil.which",
         lambda name: "/fake/openclaw" if name == "openclaw" else None,
     )
     monkeypatch.setattr(
-        "aetnamem.control.verify._run",
+        "atmem.control.verify._run",
         lambda arguments, **_kwargs: subprocess.CompletedProcess(
             arguments, 0, f"openclaw {version}\n", ""
         ),
@@ -61,7 +61,7 @@ def _host(
             return {"rpc": {"ok": True}}
         return config.get(arguments[3])
 
-    monkeypatch.setattr("aetnamem.control.verify._optional_json", optional)
+    monkeypatch.setattr("atmem.control.verify._optional_json", optional)
     return config
 
 
@@ -69,7 +69,7 @@ def _active_setup(tmp_path: Path, monkeypatch) -> tuple[ControlPlaneManager, Pat
     manager, workspace = _setup(tmp_path)
     config = _host(monkeypatch, slot="none")
     monkeypatch.setattr(
-        "aetnamem.control.openclaw_native.mirror_status",
+        "atmem.control.openclaw_native.mirror_status",
         lambda state: mirror_status(state, refresh=False),
     )
     state = manager.transition(ControlMode.ACTIVE)
@@ -81,11 +81,11 @@ def _active_setup(tmp_path: Path, monkeypatch) -> tuple[ControlPlaneManager, Pat
     applied = {
         "plugins.slots.memory": "none",
         "hooks.internal.entries.session-memory": {"enabled": False},
-        "plugins.entries.memory-aetnamem.enabled": True,
+        "plugins.entries.memory-atmem.enabled": True,
     }
     config.update(applied)
     cutover = {
-        "format": "aetnamem-openclaw-cutover-v1",
+        "format": "atmem-openclaw-cutover-v1",
         "migration_id": state.migration_id,
         "status": "active",
         "workspace": str(workspace),

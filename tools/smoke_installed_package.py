@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the installed AetnaMem wheel outside the source checkout."""
+"""Exercise the installed AtMem wheel outside the source checkout."""
 
 from __future__ import annotations
 
@@ -20,20 +20,20 @@ def json_run(*args: str) -> object:
 
 
 def main() -> None:
-    distribution = importlib.metadata.distribution("aetnamem")
-    assert distribution.version == "1.0.0a6"
+    distribution = importlib.metadata.distribution("atmem")
+    assert distribution.version == "1.0.0"
     scripts = {
         entry.name: entry.value
         for entry in distribution.entry_points
         if entry.group == "console_scripts"
     }
-    assert scripts == {"aetnamem": "aetnamem.cli:main"}, scripts
+    assert scripts == {"atmem": "atmem.cli:main"}, scripts
 
-    executable = Path(sys.executable).with_name("aetnamem")
+    executable = Path(sys.executable).with_name("atmem")
     assert executable.is_file()
-    assert "1.0.0a6" in run(str(executable), "--version").stdout
+    assert "1.0.0" in run(str(executable), "--version").stdout
 
-    with tempfile.TemporaryDirectory(prefix="aetnamem-wheel-smoke-") as temp:
+    with tempfile.TemporaryDirectory(prefix="atmem-wheel-smoke-") as temp:
         database = Path(temp) / "memory.db"
         json_run(
             str(executable), "remember", str(database), "release-smoke",

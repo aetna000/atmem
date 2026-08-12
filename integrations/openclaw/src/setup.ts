@@ -63,45 +63,45 @@ export function setupWrites(options: SetupOptions): Array<[string, string, boole
     tools: { enabled: true },
   };
   return [
-    ["plugins.entries.memory-aetnamem.enabled", "true", true],
-    ["plugins.entries.memory-aetnamem.hooks.allowConversationAccess", "true", true],
+    ["plugins.entries.memory-atmem.enabled", "true", true],
+    ["plugins.entries.memory-atmem.hooks.allowConversationAccess", "true", true],
     [
-      "plugins.entries.memory-aetnamem.config.command",
+      "plugins.entries.memory-atmem.config.command",
       JSON.stringify(config.command),
       true,
     ],
     [
-      "plugins.entries.memory-aetnamem.config.dbPath",
+      "plugins.entries.memory-atmem.config.dbPath",
       JSON.stringify(config.dbPath),
       true,
     ],
     [
-      "plugins.entries.memory-aetnamem.config.subject",
+      "plugins.entries.memory-atmem.config.subject",
       JSON.stringify(config.subject),
       true,
     ],
     [
-      "plugins.entries.memory-aetnamem.config.recall",
+      "plugins.entries.memory-atmem.config.recall",
       JSON.stringify(config.recall),
       true,
     ],
     [
-      "plugins.entries.memory-aetnamem.config.persona",
+      "plugins.entries.memory-atmem.config.persona",
       JSON.stringify(config.persona),
       true,
     ],
     [
-      "plugins.entries.memory-aetnamem.config.capture",
+      "plugins.entries.memory-atmem.config.capture",
       JSON.stringify(config.capture),
       true,
     ],
     [
-      "plugins.entries.memory-aetnamem.config.cacheAware",
+      "plugins.entries.memory-atmem.config.cacheAware",
       JSON.stringify(config.cacheAware),
       true,
     ],
     [
-      "plugins.entries.memory-aetnamem.config.tools",
+      "plugins.entries.memory-atmem.config.tools",
       JSON.stringify(config.tools),
       true,
     ],
@@ -115,7 +115,7 @@ export async function runSetup(
   if (!options.subject.trim()) throw new Error("--subject must not be empty");
   if (!executableExists(options.command)) {
     throw new Error(
-      `AetnaMem executable not found: ${options.command}. Run: python3 -m pip install --upgrade aetnamem`,
+      `AtMem executable not found: ${options.command}. Run: python3 -m pip install --upgrade atmem`,
     );
   }
 
@@ -140,7 +140,7 @@ export async function runSetup(
   }
 
   process.stdout.write(
-    "AetnaMem bounded recall and capture are configured. " +
-      "Use `aetnamem openclaw install` for verified shadowing and reversible activation.\n",
+    "AtMem bounded recall and capture are configured. " +
+      "Use `atmem openclaw install` for verified shadowing and reversible activation.\n",
   );
 }

@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import plugin from "../dist/index.js";
-import { AetnamemClient } from "../dist/src/rpc-client.js";
+import { AtmemClient } from "../dist/src/rpc-client.js";
 
 const repoRoot = path.resolve(import.meta.dirname, "../../..");
 process.env.PYTHONPATH = [repoRoot, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
@@ -47,7 +47,7 @@ function fakeApi(config, toolContext = {}) {
 }
 
 function controlCli(...args) {
-  const result = spawnSync("aetnamem", ["control", ...args, "--json"], {
+  const result = spawnSync("atmem", ["control", ...args, "--json"], {
     encoding: "utf8",
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -55,7 +55,7 @@ function controlCli(...args) {
 }
 
 function blackboxCli(...args) {
-  const result = spawnSync("python", ["-m", "aetnamem.cli", "blackbox", ...args, "--json"], {
+  const result = spawnSync("python", ["-m", "atmem.cli", "blackbox", ...args, "--json"], {
     encoding: "utf8",
     cwd: repoRoot,
     env: { ...process.env, PYTHONPATH: repoRoot },
@@ -65,13 +65,13 @@ function blackboxCli(...args) {
 }
 
 
-const dataDir = mkdtempSync(path.join(tmpdir(), "aetnamem-hooks-"));
+const dataDir = mkdtempSync(path.join(tmpdir(), "atmem-hooks-"));
 const dbPath = path.join(dataDir, "memory.db");
 const mediaRoot = path.join(dataDir, "openclaw-media");
 mkdirSync(mediaRoot);
-process.env.AETNAMEM_OPENCLAW_MEDIA_ROOT = mediaRoot;
+process.env.ATMEM_OPENCLAW_MEDIA_ROOT = mediaRoot;
 const base = {
-  command: "aetnamem",
+  command: "atmem",
   commandArgs: ["mcp", "--db", dbPath, "--subject", "hook-user"],
   dbPath,
   subject: "hook-user",
@@ -82,14 +82,14 @@ const base = {
   tools: { enabled: true },
 };
 
-const missingEngine = new AetnamemClient({
-  command: `aetnamem-deliberately-missing-${process.pid}`,
+const missingEngine = new AtmemClient({
+  command: `atmem-deliberately-missing-${process.pid}`,
   args: ["mcp"],
   defaultTimeoutMs: 1000,
 });
 await assert.rejects(
   missingEngine.hasTool("memory_recall"),
-  /engine executable .* was not found.*Install the engine first.*pip install aetnamem/s,
+  /engine executable .* was not found.*Install the engine first.*pip install atmem/s,
 );
 missingEngine.close();
 
@@ -101,7 +101,7 @@ const beforeWrite = runtime.hooks.get("before_message_write");
 try {
   assert.equal(runtime.tools.size, 6);
 
-  const observe = runtime.tools.get("aetnamem_observe");
+  const observe = runtime.tools.get("atmem_observe");
   const attachmentBytes = Buffer.from("exact uploaded image bytes");
   const attachmentPath = path.join(mediaRoot, "upload.png");
   writeFileSync(attachmentPath, attachmentBytes);
@@ -137,7 +137,7 @@ try {
   const separateRuntime = fakeApi(base);
   try {
     const crossRuntimeObserved = await separateRuntime.tools
-      .get("aetnamem_observe")
+      .get("atmem_observe")
       .execute("observe-cross-runtime-1", {
         text: "The separately executed tool can resolve the geometric logo upload.",
         modality: "image",
@@ -172,7 +172,7 @@ try {
   const webchatRuntime = fakeApi(base, { runId: "webchat-run-1" });
   try {
     const webchatObserved = await webchatRuntime.tools
-      .get("aetnamem_observe")
+      .get("atmem_observe")
       .execute("observe-webchat-runtime-1", {
         text: "The webchat upload is available through trusted structured metadata.",
         modality: "image",
@@ -188,7 +188,7 @@ try {
     for (const service of webchatRuntime.services) await service.stop?.();
   }
 
-  const forgetArtifact = runtime.tools.get("aetnamem_forget_artifact");
+  const forgetArtifact = runtime.tools.get("atmem_forget_artifact");
   const artifactForgotten = await forgetArtifact.execute("forget-artifact-1", {
     media_sha256: autoObserved.details.mediaSha256,
     artifact_id: autoObserved.details.artifactId,
@@ -227,7 +227,7 @@ try {
   });
   const searchPayload = JSON.parse(searchResult.content[0].text);
   assert.ok(searchPayload.results.length >= 1);
-  assert.match(searchPayload.results[0].path, /^aetnamem:\/\/record\/rec_/);
+  assert.match(searchPayload.results[0].path, /^atmem:\/\/record\/rec_/);
   assert.equal(typeof searchPayload.results[0].score, "number");
 
   const compatibleGet = runtime.tools.get("memory_get");
@@ -252,7 +252,7 @@ try {
   assert.ok(corrected.appendSystemContext.includes("blue"));
   assert.ok(!corrected.appendSystemContext.includes("teal"));
 
-  const forget = runtime.tools.get("aetnamem_forget");
+  const forget = runtime.tools.get("atmem_forget");
   const forgotten = await forget.execute("forget-1", {
     utterance: "Forget my favorite color.",
   });
@@ -308,7 +308,7 @@ try {
     { prompt: "What do I remember about my favorite color?" },
     { sessionKey: "takeover-1" },
   );
-  assert.ok(guided.appendSystemContext.includes("<aetnamem_memory_provider>"));
+  assert.ok(guided.appendSystemContext.includes("<atmem_memory_provider>"));
   assert.ok(guided.appendSystemContext.includes("MEMORY.md and memory/*"));
   assert.ok(guided.appendSystemContext.includes("Use memory_search"));
   assert.ok(guided.appendSystemContext.includes("intentionally unavailable"));
@@ -336,7 +336,7 @@ try {
   assert.equal(rememberedPayload.fact, "User likes blue cars.");
   const blueGet = await takeover.tools.get("memory_get").execute(
     "get-blue",
-    { path: `aetnamem://record/${rememberedPayload.record_id}` },
+    { path: `atmem://record/${rememberedPayload.record_id}` },
   );
   assert.match(blueGet.content[0].text, /User likes blue cars\./);
   const beforeTool = takeover.hooks.get("before_tool_call");

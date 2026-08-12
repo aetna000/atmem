@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from aetnamem import Memory
-from aetnamem.core.canonical import sha256_hex
+from atmem import Memory
+from atmem.core.canonical import sha256_hex
 
 
 def test_capture_user_turn_runs_write_pipeline() -> None:
@@ -134,7 +134,7 @@ def test_context_pack_is_host_neutral_bounded_and_fully_audited() -> None:
         "u1", "What is my favorite color?", session_id="s1"
     )
 
-    assert pack["format"] == "aetnamem-context-pack-v1"
+    assert pack["format"] == "atmem-context-pack-v1"
     assert "teal" in pack["stable_context"]
     # Query-specific recall does not repeat a fact already present in the
     # stable prefix, reducing uncached turn-tail material.

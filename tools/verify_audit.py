@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Standalone aetnamem audit verifier.
+"""Standalone atmem audit verifier.
 
-Deliberately imports nothing from aetnamem: it is an independent
+Deliberately imports nothing from atmem: it is an independent
 implementation of docs/audit-log-spec.md using only the Python standard
 library, so an auditor can check a database without trusting the engine's
 own code. Exit code 0 means every checked chain (and checkpoint) verified.

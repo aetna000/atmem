@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def _run(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        [sys.executable, "-m", "aetnamem.cli", *args],
+        [sys.executable, "-m", "atmem.cli", *args],
         capture_output=True,
         text=True,
         env={**os.environ, "PYTHONPATH": str(ROOT)},
@@ -23,7 +23,7 @@ def test_cli_version_reports_installed_distribution_version() -> None:
     result = _run("--version")
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == f"aetnamem {version('aetnamem')}"
+    assert result.stdout.strip() == f"atmem {version('atmem')}"
 
 
 def test_cli_remember_recall_forget_roundtrip(tmp_path: Path) -> None:
@@ -41,7 +41,7 @@ def test_cli_remember_recall_forget_roundtrip(tmp_path: Path) -> None:
     assert forgotten.returncode == 0
     payload = json.loads(forgotten.stdout)
     assert payload["deleted"] is True
-    assert payload["receipt"]["format"] == "aetnamem-deletion-receipt-v1"
+    assert payload["receipt"]["format"] == "atmem-deletion-receipt-v1"
 
     listed = _run("list", db, "user-1")
     assert json.loads(listed.stdout) == []
@@ -100,7 +100,7 @@ def test_cli_read_only_search_trace_and_report_files(tmp_path: Path) -> None:
     )
     assert searched.returncode == 0, searched.stderr
     search_report = json.loads(searched.stdout)
-    assert search_report["format"] == "aetnamem-search-v1"
+    assert search_report["format"] == "atmem-search-v1"
     assert search_report["audit_chain_valid"] is True
     assert any(
         item["kind"] == "memory" and item["id"] == record_id
@@ -129,7 +129,7 @@ def test_cli_read_only_search_trace_and_report_files(tmp_path: Path) -> None:
     )
     assert traced.returncode == 0, traced.stderr
     trace_report = json.loads(json_path.read_text())
-    assert trace_report["format"] == "aetnamem-trace-v1"
+    assert trace_report["format"] == "atmem-trace-v1"
     kinds = {item["kind"] for item in trace_report["timeline"]}
     assert {"memory", "retrieval", "event"} <= kinds
     assert any(

@@ -3,8 +3,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from aetnamem import Memory
-from aetnamem.graph import GRAPH_EXTRACTOR_VERSION
+from atmem import Memory
+from atmem.graph import GRAPH_EXTRACTOR_VERSION
 
 
 def test_records_derive_entities_aliases_and_edges() -> None:
