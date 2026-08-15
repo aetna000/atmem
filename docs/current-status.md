@@ -1,6 +1,6 @@
 # Current product status
 
-Version 2.0.0 is the stable release of the AtMem Agent Black Box and memory control plane.
+Version 2.0.1 is the stable release of the AtMem Agent Black Box and memory control plane.
 
 | Capability | Status |
 | --- | --- |

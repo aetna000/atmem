@@ -361,7 +361,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         "refresh_openclaw_bridge_and_test",
         lambda **_kwargs: {
             "refreshed": True,
-            "bridge_version": "2.0.0",
+            "bridge_version": "2.0.1",
             "test_flight": {
                 "run_id": "fresh-run",
                 "verdict": "completed_successfully",
@@ -374,7 +374,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         "openclaw_bridge_refresh_status",
         lambda: {
             "available": True,
-            "pinned_version": "2.0.0",
+            "pinned_version": "2.0.1",
             "installed_version": "1.0.0",
         },
     )
@@ -387,7 +387,16 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
     opener = build_opener()
     try:
         assert opener.open(f"{base}/").read() == b"<html>safe</html>"
+        logo = opener.open(f"{base}/assets/atmem.jpg").read()
+        assert logo.startswith(b"\xff\xd8\xff")
+        assert hashlib.sha256(logo).hexdigest() == (
+            "62162f08e28144079c80389e9ff89b568841333a82cff49d891e2ae39afb6af4"
+        )
         assert opener.open(f"{base}/api/status").status == 200
+        product = json.loads(opener.open(f"{base}/api/product").read())
+        assert product["atmem_pip_version"]
+        assert product["atmem_npm_version"] == "2.0.1"
+        assert product["x_url"] == "https://x.com/AtMemX"
         bridge_status = json.loads(
             opener.open(f"{base}/api/bridge/status").read()
         )
@@ -427,6 +436,13 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
             ).read()
         )
         assert flight["timeline_chain_valid"] is True
+        story = json.loads(
+            opener.open(
+                f"{base}/api/blackbox/story?run_id=dashboard-run"
+            ).read()
+        )
+        assert story["format"] == "atmem-local-flight-story-v1"
+        assert story["run_id"] == "dashboard-run"
         exported = opener.open(
             f"{base}/api/blackbox/export?run_id=dashboard-run&format=text"
         ).read()
@@ -497,6 +513,8 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     assert 'id="query"' in html
     assert "Activate AtMem" in html
     assert "Restore OpenClaw" in html
+    assert 'classList.toggle("danger",isActive||needsRecovery)' in html
+    assert "--danger-action:#d92d20" in html
     assert 'id="progress"' in html
     assert 'id="auditorBackdrop"' in html
     assert "/api/mirror/record?record_id=" in html
@@ -508,14 +526,32 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     assert 'text("auditorTitle","Memory record")' in html
     assert "Stored memory" in html
     assert 'document.body.style.overflow="hidden"' in html
-    assert "Needs approval" in html
+    assert "Memory decisions" in html
     assert "Approve description as memory" in html
     assert "Source image being reviewed" in html
     assert "What AtMem will remember" in html
     assert "not the image pixels" in html
     assert "image.src=row.media.preview_url" in html
     assert "Star on GitHub" in html
+    assert 'src="/assets/atmem.jpg"' in html
+    assert "AtMem</strong>" in html
+    assert "Aetna</span>Mem" not in html
+    assert "#2f2b29" in html
+    assert 'id="themeToggle"' in html
+    assert 'data-theme="light"' in html
+    assert 'data-theme="dark"' in html
+    assert 'localStorage.setItem("atmem-theme",theme)' in html
+    assert 'class="brandmark"' in html
+    assert 'class="zeros"' in html
+    assert "function loadingNode" in html
     assert "AtMem — governed memory for AI agents" in html
+    assert 'id="versionOpenClaw"' in html
+    assert 'id="versionPip"' in html
+    assert 'id="versionNpm"' in html
+    assert "Installed versions" in html
+    assert "https://x.com/AtMemX" in html
+    assert "@AtMemX" in html
+    assert 'get("/api/product")' in html
     assert "https://github.com/aetna000/atmem" in html
     assert "OpenClaw guide" in html
     assert "Audit guide" in html
@@ -526,16 +562,43 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     assert 'setInterval(refreshReviews,5000)' in html
     assert "Audit Explorer" in html
     assert "Agent Black Box" in html
-    assert "What needs your attention" in html
-    assert "Did the flight finish?" in html
-    assert "Did tools and outcomes work?" in html
-    assert "Was context and model evidence correct?" in html
-    assert "Why this needs attention" in html
+    assert "What happened most recently?" in html
+    assert "Agent memory control" in html
+    assert "Evidence workspace" in html
+    assert "Live local evidence" in html
+    assert "Investigation sections" in html
+    assert "Healthy — no action needed" in html
+    assert "Flight completed" in html
+    assert "Tools worked" in html
+    assert "Audit evidence complete" in html
+    assert "Past activity — not a current alert" in html
+    assert "What happened" in html
+    assert "Impact, cost and risk" in html
+    assert "Show technical evidence, IDs and hashes" in html
+    assert "How this memory was used" in html
+    assert "Used in a model request" in html
+    assert "Considered but not used" in html
+    assert "Shown in dashboard search — no model involved" in html
+    assert "This was a read-only investigation" in html
+    assert "Show technical record evidence, IDs and hashes" in html
+    assert "Back to flight" in html
+    assert "OpenClaw received this request" in html
+    assert "Compromise and outcome proof" in html
+    assert "latestPoints=latest?(latest.attention_points||[]):[]" in html
+    assert "Latest flight:" in html
+    assert "What happened:" in html
+    assert "Next action:" in html
+    assert "Inspect this flight" in html
     assert "Upgrade bridge &amp; run test" in html
     assert "/api/bridge/refresh-test" in html
     assert "/api/bridge/status" in html
-    assert "/api/blackbox/runs?limit=20" in html
+    assert "/api/blackbox/runs?limit=500" in html
+    assert "Yesterday" in html
+    assert "All recorded" in html
+    assert "Search flights" in html
+    assert "Searching request, response, tools, websites and audit metadata" in html
     assert "/api/blackbox/flight?run_id=" in html
+    assert "/api/blackbox/story?run_id=" in html
     assert "/api/blackbox/export?run_id=" in html
     assert "not raw prompts, responses, tool parameters or results" in html
     assert "/api/mirror/audit?" in html

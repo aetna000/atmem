@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib.metadata import PackageNotFoundError, version
+from importlib.resources import files
 import json
 import secrets
 from typing import Any
@@ -44,8 +46,38 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if parsed.path == "/assets/atmem.jpg":
+            body = files("atmem.control").joinpath("assets/atmem.jpg").read_bytes()
+            self.send_response(HTTPStatus.OK)
+            self._security_headers()
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "public, max-age=86400")
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if parsed.path == "/api/session":
             self._json(HTTPStatus.OK, {"csrf_token": self.server.csrf_token})
+            return
+        if parsed.path == "/api/product":
+            from atmem.openclaw_install import (
+                OPENCLAW_PLUGIN_PACKAGE,
+                OPENCLAW_PLUGIN_VERSION,
+            )
+
+            try:
+                pip_version = version("atmem")
+            except PackageNotFoundError:
+                pip_version = "development"
+            self._json(
+                HTTPStatus.OK,
+                {
+                    "atmem_pip_version": pip_version,
+                    "atmem_npm_package": OPENCLAW_PLUGIN_PACKAGE,
+                    "atmem_npm_version": OPENCLAW_PLUGIN_VERSION,
+                    "x_url": "https://x.com/AtMemX",
+                },
+            )
             return
         if parsed.path == "/api/status":
             self._json(HTTPStatus.OK, self.server.manager.status())
@@ -69,7 +101,11 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if parsed.path in {"/api/blackbox/flight", "/api/blackbox/export"}:
+        if parsed.path in {
+            "/api/blackbox/flight",
+            "/api/blackbox/story",
+            "/api/blackbox/export",
+        }:
             from atmem.control.blackbox import format_flight_report
 
             params = parse_qs(parsed.query)
@@ -84,6 +120,12 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/blackbox/flight":
                 self._json(HTTPStatus.OK, report)
+                return
+            if parsed.path == "/api/blackbox/story":
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.blackbox_flight_story(run_id),
+                )
                 return
             output_format = (params.get("format") or ["json"])[0]
             if output_format == "text":

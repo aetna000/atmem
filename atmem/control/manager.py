@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import replace
 import getpass
+import json
 from pathlib import Path
+import re
 from typing import Any
 import uuid
 
@@ -553,6 +555,175 @@ class ControlPlaneManager:
         finally:
             store.close()
         return verify_flight(run_id=run_id, entries=entries, chain=chain)
+
+    def blackbox_flight_story(
+        self,
+        run_id: str,
+        *,
+        trajectory_root: str | Path | None = None,
+    ) -> dict[str, Any]:
+        """Build a local, human-readable flight story without changing evidence."""
+
+        report = self.verify_blackbox_flight(run_id)
+        state = self.state()
+        candidate_ids: list[str] = []
+        duration_ms: int | None = None
+        tool_names: list[str] = []
+        usage: dict[str, Any] = {}
+        for event in report.get("timeline") or []:
+            payload = event.get("payload") or {}
+            if event.get("event_type") == "context.disposition":
+                candidate_ids.extend(str(value) for value in payload.get("candidate_ids") or [])
+            if event.get("event_type") == "turn.ended" and payload.get("duration_ms") is not None:
+                duration_ms = int(payload["duration_ms"])
+            if event.get("event_type") == "tool.requested" and payload.get("tool_name"):
+                tool_names.append(str(payload["tool_name"]))
+            if event.get("event_type") == "model.output":
+                usage = dict(payload.get("usage") or {})
+        candidate_ids = list(dict.fromkeys(candidate_ids))
+
+        memories: list[dict[str, str]] = []
+        if candidate_ids and state.host == "openclaw":
+            from atmem.control.openclaw_native import mirror_status
+            from atmem.memory import Memory
+
+            status = mirror_status(state)
+            mirror_db = status.get("mirror_db")
+            if mirror_db:
+                memory = Memory(mirror_db, retain_query_text=True)
+                try:
+                    records = memory.store.get_records(state.subject_id, candidate_ids)
+                    memories = [
+                        {
+                            "record_id": record_id,
+                            "content": str(records[record_id].get("content") or ""),
+                        }
+                        for record_id in candidate_ids
+                        if record_id in records
+                    ]
+                finally:
+                    memory.close()
+
+        request_text: str | None = None
+        response_text: str | None = None
+        websites: list[str] = []
+        recorded_cost: float | None = None
+
+        def collect_local_details(value: Any) -> None:
+            nonlocal recorded_cost
+            if isinstance(value, str):
+                websites.extend(re.findall(r"https?://[^\s\]\[\"'<>]+", value))
+                return
+            if isinstance(value, list):
+                for nested in value:
+                    collect_local_details(nested)
+                return
+            if not isinstance(value, dict):
+                return
+            name = value.get("name") or value.get("toolName")
+            kind = str(value.get("type") or "").casefold()
+            if name and "tool" in kind:
+                tool_names.append(str(name))
+            cost = value.get("cost")
+            if isinstance(cost, dict) and isinstance(cost.get("total"), (int, float)):
+                if float(cost["total"]) > 0:
+                    recorded_cost = float(cost["total"])
+            for nested in value.values():
+                collect_local_details(nested)
+        session_id = str(report.get("session_id") or "")
+        root = (
+            Path(trajectory_root).expanduser().resolve(strict=False)
+            if trajectory_root is not None
+            else Path.home() / ".openclaw" / "agents"
+        )
+        if session_id and root.is_dir():
+            for path in sorted(root.glob(f"*/sessions/{session_id}.trajectory.jsonl")):
+                try:
+                    resolved = path.resolve(strict=True)
+                    resolved.relative_to(root.resolve(strict=True))
+                    if not resolved.is_file() or resolved.stat().st_size > 32 * 1024 * 1024:
+                        continue
+                    lines = resolved.read_text(encoding="utf-8", errors="replace").splitlines()
+                except (OSError, ValueError):
+                    continue
+                for line in lines:
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if str(event.get("runId") or "") != run_id:
+                        continue
+                    if event.get("type") != "model.completed":
+                        continue
+                    data = event.get("data") or {}
+                    collect_local_details(data.get("messagesSnapshot") or [])
+                    for message in data.get("messagesSnapshot") or []:
+                        if message.get("role") == "user" and isinstance(message.get("content"), str):
+                            request_text = message["content"][:20000]
+                    assistant_texts = data.get("assistantTexts") or []
+                    if assistant_texts:
+                        response_text = "\n".join(str(value) for value in assistant_texts)[:20000]
+                if request_text is not None or response_text is not None:
+                    break
+
+        websites = list(dict.fromkeys(websites))
+        tool_names = list(dict.fromkeys(tool_names))
+        memory_text = "\n".join(row["content"] for row in memories)
+        risks: list[str] = []
+        if memories:
+            risks.append(
+                f"{len(memories)} memory record(s) were included in the request sent "
+                f"to {((report.get('model') or {}).get('provider') or 'the model provider')}."
+            )
+        if re.search(r"\b[^\s@]+@[^\s@]+\.[^\s@]+\b", memory_text):
+            risks.append("The injected memory included an email address (personal data).")
+        if websites:
+            risks.append("The flight referenced external website addresses.")
+        if tool_names:
+            risks.append("Tools were invoked and may have interacted with systems outside the model.")
+        lifecycle = report.get("lifecycle") or {}
+        tool_errors = (report.get("tools") or {}).get("errors") or []
+        blocked_by = lifecycle.get("reason")
+        if not blocked_by and tool_errors:
+            blocked_by = "One or more tools returned an error."
+        outcome_ids = (report.get("correlation") or {}).get("outcome_ids") or []
+
+        return {
+            "format": "atmem-local-flight-story-v1",
+            "run_id": run_id,
+            "request_text": request_text,
+            "response_text": response_text,
+            "memories": memories,
+            "memory_count": len(candidate_ids),
+            "tools": tool_names,
+            "websites": websites,
+            "provider": (report.get("model") or {}).get("provider"),
+            "model": (report.get("model") or {}).get("model"),
+            "duration_ms": duration_ms,
+            "usage": {
+                "input_tokens": usage.get("input"),
+                "output_tokens": usage.get("output"),
+                "total_tokens": usage.get("total"),
+                "recorded_cost_usd": recorded_cost,
+            },
+            "risks": risks,
+            "compromise_assessment": (
+                "No compromise was detected in the observed flight. This is not a "
+                "security scan and does not prove that compromise was impossible."
+            ),
+            "blocked_by": blocked_by,
+            "outcome_evidence": (
+                f"{len(outcome_ids)} independently linked outcome receipt(s) were recorded."
+                if outcome_ids
+                else "No external real-world outcome was claimed or independently proven."
+            ),
+            "success": bool((report.get("lifecycle") or {}).get("success")),
+            "source_note": (
+                "Request and reply are read from the local OpenClaw transcript; "
+                "memory text is read from the local AtMem mirror. Raw text is not "
+                "added to the Black Box evidence or its exports."
+            ),
+        }
 
     def transition(
         self,

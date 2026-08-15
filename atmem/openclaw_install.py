@@ -16,7 +16,7 @@ from atmem.control.manager import DEFAULT_STATE_PATH, DEFAULT_CONTROL_ROOT
 
 OPENCLAW_PLUGIN_ID = "memory-atmem"
 OPENCLAW_PLUGIN_PACKAGE = "openclaw-memory-atmem"
-OPENCLAW_PLUGIN_VERSION = "2.0.0"
+OPENCLAW_PLUGIN_VERSION = "2.0.1"
 _CONFIG_KEY = "plugins.entries.memory-atmem"
 
 
@@ -380,7 +380,12 @@ def refresh_openclaw_bridge_and_test(
         (row for row in new_rows if row.get("session_id") == test_session),
         new_rows[0],
     )
-    report = manager.verify_blackbox_flight(str(selected["run_id"]))
+    report: dict[str, Any] = {}
+    for _attempt in range(40):
+        report = manager.verify_blackbox_flight(str(selected["run_id"]))
+        if report.get("verdict") != "incomplete_evidence":
+            break
+        time.sleep(0.25)
     return {
         "format": "atmem-openclaw-bridge-refresh-v1",
         "refreshed": True,
