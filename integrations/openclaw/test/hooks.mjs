@@ -463,7 +463,7 @@ try {
   const flight = blackboxCli("verify", "run-blackbox-1", "--state", migrationState);
   assert.equal(flight.timeline_chain_valid, true);
   assert.equal(flight.structurally_complete, true);
-  assert.equal(flight.verdict, "observed_tools_reached_terminal_events");
+  assert.equal(flight.verdict, "completed_successfully");
   const serializedFlight = JSON.stringify(flight);
   assert.doesNotMatch(serializedFlight, /private system prompt/);
   assert.doesNotMatch(serializedFlight, /I remembered your terminal preference/);
@@ -490,6 +490,24 @@ try {
     { prompt: "Check the active recorder.", attachments: [] },
     activeCtx,
   );
+  await activeRecorder.hooks.get("before_prompt_build")(
+    { prompt: "Check the active recorder.", messages: [] },
+    activeCtx,
+  );
+  await activeRecorder.hooks.get("llm_input")(
+    {
+      runId: "run-blackbox-active",
+      sessionId: "active-session",
+      provider: "openai",
+      model: "gpt-test",
+      prompt: "Check the active recorder.",
+      systemPrompt: "private active system prompt",
+      historyMessages: [],
+      imagesCount: 0,
+      tools: [],
+    },
+    activeCtx,
+  );
   await activeRecorder.hooks.get("before_tool_call")(
     {
       toolName: "memory_search",
@@ -511,6 +529,17 @@ try {
     },
     activeCtx,
   );
+  await activeRecorder.hooks.get("llm_output")(
+    {
+      runId: "run-blackbox-active",
+      sessionId: "active-session",
+      provider: "openai",
+      model: "gpt-test",
+      assistantTexts: ["The active recorder is working."],
+      usage: { input: 8, output: 5, total: 13 },
+    },
+    activeCtx,
+  );
   await activeRecorder.hooks.get("agent_end")(
     { runId: "run-blackbox-active", success: true, messages: [], durationMs: 9 },
     activeCtx,
@@ -521,8 +550,8 @@ try {
     "--state",
     migrationState,
   );
-  assert.equal(activeFlight.structurally_complete, true);
-  assert.equal(activeFlight.verdict, "observed_tools_reached_terminal_events");
+  assert.equal(activeFlight.structurally_complete, true, JSON.stringify(activeFlight));
+  assert.equal(activeFlight.verdict, "completed_successfully");
   assert.doesNotMatch(JSON.stringify(activeFlight), /private\/example\/path/);
   for (const service of activeRecorder.services) await service.stop?.();
 

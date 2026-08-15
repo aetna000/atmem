@@ -123,6 +123,11 @@ class ControlMCPServer:
                 run_id=str(arguments["run_id"]),
                 session_id=arguments.get("session_id"),
                 tool_call_id=arguments.get("tool_call_id"),
+                turn_id=arguments.get("turn_id"),
+                retrieval_id=arguments.get("retrieval_id"),
+                context_event_id=arguments.get("context_event_id"),
+                context_receipt_id=arguments.get("context_receipt_id"),
+                outcome_id=arguments.get("outcome_id"),
                 payload=arguments.get("payload") or {},
             )
         elif name == "control_status":
@@ -196,6 +201,11 @@ def _tools() -> list[dict[str, Any]]:
                     "run_id": {"type": "string"},
                     "session_id": {"type": "string"},
                     "tool_call_id": {"type": "string"},
+                    "turn_id": {"type": "string"},
+                    "retrieval_id": {"type": "string"},
+                    "context_event_id": {"type": "string"},
+                    "context_receipt_id": {"type": "string"},
+                    "outcome_id": {"type": "string"},
                     "payload": {"type": "object"},
                 },
                 "required": ["event_type", "run_id"],

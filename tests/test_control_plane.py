@@ -351,8 +351,33 @@ def test_openclaw_configuration_is_snapshotted_and_restored(
 
 def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    import atmem.openclaw_install
     from atmem.control.web import ControlDashboardServer
+
+    monkeypatch.setattr(
+        atmem.openclaw_install,
+        "refresh_openclaw_bridge_and_test",
+        lambda **_kwargs: {
+            "refreshed": True,
+            "bridge_version": "2.0.0",
+            "test_flight": {
+                "run_id": "fresh-run",
+                "verdict": "completed_successfully",
+                "valid": True,
+            },
+        },
+    )
+    monkeypatch.setattr(
+        atmem.openclaw_install,
+        "openclaw_bridge_refresh_status",
+        lambda: {
+            "available": True,
+            "pinned_version": "2.0.0",
+            "installed_version": "1.0.0",
+        },
+    )
 
     manager = _manager(tmp_path)
     server = ControlDashboardServer(("127.0.0.1", 0), manager, html="<html>safe</html>")
@@ -363,6 +388,22 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
     try:
         assert opener.open(f"{base}/").read() == b"<html>safe</html>"
         assert opener.open(f"{base}/api/status").status == 200
+        bridge_status = json.loads(
+            opener.open(f"{base}/api/bridge/status").read()
+        )
+        assert bridge_status["available"] is True
+        manager.record_blackbox_event(
+            event_type="model.output",
+            run_id="dashboard-run",
+            payload={
+                "provider": "openai",
+                "model": "gpt-test",
+                "response_sha256": "b" * 64,
+                "assistant_visible_text_sha256": "b" * 64,
+                "response_chars": 1,
+                "response_count": 1,
+            },
+        )
         manager.record_blackbox_event(
             event_type="turn.ended",
             run_id="dashboard-run",
@@ -375,6 +416,11 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         )
         flights = json.loads(opener.open(f"{base}/api/blackbox/runs").read())
         assert flights["runs"][0]["run_id"] == "dashboard-run"
+        assert flights["attention"]["total"] > 0
+        assert flights["attention"]["completion"] > 0
+        assert flights["runs"][0]["attention_points"][0]["code"] == (
+            "flight_incomplete"
+        )
         flight = json.loads(
             opener.open(
                 f"{base}/api/blackbox/flight?run_id=dashboard-run"
@@ -386,6 +432,18 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         ).read()
         assert b"AtMem Agent Black Box" in exported
         session = json.loads(opener.open(f"{base}/api/session").read())
+        bridge_refresh = Request(
+            f"{base}/api/bridge/refresh-test",
+            data=json.dumps({"confirm_host": "openclaw"}).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base,
+                "X-CSRF-Token": session["csrf_token"],
+            },
+            method="POST",
+        )
+        refreshed = json.loads(opener.open(bridge_refresh).read())
+        assert refreshed["test_flight"]["valid"] is True
 
         unprotected = Request(
             f"{base}/api/mode",
@@ -468,6 +526,14 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     assert 'setInterval(refreshReviews,5000)' in html
     assert "Audit Explorer" in html
     assert "Agent Black Box" in html
+    assert "What needs your attention" in html
+    assert "Did the flight finish?" in html
+    assert "Did tools and outcomes work?" in html
+    assert "Was context and model evidence correct?" in html
+    assert "Why this needs attention" in html
+    assert "Upgrade bridge &amp; run test" in html
+    assert "/api/bridge/refresh-test" in html
+    assert "/api/bridge/status" in html
     assert "/api/blackbox/runs?limit=20" in html
     assert "/api/blackbox/flight?run_id=" in html
     assert "/api/blackbox/export?run_id=" in html

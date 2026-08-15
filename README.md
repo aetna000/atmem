@@ -1,6 +1,6 @@
 # AtMem
 
-[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-blue)](./docs/releases/v1.0.0.md)
+[![Version 2.0.0](https://img.shields.io/badge/version-2.0.0-blue)](./docs/releases/v2.0.0.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is an Agent Black Box and reversible memory control plane for OpenClaw.**
@@ -11,7 +11,7 @@ The boundary is deliberate: AtMem verifies retained timeline integrity and obser
 
 Install AtMem beside OpenClaw, let it copy and shadow the complete native memory, inspect the result, then activate it when you are ready. Shadow mode does not change the context sent to the model. Activation freezes the verified OpenClaw memory state and replaces native supplemental-memory access with bounded AtMem recall. Restore puts the saved OpenClaw configuration and memory paths back.
 
-This is **Version 1.0.0**, the first stable AtMem release. Agent Black Box capture and the automated copy, shadow, activation and restore workflow support OpenClaw first. The underlying memory engine and MCP interface remain model-agnostic.
+This is **Version 2.0.0**. Agent Black Box v2 adds correlated context receipts, strict lifecycle coverage, unified response fingerprints, and an attention-first operator workflow. Black Box capture and the automated copy, shadow, activation and restore workflow support OpenClaw first. The underlying memory engine and MCP interface remain model-agnostic.
 
 ## Inspect an agent flight
 
@@ -21,17 +21,22 @@ After installation, use OpenClaw normally and inspect newly observed runs:
 atmem blackbox status
 atmem blackbox runs
 atmem blackbox verify RUN_ID
+atmem verify-run RUN_ID
 atmem blackbox export RUN_ID --format text --output flight.txt
 atmem dashboard daemon start
 ```
 
-The dashboard presents recent flights, tool-request/completion closure, terminal status, the host-observed timeline and downloadable JSON/text evidence. See the [Agent Black Box guide](docs/agent-blackbox.md) for the event model, privacy boundary and exact guarantees.
+The dashboard leads with three attention checks—flight completion, tool/outcome
+health, and context/model evidence—then keeps the full host-observed timeline
+and downloadable JSON/text evidence available for investigation. See the
+[Agent Black Box guide](docs/agent-blackbox.md) for the event model, privacy
+boundary and exact guarantees.
 
 ## Install and migrate OpenClaw
 
 ```bash
 # 1. Install the engine. Do not install the npm bridge separately.
-python -m pip install atmem==1.0.0
+python -m pip install atmem==2.0.0
 atmem --version
 
 # 2. Install the matching bridge and copy all existing OpenClaw memory.

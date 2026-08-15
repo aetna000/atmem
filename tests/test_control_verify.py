@@ -15,6 +15,7 @@ from atmem.control.openclaw_native import (
     sync_mirror,
 )
 from atmem.control.verify import run_verification, verification_exit_code
+from atmem.openclaw_install import OPENCLAW_PLUGIN_VERSION
 
 
 def _setup(tmp_path: Path) -> tuple[ControlPlaneManager, Path]:
@@ -35,7 +36,7 @@ def _host(
     *,
     slot: str = "memory-native",
     version: str = "2026.7.1-2",
-    bridge_version: str = "1.0.0",
+    bridge_version: str = OPENCLAW_PLUGIN_VERSION,
 ) -> dict[str, object]:
     config: dict[str, object] = {
         "plugins.slots.memory": slot,

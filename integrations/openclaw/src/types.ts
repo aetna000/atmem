@@ -26,6 +26,7 @@ export interface BeforePromptBuildEvent {
 export interface AgentEndEvent {
   runId?: string;
   success: boolean;
+  cancelled?: boolean;
   error?: string;
   durationMs?: number;
   messages: unknown[];

@@ -566,6 +566,16 @@ def main() -> None:
             )
             command_parser.add_argument("--output", required=True)
 
+    verify_run_parser = subparsers.add_parser(
+        "verify-run",
+        help="Verify one agent run and print its unified coverage report",
+    )
+    verify_run_parser.add_argument("run_id")
+    verify_run_parser.add_argument("--state", default=None)
+    verify_run_parser.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON"
+    )
+
     args = parser.parse_args()
 
     if args.command == "openclaw":
@@ -581,6 +591,11 @@ def main() -> None:
         return
 
     if args.command == "blackbox":
+        _run_blackbox(args)
+        return
+
+    if args.command == "verify-run":
+        args.blackbox_command = "verify"
         _run_blackbox(args)
         return
 
@@ -1678,10 +1693,19 @@ def _run_blackbox(args: argparse.Namespace) -> None:
         if rows:
             print("\nRecent flights")
             for row in rows:
-                state = "complete" if row.get("terminal") else "incomplete"
+                state = (
+                    "cancelled"
+                    if row.get("cancelled")
+                    else "failed"
+                    if row.get("success") is False
+                    else "complete"
+                    if row.get("terminal")
+                    else "incomplete"
+                )
                 print(
                     f"  {row.get('run_id')}  {row.get('events')} events  "
-                    f"{row.get('tool_completions')}/{row.get('tool_requests')} tools  {state}"
+                    f"{row.get('tool_completions')}/{row.get('tool_requests')} tools  "
+                    f"{state}  context={row.get('context_disposition') or 'missing'}"
                 )
         else:
             print("\nNo flights recorded yet. Use OpenClaw normally after installing AtMem.")

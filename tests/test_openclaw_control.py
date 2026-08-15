@@ -8,6 +8,7 @@ import pytest
 
 from atmem import Memory
 from atmem.control import ControlPlaneManager
+from atmem.openclaw_install import OPENCLAW_PLUGIN_VERSION
 from atmem.control.openclaw_native import (
     CUTOVER_NAME,
     NATIVE_BASELINE_MANIFEST_NAME,
@@ -291,7 +292,7 @@ def test_takeover_freezes_native_files_and_restore_restores_them(
             {
                 "plugin": {
                     "status": "loaded",
-                    "version": "1.0.0",
+                    "version": OPENCLAW_PLUGIN_VERSION,
                     "toolNames": [
                         "memory_search",
                         "memory_get",
@@ -440,7 +441,7 @@ def test_restore_preserves_post_switch_native_files_before_restore(
             {
                 "plugin": {
                     "status": "loaded",
-                    "version": "1.0.0",
+                    "version": OPENCLAW_PLUGIN_VERSION,
                     "toolNames": [
                         "memory_search",
                         "memory_get",
@@ -559,7 +560,7 @@ def test_takeover_refuses_unverifiable_native_memory_without_mutation(
         lambda _arguments: {
             "plugin": {
                 "status": "loaded",
-                "version": "1.0.0",
+                "version": OPENCLAW_PLUGIN_VERSION,
             }
         },
     )

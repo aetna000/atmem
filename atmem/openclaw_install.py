@@ -6,7 +6,9 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import time
 from typing import Any, Callable
+from uuid import uuid4
 
 from atmem.control import ControlPlaneManager, ControlMode
 from atmem.control.manager import DEFAULT_STATE_PATH, DEFAULT_CONTROL_ROOT
@@ -14,7 +16,7 @@ from atmem.control.manager import DEFAULT_STATE_PATH, DEFAULT_CONTROL_ROOT
 
 OPENCLAW_PLUGIN_ID = "memory-atmem"
 OPENCLAW_PLUGIN_PACKAGE = "openclaw-memory-atmem"
-OPENCLAW_PLUGIN_VERSION = "1.0.0"
+OPENCLAW_PLUGIN_VERSION = "2.0.0"
 _CONFIG_KEY = "plugins.entries.memory-atmem"
 
 
@@ -254,6 +256,181 @@ def install_openclaw(
         else:
             detail += ". The prior OpenClaw plugin configuration was restored."
         raise ValueError(detail) from exc
+
+
+def refresh_openclaw_bridge_and_test(
+    *,
+    state_path: str | Path = DEFAULT_STATE_PATH,
+    runner: Runner | None = None,
+) -> dict[str, Any]:
+    """Upgrade only the pinned bridge, restart it, and record one safe test flight."""
+
+    run = runner or _run
+    manager = ControlPlaneManager(state_path)
+    state = manager.state()
+    if state.host != "openclaw":
+        raise ValueError("bridge refresh is available only for OpenClaw")
+    openclaw = shutil.which("openclaw")
+    if openclaw is None:
+        raise ValueError("OpenClaw was not found on PATH")
+    installed_before = _inspect_plugin(openclaw, run, optional=False)
+    prior_version = _find_plugin_version(installed_before)
+    runtime_before = _inspect_plugin(openclaw, run, optional=True, runtime=True)
+    runtime_version = _find_plugin_version(runtime_before)
+    if (
+        prior_version == OPENCLAW_PLUGIN_VERSION
+        and runtime_version == OPENCLAW_PLUGIN_VERSION
+    ):
+        raise ValueError(
+            f"bridge {OPENCLAW_PLUGIN_VERSION} is already loaded; the installed "
+            "AtMem package does not yet pin a newer bridge"
+        )
+
+    package_changed = prior_version != OPENCLAW_PLUGIN_VERSION
+    try:
+        if package_changed:
+            _require_success(
+                run(
+                    [
+                        openclaw,
+                        "plugins",
+                        "install",
+                        f"npm:{OPENCLAW_PLUGIN_PACKAGE}@{OPENCLAW_PLUGIN_VERSION}",
+                        "--pin",
+                        "--force",
+                    ]
+                ),
+                "OpenClaw bridge upgrade",
+            )
+        installed = _inspect_plugin(openclaw, run, optional=False)
+        installed_version = _find_plugin_version(installed)
+        if installed_version != OPENCLAW_PLUGIN_VERSION:
+            raise ValueError(
+                f"OpenClaw retained bridge {installed_version or 'unknown'}; "
+                f"expected {OPENCLAW_PLUGIN_VERSION}"
+            )
+        _require_success(
+            run([openclaw, "gateway", "restart"]),
+            "OpenClaw gateway restart",
+        )
+        gateway = _get_json(
+            [openclaw, "gateway", "status", "--require-rpc", "--json"], run
+        )
+        if not _gateway_verified(gateway):
+            raise ValueError("OpenClaw gateway RPC verification did not pass")
+        runtime = _inspect_plugin(openclaw, run, optional=False, runtime=True)
+        if not _plugin_runtime_healthy(runtime):
+            raise ValueError("OpenClaw reported that the refreshed bridge is unhealthy")
+    except Exception as exc:
+        restore_errors: list[str] = []
+        if package_changed and prior_version:
+            try:
+                _require_success(
+                    run(
+                        [
+                            openclaw,
+                            "plugins",
+                            "install",
+                            f"npm:{OPENCLAW_PLUGIN_PACKAGE}@{prior_version}",
+                            "--pin",
+                            "--force",
+                        ]
+                    ),
+                    "prior bridge restore",
+                )
+                _require_success(
+                    run([openclaw, "gateway", "restart"]),
+                    "gateway restart after bridge restore",
+                )
+            except Exception as restore_exc:  # pragma: no cover - defensive
+                restore_errors.append(str(restore_exc))
+        detail = f"bridge refresh failed: {exc}"
+        if restore_errors:
+            detail += ". Restore also needs attention: " + "; ".join(restore_errors)
+        raise ValueError(detail) from exc
+
+    before = {
+        str(row["run_id"]) for row in manager.blackbox_runs(limit=500).get("runs", [])
+    }
+    test_session = f"agent:main:atmem-bridge-self-test-{uuid4().hex}"
+    test_command = [
+        openclaw,
+        "agent",
+        "--session-key",
+        test_session,
+        "--message",
+        "AtMem bridge self-test. Do not call tools. Reply exactly ATMEM_BRIDGE_OK.",
+        "--timeout",
+        "90",
+        "--json",
+    ]
+    _require_success(run(test_command), "OpenClaw bridge self-test flight")
+    new_rows: list[dict[str, Any]] = []
+    for _attempt in range(12):
+        rows = manager.blackbox_runs(limit=500).get("runs", [])
+        new_rows = [row for row in rows if str(row.get("run_id")) not in before]
+        if new_rows:
+            break
+        time.sleep(0.25)
+    if not new_rows:
+        raise ValueError(
+            "the gateway completed the self-test but no new Black Box flight appeared"
+        )
+    selected = next(
+        (row for row in new_rows if row.get("session_id") == test_session),
+        new_rows[0],
+    )
+    report = manager.verify_blackbox_flight(str(selected["run_id"]))
+    return {
+        "format": "atmem-openclaw-bridge-refresh-v1",
+        "refreshed": True,
+        "previous_bridge_version": prior_version,
+        "bridge_version": OPENCLAW_PLUGIN_VERSION,
+        "gateway_verified": True,
+        "test_flight": {
+            "run_id": report.get("run_id"),
+            "verdict": report.get("verdict"),
+            "coverage_status": (report.get("coverage_matrix") or {}).get(
+                "overall_status"
+            ),
+            "attention_points": report.get("attention_points") or [],
+            "valid": report.get("verdict") == "completed_successfully",
+        },
+    }
+
+
+def openclaw_bridge_refresh_status(
+    *, runner: Runner | None = None
+) -> dict[str, Any]:
+    """Report whether the installed Python package pins a bridge refresh."""
+
+    run = runner or _run
+    openclaw = shutil.which("openclaw")
+    if openclaw is None:
+        return {
+            "available": False,
+            "pinned_version": OPENCLAW_PLUGIN_VERSION,
+            "reason": "OpenClaw was not found on PATH",
+        }
+    installed = _inspect_plugin(openclaw, run, optional=True)
+    runtime = _inspect_plugin(openclaw, run, optional=True, runtime=True)
+    installed_version = _find_plugin_version(installed)
+    runtime_version = _find_plugin_version(runtime)
+    available = (
+        installed_version != OPENCLAW_PLUGIN_VERSION
+        or runtime_version != OPENCLAW_PLUGIN_VERSION
+    )
+    return {
+        "available": available,
+        "pinned_version": OPENCLAW_PLUGIN_VERSION,
+        "installed_version": installed_version,
+        "runtime_version": runtime_version,
+        "reason": (
+            "A newer pinned bridge can be installed and tested."
+            if available
+            else "Install a newer AtMem Python release to make a bridge upgrade available."
+        ),
+    }
 
 
 def _resolve_engine(explicit: str | None) -> str:

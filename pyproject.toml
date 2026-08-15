@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atmem"
-version = "1.0.0"
+version = "2.0.0"
 description = "Agent Black Box and reversible memory control plane for OpenClaw."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -1299,7 +1299,7 @@ class Memory:
             return {"block": "", "record_ids": [], "count": 0}
 
         block = "<user_persona>\n" + "\n".join(lines) + "\n</user_persona>"
-        self.store.append_audit_event(
+        context_event_id = self.store.append_audit_event(
             subject_id=subject_id,
             event_type="memory.persona_built",
             actor="system",
@@ -1310,7 +1310,12 @@ class Memory:
                 "persona_sha256": _sha256(block),
             },
         )
-        return {"block": block, "record_ids": included, "count": len(included)}
+        return {
+            "block": block,
+            "record_ids": included,
+            "count": len(included),
+            "context_event_id": context_event_id,
+        }
 
     @_atomic
     def build_context_pack(

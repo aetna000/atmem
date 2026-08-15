@@ -357,7 +357,9 @@ class ControlPlaneManager:
                 )
             return {
                 "mode": state.mode.value,
+                "turn_id": turn["id"],
                 "preview_id": preview["id"],
+                "context_receipt_id": preview["id"],
                 "manifest_sha256": preview["manifest_sha256"],
                 "candidate_ids": candidate_ids,
                 "context": context if inject else "",
@@ -384,6 +386,11 @@ class ControlPlaneManager:
         run_id: str,
         session_id: str | None = None,
         tool_call_id: str | None = None,
+        turn_id: str | None = None,
+        retrieval_id: str | None = None,
+        context_event_id: str | None = None,
+        context_receipt_id: str | None = None,
+        outcome_id: str | None = None,
         payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Append one content-minimizing host observation to the flight chain."""
@@ -400,6 +407,11 @@ class ControlPlaneManager:
             run_id=run_id,
             session_id=session_id,
             tool_call_id=tool_call_id,
+            turn_id=turn_id,
+            retrieval_id=retrieval_id,
+            context_event_id=context_event_id,
+            context_receipt_id=context_receipt_id,
+            outcome_id=outcome_id,
             payload=payload,
         )
         store = self._store(state)
@@ -436,7 +448,12 @@ class ControlPlaneManager:
         ]
 
     def blackbox_runs(self, *, limit: int = 50) -> dict[str, Any]:
-        from atmem.control.blackbox import EVIDENCE_KIND, flight_runs
+        from atmem.control.blackbox import (
+            EVIDENCE_KIND,
+            flight_runs,
+            recent_model_baseline,
+            verify_flight,
+        )
 
         state = self.state()
         store = self._store(state)
@@ -448,8 +465,58 @@ class ControlPlaneManager:
         finally:
             store.close()
         runs = flight_runs(entries)
+        visible_runs = runs[: max(0, min(int(limit), 500))]
+        entries_by_run: dict[str, list[dict[str, Any]]] = {}
+        for entry in entries:
+            entry_run_id = str((entry.get("body") or {}).get("run_id") or "")
+            if entry_run_id:
+                entries_by_run.setdefault(entry_run_id, []).append(entry)
+        baseline_model = recent_model_baseline(entries)
+        for row in visible_runs:
+            report = verify_flight(
+                run_id=str(row["run_id"]),
+                entries=entries_by_run[str(row["run_id"])],
+                chain=chain,
+                model_baseline=baseline_model,
+            )
+            points = report.get("attention_points") or []
+            row["verdict"] = report.get("verdict")
+            row["coverage_status"] = (report.get("coverage_matrix") or {}).get(
+                "overall_status"
+            )
+            row["attention_points"] = points
+            row["current_contract_observed"] = bool(
+                (report.get("compatibility") or {}).get(
+                    "current_contract_observed"
+                )
+            )
+        if any(row["current_contract_observed"] for row in visible_runs):
+            for row in visible_runs:
+                row["attention_points"] = [
+                    point
+                    for point in row["attention_points"]
+                    if point.get("code") != "legacy_evidence_contract"
+                ]
+        codes_by_severity = {"critical": set(), "high": set(), "medium": set()}
+        codes_by_check = {"completion": set(), "tools": set(), "context_model": set()}
+        attention_codes: set[str] = set()
+        affected_runs: set[str] = set()
+        occurrences = 0
+        for row in visible_runs:
+            points = row["attention_points"]
+            for point in points:
+                severity = str(point.get("severity") or "")
+                check = str(point.get("check") or "")
+                code = str(point.get("code") or "")
+                occurrences += 1
+                attention_codes.add(code)
+                affected_runs.add(str(row["run_id"]))
+                if severity in codes_by_severity:
+                    codes_by_severity[severity].add(code)
+                if check in codes_by_check:
+                    codes_by_check[check].add(code)
         return {
-            "format": "atmem-agent-blackbox-index-v1",
+            "format": "atmem-agent-blackbox-index-v2",
             "enabled": True,
             "host": state.host,
             "migration_id": state.migration_id,
@@ -457,7 +524,20 @@ class ControlPlaneManager:
             "chain": chain,
             "total_runs": len(runs),
             "total_events": len(entries),
-            "runs": runs[: max(0, min(int(limit), 500))],
+            "attention": {
+                **{
+                    name: len(codes)
+                    for name, codes in {**codes_by_severity, **codes_by_check}.items()
+                },
+                "total": len(attention_codes),
+                "occurrences": occurrences,
+                "affected_runs": len(affected_runs),
+                "healthy_runs": sum(
+                    not row["attention_points"] for row in visible_runs
+                ),
+                "evaluated_runs": len(visible_runs),
+            },
+            "runs": visible_runs,
         }
 
     def verify_blackbox_flight(self, run_id: str) -> dict[str, Any]:

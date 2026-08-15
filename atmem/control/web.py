@@ -50,6 +50,14 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/status":
             self._json(HTTPStatus.OK, self.server.manager.status())
             return
+        if parsed.path == "/api/bridge/status":
+            from atmem.openclaw_install import openclaw_bridge_refresh_status
+
+            try:
+                self._json(HTTPStatus.OK, openclaw_bridge_refresh_status())
+            except ValueError as exc:
+                self._json(HTTPStatus.CONFLICT, {"error": str(exc)})
+            return
         if parsed.path == "/api/blackbox/runs":
             params = parse_qs(parsed.query)
             try:
@@ -384,6 +392,23 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     run_verification(
                         self.server.manager.state(),
                         probe=bool(body.get("probe", False)),
+                    ),
+                )
+                return
+            if path == "/api/bridge/refresh-test":
+                expected_host = self.server.manager.state().host
+                if not secrets.compare_digest(
+                    str(body.get("confirm_host") or ""), expected_host
+                ):
+                    raise ValueError(
+                        f"type the host name `{expected_host}` to confirm"
+                    )
+                from atmem.openclaw_install import refresh_openclaw_bridge_and_test
+
+                self._json(
+                    HTTPStatus.OK,
+                    refresh_openclaw_bridge_and_test(
+                        state_path=self.server.manager.state_path
                     ),
                 )
                 return

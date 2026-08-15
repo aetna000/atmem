@@ -14,10 +14,10 @@ Depending on which hooks OpenClaw emits, a flight can contain:
 | --- | --- |
 | `turn.input` | prompt digest, character count, image/tool counts |
 | `model.input` | prompt/system/history digests, provider/model, counts |
-| `context.prepared` / `context.injected` | context digest, candidate IDs, exposure and mode |
+| `context.disposition` | injected/empty/withheld/failed/not-applicable disposition, exact placement-envelope digest, candidate IDs and receipt correlation |
 | `tool.requested` | tool name/kind, parameter digest and parameter-key names |
 | `tool.completed` | result digest, outcome, error category and duration |
-| `model.output` | response-bundle digest, provider/model, size and token usage |
+| `model.output` | assistant-visible-text digest, model-output-bundle digest, provider/model, size and token usage |
 | `turn.ended` | message-bundle digest, success/cancel state and reason |
 
 Raw prompts, responses, tool parameters and tool results are not stored in the Black Box. Derived local paths are hashed before they leave the OpenClaw plugin. The timeline is appended to the control evidence store and protected by a migration- and kind-scoped hash chain.
@@ -31,22 +31,39 @@ atmem blackbox status
 atmem blackbox runs --limit 20
 atmem blackbox show RUN_ID
 atmem blackbox verify RUN_ID
+atmem verify-run RUN_ID
 atmem blackbox export RUN_ID --format json --output flight.json
 atmem blackbox export RUN_ID --format text --output flight.txt
 ```
 
-The loopback dashboard shows the same recent runs and opens a flight timeline with integrity, coverage and tool-closure details.
+The loopback dashboard starts with three operator checks: whether flights
+finished, whether tools and outcomes worked, and whether context/model evidence
+is correct. It shows plain-language attention points and recommended next
+actions first; healthy flights and the complete evidence timeline remain
+available in the collapsed investigation view.
+
+When recent flights came from an older bridge contract, the dashboard offers
+**Upgrade bridge & run test** once the installed Python release pins a newer
+bridge. The guarded action installs that exact npm version, restarts and
+health-checks OpenClaw, runs one fixed no-tools model turn, and opens the new
+flight. It requires typing the host name and warns that the self-test may incur
+a small model charge.
 
 ## What a verified flight means
 
-A structurally complete flight means:
+A structurally complete flight has covered integrity, lifecycle, context, model,
+tools, and response-binding components. In particular:
 
 - the retained Black Box hash chain verifies;
-- the run has a terminal `turn.ended` event;
+- the run has `turn.input` and terminal `turn.ended` events;
+- one explicit context disposition records what memory reached the model, or why none did;
+- both model input and output were observed and the assistant-visible response digest is bound;
 - every observed, correlated `tool.requested` event has a corresponding `tool.completed` event;
-- there are no orphan or uncorrelated tool-completion events.
+- there are no orphan, uncorrelated, or conflicting duplicate tool events.
 
-Tool errors remain visible and produce a separate verdict. Missing hook events produce `incomplete_evidence`; AtMem does not infer success from the assistant's words.
+Failed and cancelled turns have their own lifecycle verdicts. Tool errors remain
+visible and produce a separate verdict. Missing hook events produce
+`incomplete_evidence`; AtMem does not infer success from the assistant's words.
 
 ## What it does not mean
 

@@ -153,6 +153,22 @@ background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:12px
 gap:12px;align-items:center;border-top:1px solid var(--line);padding:12px 0}.flight:first-child{border-top:0}
 .flight b,.flight span{min-width:0;overflow:hidden;text-overflow:ellipsis}.flightstat small{display:block;color:var(--muted)}
 .flightverdict{font-weight:800;color:var(--good)}.flightverdict.pending{color:var(--warn)}
+.attentionhero{display:flex;gap:18px;align-items:center;margin:14px 0 16px;padding:17px 18px;
+border-radius:12px;background:var(--good-soft);border:1px solid color-mix(in srgb,var(--good) 35%,var(--line))}
+.attentionhero.bad{background:var(--bad-soft);border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
+.attentionhero b{font-size:22px;line-height:1.2}.attentionhero p{margin:2px 0 0;color:var(--muted)}
+.attentionchecks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:15px}
+.attentioncheck{display:flex;text-align:left;gap:12px;align-items:start;border:1px solid var(--line);border-radius:11px;
+background:var(--card);color:var(--ink);padding:13px}.attentioncheck:hover,.attentioncheck.active{border-color:var(--brand);background:var(--brand-soft)}
+.attentioncheck .checknumber{display:grid;place-items:center;width:27px;height:27px;flex:0 0 auto;border-radius:50%;
+background:var(--brand);color:#fff;font-weight:850}.attentioncheck b{display:block}.attentioncheck span{display:block;color:var(--muted);font-size:11px}
+.attentionlist{display:grid;gap:9px}.attentionitem{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;
+align-items:start;border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:10px;padding:13px;background:var(--card)}
+.attentionitem.critical,.attentionitem.high{border-left-color:var(--bad)}.severity{border-radius:99px;padding:3px 8px;
+font-size:10px;font-weight:850;text-transform:uppercase;background:var(--warn-soft);color:var(--warn)}
+.critical .severity,.high .severity{background:var(--bad-soft);color:var(--bad)}.attentioncopy b{display:block;font-size:14px}
+.attentioncopy p{margin:2px 0;color:var(--muted);font-size:12px}.attentionaction{color:var(--ink)!important}.attentionmeta{margin-top:5px}
+.flightarchive{margin-top:16px;border-top:1px solid var(--line);padding-top:13px}.flightarchive summary{cursor:pointer;font-weight:800;color:var(--muted)}
 .productfoot{margin-top:22px;padding:20px 22px;display:flex;gap:22px;align-items:center;background:var(--card);
 border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}.productfoot>div:first-child{flex:1}
 .productfoot b{display:block;font-size:16px;letter-spacing:-.015em}.productfoot p{margin:3px 0 0;color:var(--muted)}
@@ -165,6 +181,7 @@ grid-template-columns:repeat(2,1fr)}header .small{display:none}.evidencegrid{gri
 .auditfilters{grid-template-columns:1fr}.audithead{display:block}.audittoolbar{justify-content:flex-start;margin-top:12px}
 .productfoot{display:block}.productlinks{justify-content:flex-start;margin-top:12px}.repolink span{display:none}}
 @media(max-width:780px){.flight{grid-template-columns:1fr 1fr}.flight .primary{grid-column:1/-1}.blackboxhead{display:block}}
+@media(max-width:780px){.attentionchecks{grid-template-columns:1fr}.attentionitem{grid-template-columns:1fr}.attentionhero{align-items:start}}
 </style>
 </head>
 <body>
@@ -209,13 +226,19 @@ grid-template-columns:repeat(2,1fr)}header .small{display:none}.evidencegrid{gri
 
   <section class="card" id="blackboxCard">
     <div class="blackboxhead">
-      <div><div class="eyebrow">Agent flight recorder</div><h2>Agent Black Box</h2>
-      <p class="sub">Inspect model and tool boundaries recorded by the OpenClaw host. AtMem stores digests and bounded metadata—not raw prompts, responses, tool parameters or results.</p></div>
-      <button class="secondary" id="blackboxRefresh" type="button">Refresh flights</button>
+      <div><div class="eyebrow">Agent Black Box attention</div><h2>What needs your attention</h2>
+      <p class="sub">Start with these three checks. Healthy flights and raw evidence stay out of the way until you need them. AtMem stores digests and bounded metadata, not raw prompts, responses, tool parameters or results.</p></div>
+      <div class="actions"><button class="primary" id="bridgeRefresh" type="button" style="display:none">Upgrade bridge &amp; run test</button>
+      <button class="secondary" id="blackboxRefresh" type="button">Refresh checks</button></div>
     </div>
-    <div class="blackboxsummary"><span id="blackboxIntegrity" class="integritychip">Checking flight chain…</span>
-      <span class="small" id="blackboxCount">—</span></div>
-    <div class="flights" id="blackboxFlights"><div class="empty">Loading recent agent runs…</div></div>
+    <div class="attentionhero" id="attentionHero"><div><b id="attentionHeadline">Checking recent flights…</b>
+      <p id="attentionSummary">AtMem is verifying completion, tools, context and model evidence.</p></div></div>
+    <div class="attentionchecks" id="attentionChecks"></div>
+    <div class="attentionlist" id="attentionList"><div class="empty">Loading attention points…</div></div>
+    <details class="flightarchive"><summary id="blackboxCount">All recent flights</summary>
+      <div class="blackboxsummary"><span id="blackboxIntegrity" class="integritychip">Checking flight chain…</span></div>
+      <div class="flights" id="blackboxFlights"><div class="empty">Loading recent agent runs…</div></div>
+    </details>
   </section>
 
   <div class="grid">
@@ -335,7 +358,7 @@ grid-template-columns:repeat(2,1fr)}header .small{display:none}.evidencegrid{gri
 <script>
 (function(){
 "use strict";
-var state=null,reviewQueue={records:[]},blackboxIndex={runs:[]},csrf="",progressTimer=null,progressStarted=0;
+var state=null,reviewQueue={records:[]},blackboxIndex={runs:[]},bridgeRefreshStatus={available:false},attentionFilter="all",csrf="",progressTimer=null,progressStarted=0;
 var auditCursors=[null],auditPageIndex=0,auditLast=null,auditFacetsLoaded=false;
 var $=function(id){return document.getElementById(id)};
 function text(id,value){$(id).textContent=value==null?"—":String(value)}
@@ -369,18 +392,29 @@ function displayTime(value){if(!value)return "not recorded";var date=new Date(va
 function evidence(label,value,mono){var box=element("div","evidence"),name=element("span","",label),body=element("b",mono?"mono":"",value||"not recorded");box.append(name,body);return box}
 function chainStep(label,ok,detail){var box=element("div","chainstep "+(ok?"ok":"missing"));box.append(element("b","",label),element("span","",detail));return box}
 function blackboxEventDetail(event){var p=event.payload||{},parts=[];if(p.tool_name)parts.push(p.tool_name);if(p.model)parts.push([p.provider,p.model].filter(Boolean).join(" / "));if(p.outcome)parts.push(p.outcome);if(event.tool_call_id)parts.push(event.tool_call_id);return parts.join(" · ")||"digest-bound host event"}
-function renderBlackbox(){
- var rows=blackboxIndex.runs||[],chain=blackboxIndex.chain||{},box=$("blackboxFlights");box.replaceChildren();
- $("blackboxIntegrity").className="integritychip"+(chain.valid===false?" bad":"");text("blackboxIntegrity",chain.valid===false?"✕ Flight chain verification failed":"✓ Flight chain verified");text("blackboxCount",number(blackboxIndex.total_runs)+" runs · "+number(blackboxIndex.total_events)+" events");
- if(!rows.length){box.appendChild(element("div","empty","No agent flights recorded yet. Use OpenClaw after installing AtMem; new host-observed runs appear here."));return}
- rows.forEach(function(row){var item=element("div","flight"),identity=element("div"),run=element("b","mono",row.run_id),session=element("div","small mono",row.session_id||"no session ID");identity.append(run,session);
-  var events=element("div","flightstat");events.append(element("b","mono",number(row.events)),element("small","","events"));var tools=element("div","flightstat");tools.append(element("b","mono",number(row.tool_completions)+" / "+number(row.tool_requests)),element("small","","tool closure"));var ended=element("div","flightstat");ended.append(element("b","",row.terminal?"yes":"no"),element("small","","terminal event"));var time=element("div","flightstat");time.append(element("b","",displayTime(row.ended_at)),element("small","","last observed"));var inspect=element("button","primary","Inspect flight");inspect.type="button";inspect.onclick=function(){inspectBlackbox(row.run_id)};item.append(identity,events,tools,ended,time,inspect);box.appendChild(item)})
+function attentionGroups(filter){var groups={},rank={critical:0,high:1,medium:2};(blackboxIndex.runs||[]).forEach(function(row){(row.attention_points||[]).forEach(function(point){if(filter!=="all"&&point.check!==filter)return;if(!groups[point.code])groups[point.code]={point:point,rows:[]};groups[point.code].rows.push(row)})});return Object.values(groups).sort(function(a,b){return (rank[a.point.severity]??9)-(rank[b.point.severity]??9)})}
+function renderAttention(filter){
+ attentionFilter=filter||"all";var list=$("attentionList"),groups=attentionGroups(attentionFilter);list.replaceChildren();
+ document.querySelectorAll(".attentioncheck").forEach(function(button){button.classList.toggle("active",button.dataset.check===attentionFilter)});
+ if(!groups.length){list.appendChild(element("div","empty",attentionFilter==="all"?"No recent flights need attention. Open all recent flights below when you need evidence details.":"This check has no attention points in the recent flights."));return}
+ groups.forEach(function(group){var row=group.rows[0],point=group.point,item=element("div","attentionitem "+point.severity),severity=element("span","severity",point.severity),copy=element("div","attentioncopy"),title=element("b","",point.title),detail=element("p","",point.detail),action=element("p","attentionaction","Next: "+point.action),meta=element("div","small attentionmeta",number(group.rows.length)+" affected flight"+(group.rows.length===1?"":"s")+" · latest "+displayTime(row.ended_at)),inspect=element("button","secondary","Inspect latest");inspect.type="button";inspect.onclick=function(){inspectBlackbox(row.run_id)};copy.append(title,detail,action,meta);item.append(severity,copy,inspect);list.appendChild(item)})
 }
-async function loadBlackbox(){try{blackboxIndex=await get("/api/blackbox/runs?limit=20");renderBlackbox()}catch(error){showError(error)}}
+function renderBlackbox(){
+ var rows=blackboxIndex.runs||[],chain=blackboxIndex.chain||{},attention=blackboxIndex.attention||{},box=$("blackboxFlights"),checks=$("attentionChecks");box.replaceChildren();checks.replaceChildren();
+ var total=Number(attention.total||0),hero=$("attentionHero"),groups=attentionGroups("all"),first=groups[0];hero.className="attentionhero"+(total?" bad":"");text("attentionHeadline",first?"Start here: "+first.point.title:"No recent flights need attention");text("attentionSummary",first?"Next: "+first.point.action+" · "+number(attention.affected_runs||0)+" affected flight"+(Number(attention.affected_runs||0)===1?"":"s"):"Completion, tools, context and model evidence look healthy.");
+ var legacyUpgrade=groups.some(function(group){return group.point.code==="legacy_evidence_contract"}),bridgeButton=$("bridgeRefresh");bridgeButton.style.display=legacyUpgrade?"inline-block":"none";bridgeButton.disabled=!bridgeRefreshStatus.available;text("bridgeRefresh",bridgeRefreshStatus.available?"Upgrade bridge & run test":"New bridge release required");bridgeButton.title=bridgeRefreshStatus.reason||"";
+ [["completion","1","Did the flight finish?","Failed or incomplete turns",attention.completion],["tools","2","Did tools and outcomes work?","Errors and unmatched tool calls",attention.tools],["context_model","3","Was context and model evidence correct?","Memory, response binding and model changes",attention.context_model]].forEach(function(value){var button=element("button","attentioncheck"),badge=element("span","checknumber",value[1]),copy=element("div"),title=element("b","",value[2]),description=element("span","",value[3]+" · "+number(value[4])+" attention");button.type="button";button.dataset.check=value[0];button.onclick=function(){renderAttention(attentionFilter===value[0]?"all":value[0])};copy.append(title,description);button.append(badge,copy);checks.appendChild(button)});
+ $("blackboxIntegrity").className="integritychip"+(chain.valid===false?" bad":"");text("blackboxIntegrity",chain.valid===false?"✕ Flight chain verification failed":"✓ Flight chain verified");text("blackboxCount","All recent flights ("+number(blackboxIndex.total_runs)+")");
+ if(!rows.length){box.appendChild(element("div","empty","No agent flights recorded yet. Use OpenClaw after installing AtMem; new host-observed runs appear here."));renderAttention(attentionFilter);return}
+ rows.forEach(function(row){var item=element("div","flight"),identity=element("div"),run=element("b","mono",row.run_id),session=element("div","small mono",row.session_id||"no session ID");identity.append(run,session);
+  var verdict=element("div","flightstat");verdict.append(element("b","",String(row.verdict||"unknown").replaceAll("_"," ")),element("small","","verdict"));var model=element("div","flightstat");model.append(element("b","",[row.provider,row.model].filter(Boolean).join(" / ")||"not observed"),element("small","","provider / model"));var context=element("div","flightstat");context.append(element("b","",String(row.context_disposition||"missing").replaceAll("_"," ")),element("small","","memory context"));var time=element("div","flightstat");time.append(element("b","",displayTime(row.ended_at)),element("small","","last observed"));var inspect=element("button","secondary","Inspect evidence");inspect.type="button";inspect.onclick=function(){inspectBlackbox(row.run_id)};item.append(identity,verdict,model,context,time,inspect);box.appendChild(item)});renderAttention(attentionFilter)
+}
+async function loadBlackbox(){try{blackboxIndex=await get("/api/blackbox/runs?limit=20");try{bridgeRefreshStatus=await get("/api/bridge/status")}catch(_){bridgeRefreshStatus={available:false,reason:"Bridge status is unavailable."}}renderBlackbox()}catch(error){showError(error)}}
 async function inspectBlackbox(runId){
  clearError();document.body.style.overflow="hidden";$("auditorBackdrop").classList.add("show");$("auditorBackdrop").setAttribute("aria-hidden","false");$("auditorBackdrop").querySelector(".drawer").scrollTop=0;text("auditorTitle","Agent flight");text("auditorId",runId);$("auditorBody").replaceChildren(element("div","empty","Verifying the complete flight record…"));
- try{var report=await get("/api/blackbox/flight?run_id="+encodeURIComponent(runId)),body=$("auditorBody");body.replaceChildren();var ok=report.timeline_chain_valid&&report.structurally_complete,integrity=element("p","integrity"+(ok?"":" bad"),(ok?"✓ Complete tamper-evident flight":"! Flight evidence has gaps or failed verification"));body.appendChild(integrity);
-  var overview=element("section","card"),grid=element("div","evidencegrid"),tools=report.tools||{},coverage=report.coverage||{};overview.append(element("h2","","Flight verdict"),element("p","sub",String(report.verdict||"").replaceAll("_"," ")));grid.append(evidence("Evidence chain",report.timeline_chain_valid?"VALID":"INVALID",false),evidence("Events",String(report.events||0),true),evidence("Tool closure",String(tools.completed||0)+" / "+String(tools.requested||0),true),evidence("Tool errors",String((tools.errors||[]).length),true),evidence("Model input observed",coverage.model_input_observed?"yes":"no",false),evidence("Response digest bound",coverage.response_digest_bound?"yes":"no",false));overview.appendChild(grid);body.appendChild(overview);
+ try{var report=await get("/api/blackbox/flight?run_id="+encodeURIComponent(runId)),body=$("auditorBody");body.replaceChildren();var matrix=report.coverage_matrix||{},overall=matrix.overall_status||"unknown",ok=overall==="covered",integrity=element("p","integrity"+(ok?"":" bad"),(ok?"✓ Full host-observed coverage":"! Coverage status: "+overall));body.appendChild(integrity);var reportPoints=report.attention_points||[],attentionCard=element("section","card"),attentionBody=element("div","attentionlist");attentionCard.append(element("h2","",reportPoints.length?"Why this needs attention":"No attention required"),element("p","sub",reportPoints.length?"Start here before opening the technical evidence.":"This flight satisfies the currently enforced coverage checks."));reportPoints.forEach(function(point){var item=element("div","attentionitem "+point.severity),severity=element("span","severity",point.severity),copy=element("div","attentioncopy");copy.append(element("b","",point.title),element("p","",point.detail),element("p","attentionaction","Next: "+point.action));item.append(severity,copy);attentionBody.appendChild(item)});attentionCard.appendChild(attentionBody);body.appendChild(attentionCard);
+  var overview=element("section","card"),grid=element("div","evidencegrid"),tools=report.tools||{},coverage=report.coverage||{},components=matrix.components||{},context=report.context||{};overview.append(element("h2","","Flight verdict"),element("p","sub",String(report.verdict||"").replaceAll("_"," ")));grid.append(evidence("Overall coverage",overall.toUpperCase(),false),evidence("Integrity",components.integrity||"missing",false),evidence("Lifecycle",components.lifecycle||"missing",false),evidence("Context",components.context||"missing",false),evidence("Model",components.model||"missing",false),evidence("Tools",components.tools||"missing",false),evidence("Response",components.response||"missing",false),evidence("Context disposition",context.disposition||"missing",false),evidence("Events",String(report.events||0),true),evidence("Tool closure",String(tools.completed||0)+" / "+String(tools.requested||0),true),evidence("Tool errors",String((tools.errors||[]).length),true),evidence("Response digest bound",coverage.response_digest_bound?"yes":"no",false));overview.appendChild(grid);body.appendChild(overview);
+  var correlation=report.correlation||{},correlationCard=element("section","card"),correlationGrid=element("div","evidencegrid");correlationCard.append(element("h2","","Correlation envelope"),element("p","sub","Identifiers linking the turn, retrieval, context receipt, tool activity, and outcomes."));[["Turn IDs",correlation.turn_ids],["Retrieval IDs",correlation.retrieval_ids],["Context event IDs",correlation.context_event_ids],["Context receipt IDs",correlation.context_receipt_ids],["Outcome IDs",correlation.outcome_ids]].forEach(function(pair){correlationGrid.append(evidence(pair[0],(pair[1]||[]).join(", ")||"not recorded",true))});correlationCard.appendChild(correlationGrid);body.appendChild(correlationCard);
   var timelineCard=element("section","card"),timeline=element("div","timeline");timelineCard.append(element("h2","","Host-observed timeline"),element("p","sub","Digests identify exact content without storing the raw prompt, response, parameters or result."));(report.timeline||[]).forEach(function(event){var item=element("div","event");item.append(element("b","",event.event_type),element("p","",blackboxEventDetail(event)),element("div","small mono",displayTime(event.recorded_at)+" · sequence "+event.sequence+" · "+shortDigest(event.entry_sha256)));timeline.appendChild(item)});timelineCard.appendChild(timeline);body.appendChild(timelineCard);
   var boundary=element("section","card");boundary.append(element("h2","","What this proves"),element("p","",report.claim_boundary||""));body.appendChild(boundary);var downloads=element("section","card"),links=element("div","downloads");downloads.append(element("h2","","Export flight evidence"));[["JSON report","json"],["Text report","text"]].forEach(function(pair){var a=element("a","secondary",pair[0]);a.href="/api/blackbox/export?run_id="+encodeURIComponent(runId)+"&format="+pair[1];links.appendChild(a)});downloads.appendChild(links);body.appendChild(downloads)
  }catch(error){$("auditorBody").replaceChildren(element("div","notice show",error.message||String(error)))}
@@ -579,6 +613,12 @@ async function verifyNow(){
  try{await working("Verifying the memory switch","Measuring configuration, mirror integrity, restore readiness, versions, and gateway health without repairing or restarting anything.",async function(){await post("/api/verify",{});await reload()})}
  catch(error){showError(error)}
 }
+async function refreshBridgeAndTest(){
+ if(!state)return;var expected=state.host||"openclaw";
+ var entered=prompt("This briefly restarts OpenClaw and may incur a small model charge. Type '"+expected+"' to upgrade the bridge and run one self-test:");if(entered===null)return;
+ try{await working("Refreshing the OpenClaw bridge","Installing the version pinned by AtMem, restarting the gateway, verifying the plugin, and recording one fresh test flight.",async function(){var result=await post("/api/bridge/refresh-test",{confirm_host:entered});await reload();await loadBlackbox();if(result.test_flight&&result.test_flight.run_id)await inspectBlackbox(result.test_flight.run_id)})}
+ catch(error){showError(error)}
+}
 async function switchProvider(){
  if(!state)return;clearError();
  if(active()||recovery()){
@@ -597,6 +637,7 @@ $("searchBtn").onclick=search;$("query").addEventListener("keydown",function(eve
 $("refreshBtn").onclick=refresh;$("switchBtn").onclick=switchProvider;
 $("drillBtn").onclick=restoreDrill;
 $("verifyBtn").onclick=verifyNow;
+$("bridgeRefresh").onclick=refreshBridgeAndTest;
 $("reviewRefresh").onclick=refreshReviews;
 $("blackboxRefresh").onclick=loadBlackbox;
 $("auditRun").onclick=function(){auditSearch(true)};$("auditQuery").addEventListener("keydown",function(event){if(event.key==="Enter")auditSearch(true)});

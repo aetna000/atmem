@@ -10,7 +10,7 @@ also present.
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from copy import deepcopy
 import json
 import re
@@ -20,8 +20,8 @@ from atmem.core.canonical import canonical_json, sha256_hex
 from atmem.store.sqlite import utc_now
 
 
-EVENT_FORMAT = "atmem-agent-blackbox-event-v1"
-REPORT_FORMAT = "atmem-agent-blackbox-report-v1"
+EVENT_FORMAT = "atmem-agent-blackbox-event-v2"
+REPORT_FORMAT = "atmem-agent-blackbox-report-v2"
 EVIDENCE_KIND = "agent_blackbox"
 
 _EVENT_TYPE = re.compile(r"^[a-z][a-z0-9_.-]{1,63}$")
@@ -34,6 +34,13 @@ _DIGEST_KEYS = {
     "result_sha256",
     "response_sha256",
     "messages_sha256",
+    "assistant_visible_text_sha256",
+    "model_output_bundle_sha256",
+    "turn_messages_sha256",
+    "context_block_sha256",
+    "context_envelope_sha256",
+    "context_receipt_sha256",
+    "query_sha256",
 }
 _TEXT_KEYS = {
     "provider",
@@ -49,6 +56,11 @@ _TEXT_KEYS = {
     "error_category",
     "failure_kind",
     "reason",
+    "disposition",
+    "digest_profile",
+    "response_digest_profile",
+    "context_location",
+    "tool_canonical_name",
 }
 _COUNT_KEYS = {
     "prompt_chars",
@@ -66,7 +78,20 @@ _COUNT_KEYS = {
     "time_to_first_byte_ms",
 }
 _BOOL_KEYS = {"fast_mode", "cancelled", "success"}
-_LIST_KEYS = {"candidate_ids", "param_keys", "derived_path_sha256"}
+_LIST_KEYS = {
+    "candidate_ids",
+    "param_keys",
+    "derived_path_sha256",
+    "context_component_event_ids",
+}
+
+_CORRELATION_KEYS = (
+    "turn_id",
+    "retrieval_id",
+    "context_event_id",
+    "context_receipt_id",
+    "outcome_id",
+)
 
 
 def normalize_event(
@@ -78,6 +103,11 @@ def normalize_event(
     session_id: str | None,
     tool_call_id: str | None,
     payload: Mapping[str, Any] | None,
+    turn_id: str | None = None,
+    retrieval_id: str | None = None,
+    context_event_id: str | None = None,
+    context_receipt_id: str | None = None,
+    outcome_id: str | None = None,
 ) -> dict[str, Any]:
     """Validate a host event and return the canonical stored envelope."""
 
@@ -95,6 +125,11 @@ def normalize_event(
         "run_id": run,
         "session_id": _bounded_optional(session_id, 512),
         "tool_call_id": _bounded_optional(tool_call_id, 512),
+        "turn_id": _bounded_optional(turn_id, 512),
+        "retrieval_id": _bounded_optional(retrieval_id, 512),
+        "context_event_id": _bounded_optional(context_event_id, 512),
+        "context_receipt_id": _bounded_optional(context_receipt_id, 512),
+        "outcome_id": _bounded_optional(outcome_id, 512),
         "recorded_at": utc_now(),
         "payload": _normalize_payload(payload or {}),
         "content_storage": "digests-and-bounded-metadata-only",
@@ -113,6 +148,23 @@ def flight_runs(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
         values.sort(key=lambda item: int(item.get("sequence") or 0))
         bodies = [item["body"] for item in values]
         event_types = [str(body.get("event_type") or "") for body in bodies]
+        terminal_body = next(
+            (body for body in reversed(bodies) if body.get("event_type") == "turn.ended"),
+            None,
+        )
+        context_body = next(
+            (
+                body
+                for body in reversed(bodies)
+                if body.get("event_type")
+                in {"context.disposition", "context.injected", "context.prepared"}
+            ),
+            None,
+        )
+        model_body = next(
+            (body for body in reversed(bodies) if body.get("event_type") == "model.output"),
+            None,
+        )
         rows.append(
             {
                 "run_id": run_id,
@@ -126,6 +178,11 @@ def flight_runs(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "tool_requests": event_types.count("tool.requested"),
                 "tool_completions": event_types.count("tool.completed"),
                 "terminal": "turn.ended" in event_types,
+                "success": (terminal_body or {}).get("payload", {}).get("success"),
+                "cancelled": (terminal_body or {}).get("payload", {}).get("cancelled"),
+                "context_disposition": _context_disposition(context_body),
+                "provider": (model_body or {}).get("payload", {}).get("provider"),
+                "model": (model_body or {}).get("payload", {}).get("model"),
                 "last_sequence": int(values[-1].get("sequence") or 0),
             }
         )
@@ -138,6 +195,7 @@ def verify_flight(
     run_id: str,
     entries: list[dict[str, Any]],
     chain: Mapping[str, Any],
+    model_baseline: tuple[str, str] | None = None,
 ) -> dict[str, Any]:
     selected = [
         entry
@@ -148,8 +206,8 @@ def verify_flight(
     if not selected:
         raise ValueError(f"no blackbox flight found for run {run_id}")
 
-    requested: dict[str, dict[str, Any]] = {}
-    completed: dict[str, dict[str, Any]] = {}
+    requested: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    completed: dict[str, list[dict[str, Any]]] = defaultdict(list)
     uncorrelated_requests = 0
     uncorrelated_completions = 0
     tool_errors: list[dict[str, Any]] = []
@@ -159,12 +217,12 @@ def verify_flight(
         call_id = str(body.get("tool_call_id") or "")
         if event_type == "tool.requested":
             if call_id:
-                requested[call_id] = entry
+                requested[call_id].append(entry)
             else:
                 uncorrelated_requests += 1
         elif event_type == "tool.completed":
             if call_id:
-                completed[call_id] = entry
+                completed[call_id].append(entry)
             else:
                 uncorrelated_completions += 1
             payload = body.get("payload") or {}
@@ -179,33 +237,162 @@ def verify_flight(
 
     missing_completions = sorted(set(requested) - set(completed))
     orphan_completions = sorted(set(completed) - set(requested))
+    duplicate_requests, conflicting_requests = _duplicate_tool_events(
+        requested, request=True
+    )
+    duplicate_completions, conflicting_completions = _duplicate_tool_events(
+        completed, request=False
+    )
     event_types = [str(entry["body"].get("event_type") or "") for entry in selected]
+    turn_input = "turn.input" in event_types
     terminal = "turn.ended" in event_types
     model_input = "model.input" in event_types
     model_output = "model.output" in event_types
-    response_bound = any(
-        (entry["body"].get("payload") or {}).get("response_sha256")
-        for entry in selected
-        if entry["body"].get("event_type") == "model.output"
+    context_entry = next(
+        (
+            entry
+            for entry in reversed(selected)
+            if entry["body"].get("event_type")
+            in {"context.disposition", "context.injected", "context.prepared"}
+        ),
+        None,
     )
-    structurally_complete = bool(
-        chain.get("valid")
+    context_disposition = _context_disposition(
+        context_entry["body"] if context_entry else None
+    )
+    valid_dispositions = {
+        "injected",
+        "no_relevant_memory",
+        "withheld_by_policy",
+        "recall_failed",
+        "not_applicable",
+    }
+    context_observed = context_disposition in valid_dispositions
+    context_payload = (context_entry or {}).get("body", {}).get("payload", {})
+    context_digest_bound = bool(
+        context_payload.get("context_envelope_sha256")
+        or context_payload.get("context_block_sha256")
+        or context_payload.get("context_sha256")
+    )
+    context_receipt_bound = bool(
+        (context_entry or {}).get("body", {}).get("context_receipt_id")
+        or context_payload.get("context_receipt_sha256")
+    )
+    model_output_entries = [
+        entry for entry in selected if entry["body"].get("event_type") == "model.output"
+    ]
+    response_bound = any(
+        (entry["body"].get("payload") or {}).get("assistant_visible_text_sha256")
+        or (entry["body"].get("payload") or {}).get("response_sha256")
+        for entry in model_output_entries
+    )
+    response_digest_consistent = all(
+        not payload.get("assistant_visible_text_sha256")
+        or not payload.get("response_sha256")
+        or payload["assistant_visible_text_sha256"] == payload["response_sha256"]
+        for payload in [
+            entry["body"].get("payload") or {} for entry in model_output_entries
+        ]
+    )
+    terminal_entry = next(
+        (
+            entry
+            for entry in reversed(selected)
+            if entry["body"].get("event_type") == "turn.ended"
+        ),
+        None,
+    )
+    terminal_payload = (terminal_entry or {}).get("body", {}).get("payload", {})
+    current_model_payload = (
+        model_output_entries[-1]["body"].get("payload") or {}
+        if model_output_entries
+        else {}
+    )
+    baseline_model = model_baseline or recent_model_baseline(entries)
+    current_model = (
+        str(current_model_payload.get("provider") or ""),
+        str(current_model_payload.get("model") or ""),
+    )
+    model_changed = bool(
+        baseline_model and any(current_model) and current_model != baseline_model
+    )
+    cancelled = bool(terminal_payload.get("cancelled"))
+    succeeded = terminal_payload.get("success") is True and not cancelled
+    failed = terminal and not succeeded and not cancelled
+    tool_closure = not any(
+        (
+            missing_completions,
+            orphan_completions,
+            uncorrelated_requests,
+            uncorrelated_completions,
+            conflicting_requests,
+            conflicting_completions,
+        )
+    )
+    required_evidence = bool(
+        turn_input
+        and context_observed
+        and model_input
+        and model_output
+        and response_bound
+        and response_digest_consistent
         and terminal
-        and not missing_completions
-        and not orphan_completions
-        and not uncorrelated_requests
-        and not uncorrelated_completions
+        and tool_closure
+    )
+    structurally_complete = bool(chain.get("valid") and required_evidence)
+
+    component_status = {
+        "integrity": "covered" if chain.get("valid") else "failed",
+        "lifecycle": (
+            "cancelled"
+            if cancelled
+            else "failed"
+            if failed
+            else "covered"
+            if turn_input and terminal
+            else "missing"
+        ),
+        "context": (
+            "missing"
+            if not context_observed
+            else "warning"
+            if context_disposition in {"recall_failed", "withheld_by_policy"}
+            or (context_disposition == "injected" and not context_digest_bound)
+            else "covered"
+        ),
+        "model": "covered" if model_input and model_output else "missing",
+        "tools": "covered" if tool_closure else "failed",
+        "response": (
+            "failed"
+            if not response_digest_consistent
+            else "covered"
+            if response_bound
+            else "missing"
+        ),
+    }
+    overall_status = (
+        "cancelled"
+        if cancelled
+        else "failed"
+        if any(value == "failed" for value in component_status.values())
+        else "incomplete"
+        if any(value == "missing" for value in component_status.values())
+        else "warning"
+        if any(value == "warning" for value in component_status.values())
+        else "covered"
     )
     if not chain.get("valid"):
         verdict = "tampered_or_invalid_chain"
+    elif cancelled:
+        verdict = "cancelled"
+    elif failed:
+        verdict = "failed"
     elif not structurally_complete:
         verdict = "incomplete_evidence"
     elif tool_errors:
         verdict = "completed_with_tool_errors"
-    elif requested:
-        verdict = "observed_tools_reached_terminal_events"
     else:
-        verdict = "no_tool_actions_observed"
+        verdict = "completed_successfully"
 
     timeline = [
         {
@@ -215,6 +402,23 @@ def verify_flight(
         }
         for entry in selected
     ]
+    event_formats = sorted(
+        {
+            str(entry["body"].get("format") or "unknown")
+            for entry in selected
+        }
+    )
+    current_contract_observed = any(
+        entry["body"].get("event_type") == "context.disposition"
+        or (
+            entry["body"].get("event_type") == "model.output"
+            and (entry["body"].get("payload") or {}).get(
+                "assistant_visible_text_sha256"
+            )
+        )
+        for entry in selected
+    )
+    legacy_flight = not current_contract_observed
     report_body = {
         "format": REPORT_FORMAT,
         "generated_at": utc_now(),
@@ -231,24 +435,64 @@ def verify_flight(
         "timeline_chain_valid": bool(chain.get("valid")),
         "structurally_complete": structurally_complete,
         "coverage": {
+            "turn_input_observed": turn_input,
+            "context_disposition_observed": context_observed,
+            "context_digest_bound": context_digest_bound,
+            "context_receipt_bound": context_receipt_bound,
             "model_input_observed": model_input,
             "model_output_observed": model_output,
             "response_digest_bound": bool(response_bound),
+            "response_digest_consistent": response_digest_consistent,
             "terminal_event_observed": terminal,
         },
+        "coverage_matrix": {
+            "overall_status": overall_status,
+            "components": component_status,
+        },
+        "lifecycle": {
+            "success": succeeded,
+            "failed": failed,
+            "cancelled": cancelled,
+            "failure_kind": terminal_payload.get("failure_kind"),
+            "reason": terminal_payload.get("reason"),
+        },
+        "context": {
+            "disposition": context_disposition,
+            "digest_bound": context_digest_bound,
+            "receipt_bound": context_receipt_bound,
+        },
+        "model": {
+            "provider": current_model[0] or None,
+            "model": current_model[1] or None,
+            "baseline_provider": baseline_model[0] if baseline_model else None,
+            "baseline_model": baseline_model[1] if baseline_model else None,
+            "changed_from_recent_baseline": model_changed,
+        },
+        "correlation": _correlation_summary(selected),
         "tools": {
-            "requested": len(requested) + uncorrelated_requests,
-            "completed": len(completed) + uncorrelated_completions,
+            "requested": sum(map(len, requested.values())) + uncorrelated_requests,
+            "completed": sum(map(len, completed.values()))
+            + uncorrelated_completions,
             "errors": tool_errors,
             "missing_completions": missing_completions,
             "orphan_completions": orphan_completions,
             "uncorrelated_requests": uncorrelated_requests,
             "uncorrelated_completions": uncorrelated_completions,
+            "duplicate_requests": duplicate_requests,
+            "duplicate_completions": duplicate_completions,
+            "conflicting_requests": conflicting_requests,
+            "conflicting_completions": conflicting_completions,
         },
         "events": len(selected),
         "first_sequence": int(selected[0].get("sequence") or 0),
         "last_sequence": int(selected[-1].get("sequence") or 0),
         "timeline": timeline,
+        "compatibility": {
+            "event_formats": event_formats,
+            "current_event_format": EVENT_FORMAT,
+            "current_contract_observed": current_contract_observed,
+            "legacy_flight": legacy_flight,
+        },
         "claim_boundary": (
             "This report verifies retained timeline integrity and observed hook closure. "
             "It does not prove that an external real-world outcome occurred, and it does "
@@ -256,6 +500,7 @@ def verify_flight(
         ),
         "raw_content_stored": False,
     }
+    report_body["attention_points"] = flight_attention(report_body)
     return {
         **report_body,
         "report_sha256": sha256_hex(canonical_json(report_body)),
@@ -264,6 +509,7 @@ def verify_flight(
 
 def format_flight_report(report: Mapping[str, Any]) -> str:
     coverage = report.get("coverage") or {}
+    matrix = report.get("coverage_matrix") or {}
     tools = report.get("tools") or {}
     lines = [
         "AtMem Agent Black Box",
@@ -271,10 +517,12 @@ def format_flight_report(report: Mapping[str, Any]) -> str:
         f"Run: {report.get('run_id')}",
         f"Verdict: {str(report.get('verdict') or '').replace('_', ' ')}",
         f"Evidence chain: {'VALID' if report.get('timeline_chain_valid') else 'INVALID'}",
+        f"Coverage: {str(matrix.get('overall_status') or 'unknown').upper()}",
         f"Events: {report.get('events', 0)}",
         f"Tool requests: {tools.get('requested', 0)}",
         f"Tool completions: {tools.get('completed', 0)}",
         f"Tool errors: {len(tools.get('errors') or [])}",
+        f"Context disposition: {(report.get('context') or {}).get('disposition') or 'missing'}",
         f"Model input observed: {'yes' if coverage.get('model_input_observed') else 'no'}",
         f"Model output observed: {'yes' if coverage.get('model_output_observed') else 'no'}",
         f"Final response digest bound: {'yes' if coverage.get('response_digest_bound') else 'no'}",
@@ -292,6 +540,263 @@ def format_flight_report(report: Mapping[str, Any]) -> str:
         )
     lines.extend(["", str(report.get("claim_boundary") or "")])
     return "\n".join(lines) + "\n"
+
+
+def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
+    """Turn a verified flight into a small, operator-facing attention queue."""
+
+    points: list[dict[str, str]] = []
+
+    def add(
+        check: str,
+        severity: str,
+        code: str,
+        title: str,
+        detail: str,
+        action: str,
+    ) -> None:
+        points.append(
+            {
+                "check": check,
+                "severity": severity,
+                "code": code,
+                "title": title,
+                "detail": detail,
+                "action": action,
+            }
+        )
+
+    if not report.get("timeline_chain_valid"):
+        add(
+            "completion",
+            "critical",
+            "evidence_chain_invalid",
+            "Flight evidence failed integrity verification",
+            "The retained timeline may be incomplete or modified.",
+            "Inspect the evidence store before trusting this run.",
+        )
+
+    legacy_flight = bool((report.get("compatibility") or {}).get("legacy_flight"))
+    if legacy_flight:
+        add(
+            "completion",
+            "medium",
+            "legacy_evidence_contract",
+            "Older flights need a bridge refresh",
+            "These flights predate the current evidence contract, so their apparent context and tool gaps are not reliable incidents.",
+            "Upgrade AtMem and its OpenClaw bridge, restart the gateway, then run one fresh test flight.",
+        )
+
+    verdict = str(report.get("verdict") or "")
+    components = (report.get("coverage_matrix") or {}).get("components") or {}
+    if verdict == "failed":
+        lifecycle = report.get("lifecycle") or {}
+        reason = lifecycle.get("reason") or lifecycle.get("failure_kind")
+        add(
+            "completion",
+            "high",
+            "flight_failed",
+            "Agent flight failed",
+            str(reason or "The turn ended without a successful result."),
+            "Inspect the last reliable event and retry only when the cause is understood.",
+        )
+    elif verdict == "incomplete_evidence" and not legacy_flight:
+        missing = [
+            name for name, status in components.items() if status in {"missing", "failed"}
+        ]
+        add(
+            "completion",
+            "high",
+            "flight_incomplete",
+            "Flight evidence is incomplete",
+            "Missing or failed coverage: " + ", ".join(missing or ["unknown boundary"]),
+            "Inspect the timeline to find the last boundary AtMem observed.",
+        )
+
+    tools = report.get("tools") or {}
+    tool_gaps = sum(
+        len(tools.get(name) or [])
+        for name in (
+            "missing_completions",
+            "orphan_completions",
+            "conflicting_requests",
+            "conflicting_completions",
+        )
+    ) + int(tools.get("uncorrelated_requests") or 0) + int(
+        tools.get("uncorrelated_completions") or 0
+    )
+    if tool_gaps and not legacy_flight:
+        add(
+            "tools",
+            "high",
+            "tool_lifecycle_mismatch",
+            "Tool calls do not match",
+            f"{tool_gaps} tool lifecycle problem(s) need investigation.",
+            "Inspect the affected call IDs and the request/completion boundary.",
+        )
+    tool_errors = tools.get("errors") or []
+    if tool_errors:
+        names = sorted(
+            {
+                str(item.get("tool_name") or "unknown tool")
+                for item in tool_errors
+                if isinstance(item, Mapping)
+            }
+        )
+        add(
+            "tools",
+            "medium",
+            "tool_errors",
+            "A tool returned an error",
+            f"{len(tool_errors)} error(s): " + ", ".join(names[:3]),
+            "Inspect the tool error category, credentials, and input assumptions.",
+        )
+
+    coverage = report.get("coverage") or {}
+    context = report.get("context") or {}
+    disposition = str(context.get("disposition") or "")
+    if disposition == "recall_failed":
+        add(
+            "context_model",
+            "medium",
+            "memory_recall_failed",
+            "Memory recall failed",
+            "The model continued without the memory context AtMem attempted to prepare.",
+            "Check AtMem availability and the context-disposition event.",
+        )
+    elif not coverage.get("context_disposition_observed") and not legacy_flight:
+        add(
+            "context_model",
+            "high",
+            "context_unknown",
+            "Memory context is unknown",
+            "No event explains what memory reached the model.",
+            "Inspect the prompt hook and require one context disposition per turn.",
+        )
+    elif disposition == "injected" and not context.get("receipt_bound"):
+        add(
+            "context_model",
+            "medium",
+            "context_receipt_missing",
+            "Injected memory has no receipt correlation",
+            "The context digest exists, but it is not linked to a context receipt.",
+            "Inspect the memory hook correlation envelope.",
+        )
+    if coverage.get("response_digest_bound") and not coverage.get(
+        "response_digest_consistent", True
+    ):
+        add(
+            "context_model",
+            "high",
+            "response_digest_mismatch",
+            "Response fingerprints disagree",
+            "The model output contains inconsistent visible-response digests.",
+            "Inspect response transformation and hook ordering.",
+        )
+    model = report.get("model") or {}
+    if model.get("changed_from_recent_baseline"):
+        actual = " / ".join(
+            str(value) for value in (model.get("provider"), model.get("model")) if value
+        )
+        expected = " / ".join(
+            str(value)
+            for value in (model.get("baseline_provider"), model.get("baseline_model"))
+            if value
+        )
+        add(
+            "context_model",
+            "medium",
+            "model_provider_changed",
+            "Model or provider changed",
+            f"Observed {actual}; recent baseline is {expected}.",
+            "Confirm that this routing change was intentional.",
+        )
+    return points
+
+
+def recent_model_baseline(
+    entries: list[dict[str, Any]],
+) -> tuple[str, str] | None:
+    signatures = [
+        (
+            str((entry["body"].get("payload") or {}).get("provider") or ""),
+            str((entry["body"].get("payload") or {}).get("model") or ""),
+        )
+        for entry in entries
+        if entry.get("body", {}).get("event_type") == "model.output"
+    ]
+    counts = Counter(signature for signature in signatures if any(signature))
+    ranked = counts.most_common(2)
+    if (
+        ranked
+        and ranked[0][1] >= 2
+        and (len(ranked) == 1 or ranked[0][1] > ranked[1][1])
+    ):
+        return ranked[0][0]
+    return None
+
+
+def _context_disposition(body: Mapping[str, Any] | None) -> str | None:
+    if not body:
+        return None
+    payload = body.get("payload") or {}
+    explicit = str(payload.get("disposition") or "").strip()
+    if explicit:
+        return explicit
+    event_type = body.get("event_type")
+    if event_type == "context.injected":
+        return "injected"
+    if event_type == "context.prepared":
+        return (
+            "withheld_by_policy"
+            if payload.get("mode") == "shadow"
+            else "no_relevant_memory"
+        )
+    return None
+
+
+def _duplicate_tool_events(
+    grouped: Mapping[str, list[dict[str, Any]]], *, request: bool
+) -> tuple[list[str], list[str]]:
+    duplicates: list[str] = []
+    conflicts: list[str] = []
+    for call_id, entries in grouped.items():
+        if len(entries) < 2:
+            continue
+        duplicates.append(call_id)
+        signatures = set()
+        for entry in entries:
+            payload = entry["body"].get("payload") or {}
+            tool_name = payload.get("tool_canonical_name") or payload.get("tool_name")
+            signatures.add(
+                (tool_name, payload.get("params_sha256"))
+                if request
+                else (tool_name, payload.get("result_sha256"), payload.get("outcome"))
+            )
+        if len(signatures) > 1:
+            conflicts.append(call_id)
+    return sorted(duplicates), sorted(conflicts)
+
+
+def _correlation_summary(entries: list[dict[str, Any]]) -> dict[str, list[str]]:
+    names = {
+        "session_ids": "session_id",
+        "turn_ids": "turn_id",
+        "retrieval_ids": "retrieval_id",
+        "context_event_ids": "context_event_id",
+        "context_receipt_ids": "context_receipt_id",
+        "outcome_ids": "outcome_id",
+    }
+    return {
+        plural: sorted(
+            {
+                str(entry["body"].get(singular))
+                for entry in entries
+                if entry["body"].get(singular)
+            }
+        )
+        for plural, singular in names.items()
+    }
 
 
 def _normalize_payload(payload: Mapping[str, Any]) -> dict[str, Any]:

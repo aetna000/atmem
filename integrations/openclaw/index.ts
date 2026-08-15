@@ -398,12 +398,14 @@ function register(api: OpenClawPluginApi): void {
     {
       text: string;
       ts: number;
-      runId?: string;
       manifestSha256?: string;
       exposureId?: string;
       injectedRecordIds?: string[];
       retrievalId?: string;
       contextEventId?: string;
+      contextReceiptId?: string;
+      assistantVisibleTextSha256?: string;
+      modelOutputBundleSha256?: string;
     }
   >();
   const inboundAttachments = new Map<
@@ -441,12 +443,25 @@ function register(api: OpenClawPluginApi): void {
     eventRunId: string | undefined,
     ctx: OpenClawHookCtx,
   ): string => eventRunId ?? ctx.runId ?? ctx.sessionKey ?? ctx.sessionId ?? "unidentified-run";
+  const canonicalToolName = (value: string): string => {
+    const normalized = value.trim();
+    return normalized.startsWith("openclaw") && normalized.length > "openclaw".length
+      ? normalized.slice("openclaw".length)
+      : normalized;
+  };
   const recordBlackbox = async (
     eventType: string,
     eventRunId: string | undefined,
     ctx: OpenClawHookCtx,
     payload: Record<string, unknown>,
     toolCallId?: string,
+    correlation: {
+      turnId?: string;
+      retrievalId?: string;
+      contextEventId?: string;
+      contextReceiptId?: string;
+      outcomeId?: string;
+    } = {},
   ): Promise<void> => {
     if (!cfg.controlPlane.blackboxEnabled) return;
     try {
@@ -457,6 +472,11 @@ function register(api: OpenClawPluginApi): void {
           run_id: flightRunId(eventRunId, ctx),
           session_id: ctx.sessionId ?? ctx.sessionKey,
           tool_call_id: toolCallId,
+          turn_id: correlation.turnId ?? flightRunId(eventRunId, ctx),
+          retrieval_id: correlation.retrievalId,
+          context_event_id: correlation.contextEventId,
+          context_receipt_id: correlation.contextReceiptId,
+          outcome_id: correlation.outcomeId,
           payload,
         },
         cfg.recall.timeoutMs,
@@ -638,13 +658,28 @@ function register(api: OpenClawPluginApi): void {
 
   api.on("llm_output", async (event: LlmOutputEvent, ctx) => {
     const responses = Array.isArray(event.assistantTexts) ? event.assistantTexts : [];
+    const visibleText = responses.map(String).join("");
+    const assistantVisibleTextSha256 = digestText(visibleText);
+    const modelOutputBundleSha256 = digestJson(responses);
+    const sessionKey = ctx.sessionKey ?? ctx.sessionId ?? event.sessionId ?? "default-session";
+    const pending = pendingPrompts.get(sessionKey);
+    if (pending) {
+      pendingPrompts.set(sessionKey, {
+        ...pending,
+        assistantVisibleTextSha256,
+        modelOutputBundleSha256,
+      });
+    }
     await recordBlackbox("model.output", event.runId, ctx, {
       provider: event.provider,
       model: event.model,
       resolved_ref: event.resolvedRef,
       harness_id: event.harnessId,
-      response_sha256: digestJson(responses),
-      response_chars: responses.reduce((total, value) => total + String(value).length, 0),
+      response_sha256: assistantVisibleTextSha256,
+      assistant_visible_text_sha256: assistantVisibleTextSha256,
+      model_output_bundle_sha256: modelOutputBundleSha256,
+      response_digest_profile: "atmem-assistant-visible-text-utf8-v1",
+      response_chars: visibleText.length,
       response_count: responses.length,
       usage: event.usage ?? {},
       reasoning_effort: event.reasoningEffort,
@@ -708,7 +743,12 @@ function register(api: OpenClawPluginApi): void {
 
   // L3 persona cache: rebuilt on TTL expiry and invalidated when capture
   // writes new memory, so the snapshot never lags a correction.
-  let personaCache: { block: string; ts: number } | null = null;
+  let personaCache: {
+    block: string;
+    recordIds: string[];
+    contextEventId?: string;
+    ts: number;
+  } | null = null;
 
   const sweep = () => {
     const now = Date.now();
@@ -720,11 +760,15 @@ function register(api: OpenClawPluginApi): void {
     }
   };
 
-  async function personaBlock(sessionKey: string): Promise<string> {
-    if (!cfg.persona.enabled) return "";
+  async function personaBlock(sessionKey: string): Promise<{
+    block: string;
+    recordIds: string[];
+    contextEventId?: string;
+  }> {
+    if (!cfg.persona.enabled) return { block: "", recordIds: [] };
     const now = Date.now();
     if (personaCache && now - personaCache.ts < cfg.persona.ttlSeconds * 1000) {
-      return personaCache.block;
+      return personaCache;
     }
     const result = (await client.callTool(
       "memory_persona",
@@ -736,9 +780,14 @@ function register(api: OpenClawPluginApi): void {
           : "full",
       },
       cfg.recall.timeoutMs,
-    )) as { block?: string };
-    personaCache = { block: result?.block ?? "", ts: now };
-    return personaCache.block;
+    )) as { block?: string; record_ids?: string[]; context_event_id?: string };
+    personaCache = {
+      block: result?.block ?? "",
+      recordIds: result?.record_ids ?? [],
+      contextEventId: result?.context_event_id,
+      ts: now,
+    };
+    return personaCache;
   }
 
   // ---- auto-recall: persona + bounded, audited recall injection ---------
@@ -762,22 +811,41 @@ function register(api: OpenClawPluginApi): void {
           exposure_id?: string;
           mode?: string;
           candidate_ids?: string[];
+          preview_context?: string;
+          manifest_sha256?: string;
+          turn_id?: string;
+          context_receipt_id?: string;
         };
         pendingPrompts.set(sessionKey, {
           text: userText,
           ts: Date.now(),
           exposureId: prepared.exposure_id,
+          contextReceiptId: prepared.context_receipt_id,
         });
         await recordBlackbox(
-          prepared.inject && prepared.context ? "context.injected" : "context.prepared",
+          "context.disposition",
           undefined,
           ctx,
           {
+            disposition: prepared.inject && prepared.context
+              ? "injected"
+              : prepared.mode === "shadow" && (prepared.preview_context ?? "")
+                ? "withheld_by_policy"
+                : "no_relevant_memory",
             context_sha256: digestText(prepared.context ?? ""),
+            context_block_sha256: digestText(prepared.context ?? ""),
+            context_envelope_sha256: digestJson({ appendContext: prepared.context ?? "" }),
+            context_receipt_sha256: prepared.manifest_sha256,
+            digest_profile: "atmem-context-envelope-canonical-json-v1",
             context_chars: (prepared.context ?? "").length,
             candidate_ids: prepared.candidate_ids ?? [],
             exposure_id: prepared.exposure_id,
             mode: prepared.mode,
+            context_location: prepared.inject ? "appendContext" : "none",
+          },
+          undefined,
+          {
+            contextReceiptId: prepared.context_receipt_id,
           },
         );
         if (prepared.inject && prepared.context) {
@@ -788,6 +856,17 @@ function register(api: OpenClawPluginApi): void {
         }
         return;
       } catch (error) {
+        await recordBlackbox("context.disposition", undefined, ctx, {
+          disposition: "recall_failed",
+          context_block_sha256: digestText(""),
+          context_envelope_sha256: digestJson({}),
+          digest_profile: "atmem-context-envelope-canonical-json-v1",
+          context_chars: 0,
+          candidate_ids: [],
+          mode: "control-plane",
+          context_location: "none",
+          reason: error instanceof Error ? error.message : String(error),
+        });
         api.logger.warn(
           `${TAG} memory control plane failed closed: ${
             error instanceof Error ? error.message : String(error)
@@ -798,15 +877,35 @@ function register(api: OpenClawPluginApi): void {
     }
 
     if (!cfg.recall.enabled && !cfg.persona.enabled) {
-      if (takeoverGuidance) return { appendSystemContext: takeoverGuidance };
+      const result = takeoverGuidance
+        ? { appendSystemContext: takeoverGuidance }
+        : {};
+      await recordBlackbox("context.disposition", undefined, ctx, {
+        disposition: "not_applicable",
+        context_block_sha256: digestText(""),
+        context_envelope_sha256: digestJson(result),
+        digest_profile: "atmem-context-envelope-canonical-json-v1",
+        context_chars: 0,
+        candidate_ids: [],
+        mode: "direct",
+        context_location: "none",
+      });
+      if (Object.keys(result).length) return result;
       return;
     }
 
     let persona = "";
+    let personaRecordIds: string[] = [];
+    let personaContextEventId: string | undefined;
     let recall = "";
+    let recallFailed = false;
     try {
-      persona = await personaBlock(sessionKey);
+      const personaResult = await personaBlock(sessionKey);
+      persona = personaResult.block;
+      personaRecordIds = personaResult.recordIds;
+      personaContextEventId = personaResult.contextEventId;
     } catch (error) {
+      recallFailed = true;
       api.logger.warn(
         `${TAG} persona skipped: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -845,31 +944,83 @@ function register(api: OpenClawPluginApi): void {
               injectedRecordIds: result.record_ids ?? [],
               retrievalId: result.retrieval_id,
               contextEventId: result.context_event_id,
+              contextReceiptId: result.context_event_id,
             });
           }
         }
       }
     } catch (error) {
       // Never block the turn on recall problems.
+      recallFailed = true;
       api.logger.warn(
         `${TAG} auto-recall skipped: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+    let result: {
+      appendSystemContext?: string;
+      appendContext?: string;
+      prependContext?: string;
+    } = {};
+    let contextLocation = "none";
     if (cfg.cacheAware.enabled) {
-      const result: { appendSystemContext?: string; appendContext?: string } = {};
       const systemParts = [takeoverGuidance, persona].filter(Boolean);
       if (systemParts.length) result.appendSystemContext = systemParts.join("\n\n");
       if (recall) result.appendContext = recall;
-      if (Object.keys(result).length) return result;
-      return;
+      contextLocation = recall
+        ? "appendContext"
+        : persona
+          ? "appendSystemContext"
+          : "none";
+    } else {
+      const parts = [persona, recall].filter(Boolean);
+      if (parts.length) result.prependContext = parts.join("\n\n") + "\n\n";
+      if (takeoverGuidance) result.appendSystemContext = takeoverGuidance;
+      contextLocation = parts.length ? "prependContext" : "none";
     }
-    const parts = [persona, recall].filter(Boolean);
-    const result: {
-      prependContext?: string;
-      appendSystemContext?: string;
-    } = {};
-    if (parts.length) result.prependContext = parts.join("\n\n") + "\n\n";
-    if (takeoverGuidance) result.appendSystemContext = takeoverGuidance;
+    const memoryContext = [persona, recall].filter(Boolean).join("\n\n");
+    const current = pendingPrompts.get(sessionKey);
+    const candidateIds = [...new Set([
+      ...personaRecordIds,
+      ...(current?.injectedRecordIds ?? []),
+    ])];
+    const componentEventIds = [...new Set([
+      personaContextEventId,
+      current?.contextEventId,
+    ].filter((value): value is string => Boolean(value)))];
+    const contextEnvelopeSha256 = digestJson(result);
+    const contextReceiptId = componentEventIds.length
+      ? `ctxr_${digestJson({ componentEventIds, contextEnvelopeSha256 })}`
+      : undefined;
+    if (current) {
+      pendingPrompts.set(sessionKey, { ...current, contextReceiptId });
+    }
+    await recordBlackbox(
+      "context.disposition",
+      undefined,
+      ctx,
+      {
+        disposition: memoryContext
+          ? "injected"
+          : recallFailed
+            ? "recall_failed"
+            : "no_relevant_memory",
+        context_sha256: digestText(memoryContext),
+        context_block_sha256: digestText(memoryContext),
+        context_envelope_sha256: contextEnvelopeSha256,
+        digest_profile: "atmem-context-envelope-canonical-json-v1",
+        context_chars: memoryContext.length,
+        candidate_ids: candidateIds,
+        context_component_event_ids: componentEventIds,
+        mode: "direct",
+        context_location: contextLocation,
+      },
+      undefined,
+      {
+        retrievalId: current?.retrievalId,
+        contextEventId: current?.contextEventId ?? personaContextEventId,
+        contextReceiptId,
+      },
+    );
     if (Object.keys(result).length) return result;
   });
 
@@ -881,6 +1032,7 @@ function register(api: OpenClawPluginApi): void {
       ctx,
       {
         tool_name: event.toolName,
+        tool_canonical_name: canonicalToolName(event.toolName),
         tool_kind: event.toolKind,
         params_sha256: digestJson(event.params ?? {}),
         param_keys: Object.keys(event.params ?? {}).sort(),
@@ -901,6 +1053,7 @@ function register(api: OpenClawPluginApi): void {
       ctx,
       {
         tool_name: event.toolName,
+        tool_canonical_name: canonicalToolName(event.toolName),
         outcome: "error",
         error_category: "blocked_by_memory_boundary",
         result_sha256: digestText(reason),
@@ -919,6 +1072,7 @@ function register(api: OpenClawPluginApi): void {
       ctx,
       {
         tool_name: event.toolName,
+        tool_canonical_name: canonicalToolName(event.toolName),
         result_sha256: digestJson(event.result ?? null),
         outcome: event.error ? "error" : "completed",
         error_category: event.error ? "tool_error" : undefined,
@@ -968,15 +1122,20 @@ function register(api: OpenClawPluginApi): void {
           if (message?.role !== "assistant") continue;
           const responseText = messageText(message.content);
           if (responseText) {
+            const assistantVisibleTextSha256 =
+              cached.assistantVisibleTextSha256 ?? digestText(responseText);
             await client.callTool("memory_log_action", {
               action_type: "agent.response_after_memory",
               payload: {
-                response_sha256: createHash("sha256")
-                  .update(responseText, "utf8")
-                  .digest("hex"),
+                response_sha256: assistantVisibleTextSha256,
+                assistant_visible_text_sha256: assistantVisibleTextSha256,
+                model_output_bundle_sha256: cached.modelOutputBundleSha256,
+                response_digest_profile: "atmem-assistant-visible-text-utf8-v1",
                 injected_record_ids: cached.injectedRecordIds,
                 retrieval_id: cached.retrievalId,
                 context_event_id: cached.contextEventId,
+                context_receipt_id: cached.contextReceiptId,
+                run_id: flightRunId(event.runId, ctx),
                 response_content_stored: false,
                 success: event.success !== false,
               },
@@ -1026,13 +1185,23 @@ function register(api: OpenClawPluginApi): void {
         `${TAG} auto-capture failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     } finally {
+      const cancelled = event.cancelled === true;
+      const turnMessagesSha256 = digestJson(event.messages ?? []);
       await recordBlackbox("turn.ended", event.runId, ctx, {
-        success: event.success !== false,
-        cancelled: false,
+        success: event.success === true && !cancelled,
+        cancelled,
         error_category: event.error ? "agent_error" : undefined,
+        failure_kind: cancelled ? "cancelled" : event.error ? "agent_error" : undefined,
+        reason: event.error,
         duration_ms: event.durationMs ?? 0,
-        messages_sha256: digestJson(event.messages ?? []),
+        messages_sha256: turnMessagesSha256,
+        turn_messages_sha256: turnMessagesSha256,
+        digest_profile: "atmem-turn-messages-canonical-json-v1",
         messages_count: Array.isArray(event.messages) ? event.messages.length : 0,
+      }, undefined, {
+        retrievalId: cached?.retrievalId,
+        contextEventId: cached?.contextEventId,
+        contextReceiptId: cached?.contextReceiptId,
       });
     }
   });
