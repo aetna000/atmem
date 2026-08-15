@@ -104,6 +104,8 @@ The protocol does not depend on OpenAI, Anthropic, Google, Meta, xAI, DeepSeek, 
 
 See the [integration guide](docs/integration-guide.md), [audit search](docs/audit-search.md), [semantic search](docs/semantic-search.md), and [multimodal observations](docs/multimodal-observations.md).
 
+Building a multi-user product? Read [Using AtMem in a SaaS product](docs/saas-integration.md) for tenant isolation, authenticated identity, runtime capture, outcome receipts, privacy, and staged production rollout.
+
 ## Data and trust boundaries
 
 - Canonical memory, provenance, lifecycle state, and audit evidence are stored in SQLite.
