@@ -555,6 +555,60 @@ try {
   assert.doesNotMatch(JSON.stringify(activeFlight), /private\/example\/path/);
   for (const service of activeRecorder.services) await service.stop?.();
 
+  // Persistent agents sharing an exact workspace share one subject. Agents
+  // with distinct (including nested) workspaces remain isolated at every
+  // direct tool boundary.
+  const multiConfig = {
+    ...base,
+    defaultAgentId: "main",
+    agentSubjects: {
+      main: "workspace-shared",
+      helper: "workspace-shared",
+      research: "workspace-research",
+      nested: "workspace-nested",
+    },
+    agentWorkspaces: {
+      main: "/workspace",
+      helper: "/workspace",
+      research: "/research",
+      nested: "/workspace/projects/nested",
+    },
+  };
+  const seed = new AtmemClient({
+    command: "atmem",
+    args: ["mcp", "--db", dbPath, "--subject", "unused-default"],
+  });
+  await seed.callTool("memory_remember", {
+    subject_id: "workspace-shared",
+    message: "Remember that the shared agent codeword is ALPHA-SHARED.",
+    source_type: "user_message",
+  });
+  await seed.callTool("memory_remember", {
+    subject_id: "workspace-research",
+    message: "Remember that the research agent codeword is CHARLIE-RESEARCH.",
+    source_type: "user_message",
+  });
+  const mainAgent = fakeApi(multiConfig, { agentId: "main", sessionKey: "agent:main:tool" });
+  const helperAgent = fakeApi(multiConfig, { agentId: "helper", sessionKey: "agent:helper:tool" });
+  const researchAgent = fakeApi(multiConfig, { agentId: "research", sessionKey: "agent:research:tool" });
+  const mainSearch = await mainAgent.tools.get("atmem_search").execute("multi-main", { query: "ALPHA-SHARED" });
+  const helperSearch = await helperAgent.tools.get("atmem_search").execute("multi-helper", { query: "ALPHA-SHARED" });
+  const researchSearch = await researchAgent.tools.get("atmem_search").execute("multi-research", { query: "CHARLIE-RESEARCH" });
+  assert.match(mainSearch.content[0].text, /ALPHA-SHARED/);
+  assert.match(helperSearch.content[0].text, /ALPHA-SHARED/);
+  assert.doesNotMatch(mainSearch.content[0].text, /CHARLIE-RESEARCH/);
+  assert.match(researchSearch.content[0].text, /CHARLIE-RESEARCH/);
+  assert.doesNotMatch(researchSearch.content[0].text, /ALPHA-SHARED/);
+  const unknownAgent = fakeApi(multiConfig, { agentId: "unknown" });
+  await assert.rejects(
+    unknownAgent.tools.get("atmem_search").execute("multi-unknown", { query: "codeword" }),
+    /unmapped OpenClaw persistent agent/,
+  );
+  for (const instance of [mainAgent, helperAgent, researchAgent, unknownAgent]) {
+    for (const service of instance.services) await service.stop?.();
+  }
+  seed.close();
+
   console.log(
     "hooks: direct engine and fail-closed memory control plane paths verified",
   );

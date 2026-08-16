@@ -2,7 +2,7 @@
   "id": "memory-atmem",
   "name": "Memory (atmem)",
   "description": "OpenClaw bridge installed and managed by the AtMem memory control plane.",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "commandAliases": ["memory-atmem"],
   "activation": {
     "onStartup": true
@@ -42,6 +42,21 @@
         "default": "default",
         "description": "Subject id used for all memory operations (single-user assistant)"
       },
+      "defaultAgentId": {
+        "type": "string",
+        "default": "main",
+        "description": "Persistent OpenClaw agent used when a legacy hook does not expose an agent id. Managed by AtMem."
+      },
+      "agentSubjects": {
+        "type": "object",
+        "additionalProperties": { "type": "string" },
+        "description": "Persistent-agent to governed-memory-subject map. Agents sharing an exact workspace intentionally share a subject."
+      },
+      "agentWorkspaces": {
+        "type": "object",
+        "additionalProperties": { "type": "string" },
+        "description": "Persistent-agent to canonical workspace map. Managed by AtMem."
+      },
       "takeoverActive": {
         "type": "boolean",
         "default": false,
@@ -50,6 +65,11 @@
       "nativeWorkspace": {
         "type": "string",
         "description": "Absolute OpenClaw workspace path protected during verified takeover. Set by `atmem control activate`; do not configure manually."
+      },
+      "nativeWorkspaces": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "All OpenClaw workspaces protected during takeover, including separate and nested persistent-agent workspaces."
       },
       "recall": {
         "type": "object",

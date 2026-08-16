@@ -63,8 +63,12 @@ interface PluginConfig {
   commandArgs: string[];
   dbPath: string;
   subject: string;
+  defaultAgentId: string;
+  agentSubjects: Record<string, string>;
+  agentWorkspaces: Record<string, string>;
   takeoverActive: boolean;
   nativeWorkspace: string;
+  nativeWorkspaces: string[];
   recall: {
     enabled: boolean;
     maxRecords: number;
@@ -87,6 +91,22 @@ function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
   const cfg = (raw ?? {}) as Record<string, any>;
   const dbPath = expandHome(String(cfg.dbPath ?? "~/.atmem/memories.db"));
   const subject = String(cfg.subject ?? "default");
+  const stringMap = (value: unknown): Record<string, string> =>
+    value && typeof value === "object" && !Array.isArray(value)
+      ? Object.fromEntries(Object.entries(value as Record<string, unknown>)
+          .filter(([, item]) => typeof item === "string" && item.trim())
+          .map(([key, item]) => [key, String(item)]))
+      : {};
+  const agentSubjects = stringMap(cfg.agentSubjects);
+  const agentWorkspaces = Object.fromEntries(
+    Object.entries(stringMap(cfg.agentWorkspaces)).map(([key, value]) => [key, expandHome(value)]),
+  );
+  const nativeWorkspace = expandHome(String(cfg.nativeWorkspace ?? ""));
+  const nativeWorkspaces = [...new Set([
+    ...(Array.isArray(cfg.nativeWorkspaces) ? cfg.nativeWorkspaces.map((item: unknown) => expandHome(String(item))) : []),
+    ...Object.values(agentWorkspaces),
+    nativeWorkspace,
+  ].filter(Boolean))];
   const controlPlane = {
     enabled: cfg.controlPlane?.enabled === true,
     statePath: expandHome(
@@ -104,8 +124,12 @@ function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
         : ["mcp", "--db", dbPath, "--subject", subject],
     dbPath,
     subject,
+    defaultAgentId: String(cfg.defaultAgentId ?? "main"),
+    agentSubjects,
+    agentWorkspaces,
     takeoverActive: cfg.takeoverActive === true,
-    nativeWorkspace: expandHome(String(cfg.nativeWorkspace ?? "")),
+    nativeWorkspace,
+    nativeWorkspaces,
     recall: {
       enabled: cfg.recall?.enabled !== false,
       maxRecords: Number(cfg.recall?.maxRecords ?? 3),
@@ -414,10 +438,38 @@ function register(api: OpenClawPluginApi): void {
   >();
   const inboundAttachmentGeneration = new Map<string, number>();
   let nextAttachmentGeneration = 0;
+  const agentIdFor = (ctx: OpenClawHookCtx): string => {
+    if (ctx.agentId?.trim()) return ctx.agentId.trim();
+    const session = ctx.sessionKey ?? ctx.sessionId ?? "";
+    const match = /^agent:([^:]+)(?::|$)/.exec(session);
+    return match?.[1] ?? cfg.defaultAgentId;
+  };
+  const subjectFor = (ctx: OpenClawHookCtx): string => {
+    const agentId = agentIdFor(ctx);
+    if (Object.keys(cfg.agentSubjects).length) {
+      const mapped = cfg.agentSubjects[agentId];
+      if (!mapped) throw new Error(`unmapped OpenClaw persistent agent: ${agentId}`);
+      return mapped;
+    }
+    return cfg.subject;
+  };
+  const scopedKey = (value: string, ctx: OpenClawHookCtx): string =>
+    `${agentIdFor(ctx)}:${value}`;
   const contextIds = (ctx: OpenClawHookCtx): string[] =>
     [...new Set([ctx.runId, ctx.sessionKey, ctx.sessionId].filter(
       (value): value is string => Boolean(value),
-    ))];
+    ).map((value) => scopedKey(value, ctx)))];
+  const callFor = (
+    ctx: OpenClawHookCtx,
+    name: string,
+    args: Record<string, unknown>,
+    timeoutMs = cfg.recall.timeoutMs,
+  ): Promise<unknown> => {
+    const scoped = cfg.controlPlane.enabled && !Object.keys(cfg.agentSubjects).length
+      ? args
+      : { ...args, subject_id: subjectFor(ctx) };
+    return client.callTool(name, scoped, timeoutMs);
+  };
 
   const digestText = (value: string): string =>
     createHash("sha256").update(value, "utf8").digest("hex");
@@ -470,6 +522,8 @@ function register(api: OpenClawPluginApi): void {
         {
           event_type: eventType,
           run_id: flightRunId(eventRunId, ctx),
+          agent_id: agentIdFor(ctx),
+          subject_id: Object.keys(cfg.agentSubjects).length ? subjectFor(ctx) : undefined,
           session_id: ctx.sessionId ?? ctx.sessionKey,
           tool_call_id: toolCallId,
           turn_id: correlation.turnId ?? flightRunId(eventRunId, ctx),
@@ -516,7 +570,7 @@ function register(api: OpenClawPluginApi): void {
   ) => {
     const ids = contextIds(ctx);
     if (!ids.length) return;
-    await client.callTool("memory_stage_user_message", {
+    await callFor(ctx, "memory_stage_user_message", {
       message: text.trim(),
       source_aliases: ids,
       run_id: ctx.runId,
@@ -661,7 +715,10 @@ function register(api: OpenClawPluginApi): void {
     const visibleText = responses.map(String).join("");
     const assistantVisibleTextSha256 = digestText(visibleText);
     const modelOutputBundleSha256 = digestJson(responses);
-    const sessionKey = ctx.sessionKey ?? ctx.sessionId ?? event.sessionId ?? "default-session";
+    const sessionKey = scopedKey(
+      ctx.sessionKey ?? ctx.sessionId ?? event.sessionId ?? "default-session",
+      ctx,
+    );
     const pending = pendingPrompts.get(sessionKey);
     if (pending) {
       pendingPrompts.set(sessionKey, {
@@ -743,12 +800,12 @@ function register(api: OpenClawPluginApi): void {
 
   // L3 persona cache: rebuilt on TTL expiry and invalidated when capture
   // writes new memory, so the snapshot never lags a correction.
-  let personaCache: {
+  const personaCaches = new Map<string, {
     block: string;
     recordIds: string[];
     contextEventId?: string;
     ts: number;
-  } | null = null;
+  }>();
 
   const sweep = () => {
     const now = Date.now();
@@ -760,17 +817,20 @@ function register(api: OpenClawPluginApi): void {
     }
   };
 
-  async function personaBlock(sessionKey: string): Promise<{
+  async function personaBlock(sessionKey: string, ctx: OpenClawHookCtx): Promise<{
     block: string;
     recordIds: string[];
     contextEventId?: string;
   }> {
     if (!cfg.persona.enabled) return { block: "", recordIds: [] };
     const now = Date.now();
+    const subject = subjectFor(ctx);
+    const personaCache = personaCaches.get(subject);
     if (personaCache && now - personaCache.ts < cfg.persona.ttlSeconds * 1000) {
       return personaCache;
     }
-    const result = (await client.callTool(
+    const result = (await callFor(
+      ctx,
       "memory_persona",
       {
         session_id: sessionKey,
@@ -781,29 +841,31 @@ function register(api: OpenClawPluginApi): void {
       },
       cfg.recall.timeoutMs,
     )) as { block?: string; record_ids?: string[]; context_event_id?: string };
-    personaCache = {
+    const refreshed = {
       block: result?.block ?? "",
       recordIds: result?.record_ids ?? [],
       contextEventId: result?.context_event_id,
       ts: now,
     };
-    return personaCache;
+    personaCaches.set(subject, refreshed);
+    return refreshed;
   }
 
   // ---- auto-recall: persona + bounded, audited recall injection ---------
   api.on("before_prompt_build", async (event: BeforePromptBuildEvent, ctx) => {
     const userText = event.prompt;
     if (!userText) return;
-    const sessionKey = ctx.sessionKey ?? ctx.sessionId ?? "default-session";
+    const sessionKey = scopedKey(ctx.sessionKey ?? ctx.sessionId ?? "default-session", ctx);
     const takeoverGuidance = cfg.takeoverActive ? TAKEOVER_GUIDANCE : "";
     pendingPrompts.set(sessionKey, { text: userText, ts: Date.now() });
     sweep();
 
     if (cfg.controlPlane.enabled) {
       try {
-        const prepared = (await client.callTool(
+        const prepared = (await callFor(
+          ctx,
           "control_prepare",
-          { query: userText, session_id: sessionKey },
+          { query: userText, session_id: sessionKey, agent_id: agentIdFor(ctx) },
           cfg.recall.timeoutMs,
         )) as {
           inject?: boolean;
@@ -900,7 +962,7 @@ function register(api: OpenClawPluginApi): void {
     let recall = "";
     let recallFailed = false;
     try {
-      const personaResult = await personaBlock(sessionKey);
+      const personaResult = await personaBlock(sessionKey, ctx);
       persona = personaResult.block;
       personaRecordIds = personaResult.recordIds;
       personaContextEventId = personaResult.contextEventId;
@@ -912,7 +974,8 @@ function register(api: OpenClawPluginApi): void {
     }
     try {
       if (cfg.recall.enabled) {
-        const result = (await client.callTool(
+        const result = (await callFor(
+          ctx,
           "memory_recall_block",
           {
             query: userText,
@@ -1042,7 +1105,9 @@ function register(api: OpenClawPluginApi): void {
       },
       event.toolCallId,
     );
-    if (!cfg.takeoverActive || !touchesNativeMemory(event, cfg.nativeWorkspace)) return;
+    if (!cfg.takeoverActive || !cfg.nativeWorkspaces.some(
+      (workspace) => touchesNativeMemory(event, workspace),
+    )) return;
     const reason =
       "AtMem takeover blocked access to OpenClaw's frozen native memory " +
       "(MEMORY.md or memory/*). Use memory_remember for durable user facts, " +
@@ -1084,7 +1149,7 @@ function register(api: OpenClawPluginApi): void {
 
   // ---- auto-capture: user turn through the pipeline, assistant as digest -
   api.on("agent_end", async (event: AgentEndEvent, ctx) => {
-    const sessionKey = ctx.sessionKey ?? ctx.sessionId ?? "default-session";
+    const sessionKey = scopedKey(ctx.sessionKey ?? ctx.sessionId ?? "default-session", ctx);
 
     const cached = pendingPrompts.get(sessionKey);
     pendingPrompts.delete(sessionKey);
@@ -1092,7 +1157,8 @@ function register(api: OpenClawPluginApi): void {
 
     try {
       if (cfg.takeoverActive) {
-        await client.callTool(
+        await callFor(
+          ctx,
           "memory_clear_user_message",
           { source_aliases: contextIds(ctx) },
           cfg.recall.timeoutMs,
@@ -1100,14 +1166,16 @@ function register(api: OpenClawPluginApi): void {
       }
       if (cfg.controlPlane.enabled) {
         if (cached?.exposureId) {
-          await client.callTool(
+          await callFor(
+            ctx,
             "control_exposure_shown",
             { exposure_id: cached.exposureId },
             cfg.recall.timeoutMs,
           );
         }
         if (event.success !== false) {
-          await client.callTool(
+          await callFor(
+            ctx,
             "control_sync_openclaw_memory",
             {},
             cfg.recall.timeoutMs,
@@ -1124,7 +1192,7 @@ function register(api: OpenClawPluginApi): void {
           if (responseText) {
             const assistantVisibleTextSha256 =
               cached.assistantVisibleTextSha256 ?? digestText(responseText);
-            await client.callTool("memory_log_action", {
+            await callFor(ctx, "memory_log_action", {
               action_type: "agent.response_after_memory",
               payload: {
                 response_sha256: assistantVisibleTextSha256,
@@ -1151,12 +1219,12 @@ function register(api: OpenClawPluginApi): void {
         event.success !== false &&
         userText
       ) {
-        await client.callTool("memory_capture", {
+        await callFor(ctx, "memory_capture", {
           role: "user",
           content: userText,
           session_id: sessionKey,
         });
-        personaCache = null; // new memory may change the persona
+        personaCaches.delete(subjectFor(ctx)); // new memory may change the persona
       }
       if (
         cfg.capture.enabled &&
@@ -1170,7 +1238,7 @@ function register(api: OpenClawPluginApi): void {
           if (message?.role === "assistant") {
             const text = messageText(message.content);
             if (text) {
-              await client.callTool("memory_capture", {
+              await callFor(ctx, "memory_capture", {
                 role: "assistant",
                 content: text,
                 session_id: sessionKey,
@@ -1286,9 +1354,9 @@ function register(api: OpenClawPluginApi): void {
             additionalProperties: false,
           },
           async execute(toolCallId, params) {
-            const sessionKey = toolCtx.sessionKey ?? toolCtx.sessionId;
-            const sourceAliases = [toolCtx.sessionKey, toolCtx.sessionId]
-              .filter((value): value is string => Boolean(value));
+            const rawSessionKey = toolCtx.sessionKey ?? toolCtx.sessionId;
+            const sessionKey = rawSessionKey ? scopedKey(rawSessionKey, toolCtx) : undefined;
+            const sourceAliases = contextIds(toolCtx);
             if (!sessionKey || !sourceAliases.length) {
               throw new Error(
                 "no current authenticated user message is available; memory was not stored",
@@ -1302,7 +1370,7 @@ function register(api: OpenClawPluginApi): void {
                 .filter(Boolean)
                 .join(":") ??
               "openclaw-agent";
-            const result = (await client.callTool("memory_remember", {
+            const result = (await callFor(toolCtx, "memory_remember", {
               source_aliases: sourceAliases,
               interpreted_fact: fact,
               interpreted_fact_key: params.factKey,
@@ -1315,7 +1383,7 @@ function register(api: OpenClawPluginApi): void {
             const duplicateId = result.duplicate_ids?.[0];
             const stored = Boolean(record || duplicateId);
             if (stored) {
-              personaCache = null;
+              personaCaches.delete(subjectFor(toolCtx));
             }
             return {
               content: [{
@@ -1341,7 +1409,7 @@ function register(api: OpenClawPluginApi): void {
     // same tool names; only the governed storage/retrieval implementation
     // changes underneath them.
     api.registerTool(
-      {
+      (toolCtx: OpenClawPluginToolContext) => ({
         name: "memory_search",
         label: "Memory Search",
         description:
@@ -1383,7 +1451,7 @@ function register(api: OpenClawPluginApi): void {
             Math.max(Number(params.maxResults) || 6, 1),
             20,
           );
-          const records = (await client.callTool("memory_recall", {
+          const records = (await callFor(toolCtx, "memory_recall", {
             query: String(params.query ?? ""),
             session_id: sessionId,
             limit: maxResults,
@@ -1426,12 +1494,12 @@ function register(api: OpenClawPluginApi): void {
             details: { count: results.length, corpus, sessionId },
           };
         },
-      },
+      }),
       { name: "memory_search" },
     );
 
     api.registerTool(
-      {
+      (toolCtx: OpenClawPluginToolContext) => ({
         name: "memory_get",
         label: "Memory Get",
         description:
@@ -1453,7 +1521,7 @@ function register(api: OpenClawPluginApi): void {
           const recordId = recordIdFromPath(lookup);
           if (!recordId) {
             const sessionId = `openclaw-memory-get:${toolCallId}`;
-            const sourceResult = (await client.callTool("memory_get_source", {
+            const sourceResult = (await callFor(toolCtx, "memory_get_source", {
               path: lookup,
               session_id: sessionId,
             })) as {
@@ -1499,7 +1567,7 @@ function register(api: OpenClawPluginApi): void {
             };
           }
           const sessionId = `openclaw-memory-get:${toolCallId}`;
-          const result = (await client.callTool("memory_get_record", {
+          const result = (await callFor(toolCtx, "memory_get_record", {
             record_id: recordId,
             session_id: sessionId,
           })) as {
@@ -1525,12 +1593,12 @@ function register(api: OpenClawPluginApi): void {
             details: { found: Boolean(result?.record), sessionId },
           };
         },
-      },
+      }),
       { name: "memory_get" },
     );
 
     api.registerTool(
-      {
+      (toolCtx: OpenClawPluginToolContext) => ({
         name: "atmem_search",
         label: "Memory Search (atmem)",
         description:
@@ -1547,7 +1615,7 @@ function register(api: OpenClawPluginApi): void {
         },
         async execute(toolCallId, params) {
           const sessionId = `openclaw-tool:${toolCallId}`;
-          const records = (await client.callTool("memory_recall", {
+          const records = (await callFor(toolCtx, "memory_recall", {
             query: String(params.query ?? ""),
             session_id: sessionId,
             limit: Math.min(Math.max(Number(params.limit) || 5, 1), 20),
@@ -1560,12 +1628,12 @@ function register(api: OpenClawPluginApi): void {
             details: { count: records.length, sessionId },
           };
         },
-      },
+      }),
       { name: "atmem_search" },
     );
 
     api.registerTool(
-      {
+      (toolCtx: OpenClawPluginToolContext) => ({
         name: "atmem_forget",
         label: "Memory Forget (atmem)",
         description:
@@ -1585,12 +1653,12 @@ function register(api: OpenClawPluginApi): void {
         },
         async execute(toolCallId, params) {
           const sessionId = `openclaw-tool:${toolCallId}`;
-          const result = (await client.callTool("memory_forget", {
+          const result = (await callFor(toolCtx, "memory_forget", {
             utterance: String(params.utterance ?? ""),
             session_id: sessionId,
             turn_id: toolCallId,
           })) as { deleted: boolean; record_ids: string[]; receipt?: unknown };
-          if (result.deleted) personaCache = null;
+          if (result.deleted) personaCaches.delete(subjectFor(toolCtx));
           const text = result.deleted
             ? `Deleted ${result.record_ids.length} memorie(s). Receipt: ${JSON.stringify(result.receipt)}`
             : "No matching memories found to delete.";
@@ -1599,7 +1667,7 @@ function register(api: OpenClawPluginApi): void {
             details: { deleted: result.deleted, sessionId },
           };
         },
-      },
+      }),
       { name: "atmem_forget" },
     );
 
@@ -1724,7 +1792,7 @@ function register(api: OpenClawPluginApi): void {
           for (const key of ["page", "timestamp_start", "timestamp_end", "region"] as const) {
             if (suppliedSegment[key] !== undefined) segment[key] = suppliedSegment[key];
           }
-          const result = (await client.callTool("memory_observe", {
+          const result = (await callFor(toolCtx, "memory_observe", {
             text: String(params.text ?? ""),
             modality: requestedModality,
             media_sha256: mediaSha256,
@@ -1768,7 +1836,7 @@ function register(api: OpenClawPluginApi): void {
     );
 
     api.registerTool(
-      {
+      (toolCtx: OpenClawPluginToolContext) => ({
         name: "atmem_forget_artifact",
         label: "Forget Media Artifact (atmem)",
         description:
@@ -1791,13 +1859,13 @@ function register(api: OpenClawPluginApi): void {
         },
         async execute(toolCallId, params) {
           const sessionId = `openclaw-tool:${toolCallId}`;
-          const result = (await client.callTool("memory_forget_artifact", {
+          const result = (await callFor(toolCtx, "memory_forget_artifact", {
             media_sha256: String(params.media_sha256 ?? ""),
             artifact_id: params.artifact_id,
             session_id: sessionId,
             turn_id: toolCallId,
           })) as { deleted: boolean; record_ids: string[]; receipt?: unknown };
-          if (result.deleted) personaCache = null;
+          if (result.deleted) personaCaches.delete(subjectFor(toolCtx));
           const text = result.deleted
             ? `Purged ${result.record_ids.length} derived memorie(s). Receipt: ${JSON.stringify(result.receipt)}`
             : "No active AtMem artifact matched that exact digest.";
@@ -1806,7 +1874,7 @@ function register(api: OpenClawPluginApi): void {
             details: { deleted: result.deleted, sessionId },
           };
         },
-      },
+      }),
       { name: "atmem_forget_artifact" },
     );
   }

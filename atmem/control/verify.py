@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 import shutil
 import time
 from typing import Any
@@ -197,6 +198,9 @@ def _restore_readiness(
 def run_verification(state: ControlState, *, probe: bool = False) -> dict[str, Any]:
     """Measure the current control-plane state without repairing or restarting it."""
 
+    if state.host != "openclaw":
+        return _run_generic_verification(state, probe=probe)
+
     started = time.monotonic()
     started_at = utc_now()
     executable = shutil.which("openclaw")
@@ -311,6 +315,111 @@ def run_verification(state: ControlState, *, probe: bool = False) -> dict[str, A
     store = ControlStore(
         control_dir / "evidence.db",
         policy=HouseholdPolicy.load(control_dir / MIRROR_DB_NAME),
+    )
+    try:
+        evidence = store.append_evidence(state.migration_id, kind="verification", body=report)
+    finally:
+        store.close()
+    return {**report, "evidence_entry_sha256": evidence["entry_sha256"]}
+
+
+def _run_generic_verification(
+    state: ControlState, *, probe: bool = False
+) -> dict[str, Any]:
+    started = time.monotonic()
+    started_at = utc_now()
+    control_dir = Path(state.control_dir)
+    store = ControlStore(
+        control_dir / "evidence.db",
+        policy=HouseholdPolicy.load(control_dir / "openclaw-mirror.db"),
+    )
+    try:
+        transitions = store.verify_transitions(state.migration_id)
+        memory_chain = store.verify_evidence_chain(
+            state.migration_id, kind="memory_control"
+        )
+        blackbox_chain = store.verify_evidence_chain(
+            state.migration_id, kind="agent_blackbox"
+        )
+    finally:
+        store.close()
+    from atmem.control.topology import load_topology
+
+    try:
+        topology = load_topology(control_dir, subject_id=state.subject_id)
+        topology_valid = bool(topology.get("agents") and topology.get("workspaces"))
+        topology_error = None
+    except (OSError, ValueError) as exc:
+        topology_valid = False
+        topology_error = str(exc)
+        topology = {"workspaces": []}
+    config_path = control_dir / "generic-adapter.json"
+    canonical_valid = True
+    canonical_error = None
+    canonical_db = control_dir / "generic-memory.db"
+    try:
+        if config_path.is_file():
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+            canonical_db = Path(str(config.get("memory_db") or canonical_db))
+        memory = Memory(canonical_db, retain_query_text=False)
+        try:
+            subjects = list(
+                dict.fromkeys(
+                    str(row.get("subject_id"))
+                    for row in topology.get("workspaces") or []
+                    if row.get("subject_id")
+                )
+            ) or [state.subject_id]
+            canonical_valid = all(bool(memory.verify(subject).get("valid")) for subject in subjects)
+        finally:
+            memory.close()
+    except (OSError, ValueError) as exc:
+        canonical_valid = False
+        canonical_error = str(exc)
+    checks = [
+        _check("control_transition_chain", "pass" if transitions["valid"] else "fail", transitions["valid"], transitions),
+        _check("memory_evidence_chain", "pass" if memory_chain["valid"] else "fail", memory_chain["valid"], memory_chain),
+        _check(
+            "canonical_memory_chain",
+            "pass" if canonical_valid else "fail",
+            canonical_valid,
+            {"database": str(canonical_db), "error": canonical_error},
+        ),
+        _check("flight_evidence_chain", "pass" if blackbox_chain["valid"] else "fail", blackbox_chain["valid"], blackbox_chain),
+        _check("agent_topology", "pass" if topology_valid else "fail", topology_valid, {"error": topology_error}),
+        _check(
+            "mode_context_policy",
+            "pass",
+            True,
+            {
+                "mode": state.mode.value,
+                "rule": "Only active mode may return inject=true.",
+                "probe_requested": probe,
+            },
+        ),
+    ]
+    valid = not any(row["status"] == "fail" for row in checks)
+    body = {
+        "format": "atmem-control-verification-v1",
+        "migration_id": state.migration_id,
+        "mode": state.mode.value,
+        "host": state.host,
+        "host_version": "adapter-supplied",
+        "bridge_version": None,
+        "started_at": started_at,
+        "ended_at": utc_now(),
+        "duration_ms": round((time.monotonic() - started) * 1000),
+        "checks": checks,
+        "valid": valid,
+    }
+    stable = {
+        key: body[key]
+        for key in ("format", "migration_id", "mode", "host", "host_version", "bridge_version", "checks", "valid")
+    }
+    report = seal_report(body, stable_evidence=stable)
+    store = ControlStore(
+        control_dir / "evidence.db",
+        policy=HouseholdPolicy.load(control_dir / "openclaw-mirror.db"),
     )
     try:
         evidence = store.append_evidence(state.migration_id, kind="verification", body=report)

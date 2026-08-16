@@ -59,6 +59,48 @@ class NativeSource:
     pinned: bool
 
 
+def _path_is_within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
+def _remove_native_path_preserving_workspaces(
+    source: Path, protected_workspaces: list[Path]
+) -> None:
+    """Freeze a native root without deleting a nested agent workspace."""
+
+    if not source.exists():
+        return
+    if source.is_file() or source.is_symlink():
+        source.unlink()
+        return
+    protected = [root.resolve() for root in protected_workspaces]
+
+    def remove_tree(path: Path) -> bool:
+        resolved = path.resolve()
+        if any(resolved == root for root in protected):
+            return False
+        contains_protected = any(_path_is_within(root, resolved) for root in protected)
+        if not contains_protected:
+            shutil.rmtree(path)
+            return True
+        for child in list(path.iterdir()):
+            if child.is_dir() and not child.is_symlink():
+                remove_tree(child)
+            else:
+                child.unlink()
+        try:
+            path.rmdir()
+            return True
+        except OSError:
+            return False
+
+    remove_tree(source)
+
+
 def discover_workspace(openclaw: str | None = None) -> Path:
     executable = openclaw or shutil.which("openclaw")
     if executable:
@@ -84,11 +126,19 @@ def discover_workspace(openclaw: str | None = None) -> Path:
     return (Path.home() / ".openclaw" / "workspace").resolve()
 
 
-def discover_sources(workspace: str | Path) -> list[NativeSource]:
+def discover_sources(
+    workspace: str | Path,
+    *,
+    excluded_roots: Iterable[str | Path] = (),
+) -> list[NativeSource]:
     root = Path(workspace).expanduser().resolve()
+    excluded = [Path(value).expanduser().resolve(strict=False) for value in excluded_roots]
     sources: list[NativeSource] = []
 
     def add(path: Path, plane: str, *, pinned: bool = False) -> None:
+        resolved = path.resolve(strict=False)
+        if any(_path_is_within(resolved, blocked) for blocked in excluded):
+            return
         if path.is_file() and not path.is_symlink():
             sources.append(
                 NativeSource(
@@ -114,30 +164,97 @@ def sync_mirror(
     state: ControlState,
     *,
     workspace: str | Path | None = None,
+    topology: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    root = (
-        Path(workspace).expanduser().resolve()
-        if workspace is not None
-        else discover_workspace()
+    from atmem.control.openclaw_topology import (
+        build_agent_topology,
+        discover_agent_topology,
     )
+
+    if topology is not None:
+        discovered = topology
+    elif workspace is not None:
+        # An explicit workspace is a deliberate legacy/test override. Runtime
+        # discovery is used when no override is supplied.
+        discovered = build_agent_topology(
+            [
+                {
+                    "id": "main",
+                    "workspace": Path(workspace).expanduser().resolve(),
+                    "isDefault": True,
+                }
+            ],
+            base_subject_id=state.subject_id,
+        )
+    else:
+        discovered = discover_agent_topology(
+            base_subject_id=state.subject_id,
+            fallback_workspace=discover_workspace(),
+        )
+    workspace_scopes = list(discovered.get("workspaces") or [])
+    if not workspace_scopes:
+        raise ValueError("OpenClaw agent topology contains no workspaces")
+    primary_scope = next(
+        (row for row in workspace_scopes if row.get("is_primary")),
+        workspace_scopes[0],
+    )
+    primary_root = Path(str(primary_scope["workspace"])).expanduser().resolve()
     control_dir = Path(state.control_dir)
     mirror_path = control_dir / MIRROR_DB_NAME
     manifest_path = control_dir / MIRROR_MANIFEST_NAME
-    baseline = _ensure_native_baseline(control_dir, root)
-    shadow_history = _record_shadow_version(control_dir, root, baseline)
-    snapshot_root = Path(str(shadow_history["snapshot_root"]))
-    sources = discover_sources(snapshot_root)
-    source_rows = [_source_row(source) for source in sources]
-    for source_row in source_rows:
-        relative_path = str(source_row["relative_path"])
-        source_row["snapshot_path"] = source_row["path"]
-        source_row["path"] = str(root / relative_path)
+    prepared: list[dict[str, Any]] = []
+    all_source_rows: list[dict[str, Any]] = []
+    for scope in workspace_scopes:
+        root = Path(str(scope["workspace"])).expanduser().resolve()
+        scope_dir = (
+            control_dir
+            if scope.get("is_primary")
+            else control_dir / "workspaces" / str(scope["workspace_id"])
+        )
+        scope_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        baseline = _ensure_native_baseline(scope_dir, root)
+        shadow_history = _record_shadow_version(scope_dir, root, baseline)
+        snapshot_root = Path(str(shadow_history["snapshot_root"]))
+        excluded_snapshot_roots: list[Path] = []
+        for candidate in workspace_scopes:
+            if candidate is scope:
+                continue
+            candidate_root = Path(str(candidate["workspace"])).expanduser().resolve()
+            try:
+                relative_child = candidate_root.relative_to(root)
+            except ValueError:
+                continue
+            excluded_snapshot_roots.append(snapshot_root / relative_child)
+        sources = discover_sources(
+            snapshot_root, excluded_roots=excluded_snapshot_roots
+        )
+        source_rows = [_source_row(source) for source in sources]
+        for source_row in source_rows:
+            relative_path = str(source_row["relative_path"])
+            source_row["snapshot_path"] = source_row["path"]
+            source_row["path"] = str(root / relative_path)
+            source_row["workspace_id"] = str(scope["workspace_id"])
+            source_row["workspace"] = str(root)
+            source_row["subject_id"] = str(scope["subject_id"])
+            source_row["agent_ids"] = list(scope.get("agent_ids") or [])
+        all_source_rows.extend(source_rows)
+        prepared.append(
+            {
+                **scope,
+                "workspace": str(root),
+                "control_dir": str(scope_dir),
+                "baseline": baseline,
+                "shadow_history": shadow_history,
+                "sources": sources,
+                "source_rows": source_rows,
+            }
+        )
     manifest_sha256 = sha256_hex(
         canonical_json(
             {
-                "format": "atmem-openclaw-native-manifest-v1",
-                "workspace": str(root),
-                "sources": source_rows,
+                "format": "atmem-openclaw-native-manifest-v2",
+                "topology": discovered,
+                "sources": all_source_rows,
             }
         )
     )
@@ -147,9 +264,6 @@ def sync_mirror(
         and previous.get("manifest_sha256") == manifest_sha256
         and mirror_path.is_file()
     ):
-        previous["native_baseline"] = _snapshot_summary(baseline)
-        previous["shadow_history"] = shadow_history
-        _private_json(manifest_path, previous)
         return _mirror_status_from_manifest(previous, mirror_path)
 
     build_path = control_dir / f".{MIRROR_DB_NAME}.building"
@@ -158,45 +272,65 @@ def sync_mirror(
     imported_records = 0
     imported_chunks = 0
     try:
-        for source, source_row in zip(sources, source_rows):
-            text = source.path.read_text(encoding="utf-8", errors="replace")
-            for chunk in _markdown_chunks(text):
-                result = memory.remember(
-                    state.subject_id,
-                    fact=chunk["text"],
-                    force=True,
-                    session_id=f"openclaw-native:{source.relative_path}",
-                    turn_id=str(source_row["sha256"])[:16],
-                    source_type="user_message",
-                    actor="openclaw-shadow-import",
-                    raw={
-                        "format": "atmem-openclaw-native-source-v1",
-                        "source_path": str(root / source.relative_path),
-                        "snapshot_path": str(source.path),
-                        "relative_path": source.relative_path,
-                        "source_sha256": source_row["sha256"],
-                        "line_start": chunk["line_start"],
-                        "line_end": chunk["line_end"],
-                        "plane": source.plane,
-                        "pinned": source.pinned,
-                    },
-                )
-                imported_records += len(result.get("records") or [])
-                imported_chunks += 1
-        memory.store.append_audit_event(
-            subject_id=state.subject_id,
-            event_type="host.memory_mirror_synchronized",
-            actor="openclaw-shadow-import",
-            payload={
-                "migration_id": state.migration_id,
-                "workspace_sha256": sha256_hex(str(root)),
-                "manifest_sha256": manifest_sha256,
-                "source_count": len(source_rows),
-                "source_bytes": sum(int(row["bytes"]) for row in source_rows),
-                "imported_chunks": imported_chunks,
-                "record_count": imported_records,
-            },
-        )
+        for item in prepared:
+            scope_records = 0
+            scope_chunks = 0
+            root = Path(str(item["workspace"]))
+            subject_id = str(item["subject_id"])
+            for source, source_row in zip(item["sources"], item["source_rows"]):
+                text = source.path.read_text(encoding="utf-8", errors="replace")
+                for chunk in _markdown_chunks(text):
+                    result = memory.remember(
+                        subject_id,
+                        fact=chunk["text"],
+                        force=True,
+                        session_id=(
+                            f"openclaw-native:{item['workspace_id']}:"
+                            f"{source.relative_path}"
+                        ),
+                        turn_id=str(source_row["sha256"])[:16],
+                        source_type="user_message",
+                        actor="openclaw-shadow-import",
+                        raw={
+                            "format": "atmem-openclaw-native-source-v1",
+                            "workspace_id": item["workspace_id"],
+                            "agent_ids": list(item.get("agent_ids") or []),
+                            "subject_id": subject_id,
+                            "source_path": str(root / source.relative_path),
+                            "snapshot_path": str(source.path),
+                            "relative_path": source.relative_path,
+                            "source_sha256": source_row["sha256"],
+                            "line_start": chunk["line_start"],
+                            "line_end": chunk["line_end"],
+                            "plane": source.plane,
+                            "pinned": source.pinned,
+                        },
+                    )
+                    created = len(result.get("records") or [])
+                    imported_records += created
+                    imported_chunks += 1
+                    scope_records += created
+                    scope_chunks += 1
+            item["imported_records"] = scope_records
+            item["imported_chunks"] = scope_chunks
+            memory.store.append_audit_event(
+                subject_id=subject_id,
+                event_type="host.memory_mirror_synchronized",
+                actor="openclaw-shadow-import",
+                payload={
+                    "migration_id": state.migration_id,
+                    "workspace_id": item["workspace_id"],
+                    "agent_ids": list(item.get("agent_ids") or []),
+                    "workspace_sha256": sha256_hex(str(root)),
+                    "manifest_sha256": manifest_sha256,
+                    "source_count": len(item["source_rows"]),
+                    "source_bytes": sum(
+                        int(row["bytes"]) for row in item["source_rows"]
+                    ),
+                    "imported_chunks": scope_chunks,
+                    "record_count": scope_records,
+                },
+            )
         verification = memory.verify()
         if not verification.get("valid"):
             raise ValueError("AtMem mirror audit verification failed")
@@ -208,23 +342,48 @@ def sync_mirror(
     os.replace(build_path, mirror_path)
     _remove_sqlite_sidecars(mirror_path)
     native_memory_chars = sum(
-        int(row["bytes"]) for row in source_rows if row["relative_path"] == "MEMORY.md"
+        int(row["bytes"])
+        for row in all_source_rows
+        if row["relative_path"] == "MEMORY.md"
+    )
+    workspace_rows = [
+        {
+            "workspace_id": item["workspace_id"],
+            "workspace": item["workspace"],
+            "subject_id": item["subject_id"],
+            "agent_ids": list(item.get("agent_ids") or []),
+            "is_primary": bool(item.get("is_primary")),
+            "parent_workspace_id": item.get("parent_workspace_id"),
+            "source_count": len(item["source_rows"]),
+            "source_bytes": sum(int(row["bytes"]) for row in item["source_rows"]),
+            "imported_chunks": int(item.get("imported_chunks") or 0),
+            "record_count": int(item.get("imported_records") or 0),
+            "sources": item["source_rows"],
+            "native_baseline": _snapshot_summary(item["baseline"]),
+            "shadow_history": item["shadow_history"],
+        }
+        for item in prepared
+    ]
+    primary_row = next(
+        (row for row in workspace_rows if row["is_primary"]), workspace_rows[0]
     )
     manifest = {
-        "format": "atmem-openclaw-mirror-v1",
+        "format": "atmem-openclaw-mirror-v2",
         "migration_id": state.migration_id,
         "subject_id": state.subject_id,
-        "workspace": str(root),
+        "workspace": str(primary_root),
+        "topology": discovered,
+        "workspaces": workspace_rows,
         "mirror_db": str(mirror_path),
         "manifest_sha256": manifest_sha256,
-        "source_count": len(source_rows),
-        "source_bytes": sum(int(row["bytes"]) for row in source_rows),
+        "source_count": len(all_source_rows),
+        "source_bytes": sum(int(row["bytes"]) for row in all_source_rows),
         "native_memory_chars": native_memory_chars,
         "imported_chunks": imported_chunks,
         "record_count": imported_records,
-        "sources": source_rows,
-        "native_baseline": _snapshot_summary(baseline),
-        "shadow_history": shadow_history,
+        "sources": all_source_rows,
+        "native_baseline": primary_row["native_baseline"],
+        "shadow_history": primary_row["shadow_history"],
         "synced_at": utc_now(),
     }
     _private_json(manifest_path, manifest)
@@ -242,8 +401,8 @@ def mirror_status(state: ControlState, *, refresh: bool = True) -> dict[str, Any
         try:
             return sync_mirror(
                 state,
-                workspace=(
-                    manifest.get("workspace") if isinstance(manifest, dict) else None
+                topology=(
+                    manifest.get("topology") if isinstance(manifest, dict) else None
                 ),
             )
         except Exception as exc:
@@ -269,21 +428,30 @@ def search_mirror(
     query: str,
     *,
     limit: int = 20,
+    subject_id: str | None = None,
 ) -> dict[str, Any]:
     status = mirror_status(state)
     if not status.get("synced"):
         raise ValueError(status.get("error") or "OpenClaw mirror is not synchronized")
+    selected_subject = subject_id or state.subject_id
+    known_subjects = {
+        str(row.get("subject_id"))
+        for row in (status.get("topology") or {}).get("workspaces", [])
+        if isinstance(row, dict) and row.get("subject_id")
+    }
+    if known_subjects and selected_subject not in known_subjects:
+        raise ValueError("subject is not part of the current OpenClaw topology")
     memory = Memory(status["mirror_db"], retain_query_text=True)
     try:
         records = memory.recall(
-            state.subject_id,
+            selected_subject,
             query,
             session_id=f"migration:{state.migration_id}:investigator",
             limit=max(1, min(int(limit), 100)),
             min_score=0.3,
         )
         episodes = {
-            str(row["id"]): row for row in memory.store.list_episodes(state.subject_id)
+            str(row["id"]): row for row in memory.store.list_episodes(selected_subject)
         }
         for record in records:
             record["match_excerpt"] = _focused_excerpt(
@@ -299,7 +467,7 @@ def search_mirror(
         return {
             "format": "atmem-openclaw-mirror-search-v1",
             "query": query,
-            "subject_id": state.subject_id,
+            "subject_id": selected_subject,
             "manifest_sha256": status.get("manifest_sha256"),
             "count": len(records),
             "records": records,
@@ -353,7 +521,7 @@ def list_mirror_reviews(state: ControlState) -> dict[str, Any]:
                             "extractor": extractor,
                             "confidence": media.get("confidence"),
                             "preview_url": (
-                                "/api/mirror/media-preview?record_id="
+                                "/api/memory/media-preview?record_id="
                                 + str(record["id"])
                                 if media.get("modality") == "image"
                                 else None
@@ -1276,7 +1444,20 @@ def activate_takeover(
                 "files before another activation is allowed."
             )
 
-    workspace = Path(str(status["workspace"]))
+    workspace_rows = list(status.get("workspaces") or [])
+    if not workspace_rows:
+        workspace_rows = [{
+            "workspace_id": "primary",
+            "workspace": status["workspace"],
+            "subject_id": state.subject_id,
+            "agent_ids": ["main"],
+            "is_primary": True,
+            "shadow_history": status.get("shadow_history") or {},
+        }]
+    primary_workspace_row = next(
+        (row for row in workspace_rows if row.get("is_primary")), workspace_rows[0]
+    )
+    workspace = Path(str(primary_workspace_row["workspace"]))
     archive = _new_cutover_archive(control_dir)
     prior_slot = _optional_json(
         [executable, "config", "get", "plugins.slots.memory", "--json"]
@@ -1315,6 +1496,7 @@ def activate_takeover(
         "prior_plugin_entry": prior_plugin_entry,
         "prior_tools_also_allow": prior_tools_also_allow,
         "relocated": [],
+        "workspaces": [],
         "approved_candidates_merged": 0,
         "native_capability_report": capability_report,
         "pre_activation_verification": pre_activation_verification,
@@ -1327,22 +1509,49 @@ def activate_takeover(
         report(3, total_steps, "Pausing OpenClaw memory writes")
         _run([executable, "gateway", "stop"])
         report(4, total_steps, "Taking the final searchable memory snapshot")
-        status = sync_mirror(state, workspace=workspace)
+        status = sync_mirror(state, topology=status.get("topology"))
         if not status.get("synced") or not status.get("audit_verified"):
             raise ValueError("final OpenClaw memory mirror failed verification")
         promoted_candidates = _merge_approved_control_candidates(
             state, status["mirror_db"]
         )
         archive.mkdir(mode=0o700, exist_ok=False)
-        native_snapshot = _snapshot_native_memory(workspace, archive)
-        shadow_history = status.get("shadow_history")
-        shadow_history = shadow_history if isinstance(shadow_history, dict) else {}
-        if native_snapshot["snapshot_sha256"] != shadow_history.get(
-            "latest_observed_sha256"
-        ):
-            raise ValueError(
-                "switch-time snapshot does not match the final searchable mirror"
+        cutover_workspaces: list[dict[str, Any]] = []
+        for row in workspace_rows:
+            scope_workspace = Path(str(row["workspace"]))
+            scope_archive = (
+                archive
+                if row.get("is_primary")
+                else archive / "workspaces" / str(row["workspace_id"])
             )
+            scope_archive.mkdir(parents=True, mode=0o700, exist_ok=True)
+            scope_snapshot = _snapshot_native_memory(scope_workspace, scope_archive)
+            shadow_history = row.get("shadow_history")
+            shadow_history = shadow_history if isinstance(shadow_history, dict) else {}
+            if scope_snapshot["snapshot_sha256"] != shadow_history.get(
+                "latest_observed_sha256"
+            ):
+                raise ValueError(
+                    f"switch-time snapshot does not match the final searchable mirror for {scope_workspace}"
+                )
+            cutover_workspaces.append({
+                "workspace_id": row["workspace_id"],
+                "workspace": str(scope_workspace),
+                "subject_id": row["subject_id"],
+                "agent_ids": list(row.get("agent_ids") or []),
+                "is_primary": bool(row.get("is_primary")),
+                "parent_workspace_id": row.get("parent_workspace_id"),
+                "archive": str(scope_archive),
+                "mirror_db": status["mirror_db"],
+                "migration_id": state.migration_id,
+                "native_snapshot": scope_snapshot,
+                "relocated": [],
+            })
+        primary_cutover = next(
+            (row for row in cutover_workspaces if row["is_primary"]),
+            cutover_workspaces[0],
+        )
+        native_snapshot = primary_cutover["native_snapshot"]
         _private_json(
             control_dir / NATIVE_SNAPSHOT_MANIFEST_NAME,
             native_snapshot,
@@ -1352,27 +1561,37 @@ def activate_takeover(
                 "mirror_db": status["mirror_db"],
                 "manifest_sha256": status["manifest_sha256"],
                 "native_snapshot": native_snapshot,
+                "workspaces": cutover_workspaces,
                 "native_snapshot_verified": True,
                 "approved_candidates_merged": promoted_candidates,
             }
         )
         _private_json(cutover_path, cutover)
 
-        if _tree_manifest(workspace, NATIVE_MEMORY_ROOTS) != native_snapshot["entries"]:
-            raise ValueError(
-                "OpenClaw native memory changed after the switch-time snapshot"
-            )
+        for scope in cutover_workspaces:
+            scope_workspace = Path(str(scope["workspace"]))
+            if _tree_manifest(scope_workspace, NATIVE_MEMORY_ROOTS) != scope["native_snapshot"]["entries"]:
+                raise ValueError(
+                    f"OpenClaw native memory changed after the switch-time snapshot: {scope_workspace}"
+                )
         report(5, total_steps, "Freezing native supplemental memory")
-        for relative in SUPPLEMENTAL_MEMORY_ROOTS:
-            source = workspace / relative
-            if not source.exists():
-                continue
-            cutover["relocated"].append(relative)
-            _private_json(cutover_path, cutover)
-            if source.is_dir():
-                shutil.rmtree(source)
-            else:
-                source.unlink()
+        for scope in cutover_workspaces:
+            scope_workspace = Path(str(scope["workspace"]))
+            nested_roots = [
+                Path(str(other["workspace"]))
+                for other in cutover_workspaces
+                if other is not scope
+                and _path_is_within(Path(str(other["workspace"])), scope_workspace)
+            ]
+            for relative in SUPPLEMENTAL_MEMORY_ROOTS:
+                source = scope_workspace / relative
+                if not source.exists():
+                    continue
+                scope["relocated"].append(relative)
+                if scope["is_primary"]:
+                    cutover["relocated"].append(relative)
+                _private_json(cutover_path, cutover)
+                _remove_native_path_preserving_workspaces(source, nested_roots)
 
         report(6, total_steps, "Configuring AtMem as the memory provider")
         existing_tools = (
@@ -1386,6 +1605,11 @@ def activate_takeover(
             )
         )
         base = "plugins.entries.memory-atmem"
+        topology = status.get("topology") or {}
+        agent_subjects = dict(topology.get("agent_subjects") or {})
+        agent_workspaces = dict(topology.get("agent_workspaces") or {})
+        native_workspaces = [str(row["workspace"]) for row in workspace_rows]
+        default_agent_id = str(topology.get("default_agent_id") or "main")
         applied_configuration = {
             "plugins.slots.memory": "none",
             "hooks.internal.entries.session-memory": {"enabled": False},
@@ -1396,8 +1620,12 @@ def activate_takeover(
             },
             f"{base}.config.takeoverActive": True,
             f"{base}.config.nativeWorkspace": str(workspace),
+            f"{base}.config.nativeWorkspaces": native_workspaces,
             f"{base}.config.dbPath": status["mirror_db"],
             f"{base}.config.subject": state.subject_id,
+            f"{base}.config.defaultAgentId": default_agent_id,
+            f"{base}.config.agentSubjects": agent_subjects,
+            f"{base}.config.agentWorkspaces": agent_workspaces,
             f"{base}.hooks.allowConversationAccess": True,
             f"{base}.config.capture": {
                 "enabled": True,
@@ -1428,8 +1656,12 @@ def activate_takeover(
         )
         _set_json(executable, f"{base}.config.takeoverActive", True)
         _set_json(executable, f"{base}.config.nativeWorkspace", str(workspace))
+        _set_json(executable, f"{base}.config.nativeWorkspaces", native_workspaces)
         _set_json(executable, f"{base}.config.dbPath", status["mirror_db"])
         _set_json(executable, f"{base}.config.subject", state.subject_id)
+        _set_json(executable, f"{base}.config.defaultAgentId", default_agent_id)
+        _set_json(executable, f"{base}.config.agentSubjects", agent_subjects)
+        _set_json(executable, f"{base}.config.agentWorkspaces", agent_workspaces)
         _set_json(executable, f"{base}.hooks.allowConversationAccess", True)
         _set_json(
             executable,
@@ -1510,12 +1742,25 @@ def activate_takeover(
                 "--json",
             ]
         )
+        protected_workspaces = _optional_json(
+            [executable, "config", "get", f"{base}.config.nativeWorkspaces", "--json"]
+        )
+        configured_agent_subjects = _optional_json(
+            [executable, "config", "get", f"{base}.config.agentSubjects", "--json"]
+        )
         if (
             not isinstance(plugin, dict)
             or plugin.get("status") != "loaded"
             or not required_tools.issubset(tool_names)
             or not required_hooks.issubset(typed_hooks)
             or protected_workspace != str(workspace)
+                or (
+                    len(workspace_rows) > 1
+                    and (
+                        protected_workspaces != native_workspaces
+                        or configured_agent_subjects != agent_subjects
+                    )
+                )
         ):
             raise ValueError(
                 "AtMem OpenClaw runtime did not verify the standard "
@@ -1545,7 +1790,12 @@ def activate_takeover(
         _private_json(cutover_path, cutover)
         return _cutover_public(cutover)
     except Exception:
-        _restore_cutover(cutover, executable=executable)
+        scopes = list(cutover.get("workspaces") or [])
+        if scopes:
+            for scope in scopes:
+                _restore_cutover({**cutover, **scope, "workspaces": []}, executable=executable)
+        else:
+            _restore_cutover(cutover, executable=executable)
         _run([executable, "gateway", "restart"], allow_missing=True)
         cutover["status"] = "rolled_back_after_failure"
         cutover["rolled_back_at"] = utc_now()
@@ -1669,7 +1919,14 @@ def restore_drill(state: ControlState) -> dict[str, Any]:
         raise ValueError("OpenClaw is not on PATH; saved configuration was not checked")
     staging_root = control_dir / RESTORE_STAGING_NAME / "drill"
     try:
-        _expected, files = _stage_restore_tree(cutover, staging_root)
+        files: list[dict[str, Any]] = []
+        scope_cutovers = list(cutover.get("workspaces") or [cutover])
+        for scope in scope_cutovers:
+            workspace_id = str(scope.get("workspace_id") or "primary")
+            _expected, scope_files = _stage_restore_tree(
+                scope, staging_root / workspace_id
+            )
+            files.extend({**row, "workspace_id": workspace_id} for row in scope_files)
         config = _saved_config_readability(cutover, executable)
         from atmem.control.compat import normalize_openclaw_version
 
@@ -1680,7 +1937,7 @@ def restore_drill(state: ControlState) -> dict[str, Any]:
         config_ok = all(bool(row["readable"]) for row in config)
         ended_at = utc_now()
         body = {
-            "format": "atmem-restore-drill-v1",
+            "format": "atmem-restore-drill-v2",
             "migration_id": state.migration_id,
             "started_at": started_at,
             "ended_at": ended_at,
@@ -1689,8 +1946,8 @@ def restore_drill(state: ControlState) -> dict[str, Any]:
             "files_restoration_tested": files_ok,
             "saved_config_readable": config_ok,
             "live_rollback_performed": False,
-            "host_version": host_version,
             "files": files,
+            "workspace_count": len(scope_cutovers),
             "config": config,
             "valid": files_ok and config_ok,
         }
@@ -1829,6 +2086,7 @@ def _restore_staged_files(
     staging_root: Path,
     journal: dict[str, Any],
     journal_path: Path,
+    step_prefix: str = "",
 ) -> list[dict[str, Any]]:
     workspace = Path(str(cutover["workspace"]))
     control_dir = journal_path.parent
@@ -1842,7 +2100,7 @@ def _restore_staged_files(
     )
     roots = tuple(str(value) for value in cutover.get("relocated") or ())
     for relative in roots:
-        step_name = f"file:{relative}"
+        step_name = f"{step_prefix}file:{relative}"
         expected_root = _entries_for_roots(expected, (relative,))
         destination = workspace / relative
         if not _restore_step_done(journal, step_name):
@@ -2022,23 +2280,41 @@ def restore_takeover(
     gateway: dict[str, Any] = {"restarted": False, "verified": False}
     mirror_integrity: dict[str, Any] = {"valid": False, "error": "not measured"}
     staging_root = control_dir / RESTORE_STAGING_NAME / "live"
+    scope_cutovers = list(cutover.get("workspaces") or [cutover])
     try:
         progress_report(1, total_steps, "Validating the frozen OpenClaw snapshot")
-        if not _restore_step_done(journal, "preflight"):
-            expected, staged = _stage_restore_tree(cutover, staging_root)
-            _complete_restore_step(
-                journal,
-                journal_path,
-                "preflight",
-                {"entries": len(expected), "matched": all(row["matched"] for row in staged)},
+        staged_scopes: list[tuple[dict[str, Any], Path, list[dict[str, Any]]]] = []
+        for scope in scope_cutovers:
+            workspace_id = str(scope.get("workspace_id") or "primary")
+            scope_staging = staging_root / workspace_id
+            expected, staged = _stage_restore_tree(scope, scope_staging)
+            step_name = (
+                f"preflight:{workspace_id}" if len(scope_cutovers) > 1 else "preflight"
             )
-        else:
-            expected, _staged = _stage_restore_tree(cutover, staging_root)
+            if not _restore_step_done(journal, step_name):
+                _complete_restore_step(
+                    journal,
+                    journal_path,
+                    step_name,
+                    {"entries": len(expected), "matched": all(row["matched"] for row in staged)},
+                )
+            staged_scopes.append((scope, scope_staging, expected))
 
         progress_report(2, total_steps, "Restoring the frozen native files")
-        preserved = _restore_staged_files(
-            cutover, staging_root, journal, journal_path
-        )
+        preserved = []
+        for scope, scope_staging, _expected in staged_scopes:
+            workspace_id = str(scope.get("workspace_id") or "primary")
+            preserved.extend(_restore_staged_files(
+                scope, scope_staging, journal, journal_path,
+                step_prefix=(f"workspace:{workspace_id}:" if len(scope_cutovers) > 1 else "")
+            ))
+            if scope.get("is_primary", len(scope_cutovers) == 1):
+                cutover["post_switch_native_preservation_root"] = scope.get(
+                    "post_switch_native_preservation_root"
+                )
+                cutover["post_switch_native_preserved"] = scope.get(
+                    "post_switch_native_preserved", []
+                )
         progress_report(3, total_steps, "Restoring the saved OpenClaw configuration")
         config = _apply_restore_config(
             executable,
@@ -2050,19 +2326,43 @@ def restore_takeover(
             raise ValueError("restored OpenClaw configuration failed verification")
 
         progress_report(4, total_steps, "Verifying the restored baseline")
-        roots = tuple(str(value) for value in cutover.get("relocated") or ())
-        files = _manifest_diff(expected, Path(str(cutover["workspace"])), roots=roots)
+        files = []
+        for scope, _scope_staging, expected in staged_scopes:
+            roots = tuple(str(value) for value in scope.get("relocated") or ())
+            workspace_id = str(scope.get("workspace_id") or "primary")
+            scope_files = _manifest_diff(
+                expected, Path(str(scope["workspace"])), roots=roots
+            )
+            files.extend({**row, "workspace_id": workspace_id} for row in scope_files)
         if any(not row["matched"] for row in files):
-            raise ValueError("restored OpenClaw baseline failed verification")
+            raise ValueError("restored OpenClaw workspace baseline failed verification")
         if not _restore_step_done(journal, "baseline"):
             _complete_restore_step(
                 journal, journal_path, "baseline", {"entries": len(files)}
             )
 
         progress_report(5, total_steps, "Returning active-period memories to OpenClaw")
-        active_export = _active_export_with_additions(
-            cutover, subject_id=state.subject_id
-        )
+        scope_exports = [
+            {
+                "workspace_id": str(scope.get("workspace_id") or "primary"),
+                "subject_id": str(scope.get("subject_id") or state.subject_id),
+                **_active_export_with_additions(
+                    scope, subject_id=str(scope.get("subject_id") or state.subject_id)
+                ),
+            }
+            for scope in scope_cutovers
+        ]
+        if len(scope_exports) == 1:
+            active_export = dict(scope_exports[0])
+        else:
+            active_export = {
+                "format": "atmem-openclaw-active-export-v2",
+                "workspaces": scope_exports,
+                "record_count": sum(int(row.get("record_count") or 0) for row in scope_exports),
+                "record_ids": [record_id for row in scope_exports for record_id in row.get("record_ids") or []],
+                "additions": [addition for row in scope_exports for addition in row.get("additions") or []],
+            }
+            active_export["summary_sha256"] = sha256_hex(canonical_json(active_export))
         cutover["active_memory_export"] = active_export
         if not _restore_step_done(journal, "active-memory-export"):
             _complete_restore_step(
@@ -2077,10 +2377,18 @@ def restore_takeover(
 
         from atmem.control.verify import _audit_integrity
 
-        mirror_integrity = _audit_integrity(
-            Path(str(cutover["mirror_db"])), state.subject_id
-        )
-        if not mirror_integrity.get("valid"):
+        subject_integrity = [
+            _audit_integrity(
+                Path(str(cutover["mirror_db"])),
+                str(scope.get("subject_id") or state.subject_id),
+            )
+            for scope in scope_cutovers
+        ]
+        mirror_integrity = {
+            "valid": all(row.get("valid") for row in subject_integrity),
+            "subjects": subject_integrity,
+        }
+        if not mirror_integrity["valid"]:
             raise ValueError("AtMem mirror integrity failed during restore verification")
 
         progress_report(6, total_steps, "Restarting and checking OpenClaw")
@@ -2557,8 +2865,9 @@ def _merge_approved_control_candidates(state: ControlState, mirror_db: str | Pat
     created = 0
     try:
         for row in approved:
+            candidate_subject = str(row.get("subject_id") or state.subject_id)
             result = memory.remember(
-                state.subject_id,
+                candidate_subject,
                 fact=str(row["content"]),
                 force=True,
                 session_id=str(row.get("source_session_id") or state.migration_id),
@@ -2573,16 +2882,24 @@ def _merge_approved_control_candidates(state: ControlState, mirror_db: str | Pat
                 },
             )
             created += len(result.get("records") or [])
-        memory.store.append_audit_event(
-            subject_id=state.subject_id,
-            event_type="migration.approved_candidates_imported",
-            actor="control-plane-activator",
-            payload={
-                "migration_id": state.migration_id,
-                "candidate_ids": [str(row["id"]) for row in approved],
-                "created_records": created,
-            },
-        )
+        for candidate_subject in sorted({
+            str(row.get("subject_id") or state.subject_id) for row in approved
+        }):
+            scoped = [
+                str(row["id"])
+                for row in approved
+                if str(row.get("subject_id") or state.subject_id) == candidate_subject
+            ]
+            memory.store.append_audit_event(
+                subject_id=candidate_subject,
+                event_type="migration.approved_candidates_imported",
+                actor="control-plane-activator",
+                payload={
+                    "migration_id": state.migration_id,
+                    "candidate_ids": scoped,
+                    "created_records": created,
+                },
+            )
         memory.store._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     finally:
         memory.close()
@@ -2628,9 +2945,22 @@ def _mirror_status_from_manifest(
     if mirror_path.is_file():
         memory = Memory(mirror_path)
         try:
-            subject_id = str(manifest.get("subject_id") or "local-user")
-            record_count = len(memory.list(subject_id, include_inactive=True))
-            audit_verified = bool(memory.verify(subject_id).get("valid"))
+            workspace_rows = manifest.get("workspaces") or []
+            subject_ids = list(
+                dict.fromkeys(
+                    str(row.get("subject_id"))
+                    for row in workspace_rows
+                    if isinstance(row, dict) and row.get("subject_id")
+                )
+            ) or [str(manifest.get("subject_id") or "local-user")]
+            record_count = sum(
+                len(memory.list(subject_id, include_inactive=True))
+                for subject_id in subject_ids
+            )
+            audit_verified = all(
+                bool(memory.verify(subject_id).get("valid"))
+                for subject_id in subject_ids
+            )
         except Exception as exc:
             audit_error = str(exc)
         finally:
@@ -2701,6 +3031,18 @@ def _cutover_public(value: dict[str, Any]) -> dict[str, Any]:
                 "verified_at",
             )
         }
+    if isinstance(value.get("workspaces"), list):
+        public["workspaces"] = [
+            {
+                key: row.get(key)
+                for key in (
+                    "workspace_id", "workspace", "subject_id", "agent_ids",
+                    "is_primary", "parent_workspace_id", "relocated",
+                )
+            }
+            for row in value["workspaces"]
+            if isinstance(row, dict)
+        ]
     return public
 
 

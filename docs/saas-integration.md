@@ -29,19 +29,31 @@ atmem control activate
 ```
 
 Use `atmem control restore` to return to the saved OpenClaw configuration.
-OpenClaw is currently the only host with AtMem's complete automated migration,
-Black Box lifecycle capture, activation, and restore adapter.
+OpenClaw is currently the only host with AtMem's complete automated native
+memory discovery, copy, lifecycle-hook installation, activation, and exact
+native-state restore adapter.
 
 ### Your SaaS has its own agent runtime
 
-Use the embedded Python engine or run `atmem mcp` as a private child process.
-Your host adapter must authenticate users, supply tenant/session/turn identity,
-inject the returned memory into the actual model request, and record the model
-and tool lifecycle it observes.
+Use the generic control adapter for shadow/active policy and Agent Black Box
+evidence, and use the embedded Python engine or `atmem mcp` for direct canonical
+memory operations:
 
-Do not describe a generic MCP connection as a complete Black Box integration.
-The MCP server provides governed memory operations, but an MCP connection alone
-cannot prove which context reached a model or what an external system did.
+```bash
+atmem control shadow --host generic --memory-db /srv/atmem/tenant/memories.db
+atmem control mcp
+```
+
+Your host adapter must authenticate users, supply agent/workspace/session/run/
+turn identity, inject only context returned with `inject=true`, confirm the
+exact exposure, and record the model and tool lifecycle it observes. Operators
+can use CLI, the loopback dashboard, or `atmem control operator-mcp` against the
+same state.
+
+Do not describe an MCP process alone as proof of a complete Black Box
+integration. The generic contract can retain the evidence, but it cannot see
+the model request or external system by itself; the runtime and independent
+outcome verifier must report those boundaries truthfully.
 
 ## Recommended SaaS architecture
 
@@ -323,8 +335,11 @@ shadow/activate/restore commands are specific to OpenClaw.
 With OpenClaw, AtMem supplies the automated shadow migration, evidence-rich
 Black Box hooks, verified activation, dashboard, and restore workflow.
 
-With a custom SaaS agent, AtMem supplies the governed memory engine, bounded
-recall, provenance, lifecycle records, deletion receipts, integrity checks, and
-MCP/Python interfaces. Your host adapter must still provide authenticated
-identity, actual model-context delivery proof, complete tool closure, telemetry,
-and independent outcome evidence.
+With a custom SaaS agent, AtMem supplies the governed memory engine, generic
+shadow/active control, multi-agent workspace scopes, Black Box event storage,
+flight inspection/export/acknowledgement, bounded recall, provenance, lifecycle
+records, deletion receipts, integrity checks, CLI, dashboard, and MCP/Python
+interfaces. Your host adapter must still provide authenticated identity,
+truthful model-context delivery events, complete tool closure, telemetry, and
+independent outcome evidence. AtMem does not provide hosted multi-tenant
+authentication or storage isolation.

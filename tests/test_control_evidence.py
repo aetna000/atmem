@@ -76,6 +76,40 @@ def test_v1_control_store_migrates_without_losing_rows(tmp_path: Path) -> None:
         migrated.close()
 
 
+def test_candidates_are_deduplicated_within_subject_not_across_agents(
+    tmp_path: Path,
+) -> None:
+    store, migration_id = _store(tmp_path)
+    kwargs = {
+        "content": "User prefers concise reports.",
+        "fact_key": "report_style",
+        "confidence": 1.0,
+        "source_type": "user_message",
+        "trust_tier": "authenticated_user",
+        "source_message_sha256": "a" * 64,
+        "source_session_id": "session-1",
+    }
+    try:
+        first, first_duplicate = store.insert_candidate(
+            migration_id, subject_id="workspace-a", **kwargs
+        )
+        second, second_duplicate = store.insert_candidate(
+            migration_id, subject_id="workspace-b", **kwargs
+        )
+        repeated, repeated_duplicate = store.insert_candidate(
+            migration_id, subject_id="workspace-a", **kwargs
+        )
+        assert first_duplicate is False
+        assert second_duplicate is False
+        assert repeated_duplicate is True
+        assert repeated["id"] == first["id"]
+        assert second["id"] != first["id"]
+        assert len(store.list_candidates(migration_id, subject_id="workspace-a")) == 1
+        assert len(store.list_candidates(migration_id, subject_id="workspace-b")) == 1
+    finally:
+        store.close()
+
+
 def test_evidence_chains_are_scoped_and_detect_body_tampering(tmp_path: Path) -> None:
     store, first_migration = _store(tmp_path)
     second_migration = "migration-2"

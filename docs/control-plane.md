@@ -1,4 +1,8 @@
-# OpenClaw memory control plane
+# OpenClaw automated memory control plane
+
+This document describes guarantees specific to the automated OpenClaw adapter.
+For a host-neutral runtime integration, use the
+[generic adapter contract](generic-adapter.md).
 
 AtMem uses two customer-visible modes.
 

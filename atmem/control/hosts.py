@@ -98,6 +98,18 @@ def _configure_openclaw(
         "statePath": str(Path(state_path).expanduser().resolve(strict=False)),
         "blackboxEnabled": True,
     }
+    topology_config: list[tuple[str, Any]] = []
+    manifest_path = Path(state.control_dir) / "openclaw-mirror.json"
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        topology = manifest.get("topology") or {}
+        workspaces = list(topology.get("workspaces") or [])
+        topology_config = [
+            ("plugins.entries.memory-atmem.config.defaultAgentId", str(topology.get("default_agent_id") or "main")),
+            ("plugins.entries.memory-atmem.config.agentSubjects", dict(topology.get("agent_subjects") or {})),
+            ("plugins.entries.memory-atmem.config.agentWorkspaces", dict(topology.get("agent_workspaces") or {})),
+            ("plugins.entries.memory-atmem.config.nativeWorkspaces", [str(row["workspace"]) for row in workspaces]),
+        ]
     # Route an already-enabled plugin through the fail-closed migration server
     # before touching hook permission. Enable is deliberately the final write.
     writes = [
@@ -109,6 +121,7 @@ def _configure_openclaw(
             "plugins.entries.memory-atmem.config.command",
             str(Path(atmem_executable).resolve()),
         ),
+        *topology_config,
         (
             "plugins.entries.memory-atmem.hooks.allowConversationAccess",
             True,

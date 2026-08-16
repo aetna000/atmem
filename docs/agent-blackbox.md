@@ -1,6 +1,9 @@
 # Agent Black Box
 
-AtMem Agent Black Box records a content-minimizing, tamper-evident flight timeline from the lifecycle hooks exposed by OpenClaw.
+AtMem Agent Black Box records a content-minimizing, tamper-evident flight
+timeline from lifecycle hooks exposed by a runtime adapter. OpenClaw installs
+those hooks automatically; custom runtimes emit the same events through
+`atmem control mcp`.
 
 It answers a narrow operational question:
 
@@ -8,7 +11,7 @@ It answers a narrow operational question:
 
 ## What is recorded
 
-Depending on which hooks OpenClaw emits, a flight can contain:
+Depending on which hooks the runtime emits, a flight can contain:
 
 | Event | Retained evidence |
 | --- | --- |
@@ -20,7 +23,11 @@ Depending on which hooks OpenClaw emits, a flight can contain:
 | `model.output` | assistant-visible-text digest, model-output-bundle digest, provider/model, size and token usage |
 | `turn.ended` | message-bundle digest, success/cancel state and reason |
 
-Raw prompts, responses, tool parameters and tool results are not stored in the Black Box. Derived local paths are hashed before they leave the OpenClaw plugin. The timeline is appended to the control evidence store and protected by a migration- and kind-scoped hash chain.
+Raw prompts, responses, tool parameters and tool results are not stored in the
+Black Box. Adapters must hash derived local paths before recording an event.
+The OpenClaw bridge does this before data leaves the plugin. The timeline is
+appended to the control evidence store and protected by a migration- and
+kind-scoped hash chain.
 
 Digests are fingerprints, not encryption or anonymization. Someone who can guess a low-entropy value can hash that guess and compare it, and bounded metadata such as model and tool names remains visible. Treat the local evidence database and exported reports as sensitive operational records.
 
@@ -42,7 +49,7 @@ is correct. It shows plain-language attention points and recommended next
 actions first; healthy flights and the complete evidence timeline remain
 available in the collapsed investigation view.
 
-When recent flights came from an older bridge contract, the dashboard offers
+When recent OpenClaw flights came from an older bridge contract, the dashboard offers
 **Upgrade bridge & run test** once the installed Python release pins a newer
 bridge. The guarded action installs that exact npm version, restarts and
 health-checks OpenClaw, runs one fixed no-tools model turn, and opens the new

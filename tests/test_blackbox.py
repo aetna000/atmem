@@ -193,6 +193,141 @@ def test_blackbox_reports_missing_completion_without_claiming_success(
     assert "no completion was observed" in tool_point["detail"]
 
 
+def test_open_flight_reports_one_recording_gap_not_tool_failure(
+    tmp_path: Path,
+) -> None:
+    manager = _manager(tmp_path)
+    manager.record_blackbox_event(
+        event_type="turn.input",
+        run_id="run-open",
+        session_id="session-open",
+        payload={"prompt_sha256": "0" * 64, "prompt_chars": 12},
+    )
+    manager.record_blackbox_event(
+        event_type="context.disposition",
+        run_id="run-open",
+        session_id="session-open",
+        payload={
+            "disposition": "no_relevant_memory",
+            "context_block_sha256": "1" * 64,
+            "context_envelope_sha256": "2" * 64,
+            "context_chars": 0,
+            "candidate_ids": [],
+        },
+    )
+    manager.record_blackbox_event(
+        event_type="model.input",
+        run_id="run-open",
+        session_id="session-open",
+        payload={
+            "provider": "openai",
+            "model": "gpt-test",
+            "prompt_sha256": "3" * 64,
+            "prompt_chars": 12,
+            "system_sha256": "4" * 64,
+            "system_chars": 10,
+            "history_sha256": "5" * 64,
+            "history_count": 0,
+            "images_count": 0,
+            "tools_count": 1,
+        },
+    )
+    for call_id in ("call-a", "call-b", "call-c"):
+        manager.record_blackbox_event(
+            event_type="tool.requested",
+            run_id="run-open",
+            session_id="session-open",
+            tool_call_id=call_id,
+            payload={
+                "tool_name": "exec",
+                "params_sha256": "6" * 64,
+                "param_keys": ["command"],
+            },
+        )
+
+    report = manager.verify_blackbox_flight("run-open")
+
+    assert report["coverage_matrix"]["components"]["tools"] == "missing"
+    assert report["coverage_matrix"]["overall_status"] == "incomplete"
+    assert [point["code"] for point in report["attention_points"]] == [
+        "recording_stopped"
+    ]
+    assert "3 commands were requested" in report["attention_points"][0]["detail"]
+    assert "No tool failure" in report["attention_points"][0]["detail"]
+
+
+def test_flight_story_uses_local_openclaw_failure_when_hooks_stop(
+    tmp_path: Path,
+) -> None:
+    manager = _manager(tmp_path)
+    manager.record_blackbox_event(
+        event_type="turn.input",
+        run_id="run-local",
+        session_id="session-local",
+        payload={"prompt_sha256": "0" * 64, "prompt_chars": 36},
+    )
+    trajectory_root = tmp_path / "agents"
+    sessions = trajectory_root / "main" / "sessions"
+    sessions.mkdir(parents=True)
+    (sessions / "session-local.trajectory.jsonl").write_text(
+        "\n".join(
+            json.dumps(value)
+            for value in (
+                {
+                    "runId": "run-local",
+                    "type": "session.started",
+                    "ts": "2026-08-16T09:38:01Z",
+                    "provider": "openai",
+                    "modelId": "gpt-test",
+                    "data": {},
+                },
+                {
+                    "runId": "run-local",
+                    "type": "session.ended",
+                    "ts": "2026-08-16T09:40:01Z",
+                    "data": {"status": "error", "promptError": "tool call aborted"},
+                },
+            )
+        ),
+        encoding="utf-8",
+    )
+    (sessions / "session-local.jsonl").write_text(
+        "\n".join(
+            json.dumps(value)
+            for value in (
+                {
+                    "message": {
+                        "role": "user",
+                        "content": "create another agent called research",
+                        "idempotencyKey": "run-local:user",
+                    }
+                },
+                {
+                    "message": {
+                        "role": "toolResult",
+                        "toolName": "bash",
+                        "isError": True,
+                        "content": [{"text": '{"status": "declined"}'}],
+                    }
+                },
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    story = manager.blackbox_flight_story(
+        "run-local", trajectory_root=trajectory_root
+    )
+
+    assert story["request_text"] == "create another agent called research"
+    assert story["provider"] == "openai"
+    assert story["model"] == "gpt-test"
+    assert story["duration_ms"] == 120000
+    assert story["blocked_by"] == (
+        "OpenClaw declined the requested commands; no change was made."
+    )
+
+
 def test_blackbox_rejects_raw_or_unknown_payload_fields(tmp_path: Path) -> None:
     manager = _manager(tmp_path)
     with pytest.raises(ValueError, match="unsupported blackbox payload"):
@@ -567,6 +702,26 @@ def test_blackbox_index_counts_root_causes_not_repeated_symptoms(
     assert index["attention"]["total"] == 2
     assert index["attention"]["occurrences"] == 4
     assert index["attention"]["affected_runs"] == 2
+
+
+def test_blackbox_run_history_supports_load_more_pagination(tmp_path: Path) -> None:
+    manager = _manager(tmp_path)
+    for run_id in ("run-1", "run-2", "run-3"):
+        manager.record_blackbox_event(
+            event_type="turn.input",
+            run_id=run_id,
+            payload={"prompt_sha256": "a" * 64, "prompt_chars": 1},
+        )
+
+    first = manager.blackbox_runs(limit=2)
+    second = manager.blackbox_runs(limit=2, offset=2)
+
+    assert [row["run_id"] for row in first["runs"]] == ["run-3", "run-2"]
+    assert first["offset"] == 0
+    assert first["has_more"] is True
+    assert [row["run_id"] for row in second["runs"]] == ["run-1"]
+    assert second["offset"] == 2
+    assert second["has_more"] is False
 
 
 def test_blackbox_global_chain_detects_tampering(tmp_path: Path) -> None:

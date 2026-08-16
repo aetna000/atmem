@@ -17,6 +17,7 @@ from atmem.control.openclaw_native import (
     activate_takeover,
     discover_sources,
     _focused_excerpt,
+    _remove_native_path_preserving_workspaces,
     inspect_native_memory_capabilities,
     inspect_mirror_record,
     format_mirror_record_report,
@@ -25,6 +26,7 @@ from atmem.control.openclaw_native import (
     sync_mirror,
     trace_mirror,
 )
+from atmem.control.openclaw_topology import build_agent_topology
 
 
 def _manager(tmp_path: Path) -> ControlPlaneManager:
@@ -123,6 +125,83 @@ def test_shadow_mirror_imports_native_planes_and_preserves_provenance(
     assert raw["relative_path"] == "MEMORY.md"
     assert raw["source_sha256"]
     assert raw["plane"] == "semantic"
+
+
+def test_shadow_mirror_supports_shared_separate_and_nested_agent_workspaces(
+    tmp_path: Path,
+) -> None:
+    manager = _manager(tmp_path)
+    shared = tmp_path / "shared"
+    nested = shared / "memory" / "private-agent"
+    separate = tmp_path / "research"
+    for workspace, fact in (
+        (shared, "Shared workspace fact ALPHA."),
+        (nested, "Nested private fact BRAVO."),
+        (separate, "Separate research fact CHARLIE."),
+    ):
+        workspace.mkdir(parents=True, exist_ok=True)
+        (workspace / "MEMORY.md").write_text(fact, encoding="utf-8")
+    topology = build_agent_topology(
+        [
+            {"id": "main", "workspace": shared, "isDefault": True},
+            {"id": "shared-helper", "workspace": shared},
+            {"id": "private", "workspace": nested},
+            {"id": "research", "workspace": separate},
+        ],
+        base_subject_id=manager.state().subject_id,
+    )
+
+    status = sync_mirror(manager.state(), topology=topology)
+
+    assert status["synced"] is True
+    assert len(status["workspaces"]) == 3
+    assert status["topology"]["agent_subjects"]["main"] == status["topology"][
+        "agent_subjects"
+    ]["shared-helper"]
+    memory = Memory(status["mirror_db"], retain_query_text=True)
+    try:
+        subjects = status["topology"]["agent_subjects"]
+        main_rows = memory.recall(subjects["main"], "fact", min_score=0.0, limit=20)
+        private_rows = memory.recall(
+            subjects["private"], "fact", min_score=0.0, limit=20
+        )
+        research_rows = memory.recall(
+            subjects["research"], "fact", min_score=0.0, limit=20
+        )
+    finally:
+        memory.close()
+    main_text = "\n".join(str(row["content"]) for row in main_rows)
+    private_text = "\n".join(str(row["content"]) for row in private_rows)
+    research_text = "\n".join(str(row["content"]) for row in research_rows)
+    assert "ALPHA" in main_text
+    assert "BRAVO" not in main_text
+    assert "BRAVO" in private_text
+    assert "CHARLIE" in research_text
+
+    main_preview = manager.prepare("ALPHA", agent_id="main", min_score=0.0)
+    shared_preview = manager.prepare("ALPHA", agent_id="shared-helper", min_score=0.0)
+    private_preview = manager.prepare("BRAVO", agent_id="private", min_score=0.0)
+    research_preview = manager.prepare("CHARLIE", agent_id="research", min_score=0.0)
+    assert "ALPHA" in main_preview["preview_context"]
+    assert main_preview["preview_context"] == shared_preview["preview_context"]
+    assert "BRAVO" in private_preview["preview_context"]
+    assert "ALPHA" not in private_preview["preview_context"]
+    assert "CHARLIE" in research_preview["preview_context"]
+    with pytest.raises(ValueError, match="unmapped OpenClaw persistent agent"):
+        manager.prepare("ALPHA", agent_id="unknown-agent")
+
+
+def test_freezing_parent_memory_preserves_nested_agent_workspace(tmp_path: Path) -> None:
+    parent_memory = tmp_path / "workspace" / "memory"
+    nested = parent_memory / "nested-agent"
+    nested.mkdir(parents=True)
+    (parent_memory / "parent.md").write_text("parent", encoding="utf-8")
+    (nested / "MEMORY.md").write_text("nested", encoding="utf-8")
+
+    _remove_native_path_preserving_workspaces(parent_memory, [nested])
+
+    assert not (parent_memory / "parent.md").exists()
+    assert (nested / "MEMORY.md").read_text(encoding="utf-8") == "nested"
 
 
 def test_shadow_mirror_resynchronizes_when_native_memory_changes(

@@ -13,7 +13,7 @@ from atmem.core.storage import HouseholdLock, HouseholdPolicy, connect, row_fact
 from atmem.store.sqlite import utc_now
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class ControlStore:
@@ -144,6 +144,7 @@ class ControlStore:
         ).fetchone()
         if row is None:
             with self._conn:
+                self._ensure_multiagent_schema()
                 self._create_evidence_schema()
                 self._conn.execute(
                     "INSERT INTO schema_meta(key, value) VALUES('schema_version', ?)",
@@ -160,13 +161,70 @@ class ControlStore:
             raise ValueError(f"unsupported migration database schema: {version}")
         if version < SCHEMA_VERSION:
             with self._conn:
+                self._ensure_multiagent_schema()
                 self._create_evidence_schema()
                 self._conn.execute(
                     "UPDATE schema_meta SET value = ? WHERE key = 'schema_version'",
                     (str(SCHEMA_VERSION),),
                 )
             return
+        self._ensure_multiagent_schema()
         self._create_evidence_schema()
+
+    def _ensure_multiagent_schema(self) -> None:
+        candidate_columns = {
+            str(row["name"])
+            for row in self._conn.execute("PRAGMA table_info(candidates)").fetchall()
+        }
+        if "subject_id" not in candidate_columns:
+            self._conn.executescript(
+                """
+                ALTER TABLE candidates RENAME TO candidates_single_scope;
+                CREATE TABLE candidates (
+                    id TEXT PRIMARY KEY,
+                    migration_id TEXT NOT NULL REFERENCES migrations(migration_id),
+                    subject_id TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    content_sha256 TEXT NOT NULL,
+                    fact_key TEXT,
+                    confidence REAL NOT NULL,
+                    source_type TEXT NOT NULL,
+                    trust_tier TEXT NOT NULL,
+                    source_message_sha256 TEXT NOT NULL,
+                    source_session_id TEXT,
+                    status TEXT NOT NULL CHECK(status IN ('candidate','approved','rejected')),
+                    created_at TEXT NOT NULL,
+                    reviewed_at TEXT,
+                    UNIQUE(migration_id, subject_id, content_sha256)
+                );
+                INSERT INTO candidates(
+                    id, migration_id, subject_id, content, content_sha256, fact_key,
+                    confidence, source_type, trust_tier, source_message_sha256,
+                    source_session_id, status, created_at, reviewed_at
+                )
+                SELECT c.id, c.migration_id, m.subject_id, c.content, c.content_sha256,
+                       c.fact_key, c.confidence, c.source_type, c.trust_tier,
+                       c.source_message_sha256, c.source_session_id, c.status,
+                       c.created_at, c.reviewed_at
+                FROM candidates_single_scope c
+                JOIN migrations m ON m.migration_id = c.migration_id;
+                DROP TABLE candidates_single_scope;
+                """
+            )
+        turn_columns = {
+            str(row["name"])
+            for row in self._conn.execute("PRAGMA table_info(turns)").fetchall()
+        }
+        if "subject_id" not in turn_columns:
+            self._conn.execute("ALTER TABLE turns ADD COLUMN subject_id TEXT")
+            self._conn.execute(
+                """UPDATE turns SET subject_id = (
+                    SELECT subject_id FROM migrations
+                    WHERE migrations.migration_id = turns.migration_id
+                ) WHERE subject_id IS NULL"""
+            )
+        if "agent_id" not in turn_columns:
+            self._conn.execute("ALTER TABLE turns ADD COLUMN agent_id TEXT")
 
     def _create_evidence_schema(self) -> None:
         self._conn.execute(
@@ -442,11 +500,17 @@ class ControlStore:
         trust_tier: str,
         source_message_sha256: str,
         source_session_id: str | None,
+        subject_id: str | None = None,
     ) -> tuple[dict[str, Any], bool]:
+        subject_id = subject_id or str(
+            self._conn.execute(
+                "SELECT subject_id FROM migrations WHERE migration_id = ?", (migration_id,)
+            ).fetchone()["subject_id"]
+        )
         content_sha256 = sha256_hex(content)
         existing = self._conn.execute(
-            "SELECT * FROM candidates WHERE migration_id = ? AND content_sha256 = ?",
-            (migration_id, content_sha256),
+            "SELECT * FROM candidates WHERE migration_id = ? AND subject_id = ? AND content_sha256 = ?",
+            (migration_id, subject_id, content_sha256),
         ).fetchone()
         if existing is not None:
             return dict(existing), True
@@ -455,14 +519,15 @@ class ControlStore:
         self._conn.execute(
             """
             INSERT INTO candidates(
-                id, migration_id, content, content_sha256, fact_key, confidence,
+                id, migration_id, subject_id, content, content_sha256, fact_key, confidence,
                 source_type, trust_tier, source_message_sha256,
                 source_session_id, status, created_at
-            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'candidate', ?)
+            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'candidate', ?)
             """,
             (
                 candidate_id,
                 migration_id,
+                subject_id,
                 content,
                 content_sha256,
                 fact_key,
@@ -482,10 +547,14 @@ class ControlStore:
         ), False
 
     def list_candidates(
-        self, migration_id: str, *, statuses: tuple[str, ...] | None = None
+        self, migration_id: str, *, statuses: tuple[str, ...] | None = None,
+        subject_id: str | None = None,
     ) -> list[dict[str, Any]]:
         sql = "SELECT * FROM candidates WHERE migration_id = ?"
         values: list[Any] = [migration_id]
+        if subject_id:
+            sql += " AND subject_id = ?"
+            values.append(subject_id)
         if statuses:
             sql += f" AND status IN ({','.join('?' for _ in statuses)})"
             values.extend(statuses)
@@ -534,14 +603,16 @@ class ControlStore:
         query_sha256: str,
         session_id: str | None,
         host_run_id: str | None,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
     ) -> dict[str, Any]:
         turn_id = f"tt_{uuid.uuid4().hex}"
         self._conn.execute(
             """
-            INSERT INTO turns(id, migration_id, session_id, host_run_id, query_sha256, created_at)
-            VALUES(?, ?, ?, ?, ?, ?)
+            INSERT INTO turns(id, migration_id, session_id, host_run_id, query_sha256, created_at, subject_id, agent_id)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (turn_id, migration_id, session_id, host_run_id, query_sha256, utc_now()),
+            (turn_id, migration_id, session_id, host_run_id, query_sha256, utc_now(), subject_id, agent_id),
         )
         self._conn.commit()
         return dict(
@@ -664,6 +735,48 @@ class ControlStore:
                 (utc_now(), migration_id, exposure_id),
             )
         return cursor.rowcount == 1
+
+    def list_record_exposures(
+        self, migration_id: str, record_id: str
+    ) -> list[dict[str, Any]]:
+        """Return previews and confirmed exposures that name one exact record."""
+
+        rows = self._conn.execute(
+            """
+            SELECT
+                p.id AS preview_id,
+                p.candidate_ids_json,
+                p.context_sha256,
+                p.manifest_sha256,
+                p.created_at AS preview_created_at,
+                t.id AS turn_id,
+                t.session_id,
+                t.host_run_id,
+                e.id AS exposure_id,
+                e.requested_at,
+                e.shown,
+                e.shown_at
+            FROM previews p
+            JOIN turns t ON t.id = p.turn_id
+            LEFT JOIN exposures e ON e.preview_id = p.id
+            WHERE p.migration_id = ?
+            ORDER BY p.created_at ASC, e.requested_at ASC
+            """,
+            (migration_id,),
+        ).fetchall()
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            value = dict(row)
+            try:
+                record_ids = list(json.loads(value.pop("candidate_ids_json")))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if record_id not in {str(item) for item in record_ids}:
+                continue
+            value["record_ids"] = record_ids
+            value["shown"] = bool(value.get("shown"))
+            result.append(value)
+        return result
 
     def append_transition(
         self,

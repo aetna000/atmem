@@ -16,7 +16,10 @@ Start with ordinary words, a time window, session, actor, event type or record I
 
 ## Export
 
-Use CLI `--format text|json --output FILE` or dashboard export for JSON, NDJSON, CSV and text. Preserve the database checkpoint and exported report digest together.
+Export one flight with `atmem blackbox export RUN_ID --format text|json
+--output FILE`. Export a filtered memory audit with `atmem control memory-audit
+--format json|ndjson|csv|text --output FILE`. The dashboard exposes the same
+formats. Preserve the database checkpoint and exported report digest together.
 
 ## Limits
 

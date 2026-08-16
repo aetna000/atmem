@@ -108,6 +108,9 @@ def normalize_event(
     context_event_id: str | None = None,
     context_receipt_id: str | None = None,
     outcome_id: str | None = None,
+    agent_id: str | None = None,
+    workspace_id: str | None = None,
+    subject_id: str | None = None,
 ) -> dict[str, Any]:
     """Validate a host event and return the canonical stored envelope."""
 
@@ -123,6 +126,9 @@ def normalize_event(
         "host": host,
         "event_type": event_name,
         "run_id": run,
+        "agent_id": _bounded_optional(agent_id, 256),
+        "workspace_id": _bounded_optional(workspace_id, 256),
+        "subject_id": _bounded_optional(subject_id, 512),
         "session_id": _bounded_optional(session_id, 512),
         "tool_call_id": _bounded_optional(tool_call_id, 512),
         "turn_id": _bounded_optional(turn_id, 512),
@@ -170,6 +176,18 @@ def flight_runs(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "run_id": run_id,
                 "session_id": next(
                     (body.get("session_id") for body in bodies if body.get("session_id")),
+                    None,
+                ),
+                "agent_id": next(
+                    (body.get("agent_id") for body in bodies if body.get("agent_id")),
+                    None,
+                ),
+                "workspace_id": next(
+                    (body.get("workspace_id") for body in bodies if body.get("workspace_id")),
+                    None,
+                ),
+                "subject_id": next(
+                    (body.get("subject_id") for body in bodies if body.get("subject_id")),
                     None,
                 ),
                 "started_at": bodies[0].get("recorded_at"),
@@ -345,6 +363,13 @@ def verify_flight(
             conflicting_completions,
         )
     )
+    tool_evidence_conflict = bool(
+        orphan_completions
+        or uncorrelated_requests
+        or uncorrelated_completions
+        or conflicting_requests
+        or conflicting_completions
+    )
     required_evidence = bool(
         turn_input
         and context_observed
@@ -377,7 +402,16 @@ def verify_flight(
             else "covered"
         ),
         "model": "covered" if model_input and model_output else "missing",
-        "tools": "covered" if tool_closure else "failed",
+        # An open flight with unmatched requests is an observation gap, not
+        # proof that the tools themselves failed.  Only call closure failed
+        # after AtMem has observed the terminal turn boundary.
+        "tools": (
+            "covered"
+            if tool_closure
+            else "failed"
+            if terminal or tool_evidence_conflict
+            else "missing"
+        ),
         "response": (
             "failed"
             if not response_digest_consistent
@@ -445,6 +479,18 @@ def verify_flight(
                 for entry in selected
                 if entry["body"].get("session_id")
             ),
+            None,
+        ),
+        "agent_id": next(
+            (entry["body"].get("agent_id") for entry in selected if entry["body"].get("agent_id")),
+            None,
+        ),
+        "workspace_id": next(
+            (entry["body"].get("workspace_id") for entry in selected if entry["body"].get("workspace_id")),
+            None,
+        ),
+        "subject_id": next(
+            (entry["body"].get("subject_id") for entry in selected if entry["body"].get("subject_id")),
             None,
         ),
         "verdict": verdict,
@@ -608,6 +654,47 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
         )
 
     verdict = str(report.get("verdict") or "")
+    coverage = report.get("coverage") or {}
+    terminal_observed = bool(coverage.get("terminal_event_observed"))
+    tools = report.get("tools") or {}
+    open_tool_calls = len(tools.get("missing_completions") or []) + int(
+        tools.get("uncorrelated_requests") or 0
+    )
+    recording_gap = (
+        verdict == "incomplete_evidence"
+        and not legacy_flight
+        and not terminal_observed
+        and not (
+            tools.get("orphan_completions")
+            or tools.get("conflicting_requests")
+            or tools.get("conflicting_completions")
+            or tools.get("uncorrelated_requests")
+            or tools.get("uncorrelated_completions")
+        )
+    )
+    if recording_gap:
+        last_event = (report.get("timeline") or [{}])[-1]
+        last_type = str(last_event.get("event_type") or "unknown event").replace(
+            ".", " "
+        )
+        if open_tool_calls:
+            observed = (
+                f"{open_tool_calls} command{'s were' if open_tool_calls != 1 else ' was'} "
+                "requested, but AtMem received neither the results nor a final response."
+            )
+        else:
+            observed = (
+                f"The last evidence was '{last_type}'; AtMem then received no final "
+                "agent result."
+            )
+        add(
+            "completion",
+            "medium",
+            "recording_stopped",
+            "Run ended without a recorded result",
+            observed + " No tool failure or external change is proven.",
+            "Review the OpenClaw result, then acknowledge this recording gap.",
+        )
     components = (report.get("coverage_matrix") or {}).get("components") or {}
     if verdict == "failed":
         lifecycle = report.get("lifecycle") or {}
@@ -620,7 +707,7 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
             str(reason or "The turn ended without a successful result."),
             "Inspect the last reliable event and retry only when the cause is understood.",
         )
-    elif verdict == "incomplete_evidence" and not legacy_flight:
+    elif verdict == "incomplete_evidence" and not legacy_flight and not recording_gap:
         missing = [
             name for name, status in components.items() if status in {"missing", "failed"}
         ]
@@ -639,7 +726,6 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
                 "Open the timeline and inspect the first missing boundary named above.",
             )
 
-    tools = report.get("tools") or {}
     tool_gaps = sum(
         len(tools.get(name) or [])
         for name in (
@@ -651,7 +737,7 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
     ) + int(tools.get("uncorrelated_requests") or 0) + int(
         tools.get("uncorrelated_completions") or 0
     )
-    if tool_gaps and not legacy_flight:
+    if tool_gaps and not legacy_flight and not recording_gap:
         add(
             "tools",
             "high",
@@ -678,7 +764,6 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
             "Inspect the tool error category, credentials, and input assumptions.",
         )
 
-    coverage = report.get("coverage") or {}
     context = report.get("context") or {}
     disposition = str(context.get("disposition") or "")
     if disposition == "recall_failed":
@@ -690,7 +775,11 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
             "The model continued without the memory context AtMem attempted to prepare.",
             "Check AtMem availability and the context-disposition event.",
         )
-    elif not coverage.get("context_disposition_observed") and not legacy_flight:
+    elif (
+        not coverage.get("context_disposition_observed")
+        and not legacy_flight
+        and not recording_gap
+    ):
         add(
             "context_model",
             "high",

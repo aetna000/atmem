@@ -1,6 +1,7 @@
 # Integration guide
 
-AtMem separates the model-agnostic memory engine from host-specific control adapters.
+AtMem separates the model-agnostic memory engine, a host-neutral control
+contract, and automated host-specific adapters.
 
 ## Python
 
@@ -46,6 +47,24 @@ atmem mcp --db ~/.atmem/memories.db --subject user-1
 
 An MCP connection alone does not authenticate the user or prove that returned context reached the model. The host must supply authenticated identity and bind actual context delivery and response evidence.
 
+## Generic control adapter
+
+```bash
+atmem control shadow --host generic --memory-db ~/.atmem/memories.db
+atmem control mcp
+```
+
+The generic host MCP records authenticated memory candidates, returns a bounded
+context decision, confirms exact exposure, and records model/tool/turn events.
+It starts fail-closed in shadow and returns `inject: false` until an operator
+activates it. Use `atmem control operator-mcp` only from a trusted operator
+process for search, review, verification, export, acknowledgement, topology,
+activation, and return-to-shadow actions.
+
+The MCP process cannot observe the model request by itself. The host must emit
+truthful events and inject only the exact context AtMem authorized. See the
+[generic adapter contract](generic-adapter.md).
+
 ## OpenClaw control adapter
 
 ```bash
@@ -55,7 +74,10 @@ atmem control activate
 atmem control restore
 ```
 
-The OpenClaw adapter provides the host-specific parts that generic MCP cannot: complete native-memory discovery, historical copy, ongoing shadow synchronization, prompt and response binding, semantic model interpretation, native-path protection, gateway verification, and exact restore.
+The OpenClaw adapter automates the host-specific parts: complete native-memory
+discovery, historical copy, ongoing shadow synchronization, prompt and response
+binding, semantic model interpretation, native-path protection, gateway
+verification, and exact native-state restore.
 
 ## Building another host adapter
 
@@ -72,4 +94,7 @@ A complete adapter must implement:
 9. verified restore, including handling divergent files or state;
 10. honest reporting of any evidence the host cannot expose.
 
-Until an adapter meets those requirements, describe the integration as use of the model-agnostic engine—not as a complete reversible memory switch.
+The generic adapter supplies the control and evidence protocol but cannot prove
+that an implementation reports its boundaries truthfully. Describe native-state
+migration and restore as complete only when the host adapter also meets the
+copy, mutation, and restore requirements above.

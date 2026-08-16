@@ -65,6 +65,58 @@ def test_cli_log_action(tmp_path: Path) -> None:
     assert events[0]["event_type"] == "agent.tool_call"
 
 
+def test_generic_control_cli_covers_review_sync_and_audit_export(tmp_path: Path) -> None:
+    from atmem.control.manager import ControlPlaneManager
+
+    state = tmp_path / "state.json"
+    control_root = tmp_path / "control"
+    memory_db = tmp_path / "memory.db"
+    started = _run(
+        "control",
+        "shadow",
+        "--host",
+        "generic",
+        "--state",
+        str(state),
+        "--control-root",
+        str(control_root),
+        "--memory-db",
+        str(memory_db),
+        "--json",
+    )
+    assert started.returncode == 0, started.stderr
+    manager = ControlPlaneManager(state)
+    captured = manager.capture(
+        "Remember that my preferred shell is zsh.",
+        authenticated_user=True,
+        agent_id="main",
+    )
+
+    reviews = _run("control", "memory-reviews", "--state", str(state), "--json")
+    assert reviews.returncode == 0, reviews.stderr
+    assert json.loads(reviews.stdout)["records"][0]["record_id"] == captured["candidate_ids"][0]
+
+    synced = _run("control", "memory-sync", "--state", str(state), "--json")
+    assert synced.returncode == 0, synced.stderr
+    assert json.loads(synced.stdout)["audit_verified"] is True
+
+    output = tmp_path / "audit.ndjson"
+    exported = _run(
+        "control",
+        "memory-audit",
+        "--state",
+        str(state),
+        "--format",
+        "ndjson",
+        "--output",
+        str(output),
+        "--json",
+    )
+    assert exported.returncode == 0, exported.stderr
+    assert json.loads(exported.stdout)["exported"] is True
+    assert '"metadata"' in output.read_text()
+
+
 def test_cli_read_only_search_trace_and_report_files(tmp_path: Path) -> None:
     db = str(tmp_path / "mem.db")
     stored = _run(

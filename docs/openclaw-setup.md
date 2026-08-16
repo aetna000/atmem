@@ -9,7 +9,7 @@
 ## Install
 
 ```bash
-python -m pip install atmem==2.0.1
+python -m pip install atmem==2.1.0
 atmem --version
 atmem openclaw install
 ```

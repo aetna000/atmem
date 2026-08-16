@@ -83,7 +83,7 @@ def main() -> None:
 
     dashboard_parser = subparsers.add_parser(
         "dashboard",
-        help="Run the friendly local AtMem mirror, audit, search, and switch UI",
+        help="Run the local host-neutral memory, flight, audit, and switch UI",
     )
     dashboard_parser.add_argument("--state", default=None)
     dashboard_parser.add_argument("--port", type=int, default=8766)
@@ -470,19 +470,19 @@ def main() -> None:
     mcp_parser.add_argument("--retain-query-text", action="store_true")
 
     control_parser = subparsers.add_parser(
-        "control", help="Manage shadowing, activation, restoration, and host adapters"
+        "control", help="Manage host-neutral shadowing, activation, evidence, and adapters"
     )
     control_commands = control_parser.add_subparsers(
         dest="control_command", required=True
     )
     control_shadow = control_commands.add_parser(
-        "shadow", help="Mirror native memory while OpenClaw remains active"
+        "shadow", help="Start safe observation without changing model context"
     )
     control_shadow.add_argument(
         "--host",
-        choices=("openclaw",),
-        default="openclaw",
-        help="Verified host adapter; OpenClaw is supported in this release",
+        choices=("generic", "openclaw"),
+        default="generic",
+        help="Runtime adapter; generic starts safe event-driven shadow mode",
     )
     control_shadow.add_argument(
         "--state",
@@ -495,6 +495,11 @@ def main() -> None:
         help="Advanced: override the private migration evidence directory",
     )
     control_shadow.add_argument(
+        "--memory-db",
+        default=None,
+        help="Generic adapter canonical memory database (defaults to $ATMEM_DB or an isolated control database)",
+    )
+    control_shadow.add_argument(
         "--no-configure",
         action="store_true",
         help="Testing only: create migration state without installing the host hook",
@@ -505,15 +510,25 @@ def main() -> None:
 
     for name, help_text in (
         ("status", "Show which memory provider is active and whether switching is safe"),
-        ("activate", "Make AtMem the OpenClaw memory provider"),
-        ("restore", "Restore OpenClaw memory; preserve AtMem evidence"),
+        ("activate", "Allow the runtime adapter to inject approved AtMem context"),
+        ("restore", "Return to shadow or restore native host memory; preserve evidence"),
         ("verify", "Measure the migration without repairing or restarting it"),
         ("mcp", "Serve the private host-integration protocol over stdio"),
-        ("dashboard", "Open the local memory mirror and switch dashboard"),
+        ("operator-mcp", "Serve the complete host-neutral operator protocol"),
+        ("dashboard", "Open the local memory, flight, audit, and switch dashboard"),
+        ("agents", "List registered agents and their memory workspace scopes"),
+        ("configure-agents", "Replace the generic agent/workspace topology from JSON"),
+        ("memory-sync", "Refresh adapter memory or verify event-driven shadow state"),
+        ("memory-status", "Show host-neutral shadow/active memory status"),
+        ("memory-search", "Search memory for one agent workspace"),
+        ("memory-reviews", "List memories waiting for an operator decision"),
+        ("memory-record", "Inspect one memory and its lifecycle evidence"),
+        ("memory-audit", "Search the host-neutral memory evidence chain"),
+        ("memory-review", "Approve or reject one exact shadow memory"),
     ):
         command_parser = control_commands.add_parser(name, help=help_text)
         command_parser.add_argument("--state", default=None)
-        if name not in {"mcp", "dashboard"}:
+        if name not in {"mcp", "operator-mcp", "dashboard"}:
             command_parser.add_argument(
                 "--json", action="store_true", help="Print machine-readable JSON"
             )
@@ -536,6 +551,40 @@ def main() -> None:
                 action="store_true",
                 help="Attempt an isolated context comparison; skip when isolation is unavailable",
             )
+        if name == "configure-agents":
+            command_parser.add_argument(
+                "file", help="JSON array of agents, or - to read from stdin"
+            )
+        if name == "memory-search":
+            command_parser.add_argument("query")
+            command_parser.add_argument("--agent", default=None)
+            command_parser.add_argument("--subject", default=None)
+            command_parser.add_argument("--limit", type=int, default=50)
+        if name == "memory-review":
+            command_parser.add_argument("record_id")
+            command_parser.add_argument("decision", choices=("approve", "reject"))
+        if name == "memory-record":
+            command_parser.add_argument("record_id")
+        if name == "memory-audit":
+            command_parser.add_argument("--query", default="")
+            command_parser.add_argument("--event-type", default="")
+            command_parser.add_argument("--actor", default="")
+            command_parser.add_argument("--session", default="")
+            command_parser.add_argument("--record", default="")
+            command_parser.add_argument("--since", default="")
+            command_parser.add_argument("--until", default="")
+            command_parser.add_argument("--limit", type=int, default=100)
+            command_parser.add_argument(
+                "--format",
+                choices=("json", "ndjson", "csv", "text"),
+                default="json",
+                help="Portable export format (used with --output)",
+            )
+            command_parser.add_argument(
+                "--output",
+                default=None,
+                help="Write the complete filtered audit export to this file",
+            )
 
     blackbox_parser = subparsers.add_parser(
         "blackbox",
@@ -548,15 +597,18 @@ def main() -> None:
         ("status", "Show recorder coverage and evidence-chain integrity"),
         ("runs", "List recently observed agent runs"),
         ("show", "Show one chronological agent flight"),
+        ("story", "Show one concise human-readable flight story"),
         ("verify", "Verify one flight's chain and tool-event closure"),
         ("export", "Export one portable flight investigation report"),
+        ("ack", "Acknowledge one exact active flight finding"),
+        ("record", "Append one host-observed model, tool, or lifecycle event"),
     ):
         command_parser = blackbox_commands.add_parser(name, help=help_text)
         command_parser.add_argument("--state", default=None)
         command_parser.add_argument(
             "--json", action="store_true", help="Print machine-readable JSON"
         )
-        if name in {"show", "verify", "export"}:
+        if name in {"show", "story", "verify", "export", "ack", "record"}:
             command_parser.add_argument("run_id")
         if name in {"status", "runs"}:
             command_parser.add_argument("--limit", type=int, default=50)
@@ -565,6 +617,14 @@ def main() -> None:
                 "--format", choices=("json", "text"), default="json"
             )
             command_parser.add_argument("--output", required=True)
+        if name == "ack":
+            command_parser.add_argument("attention_code")
+            command_parser.add_argument("--actor", default="cli-operator")
+        if name == "record":
+            command_parser.add_argument("event_type")
+            command_parser.add_argument(
+                "--envelope", required=True, help="JSON object file, or - for stdin"
+            )
 
     verify_run_parser = subparsers.add_parser(
         "verify-run",
@@ -1169,7 +1229,7 @@ def _print_control(command: str, value: object, *, json_output: bool) -> None:
         return
     titles = {
         "shadow": "AtMem shadowing started",
-        "status": "OpenClaw memory status",
+        "status": "AtMem memory status",
         "activate": "AtMem is active",
         "verify": "AtMem control verification",
     }
@@ -1188,12 +1248,17 @@ def _print_control(command: str, value: object, *, json_output: bool) -> None:
     if command == "shadow":
         integration = result.get("integration")
         integration = integration if isinstance(integration, dict) else {}
+        generic = result.get("host") == "generic"
         print(
             f"  Host integration      "
-            f"{'configured' if integration.get('configured') else 'not configured'}"
+            f"{'ready' if integration.get('adapter_ready') else 'configured' if integration.get('configured') else 'not configured'}"
         )
-        print("\nOpenClaw memory remains active.")
-        print("AtMem is copying, indexing, and auditing it without changing prompts.")
+        if generic:
+            print("\nGeneric shadow mode is active.")
+            print("AtMem records capture and flight events but never authorizes context injection.")
+        else:
+            print("\nOpenClaw memory remains active.")
+            print("AtMem is copying, indexing, and auditing it without changing prompts.")
     elif command == "status":
         readiness = result.get("readiness")
         readiness = readiness if isinstance(readiness, dict) else {}
@@ -1210,8 +1275,8 @@ def _print_control(command: str, value: object, *, json_output: bool) -> None:
             )
         elif result.get("mode") == "active":
             print(
-                "\nAtMem is active. Use `atmem control restore` "
-                "to restore OpenClaw memory."
+                "\nAtMem is active. Use `atmem control restore` to return to "
+                + ("OpenClaw memory." if result.get("host") == "openclaw" else "shadow mode.")
             )
         elif isinstance(reasons, list) and reasons:
             print(f"\nNext: {reasons[0]}")
@@ -1220,7 +1285,7 @@ def _print_control(command: str, value: object, *, json_output: bool) -> None:
     elif command == "activate":
         print(
             "\nAtMem now supplies bounded, governed memory context. "
-            "Use `atmem control restore` to restore the saved host configuration."
+            "Use `atmem control restore` to stop injection and preserve evidence."
         )
 
 
@@ -1273,9 +1338,77 @@ def _print_control_status_rows(result: dict[str, object]) -> None:
         print(f"  Verification evidence  {verification.get('evidence_sha256')}")
 
 
+def _print_operator_result(
+    command: str, result: dict[str, object], *, json_output: bool
+) -> None:
+    if json_output:
+        _print(result)
+        return
+    if command == "agents":
+        agents = list(result.get("agents") or [])
+        workspaces = list(result.get("workspaces") or [])
+        print(f"AtMem agents: {len(agents)} agent(s), {len(workspaces)} workspace(s)")
+        by_workspace = {
+            row.get("workspace_id"): row for row in workspaces if isinstance(row, dict)
+        }
+        for agent in agents:
+            if not isinstance(agent, dict):
+                continue
+            scope = by_workspace.get(agent.get("workspace_id"), {})
+            members = list(scope.get("agent_ids") or []) if isinstance(scope, dict) else []
+            kind = "nested isolated" if scope.get("parent_workspace_id") else "shared" if len(members) > 1 else "isolated"
+            print(
+                f"  {agent.get('name') or agent.get('agent_id')}  {kind}  "
+                f"workspace={agent.get('workspace')}  subject={agent.get('subject_id')}"
+            )
+        return
+    if command == "memory-status":
+        print("AtMem memory")
+        print(f"  Mode       {result.get('mode')}")
+        print(f"  Approved   {result.get('record_count', 0)}")
+        print(f"  To review  {result.get('candidate_count', 0)}")
+        print(f"  Integrity  {'verified' if result.get('audit_verified') else 'failed'}")
+        return
+    if command == "memory-reviews":
+        rows = list(result.get("records") or [])
+        print(f"AtMem memory review queue: {len(rows)} item(s)")
+        for row in rows:
+            if isinstance(row, dict):
+                print(f"  [{row.get('status', 'candidate')}] {row.get('content')}")
+                print(f"      {row.get('record_id')} · {row.get('subject_id')}")
+        return
+    if command == "memory-search":
+        rows = list(result.get("records") or [])
+        print(f"AtMem memory search: {len(rows)} result(s)")
+        for row in rows:
+            if isinstance(row, dict):
+                print(f"  [{row.get('status', 'active')}] {row.get('content') or row.get('match_excerpt')}")
+                print(f"      {row.get('record_id') or row.get('id')}")
+        return
+    if command == "memory-record":
+        record = result.get("record") or {}
+        record = record if isinstance(record, dict) else {}
+        print(f"AtMem memory {record.get('id')}")
+        print(f"  Status   {result.get('status')}")
+        print(f"  Content  {record.get('content') or 'purged'}")
+        print(f"  Digest   {record.get('content_sha256')}")
+        return
+    if command == "memory-audit":
+        rows = list(result.get("events") or [])
+        print(f"AtMem memory audit: {result.get('matched_total', len(rows))} matching event(s)")
+        for row in rows:
+            if isinstance(row, dict):
+                print(f"  {row.get('created_at')}  {row.get('event_type')}  {row.get('record_id') or ''}")
+        return
+    if command == "memory-review":
+        print(f"Memory {result.get('record_id')}: {result.get('decision')}")
+        return
+    _print(result)
+
+
 def _display_host(value: object) -> str:
     text = str(value or "unknown")
-    return {"openclaw": "OpenClaw"}.get(text, text)
+    return {"openclaw": "OpenClaw", "generic": "Generic runtime"}.get(text, text)
 
 
 def _add_report_arguments(parser: argparse.ArgumentParser) -> None:
@@ -1509,17 +1642,29 @@ def _run_control(args: argparse.Namespace) -> None:
             host=host,
             state_path=state_path,
             control_root=args.control_root or str(DEFAULT_CONTROL_ROOT),
+            memory_db=(args.memory_db or DEFAULT_MCP_DB) if host == "generic" else None,
         )
         integration: dict[str, object]
-        if args.no_configure:
+        if host == "generic":
+            integration = {
+                "configured": False,
+                "adapter_ready": True,
+                "message": (
+                    "Generic shadow mode is ready. Connect the runtime to `atmem control mcp` "
+                    "and emit capture and flight events. No model context changes in shadow mode."
+                ),
+            }
+        elif args.no_configure:
             integration = {
                 "configured": False,
                 "warning": "host hook was not configured; no live turns will be observed",
             }
         else:
             from atmem.control.hosts import configure_host
+            from atmem.control.openclaw_native import sync_mirror
 
             try:
+                sync_mirror(manager.state())
                 integration = configure_host(manager.state(), state_path)
             except Exception:
                 manager.transition(ControlMode.OFF, actor="setup-failure")
@@ -1527,7 +1672,10 @@ def _run_control(args: argparse.Namespace) -> None:
         status = manager.status()
         status["integration"] = integration
         status["next"] = (
-            "Keep using your agent normally. Native memory is mirrored and "
+            "Connect the runtime to `atmem control mcp`; capture and flight "
+            "events will remain non-influential until activation."
+            if host == "generic"
+            else "Keep using your agent normally. Native memory is mirrored and "
             "searchable, but model context is unchanged."
             if integration.get("configured")
             else "Configure the host hook before expecting live migration evidence."
@@ -1538,67 +1686,114 @@ def _run_control(args: argparse.Namespace) -> None:
     manager = ControlPlaneManager(state_path)
     if args.control_command == "status":
         _print_control("status", manager.status(), json_output=args.json)
+    elif args.control_command == "agents":
+        _print_operator_result("agents", manager.agent_topology(), json_output=args.json)
+    elif args.control_command == "configure-agents":
+        raw = sys.stdin.read() if args.file == "-" else Path(args.file).read_text(encoding="utf-8")
+        agents = json.loads(raw)
+        if not isinstance(agents, list):
+            raise ValueError("agent topology JSON must be an array")
+        _print_operator_result(
+            "agents", manager.configure_agent_topology(agents), json_output=args.json
+        )
+    elif args.control_command == "memory-status":
+        _print_operator_result(
+            "memory-status", manager.memory_status(), json_output=args.json
+        )
+    elif args.control_command == "memory-sync":
+        _print_operator_result(
+            "memory-status", manager.sync_memory(), json_output=args.json
+        )
+    elif args.control_command == "memory-reviews":
+        _print_operator_result(
+            "memory-reviews", manager.memory_reviews(), json_output=args.json
+        )
+    elif args.control_command == "memory-search":
+        _print_operator_result(
+            "memory-search",
+            manager.memory_search(
+                args.query,
+                limit=args.limit,
+                agent_id=args.agent,
+                subject_id=args.subject,
+            ),
+            json_output=args.json,
+        )
+    elif args.control_command == "memory-record":
+        _print_operator_result(
+            "memory-record", manager.memory_record(args.record_id), json_output=args.json
+        )
+    elif args.control_command == "memory-audit":
+        filters = {
+            "query": args.query,
+            "event_type": args.event_type,
+            "actor": args.actor,
+            "session_id": args.session,
+            "record_id": args.record,
+            "since": args.since,
+            "until": args.until,
+            "direction": "desc",
+        }
+        if args.output:
+            content, content_type = manager.export_memory_audit(
+                output_format=args.format, filters=filters
+            )
+            output = Path(args.output).expanduser().resolve(strict=False)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(content, encoding="utf-8")
+            result = {
+                "exported": True,
+                "format": args.format,
+                "content_type": content_type,
+                "output": str(output),
+            }
+            if args.json:
+                _print(result)
+            else:
+                print(f"AtMem memory audit exported to {output}")
+        else:
+            _print_operator_result(
+                "memory-audit",
+                manager.memory_audit(**filters, limit=args.limit),
+                json_output=args.json,
+            )
+    elif args.control_command == "memory-review":
+        _print_operator_result(
+            "memory-review",
+            manager.review_memory(args.record_id, args.decision),
+            json_output=args.json,
+        )
     elif args.control_command == "verify":
-        from atmem.control.verify import run_verification, verification_exit_code
+        from atmem.control.verify import verification_exit_code
 
-        report = run_verification(manager.state(), probe=args.probe)
+        report = manager.verify(probe=args.probe)
         _print_control("verify", report, json_output=args.json)
         code = verification_exit_code(report)
         if code:
             raise SystemExit(code)
     elif args.control_command == "activate":
         _confirm_control_host(manager, non_interactive=args.yes)
-        readiness = manager.status().get("readiness") or {}
-        if not readiness.get("ready_for_active"):
-            raise ValueError("; ".join(readiness.get("reasons") or ["migration is not ready"]))
-        state = manager.state()
-        if state.host == "openclaw":
-            from atmem.control.openclaw_native import (
-                activate_takeover,
-                restore_takeover,
-            )
+        def activation_progress(step: int, total: int, label: str) -> None:
+            if not args.json:
+                print(f"[{step}/{total}] {label}", file=sys.stderr, flush=True)
 
-            def activation_progress(step: int, total: int, label: str) -> None:
-                if args.json:
-                    return
-                width = 20
-                filled = min(width, max(0, round(width * step / max(1, total))))
-                bar = "#" * filled + "-" * (width - filled)
-                print(
-                    f"[{bar}] {step}/{total}  {label}",
-                    file=sys.stderr,
-                    flush=True,
-                )
-
-            takeover = activate_takeover(
-                state,
-                manager.state_path,
-                progress=activation_progress,
-            )
-            try:
-                state = manager.transition(ControlMode.ACTIVE)
-            except Exception:
-                restore_takeover(state)
-                raise
-        else:
-            state = manager.transition(ControlMode.ACTIVE)
-            takeover = {
-                "activated": True,
-                "host": state.host,
-                "native_memory_replaced": False,
-            }
-        result = state.public_status()
-        result["takeover"] = takeover
-        result["mirror"] = manager.status().get("mirror")
+        result = manager.activate(progress=activation_progress)
         _print_control(
             "activate",
             result,
             json_output=args.json,
         )
     elif args.control_command == "restore":
-        from atmem.control.openclaw_native import restore_takeover
-
         state = manager.state()
+        if state.host != "openclaw":
+            if args.drill:
+                raise ValueError("restore drill applies only to adapters with native host state")
+            _confirm_control_host(manager, non_interactive=args.yes)
+            _print_control(
+                "restore", manager.deactivate(actor="cli-operator"), json_output=args.json
+            )
+            return
+        from atmem.control.openclaw_native import restore_takeover
         if args.drill:
             from atmem.control.openclaw_native import restore_drill
 
@@ -1661,6 +1856,8 @@ def _run_control(args: argparse.Namespace) -> None:
         _print_control("restore", result, json_output=args.json)
     elif args.control_command == "mcp":
         ControlMCPServer(manager).serve()
+    elif args.control_command == "operator-mcp":
+        ControlMCPServer(manager, operator=True).serve()
     elif args.control_command == "dashboard":
         _serve_dashboard(
             state_path=state_path,
@@ -1708,7 +1905,44 @@ def _run_blackbox(args: argparse.Namespace) -> None:
                     f"{state}  context={row.get('context_disposition') or 'missing'}"
                 )
         else:
-            print("\nNo flights recorded yet. Use OpenClaw normally after installing AtMem.")
+            print("\nNo flights recorded yet. Connect a runtime adapter and emit host observations.")
+        return
+
+    if command == "record":
+        raw = (
+            sys.stdin.read()
+            if args.envelope == "-"
+            else Path(args.envelope).read_text(encoding="utf-8")
+        )
+        envelope = json.loads(raw)
+        if not isinstance(envelope, dict):
+            raise ValueError("event envelope must be a JSON object")
+        value = manager.record_blackbox_event(
+            event_type=args.event_type,
+            run_id=args.run_id,
+            session_id=envelope.get("session_id"),
+            tool_call_id=envelope.get("tool_call_id"),
+            turn_id=envelope.get("turn_id"),
+            retrieval_id=envelope.get("retrieval_id"),
+            context_event_id=envelope.get("context_event_id"),
+            context_receipt_id=envelope.get("context_receipt_id"),
+            outcome_id=envelope.get("outcome_id"),
+            agent_id=envelope.get("agent_id"),
+            workspace_id=envelope.get("workspace_id"),
+            subject_id=envelope.get("subject_id"),
+            payload=envelope.get("payload") or {},
+        )
+        _print(value)
+        return
+    if command == "ack":
+        _print(
+            manager.acknowledge_blackbox_attention(
+                args.run_id, args.attention_code, actor=args.actor
+            )
+        )
+        return
+    if command == "story":
+        _print(manager.blackbox_flight_story(args.run_id))
         return
 
     report = manager.verify_blackbox_flight(args.run_id)

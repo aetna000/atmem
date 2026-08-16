@@ -13,6 +13,7 @@ export interface OpenClawLogger {
 }
 
 export interface OpenClawHookCtx {
+  agentId?: string;
   runId?: string;
   sessionKey?: string;
   sessionId?: string;

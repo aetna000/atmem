@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from fnmatch import fnmatchcase
 import getpass
 import json
 from pathlib import Path
@@ -21,11 +22,12 @@ from atmem.control.store import ControlStore
 DEFAULT_CONTROL_ROOT = Path.home() / ".atmem" / "migrations"
 DEFAULT_STATE_PATH = Path.home() / ".atmem" / "control-plane.json"
 DEFAULT_SUBJECT = "local-user"
+GENERIC_CONFIG_NAME = "generic-adapter.json"
 
 _ALLOWED_TRANSITIONS: dict[ControlMode, frozenset[ControlMode]] = {
     ControlMode.OFF: frozenset({ControlMode.SHADOW, ControlMode.ACTIVE}),
     ControlMode.SHADOW: frozenset({ControlMode.ACTIVE, ControlMode.OFF}),
-    ControlMode.ACTIVE: frozenset({ControlMode.OFF}),
+    ControlMode.ACTIVE: frozenset({ControlMode.SHADOW, ControlMode.OFF}),
 }
 
 
@@ -48,12 +50,14 @@ class ControlPlaneManager:
         state_path: str | Path = DEFAULT_STATE_PATH,
         control_root: str | Path = DEFAULT_CONTROL_ROOT,
         subject_id: str = DEFAULT_SUBJECT,
+        memory_db: str | Path | None = None,
     ) -> "ControlPlaneManager":
         manager, _resumed = cls._start(
             host=host,
             state_path=state_path,
             control_root=control_root,
             subject_id=subject_id,
+            memory_db=memory_db,
             resume_shadow=False,
         )
         return manager
@@ -66,6 +70,7 @@ class ControlPlaneManager:
         state_path: str | Path = DEFAULT_STATE_PATH,
         control_root: str | Path = DEFAULT_CONTROL_ROOT,
         subject_id: str = DEFAULT_SUBJECT,
+        memory_db: str | Path | None = None,
     ) -> tuple["ControlPlaneManager", bool]:
         """Start a migration or reuse the same host's existing shadow safely."""
 
@@ -74,6 +79,7 @@ class ControlPlaneManager:
             state_path=state_path,
             control_root=control_root,
             subject_id=subject_id,
+            memory_db=memory_db,
             resume_shadow=True,
         )
 
@@ -85,10 +91,11 @@ class ControlPlaneManager:
         state_path: str | Path,
         control_root: str | Path,
         subject_id: str,
+        memory_db: str | Path | None,
         resume_shadow: bool,
     ) -> tuple["ControlPlaneManager", bool]:
-        if host != "openclaw":
-            raise ValueError("the verified host adapter in this release is openclaw")
+        if host not in {"generic", "openclaw"}:
+            raise ValueError(f"unsupported host adapter: {host}")
         manager = cls(state_path)
         with state_lock(manager.state_path):
             if manager.state_path.exists():
@@ -136,6 +143,25 @@ class ControlPlaneManager:
             finally:
                 store.close()
             write_state(manager.state_path, state)
+            if host == "generic":
+                from atmem.control.topology import default_topology, write_topology
+
+                write_topology(control_dir, default_topology(state.subject_id))
+                configured_db = Path(memory_db or control_dir / "generic-memory.db").expanduser().resolve(strict=False)
+                generic_config_path = control_dir / GENERIC_CONFIG_NAME
+                generic_config_path.write_text(
+                    json.dumps(
+                        {
+                            "format": "atmem-generic-adapter-config-v1",
+                            "memory_db": str(configured_db),
+                        },
+                        indent=2,
+                        sort_keys=True,
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+                generic_config_path.chmod(0o600)
         return manager, False
 
     def effective_state(self) -> tuple[ControlState, str | None]:
@@ -143,6 +169,125 @@ class ControlPlaneManager:
 
     def state(self) -> ControlState:
         return load_state(self.state_path)
+
+    def _resolve_subject(
+        self,
+        state: ControlState,
+        *,
+        subject_id: str | None,
+        agent_id: str | None,
+    ) -> str:
+        """Resolve one persistent agent scope and reject ambiguous cross-scope access."""
+
+        if state.host != "openclaw":
+            topology = self.agent_topology(state=state)
+            agent_subjects = topology.get("agent_subjects") or {}
+            known_subjects = {
+                str(row.get("subject_id"))
+                for row in topology.get("workspaces") or []
+                if isinstance(row, dict) and row.get("subject_id")
+            }
+            resolved = agent_subjects.get(agent_id) if agent_id else None
+            if agent_id and not resolved:
+                raise ValueError(f"unmapped persistent agent: {agent_id}")
+            if subject_id and resolved and subject_id != resolved:
+                raise ValueError("agent and subject identify different workspaces")
+            chosen = str(resolved or subject_id or state.subject_id)
+            if known_subjects and chosen not in known_subjects:
+                raise ValueError("subject is not part of the current agent topology")
+            return chosen
+        manifest_path = Path(state.control_dir) / "openclaw-mirror.json"
+        if not manifest_path.is_file():
+            return subject_id or state.subject_id
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError("OpenClaw agent topology is unavailable") from exc
+        topology = manifest.get("topology") or {}
+        agent_subjects = topology.get("agent_subjects") or {}
+        known_subjects = {
+            str(row.get("subject_id"))
+            for row in topology.get("workspaces") or []
+            if isinstance(row, dict) and row.get("subject_id")
+        }
+        resolved = None
+        if agent_id:
+            resolved = agent_subjects.get(agent_id)
+            if not resolved:
+                raise ValueError(f"unmapped OpenClaw persistent agent: {agent_id}")
+        if subject_id and resolved and subject_id != resolved:
+            raise ValueError("agent and subject identify different OpenClaw workspaces")
+        chosen = str(resolved or subject_id or state.subject_id)
+        if known_subjects and chosen not in known_subjects:
+            raise ValueError("subject is not part of the current OpenClaw topology")
+        return chosen
+
+    # Compatibility for integrations released before the host-neutral resolver.
+    _resolve_openclaw_subject = _resolve_subject
+
+    def agent_topology(self, *, state: ControlState | None = None) -> dict[str, Any]:
+        state = state or self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import mirror_status
+            from atmem.control.openclaw_topology import discover_agent_topology
+
+            live = discover_agent_topology(base_subject_id=state.subject_id)
+            mirrored = (mirror_status(state) or {}).get("topology") or {}
+            matches = bool(mirrored) and all(
+                mirrored.get(key) == live.get(key)
+                for key in ("agent_subjects", "agent_workspaces")
+            )
+            verified = bool((mirror_status(state) or {}).get("audit_verified")) and matches
+            return {
+                **live,
+                "verified": verified,
+                "topology_matches_mirror": matches,
+                "status": "working" if verified else "needs_refresh",
+                "reason": (
+                    "Every persistent agent is bound to its verified workspace memory scope."
+                    if verified
+                    else "Refresh the OpenClaw bridge so its agent topology is bound to the memory mirror."
+                ),
+            }
+        from atmem.control.topology import load_topology
+
+        topology = load_topology(state.control_dir, subject_id=state.subject_id)
+        return {
+            **topology,
+            "verified": True,
+            "status": "working",
+            "reason": "Every registered agent is bound to an explicit memory workspace scope.",
+        }
+
+    def configure_agent_topology(self, agents: list[dict[str, Any]]) -> dict[str, Any]:
+        state = self.state()
+        if state.host == "openclaw":
+            raise ValueError("OpenClaw agent topology is discovered from OpenClaw configuration")
+        from atmem.control.topology import build_topology, write_topology
+
+        topology = build_topology(agents, base_subject_id=state.subject_id)
+        write_topology(state.control_dir, topology)
+        return self.agent_topology(state=state)
+
+    def _generic_memory_db(self, state: ControlState) -> Path:
+        config_path = Path(state.control_dir) / GENERIC_CONFIG_NAME
+        if config_path.is_file():
+            try:
+                value = json.loads(config_path.read_text(encoding="utf-8"))
+                if value.get("format") == "atmem-generic-adapter-config-v1" and value.get("memory_db"):
+                    return Path(str(value["memory_db"])).expanduser().resolve(strict=False)
+            except (OSError, json.JSONDecodeError):
+                pass
+        return Path(state.control_dir) / "generic-memory.db"
+
+    def _generic_subjects(self, state: ControlState) -> list[str]:
+        return list(
+            dict.fromkeys(
+                str(row.get("subject_id"))
+                for row in self.agent_topology(state=state).get("workspaces") or []
+                if row.get("subject_id")
+            )
+        ) or [state.subject_id]
 
     def status(self) -> dict[str, Any]:
         state, warning = self.effective_state()
@@ -172,9 +317,48 @@ class ControlPlaneManager:
                 mirror_status,
                 takeover_status,
             )
+            from atmem.control.openclaw_topology import discover_agent_topology
 
             mirror = mirror_status(state)
             takeover = takeover_status(state)
+            try:
+                live_topology = discover_agent_topology(
+                    base_subject_id=state.subject_id
+                )
+                mirrored_topology = (mirror or {}).get("topology") or {}
+                topology_matches = bool(mirrored_topology) and all(
+                    mirrored_topology.get(key) == live_topology.get(key)
+                    for key in ("agent_subjects", "agent_workspaces")
+                )
+                result["agent_topology"] = {
+                    **live_topology,
+                    "verified": bool((mirror or {}).get("audit_verified"))
+                    and topology_matches,
+                    "topology_matches_mirror": topology_matches,
+                    "status": (
+                        "working"
+                        if bool((mirror or {}).get("audit_verified"))
+                        and topology_matches
+                        else "needs_refresh"
+                    ),
+                    "reason": (
+                        "Every persistent agent is bound to its verified workspace memory scope."
+                        if bool((mirror or {}).get("audit_verified"))
+                        and topology_matches
+                        else "Refresh or reinstall the OpenClaw bridge so the detected agent topology is bound to the memory mirror."
+                    ),
+                }
+            except (OSError, ValueError) as exc:
+                result["agent_topology"] = {
+                    "verified": False,
+                    "status": "unavailable",
+                    "reason": str(exc),
+                    "agents": [],
+                    "workspaces": [],
+                }
+        else:
+            result["agent_topology"] = self.agent_topology(state=state)
+            mirror = self.memory_status()
         result["evidence"] = evidence
         result["restore_drill"] = (
             latest_restore_drill["body"] if latest_restore_drill else None
@@ -193,6 +377,8 @@ class ControlPlaneManager:
         *,
         session_id: str | None = None,
         authenticated_user: bool,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
     ) -> dict[str, Any]:
         state, warning = self.effective_state()
         if warning or not state.mode.captures:
@@ -203,6 +389,9 @@ class ControlPlaneManager:
                 "candidate_ids": [],
                 "reason": "only authenticated user messages are eligible",
             }
+        subject_id = self._resolve_subject(
+            state, subject_id=subject_id, agent_id=agent_id
+        )
         facts = extract_facts(message, source_type="user_message")
         store = self._store(state)
         created: list[str] = []
@@ -218,8 +407,28 @@ class ControlPlaneManager:
                     trust_tier=fact.trust_tier,
                     source_message_sha256=sha256_hex(message),
                     source_session_id=session_id,
+                    subject_id=subject_id,
                 )
                 (duplicates if duplicate else created).append(str(row["id"]))
+                if not duplicate:
+                    store.append_evidence(
+                        state.migration_id,
+                        kind="memory_control",
+                        body={
+                            "format": "atmem-memory-control-event-v1",
+                            "event_type": "memory.candidate_captured",
+                            "actor": "host-adapter",
+                            "record_id": str(row["id"]),
+                            "subject_id": subject_id,
+                            "session_id": session_id,
+                            "created_at": row["created_at"],
+                            "payload": {
+                                "content_sha256": row["content_sha256"],
+                                "source_message_sha256": row["source_message_sha256"],
+                                "status": row["status"],
+                            },
+                        },
+                    )
         finally:
             store.close()
         return {
@@ -227,6 +436,8 @@ class ControlPlaneManager:
             "candidate_ids": created,
             "duplicate_ids": duplicates,
             "raw_message_stored": False,
+            "subject_id": subject_id,
+            "agent_id": agent_id,
         }
 
     def candidates(self, *, include_reviewed: bool = False) -> list[dict[str, Any]]:
@@ -242,11 +453,906 @@ class ControlPlaneManager:
         state = self.state()
         store = self._store(state)
         try:
-            return store.review_candidates(
+            rows = store.review_candidates(
                 state.migration_id, candidate_ids, approve=approve
+            )
+            for row in rows:
+                store.append_evidence(
+                    state.migration_id,
+                    kind="memory_control",
+                    body={
+                        "format": "atmem-memory-control-event-v1",
+                        "event_type": "memory.approved" if approve else "memory.rejected",
+                        "actor": "local-reviewer",
+                        "record_id": str(row["id"]),
+                        "subject_id": row.get("subject_id"),
+                        "created_at": row.get("reviewed_at") or utc_now(),
+                        "payload": {
+                            "content_sha256": row.get("content_sha256"),
+                            "status": row.get("status"),
+                        },
+                    },
+                )
+            return rows
+        finally:
+            store.close()
+
+    def memory_status(self) -> dict[str, Any]:
+        """Return one host-neutral summary consumed by CLI, MCP, and dashboard."""
+
+        state = self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import mirror_status
+
+            return mirror_status(state)
+        store = self._store(state)
+        try:
+            rows = store.list_candidates(state.migration_id)
+            evidence = store.summary(state.migration_id)
+        finally:
+            store.close()
+        counts = {
+            status: sum(row.get("status") == status for row in rows)
+            for status in ("candidate", "approved", "rejected")
+        }
+        from atmem.memory import Memory
+
+        memory = Memory(self._generic_memory_db(state), retain_query_text=False)
+        try:
+            canonical_rows = [
+                row
+                for subject in self._generic_subjects(state)
+                for row in memory.list(subject, include_inactive=True)
+            ]
+            canonical_count = sum(row.get("status") == "active" for row in canonical_rows)
+            canonical_pending = sum(row.get("status") == "quarantined" for row in canonical_rows)
+            canonical_active_digests = {
+                str(
+                    row.get("content_sha256")
+                    or sha256_hex(str(row.get("content") or ""))
+                )
+                for row in canonical_rows
+                if row.get("status") == "active"
+            }
+            canonical_audit_valid = all(
+                bool(memory.verify(subject).get("valid"))
+                for subject in self._generic_subjects(state)
+            )
+        finally:
+            memory.close()
+        return {
+            "format": "atmem-host-neutral-memory-status-v1",
+            "host": state.host,
+            "mode": state.mode.value,
+            "synced": True,
+            "audit_verified": bool(evidence["transition_chain"]["valid"])
+            and canonical_audit_valid,
+            "audit_error": None,
+            "source_count": 0,
+            "source_bytes": 0,
+            "record_count": canonical_count
+            + sum(
+                row.get("status") == "approved"
+                and str(row.get("content_sha256") or "")
+                not in canonical_active_digests
+                for row in rows
+            ),
+            "canonical_record_count": canonical_count,
+            "candidate_count": counts["candidate"] + canonical_pending,
+            "canonical_quarantined_count": canonical_pending,
+            "rejected_count": counts["rejected"],
+            "sources": [],
+            "workspace": "registered agent workspaces",
+            "memory_db": str(self._generic_memory_db(state)),
+            "scope_note": (
+                "Generic shadow memory is populated by authenticated host capture events. "
+                "It does not read another runtime's private files automatically."
+            ),
+        }
+
+    def memory_search(
+        self,
+        query: str,
+        *,
+        limit: int = 50,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        include_pending: bool = True,
+    ) -> dict[str, Any]:
+        state = self.state()
+        subject = self._resolve_subject(
+            state, subject_id=subject_id, agent_id=agent_id
+        )
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import search_mirror
+
+            return search_mirror(state, query, limit=limit, subject_id=subject)
+        store = self._store(state)
+        try:
+            statuses = ("candidate", "approved") if include_pending else ("approved",)
+            rows = store.list_candidates(
+                state.migration_id, statuses=statuses, subject_id=subject
             )
         finally:
             store.close()
+        terms = [term.casefold() for term in re.findall(r"[\w@.-]+", query)]
+        matches: list[dict[str, Any]] = []
+        for row in rows:
+            content = str(row.get("content") or "")
+            haystack = content.casefold()
+            if terms and not all(term in haystack for term in terms):
+                continue
+            matches.append(
+                {
+                    "id": str(row["id"]),
+                    "record_id": str(row["id"]),
+                    "content": content,
+                    "match_excerpt": content,
+                    "status": row.get("status"),
+                    "scope": "shadow candidate" if row.get("status") == "candidate" else "memory",
+                    "subject_id": row.get("subject_id"),
+                    "created_at": row.get("created_at"),
+                    "content_sha256": row.get("content_sha256"),
+                }
+            )
+        from atmem.memory import Memory
+
+        memory = Memory(self._generic_memory_db(state), retain_query_text=False)
+        try:
+            allowed_statuses = (
+                {"active", "quarantined"} if include_pending else {"active"}
+            )
+            for row in memory.list(subject, include_inactive=include_pending):
+                if str(row.get("status") or "") not in allowed_statuses:
+                    continue
+                content = str(row.get("content") or "")
+                haystack = content.casefold()
+                if terms and not all(term in haystack for term in terms):
+                    continue
+                matches.append(
+                    {
+                        "id": str(row["id"]),
+                        "record_id": str(row["id"]),
+                        "content": content,
+                        "match_excerpt": content,
+                        "status": row.get("status"),
+                        "scope": "canonical memory",
+                        "subject_id": subject,
+                        "created_at": row.get("created_at"),
+                        "content_sha256": row.get("content_sha256"),
+                    }
+                )
+        finally:
+            memory.close()
+        deduplicated: dict[tuple[str, str], dict[str, Any]] = {}
+        for row in matches:
+            key = (
+                str(row.get("subject_id") or subject),
+                str(
+                    row.get("content_sha256")
+                    or sha256_hex(str(row.get("content") or ""))
+                ),
+            )
+            if key not in deduplicated or row.get("scope") == "canonical memory":
+                deduplicated[key] = row
+        return {
+            "format": "atmem-host-neutral-memory-search-v1",
+            "query": query,
+            "subject_id": subject,
+            "records": list(deduplicated.values())[: max(0, min(limit, 500))],
+        }
+
+    def memory_reviews(self) -> dict[str, Any]:
+        state = self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import list_mirror_reviews
+
+            return list_mirror_reviews(state)
+        rows = self.candidates(include_reviewed=False)
+        from atmem.memory import Memory
+
+        memory = Memory(self._generic_memory_db(state), retain_query_text=False)
+        try:
+            canonical = [
+                {**row, "subject_id": subject}
+                for subject in self._generic_subjects(state)
+                for row in memory.list(subject, include_inactive=True)
+                if row.get("status") == "quarantined"
+            ]
+            canonical_valid = all(
+                bool(memory.verify(subject).get("valid"))
+                for subject in self._generic_subjects(state)
+            )
+        finally:
+            memory.close()
+        return {
+            "format": "atmem-host-neutral-review-queue-v1",
+            "audit_chain_valid": bool(self.memory_status()["audit_verified"])
+            and canonical_valid,
+            "records": [
+                {
+                    "record_id": row["id"],
+                    "content": row["content"],
+                    "scope": "authenticated user memory",
+                    "status": row["status"],
+                    "subject_id": row.get("subject_id"),
+                    "created_at": row["created_at"],
+                    "content_sha256": row.get("content_sha256")
+                    or sha256_hex(str(row.get("content") or "")),
+                }
+                for row in rows
+            ]
+            + [
+                {
+                    "record_id": row["id"],
+                    "content": row["content"],
+                    "scope": "canonical quarantined memory",
+                    "status": row["status"],
+                    "subject_id": row.get("subject_id"),
+                    "created_at": row["created_at"],
+                    "content_sha256": row.get("content_sha256")
+                    or sha256_hex(str(row.get("content") or "")),
+                }
+                for row in canonical
+            ],
+        }
+
+    def memory_record(self, record_id: str) -> dict[str, Any]:
+        state = self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import inspect_mirror_record
+
+            return inspect_mirror_record(state, record_id)
+        store = self._store(state)
+        try:
+            rows = store.list_candidates(state.migration_id)
+            chain = store.verify_transitions(state.migration_id)
+            control_exposures = store.list_record_exposures(
+                state.migration_id, record_id
+            )
+            blackbox_entries = store.list_evidence(
+                state.migration_id, kind="agent_blackbox"
+            )
+        finally:
+            store.close()
+        deliveries: list[dict[str, Any]] = []
+        control_timeline: list[dict[str, Any]] = []
+        for exposure in control_exposures:
+            preview_id = str(exposure.get("preview_id") or "")
+            linked_events = [
+                entry
+                for entry in blackbox_entries
+                if str((entry.get("body") or {}).get("context_receipt_id") or "")
+                == preview_id
+            ]
+            response_entry = next(
+                (
+                    entry
+                    for entry in linked_events
+                    if (entry.get("body") or {}).get("event_type") == "model.output"
+                ),
+                None,
+            )
+            response_body = (response_entry or {}).get("body") or {}
+            response_payload = response_body.get("payload") or {}
+            deliveries.append(
+                {
+                    "retrieval_id": None,
+                    "session_id": exposure.get("session_id"),
+                    "recalled_at": exposure.get("preview_created_at"),
+                    "returned": True,
+                    "rank": None,
+                    "score": None,
+                    "context_event_id": exposure.get("exposure_id"),
+                    "context_injected_at": (
+                        exposure.get("shown_at") if exposure.get("shown") else None
+                    ),
+                    "response_event_id": response_body.get("event_id"),
+                    "response_sha256": response_payload.get("response_sha256"),
+                    "context_receipt_id": preview_id,
+                    "run_id": exposure.get("host_run_id"),
+                }
+            )
+            control_timeline.append(
+                {
+                    "title": "Selected for runtime context",
+                    "detail": (
+                        "The adapter confirmed that this memory reached the model request."
+                        if exposure.get("shown")
+                        else "AtMem prepared this memory, but exact model exposure was not confirmed."
+                    ),
+                    "at": exposure.get("shown_at")
+                    or exposure.get("preview_created_at"),
+                    "actor": "runtime-adapter",
+                    "event_id": exposure.get("exposure_id") or preview_id,
+                    "session_id": exposure.get("session_id"),
+                }
+            )
+        row = next((item for item in rows if str(item["id"]) == record_id), None)
+        if row is None:
+            from atmem.memory import Memory
+
+            memory = Memory(self._generic_memory_db(state), retain_query_text=False)
+            try:
+                canonical = None
+                canonical_subject = None
+                for subject in self._generic_subjects(state):
+                    candidate = memory.store.get_record(subject, record_id)
+                    if candidate is not None:
+                        canonical = candidate
+                        canonical_subject = subject
+                        break
+                if canonical is None:
+                    raise ValueError(f"unknown memory record: {record_id}")
+                audit = memory.audit(str(canonical_subject))
+            finally:
+                memory.close()
+            audit_events = list(audit.get("audit_log") or [])
+            related_events = [
+                event
+                for event in audit_events
+                if str(event.get("record_id") or "") == record_id
+                or record_id in canonical_json(event.get("payload") or {})
+            ]
+            source_event = next(
+                (
+                    event
+                    for event in audit_events
+                    if event.get("event_type") == "episode.ingested"
+                    and str((event.get("payload") or {}).get("episode_id") or "")
+                    == str(canonical.get("episode_id") or "")
+                ),
+                None,
+            )
+            canonical_timeline = [
+                {
+                    "title": str(event.get("event_type") or "Memory event").replace(
+                        ".", " "
+                    ),
+                    "detail": ", ".join(
+                        str(key).replace("_", " ")
+                        for key in list((event.get("payload") or {}).keys())[:4]
+                    )
+                    or "Canonical memory evidence recorded.",
+                    "at": event.get("created_at"),
+                    "actor": event.get("actor"),
+                    "event_id": event.get("event_id"),
+                    "session_id": event.get("session_id"),
+                }
+                for event in related_events
+            ]
+            for retrieval in audit.get("retrieval_events") or []:
+                ranked = next(
+                    (
+                        candidate
+                        for candidate in retrieval.get("candidates") or []
+                        if str(candidate.get("record_id") or "") == record_id
+                    ),
+                    None,
+                )
+                if ranked is None:
+                    continue
+                retrieval_id = str(retrieval.get("id") or "")
+                injection = next(
+                    (
+                        event
+                        for event in audit_events
+                        if event.get("event_type") == "memory.context_injected"
+                        and str(
+                            (event.get("payload") or {}).get("retrieval_id") or ""
+                        )
+                        == retrieval_id
+                        and record_id
+                        in ((event.get("payload") or {}).get("record_ids") or [])
+                    ),
+                    None,
+                )
+                response = next(
+                    (
+                        event
+                        for event in audit_events
+                        if event.get("event_type") == "agent.response_after_memory"
+                        and record_id
+                        in (
+                            (event.get("payload") or {}).get(
+                                "injected_record_ids"
+                            )
+                            or []
+                        )
+                        and (
+                            injection is None
+                            or str(
+                                (event.get("payload") or {}).get(
+                                    "context_event_id"
+                                )
+                                or ""
+                            )
+                            == str((injection or {}).get("event_id") or "")
+                        )
+                    ),
+                    None,
+                )
+                deliveries.append(
+                    {
+                        "retrieval_id": retrieval_id,
+                        "session_id": retrieval.get("session_id"),
+                        "recalled_at": retrieval.get("created_at"),
+                        "returned": bool(ranked.get("returned")),
+                        "rank": ranked.get("rank"),
+                        "score": ranked.get("score"),
+                        "context_event_id": (injection or {}).get("event_id"),
+                        "context_injected_at": (injection or {}).get(
+                            "created_at"
+                        ),
+                        "response_event_id": (response or {}).get("event_id"),
+                        "response_sha256": ((response or {}).get("payload") or {}).get(
+                            "response_sha256"
+                        ),
+                    }
+                )
+            raw = canonical.get("raw") or {}
+            return {
+                "format": "atmem-host-neutral-memory-record-v1",
+                "record": {
+                    **canonical,
+                    "content_sha256": canonical.get("content_sha256")
+                    or sha256_hex(str(canonical.get("content") or "")),
+                },
+                "status": canonical.get("status"),
+                "audit_chain_valid": bool(audit.get("audit_chain_valid")),
+                "provenance": {
+                    "source_message_sha256": raw.get("source_message_sha256")
+                    or ((source_event or {}).get("payload") or {}).get(
+                        "message_sha256"
+                    ),
+                    "source_binding": "canonical-atmem-memory",
+                    "episode_id": canonical.get("episode_id"),
+                    "plane": "canonical",
+                },
+                "lifecycle": {
+                    "created_at": canonical.get("created_at"),
+                    "superseded_at": canonical.get("updated_at")
+                    if canonical.get("status") == "superseded"
+                    else None,
+                    "deleted_at": canonical.get("deleted_at"),
+                },
+                "deliveries": deliveries,
+                "timeline": sorted(
+                    [*canonical_timeline, *control_timeline],
+                    key=lambda event: str(event.get("at") or ""),
+                ),
+                "deletion_receipt": None,
+            }
+        status = str(row.get("status") or "candidate")
+        return {
+            "format": "atmem-host-neutral-memory-record-v1",
+            "record": {
+                "id": record_id,
+                "content": row.get("content"),
+                "content_sha256": row.get("content_sha256"),
+                "subject_id": row.get("subject_id"),
+            },
+            "status": status,
+            "audit_chain_valid": bool(chain["valid"]),
+            "provenance": {
+                "source_message_sha256": row.get("source_message_sha256"),
+                "source_binding": "authenticated-host-capture",
+                "episode_id": None,
+                "plane": "generic-shadow",
+            },
+            "lifecycle": {
+                "created_at": row.get("created_at"),
+                "reviewed_at": row.get("reviewed_at"),
+                "superseded_at": None,
+                "deleted_at": None,
+            },
+            "deliveries": deliveries,
+            "timeline": [
+                {
+                    "title": "Captured in shadow mode",
+                    "detail": (
+                        "Approved for active recall." if status == "approved"
+                        else "Waiting for review." if status == "candidate"
+                        else "Rejected by an operator."
+                    ),
+                    "at": row.get("created_at"),
+                    "actor": "host-adapter",
+                    "event_id": None,
+                }
+            ]
+            + control_timeline,
+            "deletion_receipt": None,
+        }
+
+    def memory_audit(
+        self,
+        *,
+        query: str = "",
+        event_type: str = "",
+        actor: str = "",
+        session_id: str = "",
+        record_id: str = "",
+        since: str = "",
+        until: str = "",
+        direction: str = "desc",
+        cursor: int | None = None,
+        limit: int = 100,
+        include_facets: bool = False,
+    ) -> dict[str, Any]:
+        state = self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import query_mirror_audit
+
+            return query_mirror_audit(
+                state,
+                query=query,
+                event_type=event_type,
+                actor=actor,
+                session_id=session_id,
+                record_id=record_id,
+                since=since,
+                until=until,
+                direction=direction,
+                cursor=cursor,
+                limit=limit,
+                include_facets=include_facets,
+            )
+        store = self._store(state)
+        try:
+            entries = store.list_evidence(state.migration_id, kind="memory_control")
+            chain = store.verify_evidence_chain(state.migration_id, kind="memory_control")
+        finally:
+            store.close()
+        all_rows: list[dict[str, Any]] = []
+
+        def matches(row: dict[str, Any]) -> bool:
+            searchable = canonical_json(row).casefold()
+            return not (
+                (query and query.casefold() not in searchable)
+                or (
+                    event_type
+                    and not fnmatchcase(str(row.get("event_type") or ""), event_type)
+                )
+                or (actor and str(row.get("actor") or "") != actor)
+                or (session_id and str(row.get("session_id") or "") != session_id)
+                or (
+                    record_id
+                    and str(row.get("record_id") or "") != record_id
+                    and record_id not in canonical_json(row.get("payload") or {})
+                )
+                or (since and str(row.get("created_at") or "") < since)
+                or (until and str(row.get("created_at") or "") > until)
+            )
+
+        for entry in entries:
+            body = entry.get("body") or {}
+            row = {
+                "sequence": entry.get("sequence"),
+                "source_chain": "control",
+                "source_sequence": entry.get("sequence"),
+                "created_at": body.get("created_at") or entry.get("created_at"),
+                "event_type": body.get("event_type"),
+                "actor": body.get("actor"),
+                "record_id": body.get("record_id"),
+                "session_id": body.get("session_id"),
+                "turn_id": body.get("turn_id"),
+                "event_id": entry.get("id"),
+                "prev_hash": entry.get("prev_sha256"),
+                "event_hash": entry.get("entry_sha256"),
+                "payload": body.get("payload") or {},
+            }
+            all_rows.append(row)
+        from atmem.memory import Memory
+
+        memory = Memory(self._generic_memory_db(state), retain_query_text=False)
+        try:
+            canonical_chains: list[bool] = []
+            for subject in self._generic_subjects(state):
+                audit = memory.audit(subject)
+                canonical_chains.append(bool(audit.get("audit_chain_valid")))
+                for event in audit.get("audit_log") or []:
+                    row = {
+                        **event,
+                        "source_chain": f"canonical:{subject}",
+                        "source_sequence": event.get("sequence"),
+                    }
+                    all_rows.append(row)
+        finally:
+            memory.close()
+        rows = [row for row in all_rows if matches(row)]
+        reverse = direction != "asc"
+        rows.sort(
+            key=lambda row: (
+                str(row.get("created_at") or ""),
+                str(row.get("source_chain") or ""),
+                int(row.get("source_sequence") or row.get("sequence") or 0),
+            ),
+            reverse=reverse,
+        )
+        start = max(0, int(cursor or 0))
+        page_limit = max(1, min(int(limit), 500))
+        page = rows[start : start + page_limit]
+        next_cursor = start + len(page) if start + len(page) < len(rows) else None
+        facets: dict[str, list[dict[str, Any]]] | None = None
+        histogram: list[dict[str, Any]] | None = None
+        if include_facets:
+            def counted(field: str) -> list[dict[str, Any]]:
+                counts: dict[str, int] = {}
+                for row in all_rows:
+                    value = str(row.get(field) or "")
+                    if value:
+                        counts[value] = counts.get(value, 0) + 1
+                return [
+                    {"value": value, "count": count}
+                    for value, count in sorted(
+                        counts.items(), key=lambda item: (-item[1], item[0])
+                    )
+                ]
+
+            buckets: dict[str, int] = {}
+            for row in rows:
+                created_at = str(row.get("created_at") or "")
+                bucket = created_at[:13] if len(created_at) >= 13 else ""
+                if bucket:
+                    buckets[bucket] = buckets.get(bucket, 0) + 1
+            facets = {
+                "event_types": counted("event_type"),
+                "actors": counted("actor"),
+            }
+            histogram = [
+                {"bucket": bucket, "count": count}
+                for bucket, count in sorted(buckets.items())
+            ]
+        return {
+            "format": "atmem-host-neutral-memory-audit-v1",
+            "audit_chain_valid": bool(chain["valid"]) and all(canonical_chains),
+            "matched_total": len(rows),
+            "events": page,
+            "has_more": next_cursor is not None,
+            "next_cursor": next_cursor,
+            "result_digest": sha256_hex(canonical_json(page)),
+            "direction": "desc" if reverse else "asc",
+            "limit": page_limit,
+            "facets": facets,
+            "histogram": histogram,
+        }
+
+    def verify(self, *, probe: bool = False) -> dict[str, Any]:
+        """Run the adapter-aware verification used by every operator surface."""
+
+        from atmem.control.verify import run_verification
+
+        return run_verification(self.state(), probe=probe)
+
+    def export_memory_audit(
+        self, *, output_format: str, filters: dict[str, Any]
+    ) -> tuple[str, str]:
+        """Export one complete filtered audit view through the active adapter."""
+
+        if output_format not in {"json", "ndjson", "csv", "text"}:
+            raise ValueError("format must be json, ndjson, csv, or text")
+        state = self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import export_mirror_audit
+
+            return export_mirror_audit(
+                state, output_format=output_format, filters=filters
+            )
+        events: list[dict[str, Any]] = []
+        cursor: int | None = None
+        while len(events) < 100_000:
+            page = self.memory_audit(
+                **filters,
+                cursor=cursor,
+                limit=500,
+                include_facets=False,
+            )
+            events.extend(page.get("events") or [])
+            cursor = page.get("next_cursor")
+            if not page.get("has_more") or cursor is None:
+                break
+        report = {
+            "format": "atmem-audit-export-v1",
+            "created_at": utc_now(),
+            "host": state.host,
+            "filters": filters,
+            "result_count": len(events),
+            "truncated": len(events) >= 100_000,
+            "audit_chain_valid": bool(page.get("audit_chain_valid")),
+            "events": events,
+        }
+        report["result_digest"] = sha256_hex(canonical_json(events))
+        report["report_sha256"] = sha256_hex(canonical_json(report))
+        if output_format == "json":
+            return (
+                json.dumps(report, indent=2, sort_keys=True) + "\n",
+                "application/json; charset=utf-8",
+            )
+        if output_format == "ndjson":
+            metadata = {key: value for key, value in report.items() if key != "events"}
+            lines = [json.dumps({"metadata": metadata}, sort_keys=True)]
+            lines.extend(
+                json.dumps({"event": event}, sort_keys=True) for event in events
+            )
+            return "\n".join(lines) + "\n", "application/x-ndjson; charset=utf-8"
+        if output_format == "csv":
+            import csv
+            import io
+
+            stream = io.StringIO()
+            writer = csv.writer(stream)
+            writer.writerow(
+                [
+                    "sequence",
+                    "source_chain",
+                    "created_at",
+                    "event_type",
+                    "actor",
+                    "session_id",
+                    "turn_id",
+                    "record_id",
+                    "event_id",
+                    "event_hash",
+                    "payload_json",
+                ]
+            )
+            for event in events:
+                writer.writerow(
+                    [
+                        event.get("sequence"),
+                        event.get("source_chain"),
+                        event.get("created_at"),
+                        event.get("event_type"),
+                        event.get("actor"),
+                        event.get("session_id"),
+                        event.get("turn_id"),
+                        event.get("record_id"),
+                        event.get("event_id"),
+                        event.get("event_hash"),
+                        canonical_json(event.get("payload") or {}),
+                    ]
+                )
+            return stream.getvalue(), "text/csv; charset=utf-8"
+        lines = [
+            "AtMem audit investigation",
+            f"Generated: {report['created_at']}",
+            f"Host: {state.host}",
+            f"Integrity: {'PASSED' if report['audit_chain_valid'] else 'FAILED'}",
+            f"Events: {len(events)}",
+            "",
+        ]
+        lines.extend(
+            " | ".join(
+                str(value or "-")
+                for value in (
+                    event.get("created_at"),
+                    event.get("event_type"),
+                    event.get("actor"),
+                    event.get("record_id"),
+                    event.get("event_id"),
+                )
+            )
+            for event in events
+        )
+        return "\n".join(lines) + "\n", "text/plain; charset=utf-8"
+
+    def review_memory(self, record_id: str, decision: str) -> dict[str, Any]:
+        state = self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import review_mirror_record
+
+            return review_mirror_record(
+                state, record_id, decision, actor="local-reviewer"
+            )
+        if decision not in {"approve", "reject"}:
+            raise ValueError("decision must be approve or reject")
+        candidate_rows = self.candidates(include_reviewed=True)
+        candidate = next(
+            (row for row in candidate_rows if str(row["id"]) == record_id), None
+        )
+        if candidate is not None:
+            if candidate.get("status") != "candidate":
+                raise ValueError(
+                    f"memory candidate {record_id} was already {candidate.get('status')}"
+                )
+            canonical_records: list[dict[str, Any]] = []
+            canonical_duplicate_ids: list[str] = []
+            if decision == "approve":
+                from atmem.memory import Memory
+
+                memory = Memory(self._generic_memory_db(state), retain_query_text=False)
+                try:
+                    admission = memory.remember(
+                        str(candidate.get("subject_id") or state.subject_id),
+                        str(candidate.get("content") or ""),
+                        interpreted_fact=str(candidate.get("content") or ""),
+                        interpreted_fact_key=str(candidate.get("fact_key") or "") or None,
+                        session_id=candidate.get("source_session_id"),
+                        actor="local-reviewer",
+                        raw={
+                            "control_candidate_id": record_id,
+                            "source_message_sha256": candidate.get(
+                                "source_message_sha256"
+                            ),
+                        },
+                    )
+                    canonical_records = list(admission.get("records") or [])
+                    canonical_duplicate_ids = list(
+                        admission.get("duplicate_ids") or []
+                    )
+                finally:
+                    memory.close()
+            rows = self.review([record_id], approve=decision == "approve")
+            if decision == "approve":
+                store = self._store(state)
+                try:
+                    store.append_evidence(
+                        state.migration_id,
+                        kind="memory_control",
+                        body={
+                            "format": "atmem-memory-control-event-v1",
+                            "event_type": "memory.canonicalized",
+                            "actor": "local-reviewer",
+                            "record_id": record_id,
+                            "subject_id": candidate.get("subject_id"),
+                            "created_at": utc_now(),
+                            "payload": {
+                                "canonical_record_ids": [
+                                    str(row["id"]) for row in canonical_records
+                                ],
+                                "canonical_duplicate_ids": canonical_duplicate_ids,
+                                "content_sha256": candidate.get("content_sha256"),
+                            },
+                        },
+                    )
+                finally:
+                    store.close()
+            return {
+                "reviewed": True,
+                "record_id": record_id,
+                "decision": decision,
+                "record": rows[0] if rows else None,
+                "canonical_records": canonical_records,
+                "canonical_duplicate_ids": canonical_duplicate_ids,
+            }
+        from atmem.memory import Memory
+
+        memory = Memory(self._generic_memory_db(state), retain_query_text=False)
+        try:
+            found = None
+            found_subject = None
+            for subject in self._generic_subjects(state):
+                row = memory.store.get_record(subject, record_id)
+                if row is not None:
+                    found = row
+                    found_subject = subject
+                    break
+            if found is None or found_subject is None:
+                raise ValueError(f"unknown memory record: {record_id}")
+            if decision == "approve":
+                reviewed = memory.promote(found_subject, record_id)
+            else:
+                reviewed = memory.reject(found_subject, record_id)
+        finally:
+            memory.close()
+        return {
+            "reviewed": True,
+            "record_id": record_id,
+            "decision": decision,
+            "record": reviewed,
+        }
+
+    def sync_memory(self) -> dict[str, Any]:
+        state = self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import sync_mirror
+
+            return sync_mirror(state)
+        return {
+            **self.memory_status(),
+            "changed": False,
+            "message": "Generic shadow capture is event-driven; there are no host files to synchronize.",
+        }
 
     def prepare(
         self,
@@ -257,14 +1363,19 @@ class ControlPlaneManager:
         limit: int = 3,
         max_chars: int = 1200,
         min_score: float = 0.3,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
     ) -> dict[str, Any]:
         state, warning = self.effective_state()
         if warning or not state.mode.captures:
             return self._no_context(state, warning or "migration is off")
+        subject_id = self._resolve_subject(
+            state, subject_id=subject_id, agent_id=agent_id
+        )
         store = self._store(state)
         try:
             approved = store.list_candidates(
-                state.migration_id, statuses=("approved",)
+                state.migration_id, statuses=("approved",), subject_id=subject_id
             )
             ranked = rank_records(query, approved)
             candidate_chosen = [
@@ -278,29 +1389,44 @@ class ControlPlaneManager:
 
                 try:
                     mirror_records = list(
-                        search_mirror(state, query, limit=limit).get("records") or []
+                        search_mirror(
+                            state, query, limit=limit, subject_id=subject_id
+                        ).get("records") or []
                     )
                 except ValueError:
                     mirror_records = []
+            else:
+                from atmem.memory import Memory
+
+                memory = Memory(self._generic_memory_db(state), retain_query_text=False)
+                try:
+                    canonical_ranked = rank_records(query, memory.list(subject_id))
+                    mirror_records = [
+                        item.record
+                        for item in canonical_ranked
+                        if item.text_score > 0 and item.score >= min_score
+                    ][: max(0, limit)]
+                finally:
+                    memory.close()
             lines: list[str] = []
             candidate_ids: list[str] = []
             candidate_hashes: list[str] = []
             used_chars = 0
             chosen_rows = [
                 (
-                    str(item.record["id"]),
-                    str(item.record["content"]),
-                    str(item.record["content_sha256"]),
-                )
-                for item in candidate_chosen
-            ]
-            chosen_rows.extend(
-                (
                     str(record["id"]),
                     str(record.get("content") or ""),
                     sha256_hex(str(record.get("content") or "")),
                 )
                 for record in mirror_records
+            ]
+            chosen_rows.extend(
+                (
+                    str(item.record["id"]),
+                    str(item.record["content"]),
+                    str(item.record["content_sha256"]),
+                )
+                for item in candidate_chosen
             )
             seen: set[str] = set()
             for record_id, value, content_sha256 in chosen_rows:
@@ -328,6 +1454,8 @@ class ControlPlaneManager:
                 query_sha256=sha256_hex(query),
                 session_id=session_id,
                 host_run_id=host_run_id,
+                subject_id=subject_id,
+                agent_id=agent_id,
             )
             manifest = {
                 "format": "atmem-control-context-v1",
@@ -393,6 +1521,9 @@ class ControlPlaneManager:
         context_event_id: str | None = None,
         context_receipt_id: str | None = None,
         outcome_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+        subject_id: str | None = None,
         payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Append one content-minimizing host observation to the flight chain."""
@@ -402,6 +1533,44 @@ class ControlPlaneManager:
         state, warning = self.effective_state()
         if warning or state.migration_id == "unavailable":
             raise ValueError("blackbox recording requires a valid control state")
+        resolved_subject = self._resolve_subject(
+            state, subject_id=subject_id, agent_id=agent_id
+        )
+        topology: dict[str, Any] = {}
+        if agent_id or workspace_id:
+            if state.host == "openclaw":
+                manifest_path = Path(state.control_dir) / "openclaw-mirror.json"
+                if manifest_path.is_file():
+                    try:
+                        topology = dict(
+                            json.loads(manifest_path.read_text(encoding="utf-8")).get("topology") or {}
+                        )
+                    except (OSError, json.JSONDecodeError):
+                        topology = {}
+            else:
+                topology = self.agent_topology(state=state)
+        agent_row = next(
+            (row for row in topology.get("agents") or [] if row.get("agent_id") == agent_id),
+            None,
+        )
+        resolved_workspace = str((agent_row or {}).get("workspace_id") or workspace_id or "") or None
+        if workspace_id and resolved_workspace != workspace_id:
+            raise ValueError("agent and workspace identify different scopes")
+        workspace_row = next(
+            (
+                row
+                for row in topology.get("workspaces") or []
+                if row.get("workspace_id") == resolved_workspace
+            ),
+            None,
+        )
+        if resolved_workspace and topology.get("workspaces") and workspace_row is None:
+            raise ValueError("workspace is not part of the current agent topology")
+        workspace_subject = str((workspace_row or {}).get("subject_id") or "") or None
+        if subject_id and workspace_subject and subject_id != workspace_subject:
+            raise ValueError("workspace and subject identify different scopes")
+        if workspace_subject:
+            resolved_subject = workspace_subject
         body = normalize_event(
             migration_id=state.migration_id,
             host=state.host,
@@ -414,6 +1583,9 @@ class ControlPlaneManager:
             context_event_id=context_event_id,
             context_receipt_id=context_receipt_id,
             outcome_id=outcome_id,
+            agent_id=agent_id,
+            workspace_id=resolved_workspace,
+            subject_id=resolved_subject,
             payload=payload,
         )
         store = self._store(state)
@@ -449,7 +1621,7 @@ class ControlPlaneManager:
             if str((entry.get("body") or {}).get("run_id") or "") == run_id
         ]
 
-    def blackbox_runs(self, *, limit: int = 50) -> dict[str, Any]:
+    def blackbox_runs(self, *, limit: int = 50, offset: int = 0) -> dict[str, Any]:
         from atmem.control.blackbox import (
             EVIDENCE_KIND,
             flight_runs,
@@ -470,7 +1642,9 @@ class ControlPlaneManager:
         finally:
             store.close()
         runs = flight_runs(entries)
-        visible_runs = runs[: max(0, min(int(limit), 500))]
+        page_offset = max(0, int(offset))
+        page_limit = max(0, min(int(limit), 500))
+        visible_runs = runs[page_offset : page_offset + page_limit]
         entries_by_run: dict[str, list[dict[str, Any]]] = {}
         for entry in entries:
             entry_run_id = str((entry.get("body") or {}).get("run_id") or "")
@@ -576,6 +1750,8 @@ class ControlPlaneManager:
                 "evaluated_runs": len(visible_runs),
             },
             "runs": visible_runs,
+            "offset": page_offset,
+            "has_more": page_offset + len(visible_runs) < len(runs),
         }
 
     def verify_blackbox_flight(self, run_id: str) -> dict[str, Any]:
@@ -721,11 +1897,51 @@ class ControlPlaneManager:
                     ]
                 finally:
                     memory.close()
+        elif candidate_ids:
+            store = self._store(state)
+            try:
+                rows = store.list_candidates(
+                    state.migration_id,
+                    subject_id=str(report.get("subject_id") or state.subject_id),
+                )
+            finally:
+                store.close()
+            by_id = {str(row["id"]): row for row in rows}
+            memories = [
+                {
+                    "record_id": record_id,
+                    "content": str(by_id[record_id].get("content") or ""),
+                }
+                for record_id in candidate_ids
+                if record_id in by_id
+            ]
+            missing = [record_id for record_id in candidate_ids if record_id not in by_id]
+            if missing:
+                from atmem.memory import Memory
+
+                memory = Memory(self._generic_memory_db(state), retain_query_text=False)
+                try:
+                    records = memory.store.get_records(
+                        str(report.get("subject_id") or state.subject_id), missing
+                    )
+                    memories.extend(
+                        {
+                            "record_id": record_id,
+                            "content": str(records[record_id].get("content") or ""),
+                        }
+                        for record_id in missing
+                        if record_id in records
+                    )
+                finally:
+                    memory.close()
 
         request_text: str | None = None
         response_text: str | None = None
         websites: list[str] = []
         recorded_cost: float | None = None
+        local_failure: str | None = None
+        local_provider: str | None = None
+        local_model: str | None = None
 
         def collect_local_details(value: Any) -> None:
             nonlocal recorded_cost
@@ -754,7 +1970,7 @@ class ControlPlaneManager:
             if trajectory_root is not None
             else Path.home() / ".openclaw" / "agents"
         )
-        if session_id and root.is_dir():
+        if state.host == "openclaw" and session_id and root.is_dir():
             for path in sorted(root.glob(f"*/sessions/{session_id}.trajectory.jsonl")):
                 try:
                     resolved = path.resolve(strict=True)
@@ -764,6 +1980,8 @@ class ControlPlaneManager:
                     lines = resolved.read_text(encoding="utf-8", errors="replace").splitlines()
                 except (OSError, ValueError):
                     continue
+                run_started_at: str | None = None
+                run_ended_at: str | None = None
                 for line in lines:
                     try:
                         event = json.loads(line)
@@ -771,9 +1989,19 @@ class ControlPlaneManager:
                         continue
                     if str(event.get("runId") or "") != run_id:
                         continue
-                    if event.get("type") != "model.completed":
-                        continue
+                    event_type = event.get("type")
                     data = event.get("data") or {}
+                    if event_type == "session.started":
+                        run_started_at = str(event.get("ts") or "") or None
+                        local_provider = str(event.get("provider") or "") or None
+                        local_model = str(event.get("modelId") or "") or None
+                    if event_type == "session.ended":
+                        run_ended_at = str(event.get("ts") or "") or None
+                        local_failure = str(
+                            data.get("promptError") or data.get("error") or ""
+                        ) or None
+                    if event_type != "model.completed":
+                        continue
                     collect_local_details(data.get("messagesSnapshot") or [])
                     for message in data.get("messagesSnapshot") or []:
                         if message.get("role") == "user" and isinstance(message.get("content"), str):
@@ -781,8 +2009,69 @@ class ControlPlaneManager:
                     assistant_texts = data.get("assistantTexts") or []
                     if assistant_texts:
                         response_text = "\n".join(str(value) for value in assistant_texts)[:20000]
+                if duration_ms is None and run_started_at and run_ended_at:
+                    try:
+                        from datetime import datetime
+
+                        started = datetime.fromisoformat(run_started_at.replace("Z", "+00:00"))
+                        ended = datetime.fromisoformat(run_ended_at.replace("Z", "+00:00"))
+                        duration_ms = max(0, int((ended - started).total_seconds() * 1000))
+                    except ValueError:
+                        pass
                 if request_text is not None or response_text is not None:
                     break
+
+            # Failed harness runs may not emit model.completed, but OpenClaw's
+            # local session transcript still says what was requested and why
+            # execution stopped.  This is display-only context, never appended
+            # to the immutable Black Box evidence.
+            if request_text is None or response_text is None or local_failure is None:
+                for path in sorted(root.glob(f"*/sessions/{session_id}.jsonl")):
+                    try:
+                        resolved = path.resolve(strict=True)
+                        resolved.relative_to(root.resolve(strict=True))
+                        if not resolved.is_file() or resolved.stat().st_size > 32 * 1024 * 1024:
+                            continue
+                        transcript_lines = resolved.read_text(
+                            encoding="utf-8", errors="replace"
+                        ).splitlines()
+                    except (OSError, ValueError):
+                        continue
+                    in_run = False
+                    for line in transcript_lines:
+                        try:
+                            row = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        message = row.get("message") or {}
+                        role = message.get("role")
+                        idempotency_key = str(message.get("idempotencyKey") or "")
+                        if role == "user":
+                            if in_run:
+                                break
+                            if idempotency_key != f"{run_id}:user":
+                                continue
+                            in_run = True
+                            content = message.get("content")
+                            if isinstance(content, str):
+                                request_text = content[:20000]
+                            continue
+                        if not in_run:
+                            continue
+                        collect_local_details(message)
+                        if role == "assistant" and response_text is None:
+                            content = message.get("content")
+                            if isinstance(content, str) and content.strip():
+                                response_text = content[:20000]
+                        if role == "toolResult" and message.get("isError"):
+                            content = message.get("content")
+                            rendered = json.dumps(content, ensure_ascii=False)
+                            if "declined" in rendered.casefold():
+                                local_failure = "OpenClaw declined the requested commands; no change was made."
+                            elif local_failure is None:
+                                local_failure = "OpenClaw reported a tool error."
+                    if in_run:
+                        break
 
         websites = list(dict.fromkeys(websites))
         tool_names = list(dict.fromkeys(tool_names))
@@ -801,7 +2090,7 @@ class ControlPlaneManager:
             risks.append("Tools were invoked and may have interacted with systems outside the model.")
         lifecycle = report.get("lifecycle") or {}
         tool_errors = (report.get("tools") or {}).get("errors") or []
-        blocked_by = lifecycle.get("reason")
+        blocked_by = lifecycle.get("reason") or local_failure
         if not blocked_by and tool_errors:
             blocked_by = "One or more tools returned an error."
         outcome_ids = (report.get("correlation") or {}).get("outcome_ids") or []
@@ -815,8 +2104,8 @@ class ControlPlaneManager:
             "memory_count": len(candidate_ids),
             "tools": tool_names,
             "websites": websites,
-            "provider": (report.get("model") or {}).get("provider"),
-            "model": (report.get("model") or {}).get("model"),
+            "provider": (report.get("model") or {}).get("provider") or local_provider,
+            "model": (report.get("model") or {}).get("model") or local_model,
             "duration_ms": duration_ms,
             "usage": {
                 "input_tokens": usage.get("input"),
@@ -840,6 +2129,9 @@ class ControlPlaneManager:
                 "Request and reply are read from the local OpenClaw transcript; "
                 "memory text is read from the local AtMem mirror. Raw text is not "
                 "added to the Black Box evidence or its exports."
+                if state.host == "openclaw"
+                else "Generic adapters retain digests and bounded metadata by default. "
+                "Request and reply text is unavailable unless the host supplies a separate protected evidence reader."
             ),
         }
 
@@ -865,6 +2157,8 @@ class ControlPlaneManager:
                     from atmem.control.openclaw_native import mirror_status
 
                     mirror = mirror_status(state)
+                else:
+                    mirror = self.memory_status()
                 readiness = self._readiness(
                     state,
                     evidence_store.summary(state.migration_id),
@@ -890,6 +2184,69 @@ class ControlPlaneManager:
                 return write_state(self.state_path, updated)
             finally:
                 evidence_store.close()
+
+    def activate(self, *, actor: str | None = None, progress: Any = None) -> dict[str, Any]:
+        """Activate AtMem through the current adapter and return one shared receipt."""
+
+        readiness = self.status().get("readiness") or {}
+        if not readiness.get("ready_for_active"):
+            raise ValueError("; ".join(readiness.get("reasons") or ["control plane is not ready"]))
+        state = self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import activate_takeover, restore_takeover
+
+            takeover = activate_takeover(state, self.state_path, progress=progress)
+            try:
+                state = self.transition(ControlMode.ACTIVE, actor=actor)
+            except Exception:
+                restore_takeover(state)
+                raise
+        else:
+            state = self.transition(ControlMode.ACTIVE, actor=actor)
+            takeover = {
+                "activated": True,
+                "host": state.host,
+                "native_memory_replaced": False,
+                "boundary": "The host must inject only context returned with inject=true.",
+            }
+        return {
+            **state.public_status(),
+            "takeover": takeover,
+            "mirror": self.memory_status(),
+        }
+
+    def deactivate(self, *, actor: str | None = None, progress: Any = None) -> dict[str, Any]:
+        """Stop context influence while preserving shadow capture and evidence."""
+
+        state = self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import restore_takeover
+
+            restored = restore_takeover(state, progress=progress)
+            if state.mode is not ControlMode.OFF:
+                state = self.transition(ControlMode.OFF, actor=actor or "restore")
+            return {
+                **state.public_status(),
+                "restored": bool(restored.get("valid")),
+                "takeover": restored,
+                "restore_boundary": (
+                    "The saved OpenClaw configuration was restored. Evidence and past outputs are preserved."
+                ),
+            }
+        if state.mode is ControlMode.ACTIVE:
+            state = self.transition(ControlMode.SHADOW, actor=actor or "return-to-shadow")
+        return {
+            **state.public_status(),
+            "restored": True,
+            "takeover": {
+                "activated": False,
+                "host": state.host,
+                "native_memory_replaced": False,
+            },
+            "restore_boundary": (
+                "AtMem returned to shadow mode. Capture and evidence continue, but prepare never authorizes injection."
+            ),
+        }
 
     def _readiness(
         self,

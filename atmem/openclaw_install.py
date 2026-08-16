@@ -16,7 +16,7 @@ from atmem.control.manager import DEFAULT_STATE_PATH, DEFAULT_CONTROL_ROOT
 
 OPENCLAW_PLUGIN_ID = "memory-atmem"
 OPENCLAW_PLUGIN_PACKAGE = "openclaw-memory-atmem"
-OPENCLAW_PLUGIN_VERSION = "2.0.1"
+OPENCLAW_PLUGIN_VERSION = "2.1.0"
 _CONFIG_KEY = "plugins.entries.memory-atmem"
 
 
@@ -121,6 +121,10 @@ def install_openclaw(
             ),
         )
         from atmem.control.hosts import configure_host
+
+        # A real manager refreshes and verifies the mirror as part of status;
+        # keeping that boundary also makes installer adapters straightforward.
+        manager.status()
 
         configure_kwargs: dict[str, Any] = {"atmem_executable": engine}
         if resumed_existing_migration:

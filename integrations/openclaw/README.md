@@ -5,11 +5,11 @@ This npm package is the host bridge for AtMem. It is not a standalone memory eng
 Use the Python-owned installer:
 
 ```bash
-python -m pip install atmem==2.0.1
+python -m pip install atmem==2.1.0
 atmem openclaw install
 ```
 
-The installer pins `openclaw-memory-atmem@2.0.1`, binds the exact `atmem` executable, copies existing OpenClaw memory, configures shadow mode, restarts the gateway and verifies the loaded plugin. Direct npm installation cannot perform or prove those steps.
+The installer pins `openclaw-memory-atmem@2.1.0`, binds the exact `atmem` executable, copies existing OpenClaw memory, configures shadow mode, restarts the gateway and verifies the loaded plugin. Direct npm installation cannot perform or prove those steps.
 
 In shadow mode the bridge observes native-memory changes without injecting AtMem context. In active mode it exposes compatible memory search/get tools, model-semantic capture, bounded recall and native-path protection. `atmem control restore` restores the saved OpenClaw configuration and native memory.
 

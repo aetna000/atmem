@@ -361,7 +361,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         "refresh_openclaw_bridge_and_test",
         lambda **_kwargs: {
             "refreshed": True,
-            "bridge_version": "2.0.1",
+            "bridge_version": "2.1.0",
             "test_flight": {
                 "run_id": "fresh-run",
                 "verdict": "completed_successfully",
@@ -374,7 +374,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         "openclaw_bridge_refresh_status",
         lambda: {
             "available": True,
-            "pinned_version": "2.0.1",
+            "pinned_version": "2.1.0",
             "installed_version": "1.0.0",
         },
     )
@@ -395,7 +395,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         assert opener.open(f"{base}/api/status").status == 200
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.0.1"
+        assert product["atmem_npm_version"] == "2.1.0"
         assert product["x_url"] == "https://x.com/AtMemX"
         bridge_status = json.loads(
             opener.open(f"{base}/api/bridge/status").read()
@@ -430,6 +430,10 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         assert flights["runs"][0]["attention_points"][0]["code"] == (
             "flight_incomplete"
         )
+        page = json.loads(
+            opener.open(f"{base}/api/blackbox/runs?limit=1&offset=1").read()
+        )
+        assert page["offset"] == 1
         flight = json.loads(
             opener.open(
                 f"{base}/api/blackbox/flight?run_id=dashboard-run"
@@ -523,7 +527,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
             opener.open(protected)
         assert error.value.code == 409
         result = json.loads(error.value.read())
-        assert "Activate AtMem or Restore OpenClaw" in result["error"]
+        assert "use /api/restore to return safely" in result["error"]
     finally:
         server.shutdown()
         server.server_close()
@@ -555,7 +559,7 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     assert "--danger-action:#d92d20" in html
     assert 'id="progress"' in html
     assert 'id="auditorBackdrop"' in html
-    assert "/api/mirror/record?record_id=" in html
+    assert "/api/memory/record?record_id=" in html
     assert "Complete chronological history" in html
     assert "Deletion receipt" in html
     assert "height:100dvh" in html
@@ -595,15 +599,21 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     assert "Audit guide" in html
     assert "Feedback" in html
     assert "Reject and purge" in html
-    assert 'get("/api/mirror/reviews")' in html
-    assert 'post("/api/mirror/review"' in html
+    assert 'get("/api/memory/reviews")' in html
+    assert 'post("/api/memory/review"' in html
     assert 'setInterval(refreshReviews,5000)' in html
     assert "Audit Explorer" in html
     assert "Agent Black Box" in html
-    assert "What happened most recently?" in html
-    assert "Agent memory control" in html
+    assert "Recent actions" in html
+    assert 'id="activityTimeline"' in html
+    assert 'id="activityQuery"' in html
+    assert "Advanced search" in html
+    assert 'id="activityLoadMore"' in html
+    assert 'id="activityTopic"' in html
+    assert 'id="activityWhen"' in html
+    assert "All time" in html
+    assert "Activity" in html
     assert "Evidence workspace" in html
-    assert "Live local evidence" in html
     assert "Investigation sections" in html
     assert "Healthy — no action needed" in html
     assert "Flight completed" in html
@@ -623,12 +633,12 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     assert "OpenClaw received this request" in html
     assert "Compromise and outcome proof" in html
     assert "latestPoints=latest?(latest.attention_points||[]):[]" in html
-    assert "Latest flight:" in html
-    assert "What happened:" in html
-    assert "Next action:" in html
-    assert "Inspect this flight" in html
-    assert "What happened and what to do" in html
-    assert "Acknowledge and move on" in html
+    assert "function renderActivityTimeline" in html
+    assert "function activityState" in html
+    assert "Next action" in html
+    assert 'text("statusAction","Review")' in html
+    assert "Technical details" in html
+    assert 'element("button","primary","Acknowledge")' in html
     assert "/api/blackbox/acknowledge" in html
     assert "Acknowledged findings" in html
     assert "Upgrade bridge &amp; run test" in html
@@ -643,8 +653,8 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     assert "/api/blackbox/story?run_id=" in html
     assert "/api/blackbox/export?run_id=" in html
     assert "not raw prompts, responses, tool parameters or results" in html
-    assert "/api/mirror/audit?" in html
-    assert "/api/mirror/audit-export?" in html
+    assert "/api/memory/audit?" in html
+    assert "/api/memory/audit-export?" in html
     assert "Saved views" in html
     assert "Global evidence investigation" in html
     assert "This can take a minute." in html
@@ -699,7 +709,7 @@ def test_review_image_preview_requires_exact_host_bytes(
     record_id = admission["record"]["id"]
     queue = list_mirror_reviews(manager.state())
     assert queue["records"][0]["media"]["preview_url"] == (
-        f"/api/mirror/media-preview?record_id={record_id}"
+        f"/api/memory/media-preview?record_id={record_id}"
     )
     assert queue["records"][0]["media"]["recall_payload"] == "text_description"
 

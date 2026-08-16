@@ -37,7 +37,8 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid Host header"})
             return
         parsed = urlparse(self.path)
-        if parsed.path == "/":
+        path = _canonical_api_path(parsed.path)
+        if path == "/":
             body = self.server.html.encode("utf-8")
             self.send_response(HTTPStatus.OK)
             self._security_headers()
@@ -46,7 +47,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
-        if parsed.path == "/assets/atmem.jpg":
+        if path == "/assets/atmem.jpg":
             body = files("atmem.control").joinpath("assets/atmem.jpg").read_bytes()
             self.send_response(HTTPStatus.OK)
             self._security_headers()
@@ -56,10 +57,10 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
-        if parsed.path == "/api/session":
+        if path == "/api/session":
             self._json(HTTPStatus.OK, {"csrf_token": self.server.csrf_token})
             return
-        if parsed.path == "/api/product":
+        if path == "/api/product":
             from atmem.openclaw_install import (
                 OPENCLAW_PLUGIN_PACKAGE,
                 OPENCLAW_PLUGIN_VERSION,
@@ -79,10 +80,16 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 },
             )
             return
-        if parsed.path == "/api/status":
+        if path == "/api/status":
             self._json(HTTPStatus.OK, self.server.manager.status())
             return
-        if parsed.path == "/api/bridge/status":
+        if path == "/api/bridge/status":
+            if self.server.manager.state().host != "openclaw":
+                self._json(
+                    HTTPStatus.OK,
+                    {"available": False, "reason": "The generic adapter has no installable bridge."},
+                )
+                return
             from atmem.openclaw_install import openclaw_bridge_refresh_status
 
             try:
@@ -90,18 +97,19 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 self._json(HTTPStatus.CONFLICT, {"error": str(exc)})
             return
-        if parsed.path == "/api/blackbox/runs":
+        if path == "/api/blackbox/runs":
             params = parse_qs(parsed.query)
             try:
                 limit = int((params.get("limit") or ["50"])[0])
+                offset = int((params.get("offset") or ["0"])[0])
                 self._json(
                     HTTPStatus.OK,
-                    self.server.manager.blackbox_runs(limit=limit),
+                    self.server.manager.blackbox_runs(limit=limit, offset=offset),
                 )
             except ValueError as exc:
                 self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             return
-        if parsed.path in {
+        if path in {
             "/api/blackbox/flight",
             "/api/blackbox/story",
             "/api/blackbox/export",
@@ -118,10 +126,10 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 self._json(HTTPStatus.NOT_FOUND, {"error": str(exc)})
                 return
-            if parsed.path == "/api/blackbox/flight":
+            if path == "/api/blackbox/flight":
                 self._json(HTTPStatus.OK, report)
                 return
-            if parsed.path == "/api/blackbox/story":
+            if path == "/api/blackbox/story":
                 self._json(
                     HTTPStatus.OK,
                     self.server.manager.blackbox_flight_story(run_id),
@@ -152,27 +160,35 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 content_type=content_type,
             )
             return
-        if parsed.path == "/api/mirror/search":
-            from atmem.control.openclaw_native import search_mirror
-
-            query = (parse_qs(parsed.query).get("query") or [""])[0].strip()
+        if path == "/api/memory/search":
+            params = parse_qs(parsed.query)
+            query = (params.get("query") or [""])[0].strip()
             if not query:
                 self._json(HTTPStatus.BAD_REQUEST, {"error": "query is required"})
                 return
             self._json(
                 HTTPStatus.OK,
-                search_mirror(self.server.manager.state(), query, limit=12),
+                self.server.manager.memory_search(
+                    query,
+                    limit=12,
+                    agent_id=(params.get("agent_id") or [None])[0],
+                    subject_id=(params.get("subject_id") or [None])[0],
+                ),
             )
             return
-        if parsed.path == "/api/mirror/reviews":
-            from atmem.control.openclaw_native import list_mirror_reviews
-
+        if path == "/api/memory/reviews":
             self._json(
                 HTTPStatus.OK,
-                list_mirror_reviews(self.server.manager.state()),
+                self.server.manager.memory_reviews(),
             )
             return
-        if parsed.path == "/api/mirror/media-preview":
+        if path == "/api/memory/media-preview":
+            if self.server.manager.state().host != "openclaw":
+                self._json(
+                    HTTPStatus.CONFLICT,
+                    {"error": "media preview requires an adapter-owned local media reader"},
+                )
+                return
             from atmem.control.openclaw_native import resolve_mirror_review_image
 
             record_id = (parse_qs(parsed.query).get("record_id") or [""])[0].strip()
@@ -197,24 +213,20 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 for chunk in iter(lambda: handle.read(1024 * 1024), b""):
                     self.wfile.write(chunk)
             return
-        if parsed.path == "/api/mirror/trace":
-            from atmem.control.openclaw_native import trace_mirror
-
+        if path == "/api/memory/trace":
             query = (parse_qs(parsed.query).get("query") or [""])[0].strip()
             if not query:
                 self._json(HTTPStatus.BAD_REQUEST, {"error": "query is required"})
                 return
-            self._json(
-                HTTPStatus.OK,
-                trace_mirror(self.server.manager.state(), query, limit=100),
-            )
-            return
-        if parsed.path in {"/api/mirror/audit", "/api/mirror/audit-export"}:
-            from atmem.control.openclaw_native import (
-                export_mirror_audit,
-                query_mirror_audit,
-            )
+            if self.server.manager.state().host == "openclaw":
+                from atmem.control.openclaw_native import trace_mirror
 
+                report = trace_mirror(self.server.manager.state(), query, limit=100)
+            else:
+                report = self.server.manager.memory_search(query, limit=100)
+            self._json(HTTPStatus.OK, report)
+            return
+        if path in {"/api/memory/audit", "/api/memory/audit-export"}:
             params = parse_qs(parsed.query)
             value = lambda name, default="": (params.get(name) or [default])[0].strip()
             filters = {
@@ -227,13 +239,11 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 "until": value("until"),
                 "direction": value("direction", "desc"),
             }
-            if parsed.path == "/api/mirror/audit-export":
+            if path == "/api/memory/audit-export":
                 output_format = value("format", "json")
                 try:
-                    content, content_type = export_mirror_audit(
-                        self.server.manager.state(),
-                        output_format=output_format,
-                        filters=filters,
+                    content, content_type = self.server.manager.export_memory_audit(
+                        output_format=output_format, filters=filters
                     )
                 except ValueError as exc:
                     self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
@@ -248,8 +258,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             try:
                 cursor = int(cursor_text) if cursor_text else None
                 limit = int(value("limit", "100"))
-                report = query_mirror_audit(
-                    self.server.manager.state(),
+                report = self.server.manager.memory_audit(
                     **filters,
                     cursor=cursor,
                     limit=limit,
@@ -260,30 +269,25 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 return
             self._json(HTTPStatus.OK, report)
             return
-        if parsed.path in {
-            "/api/mirror/record",
-            "/api/mirror/record-report",
-            "/api/mirror/deletion-receipt",
+        if path in {
+            "/api/memory/record",
+            "/api/memory/record-report",
+            "/api/memory/deletion-receipt",
         }:
-            from atmem.control.openclaw_native import (
-                format_mirror_record_report,
-                inspect_mirror_record,
-            )
-
             params = parse_qs(parsed.query)
             record_id = (params.get("record_id") or [""])[0].strip()
             if not record_id:
                 self._json(HTTPStatus.BAD_REQUEST, {"error": "record_id is required"})
                 return
             try:
-                report = inspect_mirror_record(self.server.manager.state(), record_id)
+                report = self.server.manager.memory_record(record_id)
             except ValueError as exc:
                 self._json(HTTPStatus.NOT_FOUND, {"error": str(exc)})
                 return
-            if parsed.path == "/api/mirror/record":
+            if path == "/api/memory/record":
                 self._json(HTTPStatus.OK, report)
                 return
-            if parsed.path == "/api/mirror/deletion-receipt":
+            if path == "/api/memory/deletion-receipt":
                 receipt = report.get("deletion_receipt")
                 if not receipt:
                     self._json(
@@ -299,8 +303,21 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 return
             output_format = (params.get("format") or ["json"])[0]
             if output_format == "text":
+                if self.server.manager.state().host == "openclaw":
+                    from atmem.control.openclaw_native import format_mirror_record_report
+
+                    content = format_mirror_record_report(report)
+                else:
+                    record = report.get("record") or {}
+                    content = (
+                        f"AtMem memory {record_id}\n"
+                        f"Status: {report.get('status')}\n"
+                        f"Subject: {record.get('subject_id')}\n"
+                        f"Content: {record.get('content')}\n"
+                        f"SHA-256: {record.get('content_sha256')}\n"
+                    )
                 self._download(
-                    format_mirror_record_report(report),
+                    content,
                     filename=f"atmem-investigation-{record_id}.txt",
                     content_type="text/plain; charset=utf-8",
                 )
@@ -327,7 +344,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             return
         try:
             body = self._body()
-            path = urlparse(self.path).path
+            path = _canonical_api_path(urlparse(self.path).path)
             if path == "/api/blackbox/acknowledge":
                 run_id = str(body.get("run_id") or "").strip()
                 attention_code = str(body.get("attention_code") or "").strip()
@@ -350,7 +367,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 mode = ControlMode(str(body["mode"]))
                 if mode is not ControlMode.ACTIVE:
                     raise ValueError(
-                        "the dashboard supports only Activate AtMem or Restore OpenClaw"
+                        "use this endpoint only to activate AtMem; use /api/restore to return safely"
                     )
                 expected_host = self.server.manager.state().host
                 if not secrets.compare_digest(
@@ -360,47 +377,18 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                         f"type the host name `{expected_host}` to confirm"
                     )
                 if mode is ControlMode.ACTIVE:
-                    current = self.server.manager.state()
-                    if current.host == "openclaw":
-                        from atmem.control.openclaw_native import (
-                            activate_takeover,
-                            restore_takeover,
-                        )
-
-                        takeover = activate_takeover(
-                            current, self.server.manager.state_path
-                        )
-                        try:
-                            state = self.server.manager.transition(
-                                mode, actor="dashboard-reviewer"
-                            )
-                        except Exception:
-                            restore_takeover(current)
-                            raise
-                    else:
-                        state = self.server.manager.transition(
-                            mode, actor="dashboard-reviewer"
-                        )
-                        takeover = {
-                            "activated": True,
-                            "host": current.host,
-                            "native_memory_replaced": False,
-                        }
-                    value = state.public_status()
-                    value["takeover"] = takeover
-                    self._json(HTTPStatus.OK, value)
+                    self._json(
+                        HTTPStatus.OK,
+                        self.server.manager.activate(actor="dashboard-reviewer"),
+                    )
                     return
-            if path == "/api/mirror/sync":
-                from atmem.control.openclaw_native import sync_mirror
-
+            if path == "/api/memory/sync":
                 self._json(
                     HTTPStatus.OK,
-                    sync_mirror(self.server.manager.state()),
+                    self.server.manager.sync_memory(),
                 )
                 return
-            if path == "/api/mirror/review":
-                from atmem.control.openclaw_native import review_mirror_record
-
+            if path == "/api/memory/review":
                 record_id = str(body.get("record_id") or "").strip()
                 decision = str(body.get("decision") or "").strip()
                 if not secrets.compare_digest(
@@ -409,34 +397,20 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     raise ValueError("record confirmation does not match")
                 self._json(
                     HTTPStatus.OK,
-                    review_mirror_record(
-                        self.server.manager.state(),
-                        record_id,
-                        decision,
-                        actor="dashboard-reviewer",
-                    ),
+                    self.server.manager.review_memory(record_id, decision),
                 )
                 return
             if path == "/api/restore":
-                from atmem.control.openclaw_native import restore_takeover
-
-                state = self.server.manager.state()
-                takeover = restore_takeover(state)
-                if state.mode is not ControlMode.OFF:
-                    state = self.server.manager.transition(
-                        ControlMode.OFF, actor="dashboard-restore"
-                    )
                 self._json(
                     HTTPStatus.OK,
-                    {
-                        "restored": bool(takeover.get("valid")),
-                        "takeover": takeover,
-                        "host": {"host": state.host, "verified": bool(takeover.get("valid"))},
-                        "gateway": takeover.get("gateway"),
-                    },
+                    self.server.manager.deactivate(actor="dashboard-reviewer"),
                 )
                 return
             if path == "/api/restore-drill":
+                if self.server.manager.state().host != "openclaw":
+                    raise ValueError(
+                        "restore drill requires an adapter with preserved native host state"
+                    )
                 from atmem.control.openclaw_native import restore_drill
 
                 self._json(
@@ -445,18 +419,17 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 )
                 return
             if path == "/api/verify":
-                from atmem.control.verify import run_verification
-
                 self._json(
                     HTTPStatus.OK,
-                    run_verification(
-                        self.server.manager.state(),
-                        probe=bool(body.get("probe", False)),
-                    ),
+                    self.server.manager.verify(probe=bool(body.get("probe", False))),
                 )
                 return
             if path == "/api/bridge/refresh-test":
                 expected_host = self.server.manager.state().host
+                if expected_host != "openclaw":
+                    raise ValueError(
+                        "bridge refresh is available only for the OpenClaw adapter"
+                    )
                 if not secrets.compare_digest(
                     str(body.get("confirm_host") or ""), expected_host
                 ):
@@ -537,6 +510,14 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         )
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
+
+
+def _canonical_api_path(path: str) -> str:
+    """Keep legacy mirror URLs working while exposing host-neutral memory URLs."""
+
+    if path.startswith("/api/mirror/"):
+        return "/api/memory/" + path.removeprefix("/api/mirror/")
+    return path
 
 
 def dashboard_html() -> str:

@@ -1,124 +1,300 @@
 # AtMem
 
-[![Version 2.0.1](https://img.shields.io/badge/version-2.0.1-blue)](./docs/releases/v2.0.1.md)
+[![Version 2.1.0](https://img.shields.io/badge/version-2.1.0-blue)](./docs/releases/v2.1.0.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
-**AtMem is an Agent Black Box and reversible memory control plane for OpenClaw.**
+**AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-It records the boundaries OpenClaw exposes—model input/output fingerprints, context injection, tool requests, tool completions and turn termination—into a tamper-evident flight timeline. When an agent says it completed an action, an operator can inspect whether the host actually observed the corresponding tool lifecycle and export the evidence.
+It gives agent runtimes one governed memory source and one tamper-evident record
+of what the host observed: memory considered and injected, model boundaries,
+tool requests and completions, turn termination, and linked external outcome
+receipts. OpenClaw is the first fully automated adapter. Other runtimes connect
+through the generic control MCP contract.
 
-The boundary is deliberate: AtMem verifies retained timeline integrity and observed hook closure. It does **not** semantically judge an answer or prove that an external real-world outcome occurred without a system-of-record verifier. Raw prompts, responses, tool parameters and tool results are not stored by the Black Box; their SHA-256 digests and bounded metadata are.
+AtMem starts in **shadow mode**. It records memory candidates and flight
+evidence but never authorizes memory injection. An operator can review the
+evidence, activate AtMem explicitly, and return to shadow at any time. The
+OpenClaw adapter additionally copies native memory, freezes it during takeover,
+and restores it exactly.
 
-Install AtMem beside OpenClaw, let it copy and shadow the complete native memory, inspect the result, then activate it when you are ready. Shadow mode does not change the context sent to the model. Activation freezes the verified OpenClaw memory state and replaces native supplemental-memory access with bounded AtMem recall. Restore puts the saved OpenClaw configuration and memory paths back.
-
-This is **Version 2.0.1**. Agent Black Box v2 adds correlated context receipts, strict lifecycle coverage, unified response fingerprints, and an attention-first operator workflow. Black Box capture and the automated copy, shadow, activation and restore workflow support OpenClaw first. The underlying memory engine and MCP interface remain model-agnostic.
-
-## Inspect an agent flight
-
-After installation, use OpenClaw normally and inspect newly observed runs:
+## Install
 
 ```bash
-atmem blackbox status
-atmem blackbox runs
-atmem blackbox verify RUN_ID
-atmem verify-run RUN_ID
-atmem blackbox export RUN_ID --format text --output flight.txt
-atmem dashboard daemon start
+python -m pip install atmem==2.1.0
+atmem --version
 ```
 
-The dashboard leads with three attention checks—flight completion, tool/outcome
-health, and context/model evidence—then keeps the full host-observed timeline
-and downloadable JSON/text evidence available for investigation. See the
-[Agent Black Box guide](docs/agent-blackbox.md) for the event model, privacy
-boundary and exact guarantees.
+AtMem requires Python 3.10 or newer. The canonical engine has no mandatory
+third-party Python dependencies. Semantic vector search is optional:
+
+```bash
+python -m pip install 'atmem[semantic]==2.1.0'
+```
+
+## Choose an integration
+
+| Runtime | Start command | What AtMem supplies | What the runtime supplies |
+| --- | --- | --- | --- |
+| Any custom agent, CLI, or SaaS worker | `atmem control shadow --host generic` | memory governance, shadow/active policy, flight store, verification, audit, CLI, MCP, dashboard | authenticated identity and truthful model/tool/context hooks |
+| OpenClaw | `atmem openclaw install` | all generic capabilities plus automated native-memory copy, hook installation, gateway checks, activation, and restore | the OpenClaw runtime |
+| Memory engine only | `atmem mcp` or Python `Memory` | canonical memory, recall, provenance, lifecycle, deletion, and audit | all agent-flight and prompt-boundary integration |
+
+The dashboard is a view over the same local state used by CLI and MCP. It is
+not a separate source of truth.
+
+## Connect any agent runtime
+
+Start a generic control plane against the same canonical database used by the
+memory MCP server:
+
+```bash
+atmem control shadow --host generic --memory-db ~/.atmem/memories.db
+atmem control mcp
+```
+
+The host MCP is deliberately non-administrative. It exposes capture, prepare,
+context-exposure confirmation, flight-event recording, adapter sync/status,
+and cannot approve memory, acknowledge findings, or activate AtMem.
+Approving a generic shadow candidate writes the reviewed fact into the bound
+canonical database, so `atmem mcp`, CLI, operator MCP, and dashboard see the
+same active record and record ID.
+
+For every turn, the runtime must:
+
+1. assign stable agent, workspace, session, run, and turn identifiers;
+2. capture authenticated user memory candidates;
+3. call `control_prepare` before the model request;
+4. inject the returned context only when `inject` is exactly `true`;
+5. confirm the exact exposure after constructing the model request;
+6. record model input/output, each tool request/completion, and turn end;
+7. bind an outcome receipt when an independent system proves a real-world result.
+
+See the [generic adapter contract](docs/generic-adapter.md) for tool names,
+multi-agent scopes, event requirements, and trust boundaries.
+
+## Operate AtMem
+
+The operator CLI, operator MCP, and loopback dashboard call the same manager
+operations:
+
+```bash
+# Read state and verify integrity.
+atmem control status
+atmem control verify
+atmem control memory-sync
+atmem control memory-status
+
+# Inspect and decide memory.
+atmem control memory-reviews
+atmem control memory-search "preferred editor"
+atmem control memory-record RECORD_ID
+atmem control memory-review RECORD_ID approve
+atmem control memory-audit --since 2026-08-15T00:00:00Z
+atmem control memory-audit --format ndjson --output audit.ndjson
+
+# Inspect, export, and acknowledge agent flights.
+atmem blackbox runs --limit 50
+atmem blackbox story RUN_ID
+atmem blackbox verify RUN_ID
+atmem blackbox export RUN_ID --format json --output flight.json
+atmem blackbox ack RUN_ID ATTENTION_CODE
+
+# Explicit influence control.
+atmem control activate
+atmem control restore
+```
+
+To expose those same administrative operations to a trusted local operator
+client, run:
+
+```bash
+atmem control operator-mcp
+```
+
+Do not expose the operator MCP to an agent or untrusted network. It can approve
+or reject memory, acknowledge findings, configure generic agent scopes, export
+evidence, activate AtMem, and return it to shadow.
+
+## Dashboard
+
+```bash
+atmem dashboard daemon start   # http://127.0.0.1:8766/
+atmem dashboard daemon open
+atmem dashboard daemon status
+atmem dashboard daemon restart
+atmem dashboard daemon stop
+atmem dashboard daemon remove  # service metadata only; memory remains
+```
+
+The dashboard shows a concise action timeline first. A flight node is green
+when no active finding remains, amber when it needs review, and red when the
+observed run failed or its evidence is incomplete. Selecting a node reveals
+the request/reply when a protected local adapter reader can supply them,
+memory used, tools and websites, model/provider, tokens, latency, risks,
+blocking reason, outcome evidence, hashes, and the full timeline. Findings can
+be acknowledged without deleting or rewriting evidence.
+
+Memory search, review, record history, audit filters, downloads, agent topology,
+verification, activation, and return-to-shadow use the same operations as the
+CLI. The canonical dashboard API is `/api/memory/*`; legacy `/api/mirror/*`
+paths remain aliases for older local clients.
+
+The dashboard binds only to loopback, has no login, checks origin and CSRF on
+mutations, and should not be placed behind a public reverse proxy.
+
+## Multiple agents and workspaces
+
+Generic runtimes register persistent agents explicitly:
+
+```json
+[
+  {"agent_id":"main","name":"Main","workspace":"shared","is_default":true},
+  {"agent_id":"research","name":"Research","workspace":"shared"},
+  {"agent_id":"private","workspace":"private","parent_workspace":"shared"}
+]
+```
+
+```bash
+atmem control configure-agents agents.json
+atmem control agents
+```
+
+Agents in the same workspace share one memory subject. Different workspaces
+are isolated. A parent relationship records nesting but does not merge memory.
+Every capture, prepare, and flight event can carry agent, workspace, and subject
+identity. OpenClaw topology is discovered from OpenClaw configuration and bound
+to the verified memory mirror; generic topology is explicit and local.
+Temporary child runs may reuse a registered workspace and subject. They do not
+create a new durable scope implicitly; register them when they need persistent
+identity or isolated memory.
 
 ## Install and migrate OpenClaw
 
+Do not install the npm bridge separately. The Python installer owns the version
+pair and validates the result:
+
 ```bash
-# 1. Install the engine. Do not install the npm bridge separately.
-python -m pip install atmem==2.0.1
-atmem --version
-
-# 2. Install the matching bridge and copy all existing OpenClaw memory.
 atmem openclaw install
-
-# 3. Inspect the shadow copy. OpenClaw is still the memory provider.
 atmem control status
 atmem control verify
 atmem dashboard daemon start
 
-# 4. Switch only after the dashboard reports that the copy is verified.
+# Activate only after review.
 atmem control activate
 
-# 5. Restore OpenClaw memory at any time.
+# Test restoration without changing live state, then restore when required.
 atmem control restore --drill
 atmem control restore
 ```
 
-`atmem openclaw install` owns both packages: it installs the matching npm bridge, binds the exact Python executable, copies `MEMORY.md` and `memory/*.md` from the beginning of the OpenClaw workspace history, starts change mirroring, restarts the gateway, and verifies the loaded integration. Progress is shown for every stage. If verification fails, it restores the prior plugin configuration. The command is safe to rerun: an existing shadow migration is refreshed and verified in place while its control ID and original restore snapshot are preserved.
+`atmem openclaw install` installs the pinned npm bridge, binds the exact Python
+executable, copies `MEMORY.md` and `memory/*.md` across detected persistent
+agent workspaces, starts shadow synchronization, restarts the gateway, and
+verifies the loaded integration. Rerunning it refreshes an existing shadow
+migration without replacing the original restore snapshot.
 
-Read the [OpenClaw setup](docs/openclaw-setup.md) and [control-plane guarantees](docs/control-plane.md) before customer deployment.
+See [OpenClaw setup](docs/openclaw-setup.md), the
+[OpenClaw control-plane guarantees](docs/control-plane.md), and the
+[OpenClaw bridge package](integrations/openclaw/README.md).
 
-## Watch the OpenClaw walkthrough
+## Agent Black Box evidence
 
-The 1080p walkthrough demonstrates installation, complete native-memory mirroring, shadow-mode search and capture, verified activation, governed text and image memory, human approval, recall, audit investigation, and the available restore path.
+The runtime can record these content-minimizing event types:
 
-- [Watch or download the video](https://github.com/aetna000/atmem/raw/v1.0.0/docs/showcases/openclaw-memory-control-plane/atmem-openclaw-memory-control-plane.mp4)
-- [Read the voice-over transcript](https://github.com/aetna000/atmem/blob/v1.0.0/docs/showcases/openclaw-memory-control-plane/transcript.txt)
+| Boundary | Retained evidence |
+| --- | --- |
+| turn input | digest, size, counts, correlation IDs |
+| context disposition | injected, empty, withheld, failed, or not applicable; receipt and record IDs |
+| model input/output | provider, model, digests, latency, tokens, bounded usage metadata |
+| tool request/completion | tool name, argument/result digests, safe key names, duration, error category |
+| turn end | success, failure, cancellation, or incomplete state |
+| external outcome | opaque receipt ID, digest, status, and safe metadata supplied by a verifier |
 
-The demonstration states the product boundaries directly: shadow mode does not alter model context, image recall returns the approved text observation rather than image bytes, and restore is available but is not executed in the recording.
+A verified flight proves retained chain integrity and closure of the boundaries
+the runtime reported. It does not prove that a hook was truthful, semantically
+validate an answer, or prove email delivery, payment settlement, or a database
+change without independent system-of-record evidence.
 
-## What the dashboard provides
+Raw prompts, replies, tool parameters, and tool results are not stored in the
+Black Box. SHA-256 digests are fingerprints, not encryption or anonymization.
+See the [Agent Black Box guide](docs/agent-blackbox.md).
 
-The loopback-only dashboard is the operating and investigation surface:
+## Use the memory engine directly
 
-- current provider: OpenClaw in shadow mode or AtMem in active mode;
-- copy progress, source manifest, hashes, and verification failures;
-- memory search, record history, source and interpretation evidence;
-- recall scores, context-injection receipts, and agent-response bindings;
-- approval or purge of quarantined external observations;
-- filtered audit exploration with time, event, actor, session, record, and status facets;
-- JSON, NDJSON, CSV, text investigation reports, and deletion receipts;
-- one activation control and one restore control.
+```python
+from atmem import Memory
 
-```bash
-atmem dashboard daemon start   # background service at http://127.0.0.1:8766/
-atmem dashboard daemon open    # open the direct loopback URL
-atmem dashboard daemon status
-atmem dashboard daemon restart
-atmem dashboard daemon stop
-atmem dashboard daemon remove  # removes service metadata, not memory/evidence
+memory = Memory("memories.db")
+memory.remember("user-1", "My preferred editor is Vim.", session_id="s1")
+records = memory.recall("user-1", "preferred editor", limit=5)
+verification = memory.verify("user-1")
+memory.close()
 ```
 
-## Model-agnostic engine
-
-Any host that can launch a stdio MCP server can use the engine directly:
+Or run the model-agnostic memory MCP server:
 
 ```bash
-atmem mcp --db ~/.atmem/memories.db --subject local-user
+atmem mcp --db ~/.atmem/memories.db --subject user-1
 ```
 
-MCP tools: `memory_remember`, `memory_observe`, `memory_recall`, `memory_get_record`, `memory_get_source`, `memory_recall_block`, `memory_persona`, `memory_context_pack`, `memory_capture`, `memory_list`, `memory_forget`, `memory_forget_artifact`, `memory_promote`, `memory_audit`, `memory_verify`, `memory_graph_status`, `memory_graph_merges`, `memory_graph_history`, and `memory_log_action`.
+MCP tools: `memory_remember`, `memory_observe`, `memory_recall`,
+`memory_get_record`, `memory_get_source`, `memory_recall_block`,
+`memory_persona`, `memory_context_pack`, `memory_capture`, `memory_list`,
+`memory_forget`, `memory_forget_artifact`, `memory_promote`, `memory_audit`,
+`memory_verify`, `memory_graph_status`, `memory_graph_merges`,
+`memory_graph_history`, and `memory_log_action`.
 
-The protocol does not depend on OpenAI, Anthropic, Google, Meta, xAI, DeepSeek, or another model provider. A host integration is still responsible for authenticated user identity, deciding when model-interpreted statements become memory, and proving which context reached which response.
+See the [integration guide](docs/integration-guide.md),
+[audit search](docs/audit-search.md), [semantic search](docs/semantic-search.md),
+and [multimodal observations](docs/multimodal-observations.md).
 
-See the [integration guide](docs/integration-guide.md), [audit search](docs/audit-search.md), [semantic search](docs/semantic-search.md), and [multimodal observations](docs/multimodal-observations.md).
+## Data, privacy, and recovery
 
-Building a multi-user product? Read [Using AtMem in a SaaS product](docs/saas-integration.md) for tenant isolation, authenticated identity, runtime capture, outcome receipts, privacy, and staged production rollout.
+- Canonical memory, provenance, lifecycle state, and audit evidence use SQLite.
+- Semantic vectors are optional derived indexes and are checked against canonical records.
+- External media bytes remain host-controlled; AtMem stores a typed text observation, byte digest, model identity, and host reference.
+- External observations remain quarantined until an operator approves them.
+- Rejected, superseded, or tombstoned memory is excluded from ordinary search and recall.
+- Forget cascades through canonical, graph, media, and vector-derived state and returns a receipt.
+- Generic return-to-shadow stops future context injection but does not undo past model outputs or tool actions.
+- OpenClaw restore verifies and reinstates the preserved native configuration and files; it also cannot undo past outputs or external actions.
 
-## Data and trust boundaries
+For backups, permissions, and disaster recovery, read
+[data storage and backup](docs/data-storage-and-backup.md) and the
+[auditing guide](docs/auditing-guide.md). For a custom product deployment, read
+[Using AtMem in a SaaS product](docs/saas-integration.md). AtMem does not ship a
+hosted multi-tenant control service; your SaaS remains responsible for tenant
+authentication, authorization, storage isolation, encryption, retention, and
+system-of-record verification.
 
-- Canonical memory, provenance, lifecycle state, and audit evidence are stored in SQLite.
-- Semantic search is optional. Vectors are a derived index and are verified against canonical records before results are returned.
-- External media bytes remain host-controlled. AtMem stores a typed text observation, exact byte-stream SHA-256, model identity, and host reference.
-- External observations are quarantined until approved. Confidence is evidence, never an automatic promotion rule.
-- Forget operations cascade through canonical, graph, media, and vector-derived state and return a receipt.
-- The dashboard binds only to loopback and opens without a login. Mutations retain CSRF and origin checks.
+## Documentation map
 
-See [data storage and backup](docs/data-storage-and-backup.md) and the [auditing guide](docs/auditing-guide.md).
+- [Current implementation status](docs/current-status.md)
+- [Generic runtime adapter](docs/generic-adapter.md)
+- [Agent Black Box](docs/agent-blackbox.md)
+- [Integration guide](docs/integration-guide.md)
+- [OpenClaw setup](docs/openclaw-setup.md)
+- [OpenClaw control-plane guarantees](docs/control-plane.md)
+- [SaaS integration and go-live checklist](docs/saas-integration.md)
+- [Audit log specification](docs/audit-log-spec.md)
+- [Audit investigation](docs/audit-search.md)
+- [Storage, backup, and recovery](docs/data-storage-and-backup.md)
 
-## Scope
+## Development verification
 
-AtMem 1.0 contains one product: the memory control plane. Unrelated legacy experiments remain in Git history and on the unchanged `develop` branch; they are not shipped as part of the 1.0 product.
+```bash
+python -m pip install -e '.[dev]'
+pytest -q
+
+cd integrations/openclaw
+npm ci
+npm run typecheck
+npm test
+npm run smoke
+```
+
+Current repository metadata is version **2.1.0**. Python and npm release
+versions are intentionally kept equal because the OpenClaw installer pins the
+matching bridge.
 
 Licensed under [AGPL-3.0-only](LICENSE).
