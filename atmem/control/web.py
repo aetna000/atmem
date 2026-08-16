@@ -328,6 +328,24 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         try:
             body = self._body()
             path = urlparse(self.path).path
+            if path == "/api/blackbox/acknowledge":
+                run_id = str(body.get("run_id") or "").strip()
+                attention_code = str(body.get("attention_code") or "").strip()
+                if not run_id or not attention_code:
+                    raise ValueError("run_id and attention_code are required")
+                if not secrets.compare_digest(
+                    str(body.get("confirm_run_id") or ""), run_id
+                ):
+                    raise ValueError("run confirmation does not match")
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.acknowledge_blackbox_attention(
+                        run_id,
+                        attention_code,
+                        actor="dashboard-reviewer",
+                    ),
+                )
+                return
             if path == "/api/mode":
                 mode = ControlMode(str(body["mode"]))
                 if mode is not ControlMode.ACTIVE:

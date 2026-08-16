@@ -13,7 +13,7 @@ from atmem.core.storage import HouseholdLock, HouseholdPolicy, connect, row_fact
 from atmem.store.sqlite import utc_now
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class ControlStore:
@@ -158,7 +158,7 @@ class ControlStore:
             ) from exc
         if version > SCHEMA_VERSION or version < 1:
             raise ValueError(f"unsupported migration database schema: {version}")
-        if version == 1:
+        if version < SCHEMA_VERSION:
             with self._conn:
                 self._create_evidence_schema()
                 self._conn.execute(
@@ -189,6 +189,27 @@ class ControlStore:
             """
             CREATE INDEX IF NOT EXISTS evidence_migration_kind_created
             ON evidence(migration_id, kind, created_at, sequence)
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS attention_acknowledgements (
+                id TEXT PRIMARY KEY,
+                migration_id TEXT NOT NULL REFERENCES migrations(migration_id),
+                run_id TEXT NOT NULL,
+                attention_code TEXT NOT NULL,
+                attention_sha256 TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                point_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(migration_id, run_id, attention_code, attention_sha256)
+            )
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS attention_ack_migration_run
+            ON attention_acknowledgements(migration_id, run_id, created_at)
             """
         )
 
@@ -301,6 +322,74 @@ class ControlStore:
         if row is None:
             return None
         return {**dict(row), "body": json.loads(str(row["body_json"]))}
+
+    def acknowledge_attention(
+        self,
+        migration_id: str,
+        *,
+        run_id: str,
+        attention_point: dict[str, Any],
+        actor: str,
+    ) -> dict[str, Any]:
+        """Retain an immutable operator acknowledgement outside flight evidence."""
+
+        code = str(attention_point.get("code") or "").strip()
+        if not run_id.strip() or not code:
+            raise ValueError("run ID and attention code are required")
+        point_json = canonical_json(attention_point)
+        attention_sha256 = sha256_hex(point_json)
+        acknowledgement_id = f"ack_{uuid.uuid4().hex}"
+        created_at = utc_now()
+        self._conn.execute(
+            """
+            INSERT OR IGNORE INTO attention_acknowledgements(
+                id, migration_id, run_id, attention_code, attention_sha256,
+                actor, point_json, created_at
+            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                acknowledgement_id,
+                migration_id,
+                run_id,
+                code,
+                attention_sha256,
+                actor,
+                point_json,
+                created_at,
+            ),
+        )
+        self._conn.commit()
+        row = self._conn.execute(
+            """
+            SELECT * FROM attention_acknowledgements
+            WHERE migration_id = ? AND run_id = ? AND attention_code = ?
+              AND attention_sha256 = ?
+            """,
+            (migration_id, run_id, code, attention_sha256),
+        ).fetchone()
+        assert row is not None
+        return {**dict(row), "point": json.loads(str(row["point_json"]))}
+
+    def list_attention_acknowledgements(
+        self, migration_id: str, *, run_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        params: list[Any] = [migration_id]
+        run_clause = ""
+        if run_id is not None:
+            run_clause = "AND run_id = ?"
+            params.append(run_id)
+        rows = self._conn.execute(
+            f"""
+            SELECT * FROM attention_acknowledgements
+            WHERE migration_id = ? {run_clause}
+            ORDER BY created_at, id
+            """,
+            params,
+        ).fetchall()
+        return [
+            {**dict(row), "point": json.loads(str(row["point_json"]))}
+            for row in rows
+        ]
 
     def verify_evidence_chain(self, migration_id: str, *, kind: str) -> dict[str, Any]:
         rows = self._conn.execute(

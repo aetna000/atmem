@@ -182,6 +182,15 @@ def test_blackbox_reports_missing_completion_without_claiming_success(
         "tool_lifecycle_mismatch",
         "context_unknown",
     }
+    tool_point = next(
+        point
+        for point in report["attention_points"]
+        if point["code"] == "tool_lifecycle_mismatch"
+    )
+    assert "filesystem.write (call tool-gap) was requested at event" in tool_point[
+        "detail"
+    ]
+    assert "no completion was observed" in tool_point["detail"]
 
 
 def test_blackbox_rejects_raw_or_unknown_payload_fields(tmp_path: Path) -> None:
@@ -293,6 +302,179 @@ def test_blackbox_reports_duplicate_and_conflicting_tool_observations(
         point["code"] == "tool_lifecycle_mismatch"
         for point in report["attention_points"]
     )
+
+
+def test_blackbox_coalesces_openclaw_wrapper_and_canonical_tool_hooks(
+    tmp_path: Path,
+) -> None:
+    manager = _manager(tmp_path)
+    run_id = "run-wrapper-pair"
+    manager.record_blackbox_event(
+        event_type="turn.input",
+        run_id=run_id,
+        payload={"prompt_sha256": "0" * 64, "prompt_chars": 10},
+    )
+    manager.record_blackbox_event(
+        event_type="context.disposition",
+        run_id=run_id,
+        context_receipt_id="receipt-1",
+        payload={
+            "disposition": "not_applicable",
+            "context_envelope_sha256": "1" * 64,
+            "context_chars": 0,
+            "candidate_ids": [],
+        },
+    )
+    manager.record_blackbox_event(
+        event_type="model.input",
+        run_id=run_id,
+        payload={
+            "provider": "openai",
+            "model": "gpt-test",
+            "prompt_sha256": "2" * 64,
+            "prompt_chars": 10,
+            "system_sha256": "3" * 64,
+            "system_chars": 10,
+            "history_sha256": "4" * 64,
+            "history_count": 0,
+            "images_count": 0,
+            "tools_count": 1,
+        },
+    )
+    for tool_name in ("openclawmemory_remember", "memory_remember"):
+        manager.record_blackbox_event(
+            event_type="tool.requested",
+            run_id=run_id,
+            tool_call_id="call-wrapper",
+            payload={
+                "tool_name": tool_name,
+                "tool_canonical_name": "memory_remember",
+                "params_sha256": "5" * 64,
+                "param_keys": ["fact"],
+                "derived_path_sha256": [],
+            },
+        )
+    for tool_name, result_sha256 in (
+        ("memory_remember", "6" * 64),
+        ("openclawmemory_remember", "7" * 64),
+    ):
+        manager.record_blackbox_event(
+            event_type="tool.completed",
+            run_id=run_id,
+            tool_call_id="call-wrapper",
+            payload={
+                "tool_name": tool_name,
+                "tool_canonical_name": "memory_remember",
+                "result_sha256": result_sha256,
+                "outcome": "completed",
+                "duration_ms": 1,
+            },
+        )
+    manager.record_blackbox_event(
+        event_type="model.output",
+        run_id=run_id,
+        payload={
+            "provider": "openai",
+            "model": "gpt-test",
+            "response_sha256": "8" * 64,
+            "assistant_visible_text_sha256": "8" * 64,
+            "response_chars": 2,
+            "response_count": 1,
+        },
+    )
+    manager.record_blackbox_event(
+        event_type="turn.ended",
+        run_id=run_id,
+        payload={
+            "success": True,
+            "cancelled": False,
+            "messages_sha256": "9" * 64,
+            "messages_count": 4,
+        },
+    )
+
+    report = manager.verify_blackbox_flight(run_id)
+    assert report["verdict"] == "completed_successfully"
+    assert report["coverage_matrix"]["components"]["tools"] == "covered"
+    assert report["tools"]["requested"] == 1
+    assert report["tools"]["completed"] == 1
+    assert report["tools"]["request_observations"] == 2
+    assert report["tools"]["completion_observations"] == 2
+    assert report["tools"]["conflicting_completions"] == []
+    assert report["tools"]["coalesced_wrapper_calls"] == [
+        {
+            "tool_call_id": "call-wrapper",
+            "tool_name": "memory_remember",
+            "observed_names": ["memory_remember", "openclawmemory_remember"],
+            "request_observations": 2,
+            "completion_observations": 2,
+            "outcome": "completed",
+        }
+    ]
+    assert report["attention_points"] == []
+
+
+def test_blackbox_acknowledgement_clears_active_queue_but_retains_history(
+    tmp_path: Path,
+) -> None:
+    manager = _manager(tmp_path)
+    manager.record_blackbox_event(
+        event_type="model.output",
+        run_id="run-review",
+        payload={
+            "provider": "openai",
+            "model": "gpt-test",
+            "response_sha256": "a" * 64,
+            "assistant_visible_text_sha256": "a" * 64,
+            "response_chars": 1,
+            "response_count": 1,
+        },
+    )
+    manager.record_blackbox_event(
+        event_type="tool.requested",
+        run_id="run-review",
+        tool_call_id="call-unclosed",
+        payload={
+            "tool_name": "email.send",
+            "params_sha256": "b" * 64,
+            "param_keys": ["recipient"],
+            "derived_path_sha256": [],
+        },
+    )
+    manager.record_blackbox_event(
+        event_type="turn.ended",
+        run_id="run-review",
+        payload={
+            "success": True,
+            "cancelled": False,
+            "messages_sha256": "c" * 64,
+            "messages_count": 2,
+        },
+    )
+
+    before = manager.verify_blackbox_flight("run-review")
+    active = before["operator_review"]["active_attention_points"]
+    assert active
+    for point in active:
+        manager.acknowledge_blackbox_attention(
+            "run-review", point["code"], actor="auditor-1"
+        )
+
+    after = manager.verify_blackbox_flight("run-review")
+    assert after["attention_points"]
+    assert after["operator_review"]["active_attention_points"] == []
+    acknowledged = after["operator_review"]["acknowledged_attention_points"]
+    assert {point["code"] for point in acknowledged} == {
+        point["code"] for point in active
+    }
+    assert all(
+        point["acknowledgement"]["actor"] == "auditor-1"
+        for point in acknowledged
+    )
+    index = manager.blackbox_runs()
+    assert index["runs"][0]["attention_points"] == []
+    assert len(index["runs"][0]["acknowledged_attention_points"]) == len(active)
+    assert index["attention"]["affected_runs"] == 0
 
 
 def test_blackbox_attention_flags_model_change_from_stable_recent_baseline(

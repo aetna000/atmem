@@ -464,6 +464,9 @@ class ControlPlaneManager:
             chain = store.verify_evidence_chain(
                 state.migration_id, kind=EVIDENCE_KIND
             )
+            acknowledgements = store.list_attention_acknowledgements(
+                state.migration_id
+            )
         finally:
             store.close()
         runs = flight_runs(entries)
@@ -499,6 +502,39 @@ class ControlPlaneManager:
                     for point in row["attention_points"]
                     if point.get("code") != "legacy_evidence_contract"
                 ]
+        acknowledgement_keys = {
+            (
+                str(item["run_id"]),
+                str(item["attention_code"]),
+                str(item["attention_sha256"]),
+            ): item
+            for item in acknowledgements
+        }
+        for row in visible_runs:
+            active_points: list[dict[str, Any]] = []
+            acknowledged_points: list[dict[str, Any]] = []
+            for point in row["attention_points"]:
+                key = (
+                    str(row["run_id"]),
+                    str(point.get("code") or ""),
+                    sha256_hex(canonical_json(point)),
+                )
+                acknowledgement = acknowledgement_keys.get(key)
+                if acknowledgement is None:
+                    active_points.append(point)
+                else:
+                    acknowledged_points.append(
+                        {
+                            **point,
+                            "acknowledgement": {
+                                "id": acknowledgement["id"],
+                                "actor": acknowledgement["actor"],
+                                "created_at": acknowledgement["created_at"],
+                            },
+                        }
+                    )
+            row["attention_points"] = active_points
+            row["acknowledged_attention_points"] = acknowledged_points
         codes_by_severity = {"critical": set(), "high": set(), "medium": set()}
         codes_by_check = {"completion": set(), "tools": set(), "context_model": set()}
         attention_codes: set[str] = set()
@@ -552,9 +588,87 @@ class ControlPlaneManager:
             chain = store.verify_evidence_chain(
                 state.migration_id, kind=EVIDENCE_KIND
             )
+            acknowledgements = store.list_attention_acknowledgements(
+                state.migration_id, run_id=run_id
+            )
         finally:
             store.close()
-        return verify_flight(run_id=run_id, entries=entries, chain=chain)
+        report = verify_flight(run_id=run_id, entries=entries, chain=chain)
+        acknowledgement_keys = {
+            (str(item["attention_code"]), str(item["attention_sha256"])): item
+            for item in acknowledgements
+        }
+        active_points: list[dict[str, Any]] = []
+        acknowledged_points: list[dict[str, Any]] = []
+        for point in report.get("attention_points") or []:
+            key = (
+                str(point.get("code") or ""),
+                sha256_hex(canonical_json(point)),
+            )
+            acknowledgement = acknowledgement_keys.get(key)
+            if acknowledgement is None:
+                active_points.append(point)
+            else:
+                acknowledged_points.append(
+                    {
+                        **point,
+                        "acknowledgement": {
+                            "id": acknowledgement["id"],
+                            "actor": acknowledgement["actor"],
+                            "created_at": acknowledgement["created_at"],
+                        },
+                    }
+                )
+        report["operator_review"] = {
+            "active_attention_points": active_points,
+            "acknowledged_attention_points": acknowledged_points,
+        }
+        return report
+
+    def acknowledge_blackbox_attention(
+        self,
+        run_id: str,
+        attention_code: str,
+        *,
+        actor: str = "dashboard-reviewer",
+    ) -> dict[str, Any]:
+        """Acknowledge the exact current finding without altering flight evidence."""
+
+        report = self.verify_blackbox_flight(run_id)
+        point = next(
+            (
+                item
+                for item in (report.get("operator_review") or {}).get(
+                    "active_attention_points", []
+                )
+                if str(item.get("code") or "") == attention_code
+            ),
+            None,
+        )
+        if point is None:
+            raise ValueError("that attention item is not active for this flight")
+        state = self.state()
+        store = self._store(state)
+        try:
+            acknowledgement = store.acknowledge_attention(
+                state.migration_id,
+                run_id=run_id,
+                attention_point=point,
+                actor=actor,
+            )
+        finally:
+            store.close()
+        return {
+            "acknowledged": True,
+            "run_id": run_id,
+            "attention_code": attention_code,
+            "acknowledgement": {
+                "id": acknowledgement["id"],
+                "actor": acknowledgement["actor"],
+                "created_at": acknowledgement["created_at"],
+                "attention_sha256": acknowledgement["attention_sha256"],
+            },
+        }
 
     def blackbox_flight_story(
         self,
@@ -576,8 +690,12 @@ class ControlPlaneManager:
                 candidate_ids.extend(str(value) for value in payload.get("candidate_ids") or [])
             if event.get("event_type") == "turn.ended" and payload.get("duration_ms") is not None:
                 duration_ms = int(payload["duration_ms"])
-            if event.get("event_type") == "tool.requested" and payload.get("tool_name"):
-                tool_names.append(str(payload["tool_name"]))
+            if event.get("event_type") == "tool.requested" and (
+                payload.get("tool_canonical_name") or payload.get("tool_name")
+            ):
+                tool_names.append(
+                    str(payload.get("tool_canonical_name") or payload["tool_name"])
+                )
             if event.get("event_type") == "model.output":
                 usage = dict(payload.get("usage") or {})
         candidate_ids = list(dict.fromkeys(candidate_ids))

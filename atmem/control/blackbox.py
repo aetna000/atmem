@@ -243,6 +243,22 @@ def verify_flight(
     duplicate_completions, conflicting_completions = _duplicate_tool_events(
         completed, request=False
     )
+    coalesced_wrapper_calls = _coalesced_wrapper_calls(requested, completed)
+    coalesced_call_ids = {
+        str(item["tool_call_id"]) for item in coalesced_wrapper_calls
+    }
+    # OpenClaw can expose both its namespaced wrapper and the canonical tool
+    # hook for one logical call. Preserve both raw observations in the
+    # timeline, but do not treat their different wrapper result envelopes as
+    # conflicting tool executions.
+    conflicting_requests = [
+        call_id for call_id in conflicting_requests if call_id not in coalesced_call_ids
+    ]
+    conflicting_completions = [
+        call_id
+        for call_id in conflicting_completions
+        if call_id not in coalesced_call_ids
+    ]
     event_types = [str(entry["body"].get("event_type") or "") for entry in selected]
     turn_input = "turn.input" in event_types
     terminal = "turn.ended" in event_types
@@ -470,8 +486,11 @@ def verify_flight(
         },
         "correlation": _correlation_summary(selected),
         "tools": {
-            "requested": sum(map(len, requested.values())) + uncorrelated_requests,
-            "completed": sum(map(len, completed.values()))
+            "requested": len(requested) + uncorrelated_requests,
+            "completed": len(completed) + uncorrelated_completions,
+            "request_observations": sum(map(len, requested.values()))
+            + uncorrelated_requests,
+            "completion_observations": sum(map(len, completed.values()))
             + uncorrelated_completions,
             "errors": tool_errors,
             "missing_completions": missing_completions,
@@ -482,6 +501,7 @@ def verify_flight(
             "duplicate_completions": duplicate_completions,
             "conflicting_requests": conflicting_requests,
             "conflicting_completions": conflicting_completions,
+            "coalesced_wrapper_calls": coalesced_wrapper_calls,
         },
         "events": len(selected),
         "first_sequence": int(selected[0].get("sequence") or 0),
@@ -604,14 +624,20 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
         missing = [
             name for name, status in components.items() if status in {"missing", "failed"}
         ]
-        add(
-            "completion",
-            "high",
-            "flight_incomplete",
-            "Flight evidence is incomplete",
-            "Missing or failed coverage: " + ", ".join(missing or ["unknown boundary"]),
-            "Inspect the timeline to find the last boundary AtMem observed.",
-        )
+        # A tool-only closure problem gets one precise tool card below. A
+        # second generic "flight incomplete" card adds noise without another
+        # action for the operator.
+        if missing != ["tools"]:
+            add(
+                "completion",
+                "high",
+                "flight_incomplete",
+                "Flight evidence is incomplete",
+                "AtMem could not verify: "
+                + ", ".join(missing or ["an unknown runtime boundary"])
+                + ".",
+                "Open the timeline and inspect the first missing boundary named above.",
+            )
 
     tools = report.get("tools") or {}
     tool_gaps = sum(
@@ -630,9 +656,9 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
             "tools",
             "high",
             "tool_lifecycle_mismatch",
-            "Tool calls do not match",
-            f"{tool_gaps} tool lifecycle problem(s) need investigation.",
-            "Inspect the affected call IDs and the request/completion boundary.",
+            "AtMem could not prove one or more tool calls closed correctly",
+            _tool_lifecycle_detail(report),
+            "Open the named call below and compare its request with its completion. Acknowledge it only after deciding whether this was an agent failure or an observation gap.",
         )
     tool_errors = tools.get("errors") or []
     if tool_errors:
@@ -776,6 +802,143 @@ def _duplicate_tool_events(
         if len(signatures) > 1:
             conflicts.append(call_id)
     return sorted(duplicates), sorted(conflicts)
+
+
+def _coalesced_wrapper_calls(
+    requested: Mapping[str, list[dict[str, Any]]],
+    completed: Mapping[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """Recognize one logical call observed at wrapper and canonical hooks.
+
+    Result envelopes may legitimately differ between those hook layers, so a
+    digest mismatch alone is not a conflicting completion. This exception is
+    intentionally narrow: both sides must expose the same canonical tool,
+    include the canonical name among multiple raw names, agree on request
+    parameters, and agree on the terminal outcome.
+    """
+
+    coalesced: list[dict[str, Any]] = []
+    for call_id in sorted(set(requested) & set(completed)):
+        request_entries = requested[call_id]
+        completion_entries = completed[call_id]
+        if len(request_entries) < 2 or len(completion_entries) < 2:
+            continue
+
+        request_payloads = [entry["body"].get("payload") or {} for entry in request_entries]
+        completion_payloads = [
+            entry["body"].get("payload") or {} for entry in completion_entries
+        ]
+        canonical_names = {
+            str(payload.get("tool_canonical_name") or "")
+            for payload in [*request_payloads, *completion_payloads]
+            if payload.get("tool_canonical_name")
+        }
+        if len(canonical_names) != 1:
+            continue
+        canonical_name = next(iter(canonical_names))
+        request_names = {
+            str(payload.get("tool_name") or canonical_name)
+            for payload in request_payloads
+        }
+        completion_names = {
+            str(payload.get("tool_name") or canonical_name)
+            for payload in completion_payloads
+        }
+        if (
+            len(request_names) < 2
+            or len(completion_names) < 2
+            or canonical_name not in request_names
+            or canonical_name not in completion_names
+        ):
+            continue
+        if len({payload.get("params_sha256") for payload in request_payloads}) > 1:
+            continue
+        outcomes = {
+            str(payload.get("outcome") or "") for payload in completion_payloads
+        }
+        if len(outcomes) > 1:
+            continue
+        coalesced.append(
+            {
+                "tool_call_id": call_id,
+                "tool_name": canonical_name,
+                "observed_names": sorted(request_names | completion_names),
+                "request_observations": len(request_entries),
+                "completion_observations": len(completion_entries),
+                "outcome": next(iter(outcomes)) or None,
+            }
+        )
+    return coalesced
+
+
+def _tool_lifecycle_detail(report: Mapping[str, Any]) -> str:
+    tools = report.get("tools") or {}
+    timeline = report.get("timeline") or []
+    by_call: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
+    for event in timeline:
+        call_id = str(event.get("tool_call_id") or "")
+        if call_id:
+            by_call[call_id].append(event)
+
+    details: list[str] = []
+    for call_id in tools.get("missing_completions") or []:
+        events = by_call.get(str(call_id), [])
+        request = next(
+            (event for event in events if event.get("event_type") == "tool.requested"),
+            {},
+        )
+        payload = request.get("payload") or {}
+        name = payload.get("tool_canonical_name") or payload.get("tool_name") or "Unknown tool"
+        details.append(
+            f"{name} (call {call_id}) was requested at event "
+            f"{request.get('sequence') or 'unknown'}, but no completion was observed before the turn ended."
+        )
+    for call_id in tools.get("orphan_completions") or []:
+        events = by_call.get(str(call_id), [])
+        completion = next(
+            (event for event in events if event.get("event_type") == "tool.completed"),
+            {},
+        )
+        payload = completion.get("payload") or {}
+        name = payload.get("tool_canonical_name") or payload.get("tool_name") or "Unknown tool"
+        details.append(
+            f"{name} (call {call_id}) completed at event "
+            f"{completion.get('sequence') or 'unknown'}, but AtMem never observed its request."
+        )
+    conflicting = list(
+        dict.fromkeys(
+            [
+                *(tools.get("conflicting_requests") or []),
+                *(tools.get("conflicting_completions") or []),
+            ]
+        )
+    )
+    for call_id in conflicting:
+        events = by_call.get(str(call_id), [])
+        names = sorted(
+            {
+                str(
+                    (event.get("payload") or {}).get("tool_canonical_name")
+                    or (event.get("payload") or {}).get("tool_name")
+                    or "Unknown tool"
+                )
+                for event in events
+            }
+        )
+        sequences = [str(event.get("sequence")) for event in events if event.get("sequence")]
+        details.append(
+            f"{' / '.join(names)} (call {call_id}) has incompatible duplicate observations"
+            + (f" at events {', '.join(sequences)}." if sequences else ".")
+        )
+    if tools.get("uncorrelated_requests"):
+        details.append(
+            f"{tools['uncorrelated_requests']} tool request observation(s) had no call ID."
+        )
+    if tools.get("uncorrelated_completions"):
+        details.append(
+            f"{tools['uncorrelated_completions']} tool completion observation(s) had no call ID."
+        )
+    return " ".join(details[:4]) or "The retained tool events do not form a complete request/completion pair."
 
 
 def _correlation_summary(entries: list[dict[str, Any]]) -> dict[str, list[str]]:

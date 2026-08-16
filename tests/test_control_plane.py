@@ -448,6 +448,44 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         ).read()
         assert b"AtMem Agent Black Box" in exported
         session = json.loads(opener.open(f"{base}/api/session").read())
+        acknowledged_code = flight["operator_review"]["active_attention_points"][0][
+            "code"
+        ]
+        acknowledge = Request(
+            f"{base}/api/blackbox/acknowledge",
+            data=json.dumps(
+                {
+                    "run_id": "dashboard-run",
+                    "confirm_run_id": "dashboard-run",
+                    "attention_code": acknowledged_code,
+                }
+            ).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base,
+                "X-CSRF-Token": session["csrf_token"],
+            },
+            method="POST",
+        )
+        acknowledgement = json.loads(opener.open(acknowledge).read())
+        assert acknowledgement["acknowledged"] is True
+        reviewed_flight = json.loads(
+            opener.open(
+                f"{base}/api/blackbox/flight?run_id=dashboard-run"
+            ).read()
+        )
+        assert acknowledged_code not in {
+            point["code"]
+            for point in reviewed_flight["operator_review"][
+                "active_attention_points"
+            ]
+        }
+        assert acknowledged_code in {
+            point["code"]
+            for point in reviewed_flight["operator_review"][
+                "acknowledged_attention_points"
+            ]
+        }
         bridge_refresh = Request(
             f"{base}/api/bridge/refresh-test",
             data=json.dumps({"confirm_host": "openclaw"}).encode(),
@@ -589,6 +627,10 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     assert "What happened:" in html
     assert "Next action:" in html
     assert "Inspect this flight" in html
+    assert "What happened and what to do" in html
+    assert "Acknowledge and move on" in html
+    assert "/api/blackbox/acknowledge" in html
+    assert "Acknowledged findings" in html
     assert "Upgrade bridge &amp; run test" in html
     assert "/api/bridge/refresh-test" in html
     assert "/api/bridge/status" in html
