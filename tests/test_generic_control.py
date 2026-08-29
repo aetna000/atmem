@@ -40,6 +40,7 @@ def test_generic_shadow_review_takeover_and_return_to_shadow(tmp_path: Path) -> 
     manager = _manager(tmp_path)
     assert manager.status()["mode"] == "shadow"
     assert manager.status()["host"] == "generic"
+    assert manager.status()["provider_state"] == "ready"
 
     topology = manager.configure_agent_topology(
         [
@@ -76,6 +77,7 @@ def test_generic_shadow_review_takeover_and_return_to_shadow(tmp_path: Path) -> 
         memory.close()
 
     assert manager.activate()["mode"] == "active"
+    assert manager.status()["provider_state"] == "active"
     active = manager.prepare("editor", agent_id="research")
     assert active["inject"] is True
     assert active["candidate_ids"] == [canonical_id]
@@ -86,6 +88,7 @@ def test_generic_shadow_review_takeover_and_return_to_shadow(tmp_path: Path) -> 
     assert any(item["context_injected_at"] for item in record["deliveries"])
     assert manager.prepare("editor", agent_id="private")["context"] == ""
     assert manager.deactivate()["mode"] == "shadow"
+    assert manager.status()["provider_state"] == "ready"
     assert manager.prepare("editor", agent_id="main")["inject"] is False
 
 
@@ -316,6 +319,7 @@ def test_generic_dashboard_uses_the_same_memory_and_mode_operations(tmp_path: Pa
         status = json.loads(opener.open(f"{base}/api/status").read())
         assert status["host"] == "generic"
         assert status["mode"] == "shadow"
+        assert status["provider_state"] in {"ready", "shadow"}
         reviews = json.loads(opener.open(f"{base}/api/memory/reviews").read())
         assert reviews["records"][0]["record_id"] == record_id
 

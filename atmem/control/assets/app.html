@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AtMem memory and agent oversight</title>
+<style>
+/*==ATMEM_INLINE_CSS==*/
+</style>
+</head>
+<body>
+<header><div class="wrap head">
+  <div class="logo"><img class="brandmark" src="/assets/atmem.jpg" alt="AtMem logo"><strong>AtMem</strong></div>
+  <div class="small" id="adapterLabel">Memory &amp; agent oversight</div>
+  <div class="grow"></div>
+  <button class="themebtn" id="themeToggle" type="button">Light mode</button>
+  <div class="state" id="stateChip"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></div>
+</div></header>
+<main class="wrap">
+  <div class="notice" id="error" role="alert"></div>
+  <div class="progressbox" id="progress" role="status" aria-live="polite">
+    <div class="progresshead">
+      <b id="progressTitle">Working…</b>
+      <span class="mono" id="progressTime">0s</span>
+    </div>
+    <div class="zeroloading"><span class="zeros" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><p class="sub" id="progressDetail">Please keep this page open.</p></div>
+    <div class="progressbar" aria-hidden="true"><span></span></div>
+  </div>
+
+  <div class="tabnav" role="tablist">
+    <button class="tabbtn active" id="navStatus" type="button" role="tab" aria-selected="true">Status</button>
+    <button class="tabbtn" id="navDecisions" type="button" role="tab" aria-selected="false">Decisions<span class="navbadge" id="decisionsBadge" hidden>0</span></button>
+    <button class="tabbtn" id="navEvidence" type="button" role="tab" aria-selected="false">Evidence</button>
+  </div>
+
+  <div class="tabpanel active" id="viewStatus">
+  <div class="pageheading"><div><div class="eyebrow">Live oversight</div><h1>Status</h1></div></div>
+
+  <section class="statusbanner" id="statusBanner">
+    <div class="statusicon" id="statusIcon">…</div>
+    <div><span class="statuslabel">Current condition</span><b id="statusHeadline"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></b><p id="statusDetail">Loading verified evidence…</p></div>
+    <button class="primary statusaction" id="statusAction" type="button" style="display:none">Open issue</button>
+  </section>
+
+  <div class="metrics">
+    <div class="metric"><b class="mono" id="sourceCount">—</b><span id="sourceCountLabel">memory sources</span></div>
+    <div class="metric"><b class="mono" id="recordCount">—</b><span>searchable memories</span></div>
+    <div class="metric"><b class="mono" id="sourceBytes">—</b><span id="sourceBytesLabel">source bytes preserved</span></div>
+    <div class="metric"><b id="verified">—</b><span>memory verification</span></div>
+  </div>
+
+  <section class="card agentoverview" id="agentOverview">
+    <div class="agentoverviewhead"><div><div class="eyebrow">Persistent agent coverage</div><h2>Agents &amp; workspaces</h2><p class="sub">Which agents share memory, which are isolated, and whether every workspace is verified.</p></div><div class="agentcounts"><div class="agentcount"><b id="agentCount">—</b><span>agents detected</span></div><div class="agentcount"><b id="workspaceCount">—</b><span>workspaces</span></div></div><button class="secondary" id="agentRefresh" type="button">Refresh status</button></div>
+    <div class="agentstatus" id="agentCoverageStatus"><span class="statusicon" id="agentCoverageIcon">…</span><div><b id="agentCoverageHeadline">Checking agent coverage…</b><span id="agentCoverageDetail">Reading the runtime’s persistent-agent topology.</span></div></div>
+    <div class="agentmap" id="agentMap"><div class="activityempty">Loading agents…</div></div>
+  </section>
+
+  <section class="card" id="blackboxCard">
+    <div class="activityhead"><h2>Recent agent activity</h2><div class="activitytools"><input id="activityQuery" aria-label="Search recent agent activity" placeholder="Search actions…"><select id="activityTopic" aria-label="Filter by topic"><option value="all">All topics</option><option value="agents">Agents</option><option value="memory">Memory</option><option value="tools">Tools</option><option value="web">Web</option><option value="email">Email</option><option value="conversation">Conversation</option></select><select id="activityWhen" aria-label="Filter by time"><option value="all">All time</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select><button class="secondary" id="blackboxRefresh" type="button">Refresh</button></div></div>
+    <div class="activitytimeline" id="activityTimeline"><div class="activityempty">Loading…</div></div>
+    <div class="activitymore"><button class="secondary" id="activityLoadMore" type="button">Load more</button><span id="activityCount"></span></div>
+    <p class="foot">Each row is one agent session; open it for the audit events behind it.</p>
+    <div class="actions" style="margin-top:14px"><button class="secondary" id="showAllFlights" type="button">Advanced search</button><button class="primary" id="bridgeRefresh" type="button" style="display:none">Upgrade bridge &amp; run test</button></div>
+  </section>
+  </div>
+
+  <div class="tabpanel" id="viewDecisions">
+  <div class="pageheading"><div><div class="eyebrow">Memory governance</div><h1>Decisions</h1></div></div>
+
+  <section class="hero providerhero" id="hero">
+    <div>
+      <div class="eyebrow" id="eyebrow">Memory provider</div>
+      <h1 id="title"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></h1>
+      <p id="summary">AtMem is verifying memory, evidence, and the safe return path.</p>
+    </div>
+    <div class="actions">
+      <button class="secondary" id="refreshBtn">Refresh memory</button>
+      <button class="primary" id="switchBtn" disabled>Activate AtMem</button>
+    </div>
+  </section>
+
+  <div class="grid">
+    <div>
+      <section class="card" id="reviewCard">
+        <div class="reviewhead"><h2>Memory decisions</h2><span class="reviewcount" id="reviewCount">0</span><button class="secondary" id="reviewRefresh" type="button">Refresh</button></div>
+        <p class="sub">External observations stay out of agent recall until you approve them. Rejection permanently purges the candidate content.</p>
+        <div id="reviews"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Checking for quarantined memories…</span></div></div>
+      </section>
+    </div>
+
+    <aside>
+      <section class="card">
+        <h2 id="switchTitle">Ready to switch?</h2>
+        <p class="sub" id="switchCopy">AtMem checks the active adapter before allowing context injection.</p>
+        <div id="checks"></div>
+        <button class="secondary" id="verifyBtn" type="button">Verify now</button>
+        <button class="secondary" id="drillBtn" type="button">Test file restoration</button>
+        <div class="small" id="verifyStatus" style="margin-top:12px;line-height:1.7"></div>
+        <div class="small" id="drillStatus" style="margin-top:12px;line-height:1.7"></div>
+      </section>
+      <section class="card">
+        <h2>What changes</h2>
+        <div class="check"><i>✓</i><div>Shadow mode observes without adding memory to model context.</div></div>
+        <div class="check"><i>✓</i><div>Active mode permits only context explicitly returned with <span class="mono">inject=true</span>.</div></div>
+        <div class="check"><i>✓</i><div>Returning to shadow stops future injection and preserves evidence.</div></div>
+        <div class="check"><i>✓</i><div>The runtime remains responsible for identity, tool execution and external outcome proof.</div></div>
+      </section>
+    </aside>
+  </div>
+  </div>
+
+  <div class="tabpanel" id="viewEvidence">
+  <div class="pageheading"><div><div class="eyebrow">For investigation</div><h1>Evidence workspace</h1><p>Search memory first, then open sessions and exact audit events only when the question requires it.</p></div></div>
+  <nav class="sectionnav" aria-label="Investigation sections"><a href="#memorySearchCard"><span>01</span> Memory search</a><a href="#blackboxArchiveCard"><span>02</span> Agent sessions</a><a href="#mirrorCard"><span>03</span> Memory sources</a><a href="#auditExplorer"><span>04</span> Event evidence</a></nav>
+
+  <section class="card" id="memorySearchCard">
+    <h2>Search memory</h2>
+    <p class="sub">Search the canonical AtMem view using ordinary words. This works in shadow and active mode.</p>
+    <div class="search">
+      <input id="query" placeholder="For example: TypeScript preference" autocomplete="off">
+      <button class="primary" id="searchBtn">Search</button>
+    </div>
+    <div class="results" id="results"><div class="empty">Enter a question to inspect memory.</div></div>
+  </section>
+
+  <section class="card" id="blackboxArchiveCard">
+    <div class="blackboxhead">
+      <div><div class="eyebrow">Black Box archive</div><h2>All recorded agent sessions</h2>
+      <p class="sub">The technical archive behind Recent agent activity. AtMem stores digests and bounded metadata, not raw prompts, responses, tool parameters or results.</p>
+      <p class="sub" id="blackboxCount">Loading recent agent runs…</p></div>
+      <div class="blackboxsummary"><span id="blackboxIntegrity" class="integritychip"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></span></div>
+    </div>
+    <div class="flightpresets" aria-label="Session history time range">
+      <button type="button" data-flight-range="today">Today</button><button type="button" data-flight-range="yesterday">Yesterday</button><button type="button" data-flight-range="7d" class="active">Last 7 days</button><button type="button" data-flight-range="all">All recorded</button>
+    </div>
+    <div class="flightfilters">
+      <div class="field"><label for="flightQuery">Search sessions</label><input id="flightQuery" placeholder="Request, reply, tool, website, model or ID…"></div>
+      <div class="field"><label for="flightStatus">Result</label><select id="flightStatus"><option value="">All results</option><option value="healthy">Healthy</option><option value="attention">Needs attention</option><option value="failed">Failed or incomplete</option></select></div>
+      <div class="field"><label for="flightSince">From date</label><input id="flightSince" type="date"></div>
+      <div class="field"><label for="flightUntil">Through date</label><input id="flightUntil" type="date"></div>
+      <button class="primary" id="flightSearch" type="button">Find sessions</button>
+    </div>
+    <div class="flights" id="blackboxFlights"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading recent agent runs…</span></div></div>
+  </section>
+
+  <section class="card" id="mirrorCard">
+    <h2 id="sourceTitle">Memory sources</h2>
+    <p class="sub" id="sourceSummary">Loading source evidence…</p>
+    <div id="sources"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading sources…</span></div></div>
+  </section>
+
+  <section class="card auditcard" id="auditExplorer">
+    <div class="audithead">
+      <div><div class="eyebrow">Global evidence investigation</div><h2>Audit events</h2>
+      <p class="sub">Audit Explorer — the complete evidence chain. Narrow the evidence, then drill into records, sessions and exact events.</p></div>
+      <div class="audittoolbar">
+        <select class="secondary savedview" id="auditSaved"><option value="">Saved views…</option></select>
+        <button class="secondary" id="auditSave" type="button">Save view</button>
+        <button class="secondary" id="auditReset" type="button">Reset</button>
+      </div>
+    </div>
+    <div class="quickrange"><span class="small">Time range</span>
+      <button type="button" data-range="15">15 minutes</button><button type="button" data-range="60">1 hour</button>
+      <button type="button" data-range="1440">24 hours</button><button type="button" data-range="10080">7 days</button>
+      <button type="button" data-range="0">All time</button>
+      <span class="small" style="margin-left:10px">Evidence stage</span>
+      <button type="button" data-event-pattern="memory.record*">Admission</button>
+      <button type="button" data-event-pattern="memory.recall">Recall</button>
+      <button type="button" data-event-pattern="memory.context_injected">Injection</button>
+      <button type="button" data-event-pattern="agent.response_after_memory">Response</button>
+      <button type="button" data-event-pattern="memory.forget">Deletion</button>
+    </div>
+    <div class="auditfilters">
+      <div class="field"><label for="auditQuery">Search event IDs, payloads and evidence</label><input id="auditQuery" placeholder="memory, model, digest, ID…"></div>
+      <div class="field"><label for="auditType">Event type</label><select id="auditType"><option value="">All event types</option></select></div>
+      <div class="field"><label for="auditActor">Actor</label><select id="auditActor"><option value="">All actors</option></select></div>
+      <div class="field"><label for="auditSession">Session ID</label><input id="auditSession" placeholder="agent:main:…"></div>
+      <div class="field"><label for="auditRecord">Record ID</label><input id="auditRecord" placeholder="rec_…"></div>
+      <div class="field"><label for="auditSince">From</label><input id="auditSince" type="datetime-local"></div>
+      <div class="field"><label for="auditUntil">To</label><input id="auditUntil" type="datetime-local"></div>
+      <div class="filteractions"><button class="primary" id="auditRun" type="button">Run search</button></div>
+    </div>
+    <div class="histogram" id="auditHistogram" aria-label="Audit events over time"></div>
+    <div class="auditmeta"><span id="auditIntegrity" class="integritychip"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></span>
+      <span id="auditCount">—</span><span class="mono" id="auditDigest"></span><span class="grow"></span>
+      <select id="auditDirection" class="secondary"><option value="desc">Newest first</option><option value="asc">Oldest first</option></select>
+      <select id="auditLimit" class="secondary"><option>50</option><option selected>100</option><option>250</option><option>500</option></select>
+    </div>
+    <div class="auditviewport"><table class="audittable"><thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Record</th><th>Session / turn</th><th>Evidence ID</th><th>Integrity</th></tr></thead>
+      <tbody id="auditRows"><tr><td colspan="7" class="empty"><div class="zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading audit evidence…</span></div></td></tr></tbody></table></div>
+    <div class="auditpager"><button class="secondary" id="auditBack" type="button" disabled>Previous</button>
+      <button class="secondary" id="auditNext" type="button" disabled>Next</button><span class="small" id="auditPage">Page 1</span>
+      <span class="grow"></span><a class="secondary auditexport" data-format="csv">CSV</a><a class="secondary auditexport" data-format="json">JSON</a>
+      <a class="secondary auditexport" data-format="ndjson">NDJSON</a><a class="secondary auditexport" data-format="text">Text</a></div>
+  </section>
+  </div>
+
+  <footer class="appfoot">
+    <p class="foot mono" id="identity"></p>
+    <div class="versionbar" aria-label="Installed product versions">
+      <span class="versionlabel">Installed versions</span>
+      <span class="versionchip" id="versionOpenClawChip">OpenClaw <b id="versionOpenClaw"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></b></span>
+      <span class="versionchip">AtMem pip <b id="versionPip"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></b></span>
+      <span class="versionchip" id="versionNpmChip">AtMem npm bridge <b id="versionNpm"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></b></span>
+      <a class="appfootlink" href="https://github.com/aetna000/atmem" target="_blank" rel="noopener noreferrer">About AtMem</a>
+    </div>
+  </footer>
+</main>
+<div class="backdrop" id="auditorBackdrop" aria-hidden="true">
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="auditorTitle">
+    <div class="drawerhead">
+      <div><div class="eyebrow" id="auditorEyebrow">Evidence investigation</div><h2 id="auditorTitle"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></h2>
+      <div class="mono small" id="auditorId"></div></div>
+      <button class="close" id="auditorClose" aria-label="Close record history">×</button>
+    </div>
+    <div class="auditorbody" id="auditorBody"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading the verified audit chain…</span></div></div>
+  </aside>
+</div>
+<script>
+/*==ATMEM_INLINE_JS==*/
+</script>
+</body>
+</html>

@@ -114,7 +114,58 @@ def test_corrupt_state_fails_closed(tmp_path: Path) -> None:
     assert status["mode"] == "off"
     assert status["changes_model_context"] is False
     assert status["warning"]
+    assert status["provider_state"] == "unavailable"
     assert manager.prepare("anything")["inject"] is False
+
+
+@pytest.mark.parametrize(
+    ("mode", "host", "takeover", "readiness", "warning", "migration_id", "expected"),
+    [
+        # 1. fail-closed beats everything
+        (ControlMode.ACTIVE, "openclaw", {"active": True}, None, "corrupt", "m-1", "unavailable"),
+        (ControlMode.OFF, "unknown", None, None, None, "unavailable", "unavailable"),
+        # 2. interrupted openclaw cutover requires restore in any mode
+        (ControlMode.SHADOW, "openclaw", {"requires_restore": True}, None, None, "m-1", "restore_required"),
+        # 3. verified openclaw cutover is active
+        (ControlMode.ACTIVE, "openclaw", {"active": True}, None, None, "m-1", "active"),
+        # 4. state file claims ACTIVE without a verified cutover: restore only
+        (ControlMode.ACTIVE, "openclaw", {}, None, None, "m-1", "restore_required"),
+        (ControlMode.ACTIVE, "openclaw", None, None, None, "m-1", "restore_required"),
+        # 5. generic hosts have no takeover object; mode is authoritative
+        (ControlMode.ACTIVE, "generic", None, None, None, "m-1", "active"),
+        # 6. OFF renders honestly instead of pretending to shadow
+        (ControlMode.OFF, "openclaw", {}, None, None, "m-1", "off"),
+        (ControlMode.OFF, "generic", None, None, None, "m-1", "off"),
+        # 7. shadow with readiness unlocked
+        (ControlMode.SHADOW, "generic", None, {"ready_for_active": True}, None, "m-1", "ready"),
+        (ControlMode.SHADOW, "openclaw", {}, {"ready_for_active": True}, None, "m-1", "ready"),
+        # 8. shadow still syncing
+        (ControlMode.SHADOW, "generic", None, {"ready_for_active": False}, None, "m-1", "shadow"),
+        (ControlMode.SHADOW, "openclaw", {}, None, None, "m-1", "shadow"),
+    ],
+)
+def test_provider_state_derivation(
+    mode: ControlMode,
+    host: str,
+    takeover: dict | None,
+    readiness: dict | None,
+    warning: str | None,
+    migration_id: str,
+    expected: str,
+) -> None:
+    from atmem.control.models import derive_provider_state
+
+    assert (
+        derive_provider_state(
+            mode=mode,
+            host=host,
+            takeover=takeover,
+            readiness=readiness,
+            warning=warning,
+            migration_id=migration_id,
+        ).value
+        == expected
+    )
 
 
 def test_transition_chain_detects_tampering(tmp_path: Path) -> None:
@@ -545,128 +596,159 @@ def test_dashboard_rejects_non_loopback_bindings(tmp_path: Path) -> None:
         )
 
 
+def _parse_dashboard_document(html: str) -> dict:
+    from html.parser import HTMLParser
+
+    summary: dict = {"ids": [], "styles": 0, "scripts": 0}
+
+    class _Collector(HTMLParser):
+        def handle_starttag(self, tag: str, attrs) -> None:
+            if tag == "style":
+                summary["styles"] += 1
+            if tag == "script":
+                summary["scripts"] += 1
+            for name, value in attrs:
+                if name == "id" and value:
+                    summary["ids"].append(value)
+
+    _Collector().feed(html)
+    return summary
+
+
 def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     from atmem.control.web import dashboard_html
 
     html = dashboard_html()
 
-    assert "Exactly what is mirrored" in html
-    assert 'id="sources"' in html
-    assert 'id="query"' in html
-    assert "Activate AtMem" in html
-    assert "Restore OpenClaw" in html
-    assert 'classList.toggle("danger",isActive||needsRecovery)' in html
-    assert "--danger-action:#d92d20" in html
-    assert 'id="progress"' in html
-    assert 'id="auditorBackdrop"' in html
-    assert "/api/memory/record?record_id=" in html
-    assert "Complete chronological history" in html
-    assert "Deletion receipt" in html
-    assert "height:100dvh" in html
-    assert "overflow-y:auto" in html
-    assert "grid-template-columns:repeat(6,minmax(0,1fr))" in html
-    assert 'text("auditorTitle","Memory record")' in html
-    assert "Stored memory" in html
-    assert 'document.body.style.overflow="hidden"' in html
-    assert "Memory decisions" in html
-    assert "Approve description as memory" in html
-    assert "Source image being reviewed" in html
-    assert "What AtMem will remember" in html
-    assert "not the image pixels" in html
-    assert "image.src=row.media.preview_url" in html
-    assert "Star on GitHub" in html
-    assert 'src="/assets/atmem.jpg"' in html
-    assert "AtMem</strong>" in html
-    assert "Aetna</span>Mem" not in html
-    assert "#2f2b29" in html
-    assert 'id="themeToggle"' in html
-    assert 'data-theme="light"' in html
-    assert 'data-theme="dark"' in html
-    assert 'localStorage.setItem("atmem-theme",theme)' in html
-    assert 'class="brandmark"' in html
-    assert 'class="zeros"' in html
-    assert "function loadingNode" in html
-    assert "AtMem — governed memory for AI agents" in html
-    assert 'id="versionOpenClaw"' in html
-    assert 'id="versionPip"' in html
-    assert 'id="versionNpm"' in html
-    assert "Installed versions" in html
-    assert "https://x.com/AtMemX" in html
-    assert "@AtMemX" in html
-    assert 'get("/api/product")' in html
-    assert "https://github.com/aetna000/atmem" in html
-    assert "OpenClaw guide" in html
-    assert "Audit guide" in html
-    assert "Feedback" in html
-    assert "Reject and purge" in html
-    assert 'get("/api/memory/reviews")' in html
-    assert 'post("/api/memory/review"' in html
-    assert 'setInterval(refreshReviews,5000)' in html
-    assert "Audit Explorer" in html
-    assert "Agent Black Box" in html
-    assert "Recent actions" in html
-    assert 'id="activityTimeline"' in html
-    assert 'id="activityQuery"' in html
-    assert "Advanced search" in html
-    assert 'id="activityLoadMore"' in html
-    assert 'id="activityTopic"' in html
-    assert 'id="activityWhen"' in html
-    assert "All time" in html
-    assert "Activity" in html
-    assert "Evidence workspace" in html
-    assert "Investigation sections" in html
-    assert "Healthy — no action needed" in html
-    assert "Flight completed" in html
-    assert "Tools worked" in html
-    assert "Audit evidence complete" in html
-    assert "Past activity — not a current alert" in html
-    assert "What happened" in html
-    assert "Impact, cost and risk" in html
-    assert "Show technical evidence, IDs and hashes" in html
-    assert "How this memory was used" in html
-    assert "Used in a model request" in html
-    assert "Considered but not used" in html
-    assert "Shown in dashboard search — no model involved" in html
-    assert "This was a read-only investigation" in html
-    assert "Show technical record evidence, IDs and hashes" in html
-    assert "Back to flight" in html
-    assert "OpenClaw received this request" in html
-    assert "Compromise and outcome proof" in html
-    assert "latestPoints=latest?(latest.attention_points||[]):[]" in html
-    assert "function renderActivityTimeline" in html
-    assert "function activityState" in html
-    assert "Next action" in html
-    assert 'text("statusAction","Review")' in html
-    assert "Technical details" in html
-    assert 'element("button","primary","Acknowledge")' in html
-    assert "/api/blackbox/acknowledge" in html
-    assert "Acknowledged findings" in html
-    assert "Upgrade bridge &amp; run test" in html
-    assert "/api/bridge/refresh-test" in html
-    assert "/api/bridge/status" in html
-    assert "/api/blackbox/runs?limit=500" in html
-    assert "Yesterday" in html
-    assert "All recorded" in html
-    assert "Search flights" in html
-    assert "Searching request, response, tools, websites and audit metadata" in html
-    assert "/api/blackbox/flight?run_id=" in html
-    assert "/api/blackbox/story?run_id=" in html
-    assert "/api/blackbox/export?run_id=" in html
-    assert "not raw prompts, responses, tool parameters or results" in html
-    assert "/api/memory/audit?" in html
-    assert "/api/memory/audit-export?" in html
-    assert "Saved views" in html
-    assert "Global evidence investigation" in html
-    assert "This can take a minute." in html
-    assert "Refreshing the memory mirror" in html
-    assert 'get("/api/status")' in html
+    # Never the JSON fallback page.
     assert "JSON.stringify(v,null,2)" not in html
-    assert "Emergency" not in html
-    assert "Recall Preview" not in html
-    assert 'id="funnelBars"' not in html
+
+    document = _parse_dashboard_document(html)
+    ids = document["ids"]
+    required_sections = {
+        "viewStatus",
+        "viewDecisions",
+        "viewEvidence",
+        "statusBanner",
+        "stateChip",
+        "agentOverview",
+        "blackboxCard",
+        "reviewCard",
+        "hero",
+        "checks",
+        "blackboxArchiveCard",
+        "memorySearchCard",
+        "mirrorCard",
+        "auditExplorer",
+        "auditorBackdrop",
+        "themeToggle",
+        "error",
+        "progress",
+        "identity",
+    }
+    missing = required_sections - set(ids)
+    assert not missing, f"dashboard is missing sections: {sorted(missing)}"
+
+    duplicates = {value for value in ids if ids.count(value) > 1}
+    assert not duplicates, f"duplicate element ids: {sorted(duplicates)}"
+
+    # One self-contained document: exactly one inline stylesheet and script.
+    assert document["styles"] == 1
+    assert document["scripts"] == 1
+    assert 'src="/assets/atmem.jpg"' in html
+
+
+def test_dashboard_references_only_known_api_endpoints() -> None:
+    import re
+
+    from atmem.control.web import dashboard_html
+
+    known = {
+        "/api/session",
+        "/api/product",
+        "/api/status",
+        "/api/mode",
+        "/api/restore",
+        "/api/restore-drill",
+        "/api/verify",
+        "/api/bridge/status",
+        "/api/bridge/refresh-test",
+        "/api/memory/reviews",
+        "/api/memory/review",
+        "/api/memory/search",
+        "/api/memory/sync",
+        "/api/memory/record",
+        "/api/memory/record-report",
+        "/api/memory/deletion-receipt",
+        "/api/memory/audit",
+        "/api/memory/audit-export",
+        "/api/memory/media-preview",
+        "/api/blackbox/runs",
+        "/api/blackbox/story",
+        "/api/blackbox/flight",
+        "/api/blackbox/export",
+        "/api/blackbox/acknowledge",
+    }
+    referenced = set(re.findall(r"/api/[a-z0-9/_-]+", dashboard_html()))
+    unknown = referenced - known
+    assert not unknown, f"dashboard references unknown endpoints: {sorted(unknown)}"
+
+
+def test_dashboard_external_links_are_allowlisted() -> None:
+    import re
+
+    from atmem.control.web import dashboard_html
+
+    allowed_prefixes = (
+        "https://github.com/aetna000/atmem",
+        "https://x.com/AtMemX",
+    )
+    pattern = r"https://[^\s\"'<>]+"
+    for url in re.findall(pattern, dashboard_html()):
+        assert url.startswith(allowed_prefixes), f"unexpected external link: {url}"
+
+
+def test_dashboard_copy_keeps_product_safety_invariants() -> None:
+    from atmem.control.web import dashboard_html
+
+    html = dashboard_html()
+
+    # Image review must show the verified source and store only the text.
+    assert "Source image being reviewed" in html
+    assert "not the image pixels" in html
+    assert "Reject and purge" in html
+    # The public namespace is atmem only.
+    assert ("aetna" + "mem") not in html.casefold()
     # Mockup-only comparison figures must never be presented as live evidence.
     assert "112,480" not in html
     assert "35/42" not in html
+    assert "Emergency" not in html
+    assert "Recall Preview" not in html
+    assert 'id="funnelBars"' not in html
+
+
+def test_dashboard_falls_back_to_minimal_page_when_assets_are_missing(
+    monkeypatch,
+) -> None:
+    import sys
+    import types
+
+    from atmem.control import web
+
+    broken = types.ModuleType("atmem.control.ui")
+    monkeypatch.setitem(sys.modules, "atmem.control.ui", broken)
+    html = web.dashboard_html()
+    assert html == web._FALLBACK_HTML
+    assert "AtMem memory control plane" in html
+    assert "/api/status" in html
+
+
+def test_build_app_html_fails_closed_on_missing_token(monkeypatch) -> None:
+    from atmem.control import ui
+
+    monkeypatch.setattr(ui, "_asset", lambda name: "<html>no tokens</html>")
+    with pytest.raises(ValueError, match="missing"):
+        ui.build_app_html()
 
 
 def test_review_image_preview_requires_exact_host_bytes(

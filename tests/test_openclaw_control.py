@@ -397,6 +397,7 @@ def test_takeover_freezes_native_files_and_restore_restores_them(
 
     active = activate_takeover(manager.state(), manager.state_path)
     assert active["active"] is True
+    assert manager.status()["provider_state"] == "active"
     assert active["native_snapshot_verified"] is True
     assert active["compatibility_tools_verified"] is True
     assert active["capture_hooks_verified"] is True
@@ -424,6 +425,8 @@ def test_takeover_freezes_native_files_and_restore_restores_them(
 
     restored = restore_takeover(manager.state())
     assert restored["native_memory_restored"] is True
+    # A completed rollback is a safe terminal state, never a pending restore.
+    assert manager.status()["provider_state"] not in {"active", "restore_required"}
     assert (workspace / "MEMORY.md").is_file()
     assert (workspace / "memory" / "2026-07-30.md").is_file()
     assert "lossless snapshots" in (workspace / "memory" / "2026-07-30.md").read_text(

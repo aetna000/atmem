@@ -49,7 +49,7 @@ Documentation = "https://github.com/aetna000/atmem#readme"
 include = ["atmem*"]
 
 [tool.setuptools.package-data]
-"atmem.control" = ["assets/*.jpg"]
+"atmem.control" = ["assets/*.jpg", "assets/*.html", "assets/*.css", "assets/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

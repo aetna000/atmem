@@ -14,7 +14,11 @@ from atmem.core.storage import HouseholdPolicy
 from atmem.extract.rules import extract_facts
 from atmem.retrieve.rank import rank_records
 from atmem.store.sqlite import utc_now
-from atmem.control.models import ControlMode, ControlState
+from atmem.control.models import (
+    ControlMode,
+    ControlState,
+    derive_provider_state,
+)
 from atmem.control.state import load_effective_state, load_state, state_lock, write_state
 from atmem.control.store import ControlStore
 
@@ -298,6 +302,14 @@ class ControlPlaneManager:
                 "ready_for_active": False,
                 "reasons": ["state is missing or invalid; integration is fail-closed"],
             }
+            result["provider_state"] = derive_provider_state(
+                mode=state.mode,
+                host=state.host,
+                takeover=None,
+                readiness=result["readiness"],
+                warning=warning,
+                migration_id=state.migration_id,
+            ).value
             return result
         store = self._store(state)
         try:
@@ -369,6 +381,14 @@ class ControlPlaneManager:
         result["mirror"] = mirror
         result["takeover"] = takeover
         result["readiness"] = self._readiness(state, evidence, mirror=mirror)
+        result["provider_state"] = derive_provider_state(
+            mode=state.mode,
+            host=state.host,
+            takeover=takeover,
+            readiness=result["readiness"],
+            warning=warning,
+            migration_id=state.migration_id,
+        ).value
         return result
 
     def capture(

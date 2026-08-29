@@ -24,6 +24,56 @@ class ControlMode(str, Enum):
         return self is ControlMode.ACTIVE
 
 
+class ProviderState(str, Enum):
+    """Single derived answer to "which memory provider is in charge right now".
+
+    Every status surface (dashboard chip, banner, hero, switch control) must
+    render from this one value instead of re-deriving state from mode,
+    takeover, or readiness fragments.
+    """
+
+    UNAVAILABLE = "unavailable"
+    RESTORE_REQUIRED = "restore_required"
+    ACTIVE = "active"
+    READY = "ready"
+    SHADOW = "shadow"
+    OFF = "off"
+
+
+def derive_provider_state(
+    *,
+    mode: ControlMode,
+    host: str,
+    takeover: dict[str, Any] | None,
+    readiness: dict[str, Any] | None,
+    warning: str | None,
+    migration_id: str,
+) -> ProviderState:
+    """Derive the one provider state from the authoritative status inputs.
+
+    Precedence: fail-closed unavailability, then an interrupted or verified
+    OpenClaw cutover (a state file claiming ACTIVE without a verified cutover
+    requires restore), then generic ACTIVE, then OFF, then shadow readiness.
+    """
+    if warning or migration_id == "unavailable":
+        return ProviderState.UNAVAILABLE
+    if host == "openclaw":
+        cutover = takeover or {}
+        if cutover.get("requires_restore"):
+            return ProviderState.RESTORE_REQUIRED
+        if cutover.get("active"):
+            return ProviderState.ACTIVE
+        if mode is ControlMode.ACTIVE:
+            return ProviderState.RESTORE_REQUIRED
+    elif mode is ControlMode.ACTIVE:
+        return ProviderState.ACTIVE
+    if mode is ControlMode.OFF:
+        return ProviderState.OFF
+    if (readiness or {}).get("ready_for_active"):
+        return ProviderState.READY
+    return ProviderState.SHADOW
+
+
 @dataclass(frozen=True)
 class ControlState:
     migration_id: str

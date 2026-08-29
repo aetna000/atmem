@@ -74,6 +74,8 @@ def test_public_product_namespace_is_atmem_only() -> None:
     for root in roots:
         paths = (root,) if root.is_file() else root.rglob("*")
         for path in paths:
+            if "node_modules" in path.parts:
+                continue
             if not path.is_file() or path.suffix.lower() not in {
                 ".py",
                 ".md",
@@ -83,6 +85,9 @@ def test_public_product_namespace_is_atmem_only() -> None:
                 ".toml",
                 ".yml",
                 ".yaml",
+                ".html",
+                ".css",
+                ".js",
             }:
                 continue
             assert legacy not in path.name.casefold(), path

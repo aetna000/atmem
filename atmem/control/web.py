@@ -6,6 +6,7 @@ from importlib.metadata import PackageNotFoundError, version
 from importlib.resources import files
 import json
 import secrets
+import sys
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -525,7 +526,11 @@ def dashboard_html() -> str:
         from atmem.control.ui import APP_HTML
 
         return APP_HTML
-    except ImportError:
+    except Exception as exc:  # dashboard must degrade, never crash
+        print(
+            f"atmem: dashboard assets unavailable ({exc}); serving JSON fallback",
+            file=sys.stderr,
+        )
         return _FALLBACK_HTML
 
 

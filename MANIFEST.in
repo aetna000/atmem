@@ -7,3 +7,4 @@ prune integrations/openclaw/node_modules
 global-exclude *.py[cod]
 global-exclude __pycache__
 global-exclude .DS_Store
+recursive-include atmem/control/assets *.jpg *.html *.css *.js
