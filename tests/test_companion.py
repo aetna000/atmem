@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+from pathlib import Path
+import tomllib
+
+from atbot.cli import _parser
+from atbot.companion import CompanionRuntime
+from atbot.config import AtBotConfig
+
+
+def companion() -> CompanionRuntime:
+    return CompanionRuntime(AtBotConfig(providers=[]))
+
+
+def test_public_companion_has_no_independent_agent_or_storage() -> None:
+    capabilities = companion().capabilities()
+
+    assert capabilities["role"] == "atmem-intelligence-companion"
+    assert capabilities["independent_agent"] is False
+    assert capabilities["canonical_storage"] is False
+
+
+def test_removed_authority_and_agent_modules_are_not_packaged() -> None:
+    assert importlib.util.find_spec("atbot.agent") is None
+    assert importlib.util.find_spec("atbot.runtime") is None
+    assert importlib.util.find_spec("atbot.gateway") is None
+    assert importlib.util.find_spec("atbot.capabilities") is None
+
+
+def test_cli_exposes_companion_operations_only() -> None:
+    parser = _parser()
+    subparsers = next(
+        action for action in parser._actions if hasattr(action, "choices") and action.choices
+    )
+
+    assert set(subparsers.choices) == {"init", "status", "doctor", "serve"}
+
+
+def test_package_does_not_depend_on_atmem_authority_code() -> None:
+    root = Path(__file__).resolve().parents[1]
+    project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))[
+        "project"
+    ]
+
+    assert all(
+        not str(requirement).partition("[")[0].casefold().startswith("atmem")
+        for requirement in project["dependencies"]
+    )
+
+
+def test_config_has_no_memory_or_authority_identity() -> None:
+    value = AtBotConfig(providers=[]).to_dict()
+
+    assert "memory_path" not in value
+    assert "subject_id" not in value
+    assert "agent_id" not in value
+    assert "workspace_id" not in value
+    assert "allowed_tools" not in value
+    assert "skill_directories" not in value
+
+
+def test_legacy_config_is_read_but_authority_fields_are_discarded() -> None:
+    value = AtBotConfig.from_dict(
+        {
+            "format": "atbot-config-v1",
+            "profile": "memory-companion",
+            "host": "127.0.0.1",
+            "port": 8770,
+            "remote_egress_allowed": False,
+            "providers": [],
+            "memory_path": "/tmp/retired-atbot.db",
+            "subject_id": "retired-subject",
+            "agent_id": "retired-agent",
+            "workspace_id": "retired-workspace",
+            "recent_message_limit": 10,
+            "max_task_steps": 8,
+            "allowed_tools": ["memory_recall"],
+            "skill_directories": [],
+        }
+    ).to_dict()
+
+    assert set(value) == {
+        "format",
+        "profile",
+        "host",
+        "port",
+        "remote_egress_allowed",
+        "providers",
+    }
+    assert "/tmp/retired-atbot.db" not in json.dumps(value)
+
+
+def test_companion_ranks_only_ids_supplied_by_atmem() -> None:
+    result = companion().answer_query(
+        query="What do you remember about me?",
+        candidates=[{"record_id": "rec_allowed", "content": "User likes blue cars."}],
+    )
+
+    assert result["ranked_record_ids"] == ["rec_allowed"]
+    assert "blue cars" in result["answer"]
+
+
+def test_companion_overview_removes_source_template_noise() -> None:
+    result = companion().answer_query(
+        query="What do you remember about me?",
+        candidates=[
+            {"record_id": "rec_fact", "content": "JT likes burgers."},
+            {"record_id": "rec_heading", "content": "# USER.md - About Your Human."},
+            {
+                "record_id": "rec_template",
+                "content": "Learn about the person you're helping. Update this as you go.",
+            },
+        ],
+    )
+
+    assert result["ranked_record_ids"] == ["rec_fact"]
+    assert "USER.md" not in result["answer"]
+
+
+def test_query_expansion_is_content_free_and_bounded() -> None:
+    result = companion().expand_query("what is my fav food")
+
+    assert result["content_received"] is False
+    assert "food preference" in result["expanded_queries"]
+    assert len(result["expanded_queries"]) <= 6
+
+
+def test_companion_proposes_but_never_admits_or_stores() -> None:
+    result = companion().propose_memories("I prefer window seats")
+
+    assert result["format"] == "atbot-memory-proposals-v1"
+    assert result["proposals"][0]["fact"] == "I prefer window seats"
+    assert result["authority_decision"] is None
+    assert result["canonical_storage"] is False
+    assert result["proposals"][0]["related_record_ids"] == []
+
+
+def test_companion_does_not_propose_questions() -> None:
+    result = companion().propose_memories("What food do I prefer?")
+
+    assert result["proposals"] == []

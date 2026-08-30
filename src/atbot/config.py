@@ -11,6 +11,21 @@ from typing import Any
 DEFAULT_ROOT = Path.home() / ".atbot"
 DEFAULT_CONFIG = DEFAULT_ROOT / "config.json"
 
+# Accepted only while reading configurations written by the retired standalone
+# runtime. They are deliberately never represented or written by AtBot now.
+_REMOVED_AUTHORITY_FIELDS = frozenset(
+    {
+        "memory_path",
+        "subject_id",
+        "agent_id",
+        "workspace_id",
+        "recent_message_limit",
+        "max_task_steps",
+        "allowed_tools",
+        "skill_directories",
+    }
+)
+
 
 @dataclass(slots=True)
 class ProviderConfig:
@@ -25,23 +40,11 @@ class ProviderConfig:
 @dataclass(slots=True)
 class AtBotConfig:
     format: str = "atbot-config-v1"
-    memory_path: str = str(DEFAULT_ROOT / "atmem.db")
-    subject_id: str = "local-user"
-    agent_id: str = "atbot-main"
-    workspace_id: str = "private"
     profile: str = "memory-companion"
     host: str = "127.0.0.1"
     port: int = 8770
-    recent_message_limit: int = 10
     remote_egress_allowed: bool = False
-    max_task_steps: int = 8
-    allowed_tools: list[str] = field(default_factory=lambda: ["memory_recall"])
-    skill_directories: list[str] = field(default_factory=list)
     providers: list[ProviderConfig] = field(default_factory=lambda: [ProviderConfig()])
-
-    @property
-    def memory_file(self) -> Path:
-        return Path(self.memory_path).expanduser().resolve(strict=False)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -51,11 +54,21 @@ class AtBotConfig:
         if value.get("format") != "atbot-config-v1":
             raise ValueError("unsupported AtBot config format")
         providers = [ProviderConfig(**row) for row in value.get("providers") or []]
+        supported = {
+            "format",
+            "profile",
+            "host",
+            "port",
+            "remote_egress_allowed",
+        }
+        unknown = set(value) - supported - {"providers"} - _REMOVED_AUTHORITY_FIELDS
+        if unknown:
+            raise ValueError(f"unsupported AtBot configuration fields: {sorted(unknown)}")
         return cls(
             **{
                 key: item
                 for key, item in value.items()
-                if key not in {"providers"}
+                if key in supported
             },
             providers=providers or [ProviderConfig()],
         )

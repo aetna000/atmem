@@ -40,15 +40,13 @@ separate customer dashboard and no independent canonical database.
 - `providers`: local-first Pydantic AI model adapters and deterministic fallback.
 - `extraction`: strict fact, entity, relationship, and sensitivity proposals.
 - `prompts`: stable companion prompts and cache identity.
-- `runtime`: bounded memory inference and ranking orchestration.
-- `capabilities`: internal hooks, policies, tools, skills, and guardrails used
-  only for memory work.
+- `companion`: bounded extraction, query expansion, and eligible-candidate
+  ranking orchestration.
 - `service`: companion health, inference, query-expansion, and ranking protocol.
-- `gateway`: development/conformance client for AtMem public contracts; AtMem
-  remains the only durable authority.
 
-The old independent task loop may remain temporarily as unexposed internal
-code during migration, but it is not a supported CLI mode or product surface.
+AtBot contains no task-agent loop, direct AtMem database gateway, authority
+identity, canonical database path, or customer interface. Communication with
+AtMem is exclusively through the companion protocol initiated by AtMem.
 
 ## Failure behavior
 

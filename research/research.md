@@ -10,10 +10,9 @@ systems such as Mem0, while AtMem remains the sole authority and storage owner.
 
 > AtBot proposes and ranks; AtMem authorizes and stores.
 
-AtBot is not a customer-facing independent agent. Its internal framework may
-retain agent-loop, tool, hook, skill, and model-routing capabilities because
-those capabilities are useful for bounded memory work, but AtBot must not be
-positioned, installed, or operated as a general-purpose task agent.
+AtBot is not a customer-facing independent agent. It retains model routing and
+bounded inference orchestration for memory work, but contains no general task
+loop, task tools, direct database gateway, or independent authority identity.
 
 AtBot has no independent product memory, dashboard, user identity, workspace,
 or authority plane. It operates only on work authorized and scoped by AtMem.
@@ -83,6 +82,10 @@ permit remote egress. Local model setup requires visible status and action.
 AtBot must not create a second canonical `atmem.db` in companion mode. AtMem
 sends typed work to AtBot; AtBot returns proposals or rankings. AtMem owns all
 durable memory state.
+
+The AtBot package therefore has no dependency on the AtMem Python package.
+AtMem calls the loopback companion protocol, which prevents AtBot from opening
+authority storage directly and keeps intelligence replaceable.
 
 ## Unified interface
 

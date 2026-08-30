@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 from typing import Any
 
 from atbot.domain import ProviderResult
@@ -38,29 +37,28 @@ class DeterministicLocalProvider:
                 model=self.model,
                 egress_class=self.egress_class,
             )
-        if schema and schema.get("title") == "AtBotTaskStep":
+        if schema and schema.get("title") == "AtBotMemoryQuery":
+            payload = json.loads(prompt)
+            candidates = payload.get("eligible_memories") or []
+            first = candidates[0] if candidates else None
             value = {
-                "action": "finish",
-                "reason": "A local model is required for multi-step tool planning.",
-                "tool": None,
-                "arguments": {},
-                "answer": "I can run memory operations safely, but install the configured local Qwen model for autonomous multi-step tasks.",
+                "answer": (
+                    f"The closest governed memory is: {first['content']}"
+                    if first
+                    else "I couldn't find governed memory that answers that question."
+                ),
+                "ranked_record_ids": [str(first["record_id"])] if first else [],
+                "explanation": "Deterministic ranking over AtMem-authorized candidates.",
             }
             return ProviderResult(
-                text=json.dumps(value), structured=value, provider=self.name,
-                model=self.model, egress_class=self.egress_class,
+                text=json.dumps(value),
+                structured=value,
+                provider=self.name,
+                model=self.model,
+                egress_class=self.egress_class,
             )
-        memory = ""
-        match = re.search(r"<atmem-context[^>]*>(.*?)</atmem-context>", prompt, re.S)
-        if match:
-            memory = " ".join(match.group(1).split())
-        answer = (
-            f"Based on governed memory: {memory}"
-            if memory
-            else "I do not have enough governed memory to answer that yet."
-        )
         return ProviderResult(
-            text=answer,
+            text="AtBot could not interpret the bounded memory operation.",
             structured=None,
             provider=self.name,
             model=self.model,

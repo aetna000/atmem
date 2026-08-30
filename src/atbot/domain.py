@@ -1,4 +1,4 @@
-"""AtBot-owned intelligence and task types; no canonical memory state."""
+"""AtBot-owned intelligence types; no canonical memory state."""
 
 from __future__ import annotations
 
@@ -26,15 +26,3 @@ class ProviderResult:
     egress_class: str
     input_tokens: int | None = None
     output_tokens: int | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class ChatResult:
-    text: str
-    run_id: str
-    provider: str
-    model: str
-    memory_record_ids: tuple[str, ...] = ()
-    context_receipt_id: str | None = None
-    cache_key: str | None = None
-    trace: tuple[dict[str, Any], ...] = ()

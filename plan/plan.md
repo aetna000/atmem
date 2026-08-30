@@ -14,8 +14,8 @@ an independent product agent, authority store, or dashboard.
 - Recast `atbot chat` as a development-only memory-query diagnostic, then move
   customer query entirely into the AtMem dashboard.
 - Stop presenting or serving the standalone AtBot UI.
-- Keep internal agent-loop, hook, tool, skill, and policy primitives only for
-  bounded memory jobs.
+- Remove the legacy agent loop, task tools, direct database gateway, and
+  independent authority configuration.
 - Add companion protocol endpoints for health, extraction, query expansion,
   eligible-candidate ranking, and memory-query answering.
 - Do not create a separate AtBot canonical database in companion mode.
@@ -45,10 +45,11 @@ Semantic retrieval correction:
 
 ## Workstream 2: companion-only runtime
 
-- [x] Split memory intelligence from the standalone `AtBotRuntime` façade.
+- [x] Isolate memory intelligence in the headless companion runtime.
 - [x] Make Qwen/Ollama the default and deterministic rules the fallback.
 - [x] Remove general task execution from public CLI and service routes.
-- [x] Retain internal capabilities only when a memory work profile permits them.
+- [x] Remove the legacy independent-agent and task-capability implementation.
+- [x] Remove direct AtMem database access and the AtMem package dependency.
 - [x] Remove ownership of canonical memory and independent workspace identity.
 - [ ] Enforce AtMem-declared scope, sensitivity, egress, model, and budget.
 
