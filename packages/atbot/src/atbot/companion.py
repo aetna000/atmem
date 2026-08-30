@@ -8,6 +8,7 @@ from typing import Any
 from atbot.config import AtBotConfig
 from atbot.extraction import extract_facts
 from atbot.providers.router import ModelRouter
+from atbot import __version__
 
 
 QUERY_SCHEMA: dict[str, Any] = {
@@ -32,6 +33,8 @@ class CompanionRuntime:
     def capabilities(self) -> dict[str, object]:
         return {
             "format": "atbot-companion-capabilities-v1",
+            "version": __version__,
+            "protocol_version": "1",
             "role": "atmem-intelligence-companion",
             "independent_agent": False,
             "canonical_storage": False,

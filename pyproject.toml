@@ -26,7 +26,9 @@ classifiers = [
   "Topic :: Database",
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dependencies = []
+dependencies = [
+  "atbot==0.1.0a1",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -36,7 +38,7 @@ semantic = [
   "sentence-transformers>=5.0.0,<6.0.0",
 ]
 atbot = [
-  "atbot==0.1.0a1",
+  # Kept as a compatibility extra; AtBot is now installed by default.
 ]
 pydantic-ai = [
   "pydantic-ai-slim>=2.0,<3",

@@ -242,6 +242,9 @@ def test_control_prepare_uses_semantic_candidates_and_revalidates_atbot_ids(
     assert prepared["inject"] is True
     assert prepared["candidate_ids"] == [airport["id"]]
     assert "Sydney" in prepared["context"]
+    assert prepared["context"].startswith('<atmem-context format="v1">')
+    assert prepared["candidate_set_id"].startswith("cset_")
+    assert prepared["preparation_id"].startswith("prep_")
     assert "rec_not_authorized" not in prepared["context"]
     assert "semantic" in prepared["retrieval"]["signals"]
 
@@ -253,6 +256,11 @@ def test_dashboard_contains_one_governed_memory_chat() -> None:
     assert "Ask governed memory" in html
     assert "/api/memory/query" in html
     assert "Searching authorized memory" in html
+    assert "Configure AtBot" in html
+    assert "/api/companion/profiles" in html
+    assert "/api/companion/configure" in html
+    assert "/api/companion/action" in html
+    assert "Keys are not entered here" in html
 
 
 def test_openclaw_overview_excludes_agent_instruction_files(
@@ -340,7 +348,52 @@ def test_favorite_food_uses_expansion_and_hybrid_candidates(
     result = manager.memory_query("what is my fav food")
     assert result["answer"] == "Your favorite food is burgers."
     assert result["used_memories"][0]["content"] == "JT likes burgers."
+    assert result["candidate_set_id"].startswith("cset_")
+    assert result["preparation_id"].startswith("prep_")
     assert "semantic" in result["retrieval"]["signals"]
+
+
+def test_control_prepare_rejects_a_candidate_set_invalidated_during_ranking(
+    tmp_path: Path, monkeypatch
+) -> None:
+    memory_path = tmp_path / "memory.db"
+    manager = ControlPlaneManager.start(
+        host="generic",
+        state_path=tmp_path / "state.json",
+        control_root=tmp_path / "migrations",
+        memory_db=memory_path,
+    )
+    memory = Memory(memory_path)
+    try:
+        record = memory.remember("local-user", "My preferred editor is Neovim.")["records"][0]
+    finally:
+        memory.close()
+    manager.transition(ControlMode.ACTIVE)
+    monkeypatch.setattr(
+        "atmem.control.atbot_companion.AtBotCompanionClient.expand_query",
+        lambda self, query: {"expanded_queries": [query], "content_received": False},
+    )
+
+    def mutate_after_authorization(self, query, candidates):
+        del self, query
+        changed = Memory(memory_path)
+        try:
+            changed.forget_record("local-user", record["id"])
+        finally:
+            changed.close()
+        return {
+            "ranked_record_ids": [record["id"]],
+            "companion": {"available": True, "fallback": False},
+        }
+
+    monkeypatch.setattr(
+        "atmem.control.atbot_companion.AtBotCompanionClient.query",
+        mutate_after_authorization,
+    )
+    import pytest
+
+    with pytest.raises(ValueError, match="invalidated by a memory change"):
+        manager.prepare("Which editor do I prefer?")
 
 
 def test_openclaw_refresh_preserves_non_native_active_memory(tmp_path: Path) -> None:

@@ -602,6 +602,134 @@ class Memory:
         return result
 
     @_atomic
+    def create_candidate_set_v1(
+        self, request: Any, candidates: list[dict[str, Any]]
+    ) -> Any:
+        """Persist one revalidated union of already-governed retrieval signals.
+
+        Query expansion can produce several lexical/graph/vector candidate sets.
+        This operation fuses their scores without trusting their earlier content:
+        every record is reloaded from canonical storage and checked immediately
+        before the durable set is written.
+        """
+        from atmem.contracts import (
+            EligibleCandidate,
+            EligibleCandidateSet,
+            RecallRequest,
+        )
+
+        if not isinstance(request, RecallRequest):
+            raise TypeError("request must be RecallRequest")
+        scope = request.scope
+        ordered_rows: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for value in candidates[: request.candidate_limit]:
+            record_id = str(value.get("record_id") or value.get("id") or "")
+            if not record_id or record_id in seen:
+                continue
+            seen.add(record_id)
+            ordered_rows.append({**value, "record_id": record_id})
+
+        records = self.store.get_records(
+            scope.subject_id, [row["record_id"] for row in ordered_rows]
+        )
+        excluded = self.store.excluded_record_ids(scope.subject_id)
+        durable: list[EligibleCandidate] = []
+        for value in ordered_rows:
+            record_id = value["record_id"]
+            record = records.get(record_id)
+            if (
+                record is None
+                or record.get("status") != "active"
+                or record_id in excluded
+            ):
+                raise ValueError("candidate record is no longer eligible")
+            raw = record.get("raw") or {}
+            authority = raw.get("authority_scope") or {}
+            if authority and (
+                authority.get("workspace_id") != scope.workspace_id
+                or authority.get("subject_id") != scope.subject_id
+            ):
+                raise ValueError("candidate record is outside the authority scope")
+            sensitivity = str(raw.get("sensitivity") or "personal")
+            if request.egress_class == "remote" and sensitivity in {
+                "sensitive",
+                "restricted",
+            }:
+                raise ValueError("candidate record is not eligible for remote egress")
+            supplied_content = str(value.get("content") or "")
+            canonical_content = str(record.get("content") or "")
+            if supplied_content and supplied_content != canonical_content:
+                raise ValueError("candidate content changed before persistence")
+            signals = dict(value.get("signals") or {})
+            signals["matched_queries"] = list(value.get("matched_queries") or ())
+            signals["expansion_rank"] = int(value.get("expansion_rank") or 0)
+            durable.append(
+                EligibleCandidate(
+                    record_id=record_id,
+                    content=canonical_content,
+                    score=float(value.get("score") or 0.0),
+                    rank=len(durable) + 1,
+                    source_type=str(record.get("source_type") or "unknown"),
+                    trust_tier=str(record.get("trust_tier") or "unknown"),
+                    created_at=str(record.get("created_at") or ""),
+                    signals=signals,
+                )
+            )
+            if len(durable) >= request.limit:
+                break
+
+        generation = self.store.record_generation(scope.subject_id)
+        candidate_set_id = f"cset_{uuid.uuid4().hex}"
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(minutes=5)
+        ).isoformat(timespec="microseconds")
+        candidate_digest = f"sha256:{sha256_hex(canonical_json([row.to_dict() for row in durable]))}"
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.eligible_candidates_v1",
+            actor=f"protocol:{scope.agent_id}",
+            payload={
+                "request_id": request.request_id,
+                "candidate_set_id": candidate_set_id,
+                "candidate_digest": candidate_digest,
+                "record_ids": [row.record_id for row in durable],
+                "generation": generation,
+                "workspace_id": scope.workspace_id,
+                "egress_class": request.egress_class,
+                "reranker_provider": request.reranker_provider,
+                "reranker_model": request.reranker_model,
+                "fused_query_count": len(
+                    {
+                        query
+                        for row in ordered_rows
+                        for query in row.get("matched_queries") or ()
+                    }
+                ),
+            },
+        )
+        result = EligibleCandidateSet(
+            candidate_set_id=candidate_set_id,
+            request_id=request.request_id,
+            scope=scope,
+            candidates=tuple(durable),
+            generation=generation,
+            expires_at=expires_at,
+            candidate_digest=candidate_digest,
+            audit_event_id=event_id,
+        )
+        self.store.put_protocol_candidate_set(
+            candidate_set_id,
+            subject_id=scope.subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            generation=generation,
+            expires_at=expires_at,
+            value=result.to_dict(),
+        )
+        return result
+
+    @_atomic
     def prepare_context_v1(self, request: Any) -> Any:
         """Serialize an authorized candidate subset into byte-stable context."""
         from atmem.contracts import ContextPackage, ContextRequest

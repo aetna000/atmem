@@ -1,6 +1,6 @@
 # AtMem 2.2 implementation status
 
-Updated: 30 August 2026
+Updated: 31 August 2026
 
 ## Implemented in the `atbot` development branch
 
@@ -20,13 +20,26 @@ Updated: 30 August 2026
   AtMem and AtBot remain separate wheels and processes with no runtime imports
   or direct database access across the boundary.
 - AtMem authorization before candidate delivery and record-ID revalidation afterward.
+- AtMem-owned AtBot service lifecycle with a pinned private runtime, private
+  configuration and logs, loopback-only start/stop supervision, status, doctor,
+  protocol/version checks, and actionable safe-fallback diagnostics.
+- The AtMem wheel now requires the exact AtBot version. First interactive use
+  offers local Ollama, custom local OpenAI-compatible AI, OpenRouter, OpenAI,
+  DeepSeek, xAI Grok, native Anthropic Claude, Hugging Face, custom HTTPS API,
+  or a remembered safe-fallback choice. Configuration retains only key
+  environment-variable names and drives remote candidate filtering.
 - Deterministic AtMem fallback when AtBot is absent, invalid, or times out.
 - One dark, chat-style AtMem dashboard with thinking state and provenance links.
+- Bare and partial CLI commands now guide the user to the next valid action;
+  the dashboard exposes the same AtBot provider, model, endpoint, lifecycle,
+  safe-fallback, and copyable CLI configuration controls.
 - AtBot standalone customer UI and public task/chat CLI modes removed.
 - Content-free AtBot query expansion feeding AtMem-authorized lexical,
   canonical fact-key, graph, and local-vector candidate fusion.
 - Generic and OpenClaw `control_prepare` now use that same governed hybrid
-  candidate path, AtBot ranking, final record-ID revalidation, and safe fallback.
+  candidate path, persist one durable generation-bound candidate set, allow
+  AtBot to rank only its IDs, and construct exact adapter bytes exclusively
+  through `prepare_context_v1()`.
 - Authenticated automatic capture now binds the original source in AtMem before
   accepting AtBot fact/entity proposals. AtMem alone creates the scope and
   source binding, strips ungrounded relationship IDs, and records the admission.

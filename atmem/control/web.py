@@ -85,9 +85,25 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, self.server.manager.status())
             return
         if path == "/api/companion/status":
-            from atmem.control.atbot_companion import AtBotCompanionClient
+            from atmem.control.atbot_service import AtBotServiceManager
 
-            self._json(HTTPStatus.OK, AtBotCompanionClient().health())
+            self._json(HTTPStatus.OK, AtBotServiceManager().status())
+            return
+        if path == "/api/companion/profiles":
+            from atmem.control.atbot_service import provider_profiles
+
+            self._json(
+                HTTPStatus.OK,
+                {
+                    "format": "atmem-atbot-provider-profiles-v1",
+                    "providers": provider_profiles(),
+                    "security": {
+                        "stores_api_keys": False,
+                        "remote_requires_https": True,
+                        "local_requires_loopback": True,
+                    },
+                },
+            )
             return
         if path == "/api/storage/preview":
             params = parse_qs(parsed.query)
@@ -425,6 +441,46 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     ),
                 )
                 return
+            if path == "/api/companion/configure":
+                from atmem.control.atbot_service import AtBotServiceManager
+
+                allowed = {"profile", "model", "endpoint", "api_key_env"}
+                if set(body) - allowed:
+                    raise ValueError("unsupported AtBot configuration fields")
+                service = AtBotServiceManager()
+                configured = service.configure(
+                    profile=str(body.get("profile") or "local-ollama"),
+                    model=str(body["model"]).strip() if body.get("model") is not None else None,
+                    endpoint=str(body["endpoint"]).strip() if body.get("endpoint") is not None else None,
+                    api_key_env=str(body["api_key_env"]).strip() if body.get("api_key_env") is not None else None,
+                    force=True,
+                )
+                self._json(
+                    HTTPStatus.OK,
+                    {"configured": configured, "status": service.status()},
+                )
+                return
+            if path == "/api/companion/action":
+                from atmem.control.atbot_service import AtBotServiceManager
+
+                if set(body) - {"action"}:
+                    raise ValueError("companion action accepts action only")
+                service = AtBotServiceManager()
+                action = str(body.get("action") or "")
+                if action == "start":
+                    result = service.start()
+                elif action == "stop":
+                    result = service.stop()
+                elif action == "restart":
+                    service.stop()
+                    result = service.start()
+                elif action == "skip":
+                    service.stop()
+                    result = service.skip_setup()
+                else:
+                    raise ValueError("action must be start, stop, restart, or skip")
+                self._json(HTTPStatus.OK, result)
+                return
             if path == "/api/memory/review":
                 record_id = str(body.get("record_id") or "").strip()
                 decision = str(body.get("decision") or "").strip()
@@ -511,7 +567,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 )
                 return
             self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
-        except (KeyError, TypeError, ValueError) as exc:
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
             self._json(HTTPStatus.CONFLICT, {"error": str(exc)})
 
     def log_message(self, format: str, *args: Any) -> None:

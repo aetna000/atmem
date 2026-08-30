@@ -64,6 +64,30 @@
     <p class="chatnote" id="memoryChatNote">Only authorized memory can be shown here.</p>
   </section>
 
+  <section class="card intelligenceconfig" id="intelligenceConfig" aria-labelledby="intelligenceConfigTitle">
+    <div class="intelligencehead">
+      <div><div class="eyebrow">Memory intelligence</div><h2 id="intelligenceConfigTitle">Configure AtBot</h2><p class="sub">Choose local AI, a hosted API, or safe fallback. AtMem remains the memory authority.</p></div>
+      <span class="statuspill" id="intelligenceStatus">Checking…</span>
+    </div>
+    <div class="intelligencefields">
+      <label class="field"><span>Provider</span><select id="intelligenceProvider" aria-label="AtBot provider"></select></label>
+      <label class="field"><span>Model</span><input id="intelligenceModel" autocomplete="off" placeholder="Model identifier"></label>
+      <label class="field wide"><span>Endpoint</span><input id="intelligenceEndpoint" autocomplete="url" spellcheck="false" placeholder="Loopback URL or HTTPS API base"></label>
+      <label class="field"><span>API-key environment variable</span><input id="intelligenceKeyEnv" autocomplete="off" spellcheck="false" placeholder="No key needed for local AI"></label>
+    </div>
+    <div class="intelligencesecurity"><b>Keys are not entered here.</b> Set the named environment variable before starting AtBot. Remote endpoints must use HTTPS; local endpoints stay on this computer.</div>
+    <div class="intelligenceactions">
+      <button class="primary" id="intelligenceSave" type="button">Save configuration</button>
+      <button class="secondary" id="intelligenceStart" type="button">Start AtBot</button>
+      <button class="secondary" id="intelligenceStop" type="button">Stop AtBot</button>
+      <button class="secondary" id="intelligenceSkip" type="button">Use safe fallback</button>
+    </div>
+    <div class="intelligenceguide">
+      <p id="intelligenceGuidance">Loading provider guidance…</p>
+      <code id="intelligenceCommand">atmem atbot setup</code><button class="secondary compact" id="intelligenceCopy" type="button">Copy CLI command</button>
+    </div>
+  </section>
+
   <div class="tabnav" role="tablist">
     <button class="tabbtn active" id="navStatus" type="button" role="tab" aria-selected="true"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Status</button>
     <button class="tabbtn" id="navDecisions" type="button" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg>Decisions<span class="navbadge" id="decisionsBadge" hidden>0</span></button>

@@ -545,6 +545,24 @@ control_turn_end
 control_status
 ```
 
+AtBot itself has a narrower AtMem-owned service lifecycle: pinned install,
+configure, start, stop, status, and doctor. Its versioned runtime, configuration,
+PID evidence, and logs live under AtMem's private root. Start is loopback-only,
+stop verifies process ownership before signaling, and doctor verifies the role,
+protocol version, absence of canonical storage, and safe AtMem fallback. Model
+downloads remain an explicit provider operation rather than a hidden install
+side effect.
+
+AtBot is a pinned required dependency of the AtMem distribution, but model
+choice remains explicit on first interactive dashboard use. The setup boundary
+offers local Ollama, any loopback OpenAI-compatible server, named hosted
+profiles, a custom HTTPS OpenAI-compatible API, or deterministic fallback.
+Hosted profiles store only an API-key environment-variable name, never the
+secret. Current named profiles cover OpenRouter, OpenAI, DeepSeek, xAI Grok,
+native Anthropic Claude, and Hugging Face Inference Providers. Choosing a
+hosted profile authorizes remote egress for eligible personal memory; AtMem
+still removes sensitive and restricted candidates before AtBot receives them.
+
 Required changes:
 
 - publish JSON schemas and protocol versions;

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from atbot.config import AtBotConfig
 from atbot.providers.base import ModelProvider
+from atbot.providers.anthropic import AnthropicProvider
 from atbot.providers.local import DeterministicLocalProvider
 from atbot.providers.pydantic_ai import PydanticAIProvider
 
@@ -16,6 +17,16 @@ class ModelRouter:
             if row.kind in {"ollama", "openai-compatible"}:
                 self._providers.append(
                     PydanticAIProvider(
+                        name=row.name,
+                        model=row.model,
+                        endpoint=row.endpoint,
+                        api_key_env=row.api_key_env,
+                        egress_class=row.egress_class,
+                    )
+                )
+            elif row.kind == "anthropic":
+                self._providers.append(
+                    AnthropicProvider(
                         name=row.name,
                         model=row.model,
                         endpoint=row.endpoint,

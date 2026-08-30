@@ -170,7 +170,11 @@ second agent product.
 - [x] Add natural-language governed-memory query to the AtMem dashboard.
 - [x] Apply the simple dark AtBot visual language without removing AtMem
   controls or evidence.
-- [ ] Make AtMem verify/install, configure, start, and diagnose a pinned AtBot.
+- [x] Make AtMem install, configure, start, stop, report status, and diagnose a
+  pinned AtBot in an AtMem-owned private runtime.
+- [x] Install the pinned AtBot package with AtMem by default and provide a
+  first-run local/API/skip setup flow with secretless provider profiles,
+  custom local and custom HTTPS endpoints, and egress-aware authorization.
 - [x] Preserve OpenClaw adapter behavior, shadow mode, multi-agent topology,
   activation, restore, bridge verification, and Black Box evidence.
 - [ ] Publish the same host-neutral adapter boundary for Hermes and others.
@@ -179,6 +183,9 @@ second agent product.
   retrieval.
 - [x] Prove `fav food` retrieves `likes burgers` without allowing AtBot to
   introduce an unauthorized record.
+- [x] Persist the fused hybrid result as one generation-bound candidate set,
+  pass only that set to AtBot, then serialize adapter context exclusively with
+  `prepare_context_v1()` for dashboard and `control_prepare` retrieval.
 
 ### Exit gate
 

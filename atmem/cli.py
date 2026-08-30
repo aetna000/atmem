@@ -6,7 +6,9 @@ import json
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
+from typing import Any
 
 from atmem.memory import Memory
 
@@ -23,13 +25,31 @@ def _installed_version() -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="atmem")
+    parser = argparse.ArgumentParser(
+        prog="atmem",
+        description="Governed memory and agent oversight, with optional AtBot intelligence.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Start here:
+  atmem atbot setup
+      Choose local AI, a hosted API, or the safe deterministic fallback.
+
+  atmem openclaw install
+      Connect OpenClaw in shadow mode, verify the bridge, and preserve restore.
+
+  atmem control shadow --host generic --memory-db ~/.atmem/memories.db
+      Connect another agent framework through the generic control contract.
+
+  atmem dashboard
+      Open the local memory, configuration, provenance, and agent-evidence UI.
+
+Run `atmem COMMAND --help` for command-specific examples.""",
+    )
     parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {_installed_version()}",
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command")
 
     openclaw_parser = subparsers.add_parser(
         "openclaw",
@@ -37,7 +57,6 @@ def main() -> None:
     )
     openclaw_commands = openclaw_parser.add_subparsers(
         dest="openclaw_command",
-        required=True,
     )
     openclaw_install = openclaw_commands.add_parser(
         "install",
@@ -64,7 +83,6 @@ def main() -> None:
     )
     openclaw_memory_commands = openclaw_memory.add_subparsers(
         dest="openclaw_memory_command",
-        required=True,
     )
     for name, help_text in (
         ("status", "Show native mirror, takeover, audit, and context-budget status"),
@@ -81,6 +99,91 @@ def main() -> None:
             command_parser.add_argument("query")
             command_parser.add_argument("--limit", type=int, default=50)
 
+    atbot_parser = subparsers.add_parser(
+        "atbot",
+        help="Choose and manage AtMem's pinned intelligence companion",
+        description="Configure AtBot without giving it memory authority or storing API keys.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Recommended:
+  atmem atbot setup
+
+Discover and verify:
+  atmem atbot providers
+  atmem atbot status
+  atmem atbot doctor
+
+Direct examples:
+  atmem atbot configure --provider local-ollama --model qwen3:4b
+  atmem atbot configure --provider openai --model gpt-5-mini
+  atmem atbot configure --provider openrouter --model anthropic/claude-sonnet-4.5
+
+For hosted APIs, export the key variable shown by `atmem atbot providers`.
+AtMem stores the variable name, never the key.""",
+    )
+    atbot_commands = atbot_parser.add_subparsers(dest="atbot_command")
+    for name, help_text in (
+        ("install", "Install the AtMem-pinned AtBot runtime"),
+        ("setup", "Choose local AI, a hosted API, or safe fallback interactively"),
+        ("providers", "List supported provider profiles and secure key variables"),
+        ("configure", "Configure a local or hosted intelligence provider"),
+        ("start", "Start the private loopback companion"),
+        ("stop", "Stop the AtMem-managed companion"),
+        ("restart", "Restart the AtMem-managed companion"),
+        ("status", "Show install, configuration, and runtime state"),
+        ("doctor", "Verify version, protocol, authority, and fallback safety"),
+    ):
+        command_parser = atbot_commands.add_parser(name, help=help_text)
+        command_parser.add_argument(
+            "--json", action="store_true", help="Print machine-readable JSON"
+        )
+        if name == "install":
+            command_parser.add_argument("--force", action="store_true")
+        if name == "configure":
+            from atmem.control.atbot_service import PROVIDER_PROFILES
+
+            command_parser.formatter_class = argparse.RawDescriptionHelpFormatter
+            command_parser.description = (
+                "Choose the model AtBot uses for extraction, query expansion, and ranking. "
+                "AtMem still authorizes every candidate and stores canonical memory."
+            )
+            command_parser.epilog = (
+                "Examples:\n"
+                "  atmem atbot configure --provider local-ollama --model qwen3:4b\n"
+                "  atmem atbot configure --provider openai --model gpt-5-mini\n"
+                "  atmem atbot configure --provider local-openai --endpoint http://127.0.0.1:8000/v1 --model my-model\n\n"
+                "For a hosted provider, export the profile's API-key variable before starting AtBot. "
+                "Run `atmem atbot providers` to see the expected variable names."
+            )
+
+            command_parser.add_argument(
+                "--provider",
+                choices=tuple(PROVIDER_PROFILES),
+                default="local-ollama",
+                help="Provider profile; run `atmem atbot providers` to compare them",
+            )
+            command_parser.add_argument(
+                "--model", default=None, help="Override the profile's model identifier"
+            )
+            command_parser.add_argument(
+                "--endpoint",
+                default=None,
+                help="Override the profile endpoint; remote endpoints must use HTTPS",
+            )
+            command_parser.add_argument(
+                "--api-key-env",
+                default=None,
+                help="Environment-variable name containing the API key; never the key itself",
+            )
+            command_parser.add_argument("--provider-kind", default=None, help=argparse.SUPPRESS)
+            command_parser.add_argument(
+                "--remote-egress-allowed",
+                action="store_true",
+                help="Explicitly allow a custom non-loopback endpoint",
+            )
+            command_parser.add_argument(
+                "--force", action="store_true", help="Replace the existing AtBot configuration"
+            )
+
     dashboard_parser = subparsers.add_parser(
         "dashboard",
         help="Run the local host-neutral memory, flight, audit, and switch UI",
@@ -93,7 +196,7 @@ def main() -> None:
         "daemon", help="Manage the dashboard as a background user service"
     )
     dashboard_daemon_commands = dashboard_daemon.add_subparsers(
-        dest="dashboard_daemon_command", required=True
+        dest="dashboard_daemon_command"
     )
     for name in ("start", "open", "stop", "restart", "status", "remove"):
         command_parser = dashboard_daemon_commands.add_parser(name)
@@ -202,7 +305,7 @@ def main() -> None:
         "index", help="Build and verify the optional semantic search index"
     )
     index_commands = index_parser.add_subparsers(
-        dest="index_command", required=True
+        dest="index_command"
     )
     index_build = index_commands.add_parser(
         "build", help="Build and activate a verified versioned index epoch"
@@ -473,7 +576,7 @@ def main() -> None:
         "control", help="Manage host-neutral shadowing, activation, evidence, and adapters"
     )
     control_commands = control_parser.add_subparsers(
-        dest="control_command", required=True
+        dest="control_command"
     )
     control_shadow = control_commands.add_parser(
         "shadow", help="Start safe observation without changing model context"
@@ -591,7 +694,7 @@ def main() -> None:
         help="Inspect tamper-evident agent flight records",
     )
     blackbox_commands = blackbox_parser.add_subparsers(
-        dest="blackbox_command", required=True
+        dest="blackbox_command"
     )
     for name, help_text in (
         ("status", "Show recorder coverage and evidence-chain integrity"),
@@ -638,19 +741,45 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    if args.command is None:
+        _print_cli_welcome(parser)
+        return
+
     if args.command == "openclaw":
+        if args.openclaw_command is None:
+            openclaw_parser.print_help()
+            return
+        if args.openclaw_command == "memory" and args.openclaw_memory_command is None:
+            openclaw_memory.print_help()
+            return
         _run_openclaw(args)
         return
 
+    if args.command == "atbot":
+        if args.atbot_command is None:
+            atbot_parser.print_help()
+            return
+        _run_atbot(args)
+        return
+
     if args.command == "dashboard":
+        if args.dashboard_command == "daemon" and args.dashboard_daemon_command is None:
+            dashboard_daemon.print_help()
+            return
         _run_dashboard(args)
         return
 
     if args.command == "control":
+        if args.control_command is None:
+            control_parser.print_help()
+            return
         _run_control(args)
         return
 
     if args.command == "blackbox":
+        if args.blackbox_command is None:
+            blackbox_parser.print_help()
+            return
         _run_blackbox(args)
         return
 
@@ -660,6 +789,9 @@ def main() -> None:
         return
 
     if args.command == "index":
+        if args.index_command is None:
+            index_parser.print_help()
+            return
         _run_index(args)
         return
 
@@ -1560,6 +1692,148 @@ def _emit_report(value: object, text: str, args: argparse.Namespace) -> None:
     output_path.write_text(rendered, encoding="utf-8")
 
 
+def _print_cli_welcome(parser: argparse.ArgumentParser) -> None:
+    del parser
+    print("AtMem — governed memory and agent oversight\n")
+    print("What do you want to do?\n")
+    print("  1. Set up memory intelligence")
+    print("     atmem atbot setup\n")
+    print("  2. Connect OpenClaw")
+    print("     atmem openclaw install\n")
+    print("  3. Connect another agent framework")
+    print("     atmem control shadow --host generic --memory-db ~/.atmem/memories.db\n")
+    print("  4. Open the dashboard")
+    print("     atmem dashboard\n")
+    print("  5. Check AtBot and its configured model")
+    print("     atmem atbot doctor\n")
+    print("AtMem starts safely: no memory injection is enabled until you explicitly activate it.")
+    print("Run `atmem --help` for every command or `atmem atbot` for provider examples.")
+
+
+def _run_atbot(args: argparse.Namespace) -> None:
+    from atmem.control.atbot_service import AtBotServiceManager, provider_profiles
+
+    manager = AtBotServiceManager()
+    command = args.atbot_command
+    try:
+        if command == "install":
+            result = manager.install(force=bool(args.force))
+        elif command == "setup":
+            result = _interactive_atbot_setup(manager)
+        elif command == "providers":
+            result = {"format": "atmem-atbot-provider-profiles-v1", "providers": provider_profiles()}
+        elif command == "configure":
+            result = manager.configure(
+                profile=args.provider,
+                model=args.model,
+                endpoint=args.endpoint,
+                provider_kind=args.provider_kind,
+                api_key_env=args.api_key_env,
+                remote_egress_allowed=(True if args.remote_egress_allowed else None),
+                force=bool(args.force),
+            )
+        elif command == "start":
+            result = manager.start()
+        elif command == "stop":
+            result = manager.stop()
+        elif command == "restart":
+            manager.stop()
+            result = manager.start()
+        elif command == "status":
+            result = manager.status()
+        elif command == "doctor":
+            result = manager.doctor()
+        else:  # pragma: no cover - argparse owns the command set
+            raise ValueError(f"unknown AtBot command: {command}")
+    except (OSError, RuntimeError, subprocess.CalledProcessError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True, default=str))
+        return
+    if command in {"configure", "setup"} and result.get("configured"):
+        print(f"AtBot configured: {result['config_path']}")
+        provider = result["config"]["providers"][0]
+        print(f"Provider: {result['profile']} · model {provider['model']}")
+        for action in result.get("setup_actions") or []:
+            print(action)
+    elif command == "providers":
+        for name, value in result["providers"].items():
+            key = value.get("api_key_env") or "no API key"
+            print(f"{name}: {value['label']} · {value.get('model') or 'model required'} · {key}")
+    elif command == "install":
+        print(f"AtBot {result['version']} installed: {result['executable']}")
+    else:
+        state = "ready" if result.get("available") else "safe AtMem fallback"
+        print(f"AtBot intelligence: {state}")
+        if result.get("installed_version"):
+            print(f"Runtime: {result['installed_version']} (pinned {result['pinned_version']})")
+        for action in result.get("setup_actions") or []:
+            print(action)
+
+
+def _interactive_atbot_setup(manager: Any) -> dict[str, Any]:
+    from atmem.control.atbot_service import PROVIDER_PROFILES
+
+    print("\nAtBot intelligence setup")
+    print("Memory stays under AtMem authority. API keys are never stored by AtMem.")
+    print("1. Local Ollama (recommended, private)")
+    print("2. Custom local AI server (LM Studio, vLLM, llama.cpp, LocalAI)")
+    print("3. Hosted API")
+    print("4. Skip for now (safe deterministic fallback)")
+    try:
+        choice = input("Choose [1]: ").strip() or "1"
+    except EOFError:
+        choice = "4"
+    if choice == "4":
+        return manager.skip_setup()
+    if choice == "1":
+        default = PROVIDER_PROFILES["local-ollama"]["model"]
+        model = input(f"Local model [{default}]: ").strip() or str(default)
+        return manager.configure(profile="local-ollama", model=model, force=True)
+    if choice == "2":
+        default = PROVIDER_PROFILES["local-openai"]
+        endpoint = input(f"OpenAI-compatible base URL [{default['endpoint']}]: ").strip() or str(default["endpoint"])
+        model = input(f"Model name [{default['model']}]: ").strip() or str(default["model"])
+        return manager.configure(
+            profile="local-openai", endpoint=endpoint, model=model, force=True
+        )
+    if choice != "3":
+        raise ValueError("choose 1, 2, 3, or 4")
+    remote_names = [
+        "openrouter",
+        "openai",
+        "deepseek",
+        "xai",
+        "anthropic",
+        "huggingface",
+        "custom-api",
+    ]
+    for index, name in enumerate(remote_names, 1):
+        print(f"{index}. {PROVIDER_PROFILES[name]['label']}")
+    selected = input("Hosted provider [1]: ").strip() or "1"
+    try:
+        profile = remote_names[int(selected) - 1]
+    except (ValueError, IndexError) as exc:
+        raise ValueError("choose a listed hosted provider") from exc
+    defaults = PROVIDER_PROFILES[profile]
+    endpoint = str(defaults["endpoint"])
+    if not endpoint:
+        endpoint = input("HTTPS OpenAI-compatible base URL: ").strip()
+    default_model = str(defaults["model"])
+    model_prompt = f"Model name [{default_model}]: " if default_model else "Model name: "
+    model = input(model_prompt).strip() or default_model
+    default_env = str(defaults["api_key_env"])
+    key_env = input(f"API-key environment variable [{default_env}]: ").strip() or default_env
+    return manager.configure(
+        profile=profile,
+        endpoint=endpoint,
+        model=model,
+        api_key_env=key_env,
+        force=True,
+    )
+
+
 def _run_dashboard(args: argparse.Namespace) -> None:
     if args.dashboard_command == "daemon":
         from atmem.dashboard_daemon import manage_dashboard_daemon
@@ -1612,9 +1886,13 @@ def _serve_dashboard(
     manager = ControlPlaneManager(state_path or DEFAULT_STATE_PATH)
     # Fail before opening a port if no valid migration exists.
     manager.state()
-    from atmem.control.atbot_companion import AtBotCompanionClient
+    from atmem.control.atbot_service import AtBotServiceManager
 
-    companion = AtBotCompanionClient().ensure_running()
+    atbot_manager = AtBotServiceManager()
+    companion_status = atbot_manager.status()
+    if companion_status.get("setup_pending") and sys.stdin.isatty():
+        _interactive_atbot_setup(atbot_manager)
+    companion = atbot_manager.ensure_running()
     server = ControlDashboardServer(
         ("127.0.0.1", port),
         manager,

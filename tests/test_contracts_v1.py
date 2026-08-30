@@ -171,3 +171,42 @@ def test_cross_workspace_source_and_candidate_reuse_fails_closed(tmp_path) -> No
     with pytest.raises(ValueError, match="outside the authority scope"):
         memory.submit_proposal(proposal)
     memory.close()
+
+
+def test_fused_candidate_set_is_durable_and_generation_bound(tmp_path) -> None:
+    memory = Memory(tmp_path / "memory.db")
+    _, captured = _capture(memory)
+    admitted = memory.submit_proposal(_proposal(captured.source_sha256))
+    request = RecallRequest(
+        request_id="fused-recall-1",
+        scope=_scope(),
+        query="What seat do I prefer?",
+        min_score=0.0,
+    )
+    candidate_set = memory.create_candidate_set_v1(
+        request,
+        [
+            {
+                "record_id": admitted.record_ids[0],
+                "content": "User prefers aisle seats.",
+                "score": 0.91,
+                "matched_queries": ["seat preference", "preferred booking"],
+                "signals": {"semantic": True},
+            }
+        ],
+    )
+    assert candidate_set.candidates[0].signals["matched_queries"] == [
+        "seat preference",
+        "preferred booking",
+    ]
+    memory.forget_record("user-1", admitted.record_ids[0])
+    with pytest.raises(ValueError, match="invalidated by a memory change"):
+        memory.prepare_context_v1(
+            ContextRequest(
+                context_id="stale-context",
+                candidate_set_id=candidate_set.candidate_set_id,
+                scope=_scope(),
+                record_ids=admitted.record_ids,
+            )
+        )
+    memory.close()

@@ -286,6 +286,25 @@ AtMem and its separately packaged AtBot companion share this repository. They
 remain separate processes and communicate only through the loopback companion
 protocol; neither package imports the other's runtime code.
 
+On the 2.2 development branch, installing AtMem also installs the exactly
+pinned AtBot companion. Model setup remains an explicit user decision:
+
+```bash
+atmem atbot setup       # interactive local, hosted API, custom, or skip choice
+atmem atbot providers   # list profiles, defaults, and API-key environment names
+atmem atbot doctor      # verify runtime, provider, protocol, and safe fallback
+```
+
+The dashboard exposes the same provider, model, endpoint, start, stop, and safe
+fallback controls beside the governed-memory chat. It also shows the equivalent
+CLI command, so a user can switch between the UI and terminal without reading a
+separate setup guide. Local choices include Ollama and any loopback
+OpenAI-compatible server. Hosted profiles include OpenRouter, OpenAI, DeepSeek,
+xAI Grok, Anthropic Claude, Hugging Face, and a custom HTTPS OpenAI-compatible
+endpoint. Configuration stores only the environment-variable name containing a
+key; it never stores the key itself. Choosing **Use safe fallback** is remembered
+and leaves AtMem's deterministic local ranking active.
+
 ```bash
 python -m pip install -e '.[dev]' -e './packages/atbot[dev]'
 python -m pytest -q

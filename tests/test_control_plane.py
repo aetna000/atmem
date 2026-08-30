@@ -502,6 +502,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import atmem.openclaw_install
+    from atmem.control.atbot_service import AtBotServiceManager
     from atmem.control.web import ControlDashboardServer
 
     monkeypatch.setattr(
@@ -516,6 +517,14 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
                 "valid": True,
             },
         },
+    )
+    atbot_service = AtBotServiceManager(tmp_path / "atbot")
+    monkeypatch.setattr(
+        "atmem.control.atbot_service.AtBotServiceManager", lambda: atbot_service
+    )
+    monkeypatch.setattr(
+        "atmem.control.atbot_companion.AtBotCompanionClient.health",
+        lambda self: {"available": False, "reason": "not started"},
     )
     monkeypatch.setattr(
         atmem.openclaw_install,
@@ -545,6 +554,31 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         assert product["atmem_pip_version"]
         assert product["atmem_npm_version"] == "2.1.0"
         assert product["x_url"] == "https://x.com/AtMemX"
+        profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
+        assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])
+        assert profiles["security"]["stores_api_keys"] is False
+        setup_session = json.loads(opener.open(f"{base}/api/session").read())
+        configure = Request(
+            f"{base}/api/companion/configure",
+            data=json.dumps(
+                {
+                    "profile": "openai",
+                    "model": "gpt-5-mini",
+                    "endpoint": "https://api.openai.com/v1",
+                    "api_key_env": "OPENAI_API_KEY",
+                }
+            ).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base,
+                "X-CSRF-Token": setup_session["csrf_token"],
+            },
+            method="POST",
+        )
+        configured = json.loads(opener.open(configure).read())
+        assert configured["status"]["provider"]["name"] == "openai"
+        assert "csrf_token" not in json.dumps(configured)
+        assert "OPENAI_API_KEY" in atbot_service.config_path.read_text(encoding="utf-8")
         bridge_status = json.loads(
             opener.open(f"{base}/api/bridge/status").read()
         )
@@ -773,8 +807,11 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
     known = {
         "/api/session",
         "/api/product",
-            "/api/status",
-            "/api/companion/status",
+        "/api/status",
+        "/api/companion/status",
+        "/api/companion/profiles",
+        "/api/companion/configure",
+        "/api/companion/action",
         "/api/storage/preview",
         "/api/mode",
         "/api/restore",
@@ -784,8 +821,8 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/bridge/refresh-test",
         "/api/memory/reviews",
         "/api/memory/review",
-            "/api/memory/search",
-            "/api/memory/query",
+        "/api/memory/search",
+        "/api/memory/query",
         "/api/memory/sync",
         "/api/memory/record",
         "/api/memory/provenance",

@@ -8,6 +8,9 @@ import tomllib
 from atbot.cli import _parser
 from atbot.companion import CompanionRuntime
 from atbot.config import AtBotConfig
+from atbot.config import ProviderConfig
+from atbot.providers.anthropic import AnthropicProvider
+from atbot.providers.router import ModelRouter
 
 
 def companion() -> CompanionRuntime:
@@ -18,8 +21,32 @@ def test_public_companion_has_no_independent_agent_or_storage() -> None:
     capabilities = companion().capabilities()
 
     assert capabilities["role"] == "atmem-intelligence-companion"
+    assert capabilities["protocol_version"] == "1"
+    assert capabilities["version"]
     assert capabilities["independent_agent"] is False
     assert capabilities["canonical_storage"] is False
+
+
+def test_router_supports_native_anthropic_without_changing_authority(monkeypatch) -> None:
+    monkeypatch.setattr(AnthropicProvider, "available", lambda self: True)
+    router = ModelRouter(
+        AtBotConfig(
+            remote_egress_allowed=True,
+            providers=[
+                ProviderConfig(
+                    name="anthropic",
+                    kind="anthropic",
+                    model="claude-sonnet-4-5",
+                    endpoint="https://api.anthropic.com/v1",
+                    api_key_env="ANTHROPIC_API_KEY",
+                    egress_class="remote",
+                )
+            ],
+        )
+    )
+    selected = router.select(remote=True)
+    assert isinstance(selected, AnthropicProvider)
+    assert selected.egress_class == "remote"
 
 
 def test_removed_authority_and_agent_modules_are_not_packaged() -> None:

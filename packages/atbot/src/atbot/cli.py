@@ -9,12 +9,14 @@ import sys
 
 from atbot.companion import CompanionRuntime
 from atbot.config import DEFAULT_CONFIG, AtBotConfig, ProviderConfig, load_config, save_config
+from atbot import __version__
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="atbot", description="Headless local-first intelligence companion for AtMem"
     )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--config", default=str(DEFAULT_CONFIG))
     commands = parser.add_subparsers(dest="command", required=True)
     init = commands.add_parser("init", help="Configure the local AtMem companion")
