@@ -5,6 +5,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "files": [
+    "LICENSE",
     "dist",
     "openclaw.plugin.json",
     "README.md"
@@ -26,7 +27,7 @@
   "bugs": {
     "url": "https://github.com/aetna000/atmem/issues"
   },
-  "license": "AGPL-3.0-only",
+  "license": "Apache-2.0",
   "publishConfig": {
     "access": "public"
   },
