@@ -16,6 +16,9 @@ Updated: 30 August 2026
 - Safe vector handling across OpenClaw's staged mirror installation and deletion.
 - Dashboard storage visibility, human-readable provenance, search, and user actions.
 - Headless AtBot companion boundary with loopback health and governed-memory query.
+- AtBot source consolidated under `packages/atbot` with its history preserved;
+  AtMem and AtBot remain separate wheels and processes with no runtime imports
+  or direct database access across the boundary.
 - AtMem authorization before candidate delivery and record-ID revalidation afterward.
 - Deterministic AtMem fallback when AtBot is absent, invalid, or times out.
 - One dark, chat-style AtMem dashboard with thinking state and provenance links.

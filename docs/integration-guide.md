@@ -86,6 +86,20 @@ LangChain agents running on LangGraph. See the
 [framework adapter guide](framework-adapters.md) for installation, identity,
 capture, injection, exposure, tool, failure, and multi-agent examples.
 
+## AtBot intelligence companion
+
+AtBot is maintained in this repository under `packages/atbot`, but ships as a
+separate process and wheel so model-framework dependencies never enter AtMem's
+authority runtime:
+
+```bash
+python -m pip install 'atmem[atbot]'
+```
+
+AtMem discovers and calls AtBot over its loopback companion protocol. AtBot
+does not import AtMem or open its database, and AtMem retains deterministic
+capture and hybrid-retrieval fallback when the companion is unavailable.
+
 ## Building another host adapter
 
 A complete adapter must implement:

@@ -25,6 +25,21 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - run: python -m pytest -q
 
+  atbot-tests:
+    name: AtBot Python ${{ matrix.python-version }} tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install -e "./packages/atbot[dev]"
+      - run: python -m pytest -q packages/atbot/tests
+
   openclaw-plugin:
     name: OpenClaw plugin checks
     runs-on: ubuntu-latest
@@ -63,7 +78,7 @@ jobs:
 
   build:
     name: Build release artifacts
-    needs: [unit-tests, openclaw-plugin]
+    needs: [unit-tests, atbot-tests, openclaw-plugin]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -89,15 +104,49 @@ jobs:
               raise SystemExit(f"release tag {actual!r} must equal {expected!r}")
           PY
       - name: Build distributions
-        run: python -m build
+        run: |
+          python -m build
+          python -m build packages/atbot --outdir atbot-dist
       - name: Check distributions
-        run: python -m twine check dist/*
+        run: |
+          python -m twine check dist/*
+          python -m twine check atbot-dist/*
       - name: Rebuild wheel from source distribution
-        run: python -m pip wheel --no-deps --wheel-dir rebuilt dist/*.tar.gz
+        run: |
+          python -m pip wheel --no-deps --wheel-dir rebuilt dist/*.tar.gz
+          python -m pip wheel --no-deps --wheel-dir atbot-rebuilt atbot-dist/*.tar.gz
       - uses: actions/upload-artifact@v4
         with:
           name: release-distributions
           path: dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: atbot-release-distributions
+          path: atbot-dist/
+
+  installed-atbot-wheel:
+    name: AtBot Python ${{ matrix.python-version }} installed wheel
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: atbot-release-distributions
+          path: atbot-dist
+      - name: Install and exercise AtBot wheel
+        run: |
+          python -m pip install atbot-dist/*.whl
+          python -m pip check
+          cd "$RUNNER_TEMP"
+          python -c "from atbot.companion import CompanionRuntime; from atbot.config import AtBotConfig; assert CompanionRuntime(AtBotConfig(providers=[])).capabilities()['canonical_storage'] is False"
 
   installed-wheel:
     name: Python ${{ matrix.python-version }} installed wheel

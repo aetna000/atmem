@@ -29,6 +29,3 @@ idea.md
 node_modules/
 integrations/openclaw/dist/
 integrations/openclaw/*.tgz
-
-# AtBot is developed as an independent repository in this workspace.
-/atbot/

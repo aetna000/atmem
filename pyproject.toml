@@ -35,6 +35,9 @@ dev = [
 semantic = [
   "sentence-transformers>=5.0.0,<6.0.0",
 ]
+atbot = [
+  "atbot==0.1.0a1",
+]
 pydantic-ai = [
   "pydantic-ai-slim>=2.0,<3",
 ]

@@ -12,8 +12,9 @@ reasoning, prompts, or agent orchestration into AtMem.
 
 AtMem is the public product name, Python package, and CLI name used by this
 repository. The current `main` branch ships AtMem 2.1.0; “AtMem 2.2” in this
-document means the planned next authority-contract release. AtBot is a separate
-consumer product, not a rename of AtMem.
+document means the planned next authority-contract release. AtBot is a
+separately packaged internal companion in this repository, not a rename of
+AtMem or an independent customer product.
 
 ## Product boundary
 
@@ -29,22 +30,22 @@ AtMem owns truth:
 
 AtBot owns intelligence:
 
-- recent-conversation context assembly;
 - local and remote model providers;
 - model-backed fact and entity extraction;
 - ambiguity and contradiction analysis;
 - semantic reranking and model routing;
-- agent loops, tools, skills, workers, and user interaction.
+- content-free query expansion and bounded memory-maintenance proposals.
 
 AtMem must not depend on Pydantic AI, LangChain, LangGraph, or a particular
-model provider. AtBot must not write directly to AtMem SQLite tables.
+model provider. AtBot must not import AtMem, open AtMem SQLite tables, or own
+authority identity.
 
 ### Approved product direction
 
 AtBot is only the intelligent companion of AtMem. It supplies extraction,
 entity and relationship proposals, query expansion, reranking, and bounded
 memory maintenance. It is not an independent customer-facing agent, even if
-its internal framework retains agent capabilities for memory work.
+its providers use an agent framework for structured inference.
 
 AtMem and AtBot form one agent-agnostic memory product. The AtBot interface is
 merged into the AtMem dashboard as natural-language memory query. The unified
@@ -55,6 +56,22 @@ audit, Safe Switch, and restore functionality.
 OpenClaw remains the first maintained adapter. Hermes and other runtimes use
 the same host-neutral contracts. Adapter-specific behavior must not enter the
 AtMem core or AtBot intelligence policy.
+
+### Source and deployment boundary
+
+AtMem and AtBot use one repository so protocol, tests, documentation, and
+compatible releases can change atomically. They remain two Python packages and
+two processes:
+
+```text
+atmem authority process
+  -> versioned loopback companion protocol
+  -> atbot intelligence process
+```
+
+AtMem's wheel contains no AtBot provider code. AtBot's wheel contains no AtMem
+authority code. A clean AtMem installation remains safe without AtBot, while
+`atmem[atbot]` installs the pinned compatible companion distribution.
 
 ## Identity and scope semantics
 

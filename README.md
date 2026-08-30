@@ -282,9 +282,14 @@ system-of-record verification.
 
 ## Development verification
 
+AtMem and its separately packaged AtBot companion share this repository. They
+remain separate processes and communicate only through the loopback companion
+protocol; neither package imports the other's runtime code.
+
 ```bash
-python -m pip install -e '.[dev]'
-pytest -q
+python -m pip install -e '.[dev]' -e './packages/atbot[dev]'
+python -m pytest -q
+python -m pytest -q packages/atbot/tests
 
 cd integrations/openclaw
 npm ci

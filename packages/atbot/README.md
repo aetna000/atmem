@@ -17,7 +17,7 @@ adapters into the same AtMem authority contracts.
 During joint development, install both packages editable:
 
 ```bash
-python -m pip install -e ..
+python -m pip install -e ../..
 python -m pip install -e ".[dev]"
 ```
 
@@ -35,7 +35,7 @@ Run the suites from the AtMem repository root:
 
 ```bash
 python -m pytest -q
-python -m pytest -q atbot/tests
+python -m pytest -q packages/atbot/tests
 ```
 
 See [the companion specification](research/research.md) and

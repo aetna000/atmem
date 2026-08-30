@@ -25,6 +25,10 @@ AtMem exposes a stable, provider-neutral authority API that lets AtBot:
 AtMem will not run an LLM, own an agent loop, or depend on Pydantic AI. AtBot
 owns intelligence; AtMem owns canonical memory and memory authority.
 
+Source is maintained as a monorepo under `packages/atbot`, but distribution and
+runtime boundaries remain separate. CI builds an `atmem` wheel and an `atbot`
+wheel independently and exercises their loopback protocol together.
+
 The AtBot chat-style interface is merged into the AtMem dashboard as governed
 memory query. The dashboard adopts the simpler dark visual language while
 preserving shadow mode, multi-agent topology, review, provenance, storage,
