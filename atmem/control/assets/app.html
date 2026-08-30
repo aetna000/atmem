@@ -27,6 +27,26 @@
     <div class="progressbar" aria-hidden="true"><span></span></div>
   </div>
 
+  <section class="memorychat" id="memoryChat" aria-labelledby="memoryChatTitle">
+    <div class="memorychathead">
+      <div><div class="eyebrow">Ask governed memory</div><h1 id="memoryChatTitle">What should AtMem remember?</h1><p>AtMem authorizes the candidates. AtBot helps rank and explain them.</p></div>
+      <span class="companionchip" id="companionChip"><i></i><span id="companionLabel">Checking AtBot…</span></span>
+    </div>
+    <div class="chatmessages" id="memoryChatMessages" aria-live="polite">
+      <div class="chatmessage assistant"><p>Ask a question about the memory AtMem governs.</p></div>
+    </div>
+    <div class="chatsuggestions" aria-label="Example memory questions">
+      <button type="button" data-memory-question="What do you remember about me?">What do you remember about me?</button>
+      <button type="button" data-memory-question="What are my preferences?">What are my preferences?</button>
+      <button type="button" data-memory-question="What do you remember about Paris?">What do you remember about Paris?</button>
+    </div>
+    <form class="chatcomposer" id="memoryChatForm">
+      <textarea id="memoryChatInput" rows="1" maxlength="1000" placeholder="Ask AtMem…" aria-label="Ask governed memory"></textarea>
+      <button class="primary" id="memoryChatSend" type="submit">Ask</button>
+    </form>
+    <p class="chatnote" id="memoryChatNote">Only authorized memory can be shown here.</p>
+  </section>
+
   <div class="tabnav" role="tablist">
     <button class="tabbtn active" id="navStatus" type="button" role="tab" aria-selected="true">Status</button>
     <button class="tabbtn" id="navDecisions" type="button" role="tab" aria-selected="false">Decisions<span class="navbadge" id="decisionsBadge" hidden>0</span></button>
@@ -44,14 +64,38 @@
 
   <div class="metrics">
     <div class="metric"><b class="mono" id="sourceCount">—</b><span id="sourceCountLabel">memory sources</span></div>
-    <div class="metric"><b class="mono" id="recordCount">—</b><span>searchable memories</span></div>
+    <div class="metric"><b class="mono" id="recordCount">—</b><span id="recordCountLabel">searchable records</span></div>
     <div class="metric"><b class="mono" id="sourceBytes">—</b><span id="sourceBytesLabel">source bytes preserved</span></div>
     <div class="metric"><b id="verified">—</b><span>memory verification</span></div>
   </div>
 
+  <section class="card recordbreakdown" id="recordBreakdownCard">
+    <div class="recordbreakdownhead"><div><div class="eyebrow">What the count means</div><h2>Searchable records by purpose</h2><p class="sub">Source fragments are searchable, but agent instructions and templates are not presented as human memories.</p></div><button class="secondary" id="browseRecords" type="button">Search records</button></div>
+    <div class="recordcategories" id="recordCategories"><div class="empty">Loading record categories…</div></div>
+  </section>
+
+  <section class="card storageoverview" id="storageOverview">
+    <div class="storagehead"><div><div class="eyebrow">Local data</div><h2>Storage locations</h2><p class="sub">Hover over a store to reveal its full path, then copy it to browse on this computer.</p></div><span class="storagecount" id="storageCount">— stores</span></div>
+    <div class="storagegrid" id="storageGrid"><div class="activityempty">Loading storage locations…</div></div>
+    <div class="storagediagram" id="storageDiagram" aria-label="How AtMem storage is related">
+      <h3>How the stores relate</h3>
+      <div class="storageflow">
+        <div class="flownode input"><b>Agent and native sources</b><span>Governed ingestion</span></div><div class="flowarrow"><span>verified input</span>↓</div>
+        <div class="flownode authority"><b>Canonical memory</b><span>Source of truth: memory, provenance and lifecycle</span></div>
+        <div class="flowbranches"><div><span>shares the same SQLite file</span>↙</div><div><span>builds a disposable index</span>↘</div></div>
+        <div class="flowtargets"><div class="flownode shared"><b>Entity graph</b><span>Entities and relationships</span></div><div class="flownode derived"><b>Semantic vectors</b><span>Rebuildable retrieval index</span></div></div>
+        <div class="flowarrow audit"><span>control decisions and verification are recorded separately</span>↓</div><div class="flownode evidence"><b>Audit evidence</b><span>Governance history and integrity proofs</span></div>
+      </div>
+    </div>
+    <section class="storagebrowser" id="storageBrowser" hidden>
+      <div class="storagebrowserhead"><div><div class="eyebrow">Storage browser</div><h3 id="storageBrowserTitle">Contents</h3><p class="sub" id="storageBrowserSummary"></p></div><button class="secondary" id="storageBrowserClose" type="button">Close</button></div>
+      <div class="storagecontents" id="storageContents"></div>
+    </section>
+  </section>
+
   <section class="card agentoverview" id="agentOverview">
-    <div class="agentoverviewhead"><div><div class="eyebrow">Persistent agent coverage</div><h2>Agents &amp; workspaces</h2><p class="sub">Which agents share memory, which are isolated, and whether every workspace is verified.</p></div><div class="agentcounts"><div class="agentcount"><b id="agentCount">—</b><span>agents detected</span></div><div class="agentcount"><b id="workspaceCount">—</b><span>workspaces</span></div></div><button class="secondary" id="agentRefresh" type="button">Refresh status</button></div>
-    <div class="agentstatus" id="agentCoverageStatus"><span class="statusicon" id="agentCoverageIcon">…</span><div><b id="agentCoverageHeadline">Checking agent coverage…</b><span id="agentCoverageDetail">Reading the runtime’s persistent-agent topology.</span></div></div>
+    <div class="agentoverviewhead"><div><div class="eyebrow">Persistent agent coverage</div><h2>Agents &amp; workspaces</h2><p class="sub">Which agents share memory, which are isolated, and whether every workspace is verified.</p></div><div class="agentcounts"><div class="agentcount"><b id="agentCount">—</b><span>agents detected</span></div><div class="agentcount"><b id="workspaceCount">—</b><span>workspaces</span></div></div></div>
+    <div class="agentstatus" id="agentCoverageStatus"><span class="statusicon" id="agentCoverageIcon">…</span><div class="agentstatuscopy"><b id="agentCoverageHeadline">Checking agent coverage…</b><span id="agentCoverageDetail">Reading the runtime’s persistent-agent topology.</span></div><div class="agentstatusactions" id="agentCoverageActions" hidden><button class="primary" id="agentTopologySync" type="button">Sync agents &amp; memory</button><button class="secondary" id="agentTopologyCheck" type="button">Check again</button></div></div>
     <div class="agentmap" id="agentMap"><div class="activityempty">Loading agents…</div></div>
   </section>
 
@@ -119,6 +163,12 @@
     <div class="search">
       <input id="query" placeholder="For example: TypeScript preference" autocomplete="off">
       <button class="primary" id="searchBtn">Search</button>
+    </div>
+    <div class="memoryfilters" aria-label="Memory filters">
+      <label>Status<select id="memoryStatus"><option value="">Any status</option><option value="active">Active</option><option value="quarantined">Awaiting approval</option><option value="superseded">Replaced</option></select></label>
+      <label>Source<select id="memorySource"><option value="">Any source</option><option value="conversation">Conversation</option><option value="file">File</option><option value="website">Website</option><option value="tool">Tool</option><option value="system">System</option></select></label>
+      <label>Created by<select id="memoryMethod"><option value="">Any method</option><option value="copied">Copied</option><option value="rule_extraction">Rules</option><option value="model_inference">Model inference</option><option value="imported">Import</option></select></label>
+      <label>Order<select id="memorySort"><option value="rank">Best match</option><option value="newest">Newest learned</option><option value="oldest">Oldest learned</option><option value="used">Most recently used</option></select></label>
     </div>
     <div class="results" id="results"><div class="empty">Enter a question to inspect memory.</div></div>
   </section>

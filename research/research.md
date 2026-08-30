@@ -39,6 +39,23 @@ AtBot owns intelligence:
 AtMem must not depend on Pydantic AI, LangChain, LangGraph, or a particular
 model provider. AtBot must not write directly to AtMem SQLite tables.
 
+### Approved product direction
+
+AtBot is only the intelligent companion of AtMem. It supplies extraction,
+entity and relationship proposals, query expansion, reranking, and bounded
+memory maintenance. It is not an independent customer-facing agent, even if
+its internal framework retains agent capabilities for memory work.
+
+AtMem and AtBot form one agent-agnostic memory product. The AtBot interface is
+merged into the AtMem dashboard as natural-language memory query. The unified
+dashboard adopts AtBot's simple dark chat language while preserving AtMem's
+shadow mode, multi-agent topology, storage, review, provenance, deletion,
+audit, Safe Switch, and restore functionality.
+
+OpenClaw remains the first maintained adapter. Hermes and other runtimes use
+the same host-neutral contracts. Adapter-specific behavior must not enter the
+AtMem core or AtBot intelligence policy.
+
 ## Identity and scope semantics
 
 Every authority decision uses the complete scope tuple:
@@ -77,6 +94,137 @@ The existing Safe Switch and OpenClaw integration remain supported. OpenClaw
 becomes the first reference host adapter for the versioned runtime hooks in
 capability 8: its copy, shadow, verify, activate, and restore guarantees are
 preserved while its host-specific calls move behind the generic contract.
+
+## Normative OpenClaw companion flows
+
+The existing OpenClaw–AtMem adapter remains the host boundary. OpenClaw remains
+the primary agent, AtMem remains the memory authority, and AtBot runs as AtMem's
+intelligence companion. AtBot must not replace the adapter, become a second
+authority, or become a required dependency for safe baseline recall.
+
+There are two distinct paths: automatic storage, and retrieval with return
+injection.
+
+### Automatic storage
+
+```text
+OpenClaw user message
+  -> existing OpenClaw–AtMem adapter
+  -> AtMem captures the authenticated source
+  -> AtBot extracts proposed facts, entities, and relationships
+  -> AtBot submits typed proposals to AtMem
+  -> AtMem admits, quarantines, or rejects each proposal
+  -> AtMem projects admitted memory into canonical, graph, and vector storage
+```
+
+The model used by AtBot cannot approve its own extraction. AtMem binds every
+proposal to the authenticated source, applies scope and lifecycle policy, and
+owns the resulting canonical state.
+
+### Retrieval, injection, and return path
+
+Retrieval requires an explicit return path to the primary agent:
+
+```text
+User asks OpenClaw
+  -> existing OpenClaw–AtMem adapter sends:
+       query + subject + agent + workspace
+  -> AtMem checks scope and permissions
+  -> AtMem searches lexical + graph + vector storage
+  -> AtMem removes inaccessible, deleted, excluded, and sensitive candidates
+  -> AtBot receives only eligible candidates
+  -> AtBot reranks, expands relationships, and selects useful memories
+  -> AtMem revalidates AtBot's selected record IDs
+  -> AtMem creates a byte-stable authorized context package
+  -> existing adapter injects that context into OpenClaw
+  -> OpenClaw generates the answer
+  -> adapter confirms which exact context was delivered
+  -> AtMem records retrieval, exposure, and response evidence
+  -> answer returns to the user
+```
+
+The critical security boundary is:
+
+```text
+AtMem authorization
+  before
+AtBot sees candidate content
+```
+
+AtBot cannot introduce a memory that AtMem did not provide. AtBot returns
+rankings and selections over eligible record IDs only:
+
+```text
+AtMem -> [memory A, memory B, memory C]
+AtBot -> [memory C, memory A]
+AtMem -> verifies C and A are still eligible
+AtMem -> produces final authorized context
+```
+
+AtMem must revalidate scope, lifecycle, sensitivity, egress, membership,
+generation, exclusion, and budget after AtBot returns a ranking. A stale or
+hostile AtBot response must not introduce an ineligible record.
+
+### Query expansion before content access
+
+AtBot may help before candidate retrieval without receiving private memory
+content. For example:
+
+```text
+Original query: "What cars do I like?"
+
+AtBot query expansion:
+  - car preference
+  - preferred vehicle
+  - favorite automobile
+```
+
+AtMem runs those expansions under its own scope and authority policy. Query
+expansion grants no additional access and does not bypass candidate filtering.
+
+### AtBot-unavailable fallback
+
+AtBot improves inference and retrieval quality but is not a single point of
+failure. If AtBot is unavailable, times out, or returns an invalid result, the
+adapter and AtMem continue through the safe degraded path:
+
+```text
+OpenClaw query
+  -> existing adapter
+  -> AtMem lexical + graph + local-vector ranking
+  -> AtMem authorized byte-stable context
+  -> existing adapter injects context into OpenClaw
+  -> OpenClaw returns the answer
+  -> AtMem records the exposure receipt
+```
+
+Failure of AtBot must reduce intelligence, not weaken authorization, switch to
+an undeclared remote provider, corrupt canonical memory, or stop OpenClaw from
+using AtMem's verified baseline capabilities.
+
+### Mandatory semantic query path
+
+Natural-language memory questions must not depend on literal word overlap. The
+dashboard and every agent adapter use the same governed hybrid path:
+
+1. AtBot receives only the query and returns bounded, content-free expansions.
+2. AtMem resolves subject, agent, and workspace authority.
+3. AtMem searches lexical text, canonical fact keys, graph relationships, and
+   the active local vector index for the original query and its expansions.
+4. AtMem removes inaccessible, inactive, excluded, and sensitive candidates.
+5. AtBot receives only that eligible union and ranks the useful records.
+6. AtMem revalidates returned IDs before producing an answer or context.
+
+The always-present hashing index is a safe local fallback and plumbing
+guarantee, not a claim of model-quality embeddings. When a verified local
+embedding model is configured, the same authority path uses it. Query expansion
+and canonical fact-key matching must still work when no embedding model is
+installed. A `favorite food` query retrieving `likes burgers` is a release gate.
+
+The dashboard must report which semantic epoch is active. Once a verified local
+embedding model replaces the hashing fallback, memory mutation and OpenClaw
+mirror refresh must rebuild that same model epoch and must never silently
+downgrade semantic retrieval back to token hashing.
 
 ## 2.2 required capabilities
 
@@ -542,10 +690,11 @@ AtMem is AtBot-ready only when automated tests demonstrate all of the following:
 
 ## Definition of done
 
-AtMem 2.2 is AtBot-ready when AtBot can be implemented as an independent
-package using only versioned public contracts, can submit model-derived
-proposals without direct storage access, can request governed hybrid context,
-can construct cacheable byte-stable prompt prefixes, and can prove which
-canonical records were exposed on every use—while all authority, scope,
-lifecycle, deletion, cache invalidation, and audit invariants remain enforced
-by AtMem.
+AtMem 2.2 is AtBot-ready when the separately packaged companion uses only
+versioned public contracts, has no independent authority or product mode, can
+submit model-derived proposals without direct storage access, can rank only
+AtMem-authorized candidates, and can degrade without stopping baseline memory.
+The unified AtMem dashboard must support natural-language governed-memory
+query while authority, scope, lifecycle, deletion, cache invalidation, shadow
+mode, multi-agent topology, adapter isolation, and audit invariants remain
+enforced by AtMem.

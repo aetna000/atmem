@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from functools import wraps
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, TypeVar
+import uuid
 
 from atmem.core.canonical import canonical_json, sha256_hex
 from atmem.core.storage import HouseholdPolicy
@@ -38,6 +40,39 @@ _GRAPH_FUSION_VERSION = "weighted-rrf-v1"
 _RRF_RANK_CONSTANT = 60.0
 _GRAPH_RRF_WEIGHT = 2.0
 _CANDIDATE_LOG_WINDOW = 50
+_VECTOR_MUTATIONS = {
+    "remember",
+    "remember_observation",
+    "submit_proposal",
+    "correct_record",
+    "forget",
+    "forget_record",
+    "promote",
+    "reject",
+}
+
+
+def _embedder_for_epoch(epoch: dict[str, Any]) -> Any:
+    """Reconstruct a verified local embedder from an active index epoch."""
+    from atmem.semantic import HashingEmbedder, create_embedder
+
+    identity = epoch.get("identity") or {}
+    provider = str(identity.get("provider") or "")
+    if provider == "hashing-diagnostic":
+        return HashingEmbedder(dimensions=int(epoch["dimensions"]))
+    endpoint = str(identity.get("endpoint") or "") or None
+    if provider == "openai-compatible" and endpoint and not endpoint.startswith(
+        ("http://127.0.0.1", "http://localhost")
+    ):
+        raise ValueError(
+            "automatic governed recall will not send memory to a remote embedder"
+        )
+    return create_embedder(
+        provider,
+        str(identity.get("model") or ""),
+        endpoint=endpoint,
+        model_version=str(identity.get("version") or "unverified"),
+    )
 
 
 def _atomic(method: Callable[..., _T]) -> Callable[..., _T]:
@@ -46,7 +81,17 @@ def _atomic(method: Callable[..., _T]) -> Callable[..., _T]:
     @wraps(method)
     def wrapped(self: "Memory", *args: Any, **kwargs: Any) -> _T:
         with self.store.transaction(immediate=True):
-            return method(self, *args, **kwargs)
+            result = method(self, *args, **kwargs)
+        if method.__name__ in _VECTOR_MUTATIONS and args:
+            target = args[0]
+            subject_id = (
+                target
+                if isinstance(target, str)
+                else getattr(getattr(target, "scope", None), "subject_id", None)
+            )
+            if subject_id:
+                self._vector_dirty_subjects.add(str(subject_id))
+        return result
 
     return wrapped
 
@@ -78,6 +123,7 @@ class Memory:
         graph_recall: bool = False,
         recall_candidate_limit: int = 200,
         policy: HouseholdPolicy | None = None,
+        auto_vectors: bool = True,
     ) -> None:
         self.policy = policy or HouseholdPolicy.load(path)
         self.store = SQLiteStore(path, policy=self.policy)
@@ -85,9 +131,639 @@ class Memory:
         self.retain_query_text = retain_query_text
         self.graph_recall = graph_recall
         self.recall_candidate_limit = max(1, int(recall_candidate_limit))
+        self._vector_dirty_subjects: set[str] = set()
+        self._auto_vectors = bool(auto_vectors)
+        if self.store.path != ":memory:" and self._auto_vectors:
+            # The dependency-free local vector store is a normal AtMem storage
+            # plane. Better embedding providers can replace its active epoch,
+            # but users never have to create the database by hand.
+            from atmem.semantic import SemanticIndex, default_index_path
+
+            vector_index = SemanticIndex(
+                default_index_path(self.store.path), policy=self.policy
+            )
+            vector_index.close()
 
     def close(self) -> None:
-        self.store.close()
+        try:
+            if self._auto_vectors:
+                for subject_id in sorted(self._vector_dirty_subjects):
+                    self.sync_default_vectors(subject_id)
+        finally:
+            self.store.close()
+
+    def sync_default_vectors(self, subject_id: str) -> dict[str, Any]:
+        """Synchronize the active local vector projection without downgrading it."""
+        if self.store.path == ":memory:":
+            return {"ready": False, "reason": "ephemeral-memory"}
+        records = self.store.list_records(
+            subject_id, statuses=("active",)
+        )
+        if not records:
+            self._vector_dirty_subjects.discard(subject_id)
+            return {"ready": True, "entry_count": 0, "provider": "hashing-local-v1"}
+        from atmem.semantic import HashingEmbedder, SemanticIndex, default_index_path
+
+        index = SemanticIndex(default_index_path(self.store.path), policy=self.policy)
+        try:
+            epoch = index.active_epoch(subject_id)
+            embedder = (
+                _embedder_for_epoch(epoch)
+                if epoch is not None
+                else HashingEmbedder(dimensions=256)
+            )
+            report = index.build(self, subject_id, embedder)
+        finally:
+            index.close()
+        self._vector_dirty_subjects.discard(subject_id)
+        return {
+            **report,
+            "ready": True,
+            "default": str(report.get("embedder", {}).get("provider"))
+            == "hashing-diagnostic",
+        }
+
+    @_atomic
+    def capture_source(self, request: Any) -> Any:
+        """Capture one scope-bound source message with durable replay identity."""
+        from atmem.contracts import SourceCaptureRequest, SourceCaptureResult
+
+        if not isinstance(request, SourceCaptureRequest):
+            raise TypeError("request must be SourceCaptureRequest")
+        scope = request.scope
+        request_value = request.to_dict()
+        payload_sha256 = f"sha256:{sha256_hex(canonical_json(request_value))}"
+        existing = self.store.get_protocol_source(
+            scope.workspace_id, scope.agent_id, request.idempotency_key
+        )
+        if existing is not None:
+            if existing["payload_sha256"] != payload_sha256:
+                raise ValueError("source idempotency key was reused with a different payload")
+            saved = existing["result"]
+            return SourceCaptureResult(
+                source_id=saved["source_id"],
+                episode_id=saved["episode_id"],
+                source_sha256=saved["source_sha256"],
+                replayed=True,
+                retained=bool(saved["retained"]),
+                scope=scope,
+                audit_event_id=saved["audit_event_id"],
+            )
+        same_id = self.store.get_protocol_source_by_id(request.source_id)
+        if same_id is not None:
+            raise ValueError("source_id already belongs to another capture")
+        source_sha256 = request.source_sha256
+        episode_id = self.store.insert_episode(
+            subject_id=scope.subject_id,
+            session_id=request.session_id,
+            turn_id=request.turn_id,
+            message=request.message if request.retain_body else "[body not retained]",
+            source_type=request.source_type,
+            raw={
+                "protocol": request.format,
+                "source_id": request.source_id,
+                "host_message_id": request.host_message_id,
+                "source_sha256": source_sha256,
+                "binding_method": request.binding_method,
+                "binding_assurance": request.binding_assurance,
+                "authority_scope": scope.to_dict(),
+                "body_retained": request.retain_body,
+            },
+        )
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="source.captured_v1",
+            actor=f"protocol:{scope.agent_id}",
+            session_id=request.session_id,
+            turn_id=request.turn_id,
+            payload={
+                "source_id": request.source_id,
+                "episode_id": episode_id,
+                "source_sha256": source_sha256,
+                "workspace_id": scope.workspace_id,
+                "agent_id": scope.agent_id,
+                "binding_assurance": request.binding_assurance,
+                "body_retained": request.retain_body,
+            },
+        )
+        result = SourceCaptureResult(
+            source_id=request.source_id,
+            episode_id=episode_id,
+            source_sha256=source_sha256,
+            replayed=False,
+            retained=request.retain_body,
+            scope=scope,
+            audit_event_id=event_id,
+        )
+        self.store.insert_protocol_source(
+            source_id=request.source_id,
+            idempotency_key=request.idempotency_key,
+            payload_sha256=payload_sha256,
+            subject_id=scope.subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            episode_id=episode_id,
+            source_sha256=source_sha256,
+            request=request_value,
+            result=result.to_dict(),
+        )
+        return result
+
+    @_atomic
+    def submit_proposal(self, proposal: Any) -> Any:
+        """Apply deterministic authority policy to a model-generated proposal."""
+        from atmem.contracts import MemoryAdmission, MemoryProposal
+        from atmem.core.fact_keys import FACT_KEY_VERSION, canonicalize_fact_key
+
+        if not isinstance(proposal, MemoryProposal):
+            raise TypeError("proposal must be MemoryProposal")
+        scope = proposal.scope
+        payload_sha256 = proposal.payload_digest()
+        if proposal.idempotency_key.startswith("sha256:"):
+            if proposal.idempotency_key != payload_sha256:
+                raise ValueError("sha256 idempotency key does not match proposal payload")
+        existing = self.store.get_protocol_proposal(
+            scope.workspace_id, scope.agent_id, proposal.idempotency_key
+        )
+        if existing is not None:
+            if existing["payload_sha256"] != payload_sha256:
+                raise ValueError("proposal idempotency key was reused with a different payload")
+            saved = existing["admission"]
+            return MemoryAdmission(
+                proposal_id=saved["proposal_id"],
+                decision=saved["decision"],
+                reason_codes=tuple(saved.get("reason_codes") or ()),
+                record_ids=tuple(saved.get("record_ids") or ()),
+                candidate_ids=tuple(saved.get("candidate_ids") or ()),
+                related_record_ids=tuple(saved.get("related_record_ids") or ()),
+                review_required=bool(saved.get("review_required")),
+                audit_event_id=saved.get("audit_event_id"),
+                replayed=True,
+            )
+
+        sources = [self.store.get_protocol_source_by_id(value) for value in proposal.source_ids]
+        if any(source is None for source in sources):
+            raise ValueError("proposal references an unknown source_id")
+        for source in sources:
+            assert source is not None
+            if (
+                source["subject_id"],
+                source["agent_id"],
+                source["workspace_id"],
+            ) != (scope.subject_id, scope.agent_id, scope.workspace_id):
+                raise ValueError("proposal source is outside the authority scope")
+        if proposal.source_binding.source_sha256 not in {
+            str(source["source_sha256"]) for source in sources if source is not None
+        }:
+            raise ValueError("proposal source binding does not match a captured source")
+        for record_id in proposal.related_record_ids:
+            related = self.store.get_record(scope.subject_id, record_id)
+            if related is None:
+                raise ValueError("proposal references an unknown related record")
+            related_scope = (related.get("raw") or {}).get("authority_scope") or {}
+            if related_scope and related_scope.get("workspace_id") != scope.workspace_id:
+                raise ValueError("related record is outside the authority scope")
+
+        canonical_key = canonicalize_fact_key(proposal.fact_key)
+        duplicate = self.store.find_duplicate_record(
+            scope.subject_id, proposal.fact, statuses=("active", "quarantined")
+        )
+        conflicts = (
+            self.store.active_records_for_fact_key(scope.subject_id, canonical_key)
+            if canonical_key
+            else []
+        )
+        record_ids: tuple[str, ...] = ()
+        candidate_ids: tuple[str, ...] = ()
+        if duplicate is not None:
+            decision = "duplicate"
+            reason_codes = ("semantic_record_already_exists",)
+            record_ids = (str(duplicate["id"]),)
+            review_required = False
+        else:
+            source_types = {str(source["request"].get("source_type")) for source in sources if source}
+            trusted_source = source_types == {"user_message"} and all(
+                str(source["request"].get("binding_assurance"))
+                in {"host_authenticated", "verified_by_atmem"}
+                for source in sources
+                if source
+            )
+            safe_add = (
+                proposal.suggested_action in {"add", "supports", "extends"}
+                and proposal.sensitivity not in {"sensitive", "restricted"}
+                and not conflicts
+                and trusted_source
+            )
+            decision = "active" if safe_add else ("conflict" if conflicts else "quarantined")
+            reason_codes = (
+                ("trusted_source_policy_admitted",)
+                if safe_add
+                else ("conflicts_with_active_record",)
+                if conflicts
+                else ("model_proposal_requires_review",)
+            )
+            status = "active" if safe_add else "quarantined"
+            first_source = sources[0]
+            assert first_source is not None
+            record_id = self.store.insert_record(
+                subject_id=scope.subject_id,
+                content=proposal.fact,
+                source_type="user_message" if trusted_source else "external_content",
+                trust_tier="trusted_user" if trusted_source else "untrusted_content",
+                source_session_id=proposal.session_id,
+                source_turn_id=proposal.turn_id,
+                episode_id=str(first_source["episode_id"]),
+                confidence=float(proposal.confidence),
+                scope="atbot_model_proposal",
+                status=status,
+                supersedes_id=None,
+                fact_key=canonical_key,
+                raw={
+                    "authority_scope": scope.to_dict(),
+                    "proposal_id": proposal.proposal_id,
+                    "source_ids": list(proposal.source_ids),
+                    "interpreter": proposal.interpreter.to_dict(),
+                    "source_binding": proposal.source_binding.to_dict(),
+                    "sensitivity": proposal.sensitivity,
+                    "suggested_action": proposal.suggested_action,
+                    "proposed_fact_key": proposal.fact_key,
+                    "fact_key_version": FACT_KEY_VERSION,
+                },
+            )
+            stored = self.store.get_record(scope.subject_id, record_id)
+            assert stored is not None
+            graph_mutations = self.graph.index_record(stored)
+            self._audit_graph_mutations(
+                scope.subject_id,
+                graph_mutations,
+                session_id=proposal.session_id,
+                turn_id=proposal.turn_id,
+                record_id=record_id,
+            )
+            if status == "active":
+                record_ids = (record_id,)
+            else:
+                candidate_ids = (record_id,)
+            review_required = status != "active"
+
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.proposal_admitted_v1",
+            actor="atmem-policy",
+            session_id=proposal.session_id,
+            turn_id=proposal.turn_id,
+            record_id=(record_ids or candidate_ids or (None,))[0],
+            payload={
+                "proposal_id": proposal.proposal_id,
+                "proposal_payload_sha256": payload_sha256,
+                "decision": decision,
+                "reason_codes": list(reason_codes),
+                "record_ids": list(record_ids),
+                "candidate_ids": list(candidate_ids),
+                "related_record_ids": list(proposal.related_record_ids),
+                "workspace_id": scope.workspace_id,
+                "agent_id": scope.agent_id,
+                "proposed_fact_key": proposal.fact_key,
+                "canonical_fact_key": canonical_key,
+                "fact_key_version": FACT_KEY_VERSION,
+            },
+        )
+        admission = MemoryAdmission(
+            proposal_id=proposal.proposal_id,
+            decision=decision,
+            reason_codes=reason_codes,
+            record_ids=record_ids,
+            candidate_ids=candidate_ids,
+            related_record_ids=proposal.related_record_ids,
+            review_required=review_required,
+            audit_event_id=event_id,
+        )
+        self.store.insert_protocol_proposal(
+            proposal_id=proposal.proposal_id,
+            idempotency_key=proposal.idempotency_key,
+            payload_sha256=payload_sha256,
+            subject_id=scope.subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            decision=decision,
+            proposal=proposal.to_dict(),
+            admission=admission.to_dict(),
+        )
+        return admission
+
+    @_atomic
+    def eligible_candidates(self, request: Any) -> Any:
+        """Return only scope-authorized candidates for a declared reranker."""
+        from atmem.contracts import (
+            EligibleCandidate,
+            EligibleCandidateSet,
+            RecallRequest,
+        )
+
+        if not isinstance(request, RecallRequest):
+            raise TypeError("request must be RecallRequest")
+        scope = request.scope
+        recalled = self.recall(
+            scope.subject_id,
+            request.query,
+            session_id=f"protocol:{request.request_id}",
+            limit=request.candidate_limit,
+            min_score=request.min_score,
+            use_graph="graph" in request.signals,
+            include_scores=True,
+        )
+        if "semantic" in request.signals and self.store.path != ":memory:":
+            # The always-present default index participates directly in the
+            # governed candidate stage. It never widens scope or lifecycle:
+            # only active canonical records can be nominated.
+            from atmem.semantic import SemanticIndex, default_index_path
+
+            index = SemanticIndex(default_index_path(self.store.path), policy=self.policy)
+            try:
+                epoch = index.active_epoch(scope.subject_id)
+                if epoch:
+                    embedder = _embedder_for_epoch(epoch)
+                    semantic = index.search(
+                        self,
+                        scope.subject_id,
+                        request.query,
+                        embedder,
+                        statuses=("active",),
+                        limit=request.candidate_limit,
+                        min_similarity=0.0,
+                    )
+                    by_id = {str(row["id"]): row for row in recalled}
+                    records = self.store.get_records(
+                        scope.subject_id, [str(row["record_id"]) for row in semantic]
+                    )
+                    for match in semantic:
+                        record_id = str(match["record_id"])
+                        score = float(match["similarity"])
+                        if record_id in by_id:
+                            by_id[record_id]["score"] = max(
+                                float(by_id[record_id].get("score") or 0.0), score
+                            )
+                            by_id[record_id]["semantic"] = match
+                        elif record_id in records:
+                            row = {**records[record_id], "score": score, "semantic": match}
+                            recalled.append(row)
+                            by_id[record_id] = row
+                    recalled.sort(
+                        key=lambda row: (-float(row.get("score") or 0.0), str(row["id"]))
+                    )
+            finally:
+                index.close()
+        recalled = [
+            row
+            for row in recalled
+            if float(row.get("score") or 0.0) >= float(request.min_score)
+        ]
+        allowed: list[dict[str, Any]] = []
+        withheld = 0
+        for record in recalled:
+            raw = record.get("raw") or {}
+            record_scope = raw.get("authority_scope") or {}
+            if record_scope and (
+                record_scope.get("workspace_id") != scope.workspace_id
+                or record_scope.get("subject_id") != scope.subject_id
+            ):
+                withheld += 1
+                continue
+            sensitivity = str(raw.get("sensitivity") or "personal")
+            if request.egress_class == "remote" and sensitivity in {
+                "sensitive",
+                "restricted",
+            }:
+                withheld += 1
+                continue
+            allowed.append(record)
+            if len(allowed) >= request.limit:
+                break
+        candidates = tuple(
+            EligibleCandidate(
+                record_id=str(record["id"]),
+                content=str(record["content"]),
+                score=float(record.get("score") or 0.0),
+                rank=rank,
+                source_type=str(record.get("source_type") or "unknown"),
+                trust_tier=str(record.get("trust_tier") or "unknown"),
+                created_at=str(record.get("created_at") or ""),
+                signals={
+                    "lexical": "lexical" in request.signals,
+                    "graph": record.get("graph"),
+                    "semantic": "semantic" in request.signals,
+                    "semantic_evidence": record.get("semantic"),
+                },
+            )
+            for rank, record in enumerate(allowed, start=1)
+        )
+        generation = self.store.record_generation(scope.subject_id)
+        candidate_set_id = f"cset_{uuid.uuid4().hex}"
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(minutes=5)
+        ).isoformat(timespec="microseconds")
+        candidate_digest = f"sha256:{sha256_hex(canonical_json([row.to_dict() for row in candidates]))}"
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.eligible_candidates_v1",
+            actor=f"protocol:{scope.agent_id}",
+            payload={
+                "request_id": request.request_id,
+                "candidate_set_id": candidate_set_id,
+                "candidate_digest": candidate_digest,
+                "record_ids": [row.record_id for row in candidates],
+                "generation": generation,
+                "workspace_id": scope.workspace_id,
+                "egress_class": request.egress_class,
+                "reranker_provider": request.reranker_provider,
+                "reranker_model": request.reranker_model,
+                "withheld_count": withheld,
+            },
+        )
+        result = EligibleCandidateSet(
+            candidate_set_id=candidate_set_id,
+            request_id=request.request_id,
+            scope=scope,
+            candidates=candidates,
+            generation=generation,
+            expires_at=expires_at,
+            candidate_digest=candidate_digest,
+            audit_event_id=event_id,
+        )
+        self.store.put_protocol_candidate_set(
+            candidate_set_id,
+            subject_id=scope.subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            generation=generation,
+            expires_at=expires_at,
+            value=result.to_dict(),
+        )
+        return result
+
+    @_atomic
+    def prepare_context_v1(self, request: Any) -> Any:
+        """Serialize an authorized candidate subset into byte-stable context."""
+        from atmem.contracts import ContextPackage, ContextRequest
+
+        if not isinstance(request, ContextRequest):
+            raise TypeError("request must be ContextRequest")
+        scope = request.scope
+        candidate_set = self.store.get_protocol_candidate_set(request.candidate_set_id)
+        if candidate_set is None:
+            raise ValueError("candidate set was not found")
+        if (
+            candidate_set["subject_id"],
+            candidate_set["agent_id"],
+            candidate_set["workspace_id"],
+        ) != (scope.subject_id, scope.agent_id, scope.workspace_id):
+            raise ValueError("candidate set is outside the authority scope")
+        if str(candidate_set["expires_at"]) < utc_now():
+            raise ValueError("candidate set has expired")
+        generation = self.store.record_generation(scope.subject_id)
+        if int(candidate_set["generation"]) != generation:
+            raise ValueError("candidate set was invalidated by a memory change")
+        eligible = {
+            str(row["record_id"]): row
+            for row in candidate_set["value"].get("candidates") or []
+        }
+        requested = list(dict.fromkeys(str(value) for value in request.record_ids))
+        if any(record_id not in eligible for record_id in requested):
+            raise ValueError("context contains a record outside the eligible candidate set")
+        records = self.store.get_records(scope.subject_id, requested)
+        excluded = self.store.excluded_record_ids(scope.subject_id)
+        ordered = []
+        for record_id in requested:
+            record = records.get(record_id)
+            if record is None or record.get("status") != "active" or record_id in excluded:
+                raise ValueError("context record is no longer eligible")
+            ordered.append(record)
+        parts = ["<atmem-context format=\"v1\">\n"]
+        accepted_ids: list[str] = []
+        used = len(parts[0]) + len("</atmem-context>\n")
+        for record in ordered:
+            block = (
+                f"<memory id=\"{record['id']}\">\n"
+                f"{str(record['content']).strip()}\n"
+                "</memory>\n"
+            )
+            if used + len(block) > int(request.budget_chars):
+                break
+            parts.append(block)
+            accepted_ids.append(str(record["id"]))
+            used += len(block)
+        parts.append("</atmem-context>\n")
+        context = "".join(parts)
+        context_sha256 = f"sha256:{sha256_hex(context)}"
+        preparation_id = f"prep_{uuid.uuid4().hex}"
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(minutes=2)
+        ).isoformat(timespec="microseconds")
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.context_prepared_v1",
+            actor=f"protocol:{scope.agent_id}",
+            payload={
+                "preparation_id": preparation_id,
+                "candidate_set_id": request.candidate_set_id,
+                "context_sha256": context_sha256,
+                "record_ids": accepted_ids,
+                "generation": generation,
+                "workspace_id": scope.workspace_id,
+                "serializer_version": "atmem-context-utf8-v1",
+            },
+        )
+        result = ContextPackage(
+            context_id=request.context_id,
+            scope=scope,
+            record_ids=tuple(accepted_ids),
+            context=context,
+            context_sha256=context_sha256,
+            serializer_version="atmem-context-utf8-v1",
+            generation=generation,
+            expires_at=expires_at,
+            preparation_id=preparation_id,
+        )
+        self.store.put_protocol_preparation(
+            preparation_id,
+            subject_id=scope.subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            context_sha256=context_sha256,
+            generation=generation,
+            expires_at=expires_at,
+            value={**result.to_dict(), "audit_event_id": event_id},
+        )
+        return result
+
+    @_atomic
+    def confirm_exposure_v1(self, confirmation: Any) -> Any:
+        """Confirm exact context delivery once and return an audit-bound receipt."""
+        from atmem.contracts import ExposureConfirmation, ExposureReceipt
+
+        if not isinstance(confirmation, ExposureConfirmation):
+            raise TypeError("confirmation must be ExposureConfirmation")
+        scope = confirmation.scope
+        replay = self.store.get_protocol_exposure(confirmation.confirmation_id)
+        if replay is not None:
+            saved = replay["receipt"]
+            return ExposureReceipt(
+                receipt_id=saved["receipt_id"],
+                preparation_id=saved["preparation_id"],
+                scope=scope,
+                context_sha256=saved["context_sha256"],
+                exposed_at=saved["exposed_at"],
+                audit_event_id=saved["audit_event_id"],
+                replayed=True,
+            )
+        prepared = self.store.get_protocol_preparation(confirmation.preparation_id)
+        if prepared is None:
+            raise ValueError("context preparation was not found")
+        if self.store.get_protocol_exposure_for_preparation(
+            confirmation.preparation_id
+        ) is not None:
+            raise ValueError("context preparation was already exposed")
+        if (
+            prepared["subject_id"],
+            prepared["agent_id"],
+            prepared["workspace_id"],
+        ) != (scope.subject_id, scope.agent_id, scope.workspace_id):
+            raise ValueError("context preparation is outside the authority scope")
+        if str(prepared["expires_at"]) < utc_now():
+            raise ValueError("context preparation has expired")
+        if prepared["context_sha256"] != confirmation.context_sha256:
+            raise ValueError("exposed context digest does not match the preparation")
+        if int(prepared["generation"]) != self.store.record_generation(scope.subject_id):
+            raise ValueError("context preparation was invalidated by a memory change")
+        value = prepared["value"]
+        exposed_at = utc_now()
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.context_injected",
+            actor=f"protocol:{scope.agent_id}",
+            session_id=confirmation.host_run_id,
+            payload={
+                "preparation_id": confirmation.preparation_id,
+                "context_sha256": confirmation.context_sha256,
+                "record_ids": value.get("record_ids") or [],
+                "workspace_id": scope.workspace_id,
+                "host_run_id": confirmation.host_run_id,
+            },
+        )
+        receipt = ExposureReceipt(
+            receipt_id=f"ctxr_{uuid.uuid4().hex}",
+            preparation_id=confirmation.preparation_id,
+            scope=scope,
+            context_sha256=confirmation.context_sha256,
+            exposed_at=exposed_at,
+            audit_event_id=event_id,
+        )
+        self.store.put_protocol_exposure(
+            confirmation.confirmation_id,
+            preparation_id=confirmation.preparation_id,
+            receipt=receipt.to_dict(),
+        )
+        return receipt
 
     @_atomic
     def remember(
@@ -537,6 +1213,16 @@ class Memory:
             query_tokens(query),
             limit=self.recall_candidate_limit,
         )
+        excluded_ids = self.store.excluded_record_ids(subject_id)
+        if excluded_ids:
+            active_records = [
+                record for record in active_records if record["id"] not in excluded_ids
+            ]
+            fts_scores = {
+                record_id: score
+                for record_id, score in fts_scores.items()
+                if record_id not in excluded_ids
+            }
         graph_result = None
         graph_by_record: dict[str, dict[str, Any]] = {}
         if self.graph_recall if use_graph is None else use_graph:
@@ -552,6 +1238,8 @@ class Memory:
             # lexical recall as soon as the database exceeds the candidate cap.
             candidate_ids = {str(record["id"]) for record in active_records}
             for record_id in graph_by_record:
+                if record_id in excluded_ids:
+                    continue
                 if record_id in candidate_ids:
                     continue
                 record = self.store.get_record(subject_id, record_id)
@@ -756,6 +1444,132 @@ class Memory:
         return self._attach_media_provenance(
             subject_id, self.store.list_records(subject_id, statuses=statuses)
         )
+
+    @_atomic
+    def set_retrieval_excluded(
+        self,
+        subject_id: str,
+        record_id: str,
+        excluded: bool,
+        *,
+        reason: str = "",
+        actor: str = "user",
+    ) -> dict[str, Any]:
+        record = self.store.get_record(subject_id, record_id)
+        if record is None or record.get("status") != "active":
+            raise ValueError(f"record {record_id} is not active for {subject_id}")
+        self.store.set_retrieval_excluded(
+            subject_id, record_id, excluded, actor=actor, reason=reason
+        )
+        self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type=(
+                "memory.retrieval_excluded"
+                if excluded
+                else "memory.retrieval_restored"
+            ),
+            actor=actor,
+            record_id=record_id,
+            payload={"reason": reason[:500]} if reason else {},
+        )
+        return {"record_id": record_id, "excluded": excluded}
+
+    @_atomic
+    def correct_record(
+        self,
+        subject_id: str,
+        record_id: str,
+        corrected_text: str,
+        *,
+        reason: str = "",
+        actor: str = "user",
+    ) -> dict[str, Any]:
+        old = self.store.get_record(subject_id, record_id)
+        if old is None or old.get("status") != "active":
+            raise ValueError(f"record {record_id} is not active for {subject_id}")
+        corrected = corrected_text.strip()
+        if not corrected or corrected == str(old.get("content") or "").strip():
+            raise ValueError("corrected memory must be non-empty and different")
+        result = self.remember(
+            subject_id,
+            message=corrected,
+            source_type="user_message",
+            actor=actor,
+            interpreted_fact=corrected,
+            interpreted_fact_key=old.get("fact_key") or f"correction-{record_id}",
+            raw={
+                "interpreter": "human-correction",
+                "interpretation_assurance": "verified_by_user",
+                "source_binding": "dashboard-exact-record-correction",
+            },
+        )
+        if not result.get("records"):
+            raise ValueError("correction did not create a replacement memory")
+        replacement = result["records"][0]
+        replacement_id = str(replacement["id"])
+        self.store.supersede_records(
+            subject_id=subject_id,
+            record_ids=[record_id],
+            superseded_by_id=replacement_id,
+        )
+        graph_mutations = self.graph.supersede_records(
+            subject_id, [record_id], replacement_id
+        )
+        self._audit_graph_mutations(subject_id, graph_mutations)
+        self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="memory.record_corrected",
+            actor=actor,
+            record_id=replacement_id,
+            payload={
+                "replaces_record_id": record_id,
+                "reason": reason[:500],
+            },
+        )
+        current = self.store.get_record(subject_id, replacement_id)
+        return {"replaced_record_id": record_id, "record": current}
+
+    @_atomic
+    def forget_record(
+        self,
+        subject_id: str,
+        record_id: str,
+        *,
+        actor: str = "user",
+    ) -> dict[str, Any]:
+        record = self.store.get_record(subject_id, record_id)
+        if record is None or record.get("status") == "tombstoned":
+            raise ValueError(f"record {record_id} is not available for deletion")
+        cleanup = self._purge_record_ids(
+            subject_id, [record_id], session_id=None, turn_id=None
+        )
+        event_id = self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="memory.forget",
+            actor=actor,
+            record_id=record_id,
+            payload={
+                "purged_record_ids": cleanup["purged_record_ids"],
+                "purged_episode_ids": cleanup["purged_episode_ids"],
+                "purged_graph_ids": cleanup["purged_graph_ids"],
+                "semantic_index_cleanup": cleanup["semantic_index_cleanup"],
+                "exact_record": True,
+            },
+        )
+        event = self.store.get_audit_event(subject_id, event_id)
+        receipt = {
+            "format": "atmem-exact-record-deletion-receipt-v1",
+            "subject_id": subject_id,
+            "created_at": event["created_at"],
+            "purged_record_ids": cleanup["purged_record_ids"],
+            "purged_episode_ids": cleanup["purged_episode_ids"],
+            "purged_graph_ids": cleanup["purged_graph_ids"],
+            "semantic_index_cleanup": cleanup["semantic_index_cleanup"],
+            "audit_event_id": event_id,
+            "audit_event_hash": event["event_hash"],
+        }
+        receipt["receipt_sha256"] = _sha256(canonical_json(receipt))
+        return {"deleted": True, "record_ids": [record_id], "receipt": receipt}
 
     @_atomic
     def forget(
@@ -1092,7 +1906,9 @@ class Memory:
                         ):
                             raise RuntimeError(
                                 "semantic index purge could not be verified; "
-                                "canonical deletion was not committed"
+                                "canonical deletion was not committed: "
+                                f"{index_verification.get('failures') or index_cleanup.get('status')} "
+                                f"gaps={index_verification.get('coverage_gaps')}"
                             )
                 finally:
                     semantic_index.close()

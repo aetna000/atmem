@@ -206,7 +206,9 @@ def discover_agent_topology(
 
 
 def _workspace_id(workspace: str) -> str:
-    return hashlib.sha256(workspace.encode("utf-8")).hexdigest()[:16]
+    # Protocol identifiers must begin with a letter. Keep the digest stable
+    # while making OpenClaw workspace IDs valid AuthorityScope values.
+    return "ws_" + hashlib.sha256(workspace.encode("utf-8")).hexdigest()[:16]
 
 
 def _is_relative_to(path: Path, root: Path) -> bool:

@@ -6,6 +6,9 @@ import getpass
 import json
 from pathlib import Path
 import re
+import shlex
+import sqlite3
+import sys
 from typing import Any
 import uuid
 
@@ -33,6 +36,47 @@ _ALLOWED_TRANSITIONS: dict[ControlMode, frozenset[ControlMode]] = {
     ControlMode.SHADOW: frozenset({ControlMode.ACTIVE, ControlMode.OFF}),
     ControlMode.ACTIVE: frozenset({ControlMode.SHADOW, ControlMode.OFF}),
 }
+
+
+def _memory_overview_query(query: str) -> bool:
+    text = query.casefold()
+    return any(
+        phrase in text
+        for phrase in (
+            "what do you remember",
+            "what do you know about me",
+            "list my memories",
+            "show my memories",
+            "everything you remember",
+        )
+    )
+
+
+def _storage_row(
+    storage_id: str,
+    label: str,
+    role: str,
+    path: Path,
+    *,
+    storage_type: str,
+    optional: bool = False,
+) -> dict[str, Any]:
+    resolved = path.expanduser().resolve(strict=False)
+    exists = resolved.is_file()
+    try:
+        size_bytes = resolved.stat().st_size if exists else 0
+    except OSError:
+        size_bytes = 0
+    return {
+        "id": storage_id,
+        "label": label,
+        "role": role,
+        "type": storage_type,
+        "path": str(resolved),
+        "exists": exists,
+        "optional": optional,
+        "size_bytes": size_bytes,
+    }
 
 
 class ControlPlaneManager:
@@ -250,7 +294,7 @@ class ControlPlaneManager:
                 "reason": (
                     "Every persistent agent is bound to its verified workspace memory scope."
                     if verified
-                    else "Refresh the OpenClaw bridge so its agent topology is bound to the memory mirror."
+                    else "Sync agents and memory so the detected topology is bound to the memory mirror."
                 ),
             }
         from atmem.control.topology import load_topology
@@ -357,7 +401,7 @@ class ControlPlaneManager:
                         "Every persistent agent is bound to its verified workspace memory scope."
                         if bool((mirror or {}).get("audit_verified"))
                         and topology_matches
-                        else "Refresh or reinstall the OpenClaw bridge so the detected agent topology is bound to the memory mirror."
+                        else "Sync agents and memory so the detected topology is bound to the memory mirror."
                     ),
                 }
             except (OSError, ValueError) as exc:
@@ -380,6 +424,7 @@ class ControlPlaneManager:
         )
         result["mirror"] = mirror
         result["takeover"] = takeover
+        result["storages"] = self._storage_inventory(state, mirror=mirror)
         result["readiness"] = self._readiness(state, evidence, mirror=mirror)
         result["provider_state"] = derive_provider_state(
             mode=state.mode,
@@ -390,6 +435,305 @@ class ControlPlaneManager:
             migration_id=state.migration_id,
         ).value
         return result
+
+    def _storage_inventory(
+        self,
+        state: ControlState,
+        *,
+        mirror: dict[str, Any] | None,
+    ) -> list[dict[str, Any]]:
+        """Describe local stores without making any of them authoritative by accident."""
+
+        control_dir = Path(state.control_dir)
+        if state.host == "openclaw":
+            canonical_path = Path(
+                str((mirror or {}).get("mirror_db") or control_dir / "openclaw-mirror.db")
+            )
+        else:
+            canonical_path = self._generic_memory_db(state)
+        canonical_path = canonical_path.expanduser().resolve(strict=False)
+
+        vector_paths: set[Path] = set()
+        vector_subjects: list[str] = []
+        if canonical_path.is_file():
+            from atmem.memory import Memory
+
+            memory = Memory(canonical_path, retain_query_text=False)
+            try:
+                subjects = memory.store.subject_ids() or [state.subject_id]
+                vector_subjects = [
+                    subject_id
+                    for subject_id in subjects
+                    if memory.store.list_records(
+                        subject_id,
+                        statuses=("active", "quarantined", "superseded"),
+                    )
+                ]
+                for subject_id in subjects:
+                    for registered in memory.store.semantic_index_paths(subject_id):
+                        if registered.get("index_path"):
+                            vector_paths.add(
+                                Path(str(registered["index_path"]))
+                                .expanduser()
+                                .resolve(strict=False)
+                            )
+            finally:
+                memory.close()
+        if not vector_paths:
+            vector_paths.add(Path(f"{canonical_path}.vectors.db").resolve(strict=False))
+        if not vector_subjects:
+            vector_subjects = [state.subject_id]
+
+        rows = [
+            _storage_row(
+                "canonical",
+                "Canonical memory",
+                "Memories, provenance and lifecycle state",
+                canonical_path,
+                storage_type="SQLite",
+            ),
+            {
+                **_storage_row(
+                    "graph",
+                    "Entity graph",
+                    "Entities, aliases and relationships",
+                    canonical_path,
+                    storage_type="Shared SQLite tables",
+                ),
+                "shared_with": "canonical",
+            },
+        ]
+        for position, vector_path in enumerate(sorted(vector_paths, key=str)):
+            vector_row = _storage_row(
+                    "vectors" if position == 0 else f"vectors-{position + 1}",
+                    "Semantic vectors" if position == 0 else f"Semantic vectors {position + 1}",
+                    "Optional, rebuildable semantic retrieval index",
+                    vector_path,
+                    storage_type="SQLite vector sidecar",
+                    optional=False,
+                )
+            vector_row["ready"] = False
+            if vector_row["exists"]:
+                from atmem.semantic import SemanticIndex
+
+                try:
+                    index = SemanticIndex(
+                        vector_path, policy=HouseholdPolicy.load(canonical_path)
+                    )
+                    try:
+                        index_status = index.status()
+                    finally:
+                        index.close()
+                    vector_row["ready"] = any(
+                        row.get("status") == "active"
+                        and int(row.get("entry_count") or 0) > 0
+                        for row in index_status["epochs"]
+                    )
+                except (OSError, ValueError):
+                    vector_row["ready"] = False
+            if not vector_row["ready"]:
+                memory_arg = shlex.quote(str(canonical_path))
+                python_arg = shlex.quote(sys.executable)
+                commands = [
+                    f'{python_arg} -m pip install "sentence-transformers>=5.0.0,<6.0.0"'
+                ]
+                for subject_id in vector_subjects:
+                    subject_arg = shlex.quote(subject_id)
+                    commands.extend(
+                        [
+                            (
+                                f"{python_arg} -m atmem.cli index build {memory_arg} "
+                                f"--subject {subject_arg} "
+                                "--embedder sentence-transformers --model all-MiniLM-L6-v2"
+                            ),
+                            (
+                                f"{python_arg} -m atmem.cli index verify {memory_arg} "
+                                f"--subject {subject_arg}"
+                            ),
+                        ]
+                    )
+                vector_row["setup_commands"] = commands
+                vector_row["setup_note"] = (
+                    "AtMem creates a dependency-free local vector index automatically. "
+                    "These optional commands upgrade semantic quality with a local model."
+                )
+            rows.append(vector_row)
+        rows.append(
+            _storage_row(
+                "evidence",
+                "Audit evidence",
+                "Control decisions, transitions and verification evidence",
+                control_dir / "evidence.db",
+                storage_type="SQLite",
+            )
+        )
+        return rows
+
+    def storage_preview(self, storage_id: str, *, limit: int = 25) -> dict[str, Any]:
+        """Return a bounded, domain-level view of one local store."""
+
+        limit = max(1, min(int(limit), 50))
+        state = self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import mirror_status
+
+            mirror = mirror_status(state)
+        else:
+            mirror = {"memory_db": str(self._generic_memory_db(state))}
+        storages = self._storage_inventory(state, mirror=mirror)
+        selected = next((row for row in storages if row["id"] == storage_id), None)
+        if selected is None:
+            raise ValueError("unknown storage")
+        base = {
+            "format": "atmem-storage-preview-v1",
+            "storage": selected,
+            "rows": [],
+            "truncated": False,
+        }
+        if not selected["exists"]:
+            return {**base, "summary": "This optional store has not been built yet."}
+
+        canonical = next(row for row in storages if row["id"] == "canonical")
+        canonical_path = Path(str(canonical["path"]))
+        if storage_id == "canonical":
+            from atmem.memory import Memory
+
+            memory = Memory(canonical_path, retain_query_text=False)
+            try:
+                subjects = memory.store.subject_ids() or [state.subject_id]
+                records = [
+                    {**row, "subject_id": subject_id}
+                    for subject_id in subjects
+                    for row in memory.list(subject_id, include_inactive=True)
+                ]
+            finally:
+                memory.close()
+            records.sort(key=lambda row: (str(row.get("created_at") or ""), str(row["id"])), reverse=True)
+            return {
+                **base,
+                "summary": f"{len(records)} canonical memory record(s)",
+                "rows": [
+                    {
+                        "kind": "memory",
+                        "id": row["id"],
+                        "title": row.get("content") or "Empty memory",
+                        "detail": f"{row.get('status', 'unknown')} · {row.get('subject_id', 'unknown subject')}",
+                        "record_id": row["id"],
+                    }
+                    for row in records[:limit]
+                ],
+                "truncated": len(records) > limit,
+            }
+        if storage_id == "graph":
+            from atmem.graph import GraphIndex
+            from atmem.memory import Memory
+
+            memory = Memory(canonical_path, retain_query_text=False)
+            try:
+                graph = GraphIndex(memory.store)
+                subjects = memory.store.subject_ids() or [state.subject_id]
+                relationships: list[dict[str, Any]] = []
+                for subject_id in subjects:
+                    report = graph.inspect(subject_id)
+                    entities = {str(row["id"]): row for row in report["entities"]}
+                    for edge in report["edges"]:
+                        source = entities.get(str(edge.get("src_entity"))) or {}
+                        destination = entities.get(str(edge.get("dst_entity"))) or {}
+                        relationships.append(
+                            {
+                                "kind": "relationship",
+                                "id": edge["id"],
+                                "title": (
+                                    f"{source.get('canonical', 'Unknown')} → "
+                                    f"{destination.get('canonical') or edge.get('dst_value') or 'Unknown'}"
+                                ),
+                                "detail": (
+                                    f"{edge.get('relation_label') or edge.get('relation')} · "
+                                    f"{edge.get('status', 'unknown')} · {subject_id}"
+                                ),
+                                "record_id": edge.get("record_id"),
+                            }
+                        )
+            finally:
+                memory.close()
+            relationships.sort(key=lambda row: str(row["id"]))
+            return {
+                **base,
+                "summary": f"{len(relationships)} entity relationship(s)",
+                "rows": relationships[:limit],
+                "truncated": len(relationships) > limit,
+            }
+        if storage_id.startswith("vectors"):
+            from atmem.semantic import SemanticIndex
+
+            index = SemanticIndex(
+                selected["path"], policy=HouseholdPolicy.load(canonical_path)
+            )
+            try:
+                status = index.status()
+                entries = index._conn.execute(
+                    """
+                    SELECT object_id, subject_id, status_at_index, dimensions, created_at
+                    FROM vector_entries ORDER BY created_at DESC, object_id LIMIT ?
+                    """,
+                    (limit + 1,),
+                ).fetchall()
+            finally:
+                index.close()
+            return {
+                **base,
+                "summary": (
+                    f"{sum(int(row.get('entry_count') or 0) for row in status['epochs'])} "
+                    "indexed vector record(s); numerical vectors are intentionally hidden"
+                ),
+                "rows": [
+                    {
+                        "kind": "vector",
+                        "id": str(row["object_id"]),
+                        "title": f"Vector for memory {row['object_id']}",
+                        "detail": (
+                            f"{row['dimensions']} dimensions · {row['status_at_index']} · "
+                            f"{row['subject_id']}"
+                        ),
+                        "record_id": str(row["object_id"]),
+                    }
+                    for row in entries[:limit]
+                ],
+                "truncated": len(entries) > limit,
+                "epochs": status["epochs"],
+            }
+        if storage_id == "evidence":
+            store = self._store(state)
+            try:
+                rows = store._conn.execute(
+                    """
+                    SELECT id, kind, sequence, created_at, body_json, entry_sha256
+                    FROM evidence WHERE migration_id = ?
+                    ORDER BY created_at DESC, kind, sequence DESC LIMIT ?
+                    """,
+                    (state.migration_id, limit + 1),
+                ).fetchall()
+            finally:
+                store.close()
+            items = []
+            for row in rows[:limit]:
+                body = json.loads(str(row["body_json"]))
+                items.append(
+                    {
+                        "kind": "evidence",
+                        "id": row["id"],
+                        "title": body.get("event_type") or str(row["kind"]).replace("_", " "),
+                        "detail": f"{row['created_at']} · sequence {row['sequence']}",
+                        "digest": row["entry_sha256"],
+                    }
+                )
+            return {
+                **base,
+                "summary": f"Showing {len(items)} recent control evidence event(s)",
+                "rows": items,
+                "truncated": len(rows) > limit,
+            }
+        raise ValueError("storage preview is unavailable")
 
     def capture(
         self,
@@ -662,6 +1006,200 @@ class ControlPlaneManager:
             "records": list(deduplicated.values())[: max(0, min(limit, 500))],
         }
 
+    def memory_query(
+        self,
+        query: str,
+        *,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Answer a dashboard memory question through authorized candidates only."""
+        clean = " ".join(query.split())
+        if not clean:
+            raise ValueError("query is required")
+        state = self.state()
+        subject = self._resolve_subject(
+            state, subject_id=subject_id, agent_id=agent_id
+        )
+        if _memory_overview_query(clean):
+            if state.host == "openclaw":
+                from atmem.control.openclaw_native import mirror_status
+
+                status = mirror_status(state)
+                if not status.get("synced"):
+                    raise ValueError(status.get("error") or "memory mirror is not synchronized")
+                memory_path = status["mirror_db"]
+            else:
+                memory_path = self._generic_memory_db(state)
+            from atmem.memory import Memory
+
+            memory = Memory(memory_path, retain_query_text=False)
+            try:
+                records = memory.list(subject)
+                if state.host == "openclaw":
+                    episodes = {
+                        str(row.get("id") or ""): row
+                        for row in memory.store.list_episodes(subject)
+                    }
+
+                    def is_human_memory(row: dict[str, Any]) -> bool:
+                        episode = episodes.get(str(row.get("episode_id") or "")) or {}
+                        raw = episode.get("raw") if isinstance(episode.get("raw"), dict) else {}
+                        relative_path = str((raw or {}).get("relative_path") or "")
+                        if not relative_path:
+                            return True
+                        normalized = relative_path.replace("\\", "/").casefold()
+                        name = Path(normalized).name.upper()
+                        return name in {"USER.MD", "MEMORY.MD"} or "/memory/" in f"/{normalized}"
+
+                    records = [row for row in records if is_human_memory(row)]
+                candidates = [
+                    {
+                        "id": row["id"],
+                        "record_id": row["id"],
+                        "content": row["content"],
+                        "score": 1.0,
+                        "status": row["status"],
+                        "subject_id": subject,
+                    }
+                    for row in reversed(records)
+                ][:20]
+            finally:
+                memory.close()
+        else:
+            from atmem.control.atbot_companion import AtBotCompanionClient
+
+            expansion = AtBotCompanionClient().expand_query(clean)
+            expanded_queries = list(expansion.get("expanded_queries") or [clean])
+            candidates = self._hybrid_memory_candidates(
+                expanded_queries,
+                subject_id=subject,
+                agent_id=agent_id,
+            )
+        from atmem.control.atbot_companion import AtBotCompanionClient
+
+        result = AtBotCompanionClient().query(clean, list(candidates))
+        allowed = {
+            str(row.get("record_id") or row.get("id")): row for row in candidates
+        }
+        ranked = [
+            record_id
+            for record_id in result.get("ranked_record_ids") or []
+            if record_id in allowed
+        ]
+        return {
+            **result,
+            "format": "atmem-dashboard-memory-query-v1",
+            "query": clean,
+            "subject_id": subject,
+            "candidate_count": len(candidates),
+            "used_memories": [allowed[record_id] for record_id in ranked],
+            "retrieval": {
+                "queries": expanded_queries if not _memory_overview_query(clean) else [clean],
+                "signals": ["lexical", "fact_key", "semantic", "graph", "trust", "recency"],
+            },
+        }
+
+    def _hybrid_memory_candidates(
+        self,
+        queries: list[str],
+        *,
+        subject_id: str,
+        agent_id: str | None,
+    ) -> list[dict[str, Any]]:
+        """Fuse governed candidates for query-only AtBot expansions."""
+        from atmem.contracts import AuthorityScope, RecallRequest
+        from atmem.memory import Memory
+
+        state = self.state()
+        topology = self.agent_topology(state=state)
+        workspace = next(
+            (
+                row
+                for row in topology.get("workspaces") or []
+                if str(row.get("subject_id") or "") == subject_id
+            ),
+            None,
+        )
+        if not workspace:
+            raise ValueError("memory subject has no authorized workspace")
+        workspace_agents = [str(value) for value in workspace.get("agent_ids") or []]
+        selected_agent = str(
+            agent_id
+            or next(
+                (
+                    value
+                    for value in workspace_agents
+                    if value == topology.get("default_agent_id")
+                ),
+                workspace_agents[0] if workspace_agents else "main",
+            )
+        )
+        if workspace_agents and selected_agent not in workspace_agents:
+            raise ValueError("agent is not authorized for this memory workspace")
+        scope = AuthorityScope(
+            subject_id=subject_id,
+            agent_id=selected_agent,
+            workspace_id=str(workspace["workspace_id"]),
+        )
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import mirror_status
+
+            status = mirror_status(state)
+            if not status.get("synced"):
+                raise ValueError(status.get("error") or "memory mirror is not synchronized")
+            memory_path = status["mirror_db"]
+        else:
+            memory_path = self._generic_memory_db(state)
+        memory = Memory(memory_path, retain_query_text=False, graph_recall=True)
+        merged: dict[str, dict[str, Any]] = {}
+        try:
+            for index, query in enumerate(queries[:6]):
+                request = RecallRequest(
+                    request_id=f"dashboard_{uuid.uuid4().hex}",
+                    scope=scope,
+                    query=query,
+                    limit=30,
+                    candidate_limit=200,
+                    signals=("lexical", "semantic", "graph", "trust", "recency"),
+                    reranker_provider="atbot",
+                    reranker_model="memory-query",
+                    egress_class="local",
+                    min_score=0.3,
+                )
+                candidate_set = memory.eligible_candidates(request)
+                for candidate in candidate_set.candidates:
+                    row = candidate.to_dict()
+                    record_id = str(row["record_id"])
+                    normalized = {
+                        **row,
+                        "id": record_id,
+                        "matched_queries": [query],
+                        "expansion_rank": index,
+                    }
+                    current = merged.get(record_id)
+                    if current is None:
+                        merged[record_id] = normalized
+                    else:
+                        current["matched_queries"] = list(
+                            dict.fromkeys([*current["matched_queries"], query])
+                        )
+                        if float(normalized.get("score") or 0.0) > float(
+                            current.get("score") or 0.0
+                        ):
+                            normalized["matched_queries"] = current["matched_queries"]
+                            merged[record_id] = normalized
+        finally:
+            memory.close()
+        return sorted(
+            merged.values(),
+            key=lambda row: (
+                int(row.get("expansion_rank") or 0),
+                -float(row.get("score") or 0.0),
+                str(row["record_id"]),
+            ),
+        )[:50]
+
     def memory_reviews(self) -> dict[str, Any]:
         state = self.state()
         if state.host == "openclaw":
@@ -805,6 +1343,17 @@ class ControlPlaneManager:
                 if canonical is None:
                     raise ValueError(f"unknown memory record: {record_id}")
                 audit = memory.audit(str(canonical_subject))
+                source_episode = next(
+                    (
+                        episode
+                        for episode in memory.store.list_episodes(
+                            str(canonical_subject)
+                        )
+                        if str(episode.get("id") or "")
+                        == str(canonical.get("episode_id") or "")
+                    ),
+                    None,
+                )
             finally:
                 memory.close()
             audit_events = list(audit.get("audit_log") or [])
@@ -928,6 +1477,15 @@ class ControlPlaneManager:
                     "source_binding": "canonical-atmem-memory",
                     "episode_id": canonical.get("episode_id"),
                     "plane": "canonical",
+                    "source_type": canonical.get("source_type"),
+                    "original_context": (source_episode or {}).get("message"),
+                    "original_context_retained": bool(
+                        source_episode
+                        and (source_episode.get("message") or "") != "[purged]"
+                    ),
+                    "source_actor": (source_event or {}).get("actor"),
+                    "source_session_id": canonical.get("source_session_id")
+                    or (source_episode or {}).get("session_id"),
                 },
                 "lifecycle": {
                     "created_at": canonical.get("created_at"),
@@ -983,6 +1541,361 @@ class ControlPlaneManager:
             + control_timeline,
             "deletion_receipt": None,
         }
+
+    def memory_provenance(self, record_id: str) -> dict[str, Any]:
+        """Return the human contract for a memory, with raw proof kept separate."""
+        report = self.memory_record(record_id)
+        record = report.get("record") or {}
+        provenance = report.get("provenance") or {}
+        lifecycle = report.get("lifecycle") or {}
+        deliveries = list(report.get("deliveries") or [])
+        status = str(report.get("status") or record.get("status") or "unknown")
+        subject_id = str(
+            record.get("subject_id")
+            or report.get("subject_id")
+            or self.state().subject_id
+        )
+        short_id = str(record_id).removeprefix("rec_")[-8:].upper()
+
+        native_path = str(provenance.get("native_path") or "")
+        source_type = str(
+            provenance.get("source_type")
+            or record.get("source_type")
+            or "unknown"
+        )
+        model = provenance.get("interpreting_model")
+        if native_path:
+            source_kind, source_label = "file", native_path
+        elif source_type in {"user_message", "trusted_user"}:
+            source_kind, source_label = "conversation", "Conversation"
+        elif source_type in {"tool", "tool_output"}:
+            source_kind, source_label = "tool", "Tool output"
+        elif source_type in {"website", "web"}:
+            source_kind, source_label = "website", "Website"
+        elif source_type in {"document", "media"}:
+            source_kind, source_label = "file", "Imported content"
+        else:
+            source_kind, source_label = "system", source_type.replace("_", " ").title()
+
+        if model:
+            creation_method = "model_inference"
+            creation_label = f"Inferred by {model}"
+        elif native_path:
+            creation_method = "imported"
+            creation_label = "Imported from a source file"
+        elif record.get("scope") == "user_note":
+            creation_method = "copied"
+            creation_label = "Saved from the user's words"
+        else:
+            creation_method = "rule_extraction"
+            creation_label = "Extracted by deterministic rules"
+
+        confidence = record.get("confidence")
+        if confidence is None:
+            confidence_label = "Not recorded"
+        elif float(confidence) >= 0.9:
+            confidence_label = "Certain"
+        elif float(confidence) >= 0.7:
+            confidence_label = "Likely"
+        else:
+            confidence_label = "Uncertain"
+        if status == "quarantined":
+            confidence_label = "Awaiting approval"
+
+        returned = [row for row in deliveries if row.get("returned")]
+        injected = [row for row in deliveries if row.get("context_injected_at")]
+        response_bound = [row for row in deliveries if row.get("response_event_id")]
+        last_used_at = max(
+            (
+                str(row.get("context_injected_at") or row.get("recalled_at") or "")
+                for row in deliveries
+            ),
+            default="",
+        ) or None
+        if injected:
+            usage_summary = (
+                f"Delivered to agent context in {len(injected)} recorded "
+                f"{'run' if len(injected) == 1 else 'runs'}."
+            )
+            evidence_strength = "context_delivery_recorded"
+        elif returned:
+            usage_summary = "Returned by memory search; context delivery was not recorded."
+            evidence_strength = "search_return_recorded"
+        elif deliveries:
+            usage_summary = "Considered by memory search but not returned."
+            evidence_strength = "search_consideration_recorded"
+        else:
+            usage_summary = "No recorded use."
+            evidence_strength = "none"
+
+        topology = self.agent_topology()
+        workspace = next(
+            (
+                row
+                for row in topology.get("workspaces") or []
+                if str(row.get("subject_id") or "") == subject_id
+            ),
+            {},
+        )
+        agent_ids = list(
+            workspace.get("agent_ids")
+            or workspace.get("agents")
+            or []
+        )
+        workspace_label = (
+            workspace.get("workspace")
+            or workspace.get("path")
+            or workspace.get("name")
+            or "Default workspace"
+        )
+
+        storages = []
+        for storage in self.status().get("storages") or []:
+            storage_id = str(storage.get("id") or "")
+            if storage_id == "canonical":
+                present, detail = True, "Authoritative record and provenance"
+            elif storage_id == "graph":
+                present = bool(storage.get("count") or storage.get("entry_count"))
+                detail = "Entity link available" if present else "No entity link for this memory is proven"
+            elif storage_id.startswith("vectors"):
+                present = bool(storage.get("ready"))
+                detail = "Semantic index is active" if present else "Semantic index is not active"
+            elif storage_id == "evidence":
+                present, detail = bool(report.get("timeline")), "Lifecycle and usage evidence"
+            else:
+                present, detail = bool(storage.get("exists")), str(storage.get("role") or "Stored locally")
+            storages.append(
+                {
+                    "id": storage_id,
+                    "label": storage.get("label") or storage_id.replace("-", " ").title(),
+                    "present": present,
+                    "detail": detail,
+                    "path": storage.get("path"),
+                }
+            )
+
+        timeline = list(report.get("timeline") or [])
+        changes = [
+            {
+                "at": item.get("at"),
+                "actor": item.get("actor") or "system",
+                "summary": item.get("title") or item.get("type") or "Memory changed",
+                "reason": item.get("detail") or "A lifecycle event was recorded.",
+            }
+            for item in timeline
+            if any(
+                word in str(item.get("type") or item.get("title") or "").casefold()
+                for word in ("create", "admit", "approve", "reject", "supersed", "forget", "correct")
+            )
+        ]
+        original_context = provenance.get("original_context")
+        if original_context and len(str(original_context)) > 1200:
+            original_context = str(original_context)[:1199].rstrip() + "…"
+
+        excluded = False
+        graph_record_present = False
+        vector_record_present = False
+        try:
+            memory, action_subject = self._open_canonical_record(record_id)
+            try:
+                excluded = record_id in memory.store.excluded_record_ids(
+                    action_subject
+                )
+                graph_record_present = memory.store._conn.execute(
+                    """
+                    SELECT 1 FROM edges
+                    WHERE subject_id = ? AND record_id = ? AND status != 'tombstoned'
+                    UNION ALL
+                    SELECT 1 FROM entities
+                    WHERE subject_id = ? AND source_record = ? AND status != 'tombstoned'
+                    UNION ALL
+                    SELECT 1 FROM entity_aliases
+                    WHERE subject_id = ? AND source_record = ? AND status != 'tombstoned'
+                    LIMIT 1
+                    """,
+                    (
+                        action_subject,
+                        record_id,
+                        action_subject,
+                        record_id,
+                        action_subject,
+                        record_id,
+                    ),
+                ).fetchone() is not None
+                for registry in memory.store.semantic_index_paths(action_subject):
+                    index_path = Path(str(registry.get("index_path") or ""))
+                    if not index_path.is_file():
+                        continue
+                    try:
+                        connection = sqlite3.connect(
+                            f"file:{index_path.resolve()}?mode=ro", uri=True
+                        )
+                        try:
+                            found = connection.execute(
+                                """
+                                SELECT 1 FROM vector_entries AS entry
+                                JOIN vector_epochs AS epoch
+                                  ON epoch.epoch_id = entry.epoch_id
+                                WHERE entry.subject_id = ? AND entry.object_id = ?
+                                  AND epoch.status = 'active'
+                                LIMIT 1
+                                """,
+                                (action_subject, record_id),
+                            ).fetchone()
+                        finally:
+                            connection.close()
+                    except sqlite3.Error:
+                        continue
+                    if found is not None:
+                        vector_record_present = True
+                        break
+            finally:
+                memory.close()
+        except ValueError:
+            pass
+        for storage in storages:
+            if storage["id"] == "graph":
+                storage["present"] = graph_record_present
+                storage["detail"] = (
+                    "This memory has entity or relationship links"
+                    if graph_record_present
+                    else "This memory has no entity or relationship links"
+                )
+            elif storage["id"].startswith("vectors"):
+                storage["present"] = vector_record_present
+                storage["detail"] = (
+                    "This exact memory is in the active semantic index"
+                    if vector_record_present
+                    else "This exact memory is not in the active semantic index"
+                )
+        return {
+            "format": "atmem-memory-provenance-v1",
+            "memory": {
+                "display_id": short_id,
+                "record_id": record_id,
+                "text": record.get("content") or "This memory has been deleted.",
+                "status": status,
+            },
+            "origin": {
+                "kind": source_kind,
+                "label": source_label,
+                "provided_by": provenance.get("source_actor")
+                or ("OpenClaw" if native_path else "User"),
+                "learned_at": lifecycle.get("created_at") or record.get("created_at"),
+                "updated_at": record.get("updated_at") or lifecycle.get("superseded_at"),
+                "original_context": original_context,
+                "original_context_retained": bool(
+                    provenance.get("original_context_retained")
+                ),
+            },
+            "creation": {
+                "method": creation_method,
+                "label": creation_label,
+                "model": model,
+                "confidence": confidence,
+                "confidence_label": confidence_label,
+                "assurance": provenance.get("interpretation_assurance"),
+            },
+            "changes": changes,
+            "usage": {
+                "summary": usage_summary,
+                "considered_count": len(deliveries),
+                "returned_count": len(returned),
+                "delivered_count": len(injected),
+                "response_bound_count": len(response_bound),
+                "last_used_at": last_used_at,
+                "best_rank": min(
+                    (int(row["rank"]) for row in returned if row.get("rank") is not None),
+                    default=None,
+                ),
+                "evidence_strength": evidence_strength,
+            },
+            "scope": {
+                "subject_id": subject_id,
+                "user": "Current AtMem user",
+                "workspace": workspace_label,
+                "agent_ids": agent_ids,
+            },
+            "storage": storages,
+            "controls": {
+                "can_correct": status == "active",
+                "can_exclude": status == "active",
+                "can_approve": status == "quarantined",
+                "can_reject": status == "quarantined",
+                "can_forget": status not in {"deleted", "tombstoned", "audit-only"},
+                "excluded": excluded,
+            },
+            "deletion": {
+                "deleted": bool(report.get("deletion_receipt")),
+                "summary": (
+                    "Canonical, graph, vector and linked source cleanup was verified."
+                    if report.get("deletion_receipt")
+                    else "This memory has not been deleted."
+                ),
+                "receipt_available": bool(report.get("deletion_receipt")),
+            },
+            "technical": report,
+        }
+
+    def _open_canonical_record(self, record_id: str) -> tuple[Any, str]:
+        from atmem.memory import Memory
+
+        state = self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import mirror_status
+
+            mirror = mirror_status(state)
+            if not mirror.get("synced"):
+                raise ValueError(mirror.get("error") or "memory mirror is not synchronized")
+            memory = Memory(mirror["mirror_db"], retain_query_text=False)
+            subjects = memory.store.subject_ids() or [state.subject_id]
+        else:
+            memory = Memory(self._generic_memory_db(state), retain_query_text=False)
+            subjects = self._generic_subjects(state)
+        for subject in subjects:
+            if memory.store.get_record(subject, record_id) is not None:
+                return memory, str(subject)
+        memory.close()
+        raise ValueError(f"unknown memory record: {record_id}")
+
+    def correct_memory(
+        self, record_id: str, corrected_text: str, reason: str = ""
+    ) -> dict[str, Any]:
+        memory, subject = self._open_canonical_record(record_id)
+        try:
+            return memory.correct_record(
+                subject,
+                record_id,
+                corrected_text,
+                reason=reason,
+                actor="dashboard-reviewer",
+            )
+        finally:
+            memory.close()
+
+    def exclude_memory(
+        self, record_id: str, excluded: bool, reason: str = ""
+    ) -> dict[str, Any]:
+        memory, subject = self._open_canonical_record(record_id)
+        try:
+            return memory.set_retrieval_excluded(
+                subject,
+                record_id,
+                excluded,
+                reason=reason,
+                actor="dashboard-reviewer",
+            )
+        finally:
+            memory.close()
+
+    def forget_memory(self, record_id: str) -> dict[str, Any]:
+        memory, subject = self._open_canonical_record(record_id)
+        try:
+            return memory.forget_record(
+                subject, record_id, actor="dashboard-reviewer"
+            )
+        finally:
+            memory.close()
 
     def memory_audit(
         self,

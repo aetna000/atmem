@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/scope.json",
+  "title": "AtMem authority scope v1",
+  "type": "object",
+  "required": ["subject_id", "agent_id", "workspace_id"],
+  "properties": {
+    "subject_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"},
+    "agent_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"},
+    "workspace_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"}
+  },
+  "additionalProperties": false
+}

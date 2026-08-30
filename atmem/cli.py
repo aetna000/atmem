@@ -1429,7 +1429,7 @@ def _add_semantic_search_arguments(parser: argparse.ArgumentParser) -> None:
         "--mode",
         choices=("lexical", "semantic", "hybrid"),
         default="lexical",
-        help="Retrieval mode; semantic/hybrid require a built index",
+        help="Retrieval mode; AtMem creates a local index automatically",
     )
     parser.add_argument(
         "--embedder",
@@ -1612,6 +1612,9 @@ def _serve_dashboard(
     manager = ControlPlaneManager(state_path or DEFAULT_STATE_PATH)
     # Fail before opening a port if no valid migration exists.
     manager.state()
+    from atmem.control.atbot_companion import AtBotCompanionClient
+
+    companion = AtBotCompanionClient().ensure_running()
     server = ControlDashboardServer(
         ("127.0.0.1", port),
         manager,
@@ -1619,6 +1622,11 @@ def _serve_dashboard(
     )
     base = f"http://127.0.0.1:{server.server_port}/"
     print(f"AtMem dashboard: {base}", flush=True)
+    print(
+        "AtBot intelligence: "
+        + ("ready" if companion.get("available") else "safe AtMem fallback"),
+        flush=True,
+    )
     print("No login is required. The dashboard is loopback-only. Press Ctrl-C to stop.", flush=True)
     if open_browser:
         webbrowser.open(base)

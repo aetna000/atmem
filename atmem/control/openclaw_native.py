@@ -266,9 +266,19 @@ def sync_mirror(
     ):
         return _mirror_status_from_manifest(previous, mirror_path)
 
+    # A mirror refresh rebuilds native-file projections under a staging path.
+    # Preserve active user memories that were admitted after that projection;
+    # otherwise an ordinary refresh silently drops governed memory.
+    preserved_records = _active_non_native_records(
+        mirror_path,
+        [str(scope["subject_id"]) for scope in workspace_scopes],
+    )
+
     build_path = control_dir / f".{MIRROR_DB_NAME}.building"
     _remove_sqlite_files(build_path)
-    memory = Memory(build_path)
+    # The canonical file is assembled under a staging name. Build derived
+    # vectors only after the atomic rename so their registry path is final.
+    memory = Memory(build_path, auto_vectors=False)
     imported_records = 0
     imported_chunks = 0
     try:
@@ -331,6 +341,38 @@ def sync_mirror(
                     "record_count": scope_records,
                 },
             )
+        preserved_count = 0
+        for record in preserved_records:
+            result = memory.remember(
+                str(record["subject_id"]),
+                str(record["content"]),
+                session_id=str(record.get("source_session_id") or "openclaw-mirror-refresh"),
+                turn_id=record.get("source_turn_id"),
+                source_type="user_message",
+                actor="openclaw-shadow-preservation",
+                interpreted_fact=str(record["content"]),
+                interpreted_fact_key=(str(record["fact_key"]) if record.get("fact_key") else None),
+                raw={
+                    "format": "atmem-openclaw-preserved-memory-v1",
+                    "previous_record_id": record["id"],
+                    "previous_created_at": record.get("created_at"),
+                    "previous_content_sha256": sha256_hex(str(record["content"])),
+                    "previous_raw": record.get("raw") or {},
+                },
+            )
+            preserved_count += len(result.get("records") or [])
+        if preserved_records:
+            memory.store.append_audit_event(
+                subject_id=state.subject_id,
+                event_type="host.non_native_memory_preserved",
+                actor="openclaw-shadow-preservation",
+                payload={
+                    "migration_id": state.migration_id,
+                    "source_record_ids": [str(row["id"]) for row in preserved_records],
+                    "preserved_record_count": preserved_count,
+                    "manifest_sha256": manifest_sha256,
+                },
+            )
         verification = memory.verify()
         if not verification.get("valid"):
             raise ValueError("AtMem mirror audit verification failed")
@@ -341,6 +383,12 @@ def sync_mirror(
     _remove_sqlite_sidecars(build_path)
     os.replace(build_path, mirror_path)
     _remove_sqlite_sidecars(mirror_path)
+    vector_memory = Memory(mirror_path)
+    try:
+        for subject_id in sorted({str(item["subject_id"]) for item in prepared}):
+            vector_memory.sync_default_vectors(subject_id)
+    finally:
+        vector_memory.close()
     native_memory_chars = sum(
         int(row["bytes"])
         for row in all_source_rows
@@ -388,6 +436,28 @@ def sync_mirror(
     }
     _private_json(manifest_path, manifest)
     return _mirror_status_from_manifest(manifest, mirror_path)
+
+
+def _active_non_native_records(
+    mirror_path: Path, subject_ids: list[str]
+) -> list[dict[str, Any]]:
+    if not mirror_path.is_file():
+        return []
+    memory = Memory(mirror_path, auto_vectors=False)
+    try:
+        records: list[dict[str, Any]] = []
+        for subject_id in dict.fromkeys(subject_ids):
+            records.extend(
+                row
+                for row in memory.list(subject_id)
+                if row.get("source_type") == "user_message"
+                and not str(row.get("source_session_id") or "").startswith(
+                    "openclaw-native:"
+                )
+            )
+        return records
+    finally:
+        memory.close()
 
 
 def mirror_status(state: ControlState, *, refresh: bool = True) -> dict[str, Any]:
@@ -1152,6 +1222,14 @@ def inspect_mirror_record(state: ControlState, record_id: str) -> dict[str, Any]
             "native_path": native.get("relative_path"),
             "native_source_sha256": native.get("source_sha256"),
             "plane": native.get("plane") or (record or {}).get("scope"),
+            "original_context": (episode or {}).get("message"),
+            "original_context_retained": bool(
+                episode and (episode.get("message") or "") != "[purged]"
+            ),
+            "source_actor": (created or {}).get("actor")
+            or (interpretation or {}).get("actor"),
+            "source_session_id": (record or {}).get("source_session_id")
+            or (episode or {}).get("session_id"),
         }
 
         timeline = []
@@ -2942,6 +3020,15 @@ def _mirror_status_from_manifest(
     record_count = int(manifest.get("record_count") or 0)
     audit_verified = False
     audit_error = None
+    category_counts = {
+        "profile": 0,
+        "human_memory": 0,
+        "agent_instructions": 0,
+        "identity": 0,
+        "tools": 0,
+        "heartbeat": 0,
+        "other": 0,
+    }
     if mirror_path.is_file():
         memory = Memory(mirror_path)
         try:
@@ -2953,10 +3040,34 @@ def _mirror_status_from_manifest(
                     if isinstance(row, dict) and row.get("subject_id")
                 )
             ) or [str(manifest.get("subject_id") or "local-user")]
-            record_count = sum(
-                len(memory.list(subject_id, include_inactive=True))
-                for subject_id in subject_ids
-            )
+            record_count = 0
+            for subject_id in subject_ids:
+                records = memory.list(subject_id, include_inactive=True)
+                record_count += len(records)
+                episodes = {
+                    str(row.get("id") or ""): row
+                    for row in memory.store.list_episodes(subject_id)
+                }
+                for record in records:
+                    episode = episodes.get(str(record.get("episode_id") or "")) or {}
+                    raw = episode.get("raw") if isinstance(episode.get("raw"), dict) else {}
+                    relative_path = str((raw or {}).get("relative_path") or "")
+                    name = Path(relative_path).name.upper()
+                    normalized_path = relative_path.replace("\\", "/").casefold()
+                    if name == "USER.MD":
+                        category_counts["profile"] += 1
+                    elif name == "MEMORY.MD" or "/memory/" in f"/{normalized_path}":
+                        category_counts["human_memory"] += 1
+                    elif name == "AGENTS.MD":
+                        category_counts["agent_instructions"] += 1
+                    elif name in {"SOUL.MD", "IDENTITY.MD"}:
+                        category_counts["identity"] += 1
+                    elif name == "TOOLS.MD":
+                        category_counts["tools"] += 1
+                    elif name == "HEARTBEAT.MD":
+                        category_counts["heartbeat"] += 1
+                    else:
+                        category_counts["other"] += 1
             audit_verified = all(
                 bool(memory.verify(subject_id).get("valid"))
                 for subject_id in subject_ids
@@ -2971,6 +3082,15 @@ def _mirror_status_from_manifest(
         "synced": mirror_path.is_file(),
         "mirror_db": str(mirror_path),
         "record_count": record_count,
+        "record_categories": [
+            {"id": "profile", "label": "Profile source records", "count": category_counts["profile"]},
+            {"id": "human_memory", "label": "Human memory records", "count": category_counts["human_memory"]},
+            {"id": "agent_instructions", "label": "Agent instructions", "count": category_counts["agent_instructions"]},
+            {"id": "identity", "label": "Identity and personality", "count": category_counts["identity"]},
+            {"id": "tools", "label": "Tool configuration", "count": category_counts["tools"]},
+            {"id": "heartbeat", "label": "Heartbeat instructions", "count": category_counts["heartbeat"]},
+            {"id": "other", "label": "Other source records", "count": category_counts["other"]},
+        ],
         "audit_verified": audit_verified,
         "audit_error": audit_error,
         "context_budget_chars": max_chars,

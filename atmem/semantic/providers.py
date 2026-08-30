@@ -317,7 +317,11 @@ def _ollama_model_digest(endpoint: str, model: str, *, timeout: float) -> str:
         reason = "not found" if not matches else "ambiguous"
         raise ValueError(f"Ollama model {model!r} is {reason} in /api/tags")
     digest = matches[0].get("digest")
-    if not isinstance(digest, str) or not digest.startswith("sha256:"):
+    if isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest):
+        digest = f"sha256:{digest}"
+    if not isinstance(digest, str) or not re.fullmatch(
+        r"sha256:[0-9a-f]{64}", digest
+    ):
         raise ValueError(f"Ollama model {model!r} has no verifiable SHA-256 digest")
     return digest
 

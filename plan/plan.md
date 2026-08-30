@@ -1,4 +1,4 @@
-# AtMem 2.2 implementation plan for AtBot readiness
+# AtMem 2.2 implementation plan with AtBot intelligence
 
 Status: proposed execution plan
 
@@ -6,7 +6,12 @@ Source contract: [AtMem 2.2 research](../research/research.md)
 
 ## Outcome
 
-AtMem 2.2 will expose a stable, provider-neutral authority API that lets AtBot:
+AtMem 2.2 is one agent-agnostic memory product with AtBot as its managed,
+headless intelligence companion. AtBot never becomes an independent product
+agent. AtMem remains the only authority, store, installer, and customer
+interface.
+
+AtMem exposes a stable, provider-neutral authority API that lets AtBot:
 
 1. capture source messages;
 2. submit model-derived memory proposals;
@@ -19,6 +24,11 @@ AtMem 2.2 will expose a stable, provider-neutral authority API that lets AtBot:
 
 AtMem will not run an LLM, own an agent loop, or depend on Pydantic AI. AtBot
 owns intelligence; AtMem owns canonical memory and memory authority.
+
+The AtBot chat-style interface is merged into the AtMem dashboard as governed
+memory query. The dashboard adopts the simpler dark visual language while
+preserving shadow mode, multi-agent topology, review, provenance, storage,
+deletion, audit, Safe Switch, restore, and OpenClaw controls.
 
 ## Delivery strategy
 
@@ -139,6 +149,39 @@ topology and fails closed on missing, ambiguous, or inconsistent scope.
 - New schemas and APIs start at protocol `v1`, independently of package 2.2.
 - Breaking protocol changes require a new protocol version, not silent field
   reinterpretation.
+
+## Product-integration workstream: managed intelligence and unified UI
+
+Goal: ship AtBot as an AtMem-managed intelligence component rather than a
+second agent product.
+
+### Deliverables
+
+- [ ] Add AtBot health, capability, extraction, expansion, ranking, and query
+  companion contracts.
+- [x] Ensure AtMem authorizes candidate content before companion delivery.
+- [x] Revalidate every AtBot record ID before context construction.
+- [x] Add deadline-bounded companion calls with deterministic AtMem fallback.
+- [x] Remove independent AtBot task and customer-dashboard modes.
+- [x] Add natural-language governed-memory query to the AtMem dashboard.
+- [x] Apply the simple dark AtBot visual language without removing AtMem
+  controls or evidence.
+- [ ] Make AtMem verify/install, configure, start, and diagnose a pinned AtBot.
+- [x] Preserve OpenClaw adapter behavior, shadow mode, multi-agent topology,
+  activation, restore, bridge verification, and Black Box evidence.
+- [ ] Publish the same host-neutral adapter boundary for Hermes and others.
+- [x] Fuse original plus content-free AtBot query expansions across lexical,
+  canonical fact-key, graph, and local-vector signals for dashboard and adapter
+  retrieval.
+- [x] Prove `fav food` retrieves `likes burgers` without allowing AtBot to
+  introduce an unauthorized record.
+
+### Exit gate
+
+- The user operates one AtMem dashboard and one authority store.
+- AtBot can disappear without stopping safe baseline extraction or recall.
+- No AtBot ranking can add an unknown, stale, or unauthorized record.
+- OpenClaw and generic adapter regression suites remain green.
 
 ## Workstream 0: baseline and contract harness
 

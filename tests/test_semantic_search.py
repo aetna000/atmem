@@ -13,6 +13,7 @@ import pytest
 from atmem import Memory
 from atmem.investigate import search_evidence, trace_evidence
 from atmem.semantic import (
+    HashingEmbedder,
     OllamaEmbedder,
     OpenAICompatibleEmbedder,
     SemanticIndex,
@@ -20,6 +21,60 @@ from atmem.semantic import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_default_local_vector_store_is_created_and_synced_automatically(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "memory.db"
+    memory = Memory(database)
+    vector_path = Path(f"{database}.vectors.db")
+    assert vector_path.is_file()
+    memory.remember("u1", "My preferred city is Paris.")
+    memory.close()
+
+    reopened = Memory(database)
+    index = SemanticIndex(vector_path, policy=reopened.policy)
+    try:
+        epoch = index.active_epoch("u1")
+        assert epoch is not None
+        assert epoch["identity"]["provider"] == HashingEmbedder().identity["provider"]
+        assert index.verify(reopened, "u1")["valid"] is True
+    finally:
+        index.close()
+        reopened.close()
+
+
+def test_memory_mutation_does_not_downgrade_active_semantic_provider(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "memory.db"
+    memory = Memory(database)
+    memory.remember("u1", "My preferred airport is Sydney.")
+    memory.close()
+
+    memory = Memory(database, auto_vectors=False)
+    index = SemanticIndex(f"{database}.vectors.db", policy=memory.policy)
+    embedder = ConceptEmbedder()
+    try:
+        index.build(memory, "u1", embedder)
+    finally:
+        index.close()
+        memory.close()
+
+    monkeypatch.setattr("atmem.memory._embedder_for_epoch", lambda epoch: embedder)
+    mutated = Memory(database)
+    mutated.remember("u1", "My favorite color is teal.")
+    mutated.close()
+
+    checked = Memory(database, auto_vectors=False)
+    index = SemanticIndex(f"{database}.vectors.db", policy=checked.policy)
+    try:
+        assert index.active_epoch("u1")["identity"]["provider"] == "test"
+        assert index.verify(checked, "u1")["valid"] is True
+    finally:
+        index.close()
+        checked.close()
 
 
 class ConceptEmbedder:
@@ -127,6 +182,9 @@ def test_http_embedding_adapters_use_batch_contracts_and_normalize() -> None:
         assert EmbeddingHandler.requests[0][0] == "/api/embed"
         assert EmbeddingHandler.requests[1][0] == "/v1/embeddings"
         assert EmbeddingHandler.requests[1][2] == "Bearer secret"
+        EmbeddingHandler.digest = "a" * 64
+        raw_digest = OllamaEmbedder("embed-model", endpoint=endpoint)
+        assert raw_digest.identity["model_digest"] == "sha256:" + ("a" * 64)
         EmbeddingHandler.digest = "sha256:" + ("b" * 64)
         with pytest.raises(ValueError, match="digest changed"):
             ollama.verify_identity()

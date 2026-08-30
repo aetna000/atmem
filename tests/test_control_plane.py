@@ -118,6 +118,103 @@ def test_corrupt_state_fails_closed(tmp_path: Path) -> None:
     assert manager.prepare("anything")["inject"] is False
 
 
+def test_status_lists_local_storage_paths_and_shared_graph_store(tmp_path: Path) -> None:
+    memory_db = tmp_path / "memory.db"
+    manager = ControlPlaneManager.start(
+        host="generic",
+        state_path=tmp_path / "state.json",
+        control_root=tmp_path / "migrations",
+        memory_db=memory_db,
+    )
+
+    storages = {row["id"]: row for row in manager.status()["storages"]}
+
+    assert set(storages) == {"canonical", "graph", "vectors", "evidence"}
+    assert storages["canonical"]["path"] == str(memory_db.resolve())
+    assert storages["canonical"]["exists"] is True
+    assert storages["graph"]["path"] == storages["canonical"]["path"]
+    assert storages["graph"]["shared_with"] == "canonical"
+    assert storages["vectors"]["path"] == f"{memory_db.resolve()}.vectors.db"
+    assert storages["vectors"]["optional"] is False
+    assert storages["vectors"]["exists"] is True
+    assert storages["vectors"]["ready"] is False
+    setup = "\n".join(storages["vectors"]["setup_commands"])
+    assert '-m pip install "sentence-transformers>=5.0.0,<6.0.0"' in setup
+    assert f"-m atmem.cli index build {memory_db.resolve()}" in setup
+    assert "--subject local-user" in setup
+    assert "--embedder sentence-transformers --model all-MiniLM-L6-v2" in setup
+    assert f"-m atmem.cli index verify {memory_db.resolve()}" in setup
+    assert storages["evidence"]["exists"] is True
+    assert Path(storages["evidence"]["path"]).name == "evidence.db"
+
+    memory = Memory(memory_db)
+    try:
+        record = memory.remember("local-user", "My preferred city is Paris.")["records"][0]
+    finally:
+        memory.close()
+
+    canonical = manager.storage_preview("canonical")
+    assert canonical["rows"][0]["record_id"] == record["id"]
+    assert "Paris" in canonical["rows"][0]["title"]
+    graph = manager.storage_preview("graph")
+    assert graph["rows"][0]["record_id"] == record["id"]
+    assert "Paris" in graph["rows"][0]["title"]
+    vectors = manager.storage_preview("vectors")
+    assert vectors["rows"][0]["record_id"] == record["id"]
+    assert "256 dimensions" in vectors["rows"][0]["detail"]
+    with pytest.raises(ValueError, match="unknown storage"):
+        manager.storage_preview("arbitrary-database")
+
+
+def test_human_provenance_answers_the_memory_questions(tmp_path: Path) -> None:
+    memory_db = tmp_path / "memory.db"
+    manager = ControlPlaneManager.start(
+        host="generic",
+        state_path=tmp_path / "state.json",
+        control_root=tmp_path / "migrations",
+        memory_db=memory_db,
+    )
+    memory = Memory(memory_db)
+    try:
+        record = memory.remember(
+            "local-user",
+            "My boss says Paris is the preferred office.",
+            force=True,
+            session_id="boss-conversation",
+        )["records"][0]
+    finally:
+        memory.close()
+
+    provenance = manager.memory_provenance(record["id"])
+
+    assert provenance["format"] == "atmem-memory-provenance-v1"
+    assert "paris" in provenance["memory"]["text"].casefold()
+    assert provenance["origin"]["original_context"] == (
+        "My boss says Paris is the preferred office."
+    )
+    assert provenance["origin"]["provided_by"]
+    assert provenance["origin"]["learned_at"]
+    assert provenance["creation"]["method"]
+    assert provenance["creation"]["confidence_label"]
+    assert set(provenance) >= {
+        "memory",
+        "origin",
+        "creation",
+        "changes",
+        "usage",
+        "scope",
+        "storage",
+        "controls",
+        "deletion",
+        "technical",
+    }
+    assert next(row for row in provenance["storage"] if row["id"] == "canonical")[
+        "present"
+    ] is True
+    assert provenance["controls"]["can_correct"] is True
+    assert provenance["controls"]["can_forget"] is True
+
+
 @pytest.mark.parametrize(
     ("mode", "host", "takeover", "readiness", "warning", "migration_id", "expected"),
     [
@@ -631,7 +728,17 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
         "viewEvidence",
         "statusBanner",
         "stateChip",
+        "storageOverview",
+        "storageCount",
+        "storageGrid",
+        "storageDiagram",
+        "storageBrowser",
+        "storageContents",
+        "storageBrowserClose",
         "agentOverview",
+        "agentCoverageActions",
+        "agentTopologySync",
+        "agentTopologyCheck",
         "blackboxCard",
         "reviewCard",
         "hero",
@@ -666,7 +773,9 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
     known = {
         "/api/session",
         "/api/product",
-        "/api/status",
+            "/api/status",
+            "/api/companion/status",
+        "/api/storage/preview",
         "/api/mode",
         "/api/restore",
         "/api/restore-drill",
@@ -675,9 +784,14 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/bridge/refresh-test",
         "/api/memory/reviews",
         "/api/memory/review",
-        "/api/memory/search",
+            "/api/memory/search",
+            "/api/memory/query",
         "/api/memory/sync",
         "/api/memory/record",
+        "/api/memory/provenance",
+        "/api/memory/correct",
+        "/api/memory/exclude",
+        "/api/memory/forget",
         "/api/memory/record-report",
         "/api/memory/deletion-receipt",
         "/api/memory/audit",

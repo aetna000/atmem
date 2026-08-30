@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/source-capture.json",
+  "title": "AtMem source capture v1",
+  "type": "object",
+  "required": ["format", "source_id", "idempotency_key", "scope", "message", "source_type"],
+  "properties": {
+    "format": {"const": "atmem-source-capture-request-v1"},
+    "source_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 256},
+    "scope": {"$ref": "scope.json"},
+    "message": {"type": "string", "minLength": 1},
+    "source_type": {"enum": ["user_message", "agent_message", "tool_output", "website", "document"]},
+    "session_id": {"type": ["string", "null"]},
+    "turn_id": {"type": ["string", "null"]},
+    "host_message_id": {"type": ["string", "null"]},
+    "retain_body": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

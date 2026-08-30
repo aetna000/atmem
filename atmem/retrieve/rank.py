@@ -82,7 +82,15 @@ def rank_records(
         }
     else:
         text_scores = {
-            str(record.get("id")): _overlap_score(tokens, str(record.get("content") or ""))
+            str(record.get("id")): _overlap_score(
+                tokens,
+                " ".join(
+                    (
+                        str(record.get("content") or ""),
+                        str(record.get("fact_key") or "").replace("_", " "),
+                    )
+                ),
+            )
             for record in records
         }
 

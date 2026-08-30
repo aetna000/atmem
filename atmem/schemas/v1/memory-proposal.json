@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/memory-proposal.json",
+  "title": "AtMem memory proposal v1",
+  "type": "object",
+  "required": ["format", "proposal_id", "idempotency_key", "scope", "fact", "source_ids", "interpreter", "source_binding"],
+  "properties": {
+    "format": {"const": "atmem-memory-proposal-v1"},
+    "proposal_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 256},
+    "scope": {"$ref": "scope.json"},
+    "fact": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "source_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+    "fact_key": {"type": ["string", "null"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "entities": {"type": "array", "items": {"type": "object"}},
+    "suggested_action": {"enum": ["add", "duplicate", "supports", "extends", "contradicts", "supersedes", "uncertain"]},
+    "related_record_ids": {"type": "array", "items": {"type": "string"}},
+    "sensitivity": {"enum": ["public", "internal", "personal", "sensitive", "restricted"]},
+    "interpreter": {"type": "object"},
+    "source_binding": {"type": "object"}
+  },
+  "additionalProperties": false
+}

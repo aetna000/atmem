@@ -345,3 +345,54 @@ def test_agent_action_events_share_audit_chain() -> None:
     audit = memory.audit("user-1")
     assert audit["audit_chain_valid"] is True
     assert audit["audit_log"][0]["event_type"] == "agent.tool_call"
+
+
+def test_retrieval_exclusion_is_persistent_and_reversible() -> None:
+    memory = Memory(":memory:")
+    record = memory.remember(
+        "user-1", "My boss says Paris is the preferred office.", force=True
+    )["records"][0]
+
+    memory.set_retrieval_excluded("user-1", record["id"], True)
+    assert memory.recall("user-1", "Paris office") == []
+
+    memory.set_retrieval_excluded("user-1", record["id"], False)
+    assert memory.recall("user-1", "Paris office")[0]["id"] == record["id"]
+
+
+def test_correction_preserves_old_record_and_creates_replacement() -> None:
+    memory = Memory(":memory:")
+    old = memory.remember(
+        "user-1", "My boss says Paris is the preferred office.", force=True
+    )["records"][0]
+
+    result = memory.correct_record(
+        "user-1",
+        old["id"],
+        "My boss says Sydney is the preferred office.",
+        reason="The office changed.",
+    )
+
+    replacement = result["record"]
+    assert "Sydney" in replacement["content"]
+    assert memory.store.get_record("user-1", old["id"])["status"] == "superseded"
+    event = next(
+        row
+        for row in memory.audit("user-1")["audit_log"]
+        if row["event_type"] == "memory.record_corrected"
+    )
+    assert event["payload"]["replaces_record_id"] == old["id"]
+
+
+def test_exact_record_forget_returns_verified_receipt() -> None:
+    memory = Memory(":memory:")
+    record = memory.remember(
+        "user-1", "My boss says Paris is the preferred office.", force=True
+    )["records"][0]
+
+    result = memory.forget_record("user-1", record["id"])
+
+    assert result["deleted"] is True
+    assert result["receipt"]["purged_record_ids"] == [record["id"]]
+    assert memory.store.get_record("user-1", record["id"])["status"] == "tombstoned"
+    assert memory.audit("user-1")["audit_chain_valid"] is True

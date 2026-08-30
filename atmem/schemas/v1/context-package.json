@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/context-package.json",
+  "title": "AtMem byte-stable context package v1",
+  "type": "object",
+  "required": ["format", "context_id", "scope", "record_ids", "context", "context_sha256", "serializer_version", "generation", "expires_at", "preparation_id"],
+  "properties": {
+    "format": {"const": "atmem-context-package-v1"},
+    "context_id": {"type": "string"},
+    "scope": {"$ref": "scope.json"},
+    "record_ids": {"type": "array", "items": {"type": "string"}},
+    "context": {"type": "string"},
+    "context_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "serializer_version": {"const": "atmem-context-utf8-v1"},
+    "generation": {"type": "integer", "minimum": 0},
+    "expires_at": {"type": "string"},
+    "preparation_id": {"type": "string"}
+  },
+  "additionalProperties": false
+}

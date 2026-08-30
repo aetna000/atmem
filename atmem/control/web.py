@@ -84,6 +84,23 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         if path == "/api/status":
             self._json(HTTPStatus.OK, self.server.manager.status())
             return
+        if path == "/api/companion/status":
+            from atmem.control.atbot_companion import AtBotCompanionClient
+
+            self._json(HTTPStatus.OK, AtBotCompanionClient().health())
+            return
+        if path == "/api/storage/preview":
+            params = parse_qs(parsed.query)
+            storage_id = (params.get("id") or [""])[0].strip()
+            try:
+                limit = int((params.get("limit") or ["25"])[0])
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.storage_preview(storage_id, limit=limit),
+                )
+            except ValueError as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
         if path == "/api/bridge/status":
             if self.server.manager.state().host != "openclaw":
                 self._json(
@@ -272,6 +289,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             return
         if path in {
             "/api/memory/record",
+            "/api/memory/provenance",
             "/api/memory/record-report",
             "/api/memory/deletion-receipt",
         }:
@@ -281,11 +299,18 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 self._json(HTTPStatus.BAD_REQUEST, {"error": "record_id is required"})
                 return
             try:
-                report = self.server.manager.memory_record(record_id)
+                report = (
+                    self.server.manager.memory_provenance(record_id)
+                    if path == "/api/memory/provenance"
+                    else self.server.manager.memory_record(record_id)
+                )
             except ValueError as exc:
                 self._json(HTTPStatus.NOT_FOUND, {"error": str(exc)})
                 return
             if path == "/api/memory/record":
+                self._json(HTTPStatus.OK, report)
+                return
+            if path == "/api/memory/provenance":
                 self._json(HTTPStatus.OK, report)
                 return
             if path == "/api/memory/deletion-receipt":
@@ -389,6 +414,17 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     self.server.manager.sync_memory(),
                 )
                 return
+            if path == "/api/memory/query":
+                query = str(body.get("query") or "").strip()
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.memory_query(
+                        query,
+                        agent_id=str(body.get("agent_id") or "").strip() or None,
+                        subject_id=str(body.get("subject_id") or "").strip() or None,
+                    ),
+                )
+                return
             if path == "/api/memory/review":
                 record_id = str(body.get("record_id") or "").strip()
                 decision = str(body.get("decision") or "").strip()
@@ -400,6 +436,34 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     HTTPStatus.OK,
                     self.server.manager.review_memory(record_id, decision),
                 )
+                return
+            if path in {
+                "/api/memory/correct",
+                "/api/memory/exclude",
+                "/api/memory/forget",
+            }:
+                record_id = str(body.get("record_id") or "").strip()
+                if not record_id or not secrets.compare_digest(
+                    str(body.get("confirm_record_id") or ""), record_id
+                ):
+                    raise ValueError("record confirmation does not match")
+                if path == "/api/memory/correct":
+                    result = self.server.manager.correct_memory(
+                        record_id,
+                        str(body.get("corrected_text") or ""),
+                        str(body.get("reason") or ""),
+                    )
+                elif path == "/api/memory/exclude":
+                    if not isinstance(body.get("excluded"), bool):
+                        raise ValueError("excluded must be true or false")
+                    result = self.server.manager.exclude_memory(
+                        record_id,
+                        bool(body["excluded"]),
+                        str(body.get("reason") or ""),
+                    )
+                else:
+                    result = self.server.manager.forget_memory(record_id)
+                self._json(HTTPStatus.OK, result)
                 return
             if path == "/api/restore":
                 self._json(

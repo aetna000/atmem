@@ -94,6 +94,31 @@ class SQLiteStore:
 
     def reset_subject(self, subject_id: str) -> None:
         with self.transaction():
+            preparation_ids = [
+                str(row["preparation_id"])
+                for row in self._conn.execute(
+                    "SELECT preparation_id FROM protocol_preparations WHERE subject_id = ?",
+                    (subject_id,),
+                ).fetchall()
+            ]
+            if preparation_ids:
+                placeholders = ",".join("?" for _ in preparation_ids)
+                self._conn.execute(
+                    f"DELETE FROM protocol_exposures WHERE preparation_id IN ({placeholders})",
+                    preparation_ids,
+                )
+            self._conn.execute(
+                "DELETE FROM protocol_preparations WHERE subject_id = ?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM protocol_candidate_sets WHERE subject_id = ?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM protocol_proposals WHERE subject_id = ?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM protocol_sources WHERE subject_id = ?", (subject_id,)
+            )
             action_table = self._conn.execute(
                 "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'action_transactions'"
             ).fetchone()
@@ -106,6 +131,9 @@ class SQLiteStore:
                 self._delete_records_fts_subject(subject_id)
             if self._graph_fts_enabled:
                 self._delete_graph_fts_subject(subject_id)
+            self._conn.execute(
+                "DELETE FROM retrieval_exclusions WHERE subject_id = ?", (subject_id,)
+            )
             self._conn.execute(
                 "DELETE FROM graph_merge_proposals WHERE subject_id = ?", (subject_id,)
             )
@@ -365,6 +393,282 @@ class SQLiteStore:
             (subject_id, record_id),
         ).fetchone()
         return _record_from_row(row) if row else None
+
+    def get_protocol_source(
+        self, workspace_id: str, agent_id: str, idempotency_key: str
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT * FROM protocol_sources
+            WHERE workspace_id = ? AND agent_id = ? AND idempotency_key = ?
+            """,
+            (workspace_id, agent_id, idempotency_key),
+        ).fetchone()
+        if row is None:
+            return None
+        value = dict(row)
+        value["request"] = _load_json(value.pop("request_json"), {})
+        value["result"] = _load_json(value.pop("result_json"), {})
+        return value
+
+    def get_protocol_source_by_id(self, source_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM protocol_sources WHERE source_id = ?", (source_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        value = dict(row)
+        value["request"] = _load_json(value.pop("request_json"), {})
+        value["result"] = _load_json(value.pop("result_json"), {})
+        return value
+
+    def insert_protocol_source(
+        self,
+        *,
+        source_id: str,
+        idempotency_key: str,
+        payload_sha256: str,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        episode_id: str,
+        source_sha256: str,
+        request: dict[str, Any],
+        result: dict[str, Any],
+    ) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO protocol_sources(
+              source_id, idempotency_key, payload_sha256, subject_id, agent_id,
+              workspace_id, episode_id, source_sha256, request_json,
+              result_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                source_id,
+                idempotency_key,
+                payload_sha256,
+                subject_id,
+                agent_id,
+                workspace_id,
+                episode_id,
+                source_sha256,
+                _json(request),
+                _json(result),
+                utc_now(),
+            ),
+        )
+
+    def get_protocol_proposal(
+        self, workspace_id: str, agent_id: str, idempotency_key: str
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT * FROM protocol_proposals
+            WHERE workspace_id = ? AND agent_id = ? AND idempotency_key = ?
+            """,
+            (workspace_id, agent_id, idempotency_key),
+        ).fetchone()
+        if row is None:
+            return None
+        value = dict(row)
+        value["proposal"] = _load_json(value.pop("proposal_json"), {})
+        value["admission"] = _load_json(value.pop("admission_json"), {})
+        return value
+
+    def insert_protocol_proposal(
+        self,
+        *,
+        proposal_id: str,
+        idempotency_key: str,
+        payload_sha256: str,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        decision: str,
+        proposal: dict[str, Any],
+        admission: dict[str, Any],
+    ) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO protocol_proposals(
+              proposal_id, idempotency_key, payload_sha256, subject_id,
+              agent_id, workspace_id, decision, proposal_json,
+              admission_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                proposal_id,
+                idempotency_key,
+                payload_sha256,
+                subject_id,
+                agent_id,
+                workspace_id,
+                decision,
+                _json(proposal),
+                _json(admission),
+                utc_now(),
+            ),
+        )
+
+    def put_protocol_candidate_set(
+        self,
+        candidate_set_id: str,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        generation: int,
+        expires_at: str,
+        value: dict[str, Any],
+    ) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO protocol_candidate_sets(
+              candidate_set_id, subject_id, agent_id, workspace_id,
+              generation, expires_at, value_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                candidate_set_id,
+                subject_id,
+                agent_id,
+                workspace_id,
+                generation,
+                expires_at,
+                _json(value),
+                utc_now(),
+            ),
+        )
+
+    def get_protocol_candidate_set(self, candidate_set_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM protocol_candidate_sets WHERE candidate_set_id = ?",
+            (candidate_set_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        value = dict(row)
+        value["value"] = _load_json(value.pop("value_json"), {})
+        return value
+
+    def put_protocol_preparation(
+        self,
+        preparation_id: str,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        context_sha256: str,
+        generation: int,
+        expires_at: str,
+        value: dict[str, Any],
+    ) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO protocol_preparations(
+              preparation_id, subject_id, agent_id, workspace_id,
+              context_sha256, generation, expires_at, value_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                preparation_id,
+                subject_id,
+                agent_id,
+                workspace_id,
+                context_sha256,
+                generation,
+                expires_at,
+                _json(value),
+                utc_now(),
+            ),
+        )
+
+    def get_protocol_preparation(self, preparation_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM protocol_preparations WHERE preparation_id = ?",
+            (preparation_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        value = dict(row)
+        value["value"] = _load_json(value.pop("value_json"), {})
+        return value
+
+    def get_protocol_exposure(self, confirmation_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM protocol_exposures WHERE confirmation_id = ?",
+            (confirmation_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        value = dict(row)
+        value["receipt"] = _load_json(value.pop("receipt_json"), {})
+        return value
+
+    def get_protocol_exposure_for_preparation(
+        self, preparation_id: str
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM protocol_exposures WHERE preparation_id = ?",
+            (preparation_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        value = dict(row)
+        value["receipt"] = _load_json(value.pop("receipt_json"), {})
+        return value
+
+    def put_protocol_exposure(
+        self,
+        confirmation_id: str,
+        *,
+        preparation_id: str,
+        receipt: dict[str, Any],
+    ) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO protocol_exposures(
+              confirmation_id, preparation_id, receipt_json, created_at
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (confirmation_id, preparation_id, _json(receipt), utc_now()),
+        )
+
+    def set_retrieval_excluded(
+        self,
+        subject_id: str,
+        record_id: str,
+        excluded: bool,
+        *,
+        actor: str,
+        reason: str = "",
+    ) -> None:
+        if excluded:
+            now = utc_now()
+            self._conn.execute(
+                """
+                INSERT INTO retrieval_exclusions(
+                  subject_id, record_id, reason, actor, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(subject_id, record_id) DO UPDATE SET
+                  reason = excluded.reason, actor = excluded.actor,
+                  updated_at = excluded.updated_at
+                """,
+                (subject_id, record_id, reason[:500], actor, now, now),
+            )
+        else:
+            self._conn.execute(
+                "DELETE FROM retrieval_exclusions WHERE subject_id = ? AND record_id = ?",
+                (subject_id, record_id),
+            )
+
+    def excluded_record_ids(self, subject_id: str) -> set[str]:
+        rows = self._conn.execute(
+            "SELECT record_id FROM retrieval_exclusions WHERE subject_id = ?",
+            (subject_id,),
+        ).fetchall()
+        return {str(row["record_id"]) for row in rows}
 
     def get_records(
         self, subject_id: str, record_ids: list[str]
@@ -1831,6 +2135,78 @@ class SQLiteStore:
 
                 CREATE INDEX IF NOT EXISTS idx_records_subject_key
                   ON records(subject_id, fact_key, status);
+
+                CREATE TABLE IF NOT EXISTS protocol_sources (
+                  source_id TEXT PRIMARY KEY,
+                  idempotency_key TEXT NOT NULL,
+                  payload_sha256 TEXT NOT NULL,
+                  subject_id TEXT NOT NULL,
+                  agent_id TEXT NOT NULL,
+                  workspace_id TEXT NOT NULL,
+                  episode_id TEXT NOT NULL,
+                  source_sha256 TEXT NOT NULL,
+                  request_json TEXT NOT NULL,
+                  result_json TEXT NOT NULL,
+                  created_at TEXT NOT NULL,
+                  UNIQUE(workspace_id, agent_id, idempotency_key),
+                  FOREIGN KEY(episode_id) REFERENCES episodes(id)
+                );
+
+                CREATE TABLE IF NOT EXISTS protocol_proposals (
+                  proposal_id TEXT PRIMARY KEY,
+                  idempotency_key TEXT NOT NULL,
+                  payload_sha256 TEXT NOT NULL,
+                  subject_id TEXT NOT NULL,
+                  agent_id TEXT NOT NULL,
+                  workspace_id TEXT NOT NULL,
+                  decision TEXT NOT NULL,
+                  proposal_json TEXT NOT NULL,
+                  admission_json TEXT NOT NULL,
+                  created_at TEXT NOT NULL,
+                  UNIQUE(workspace_id, agent_id, idempotency_key)
+                );
+
+                CREATE TABLE IF NOT EXISTS protocol_candidate_sets (
+                  candidate_set_id TEXT PRIMARY KEY,
+                  subject_id TEXT NOT NULL,
+                  agent_id TEXT NOT NULL,
+                  workspace_id TEXT NOT NULL,
+                  generation INTEGER NOT NULL,
+                  expires_at TEXT NOT NULL,
+                  value_json TEXT NOT NULL,
+                  created_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS protocol_preparations (
+                  preparation_id TEXT PRIMARY KEY,
+                  subject_id TEXT NOT NULL,
+                  agent_id TEXT NOT NULL,
+                  workspace_id TEXT NOT NULL,
+                  context_sha256 TEXT NOT NULL,
+                  generation INTEGER NOT NULL,
+                  expires_at TEXT NOT NULL,
+                  value_json TEXT NOT NULL,
+                  created_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS protocol_exposures (
+                  confirmation_id TEXT PRIMARY KEY,
+                  preparation_id TEXT NOT NULL UNIQUE,
+                  receipt_json TEXT NOT NULL,
+                  created_at TEXT NOT NULL,
+                  FOREIGN KEY(preparation_id) REFERENCES protocol_preparations(preparation_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS retrieval_exclusions (
+                  subject_id TEXT NOT NULL,
+                  record_id TEXT NOT NULL,
+                  reason TEXT NOT NULL DEFAULT '',
+                  actor TEXT NOT NULL,
+                  created_at TEXT NOT NULL,
+                  updated_at TEXT NOT NULL,
+                  PRIMARY KEY (subject_id, record_id),
+                  FOREIGN KEY (record_id) REFERENCES records(id) ON DELETE CASCADE
+                );
 
                 CREATE TABLE IF NOT EXISTS media_artifacts (
                   id TEXT PRIMARY KEY,
