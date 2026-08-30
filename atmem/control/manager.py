@@ -52,6 +52,19 @@ def _memory_overview_query(query: str) -> bool:
     )
 
 
+def _protocol_fact_key(value: Any) -> str | None:
+    """Translate legacy human-readable slots into protocol-safe namespaces."""
+    if value is None or not str(value).strip():
+        return None
+    parts: list[str] = []
+    for raw in str(value).casefold().split("::")[:8]:
+        part = re.sub(r"[^a-z0-9._-]+", "-", raw.strip()).strip("-._")[:64]
+        if not part:
+            return None
+        parts.append(part)
+    return "::".join(parts) if parts else None
+
+
 def _storage_row(
     storage_id: str,
     label: str,
@@ -766,7 +779,31 @@ class ControlPlaneManager:
 
         intelligence = AtBotCompanionClient().propose(message)
         proposal_rows = list(intelligence.get("proposals") or [])
-        if not intelligence.get("companion", {}).get("available"):
+        deterministic_rows = [
+            {
+                "fact": fact.content,
+                "fact_key": fact.fact_key,
+                "confidence": fact.confidence,
+                "sensitivity": "personal",
+                "entities": [],
+                "suggested_action": "add",
+                "related_record_ids": [],
+            }
+            for fact in extract_facts(message, source_type="user_message")
+        ]
+        # A local model can validly return no proposal, but explicit statements
+        # recognized by the deterministic policy must not disappear merely
+        # because model extraction was unavailable, malformed, or uncertain.
+        if not proposal_rows and deterministic_rows:
+            proposal_rows = deterministic_rows
+            interpreter_value: dict[str, Any] = {
+                "provider": "atmem-rules",
+                "model": "deterministic-capture-v1",
+                "prompt_version": "atmem-rules-v1",
+                "assurance": "rule_extracted",
+                "egress_class": "none",
+            }
+        elif not intelligence.get("companion", {}).get("available"):
             proposal_rows = [
                 {
                     "fact": fact.content,
@@ -779,7 +816,7 @@ class ControlPlaneManager:
                 }
                 for fact in extract_facts(message, source_type="user_message")
             ]
-            interpreter_value: dict[str, Any] = {
+            interpreter_value = {
                 "provider": "atmem-rules",
                 "model": "deterministic-capture-v1",
                 "prompt_version": "atmem-rules-v1",
@@ -896,7 +933,7 @@ class ControlPlaneManager:
                             scope=scope,
                             fact=str(row.get("fact") or ""),
                             fact_key=(
-                                str(row["fact_key"]) if row.get("fact_key") else None
+                                _protocol_fact_key(row.get("fact_key"))
                             ),
                             confidence=float(row.get("confidence", 0.0)),
                             source_ids=(captured_source.source_id,),

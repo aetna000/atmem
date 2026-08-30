@@ -156,6 +156,40 @@ def test_automatic_capture_falls_back_to_rules_without_atbot(
     assert result["atbot"]["fallback"] is True
 
 
+def test_automatic_capture_falls_back_when_model_returns_no_explicit_fact(
+    tmp_path: Path, monkeypatch
+) -> None:
+    manager = ControlPlaneManager.start(
+        host="generic",
+        state_path=tmp_path / "state.json",
+        control_root=tmp_path / "migrations",
+        memory_db=tmp_path / "memory.db",
+    )
+    monkeypatch.setattr(
+        "atmem.control.atbot_companion.AtBotCompanionClient.propose",
+        lambda self, message: {
+            "proposals": [],
+            "interpreter": {
+                "provider": "ollama",
+                "model": "qwen3:1.7b",
+                "prompt_version": "atbot-extract-v1",
+                "assurance": "model_interpreted",
+                "egress_class": "local",
+            },
+            "companion": {"available": True, "fallback": False},
+        },
+    )
+
+    result = manager.capture(
+        "Remember that my preferred editor is Neovim.",
+        authenticated_user=True,
+        agent_id="main",
+    )
+
+    assert result["captured"] == 1
+    assert result["admissions"][0]["decision"] == "quarantined"
+
+
 def test_control_prepare_uses_semantic_candidates_and_revalidates_atbot_ids(
     tmp_path: Path, monkeypatch
 ) -> None:

@@ -525,7 +525,7 @@ memory. AtBot remains AtMem's private intelligence companion.
 2. [x] Route automatic authenticated capture through AtBot fact/entity/
    relationship proposals and AtMem admission. Preserve deterministic capture
    when AtBot is unavailable, and never let inference promote its own proposal.
-3. [ ] Publish Pydantic AI and LangGraph/LangChain adapters first. Both must pass
+3. [x] Publish Pydantic AI and LangGraph/LangChain adapters first. Both must pass
    the generic lifecycle conformance suite for capture, prepare, exact exposure,
    model/tool evidence, turn completion, failure, and multi-agent scope.
 4. [ ] Add Microsoft Agent Framework and Google ADK adapters using context

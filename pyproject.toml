@@ -35,6 +35,18 @@ dev = [
 semantic = [
   "sentence-transformers>=5.0.0,<6.0.0",
 ]
+pydantic-ai = [
+  "pydantic-ai-slim>=2.0,<3",
+]
+langgraph = [
+  "langgraph>=1.1.5,<2",
+  "langchain>=1.0,<2",
+]
+frameworks = [
+  "pydantic-ai-slim>=2.0,<3",
+  "langgraph>=1.1.5,<2",
+  "langchain>=1.0,<2",
+]
 
 [project.scripts]
 atmem = "atmem.cli:main"

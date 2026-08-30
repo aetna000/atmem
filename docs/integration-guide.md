@@ -79,6 +79,13 @@ discovery, historical copy, ongoing shadow synchronization, prompt and response
 binding, semantic model interpretation, native-path protection, gateway
 verification, and exact native-state restore.
 
+## Pydantic AI and LangGraph
+
+AtMem ships optional automatic lifecycle adapters for Pydantic AI and
+LangChain agents running on LangGraph. See the
+[framework adapter guide](framework-adapters.md) for installation, identity,
+capture, injection, exposure, tool, failure, and multi-agent examples.
+
 ## Building another host adapter
 
 A complete adapter must implement:

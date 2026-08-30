@@ -38,6 +38,13 @@ Updated: 30 August 2026
 - Verified local `nomic-embed-text` epoch used by governed dashboard recall;
   active semantic providers survive later memory synchronization without a
   silent downgrade to token hashing.
+- Optional Pydantic AI 2.x Hooks and LangChain/LangGraph AgentMiddleware
+  adapters now automate authenticated capture, hybrid prepare, data-channel
+  injection, exact exposure confirmation, model/tool evidence, completion, and
+  failure reporting without replacing native history or checkpoint state.
+- Both framework adapters share one host-neutral lifecycle implementation and
+  pass the same real generic control-plane conformance test, including shadow
+  non-injection and multi-agent scope validation.
 
 ## Next 2.2 hardening work
 
