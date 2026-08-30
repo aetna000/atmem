@@ -157,7 +157,7 @@ second agent product.
 
 ### Deliverables
 
-- [ ] Add AtBot health, capability, extraction, expansion, ranking, and query
+- [x] Add AtBot health, capability, extraction, expansion, ranking, and query
   companion contracts.
 - [x] Ensure AtMem authorizes candidate content before companion delivery.
 - [x] Revalidate every AtBot record ID before context construction.
@@ -511,6 +511,38 @@ Goal: ship a supportable AtMem 2.2 contract rather than an internal experiment.
 - AtBot can integrate using public schemas and APIs only.
 - No release-blocking safety metric regresses.
 - Upgrade and restore evidence is retained and inspectable.
+
+## Framework integration roadmap
+
+Frameworks integrate with AtMem's host-neutral turn contract. They never call
+AtBot directly and never receive authority to approve, store, correct, or delete
+memory. AtBot remains AtMem's private intelligence companion.
+
+1. [x] Unify `control_prepare` with the dashboard's AtBot-assisted hybrid
+   retrieval: content-free expansion, scoped lexical/fact-key/graph/vector
+   candidates, AtBot ranking, final AtMem ID validation, stable context, and
+   exposure evidence.
+2. [x] Route automatic authenticated capture through AtBot fact/entity/
+   relationship proposals and AtMem admission. Preserve deterministic capture
+   when AtBot is unavailable, and never let inference promote its own proposal.
+3. [ ] Publish Pydantic AI and LangGraph/LangChain adapters first. Both must pass
+   the generic lifecycle conformance suite for capture, prepare, exact exposure,
+   model/tool evidence, turn completion, failure, and multi-agent scope.
+4. [ ] Add Microsoft Agent Framework and Google ADK adapters using context
+   providers/middleware and model/tool callbacks respectively.
+5. [ ] Add an OpenAI Agents SDK adapter using a runner/model-request boundary for
+   injection and lifecycle hooks for evidence.
+6. [ ] Add Hugging Face smolagents and CrewAI adapters. Their wrappers must make
+   retrieval automatic rather than relying on the model to remember to call a
+   memory tool.
+7. [x] Keep MCP as the universal tool-only fallback. MCP exposes governed memory
+   operations but does not claim automatic injection or exact model-boundary
+   exposure unless a conforming host adapter reports those events.
+
+Adapter release order is a packaging priority, not an authority hierarchy. All
+adapters consume the same versioned AtMem contracts, preserve the framework's
+native short-term/workflow state, and use AtMem for governed cross-session
+memory. Each adapter must support shadow mode before active injection.
 
 ## Cross-cutting test gates
 

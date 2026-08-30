@@ -22,6 +22,17 @@ Updated: 30 August 2026
 - AtBot standalone customer UI and public task/chat CLI modes removed.
 - Content-free AtBot query expansion feeding AtMem-authorized lexical,
   canonical fact-key, graph, and local-vector candidate fusion.
+- Generic and OpenClaw `control_prepare` now use that same governed hybrid
+  candidate path, AtBot ranking, final record-ID revalidation, and safe fallback.
+- Authenticated automatic capture now binds the original source in AtMem before
+  accepting AtBot fact/entity proposals. AtMem alone creates the scope and
+  source binding, strips ungrounded relationship IDs, and records the admission.
+- Shadow mode quarantines automatic proposals for review; active mode may admit
+  safe trusted-user additions under deterministic AtMem policy. AtBot never
+  receives an admission capability and stores no canonical state.
+- If AtBot is unavailable or invalid, deterministic local extraction enters the
+  same source-capture and AtMem-admission path. Canonical graph and local-vector
+  projections synchronize through the normal Memory lifecycle.
 - OpenClaw mirror refresh preserves active non-native governed memories.
 - Regression and live proof that `fav food` retrieves `JT likes burgers`.
 - Verified local `nomic-embed-text` epoch used by governed dashboard recall;

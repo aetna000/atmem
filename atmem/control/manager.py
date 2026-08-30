@@ -744,6 +744,12 @@ class ControlPlaneManager:
         subject_id: str | None = None,
         agent_id: str | None = None,
     ) -> dict[str, Any]:
+        """Capture a trusted source, ask AtBot for proposals, then let AtMem admit.
+
+        The control-plane candidate copy is retained during the 2.2 migration so
+        older review clients keep working. It is evidence, not authority; only
+        ``Memory.submit_proposal`` can create canonical memory.
+        """
         state, warning = self.effective_state()
         if warning or not state.mode.captures:
             return {"captured": 0, "candidate_ids": [], "reason": "migration is off"}
@@ -756,19 +762,189 @@ class ControlPlaneManager:
         subject_id = self._resolve_subject(
             state, subject_id=subject_id, agent_id=agent_id
         )
-        facts = extract_facts(message, source_type="user_message")
+        from atmem.control.atbot_companion import AtBotCompanionClient
+
+        intelligence = AtBotCompanionClient().propose(message)
+        proposal_rows = list(intelligence.get("proposals") or [])
+        if not intelligence.get("companion", {}).get("available"):
+            proposal_rows = [
+                {
+                    "fact": fact.content,
+                    "fact_key": fact.fact_key,
+                    "confidence": fact.confidence,
+                    "sensitivity": "personal",
+                    "entities": [],
+                    "suggested_action": "add",
+                    "related_record_ids": [],
+                }
+                for fact in extract_facts(message, source_type="user_message")
+            ]
+            interpreter_value: dict[str, Any] = {
+                "provider": "atmem-rules",
+                "model": "deterministic-capture-v1",
+                "prompt_version": "atmem-rules-v1",
+                "assurance": "rule_extracted",
+                "egress_class": "none",
+            }
+        else:
+            interpreter_value = dict(intelligence.get("interpreter") or {})
+
+        admissions: list[dict[str, Any]] = []
+        canonical_record_ids: list[str] = []
+        canonical_candidate_ids: list[str] = []
+        source_result: dict[str, Any] | None = None
+        canonical_error: str | None = None
+        if proposal_rows:
+            try:
+                from atmem.contracts import (
+                    AuthorityScope,
+                    InterpreterIdentity,
+                    MemoryProposal,
+                    SourceBinding,
+                    SourceCaptureRequest,
+                )
+                from atmem.memory import Memory
+
+                if state.host == "openclaw":
+                    manifest_path = Path(state.control_dir) / "openclaw-mirror.json"
+                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                    topology = dict(manifest.get("topology") or {})
+                    mirror_db = manifest.get("mirror_db")
+                    if not topology or not mirror_db:
+                        raise ValueError("OpenClaw memory mirror is not synchronized")
+                    memory_path = Path(str(mirror_db))
+                else:
+                    topology = self.agent_topology(state=state)
+                    memory_path = self._generic_memory_db(state)
+                workspace = next(
+                    (
+                        row
+                        for row in topology.get("workspaces") or []
+                        if str(row.get("subject_id") or "") == subject_id
+                    ),
+                    None,
+                )
+                if not workspace:
+                    raise ValueError("memory subject has no authorized workspace")
+                workspace_agents = [str(value) for value in workspace.get("agent_ids") or []]
+                selected_agent = str(
+                    agent_id
+                    or next(
+                        (
+                            value
+                            for value in workspace_agents
+                            if value == topology.get("default_agent_id")
+                        ),
+                        workspace_agents[0] if workspace_agents else "main",
+                    )
+                )
+                if workspace_agents and selected_agent not in workspace_agents:
+                    raise ValueError("agent is not authorized for this memory workspace")
+                scope = AuthorityScope(
+                    subject_id=subject_id,
+                    agent_id=selected_agent,
+                    workspace_id=str(workspace["workspace_id"]),
+                )
+                capture_digest = sha256_hex(
+                    canonical_json(
+                        {
+                            "scope": scope.to_dict(),
+                            "session_id": session_id,
+                            "message_sha256": sha256_hex(message),
+                        }
+                    )
+                )
+                source_request = SourceCaptureRequest(
+                    source_id=f"source_{capture_digest[:32]}",
+                    idempotency_key=f"capture:{capture_digest}",
+                    scope=scope,
+                    message=message,
+                    source_type="user_message",
+                    session_id=session_id,
+                    binding_method="host_authenticated_turn",
+                    binding_assurance="host_authenticated",
+                    retain_body=True,
+                )
+                memory = Memory(memory_path, retain_query_text=False, graph_recall=True)
+                try:
+                    captured_source = memory.capture_source(source_request)
+                    source_result = captured_source.to_dict()
+                    interpreter = InterpreterIdentity(
+                        provider=str(interpreter_value.get("provider") or "atbot"),
+                        model=str(interpreter_value.get("model") or "unknown"),
+                        prompt_version=str(
+                            interpreter_value.get("prompt_version") or "atbot-extract-v1"
+                        ),
+                        assurance=str(
+                            interpreter_value.get("assurance") or "model_interpreted"
+                        ),
+                        egress_class=str(interpreter_value.get("egress_class") or "local"),
+                    )
+                    for index, row in enumerate(proposal_rows[:8]):
+                        semantic_digest = sha256_hex(
+                            canonical_json(
+                                {
+                                    "source_id": captured_source.source_id,
+                                    "index": index,
+                                    "proposal": row,
+                                }
+                            )
+                        )
+                        proposal = MemoryProposal(
+                            proposal_id=f"proposal_{semantic_digest[:32]}",
+                            idempotency_key=f"proposal:{semantic_digest}",
+                            scope=scope,
+                            fact=str(row.get("fact") or ""),
+                            fact_key=(
+                                str(row["fact_key"]) if row.get("fact_key") else None
+                            ),
+                            confidence=float(row.get("confidence", 0.0)),
+                            source_ids=(captured_source.source_id,),
+                            interpreter=interpreter,
+                            source_binding=SourceBinding(
+                                method="host_authenticated_turn",
+                                source_sha256=captured_source.source_sha256,
+                                assurance="host_authenticated",
+                            ),
+                            entities=tuple(row.get("entities") or ()),
+                            suggested_action=(
+                                str(row.get("suggested_action") or "uncertain")
+                                if state.mode is ControlMode.ACTIVE
+                                else "uncertain"
+                            ),
+                            # Extraction receives no eligible record content, so
+                            # AtBot has no authority to introduce relationships.
+                            related_record_ids=(),
+                            sensitivity=str(row.get("sensitivity") or "personal"),
+                            session_id=session_id,
+                        )
+                        admitted = memory.submit_proposal(proposal)
+                        admissions.append(admitted.to_dict())
+                        canonical_record_ids.extend(admitted.record_ids)
+                        canonical_candidate_ids.extend(admitted.candidate_ids)
+                finally:
+                    memory.close()
+            except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError) as exc:
+                canonical_error = str(exc)
+
+        # Compatibility projection for existing shadow-review clients. It never
+        # contains the raw source and cannot bypass canonical AtMem policy.
         store = self._store(state)
         created: list[str] = []
         duplicates: list[str] = []
         try:
-            for fact in facts:
+            for row_value in proposal_rows:
                 row, duplicate = store.insert_candidate(
                     state.migration_id,
-                    content=fact.content,
-                    fact_key=fact.fact_key,
-                    confidence=fact.confidence,
-                    source_type=fact.source_type,
-                    trust_tier=fact.trust_tier,
+                    content=str(row_value.get("fact") or ""),
+                    fact_key=(
+                        str(row_value["fact_key"])
+                        if row_value.get("fact_key")
+                        else None
+                    ),
+                    confidence=float(row_value.get("confidence", 0.0)),
+                    source_type="user_message",
+                    trust_tier="trusted_user",
                     source_message_sha256=sha256_hex(message),
                     source_session_id=session_id,
                     subject_id=subject_id,
@@ -796,9 +972,15 @@ class ControlPlaneManager:
         finally:
             store.close()
         return {
-            "captured": len(created),
+            "captured": max(len(created), len(admissions)),
             "candidate_ids": created,
             "duplicate_ids": duplicates,
+            "record_ids": list(dict.fromkeys(canonical_record_ids)),
+            "canonical_candidate_ids": list(dict.fromkeys(canonical_candidate_ids)),
+            "admissions": admissions,
+            "source": source_result,
+            "atbot": intelligence.get("companion"),
+            "canonical_error": canonical_error,
             "raw_message_stored": False,
             "subject_id": subject_id,
             "agent_id": agent_id,
@@ -1106,13 +1288,33 @@ class ControlPlaneManager:
         *,
         subject_id: str,
         agent_id: str | None,
+        min_score: float = 0.3,
+        limit: int = 50,
+        reranker_model: str = "memory-query",
     ) -> list[dict[str, Any]]:
         """Fuse governed candidates for query-only AtBot expansions."""
         from atmem.contracts import AuthorityScope, RecallRequest
         from atmem.memory import Memory
 
         state = self.state()
-        topology = self.agent_topology(state=state)
+        if state.host == "openclaw":
+            # Retrieval authority is bound to the topology captured in the
+            # verified mirror, not a fresh discovery that may have changed since
+            # the turn's subject was resolved.
+            manifest_path = Path(state.control_dir) / "openclaw-mirror.json"
+            if not manifest_path.is_file():
+                return []
+            try:
+                topology = dict(
+                    json.loads(manifest_path.read_text(encoding="utf-8")).get(
+                        "topology"
+                    )
+                    or {}
+                )
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ValueError("OpenClaw agent topology is unavailable") from exc
+        else:
+            topology = self.agent_topology(state=state)
         workspace = next(
             (
                 row
@@ -1163,9 +1365,9 @@ class ControlPlaneManager:
                     candidate_limit=200,
                     signals=("lexical", "semantic", "graph", "trust", "recency"),
                     reranker_provider="atbot",
-                    reranker_model="memory-query",
+                    reranker_model=reranker_model,
                     egress_class="local",
-                    min_score=0.3,
+                    min_score=min_score,
                 )
                 candidate_set = memory.eligible_candidates(request)
                 for candidate in candidate_set.candidates:
@@ -1198,7 +1400,7 @@ class ControlPlaneManager:
                 -float(row.get("score") or 0.0),
                 str(row["record_id"]),
             ),
-        )[:50]
+        )[: max(0, min(limit, 100))]
 
     def memory_reviews(self) -> dict[str, Any]:
         state = self.state()
@@ -2190,11 +2392,29 @@ class ControlPlaneManager:
                 )
             canonical_records: list[dict[str, Any]] = []
             canonical_duplicate_ids: list[str] = []
-            if decision == "approve":
-                from atmem.memory import Memory
+            from atmem.memory import Memory
 
-                memory = Memory(self._generic_memory_db(state), retain_query_text=False)
-                try:
+            memory = Memory(self._generic_memory_db(state), retain_query_text=False)
+            try:
+                existing = memory.store.find_duplicate_record(
+                    str(candidate.get("subject_id") or state.subject_id),
+                    str(candidate.get("content") or ""),
+                    statuses=("active", "quarantined"),
+                )
+                if existing is not None and existing.get("status") == "quarantined":
+                    if decision == "approve":
+                        canonical_records = [
+                            memory.promote(
+                                str(candidate.get("subject_id") or state.subject_id),
+                                str(existing["id"]),
+                            )
+                        ]
+                    else:
+                        memory.reject(
+                            str(candidate.get("subject_id") or state.subject_id),
+                            str(existing["id"]),
+                        )
+                elif decision == "approve":
                     admission = memory.remember(
                         str(candidate.get("subject_id") or state.subject_id),
                         str(candidate.get("content") or ""),
@@ -2213,8 +2433,15 @@ class ControlPlaneManager:
                     canonical_duplicate_ids = list(
                         admission.get("duplicate_ids") or []
                     )
-                finally:
-                    memory.close()
+                    if not canonical_records and canonical_duplicate_ids:
+                        duplicate = memory.store.get_record(
+                            str(candidate.get("subject_id") or state.subject_id),
+                            canonical_duplicate_ids[0],
+                        )
+                        if duplicate is not None:
+                            canonical_records = [duplicate]
+            finally:
+                memory.close()
             rows = self.review([record_id], approve=decision == "approve")
             if decision == "approve":
                 store = self._store(state)
@@ -2310,57 +2537,112 @@ class ControlPlaneManager:
             approved = store.list_candidates(
                 state.migration_id, statuses=("approved",), subject_id=subject_id
             )
-            ranked = rank_records(query, approved)
-            candidate_chosen = [
-                item
-                for item in ranked
+            from atmem.control.atbot_companion import AtBotCompanionClient
+
+            companion = AtBotCompanionClient()
+            expansion = companion.expand_query(query)
+            expanded_queries = list(expansion.get("expanded_queries") or [query])
+
+            # Use the same governed hybrid candidate pipeline as the dashboard.
+            # An unavailable OpenClaw mirror may fall back to reviewed control
+            # candidates; scope and topology failures remain fail-closed.
+            try:
+                canonical_candidates = self._hybrid_memory_candidates(
+                    expanded_queries,
+                    subject_id=subject_id,
+                    agent_id=agent_id,
+                    min_score=min_score,
+                    limit=max(50, limit * 10),
+                    reranker_model="control-prepare",
+                )
+            except ValueError as exc:
+                if state.host != "openclaw" or "synchron" not in str(exc).casefold():
+                    raise
+                canonical_candidates = []
+
+            # Reviewed shadow candidates remain eligible during migration even
+            # before they have a canonical/vector representation.
+            reviewed_candidates: dict[str, dict[str, Any]] = {}
+            for expansion_rank, expanded_query in enumerate(expanded_queries[:6]):
+                for item in rank_records(expanded_query, approved):
+                    if item.text_score <= 0 or item.score < min_score:
+                        continue
+                    record_id = str(item.record["id"])
+                    row = {
+                        **item.record,
+                        "id": record_id,
+                        "record_id": record_id,
+                        "score": float(item.score),
+                        "matched_queries": [expanded_query],
+                        "expansion_rank": expansion_rank,
+                        "scope": "approved control candidate",
+                    }
+                    current = reviewed_candidates.get(record_id)
+                    if current is None or float(row["score"]) > float(current["score"]):
+                        reviewed_candidates[record_id] = row
+
+            eligible: dict[str, dict[str, Any]] = {}
+            canonical_digests = {
+                str(
+                    row.get("content_sha256")
+                    or sha256_hex(str(row.get("content") or ""))
+                )
+                for row in canonical_candidates
+            }
+            noncanonical_reviewed = [
+                row
+                for row in reviewed_candidates.values()
+                if str(
+                    row.get("content_sha256")
+                    or sha256_hex(str(row.get("content") or ""))
+                )
+                not in canonical_digests
+            ]
+            for row in [*canonical_candidates, *noncanonical_reviewed]:
+                record_id = str(row.get("record_id") or row.get("id") or "")
+                content = str(row.get("content") or "").strip()
+                if record_id and content and record_id not in eligible:
+                    eligible[record_id] = {
+                        **row,
+                        "record_id": record_id,
+                        "content": content,
+                    }
+
+            # AtBot can rank only IDs AtMem supplied. Revalidate its result again
+            # immediately before byte-stable context serialization.
+            ranking = companion.query(query, list(eligible.values()))
+            direct_ids = [
+                str(item.record["record_id"])
+                for item in rank_records(query, list(eligible.values()))
                 if item.text_score > 0 and item.score >= min_score
-            ][: max(0, limit)]
-            mirror_records: list[dict[str, Any]] = []
-            if state.host == "openclaw":
-                from atmem.control.openclaw_native import search_mirror
-
-                try:
-                    mirror_records = list(
-                        search_mirror(
-                            state, query, limit=limit, subject_id=subject_id
-                        ).get("records") or []
-                    )
-                except ValueError:
-                    mirror_records = []
-            else:
-                from atmem.memory import Memory
-
-                memory = Memory(self._generic_memory_db(state), retain_query_text=False)
-                try:
-                    canonical_ranked = rank_records(query, memory.list(subject_id))
-                    mirror_records = [
-                        item.record
-                        for item in canonical_ranked
-                        if item.text_score > 0 and item.score >= min_score
-                    ][: max(0, limit)]
-                finally:
-                    memory.close()
+            ]
+            ranked_ids = list(
+                dict.fromkeys(
+                    [
+                        *direct_ids,
+                        *(
+                            str(record_id)
+                            for record_id in ranking.get("ranked_record_ids") or []
+                            if str(record_id) in eligible
+                        ),
+                    ]
+                )
+            )[: max(0, limit)]
             lines: list[str] = []
             candidate_ids: list[str] = []
             candidate_hashes: list[str] = []
             used_chars = 0
             chosen_rows = [
                 (
-                    str(record["id"]),
-                    str(record.get("content") or ""),
-                    sha256_hex(str(record.get("content") or "")),
+                    record_id,
+                    str(eligible[record_id]["content"]),
+                    str(
+                        eligible[record_id].get("content_sha256")
+                        or sha256_hex(str(eligible[record_id]["content"]))
+                    ),
                 )
-                for record in mirror_records
+                for record_id in ranked_ids
             ]
-            chosen_rows.extend(
-                (
-                    str(item.record["id"]),
-                    str(item.record["content"]),
-                    str(item.record["content_sha256"]),
-                )
-                for item in candidate_chosen
-            )
             seen: set[str] = set()
             for record_id, value, content_sha256 in chosen_rows:
                 content = value.strip()
@@ -2430,6 +2712,21 @@ class ControlPlaneManager:
                 "inject": inject,
                 "exposure_id": exposure["id"] if exposure else None,
                 "reason": reason,
+                "retrieval": {
+                    "queries": expanded_queries,
+                    "signals": [
+                        "lexical",
+                        "fact_key",
+                        "semantic",
+                        "graph",
+                        "trust",
+                        "recency",
+                    ],
+                    "eligible_candidate_count": len(eligible),
+                    "ranked_candidate_ids": ranked_ids,
+                    "direct_match_ids": direct_ids,
+                    "companion": ranking.get("companion"),
+                },
             }
         finally:
             store.close()

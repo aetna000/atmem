@@ -90,6 +90,16 @@ The gap is not the absence of another database. The gap is a stable authority
 contract through which AtBot can submit model-derived proposals and request
 governed hybrid recall.
 
+The automatic-capture portion of that contract is now implemented on the
+`atbot` development branch. The private loopback companion accepts source text
+and returns bounded proposals plus interpreter identity, but no authority
+decision or storage mutation. AtMem authenticates the host source, constructs
+the complete scope and source binding itself, validates proposal fields, drops
+relationships that were not grounded in AtMem-supplied eligible records, and
+submits the typed proposal to canonical admission. Shadow mode quarantines;
+active mode can admit safe trusted-user additions. Deterministic extraction uses
+the identical admission path when the companion is unavailable.
+
 The existing Safe Switch and OpenClaw integration remain supported. OpenClaw
 becomes the first reference host adapter for the versioned runtime hooks in
 capability 8: its copy, shadow, verify, activate, and restore guarantees are
@@ -676,6 +686,27 @@ AtMem is AtBot-ready only when automated tests demonstrate all of the following:
 - reference fake AtBot adapter generated from the canonical schema bundle;
 - OpenClaw adapter conformance and Safe Switch regression suite;
 - end-to-end acceptance suite.
+
+### Milestone E: framework adapters
+
+Adapters are thin lifecycle integrations around AtMem; they are not separate
+memory authorities and must never call AtBot directly. Delivery order is:
+
+1. Pydantic AI and LangGraph/LangChain;
+2. Microsoft Agent Framework and Google ADK;
+3. OpenAI Agents SDK;
+4. Hugging Face smolagents and CrewAI.
+
+Every adapter must authenticate subject, agent, workspace, session, run, and
+turn identity; capture the user source; request authorized context before the
+model call; inject only when AtMem permits it; confirm the exact bytes delivered;
+and report model, tool, handoff, completion, and failure boundaries. Framework
+checkpoints and conversation history remain native framework state. AtMem owns
+governed cross-session memory and exposure evidence.
+
+MCP remains the universal tool-only fallback. An MCP connection alone is not an
+automatic-memory adapter because the model may omit the tool call and MCP cannot
+independently prove which context bytes entered the model request.
 
 ## Non-goals for AtMem 2.2
 

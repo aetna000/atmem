@@ -1,9 +1,36 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Sequence
 
 from atmem import Memory
-from atmem.control import ControlPlaneManager
+from atmem.control import ControlMode, ControlPlaneManager
+from atmem.semantic import SemanticIndex, default_index_path
+
+
+class _ConceptEmbedder:
+    @property
+    def identity(self) -> dict[str, str]:
+        return {
+            "provider": "test",
+            "model": "runtime-concepts",
+            "version": "1",
+            "normalization": "l2",
+        }
+
+    def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        return [self._vector(text) for text in texts]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._vector(text)
+
+    @staticmethod
+    def _vector(text: str) -> list[float]:
+        lowered = text.casefold()
+        concepts = ("airport", "sydney", "departure", "flight")
+        if any(word in lowered for word in concepts):
+            return [1.0, 0.0]
+        return [0.0, 1.0]
 
 
 def test_memory_query_revalidates_companion_ids(
@@ -39,6 +66,150 @@ def test_memory_query_revalidates_companion_ids(
     assert "rec_not_authorized" not in {
         row["record_id"] for row in result["used_memories"]
     }
+
+
+def test_automatic_capture_uses_atbot_proposals_and_atmem_admission(
+    tmp_path: Path, monkeypatch
+) -> None:
+    memory_path = tmp_path / "memory.db"
+    manager = ControlPlaneManager.start(
+        host="generic",
+        state_path=tmp_path / "state.json",
+        control_root=tmp_path / "migrations",
+        memory_db=memory_path,
+    )
+    manager.activate()
+
+    monkeypatch.setattr(
+        "atmem.control.atbot_companion.AtBotCompanionClient.propose",
+        lambda self, message: {
+            "format": "atbot-memory-proposals-v1",
+            "proposals": [
+                {
+                    "fact": "User's preferred lunch is burgers.",
+                    "fact_key": "food::preferred-lunch",
+                    "confidence": 0.96,
+                    "sensitivity": "personal",
+                    "entities": [{"type": "food", "name": "burgers"}],
+                    "suggested_action": "add",
+                    "related_record_ids": ["rec_atbot_must_not_introduce"],
+                }
+            ],
+            "interpreter": {
+                "provider": "ollama",
+                "model": "qwen3:4b",
+                "prompt_version": "atbot-extract-v1",
+                "assurance": "model_interpreted",
+                "egress_class": "local",
+            },
+            "companion": {"available": True, "fallback": False},
+        },
+    )
+
+    result = manager.capture(
+        "My favourite lunch is burgers.",
+        authenticated_user=True,
+        session_id="turn-1",
+        agent_id="main",
+    )
+
+    assert result["admissions"][0]["decision"] == "active"
+    assert result["record_ids"]
+    assert result["source"]["source_sha256"].startswith("sha256:")
+    assert result["admissions"][0]["related_record_ids"] == ()
+    assert Path(f"{memory_path}.vectors.db").is_file()
+    memory = Memory(memory_path)
+    try:
+        record = memory.store.get_record("local-user", result["record_ids"][0])
+        assert record["content"] == "User's preferred lunch is burgers."
+        assert record["raw"]["interpreter"]["provider"] == "ollama"
+        assert memory.store.list_episodes("local-user")[0]["message"] == (
+            "My favourite lunch is burgers."
+        )
+    finally:
+        memory.close()
+
+
+def test_automatic_capture_falls_back_to_rules_without_atbot(
+    tmp_path: Path, monkeypatch
+) -> None:
+    manager = ControlPlaneManager.start(
+        host="generic",
+        state_path=tmp_path / "state.json",
+        control_root=tmp_path / "migrations",
+        memory_db=tmp_path / "memory.db",
+    )
+    monkeypatch.setattr(
+        "atmem.control.atbot_companion.AtBotCompanionClient.propose",
+        lambda self, message: {
+            "proposals": [],
+            "companion": {"available": False, "fallback": True},
+        },
+    )
+
+    result = manager.capture(
+        "I prefer dark mode.", authenticated_user=True, agent_id="main"
+    )
+
+    assert result["admissions"][0]["decision"] == "quarantined"
+    assert result["canonical_candidate_ids"]
+    assert result["atbot"]["fallback"] is True
+
+
+def test_control_prepare_uses_semantic_candidates_and_revalidates_atbot_ids(
+    tmp_path: Path, monkeypatch
+) -> None:
+    memory_path = tmp_path / "memory.db"
+    manager = ControlPlaneManager.start(
+        host="generic",
+        state_path=tmp_path / "state.json",
+        control_root=tmp_path / "migrations",
+        memory_db=memory_path,
+    )
+    memory = Memory(memory_path, auto_vectors=False)
+    try:
+        airport = memory.remember(
+            "local-user", "My preferred airport is Sydney."
+        )["records"][0]
+        index = SemanticIndex(default_index_path(memory_path), policy=memory.policy)
+        try:
+            embedder = _ConceptEmbedder()
+            index.build(memory, "local-user", embedder)
+        finally:
+            index.close()
+    finally:
+        memory.close()
+
+    monkeypatch.setattr("atmem.memory._embedder_for_epoch", lambda epoch: embedder)
+    monkeypatch.setattr(
+        "atmem.control.atbot_companion.AtBotCompanionClient.expand_query",
+        lambda self, query: {
+            "expanded_queries": [query],
+            "content_received": False,
+        },
+    )
+
+    def rank(self, query, candidates):
+        del self, query
+        semantic = next(row for row in candidates if row["record_id"] == airport["id"])
+        assert semantic["signals"]["semantic_evidence"] is not None
+        return {
+            "ranked_record_ids": ["rec_not_authorized", semantic["record_id"]],
+            "companion": {"available": True, "fallback": False},
+        }
+
+    monkeypatch.setattr(
+        "atmem.control.atbot_companion.AtBotCompanionClient.query", rank
+    )
+    manager.transition(ControlMode.ACTIVE)
+
+    prepared = manager.prepare("departure location")
+
+    assert prepared["inject"] is True
+    assert prepared["candidate_ids"] == [airport["id"]]
+    assert "Sydney" in prepared["context"]
+    assert "rec_not_authorized" not in prepared["context"]
+    assert "semantic" in prepared["retrieval"]["signals"]
 
 
 def test_dashboard_contains_one_governed_memory_chat() -> None:

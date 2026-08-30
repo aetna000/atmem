@@ -9,11 +9,28 @@
 </style>
 </head>
 <body>
+<svg class="iconsprite" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-node" viewBox="0 0 24 24"><line x1="12" y1="6" x2="7" y2="17"/><line x1="12" y1="6" x2="17" y2="17"/><line x1="7" y1="17" x2="17" y2="17"/><circle cx="12" cy="6" r="2.1" fill="currentColor" stroke="none"/><circle cx="7" cy="17" r="2.1" fill="currentColor" stroke="none"/><circle cx="17" cy="17" r="2.1" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></symbol>
+<symbol id="i-flag" viewBox="0 0 24 24"><line x1="6" y1="21" x2="6" y2="4"/><path d="M6 4h12l-3.2 4L18 12H6"/></symbol>
+<symbol id="i-shield-check" viewBox="0 0 24 24"><path d="M12 3l7 3v5.5c0 5-3 8.4-7 9.5-4-1.1-7-4.5-7-9.5V6z"/><polyline points="8.5,12 11,14.5 15.5,9.5"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="15.3" y1="15.3" x2="20.5" y2="20.5"/></symbol>
+<symbol id="i-archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="5" y="8" width="14" height="12" rx="1"/><line x1="10" y1="13" x2="14" y2="13"/></symbol>
+<symbol id="i-pulse" viewBox="0 0 24 24"><polyline points="2,13 7,13 9,7 13,19 16,13 22,13"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="8.3" cy="9" r="3.2"/><circle cx="16.3" cy="9.6" r="2.6"/><path d="M2.3 20c0-4 2.7-7 6-7s6 3 6 7"/><path d="M13.3 15.2c2.7.3 4.7 2.6 4.7 4.8"/></symbol>
+<symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><ellipse cx="9" cy="15" rx="5" ry="3" transform="rotate(-45 9 15)"/><ellipse cx="15" cy="9" rx="5" ry="3" transform="rotate(-45 15 9)"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><line x1="12" y1="3" x2="12" y2="14"/><polyline points="7,10 12,15 17,10"/><polyline points="4,15 4,19 20,19 20,15"/></symbol>
+<symbol id="i-power" viewBox="0 0 24 24"><line x1="12" y1="2" x2="12" y2="11"/><path d="M6.3 6a8 8 0 1 0 11.4 0"/></symbol>
+<symbol id="i-chevron-right" viewBox="0 0 24 24"><polyline points="9,4 16,12 9,20"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.6"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.6" y1="4.6" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.4" y2="19.4"/><line x1="4.6" y1="19.4" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.4" y2="4.6"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4 7 7 0 0 0 20 14.5z"/></symbol>
+</defs></svg>
 <header><div class="wrap head">
   <div class="logo"><img class="brandmark" src="/assets/atmem.jpg" alt="AtMem logo"><strong>AtMem</strong></div>
   <div class="small" id="adapterLabel">Memory &amp; agent oversight</div>
   <div class="grow"></div>
-  <button class="themebtn" id="themeToggle" type="button">Light mode</button>
+  <button class="themebtn" id="themeToggle" type="button"><svg class="icon themebtnicon-sun" aria-hidden="true"><use href="#i-sun"/></svg><svg class="icon themebtnicon-moon" aria-hidden="true"><use href="#i-moon"/></svg><span class="themebtnlabel" id="themeToggleLabel">Light mode</span></button>
   <div class="state" id="stateChip"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></div>
 </div></header>
 <main class="wrap">
@@ -29,7 +46,7 @@
 
   <section class="memorychat" id="memoryChat" aria-labelledby="memoryChatTitle">
     <div class="memorychathead">
-      <div><div class="eyebrow">Ask governed memory</div><h1 id="memoryChatTitle">What should AtMem remember?</h1><p>AtMem authorizes the candidates. AtBot helps rank and explain them.</p></div>
+      <div><span class="memorychateyebrow"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-node"/></svg>Ask governed memory</span><h1 id="memoryChatTitle">What should AtMem remember?</h1><p>AtMem authorizes the candidates. AtBot helps rank and explain them.</p></div>
       <span class="companionchip" id="companionChip"><i></i><span id="companionLabel">Checking AtBot…</span></span>
     </div>
     <div class="chatmessages" id="memoryChatMessages" aria-live="polite">
@@ -48,9 +65,9 @@
   </section>
 
   <div class="tabnav" role="tablist">
-    <button class="tabbtn active" id="navStatus" type="button" role="tab" aria-selected="true">Status</button>
-    <button class="tabbtn" id="navDecisions" type="button" role="tab" aria-selected="false">Decisions<span class="navbadge" id="decisionsBadge" hidden>0</span></button>
-    <button class="tabbtn" id="navEvidence" type="button" role="tab" aria-selected="false">Evidence</button>
+    <button class="tabbtn active" id="navStatus" type="button" role="tab" aria-selected="true"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Status</button>
+    <button class="tabbtn" id="navDecisions" type="button" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg>Decisions<span class="navbadge" id="decisionsBadge" hidden>0</span></button>
+    <button class="tabbtn" id="navEvidence" type="button" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#i-shield-check"/></svg>Evidence</button>
   </div>
 
   <div class="tabpanel active" id="viewStatus">
@@ -69,38 +86,14 @@
     <div class="metric"><b id="verified">—</b><span>memory verification</span></div>
   </div>
 
-  <section class="card recordbreakdown" id="recordBreakdownCard">
-    <div class="recordbreakdownhead"><div><div class="eyebrow">What the count means</div><h2>Searchable records by purpose</h2><p class="sub">Source fragments are searchable, but agent instructions and templates are not presented as human memories.</p></div><button class="secondary" id="browseRecords" type="button">Search records</button></div>
-    <div class="recordcategories" id="recordCategories"><div class="empty">Loading record categories…</div></div>
-  </section>
-
-  <section class="card storageoverview" id="storageOverview">
-    <div class="storagehead"><div><div class="eyebrow">Local data</div><h2>Storage locations</h2><p class="sub">Hover over a store to reveal its full path, then copy it to browse on this computer.</p></div><span class="storagecount" id="storageCount">— stores</span></div>
-    <div class="storagegrid" id="storageGrid"><div class="activityempty">Loading storage locations…</div></div>
-    <div class="storagediagram" id="storageDiagram" aria-label="How AtMem storage is related">
-      <h3>How the stores relate</h3>
-      <div class="storageflow">
-        <div class="flownode input"><b>Agent and native sources</b><span>Governed ingestion</span></div><div class="flowarrow"><span>verified input</span>↓</div>
-        <div class="flownode authority"><b>Canonical memory</b><span>Source of truth: memory, provenance and lifecycle</span></div>
-        <div class="flowbranches"><div><span>shares the same SQLite file</span>↙</div><div><span>builds a disposable index</span>↘</div></div>
-        <div class="flowtargets"><div class="flownode shared"><b>Entity graph</b><span>Entities and relationships</span></div><div class="flownode derived"><b>Semantic vectors</b><span>Rebuildable retrieval index</span></div></div>
-        <div class="flowarrow audit"><span>control decisions and verification are recorded separately</span>↓</div><div class="flownode evidence"><b>Audit evidence</b><span>Governance history and integrity proofs</span></div>
-      </div>
-    </div>
-    <section class="storagebrowser" id="storageBrowser" hidden>
-      <div class="storagebrowserhead"><div><div class="eyebrow">Storage browser</div><h3 id="storageBrowserTitle">Contents</h3><p class="sub" id="storageBrowserSummary"></p></div><button class="secondary" id="storageBrowserClose" type="button">Close</button></div>
-      <div class="storagecontents" id="storageContents"></div>
-    </section>
-  </section>
-
   <section class="card agentoverview" id="agentOverview">
-    <div class="agentoverviewhead"><div><div class="eyebrow">Persistent agent coverage</div><h2>Agents &amp; workspaces</h2><p class="sub">Which agents share memory, which are isolated, and whether every workspace is verified.</p></div><div class="agentcounts"><div class="agentcount"><b id="agentCount">—</b><span>agents detected</span></div><div class="agentcount"><b id="workspaceCount">—</b><span>workspaces</span></div></div></div>
+    <div class="agentoverviewhead"><div><div class="eyebrow">Persistent agent coverage</div><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg><span>Agents &amp; workspaces</span></h2><p class="sub">Which agents share memory, which are isolated, and whether every workspace is verified.</p></div><div class="agentcounts"><div class="agentcount"><b id="agentCount">—</b><span>agents detected</span></div><div class="agentcount"><b id="workspaceCount">—</b><span>workspaces</span></div></div></div>
     <div class="agentstatus" id="agentCoverageStatus"><span class="statusicon" id="agentCoverageIcon">…</span><div class="agentstatuscopy"><b id="agentCoverageHeadline">Checking agent coverage…</b><span id="agentCoverageDetail">Reading the runtime’s persistent-agent topology.</span></div><div class="agentstatusactions" id="agentCoverageActions" hidden><button class="primary" id="agentTopologySync" type="button">Sync agents &amp; memory</button><button class="secondary" id="agentTopologyCheck" type="button">Check again</button></div></div>
     <div class="agentmap" id="agentMap"><div class="activityempty">Loading agents…</div></div>
   </section>
 
   <section class="card" id="blackboxCard">
-    <div class="activityhead"><h2>Recent agent activity</h2><div class="activitytools"><input id="activityQuery" aria-label="Search recent agent activity" placeholder="Search actions…"><select id="activityTopic" aria-label="Filter by topic"><option value="all">All topics</option><option value="agents">Agents</option><option value="memory">Memory</option><option value="tools">Tools</option><option value="web">Web</option><option value="email">Email</option><option value="conversation">Conversation</option></select><select id="activityWhen" aria-label="Filter by time"><option value="all">All time</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select><button class="secondary" id="blackboxRefresh" type="button">Refresh</button></div></div>
+    <div class="activityhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-pulse"/></svg><span>Recent agent activity</span></h2><div class="activitytools"><input id="activityQuery" aria-label="Search recent agent activity" placeholder="Search actions…"><select id="activityTopic" aria-label="Filter by topic"><option value="all">All topics</option><option value="agents">Agents</option><option value="memory">Memory</option><option value="tools">Tools</option><option value="web">Web</option><option value="email">Email</option><option value="conversation">Conversation</option></select><select id="activityWhen" aria-label="Filter by time"><option value="all">All time</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select><button class="secondary" id="blackboxRefresh" type="button">Refresh</button></div></div>
     <div class="activitytimeline" id="activityTimeline"><div class="activityempty">Loading…</div></div>
     <div class="activitymore"><button class="secondary" id="activityLoadMore" type="button">Load more</button><span id="activityCount"></span></div>
     <p class="foot">Each row is one agent session; open it for the audit events behind it.</p>
@@ -113,7 +106,7 @@
 
   <section class="hero providerhero" id="hero">
     <div>
-      <div class="eyebrow" id="eyebrow">Memory provider</div>
+      <div class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-power"/></svg><div class="eyebrow" id="eyebrow">Memory provider</div></div>
       <h1 id="title"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></h1>
       <p id="summary">AtMem is verifying memory, evidence, and the safe return path.</p>
     </div>
@@ -126,7 +119,7 @@
   <div class="grid">
     <div>
       <section class="card" id="reviewCard">
-        <div class="reviewhead"><h2>Memory decisions</h2><span class="reviewcount" id="reviewCount">0</span><button class="secondary" id="reviewRefresh" type="button">Refresh</button></div>
+        <div class="reviewhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Memory decisions</span></h2><span class="reviewcount" id="reviewCount">0</span><button class="secondary" id="reviewRefresh" type="button">Refresh</button></div>
         <p class="sub">External observations stay out of agent recall until you approve them. Rejection permanently purges the candidate content.</p>
         <div id="reviews"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Checking for quarantined memories…</span></div></div>
       </section>
@@ -134,7 +127,7 @@
 
     <aside>
       <section class="card">
-        <h2 id="switchTitle">Ready to switch?</h2>
+        <div class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-shield-check"/></svg><h2 id="switchTitle">Ready to switch?</h2></div>
         <p class="sub" id="switchCopy">AtMem checks the active adapter before allowing context injection.</p>
         <div id="checks"></div>
         <button class="secondary" id="verifyBtn" type="button">Verify now</button>
@@ -142,23 +135,25 @@
         <div class="small" id="verifyStatus" style="margin-top:12px;line-height:1.7"></div>
         <div class="small" id="drillStatus" style="margin-top:12px;line-height:1.7"></div>
       </section>
-      <section class="card">
-        <h2>What changes</h2>
+      <details class="card">
+        <summary><svg class="icon" aria-hidden="true"><use href="#i-shield-check"/></svg><span class="summarytitle"><b>What changes</b></span></summary>
+        <div class="detailsbody">
         <div class="check"><i>✓</i><div>Shadow mode observes without adding memory to model context.</div></div>
         <div class="check"><i>✓</i><div>Active mode permits only context explicitly returned with <span class="mono">inject=true</span>.</div></div>
         <div class="check"><i>✓</i><div>Returning to shadow stops future injection and preserves evidence.</div></div>
         <div class="check"><i>✓</i><div>The runtime remains responsible for identity, tool execution and external outcome proof.</div></div>
-      </section>
+        </div>
+      </details>
     </aside>
   </div>
   </div>
 
   <div class="tabpanel" id="viewEvidence">
   <div class="pageheading"><div><div class="eyebrow">For investigation</div><h1>Evidence workspace</h1><p>Search memory first, then open sessions and exact audit events only when the question requires it.</p></div></div>
-  <nav class="sectionnav" aria-label="Investigation sections"><a href="#memorySearchCard"><span>01</span> Memory search</a><a href="#blackboxArchiveCard"><span>02</span> Agent sessions</a><a href="#mirrorCard"><span>03</span> Memory sources</a><a href="#auditExplorer"><span>04</span> Event evidence</a></nav>
+  <nav class="sectionnav" aria-label="Investigation sections"><a href="#memorySearchCard"><span>01</span> Memory search</a><a href="#blackboxArchiveCard"><span>02</span> Agent sessions</a><a href="#mirrorCard"><span>03</span> Memory sources</a><a href="#storageOverview"><span>04</span> Storage</a><a href="#auditExplorer"><span>05</span> Event evidence</a></nav>
 
   <section class="card" id="memorySearchCard">
-    <h2>Search memory</h2>
+    <h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><span>Search memory</span></h2>
     <p class="sub">Search the canonical AtMem view using ordinary words. This works in shadow and active mode.</p>
     <div class="search">
       <input id="query" placeholder="For example: TypeScript preference" autocomplete="off">
@@ -175,7 +170,7 @@
 
   <section class="card" id="blackboxArchiveCard">
     <div class="blackboxhead">
-      <div><div class="eyebrow">Black Box archive</div><h2>All recorded agent sessions</h2>
+      <div><div class="eyebrow">Black Box archive</div><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-archive"/></svg><span>All recorded agent sessions</span></h2>
       <p class="sub">The technical archive behind Recent agent activity. AtMem stores digests and bounded metadata, not raw prompts, responses, tool parameters or results.</p>
       <p class="sub" id="blackboxCount">Loading recent agent runs…</p></div>
       <div class="blackboxsummary"><span id="blackboxIntegrity" class="integritychip"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></span></div>
@@ -194,14 +189,43 @@
   </section>
 
   <section class="card" id="mirrorCard">
-    <h2 id="sourceTitle">Memory sources</h2>
+    <h2 id="sourceTitle" class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-database"/></svg><span>Memory sources</span></h2>
     <p class="sub" id="sourceSummary">Loading source evidence…</p>
     <div id="sources"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading sources…</span></div></div>
   </section>
 
+  <details class="card recordbreakdown" id="recordBreakdownCard">
+    <summary><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg><span class="summarytitle"><b>Searchable records by purpose</b><span>Source fragments are searchable, but agent instructions and templates are not presented as human memories.</span></span></summary>
+    <div class="detailsbody">
+      <div class="recordbreakdownhead"><button class="secondary" id="browseRecords" type="button">Search records</button></div>
+      <div class="recordcategories" id="recordCategories"><div class="empty">Loading record categories…</div></div>
+    </div>
+  </details>
+
+  <details class="card storageoverview" id="storageOverview">
+    <summary><svg class="icon" aria-hidden="true"><use href="#i-database"/></svg><span class="summarytitle"><b>Storage locations</b><span>Hover over a store to reveal its full path, then copy it to browse on this computer.</span></span><span class="storagecount" id="storageCount">— stores</span></summary>
+    <div class="detailsbody">
+      <div class="storagegrid" id="storageGrid"><div class="activityempty">Loading storage locations…</div></div>
+      <div class="storagediagram" id="storageDiagram" aria-label="How AtMem storage is related">
+        <h3>How the stores relate</h3>
+        <div class="storageflow">
+          <div class="flownode input"><b>Agent and native sources</b><span>Governed ingestion</span></div><div class="flowarrow"><span>verified input</span>↓</div>
+          <div class="flownode authority"><b>Canonical memory</b><span>Source of truth: memory, provenance and lifecycle</span></div>
+          <div class="flowbranches"><div><span>shares the same SQLite file</span>↙</div><div><span>builds a disposable index</span>↘</div></div>
+          <div class="flowtargets"><div class="flownode shared"><b>Entity graph</b><span>Entities and relationships</span></div><div class="flownode derived"><b>Semantic vectors</b><span>Rebuildable retrieval index</span></div></div>
+          <div class="flowarrow audit"><span>control decisions and verification are recorded separately</span>↓</div><div class="flownode evidence"><b>Audit evidence</b><span>Governance history and integrity proofs</span></div>
+        </div>
+      </div>
+      <section class="storagebrowser" id="storageBrowser" hidden>
+        <div class="storagebrowserhead"><div><div class="eyebrow">Storage browser</div><h3 id="storageBrowserTitle">Contents</h3><p class="sub" id="storageBrowserSummary"></p></div><button class="secondary" id="storageBrowserClose" type="button">Close</button></div>
+        <div class="storagecontents" id="storageContents"></div>
+      </section>
+    </div>
+  </details>
+
   <section class="card auditcard" id="auditExplorer">
     <div class="audithead">
-      <div><div class="eyebrow">Global evidence investigation</div><h2>Audit events</h2>
+      <div><div class="eyebrow">Global evidence investigation</div><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-link"/></svg><span>Audit events</span></h2>
       <p class="sub">Audit Explorer — the complete evidence chain. Narrow the evidence, then drill into records, sessions and exact events.</p></div>
       <div class="audittoolbar">
         <select class="secondary savedview" id="auditSaved"><option value="">Saved views…</option></select>

@@ -143,6 +143,89 @@ class AtBotCompanionClient:
         except (OSError, ValueError, HTTPError, URLError, json.JSONDecodeError):
             return fallback
 
+    def propose(self, message: str) -> dict[str, Any]:
+        """Request interpretation only; AtMem remains responsible for admission."""
+        clean = " ".join(message.split())
+        fallback = {
+            "format": "atbot-memory-proposals-v1",
+            "proposals": [],
+            "interpreter": None,
+            "content_received": False,
+            "authority_decision": None,
+            "canonical_storage": False,
+            "companion": {"available": False, "fallback": True},
+        }
+        if not clean or len(clean) > 20_000:
+            return fallback
+        health = self.health()
+        if not health.get("available"):
+            return {**fallback, "companion": {**fallback["companion"], "reason": health.get("reason")}}
+        request = Request(
+            f"{self.endpoint}/api/companion/propose",
+            data=json.dumps({"message": clean}).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "X-AtBot-CSRF": str(health["csrf_token"]),
+            },
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=self.timeout) as response:
+                value = json.loads(response.read())
+            if (
+                value.get("format") != "atbot-memory-proposals-v1"
+                or value.get("content_received") is not True
+                or value.get("authority_decision") is not None
+                or value.get("canonical_storage") is not False
+            ):
+                raise ValueError("invalid AtBot proposal boundary")
+            proposals: list[dict[str, Any]] = []
+            for row in value.get("proposals") or []:
+                if not isinstance(row, dict):
+                    continue
+                fact = " ".join(str(row.get("fact") or "").split())
+                if not fact or len(fact) > 2_000:
+                    continue
+                confidence = float(row.get("confidence", 0.0))
+                sensitivity = str(row.get("sensitivity") or "personal")
+                action = str(row.get("suggested_action") or "uncertain")
+                if not 0.0 <= confidence <= 1.0:
+                    continue
+                if sensitivity not in {"public", "internal", "personal", "sensitive", "restricted"}:
+                    continue
+                if action not in {"add", "duplicate", "supports", "extends", "contradicts", "supersedes", "uncertain"}:
+                    continue
+                entities = [
+                    {str(key): str(item) for key, item in entity.items()}
+                    for entity in row.get("entities") or []
+                    if isinstance(entity, dict)
+                ][:50]
+                proposals.append(
+                    {
+                        "fact": fact,
+                        "fact_key": str(row["fact_key"]).strip() if row.get("fact_key") else None,
+                        "confidence": confidence,
+                        "sensitivity": sensitivity,
+                        "entities": entities,
+                        "suggested_action": action,
+                        # No records were disclosed to AtBot for extraction.
+                        "related_record_ids": [],
+                    }
+                )
+                if len(proposals) >= 8:
+                    break
+            interpreter = value.get("interpreter")
+            if not isinstance(interpreter, dict):
+                raise ValueError("AtBot omitted interpreter identity")
+            return {
+                **value,
+                "proposals": proposals,
+                "interpreter": interpreter,
+                "companion": {"available": True, "fallback": False},
+            }
+        except (OSError, ValueError, TypeError, HTTPError, URLError, json.JSONDecodeError) as exc:
+            return {**fallback, "companion": {**fallback["companion"], "reason": str(exc)}}
+
 
 def _fallback(
     query: str, candidates: list[dict[str, Any]], health: dict[str, Any]
