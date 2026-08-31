@@ -33,6 +33,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0.0",
+  "tomli>=2.0; python_version < '3.11'",
 ]
 semantic = [
   "sentence-transformers>=5.0.0,<6.0.0",

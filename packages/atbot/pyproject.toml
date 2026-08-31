@@ -38,6 +38,7 @@ Documentation = "https://github.com/aetna000/atmem/tree/main/packages/atbot#read
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
+  "tomli>=2.0; python_version < '3.11'",
 ]
 
 [project.scripts]
