@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError, version
 import json
 import os
 from pathlib import Path
@@ -105,6 +106,7 @@ def _start(
     log_offset = log_path.stat().st_size if log_path.exists() else 0
     command = [
         sys.executable,
+        "-I",
         "-m",
         "atmem.cli",
         "dashboard",
@@ -136,6 +138,8 @@ def _start(
         ),
         "log_path": str(log_path),
         "started_at": utc_now(),
+        "python_executable": str(Path(sys.executable).expanduser().absolute()),
+        "atmem_version": _installed_atmem_version(),
     }
     _write(state_path, value)
     deadline = time.monotonic() + 5.0
@@ -198,7 +202,30 @@ def _status(state_path: Path) -> dict[str, Any]:
     pid = int(value.get("pid") or 0)
     value["installed"] = True
     value["running"] = pid > 0 and _alive(pid)
+    current_version = _installed_atmem_version()
+    value["current_atmem_version"] = current_version
+    current_executable = str(Path(sys.executable).expanduser().absolute())
+    value["current_python_executable"] = current_executable
+    recorded_version = value.get("atmem_version")
+    recorded_executable = value.get("python_executable")
+    value["restart_required"] = bool(
+        value["running"]
+        and (
+            (recorded_version is not None and recorded_version != current_version)
+            or (
+                recorded_executable is not None
+                and recorded_executable != current_executable
+            )
+        )
+    )
     return value
+
+
+def _installed_atmem_version() -> str:
+    try:
+        return version("atmem")
+    except PackageNotFoundError:
+        return "development"
 
 
 def _alive(pid: int) -> bool:

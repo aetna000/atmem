@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from atmem.openclaw_install import (
+    _capability_consent_arguments,
     CommandResult,
     OPENCLAW_PLUGIN_VERSION,
     install_openclaw,
@@ -66,10 +67,16 @@ class FakeControlPlaneManager:
 
 
 class FakeOpenClaw:
-    def __init__(self, *, gateway_ok: bool = True) -> None:
+    def __init__(
+        self,
+        *,
+        gateway_ok: bool = True,
+        openclaw_version: str = "2026.7.1-2",
+    ) -> None:
         self.plugin_version: str | None = None
         self.entry: dict[str, object] | None = None
         self.gateway_ok = gateway_ok
+        self.openclaw_version = openclaw_version
         self.commands: list[list[str]] = []
 
     def run(self, arguments: list[str]) -> CommandResult:
@@ -77,7 +84,7 @@ class FakeOpenClaw:
         if arguments[0].endswith("atmem"):
             return CommandResult(0, "atmem 1.0.0\n", "")
         if arguments[1:] == ["--version"]:
-            return CommandResult(0, "OpenClaw 2026.7.1-2\n", "")
+            return CommandResult(0, f"OpenClaw {self.openclaw_version}\n", "")
         if arguments[1:3] == ["plugins", "inspect"]:
             if self.plugin_version is None:
                 return CommandResult(1, "", "Plugin not installed")
@@ -150,13 +157,20 @@ class FakeOpenClaw:
         raise AssertionError(arguments)
 
 
+@pytest.mark.parametrize(
+    ("openclaw_version", "expects_consent"),
+    [("2026.7.1-2", False), ("2026.8.1", True)],
+)
 def test_installer_owns_bridge_setup_and_starts_shadow_only_migration(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    openclaw_version: str,
+    expects_consent: bool,
 ) -> None:
     engine = tmp_path / "atmem"
     engine.write_text("#!/bin/sh\n", encoding="utf-8")
     engine.chmod(0o755)
-    fake = FakeOpenClaw()
+    fake = FakeOpenClaw(openclaw_version=openclaw_version)
     monkeypatch.setattr(
         "atmem.openclaw_install.shutil.which",
         lambda name: "/fake/openclaw" if name == "openclaw" else None,
@@ -198,10 +212,22 @@ def test_installer_owns_bridge_setup_and_starts_shadow_only_migration(
     assert fake.entry["config"]["command"] == str(engine.resolve())  # type: ignore[index]
     install = next(command for command in fake.commands if command[1:3] == ["plugins", "install"])
     assert install[3] == f"npm:openclaw-memory-atmem@{OPENCLAW_PLUGIN_VERSION}"
+    assert ("--accept-capabilities" in install) is expects_consent
+    assert ("--force" in install) is expects_consent
     assert [step for step, _total, _label in progress] == list(range(1, 9))
     assert all(total == 8 for _step, total, _label in progress)
     assert "memory" in progress[4][2].casefold()
     assert "mirror" in progress[-1][2].casefold()
+
+
+def test_openclaw_2_requires_explicit_plugin_capability_consent() -> None:
+    assert _capability_consent_arguments("OpenClaw 2026.7.1-2 (old)") == []
+    assert _capability_consent_arguments("OpenClaw 2026.8.1 (2.0)") == [
+        "--accept-capabilities"
+    ]
+    assert _capability_consent_arguments("OpenClaw 2027.1.0") == [
+        "--accept-capabilities"
+    ]
 
 
 def test_installer_reuses_existing_shadow_without_replacing_restore_snapshot(

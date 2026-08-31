@@ -35,7 +35,7 @@ def test_openclaw_upgrade_preserves_mode_and_reports_verified_bridge(
             "format": "atmem-openclaw-bridge-refresh-v1",
             "refreshed": True,
             "previous_bridge_version": "2.1.0",
-            "bridge_version": "2.2.3",
+            "bridge_version": "2.2.4",
             "mode": "active",
             "gateway_verified": True,
             "test_flight": {
@@ -44,14 +44,25 @@ def test_openclaw_upgrade_preserves_mode_and_reports_verified_bridge(
             },
         },
     )
+    monkeypatch.setattr(
+        cli,
+        "_restart_running_dashboard_after_upgrade",
+        lambda: {
+            "format": "atmem-dashboard-upgrade-v1",
+            "was_running": True,
+            "restarted": True,
+            "atmem_version": "2.2.4",
+        },
+    )
     monkeypatch.setattr(sys, "argv", ["atmem", "openclaw", "upgrade", "--json"])
 
     cli.main()
 
     result = json.loads(capsys.readouterr().out)
-    assert result["bridge_version"] == "2.2.3"
+    assert result["bridge_version"] == "2.2.4"
     assert result["mode"] == "active"
     assert result["test_flight"]["valid"] is True
+    assert result["dashboard"]["restarted"] is True
 
 
 @pytest.mark.parametrize(

@@ -2,10 +2,11 @@
   "id": "memory-atmem",
   "name": "Memory (atmem)",
   "description": "OpenClaw bridge installed and managed by the AtMem memory control plane.",
-  "version": "2.2.3",
+  "version": "2.2.4",
   "commandAliases": ["memory-atmem"],
   "activation": {
-    "onStartup": true
+    "onStartup": true,
+    "onCapabilities": ["hook", "tool"]
   },
   "contracts": {
     "tools": [

@@ -1,6 +1,6 @@
 {
   "name": "openclaw-memory-atmem",
-  "version": "2.2.3",
+  "version": "2.2.4",
   "description": "OpenClaw Agent Black Box and memory control-plane bridge for AtMem",
   "type": "module",
   "main": "./dist/index.js",
@@ -13,7 +13,10 @@
   "openclaw": {
     "extensions": [
       "./dist/index.js"
-    ]
+    ],
+    "compat": {
+      "pluginApi": ">=2026.7.1-2"
+    }
   },
   "engines": {
     "node": ">=22.12.0"
@@ -43,6 +46,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
+    "openclaw": "^2026.8.1",
     "typescript": "5.6"
   }
 }

@@ -9,7 +9,7 @@
 ## Install
 
 ```bash
-python -m pip install --upgrade atmem==2.2.3
+python -m pip install --upgrade atmem==2.2.4
 atmem --version
 atmem openclaw install
 ```
@@ -22,7 +22,7 @@ Upgrade AtMem first, then refresh the existing bridge without creating a new
 migration or changing the current shadow/active mode:
 
 ```bash
-python -m pip install --upgrade atmem==2.2.3
+python -m pip install --upgrade atmem==2.2.4
 atmem openclaw upgrade
 atmem control verify
 atmem atbot doctor
@@ -31,11 +31,19 @@ atmem atbot doctor
 The bridge upgrade runs a verified self-test flight and restores the prior npm
 bridge if installation, gateway, or runtime verification fails. Existing
 canonical records, evidence, migration identity, review candidates, and restore
-snapshot remain in place.
+snapshot remain in place. It is safe to rerun when the bridge is already current.
+If the dashboard daemon was running, the command restarts it with the upgraded
+Python runtime before verifying the bridge.
 
 The installer is safe to rerun. If the same OpenClaw migration is already in
 shadow mode, AtMem refreshes and verifies that migration instead of creating
 a second control ID. The original pre-AtMem restore snapshot is preserved.
+
+OpenClaw 2026.8.1 (the OpenClaw 2.0 release) requires explicit consent for a
+third-party plugin's declared capabilities. The AtMem-managed installer detects
+that host version and supplies consent only while installing the exact pinned
+`openclaw-memory-atmem` bridge. Older supported OpenClaw releases do not receive
+flags they do not understand.
 
 ## Inspect before switching
 

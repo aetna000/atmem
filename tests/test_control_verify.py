@@ -165,6 +165,7 @@ def test_unknown_host_is_exit_two_only_when_it_is_the_only_failure(
 def test_openclaw_version_scheme_includes_build_suffix() -> None:
     assert parse_openclaw_version("OpenClaw 2026.7.1-2") == (2026, 7, 1, 2)
     assert evaluate_host_version("2026.7.1-2") == "tested"
+    assert evaluate_host_version("2026.8.1") == "tested"
     assert evaluate_host_version("2026.7.9-1") == "untested_patch"
     assert evaluate_host_version("2027.1.0") == "untested"
 

@@ -18,9 +18,15 @@ def test_dashboard_daemon_start_records_direct_loopback_url(
     tmp_path: Path, monkeypatch
 ) -> None:
     state_path = tmp_path / "dashboard.json"
+    launched: list[list[str]] = []
+
+    def fake_popen(command, *args, **kwargs):
+        launched.append(command)
+        return _FakeProcess()
+
     monkeypatch.setattr(
         "atmem.dashboard_daemon.subprocess.Popen",
-        lambda *args, **kwargs: _FakeProcess(),
+        fake_popen,
     )
     monkeypatch.setattr(
         "atmem.dashboard_daemon._dashboard_url",
@@ -36,6 +42,8 @@ def test_dashboard_daemon_start_records_direct_loopback_url(
 
     assert result["running"] is True
     assert result["url"] == "http://127.0.0.1:9123/"
+    assert result["atmem_version"]
+    assert launched[0][1:3] == ["-I", "-m"]
     assert "login_url" not in result
     assert "access_code" not in result
     assert state_path.stat().st_mode & 0o777 == 0o600
@@ -123,3 +131,44 @@ def test_dashboard_url_ignores_old_log_entries(tmp_path: Path) -> None:
     assert _dashboard_url(log_path, after_bytes=restart_offset) == (
         "http://127.0.0.1:9123/"
     )
+
+
+def test_dashboard_status_flags_a_running_old_runtime(
+    tmp_path: Path, monkeypatch
+) -> None:
+    state_path = tmp_path / "dashboard.json"
+    state_path.write_text(
+        '{"format":"atmem-dashboard-daemon-v1","pid":4242,'
+        '"port":8766,"atmem_version":"2.1.0"}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("atmem.dashboard_daemon._alive", lambda _pid: True)
+    monkeypatch.setattr(
+        "atmem.dashboard_daemon._installed_atmem_version", lambda: "2.2.4"
+    )
+
+    result = manage_dashboard_daemon("status", daemon_state_path=state_path)
+
+    assert result["restart_required"] is True
+    assert result["current_atmem_version"] == "2.2.4"
+
+
+def test_dashboard_status_flags_a_different_python_environment(
+    tmp_path: Path, monkeypatch
+) -> None:
+    state_path = tmp_path / "dashboard.json"
+    state_path.write_text(
+        '{"format":"atmem-dashboard-daemon-v1","pid":4242,'
+        '"port":8766,"atmem_version":"2.2.4",'
+        '"python_executable":"/old/environment/bin/python"}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("atmem.dashboard_daemon._alive", lambda _pid: True)
+    monkeypatch.setattr(
+        "atmem.dashboard_daemon._installed_atmem_version", lambda: "2.2.4"
+    )
+
+    result = manage_dashboard_daemon("status", daemon_state_path=state_path)
+
+    assert result["restart_required"] is True
+    assert result["current_python_executable"]

@@ -79,7 +79,10 @@ Run `atmem COMMAND --help` for command-specific examples.""",
     )
     openclaw_upgrade = openclaw_commands.add_parser(
         "upgrade",
-        help="Upgrade and verify the bridge without changing the current memory mode",
+        help=(
+            "Restart a running dashboard, upgrade the bridge, and verify the current "
+            "memory mode"
+        ),
     )
     openclaw_upgrade.add_argument(
         "--state",
@@ -1077,6 +1080,33 @@ def _print(value: object) -> None:
     print(json.dumps(value, indent=2, sort_keys=True))
 
 
+def _restart_running_dashboard_after_upgrade() -> dict[str, object]:
+    """Replace a live pre-upgrade dashboard with this CLI's runtime."""
+
+    from atmem.dashboard_daemon import manage_dashboard_daemon
+
+    current = manage_dashboard_daemon("status")
+    if not current.get("running"):
+        return {
+            "format": "atmem-dashboard-upgrade-v1",
+            "was_running": False,
+            "restarted": False,
+        }
+    restarted = manage_dashboard_daemon("restart")
+    if not restarted.get("running"):
+        raise ValueError(
+            "the dashboard was running before upgrade but did not restart; "
+            "run `atmem dashboard daemon restart`"
+        )
+    return {
+        "format": "atmem-dashboard-upgrade-v1",
+        "was_running": True,
+        "restarted": True,
+        "atmem_version": restarted.get("atmem_version"),
+        "url": restarted.get("url"),
+    }
+
+
 def _run_openclaw(args: argparse.Namespace) -> None:
     if args.openclaw_command == "memory":
         from atmem.control import ControlPlaneManager
@@ -1117,6 +1147,7 @@ def _run_openclaw(args: argparse.Namespace) -> None:
         from atmem.openclaw_install import refresh_openclaw_bridge_and_test
 
         try:
+            dashboard = _restart_running_dashboard_after_upgrade()
             result = refresh_openclaw_bridge_and_test(
                 state_path=args.state or DEFAULT_STATE_PATH
             )
@@ -1133,6 +1164,7 @@ def _run_openclaw(args: argparse.Namespace) -> None:
                 print("AtMem OpenClaw upgrade did not complete", file=sys.stderr)
                 print(f"\n{exc}", file=sys.stderr)
             raise SystemExit(1) from None
+        result["dashboard"] = dashboard
         if args.json:
             _print(result)
         else:
@@ -1144,6 +1176,10 @@ def _run_openclaw(args: argparse.Namespace) -> None:
             print(f"  Current bridge        {result['bridge_version']}")
             print(f"  Memory mode           {result['mode']}")
             print(f"  Test flight           {result['test_flight']['verdict']}")
+            print(
+                "  Dashboard             "
+                + ("restarted" if dashboard["restarted"] else "was not running")
+            )
         return
     if args.openclaw_command != "install":
         raise ValueError(f"unknown OpenClaw command: {args.openclaw_command}")
@@ -1907,6 +1943,11 @@ def _run_dashboard(args: argparse.Namespace) -> None:
             print(f"  Dashboard    {result['url']}")
         if result.get("log_path"):
             print(f"  Log          {result['log_path']}")
+        if result.get("restart_required"):
+            print(
+                "  Action       This dashboard uses an older AtMem runtime or "
+                "Python environment. Run `atmem dashboard daemon restart`."
+            )
         if result.get("opened"):
             print("\nOpened the dashboard in the default browser.")
         if result.get("removed"):

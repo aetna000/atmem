@@ -31,7 +31,7 @@ stored in GitHub.
 2. Run both Python suites and build both distributions locally.
 3. Push the reviewed changes.
 4. Create and push a tag matching `atbot-v<VERSION>`, for example
-   `atbot-v0.1.0a2`.
+   `atbot-v0.1.0a3`.
 5. Approve the protected `pypi-atbot` environment deployment.
 6. Confirm `python -m pip install atmem-atbot==<VERSION>` installs an `atbot`
    command with the same version.

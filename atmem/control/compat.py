@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 
-TESTED_OPENCLAW_VERSIONS = ("2026.7.1-2",)
+TESTED_OPENCLAW_VERSIONS = ("2026.7.1-2", "2026.8.1")
 
 _VERSION_RE = re.compile(r"(?<!\d)(\d{4})\.(\d+)\.(\d+)(?:-(\d+))?(?!\d)")
 

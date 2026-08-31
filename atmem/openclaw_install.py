@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import time
@@ -16,7 +17,7 @@ from atmem.control.manager import DEFAULT_STATE_PATH, DEFAULT_CONTROL_ROOT
 
 OPENCLAW_PLUGIN_ID = "memory-atmem"
 OPENCLAW_PLUGIN_PACKAGE = "openclaw-memory-atmem"
-OPENCLAW_PLUGIN_VERSION = "2.2.3"
+OPENCLAW_PLUGIN_VERSION = "2.2.4"
 _CONFIG_KEY = "plugins.entries.memory-atmem"
 
 
@@ -58,7 +59,9 @@ def install_openclaw(
         )
 
     engine_version = _verify_engine(engine, run)
-    _require_success(run([openclaw, "--version"]), "OpenClaw version check")
+    openclaw_version = run([openclaw, "--version"])
+    _require_success(openclaw_version, "OpenClaw version check")
+    capability_consent = _capability_consent_arguments(openclaw_version.stdout)
 
     report(2, total_steps, "Reading the current OpenClaw configuration")
     prior_plugin = _inspect_plugin(openclaw, run, optional=True)
@@ -81,8 +84,12 @@ def install_openclaw(
                 f"npm:{OPENCLAW_PLUGIN_PACKAGE}@{OPENCLAW_PLUGIN_VERSION}",
                 "--pin",
             ]
-            if prior_version is not None:
+            # OpenClaw 2.0 treats third-party npm plugins as reviewed-but-
+            # untrusted sources. The operator already chose AtMem's managed
+            # installer, so confirm that exact pinned artifact explicitly.
+            if prior_version is not None or capability_consent:
                 install_command.append("--force")
+            install_command.extend(capability_consent)
             _require_success(run(install_command), "OpenClaw bridge installation")
             package_changed = True
 
@@ -237,6 +244,7 @@ def install_openclaw(
                                 f"npm:{OPENCLAW_PLUGIN_PACKAGE}@{prior_version}",
                                 "--pin",
                                 "--force",
+                                *capability_consent,
                             ]
                         ),
                         "bridge package restore",
@@ -277,19 +285,13 @@ def refresh_openclaw_bridge_and_test(
     openclaw = shutil.which("openclaw")
     if openclaw is None:
         raise ValueError("OpenClaw was not found on PATH")
+    openclaw_version = run([openclaw, "--version"])
+    _require_success(openclaw_version, "OpenClaw version check")
+    capability_consent = _capability_consent_arguments(openclaw_version.stdout)
     installed_before = _inspect_plugin(openclaw, run, optional=False)
     prior_version = _find_plugin_version(installed_before)
     runtime_before = _inspect_plugin(openclaw, run, optional=True, runtime=True)
     runtime_version = _find_plugin_version(runtime_before)
-    if (
-        prior_version == OPENCLAW_PLUGIN_VERSION
-        and runtime_version == OPENCLAW_PLUGIN_VERSION
-    ):
-        raise ValueError(
-            f"bridge {OPENCLAW_PLUGIN_VERSION} is already loaded; the installed "
-            "AtMem package does not yet pin a newer bridge"
-        )
-
     package_changed = prior_version != OPENCLAW_PLUGIN_VERSION
     try:
         if package_changed:
@@ -302,6 +304,7 @@ def refresh_openclaw_bridge_and_test(
                         f"npm:{OPENCLAW_PLUGIN_PACKAGE}@{OPENCLAW_PLUGIN_VERSION}",
                         "--pin",
                         "--force",
+                        *capability_consent,
                     ]
                 ),
                 "OpenClaw bridge upgrade",
@@ -338,6 +341,7 @@ def refresh_openclaw_bridge_and_test(
                             f"npm:{OPENCLAW_PLUGIN_PACKAGE}@{prior_version}",
                             "--pin",
                             "--force",
+                            *capability_consent,
                         ]
                     ),
                     "prior bridge restore",
@@ -393,6 +397,7 @@ def refresh_openclaw_bridge_and_test(
     return {
         "format": "atmem-openclaw-bridge-refresh-v1",
         "refreshed": True,
+        "bridge_package_changed": package_changed,
         "previous_bridge_version": prior_version,
         "bridge_version": OPENCLAW_PLUGIN_VERSION,
         "mode": state.mode.value,
@@ -455,6 +460,16 @@ def _resolve_engine(explicit: str | None) -> str:
     if not path.is_file() or not os.access(path, os.X_OK):
         raise ValueError(f"AtMem executable is missing or not executable: {path}")
     return str(path)
+
+
+def _capability_consent_arguments(version_output: str) -> list[str]:
+    """Return the explicit plugin-consent flag introduced by OpenClaw 2.0."""
+
+    match = re.search(r"\b(\d{4})\.(\d+)\.(\d+)(?:\D|$)", version_output)
+    if match is None:
+        return []
+    release = tuple(int(part) for part in match.groups())
+    return ["--accept-capabilities"] if release >= (2026, 8, 1) else []
 
 
 def _verify_engine(engine: str, run: Runner) -> str:

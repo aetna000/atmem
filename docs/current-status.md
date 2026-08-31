@@ -1,9 +1,9 @@
 # Current implementation status
 
-Updated: 31 August 2026
+Updated: 1 September 2026
 
-Repository metadata and the matched OpenClaw bridge are version **2.2.3**.
-The required `atmem-atbot==0.1.0a2` companion is published separately and
+Repository metadata and the matched OpenClaw bridge are version **2.2.4**.
+The required `atmem-atbot==0.1.0a3` companion is published separately and
 installed automatically with AtMem.
 
 The release has four runtime boundaries:
@@ -42,7 +42,7 @@ The release has four runtime boundaries:
 
 ## Packaging and runtime status
 
-- `pyproject.toml` requires exactly `atmem-atbot==0.1.0a2`. The PyPI
+- `pyproject.toml` requires exactly `atmem-atbot==0.1.0a3`. The PyPI
   distribution is `atmem-atbot`; its Python import and command remain `atbot`.
 - AtBot source lives under `packages/atbot`; it is a separately released
   distribution and process and does not own canonical storage.
@@ -74,13 +74,21 @@ The release has four runtime boundaries:
 
 ## Upgrade and support status
 
-- The release workflow creates persisted data with public AtMem 2.1.0, upgrades
-  the same environment to 2.2.3, and verifies record identity, recall, audit
+- The release workflow creates persisted data with public AtMem 2.1.0 and
+  2.2.3, upgrades each environment to 2.2.4, and verifies record identity, recall, audit
   integrity, control migration identity, candidate retention, schema migration,
   and automatic vector-sidecar creation before publication.
 - Existing OpenClaw installations upgrade the bridge with
   `atmem openclaw upgrade`; the command preserves shadow or active mode, restarts
-  the gateway, runs a test flight, and restores the previous bridge on failure.
+  a running dashboard under the upgraded isolated Python runtime, restarts the
+  gateway, runs a test flight, and restores the previous bridge on failure. The
+  command remains safe to rerun when the bridge is already current.
+- OpenClaw 2026.7.1-2 and 2026.8.1 are tested host versions. On OpenClaw 2.0
+  (2026.8.1), the managed installer supplies the host's explicit third-party
+  capability-consent flags for the exact pinned bridge.
+- The framework gate exercises Pydantic AI 2.36.0, LangChain 1.3.18, and
+  LangGraph 1.2.11 together in a clean environment. Package bounds permit
+  compatible later releases within the same major generation.
 - Python 3.10 through 3.13, the AtBot wheel, the AtMem wheel, and the npm bridge
   are tested by the release workflow.
 - The exact trust and hosted-service limitations above remain product boundaries,
