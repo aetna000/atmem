@@ -16,7 +16,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 
-PINNED_ATBOT_VERSION = "0.1.0a1"
+PINNED_ATBOT_VERSION = "0.1.0a2"
 ATBOT_DISTRIBUTION = "atmem-atbot"
 ATBOT_PROTOCOL_VERSION = "1"
 DEFAULT_ROOT = Path.home() / ".atmem" / "atbot"

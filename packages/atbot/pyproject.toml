@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atmem-atbot"
-version = "0.1.0a1"
+version = "0.1.0a2"
 description = "The local-first intelligence companion for AtMem."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -26,7 +26,9 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-  "pydantic-ai-slim[openai]>=1",
+  "pydantic-ai-slim[openai]>=1,<2",
+  "openai>=2.29,<3",
+  "jiter>=0.10,<0.14",
 ]
 
 [project.urls]
