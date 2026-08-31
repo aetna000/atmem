@@ -16,7 +16,7 @@ memory.close()
 ```
 
 The canonical database remains usable without an external embedding provider.
-In 2.2 development AtMem creates a dependency-free local vector sidecar
+In 2.2 AtMem creates a dependency-free local vector sidecar
 automatically; installing a higher-quality local embedding provider is optional.
 
 ## MCP
@@ -95,7 +95,7 @@ separate process and wheel so model-framework dependencies never enter AtMem's
 authority runtime:
 
 ```bash
-# Unreleased 2.2 repository development
+# 2.2 repository development
 python -m pip install -e './packages/atbot' -e '.'
 atmem atbot setup
 ```

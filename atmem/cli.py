@@ -77,6 +77,20 @@ Run `atmem COMMAND --help` for command-specific examples.""",
         action="store_true",
         help="Print machine-readable JSON",
     )
+    openclaw_upgrade = openclaw_commands.add_parser(
+        "upgrade",
+        help="Upgrade and verify the bridge without changing the current memory mode",
+    )
+    openclaw_upgrade.add_argument(
+        "--state",
+        default=None,
+        help="Advanced: override the local migration control-file path",
+    )
+    openclaw_upgrade.add_argument(
+        "--json",
+        action="store_true",
+        help="Print machine-readable JSON",
+    )
     openclaw_memory = openclaw_commands.add_parser(
         "memory",
         help="Inspect the OpenClaw memory mirror owned by AtMem",
@@ -1097,6 +1111,39 @@ def _run_openclaw(args: argparse.Namespace) -> None:
             _print(result)
         else:
             _print_openclaw_memory(command, result)
+        return
+    if args.openclaw_command == "upgrade":
+        from atmem.control.manager import DEFAULT_STATE_PATH
+        from atmem.openclaw_install import refresh_openclaw_bridge_and_test
+
+        try:
+            result = refresh_openclaw_bridge_and_test(
+                state_path=args.state or DEFAULT_STATE_PATH
+            )
+        except ValueError as exc:
+            if args.json:
+                _print(
+                    {
+                        "format": "atmem-openclaw-upgrade-v1",
+                        "upgraded": False,
+                        "error": str(exc),
+                    }
+                )
+            else:
+                print("AtMem OpenClaw upgrade did not complete", file=sys.stderr)
+                print(f"\n{exc}", file=sys.stderr)
+            raise SystemExit(1) from None
+        if args.json:
+            _print(result)
+        else:
+            print("AtMem upgraded the OpenClaw bridge")
+            print(
+                f"\n  Previous bridge       "
+                f"{result.get('previous_bridge_version') or 'unknown'}"
+            )
+            print(f"  Current bridge        {result['bridge_version']}")
+            print(f"  Memory mode           {result['mode']}")
+            print(f"  Test flight           {result['test_flight']['verdict']}")
         return
     if args.openclaw_command != "install":
         raise ValueError(f"unknown OpenClaw command: {args.openclaw_command}")

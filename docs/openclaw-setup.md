@@ -9,12 +9,29 @@
 ## Install
 
 ```bash
-python -m pip install atmem==2.1.0
+python -m pip install --upgrade atmem==2.2.0
 atmem --version
 atmem openclaw install
 ```
 
 Do not install `openclaw-memory-atmem` directly. It is a bridge, not a standalone memory engine. `atmem openclaw install` selects the matching bridge version, pins the exact Python executable, shows staged progress, restarts the gateway and verifies the running plugin.
+
+## Upgrade from 2.1
+
+Upgrade AtMem first, then refresh the existing bridge without creating a new
+migration or changing the current shadow/active mode:
+
+```bash
+python -m pip install --upgrade atmem==2.2.0
+atmem openclaw upgrade
+atmem control verify
+atmem atbot doctor
+```
+
+The bridge upgrade runs a verified self-test flight and restores the prior npm
+bridge if installation, gateway, or runtime verification fails. Existing
+canonical records, evidence, migration identity, review candidates, and restore
+snapshot remain in place.
 
 The installer is safe to rerun. If the same OpenClaw migration is already in
 shadow mode, AtMem refreshes and verifies that migration instead of creating

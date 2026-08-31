@@ -1,8 +1,8 @@
 {
   "product": "memory_control_plane",
-  "version": "2.1.0",
-  "development_target": "2.2.0",
-  "release_status": "unreleased_development",
+  "version": "2.2.0",
+  "development_target": null,
+  "release_status": "released",
   "engine": "model_agnostic",
   "canonical_authority": "atmem_only",
   "intelligence_companion": {

@@ -2,11 +2,11 @@
 
 Updated: 31 August 2026
 
-Repository metadata remains version **2.1.0**. The `atbot` branch is unreleased
-**2.2 development**; none of the 2.2 items below should be described as present
-in the published `atmem==2.1.0` package.
+Repository metadata and the matched OpenClaw bridge are version **2.2.0**.
+The required `atmem-atbot==0.1.0a1` companion is published separately and
+installed automatically with AtMem.
 
-The development implementation has four runtime boundaries:
+The release has four runtime boundaries:
 
 1. AtMem's model-agnostic authority engine and canonical SQLite memory;
 2. the host-neutral control, evidence, and adapter contracts;
@@ -14,7 +14,7 @@ The development implementation has four runtime boundaries:
 4. the separately packaged, headless AtBot intelligence companion, reached only
    through a versioned loopback protocol.
 
-## 2.2 development capabilities
+## 2.2 capabilities
 
 | Capability | Generic/framework runtimes | OpenClaw |
 | --- | --- | --- |
@@ -42,14 +42,13 @@ The development implementation has four runtime boundaries:
 
 ## Packaging and runtime status
 
-- `pyproject.toml` requires exactly `atmem-atbot==0.1.0a1` on this development
-  branch. The PyPI distribution is `atmem-atbot`; its Python import and command
-  remain `atbot`.
+- `pyproject.toml` requires exactly `atmem-atbot==0.1.0a1`. The PyPI
+  distribution is `atmem-atbot`; its Python import and command remain `atbot`.
 - AtBot source lives under `packages/atbot`; it is a separately released
   distribution and process and does not own canonical storage.
-- A clean 2.2 package installation can resolve the dependency only after the
-  matching AtBot distribution is published. Repository development installs
-  both packages explicitly with editable installs.
+- A clean 2.2 installation resolves the published companion automatically.
+  Repository development installs both packages explicitly with editable
+  installs.
 - Publishing uses the dedicated trusted-publisher workflow documented in
   [Publishing the AtBot companion](atbot-release.md); no PyPI token belongs in
   repository or service configuration.
@@ -73,11 +72,16 @@ The development implementation has four runtime boundaries:
 - A SaaS deployment must add authentication, tenant isolation, retention,
   credential management, and system-of-record outcome verification.
 
-## Remaining 2.2 release work
+## Upgrade and support status
 
-- publish the matching AtBot distribution before publishing AtMem 2.2;
-- freeze and document every public protocol response and migration boundary;
-- add deletion acknowledgements for AtBot caches and temporary state;
-- finish performance, crash-recovery, migration, hostile-adapter, and supported
-  Python/encryption test matrices;
-- produce 2.2 release notes and perform a clean copied-data upgrade/restore drill.
+- The release workflow creates persisted data with public AtMem 2.1.0, upgrades
+  the same environment to 2.2.0, and verifies record identity, recall, audit
+  integrity, control migration identity, candidate retention, schema migration,
+  and automatic vector-sidecar creation before publication.
+- Existing OpenClaw installations upgrade the bridge with
+  `atmem openclaw upgrade`; the command preserves shadow or active mode, restarts
+  the gateway, runs a test flight, and restores the previous bridge on failure.
+- Python 3.10 through 3.13, the AtBot wheel, the AtMem wheel, and the npm bridge
+  are tested by the release workflow.
+- The exact trust and hosted-service limitations above remain product boundaries,
+  not hidden release claims.

@@ -1,14 +1,13 @@
 # AtMem
 
-[![Version 2.1.0](https://img.shields.io/badge/version-2.1.0-blue)](./docs/releases/v2.1.0.md)
+[![Version 2.2.0](https://img.shields.io/badge/version-2.2.0-blue)](./docs/releases/v2.2.0.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-> **Development status:** repository metadata remains **2.1.0**, the latest
-> published release. The `atbot` branch contains unreleased **2.2 development**
-> work. Features identified below as 2.2 development are not available from
-> `pip install atmem==2.1.0` until the 2.2 packages are published.
+> **Release status:** this repository describes **AtMem 2.2.0**. AtBot is a
+> separately packaged, headless intelligence companion installed and managed
+> by AtMem; AtMem remains the memory authority.
 
 It gives agent runtimes one governed memory source and one tamper-evident record
 of what the host observed: memory considered and injected, model boundaries,
@@ -25,26 +24,26 @@ and restores it exactly.
 ## Install
 
 ```bash
-python -m pip install atmem==2.1.0
+python -m pip install atmem==2.2.0
 atmem --version
 ```
 
-AtMem requires Python 3.10 or newer. Released 2.1 keeps semantic-vector
-dependencies optional:
+AtMem requires Python 3.10 or newer. It always creates a dependency-free local
+vector sidecar; the semantic extra adds an optional local embedding upgrade:
 
 ```bash
-python -m pip install 'atmem[semantic]==2.1.0'
+python -m pip install 'atmem[semantic]==2.2.0'
 ```
 
-For the unreleased 2.2 development checkout, install both repository packages
-so the exact companion version is satisfied locally:
+For repository development, install both packages so the exact companion
+version is satisfied locally:
 
 ```bash
 python -m pip install -e './packages/atbot[dev]' -e '.[dev]'
 atmem atbot setup
 ```
 
-The 2.2 authority modules remain model-agnostic and do not import AtBot, but the
+The authority modules remain model-agnostic and do not import AtBot, but the
 AtMem distribution requires the separately packaged, exactly pinned AtBot
 companion. Consequently a complete 2.2 installation has AtBot's transitive
 dependencies even when the user selects AtMem's deterministic fallback.
@@ -211,6 +210,18 @@ atmem control restore --drill
 atmem control restore
 ```
 
+Existing 2.1 installations upgrade without starting a new migration:
+
+```bash
+python -m pip install --upgrade atmem==2.2.0
+atmem openclaw upgrade
+atmem control verify
+```
+
+The upgrade retains the current shadow or active mode, refreshes the pinned
+bridge, restarts the gateway, records a self-test flight, and restores the
+previous bridge if verification fails.
+
 `atmem openclaw install` installs the pinned npm bridge, binds the exact Python
 executable, copies `MEMORY.md` and `memory/*.md` across detected persistent
 agent workspaces, starts shadow synchronization, restarts the gateway, and
@@ -314,7 +325,7 @@ AtMem and its separately packaged AtBot companion share this repository. They
 remain separate processes and communicate only through the loopback companion
 protocol; neither package imports the other's runtime code.
 
-On the 2.2 development branch, AtMem declares the exactly pinned AtBot
+In 2.2, AtMem declares the exactly pinned AtBot
 companion as a required distribution dependency. A clean package installation
 will install it automatically after both 2.2 distributions are published;
 repository development uses the editable command above. Model setup remains an
@@ -348,7 +359,7 @@ npm test
 npm run smoke
 ```
 
-Current repository metadata is version **2.1.0**. Python and npm release
+Current repository metadata is version **2.2.0**. Python and npm release
 versions are intentionally kept equal because the OpenClaw installer pins the
 matching bridge.
 

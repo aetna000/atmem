@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 
 import pytest
@@ -20,6 +21,37 @@ def test_bare_cli_is_a_guided_start_screen(
     assert "atmem openclaw install" in output
     assert "atmem dashboard" in output
     assert "no memory injection is enabled" in output
+
+
+def test_openclaw_upgrade_preserves_mode_and_reports_verified_bridge(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import atmem.openclaw_install
+
+    monkeypatch.setattr(
+        atmem.openclaw_install,
+        "refresh_openclaw_bridge_and_test",
+        lambda **_kwargs: {
+            "format": "atmem-openclaw-bridge-refresh-v1",
+            "refreshed": True,
+            "previous_bridge_version": "2.1.0",
+            "bridge_version": "2.2.0",
+            "mode": "active",
+            "gateway_verified": True,
+            "test_flight": {
+                "verdict": "completed_successfully",
+                "valid": True,
+            },
+        },
+    )
+    monkeypatch.setattr(sys, "argv", ["atmem", "openclaw", "upgrade", "--json"])
+
+    cli.main()
+
+    result = json.loads(capsys.readouterr().out)
+    assert result["bridge_version"] == "2.2.0"
+    assert result["mode"] == "active"
+    assert result["test_flight"]["valid"] is True
 
 
 @pytest.mark.parametrize(

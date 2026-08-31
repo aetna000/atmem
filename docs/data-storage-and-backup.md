@@ -9,7 +9,7 @@ Default locations:
 ~/.atmem/migrations/<migration-id>/
 ```
 
-In 2.2 development, each persistent memory database also has a derived local
+In 2.2, each persistent memory database also has a derived local
 vector sidecar at `<memory-db>.vectors.db`. Its exact path is reported by the
 dashboard storage view, and `atmem index status <memory-db>` reports its active
 and retired epochs. The vector sidecar is rebuildable and never authoritative.

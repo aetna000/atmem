@@ -518,7 +518,7 @@ Goal: ship a supportable AtMem 2.2 contract rather than an internal experiment.
 - [ ] Document source retention, remote egress, cache invalidation, and deletion
   semantics.
 - [ ] Add protocol examples and an AtBot integration guide.
-- [x] Update `docs/capabilities.json` for the unreleased 2.2 development state.
+- [x] Update `docs/capabilities.json` for the released 2.2 capability state.
 - [ ] Add final 2.2 release notes when package versions and publication order
   are fixed.
 - [ ] Run Python 3.10–3.13, encrypted/unencrypted, semantic/no-semantic, generic,

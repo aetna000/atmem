@@ -1,6 +1,6 @@
 # Semantic search
 
-AtMem always keeps canonical memory in SQLite. In 2.2 development, every
+AtMem always keeps canonical memory in SQLite. In 2.2, every
 persistent memory database also gets a rebuildable vector sidecar. AtMem creates
 and synchronizes a dependency-free local hashing epoch automatically; vectors
 never become canonical memory or an authorization source.

@@ -176,10 +176,39 @@ jobs:
           cd "$RUNNER_TEMP"
           python "$GITHUB_WORKSPACE/tools/smoke_installed_package.py"
 
+  upgrade-from-2-1:
+    name: Upgrade persisted AtMem 2.1 data to 2.2
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-distributions
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: atbot-release-distributions
+          path: atbot-dist
+      - name: Create an authentic 2.1 memory and control-plane fixture
+        run: |
+          python -m venv "$RUNNER_TEMP/upgrade-env"
+          "$RUNNER_TEMP/upgrade-env/bin/python" -m pip install atmem==2.1.0
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/upgrade-env/bin/python" "$GITHUB_WORKSPACE/tools/smoke_upgrade_from_2_1.py" create "$RUNNER_TEMP/upgrade-data"
+      - name: Upgrade in place and verify identity, evidence, and recall
+        run: |
+          "$RUNNER_TEMP/upgrade-env/bin/python" -m pip install --upgrade atbot-dist/*.whl dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/upgrade-env/bin/python" "$GITHUB_WORKSPACE/tools/smoke_upgrade_from_2_1.py" verify "$RUNNER_TEMP/upgrade-data"
+
   pypi:
     name: Publish tested artifacts to PyPI
     if: github.ref_type == 'tag'
-    needs: installed-wheel
+    needs: [installed-wheel, upgrade-from-2-1]
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -200,7 +229,7 @@ jobs:
   npm:
     name: Publish OpenClaw plugin to npm
     if: github.ref_type == 'tag'
-    needs: openclaw-plugin
+    needs: [openclaw-plugin, pypi]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -232,8 +261,6 @@ jobs:
       - run: python -m pip install -e ../../packages/atbot -e ../..
       - run: npm ci
       - name: Publish plugin unless this exact version already exists
-        id: npm-publish
-        continue-on-error: true
         run: |
           version=$(node -p 'require("./package.json").version')
           if npm view "openclaw-memory-atmem@$version" version >/dev/null 2>&1; then
@@ -241,10 +268,6 @@ jobs:
           else
             npm publish --access public --provenance --tag latest
           fi
-      - name: Report registry authorization requirement
-        if: steps.npm-publish.outcome == 'failure'
-        run: |
-          echo "::warning::npm publication requires package-level trusted publishing or a 2FA-authorized local publish; Python and GitHub release publication will continue"
 
   release:
     name: Create GitHub release

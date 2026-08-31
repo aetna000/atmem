@@ -2,7 +2,7 @@
 
 Updated: 31 August 2026
 
-## Implemented in the `atbot` development branch
+## Released in AtMem 2.2.0
 
 - Versioned, dependency-free authority contracts and shipped JSON Schemas.
 - Complete subject, agent, and workspace scope on protocol operations.
@@ -64,7 +64,7 @@ Updated: 31 August 2026
   pass the same real generic control-plane conformance test, including shadow
   non-injection and multi-agent scope validation.
 
-## Next 2.2 hardening work
+## Post-2.2 hardening work
 
 - Complete schemas and conformance fixtures for every response and lifecycle API.
 - Add authenticated transport adapters and topology membership resolution.
@@ -72,8 +72,7 @@ Updated: 31 August 2026
 - Add source lookup and correction/forget request contracts to the protocol bundle.
 - Add deletion acknowledgements for every AtBot cache and temporary state plane.
 - Run performance, migration, crash-recovery, and hostile-adapter acceptance suites.
-- Freeze protocol v1 and prepare the 2.2 release notes; no package release is made
-  by this development change.
-- Publish the already-pinned `atmem-atbot==0.1.0a1` distribution before AtMem 2.2 so
-  the required dependency resolves for a clean installation without a
-  repository checkout.
+- Continue expanding protocol-v1 conformance fixtures without changing frozen
+  response meanings.
+- Publish future AtBot versions before an AtMem release pins them so clean
+  installations always resolve without a repository checkout.

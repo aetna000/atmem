@@ -16,7 +16,7 @@ from atmem.control.manager import DEFAULT_STATE_PATH, DEFAULT_CONTROL_ROOT
 
 OPENCLAW_PLUGIN_ID = "memory-atmem"
 OPENCLAW_PLUGIN_PACKAGE = "openclaw-memory-atmem"
-OPENCLAW_PLUGIN_VERSION = "2.1.0"
+OPENCLAW_PLUGIN_VERSION = "2.2.0"
 _CONFIG_KEY = "plugins.entries.memory-atmem"
 
 
@@ -395,6 +395,7 @@ def refresh_openclaw_bridge_and_test(
         "refreshed": True,
         "previous_bridge_version": prior_version,
         "bridge_version": OPENCLAW_PLUGIN_VERSION,
+        "mode": state.mode.value,
         "gateway_verified": True,
         "test_flight": {
             "run_id": report.get("run_id"),

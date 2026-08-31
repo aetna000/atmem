@@ -77,7 +77,7 @@ def test_development_docs_match_companion_packaging() -> None:
     assert companion["required_distribution_dependency"] is True
     assert companion["separate_process"] is True
     assert companion["canonical_storage"] is False
-    assert capabilities["release_status"] == "unreleased_development"
+    assert capabilities["release_status"] == "released"
 
     active_guides = (
         ROOT / "README.md",

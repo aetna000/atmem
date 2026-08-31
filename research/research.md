@@ -1,7 +1,7 @@
 # AtMem 2.2: AtBot-readiness research
 
-Status: active 2.2 development contract; implemented items are tracked in
-`plan/implementation-status.md` and remain unreleased
+Status: 2.2 release architecture; implementation and later hardening items are
+tracked in `plan/implementation-status.md`
 
 This document defines the work required for AtMem 2.2 to serve as the
 authoritative memory and evidence engine beneath AtBot. It is not a commitment
@@ -12,10 +12,9 @@ reasoning, prompts, or agent orchestration into AtMem.
 ## Naming and release baseline
 
 AtMem is the public product name, Python package, and CLI name used by this
-repository. The current `main` branch ships AtMem 2.1.0; “AtMem 2.2” in this
-document means the planned next authority-contract release. AtBot is a
-separately packaged internal companion in this repository, not a rename of
-AtMem or an independent customer product.
+repository. AtMem 2.2 implements this authority-contract architecture. AtBot
+is a separately packaged internal companion in this repository, not a rename
+of AtMem or an independent customer product.
 
 ## Product boundary
 
@@ -76,7 +75,7 @@ distribution as a required dependency; this does not merge their processes or
 authority. Runtime failure or an explicit fallback choice remains safe because
 AtMem retains deterministic extraction and governed local recall. A clean
 package install becomes possible only after the matching AtBot distribution is
-published; repository development installs both packages explicitly.
+published; repository development also installs both packages explicitly.
 
 ## Identity and scope semantics
 
@@ -112,8 +111,8 @@ The gap is not the absence of another database. The gap is a stable authority
 contract through which AtBot can submit model-derived proposals and request
 governed hybrid recall.
 
-The automatic-capture portion of that contract is now implemented on the
-`atbot` development branch. The private loopback companion accepts source text
+The automatic-capture portion of that contract is implemented in 2.2. The
+private loopback companion accepts source text
 and returns bounded proposals plus interpreter identity, but no authority
 decision or storage mutation. AtMem authenticates the host source, constructs
 the complete scope and source binding itself, validates proposal fields, drops
@@ -414,7 +413,7 @@ AtMem must:
 
 ### 5. Governed hybrid agent recall
 
-Semantic search began as an investigator-only derived index. The 2.2 development
+Semantic search began as an investigator-only derived index. The 2.2
 implementation now creates a local vector sidecar for every persistent database
 and uses the active verified epoch as one signal in governed recall. This does
 not allow the derived index to become canonical or authoritative.
