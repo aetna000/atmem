@@ -61,6 +61,11 @@ a small model charge.
 A structurally complete flight has covered integrity, lifecycle, context, model,
 tools, and response-binding components. In particular:
 
+OpenClaw normally observes `turn.input` at `before_model_resolve`. Execution
+paths such as `claude-cli` that omit that hook use `before_prompt_build` as an
+idempotent fallback. If both hooks fire, the bridge records and stages the
+authenticated input only once.
+
 - the retained Black Box hash chain verifies;
 - the run has `turn.input` and terminal `turn.ended` events;
 - one explicit context disposition records what memory reached the model, or why none did;

@@ -510,7 +510,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         "refresh_openclaw_bridge_and_test",
         lambda **_kwargs: {
             "refreshed": True,
-            "bridge_version": "2.2.0",
+            "bridge_version": "2.2.1",
             "test_flight": {
                 "run_id": "fresh-run",
                 "verdict": "completed_successfully",
@@ -531,7 +531,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         "openclaw_bridge_refresh_status",
         lambda: {
             "available": True,
-            "pinned_version": "2.2.0",
+            "pinned_version": "2.2.1",
             "installed_version": "1.0.0",
         },
     )
@@ -552,7 +552,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         assert opener.open(f"{base}/api/status").status == 200
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.2.0"
+        assert product["atmem_npm_version"] == "2.2.1"
         assert product["x_url"] == "https://x.com/AtMemX"
         profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
         assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])

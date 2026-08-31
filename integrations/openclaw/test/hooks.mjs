@@ -480,9 +480,73 @@ try {
   assert.equal(flight.timeline_chain_valid, true);
   assert.equal(flight.structurally_complete, true);
   assert.equal(flight.verdict, "completed_successfully");
+  assert.equal(
+    flight.timeline.filter((entry) => entry.event_type === "turn.input").length,
+    1,
+    "before_model_resolve and before_prompt_build must observe one turn input",
+  );
   const serializedFlight = JSON.stringify(flight);
   assert.doesNotMatch(serializedFlight, /private system prompt/);
   assert.doesNotMatch(serializedFlight, /I remembered your terminal preference/);
+
+  // External CLI harnesses such as OpenClaw's claude-cli path can skip
+  // before_model_resolve while still invoking the prompt, model, and terminal
+  // hooks. before_prompt_build must provide the same authenticated turn-input
+  // observation and source staging without requiring a host-side workaround.
+  const claudeCliCtx = {
+    sessionKey: "claude-cli-session",
+    sessionId: "claude-cli-session",
+    runId: "run-claude-cli-fallback",
+  };
+  await safeBefore(
+    { prompt: "Recall my governed terminal preference." },
+    claudeCliCtx,
+  );
+  await controlPlane.hooks.get("llm_input")(
+    {
+      runId: "run-claude-cli-fallback",
+      sessionId: "claude-cli-session",
+      provider: "anthropic",
+      model: "claude-cli-test",
+      systemPrompt: "private cli system prompt",
+      prompt: "Recall my governed terminal preference.",
+      historyMessages: [],
+      imagesCount: 0,
+      tools: [],
+    },
+    claudeCliCtx,
+  );
+  await controlPlane.hooks.get("llm_output")(
+    {
+      runId: "run-claude-cli-fallback",
+      sessionId: "claude-cli-session",
+      provider: "anthropic",
+      model: "claude-cli-test",
+      assistantTexts: ["Your governed preference is available."],
+      usage: { input: 12, output: 7, total: 19 },
+    },
+    claudeCliCtx,
+  );
+  await safeEnd(
+    {
+      runId: "run-claude-cli-fallback",
+      success: true,
+      messages: [],
+    },
+    claudeCliCtx,
+  );
+  const claudeCliFlight = blackboxCli(
+    "verify",
+    "run-claude-cli-fallback",
+    "--state",
+    migrationState,
+  );
+  assert.equal(claudeCliFlight.structurally_complete, true);
+  assert.equal(claudeCliFlight.verdict, "completed_successfully");
+  assert.equal(
+    claudeCliFlight.timeline.filter((entry) => entry.event_type === "turn.input").length,
+    1,
+  );
   for (const service of controlPlane.services) await service.stop?.();
 
   // Managed active mode uses the normal memory engine and a separate private

@@ -432,6 +432,10 @@ function register(api: OpenClawPluginApi): void {
       modelOutputBundleSha256?: string;
     }
   >();
+  const observedTurnInputs = new Map<
+    string,
+    { promptSha256: string; observedAt: number; pending: Promise<void> }
+  >();
   const inboundAttachments = new Map<
     string,
     { items: InboundAttachmentEvidence[]; ts: number }
@@ -578,6 +582,54 @@ function register(api: OpenClawPluginApi): void {
     }, cfg.recall.timeoutMs);
   };
 
+  const turnInputKey = (ctx: OpenClawHookCtx): string =>
+    scopedKey(flightRunId(undefined, ctx), ctx);
+
+  const observeTurnInput = async (
+    prompt: string,
+    ctx: OpenClawHookCtx,
+    sourceHook: "before_model_resolve" | "before_prompt_build",
+    imagesCount?: number,
+  ): Promise<void> => {
+    if (!prompt.trim()) return;
+    const key = turnInputKey(ctx);
+    const promptSha256 = digestText(prompt);
+    const existing = observedTurnInputs.get(key);
+    if (existing) {
+      if (existing.promptSha256 !== promptSha256) {
+        api.logger.warn(
+          `${TAG} ${sourceHook} exposed different prompt bytes for an already observed turn; ` +
+          "the first authenticated turn input remains authoritative",
+        );
+      }
+      await existing.pending;
+      return;
+    }
+
+    const pending = (async () => {
+      await recordBlackbox("turn.input", undefined, ctx, {
+        prompt_sha256: promptSha256,
+        prompt_chars: prompt.length,
+        images_count: imagesCount,
+      });
+      try {
+        await stageInbound(prompt, ctx);
+      } catch (error) {
+        api.logger.warn(
+          `${TAG} semantic source handoff unavailable; memory writes will fail closed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    })();
+    observedTurnInputs.set(key, {
+      promptSha256,
+      observedAt: Date.now(),
+      pending,
+    });
+    await pending;
+  };
+
   const bindInboundAttachments = async (
     keys: string[],
     paths: string[],
@@ -678,21 +730,12 @@ function register(api: OpenClawPluginApi): void {
   // OpenClaw documents this as the current prompt before model selection. It
   // is a typed per-turn input surface, not a rendered transcript or history.
   api.on("before_model_resolve", async (event: BeforeModelResolveEvent, ctx) => {
-    if (!event.prompt?.trim()) return;
-    await recordBlackbox("turn.input", undefined, ctx, {
-      prompt_sha256: digestText(event.prompt),
-      prompt_chars: event.prompt.length,
-      images_count: Array.isArray(event.attachments) ? event.attachments.length : 0,
-    });
-    try {
-      await stageInbound(event.prompt, ctx);
-    } catch (error) {
-      api.logger.warn(
-        `${TAG} semantic source handoff unavailable; memory writes will fail closed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    }
+    await observeTurnInput(
+      event.prompt,
+      ctx,
+      "before_model_resolve",
+      Array.isArray(event.attachments) ? event.attachments.length : 0,
+    );
   });
 
   api.on("llm_input", async (event: LlmInputEvent, ctx) => {
@@ -812,6 +855,9 @@ function register(api: OpenClawPluginApi): void {
     for (const [key, value] of pendingPrompts) {
       if (now - value.ts > PROMPT_CACHE_TTL_MS) pendingPrompts.delete(key);
     }
+    for (const [key, value] of observedTurnInputs) {
+      if (now - value.observedAt > PROMPT_CACHE_TTL_MS) observedTurnInputs.delete(key);
+    }
     for (const [key, value] of inboundAttachments) {
       if (now - value.ts > PROMPT_CACHE_TTL_MS) inboundAttachments.delete(key);
     }
@@ -855,6 +901,7 @@ function register(api: OpenClawPluginApi): void {
   api.on("before_prompt_build", async (event: BeforePromptBuildEvent, ctx) => {
     const userText = event.prompt;
     if (!userText) return;
+    await observeTurnInput(userText, ctx, "before_prompt_build");
     const sessionKey = scopedKey(ctx.sessionKey ?? ctx.sessionId ?? "default-session", ctx);
     const takeoverGuidance = cfg.takeoverActive ? TAKEOVER_GUIDANCE : "";
     pendingPrompts.set(sessionKey, { text: userText, ts: Date.now() });
@@ -1150,6 +1197,7 @@ function register(api: OpenClawPluginApi): void {
   // ---- auto-capture: user turn through the pipeline, assistant as digest -
   api.on("agent_end", async (event: AgentEndEvent, ctx) => {
     const sessionKey = scopedKey(ctx.sessionKey ?? ctx.sessionId ?? "default-session", ctx);
+    const observedTurnInputKey = turnInputKey(ctx);
 
     const cached = pendingPrompts.get(sessionKey);
     pendingPrompts.delete(sessionKey);
@@ -1271,6 +1319,7 @@ function register(api: OpenClawPluginApi): void {
         contextEventId: cached?.contextEventId,
         contextReceiptId: cached?.contextReceiptId,
       });
+      observedTurnInputs.delete(observedTurnInputKey);
     }
   });
 

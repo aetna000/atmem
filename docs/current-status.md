@@ -2,7 +2,7 @@
 
 Updated: 31 August 2026
 
-Repository metadata and the matched OpenClaw bridge are version **2.2.0**.
+Repository metadata and the matched OpenClaw bridge are version **2.2.1**.
 The required `atmem-atbot==0.1.0a1` companion is published separately and
 installed automatically with AtMem.
 
@@ -75,7 +75,7 @@ The release has four runtime boundaries:
 ## Upgrade and support status
 
 - The release workflow creates persisted data with public AtMem 2.1.0, upgrades
-  the same environment to 2.2.0, and verifies record identity, recall, audit
+  the same environment to 2.2.1, and verifies record identity, recall, audit
   integrity, control migration identity, candidate retention, schema migration,
   and automatic vector-sidecar creation before publication.
 - Existing OpenClaw installations upgrade the bridge with
