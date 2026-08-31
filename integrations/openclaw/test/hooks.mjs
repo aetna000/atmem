@@ -93,6 +93,22 @@ await assert.rejects(
 );
 missingEngine.close();
 
+// Closing and immediately reconnecting must not let the old child's delayed
+// exit event tear down the replacement process.
+const reconnectClient = new AtmemClient({
+  command: "atmem",
+  args: ["mcp", "--db", dbPath, "--subject", "reconnect-user"],
+  idleTimeoutMs: 60_000,
+});
+await reconnectClient.connect();
+reconnectClient.close();
+const reconnectResult = await reconnectClient.callTool("memory_recall", {
+  query: "reconnect probe",
+  limit: 1,
+});
+assert.ok(Array.isArray(reconnectResult));
+reconnectClient.close();
+
 const runtime = fakeApi(base);
 const beforePrompt = runtime.hooks.get("before_prompt_build");
 const agentEnd = runtime.hooks.get("agent_end");

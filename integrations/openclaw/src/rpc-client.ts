@@ -140,7 +140,7 @@ export class AtmemClient {
     });
     child.on("exit", (code) => {
       this.options.logError?.(`[atmem] server exited (code ${code})`);
-      this.teardown(new Error(`atmem server exited (code ${code})`));
+      this.teardown(new Error(`atmem server exited (code ${code})`), child);
     });
     child.on("error", (error) => {
       const spawnError = error as NodeJS.ErrnoException;
@@ -156,7 +156,7 @@ export class AtmemClient {
             ? error
             : new Error(String(error));
       this.options.logError?.(`[atmem] spawn failed: ${actionable.message}`);
-      this.teardown(actionable);
+      this.teardown(actionable, child);
     });
   }
 
@@ -220,7 +220,14 @@ export class AtmemClient {
     }
   }
 
-  private teardown(error: Error): void {
+  private teardown(
+    error: Error,
+    sourceChild?: ChildProcessWithoutNullStreams,
+  ): void {
+    // A closed process can emit its exit event after the next request has
+    // already spawned a replacement. Never let that stale event tear down the
+    // live child or reject its requests.
+    if (sourceChild && this.child !== sourceChild) return;
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timer);
       pending.reject(error);
