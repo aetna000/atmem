@@ -5,9 +5,123 @@
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
+Install AtMem once and give OpenClaw, Pydantic AI, LangChain/LangGraph, or a
+custom agent governed long-term memory. **AtBot is installed automatically** as
+AtMem's private intelligence companion: AtBot proposes and ranks; AtMem alone
+authorizes, stores, scopes, injects, corrects, and deletes memory.
+
+## Start here
+
+### 1. Install AtMem and choose memory intelligence
+
+```bash
+python -m pip install --upgrade atmem==2.2.0
+atmem atbot setup
+atmem atbot doctor
+atmem dashboard
+```
+
+That one Python installation includes the pinned `atmem-atbot` package and an
+always-present local vector index. Do **not** install AtBot separately. During
+`atmem atbot setup`, choose local Ollama, a local OpenAI-compatible model, a
+hosted provider, or the safe deterministic fallback. API keys stay in
+environment variables; AtMem does not save them.
+
+### 2. Connect your agent
+
+#### OpenClaw — fully managed
+
+```bash
+atmem openclaw install
+atmem control verify
+```
+
+AtMem installs the matching npm bridge, discovers OpenClaw agents and
+workspaces, starts in safe shadow mode, restarts the gateway, and verifies the
+connection. Do not install the npm package yourself.
+
+Already using AtMem 2.1 with OpenClaw? Upgrade in place:
+
+```bash
+python -m pip install --upgrade atmem==2.2.0
+atmem openclaw upgrade
+atmem control verify
+```
+
+#### Pydantic AI — native capability
+
+```bash
+python -m pip install 'atmem[pydantic-ai]==2.2.0'
+atmem control shadow --host generic --memory-db ~/.atmem/memories.db
+```
+
+```python
+from pydantic_ai import Agent
+from atmem.adapters import AtMemAdapterIdentity
+from atmem.adapters.pydantic_ai import PydanticAIAtMemAdapter
+from atmem.control import ControlPlaneManager
+
+manager = ControlPlaneManager()
+scope = manager.agent_topology()["agents"][0]
+identity = AtMemAdapterIdentity(
+    agent_id=scope["agent_id"],
+    workspace_id=scope["workspace_id"],
+    subject_id=scope["subject_id"],
+)
+memory = PydanticAIAtMemAdapter(manager, identity).capability()
+agent = Agent("openai:gpt-5-mini", capabilities=[memory])
+```
+
+#### LangChain/LangGraph — native middleware
+
+```bash
+python -m pip install 'atmem[langgraph]==2.2.0'
+atmem control shadow --host generic --memory-db ~/.atmem/memories.db
+```
+
+```python
+from langchain.agents import create_agent
+from atmem.adapters import AtMemAdapterIdentity
+from atmem.adapters.langgraph import create_langgraph_middleware
+from atmem.control import ControlPlaneManager
+
+manager = ControlPlaneManager()
+scope = manager.agent_topology()["agents"][0]
+identity = AtMemAdapterIdentity(
+    agent_id=scope["agent_id"],
+    workspace_id=scope["workspace_id"],
+    subject_id=scope["subject_id"],
+)
+memory = create_langgraph_middleware(manager, identity)
+agent = create_agent(model="openai:gpt-5-mini", tools=[], middleware=[memory])
+```
+
+The framework hooks automate authenticated capture, governed retrieval,
+context injection, exposure proof, and turn/tool evidence. They do not replace
+your agent's model, tools, conversation history, or LangGraph checkpoints. See
+the [complete framework adapter guide](docs/framework-adapters.md) for async,
+multi-agent, and low-level `StateGraph` integration.
+
+### 3. Review, then activate
+
+Every integration starts in **shadow mode**: AtMem learns and shows what it
+would retrieve, but cannot change model context. Review it in the dashboard,
+then explicitly enable governed injection:
+
+```bash
+atmem dashboard
+atmem control status
+atmem control activate
+atmem control verify
+```
+
+If AtBot or its selected model is unavailable, AtMem continues with safe local
+capture and hybrid ranking. Memory authority and agent operation do not depend
+on a hosted model.
+
 > **Release status:** this repository describes **AtMem 2.2.0**. AtBot is a
-> separately packaged, headless intelligence companion installed and managed
-> by AtMem; AtMem remains the memory authority.
+> separately packaged, headless component installed and managed by AtMem; it is
+> not an independent agent or a second memory authority.
 
 It gives agent runtimes one governed memory source and one tamper-evident record
 of what the host observed: memory considered and injected, model boundaries,
@@ -21,7 +135,7 @@ evidence, activate AtMem explicitly, and return to shadow at any time. The
 OpenClaw adapter additionally copies native memory, freezes it during takeover,
 and restores it exactly.
 
-## Install
+## Installation details
 
 ```bash
 python -m pip install atmem==2.2.0
@@ -35,8 +149,7 @@ vector sidecar; the semantic extra adds an optional local embedding upgrade:
 python -m pip install 'atmem[semantic]==2.2.0'
 ```
 
-For repository development, install both packages so the exact companion
-version is satisfied locally:
+For repository development, install both workspace packages:
 
 ```bash
 python -m pip install -e './packages/atbot[dev]' -e '.[dev]'
@@ -48,7 +161,7 @@ AtMem distribution requires the separately packaged, exactly pinned AtBot
 companion. Consequently a complete 2.2 installation has AtBot's transitive
 dependencies even when the user selects AtMem's deterministic fallback.
 
-## Choose an integration
+## Integration boundaries
 
 | Runtime | Start command | What AtMem supplies | What the runtime supplies |
 | --- | --- | --- | --- |

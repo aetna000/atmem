@@ -53,6 +53,23 @@ def test_integration_json_files_parse() -> None:
     assert capabilities["reversible_switch_hosts"] == ["openclaw"]
 
 
+def test_readme_puts_supported_quick_starts_front_and_center() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    quick_start = readme.index("## Start here")
+    details = readme.index("## Installation details")
+    opening = readme[quick_start:details]
+
+    assert "AtBot is installed automatically" in readme[:quick_start]
+    assert "atmem atbot setup" in opening
+    assert "atmem openclaw install" in opening
+    assert "atmem openclaw upgrade" in opening
+    assert "atmem[pydantic-ai]==2.2.0" in opening
+    assert "PydanticAIAtMemAdapter" in opening
+    assert "atmem[langgraph]==2.2.0" in opening
+    assert "create_langgraph_middleware" in opening
+    assert "atmem control activate" in opening
+
+
 def test_readme_version_matches_package_metadata() -> None:
     metadata = (ROOT / "pyproject.toml").read_text()
     version = re.search(r'^version = "([^"]+)"$', metadata, flags=re.MULTILINE).group(1)
