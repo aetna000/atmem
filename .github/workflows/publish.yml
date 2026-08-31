@@ -195,13 +195,13 @@ jobs:
           python "$GITHUB_WORKSPACE/tools/smoke_installed_package.py"
 
   upgrade-existing:
-    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.2.4
+    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.2.5
     needs: build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        source-version: ["2.1.0", "2.2.3"]
+        source-version: ["2.1.0", "2.2.3", "2.2.4"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

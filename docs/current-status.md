@@ -2,8 +2,8 @@
 
 Updated: 1 September 2026
 
-Repository metadata and the matched OpenClaw bridge are version **2.2.4**.
-The required `atmem-atbot==0.1.0a3` companion is published separately and
+Repository metadata and the matched OpenClaw bridge are version **2.2.5**.
+The required `atmem-atbot==0.1.0a4` companion is published separately and
 installed automatically with AtMem.
 
 The release has four runtime boundaries:
@@ -42,10 +42,12 @@ The release has four runtime boundaries:
 
 ## Packaging and runtime status
 
-- `pyproject.toml` requires exactly `atmem-atbot==0.1.0a3`. The PyPI
+- `pyproject.toml` requires exactly `atmem-atbot==0.1.0a4`. The PyPI
   distribution is `atmem-atbot`; its Python import and command remain `atbot`.
 - AtBot source lives under `packages/atbot`; it is a separately released
   distribution and process and does not own canonical storage.
+- AtBot's built-in Ollama and OpenAI-compatible provider uses the standard
+  library and adds no model-SDK dependency to a default AtMem install.
 - A clean 2.2 installation resolves the published companion automatically.
   Repository development installs both packages explicitly with editable
   installs.
@@ -74,8 +76,8 @@ The release has four runtime boundaries:
 
 ## Upgrade and support status
 
-- The release workflow creates persisted data with public AtMem 2.1.0 and
-  2.2.3, upgrades each environment to 2.2.4, and verifies record identity, recall, audit
+- The release workflow creates persisted data with public AtMem 2.1.0, 2.2.3,
+  and 2.2.4, upgrades each environment to 2.2.5, and verifies record identity, recall, audit
   integrity, control migration identity, candidate retention, schema migration,
   and automatic vector-sidecar creation before publication.
 - Existing OpenClaw installations upgrade the bridge with

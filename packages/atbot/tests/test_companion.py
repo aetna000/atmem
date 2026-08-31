@@ -13,6 +13,7 @@ from atbot.companion import CompanionRuntime
 from atbot.config import AtBotConfig
 from atbot.config import ProviderConfig
 from atbot.providers.anthropic import AnthropicProvider
+from atbot.providers.openai_compatible import OpenAICompatibleProvider
 from atbot.providers.router import ModelRouter
 
 
@@ -50,6 +51,15 @@ def test_router_supports_native_anthropic_without_changing_authority(monkeypatch
     selected = router.select(remote=True)
     assert isinstance(selected, AnthropicProvider)
     assert selected.egress_class == "remote"
+
+
+def test_router_uses_sdk_independent_openai_compatible_provider(monkeypatch) -> None:
+    monkeypatch.setattr(OpenAICompatibleProvider, "available", lambda self: True)
+    router = ModelRouter(AtBotConfig())
+
+    selected = router.select()
+
+    assert isinstance(selected, OpenAICompatibleProvider)
 
 
 def test_removed_authority_and_agent_modules_are_not_packaged() -> None:

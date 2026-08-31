@@ -144,13 +144,13 @@ def test_dashboard_status_flags_a_running_old_runtime(
     )
     monkeypatch.setattr("atmem.dashboard_daemon._alive", lambda _pid: True)
     monkeypatch.setattr(
-        "atmem.dashboard_daemon._installed_atmem_version", lambda: "2.2.4"
+        "atmem.dashboard_daemon._installed_atmem_version", lambda: "2.2.5"
     )
 
     result = manage_dashboard_daemon("status", daemon_state_path=state_path)
 
     assert result["restart_required"] is True
-    assert result["current_atmem_version"] == "2.2.4"
+    assert result["current_atmem_version"] == "2.2.5"
 
 
 def test_dashboard_status_flags_a_different_python_environment(
@@ -159,13 +159,13 @@ def test_dashboard_status_flags_a_different_python_environment(
     state_path = tmp_path / "dashboard.json"
     state_path.write_text(
         '{"format":"atmem-dashboard-daemon-v1","pid":4242,'
-        '"port":8766,"atmem_version":"2.2.4",'
+        '"port":8766,"atmem_version":"2.2.5",'
         '"python_executable":"/old/environment/bin/python"}\n',
         encoding="utf-8",
     )
     monkeypatch.setattr("atmem.dashboard_daemon._alive", lambda _pid: True)
     monkeypatch.setattr(
-        "atmem.dashboard_daemon._installed_atmem_version", lambda: "2.2.4"
+        "atmem.dashboard_daemon._installed_atmem_version", lambda: "2.2.5"
     )
 
     result = manage_dashboard_daemon("status", daemon_state_path=state_path)

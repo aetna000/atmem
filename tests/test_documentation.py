@@ -63,9 +63,9 @@ def test_readme_puts_supported_quick_starts_front_and_center() -> None:
     assert "atmem atbot setup" in opening
     assert "atmem openclaw install" in opening
     assert "atmem openclaw upgrade" in opening
-    assert "atmem[pydantic-ai]==2.2.4" in opening
+    assert "atmem[pydantic-ai]==2.2.5" in opening
     assert "PydanticAIAtMemAdapter" in opening
-    assert "atmem[langgraph]==2.2.4" in opening
+    assert "atmem[langgraph]==2.2.5" in opening
     assert "create_langgraph_middleware" in opening
     assert "atmem control activate" in opening
 
@@ -89,7 +89,7 @@ def test_development_docs_match_companion_packaging() -> None:
 
     assert 'name = "atmem-atbot"' in companion_metadata
     assert f'"atmem-atbot=={companion_version}"' in root_metadata
-    assert '"pydantic-ai-slim[openai]>=2.0,<3"' in companion_metadata
+    assert "dependencies = []" in companion_metadata
     assert '"openai>=' not in companion_metadata
     assert '"jiter>=' not in companion_metadata
     assert companion["distribution"] == "atmem-atbot"

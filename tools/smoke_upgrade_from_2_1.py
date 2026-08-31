@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a public legacy fixture, then prove 2.2.4 opens it without data loss."""
+"""Create a public legacy fixture, then prove 2.2.5 opens it without data loss."""
 
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ def create_fixture(root: Path) -> None:
         "candidate_ids": sorted(str(row["id"]) for row in candidates),
         "capture_candidate_ids": sorted(capture.get("candidate_ids") or []),
     }
-    assert manifest["source_version"] in {"2.1.0", "2.2.3"}
+    assert manifest["source_version"] in {"2.1.0", "2.2.3", "2.2.4"}
     assert manifest["mode"] == "shadow"
     assert manifest["candidate_ids"]
     (root / "fixture.json").write_text(
@@ -76,8 +76,8 @@ def create_fixture(root: Path) -> None:
 
 def verify_upgrade(root: Path) -> None:
     manifest = json.loads((root / "fixture.json").read_text(encoding="utf-8"))
-    assert importlib.metadata.version("atmem") == "2.2.4"
-    assert importlib.metadata.version("atmem-atbot") == "0.1.0a3"
+    assert importlib.metadata.version("atmem") == "2.2.5"
+    assert importlib.metadata.version("atmem-atbot") == "0.1.0a4"
 
     database = root / "memory.db"
     memory = Memory(database)
@@ -116,7 +116,7 @@ def verify_upgrade(root: Path) -> None:
             "SELECT value FROM schema_meta WHERE key = 'schema_version'"
         ).fetchone()[0]
     assert int(schema_version) == 4
-    print("AtMem persisted-state -> 2.2.4 upgrade smoke test passed")
+    print("AtMem persisted-state -> 2.2.5 upgrade smoke test passed")
 
 
 def main() -> None:
