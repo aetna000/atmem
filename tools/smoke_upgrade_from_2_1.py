@@ -76,7 +76,7 @@ def create_fixture(root: Path) -> None:
 
 def verify_upgrade(root: Path) -> None:
     manifest = json.loads((root / "fixture.json").read_text(encoding="utf-8"))
-    assert importlib.metadata.version("atmem") == "2.2.2"
+    assert importlib.metadata.version("atmem") == "2.2.3"
     assert importlib.metadata.version("atmem-atbot") == "0.1.0a2"
 
     database = root / "memory.db"
@@ -116,7 +116,7 @@ def verify_upgrade(root: Path) -> None:
             "SELECT value FROM schema_meta WHERE key = 'schema_version'"
         ).fetchone()[0]
     assert int(schema_version) == 4
-    print("AtMem 2.1.0 -> 2.2.2 upgrade smoke test passed")
+    print("AtMem 2.1.0 -> 2.2.3 upgrade smoke test passed")
 
 
 def main() -> None:

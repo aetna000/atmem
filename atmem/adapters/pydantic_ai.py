@@ -1,4 +1,4 @@
-"""Pydantic AI 2.x Hooks adapter for automatic governed memory."""
+"""Pydantic AI Hooks adapter for automatic governed memory."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ class PydanticAIAtMemAdapter:
             if governed:
                 messages.append(ModelRequest(parts=[UserPromptPart(governed)]))
             model_name = str(
-                request_context.model_id
+                getattr(request_context, "model_id", None)
                 or getattr(request_context.model, "model_name", None)
                 or getattr(request_context.model, "model_id", None)
                 or "unknown"
