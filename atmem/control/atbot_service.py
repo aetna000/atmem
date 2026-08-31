@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 
 
 PINNED_ATBOT_VERSION = "0.1.0a1"
+ATBOT_DISTRIBUTION = "atmem-atbot"
 ATBOT_PROTOCOL_VERSION = "1"
 DEFAULT_ROOT = Path.home() / ".atmem" / "atbot"
 
@@ -233,7 +234,12 @@ class AtBotServiceManager:
             subprocess.run([sys.executable, "-m", "venv", str(self.runtime_path)], check=True)
             pip = self.runtime_path / ("Scripts" if os.name == "nt" else "bin") / ("pip.exe" if os.name == "nt" else "pip")
             subprocess.run(
-                [str(pip), "install", "--disable-pip-version-check", f"atbot=={PINNED_ATBOT_VERSION}"],
+                [
+                    str(pip),
+                    "install",
+                    "--disable-pip-version-check",
+                    f"{ATBOT_DISTRIBUTION}=={PINNED_ATBOT_VERSION}",
+                ],
                 check=True,
             )
         except BaseException:
@@ -245,7 +251,7 @@ class AtBotServiceManager:
             "changed": True,
             "version": PINNED_ATBOT_VERSION,
             "executable": str(self.private_executable),
-            "package": f"atbot=={PINNED_ATBOT_VERSION}",
+            "package": f"{ATBOT_DISTRIBUTION}=={PINNED_ATBOT_VERSION}",
         }
 
     def _executable(self) -> Path | None:

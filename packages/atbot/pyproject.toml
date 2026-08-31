@@ -3,16 +3,37 @@ requires = ["setuptools>=77.0.3", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "atbot"
+name = "atmem-atbot"
 version = "0.1.0a1"
 description = "The local-first intelligence companion for AtMem."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
+authors = [{ name = "aetna000", email = "aetna000@gmail.com" }]
+maintainers = [{ name = "aetna000", email = "aetna000@gmail.com" }]
+keywords = ["agent-memory", "memory-inference", "memory-retrieval", "atmem"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
   "pydantic-ai-slim[openai]>=1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/aetna000/atmem"
+Repository = "https://github.com/aetna000/atmem"
+Issues = "https://github.com/aetna000/atmem/issues"
+Documentation = "https://github.com/aetna000/atmem/tree/main/packages/atbot#readme"
 
 [project.optional-dependencies]
 dev = [

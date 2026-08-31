@@ -8,6 +8,7 @@ import tomllib
 import pytest
 
 from atmem.control.atbot_service import (
+    ATBOT_DISTRIBUTION,
     AtBotServiceManager,
     PINNED_ATBOT_VERSION,
     provider_profiles,
@@ -16,12 +17,32 @@ from atmem.control.atbot_service import (
 
 def test_pinned_version_matches_the_monorepo_package() -> None:
     value = tomllib.loads(Path("packages/atbot/pyproject.toml").read_text(encoding="utf-8"))
+    assert ATBOT_DISTRIBUTION == value["project"]["name"]
     assert PINNED_ATBOT_VERSION == value["project"]["version"]
 
 
 def test_atbot_is_a_required_pinned_atmem_dependency() -> None:
     value = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
-    assert f"atbot=={PINNED_ATBOT_VERSION}" in value["project"]["dependencies"]
+    assert f"{ATBOT_DISTRIBUTION}=={PINNED_ATBOT_VERSION}" in value["project"][
+        "dependencies"
+    ]
+
+
+def test_private_installer_resolves_only_the_owned_distribution(
+    tmp_path: Path, monkeypatch
+) -> None:
+    manager = AtBotServiceManager(tmp_path / "atbot")
+    commands: list[list[str]] = []
+
+    def run(command, **kwargs):
+        commands.append([str(value) for value in command])
+
+    monkeypatch.setattr("atmem.control.atbot_service.subprocess.run", run)
+    result = manager.install()
+
+    assert commands[1][-1] == f"atmem-atbot=={PINNED_ATBOT_VERSION}"
+    assert all(command[-1] != f"atbot=={PINNED_ATBOT_VERSION}" for command in commands)
+    assert result["package"] == f"atmem-atbot=={PINNED_ATBOT_VERSION}"
 
 
 def test_profiles_cover_local_frontier_and_custom_providers_without_secrets() -> None:

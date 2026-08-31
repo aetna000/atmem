@@ -27,7 +27,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-  "atbot==0.1.0a1",
+  "atmem-atbot==0.1.0a1",
 ]
 
 [project.optional-dependencies]

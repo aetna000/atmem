@@ -74,6 +74,6 @@ Updated: 31 August 2026
 - Run performance, migration, crash-recovery, and hostile-adapter acceptance suites.
 - Freeze protocol v1 and prepare the 2.2 release notes; no package release is made
   by this development change.
-- Publish the already-pinned `atbot==0.1.0a1` distribution before AtMem 2.2 so
+- Publish the already-pinned `atmem-atbot==0.1.0a1` distribution before AtMem 2.2 so
   the required dependency resolves for a clean installation without a
   repository checkout.

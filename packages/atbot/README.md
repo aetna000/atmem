@@ -2,6 +2,14 @@
 
 AtBot is the local-first intelligence companion for AtMem.
 
+The PyPI distribution is named `atmem-atbot` to keep its ownership explicit.
+It intentionally installs the shorter `atbot` Python package and CLI command:
+
+```bash
+python -m pip install atmem-atbot
+atbot --version
+```
+
 > AtBot proposes and ranks; AtMem authorizes and stores.
 
 AtBot provides model-backed memory inference, entity and relationship
@@ -17,8 +25,7 @@ adapters into the same AtMem authority contracts.
 During joint development, install both packages editable:
 
 ```bash
-python -m pip install -e ../..
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev]" -e ../..
 ```
 
 Start the headless local companion:
@@ -39,7 +46,8 @@ python -m pytest -q packages/atbot/tests
 ```
 
 See [the companion specification](research/research.md) and
-[architecture](docs/architecture.md).
+[architecture](docs/architecture.md). Maintainers publish this distribution
+through AtMem's [AtBot release procedure](https://github.com/aetna000/atmem/blob/main/docs/atbot-release.md).
 
 ## License
 

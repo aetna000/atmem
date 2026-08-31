@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: python -m pip install -e ".[dev]"
+      - run: python -m pip install -e "./packages/atbot" -e ".[dev]"
       - run: python -m pytest -q
 
   atbot-tests:
@@ -56,7 +56,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install -e ../..
+      - run: python -m pip install -e ../../packages/atbot -e ../..
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
@@ -165,9 +165,13 @@ jobs:
         with:
           name: release-distributions
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: atbot-release-distributions
+          path: atbot-dist
       - name: Install and exercise wheel
         run: |
-          python -m pip install dist/*.whl
+          python -m pip install atbot-dist/*.whl dist/*.whl
           python -m pip check
           cd "$RUNNER_TEMP"
           python "$GITHUB_WORKSPACE/tools/smoke_installed_package.py"
@@ -225,7 +229,7 @@ jobs:
               throw new Error(`release ${process.env.RELEASE_TAG} does not match plugin ${pkg.version}`);
             }
           '
-      - run: python -m pip install -e ../..
+      - run: python -m pip install -e ../../packages/atbot -e ../..
       - run: npm ci
       - name: Publish plugin unless this exact version already exists
         id: npm-publish

@@ -70,7 +70,9 @@ def test_development_docs_match_companion_packaging() -> None:
     capabilities = json.loads((ROOT / "docs" / "capabilities.json").read_text())
     companion = capabilities["intelligence_companion"]
 
-    assert f'"atbot=={companion_version}"' in root_metadata
+    assert 'name = "atmem-atbot"' in companion_metadata
+    assert f'"atmem-atbot=={companion_version}"' in root_metadata
+    assert companion["distribution"] == "atmem-atbot"
     assert companion["pinned_version"] == companion_version
     assert companion["required_distribution_dependency"] is True
     assert companion["separate_process"] is True
@@ -84,6 +86,19 @@ def test_development_docs_match_companion_packaging() -> None:
     )
     for path in active_guides:
         assert "atmem[atbot]" not in path.read_text(), path
+
+
+def test_atbot_trusted_publishing_identity_is_exact() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "publish-atbot.yml").read_text()
+    release_guide = (ROOT / "docs" / "atbot-release.md").read_text()
+
+    assert 'tags:\n      - "atbot-v*"' in workflow
+    assert "name: pypi-atbot" in workflow
+    assert "url: https://pypi.org/p/atmem-atbot" in workflow
+    assert "id-token: write" in workflow
+    assert "pypa/gh-action-pypi-publish@release/v1" in workflow
+    for exact_value in ("aetna000", "atmem", "publish-atbot.yml", "pypi-atbot"):
+        assert exact_value in release_guide
 
 
 def test_semantic_docs_match_automatic_governed_vectors() -> None:

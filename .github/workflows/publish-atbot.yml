@@ -1,0 +1,69 @@
+name: publish-atmem-atbot
+
+on:
+  push:
+    tags:
+      - "atbot-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    name: Test and build atmem-atbot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build and test dependencies
+        run: python -m pip install --upgrade pip build twine "./packages/atbot[dev]"
+      - name: Require an AtBot tag to match the distribution version
+        if: github.ref_type == 'tag'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          project = tomllib.loads(Path("packages/atbot/pyproject.toml").read_text())["project"]
+          expected = f"atbot-v{project['version']}"
+          actual = os.environ["RELEASE_TAG"]
+          if actual != expected:
+              raise SystemExit(f"release tag {actual!r} must equal {expected!r}")
+          if project["name"] != "atmem-atbot":
+              raise SystemExit("the companion distribution must be named 'atmem-atbot'")
+          PY
+      - name: Run companion tests
+        run: python -m pytest -q packages/atbot/tests
+      - name: Build and validate distributions
+        run: |
+          python -m build packages/atbot --outdir atbot-dist
+          python -m twine check atbot-dist/*
+          python -m pip wheel --no-deps --wheel-dir rebuilt atbot-dist/*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: atmem-atbot-distributions
+          path: atbot-dist/
+
+  publish:
+    name: Publish atmem-atbot to PyPI
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi-atbot
+      url: https://pypi.org/p/atmem-atbot
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: atmem-atbot-distributions
+          path: dist
+      - name: Publish with PyPI trusted publishing
+        uses: pypa/gh-action-pypi-publish@release/v1

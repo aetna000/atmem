@@ -42,12 +42,17 @@ The development implementation has four runtime boundaries:
 
 ## Packaging and runtime status
 
-- `pyproject.toml` requires exactly `atbot==0.1.0a1` on this development branch.
-- AtBot source lives under `packages/atbot`; it is a separate distribution and
-  process and does not own canonical storage.
+- `pyproject.toml` requires exactly `atmem-atbot==0.1.0a1` on this development
+  branch. The PyPI distribution is `atmem-atbot`; its Python import and command
+  remain `atbot`.
+- AtBot source lives under `packages/atbot`; it is a separately released
+  distribution and process and does not own canonical storage.
 - A clean 2.2 package installation can resolve the dependency only after the
   matching AtBot distribution is published. Repository development installs
   both packages explicitly with editable installs.
+- Publishing uses the dedicated trusted-publisher workflow documented in
+  [Publishing the AtBot companion](atbot-release.md); no PyPI token belongs in
+  repository or service configuration.
 - Model choice is never automatic. Local Ollama, loopback OpenAI-compatible,
   named hosted providers, custom HTTPS, or deterministic fallback are explicit
   choices. Configuration stores an API-key environment-variable name, never the

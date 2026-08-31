@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e ".[dev]"
+      - run: pip install -e "./packages/atbot" -e ".[dev]"
       - run: pytest -q
 
   atbot-tests:
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install -e ../..
+      - run: python -m pip install -e ../../packages/atbot -e ../..
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
@@ -110,9 +110,13 @@ jobs:
         with:
           name: distributions
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: atbot-distributions
+          path: atbot-dist
       - name: Install and exercise wheel
         run: |
-          python -m pip install dist/*.whl
+          python -m pip install atbot-dist/*.whl dist/*.whl
           python -m pip check
           cd "$RUNNER_TEMP"
           python "$GITHUB_WORKSPACE/tools/smoke_installed_package.py"
