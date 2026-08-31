@@ -61,6 +61,46 @@ def test_readme_version_matches_package_metadata() -> None:
     assert f"version-{version}" in readme
 
 
+def test_development_docs_match_companion_packaging() -> None:
+    root_metadata = (ROOT / "pyproject.toml").read_text()
+    companion_metadata = (ROOT / "packages" / "atbot" / "pyproject.toml").read_text()
+    companion_version = re.search(
+        r'^version = "([^"]+)"$', companion_metadata, flags=re.MULTILINE
+    ).group(1)
+    capabilities = json.loads((ROOT / "docs" / "capabilities.json").read_text())
+    companion = capabilities["intelligence_companion"]
+
+    assert f'"atbot=={companion_version}"' in root_metadata
+    assert companion["pinned_version"] == companion_version
+    assert companion["required_distribution_dependency"] is True
+    assert companion["separate_process"] is True
+    assert companion["canonical_storage"] is False
+    assert capabilities["release_status"] == "unreleased_development"
+
+    active_guides = (
+        ROOT / "README.md",
+        ROOT / "docs" / "integration-guide.md",
+        ROOT / "research" / "research.md",
+    )
+    for path in active_guides:
+        assert "atmem[atbot]" not in path.read_text(), path
+
+
+def test_semantic_docs_match_automatic_governed_vectors() -> None:
+    semantic = (ROOT / "docs" / "semantic-search.md").read_text().casefold()
+    capabilities = json.loads((ROOT / "docs" / "capabilities.json").read_text())
+
+    assert "automatically" in semantic
+    assert "hashing" in semantic
+    assert "canonical" in semantic
+    assert "does not automatically change agent recall" not in semantic
+    assert capabilities["semantic_search"] == "automatic_derived_local_vector_sidecar"
+    assert (
+        capabilities["semantic_governance"]
+        == "candidate_nomination_with_canonical_revalidation"
+    )
+
+
 def test_public_product_namespace_is_atmem_only() -> None:
     legacy = "aetna" + "mem"
     roots = (

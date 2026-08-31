@@ -302,7 +302,8 @@ AtMem stores the variable name, never the key.""",
     optimize_parser.add_argument("path")
 
     index_parser = subparsers.add_parser(
-        "index", help="Build and verify the optional semantic search index"
+        "index",
+        help="Inspect, upgrade, and verify the derived local vector index",
     )
     index_commands = index_parser.add_subparsers(
         dest="index_command"

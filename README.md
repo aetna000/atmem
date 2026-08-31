@@ -5,6 +5,11 @@
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
+> **Development status:** repository metadata remains **2.1.0**, the latest
+> published release. The `atbot` branch contains unreleased **2.2 development**
+> work. Features identified below as 2.2 development are not available from
+> `pip install atmem==2.1.0` until the 2.2 packages are published.
+
 It gives agent runtimes one governed memory source and one tamper-evident record
 of what the host observed: memory considered and injected, model boundaries,
 tool requests and completions, turn termination, and linked external outcome
@@ -24,12 +29,25 @@ python -m pip install atmem==2.1.0
 atmem --version
 ```
 
-AtMem requires Python 3.10 or newer. The canonical engine has no mandatory
-third-party Python dependencies. Semantic vector search is optional:
+AtMem requires Python 3.10 or newer. Released 2.1 keeps semantic-vector
+dependencies optional:
 
 ```bash
 python -m pip install 'atmem[semantic]==2.1.0'
 ```
+
+For the unreleased 2.2 development checkout, install both repository packages
+so the exact companion version is satisfied locally:
+
+```bash
+python -m pip install -e './packages/atbot[dev]' -e '.[dev]'
+atmem atbot setup
+```
+
+The 2.2 authority modules remain model-agnostic and do not import AtBot, but the
+AtMem distribution requires the separately packaged, exactly pinned AtBot
+companion. Consequently a complete 2.2 installation has AtBot's transitive
+dependencies even when the user selects AtMem's deterministic fallback.
 
 ## Choose an integration
 
@@ -133,6 +151,12 @@ the request/reply when a protected local adapter reader can supply them,
 memory used, tools and websites, model/provider, tokens, latency, risks,
 blocking reason, outcome evidence, hashes, and the full timeline. Findings can
 be acknowledged without deleting or rewriting evidence.
+
+The governed-memory chat remains the primary dashboard surface. AtBot provider,
+model, endpoint, lifecycle, and fallback controls are kept in a collapsed
+**Memory intelligence** settings row. The browser renews an expired local CSRF
+session once and retries the mutation; persistent failure asks the user to
+refresh rather than exposing a raw security error.
 
 Memory search, review, record history, audit filters, downloads, agent topology,
 verification, activation, and return-to-shadow use the same operations as the
@@ -251,7 +275,11 @@ and [multimodal observations](docs/multimodal-observations.md).
 ## Data, privacy, and recovery
 
 - Canonical memory, provenance, lifecycle state, and audit evidence use SQLite.
-- Semantic vectors are optional derived indexes and are checked against canonical records.
+- Every persistent 2.2 memory database has a rebuildable local vector sidecar.
+  Its active epoch participates in governed candidate nomination, but every
+  vector match is checked against canonical scope, status, digest, exclusions,
+  sensitivity, and generation before use. Higher-quality embedding libraries
+  and model downloads remain optional.
 - External media bytes remain host-controlled; AtMem stores a typed text observation, byte digest, model identity, and host reference.
 - External observations remain quarantined until an operator approves them.
 - Rejected, superseded, or tombstoned memory is excluded from ordinary search and recall.
@@ -286,8 +314,11 @@ AtMem and its separately packaged AtBot companion share this repository. They
 remain separate processes and communicate only through the loopback companion
 protocol; neither package imports the other's runtime code.
 
-On the 2.2 development branch, installing AtMem also installs the exactly
-pinned AtBot companion. Model setup remains an explicit user decision:
+On the 2.2 development branch, AtMem declares the exactly pinned AtBot
+companion as a required distribution dependency. A clean package installation
+will install it automatically after both 2.2 distributions are published;
+repository development uses the editable command above. Model setup remains an
+explicit user decision:
 
 ```bash
 atmem atbot setup       # interactive local, hosted API, custom, or skip choice
@@ -296,9 +327,9 @@ atmem atbot doctor      # verify runtime, provider, protocol, and safe fallback
 ```
 
 The dashboard exposes the same provider, model, endpoint, start, stop, and safe
-fallback controls beside the governed-memory chat. It also shows the equivalent
-CLI command, so a user can switch between the UI and terminal without reading a
-separate setup guide. Local choices include Ollama and any loopback
+fallback controls in a collapsed settings row below governed-memory chat. It
+also shows the equivalent CLI command, so a user can switch between the UI and
+terminal without reading a separate setup guide. Local choices include Ollama and any loopback
 OpenAI-compatible server. Hosted profiles include OpenRouter, OpenAI, DeepSeek,
 xAI Grok, Anthropic Claude, Hugging Face, and a custom HTTPS OpenAI-compatible
 endpoint. Configuration stores only the environment-variable name containing a

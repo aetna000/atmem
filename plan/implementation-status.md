@@ -32,7 +32,9 @@ Updated: 31 August 2026
 - One dark, chat-style AtMem dashboard with thinking state and provenance links.
 - Bare and partial CLI commands now guide the user to the next valid action;
   the dashboard exposes the same AtBot provider, model, endpoint, lifecycle,
-  safe-fallback, and copyable CLI configuration controls.
+  safe-fallback, and copyable CLI configuration controls in a collapsed
+  **Memory intelligence** settings row. The dashboard renews one expired local
+  CSRF session and retries the mutation once.
 - AtBot standalone customer UI and public task/chat CLI modes removed.
 - Content-free AtBot query expansion feeding AtMem-authorized lexical,
   canonical fact-key, graph, and local-vector candidate fusion.
@@ -72,5 +74,6 @@ Updated: 31 August 2026
 - Run performance, migration, crash-recovery, and hostile-adapter acceptance suites.
 - Freeze protocol v1 and prepare the 2.2 release notes; no package release is made
   by this development change.
-- Publish AtBot, then pin it in the AtMem 2.2 install so a clean installation can
-  install it without a repository checkout.
+- Publish the already-pinned `atbot==0.1.0a1` distribution before AtMem 2.2 so
+  the required dependency resolves for a clean installation without a
+  repository checkout.

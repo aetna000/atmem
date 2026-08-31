@@ -43,10 +43,10 @@ wrong change.
 
 ## The memory mark
 
-AtMem's memory motif is three linked nodes — a small cluster, not a literal
-brain. It reads as "connected recall" without being a cliché organ icon, and
-it scales down to a loading dot or up to an empty-state illustration without
-losing meaning.
+AtMem's primary application mark is the real AtMem logo, rendered as a compact
+24px tile in the 56px application bar. It distinguishes product identity from
+verification state. The linked-node memory motif remains available for memory
+provenance and empty states, but it is not repeated in primary navigation.
 
 ```
       ●            the memory mark (`#i-node` in the icon sprite)
@@ -54,10 +54,10 @@ losing meaning.
     ●───●           base nodes = the memories that answer it
 ```
 
-It appears in exactly three places, deliberately not more:
-- the eyebrow of the memory-chat hero ("Ask governed memory")
-- every loading indicator (as three pulsing dots — see Motion)
-- empty states, dimmed, where there is nothing to show yet
+The linked-node motif may appear in exactly two contexts:
+
+- memory provenance or relationship explanations;
+- empty states, dimmed, where there is nothing to show yet.
 
 It is never used as a generic decorative bullet. If you want a bullet, use
 the `.eyebrow:before` dot instead.
@@ -87,9 +87,9 @@ by design — see `ui.py`'s docstring). One scale, used consistently:
 
 | Role | Size / weight | Where |
 |---|---|---|
-| Hero headline | `clamp(28px,4vw,48px)` / 800 | Memory-chat question only |
-| Page title (`h1` in `.pageheading`) | 34px / 800, `-0.04em` tracking | One per view |
-| Card title (`h2`) | 19px / 770 | Every card |
+| Verdict headline | 27px / 600 | The single full-width condition band |
+| Page title (`h1` in `.pageheading`) | 15px / 600 | Compact workspace heading |
+| Card title (`h2`) | 15px / 600 | Operational sections and rails |
 | Body | 14px / 1.5 | Default |
 | Eyebrow / label | 10.5px / 800, uppercase, `0.08em` tracking | Section context, never more than one per card |
 | Mono | `ui-monospace` stack | IDs, hashes, paths — anything a reader might copy |
@@ -144,18 +144,31 @@ it's a copy problem, not an icon problem — write a clearer headline instead.
 
 ### Views, not scroll depth
 
-Three tabs — **Status, Decisions, Evidence** — map directly to the three
-questions in the persona table. Nothing is duplicated across them: a card
-lives in exactly one view, chosen by what job it does, not by when it was
-added.
+The 56px application bar contains **Activity, Decisions, Evidence, Settings**.
+Nothing is duplicated across workspaces: a section lives in exactly one view,
+chosen by what job it does, not by when it was added. Settings opens the
+collapsed Memory intelligence control in place; it is not a second dashboard.
 
-- **Status**: is everything OK, right now? Status banner, agent coverage,
-  recent activity. Nothing that requires interpreting a hash or a diagram.
+- **Global verdict band**: is everything OK, right now? It sits directly below
+  the application bar and remains visible regardless of the selected
+  workspace. It carries one condition, supporting facts, last-check context,
+  and at most one action.
+- **Activity**: what did agents do? A flat, searchable session timeline is the
+  main column; agent coverage and stored-memory counts form the compact rail.
 - **Decisions**: what's waiting on me? Activation/restore, the review queue,
   the readiness checklist.
 - **Evidence**: prove it. Search first, then sessions, storage, and the full
-  audit trail — all technical detail lives here, behind a click, never on
-  Status.
+  audit trail — all technical detail lives here, behind a click.
+- **Settings**: open the existing collapsed provider/model configuration and
+  scroll it into view. It must never displace Activity as the landing page.
+
+### Governed-memory dock
+
+Natural-language memory query is a persistent bottom dock, not a large hero.
+The input is always available; answers expand immediately above it and cite
+only authorized records. Suggestions, AtBot availability, and the authorization
+note remain secondary metadata. The page reserves enough bottom padding that
+the dock never hides activity or evidence controls.
 
 ### Card anatomy
 
@@ -172,6 +185,17 @@ Cards that are reference material rather than daily-glance status (storage
 diagrams, record-category breakdowns, the static "what changes" explainer)
 are wrapped in `<details>` so they're available but collapsed by default —
 present for the auditor, invisible to everyone else.
+
+AtBot provider configuration follows the same rule. It uses
+`<details class="intelligenceconfig">`, shows only provider/health summary while
+closed, and reveals model, endpoint, lifecycle actions, and the equivalent CLI
+command when opened. API keys are never entered or rendered in the dashboard;
+only the name of their environment variable is stored.
+
+Local mutating requests carry a CSRF token obtained from dashboard status. If
+the local dashboard process rotates that token, the browser refreshes status
+and retries the mutation once. A second failure is shown as an actionable
+error; it must not create an infinite retry loop.
 
 ### Spacing
 

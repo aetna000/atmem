@@ -261,6 +261,28 @@ def test_dashboard_contains_one_governed_memory_chat() -> None:
     assert "/api/companion/configure" in html
     assert "/api/companion/action" in html
     assert "Keys are not entered here" in html
+    assert '<details class="intelligenceconfig" id="intelligenceConfig">' in html
+    assert '<details class="intelligenceconfig" id="intelligenceConfig" open>' not in html
+    assert 'placeholder="Ask about stored memory"' in html
+    assert '<div class="dockmeta" id="memoryChatDockMeta">' in html
+    assert '<div class="chatresult" id="memoryChatResult" hidden>' in html
+    assert "Governed memory conversation" in html
+    assert 'content:"You"' in html
+    assert 'content:"AtMem"' in html
+    assert 'id="memoryChatToggle"' in html
+    assert 'aria-controls="memoryChatResult memoryChatForm memoryChatDockMeta"' in html
+    assert 'dock.classList.toggle("collapsed")' in html
+    assert 'collapsed?"Open memory assistant":"Hide memory assistant"' in html
+    assert 'resultPanel.hidden=false' in html
+    assert 'id="navSettings"' in html
+    assert 'function activateSettings()' in html
+    assert 'showView("settings")' in html
+    assert '$("intelligenceConfig").open=false' in html
+    assert 'pair[1]==="settings"' in html
+    assert '"activitydate"' in html
+    assert '"activityclock"' in html
+    assert 'csrf=(await get("/api/session")).csrf_token;return post(path,body,true)' in html
+    assert "Dashboard session expired. Refresh this page and try again." in html
 
 
 def test_openclaw_overview_excludes_agent_instruction_files(

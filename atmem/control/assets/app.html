@@ -28,8 +28,14 @@
 </defs></svg>
 <header><div class="wrap head">
   <div class="logo"><img class="brandmark" src="/assets/atmem.jpg" alt="AtMem logo"><strong>AtMem</strong></div>
-  <div class="small" id="adapterLabel">Memory &amp; agent oversight</div>
+  <div class="tabnav" role="tablist" aria-label="Dashboard sections">
+    <button class="tabbtn active" id="navStatus" type="button" role="tab" aria-selected="true">Activity</button>
+    <button class="tabbtn" id="navDecisions" type="button" role="tab" aria-selected="false">Decisions<span class="navbadge" id="decisionsBadge" hidden>0</span></button>
+    <button class="tabbtn" id="navEvidence" type="button" role="tab" aria-selected="false">Evidence</button>
+    <button class="tabbtn" id="navSettings" type="button" role="tab" aria-selected="false">Settings</button>
+  </div>
   <div class="grow"></div>
+  <span class="small adapterlabel" id="adapterLabel">Memory &amp; agent oversight</span>
   <button class="themebtn" id="themeToggle" type="button"><svg class="icon themebtnicon-sun" aria-hidden="true"><use href="#i-sun"/></svg><svg class="icon themebtnicon-moon" aria-hidden="true"><use href="#i-moon"/></svg><span class="themebtnlabel" id="themeToggleLabel">Light mode</span></button>
   <div class="state" id="stateChip"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></div>
 </div></header>
@@ -44,64 +50,65 @@
     <div class="progressbar" aria-hidden="true"><span></span></div>
   </div>
 
-  <section class="memorychat" id="memoryChat" aria-labelledby="memoryChatTitle">
-    <div class="memorychathead">
-      <div><span class="memorychateyebrow"><svg class="icon icon-sm" aria-hidden="true"><use href="#i-node"/></svg>Ask governed memory</span><h1 id="memoryChatTitle">What should AtMem remember?</h1><p>AtMem authorizes the candidates. AtBot helps rank and explain them.</p></div>
-      <span class="companionchip" id="companionChip"><i></i><span id="companionLabel">Checking AtBot…</span></span>
-    </div>
-    <div class="chatmessages" id="memoryChatMessages" aria-live="polite">
-      <div class="chatmessage assistant"><p>Ask a question about the memory AtMem governs.</p></div>
-    </div>
-    <div class="chatsuggestions" aria-label="Example memory questions">
-      <button type="button" data-memory-question="What do you remember about me?">What do you remember about me?</button>
-      <button type="button" data-memory-question="What are my preferences?">What are my preferences?</button>
-      <button type="button" data-memory-question="What do you remember about Paris?">What do you remember about Paris?</button>
-    </div>
-    <form class="chatcomposer" id="memoryChatForm">
-      <textarea id="memoryChatInput" rows="1" maxlength="1000" placeholder="Ask AtMem…" aria-label="Ask governed memory"></textarea>
-      <button class="primary" id="memoryChatSend" type="submit">Ask</button>
-    </form>
-    <p class="chatnote" id="memoryChatNote">Only authorized memory can be shown here.</p>
-  </section>
-
-  <section class="card intelligenceconfig" id="intelligenceConfig" aria-labelledby="intelligenceConfigTitle">
-    <div class="intelligencehead">
-      <div><div class="eyebrow">Memory intelligence</div><h2 id="intelligenceConfigTitle">Configure AtBot</h2><p class="sub">Choose local AI, a hosted API, or safe fallback. AtMem remains the memory authority.</p></div>
-      <span class="statuspill" id="intelligenceStatus">Checking…</span>
-    </div>
-    <div class="intelligencefields">
-      <label class="field"><span>Provider</span><select id="intelligenceProvider" aria-label="AtBot provider"></select></label>
-      <label class="field"><span>Model</span><input id="intelligenceModel" autocomplete="off" placeholder="Model identifier"></label>
-      <label class="field wide"><span>Endpoint</span><input id="intelligenceEndpoint" autocomplete="url" spellcheck="false" placeholder="Loopback URL or HTTPS API base"></label>
-      <label class="field"><span>API-key environment variable</span><input id="intelligenceKeyEnv" autocomplete="off" spellcheck="false" placeholder="No key needed for local AI"></label>
-    </div>
-    <div class="intelligencesecurity"><b>Keys are not entered here.</b> Set the named environment variable before starting AtBot. Remote endpoints must use HTTPS; local endpoints stay on this computer.</div>
-    <div class="intelligenceactions">
-      <button class="primary" id="intelligenceSave" type="button">Save configuration</button>
-      <button class="secondary" id="intelligenceStart" type="button">Start AtBot</button>
-      <button class="secondary" id="intelligenceStop" type="button">Stop AtBot</button>
-      <button class="secondary" id="intelligenceSkip" type="button">Use safe fallback</button>
-    </div>
-    <div class="intelligenceguide">
-      <p id="intelligenceGuidance">Loading provider guidance…</p>
-      <code id="intelligenceCommand">atmem atbot setup</code><button class="secondary compact" id="intelligenceCopy" type="button">Copy CLI command</button>
-    </div>
-  </section>
-
-  <div class="tabnav" role="tablist">
-    <button class="tabbtn active" id="navStatus" type="button" role="tab" aria-selected="true"><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg>Status</button>
-    <button class="tabbtn" id="navDecisions" type="button" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg>Decisions<span class="navbadge" id="decisionsBadge" hidden>0</span></button>
-    <button class="tabbtn" id="navEvidence" type="button" role="tab" aria-selected="false"><svg class="icon" aria-hidden="true"><use href="#i-shield-check"/></svg>Evidence</button>
-  </div>
-
-  <div class="tabpanel active" id="viewStatus">
-  <div class="pageheading"><div><div class="eyebrow">Live oversight</div><h1>Status</h1></div></div>
-
   <section class="statusbanner" id="statusBanner">
     <div class="statusicon" id="statusIcon">…</div>
     <div><span class="statuslabel">Current condition</span><b id="statusHeadline"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></b><p id="statusDetail">Loading verified evidence…</p></div>
     <button class="primary statusaction" id="statusAction" type="button" style="display:none">Open issue</button>
   </section>
+
+  <section class="memorychat" id="memoryChat" aria-labelledby="memoryChatTitle">
+    <h1 class="visuallyhidden" id="memoryChatTitle">Ask governed memory</h1>
+    <button class="memorychattoggle" id="memoryChatToggle" type="button" aria-expanded="true" aria-label="Hide memory assistant" aria-controls="memoryChatResult memoryChatForm memoryChatDockMeta"><span><svg class="icon icon-sm" aria-hidden="true"><use href="#i-node"/></svg>Memory assistant</span><i aria-hidden="true"></i></button>
+    <div class="chatresult" id="memoryChatResult" hidden>
+      <div class="chatresulthead">Governed memory conversation</div>
+      <div class="chatmessages" id="memoryChatMessages" aria-live="polite"></div>
+    </div>
+    <form class="chatcomposer" id="memoryChatForm">
+      <textarea id="memoryChatInput" rows="1" maxlength="1000" placeholder="Ask about stored memory" aria-label="Ask governed memory"></textarea>
+      <button class="primary" id="memoryChatSend" type="submit">Ask</button>
+    </form>
+    <div class="dockmeta" id="memoryChatDockMeta">
+      <div class="chatsuggestions" aria-label="Example memory questions">
+        <button type="button" data-memory-question="What do you remember about me?">What do you remember about me?</button>
+        <button type="button" data-memory-question="What are my preferences?">What are my preferences?</button>
+        <button type="button" data-memory-question="What do you remember about Paris?">What do you remember about Paris?</button>
+      </div>
+      <span class="companionchip" id="companionChip"><i></i><span id="companionLabel">Checking AtBot…</span></span>
+      <p class="chatnote" id="memoryChatNote">Answers come only from authorized records.</p>
+    </div>
+  </section>
+
+  <details class="intelligenceconfig" id="intelligenceConfig">
+    <summary class="intelligencesummary">
+      <div class="intelligencesummarycopy"><b id="intelligenceConfigTitle">Memory intelligence</b><span>Provider and model settings</span></div>
+      <div class="intelligencesummarymeta"><span class="statuspill" id="intelligenceStatus">Checking…</span><span class="settingshint">Settings <span aria-hidden="true">⌄</span></span></div>
+    </summary>
+    <div class="intelligencebody" aria-labelledby="intelligenceConfigTitle">
+      <div class="intelligencehead">
+        <div><h2>Configure AtBot</h2><p class="sub">Choose local AI, a hosted API, or safe fallback. AtMem remains the memory authority.</p></div>
+      </div>
+      <div class="intelligencefields">
+        <label class="field"><span>Provider</span><select id="intelligenceProvider" aria-label="AtBot provider"></select></label>
+        <label class="field"><span>Model</span><input id="intelligenceModel" autocomplete="off" placeholder="Model identifier"></label>
+        <label class="field wide"><span>Endpoint</span><input id="intelligenceEndpoint" autocomplete="url" spellcheck="false" placeholder="Loopback URL or HTTPS API base"></label>
+        <label class="field"><span>API-key environment variable</span><input id="intelligenceKeyEnv" autocomplete="off" spellcheck="false" placeholder="No key needed for local AI"></label>
+      </div>
+      <div class="intelligencesecurity"><b>Keys are not entered here.</b> Set the named environment variable before starting AtBot. Remote endpoints must use HTTPS; local endpoints stay on this computer.</div>
+      <div class="intelligenceactions">
+        <button class="primary" id="intelligenceSave" type="button">Save configuration</button>
+        <button class="secondary" id="intelligenceStart" type="button">Start AtBot</button>
+        <button class="secondary" id="intelligenceStop" type="button">Stop AtBot</button>
+        <button class="secondary" id="intelligenceSkip" type="button">Use safe fallback</button>
+      </div>
+      <div class="intelligenceguide">
+        <p id="intelligenceGuidance">Loading provider guidance…</p>
+        <code id="intelligenceCommand">atmem atbot setup</code><button class="secondary compact" id="intelligenceCopy" type="button">Copy CLI command</button>
+      </div>
+    </div>
+  </details>
+
+  <div class="tabpanel active" id="viewStatus">
+  <div class="pageheading"><div><h1>Activity</h1><p>Every recorded agent session, memory change, and governed decision.</p></div></div>
 
   <div class="metrics">
     <div class="metric"><b class="mono" id="sourceCount">—</b><span id="sourceCountLabel">memory sources</span></div>

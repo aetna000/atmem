@@ -1,6 +1,7 @@
 # AtMem 2.2: AtBot-readiness research
 
-Status: proposed research and implementation contract
+Status: active 2.2 development contract; implemented items are tracked in
+`plan/implementation-status.md` and remain unreleased
 
 This document defines the work required for AtMem 2.2 to serve as the
 authoritative memory and evidence engine beneath AtBot. It is not a commitment
@@ -70,8 +71,12 @@ atmem authority process
 ```
 
 AtMem's wheel contains no AtBot provider code. AtBot's wheel contains no AtMem
-authority code. A clean AtMem installation remains safe without AtBot, while
-`atmem[atbot]` installs the pinned compatible companion distribution.
+authority code. The 2.2 AtMem distribution declares the pinned compatible AtBot
+distribution as a required dependency; this does not merge their processes or
+authority. Runtime failure or an explicit fallback choice remains safe because
+AtMem retains deterministic extraction and governed local recall. A clean
+package install becomes possible only after the matching AtBot distribution is
+published; repository development installs both packages explicitly.
 
 ## Identity and scope semantics
 
@@ -97,7 +102,7 @@ AtMem 2.1 already provides most authority-plane primitives:
 - duplicate detection and fact-key supersession;
 - quarantine, promotion, rejection, tombstoning, and purge;
 - hash-chained mutation and retrieval audit evidence;
-- lexical recall, bounded graph recall, and optional semantic investigation;
+- lexical recall, bounded graph recall, and a verified derived semantic index;
 - generic shadow/active control contracts;
 - persistent agent and workspace topology;
 - context-preparation and exposure confirmation;
@@ -409,9 +414,10 @@ AtMem must:
 
 ### 5. Governed hybrid agent recall
 
-Semantic search currently acts as a derived investigator index. AtBot needs a
-governed recall path that can use multiple candidate signals without allowing a
-derived index to become canonical.
+Semantic search began as an investigator-only derived index. The 2.2 development
+implementation now creates a local vector sidecar for every persistent database
+and uses the active verified epoch as one signal in governed recall. This does
+not allow the derived index to become canonical or authoritative.
 
 Proposed request:
 
@@ -554,7 +560,9 @@ downloads remain an explicit provider operation rather than a hidden install
 side effect.
 
 AtBot is a pinned required dependency of the AtMem distribution, but model
-choice remains explicit on first interactive dashboard use. The setup boundary
+choice remains explicit. Direct interactive dashboard launch can offer setup;
+the dashboard itself keeps configuration in a collapsed **Memory intelligence**
+settings row, and the guided CLI exposes the same operations. The setup boundary
 offers local Ollama, any loopback OpenAI-compatible server, named hosted
 profiles, a custom HTTPS OpenAI-compatible API, or deterministic fallback.
 Hosted profiles store only an API-key environment-variable name, never the

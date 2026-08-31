@@ -1,4 +1,4 @@
-"""Optional semantic retrieval for canonical, auditable investigation search."""
+"""Derived local-vector retrieval with canonical AtMem authorization."""
 
 from atmem.semantic.index import (
     SemanticIndex,

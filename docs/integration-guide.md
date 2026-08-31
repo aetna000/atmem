@@ -15,7 +15,9 @@ report = memory.audit("user-1")
 memory.close()
 ```
 
-The embedding provider is optional. The canonical database remains usable without it.
+The canonical database remains usable without an external embedding provider.
+In 2.2 development AtMem creates a dependency-free local vector sidecar
+automatically; installing a higher-quality local embedding provider is optional.
 
 ## MCP
 
@@ -93,8 +95,15 @@ separate process and wheel so model-framework dependencies never enter AtMem's
 authority runtime:
 
 ```bash
-python -m pip install 'atmem[atbot]'
+# Unreleased 2.2 repository development
+python -m pip install -e './packages/atbot' -e '.'
+atmem atbot setup
 ```
+
+The 2.2 AtMem distribution declares the exact AtBot version as a required
+dependency. There is no longer a separate AtBot opt-in extra; model selection
+and remote egress remain explicit user choices. The packages remain separate
+wheels and processes, and AtMem authority code does not import AtBot.
 
 AtMem discovers and calls AtBot over its loopback companion protocol. AtBot
 does not import AtMem or open its database, and AtMem retains deterministic

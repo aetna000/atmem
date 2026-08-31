@@ -22,8 +22,11 @@ AtMem exposes a stable, provider-neutral authority API that lets AtBot:
 7. confirm exact context exposure;
 8. correct, supersede, and forget memory with complete evidence.
 
-AtMem will not run an LLM, own an agent loop, or depend on Pydantic AI. AtBot
-owns intelligence; AtMem owns canonical memory and memory authority.
+AtMem's authority code does not run an LLM, own an agent loop, or import
+Pydantic AI. AtBot owns intelligence; AtMem owns canonical memory and memory
+authority. The complete 2.2 distribution nevertheless has Pydantic AI as a
+transitive dependency because AtMem requires the separately packaged, exactly
+pinned AtBot companion.
 
 Source is maintained as a monorepo under `packages/atbot`, but distribution and
 runtime boundaries remain separate. CI builds an `atmem` wheel and an `atbot`
@@ -312,27 +315,30 @@ reranker to bypass authority.
 
 ### Deliverables
 
-- [ ] Add `RecallRequest` and `EligibleCandidateSet` contracts.
-- [ ] Filter subject, agent, workspace, lifecycle, trust, sensitivity, and
+- [x] Add durable recall and eligible-candidate-set contracts for the current
+  companion protocol. The broader public schema bundle remains Workstream 0.
+- [x] Filter subject, agent, workspace, lifecycle, trust, sensitivity, and
   egress before returning candidate content.
-- [ ] Require the intended reranker provider, model, and egress class before
+- [x] Require the intended reranker provider, model, and egress class before
   candidate selection.
-- [ ] Fuse lexical, semantic, graph, trust, and recency signals with versioned
+- [x] Fuse lexical, semantic, graph, trust, and recency signals with versioned
   score metadata.
-- [ ] Revalidate semantic candidates against record digests and index
+- [x] Revalidate semantic candidates against record digests and index
   generation.
-- [ ] Return bounded graph paths as evidence.
-- [ ] Preserve lexical recall as the safe degraded path.
-- [ ] Record candidate-set digest, canonical generations, and withheld reasons.
+- [x] Return bounded graph paths as evidence.
+- [x] Preserve lexical recall as the safe degraded path.
+- [ ] Record complete per-candidate withheld reasons alongside the existing
+  candidate-set digest and generation bindings.
 
 ### External reranking
 
-- [ ] Add `RerankProposal` and `FinalRanking` contracts.
-- [ ] Reject record IDs outside the eligible candidate set.
+- [x] Add companion ranking request and response contracts for protocol v1.
+- [x] Reject record IDs outside the eligible candidate set.
 - [ ] Require a new candidate request when provider or egress class changes.
-- [ ] Revalidate scope, lifecycle, policy, generations, membership, and budget
+- [x] Revalidate scope, lifecycle, policy, generations, membership, and budget
   after reranking.
-- [ ] Record provider, model, prompt version, input/output digests, and egress.
+- [ ] Persist complete provider, model, prompt-version, input/output-digest,
+  and egress metadata for every ranking operation.
 
 ### Likely code areas
 
@@ -512,7 +518,9 @@ Goal: ship a supportable AtMem 2.2 contract rather than an internal experiment.
 - [ ] Document source retention, remote egress, cache invalidation, and deletion
   semantics.
 - [ ] Add protocol examples and an AtBot integration guide.
-- [ ] Add release notes and update `docs/capabilities.json`.
+- [x] Update `docs/capabilities.json` for the unreleased 2.2 development state.
+- [ ] Add final 2.2 release notes when package versions and publication order
+  are fixed.
 - [ ] Run Python 3.10–3.13, encrypted/unencrypted, semantic/no-semantic, generic,
   and OpenClaw test matrices.
 - [ ] Perform a clean 2.1-to-2.2 migration and restore drill on copied fixtures.
