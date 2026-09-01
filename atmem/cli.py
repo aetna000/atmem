@@ -201,6 +201,49 @@ AtMem stores the variable name, never the key.""",
                 "--force", action="store_true", help="Replace the existing AtBot configuration"
             )
 
+    benchmark_parser = subparsers.add_parser(
+        "benchmark",
+        help="Run reproducible memory-quality gates and compare external results",
+        description="Offline by default. Optional model profiles require explicit configuration.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Release gate:
+  atmem benchmark run --output benchmark.json
+
+Optional evidence:
+  atmem benchmark profiles
+  atmem benchmark run --profile local-embeddings --output local.json
+
+External evaluation:
+  atmem benchmark import-longmemeval INPUT.jsonl --output cases.json
+  atmem benchmark compare atmem.json mem0.json --output comparison.json""",
+    )
+    benchmark_commands = benchmark_parser.add_subparsers(dest="benchmark_command")
+    benchmark_run = benchmark_commands.add_parser("run", help="Run one isolated benchmark profile")
+    benchmark_run.add_argument(
+        "--profile",
+        choices=("deterministic", "local-embeddings", "local-atbot", "hosted-atbot"),
+        default="deterministic",
+    )
+    benchmark_run.add_argument("--dataset", default=None)
+    benchmark_run.add_argument("--thresholds", default=None)
+    benchmark_run.add_argument("--output", default=None)
+    benchmark_run.add_argument("--json", action="store_true")
+    benchmark_profiles = benchmark_commands.add_parser("profiles", help="Show profile availability and egress")
+    benchmark_profiles.add_argument("--json", action="store_true")
+    benchmark_import = benchmark_commands.add_parser(
+        "import-longmemeval", help="Normalize a locally supplied LongMemEval JSON or JSONL file"
+    )
+    benchmark_import.add_argument("input")
+    benchmark_import.add_argument("--output", required=True)
+    benchmark_import.add_argument("--json", action="store_true")
+    benchmark_compare = benchmark_commands.add_parser(
+        "compare", help="Compare compatible AtMem and external result envelopes"
+    )
+    benchmark_compare.add_argument("left")
+    benchmark_compare.add_argument("right")
+    benchmark_compare.add_argument("--output", default=None)
+    benchmark_compare.add_argument("--json", action="store_true")
+
     dashboard_parser = subparsers.add_parser(
         "dashboard",
         help="Run the local host-neutral memory, flight, audit, and switch UI",
@@ -778,6 +821,13 @@ AtMem stores the variable name, never the key.""",
             atbot_parser.print_help()
             return
         _run_atbot(args)
+        return
+
+    if args.command == "benchmark":
+        if args.benchmark_command is None:
+            benchmark_parser.print_help()
+            return
+        _run_benchmark_cli(args)
         return
 
     if args.command == "dashboard":
@@ -2348,6 +2398,79 @@ def _run_blackbox(args: argparse.Namespace) -> None:
         _print(report)
     else:
         print(format_flight_report(report), end="")
+
+
+def _run_benchmark_cli(args: argparse.Namespace) -> None:
+    from atmem.benchmark.contracts import read_json, write_json
+    from atmem.benchmark.external import compare_results, import_longmemeval
+    from atmem.benchmark.profiles import list_profiles
+    from atmem.benchmark.runner import run_benchmark
+
+    command = args.benchmark_command
+    if command == "profiles":
+        profiles = list_profiles()
+        if args.json:
+            _print({"profiles": profiles})
+        else:
+            for profile in profiles:
+                state = "ready" if profile["available"] else "not ready"
+                print(
+                    f"{profile['mode']}: {state}; egress={profile['egress_class']}; "
+                    f"provider={profile['provider']}"
+                )
+                if profile.get("skip_reason"):
+                    print(f"  {profile['skip_reason']}")
+        return
+    if command == "import-longmemeval":
+        result = import_longmemeval(args.input)
+        write_json(args.output, result)
+        if args.json:
+            _print(result)
+        else:
+            counts = result["counts"]
+            print(
+                f"Imported {counts['supported']} supported cases; "
+                f"{counts['skipped']} skipped; {counts['unsupported']} unsupported."
+            )
+            print(f"Wrote {Path(args.output).resolve(strict=False)}")
+        return
+    if command == "compare":
+        result = compare_results(read_json(args.left), read_json(args.right))
+        if args.output:
+            write_json(args.output, result)
+        if args.json:
+            _print(result)
+        else:
+            print("Fair comparison: yes")
+            print("Systems: " + " vs ".join(result["systems"]))
+            print("Outcome: " + result["overall"]["outcome"])
+            print(result["overall"]["statement"])
+            for name, metric_result in result["metrics"].items():
+                print(f"  {name}: {metric_result['winner']}")
+            if args.output:
+                print(f"Wrote {Path(args.output).resolve(strict=False)}")
+        return
+
+    report = run_benchmark(
+        profile_name=args.profile,
+        dataset_path=args.dataset,
+        thresholds_path=args.thresholds,
+    )
+    if args.output:
+        write_json(args.output, report)
+    if args.json:
+        _print(report)
+    else:
+        print(f"Memory benchmark: {report['status'].upper()}")
+        print(f"Profile: {report['profile']['mode']}")
+        print(f"Cases: {len(report['case_results'])}")
+        print(f"Quality digest: {report['quality_sha256']}")
+        for failure in report["failures"]:
+            print(f"  FAIL: {failure}")
+        if args.output:
+            print(f"Wrote {Path(args.output).resolve(strict=False)}")
+    if not report["passed"]:
+        raise SystemExit(2 if report["status"] == "skipped" else 1)
 
 
 def _confirm_control_host(

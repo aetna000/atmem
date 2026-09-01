@@ -1,0 +1,10 @@
+{
+  "format": "atmem-benchmark-external-results-v1",
+  "system": "atmem",
+  "dataset": {"name": "fixture", "version": "1", "sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "case_ids": ["lme-1"],
+  "scoring_format": "atmem-memory-quality-scoring-v1",
+  "model_configuration": {"generator": "fixture-model", "embedder": "fixture-embedder"},
+  "metrics": {"answerable_recall": 1.0},
+  "limitations": ["Synthetic fixture only."]
+}

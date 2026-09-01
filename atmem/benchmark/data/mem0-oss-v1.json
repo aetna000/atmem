@@ -1,0 +1,12 @@
+{
+  "format": "atmem-external-runner-manifest-v1",
+  "system": "mem0-oss",
+  "package": "mem0ai==2.0.19",
+  "package_sha256": "c0d04476eb15872f65688297befb57708e12b04298d4f4215229b2066578956e",
+  "source_revision": "dc82354e143c2581d505d581a00286d6ef8c3605",
+  "license": "Apache-2.0",
+  "python": ">=3.10,<4",
+  "install": "python -m pip install mem0ai==2.0.19 ollama==0.6.2",
+  "verified_on": "2026-09-01",
+  "notes": "Run in a separate environment and export atmem-benchmark-external-results-v1. This manifest does not install Mem0 into AtMem."
+}

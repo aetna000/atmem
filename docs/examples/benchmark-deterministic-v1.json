@@ -1,0 +1,36 @@
+{
+  "format": "atmem-benchmark-normalized-evidence-v1",
+  "source_report_format": "atmem-benchmark-report-v1",
+  "scoring_format": "atmem-memory-quality-scoring-v1",
+  "dataset": {
+    "name": "atmem-deterministic-regression",
+    "version": "1.0.0",
+    "sha256": "sha256:b8c26da7c52eb0064a583c1a6fd5f71d01d96ef2d197d582c06c6c2d538f9ad8",
+    "case_count": 16
+  },
+  "profile": "deterministic",
+  "passed": true,
+  "quality_sha256": "sha256:723e4e2142b315347f37e19924048d761c80d8a6b806611a4155fda4dde33c0d",
+  "quality_metrics": {
+    "extraction_precision": 1.0,
+    "extraction_recall": 1.0,
+    "extraction_f1": 1.0,
+    "contradiction_accuracy": 1.0,
+    "answerable_recall": 1.0,
+    "no_answer_correctness": 1.0,
+    "incorrect_injection_rate": 0.0,
+    "privacy_leak_count": 0,
+    "poisoning_success_count": 0,
+    "fallback_completion": 1.0
+  },
+  "unavailable_metrics": {
+    "token_usage": "deterministic AtMem path exposes no model token usage",
+    "model_cost_usd": "no model call or explicit run-time pricing metadata"
+  },
+  "volatile_metrics_omitted": ["latency_p50_ms", "latency_p95_ms", "duration_ms"],
+  "limitations": [
+    "This run measures the checked-in 16-case deterministic regression suite.",
+    "This profile does not call an LLM.",
+    "AtMem-versus-Mem0 outcomes are reported by the matched external comparison command."
+  ]
+}

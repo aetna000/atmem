@@ -68,6 +68,83 @@ def test_memory_query_revalidates_companion_ids(
     }
 
 
+def test_dashboard_and_control_prepare_use_authorized_support_order_in_fallback(
+    tmp_path: Path, monkeypatch
+) -> None:
+    memory_path = tmp_path / "memory.db"
+    manager = ControlPlaneManager.start(
+        host="generic",
+        state_path=tmp_path / "state.json",
+        control_root=tmp_path / "migrations",
+        memory_db=memory_path,
+    )
+    memory = Memory(memory_path, auto_vectors=False)
+    try:
+        supported = memory.remember(
+            "local-user",
+            "Supported evidence one.",
+            interpreted_fact="Supported evidence one.",
+            interpreted_fact_key="support.one",
+            session_id="private-source-session",
+        )["records"][0]
+        peer = memory.remember(
+            "local-user",
+            "Supported evidence two.",
+            interpreted_fact="Supported evidence two.",
+            interpreted_fact_key="support.two",
+            session_id="private-source-session",
+        )["records"][0]
+        decoy = memory.remember(
+            "local-user",
+            "A close singleton decoy.",
+            interpreted_fact="A close singleton decoy.",
+            interpreted_fact_key="support.decoy",
+            session_id="other-session",
+        )["records"][0]
+    finally:
+        memory.close()
+
+    raw_candidates = [
+        {"record_id": supported["id"], "content": supported["content"], "score": 0.80},
+        {"record_id": peer["id"], "content": peer["content"], "score": 0.75},
+        {"record_id": decoy["id"], "content": decoy["content"], "score": 0.81},
+    ]
+    monkeypatch.setattr(
+        manager,
+        "_hybrid_memory_candidates",
+        lambda *args, **kwargs: list(raw_candidates),
+    )
+    monkeypatch.setattr(
+        "atmem.control.atbot_companion.AtBotCompanionClient.expand_query",
+        lambda self, query: {"expanded_queries": [query], "content_received": False},
+    )
+    monkeypatch.setattr(
+        "atmem.control.atbot_companion.AtBotCompanionClient.health",
+        lambda self: {"available": False, "reason": "test companion unavailable"},
+    )
+
+    dashboard = manager.memory_query("Which evidence applies?")
+    assert [row["record_id"] for row in dashboard["used_memories"]] == [
+        supported["id"]
+    ]
+    signals = dashboard["used_memories"][0]["signals"]
+    assert signals["record_score"] == 0.8
+    assert signals["aggregate_score"] > 0.81
+    assert "private-source-session" not in str(dashboard)
+
+    manager.transition(ControlMode.SHADOW)
+    shadow = manager.prepare("Which evidence applies?")
+    assert shadow["inject"] is False
+    assert shadow["candidate_ids"] == [supported["id"]]
+
+    manager.transition(ControlMode.ACTIVE)
+    active = manager.prepare("Which evidence applies?")
+    assert active["inject"] is True
+    assert active["candidate_ids"] == [supported["id"]]
+    assert "Supported evidence one" in active["context"]
+    assert "private-source-session" not in str(active)
+
+
 def test_automatic_capture_uses_atbot_proposals_and_atmem_admission(
     tmp_path: Path, monkeypatch
 ) -> None:

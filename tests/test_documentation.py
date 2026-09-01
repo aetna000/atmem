@@ -68,6 +68,32 @@ def test_readme_puts_supported_quick_starts_front_and_center() -> None:
     assert "atmem[langgraph]==2.2.5" in opening
     assert "create_langgraph_middleware" in opening
     assert "atmem control activate" in opening
+    assert "atmem benchmark run --output benchmark.json" in opening
+    assert "memory benchmark guide" in opening
+
+
+def test_memory_benchmark_documentation_keeps_claims_bounded() -> None:
+    guide = (ROOT / "docs" / "benchmarks.md").read_text(encoding="utf-8")
+    example = json.loads(
+        (ROOT / "docs" / "examples" / "benchmark-deterministic-v1.json").read_text()
+    )
+    comparison = json.loads(
+        (ROOT / "docs" / "examples" / "longmemeval-s-retrieval-12-v1.json").read_text()
+    )
+    assert "atmem benchmark run --output benchmark.json" in guide
+    assert "atmem benchmark profiles" in guide
+    assert "atmem benchmark import-longmemeval" in guide
+    assert "atmem benchmark compare" in guide
+    assert "AtMem performed better than Mem0 on this benchmark" in guide
+    assert "atmem_better" in guide
+    assert "mixed" in guide
+    assert "Unknown model tokens" in guide
+    assert example["dataset"]["case_count"] == 16
+    assert example["quality_metrics"]["privacy_leak_count"] == 0
+    assert example["quality_metrics"]["poisoning_success_count"] == 0
+    assert comparison["fair_comparison"] is True
+    assert comparison["overall"]["outcome"] == "mem0_better"
+    assert comparison["metrics"]["session_recall_any_at_5"]["winner"] == "tie"
 
 
 def test_readme_version_matches_package_metadata() -> None:
@@ -102,7 +128,8 @@ def test_development_docs_match_companion_packaging() -> None:
     active_guides = (
         ROOT / "README.md",
         ROOT / "docs" / "integration-guide.md",
-        ROOT / "research" / "research.md",
+        ROOT / "docs" / "current-status.md",
+        ROOT / "packages" / "atbot" / "README.md",
     )
     for path in active_guides:
         assert "atmem[atbot]" not in path.read_text(), path

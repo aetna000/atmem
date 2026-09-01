@@ -12,6 +12,7 @@ from atbot.cli import _parser
 from atbot.companion import CompanionRuntime
 from atbot.config import AtBotConfig
 from atbot.config import ProviderConfig
+from atbot.domain import ProviderResult
 from atbot.providers.anthropic import AnthropicProvider
 from atbot.providers.openai_compatible import OpenAICompatibleProvider
 from atbot.providers.router import ModelRouter
@@ -140,6 +141,89 @@ def test_companion_ranks_only_ids_supplied_by_atmem() -> None:
 
     assert result["ranked_record_ids"] == ["rec_allowed"]
     assert "blue cars" in result["answer"]
+
+
+class _CapturingProvider:
+    name = "test"
+    model = "capture"
+    egress_class = "local"
+
+    def __init__(self, *, fail: bool = False) -> None:
+        self.fail = fail
+        self.payload = None
+
+    def complete(self, *, system, prompt, schema=None):
+        del system, schema
+        self.payload = json.loads(prompt)
+        if self.fail:
+            raise RuntimeError("provider failed")
+        allowed = self.payload["eligible_memories"]
+        value = {
+            "answer": "Supported answer.",
+            "ranked_record_ids": ["rec_unknown", allowed[-1]["record_id"]],
+            "explanation": "test ranking",
+        }
+        return ProviderResult(
+            text=json.dumps(value),
+            structured=value,
+            provider=self.name,
+            model=self.model,
+            egress_class=self.egress_class,
+        )
+
+
+def test_companion_forwards_only_bounded_opaque_support_signals(monkeypatch) -> None:
+    runtime = companion()
+    provider = _CapturingProvider()
+    monkeypatch.setattr(runtime.router, "select", lambda **kwargs: provider)
+    signals = {
+        "support_aggregation_version": "supporting-evidence-v1",
+        "record_score": 0.8,
+        "support_score": 0.7,
+        "aggregate_score": 0.821,
+        "eligible_support_count": 2,
+        "support_group_id": "sgrp_" + "a" * 64,
+        "source_session_id": "must-not-egress",
+        "unbounded_internal_value": "must-not-egress",
+    }
+    result = runtime.answer_query(
+        query="Which evidence applies?",
+        candidates=[
+            {
+                "record_id": "rec_first",
+                "content": "First eligible memory.",
+                "score": 0.821,
+                "signals": signals,
+            },
+            {
+                "record_id": "rec_second",
+                "content": "Second eligible memory.",
+                "score": 0.7,
+            },
+        ],
+    )
+
+    forwarded = provider.payload["eligible_memories"][0]
+    assert forwarded["support_group_id"] == "sgrp_" + "a" * 64
+    assert forwarded["aggregate_score"] == 0.821
+    assert "source_session_id" not in json.dumps(provider.payload)
+    assert "unbounded_internal_value" not in json.dumps(provider.payload)
+    assert result["ranked_record_ids"] == ["rec_second"]
+
+
+def test_companion_provider_failure_uses_first_aggregate_order(monkeypatch) -> None:
+    runtime = companion()
+    provider = _CapturingProvider(fail=True)
+    monkeypatch.setattr(runtime.router, "select", lambda **kwargs: provider)
+    result = runtime.answer_query(
+        query="Which evidence applies?",
+        candidates=[
+            {"record_id": "rec_supported", "content": "Supported evidence.", "score": 0.9},
+            {"record_id": "rec_decoy", "content": "Decoy evidence.", "score": 0.8},
+        ],
+    )
+    assert result["ranked_record_ids"] == ["rec_supported"]
+    assert result["model"] == "eligible-candidate-fallback-v1"
 
 
 def test_companion_overview_removes_source_template_noise() -> None:

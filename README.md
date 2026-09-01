@@ -117,6 +117,19 @@ your agent's model, tools, conversation history, or LangGraph checkpoints. See
 the [complete framework adapter guide](docs/framework-adapters.md) for async,
 multi-agent, and low-level `StateGraph` integration.
 
+### Prove memory quality locally
+
+```bash
+atmem benchmark run --output benchmark.json
+```
+
+This offline release gate runs 16 isolated extraction, contradiction, recall,
+withholding, injection, privacy, poisoning and fallback cases. Safety must be
+perfect; other quality metrics cannot fall below checked-in baselines. Optional
+local/hosted profiles, LongMemEval import and fair Mem0 OSS comparison are also
+available without adding Mem0 or model SDKs to the base install. See the
+[memory benchmark guide](docs/benchmarks.md) for commands and honest limits.
+
 ### 3. Review, then activate
 
 Every integration starts in **shadow mode**: AtMem learns and shows what it
@@ -446,8 +459,13 @@ system-of-record verification.
 - [Audit log specification](docs/audit-log-spec.md)
 - [Audit investigation](docs/audit-search.md)
 - [Storage, backup, and recovery](docs/data-storage-and-backup.md)
+- [Spec-driven development](docs/spec-kit.md)
 
 ## Development verification
+
+Material features use the repository's GitHub Spec Kit Lean workflow. See
+[Spec-driven development](docs/spec-kit.md) for feature directories, Codex
+skills, and the constitution-backed delivery sequence.
 
 AtMem and its separately packaged AtBot companion share this repository. They
 remain separate processes and communicate only through the loopback companion

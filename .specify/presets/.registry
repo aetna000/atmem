@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "presets": {
+    "lean": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:d316b3ad5f41988d51fe2b7faedab9c942edc68b44cf6970d5e26ef5a8522751",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "codex": [
+          "speckit.specify",
+          "speckit.plan",
+          "speckit.tasks",
+          "speckit.implement",
+          "speckit.constitution"
+        ]
+      },
+      "registered_skills": {
+        "codex": [
+          "speckit-specify",
+          "speckit-plan",
+          "speckit-tasks",
+          "speckit-implement",
+          "speckit-constitution"
+        ]
+      },
+      "installed_at": "2026-09-01T12:57:58.792924+00:00"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/benchmark-report.schema.json",
+  "title": "AtMem benchmark report v1",
+  "type": "object",
+  "required": ["format", "scoring_format", "dataset", "profile", "metrics", "thresholds", "case_results", "limitations", "passed", "quality_sha256"],
+  "properties": {
+    "format": {"const": "atmem-benchmark-report-v1"},
+    "scoring_format": {"const": "atmem-memory-quality-scoring-v1"},
+    "passed": {"type": "boolean"},
+    "quality_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "case_results": {"type": "array", "items": {"type": "object"}},
+    "metrics": {"type": "object"},
+    "limitations": {"type": "array", "items": {"type": "string"}}
+  }
+}

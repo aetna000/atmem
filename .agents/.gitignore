@@ -1,0 +1,6 @@
+# Keep only reviewed repository-local skills under version control.
+# Agent runtimes may place credentials or machine-local state beside them.
+*
+!.gitignore
+!skills/
+!skills/**

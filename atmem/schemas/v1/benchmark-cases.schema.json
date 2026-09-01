@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/benchmark-cases.schema.json",
+  "title": "AtMem benchmark cases v1",
+  "type": "object",
+  "required": ["format", "name", "version", "cases"],
+  "properties": {
+    "format": {"const": "atmem-benchmark-cases-v1"},
+    "name": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "minLength": 1},
+    "limitations": {"type": "array", "items": {"type": "string"}},
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "category", "setup", "expected"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "category": {"enum": ["extraction", "contradiction", "recall", "no_answer", "incorrect_injection", "privacy", "poisoning", "fallback"]},
+          "polarity": {"enum": ["positive", "negative"]},
+          "setup": {"type": "array", "items": {"type": "object"}},
+          "query": {"type": "string"},
+          "expected": {"type": "object"}
+        }
+      }
+    }
+  }
+}

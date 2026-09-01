@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 from atbot.config import AtBotConfig
@@ -137,6 +138,7 @@ class CompanionRuntime:
                 "record_id": record_id,
                 "content": content,
                 "score": float(row.get("score") or 0.0),
+                **_safe_aggregation_signals(row.get("signals")),
             }
         if not allowed:
             return {
@@ -220,6 +222,43 @@ def _overview_query(query: str) -> bool:
             "everything you remember",
         )
     )
+
+
+def _safe_aggregation_signals(value: object) -> dict[str, object]:
+    """Allow only bounded, opaque AtMem ranking signals into model input."""
+    if not isinstance(value, dict):
+        return {}
+    if value.get("support_aggregation_version") != "supporting-evidence-v1":
+        return {}
+    group_id = str(value.get("support_group_id") or "")
+    if not group_id.startswith("sgrp_") or len(group_id) != 69:
+        return {}
+    result: dict[str, object] = {
+        "support_aggregation_version": "supporting-evidence-v1",
+        "support_group_id": group_id,
+    }
+    for key in ("record_score", "support_score", "aggregate_score"):
+        raw = value.get(key)
+        if isinstance(raw, bool):
+            return {}
+        try:
+            score = float(raw)
+        except (TypeError, ValueError):
+            return {}
+        if not math.isfinite(score) or not 0.0 <= score <= 1.0:
+            return {}
+        result[key] = score
+    count = value.get("eligible_support_count")
+    if isinstance(count, bool):
+        return {}
+    try:
+        parsed_count = int(count)
+    except (TypeError, ValueError):
+        return {}
+    if parsed_count < 0 or parsed_count > 99:
+        return {}
+    result["eligible_support_count"] = parsed_count
+    return result
 
 
 def _source_noise(content: str) -> bool:

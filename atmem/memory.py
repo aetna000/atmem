@@ -634,7 +634,7 @@ class Memory:
             scope.subject_id, [row["record_id"] for row in ordered_rows]
         )
         excluded = self.store.excluded_record_ids(scope.subject_id)
-        durable: list[EligibleCandidate] = []
+        eligible_rows: list[dict[str, Any]] = []
         for value in ordered_rows:
             record_id = value["record_id"]
             record = records.get(record_id)
@@ -664,20 +664,56 @@ class Memory:
             signals = dict(value.get("signals") or {})
             signals["matched_queries"] = list(value.get("matched_queries") or ())
             signals["expansion_rank"] = int(value.get("expansion_rank") or 0)
-            durable.append(
-                EligibleCandidate(
-                    record_id=record_id,
-                    content=canonical_content,
-                    score=float(value.get("score") or 0.0),
-                    rank=len(durable) + 1,
-                    source_type=str(record.get("source_type") or "unknown"),
-                    trust_tier=str(record.get("trust_tier") or "unknown"),
-                    created_at=str(record.get("created_at") or ""),
-                    signals=signals,
-                )
+            eligible_rows.append(
+                {
+                    "record_id": record_id,
+                    "content": canonical_content,
+                    "score": value.get("score", 0.0),
+                    "source_type": str(record.get("source_type") or "unknown"),
+                    "trust_tier": str(record.get("trust_tier") or "unknown"),
+                    "created_at": str(record.get("created_at") or ""),
+                    "source_session_id": record.get("source_session_id"),
+                    "signals": signals,
+                }
             )
-            if len(durable) >= request.limit:
-                break
+
+        # Supporting evidence is intelligence over an already-authorized set.
+        # Raw session provenance exists only in this in-process input; the
+        # ranker returns an opaque scope-bound group identity and bounded
+        # numeric signals, never the host session identifier.
+        from atmem.retrieve import (
+            SUPPORT_AGGREGATION_VERSION,
+            aggregate_supporting_evidence,
+            aggregation_signal_digest,
+        )
+
+        aggregated = aggregate_supporting_evidence(
+            eligible_rows,
+            subject_id=scope.subject_id,
+            workspace_id=scope.workspace_id,
+            agent_id=scope.agent_id,
+        )
+        durable = [
+            EligibleCandidate(
+                record_id=str(value["record_id"]),
+                content=str(value["content"]),
+                score=float(value["score"]),
+                rank=rank,
+                source_type=str(value["source_type"]),
+                trust_tier=str(value["trust_tier"]),
+                created_at=str(value["created_at"]),
+                signals=dict(value.get("signals") or {}),
+            )
+            for rank, value in enumerate(aggregated[: request.limit], start=1)
+        ]
+        aggregation_digest = aggregation_signal_digest(
+            row.to_dict() for row in durable
+        )
+        grouped_candidates = [
+            row
+            for row in durable
+            if int(row.signals.get("eligible_support_count") or 0) > 0
+        ]
 
         generation = self.store.record_generation(scope.subject_id)
         candidate_set_id = f"cset_{uuid.uuid4().hex}"
@@ -704,6 +740,15 @@ class Memory:
                         query
                         for row in ordered_rows
                         for query in row.get("matched_queries") or ()
+                    }
+                ),
+                "support_aggregation_version": SUPPORT_AGGREGATION_VERSION,
+                "aggregation_signal_digest": aggregation_digest,
+                "grouped_candidate_count": len(grouped_candidates),
+                "supported_group_count": len(
+                    {
+                        str(row.signals.get("support_group_id") or "")
+                        for row in grouped_candidates
                     }
                 ),
             },
