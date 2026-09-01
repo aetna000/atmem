@@ -9,10 +9,13 @@ or exact-delivery guarantees.
 ### 1. Memory benchmarks
 
 - [x] Add LongMemEval and small deterministic regression datasets.
-- [ ] Measure extraction accuracy, contradiction handling, recall, incorrect
+- [x] Measure extraction accuracy, contradiction handling, recall, incorrect
       injection, privacy leakage, poisoning, latency, tokens, and model cost.
-- [ ] Test deterministic fallback, local embeddings, local AtBot, and hosted
-      AtBot separately.
+- [x] Test deterministic fallback separately.
+- [x] Test local embeddings separately.
+- [ ] Test the local AtBot profile end to end with a configured local model.
+- [ ] Test the hosted AtBot profile end to end with recorded provider, model,
+      token, cost, and egress evidence.
 - [x] Compare with a pinned Mem0 OSS setup using the same models and data.
 - [x] Publish reproducible commands, configurations, results, and limitations.
 
@@ -202,11 +205,12 @@ mode, and activate safely without reading internal architecture documents.
 ## Suggested Spec Kit order
 
 1. `specs/001-memory-quality-benchmarks`
-2. `specs/002-semantic-setup-and-health`
-3. `specs/003-memory-extraction-lifecycle`
-4. `specs/004-retrieval-quality-and-reranking`
-5. `specs/005-entity-relationship-memory`
-6. `specs/006-production-storage-backends`
-7. `specs/007-framework-adapter-conformance`
-8. `specs/008-http-api-and-typescript-sdk`
-9. `specs/009-production-service-profile`
+2. `specs/002-supporting-evidence-ranking`
+3. `specs/003-semantic-setup-and-health`
+4. `specs/004-memory-extraction-lifecycle`
+5. `specs/005-retrieval-quality-and-reranking`
+6. `specs/006-entity-relationship-memory`
+7. `specs/007-production-storage-backends`
+8. `specs/008-framework-adapter-conformance`
+9. `specs/009-http-api-and-typescript-sdk`
+10. `specs/010-production-service-profile`
