@@ -1,0 +1,11 @@
+{
+  "provider_id": "storizon",
+  "provider_version": "0.2.0a1",
+  "provider_instance_id": "storizon-demo-instance",
+  "key_id": "storizon-demo-key-1",
+  "public_key_base64": "ebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ=",
+  "workspace_ids": ["workspace-demo"],
+  "agent_ids": ["agent-main"],
+  "user_ids": ["user-opaque-001"],
+  "fixture_key_only": true
+}

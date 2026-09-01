@@ -40,7 +40,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node test/setup.mjs && node test/hooks.mjs",
+    "test": "node test/setup.mjs && node test/hooks.mjs && node test/delegated-context-contract.mjs",
     "smoke": "node test/smoke.mjs",
     "prepack": "npm run build && npm run typecheck && npm test && npm run smoke"
   },
