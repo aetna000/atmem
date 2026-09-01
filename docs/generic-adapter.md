@@ -93,3 +93,16 @@ The CLI and operator MCP cover:
 
 The dashboard is a presentation layer over the same operations; it is not the
 source of truth. The control state, evidence chains, and memory records are.
+
+## Proposed delegated context-provider mode
+
+A provider-neutral delegated mode is under design for runtimes that need an
+external system to remain the sole context-decision authority while AtMem owns
+host delivery and flight evidence. The proposal binds one signed inject or
+withhold result to the exact run, turn, session, agent, user, and workspace. It
+also keeps provider authorization distinct from AtMem's observation that the
+host exposed the approved bytes.
+
+This mode is **not implemented** by the current generic or OpenClaw adapters.
+See the [delegated context-provider v1 proposal](contracts/delegated-context-provider-v1.md)
+for the closed schema, signed fixtures, replay rules, and conformance cases.
