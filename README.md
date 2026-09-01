@@ -451,6 +451,7 @@ system-of-record verification.
 
 - [Current implementation status](docs/current-status.md)
 - [Generic runtime adapter](docs/generic-adapter.md)
+- [Proposed delegated context-provider contract](docs/contracts/delegated-context-provider-v1.md)
 - [Agent Black Box](docs/agent-blackbox.md)
 - [Integration guide](docs/integration-guide.md)
 - [OpenClaw setup](docs/openclaw-setup.md)
