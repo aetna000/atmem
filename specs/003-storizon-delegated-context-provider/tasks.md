@@ -49,7 +49,7 @@
 - [x] T027 Run all Python and OpenClaw typecheck/build/test/smoke suites and the deterministic release gate; record exact results here (SC-001–SC-005)
 - [x] T028 Bump Python to `2.2.6b1` and OpenClaw npm to `2.2.6-beta.1`, add release notes, and verify version consistency without changing AtBot independently in `pyproject.toml`, package metadata, and adapter metadata (FR-018)
 - [x] T029 Build and inspect isolated wheel/sdist/npm artifacts, verify licenses and contents, install clean, upgrade from AtMem 2.2.5, and rerun native plus delegated installed-artifact smoke tests (FR-016–FR-018, SC-006, SC-008)
-- [ ] T030 Commit and push the `storizon` branch, publish the verified `2.2.6b1` Python prerelease and npm beta only when their respective tested artifacts changed, tag consistently, and verify public installation metadata (FR-018, SC-008)
+- [x] T030 Commit and push the `storizon` branch, publish the verified `2.2.6b1` Python prerelease and npm beta only when their respective tested artifacts changed, tag consistently, and verify public installation metadata (FR-018, SC-008)
 
 ## Verification evidence
 
@@ -67,5 +67,7 @@
   versions and licenses; Twine checks, dependency checks, native installed-wheel
   smoke, delegated installed-wheel smoke, and a real 2.2.5-to-2.2.6b1 schema-v5
   upgrade smoke passed on Python 3.12.
-- Python 3.10–3.13 artifact execution and public metadata verification remain
-  part of T030's protected CI/publication gate.
+- 2026-09-04: protected CI passed Python 3.10–3.13, current framework,
+  OpenClaw, artifact, installed-wheel, and persisted-data upgrade gates. Public
+  metadata was verified for PyPI `atmem==2.2.6b1`, npm
+  `openclaw-memory-atmem@2.2.6-beta.1`, and GitHub prerelease tag `v2.2.6b1`.

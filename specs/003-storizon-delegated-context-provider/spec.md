@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/003-storizon-delegated-context-provider`
 **Created**: 2026-09-03
-**Status**: Implemented and locally verified; beta publication pending
+**Status**: Implemented, verified, and published as beta
 **Input**: Implement the provider-neutral delegated context-provider v1 contract proposed in PR #1, with Storizon as the first provider. Existing AtMem authority remains the default. Delegated mode is an explicit opt-in that lets Storizon remain the sole context-decision authority for a bound turn while AtMem owns host delivery and flight evidence.
 
 ## Overview
