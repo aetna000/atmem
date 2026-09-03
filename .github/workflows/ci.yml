@@ -138,6 +138,7 @@ jobs:
           python -m pip check
           cd "$RUNNER_TEMP"
           python "$GITHUB_WORKSPACE/tools/smoke_installed_package.py"
+          python "$GITHUB_WORKSPACE/tools/smoke_delegated_package.py"
 
   installed-atbot-wheel:
     runs-on: ubuntu-latest

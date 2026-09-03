@@ -1,6 +1,6 @@
 # AtMem
 
-[![Version 2.2.5](https://img.shields.io/badge/version-2.2.5-blue)](./docs/releases/v2.2.5.md)
+[![Version 2.2.6b1](https://img.shields.io/badge/version-2.2.6b1-blue)](./docs/releases/v2.2.6b1.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
@@ -15,7 +15,7 @@ authorizes, stores, scopes, injects, corrects, and deletes memory.
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --upgrade atmem==2.2.5
+python -m pip install --pre --upgrade atmem==2.2.6b1
 atmem atbot setup
 atmem atbot doctor
 atmem dashboard
@@ -43,7 +43,7 @@ connection. Do not install the npm package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.2.5
+python -m pip install --pre --upgrade atmem==2.2.6b1
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -66,7 +66,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.2.5'
+python -m pip install --pre 'atmem[pydantic-ai]==2.2.6b1'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -90,7 +90,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.2.5'
+python -m pip install --pre 'atmem[langgraph]==2.2.6b1'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -147,9 +147,30 @@ If AtBot or its selected model is unavailable, AtMem continues with safe local
 capture and hybrid ranking. Memory authority and agent operation do not depend
 on a hosted model.
 
-> **Release status:** this repository describes **AtMem 2.2.5**. AtBot is a
+> **Release status:** this repository describes **AtMem 2.2.6b1**. AtBot is a
 > separately packaged, headless component installed and managed by AtMem; it is
 > not an independent agent or a second memory authority.
+
+### Optional: let Storizon remain the context authority
+
+AtMem uses its own governed retrieval by default. The 2.2.6 beta adds an
+explicit, provider-neutral delegated mode for deployments where Storizon (or
+another compatible provider) must make the context decision while AtMem owns
+host integration and flight evidence.
+
+```bash
+atmem delegated register --help
+atmem delegated status
+atmem delegated enable storizon:local
+atmem delegated doctor
+```
+
+Registration is disabled by default and is bound to exact user, agent, and
+workspace scopes. On matching turns, AtMem verifies the signed result, injects
+the provider's exact bytes once, and separately proves delivery. It does not
+run native retrieval after an accepted delegated decision. Provider failure
+withholds context unless the operator explicitly registered native fallback.
+See the [delegated context-provider guide](docs/delegated-context-provider.md).
 
 It gives agent runtimes one governed memory source and one tamper-evident record
 of what the host observed: memory considered and injected, model boundaries,
@@ -166,7 +187,7 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install atmem==2.2.5
+python -m pip install --pre atmem==2.2.6b1
 atmem --version
 ```
 
@@ -174,7 +195,7 @@ AtMem requires Python 3.10 or newer. It always creates a dependency-free local
 vector sidecar; the semantic extra adds an optional local embedding upgrade:
 
 ```bash
-python -m pip install 'atmem[semantic]==2.2.5'
+python -m pip install --pre 'atmem[semantic]==2.2.6b1'
 ```
 
 For repository development, install both workspace packages:
@@ -354,7 +375,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --upgrade atmem==2.2.5
+python -m pip install --pre --upgrade atmem==2.2.6b1
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -451,7 +472,7 @@ system-of-record verification.
 
 - [Current implementation status](docs/current-status.md)
 - [Generic runtime adapter](docs/generic-adapter.md)
-- [Proposed delegated context-provider contract](docs/contracts/delegated-context-provider-v1.md)
+- [Delegated context-provider contract](docs/contracts/delegated-context-provider-v1.md)
 - [Agent Black Box](docs/agent-blackbox.md)
 - [Integration guide](docs/integration-guide.md)
 - [OpenClaw setup](docs/openclaw-setup.md)
@@ -506,7 +527,7 @@ npm test
 npm run smoke
 ```
 
-Current repository metadata is version **2.2.5**. Python and npm release
+Current repository metadata is version **2.2.6b1**. Python and npm release
 versions are intentionally kept equal because the OpenClaw installer pins the
 matching bridge.
 

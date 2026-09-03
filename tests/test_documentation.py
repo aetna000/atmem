@@ -63,9 +63,10 @@ def test_readme_puts_supported_quick_starts_front_and_center() -> None:
     assert "atmem atbot setup" in opening
     assert "atmem openclaw install" in opening
     assert "atmem openclaw upgrade" in opening
-    assert "atmem[pydantic-ai]==2.2.5" in opening
+    assert "atmem[pydantic-ai]==2.2.6b1" in opening
     assert "PydanticAIAtMemAdapter" in opening
-    assert "atmem[langgraph]==2.2.5" in opening
+    assert "atmem[langgraph]==2.2.6b1" in opening
+    assert "atmem delegated register --help" in opening
     assert "create_langgraph_middleware" in opening
     assert "atmem control activate" in opening
     assert "atmem benchmark run --output benchmark.json" in opening
@@ -123,7 +124,7 @@ def test_development_docs_match_companion_packaging() -> None:
     assert companion["required_distribution_dependency"] is True
     assert companion["separate_process"] is True
     assert companion["canonical_storage"] is False
-    assert capabilities["release_status"] == "released"
+    assert capabilities["release_status"] == "beta"
 
     active_guides = (
         ROOT / "README.md",
@@ -161,6 +162,42 @@ def test_semantic_docs_match_automatic_governed_vectors() -> None:
         capabilities["semantic_governance"]
         == "candidate_nomination_with_canonical_revalidation"
     )
+
+
+def test_delegated_mode_guide_covers_the_operator_lifecycle() -> None:
+    guide = (ROOT / "docs" / "delegated-context-provider.md").read_text(
+        encoding="utf-8"
+    )
+    openclaw = (ROOT / "docs" / "openclaw-setup.md").read_text(encoding="utf-8")
+
+    for section in (
+        "## Choose the authority mode",
+        "## Requirements",
+        "## Complete request and return path",
+        "## Inspect what happened",
+        "## Failure behavior",
+        "## Disable, remove, or rotate trust",
+        "## Provider implementers",
+    ):
+        assert section in guide
+    for command in (
+        "atmem delegated register",
+        "atmem delegated self-test",
+        "atmem delegated enable",
+        "atmem delegated doctor",
+        "atmem delegated disable",
+        "atmem delegated remove",
+        "atmem blackbox verify",
+    ):
+        assert command in guide
+    assert "Native AtMem retrieval remains the default" in guide
+    assert "Storizon is not bundled with AtMem" in guide
+    assert "does not enable delegation" in guide
+    assert "AtMem never performs native retrieval" in guide
+    assert "Authorization alone is not delivery proof" in guide
+    assert "Missing authenticated user" in guide
+    assert "delegatedContext.userId" in openclaw
+    assert "one exact `prependContext` segment" in openclaw
 
 
 def test_public_product_namespace_is_atmem_only() -> None:

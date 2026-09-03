@@ -2675,6 +2675,9 @@ class ControlPlaneManager:
         *,
         session_id: str | None = None,
         host_run_id: str | None = None,
+        turn_id: str | None = None,
+        user_id: str | None = None,
+        workspace_id: str | None = None,
         limit: int = 3,
         max_chars: int = 1200,
         min_score: float = 0.3,
@@ -2689,6 +2692,95 @@ class ControlPlaneManager:
         )
         store = self._store(state)
         try:
+            from atmem.delegated import DelegatedBinding, DelegatedContextService
+
+            delegated_service = DelegatedContextService()
+            delegated_decision: dict[str, Any] | None = None
+            if delegated_service.config.has_enabled_for_agent(agent_id):
+                missing = [
+                    name
+                    for name, value in (
+                        ("host_run_id", host_run_id),
+                        ("turn_id", turn_id),
+                        ("session_id", session_id),
+                        ("agent_id", agent_id),
+                        ("user_id", user_id),
+                        ("workspace_id", workspace_id),
+                    )
+                    if not value
+                ]
+                if missing:
+                    return {
+                        **self._no_context(
+                            state,
+                            "delegated context failed closed: missing " + ", ".join(missing),
+                        ),
+                        "authority": "delegated",
+                        "decision": "provider_failure",
+                        "native_fallback": False,
+                    }
+                if not state.mode.influences_agent:
+                    return {
+                        **self._no_context(state, "delegated context requires active mode"),
+                        "authority": "delegated",
+                        "decision": "withhold",
+                        "native_fallback": False,
+                    }
+                topology = self.agent_topology(state=state)
+                scoped_agent = next(
+                    (
+                        row for row in topology.get("agents") or []
+                        if str(row.get("agent_id") or "") == agent_id
+                    ),
+                    None,
+                )
+                if scoped_agent is None or str(scoped_agent.get("workspace_id") or "") != workspace_id:
+                    return {
+                        **self._no_context(
+                            state,
+                            "delegated context failed closed: agent and workspace are not bound by AtMem topology",
+                        ),
+                        "authority": "delegated",
+                        "decision": "provider_failure",
+                        "native_fallback": False,
+                    }
+                binding = DelegatedBinding.from_dict(
+                    {
+                        "run_id": host_run_id,
+                        "turn_id": turn_id,
+                        "session_id": session_id,
+                        "agent_id": agent_id,
+                        "user_id": user_id,
+                        "workspace_id": workspace_id,
+                    }
+                )
+                delegated_decision = delegated_service.prepare(
+                    query=query,
+                    binding=binding,
+                    migration_id=state.migration_id,
+                    store=store,
+                )
+                if delegated_decision and not delegated_decision.get("native_fallback"):
+                    delegated_reason = delegated_decision.get("withhold_reason")
+                    if isinstance(delegated_reason, dict):
+                        delegated_reason = delegated_reason.get("code")
+                    return {
+                        **self._no_context(
+                            state,
+                            delegated_reason
+                            or delegated_decision.get("failure_reason")
+                            or "delegated provider withheld context",
+                        ),
+                        **delegated_decision,
+                        "mode": state.mode.value,
+                        "context_receipt_id": (
+                            (delegated_decision.get("receipt") or {}).get("id")
+                        ),
+                        "manifest_sha256": delegated_decision.get("result_sha256"),
+                        "preview_context": delegated_decision.get("context", ""),
+                        "candidate_ids": [],
+                    }
+
             from atmem.control.atbot_companion import AtBotCompanionClient
             from atmem.contracts import ContextRequest
             from atmem.memory import Memory
@@ -2787,6 +2879,12 @@ class ControlPlaneManager:
                     mode=state.mode.value,
                 )
             return {
+                "authority": (
+                    "atmem_fallback" if delegated_decision else "atmem"
+                ),
+                "decision": "native_context",
+                "native_fallback": bool(delegated_decision),
+                "delegated": delegated_decision,
                 "mode": state.mode.value,
                 "turn_id": turn["id"],
                 "preview_id": preview["id"],

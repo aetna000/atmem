@@ -1,8 +1,9 @@
 # Current implementation status
 
-Updated: 1 September 2026
+Updated: 4 September 2026
 
-Repository metadata and the matched OpenClaw bridge are version **2.2.5**.
+Repository metadata is **2.2.6b1** and the matched OpenClaw bridge is
+**2.2.6-beta.1**.
 The required `atmem-atbot==0.1.0a4` companion is published separately and
 installed automatically with AtMem.
 
@@ -35,6 +36,7 @@ The release has four runtime boundaries:
 | Persistent shared, isolated, and nested workspace scopes | Explicit registration | Automatic discovery and mirror binding |
 | Memory chat, provenance, storage, review, audit, topology and flight UI | One loopback dashboard | Same dashboard |
 | AtBot provider/model/lifecycle configuration | Collapsed dashboard settings and CLI | Same dashboard and CLI |
+| Optional signed delegated context authority | Provider-neutral control contract; host must prove exact delivery | Implemented with Storizon as the first intended provider; disabled by default |
 | Raw prompt/response/tool evidence | Not stored by default | Not stored by Black Box |
 | Semantic answer validation | Not implemented | Not implemented |
 | Independent external outcome proof | Accepts linked receipts; external verifier required | Same |
@@ -65,8 +67,10 @@ The release has four runtime boundaries:
 
 - AtMem verifies retained canonical state, derived-index bindings, memory and
   evidence chains, and closure/correlation of events a runtime reports.
-- Semantic or AtBot output may nominate and order records but cannot admit,
-  authorize, promote, correct, forget, or inject memory.
+- In native mode, semantic or AtBot output may nominate and order records but
+  cannot admit, authorize, promote, correct, forget, or inject memory. In the
+  separately named delegated mode, a scoped provider authorizes context while
+  AtMem enforces trust, binding, replay, exact delivery, and evidence contracts.
 - A generic integration cannot independently prove that its host truthfully
   injected context or completed an external action.
 - OpenClaw is the only adapter in this repository that automates native-state
@@ -77,7 +81,7 @@ The release has four runtime boundaries:
 ## Upgrade and support status
 
 - The release workflow creates persisted data with public AtMem 2.1.0, 2.2.3,
-  and 2.2.4, upgrades each environment to 2.2.5, and verifies record identity, recall, audit
+  2.2.4, and 2.2.5, upgrades each environment to 2.2.6b1, and verifies record identity, recall, audit
   integrity, control migration identity, candidate retention, schema migration,
   and automatic vector-sidecar creation before publication.
 - Existing OpenClaw installations upgrade the bridge with

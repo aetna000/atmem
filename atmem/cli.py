@@ -201,6 +201,61 @@ AtMem stores the variable name, never the key.""",
                 "--force", action="store_true", help="Replace the existing AtBot configuration"
             )
 
+    delegated_parser = subparsers.add_parser(
+        "delegated",
+        help="Optionally trust an external context authority such as Storizon",
+        description=(
+            "Native AtMem authority remains the default. Registration never enables "
+            "delegation; opt in separately for explicit user, agent, and workspace scopes."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Example:
+  atmem delegated register --provider-id storizon --provider-version 1.0 \
+    --instance-id local --key-id primary --public-key-file storizon.pub \
+    --endpoint http://127.0.0.1:8788/v1/delegated-context \
+    --workspace ws_123 --agent main --user local-owner
+  atmem delegated enable storizon:local
+  atmem delegated doctor
+
+Failure is closed by default. Add --native-fallback only if the operator explicitly
+wants AtMem to resume native context preparation when the provider fails.""",
+    )
+    delegated_commands = delegated_parser.add_subparsers(dest="delegated_command")
+    delegated_register = delegated_commands.add_parser(
+        "register", help="Register trust and exact scopes; remains disabled"
+    )
+    delegated_register.add_argument("--provider-id", default="storizon")
+    delegated_register.add_argument("--provider-version", required=True)
+    delegated_register.add_argument("--instance-id", required=True)
+    delegated_register.add_argument("--key-id", required=True)
+    delegated_register.add_argument("--public-key-file", required=True)
+    delegated_register.add_argument("--endpoint", required=True)
+    delegated_register.add_argument("--workspace", action="append", required=True)
+    delegated_register.add_argument("--agent", action="append", required=True)
+    delegated_register.add_argument("--user", action="append", required=True)
+    delegated_register.add_argument("--timeout-ms", type=int, default=3000)
+    delegated_register.add_argument("--max-context-bytes", type=int, default=262144)
+    delegated_register.add_argument("--native-fallback", action="store_true")
+    delegated_register.add_argument("--replace", action="store_true")
+    delegated_register.add_argument("--json", action="store_true")
+    for name, help_text in (
+        ("enable", "Explicitly enable one registered provider scope"),
+        ("disable", "Return one provider scope to native AtMem authority"),
+        ("remove", "Remove one disabled provider registration"),
+    ):
+        command_parser = delegated_commands.add_parser(name, help=help_text)
+        command_parser.add_argument("registration_id")
+        command_parser.add_argument("--json", action="store_true")
+        if name == "remove":
+            command_parser.add_argument("--yes", action="store_true")
+    for name, help_text in (
+        ("status", "Show authority mode, safe scopes, and next action"),
+        ("doctor", "Check trust, configuration, and activation safety"),
+        ("self-test", "Verify local signature and configuration primitives"),
+    ):
+        command_parser = delegated_commands.add_parser(name, help=help_text)
+        command_parser.add_argument("--json", action="store_true")
+
     benchmark_parser = subparsers.add_parser(
         "benchmark",
         help="Run reproducible memory-quality gates and compare external results",
@@ -821,6 +876,13 @@ External evaluation:
             atbot_parser.print_help()
             return
         _run_atbot(args)
+        return
+
+    if args.command == "delegated":
+        if args.delegated_command is None:
+            delegated_parser.print_help()
+            return
+        _run_delegated(args)
         return
 
     if args.command == "benchmark":
@@ -1906,6 +1968,78 @@ def _run_atbot(args: argparse.Namespace) -> None:
             print(action)
 
 
+def _run_delegated(args: argparse.Namespace) -> None:
+    from atmem.delegated import (
+        DelegatedConfigStore,
+        DelegatedContextService,
+        DelegatedRegistration,
+    )
+
+    config = DelegatedConfigStore()
+    service = DelegatedContextService(config)
+    command = args.delegated_command
+    try:
+        if command == "register":
+            key_path = Path(args.public_key_file).expanduser()
+            if key_path.is_symlink() or not key_path.is_file():
+                raise ValueError("public key file must be a regular, non-symlink file")
+            public_key = key_path.read_text(encoding="utf-8").strip()
+            result = config.register(
+                DelegatedRegistration(
+                    provider_id=args.provider_id,
+                    provider_version=args.provider_version,
+                    provider_instance_id=args.instance_id,
+                    key_id=args.key_id,
+                    public_key_base64=public_key,
+                    endpoint=args.endpoint,
+                    workspace_ids=tuple(args.workspace),
+                    agent_ids=tuple(args.agent),
+                    user_ids=tuple(args.user),
+                    timeout_ms=args.timeout_ms,
+                    max_context_bytes=args.max_context_bytes,
+                    enabled=False,
+                    native_fallback_on_failure=bool(args.native_fallback),
+                ),
+                replace=bool(args.replace),
+            )
+        elif command in {"enable", "disable"}:
+            result = config.set_enabled(args.registration_id, command == "enable")
+        elif command == "remove":
+            current = next(
+                (row for row in config.registrations() if row.registration_id == args.registration_id),
+                None,
+            )
+            if current is None:
+                raise ValueError("delegated provider registration was not found")
+            if current.enabled:
+                raise ValueError("disable the delegated provider before removing it")
+            if not args.yes:
+                raise ValueError("removal requires --yes")
+            result = {"removed": config.remove(args.registration_id), "registration_id": args.registration_id}
+        elif command == "status":
+            result = service.status()
+        elif command == "doctor":
+            result = service.doctor()
+        elif command == "self-test":
+            result = service.self_test()
+        else:  # pragma: no cover
+            raise ValueError(f"unknown delegated command: {command}")
+    except (OSError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True, default=str))
+        return
+    if command == "register":
+        print(f"Registered {result['registration_id']} (disabled).")
+        print(f"Enable explicitly: atmem delegated enable {result['registration_id']}")
+    elif command in {"enable", "disable"}:
+        authority = "delegated" if result["enabled"] else "native AtMem"
+        print(f"Context authority for this scope: {authority}")
+    elif command == "remove":
+        print(f"Removed {result['registration_id']}")
+    else:
+        print(json.dumps(result, indent=2, sort_keys=True, default=str))
 def _interactive_atbot_setup(manager: Any) -> dict[str, Any]:
     from atmem.control.atbot_service import PROVIDER_PROFILES
 

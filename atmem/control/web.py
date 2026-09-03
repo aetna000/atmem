@@ -105,6 +105,19 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 },
             )
             return
+        if path in {"/api/delegated/status", "/api/delegated/doctor", "/api/delegated/self-test"}:
+            from atmem.delegated import DelegatedContextService
+
+            service = DelegatedContextService()
+            value = (
+                service.status()
+                if path.endswith("/status")
+                else service.doctor()
+                if path.endswith("/doctor")
+                else service.self_test()
+            )
+            self._json(HTTPStatus.OK, value)
+            return
         if path == "/api/storage/preview":
             params = parse_qs(parsed.query)
             storage_id = (params.get("id") or [""])[0].strip()
@@ -480,6 +493,79 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 else:
                     raise ValueError("action must be start, stop, restart, or skip")
                 self._json(HTTPStatus.OK, result)
+                return
+            if path == "/api/delegated/action":
+                from atmem.delegated import DelegatedConfigStore
+
+                if set(body) - {"action", "registration_id", "confirm_registration_id"}:
+                    raise ValueError("unsupported delegated action fields")
+                action = str(body.get("action") or "")
+                registration_id = str(body.get("registration_id") or "").strip()
+                if action not in {"enable", "disable", "remove"}:
+                    raise ValueError("action must be enable, disable, or remove")
+                if not registration_id:
+                    raise ValueError("registration_id is required")
+                config = DelegatedConfigStore()
+                if action == "remove":
+                    if not secrets.compare_digest(
+                        str(body.get("confirm_registration_id") or ""), registration_id
+                    ):
+                        raise ValueError("registration confirmation does not match")
+                    current = next(
+                        (row for row in config.registrations() if row.registration_id == registration_id),
+                        None,
+                    )
+                    if current is None:
+                        raise ValueError("delegated provider registration was not found")
+                    if current.enabled:
+                        raise ValueError("disable the delegated provider before removing it")
+                    result = {"removed": config.remove(registration_id)}
+                else:
+                    result = config.set_enabled(registration_id, action == "enable")
+                self._json(
+                    HTTPStatus.OK,
+                    {"result": result, "status": config.status()},
+                )
+                return
+            if path == "/api/delegated/register":
+                from atmem.delegated import DelegatedConfigStore, DelegatedRegistration
+
+                allowed = {
+                    "provider_id", "provider_version", "provider_instance_id",
+                    "key_id", "public_key_base64", "endpoint", "workspace_ids",
+                    "agent_ids", "user_ids", "timeout_ms", "max_context_bytes",
+                    "native_fallback_on_failure", "replace",
+                }
+                if set(body) - allowed:
+                    raise ValueError("unsupported delegated registration fields")
+                def identifiers(name: str) -> tuple[str, ...]:
+                    value = body.get(name)
+                    if not isinstance(value, list):
+                        raise ValueError(f"{name} must be a list")
+                    return tuple(str(item).strip() for item in value)
+                config = DelegatedConfigStore()
+                registered = config.register(
+                    DelegatedRegistration(
+                        provider_id=str(body.get("provider_id") or "storizon").strip(),
+                        provider_version=str(body.get("provider_version") or "").strip(),
+                        provider_instance_id=str(body.get("provider_instance_id") or "").strip(),
+                        key_id=str(body.get("key_id") or "").strip(),
+                        public_key_base64=str(body.get("public_key_base64") or "").strip(),
+                        endpoint=str(body.get("endpoint") or "").strip(),
+                        workspace_ids=identifiers("workspace_ids"),
+                        agent_ids=identifiers("agent_ids"),
+                        user_ids=identifiers("user_ids"),
+                        timeout_ms=int(body.get("timeout_ms") or 3000),
+                        max_context_bytes=int(body.get("max_context_bytes") or 262144),
+                        enabled=False,
+                        native_fallback_on_failure=bool(body.get("native_fallback_on_failure", False)),
+                    ),
+                    replace=bool(body.get("replace", False)),
+                )
+                self._json(
+                    HTTPStatus.OK,
+                    {"registered": registered, "status": config.status()},
+                )
                 return
             if path == "/api/memory/review":
                 record_id = str(body.get("record_id") or "").strip()

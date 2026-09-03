@@ -85,6 +85,10 @@ interface PluginConfig {
     statePath: string;
     blackboxEnabled: boolean;
   };
+  delegatedContext: {
+    userId: string;
+    requireOwner: boolean;
+  };
 }
 
 function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
@@ -114,6 +118,10 @@ function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
     ),
     blackboxEnabled:
       cfg.controlPlane?.enabled === true || cfg.controlPlane?.blackboxEnabled === true,
+  };
+  const delegatedContext = {
+    userId: String(cfg.delegatedContext?.userId ?? "").trim(),
+    requireOwner: cfg.delegatedContext?.requireOwner !== false,
   };
   return {
     command: String(cfg.command ?? "atmem"),
@@ -152,6 +160,7 @@ function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
     },
     tools: { enabled: cfg.tools?.enabled !== false },
     controlPlane,
+    delegatedContext,
   };
 }
 
@@ -430,6 +439,10 @@ function register(api: OpenClawPluginApi): void {
       contextReceiptId?: string;
       assistantVisibleTextSha256?: string;
       modelOutputBundleSha256?: string;
+      delegatedContext?: string;
+      delegatedContextSha256?: string;
+      delegatedAuthority?: string;
+      delegatedResultSha256?: string;
     }
   >();
   const observedTurnInputs = new Map<
@@ -456,6 +469,15 @@ function register(api: OpenClawPluginApi): void {
       return mapped;
     }
     return cfg.subject;
+  };
+  const workspaceIdFor = (ctx: OpenClawHookCtx): string | undefined => {
+    const workspace = cfg.agentWorkspaces[agentIdFor(ctx)];
+    return workspace ? `ws_${digestText(workspace).slice(0, 16)}` : undefined;
+  };
+  const delegatedUserIdFor = (ctx: OpenClawHookCtx): string | undefined => {
+    if (!cfg.delegatedContext.userId) return undefined;
+    if (cfg.delegatedContext.requireOwner && ctx.senderIsOwner !== true) return undefined;
+    return cfg.delegatedContext.userId;
   };
   const scopedKey = (value: string, ctx: OpenClawHookCtx): string =>
     `${agentIdFor(ctx)}:${value}`;
@@ -527,6 +549,7 @@ function register(api: OpenClawPluginApi): void {
           event_type: eventType,
           run_id: flightRunId(eventRunId, ctx),
           agent_id: agentIdFor(ctx),
+          workspace_id: workspaceIdFor(ctx),
           subject_id: Object.keys(cfg.agentSubjects).length ? subjectFor(ctx) : undefined,
           session_id: ctx.sessionId ?? ctx.sessionKey,
           tool_call_id: toolCallId,
@@ -739,6 +762,52 @@ function register(api: OpenClawPluginApi): void {
   });
 
   api.on("llm_input", async (event: LlmInputEvent, ctx) => {
+    const sessionKey = scopedKey(
+      ctx.sessionKey ?? ctx.sessionId ?? event.sessionId ?? "default-session",
+      ctx,
+    );
+    const pending = pendingPrompts.get(sessionKey);
+    if (pending?.delegatedContext !== undefined) {
+      const exact = pending.delegatedContext;
+      const promptOccurrences = exact ? event.prompt.split(exact).length - 1 : 0;
+      const systemOccurrences = exact
+        ? (event.systemPrompt ?? "").split(exact).length - 1
+        : 0;
+      const occurrences = promptOccurrences + systemOccurrences;
+      const deliveredLocation = promptOccurrences === 1
+        ? "prompt"
+        : systemOccurrences === 1
+          ? "systemPrompt"
+          : "none";
+      const delivered = occurrences === 1 && digestText(exact) === pending.delegatedContextSha256;
+      await recordBlackbox(
+        "context.injected",
+        event.runId,
+        ctx,
+        {
+          disposition: delivered ? "injected" : "recall_failed",
+          provider: pending.delegatedAuthority,
+          result_sha256: pending.delegatedResultSha256,
+          context_sha256: pending.delegatedContextSha256,
+          context_chars: exact.length,
+          context_byte_length: Buffer.byteLength(exact, "utf8"),
+          context_location: deliveredLocation,
+          success: delivered,
+          reason: delivered ? undefined : `expected one exact delegated segment; observed ${occurrences}`,
+        },
+        undefined,
+        { contextReceiptId: pending.contextReceiptId },
+      );
+      if (delivered && pending.exposureId) {
+        await callFor(
+          ctx,
+          "control_exposure_shown",
+          { exposure_id: pending.exposureId },
+          cfg.recall.timeoutMs,
+        );
+      }
+      pendingPrompts.set(sessionKey, { ...pending, delegatedContext: undefined });
+    }
     await recordBlackbox("model.input", event.runId, ctx, {
       provider: event.provider,
       model: event.model,
@@ -912,7 +981,15 @@ function register(api: OpenClawPluginApi): void {
         const prepared = (await callFor(
           ctx,
           "control_prepare",
-          { query: userText, session_id: sessionKey, agent_id: agentIdFor(ctx) },
+          {
+            query: userText,
+            session_id: sessionKey,
+            host_run_id: ctx.runId,
+            turn_id: ctx.runId,
+            agent_id: agentIdFor(ctx),
+            user_id: delegatedUserIdFor(ctx),
+            workspace_id: workspaceIdFor(ctx),
+          },
           cfg.recall.timeoutMs,
         )) as {
           inject?: boolean;
@@ -924,13 +1001,59 @@ function register(api: OpenClawPluginApi): void {
           manifest_sha256?: string;
           turn_id?: string;
           context_receipt_id?: string;
+          context_sha256?: string;
+          authority?: string;
+          decision?: string;
+          result_sha256?: string;
+          native_fallback?: boolean;
+          receipt?: { id?: string; sha256?: string };
+          provider?: { id?: string; version?: string; instance_id?: string };
         };
         pendingPrompts.set(sessionKey, {
           text: userText,
           ts: Date.now(),
           exposureId: prepared.exposure_id,
           contextReceiptId: prepared.context_receipt_id,
+          delegatedContext:
+            prepared.authority === "delegated" && prepared.inject
+              ? prepared.context ?? ""
+              : undefined,
+          delegatedContextSha256:
+            prepared.authority === "delegated" ? prepared.context_sha256 : undefined,
+          delegatedAuthority: prepared.authority,
+          delegatedResultSha256: prepared.result_sha256,
         });
+        if (
+          prepared.authority === "delegated" &&
+          prepared.inject &&
+          (
+            !prepared.context ||
+            !prepared.context_sha256 ||
+            digestText(prepared.context) !== prepared.context_sha256
+          )
+        ) {
+          throw new Error("delegated context failed exact handoff digest validation");
+        }
+        if (prepared.authority === "delegated" || prepared.authority === "atmem_fallback") {
+          await recordBlackbox(
+            "context.provider_authorization",
+            undefined,
+            ctx,
+            {
+              disposition: prepared.decision ?? "provider_failure",
+              provider: prepared.provider?.id,
+              mode: prepared.authority,
+              result_sha256: prepared.result_sha256,
+              context_sha256: prepared.context_sha256,
+              context_byte_length: Buffer.byteLength(prepared.context ?? "", "utf8"),
+              context_receipt_sha256: prepared.receipt?.sha256,
+              context_chars: (prepared.context ?? "").length,
+              success: prepared.decision === "inject" || prepared.decision === "withhold",
+            },
+            undefined,
+            { contextReceiptId: prepared.context_receipt_id },
+          );
+        }
         await recordBlackbox(
           "context.disposition",
           undefined,
@@ -943,14 +1066,20 @@ function register(api: OpenClawPluginApi): void {
                 : "no_relevant_memory",
             context_sha256: digestText(prepared.context ?? ""),
             context_block_sha256: digestText(prepared.context ?? ""),
-            context_envelope_sha256: digestJson({ appendContext: prepared.context ?? "" }),
+            context_envelope_sha256: digestJson(
+              prepared.authority === "delegated"
+                ? { prependContext: prepared.context ?? "" }
+                : { appendContext: prepared.context ?? "" },
+            ),
             context_receipt_sha256: prepared.manifest_sha256,
             digest_profile: "atmem-context-envelope-canonical-json-v1",
             context_chars: (prepared.context ?? "").length,
             candidate_ids: prepared.candidate_ids ?? [],
             exposure_id: prepared.exposure_id,
             mode: prepared.mode,
-            context_location: prepared.inject ? "appendContext" : "none",
+            context_location: prepared.inject
+              ? prepared.authority === "delegated" ? "prependContext" : "appendContext"
+              : "none",
           },
           undefined,
           {
@@ -961,7 +1090,9 @@ function register(api: OpenClawPluginApi): void {
           api.logger.info(
             `${TAG} memory control plane ${prepared.mode ?? "active"} context exposed`,
           );
-          return { appendContext: prepared.context };
+          return prepared.authority === "delegated"
+            ? { prependContext: prepared.context }
+            : { appendContext: prepared.context };
         }
         return;
       } catch (error) {

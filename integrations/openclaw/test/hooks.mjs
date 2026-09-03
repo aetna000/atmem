@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -313,6 +313,131 @@ try {
   assert.equal(legacyInjection.appendContext, undefined);
   assert.equal(legacyInjection.appendSystemContext, undefined);
   for (const service of legacy.services) await service.stop?.();
+
+  // Delegated context is an exclusive, exact prepend contribution. The
+  // adapter keeps it only until llm_input proves one exact occurrence.
+  const delegatedLog = path.join(dataDir, "delegated-rpc.jsonl");
+  const delegatedServer = path.join(dataDir, "delegated-mcp.py");
+  const exactDelegated = "Reviewed context 🧠\r\nKeep these bytes.";
+  writeFileSync(delegatedServer, `#!/usr/bin/env python3
+import json, sys
+LOG = ${JSON.stringify(delegatedLog)}
+EXACT = ${JSON.stringify(exactDelegated)}
+for line in sys.stdin:
+    request = json.loads(line)
+    if request.get("method") == "notifications/initialized":
+        continue
+    if request.get("method") == "initialize":
+        result = {"protocolVersion":"2025-06-18","capabilities":{},"serverInfo":{"name":"fake","version":"1"}}
+    elif request.get("method") == "tools/call":
+        params = request.get("params") or {}
+        name = params.get("name")
+        with open(LOG, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps({"name": name, "arguments": params.get("arguments")}, separators=(",", ":")) + "\\n")
+        if name == "control_prepare":
+            arguments = params.get("arguments") or {}
+            query = arguments.get("query") or ""
+            if not arguments.get("user_id"):
+                value = {"inject":False,"context":"","authority":"delegated","decision":"provider_failure","mode":"active","candidate_ids":[],"reason":"missing authenticated user"}
+            elif "withhold" in query:
+                value = {"inject":False,"context":"","authority":"delegated","decision":"withhold","mode":"active","candidate_ids":[],"context_receipt_id":"receipt-withhold"}
+            elif "reject" in query:
+                value = {"inject":False,"context":"","authority":"delegated","decision":"provider_failure","mode":"active","candidate_ids":[],"reason":"signature verification failed"}
+            elif "corrupt" in query:
+                value = {"inject":True,"context":EXACT,"context_sha256":"${"0".repeat(64)}","authority":"delegated","decision":"inject","result_sha256":"${"e".repeat(64)}","exposure_id":"delivery-corrupt","context_receipt_id":"receipt-corrupt","receipt":{"id":"receipt-corrupt","sha256":"${"f".repeat(64)}"},"provider":{"id":"storizon","version":"test","instance_id":"local"},"mode":"active","candidate_ids":[]}
+            elif "fallback" in query:
+                value = {"inject":True,"context":"native fallback context","authority":"atmem_fallback","decision":"native_context","native_fallback":True,"mode":"active","candidate_ids":["native-1"]}
+            else:
+                value = {"inject":True,"context":EXACT,"context_sha256":"${createHash("sha256").update(exactDelegated).digest("hex")}","authority":"delegated","decision":"inject","result_sha256":"${"c".repeat(64)}","exposure_id":"delivery-1","context_receipt_id":"receipt-1","receipt":{"id":"receipt-1","sha256":"${"d".repeat(64)}"},"provider":{"id":"storizon","version":"test","instance_id":"local"},"mode":"active","candidate_ids":[]}
+        else:
+            value = {"ok": True}
+        result = {"content":[{"type":"text","text":json.dumps(value, separators=(",", ":"))}],"isError":False}
+    else:
+        result = {}
+    print(json.dumps({"jsonrpc":"2.0","id":request.get("id"),"result":result}, separators=(",", ":")), flush=True)
+`);
+  chmodSync(delegatedServer, 0o700);
+  const delegatedRuntime = fakeApi({
+    ...base,
+    command: delegatedServer,
+    controlPlane: { enabled: true, statePath: path.join(dataDir, "unused-state.json") },
+    agentWorkspaces: { main: path.join(dataDir, "delegated-workspace") },
+    delegatedContext: { userId: "owner", requireOwner: true },
+  });
+  const delegatedCtx = {
+    agentId: "main",
+    sessionKey: "delegated-session",
+    sessionId: "delegated-session",
+    runId: "delegated-run",
+    senderIsOwner: true,
+  };
+  const delegatedInsertion = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "What context should I use?" },
+    delegatedCtx,
+  );
+  assert.equal(delegatedInsertion.prependContext, exactDelegated);
+  assert.equal(delegatedInsertion.appendContext, undefined);
+  const delegatedModelInput = {
+    runId: "delegated-run",
+    sessionId: "delegated-session",
+    provider: "anthropic",
+    model: "test",
+    prompt: exactDelegated + "\nWhat context should I use?",
+    historyMessages: [],
+    imagesCount: 0,
+    tools: [],
+  };
+  await delegatedRuntime.hooks.get("llm_input")(delegatedModelInput, delegatedCtx);
+  await delegatedRuntime.hooks.get("llm_input")(delegatedModelInput, delegatedCtx);
+  const withheld = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "withhold this turn" },
+    { ...delegatedCtx, sessionKey: "withhold", sessionId: "withhold", runId: "withhold" },
+  );
+  assert.equal(withheld, undefined);
+  const rejected = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "reject invalid signed result" },
+    { ...delegatedCtx, sessionKey: "reject", sessionId: "reject", runId: "reject" },
+  );
+  assert.equal(rejected, undefined);
+  const corrupt = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "corrupt local handoff" },
+    { ...delegatedCtx, sessionKey: "corrupt", sessionId: "corrupt", runId: "corrupt" },
+  );
+  assert.equal(corrupt, undefined);
+  const fallback = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "fallback this turn" },
+    { ...delegatedCtx, sessionKey: "fallback", sessionId: "fallback", runId: "fallback" },
+  );
+  assert.equal(fallback.appendContext, "native fallback context");
+  assert.equal(fallback.prependContext, undefined);
+  const missingOwner = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "missing owner" },
+    { ...delegatedCtx, sessionKey: "missing", sessionId: "missing", runId: "missing", senderIsOwner: false },
+  );
+  assert.equal(missingOwner, undefined);
+  const delegatedCalls = readFileSync(delegatedLog, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  assert.equal(JSON.stringify(delegatedCalls).includes(exactDelegated), false);
+  assert.equal(
+    delegatedCalls.filter((row) =>
+      row.name === "control_record_blackbox_event" &&
+      row.arguments?.event_type === "context.injected"
+    ).length,
+    1,
+  );
+  const authorizationEvents = delegatedCalls.filter((row) =>
+    row.name === "control_record_blackbox_event" &&
+    row.arguments?.event_type === "context.provider_authorization"
+  );
+  assert.equal(authorizationEvents.length, 5);
+  assert.equal(authorizationEvents[0].arguments.context_receipt_id, "receipt-1");
+  assert.equal(
+    delegatedCalls.filter((row) => row.name === "control_prepare").length,
+    6,
+  );
+  for (const service of delegatedRuntime.services) await service.stop?.();
 
   const takeover = fakeApi({
     ...base,

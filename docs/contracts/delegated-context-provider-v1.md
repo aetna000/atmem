@@ -1,6 +1,6 @@
 # Delegated context-provider contract v1
 
-Status: proposed; not implemented AtMem behavior
+Status: implemented in the AtMem 2.2.6 beta; disabled by default
 
 Working contract ID: `atmem.delegated-context-provider.v1`
 
@@ -98,8 +98,9 @@ derived from prompt text. AtMem's existing `subject_id` is a memory-scope
 identifier and remains distinct. An adapter must define an explicit mapping or
 declare delegated mode unavailable when it cannot establish `user_id`.
 
-`source_refs` are optional opaque identifiers. AtMem neither dereferences nor
-trusts them and does not require raw source locators.
+`source_refs` is a required array that may be empty. Its entries are optional
+opaque identifiers; AtMem neither dereferences nor trusts them and does not
+require raw source locators.
 
 The JSON parser must reject duplicate object keys before schema validation;
 last-key-wins parsing is not an acceptable interpretation of a signed object.
@@ -279,13 +280,13 @@ AtMem implementation tests must additionally prove:
 - fallback occurs only under explicit configuration and is labeled
   AtMem-authorized.
 
-## 9. Open items before implementation
+## 9. Implemented beta profile
 
-1. Accept or rename the working contract ID.
-2. Define OpenClaw's authenticated `user_id` mapping without conflating it
-   with AtMem `subject_id`.
-3. Select the local provider command/endpoint, trust registration, timeout,
-   and fallback configuration shapes.
-4. Select event names for authorization, withholding/rejection, and delivery.
-5. Run these fixtures against the first implementation before describing
-   delegated mode as supported.
+The beta accepts this contract ID as written, uses an operator-configured
+OpenClaw owner-to-opaque-user mapping, restricts providers to bounded loopback
+HTTP, stores private trust configuration at mode `0600`, and records separate
+authorization and delivery evidence. Production Python validation runs every
+provided positive, negative, and stateful vector.
+
+The AtMem request is closed by
+[`delegated-context-request-v1.schema.json`](delegated-context-request-v1.schema.json).

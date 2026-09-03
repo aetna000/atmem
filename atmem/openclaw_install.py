@@ -17,7 +17,7 @@ from atmem.control.manager import DEFAULT_STATE_PATH, DEFAULT_CONTROL_ROOT
 
 OPENCLAW_PLUGIN_ID = "memory-atmem"
 OPENCLAW_PLUGIN_PACKAGE = "openclaw-memory-atmem"
-OPENCLAW_PLUGIN_VERSION = "2.2.5"
+OPENCLAW_PLUGIN_VERSION = "2.2.6-beta.1"
 _CONFIG_KEY = "plugins.entries.memory-atmem"
 
 

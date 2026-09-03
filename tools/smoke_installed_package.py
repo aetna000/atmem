@@ -11,6 +11,9 @@ import sys
 import tempfile
 
 
+EXPECTED_ATMEM_VERSION = "2.2.6b1"
+
+
 def run(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(args, check=True, capture_output=True, text=True)
 
@@ -21,7 +24,7 @@ def json_run(*args: str) -> object:
 
 def main() -> None:
     distribution = importlib.metadata.distribution("atmem")
-    assert distribution.version == "2.2.5"
+    assert distribution.version == EXPECTED_ATMEM_VERSION
     scripts = {
         entry.name: entry.value
         for entry in distribution.entry_points
@@ -31,7 +34,7 @@ def main() -> None:
 
     executable = Path(sys.executable).with_name("atmem")
     assert executable.is_file()
-    assert "2.2.5" in run(str(executable), "--version").stdout
+    assert EXPECTED_ATMEM_VERSION in run(str(executable), "--version").stdout
 
     with tempfile.TemporaryDirectory(prefix="atmem-wheel-smoke-") as temp:
         database = Path(temp) / "memory.db"

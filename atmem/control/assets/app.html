@@ -107,6 +107,35 @@
     </div>
   </details>
 
+  <details class="intelligenceconfig" id="contextAuthorityConfig">
+    <summary class="intelligencesummary">
+      <div class="intelligencesummarycopy"><b>Context authority</b><span>Native AtMem by default; optional delegated provider</span></div>
+      <div class="intelligencesummarymeta"><span class="statuspill" id="contextAuthorityStatus">Native AtMem</span><span class="settingshint">Settings <span aria-hidden="true">⌄</span></span></div>
+    </summary>
+    <div class="intelligencebody">
+      <div class="intelligencehead"><div><h2>Delegated context provider</h2><p class="sub" id="contextAuthorityGuidance">AtMem currently decides what context may reach your agent.</p></div></div>
+      <div id="contextAuthorityRegistrations" class="authorityregistrations"></div>
+      <div class="intelligenceactions"><button class="secondary" id="authorityDoctor" type="button">Check readiness</button><button class="secondary" id="authoritySelfTest" type="button">Run self-test</button></div>
+      <details class="technical authoritysetup"><summary>Register a trusted local provider</summary>
+        <div class="intelligencefields">
+          <label class="field"><span>Provider</span><input id="authorityProvider" value="storizon"></label>
+          <label class="field"><span>Version</span><input id="authorityVersion" placeholder="1.0"></label>
+          <label class="field"><span>Instance</span><input id="authorityInstance" placeholder="local"></label>
+          <label class="field"><span>Key ID</span><input id="authorityKeyId" placeholder="primary"></label>
+          <label class="field wide"><span>Loopback endpoint</span><input id="authorityEndpoint" value="http://127.0.0.1:8788/v1/delegated-context"></label>
+          <label class="field wide"><span>Ed25519 public key (base64)</span><input id="authorityPublicKey" autocomplete="off" spellcheck="false" placeholder="Public verification key — never a private key"></label>
+          <label class="field"><span>Workspace IDs</span><input id="authorityWorkspaces" placeholder="ws_123"></label>
+          <label class="field"><span>Agent IDs</span><input id="authorityAgents" placeholder="main"></label>
+          <label class="field"><span>User IDs</span><input id="authorityUsers" placeholder="local-owner"></label>
+          <label class="field authoritycheck"><span><input id="authorityFallback" type="checkbox"> Use native AtMem if provider fails</span></label>
+        </div>
+        <div class="intelligenceactions"><button class="primary" id="authorityRegister" type="button">Register disabled</button></div>
+      </details>
+      <div class="intelligencesecurity"><b>Explicit opt-in only.</b> Register trust and exact scopes here or in the CLI. AtMem verifies signed results, injects the exact bytes once, and records delivery without storing the delegated context.</div>
+      <div class="intelligenceguide"><code>atmem delegated register --help</code><button class="secondary compact" id="contextAuthorityCopy" type="button">Copy CLI command</button></div>
+    </div>
+  </details>
+
   <div class="tabpanel active" id="viewStatus">
   <div class="pageheading"><div><h1>Activity</h1><p>Every recorded agent session, memory change, and governed decision.</p></div></div>
 

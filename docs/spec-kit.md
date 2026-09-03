@@ -13,7 +13,7 @@ development workflow.
 
 Start a new Codex session after installing or refreshing the scaffold so the
 repository-local skills are discovered. Use a stable directory such as
-`specs/001-delegated-context-provider`, then run:
+`specs/003-storizon-delegated-context-provider`, then run:
 
 ```text
 $speckit-specify <feature outcome and motivation>

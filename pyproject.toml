@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atmem"
-version = "2.2.5"
+version = "2.2.6b1"
 description = "Host-neutral Agent Black Box and reversible memory control plane."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,7 +14,7 @@ authors = [{ name = "aetna000", email = "aetna000@gmail.com" }]
 maintainers = [{ name = "aetna000", email = "aetna000@gmail.com" }]
 keywords = ["agent-black-box", "agent-memory", "audit", "mcp", "provenance", "sqlite"]
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
+  "Development Status :: 4 - Beta",
   "Environment :: Console",
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",
@@ -28,6 +28,7 @@ classifiers = [
 ]
 dependencies = [
   "atmem-atbot==0.1.0a4",
+  "cryptography>=42,<49",
 ]
 
 [project.optional-dependencies]

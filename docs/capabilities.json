@@ -1,8 +1,8 @@
 {
   "product": "memory_control_plane",
-  "version": "2.2.5",
+  "version": "2.2.6b1",
   "development_target": null,
-  "release_status": "released",
+  "release_status": "beta",
   "engine": "model_agnostic",
   "canonical_authority": "atmem_only",
   "intelligence_companion": {
@@ -23,6 +23,13 @@
   "generic_runtime_hook_truthfulness": "host_responsibility",
   "reversible_switch_hosts": ["openclaw"],
   "context_control_hosts": ["generic", "openclaw"],
+  "delegated_context_provider": {
+    "status": "beta",
+    "default_enabled": false,
+    "initial_provider": "storizon",
+    "contract": "atmem.delegated-context-provider.v1",
+    "native_fallback_default": false
+  },
   "native_state_restore_hosts": ["openclaw"],
   "shadow_changes_agent_context": false,
   "active_replaces_openclaw_supplemental_memory": true,

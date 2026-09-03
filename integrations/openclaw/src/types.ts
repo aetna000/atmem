@@ -17,6 +17,7 @@ export interface OpenClawHookCtx {
   runId?: string;
   sessionKey?: string;
   sessionId?: string;
+  senderIsOwner?: boolean;
 }
 
 export interface BeforePromptBuildEvent {

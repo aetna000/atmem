@@ -118,6 +118,8 @@ background:var(--warn-soft);color:var(--warn)}.check span{font-size:12px;color:v
 .check.pending i:before{-webkit-mask-image:var(--icon-alert);mask-image:var(--icon-alert)}
 .notice{display:none;border:1px solid var(--bad);background:var(--bad-soft);color:var(--bad);
 border-radius:10px;padding:11px 13px;margin-bottom:16px}.notice.show{display:block}
+.authorityregistrations{display:grid;gap:10px;margin:12px 0}.authorityrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card-raised)}.authorityrow>div{min-width:0;flex:1}.authorityrow b,.authorityrow span{display:block}.authorityrow span{color:var(--muted);font-size:12px}.authorityrow .actions{flex:0 0 auto}
+.authoritysetup{margin:14px 0}.authoritysetup>summary{font-weight:750}.authoritysetup .intelligencefields{margin-top:14px}.authoritycheck{align-self:end}.authoritycheck input{width:auto;margin-right:8px}
 .progressbox{display:none;background:var(--card);border:1px solid var(--brand);
 border-radius:12px;padding:15px 17px;margin-bottom:16px;box-shadow:var(--shadow)}
 .progressbox.show{display:block}.progresshead{display:flex;justify-content:space-between;

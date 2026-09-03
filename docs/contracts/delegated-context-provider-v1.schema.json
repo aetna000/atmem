@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:atmem:delegated-context-provider:v1",
-  "title": "Proposed AtMem delegated context-provider result v1",
+  "title": "AtMem delegated context-provider result v1",
   "description": "An externally authorized, signed context result. It does not prove host delivery.",
   "type": "object",
   "additionalProperties": false,

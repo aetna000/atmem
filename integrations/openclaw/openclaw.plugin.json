@@ -2,7 +2,7 @@
   "id": "memory-atmem",
   "name": "Memory (atmem)",
   "description": "OpenClaw bridge installed and managed by the AtMem memory control plane.",
-  "version": "2.2.5",
+  "version": "2.2.6-beta.1",
   "commandAliases": ["memory-atmem"],
   "activation": {
     "onStartup": true,
@@ -133,6 +133,22 @@
             "type": "boolean",
             "default": false,
             "description": "Record content-minimizing agent flights through the private control protocol. Managed automatically by the AtMem installer."
+          }
+        }
+      },
+      "delegatedContext": {
+        "type": "object",
+        "description": "Identity mapping used only when AtMem has an explicitly enabled delegated context-provider registration. This does not enable delegation.",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "default": "",
+            "description": "Opaque authenticated user ID registered with AtMem. Leave empty unless delegated authority is configured."
+          },
+          "requireOwner": {
+            "type": "boolean",
+            "default": true,
+            "description": "Send the mapped user ID only when OpenClaw marks the sender as owner."
           }
         }
       }

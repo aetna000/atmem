@@ -206,11 +206,12 @@ mode, and activate safely without reading internal architecture documents.
 
 1. `specs/001-memory-quality-benchmarks`
 2. `specs/002-supporting-evidence-ranking`
-3. `specs/003-semantic-setup-and-health`
-4. `specs/004-memory-extraction-lifecycle`
-5. `specs/005-retrieval-quality-and-reranking`
-6. `specs/006-entity-relationship-memory`
-7. `specs/007-production-storage-backends`
-8. `specs/008-framework-adapter-conformance`
-9. `specs/009-http-api-and-typescript-sdk`
-10. `specs/010-production-service-profile`
+3. `specs/003-storizon-delegated-context-provider`
+4. `specs/004-semantic-setup-and-health`
+5. `specs/005-memory-extraction-lifecycle`
+6. `specs/006-retrieval-quality-and-reranking`
+7. `specs/007-entity-relationship-memory`
+8. `specs/008-production-storage-backends`
+9. `specs/009-framework-adapter-conformance`
+10. `specs/010-http-api-and-typescript-sdk`
+11. `specs/011-production-service-profile`

@@ -518,6 +518,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
             },
         },
     )
+    monkeypatch.setenv("ATMEM_DELEGATED_CONFIG", str(tmp_path / "delegated.json"))
     atbot_service = AtBotServiceManager(tmp_path / "atbot")
     monkeypatch.setattr(
         "atmem.control.atbot_service.AtBotServiceManager", lambda: atbot_service
@@ -552,12 +553,56 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         assert opener.open(f"{base}/api/status").status == 200
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.2.5"
+        assert product["atmem_npm_version"] == "2.2.6-beta.1"
         assert product["x_url"] == "https://x.com/AtMemX"
         profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
         assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])
         assert profiles["security"]["stores_api_keys"] is False
+        delegated = json.loads(opener.open(f"{base}/api/delegated/status").read())
+        assert delegated["authority_default"] == "atmem"
+        assert delegated["enabled"] is False
         setup_session = json.loads(opener.open(f"{base}/api/session").read())
+        public_key = base64.b64encode(b"\x01" * 32).decode("ascii")
+        register = Request(
+            f"{base}/api/delegated/register",
+            data=json.dumps(
+                {
+                    "provider_id": "storizon",
+                    "provider_version": "test",
+                    "provider_instance_id": "local",
+                    "key_id": "primary",
+                    "public_key_base64": public_key,
+                    "endpoint": "http://127.0.0.1:8788/v1/delegated-context",
+                    "workspace_ids": ["ws_test"],
+                    "agent_ids": ["main"],
+                    "user_ids": ["owner"],
+                }
+            ).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base,
+                "X-CSRF-Token": setup_session["csrf_token"],
+            },
+            method="POST",
+        )
+        registered = json.loads(opener.open(register).read())
+        assert registered["registered"]["enabled"] is False
+        assert public_key not in json.dumps(registered)
+        enable = Request(
+            f"{base}/api/delegated/action",
+            data=json.dumps(
+                {"action": "enable", "registration_id": "storizon:local"}
+            ).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base,
+                "X-CSRF-Token": setup_session["csrf_token"],
+            },
+            method="POST",
+        )
+        enabled = json.loads(opener.open(enable).read())
+        assert enabled["status"]["enabled"] is True
+        assert public_key not in json.dumps(enabled)
         configure = Request(
             f"{base}/api/companion/configure",
             data=json.dumps(
@@ -811,7 +856,12 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/companion/status",
         "/api/companion/profiles",
         "/api/companion/configure",
-        "/api/companion/action",
+            "/api/companion/action",
+            "/api/delegated/status",
+            "/api/delegated/doctor",
+            "/api/delegated/self-test",
+            "/api/delegated/action",
+            "/api/delegated/register",
         "/api/storage/preview",
         "/api/mode",
         "/api/restore",

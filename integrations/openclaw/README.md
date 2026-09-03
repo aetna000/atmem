@@ -5,11 +5,18 @@ This npm package is the host bridge for AtMem. It is not a standalone memory eng
 Use the Python-owned installer:
 
 ```bash
-python -m pip install --upgrade atmem==2.2.5
+python -m pip install --pre --upgrade atmem==2.2.6b1
 atmem openclaw install
 ```
 
-The installer pins `openclaw-memory-atmem@2.2.5`, binds the exact `atmem` executable, copies existing OpenClaw memory, configures shadow mode, restarts the gateway and verifies the loaded plugin. Direct npm installation cannot perform or prove those steps.
+The installer pins the matching OpenClaw bridge, binds the exact `atmem` executable, copies existing OpenClaw memory, configures shadow mode, restarts the gateway and verifies the loaded plugin. Direct npm installation cannot perform or prove those steps.
+
+The bridge also supports AtMem's optional delegated context-provider mode. It
+supplies authenticated owner/workspace bindings, contributes a verified result
+as exactly one `prependContext` segment, confirms that segment at `llm_input`,
+and suppresses native AtMem recall for the turn. Delegation is enabled only by
+an AtMem registration; the bridge's `delegatedContext.userId` is an identity
+mapping, not an activation switch.
 
 Existing AtMem 2.1 users run `atmem openclaw upgrade` after upgrading the Python
 package. This preserves the current memory mode and migration, verifies the new
