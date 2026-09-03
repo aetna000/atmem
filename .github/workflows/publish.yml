@@ -288,10 +288,11 @@ jobs:
       - name: Publish plugin unless this exact version already exists
         run: |
           version=$(node -p 'require("./package.json").version')
-          if npm view "openclaw-memory-atmem@$version" version >/dev/null 2>&1; then
+          published=$(npm view "openclaw-memory-atmem@$version" version 2>/dev/null || true)
+          if [ "$published" = "$version" ]; then
             echo "openclaw-memory-atmem@$version is already published"
           else
-            npm publish --access public --provenance --tag latest
+            npm publish --access public --provenance --tag beta
           fi
 
   release:
