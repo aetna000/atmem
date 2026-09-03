@@ -5,7 +5,7 @@ This npm package is the host bridge for AtMem. It is not a standalone memory eng
 Use the Python-owned installer:
 
 ```bash
-python -m pip install --pre --upgrade atmem==2.2.6b2
+python -m pip install --pre --upgrade atmem==2.2.6b3
 atmem openclaw install
 ```
 

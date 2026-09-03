@@ -103,7 +103,22 @@ unauthorized context.
 
 ## P1 — Ecosystem
 
-### 8. Framework adapters
+### 8. Delegated context-provider adapters
+
+- [x] Add a shared signed loopback provider runtime and conformance suite.
+- [x] Add a Mem0 provider adapter that preserves exact user, agent, and
+      workspace scope.
+- [x] Add a LangGraph provider adapter for typed sync and async graph results.
+- [x] Add a Pydantic AI provider adapter using structured output and explicit
+      model egress.
+- [x] Add consistent setup, key generation, serve, status, doctor, stop, and
+      rollback guidance without auto-enabling delegation.
+
+**Done when:** each provider can remain the context authority while AtMem
+independently verifies signed decisions, delivers exact context once, and
+records evidence.
+
+### 9. Framework host adapters
 
 - [ ] OpenAI Agents SDK.
 - [ ] Microsoft Agent Framework.
@@ -120,7 +135,7 @@ multi-agent scope.
 **Done when:** every advertised adapter passes the same conformance suite and
 states exactly what its host can prove.
 
-### 9. Stable application APIs and SDKs
+### 10. Stable application APIs and SDKs
 
 - [ ] Publish a versioned local HTTP API for memory, query, review, audit,
       configuration, and health.
@@ -131,7 +146,7 @@ states exactly what its host can prove.
 **Done when:** applications integrate without importing internal Python modules
 or depending on the OpenClaw bridge.
 
-### 10. Migration and interoperability
+### 11. Migration and interoperability
 
 - [ ] Import Mem0 memories with scope, metadata, source, and import evidence.
 - [ ] Export memory and provenance in a documented neutral format.
@@ -143,7 +158,7 @@ product.
 
 ## P2 — Product and deployment
 
-### 11. Production self-hosted service
+### 12. Production self-hosted service
 
 - [ ] Authentication and scoped API keys.
 - [ ] Tenant, user, workspace, and agent isolation.
@@ -154,7 +169,7 @@ product.
 **Done when:** AtMem can honestly support a multi-user server, not only a local
 loopback dashboard.
 
-### 12. Memory lifecycle controls
+### 13. Memory lifecycle controls
 
 - [ ] Expiry, retention, archival, and review policies.
 - [ ] Learned-at, valid-from/to, replaced-at, and last-used timestamps.
@@ -166,7 +181,7 @@ loopback dashboard.
 **Done when:** stale memory does not accumulate silently and every transition is
 understandable and controllable.
 
-### 13. Governed multimodal memory
+### 14. Governed multimodal memory
 
 - [ ] Contracts for images, audio, video, files, and tool artifacts.
 - [ ] Keep original bytes host-controlled by default.
@@ -177,7 +192,7 @@ understandable and controllable.
 
 **Done when:** multimodal recall works without silently copying private media.
 
-### 14. Simpler onboarding
+### 15. Simpler onboarding
 
 - [ ] One guided setup for host, shadow mode, AtBot, embeddings, test memory,
       retrieval verification, activation, and restore readiness.
@@ -207,11 +222,12 @@ mode, and activate safely without reading internal architecture documents.
 1. `specs/001-memory-quality-benchmarks`
 2. `specs/002-supporting-evidence-ranking`
 3. `specs/003-delegated-context-provider`
-4. `specs/004-semantic-setup-and-health`
-5. `specs/005-memory-extraction-lifecycle`
-6. `specs/006-retrieval-quality-and-reranking`
-7. `specs/007-entity-relationship-memory`
-8. `specs/008-production-storage-backends`
-9. `specs/009-framework-adapter-conformance`
-10. `specs/010-http-api-and-typescript-sdk`
-11. `specs/011-production-service-profile`
+4. `specs/004-context-provider-adapters`
+5. `specs/005-semantic-setup-and-health`
+6. `specs/006-memory-extraction-lifecycle`
+7. `specs/007-retrieval-quality-and-reranking`
+8. `specs/008-entity-relationship-memory`
+9. `specs/009-production-storage-backends`
+10. `specs/010-framework-adapter-conformance`
+11. `specs/011-http-api-and-typescript-sdk`
+12. `specs/012-production-service-profile`

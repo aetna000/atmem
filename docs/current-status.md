@@ -2,8 +2,8 @@
 
 Updated: 4 September 2026
 
-Repository metadata is **2.2.6b2** and the matched OpenClaw bridge is
-**2.2.6-beta.2**. Both beta artifacts and the `v2.2.6b2` GitHub prerelease are
+Repository metadata is **2.2.6b3** and the matched OpenClaw bridge is
+**2.2.6-beta.2**. Both beta artifacts and the `v2.2.6b3` GitHub prerelease are
 publicly available. Native AtMem authority remains the default after
 installation or upgrade.
 The required `atmem-atbot==0.1.0a4` companion is published separately and
@@ -39,6 +39,7 @@ The release has four runtime boundaries:
 | Memory chat, provenance, storage, review, audit, topology and flight UI | One loopback dashboard | Same dashboard |
 | AtBot provider/model/lifecycle configuration | Collapsed dashboard settings and CLI | Same dashboard and CLI |
 | Optional signed delegated context authority | Provider-neutral control contract; host must prove exact delivery | Implemented for compatible local providers; disabled by default |
+| Optional provider-side Mem0, LangGraph, and Pydantic AI adapters | Independent extras; shared signed loopback runtime; disabled until separately trusted | Available to any host using the delegated contract |
 | Raw prompt/response/tool evidence | Not stored by default | Not stored by Black Box |
 | Semantic answer validation | Not implemented | Not implemented |
 | Independent external outcome proof | Accepts linked receipts; external verifier required | Same |
@@ -64,6 +65,9 @@ The release has four runtime boundaries:
   secret value.
 - The dashboard renews one expired local CSRF session and retries once; it
   remains loopback-only and has no hosted authentication layer.
+- `atmem[mem0]`, `atmem[langgraph-provider]`, and
+  `atmem[pydantic-provider]` are independent provider-side extras. They do not
+  alter the base import graph or the existing host-side framework adapters.
 
 ## Exact claim boundary
 
@@ -83,7 +87,7 @@ The release has four runtime boundaries:
 ## Upgrade and support status
 
 - The release workflow creates persisted data with public AtMem 2.1.0, 2.2.3,
-  2.2.4, and 2.2.5, upgrades each environment to 2.2.6b2, and verifies record identity, recall, audit
+  2.2.4, and 2.2.5, upgrades each environment to 2.2.6b3, and verifies record identity, recall, audit
   integrity, control migration identity, candidate retention, schema migration,
   and automatic vector-sidecar creation as a protected publication gate.
 - Existing OpenClaw installations upgrade the bridge with

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atmem"
-version = "2.2.6b2"
+version = "2.2.6b3"
 description = "Host-neutral Agent Black Box and reversible memory control plane."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -38,6 +38,16 @@ dev = [
 ]
 semantic = [
   "sentence-transformers>=5.0.0,<6.0.0",
+]
+mem0 = [
+  "mem0ai>=1,<2",
+]
+langgraph-provider = [
+  "langgraph>=1.1.5,<2",
+]
+pydantic-provider = [
+  "pydantic-ai-slim>=2.0,<3",
+  "pydantic>=2.0,<3",
 ]
 atbot = [
   # Kept as a compatibility extra; AtBot is now installed by default.

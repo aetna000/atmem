@@ -1,6 +1,6 @@
 {
   "product": "memory_control_plane",
-  "version": "2.2.6b2",
+  "version": "2.2.6b3",
   "development_target": null,
   "release_status": "beta",
   "engine": "model_agnostic",
@@ -28,7 +28,14 @@
     "default_enabled": false,
     "provider_contract": "provider-neutral",
     "contract": "atmem.delegated-context-provider.v1",
-    "native_fallback_default": false
+    "native_fallback_default": false,
+    "built_in_optional_adapters": [
+      "mem0",
+      "langgraph",
+      "pydantic_ai"
+    ],
+    "adapter_extras_are_independent": true,
+    "adapter_start_enables_authority": false
   },
   "native_state_restore_hosts": ["openclaw"],
   "shadow_changes_agent_context": false,

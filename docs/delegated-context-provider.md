@@ -214,3 +214,16 @@ deadline as a hard bound and return the exact binding unchanged.
 
 The complete wire format and claim boundary are in the
 [v1 contract](contracts/delegated-context-provider-v1.md).
+
+## Built-in optional provider adapters
+
+AtMem includes a shared provider runtime plus independently installable Mem0,
+LangGraph, and Pydantic AI adapters. They emit this same v1 contract and do not
+receive special trust or bypass verification. Start with the
+[context-provider adapter guide](context-provider-adapters.md), or inspect all
+commands locally:
+
+```bash
+atmem provider --help
+atmem provider init --help
+```

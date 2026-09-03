@@ -256,6 +256,59 @@ wants AtMem to resume native context preparation when the provider fails.""",
         command_parser = delegated_commands.add_parser(name, help=help_text)
         command_parser.add_argument("--json", action="store_true")
 
+    provider_parser = subparsers.add_parser(
+        "provider",
+        help="Run an optional Mem0, LangGraph, or Pydantic AI context authority",
+        description=(
+            "Create a signed local context-provider service. Initialization and startup "
+            "do not change AtMem authority; registration and enablement remain explicit."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Examples:
+  python -m pip install 'atmem[mem0]'
+  atmem provider init memory-provider --kind mem0 --mode oss --port 8788
+  atmem provider start memory-provider
+  atmem provider doctor memory-provider
+
+  python -m pip install 'atmem[langgraph-provider]'
+  atmem provider init graph-provider --kind langgraph \
+    --factory myapp.context:build_graph --port 8789
+
+  python -m pip install 'atmem[pydantic-provider]'
+  atmem provider init ai-provider --kind pydantic-ai \
+    --factory myapp.context:build_agent --egress hosted --port 8790
+
+The init result prints the separate `atmem delegated register` command. Run its
+matching `atmem delegated enable` command only after reviewing the exact scopes.""",
+    )
+    provider_commands = provider_parser.add_subparsers(dest="provider_command")
+    provider_init = provider_commands.add_parser("init", help="Create private keys and secret-free configuration")
+    provider_init.add_argument("instance")
+    provider_init.add_argument("--kind", required=True, choices=("mem0", "langgraph", "pydantic-ai"))
+    provider_init.add_argument("--port", type=int, default=8788)
+    provider_init.add_argument("--factory", default=None, help="Operator factory in module:attribute form")
+    provider_init.add_argument("--mode", choices=("oss", "platform"), default=None, help="Mem0 client mode")
+    provider_init.add_argument("--provider-id", default=None)
+    provider_init.add_argument("--provider-version", default="1.0")
+    provider_init.add_argument("--egress", choices=("local", "hosted"), default="local")
+    provider_init.add_argument("--json", action="store_true")
+    for name, help_text in (
+        ("serve", "Run one provider in the foreground"),
+        ("start", "Start one private background provider process"),
+        ("stop", "Stop only the PID owned by this provider instance"),
+        ("doctor", "Check dependencies, files, service health, and next trust step"),
+    ):
+        command_parser = provider_commands.add_parser(name, help=help_text)
+        command_parser.add_argument("instance")
+        command_parser.add_argument("--json", action="store_true")
+    provider_status = provider_commands.add_parser("status", help="Show redacted provider state")
+    provider_status.add_argument("instance", nargs="?")
+    provider_status.add_argument("--json", action="store_true")
+    provider_remove = provider_commands.add_parser("remove", help="Remove a stopped provider; AtMem evidence is retained")
+    provider_remove.add_argument("instance")
+    provider_remove.add_argument("--yes", action="store_true")
+    provider_remove.add_argument("--json", action="store_true")
+
     benchmark_parser = subparsers.add_parser(
         "benchmark",
         help="Run reproducible memory-quality gates and compare external results",
@@ -883,6 +936,13 @@ External evaluation:
             delegated_parser.print_help()
             return
         _run_delegated(args)
+        return
+
+    if args.command == "provider":
+        if args.provider_command is None:
+            provider_parser.print_help()
+            return
+        _run_provider(args)
         return
 
     if args.command == "benchmark":
@@ -2040,6 +2100,67 @@ def _run_delegated(args: argparse.Namespace) -> None:
         print(f"Removed {result['registration_id']}")
     else:
         print(json.dumps(result, indent=2, sort_keys=True, default=str))
+
+
+def _run_provider(args: argparse.Namespace) -> None:
+    from atmem.provider_adapters import lifecycle
+
+    command = args.provider_command
+    try:
+        if command == "init":
+            result = lifecycle.initialize(
+                instance=args.instance, kind=args.kind, port=args.port,
+                factory=args.factory, mode=args.mode, provider_id=args.provider_id,
+                provider_version=args.provider_version, egress=args.egress,
+            )
+        elif command == "serve":
+            from atmem.provider_adapters.server import serve
+
+            _, config = lifecycle.load_config(args.instance)
+            serve(lifecycle.build_runtime(args.instance), config["host"], config["port"])
+            return
+        elif command == "start":
+            result = lifecycle.start(args.instance)
+        elif command == "stop":
+            result = lifecycle.stop(args.instance)
+        elif command == "doctor":
+            result = lifecycle.doctor(args.instance)
+        elif command == "status":
+            if args.instance:
+                result = lifecycle.status(args.instance)
+            else:
+                root = lifecycle.provider_root()
+                result = {
+                    "format": "atmem-provider-status-list-v1",
+                    "providers": [
+                        lifecycle.status(path.name)
+                        for path in sorted(root.iterdir())
+                        if path.is_dir() and not path.is_symlink()
+                    ] if root.is_dir() else [],
+                }
+        elif command == "remove":
+            if not args.yes:
+                raise ValueError("provider removal requires --yes")
+            result = lifecycle.remove(args.instance)
+        else:  # pragma: no cover
+            raise ValueError(f"unknown provider command: {command}")
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+    if getattr(args, "json", False):
+        print(json.dumps(result, indent=2, sort_keys=True, default=str))
+        return
+    if command == "init":
+        print(f"Created provider {result['instance']} (authority remains native AtMem).")
+        print("Start it:")
+        print(f"  atmem provider start {result['instance']}")
+        print("Register exact trust scopes (still disabled):")
+        print(f"  {result['registration_command']}")
+        print(f"Then review and enable: atmem delegated enable {result['provider_id']}:{result['instance']}")
+    else:
+        print(json.dumps(result, indent=2, sort_keys=True, default=str))
+
+
 def _interactive_atbot_setup(manager: Any) -> dict[str, Any]:
     from atmem.control.atbot_service import PROVIDER_PROFILES
 

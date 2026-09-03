@@ -59,6 +59,28 @@ jobs:
       - run: python -m pip check
       - run: python -m pytest -q tests/test_framework_adapters.py packages/atbot/tests
 
+  provider-extras:
+    name: Context provider extra (${{ matrix.extra }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - extra: mem0
+            test: tests/test_mem0_provider.py
+          - extra: langgraph-provider
+            test: tests/test_langgraph_provider.py
+          - extra: pydantic-provider
+            test: tests/test_pydantic_provider.py
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e "./packages/atbot" -e ".[dev,${{ matrix.extra }}]"
+      - run: python -m pip check
+      - run: python -m pytest -q tests/test_provider_runtime.py ${{ matrix.test }}
+
   openclaw-plugin:
     name: OpenClaw plugin checks
     runs-on: ubuntu-latest
@@ -97,7 +119,7 @@ jobs:
 
   build:
     name: Build release artifacts
-    needs: [unit-tests, atbot-tests, latest-frameworks, openclaw-plugin]
+    needs: [unit-tests, atbot-tests, latest-frameworks, provider-extras, openclaw-plugin]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -193,11 +215,12 @@ jobs:
           python -m pip install atbot-dist/*.whl dist/*.whl
           python -m pip check
           cd "$RUNNER_TEMP"
+          python -c "import importlib.util; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None"
           python "$GITHUB_WORKSPACE/tools/smoke_installed_package.py"
           python "$GITHUB_WORKSPACE/tools/smoke_delegated_package.py"
 
   upgrade-existing:
-    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.2.6b2
+    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.2.6b3
     needs: build
     runs-on: ubuntu-latest
     strategy:
@@ -271,16 +294,19 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: integrations/openclaw/package-lock.json
-      - name: Require tag to match plugin release
+      - name: Require a compatible plugin release line
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           node -e '
             const pkg = require("./package.json");
-            const pythonStyleVersion = pkg.version.replace(/-beta\.(\d+)$/, "b$1");
-            const expected = `v${pythonStyleVersion}`;
-            if (process.env.RELEASE_TAG !== expected) {
-              throw new Error(`release ${process.env.RELEASE_TAG} does not match plugin ${pkg.version}`);
+            const plugin = pkg.version.match(/^(\d+\.\d+\.\d+)-beta\.(\d+)$/);
+            const release = process.env.RELEASE_TAG.match(/^v(\d+\.\d+\.\d+)(?:b(\d+))?$/);
+            if (!plugin || !release || plugin[1] !== release[1]) {
+              throw new Error(`release ${process.env.RELEASE_TAG} is incompatible with plugin ${pkg.version}`);
+            }
+            if (release[2] && Number(plugin[2]) > Number(release[2])) {
+              throw new Error(`plugin ${pkg.version} is newer than release ${process.env.RELEASE_TAG}`);
             }
           '
       - run: python -m pip install -e ../../packages/atbot -e ../..
