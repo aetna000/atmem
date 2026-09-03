@@ -81,11 +81,11 @@ atmem control restore
 
 Both destructive state transitions require confirmation in an interactive terminal unless `--yes` is supplied deliberately. `control verify` and `restore --drill` are non-destructive. A failed activation does not claim success. A restore preserves AtMem evidence and does not undo past agent outputs.
 
-## Optional Storizon context authority
+## Optional delegated context authority
 
-OpenClaw normally receives context selected and authorized by AtMem. If
-Storizon must remain the context authority, configure the optional delegated
-mode only after the standard bridge and control-plane checks above pass.
+OpenClaw normally receives context selected and authorized by AtMem. If another
+system must remain the context authority, configure the optional delegated mode
+only after the standard bridge and control-plane checks above pass.
 
 The AtMem registration is the only activation switch. OpenClaw's
 `delegatedContext.userId` setting maps an authenticated owner to the exact user

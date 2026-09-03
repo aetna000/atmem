@@ -1,4 +1,4 @@
-# Tasks: Storizon Delegated Context Provider
+# Tasks: Delegated Context Provider
 
 ## Phase 1: Contract and Validation Foundation
 
@@ -32,7 +32,7 @@
 
 - [x] T017 Add discoverable `atmem delegated register|enable|disable|status|doctor|self-test|remove` commands with examples, JSON output, safe next actions, and confirmation semantics in `atmem/cli.py` (FR-002, FR-014)
 - [x] T018 Add delegated configuration/status/doctor/self-test/remove APIs to `atmem/control/web.py` using the same service layer as CLI (FR-014)
-- [x] T019 Add a collapsed Settings “Context authority” experience showing native default and optional Storizon trust/scope/failure configuration in `atmem/control/assets/app.js` and `app.css` (FR-002, FR-014, SC-007)
+- [x] T019 Add a collapsed Settings “Context authority” experience showing native default and optional delegated-provider trust/scope/failure configuration in `atmem/control/assets/app.js` and `app.css` (FR-002, FR-014, SC-007)
 - [x] T020 Add CLI, API, dashboard, CSRF, no-key-leakage, and disabled-default tests in `tests/test_delegated_control.py`, `tests/test_cli.py`, and `tests/test_control_plane.py` (FR-001, FR-002, FR-014, SC-007)
 
 ## Phase 6: OpenClaw Exact-Delivery Adapter
@@ -49,7 +49,7 @@
 - [x] T027 Run all Python and OpenClaw typecheck/build/test/smoke suites and the deterministic release gate; record exact results here (SC-001–SC-005)
 - [x] T028 Bump Python to `2.2.6b1` and OpenClaw npm to `2.2.6-beta.1`, add release notes, and verify version consistency without changing AtBot independently in `pyproject.toml`, package metadata, and adapter metadata (FR-018)
 - [x] T029 Build and inspect isolated wheel/sdist/npm artifacts, verify licenses and contents, install clean, upgrade from AtMem 2.2.5, and rerun native plus delegated installed-artifact smoke tests (FR-016–FR-018, SC-006, SC-008)
-- [x] T030 Commit and push the `storizon` branch, publish the verified `2.2.6b1` Python prerelease and npm beta only when their respective tested artifacts changed, tag consistently, and verify public installation metadata (FR-018, SC-008)
+- [x] T030 Commit and push the feature branch, publish the verified `2.2.6b1` Python prerelease and npm beta only when their respective tested artifacts changed, tag consistently, and verify public installation metadata (FR-018, SC-008)
 
 ## Verification evidence
 

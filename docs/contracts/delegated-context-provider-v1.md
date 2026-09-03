@@ -8,8 +8,8 @@ This contract defines an opt-in mode in which an external provider authorizes
 exact context bytes—or a withholding decision—while AtMem remains responsible
 for host integration, exact delivery evidence, and the agent flight.
 
-Storizon is the initial intended provider, but the wire contract is
-provider-neutral. A provider does not need access to AtMem internals, and AtMem
+The wire contract is provider-neutral. A provider does not need access to
+AtMem internals, and AtMem
 does not need access to the provider's memory store or receipt body.
 
 The contract is deliberately separate from AtMem's existing preparation path.
@@ -44,9 +44,9 @@ Every field is required so absence cannot acquire an ambiguous default:
 {
   "contract_id": "atmem.delegated-context-provider.v1",
   "provider": {
-    "id": "storizon",
+    "id": "fixture-provider",
     "version": "0.2.0a1",
-    "instance_id": "storizon-demo-instance"
+    "instance_id": "fixture-instance"
   },
   "binding": {
     "run_id": "run-delegated-001",
@@ -66,7 +66,7 @@ Every field is required so absence cannot acquire an ambiguous default:
   },
   "receipt": {
     "id": "axr2-...",
-    "contract_id": "storizon.agent-experience-receipt.v2",
+    "contract_id": "example.context-receipt.v1",
     "sha256": "..."
   },
   "created_at": "2026-09-01T12:00:00Z",
@@ -78,7 +78,7 @@ Every field is required so absence cannot acquire an ambiguous default:
   "signature": {
     "algorithm": "ed25519",
     "profile": "ed25519-jcs-subset-v1",
-    "key_id": "storizon-demo-key-1",
+    "key_id": "fixture-key-1",
     "signed_payload_sha256": "...",
     "value_base64": "..."
   }

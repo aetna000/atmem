@@ -40,7 +40,7 @@ def _enable(tmp_path: Path, monkeypatch, workspace_id: str, *, fallback: bool = 
     )
     DelegatedConfigStore(path).register(
         DelegatedRegistration(
-            provider_id="storizon",
+            provider_id="fixture-provider",
             provider_version="test",
             provider_instance_id="local",
             key_id="primary",
@@ -53,7 +53,7 @@ def _enable(tmp_path: Path, monkeypatch, workspace_id: str, *, fallback: bool = 
             native_fallback_on_failure=fallback,
         )
     )
-    DelegatedConfigStore(path).set_enabled("storizon:local", True)
+    DelegatedConfigStore(path).set_enabled("fixture-provider:local", True)
 
 
 def _binding_args(workspace_id: str) -> dict[str, str]:

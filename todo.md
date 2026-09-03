@@ -206,7 +206,7 @@ mode, and activate safely without reading internal architecture documents.
 
 1. `specs/001-memory-quality-benchmarks`
 2. `specs/002-supporting-evidence-ranking`
-3. `specs/003-storizon-delegated-context-provider`
+3. `specs/003-delegated-context-provider`
 4. `specs/004-semantic-setup-and-health`
 5. `specs/005-memory-extraction-lifecycle`
 6. `specs/006-retrieval-quality-and-reranking`

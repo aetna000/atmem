@@ -567,7 +567,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
             f"{base}/api/delegated/register",
             data=json.dumps(
                 {
-                    "provider_id": "storizon",
+                    "provider_id": "fixture-provider",
                     "provider_version": "test",
                     "provider_instance_id": "local",
                     "key_id": "primary",
@@ -591,7 +591,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         enable = Request(
             f"{base}/api/delegated/action",
             data=json.dumps(
-                {"action": "enable", "registration_id": "storizon:local"}
+                {"action": "enable", "registration_id": "fixture-provider:local"}
             ).encode(),
             headers={
                 "Content-Type": "application/json",

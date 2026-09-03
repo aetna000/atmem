@@ -203,18 +203,18 @@ AtMem stores the variable name, never the key.""",
 
     delegated_parser = subparsers.add_parser(
         "delegated",
-        help="Optionally trust an external context authority such as Storizon",
+        help="Optionally trust an external context authority",
         description=(
             "Native AtMem authority remains the default. Registration never enables "
             "delegation; opt in separately for explicit user, agent, and workspace scopes."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Example:
-  atmem delegated register --provider-id storizon --provider-version 1.0 \
-    --instance-id local --key-id primary --public-key-file storizon.pub \
+  atmem delegated register --provider-id context-provider --provider-version 1.0 \
+    --instance-id local --key-id primary --public-key-file provider.pub \
     --endpoint http://127.0.0.1:8788/v1/delegated-context \
     --workspace ws_123 --agent main --user local-owner
-  atmem delegated enable storizon:local
+  atmem delegated enable context-provider:local
   atmem delegated doctor
 
 Failure is closed by default. Add --native-fallback only if the operator explicitly
@@ -224,7 +224,7 @@ wants AtMem to resume native context preparation when the provider fails.""",
     delegated_register = delegated_commands.add_parser(
         "register", help="Register trust and exact scopes; remains disabled"
     )
-    delegated_register.add_argument("--provider-id", default="storizon")
+    delegated_register.add_argument("--provider-id", required=True)
     delegated_register.add_argument("--provider-version", required=True)
     delegated_register.add_argument("--instance-id", required=True)
     delegated_register.add_argument("--key-id", required=True)

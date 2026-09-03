@@ -546,7 +546,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 config = DelegatedConfigStore()
                 registered = config.register(
                     DelegatedRegistration(
-                        provider_id=str(body.get("provider_id") or "storizon").strip(),
+                        provider_id=str(body.get("provider_id") or "").strip(),
                         provider_version=str(body.get("provider_version") or "").strip(),
                         provider_instance_id=str(body.get("provider_instance_id") or "").strip(),
                         key_id=str(body.get("key_id") or "").strip(),

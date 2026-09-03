@@ -158,7 +158,7 @@ def test_registration_cannot_enable_authority_and_overlapping_scopes_fail(tmp_pa
     config.register(first)
     config.set_enabled(first.registration_id, True)
     second = DelegatedRegistration(
-        provider_id="storizon",
+        provider_id="fixture-provider",
         provider_version=first.provider_version,
         provider_instance_id="second",
         key_id=first.key_id,
@@ -177,7 +177,7 @@ def test_registration_cannot_enable_authority_and_overlapping_scopes_fail(tmp_pa
 def test_registration_rejects_bad_key_and_policy_limits() -> None:
     with pytest.raises(ValueError, match="base64"):
         DelegatedRegistration(
-            provider_id="storizon", provider_version="1", provider_instance_id="bad",
+            provider_id="fixture-provider", provider_version="1", provider_instance_id="bad",
             key_id="key", public_key_base64="bad", endpoint="http://127.0.0.1:8788/v1",
             workspace_ids=("workspace",), agent_ids=("agent",), user_ids=("user",),
         )
@@ -390,7 +390,7 @@ def test_removing_registration_does_not_rewrite_historical_evidence(tmp_path: Pa
             body={
                 "format": "atmem-delegated-context-authorization-v1",
                 "acceptance_id": accepted["id"],
-                "provider_id": "storizon",
+                "provider_id": "fixture-provider",
             },
         )
         assert config.remove(registration.registration_id) is True

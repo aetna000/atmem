@@ -1,14 +1,14 @@
 # Optional delegated context authority
 
 Native AtMem retrieval remains the default. Delegated mode is for a deployment
-where Storizon or another compatible local provider must remain the sole
-context-decision authority for selected users, agents, and workspaces. AtMem
+where a compatible local provider must remain the sole context-decision
+authority for selected users, agents, and workspaces. AtMem
 then verifies the signed decision, passes the exact context to the host once,
 and records authorization and delivery as separate evidence.
 
 Delegation changes only who selects context for a matching turn. It does not
 move canonical memory into AtMem, import the provider's database, or give AtMem
-access to the provider's internals. Storizon is not bundled with AtMem; the
+access to the provider's internals. The provider is not bundled with AtMem; the
 operator runs a compatible provider separately on the same computer.
 
 ## Choose the authority mode
@@ -36,20 +36,20 @@ Pydantic AI, or LangGraph.
 - The host must supply an authenticated `user_id`. Prompt text, a memory subject,
   or an agent-generated claim cannot establish user identity.
 
-## Set up Storizon
+## Set up a delegated provider
 
-Ask Storizon for its provider version, instance ID, key ID, base64 Ed25519
+Obtain the provider version, instance ID, key ID, base64 Ed25519
 public key, and loopback endpoint. Save only the base64 public key in a local
 file. Find the governed workspace ID with `atmem control agents --json`, then
 register exact scopes:
 
 ```bash
 atmem delegated register \
-  --provider-id storizon \
+  --provider-id context-provider \
   --provider-version 1.0 \
   --instance-id local \
   --key-id primary \
-  --public-key-file ./storizon.pub \
+  --public-key-file ./provider.pub \
   --endpoint http://127.0.0.1:8788/v1/delegated-context \
   --workspace ws_123 \
   --agent main \
@@ -61,7 +61,7 @@ Registration does not activate delegation. Check it, then opt in:
 ```bash
 atmem delegated status
 atmem delegated self-test
-atmem delegated enable storizon:local
+atmem delegated enable context-provider:local
 atmem delegated doctor
 ```
 
@@ -183,8 +183,8 @@ provider response cannot register itself or replace its trusted key.
 Disable or remove the integration safely:
 
 ```bash
-atmem delegated disable storizon:local
-atmem delegated remove storizon:local --yes
+atmem delegated disable context-provider:local
+atmem delegated remove context-provider:local --yes
 ```
 
 Disabling affects later turns immediately and leaves historical evidence
@@ -193,14 +193,14 @@ disable the registration, replace it with the new key and key ID, inspect the
 new fingerprint, run the checks, and explicitly enable it again:
 
 ```bash
-atmem delegated disable storizon:local
+atmem delegated disable context-provider:local
 atmem delegated register --replace \
-  --provider-id storizon --provider-version 1.0 --instance-id local \
-  --key-id rotated-2026-09 --public-key-file ./storizon-rotated.pub \
+  --provider-id context-provider --provider-version 1.0 --instance-id local \
+  --key-id rotated-2026-09 --public-key-file ./provider-rotated.pub \
   --endpoint http://127.0.0.1:8788/v1/delegated-context \
   --workspace ws_123 --agent main --user local-owner
 atmem delegated status
-atmem delegated enable storizon:local
+atmem delegated enable context-provider:local
 atmem delegated doctor
 ```
 

@@ -191,7 +191,7 @@ def test_delegated_mode_guide_covers_the_operator_lifecycle() -> None:
     ):
         assert command in guide
     assert "Native AtMem retrieval remains the default" in guide
-    assert "Storizon is not bundled with AtMem" in guide
+    assert "The provider is not bundled with AtMem" in guide
     assert "does not enable delegation" in guide
     assert "AtMem never performs native retrieval" in guide
     assert "Authorization alone is not delivery proof" in guide

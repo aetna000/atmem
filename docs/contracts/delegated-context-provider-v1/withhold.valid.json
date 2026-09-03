@@ -12,24 +12,24 @@
   "created_at": "2026-09-01T12:00:00Z",
   "decision": "withhold",
   "expires_at": "2026-09-01T12:02:00Z",
-  "idempotency_key": "dcp-428fdd4f85f1c8091366de8829d3bc6a03fdf85dbc04b218b0f51b670eba0c6b",
+  "idempotency_key": "dcp-069680edf2ee81168df61abcb20673ef7a7e308ab3afe74ccc4ab2389eb0cc5a",
   "nonce": "BBBBBBBBBBBBBBBBBBBBBB",
   "provider": {
-    "id": "storizon",
-    "instance_id": "storizon-demo-instance",
-    "version": "0.2.0a1"
+    "id": "fixture-provider",
+    "instance_id": "fixture-instance",
+    "version": "1.0.0"
   },
   "receipt": {
-    "contract_id": "storizon.agent-experience-receipt.v2",
+    "contract_id": "example.context-receipt.v1",
     "id": "axr2-delegated-context-001",
     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   "signature": {
     "algorithm": "ed25519",
-    "key_id": "storizon-demo-key-1",
+    "key_id": "fixture-key-1",
     "profile": "ed25519-jcs-subset-v1",
-    "signed_payload_sha256": "d39e91b1eeeed00519e8f648fcd24f6d956b9d7eb300df27b4d297c147816478",
-    "value_base64": "XbnThXXVH+ME65U7fKLUKwkm+aNKa+2UikGDatm2TdRDZQRWmXEmMlBlFukLitwHMUPU9kQcVvY2utk/0m1ZBA=="
+    "signed_payload_sha256": "aecaeb347fe962dc255db3a3dc0f970ebbe101b3737e3380ad18e5f43c41fbd0",
+    "value_base64": "9k2AuiIZkbRyFg/L7OltisuCSEehMxuaueWo//jbnyKoS9hXKoUCsFRyb5imt7RJcw4zgJfuu07QVx9XfM1HAg=="
   },
   "source_refs": [],
   "withhold_reason": {

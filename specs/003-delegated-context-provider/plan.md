@@ -1,4 +1,4 @@
-# Implementation Plan: Storizon Delegated Context Provider
+# Implementation Plan: Delegated Context Provider
 
 ## Technical Context
 
@@ -38,7 +38,7 @@ Create `atmem/delegated/`:
 - `client.py`: bounded loopback HTTP request/response transport;
 - `service.py`: orchestration of request, validation, atomic acceptance, evidence projection, and fail-closed/fallback disposition.
 
-The core package uses generic terms (`delegated provider`, `provider_id`) rather than embedding Storizon logic. Storizon is a CLI/dashboard preset and the fixture provider identity.
+The core package uses generic terms (`delegated provider`, `provider_id`) and contains no provider-specific preset or fixture identity.
 
 ### 2. Request contract
 
@@ -140,7 +140,7 @@ Add `atmem delegated` commands:
 - examples in parent/subcommand help;
 - safe next-action guidance and explicit authority/fallback language.
 
-Dashboard Settings receives a collapsed “Context authority” row. Native AtMem is shown as the default. Opening the row exposes Storizon registration, scope, connection test, enable/disable, failure policy, and copyable CLI equivalents. Destructive remove requires confirmation and never erases historical evidence.
+Dashboard Settings receives a collapsed “Context authority” row. Native AtMem is shown as the default. Opening the row exposes delegated-provider registration, scope, connection test, enable/disable, failure policy, and copyable CLI equivalents. Destructive remove requires confirmation and never erases historical evidence.
 
 ### 8. Documentation and beta release
 
@@ -168,7 +168,7 @@ Build the wheel and npm package in isolated directories. Inspect contents and me
   "context_sha256": "...",
   "context_byte_length": 40,
   "acceptance_id": "dca_...",
-  "provider": {"id":"storizon","version":"...","instance_id":"..."},
+  "provider": {"id":"fixture-provider","version":"...","instance_id":"..."},
   "receipt": {"id":"...","sha256":"..."},
   "result_sha256": "...",
   "idempotent": false

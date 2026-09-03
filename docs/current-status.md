@@ -39,7 +39,7 @@ The release has four runtime boundaries:
 | Persistent shared, isolated, and nested workspace scopes | Explicit registration | Automatic discovery and mirror binding |
 | Memory chat, provenance, storage, review, audit, topology and flight UI | One loopback dashboard | Same dashboard |
 | AtBot provider/model/lifecycle configuration | Collapsed dashboard settings and CLI | Same dashboard and CLI |
-| Optional signed delegated context authority | Provider-neutral control contract; host must prove exact delivery | Implemented with Storizon as the first intended provider; disabled by default |
+| Optional signed delegated context authority | Provider-neutral control contract; host must prove exact delivery | Implemented for compatible local providers; disabled by default |
 | Raw prompt/response/tool evidence | Not stored by default | Not stored by Black Box |
 | Semantic answer validation | Not implemented | Not implemented |
 | Independent external outcome proof | Accepts linked receipts; external verifier required | Same |

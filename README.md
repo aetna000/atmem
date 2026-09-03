@@ -151,17 +151,17 @@ on a hosted model.
 > separately packaged, headless component installed and managed by AtMem; it is
 > not an independent agent or a second memory authority.
 
-### Optional: let Storizon remain the context authority
+### Optional: delegate context authority
 
 AtMem uses its own governed retrieval by default. The 2.2.6 beta adds an
-explicit, provider-neutral delegated mode for deployments where Storizon (or
-another compatible provider) must make the context decision while AtMem owns
+explicit, provider-neutral delegated mode for deployments where another
+compatible provider must make the context decision while AtMem owns
 host integration and flight evidence.
 
 ```bash
 atmem delegated register --help
 atmem delegated status
-atmem delegated enable storizon:local
+atmem delegated enable context-provider:local
 atmem delegated doctor
 ```
 

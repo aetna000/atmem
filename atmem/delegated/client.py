@@ -41,6 +41,16 @@ def request_context(
     with opener.open(request, timeout=registration.timeout_ms / 1000) as response:
         if response.status != 200:
             raise ValueError(f"delegated provider returned HTTP {response.status}")
+        content_length = response.headers.get("Content-Length")
+        if content_length is not None:
+            try:
+                declared_length = int(content_length)
+            except ValueError as exc:
+                raise ValueError("delegated provider returned invalid Content-Length") from exc
+            if declared_length < 0:
+                raise ValueError("delegated provider returned invalid Content-Length")
+            if declared_length > MAX_RESULT_BYTES:
+                raise ValueError("delegated provider response exceeds policy")
         raw = response.read(MAX_RESULT_BYTES + 1)
     if len(raw) > MAX_RESULT_BYTES:
         raise ValueError("delegated provider response exceeds policy")

@@ -344,11 +344,11 @@ for line in sys.stdin:
             elif "reject" in query:
                 value = {"inject":False,"context":"","authority":"delegated","decision":"provider_failure","mode":"active","candidate_ids":[],"reason":"signature verification failed"}
             elif "corrupt" in query:
-                value = {"inject":True,"context":EXACT,"context_sha256":"${"0".repeat(64)}","authority":"delegated","decision":"inject","result_sha256":"${"e".repeat(64)}","exposure_id":"delivery-corrupt","context_receipt_id":"receipt-corrupt","receipt":{"id":"receipt-corrupt","sha256":"${"f".repeat(64)}"},"provider":{"id":"storizon","version":"test","instance_id":"local"},"mode":"active","candidate_ids":[]}
+                value = {"inject":True,"context":EXACT,"context_sha256":"${"0".repeat(64)}","authority":"delegated","decision":"inject","result_sha256":"${"e".repeat(64)}","exposure_id":"delivery-corrupt","context_receipt_id":"receipt-corrupt","receipt":{"id":"receipt-corrupt","sha256":"${"f".repeat(64)}"},"provider":{"id":"fixture-provider","version":"test","instance_id":"local"},"mode":"active","candidate_ids":[]}
             elif "fallback" in query:
                 value = {"inject":True,"context":"native fallback context","authority":"atmem_fallback","decision":"native_context","native_fallback":True,"mode":"active","candidate_ids":["native-1"]}
             else:
-                value = {"inject":True,"context":EXACT,"context_sha256":"${createHash("sha256").update(exactDelegated).digest("hex")}","authority":"delegated","decision":"inject","result_sha256":"${"c".repeat(64)}","exposure_id":"delivery-1","context_receipt_id":"receipt-1","receipt":{"id":"receipt-1","sha256":"${"d".repeat(64)}"},"provider":{"id":"storizon","version":"test","instance_id":"local"},"mode":"active","candidate_ids":[]}
+                value = {"inject":True,"context":EXACT,"context_sha256":"${createHash("sha256").update(exactDelegated).digest("hex")}","authority":"delegated","decision":"inject","result_sha256":"${"c".repeat(64)}","exposure_id":"delivery-1","context_receipt_id":"receipt-1","receipt":{"id":"receipt-1","sha256":"${"d".repeat(64)}"},"provider":{"id":"fixture-provider","version":"test","instance_id":"local"},"mode":"active","candidate_ids":[]}
         else:
             value = {"ok": True}
         result = {"content":[{"type":"text","text":json.dumps(value, separators=(",", ":"))}],"isError":False}

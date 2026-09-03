@@ -26,7 +26,7 @@
   "delegated_context_provider": {
     "status": "beta",
     "default_enabled": false,
-    "initial_provider": "storizon",
+    "provider_contract": "provider-neutral",
     "contract": "atmem.delegated-context-provider.v1",
     "native_fallback_default": false
   },

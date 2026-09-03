@@ -34,7 +34,7 @@ def test_delegated_cli_is_explicit_scoped_and_secret_safe(
     trust = json.loads(
         (ROOT / "docs/contracts/delegated-context-provider-v1/trust.json").read_text()
     )
-    key_file = tmp_path / "storizon.pub"
+    key_file = tmp_path / "provider.pub"
     key_file.write_text(trust["public_key_base64"], encoding="utf-8")
 
     initial = _run("delegated", "status", "--json")
@@ -42,6 +42,7 @@ def test_delegated_cli_is_explicit_scoped_and_secret_safe(
     assert json.loads(initial.stdout)["enabled"] is False
     registered = _run(
         "delegated", "register",
+        "--provider-id", trust["provider_id"],
         "--provider-version", trust["provider_version"],
         "--instance-id", trust["provider_instance_id"],
         "--key-id", trust["key_id"],
