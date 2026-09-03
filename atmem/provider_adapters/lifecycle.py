@@ -126,7 +126,7 @@ def registration_command(config: dict[str, Any], public_path: Path) -> str:
 
 
 def start(instance: str) -> dict[str, Any]:
-    root, _ = load_config(instance)
+    root, config = load_config(instance)
     if _live_pid(root):
         raise ValueError("provider instance is already running")
     log = open(root / "service.log", "ab", buffering=0)
@@ -149,7 +149,7 @@ def stop(instance: str) -> dict[str, Any]:
     pid = _live_pid(root)
     if pid is None:
         return status(instance)
-    command = subprocess.run(["ps", "-p", str(pid), "-o", "command="], capture_output=True, text=True, check=False).stdout
+    command = _pid_command(pid)
     if "atmem.provider_adapters.worker" not in command or instance not in command:
         raise ValueError("recorded PID does not belong to this provider instance")
     os.kill(pid, signal.SIGTERM)
@@ -228,10 +228,35 @@ def _pid_exists(pid: int) -> bool:
     if pid <= 1:
         return False
     try:
+        waited, _ = os.waitpid(pid, os.WNOHANG)
+        if waited == pid:
+            return False
+    except ChildProcessError:
+        pass
+    stat_path = Path(f"/proc/{pid}/stat")
+    try:
+        if stat_path.is_file() and stat_path.read_text(encoding="utf-8").split()[2] == "Z":
+            return False
+    except (OSError, IndexError):
+        pass
+    try:
         os.kill(pid, 0)
     except OSError:
         return False
     return True
+
+
+def _pid_command(pid: int) -> str:
+    proc_path = Path(f"/proc/{pid}/cmdline")
+    try:
+        if proc_path.is_file():
+            return proc_path.read_bytes().replace(b"\0", b" ").decode("utf-8", errors="replace")
+    except OSError:
+        pass
+    return subprocess.run(
+        ["ps", "-p", str(pid), "-o", "command="],
+        capture_output=True, text=True, check=False,
+    ).stdout
 
 
 def _health(config: dict[str, Any]) -> dict[str, Any] | None:
