@@ -50,7 +50,7 @@
 - [x] T028 Bump Python to `2.2.6b1` and OpenClaw npm to `2.2.6-beta.1`, add release notes, and verify version consistency without changing AtBot independently in `pyproject.toml`, package metadata, and adapter metadata (FR-018)
 - [x] T029 Build and inspect isolated wheel/sdist/npm artifacts, verify licenses and contents, install clean, upgrade from AtMem 2.2.5, and rerun native plus delegated installed-artifact smoke tests (FR-016–FR-018, SC-006, SC-008)
 - [x] T030 Commit and push the feature branch, publish the verified `2.2.6b1` Python prerelease and npm beta only when their respective tested artifacts changed, tag consistently, and verify public installation metadata (FR-018, SC-008)
-- [ ] T031 Build, inspect, publish, and publicly verify the provider-neutral `2.2.6b2` Python prerelease and matching `2.2.6-beta.2` OpenClaw adapter without rewriting beta 1 history (FR-015, FR-018, SC-008)
+- [x] T031 Build, inspect, publish, and publicly verify the provider-neutral `2.2.6b2` Python prerelease and matching `2.2.6-beta.2` OpenClaw adapter without rewriting beta 1 history (FR-015, FR-018, SC-008)
 
 ## Verification evidence
 
@@ -72,3 +72,15 @@
   OpenClaw, artifact, installed-wheel, and persisted-data upgrade gates. Public
   metadata was verified for PyPI `atmem==2.2.6b1`, npm
   `openclaw-memory-atmem@2.2.6-beta.1`, and GitHub prerelease tag `v2.2.6b1`.
+- 2026-09-04: provider-neutral beta 2 passed 388 source tests, OpenClaw
+  prepack, Twine validation, clean wheel installation, native and delegated
+  installed-package smoke tests, and a local persisted 2.2.5 upgrade test.
+- 2026-09-04: protected release run 33804929464 passed Python 3.10–3.13,
+  current Pydantic AI and LangChain/LangGraph, OpenClaw, reproducible artifact,
+  installed-wheel, and persisted 2.1.0/2.2.3/2.2.4/2.2.5 upgrade gates. PyPI
+  `atmem==2.2.6b2`, npm `openclaw-memory-atmem@2.2.6-beta.2` under the `beta`
+  tag, and GitHub prerelease `v2.2.6b2` were then independently verified.
+- 2026-09-04: downloaded public wheel, sdist, and npm tarball digests matched
+  their registries; their unpacked contents and paths contained zero instances
+  of the removed provider-specific name. A fresh public PyPI install passed
+  dependency validation plus native and delegated installed-package smoke tests.

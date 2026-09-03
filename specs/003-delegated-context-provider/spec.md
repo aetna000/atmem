@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/003-delegated-context-provider`
 **Created**: 2026-09-03
-**Status**: Implemented and verified; provider-neutral beta 2 publication pending
+**Status**: Implemented, verified, and published as provider-neutral beta 2
 **Input**: Implement the provider-neutral delegated context-provider v1 contract proposed in PR #1. Existing AtMem authority remains the default. Delegated mode is an explicit opt-in that lets a compatible provider remain the sole context-decision authority for a bound turn while AtMem owns host delivery and flight evidence.
 
 ## Overview

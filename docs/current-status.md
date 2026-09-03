@@ -3,8 +3,9 @@
 Updated: 4 September 2026
 
 Repository metadata is **2.2.6b2** and the matched OpenClaw bridge is
-**2.2.6-beta.2**. Native AtMem authority remains the default after installation
-or upgrade.
+**2.2.6-beta.2**. Both beta artifacts and the `v2.2.6b2` GitHub prerelease are
+publicly available. Native AtMem authority remains the default after
+installation or upgrade.
 The required `atmem-atbot==0.1.0a4` companion is published separately and
 installed automatically with AtMem.
 
