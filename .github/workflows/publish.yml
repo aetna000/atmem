@@ -276,7 +276,8 @@ jobs:
         run: |
           node -e '
             const pkg = require("./package.json");
-            const expected = `v${pkg.version}`;
+            const pythonStyleVersion = pkg.version.replace(/-beta\.(\d+)$/, "b$1");
+            const expected = `v${pythonStyleVersion}`;
             if (process.env.RELEASE_TAG !== expected) {
               throw new Error(`release ${process.env.RELEASE_TAG} does not match plugin ${pkg.version}`);
             }
@@ -309,7 +310,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body_path: docs/releases/${{ github.ref_name }}.md
-          prerelease: false
+          prerelease: true
           files: |
             dist/*
             docs/showcases/openclaw-memory-control-plane/atmem-openclaw-memory-control-plane.mp4
