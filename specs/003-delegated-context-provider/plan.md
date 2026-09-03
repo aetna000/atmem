@@ -3,7 +3,7 @@
 ## Technical Context
 
 - **Runtime**: Python 3.10–3.13 and the existing TypeScript OpenClaw adapter.
-- **Release target**: AtMem `2.2.6b1`; OpenClaw adapter `2.2.6-beta.1` if published.
+- **Release target**: AtMem `2.2.6b2`; OpenClaw adapter `2.2.6-beta.2` if published.
 - **Contract input**: `docs/contracts/delegated-context-provider-v1.md`, its closed JSON Schema, signed Ed25519 fixtures, and 23 conformance vectors from PR #1.
 - **Default behavior**: Native AtMem context authority remains unchanged. Delegated mode is absent/off unless a scoped registration is explicitly enabled.
 - **Transport**: HTTP POST to a loopback endpoint only for this beta. The request deadline and response size are bounded.

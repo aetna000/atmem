@@ -50,6 +50,7 @@
 - [x] T028 Bump Python to `2.2.6b1` and OpenClaw npm to `2.2.6-beta.1`, add release notes, and verify version consistency without changing AtBot independently in `pyproject.toml`, package metadata, and adapter metadata (FR-018)
 - [x] T029 Build and inspect isolated wheel/sdist/npm artifacts, verify licenses and contents, install clean, upgrade from AtMem 2.2.5, and rerun native plus delegated installed-artifact smoke tests (FR-016–FR-018, SC-006, SC-008)
 - [x] T030 Commit and push the feature branch, publish the verified `2.2.6b1` Python prerelease and npm beta only when their respective tested artifacts changed, tag consistently, and verify public installation metadata (FR-018, SC-008)
+- [ ] T031 Build, inspect, publish, and publicly verify the provider-neutral `2.2.6b2` Python prerelease and matching `2.2.6-beta.2` OpenClaw adapter without rewriting beta 1 history (FR-015, FR-018, SC-008)
 
 ## Verification evidence
 

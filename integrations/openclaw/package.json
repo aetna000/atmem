@@ -1,6 +1,6 @@
 {
   "name": "openclaw-memory-atmem",
-  "version": "2.2.6-beta.1",
+  "version": "2.2.6-beta.2",
   "description": "OpenClaw Agent Black Box and memory control-plane bridge for AtMem",
   "type": "module",
   "main": "./dist/index.js",

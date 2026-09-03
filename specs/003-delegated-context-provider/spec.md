@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/003-delegated-context-provider`
 **Created**: 2026-09-03
-**Status**: Implemented, verified, and published as beta
+**Status**: Implemented and verified; provider-neutral beta 2 publication pending
 **Input**: Implement the provider-neutral delegated context-provider v1 contract proposed in PR #1. Existing AtMem authority remains the default. Delegated mode is an explicit opt-in that lets a compatible provider remain the sole context-decision authority for a bound turn while AtMem owns host delivery and flight evidence.
 
 ## Overview
@@ -19,7 +19,7 @@ The wire contract is provider-neutral. No provider receives a privileged product
 - Q: What happens when enabled delegation is missing, invalid, expired, untrusted, or unavailable? → A: Fail closed by default; native AtMem fallback requires a second explicit setting and is labeled AtMem-authorized.
 - Q: Which provider transport is the first implementation? → A: Provider-neutral loopback HTTP with bounded timeout; remote transport is out of scope for this beta.
 - Q: How is an OpenClaw user identity established? → A: Only authenticated host metadata may supply `user_id`; delegated mode is unavailable for a turn when the adapter cannot establish it.
-- Q: What prerelease identifiers are used? → A: Python `2.2.6b1`; npm `2.2.6-beta.1` only if the adapter package is released.
+- Q: What prerelease identifiers are used? → A: Python `2.2.6b2`; npm `2.2.6-beta.2` only if the adapter package is released.
 
 ## User Scenarios and Acceptance
 
@@ -122,7 +122,7 @@ As an evaluator, I can install or upgrade to the beta, configure a test provider
 - **FR-015**: The implementation MUST expose provider-neutral Python/control contracts so later Pydantic AI, LangGraph, Hermes, and other adapters can integrate without provider-specific core logic.
 - **FR-016**: Persistent changes MUST include migration and upgrade coverage from AtMem 2.2.5, backup/restore behavior, deletion/cleanup behavior, and unchanged native behavior.
 - **FR-017**: The beta MUST preserve Python 3.10–3.13 support, local-first operation, Apache-2.0 compatibility, and avoidance of unrelated mandatory model SDKs.
-- **FR-018**: Release artifacts MUST use Python version `2.2.6b1`; npm version `2.2.6-beta.1` applies only when an adapter artifact is published. Published claims MUST match installed-artifact tests.
+- **FR-018**: Current release artifacts MUST use Python version `2.2.6b2`; npm version `2.2.6-beta.2` applies only when an adapter artifact is published. Published claims MUST match installed-artifact tests.
 
 ## Edge Cases
 
