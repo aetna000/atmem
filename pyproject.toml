@@ -81,6 +81,7 @@ include = ["atmem*"]
 "atmem.control" = ["assets/*.jpg", "assets/*.html", "assets/*.css", "assets/*.js"]
 "atmem.schemas" = ["v1/*.json"]
 "atmem.benchmark" = ["data/*.json"]
+"atmem.semantic" = ["models.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

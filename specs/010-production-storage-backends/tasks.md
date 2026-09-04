@@ -8,7 +8,7 @@
 
 ## Phase 1 — Foundational
 
-- [ ] [T001] Define versioned canonical/derived protocols, capabilities, errors, and conformance fixtures in `atmem/core/storage.py` and `tests/storage/conformance.py` (FR-001–FR-005)
+- [ ] [T001] Define versioned canonical/derived protocols, capabilities, errors, and conformance fixtures in `atmem/core/storage.py` and `tests/storage/conformance.py`; formalize the SQLite migration registry in `atmem/store/sqlite.py` by recording the pre-registry baseline and importing Spec 006 identifiers `0060–0069` and Spec 007 identifiers `0070–0079` without renumbering or replay (FR-001–FR-005, FR-013)
 
 ## Phase 2 — User Story 1 - Select and operate a backend (Priority: P1)
 

@@ -28,7 +28,7 @@ Extend `atmem/semantic/providers.py` and `index.py`; add health/orchestration in
 | IV. Scope, Privacy, and Verifiable Deletion | PASS | Scope/lifecycle filtering precedes embedding and deletion invalidates vectors. |
 | V. Contract-First Host Neutrality | PASS | Health/setup contracts are shared by CLI, dashboard, and hosts. |
 | VI. Executable Claims | PASS | Fault, parity, smoke, and fallback tests back setup and health claims. |
-| VII. Local-First and Explicit Egress | PASS | Downloads and remote access require consent; offline hashing remains useful. |
+| VII. Local-First, Explicit Egress, and Replaceable Intelligence | PASS | Downloads and remote access require consent; offline hashing remains useful and optional embedders remain replaceable. |
 
 Re-check after design: Python 3.10–3.13, backward compatibility, and base-install tests remain release gates.
 

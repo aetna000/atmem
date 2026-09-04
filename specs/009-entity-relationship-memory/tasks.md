@@ -18,7 +18,7 @@
 
 ## Phase 3 — User Story 2 - Repair identity over time (Priority: P2)
 
-- [ ] [T005] [US2] Implement previewed merge/split/rename/delete/supersede with lineage and repair in `atmem/graph/identity.py` and `atmem/maintenance.py` (FR-005)
+- [ ] [T005] [US2] Implement previewed merge/split/rename/delete/supersede with lineage in `atmem/graph/identity.py` and register graph repair through Spec 007's maintenance interface from `atmem/graph/maintenance.py` (FR-005)
 - [ ] [T006] [US2] Add CLI/dashboard path and mutation explanations with safe redaction in `atmem/cli.py`, `atmem/control/server.py`, and `atmem/control/assets/app.js`; preserve `docs/dashboard-design-language.md` and route shared shell changes through `specs/integration-ownership.md` (FR-007)
 
 ## Phase 4 — Verification and Release Evidence
@@ -28,5 +28,5 @@
 
 ## Dependencies and Execution Order
 
-**Cross-spec dependency**: Spec 008.
+**Cross-spec dependencies**: Spec 008.
 **Task dependencies**: T001 → all; T002/T003 → T004/T005; T004/T005 → T006/T007; T007 → T008.

@@ -28,7 +28,7 @@ Compose existing OpenClaw setup, control-plane topology, AtBot, semantic health,
 | IV. Scope, Privacy, and Verifiable Deletion | PASS | Synthetic scoped data, cleanup, secret redaction, and safe support bundles are tested. |
 | V. Contract-First Host Neutrality | PASS | One setup/health model composes host-specific actions without owning host state. |
 | VI. Executable Claims | PASS | State-machine, interruption, parity, installed-example, and controlled usability evidence gate release. |
-| VII. Local-First and Explicit Egress | PASS | Deterministic local flow works; every download/provider/egress choice is explicit. |
+| VII. Local-First, Explicit Egress, and Replaceable Intelligence | PASS | Deterministic local flow works; every provider/egress choice is explicit and setup never makes one intelligence provider authoritative. |
 
 Re-check after design: all component compatibility, Python 3.10–3.13, licence, persisted-upgrade, and installed-package gates inherited from dependencies must pass.
 

@@ -8,7 +8,7 @@
 
 ## Phase 1 — Foundational
 
-- [ ] [T001] Define proposal/class/evidence/precondition schemas and compatibility tests in `atmem/schemas/v1/memory-proposal.json`, `atmem/extract/models.py`, and `tests/test_extract_contracts.py` (FR-001–FR-002)
+- [x] [T001] Define proposal/class/evidence/precondition schemas and compatibility tests in `atmem/schemas/v1/memory-proposal.json`, `atmem/extract/models.py`, and `tests/test_extract_contracts.py` (FR-001–FR-002)
 
 ## Phase 2 — User Story 1 - Produce a governed proposal (Priority: P1)
 
@@ -18,7 +18,7 @@
 
 ## Phase 3 — User Story 2 - Correct without duplicate pollution (Priority: P2)
 
-- [ ] [T005] [US2] Add transactional generation-checked commit and immutable lineage migration in `atmem/memory.py` and `atmem/store/sqlite.py`; test upgrades from real persisted fixtures for every supported published AtMem upgrade floor in `tests/fixtures/upgrades/` and `tests/test_extract_upgrade.py` (FR-005, FR-011)
+- [ ] [T005] [US2] Add transactional generation-checked commit and immutable lineage migration in `atmem/memory.py` and `atmem/store/sqlite.py` using reserved bootstrap identifiers `0060–0069` from `specs/integration-ownership.md`; keep each initializer step idempotent so Spec 010 can later import the identifiers without replay, and test upgrades from real persisted fixtures for every supported published AtMem upgrade floor in `tests/fixtures/upgrades/` and `tests/test_extract_upgrade.py` (FR-005, FR-011)
 - [ ] [T006] [US2] Implement policy-driven quarantine and review service/actions in `atmem/extract/review.py` (FR-006, FR-008)
 - [ ] [T007] [US2] Add consistent CLI/dashboard queues, detail views, reason codes, and JSON contracts in `atmem/cli.py`, `atmem/control/server.py`, and `atmem/control/assets/app.js`; preserve `docs/dashboard-design-language.md` and route shared shell changes through `specs/integration-ownership.md` (FR-008)
 
@@ -32,4 +32,5 @@
 
 ## Dependencies and Execution Order
 
-**Dependencies**: T001 → all; T002/T003 → T004; T004 → T005/T006; T005/T006 → T007/T008/T009.
+**Cross-spec dependencies**: Spec 001 for benchmark/release-gate integration.
+**Task dependencies**: T001 → all; T002/T003 → T004; T004 → T005/T006; T005/T006 → T007/T008/T009.

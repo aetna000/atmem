@@ -28,7 +28,7 @@ Add `atmem/interchange/` contracts, readers/writers, planner, checkpoints, and r
 | IV. Scope, Privacy, and Verifiable Deletion | PASS | Scope mapping is explicit; export and rollback reapply lifecycle/redaction policy. |
 | V. Contract-First Host Neutrality | PASS | Neutral versioned schemas prevent Mem0 or AtMem lock-in. |
 | VI. Executable Claims | PASS | Golden versions, tamper, replay, conflict, round-trip, and rollback tests gate claims. |
-| VII. Local-First and Explicit Egress | PASS | Archive operations are local and introduce no provider dependency. |
+| VII. Local-First, Explicit Egress, and Replaceable Intelligence | PASS | Archive operations are local, introduce no intelligence dependency, and import never creates a foreign authority database. |
 
 Re-check after design: imported SQLite mutations use the existing canonical schema or trigger published-version upgrade tests if that schema changes.
 

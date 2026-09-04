@@ -28,7 +28,7 @@ Extend the Spec 007 additions to `atmem/adapters/base.py` and `atmem/contracts/v
 | IV. Scope, Privacy, and Verifiable Deletion | PASS | Exact session/run/agent/task scope and retry ordering are conformance gates. |
 | V. Contract-First Host Neutrality | PASS | One Spec 007 lifecycle/capability authority is extended by replaceable bindings. |
 | VI. Executable Claims | PASS | Supported host-version matrices and boundary conformance reports gate advertising. |
-| VII. Local-First and Explicit Egress | PASS | Framework extras are optional; egress/delivery activation remains explicit. |
+| VII. Local-First, Explicit Egress, and Replaceable Intelligence | PASS | Framework and intelligence extras are replaceable; egress/delivery activation remains explicit and no adapter owns memory authority. |
 
 Dependency gate: every framework SDK MUST support Python 3.10–3.13 where applicable and have Apache-2.0-compatible enterprise licensing; unsupported versions remain unadvertised.
 

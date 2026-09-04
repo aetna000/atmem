@@ -29,5 +29,5 @@
 
 ## Dependencies and Execution Order
 
-**Cross-spec dependency**: Spec 007.
+**Cross-spec dependencies**: Spec 007.
 **Task dependencies**: T001 → all; T002–T004 → T005/T006/T008; T005 → T008; T009 gates release.

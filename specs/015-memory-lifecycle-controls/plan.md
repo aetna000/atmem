@@ -28,7 +28,7 @@ Extend canonical models/storage migrations and policy evaluation; add a lifecycl
 | IV. Scope, Privacy, and Verifiable Deletion | PASS | Invalidation spans canonical, graph, vector, cache, context, and backup truth. |
 | V. Contract-First Host Neutrality | PASS | Lifecycle state machine and policy contracts are shared across all surfaces/backends. |
 | VI. Executable Claims | PASS | Transition, time-boundary, deletion, migration, and published-upgrade tests are gates. |
-| VII. Local-First and Explicit Egress | PASS | Lifecycle evaluation is deterministic/local and needs no model. |
+| VII. Local-First, Explicit Egress, and Replaceable Intelligence | PASS | Lifecycle evaluation is deterministic/local, needs no model, and optional decay intelligence can only propose replaceably. |
 
 SQLite migration gate: test real persisted state from every supported published AtMem upgrade floor on Python 3.10–3.13, including rollback/forward recovery.
 

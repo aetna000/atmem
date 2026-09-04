@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/semantic-health.json",
+  "title": "AtMem semantic health v1",
+  "type": "object",
+  "required": ["format", "status", "subject_id", "reasons", "actions", "manifest", "verification_sha256"],
+  "properties": {
+    "format": {"const": "atmem-semantic-health-v1"},
+    "status": {"enum": ["missing", "legacy", "weak", "stale", "incompatible", "rebuilding", "healthy"]},
+    "subject_id": {"type": "string", "minLength": 1},
+    "reasons": {"type": "array", "minItems": 1, "items": {"enum": ["no_active_epoch", "build_in_progress", "manifest_incomplete", "hashing_fallback", "identity_mismatch", "dimension_mismatch", "index_dirty", "canonical_drift", "verification_failed", "verified"]}},
+    "actions": {"type": "array", "items": {"enum": ["setup", "verify", "rebuild", "resume_rebuild", "discard_partial"]}, "uniqueItems": true},
+    "manifest": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "required": ["format", "epoch_id", "subject_id", "provider", "model", "revision", "dimensions", "normalization", "configuration_sha256", "source_sha256", "canonical_generation", "record_count", "created_at", "status"],
+          "properties": {
+            "format": {"const": "atmem-semantic-manifest-v1"},
+            "epoch_id": {"type": "string", "minLength": 1},
+            "subject_id": {"type": "string", "minLength": 1},
+            "provider": {"type": "string", "minLength": 1},
+            "model": {"type": "string", "minLength": 1},
+            "revision": {"type": "string", "minLength": 1},
+            "dimensions": {"type": "integer", "minimum": 1},
+            "normalization": {"type": "string", "minLength": 1},
+            "configuration_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$|^[0-9a-f]{64}$"},
+            "source_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+            "canonical_generation": {"type": "integer", "minimum": 0},
+            "record_count": {"type": "integer", "minimum": 0},
+            "created_at": {"type": "string", "minLength": 1},
+            "status": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "verification_sha256": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$|^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

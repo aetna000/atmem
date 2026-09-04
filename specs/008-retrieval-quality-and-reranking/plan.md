@@ -28,7 +28,7 @@ Extend the implemented Spec 002 ranking path around typed signal contributions a
 | IV. Scope, Privacy, and Verifiable Deletion | PASS | Scope/lifecycle/deletion/exclusion checks from Spec 002 remain mandatory. |
 | V. Contract-First Host Neutrality | PASS | Candidate/signal/decision contracts are host-neutral and extensible by Spec 009. |
 | VI. Executable Claims | PASS | Ablation, compatibility, calibration, safety, and fallback fixtures gate release. |
-| VII. Local-First and Explicit Egress | PASS | Cross-encoder is optional/local and AtBot egress remains explicit. |
+| VII. Local-First, Explicit Egress, and Replaceable Intelligence | PASS | Cross-encoder and AtBot are optional/replaceable, own no canonical or independent authority database, and all AtBot egress remains explicit. |
 
 Re-check after design: Spec 002 FR-010 and all `prepare_context_v1()` checks MUST still pass byte-for-byte compatibility tests.
 

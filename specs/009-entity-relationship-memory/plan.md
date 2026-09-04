@@ -28,7 +28,7 @@ Evolve `atmem/graph/` behind a versioned derived-graph interface, add canonical 
 | IV. Scope, Privacy, and Verifiable Deletion | PASS | Per-edge checks, hard bounds, and deletion/rebuild verification prevent leakage. |
 | V. Contract-First Host Neutrality | PASS | Graph contracts and the Spec 008 signal plugin are host-neutral. |
 | VI. Executable Claims | PASS | Quality, path reconciliation, mutation, privacy, and recovery tests gate claims. |
-| VII. Local-First and Explicit Egress | PASS | SQLite graph derivation is local and needs no hosted intelligence. |
+| VII. Local-First, Explicit Egress, and Replaceable Intelligence | PASS | SQLite graph derivation is local, needs no hosted intelligence, and accepts replaceable proposal/ranking components only. |
 
 Re-check after design: public `atmem.graph` imports and existing graph tests MUST remain compatible through the module-to-package move.
 

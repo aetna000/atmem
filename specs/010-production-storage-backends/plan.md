@@ -28,13 +28,13 @@ Extract protocols from `atmem/core/storage.py` and `store/sqlite.py`; add option
 | IV. Scope, Privacy, and Verifiable Deletion | PASS | Backend conformance and cache adversaries verify scope, lifecycle, and deletion. |
 | V. Contract-First Host Neutrality | PASS | Versioned capability protocols isolate storage implementations from hosts. |
 | VI. Executable Claims | PASS | Recovery, conformance, published-upgrade, and numeric p95 gates back every claim. |
-| VII. Local-First and Explicit Egress | PASS | Local SQLite/sidecar remain useful; remote connections are explicit and attributable. |
+| VII. Local-First, Explicit Egress, and Replaceable Intelligence | PASS | Local SQLite/sidecar remain useful; remote connections are explicit and storage never binds AtMem to one intelligence provider. |
 
 Dependency gate: every optional Python driver MUST support Python 3.10–3.13 and carry Apache-2.0-compatible enterprise licensing. Any SQLite schema change MUST pass real persisted upgrades from published AtMem versions.
 
 ## Design
 
-1. Freeze capability-based protocols and a backend conformance harness before adapters.
+1. Freeze capability-based protocols and a backend conformance harness before adapters; formalize the SQLite migration registry by recording the unnumbered baseline and importing the reserved Spec 006/007 bootstrap identifiers without replay.
 2. Implement PostgreSQL transactions, migrations, generations, and advisory/row concurrency semantics.
 3. Implement pgvector/Qdrant as generation-bound rebuildable indexes.
 4. Add stage spans with counts/timing and redacted identities.

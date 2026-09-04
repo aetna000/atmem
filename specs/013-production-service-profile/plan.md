@@ -28,7 +28,7 @@ Build on Spec 010 storage, Spec 012 API, and Spec 015 lifecycle/retention semant
 | IV. Scope, Privacy, and Verifiable Deletion | PASS | Isolation covers APIs, stores, jobs, caches, metrics, logs, exports, and backups. |
 | V. Contract-First Host Neutrality | PASS | Builds on Specs 010/012/015 without redefining their contracts. |
 | VI. Executable Claims | PASS | Isolation, key, quota, load, recovery, RPO, and RTO gates back readiness. |
-| VII. Local-First and Explicit Egress | PASS | Production is opt-in; single-user local operation remains supported. |
+| VII. Local-First, Explicit Egress, and Replaceable Intelligence | PASS | Production is opt-in; single-user local operation remains supported and intelligence providers remain replaceable service dependencies. |
 
 Re-check after design: Python 3.10–3.13, enterprise-safe dependency licensing, and published persisted-state upgrades remain release gates.
 

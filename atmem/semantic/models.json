@@ -1,0 +1,26 @@
+{
+  "format": "atmem-semantic-model-catalog-v1",
+  "models": [
+    {
+      "provider": "sentence-transformers",
+      "model": "BAAI/bge-small-en-v1.5",
+      "minimum_memory_gib": 4,
+      "architectures": ["any"],
+      "priority": 10
+    },
+    {
+      "provider": "sentence-transformers",
+      "model": "sentence-transformers/all-MiniLM-L6-v2",
+      "minimum_memory_gib": 2,
+      "architectures": ["any"],
+      "priority": 20
+    },
+    {
+      "provider": "sentence-transformers",
+      "model": "nomic-ai/nomic-embed-text-v1.5",
+      "minimum_memory_gib": 8,
+      "architectures": ["any"],
+      "priority": 30
+    }
+  ]
+}

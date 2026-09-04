@@ -28,7 +28,7 @@ Extend `atmem/extract/`, canonical fact keys, `Memory` admission, AtBot extracti
 | IV. Scope, Privacy, and Verifiable Deletion | PASS | Resolution uses bounded eligible memory and cannot cross scope or revive deleted data. |
 | V. Contract-First Host Neutrality | PASS | Typed proposal/review contracts do not depend on one host. |
 | VI. Executable Claims | PASS | Action/class/correction/poison/privacy and published-upgrade tests are required. |
-| VII. Local-First and Explicit Egress | PASS | Rule fallback remains local; AtBot provider/egress is explicit. |
+| VII. Local-First, Explicit Egress, and Replaceable Intelligence | PASS | Rule fallback remains local; AtBot is replaceable, owns no canonical or independent authority database, and its provider/egress is explicit. |
 
 Re-check after design: any SQLite schema addition MUST pass upgrades from published persisted fixtures on Python 3.10–3.13 and rollback tests.
 

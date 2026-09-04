@@ -18,7 +18,7 @@
 
 ## Phase 3 — User Story 2 - Retrieve and delete derived knowledge (Priority: P2)
 
-- [ ] [T005] [US2] Integrate Spec 008 retrieval revalidation/explanations and Spec 015 lifecycle/revocation/deletion verification in `atmem/media/service.py` and `atmem/lifecycle/invalidation.py` (FR-007–FR-009)
+- [ ] [T005] [US2] Integrate Spec 008 retrieval revalidation/explanations in `atmem/media/service.py` and register media revocation/deletion verification with Spec 015's public invalidation registry from `atmem/media/invalidation.py` (FR-007–FR-009)
 - [ ] [T006] [US2] Add consistent CLI/dashboard/API artifact/observation/consent/delete surfaces in `atmem/cli.py`, `atmem/control/server.py`, and `atmem/control/assets/app.js`; preserve `docs/dashboard-design-language.md` and route shared shell changes through `specs/integration-ownership.md` (FR-009)
 
 ## Phase 4 — Verification and Release Evidence

@@ -16,7 +16,7 @@ Create one transport-neutral service package, versioned loopback HTTP API, and s
 - **Testing/Target**: OpenAPI validation, pytest, TypeScript golden vectors, installed-package and upgrade tests.
 - **Constraints/Scale**: Loopback default, bounded pagination, explicit timeouts, agent/admin separation.
 
-Turn the existing empty `atmem/service/` namespace into a regular package and extract a transport-neutral application service from `Memory`, review, audit, and control modules. Add `/v1` routes to the existing server, OpenAPI under `docs/contracts/`, and a separately packaged TypeScript SDK under `packages/typescript/`. Do not create a competing `atmem/service.py` module.
+Create `atmem/service/` as a regular package and extract a transport-neutral application service from `Memory`, review, audit, and control modules. Add `/v1` routes to the existing server, OpenAPI under `docs/contracts/`, and a separately packaged TypeScript SDK under `packages/typescript/`. Do not create a competing sibling file module.
 
 ## Constitution Check
 
@@ -28,7 +28,7 @@ Turn the existing empty `atmem/service/` namespace into a regular package and ex
 | IV. Scope, Privacy, and Verifiable Deletion | PASS | Agent/admin separation, cursor isolation, redaction, and deletion outcomes are tested. |
 | V. Contract-First Host Neutrality | PASS | OpenAPI is transport/language neutral and all clients share one service layer. |
 | VI. Executable Claims | PASS | Cross-language golden vectors, installed SDK examples, and published-upgrade tests gate release. |
-| VII. Local-First and Explicit Egress | PASS | API defaults to local loopback and clients never silently introduce provider egress. |
+| VII. Local-First, Explicit Egress, and Replaceable Intelligence | PASS | API defaults to local loopback; clients never silently introduce provider egress or couple authority to one intelligence component. |
 
 Dependency gate: the Python package remains compatible with 3.10–3.13; the npm package and all generated/runtime dependencies MUST be Apache-2.0-compatible. SQLite idempotency schema changes MUST pass real persisted upgrades from published AtMem versions.
 

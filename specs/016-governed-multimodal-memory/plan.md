@@ -28,7 +28,7 @@ Evolve the existing media module into an `atmem/media/` package with custody/ref
 | IV. Scope, Privacy, and Verifiable Deletion | PASS | Consent/lifecycle is revalidated and all controlled derivatives are verified. |
 | V. Contract-First Host Neutrality | PASS | Artifact/reference/observation contracts work across host media stores. |
 | VI. Executable Claims | PASS | Custody, sensitive-content, egress, rebuild, revocation, and deletion tests gate claims. |
-| VII. Local-First and Explicit Egress | PASS | Base reference handling is local; model dependencies and endpoints are optional. |
+| VII. Local-First, Explicit Egress, and Replaceable Intelligence | PASS | Base reference handling is local; processors/models are optional and replaceable and cannot own canonical observations. |
 
 Dependency gate: optional media/model packages MUST support Python 3.10–3.13 and carry Apache-2.0-compatible enterprise licensing; base imports remain dependency-free.
 

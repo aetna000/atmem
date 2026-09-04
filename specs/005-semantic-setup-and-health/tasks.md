@@ -8,9 +8,9 @@
 
 ## Phase 1 — Foundational
 
-- [ ] [T001] Define semantic manifest, health enum, reason codes, and JSON schema in `atmem/semantic/health.py` and `atmem/schemas/v1/` (FR-004–FR-006)
-- [ ] [T002] Add model catalog and deterministic hardware recommendation tests in `atmem/semantic/models.json` and `tests/test_semantic_health.py` (FR-002–FR-003)
-- [ ] [T003] Detect legacy, missing, weak, stale, incompatible, partial, and healthy indexes in `atmem/semantic/health.py` (FR-005–FR-006)
+- [x] [T001] Define semantic manifest, health enum, reason codes, and JSON schema in `atmem/semantic/health.py` and `atmem/schemas/v1/` (FR-004–FR-006)
+- [x] [T002] Add model catalog and deterministic hardware recommendation tests in `atmem/semantic/models.json` and `tests/test_semantic_health.py` (FR-002–FR-003)
+- [x] [T003] Detect legacy, missing, weak, stale, incompatible, partial, and healthy indexes in `atmem/semantic/health.py` (FR-005–FR-006)
 
 ## Phase 2 — User Story 1 - Enable local semantic recall (Priority: P1)
 
@@ -29,4 +29,5 @@
 
 ## Dependencies and Execution Order
 
-**Dependencies**: T001 → T003–T009; T002 → T004; T003 → T005/T007/T008; T005 → T006/T009.
+**Cross-spec dependencies**: None.
+**Task dependencies**: T001 → T003–T009; T002 → T004; T003 → T005/T007/T008; T005 → T006/T009.

@@ -13,7 +13,7 @@
 ## Phase 2 — User Story 1 - Operate an isolated service (Priority: P1)
 
 - [ ] [T002] [US1] Implement scoped key issue/rotate/revoke/expiry and authorization matrix in `atmem/server/auth.py` and `tests/server/test_auth.py` (FR-002)
-- [ ] [T003] [US1] Enforce tenant/user/workspace/agent isolation in `atmem/server/repositories.py`, Spec 012's `atmem/service/application.py`, `atmem/retrieve/cache.py`, and `atmem/server/jobs.py` (FR-003)
+- [ ] [T003] [US1] Enforce tenant/user/workspace/agent isolation in `atmem/server/repositories.py`, Spec 012's `atmem/service/application.py`, `atmem/server/cache_policy.py`, and `atmem/server/jobs.py`; configure Spec 010's `atmem/retrieve/cache.py` only through its public interface (FR-003)
 - [ ] [T004] [US1] Add production TLS/secret/encryption/retention/quota validation and safe startup in `atmem/server/config.py` and `tests/server/test_config.py` (FR-001, FR-004, FR-009)
 - [ ] [T005] [US1] Implement scoped idempotent workers, leases, retries, cancellation, and dead-letter inspection in `atmem/server/jobs.py` (FR-005)
 

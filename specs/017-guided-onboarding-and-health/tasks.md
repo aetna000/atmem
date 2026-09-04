@@ -29,4 +29,5 @@
 
 ## Dependencies and Execution Order
 
-**Dependencies**: Specs 005, 006, 008, 012, and 015; T001 → all; T002 → T003; T003/T004/T005/T006 → T007; T007/T008 → T009.
+**Cross-spec dependencies**: Specs 005, 006, 008, 012, and 015.
+**Task dependencies**: T001 → all; T002 → T003; T003/T004/T005/T006 → T007; T007/T008 → T009.
