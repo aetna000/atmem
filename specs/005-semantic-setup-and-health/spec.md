@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/005-semantic-setup-and-health`
 **Created**: 2026-09-05
-**Status**: Draft
+**Status**: Implemented
 **Input**: `todo.md` P0.2
 
 ## Overview

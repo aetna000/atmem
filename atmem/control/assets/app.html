@@ -146,6 +146,15 @@
     <div class="metric"><b id="verified">—</b><span>memory verification</span></div>
   </div>
 
+  <section class="card semanticcard" id="semanticHealthCard">
+    <div class="semantichead">
+      <div><div class="eyebrow">Semantic retrieval</div><h2>Index health</h2><p class="sub" id="semanticHealthDetail">Checking model identity, record coverage, and canonical digests…</p></div>
+      <span class="statuspill" id="semanticHealthStatus">Checking…</span>
+    </div>
+    <div class="evidencegrid" id="semanticHealthEvidence"></div>
+    <div class="actions" id="semanticHealthActions"></div>
+  </section>
+
   <section class="card agentoverview" id="agentOverview">
     <div class="agentoverviewhead"><div><div class="eyebrow">Persistent agent coverage</div><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg><span>Agents &amp; workspaces</span></h2><p class="sub">Which agents share memory, which are isolated, and whether every workspace is verified.</p></div><div class="agentcounts"><div class="agentcount"><b id="agentCount">—</b><span>agents detected</span></div><div class="agentcount"><b id="workspaceCount">—</b><span>workspaces</span></div></div></div>
     <div class="agentstatus" id="agentCoverageStatus"><span class="statusicon" id="agentCoverageIcon">…</span><div class="agentstatuscopy"><b id="agentCoverageHeadline">Checking agent coverage…</b><span id="agentCoverageDetail">Reading the runtime’s persistent-agent topology.</span></div><div class="agentstatusactions" id="agentCoverageActions" hidden><button class="primary" id="agentTopologySync" type="button">Sync agents &amp; memory</button><button class="secondary" id="agentTopologyCheck" type="button">Check again</button></div></div>

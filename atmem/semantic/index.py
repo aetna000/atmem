@@ -9,7 +9,7 @@ import math
 from pathlib import Path
 import sqlite3
 import sys
-from typing import Any, Iterator, Sequence
+from typing import Any, Callable, Iterator, Sequence
 import uuid
 
 from atmem.core.canonical import canonical_json, sha256_hex
@@ -63,6 +63,54 @@ class SemanticIndex:
         finally:
             self._household_lock.close()
 
+    def policy_fingerprint(self) -> str:
+        """Digest the household policy identity that derived vectors depend on.
+
+        Only non-secret identifiers are hashed; key material never reaches the
+        digest, the epoch identity, or any health report.
+        """
+
+        return sha256_hex(
+            canonical_json(
+                {
+                    "state": str(self.policy.state),
+                    "backend": str(self.policy.backend or ""),
+                    "key_id": str(self.policy.key_id or ""),
+                }
+            )
+        )
+
+    def invalidate_for_policy_change(self, subject_id: str) -> dict[str, Any]:
+        """Mark epochs built under a different household policy as dirty."""
+
+        current = self.policy_fingerprint()
+        invalidated: list[str] = []
+        rows = self._conn.execute(
+            "SELECT epoch_id, identity_json FROM vector_epochs WHERE subject_id = ? AND dirty = 0",
+            (subject_id,),
+        ).fetchall()
+        for row in rows:
+            try:
+                identity = json.loads(str(row["identity_json"]))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            recorded = identity.get("policy_sha256") if isinstance(identity, dict) else None
+            if recorded and str(recorded) != current:
+                invalidated.append(str(row["epoch_id"]))
+        if invalidated:
+            placeholders = ",".join("?" for _ in invalidated)
+            with self.transaction():
+                self._conn.execute(
+                    f"UPDATE vector_epochs SET dirty = 1 WHERE epoch_id IN ({placeholders})",
+                    invalidated,
+                )
+        return {
+            "format": "atmem-semantic-policy-invalidation-v1",
+            "subject_id": subject_id,
+            "policy_sha256": current,
+            "invalidated_epoch_ids": invalidated,
+        }
+
     @contextmanager
     def transaction(self) -> Iterator[None]:
         self._conn.execute("BEGIN IMMEDIATE")
@@ -81,10 +129,10 @@ class SemanticIndex:
         embedder: Embedder,
         *,
         batch_size: int = 64,
+        fault_hook: Callable[[str, dict[str, Any]], None] | None = None,
     ) -> dict[str, Any]:
-        # Register before embedding starts. A crash or provider failure can
-        # then leave an empty sidecar, but never an untracked sidecar that a
-        # later deletion would silently miss.
+        """Build or resume an inactive epoch, then activate it after validation."""
+
         memory.store.register_semantic_index(subject_id, self.path)
         verify_identity = getattr(embedder, "verify_identity", None)
         if callable(verify_identity):
@@ -93,153 +141,145 @@ class SemanticIndex:
         if not records:
             raise ValueError(f"no indexable memory records for subject {subject_id!r}")
         identity = dict(embedder.identity)
-        epoch_id = f"vidx_{uuid.uuid4().hex}"
-        created_at = utc_now()
-        dimensions: int | None = None
-        prepared: list[tuple[dict[str, Any], list[float]]] = []
-        for start in range(0, len(records), max(1, int(batch_size))):
-            batch = records[start : start + max(1, int(batch_size))]
-            vectors = embedder.embed_documents([str(record["content"]) for record in batch])
+        # Bind the household policy the vectors were derived under, so a policy
+        # change cannot resume onto, or silently keep serving, an old epoch.
+        identity["policy_sha256"] = self.policy_fingerprint()
+        identity_sha256 = sha256_hex(canonical_json(identity))
+        snapshot = _record_snapshot(records)
+        source_sha256 = sha256_hex(canonical_json(sorted(snapshot)))
+        canonical_generation = memory.store.record_generation(subject_id)
+        checkpoint = self._resumable_checkpoint(
+            subject_id, identity_sha256, source_sha256, canonical_generation
+        )
+        resumed = checkpoint is not None
+        if checkpoint is None:
+            checkpoint = self._start_rebuild(
+                subject_id,
+                identity,
+                identity_sha256,
+                source_sha256,
+                canonical_generation,
+                len(records),
+            )
+        epoch_id = str(checkpoint["epoch_id"])
+        _call_fault(fault_hook, "epoch_staged", dict(checkpoint))
+
+        completed = {
+            str(row["object_id"])
+            for row in self._conn.execute(
+                "SELECT object_id FROM vector_entries WHERE epoch_id = ?",
+                (epoch_id,),
+            ).fetchall()
+        }
+        remaining = [row for row in records if str(row["id"]) not in completed]
+        size = max(1, int(batch_size))
+        dimensions = int(checkpoint.get("dimensions") or 0)
+        checkpointed_batches = 0
+        for start in range(0, len(remaining), size):
+            batch = remaining[start : start + size]
+            vectors = embedder.embed_documents(
+                [str(record["content"]) for record in batch]
+            )
             if len(vectors) != len(batch):
                 raise ValueError("embedder returned the wrong number of vectors")
+            prepared: list[tuple[dict[str, Any], list[float]]] = []
             for record, vector in zip(batch, vectors):
                 normalized = _normalize(vector)
                 dimensions = dimensions or len(normalized)
                 if len(normalized) != dimensions:
                     raise ValueError("embedder returned inconsistent dimensions")
                 prepared.append((record, normalized))
-        dimensions = dimensions or 0
-        identity_sha256 = sha256_hex(canonical_json(identity))
-        prepared_snapshot = {
-            (
-                str(record["id"]),
-                str(record["status"]),
-                sha256_hex(str(record["content"])),
-            )
-            for record, _ in prepared
-        }
-        current_snapshot = {
-            (
-                str(record["id"]),
-                str(record["status"]),
-                sha256_hex(str(record["content"])),
-            )
-            for record in memory.store.list_records(
-                subject_id, statuses=INDEXABLE_STATUSES
-            )
-        }
-        if prepared_snapshot != current_snapshot:
-            raise RuntimeError(
-                "canonical memory changed while embeddings were built; retry the index build"
-            )
-
-        previous = self.active_epoch(subject_id)
-        with self.transaction():
-            self._conn.execute(
-                """
-                INSERT INTO vector_epochs(
-                  epoch_id, subject_id, format, provider, model, model_version,
-                  identity_json, identity_sha256, dimensions, status, dirty,
-                  entry_count, created_at, activated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'building', 0, ?, ?, NULL)
-                """,
-                (
-                    epoch_id,
-                    subject_id,
-                    INDEX_FORMAT,
-                    str(identity.get("provider", "unknown")),
-                    str(identity.get("model", "unknown")),
-                    str(identity.get("version", "unknown")),
-                    json.dumps(identity, sort_keys=True, separators=(",", ":")),
-                    identity_sha256,
-                    dimensions,
-                    len(prepared),
-                    created_at,
-                ),
-            )
-            for record, vector in prepared:
+            now = utc_now()
+            with self.transaction():
+                for record, vector in prepared:
+                    self._conn.execute(
+                        """
+                        INSERT INTO vector_entries(
+                          epoch_id, subject_id, object_type, object_id,
+                          content_sha256, status_at_index, dimensions, vector,
+                          created_at
+                        ) VALUES (?, ?, 'memory', ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            epoch_id,
+                            subject_id,
+                            record["id"],
+                            sha256_hex(str(record["content"])),
+                            record["status"],
+                            dimensions,
+                            _pack(vector),
+                            now,
+                        ),
+                    )
+                count = int(
+                    self._conn.execute(
+                        "SELECT COUNT(*) AS count FROM vector_entries WHERE epoch_id = ?",
+                        (epoch_id,),
+                    ).fetchone()["count"]
+                )
+                self._conn.execute(
+                    "UPDATE vector_epochs SET dimensions = ?, entry_count = ? WHERE epoch_id = ?",
+                    (dimensions, count, epoch_id),
+                )
                 self._conn.execute(
                     """
-                    INSERT INTO vector_entries(
-                      epoch_id, subject_id, object_type, object_id,
-                      content_sha256, status_at_index, dimensions, vector,
-                      created_at
-                    ) VALUES (?, ?, 'memory', ?, ?, ?, ?, ?, ?)
+                    UPDATE semantic_rebuilds
+                    SET completed_records = ?, dimensions = ?, updated_at = ?
+                    WHERE epoch_id = ?
                     """,
-                    (
-                        epoch_id,
-                        subject_id,
-                        record["id"],
-                        sha256_hex(str(record["content"])),
-                        record["status"],
-                        dimensions,
-                        _pack(vector),
-                        created_at,
-                    ),
+                    (count, dimensions, now, epoch_id),
                 )
-            if previous is not None:
-                self._conn.execute(
-                    "UPDATE vector_epochs SET status = 'retired', retired_at = ? WHERE epoch_id = ?",
-                    (created_at, previous["epoch_id"]),
+            _call_fault(
+                fault_hook,
+                "batch_checkpointed",
+                {"epoch_id": epoch_id, "completed_records": count},
+            )
+            checkpointed_batches += 1
+
+        _call_fault(fault_hook, "before_activation", {"epoch_id": epoch_id})
+        with memory.store.transaction(immediate=True):
+            current_records = memory.store.list_records(
+                subject_id, statuses=INDEXABLE_STATUSES
+            )
+            if (
+                memory.store.record_generation(subject_id) != canonical_generation
+                or _record_snapshot(current_records) != snapshot
+            ):
+                self._mark_rebuild(epoch_id, "stale")
+                raise RuntimeError(
+                    "canonical memory changed while embeddings were built; retry the index build"
                 )
-            self._conn.execute(
-                """
-                INSERT INTO vector_subjects(subject_id, active_epoch_id, updated_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(subject_id) DO UPDATE SET
-                  active_epoch_id = excluded.active_epoch_id,
-                  updated_at = excluded.updated_at
-                """,
-                (subject_id, epoch_id, created_at),
-            )
-            self._conn.execute(
-                "UPDATE vector_epochs SET status = 'active', activated_at = ? WHERE epoch_id = ?",
-                (created_at, epoch_id),
-            )
-        pre_cleanup_report = self.verify(
-            memory, subject_id, _allow_retired_entries=True
-        )
-        if not pre_cleanup_report["valid"]:
+            self._validate_staged_epoch(epoch_id, subject_id, snapshot, dimensions)
+            previous = self.active_epoch(subject_id)
+            activated_at = utc_now()
             with self.transaction():
-                if previous is None:
+                if previous is not None and previous["epoch_id"] != epoch_id:
                     self._conn.execute(
-                        "DELETE FROM vector_subjects WHERE subject_id = ?",
-                        (subject_id,),
-                    )
-                else:
-                    self._conn.execute(
-                        """
-                        UPDATE vector_subjects SET active_epoch_id = ?, updated_at = ?
-                        WHERE subject_id = ?
-                        """,
-                        (previous["epoch_id"], utc_now(), subject_id),
-                    )
-                    self._conn.execute(
-                        """
-                        UPDATE vector_epochs
-                        SET status = 'active', retired_at = NULL
-                        WHERE epoch_id = ?
-                        """,
-                        (previous["epoch_id"],),
+                        "UPDATE vector_epochs SET status = 'retired', retired_at = ? WHERE epoch_id = ?",
+                        (activated_at, previous["epoch_id"]),
                     )
                 self._conn.execute(
-                    "DELETE FROM vector_entries WHERE epoch_id = ?", (epoch_id,)
+                    """
+                    INSERT INTO vector_subjects(subject_id, active_epoch_id, updated_at)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(subject_id) DO UPDATE SET
+                      active_epoch_id = excluded.active_epoch_id,
+                      updated_at = excluded.updated_at
+                    """,
+                    (subject_id, epoch_id, activated_at),
                 )
                 self._conn.execute(
-                    "DELETE FROM vector_epochs WHERE epoch_id = ?", (epoch_id,)
+                    "UPDATE vector_epochs SET status = 'active', activated_at = ? WHERE epoch_id = ?",
+                    (activated_at, epoch_id),
                 )
-            raise ValueError(
-                "new semantic index failed verification: "
-                f"{pre_cleanup_report['failures']}"
-            )
+                self._conn.execute(
+                    "UPDATE semantic_rebuilds SET status = 'activated', updated_at = ? WHERE epoch_id = ?",
+                    (activated_at, epoch_id),
+                )
+        _call_fault(fault_hook, "activated", {"epoch_id": epoch_id})
         with self.transaction():
-            # Retired vectors are disposable. Removing them also ensures a
-            # previous epoch cannot retain later-purged personal information.
             self._conn.execute(
-                """
-                DELETE FROM vector_entries
-                WHERE subject_id = ? AND epoch_id <> ?
-                """,
+                "DELETE FROM vector_entries WHERE subject_id = ? AND epoch_id <> ?",
                 (subject_id, epoch_id),
             )
         verification_report = self.verify(memory, subject_id)
@@ -261,6 +301,19 @@ class SemanticIndex:
             "dimensions": dimensions,
             "embedder": identity,
             "identity_sha256": identity_sha256,
+            "source_sha256": f"sha256:{source_sha256}",
+            "canonical_generation": canonical_generation,
+            "resumed": resumed,
+            "rebuild_receipt": {
+                "format": "atmem-semantic-rebuild-receipt-v1",
+                "checkpointed_batches": checkpointed_batches,
+                "completed_records": len(records),
+                "coverage_valid": True,
+                "dimensions_valid": True,
+                "canonical_generation": canonical_generation,
+                "source_sha256": f"sha256:{source_sha256}",
+                "activation": "activated",
+            },
             "verification_report_sha256": verification_report["report_sha256"],
         }
         report["audit_event_id"] = memory.log_action(
@@ -279,6 +332,129 @@ class SemanticIndex:
             actor="indexer",
         )
         return report
+
+    def _resumable_checkpoint(
+        self,
+        subject_id: str,
+        identity_sha256: str,
+        source_sha256: str,
+        canonical_generation: int,
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT r.*, e.dimensions FROM semantic_rebuilds r
+            JOIN vector_epochs e ON e.epoch_id = r.epoch_id
+            WHERE r.subject_id = ? AND r.identity_sha256 = ?
+              AND r.source_sha256 = ? AND r.canonical_generation = ?
+              AND r.status = 'building' AND e.status = 'building'
+            ORDER BY r.created_at DESC LIMIT 1
+            """,
+            (subject_id, identity_sha256, source_sha256, canonical_generation),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def _start_rebuild(
+        self,
+        subject_id: str,
+        identity: dict[str, Any],
+        identity_sha256: str,
+        source_sha256: str,
+        canonical_generation: int,
+        total_records: int,
+    ) -> dict[str, Any]:
+        epoch_id = f"vidx_{uuid.uuid4().hex}"
+        created_at = utc_now()
+        with self.transaction():
+            self._conn.execute(
+                """
+                UPDATE semantic_rebuilds SET status = 'abandoned', updated_at = ?
+                WHERE subject_id = ? AND status = 'building'
+                """,
+                (created_at, subject_id),
+            )
+            self._conn.execute(
+                """
+                UPDATE vector_epochs SET status = 'retired', retired_at = ?
+                WHERE subject_id = ? AND status = 'building'
+                """,
+                (created_at, subject_id),
+            )
+            self._conn.execute(
+                """
+                INSERT INTO vector_epochs(
+                  epoch_id, subject_id, format, provider, model, model_version,
+                  identity_json, identity_sha256, dimensions, status, dirty,
+                  entry_count, created_at, activated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'building', 0, 0, ?, NULL)
+                """,
+                (
+                    epoch_id,
+                    subject_id,
+                    INDEX_FORMAT,
+                    str(identity.get("provider", "unknown")),
+                    str(identity.get("model", "unknown")),
+                    str(identity.get("version", "unknown")),
+                    json.dumps(identity, sort_keys=True, separators=(",", ":")),
+                    identity_sha256,
+                    created_at,
+                ),
+            )
+            self._conn.execute(
+                """
+                INSERT INTO semantic_rebuilds(
+                  epoch_id, subject_id, identity_sha256, source_sha256,
+                  canonical_generation, total_records, completed_records,
+                  dimensions, status, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 'building', ?, ?)
+                """,
+                (
+                    epoch_id,
+                    subject_id,
+                    identity_sha256,
+                    source_sha256,
+                    canonical_generation,
+                    total_records,
+                    created_at,
+                    created_at,
+                ),
+            )
+        return {
+            "epoch_id": epoch_id,
+            "completed_records": 0,
+            "dimensions": 0,
+            "created_at": created_at,
+        }
+
+    def _mark_rebuild(self, epoch_id: str, status: str) -> None:
+        with self.transaction():
+            self._conn.execute(
+                "UPDATE semantic_rebuilds SET status = ?, updated_at = ? WHERE epoch_id = ?",
+                (status, utc_now(), epoch_id),
+            )
+
+    def _validate_staged_epoch(
+        self,
+        epoch_id: str,
+        subject_id: str,
+        snapshot: set[tuple[str, str, str]],
+        dimensions: int,
+    ) -> None:
+        if dimensions < 1:
+            raise SemanticIndexIntegrityError("staged epoch has no vector dimensions")
+        rows = self._conn.execute(
+            "SELECT * FROM vector_entries WHERE epoch_id = ? ORDER BY object_id",
+            (epoch_id,),
+        ).fetchall()
+        actual = {
+            (str(row["object_id"]), str(row["status_at_index"]), str(row["content_sha256"]))
+            for row in rows
+            if str(row["subject_id"]) == subject_id
+            and int(row["dimensions"]) == dimensions
+        }
+        if actual != snapshot or len(rows) != len(snapshot):
+            raise SemanticIndexIntegrityError(
+                "staged epoch coverage, scope, digest, or dimensions are invalid"
+            )
 
     def search(
         self,
@@ -461,7 +637,7 @@ class SemanticIndex:
             """
             SELECT v.object_id FROM vector_entries v
             JOIN vector_epochs e ON e.epoch_id = v.epoch_id
-            WHERE v.subject_id = ? AND e.status <> 'active'
+            WHERE v.subject_id = ? AND e.status = 'retired'
             ORDER BY v.object_id
             """,
             (subject_id,),
@@ -640,6 +816,27 @@ class SemanticIndex:
             CREATE INDEX IF NOT EXISTS idx_vector_epochs_subject
               ON vector_epochs(subject_id, status, created_at);
 
+            CREATE TABLE IF NOT EXISTS semantic_rebuilds (
+              epoch_id TEXT PRIMARY KEY,
+              subject_id TEXT NOT NULL,
+              identity_sha256 TEXT NOT NULL,
+              source_sha256 TEXT NOT NULL,
+              canonical_generation INTEGER NOT NULL,
+              total_records INTEGER NOT NULL,
+              completed_records INTEGER NOT NULL DEFAULT 0,
+              dimensions INTEGER NOT NULL DEFAULT 0,
+              status TEXT NOT NULL CHECK(status IN ('building', 'stale', 'abandoned', 'activated')),
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL,
+              FOREIGN KEY(epoch_id) REFERENCES vector_epochs(epoch_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_semantic_rebuilds_resume
+              ON semantic_rebuilds(
+                subject_id, identity_sha256, source_sha256,
+                canonical_generation, status, created_at
+              );
+
             CREATE TABLE IF NOT EXISTS vector_subjects (
               subject_id TEXT PRIMARY KEY,
               active_epoch_id TEXT NOT NULL,
@@ -761,6 +958,26 @@ def _epoch(row: sqlite3.Row) -> dict[str, Any]:
     value["dirty"] = bool(value["dirty"])
     value["identity"] = json.loads(value.pop("identity_json"))
     return value
+
+
+def _record_snapshot(records: Sequence[dict[str, Any]]) -> set[tuple[str, str, str]]:
+    return {
+        (
+            str(record["id"]),
+            str(record["status"]),
+            sha256_hex(str(record["content"])),
+        )
+        for record in records
+    }
+
+
+def _call_fault(
+    hook: Callable[[str, dict[str, Any]], None] | None,
+    phase: str,
+    evidence: dict[str, Any],
+) -> None:
+    if hook is not None:
+        hook(phase, evidence)
 
 
 def _pack(vector: Sequence[float]) -> bytes:

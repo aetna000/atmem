@@ -507,6 +507,53 @@ External evaluation:
     index_verify.add_argument("--subject", required=True)
     index_verify.add_argument("--index-path", default=None)
 
+    semantic_parser = subparsers.add_parser(
+        "semantic",
+        help="Set up, diagnose, and safely rebuild semantic retrieval",
+        description="Set up, diagnose, and safely rebuild semantic retrieval.",
+    )
+    semantic_commands = semantic_parser.add_subparsers(dest="semantic_command")
+    for name, help_text in (
+        ("setup", "Choose a local model, build its index, and test a paraphrase"),
+        ("status", "Show authoritative semantic health and corrective actions"),
+        ("rebuild", "Resume or rebuild an inactive epoch, then activate it safely"),
+        ("verify", "Verify coverage, identity, dimensions, and canonical digests"),
+    ):
+        command_parser = semantic_commands.add_parser(name, help=help_text)
+        command_parser.add_argument("path")
+        command_parser.add_argument("--subject", required=True)
+        command_parser.add_argument("--index-path", default=None)
+        command_parser.add_argument(
+            "--json", action="store_true", help="Print machine-readable JSON"
+        )
+        if name in {"setup", "rebuild"}:
+            command_parser.add_argument(
+                "--provider",
+                choices=("ollama", "openai-compatible", "sentence-transformers", "hashing"),
+                default=None,
+            )
+            command_parser.add_argument("--model", default=None)
+            command_parser.add_argument("--model-version", default="unverified")
+            command_parser.add_argument("--endpoint", default=None)
+            command_parser.add_argument("--api-key-env", default=None)
+            command_parser.add_argument("--batch-size", type=int, default=64)
+        if name == "setup":
+            command_parser.add_argument(
+                "--allow-download",
+                action="store_true",
+                help="Explicitly permit the selected local runtime to download model files",
+            )
+            command_parser.add_argument(
+                "--allow-egress",
+                action="store_true",
+                help="Explicitly permit requests to a configured remote embedding endpoint",
+            )
+            command_parser.add_argument(
+                "--smoke-query",
+                default=None,
+                help="Manual paraphrase used to verify the first eligible record",
+            )
+
     list_parser = subparsers.add_parser("list", help="List a subject's records")
     list_parser.add_argument("path")
     list_parser.add_argument("subject_id")
@@ -983,6 +1030,13 @@ External evaluation:
             index_parser.print_help()
             return
         _run_index(args)
+        return
+
+    if args.command == "semantic":
+        if args.semantic_command is None:
+            semantic_parser.print_help()
+            return
+        _run_semantic(args)
         return
 
     if args.command == "mcp":
@@ -1872,6 +1926,15 @@ def _semantic_search_resources(
         raise ValueError(
             f"no semantic index for {args.subject!r}; run `atmem index build` first"
         )
+    from atmem.semantic import inspect_semantic_health
+
+    health = inspect_semantic_health(index, memory, args.subject)
+    if health.status.value not in {"healthy", "weak"}:
+        index.close()
+        raise ValueError(
+            f"semantic index is {health.status.value}; "
+            "run `atmem semantic status` and rebuild before semantic retrieval"
+        )
     identity = epoch["identity"]
     provider = args.embedder or str(identity["provider"])
     if provider == "hashing-diagnostic":
@@ -1929,6 +1992,306 @@ def _run_index(args: argparse.Namespace) -> None:
     finally:
         index.close()
         memory.close()
+
+
+def _run_semantic(args: argparse.Namespace) -> None:
+    from atmem.semantic import (
+        HardwareProfile,
+        SemanticIndex,
+        create_embedder,
+        default_index_path,
+        evaluate_semantic_health,
+        inspect_semantic_health,
+        recommend_local_models,
+    )
+
+    memory = Memory(args.path, auto_vectors=False)
+    index_path = Path(args.index_path or default_index_path(args.path)).expanduser()
+    index = None
+    try:
+        if args.semantic_command == "status" and not index_path.exists():
+            health = evaluate_semantic_health(args.subject, active_epoch=None)
+            _emit_semantic_health(health.to_dict(), json_output=args.json)
+            return
+        index = SemanticIndex(index_path, policy=memory.policy)
+        if args.semantic_command == "status":
+            _emit_semantic_health(
+                inspect_semantic_health(index, memory, args.subject).to_dict(),
+                json_output=args.json,
+            )
+            return
+        if args.semantic_command == "verify":
+            health = inspect_semantic_health(index, memory, args.subject).to_dict()
+            _emit_semantic_health(health, json_output=args.json)
+            if health["status"] not in {"healthy", "weak"}:
+                raise SystemExit(1)
+            return
+
+        provider, model = _semantic_provider_selection(args, index)
+        if args.semantic_command == "setup":
+            consent = _semantic_setup_consent(args, provider, model)
+            if not consent:
+                memory.log_action(
+                    args.subject,
+                    "semantic.setup_declined",
+                    {"provider": provider, "model": model},
+                    actor="cli-operator",
+                )
+                result = {
+                    "format": "atmem-semantic-setup-v1",
+                    "status": "cancelled",
+                    "provider": provider,
+                    "model": model,
+                    "fallback": "hashing-diagnostic",
+                    "decisions": list(_semantic_decisions(args)),
+                    "decision_count": len(_semantic_decisions(args)),
+                    "message": "No download or egress occurred; deterministic hashing remains available.",
+                }
+                _emit_semantic_setup(result, json_output=args.json)
+                return
+            hardware = HardwareProfile.detect()
+            recommendations = recommend_local_models(hardware)
+            approval = {
+                "provider": provider,
+                "model": model,
+                "download_approved": bool(args.allow_download),
+                "egress_approved": bool(args.allow_egress),
+                "configuration_sha256": _semantic_configuration_digest(args, provider, model),
+            }
+            memory.log_action(
+                args.subject,
+                "semantic.setup_approved",
+                approval,
+                actor="cli-operator",
+            )
+        else:
+            hardware = None
+            recommendations = []
+
+        embedder = create_embedder(
+            provider,
+            model,
+            endpoint=args.endpoint,
+            api_key_env=args.api_key_env,
+            model_version=args.model_version,
+        )
+        built = index.build(
+            memory,
+            args.subject,
+            embedder,
+            batch_size=args.batch_size,
+        )
+        health = inspect_semantic_health(index, memory, args.subject).to_dict()
+        if args.semantic_command == "rebuild":
+            result = {
+                "format": "atmem-semantic-rebuild-v1",
+                "build": built,
+                "health": health,
+            }
+            _emit_semantic_setup(result, json_output=args.json)
+            return
+
+        records = memory.store.list_records(args.subject, statuses=("active",))
+        expected = str(records[0]["id"]) if records else None
+        query = args.smoke_query or (
+            f"In other words: {records[0]['content']}" if records else ""
+        )
+        matches = (
+            index.search(
+                memory,
+                args.subject,
+                query,
+                embedder,
+                statuses=("active",),
+                limit=3,
+                min_similarity=-1.0,
+            )
+            if query and expected
+            else []
+        )
+        smoke = {
+            "query": query,
+            "expected_record_id": expected,
+            "returned_record_ids": [row["record_id"] for row in matches],
+            "passed": expected is not None
+            and expected in {str(row["record_id"]) for row in matches},
+        }
+        result = {
+            "format": "atmem-semantic-setup-v1",
+            "status": "complete" if smoke["passed"] else "verification_failed",
+            "decisions": list(_semantic_decisions(args)),
+            "decision_count": len(_semantic_decisions(args)),
+            "hardware": hardware.to_dict() if hardware else None,
+            "recommendations": recommendations,
+            "build": built,
+            "health": health,
+            "smoke_test": smoke,
+        }
+        _emit_semantic_setup(result, json_output=args.json)
+        if not smoke["passed"]:
+            raise SystemExit(1)
+    finally:
+        if index is not None:
+            index.close()
+        memory.close()
+
+
+def _semantic_decisions(args: argparse.Namespace) -> list[str]:
+    """Every operator decision the setup flow actually consumed.
+
+    SC-005 bounds the number of decisions, so this must be counted from the
+    flow rather than asserted as a constant.
+    """
+
+    decisions = getattr(args, "_semantic_decision_log", None)
+    if decisions is None:
+        decisions = []
+        setattr(args, "_semantic_decision_log", decisions)
+    return decisions
+
+
+def _record_semantic_decision(args: argparse.Namespace, name: str) -> None:
+    _semantic_decisions(args).append(name)
+
+
+def _semantic_provider_selection(
+    args: argparse.Namespace, index: object
+) -> tuple[str, str | None]:
+    from atmem.semantic import HardwareProfile, recommend_local_models
+
+    provider = args.provider
+    model = args.model
+    active = index.active_epoch(args.subject)
+    if args.semantic_command == "rebuild" and active is not None:
+        identity = active["identity"]
+        provider = provider or str(identity["provider"])
+        model = model or str(identity["model"])
+        if provider == "hashing-diagnostic":
+            provider = "hashing"
+            model = str(active["dimensions"])
+        if args.model_version == "unverified":
+            args.model_version = str(identity.get("version", "unverified"))
+        args.endpoint = args.endpoint or identity.get("endpoint")
+    if provider is None:
+        recommendations = recommend_local_models(HardwareProfile.detect())
+        if not recommendations:
+            raise ValueError(
+                "no catalog model fits detected hardware; select --provider and --model manually"
+            )
+        selected = 0
+        if args.semantic_command == "setup" and sys.stdin.isatty():
+            print("Recommended local embedding models:")
+            for position, recommendation in enumerate(recommendations, start=1):
+                print(
+                    f"  {position}. {recommendation['model']} · "
+                    f"~{recommendation['approximate_download_mib']} MiB · "
+                    f"{recommendation['caveat']}"
+                )
+            answer = input("Choose a model [1], or use --provider/--model manually: ").strip()
+            _record_semantic_decision(args, "model_selection")
+            if answer:
+                try:
+                    selected = int(answer) - 1
+                except ValueError as exc:
+                    raise ValueError("model choice must be a listed number") from exc
+                if not 0 <= selected < len(recommendations):
+                    raise ValueError("model choice is outside the recommendation list")
+        provider = str(recommendations[selected]["provider"])
+        model = model or str(recommendations[selected]["model"])
+    if provider == "ollama" and not model:
+        model = "nomic-embed-text"
+    return provider, model
+
+
+def _semantic_setup_consent(
+    args: argparse.Namespace, provider: str, model: str | None
+) -> bool:
+    if provider == "sentence-transformers" and not args.allow_download:
+        if not sys.stdin.isatty():
+            return False
+        answer = input(
+            f"Allow the local model runtime to download {model!r} if absent? [y/N] "
+        )
+        _record_semantic_decision(args, "download_consent")
+        if answer.strip().casefold() not in {"y", "yes"}:
+            return False
+        args.allow_download = True
+    elif provider == "sentence-transformers":
+        _record_semantic_decision(args, "download_consent_flag")
+    if provider in {"openai-compatible", "ollama"} and not args.allow_egress:
+        if not sys.stdin.isatty():
+            return False
+        target = (
+            "the configured HTTPS endpoint"
+            if provider == "openai-compatible"
+            else "the configured Ollama endpoint (which may pull the model)"
+        )
+        answer = input(f"Allow embedding requests to {target}? [y/N] ")
+        _record_semantic_decision(args, "egress_consent")
+        if answer.strip().casefold() not in {"y", "yes"}:
+            return False
+        args.allow_egress = True
+    elif provider in {"openai-compatible", "ollama"}:
+        _record_semantic_decision(args, "egress_consent_flag")
+    return True
+
+
+def _semantic_configuration_digest(
+    args: argparse.Namespace, provider: str, model: str | None
+) -> str:
+    from atmem.core.canonical import canonical_json, sha256_hex
+
+    safe = {
+        "provider": provider,
+        "model": model,
+        "model_version": args.model_version,
+        "endpoint": args.endpoint,
+        "api_key_environment_variable": args.api_key_env,
+    }
+    return f"sha256:{sha256_hex(canonical_json(safe))}"
+
+
+def _emit_semantic_health(value: dict[str, Any], *, json_output: bool) -> None:
+    if json_output:
+        _print(value)
+        return
+    manifest = value.get("manifest") or {}
+    print(f"Semantic index: {value['status']}")
+    print(f"Subject: {value['subject_id']}")
+    print("Reasons: " + ", ".join(value.get("reasons") or ["none recorded"]))
+    if manifest:
+        print(
+            "Model: "
+            f"{manifest.get('provider')}/{manifest.get('model')} "
+            f"({manifest.get('dimensions')} dimensions)"
+        )
+        print(f"Epoch: {manifest.get('epoch_id')}")
+        print(f"Source digest: {manifest.get('source_sha256')}")
+        print(f"Record coverage: {manifest.get('record_count')} records")
+    print("Next actions: " + ", ".join(value.get("actions") or ["none"]))
+
+
+def _emit_semantic_setup(value: dict[str, Any], *, json_output: bool) -> None:
+    if json_output:
+        _print(value)
+        return
+    print(f"Semantic operation: {value.get('status', 'complete')}")
+    if value.get("message"):
+        print(value["message"])
+    health = value.get("health") or {}
+    if health:
+        print(f"Health: {health.get('status')}")
+    recommendations = value.get("recommendations") or []
+    if recommendations:
+        print("Compatible local models:")
+        for row in recommendations:
+            print(
+                f"  {row['model']} · ~{row['approximate_download_mib']} MiB · "
+                f"{row['caveat']}"
+            )
+    smoke = value.get("smoke_test") or {}
+    if smoke:
+        print("Paraphrase smoke test: " + ("passed" if smoke.get("passed") else "failed"))
 
 
 def _emit_report(value: object, text: str, args: argparse.Namespace) -> None:

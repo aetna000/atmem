@@ -172,3 +172,47 @@ def test_dashboard_status_flags_a_different_python_environment(
 
     assert result["restart_required"] is True
     assert result["current_python_executable"]
+
+
+def test_dashboard_contains_semantic_health_evidence_and_safe_actions() -> None:
+    from atmem.control.ui import APP_HTML
+
+    assert 'id="semanticHealthCard"' in APP_HTML
+    assert 'id="semanticHealthEvidence"' in APP_HTML
+    assert 'id="semanticHealthActions"' in APP_HTML
+    assert 'get("/api/semantic/health")' in APP_HTML
+    assert 'if(action==="discard_partial")button.disabled=true' in APP_HTML
+
+
+def test_dashboard_semantic_projection_uses_shared_health_contract(tmp_path: Path) -> None:
+    from atmem import Memory
+    from atmem.control import ControlPlaneManager
+    from atmem.semantic import SemanticIndex, inspect_semantic_health
+
+    database = tmp_path / "memory.db"
+    manager = ControlPlaneManager.start(
+        host="generic",
+        state_path=tmp_path / "state.json",
+        control_root=tmp_path / "control",
+        memory_db=database,
+    )
+    memory = Memory(database)
+    memory.remember(
+        "local-user",
+        "I prefer aisle seats.",
+        interpreted_fact="I prefer aisle seats.",
+        interpreted_fact_key="travel.seat",
+    )
+    memory.close()
+
+    expected_memory = Memory(database, auto_vectors=False)
+    index = SemanticIndex(f"{database}.vectors.db", policy=expected_memory.policy)
+    try:
+        expected = inspect_semantic_health(
+            index, expected_memory, "local-user"
+        ).to_dict()
+    finally:
+        index.close()
+        expected_memory.close()
+
+    assert manager.semantic_health("local-user") == expected

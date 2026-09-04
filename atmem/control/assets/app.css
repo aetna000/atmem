@@ -89,6 +89,7 @@ border:1px solid var(--line);color:var(--ink)}.secondary:hover{background:var(--
 .grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,.8fr);gap:20px}
 .card{padding:24px;margin-bottom:22px;transition:box-shadow .15s ease}
 .card h2{font-size:19px;margin:0 0 5px;letter-spacing:-.025em;font-weight:770}
+.semantichead{display:flex;align-items:start;justify-content:space-between;gap:18px}.semanticcard .actions{margin-top:16px;flex-wrap:wrap;text-transform:capitalize}
 .sub{color:var(--muted);font-size:13px;margin:0 0 16px}.metrics{display:grid;
 grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}.metric{background:var(--card);
 border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px 15px;position:relative;

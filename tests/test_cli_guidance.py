@@ -5,6 +5,7 @@ import sys
 
 import pytest
 
+from atmem import Memory
 from atmem import cli
 
 
@@ -74,6 +75,7 @@ def test_openclaw_upgrade_preserves_mode_and_reports_verified_bridge(
         (["control"], "Start safe observation without changing model context"),
         (["blackbox"], "Show recorder coverage and evidence-chain integrity"),
         (["index"], "Build and activate a verified versioned index epoch"),
+        (["semantic"], "Set up, diagnose, and safely rebuild semantic retrieval"),
         (["dashboard", "daemon"], "{start,open,stop,restart,status,remove}"),
     ],
 )
@@ -90,3 +92,74 @@ def test_incomplete_command_groups_show_help_instead_of_an_error(
     captured = capsys.readouterr()
     assert expected in captured.out
     assert captured.err == ""
+
+
+def test_semantic_status_human_and_json_share_health_vocabulary(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    database = tmp_path / "memory.db"
+    Memory(database, auto_vectors=False).close()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["atmem", "semantic", "status", str(database), "--subject", "u1", "--json"],
+    )
+    cli.main()
+    machine = json.loads(capsys.readouterr().out)
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["atmem", "semantic", "status", str(database), "--subject", "u1"],
+    )
+    cli.main()
+    human = capsys.readouterr().out
+
+    assert machine["status"] == "missing"
+    assert machine["actions"] == ["rebuild"]
+    assert "Semantic index: missing" in human
+    assert "Next actions: rebuild" in human
+
+
+def test_semantic_rebuild_and_verify_have_stable_human_and_json_contracts(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    database = tmp_path / "memory.db"
+    memory = Memory(database)
+    memory.remember(
+        "u1",
+        "I prefer aisle seats.",
+        interpreted_fact="I prefer aisle seats.",
+        interpreted_fact_key="travel.seat",
+    )
+    memory.close()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "atmem", "semantic", "rebuild", str(database), "--subject", "u1",
+            "--provider", "hashing", "--model", "128", "--json",
+        ],
+    )
+    cli.main()
+    rebuilt = json.loads(capsys.readouterr().out)
+    assert rebuilt["format"] == "atmem-semantic-rebuild-v1"
+    assert rebuilt["health"]["status"] == "weak"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["atmem", "semantic", "verify", str(database), "--subject", "u1", "--json"],
+    )
+    cli.main()
+    verified = json.loads(capsys.readouterr().out)
+    assert verified["format"] == "atmem-semantic-health-v1"
+    assert verified["status"] == "weak"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["atmem", "semantic", "verify", str(database), "--subject", "u1"],
+    )
+    cli.main()
+    assert "Semantic index: weak" in capsys.readouterr().out

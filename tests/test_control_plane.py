@@ -551,6 +551,11 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
             "62162f08e28144079c80389e9ff89b568841333a82cff49d891e2ae39afb6af4"
         )
         assert opener.open(f"{base}/api/status").status == 200
+        semantic = json.loads(opener.open(f"{base}/api/semantic/health").read())
+        assert semantic["format"] == "atmem-semantic-health-v1"
+        assert semantic["status"] in {
+            "missing", "legacy", "weak", "stale", "incompatible", "rebuilding", "healthy"
+        }
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
         assert product["atmem_npm_version"] == "2.2.6-beta.2"
@@ -853,6 +858,7 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/session",
         "/api/product",
         "/api/status",
+        "/api/semantic/health",
         "/api/companion/status",
         "/api/companion/profiles",
         "/api/companion/configure",

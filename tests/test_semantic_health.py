@@ -7,6 +7,7 @@ import pytest
 from atmem.semantic.health import (
     HardwareProfile,
     SemanticHealthStatus,
+    detect_accelerator,
     evaluate_semantic_health,
     load_model_catalog,
     recommend_local_models,
@@ -124,9 +125,59 @@ def test_model_recommendations_are_compatible_and_deterministic() -> None:
 
     assert first == second
     assert [item["model"] for item in first] == [
+        "nomic-embed-text",
         "BAAI/bge-small-en-v1.5",
         "sentence-transformers/all-MiniLM-L6-v2",
     ]
+    assert all(item["memory_unverified"] is False for item in first)
     assert recommend_local_models(
         HardwareProfile(memory_gib=1, architecture="x86_64"), catalog
     ) == []
+
+
+def test_catalog_offers_more_than_one_runtime() -> None:
+    catalog = load_model_catalog()
+    providers = {model["provider"] for model in catalog["models"]}
+    assert {"ollama", "sentence-transformers"} <= providers
+
+
+def test_unmeasurable_memory_is_unknown_rather_than_zero() -> None:
+    unknown = HardwareProfile(memory_gib=None, architecture="x86_64")
+
+    assert unknown.memory_known is False
+    assert unknown.to_dict()["memory_known"] is False
+
+    # An unmeasurable platform gets a caveated list, never an empty one that
+    # would read as "no model fits this hardware".
+    recommendations = recommend_local_models(unknown, load_model_catalog())
+    assert recommendations
+    assert all(item["memory_unverified"] is True for item in recommendations)
+
+
+def test_detect_reports_unknown_memory_when_sysconf_is_unavailable(monkeypatch) -> None:
+    def unavailable(_name):
+        raise AttributeError("sysconf is not available on this platform")
+
+    monkeypatch.setattr("atmem.semantic.health.os.sysconf", unavailable)
+
+    profile = HardwareProfile.detect()
+
+    assert profile.memory_gib is None
+    assert profile.memory_known is False
+
+
+def test_detected_accelerator_reflects_observed_platform(monkeypatch) -> None:
+    monkeypatch.setattr("atmem.semantic.health.platform.system", lambda: "Darwin")
+    monkeypatch.setattr("atmem.semantic.health.platform.machine", lambda: "arm64")
+    assert detect_accelerator() == "metal"
+
+    monkeypatch.setattr("atmem.semantic.health.platform.system", lambda: "Linux")
+    monkeypatch.setattr("atmem.semantic.health.platform.machine", lambda: "x86_64")
+    monkeypatch.setattr(
+        "atmem.semantic.health.shutil.which",
+        lambda name: "/usr/bin/nvidia-smi" if name == "nvidia-smi" else None,
+    )
+    assert detect_accelerator() == "cuda"
+
+    monkeypatch.setattr("atmem.semantic.health.shutil.which", lambda _name: None)
+    assert detect_accelerator() == "none"

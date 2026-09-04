@@ -449,6 +449,54 @@ class ControlPlaneManager:
         ).value
         return result
 
+    def semantic_health(self, subject_id: str | None = None) -> dict[str, Any]:
+        """Project the same semantic-health contract used by the CLI."""
+
+        from atmem.memory import Memory
+        from atmem.semantic import (
+            SemanticIndex,
+            default_index_path,
+            evaluate_semantic_health,
+            inspect_semantic_health,
+        )
+
+        state = self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import mirror_status
+
+            mirror = mirror_status(state)
+            memory_path = Path(
+                str(
+                    mirror.get("mirror_db")
+                    or Path(state.control_dir) / "openclaw-mirror.db"
+                )
+            )
+        else:
+            memory_path = self._generic_memory_db(state)
+        selected_subject = subject_id or state.subject_id
+        memory = Memory(memory_path, retain_query_text=False, auto_vectors=False)
+        registered = memory.store.semantic_index_paths(selected_subject)
+        candidates = [
+            Path(str(row["index_path"])).expanduser()
+            for row in registered
+            if row.get("index_path")
+        ]
+        candidates.append(default_index_path(memory_path))
+        index_path = next((path for path in candidates if path.exists()), None)
+        if index_path is None:
+            memory.close()
+            return evaluate_semantic_health(
+                selected_subject, active_epoch=None
+            ).to_dict()
+        index = SemanticIndex(index_path, policy=memory.policy)
+        try:
+            return inspect_semantic_health(
+                index, memory, selected_subject
+            ).to_dict()
+        finally:
+            index.close()
+            memory.close()
+
     def _storage_inventory(
         self,
         state: ControlState,

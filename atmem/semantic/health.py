@@ -8,6 +8,7 @@ from importlib.resources import files
 import json
 import os
 import platform
+import shutil
 from typing import Any, Mapping, Sequence
 
 from atmem.core.canonical import canonical_json, sha256_hex
@@ -39,6 +40,7 @@ class SemanticHealthReason(str, Enum):
     DIMENSION_MISMATCH = "dimension_mismatch"
     INDEX_DIRTY = "index_dirty"
     CANONICAL_DRIFT = "canonical_drift"
+    POLICY_CHANGED = "policy_changed"
     VERIFICATION_FAILED = "verification_failed"
     VERIFIED = "verified"
 
@@ -96,14 +98,33 @@ class SemanticHealth:
 
 @dataclass(frozen=True, slots=True)
 class HardwareProfile:
-    memory_gib: float
+    """Observed hardware. `memory_gib` is ``None`` when it could not be measured.
+
+    Unmeasured memory is reported as unknown rather than zero so a platform
+    without ``sysconf`` is never described as having no memory.
+    """
+
+    memory_gib: float | None
     architecture: str
     accelerator: str = "none"
     cpu_count: int = 1
 
+    @property
+    def memory_known(self) -> bool:
+        return self.memory_gib is not None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "memory_gib": self.memory_gib,
+            "memory_known": self.memory_known,
+            "architecture": self.architecture,
+            "accelerator": self.accelerator,
+            "cpu_count": self.cpu_count,
+        }
+
     @classmethod
     def detect(cls) -> "HardwareProfile":
-        memory_gib = 0.0
+        memory_gib: float | None = None
         try:
             memory_gib = (
                 float(os.sysconf("SC_PHYS_PAGES"))
@@ -111,12 +132,32 @@ class HardwareProfile:
                 / 1024**3
             )
         except (ValueError, OSError, AttributeError):
-            pass
+            memory_gib = None
         return cls(
             memory_gib=memory_gib,
             architecture=platform.machine().lower() or "unknown",
+            accelerator=detect_accelerator(),
             cpu_count=os.cpu_count() or 1,
         )
+
+
+def detect_accelerator() -> str:
+    """Report an observed accelerator without importing an optional runtime.
+
+    Only evidence available from the platform and PATH is used, so the answer
+    is never stronger than what was actually observed.
+    """
+
+    if platform.system() == "Darwin" and platform.machine().lower() in {
+        "arm64",
+        "aarch64",
+    }:
+        return "metal"
+    if shutil.which("nvidia-smi"):
+        return "cuda"
+    if shutil.which("rocminfo"):
+        return "rocm"
+    return "none"
 
 
 def load_model_catalog() -> dict[str, Any]:
@@ -130,17 +171,27 @@ def load_model_catalog() -> dict[str, Any]:
 def recommend_local_models(
     hardware: HardwareProfile, catalog: Mapping[str, Any] | None = None
 ) -> list[dict[str, Any]]:
-    """Return compatible models in stable preference order."""
+    """Return compatible models in stable preference order.
+
+    When memory could not be measured the memory filter is not applied and
+    every returned entry is marked `memory_unverified`, so an unmeasurable
+    platform gets a caveated list instead of an empty one.
+    """
 
     source = catalog or load_model_catalog()
     compatible = []
     for model in source.get("models", []):
         architectures = model.get("architectures", ["any"])
-        if hardware.memory_gib < float(model["minimum_memory_gib"]):
+        if (
+            hardware.memory_known
+            and float(hardware.memory_gib or 0.0) < float(model["minimum_memory_gib"])
+        ):
             continue
         if "any" not in architectures and hardware.architecture not in architectures:
             continue
-        compatible.append(dict(model))
+        entry = dict(model)
+        entry["memory_unverified"] = not hardware.memory_known
+        compatible.append(entry)
     return sorted(
         compatible,
         key=lambda item: (int(item["priority"]), str(item["provider"]), str(item["model"])),
@@ -156,6 +207,7 @@ def evaluate_semantic_health(
     expected_identity: Mapping[str, Any] | None = None,
     source_sha256: str | None = None,
     canonical_generation: int = 0,
+    policy_sha256: str | None = None,
 ) -> SemanticHealth:
     """Evaluate health from persisted evidence without performing mutations."""
 
@@ -207,6 +259,18 @@ def evaluate_semantic_health(
         return _unhealthy(
             SemanticHealthStatus.STALE,
             SemanticHealthReason.INDEX_DIRTY,
+            subject_id,
+            manifest,
+            verification,
+        )
+    # A recorded policy digest that no longer matches means the derived vectors
+    # were produced under a different household policy. Epochs built before the
+    # digest existed record nothing and are left alone rather than falsely aged.
+    epoch_policy = _epoch_policy_sha256(active_epoch)
+    if policy_sha256 and epoch_policy and epoch_policy != policy_sha256:
+        return _unhealthy(
+            SemanticHealthStatus.STALE,
+            SemanticHealthReason.POLICY_CHANGED,
             subject_id,
             manifest,
             verification,
@@ -273,6 +337,7 @@ def inspect_semantic_health(
         expected_identity=expected_identity,
         source_sha256=source_sha256,
         canonical_generation=memory.store.record_generation(subject_id),
+        policy_sha256=index.policy_fingerprint(),
     )
 
 
@@ -305,6 +370,14 @@ def _manifest(
         created_at=str(epoch["created_at"]),
         status=str(epoch.get("status", "unknown")),
     )
+
+
+def _epoch_policy_sha256(epoch: Mapping[str, Any]) -> str | None:
+    identity = epoch.get("identity")
+    if not isinstance(identity, Mapping):
+        return None
+    value = identity.get("policy_sha256")
+    return str(value) if value else None
 
 
 def _identity_matches(epoch: Mapping[str, Any], expected: Mapping[str, Any]) -> bool:

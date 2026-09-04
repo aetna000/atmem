@@ -2,25 +2,49 @@
   "format": "atmem-semantic-model-catalog-v1",
   "models": [
     {
+      "provider": "ollama",
+      "model": "nomic-embed-text",
+      "minimum_memory_gib": 4,
+      "approximate_download_mib": 274,
+      "architectures": ["any"],
+      "priority": 5,
+      "caveat": "Requires a running Ollama service; avoids installing a Python model runtime."
+    },
+    {
       "provider": "sentence-transformers",
       "model": "BAAI/bge-small-en-v1.5",
       "minimum_memory_gib": 4,
+      "approximate_download_mib": 130,
       "architectures": ["any"],
-      "priority": 10
+      "priority": 10,
+      "caveat": "Higher quality than the smallest catalog option; CPU indexing may be slower."
+    },
+    {
+      "provider": "ollama",
+      "model": "mxbai-embed-large",
+      "minimum_memory_gib": 8,
+      "approximate_download_mib": 670,
+      "architectures": ["any"],
+      "priority": 15,
+      "caveat": "Larger Ollama embedding model; needs more memory and a running service."
     },
     {
       "provider": "sentence-transformers",
       "model": "sentence-transformers/all-MiniLM-L6-v2",
       "minimum_memory_gib": 2,
+      "approximate_download_mib": 90,
       "architectures": ["any"],
-      "priority": 20
+      "priority": 20,
+      "caveat": "Small and fast, with lower retrieval quality on specialized domains."
     },
     {
       "provider": "sentence-transformers",
       "model": "nomic-ai/nomic-embed-text-v1.5",
       "minimum_memory_gib": 8,
+      "approximate_download_mib": 520,
       "architectures": ["any"],
-      "priority": 30
+      "priority": 30,
+      "caveat": "Larger download and memory footprint; model-specific prefixes may improve quality."
     }
   ]
 }

@@ -84,6 +84,13 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         if path == "/api/status":
             self._json(HTTPStatus.OK, self.server.manager.status())
             return
+        if path == "/api/semantic/health":
+            subject_id = (parse_qs(parsed.query).get("subject") or [None])[0]
+            self._json(
+                HTTPStatus.OK,
+                self.server.manager.semantic_health(subject_id=subject_id),
+            )
+            return
         if path == "/api/companion/status":
             from atmem.control.atbot_service import AtBotServiceManager
 
