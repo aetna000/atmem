@@ -75,6 +75,8 @@ every selection is explainable.
       `no_change` result for every observed workflow step.
 - [ ] Deliver byte-stable, scope-authorized current task state before model
       calls and bind exact exposure to the existing flight evidence.
+- [ ] Withhold mandatory state that cannot fit the byte budget, and keep
+      instruction-shaped task content escaped and provenance-labelled as data.
 - [ ] Detect repeated actions without progress, out-of-scope operations, and
       premature completion while preserving safe host-controlled execution.
 - [ ] Inspect, correct, pause, resume, complete, cancel, and expire task state through consistent
@@ -84,6 +86,8 @@ every selection is explainable.
       integrity observability without leaking scoped content.
 - [ ] Preserve shadow mode, deterministic fallback, framework-owned workflow
       state, multi-agent isolation, and backward-compatible persisted data.
+- [ ] Negotiate task-state delivery and guard capabilities through the runtime
+      capability contract rather than documentation-only claims.
 
 **Done when:** supported agents can reliably distinguish completed, ready,
 blocked, skipped, and remaining work throughout a multi-step task, and every

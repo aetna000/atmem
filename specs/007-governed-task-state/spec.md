@@ -32,7 +32,7 @@ research component names.
 
 ## User Scenarios and Acceptance
 
-### User Story 1 — Maintain a structured checklist during a task (P1)
+### User Story 1 — Maintain a structured checklist and retire stale tasks (P1)
 
 As an agent operator, I can start an explicitly enabled governed task whose
 current state tracks its goal, phase, constraints, dependencies, actionable
@@ -44,7 +44,9 @@ valuable capability and the foundation for every transition, guard, and UI.
 
 **Independent test**: Start a local task with three items, advance one item,
 block another, and verify that a fresh process reads the same current revision
-with one completed, one blocked, and one remaining item.
+with one completed, one blocked, and one remaining item. Start a second task
+under an injectable clock and verify that its immutable profile expiry rule
+produces exactly one terminal `expired` transition and no later context.
 
 **Acceptance scenarios**:
 
@@ -57,9 +59,10 @@ with one completed, one blocked, and one remaining item.
 3. Given an unchanged observation, when a workflow step is recorded, then
    AtMem records an explicit `no_change` result without creating a semantically
    different state revision.
-4. Given an existing installation without task state, when it upgrades, then
-   its canonical memory, graph, vector index, evidence, and host configuration
-   remain readable and no task is enabled automatically.
+4. Given a task whose immutable profile expiry threshold is reached, when the
+   task is read, prepared, updated, or evaluated by maintenance, then AtMem
+   records exactly one evidence-linked `expired` terminal transition and never
+   returns that task as active context.
 
 ---
 
@@ -125,6 +128,20 @@ decision until all required items satisfy the task profile.
 5. Given unchanged state and policy, when context is prepared repeatedly, then
    the task-state bytes and digest are identical and cache entries remain bound
    to scope, task ID, revision, profile, and policy generation.
+6. Given authorized task state that exceeds the configured byte budget, when
+   context is prepared, then AtMem removes only profile-declared optional whole
+   fields in deterministic order and otherwise withholds the complete package
+   with `task_context_budget_exceeded`; it never truncates UTF-8, JSON, a field,
+   an item, a constraint, or evidence binding.
+7. Given task content containing imperative text, role-like delimiters, or
+   instruction-shaped strings, when context is prepared, then the content is
+   canonically escaped and provenance-labelled as untrusted governed data and
+   is never promoted into a system, developer, tool, or other instruction
+   channel.
+8. Given no task ID (including when multiple tasks are open), an unknown task
+   ID, or a terminal task ID, when a task-aware model call is prepared, then
+   AtMem never guesses or selects a task implicitly; it withholds task state
+   with a stable non-disclosing reason and records preparation without exposure.
 
 ---
 
@@ -155,6 +172,31 @@ operation appears as a distinct authorized revision or lifecycle event.
 4. Given a rejected proposal, when inspected, then the operator sees the
    proposed change, reason codes, source, actor, model or rule identity, and
    affected item without secret or raw chain-of-thought exposure.
+5. Given task state is disabled, in shadow mode, or unavailable for the current
+   adapter, when the operator opens the dashboard or runs a task command, then
+   the product states the effective mode and capability boundary, shows at most
+   one safe next action, and does not render empty active-task controls or imply
+   that task context is influencing an agent.
+6. Given an operator selects a task and moves between Activity, Decisions, and
+   Evidence, when each view opens, then the same selected task and compact
+   goal/lifecycle/phase summary remain visible, direct links preserve that
+   selection, and a clear return path leads to the task list. Profile settings
+   remain in Settings and do not duplicate task detail.
+7. Given an operator attempts cancellation, required-item skipping, provenance
+   correction, policy override, task deletion, or profile registration, when
+   using CLI or dashboard, then the product previews the exact scope, task,
+   expected revision, effect, and reason before confirmation. A stale-revision
+   conflict displays what changed and requires an explicit refreshed request;
+   the product never silently retries a mutation.
+8. Given a human or automation invokes a task CLI command, when it succeeds,
+   performs `no_change`, is rejected, conflicts, or is invalid, then human and
+   JSON modes report the same outcome and reason code, follow documented
+   stdout/stderr and exit-code rules, and human mode prints one actionable next
+   command when further action is possible.
+9. Given empty, loading, degraded, permission-denied, integrity-failed, narrow
+   screen, keyboard-only, reduced-motion, or assistive-technology use, when a
+   task surface is rendered, then status and permitted actions remain
+   understandable without color, hover, animation, hashes, or pointer input.
 
 ---
 
@@ -183,7 +225,27 @@ scope isolation, delivery disposition, and evidence semantics.
    does not claim exposure.
 4. Given multiple agents and tasks in one workspace, when state is queried or
    proposed, then every subject, workspace, agent, and task boundary is
-   enforced before content reaches AtBot.
+   enforced before content reaches AtBot, and task-aware delivery requires the
+   exact task ID rather than choosing among open tasks.
+5. Given an older or task-unaware adapter, when capabilities are negotiated,
+   then the authoritative runtime capability response reports task-state
+   delivery, guard detection, and guard enforcement as unavailable rather than
+   relying on documentation claims.
+
+## Prerequisite Boundary
+
+Governed Task State depends only on existing AtMem primitives: `AuthorityScope`,
+canonical JSON and digest helpers, SQLite transactions and additive migration,
+control preparation and exposure evidence, host-neutral adapter lifecycle
+identity, and the authorized AtBot companion boundary. Implementation MUST
+verify these concrete primitives before feature work begins.
+
+No unpublished or reserved roadmap specification is an implementation
+prerequisite for this feature. Task-state-specific profiles, proposals,
+transition decisions, provenance, and fallback are defined here. Later
+semantic-health or generalized extraction contracts may be adopted only
+through an explicit compatibility change; their absence must not block or
+silently alter this feature.
 
 ## Governance Matrix
 
@@ -194,6 +256,7 @@ capability, not merely an actor-supplied string.
 | Actor or component | Read eligible state | Propose delta | Commit state | Correct/override | Register profile | Change lifecycle | Deliver context | Delete state |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | AtMem authority | Yes | Rules only | Yes | Applies authorized requests | Validates and stores | Validates and stores | Constructs and authorizes | Applies authorized deletion |
+| Scoped AtMem policy evaluator | No | No | No | No | No | Expiry only, per immutable profile rule | No | No |
 | AtBot intelligence | Authorized input only | Yes | No | No | No | No | No | No |
 | Host agent/framework | Own authorized task only | Yes | No | No | No | Requests only | Injects exact AtMem package | No |
 | Authenticated operator | Authorized scope | Yes | No | Requests with reason and expected revision | Requests with administrative permission | Requests with permission | No | Requests with permission |
@@ -207,6 +270,12 @@ deletion, and any policy override require an authenticated operator permission
 distinct from ordinary agent access. This feature defines and enforces those
 capabilities for the local product; production tenant identity and remote API
 keys remain in the production service specification.
+
+Automatic expiration is an AtMem policy operation, not an agent or operator
+cancellation. Only the scoped policy evaluator may exercise `task.expire`, and
+it must cite the profile rule and trusted evaluation time. Operators control
+expiry policy through separately authorized immutable profile registration;
+ordinary task access cannot force or postpone expiration.
 
 ## Provenance Model
 
@@ -312,10 +381,15 @@ once to `accepted`, `rejected`, `conflict`, or `no_change`.
   no accepted progress and return an explainable guard signal. It MUST NOT
   claim to prevent or execute a host action unless the adapter enforces and
   reports that boundary.
-- **FR-015**: Before a supported active-mode model call, AtMem MUST construct a
-  bounded, deterministic UTF-8 task-state envelope from the currently
-  authorized revision and deliver it exactly once as governed data, separate
-  from standing system instructions and long-term recalled memory.
+- **FR-015**: Before a supported active-mode model call explicitly bound to an
+  exact task ID, AtMem MUST construct a bounded, deterministic UTF-8 task-state
+  envelope from the currently authorized revision and deliver it exactly once
+  as governed data, separate from standing system instructions and long-term
+  recalled memory. AtMem MUST NOT infer an active task from scope or choose
+  among open tasks. A missing task ID MUST withhold task state with
+  `task_context_selection_required`; an unknown, terminal, cross-scope, or
+  otherwise ineligible task ID MUST withhold it with the non-disclosing reason
+  `task_context_not_eligible`, and neither outcome may create exposure evidence.
 - **FR-016**: Task context MUST include only the minimum useful current state,
   use stable ordering and serialization, and bind its digest and cache identity
   to scope, task ID, revision, profile version, policy generation, and
@@ -333,7 +407,9 @@ once to `accepted`, `rejected`, `conflict`, or `no_change`.
   widen scope, invent progress, unlock schemas, or bypass completion gates.
 - **FR-020**: CLI and dashboard MUST support task start, list, show, timeline,
   pause, resume, correction, verification, completion, cancellation, and
-  expiration inspection with plain-language state and next actions;
+  expiration inspection with plain-language state and next actions. Task
+  `show` and `timeline` MUST render the bound expiry rule, effective expiry
+  clock, evaluated time, transition reason, and supporting evidence;
   machine-readable CLI output MUST use the same authority contracts.
 - **FR-021**: Operator corrections MUST require authenticated scope, expected
   revision, reason, and source; they MUST append history rather than overwrite
@@ -391,6 +467,65 @@ once to `accepted`, `rejected`, `conflict`, or `no_change`.
   or requesting a policy override MUST require the specific Governance Matrix
   permission, expected revision, human-readable reason, source binding, and
   complete audit evidence.
+- **FR-036**: A profile MAY declare an absolute maximum task age and/or maximum
+  no-progress age. At task start, AtMem MUST bind the applicable immutable rule
+  and trusted UTC time source. Absolute age starts at task creation;
+  `last_progress_at` is initialized to creation time and advances only for an
+  accepted semantic-progress transition. Absolute age continues while paused,
+  preventing indefinite parking; no-progress age excludes paused intervals so
+  an intentional pause cannot itself cause no-progress expiry. Terminal tasks
+  are not evaluated again. AtMem MUST durably retain pause accounting so the
+  effective no-progress clock is identical after restart and can be verified
+  against immutable lifecycle transitions. AtMem MUST evaluate expiry before task read,
+  context preparation, proposal admission, and lifecycle mutation, and during
+  an idempotent maintenance scan. When `now >=` the applicable threshold, the
+  scoped AtMem policy evaluator MUST atomically transition the current head to
+  `expired`, record the rule, evaluated time, prior revision, and evidence, and
+  withhold task context. Expiry races MUST use the same optimistic-concurrency
+  and replay guarantees as every other transition.
+- **FR-037**: Task-context budget handling MUST operate on complete canonical
+  fields and items using profile-declared, stable optional-field priority.
+  Mandatory goal, active constraints, blockers, eligible next work, completion
+  eligibility, scope, revision, and integrity bindings MUST never be truncated.
+  If mandatory content cannot fit, AtMem MUST withhold task state with stable
+  reason `task_context_budget_exceeded` and record preparation without exposure.
+- **FR-038**: User-, host-, tool-, model-, and provider-originated task content
+  MUST remain untrusted data. AtMem MUST schema-validate, canonically escape,
+  length-bound, provenance-label, and place it only inside the governed-data
+  envelope; it MUST NOT interpolate that content into envelope structure or an
+  instruction channel. Tests MUST prove structural and delimiter containment,
+  while product claims MUST NOT imply that framing guarantees model obedience.
+- **FR-039**: A single runtime capability response MUST be authoritative for
+  governed task-state availability and its delivery, guard-detection, and
+  guard-enforcement boundaries. Public schemas, adapter responses, tests, and
+  documentation MUST mirror that response and MUST NOT act as independent
+  capability authorities.
+- **FR-040**: Every `atmem task` operation MUST have documented required
+  arguments, exact-scope resolution, runnable help examples, deterministic
+  ordering and pagination for collections, human and `--json` output parity,
+  and stable process behavior: exit `0` for successful reads, accepted actions,
+  and `no_change`; exit `1` for rejected, conflict, unavailable, or integrity
+  outcomes represented by a typed reason code; and exit `2` for CLI usage or
+  input-schema errors. JSON mode MUST emit exactly one public-contract document
+  on stdout and diagnostics only on stderr. Human mode MUST lead with the
+  outcome and next action rather than identifiers. Non-interactive privileged
+  mutations MUST require `--yes` in addition to every authority, expected
+  revision, reason, and source requirement; omission MUST fail closed without
+  prompting. CLI output MUST never disclose whether an unauthorized task ID
+  exists.
+- **FR-041**: Dashboard task surfaces MUST be capability-gated and preserve the
+  current four-workspace information architecture. Disabled, shadow,
+  unavailable, legacy, empty, loading, degraded, permission-denied, conflict,
+  integrity-failed, and terminal states MUST each have a tested plain-language
+  presentation with no false active controls. A selected task MUST persist
+  across direct links among Activity, Decisions, and Evidence with a consistent
+  compact summary and return path; Settings owns profile configuration and
+  destructive task deletion. Mutations MUST preview exact effect and authority
+  scope, use accessible confirmation, and never auto-retry after conflict.
+  Controls, tabs, dialogs, timelines, live status, and errors MUST support
+  keyboard operation, visible focus, semantic labels, assistive-technology
+  announcements, reduced motion, narrow screens, and meaning independent of
+  color or hover.
 
 ## Key Entities
 
@@ -460,10 +595,13 @@ once to `accepted`, `rejected`, `conflict`, or `no_change`.
 - **SC-003**: Supported active adapters deliver identical task-state bytes and
   digests for identical scope, revision, profile, policy, and serializer input;
   shadow, completed, cancelled, expired, and cross-scope tasks deliver zero
-  task-state bytes.
+  task-state bytes. Missing, unknown, terminal, cross-scope, and ambiguous task
+  selection also delivers zero task-state bytes and never falls back to another
+  open task.
 - **SC-004**: A deterministic benchmark covering completed, remaining,
-  dependency-blocked, skipped, failed, repeated-action, and premature-finish
-  cases produces the expected guard and completion decision for every case.
+  dependency-blocked, skipped, failed, repeated-action, premature-finish,
+  expired, context-overflow, and instruction-shaped cases produces the expected
+  guard, completion, lifecycle, and context-disposition result for every case.
 - **SC-005**: Every accepted task transition, operator correction, prepared
   context, exposure, guard, and lifecycle change can be traced to its actor,
   source, prior revision, evidence, decision reasons, and resulting digest.
@@ -472,7 +610,9 @@ once to `accepted`, `rejected`, `conflict`, or `no_change`.
   completion validation continue locally without scope or authority changes.
 - **SC-007**: Local transition validation and commit overhead, excluding model,
   host-tool, and independent-verifier execution, has p95 below 25 ms across at
-  least 1,000 measured operations on the supported SQLite profile.
+  least 1,000 measured single-writer operations without concurrent write
+  contention on the supported SQLite profile. Concurrent/replayed correctness
+  remains measured separately by SC-002 and has no 25 ms claim.
 - **SC-008**: Upgrade tests from every supported persisted-data release create,
   advance, inspect, complete or cancel, and delete a governed task while all pre-existing
   memory, graph, vector, evidence, OpenClaw restore, and framework-adapter tests
@@ -495,11 +635,37 @@ once to `accepted`, `rejected`, `conflict`, or `no_change`.
   transition, guard, fallback, stale-task, prepared/exposed, latency, and
   integrity observations in both CLI JSON and dashboard APIs without raw task
   content appearing in metric or diagnostic snapshots.
+- **SC-014**: Deterministic clock tests cover absolute-age and no-progress-age
+  boundaries, exclusion of paused intervals from no-progress age, inclusion of
+  paused intervals in absolute age, lazy evaluation, maintenance evaluation,
+  restart, and concurrent expiry; every due task reaches exactly one `expired`
+  terminal head and is never delivered afterward.
+- **SC-015**: Every context-budget fixture produces identical bytes and outcome
+  across repeated runs; mandatory overflow always withholds with
+  `task_context_budget_exceeded`, and instruction-shaped fixtures produce zero
+  structural or instruction-channel breakout.
+- **SC-016**: Runtime capability fixtures for current and legacy adapters match
+  the public capabilities schema and documentation exactly, with unsupported
+  task-state boundaries always reported as unavailable.
+- **SC-017**: A deterministic CLI journey starting only from `atmem task
+  --help` enables a scope, starts and lists a task, inspects it, resolves a
+  conflict, corrects an item, and completes or cancels the task using runnable
+  displayed commands. Every command produces the specified exit code, one JSON
+  document in `--json` mode, no diagnostics on stdout, no undisclosed required
+  argument, and one useful next command in human mode where applicable.
+- **SC-018**: Dashboard fixtures for every FR-041 state preserve the selected
+  task and direct return path across workspaces, expose no mutation unavailable
+  to the current capability, require fresh confirmation after a conflict, and
+  pass automated keyboard, focus, semantic-label, reduced-motion, narrow-screen,
+  no-color, and content-overflow checks without regressing existing memory-only
+  dashboard behavior when Governed Task State is disabled.
 
 ## Assumptions
 
-- Specs 005 and 006 establish healthy semantic setup and typed extraction
-  lifecycle contracts before implementation begins.
+- Existing AtMem authority scope, canonical serialization, SQLite transaction,
+  evidence/exposure, adapter lifecycle, and AtBot companion primitives are the
+  complete prerequisites; T000 verifies their concrete compatibility before
+  implementation begins.
 - Initial delivery targets local SQLite and the already supported OpenClaw,
   Pydantic AI, LangGraph, and generic lifecycle boundaries.
 - Hosts remain responsible for selecting and executing actions. AtMem returns

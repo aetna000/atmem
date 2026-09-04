@@ -74,7 +74,7 @@ definition per token, no duplicated theme blocks — keep it that way).
 | `--brand` / `--brand-soft` | Chrome and primary actions | Buttons, active tab, eyebrow pills |
 | `--good` / `--warn` / `--bad` (+ `-soft`) | **Status only** | Verified/healthy, needs review, failed. Never used decoratively |
 | `--signal` / `--signal-soft` (new) | **AtBot / memory intelligence only** | The companion chip, the chat composer focus ring, the memory mark. This is the one color reserved for "this came from AI reasoning, not raw governance state" — keeping it scarce is what makes it memorable |
-| `--danger-action` | Destructive confirmation | Restore/reject buttons only |
+| `--danger-action` | Destructive confirmation | Restore/reject and confirmed task cancellation/deletion only |
 
 Rule: if you're tempted to add a new color, check whether `--signal` or a
 status color already means what you want first. A new hue is a last resort,
@@ -162,6 +162,46 @@ collapsed Memory intelligence control in place; it is not a second dashboard.
 - **Settings**: open the existing collapsed provider/model configuration and
   scroll it into view. It must never displace Activity as the landing page.
 
+### Governed task state
+
+Governed Task State extends these four workspaces; it never creates a fifth.
+Task UI is rendered only when the authoritative runtime capability says it is
+available. When disabled, the existing memory-only dashboard is unchanged and
+contains no empty task panels. Shadow mode is labelled **Observing only** and
+must not imply that task context affects an agent. An unavailable or legacy
+adapter gets one short boundary explanation and at most one safe next action.
+
+Selecting a task establishes one persistent task context. Activity, Decisions,
+and Evidence link directly to one another while preserving the exact task ID.
+Each linked view repeats only a compact header containing goal, lifecycle,
+phase, progress, and **Back to tasks**; job-specific content remains owned by
+one workspace:
+
+| Workspace | Task-state ownership |
+|---|---|
+| **Activity** | Task list, current progress, blockers, and next eligible work |
+| **Decisions** | Pending correction, skip, completion, cancellation, and conflict resolution |
+| **Evidence** | Timeline, provenance, assurance, expiry, and integrity proof |
+| **Settings** | Profile administration and a separated task-deletion danger zone |
+
+The global verdict band remains the only whole-dashboard health verdict. A
+task card may report its own lifecycle or attention state but may not introduce
+a second global banner, health score, or competing call to action.
+
+Every task surface defines these states explicitly: empty, loading, disabled,
+shadow, unavailable, legacy, degraded, permission denied, stale conflict,
+integrity failure, terminal, and content overflow. Each state uses a short fact,
+one supporting line when necessary, and at most one permitted next action.
+Unavailable actions are absent rather than merely styled as active. Denials do
+not reveal whether an unauthorized task ID exists.
+
+Before cancellation, required-item skip, provenance correction, policy
+override, profile registration, or deletion, show a confirmation summary with
+the exact scope, task or profile, expected revision, effect, reason, and source.
+Never auto-retry a stale mutation. Reload the current head, identify what
+changed in plain language, and require the operator to review and submit a new
+request. Restore focus to the invoking control when a dialog closes.
+
 ### Governed-memory dock
 
 Natural-language memory query is a persistent bottom dock, not a large hero.
@@ -210,12 +250,29 @@ State the fact, then the one thing the reader can do about it
 pattern in `updateStatusBanner()` — keep extending it, don't regress to
 paragraphs.
 
+## Accessibility and responsive behavior
+
+- Every tab, link, disclosure, dialog, timeline control, and mutation is fully
+  operable by keyboard with visible focus.
+- Use semantic elements and programmatic labels; icon-only controls require an
+  accessible name. Dialog titles and descriptions are associated with their
+  dialog, and focus is trapped only while a modal is open.
+- Loading, completion, denial, conflict, and integrity updates use a polite live
+  region. Never announce streaming fragments individually.
+- Status meaning is present in text and structure, never color, icon, hover, or
+  animation alone. Existing check/alert shapes remain supporting signals.
+- Respect `prefers-reduced-motion`. At narrow widths, preserve task identity,
+  lifecycle, the primary action, and the return path before secondary metadata.
+- Long goals, item text, reason codes, actor names, and IDs wrap or disclose
+  safely without horizontal page scrolling or clipped controls.
+
 ## Extending this system
 
 Adding a new card? Answer these before writing markup:
 
-1. Which of the three views does this belong to — Status, Decisions, or
-   Evidence? (If you're unsure, it's Evidence.)
+1. Which of the four views does this belong to — Activity, Decisions, Evidence,
+   or Settings? (If you're unsure, operational proof belongs in Evidence and
+   configuration belongs in Settings.)
 2. Does it need progressive disclosure (`<details>`), or is it genuinely
    glanceable?
 3. Which existing icon already means what you need? (Don't add a new one
