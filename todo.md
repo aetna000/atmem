@@ -63,9 +63,36 @@ complete history instead of polluted duplicates.
 **Done when:** correct paraphrases recall, unrelated queries inject nothing, and
 every selection is explainable.
 
+### 5. Governed task state
+
+- [ ] Maintain a separate, structured execution state for active tasks without
+      mixing temporary workflow progress into durable long-term memory.
+- [ ] Track task goals, phases, constraints, dependencies, actionable items,
+      completion status, blockers, and evidence-backed state revisions.
+- [ ] Let AtBot propose task-state changes while AtMem validates and atomically
+      commits every accepted transition.
+- [ ] Produce an accepted transition, rejected transition, or explicit
+      `no_change` result for every observed workflow step.
+- [ ] Deliver byte-stable, scope-authorized current task state before model
+      calls and bind exact exposure to the existing flight evidence.
+- [ ] Detect repeated actions without progress, out-of-scope operations, and
+      premature completion while preserving safe host-controlled execution.
+- [ ] Inspect, correct, pause, resume, complete, cancel, and expire task state through consistent
+      CLI and dashboard controls.
+- [ ] Enforce a documented governance matrix, retain field- and status-level
+      provenance, and expose task-state health, progress, guard, fallback, and
+      integrity observability without leaking scoped content.
+- [ ] Preserve shadow mode, deterministic fallback, framework-owned workflow
+      state, multi-agent isolation, and backward-compatible persisted data.
+
+**Done when:** supported agents can reliably distinguish completed, ready,
+blocked, skipped, and remaining work throughout a multi-step task, and every
+state change and delivered checklist is authorized, evidence-linked, and
+replayable.
+
 ## P1 — Storage, scale, and relationships
 
-### 5. Entity and relationship memory
+### 6. Entity and relationship memory
 
 - [ ] Extract canonical entities, aliases, types, and evidence-bound relations.
 - [ ] Link every entity and relation to canonical memory and source.
@@ -76,7 +103,7 @@ every selection is explainable.
 **Done when:** relationship questions work across memories and every traversed
 edge remains authorized and auditable.
 
-### 6. Production storage backends
+### 7. Production storage backends
 
 - [ ] Define versioned canonical-store and derived-index interfaces.
 - [ ] Add PostgreSQL as a canonical storage option.
@@ -89,7 +116,7 @@ edge remains authorized and auditable.
 **Done when:** AtMem scales beyond one local process without making a vector or
 graph database authoritative.
 
-### 7. Safe performance improvements
+### 8. Safe performance improvements
 
 - [ ] Profile candidate generation, indexes, graph search, reranking, context
       preparation, and evidence recording separately.
@@ -103,7 +130,7 @@ unauthorized context.
 
 ## P1 — Ecosystem
 
-### 8. Delegated context-provider adapters
+### 9. Delegated context-provider adapters
 
 - [x] Add a shared signed loopback provider runtime and conformance suite.
 - [x] Add a Mem0 provider adapter that preserves exact user, agent, and
@@ -118,7 +145,7 @@ unauthorized context.
 independently verifies signed decisions, delivers exact context once, and
 records evidence.
 
-### 9. Framework host adapters
+### 10. Framework host adapters
 
 - [ ] OpenAI Agents SDK.
 - [ ] Microsoft Agent Framework.
@@ -135,7 +162,7 @@ multi-agent scope.
 **Done when:** every advertised adapter passes the same conformance suite and
 states exactly what its host can prove.
 
-### 10. Stable application APIs and SDKs
+### 11. Stable application APIs and SDKs
 
 - [ ] Publish a versioned local HTTP API for memory, query, review, audit,
       configuration, and health.
@@ -146,7 +173,7 @@ states exactly what its host can prove.
 **Done when:** applications integrate without importing internal Python modules
 or depending on the OpenClaw bridge.
 
-### 11. Migration and interoperability
+### 12. Migration and interoperability
 
 - [ ] Import Mem0 memories with scope, metadata, source, and import evidence.
 - [ ] Export memory and provenance in a documented neutral format.
@@ -158,7 +185,7 @@ product.
 
 ## P2 — Product and deployment
 
-### 12. Production self-hosted service
+### 13. Production self-hosted service
 
 - [ ] Authentication and scoped API keys.
 - [ ] Tenant, user, workspace, and agent isolation.
@@ -169,7 +196,7 @@ product.
 **Done when:** AtMem can honestly support a multi-user server, not only a local
 loopback dashboard.
 
-### 13. Memory lifecycle controls
+### 14. Memory lifecycle controls
 
 - [ ] Expiry, retention, archival, and review policies.
 - [ ] Learned-at, valid-from/to, replaced-at, and last-used timestamps.
@@ -181,7 +208,7 @@ loopback dashboard.
 **Done when:** stale memory does not accumulate silently and every transition is
 understandable and controllable.
 
-### 14. Governed multimodal memory
+### 15. Governed multimodal memory
 
 - [ ] Contracts for images, audio, video, files, and tool artifacts.
 - [ ] Keep original bytes host-controlled by default.
@@ -192,7 +219,7 @@ understandable and controllable.
 
 **Done when:** multimodal recall works without silently copying private media.
 
-### 15. Simpler onboarding
+### 16. Simpler onboarding
 
 - [ ] One guided setup for host, shadow mode, AtBot, embeddings, test memory,
       retrieval verification, activation, and restore readiness.
@@ -225,9 +252,10 @@ mode, and activate safely without reading internal architecture documents.
 4. `specs/004-context-provider-adapters`
 5. `specs/005-semantic-setup-and-health`
 6. `specs/006-memory-extraction-lifecycle`
-7. `specs/007-retrieval-quality-and-reranking`
-8. `specs/008-entity-relationship-memory`
-9. `specs/009-production-storage-backends`
-10. `specs/010-framework-adapter-conformance`
-11. `specs/011-http-api-and-typescript-sdk`
-12. `specs/012-production-service-profile`
+7. `specs/007-governed-task-state`
+8. `specs/008-retrieval-quality-and-reranking`
+9. `specs/009-entity-relationship-memory`
+10. `specs/010-production-storage-backends`
+11. `specs/011-framework-adapter-conformance`
+12. `specs/012-http-api-and-typescript-sdk`
+13. `specs/013-production-service-profile`
