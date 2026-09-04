@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-01
 
-**Status**: Draft
+**Status**: Implemented; local and hosted AtBot end-to-end evidence pending
 
 **Input**: P0.1 from `todo.md`: establish repeatable memory-quality benchmarks and release gates for AtMem, including deterministic regression data, LongMemEval compatibility, execution-mode isolation, and a reproducible Mem0 OSS comparison.
 

@@ -255,11 +255,21 @@ mode, and activate safely without reading internal architecture documents.
 3. `specs/003-delegated-context-provider`
 4. `specs/004-context-provider-adapters`
 5. `specs/005-semantic-setup-and-health`
-6. `specs/006-memory-extraction-lifecycle`
+6. `specs/006-memory-extraction-and-updating`
 7. `specs/007-governed-task-state`
 8. `specs/008-retrieval-quality-and-reranking`
 9. `specs/009-entity-relationship-memory`
 10. `specs/010-production-storage-backends`
 11. `specs/011-framework-adapter-conformance`
 12. `specs/012-http-api-and-typescript-sdk`
-13. `specs/013-production-service-profile`
+13. `specs/014-memory-migration-interoperability`
+14. `specs/015-memory-lifecycle-controls`
+15. `specs/013-production-service-profile`
+16. `specs/016-governed-multimodal-memory`
+17. `specs/017-guided-onboarding-and-health`
+
+All roadmap areas now have `spec.md`, `plan.md`, and dependency-ordered
+`tasks.md` artifacts. Storage and safe-performance work are combined in Spec
+010 because cache correctness, query plans, backend capabilities, and latency
+targets share the same conformance boundary. Roadmap checkboxes remain open
+until their implementation tasks and release evidence are complete.

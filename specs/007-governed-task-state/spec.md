@@ -240,12 +240,12 @@ control preparation and exposure evidence, host-neutral adapter lifecycle
 identity, and the authorized AtBot companion boundary. Implementation MUST
 verify these concrete primitives before feature work begins.
 
-No unpublished or reserved roadmap specification is an implementation
-prerequisite for this feature. Task-state-specific profiles, proposals,
-transition decisions, provenance, and fallback are defined here. Later
-semantic-health or generalized extraction contracts may be adopted only
-through an explicit compatibility change; their absence must not block or
-silently alter this feature.
+Specs 005 (Semantic Setup and Health) and 006 (Memory Extraction and Updating)
+are not implementation prerequisites for this feature. Task-state-specific
+profiles, proposals, transition decisions, provenance, and fallback are
+defined here. Their generalized semantic-health or extraction contracts may
+be adopted only through an explicit compatibility change; their absence must
+not block or silently alter this feature.
 
 ## Governance Matrix
 

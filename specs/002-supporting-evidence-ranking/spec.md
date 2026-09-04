@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/002-supporting-evidence-ranking`
 **Created**: 2026-09-02
-**Status**: Approved for planning
+**Status**: Implemented
 **Input**: Improve evidence ranking after a matched LongMemEval-S campaign found every required session in AtMem's top five but placed one first relevant session at rank two. Implement `vector candidates → supporting-chunk aggregation → AtBot reranking → AtMem revalidation` without weakening authority, privacy, fallback, or compatibility.
 
 ## Overview

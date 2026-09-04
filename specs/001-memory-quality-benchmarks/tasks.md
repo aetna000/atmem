@@ -50,3 +50,8 @@
 
 - [x] T026 Replace non-conclusive Mem0 comparison language with declared metric directions, per-metric winners, and Pareto overall outcomes in `atmem/benchmark/external.py`, `docs/benchmarks.md`, and comparison tests per FR-014–FR-015 (partial)
 - [x] T027 Run a matched 12-case, six-category LongMemEval-S retrieval campaign against AtMem and pinned Mem0 OSS 2.0.19 with identical raw chunks and `nomic-embed-text:latest`; publish the runner, configuration, result, and direct comparison outcome in `tools/run_longmemeval_retrieval.py` and `docs/examples/longmemeval-s-retrieval-12-v1.json` (FR-013–FR-015)
+
+## Phase 9: Remaining End-to-End Profile Evidence
+
+- [ ] T028 Run the local AtBot profile end to end against a configured, version-pinned local model; retain exact identity, availability, results, latency, and limitations in `docs/examples/benchmark-local-atbot-v1.json` and add an installed-package smoke test in `tests/test_benchmark_profiles_e2e.py` (FR-006–FR-008, SC-004, SC-008)
+- [ ] T029 Run the hosted AtBot profile end to end with explicit opt-in; retain provider/model identity, egress, token usage, pricing source/time or explicit unknown cost, results, latency, and redacted diagnostics in `docs/examples/benchmark-hosted-atbot-v1.json` with credential-safety coverage in `tests/test_benchmark_profiles_e2e.py` (FR-005–FR-008, FR-015–FR-016, SC-004, SC-008)
