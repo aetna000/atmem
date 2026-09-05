@@ -2,7 +2,7 @@
   "id": "memory-atmem",
   "name": "Memory (atmem)",
   "description": "OpenClaw bridge installed and managed by the AtMem memory control plane.",
-  "version": "2.2.6-beta.3",
+  "version": "2.2.6-beta.5",
   "commandAliases": ["memory-atmem"],
   "activation": {
     "onStartup": true,
@@ -16,7 +16,9 @@
       "atmem_search",
       "atmem_forget",
       "atmem_observe",
-      "atmem_forget_artifact"
+      "atmem_forget_artifact",
+      "task_report_progress",
+      "task_binding_status"
     ]
   },
   "configSchema": {
