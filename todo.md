@@ -281,3 +281,6 @@ targets share the same conformance boundary. Spec 018 is sequenced before the
 remaining feature work because it locks the Specs 001–004 baseline in place and
 every later spec attests into its registry. Roadmap checkboxes remain open
 until their implementation tasks and release evidence are complete.
+
+
+before: agent ran for 40 minutes, something broke, no idea where
