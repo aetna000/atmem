@@ -48,6 +48,7 @@ class GraphMaintenanceWorker:
     def run_once(self) -> list[dict[str, object]]:
         memory = Memory(self.database)
         try:
+            self._expire_due_tasks(memory)
             cutoff = (
                 datetime.now(timezone.utc) - timedelta(days=self.archive_after_days)
             ).isoformat()
@@ -68,6 +69,28 @@ class GraphMaintenanceWorker:
             return reports
         finally:
             memory.close()
+
+    def _expire_due_tasks(self, memory: Memory) -> dict[str, object]:
+        """Retire governed tasks whose bound age rule is due.
+
+        The scan is idempotent and safe to run alongside lazy evaluation: a
+        task that expires here reaches exactly one terminal head, and a task
+        already terminal is never re-evaluated. Failing here must not stop the
+        rest of maintenance, so the outcome is returned rather than raised.
+        """
+        from atmem.task_state.service import TaskStateService
+
+        try:
+            return TaskStateService(memory.store).scan_for_expiry()
+        except Exception as exc:  # a scan failure must not block consolidation
+            if self.on_error is not None:
+                self.on_error(exc)
+            return {
+                "format": "atmem-task-expiry-scan-v1",
+                "expired_task_ids": [],
+                "expired": 0,
+                "error": f"{type(exc).__name__}: {exc}",
+            }
 
     def _run(self) -> None:
         while not self._stop.wait(self.interval_seconds):

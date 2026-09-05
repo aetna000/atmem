@@ -565,3 +565,81 @@ def test_an_expired_task_is_never_returned_as_active_context(
         assert service.get(SCOPE, "task-1").state.lifecycle is TaskLifecycle.EXPIRED
     finally:
         store.close()
+
+
+def test_the_scheduled_maintenance_worker_expires_due_tasks(
+    tmp_path: Path,
+) -> None:
+    """T018: expiry runs on the shared maintenance schedule, not only lazily."""
+    from atmem.maintenance import GraphMaintenanceWorker
+    from atmem.memory import Memory
+
+    database = tmp_path / "memories.db"
+    clock = FixedUtcClock(MOMENT)
+    profile = _profile(max_absolute_age_ms=HOUR_MS)
+    memory = Memory(database, auto_vectors=False)
+    try:
+        # Registered rather than injected, so any process — including the
+        # maintenance worker's own service — can resolve the profile.
+        registration = ProfileRegistry(memory.store).register(
+            profile.to_dict(), actor="administrator"
+        )
+        assert registration.registered is True, registration.reason_codes
+        _start(TaskStateService(memory.store, clock=clock), profile)
+    finally:
+        memory.close()
+
+    worker = GraphMaintenanceWorker(
+        database, interval_seconds=3600, archive_root=tmp_path / "archive"
+    )
+    # The worker uses the system clock, so the task is aged past its threshold
+    # by rewriting its creation time rather than by waiting.
+    reopened = Memory(database, auto_vectors=False)
+    try:
+        reopened.store._conn.execute(
+            "UPDATE governed_tasks SET created_at_utc = ?, last_progress_at_utc = ? "
+            "WHERE task_id = 'task-1'",
+            ("2020-01-01T00:00:00+00:00", "2020-01-01T00:00:00+00:00"),
+        )
+    finally:
+        reopened.close()
+
+    worker.run_once()
+
+    verifier = Memory(database, auto_vectors=False)
+    try:
+        task = verifier.store.get_task(
+            subject_id=SCOPE.subject_id, agent_id=SCOPE.agent_id,
+            workspace_id=SCOPE.workspace_id, task_id="task-1",
+        )
+        assert task["lifecycle"] == "expired"
+        assert task["terminal_reason"] == "expired_absolute_age"
+    finally:
+        verifier.close()
+
+
+def test_a_failing_expiry_scan_does_not_stop_the_rest_of_maintenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from atmem.maintenance import GraphMaintenanceWorker
+    from atmem.memory import Memory
+    from atmem.task_state import service as service_module
+
+    database = tmp_path / "memories.db"
+    Memory(database, auto_vectors=False).close()
+
+    errors: list[Exception] = []
+
+    def _explode(self, **kwargs):
+        raise RuntimeError("scan failed")
+
+    monkeypatch.setattr(service_module.TaskStateService, "scan_for_expiry", _explode)
+    worker = GraphMaintenanceWorker(
+        database, interval_seconds=3600, archive_root=tmp_path / "archive",
+        on_error=errors.append,
+    )
+
+    reports = worker.run_once()
+
+    assert isinstance(reports, list), "graph consolidation still ran"
+    assert errors and isinstance(errors[0], RuntimeError)
