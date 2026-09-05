@@ -220,7 +220,7 @@ jobs:
           python "$GITHUB_WORKSPACE/tools/smoke_delegated_package.py"
 
   upgrade-existing:
-    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.2.6b3
+    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.2.6b4
     needs: build
     runs-on: ubuntu-latest
     strategy:

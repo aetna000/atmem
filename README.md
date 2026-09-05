@@ -1,6 +1,6 @@
 # AtMem
 
-[![Version 2.2.6b3](https://img.shields.io/badge/version-2.2.6b3-blue)](./docs/releases/v2.2.6b3.md)
+[![Version 2.2.6b4](https://img.shields.io/badge/version-2.2.6b4-blue)](./docs/releases/v2.2.6b4.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
@@ -15,7 +15,7 @@ authorizes, stores, scopes, injects, corrects, and deletes memory.
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --pre --upgrade atmem==2.2.6b3
+python -m pip install --pre --upgrade atmem==2.2.6b4
 atmem atbot setup
 atmem atbot doctor
 atmem dashboard
@@ -43,7 +43,7 @@ connection. Do not install the npm package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --pre --upgrade atmem==2.2.6b3
+python -m pip install --pre --upgrade atmem==2.2.6b4
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -66,7 +66,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install --pre 'atmem[pydantic-ai]==2.2.6b3'
+python -m pip install --pre 'atmem[pydantic-ai]==2.2.6b4'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -90,7 +90,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install --pre 'atmem[langgraph]==2.2.6b3'
+python -m pip install --pre 'atmem[langgraph]==2.2.6b4'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -147,7 +147,7 @@ If AtBot or its selected model is unavailable, AtMem continues with safe local
 capture and hybrid ranking. Memory authority and agent operation do not depend
 on a hosted model.
 
-> **Release status:** this repository describes **AtMem 2.2.6b3**. AtBot is a
+> **Release status:** this repository describes **AtMem 2.2.6b4**. AtBot is a
 > separately packaged, headless component installed and managed by AtMem; it is
 > not an independent agent or a second memory authority.
 
@@ -208,7 +208,7 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install --pre atmem==2.2.6b3
+python -m pip install --pre atmem==2.2.6b4
 atmem --version
 ```
 
@@ -216,7 +216,7 @@ AtMem requires Python 3.10 or newer. It always creates a dependency-free local
 vector sidecar; the semantic extra adds an optional local embedding upgrade:
 
 ```bash
-python -m pip install --pre 'atmem[semantic]==2.2.6b3'
+python -m pip install --pre 'atmem[semantic]==2.2.6b4'
 ```
 
 For repository development, install both workspace packages:
@@ -396,7 +396,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --pre --upgrade atmem==2.2.6b3
+python -m pip install --pre --upgrade atmem==2.2.6b4
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -548,7 +548,7 @@ npm test
 npm run smoke
 ```
 
-Current repository metadata is version **2.2.6b3**. The installer pins the
+Current repository metadata is version **2.2.6b4**. The installer pins the
 compatible OpenClaw bridge independently; provider-only Python releases do not
 force an unnecessary npm publication.
 

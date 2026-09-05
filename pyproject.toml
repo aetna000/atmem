@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atmem"
-version = "2.2.6b3"
+version = "2.2.6b4"
 description = "Host-neutral Agent Black Box and reversible memory control plane."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -27,7 +27,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-  "atmem-atbot==0.1.0a4",
+  "atmem-atbot==0.1.0a5",
   "cryptography>=42,<49",
 ]
 
