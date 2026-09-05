@@ -554,6 +554,62 @@ External evaluation:
                 help="Manual paraphrase used to verify the first eligible record",
             )
 
+    proposals_parser = subparsers.add_parser(
+        "proposals",
+        help="Inspect and decide governed memory proposals awaiting review",
+        description="Inspect and decide governed memory proposals awaiting review.",
+    )
+    proposals_commands = proposals_parser.add_subparsers(dest="proposals_command")
+
+    proposals_queue = proposals_commands.add_parser(
+        "queue", help="List proposals waiting for a review decision"
+    )
+    proposals_queue.add_argument("path")
+    proposals_queue.add_argument("--subject", default=None)
+    proposals_queue.add_argument("--limit", type=int, default=100)
+    proposals_queue.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON"
+    )
+
+    proposals_show = proposals_commands.add_parser(
+        "show", help="Show one proposal with its exact source evidence"
+    )
+    proposals_show.add_argument("path")
+    proposals_show.add_argument("proposal_id")
+    proposals_show.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON"
+    )
+
+    proposals_decide = proposals_commands.add_parser(
+        "decide", help="Approve, edit and approve, or reject one proposal"
+    )
+    proposals_decide.add_argument("path")
+    proposals_decide.add_argument("proposal_id")
+    proposals_decide.add_argument(
+        "decision", choices=("approve", "edit_and_approve", "reject")
+    )
+    proposals_decide.add_argument(
+        "--actor", required=True, help="Who is making this decision, for the audit log"
+    )
+    proposals_decide.add_argument("--reason", default="")
+    proposals_decide.add_argument(
+        "--fact", default=None, help="Replacement fact text for edit_and_approve"
+    )
+    proposals_decide.add_argument("--session", default=None)
+    proposals_decide.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON"
+    )
+
+    proposals_lineage = proposals_commands.add_parser(
+        "lineage", help="Show how corrected and superseding records relate"
+    )
+    proposals_lineage.add_argument("path")
+    proposals_lineage.add_argument("subject_id")
+    proposals_lineage.add_argument("--record-id", default=None)
+    proposals_lineage.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON"
+    )
+
     list_parser = subparsers.add_parser("list", help="List a subject's records")
     list_parser.add_argument("path")
     list_parser.add_argument("subject_id")
@@ -1037,6 +1093,13 @@ External evaluation:
             semantic_parser.print_help()
             return
         _run_semantic(args)
+        return
+
+    if args.command == "proposals":
+        if args.proposals_command is None:
+            proposals_parser.print_help()
+            return
+        _run_proposals(args)
         return
 
     if args.command == "mcp":
@@ -2249,6 +2312,102 @@ def _semantic_configuration_digest(
         "api_key_environment_variable": args.api_key_env,
     }
     return f"sha256:{sha256_hex(canonical_json(safe))}"
+
+
+def _run_proposals(args: argparse.Namespace) -> None:
+    """Drive the same review service the dashboard uses, from a terminal."""
+    from atmem.extract.review import ReviewService
+
+    memory = Memory(args.path, auto_vectors=False)
+    try:
+        service = ReviewService(memory)
+        if args.proposals_command == "queue":
+            queue = service.queue(args.subject, limit=args.limit)
+            _emit_proposal_queue(queue, json_output=args.json)
+            return
+        if args.proposals_command == "show":
+            _emit_proposal(service.inspect(args.proposal_id), json_output=args.json)
+            return
+        if args.proposals_command == "lineage":
+            lineage = memory.memory_lineage(args.subject_id, args.record_id)
+            if args.json:
+                _print({"format": "atmem-memory-lineage-v1", "lineage": lineage})
+                return
+            if not lineage:
+                print("No lineage is recorded for this selection.")
+                return
+            for row in lineage:
+                print(
+                    f"{row['predecessor_record_id']} --{row['relation']}--> "
+                    f"{row['successor_record_id']}  ({row['created_at']})"
+                )
+            return
+        if args.proposals_command == "decide":
+            result = service.decide(
+                args.proposal_id,
+                args.decision,
+                actor=args.actor,
+                reason=args.reason,
+                edited_fact=args.fact,
+                session_id=args.session,
+            )
+            _emit_proposal(result, json_output=args.json)
+            if result["review_state"] == "stale":
+                # Nothing was committed: the memory this proposal targeted
+                # changed while it waited, so the operator must look again.
+                raise SystemExit(1)
+            return
+    finally:
+        memory.close()
+
+
+def _emit_proposal_queue(value: dict[str, Any], *, json_output: bool) -> None:
+    if json_output:
+        _print(value)
+        return
+    rows = value.get("proposals") or []
+    print(f"Proposals awaiting review: {len(rows)}")
+    for row in rows:
+        print(
+            f"  {row['proposal_id']}  {row['action']}  {row['memory_class']}  "
+            f"confidence {row['confidence']:.2f}"
+        )
+        print(f"    proposed fact: {row.get('fact') or '(no fact)'}")
+        print("    reasons: " + ", ".join(row.get("reason_codes") or ["none"]))
+    if rows:
+        print("Decide with: atmem proposals decide PATH PROPOSAL_ID DECISION --actor YOU")
+
+
+def _emit_proposal(value: dict[str, Any], *, json_output: bool) -> None:
+    if json_output:
+        _print(value)
+        return
+    print(f"Proposal: {value['proposal_id']}")
+    print(f"State: {value['review_state']}")
+    print(f"Action: {value['action']} ({value['memory_class']})")
+    print(f"Confidence: {value['confidence']:.2f}")
+    # The proposed text, not necessarily what was committed: an
+    # edit-and-approve stores the reviewer's wording instead.
+    print(f"Proposed fact: {value.get('fact') or '(no fact)'}")
+    print("Reasons: " + ", ".join(value.get("reason_codes") or ["none"]))
+    for item in value.get("evidence") or []:
+        print(
+            f"Evidence: {item['source_id']} "
+            f"[{item['start_offset']}:{item['end_offset']}] {item['excerpt_sha256']}"
+        )
+    if value.get("affected_record_ids"):
+        print("Affects: " + ", ".join(value["affected_record_ids"]))
+    if value.get("record_ids"):
+        print("Committed records: " + ", ".join(value["record_ids"]))
+    if value.get("superseded_record_ids"):
+        print("Superseded records: " + ", ".join(value["superseded_record_ids"]))
+    if value.get("allowed_decisions"):
+        print("Allowed decisions: " + ", ".join(value["allowed_decisions"]))
+    for review in value.get("reviews") or []:
+        print(
+            f"Decision: {review['decision']} by {review['actor']} "
+            f"at {review['decided_at']} — {review['reason'] or 'no reason given'}"
+        )
 
 
 def _emit_semantic_health(value: dict[str, Any], *, json_output: bool) -> None:

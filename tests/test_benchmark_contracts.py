@@ -17,8 +17,8 @@ from atmem.benchmark.runner import data_path
 def test_checked_in_dataset_is_versioned_unique_and_packaged() -> None:
     dataset = load_dataset(data_path("deterministic-v1.json"))
     assert dataset["format"] == "atmem-benchmark-cases-v1"
-    assert len(dataset["cases"]) == 16
-    assert len({row["id"] for row in dataset["cases"]}) == 16
+    assert len(dataset["cases"]) == 24
+    assert len({row["id"] for row in dataset["cases"]}) == 24
     assert dataset["dataset_sha256"].startswith("sha256:")
     packaged = resources.files("atmem.benchmark").joinpath("data", "thresholds-v1.json")
     assert packaged.is_file()

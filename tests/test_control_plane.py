@@ -394,6 +394,61 @@ def test_dashboard_review_queue_approves_or_purges_exact_quarantined_records(
     )
 
 
+def test_dashboard_proposal_queue_shares_the_cli_review_service(
+    tmp_path: Path,
+) -> None:
+    """The dashboard must not build its own view of a proposal's state."""
+    from atmem.contracts import AuthorityScope
+    from atmem.extract import build_resolution_context, propose_from_rules
+
+    manager = _manager(tmp_path)
+    workspace = tmp_path / "openclaw-workspace"
+    workspace.mkdir()
+    (workspace / "MEMORY.md").write_text("# Memory\n", encoding="utf-8")
+    mirror = sync_mirror(manager.state(), workspace=workspace)
+
+    scope = AuthorityScope("local-user", "agent-1", "workspace-1")
+    message = "My current medication is atorvastatin."
+    memory = Memory(mirror["mirror_db"])
+    try:
+        context = build_resolution_context(memory.store, scope.subject_id, scope=scope)
+        [proposal] = propose_from_rules(
+            message, scope=scope, source_id="source-1", context=context
+        )
+        submitted = memory.submit_extraction_proposal(proposal, source_text=message)
+    finally:
+        memory.close()
+    assert submitted["review_state"] == "pending_review"
+
+    queue = manager.extraction_proposals("local-user")
+    assert queue["format"] == "atmem-extraction-review-queue-v1"
+    assert queue["count"] == 1
+    [row] = queue["proposals"]
+    assert row["proposal_id"] == submitted["proposal_id"]
+    assert row["allowed_decisions"] == ["approve", "edit_and_approve", "reject"]
+    assert row["evidence"]
+
+    decided = manager.decide_extraction_proposal(
+        submitted["proposal_id"],
+        "approve",
+        actor="dashboard-reviewer",
+        reason="confirmed in the dashboard",
+    )
+    assert decided["review_state"] == "committed"
+    assert decided["reviews"][0]["actor"] == "dashboard-reviewer"
+    assert manager.extraction_proposals("local-user")["count"] == 0
+
+    memory = Memory(mirror["mirror_db"])
+    try:
+        assert any(
+            row["content"] == "User's current medication is atorvastatin."
+            for row in memory.list("local-user")
+        )
+        assert memory.verify("local-user")["valid"] is True
+    finally:
+        memory.close()
+
+
 def test_state_digest_tampering_turns_integration_off(tmp_path: Path) -> None:
     manager = _manager(tmp_path)
     value = json.loads(manager.state_path.read_text(encoding="utf-8"))
@@ -876,6 +931,8 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/bridge/status",
         "/api/bridge/refresh-test",
         "/api/memory/reviews",
+        "/api/memory/proposals",
+        "/api/memory/proposal-decision",
         "/api/memory/review",
         "/api/memory/search",
         "/api/memory/query",

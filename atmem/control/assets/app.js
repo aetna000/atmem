@@ -1,6 +1,6 @@
 (function(){
 "use strict";
-var state=null,semanticHealth=null,reviewQueue={records:[]},productInfo={},blackboxIndex={runs:[]},blackboxArchiveRows=[],blackboxStories={},flightRange="7d",bridgeRefreshStatus={available:false},activityVisible=10,activitySearchTimer=null,csrf="",progressTimer=null,progressStarted=0,companionProfiles={},companionStatus={},companionFormDirty=false;
+var state=null,semanticHealth=null,proposalQueue={proposals:[]},reviewQueue={records:[]},productInfo={},blackboxIndex={runs:[]},blackboxArchiveRows=[],blackboxStories={},flightRange="7d",bridgeRefreshStatus={available:false},activityVisible=10,activitySearchTimer=null,csrf="",progressTimer=null,progressStarted=0,companionProfiles={},companionStatus={},companionFormDirty=false;
 var auditCursors=[null],auditPageIndex=0,auditLast=null,auditFacetsLoaded=false;
 var $=function(id){return document.getElementById(id)};
 function text(id,value){$(id).textContent=value==null?"—":String(value)}
@@ -292,6 +292,39 @@ function renderReviews(){
   actions.append(approve,reject);item.appendChild(actions);box.appendChild(item)
  })
 }
+function renderProposals(){
+ var box=$("proposals"),rows=Array.isArray(proposalQueue.proposals)?proposalQueue.proposals:[];box.replaceChildren();text("proposalCount",rows.length);
+ if(!rows.length){box.appendChild(element("div","empty","No proposals are waiting for a decision."));return}
+ rows.forEach(function(row){
+  var item=element("div","reviewitem"),meta=element("div","reviewmeta"),content=element("p","reviewcontent",row.fact||"This proposal changes no fact text.");
+  meta.append(element("span","pill",String(row.action||"").toLowerCase()+" · "+String(row.memory_class||"").replaceAll("_"," ")),element("span","small",displayTime(row.created_at)),element("span","small","confidence "+Number(row.confidence||0).toFixed(2)));
+  item.append(meta,content);
+  var reasons=element("div","reviewmeta");(row.reason_codes||[]).forEach(function(code){reasons.appendChild(element("span","pill",String(code).replaceAll("_"," ")))});item.appendChild(reasons);
+  var evidenceBox=element("div","evidencegrid");
+  (row.evidence||[]).forEach(function(span){evidenceBox.appendChild(evidence("Source span",String(span.source_id)+" ["+span.start_offset+":"+span.end_offset+"]",true))});
+  (row.affected_record_ids||[]).forEach(function(id){evidenceBox.appendChild(evidence("Replaces record",id,true))});
+  if((row.evidence||[]).length||(row.affected_record_ids||[]).length)item.appendChild(evidenceBox);
+  var allowed=row.allowed_decisions||[],actions=element("div","reviewactions");
+  if(allowed.indexOf("approve")>=0){var approve=element("button","primary approve","Approve");approve.type="button";approve.onclick=function(){decideProposal(row,"approve")};actions.appendChild(approve)}
+  if(allowed.indexOf("edit_and_approve")>=0){var edit=element("button","secondary","Edit and approve");edit.type="button";edit.onclick=function(){decideProposal(row,"edit_and_approve")};actions.appendChild(edit)}
+  if(allowed.indexOf("reject")>=0){var reject=element("button","reject","Reject");reject.type="button";reject.onclick=function(){decideProposal(row,"reject")};actions.appendChild(reject)}
+  item.appendChild(actions);box.appendChild(item)
+ })
+}
+async function decideProposal(row,decision){
+ var edited=null;
+ if(decision==="edit_and_approve"){edited=prompt("Approve this memory with corrected wording:",row.fact||"");if(edited==null||!edited.trim())return}
+ else if(!confirm("Do you want to "+(decision==="approve"?"approve":"reject")+" this proposal?\n\n"+(row.fact||"")))return;
+ var reason=prompt("Why? This is recorded with your decision.","")||"";
+ try{await working(decision==="reject"?"Rejecting proposal":"Approving proposal","Recording the decision, its reason, and the resulting records in the audit log.",async function(){
+  var result=await post("/api/memory/proposal-decision",{proposal_id:row.proposal_id,confirm_proposal_id:row.proposal_id,decision:decision,reason:reason,edited_fact:edited});
+  if(result&&result.review_state==="stale")showError(new Error("Nothing changed: the memory this proposal targeted was modified while it waited. Review the current value again."));
+  await reload()})}
+ catch(error){showError(error)}
+}
+async function refreshProposals(silent){
+ try{proposalQueue=await get("/api/memory/proposals");renderProposals()}catch(error){if(!silent)showError(error)}
+}
 async function reviewRecord(row,decision){
  var approving=decision==="approve",verb=approving?"approve":"reject and permanently purge";
  var subject=row.media&&row.media.modality==="image"?"this exact text description as recallable memory":"this exact memory";
@@ -377,7 +410,7 @@ function render(){
  }
  updateStatusBanner();renderProductVersions()
 }
-async function reload(){var values=await Promise.all([get("/api/status"),get("/api/memory/reviews"),get("/api/semantic/health")]);state=values[0];reviewQueue=values[1];semanticHealth=values[2];render();renderSemanticHealth()}
+async function reload(){var values=await Promise.all([get("/api/status"),get("/api/memory/reviews"),get("/api/semantic/health"),get("/api/memory/proposals")]);state=values[0];reviewQueue=values[1];semanticHealth=values[2];proposalQueue=values[3];render();renderSemanticHealth();renderProposals()}
 async function searchTechnical(){
  var query=$("query").value.trim();if(!query)return;clearError();$("results").replaceChildren(loadingNode("Searching memory…","empty"));
  try{
@@ -471,7 +504,7 @@ $("refreshBtn").onclick=refresh;$("switchBtn").onclick=switchProvider;
 $("drillBtn").onclick=restoreDrill;
 $("verifyBtn").onclick=verifyNow;
 $("bridgeRefresh").onclick=refreshBridgeAndTest;
-$("reviewRefresh").onclick=refreshReviews;
+$("reviewRefresh").onclick=refreshReviews;$("proposalRefresh").onclick=function(){refreshProposals()};
 $("browseRecords").onclick=function(){showView("evidence");$("query").focus()};
 $("blackboxRefresh").onclick=loadBlackbox;
 $("agentTopologySync").onclick=syncAgentTopology;

@@ -183,6 +183,15 @@ class SQLiteStore:
             self._conn.execute(
                 "DELETE FROM pending_user_messages WHERE subject_id = ?", (subject_id,)
             )
+            self._conn.execute(
+                "DELETE FROM memory_lineage WHERE subject_id = ?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM memory_reviews WHERE subject_id = ?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM memory_proposals WHERE subject_id = ?", (subject_id,)
+            )
 
     def stage_user_message(
         self,
@@ -695,6 +704,289 @@ class SQLiteStore:
             (subject_id,),
         ).fetchone()
         return int(row["generation"]) if row else 0
+
+    def record_preconditions(
+        self, subject_id: str, record_ids: list[str]
+    ) -> dict[str, dict[str, Any]]:
+        """Current generation, status, and content digest per named record.
+
+        This is the exact state a governed proposal must pin. It is read
+        inside the committing transaction so a concurrent writer either loses
+        the BEGIN IMMEDIATE race or is detected by the generation check.
+        """
+        result: dict[str, dict[str, Any]] = {}
+        for record_id in dict.fromkeys(record_ids):
+            row = self._conn.execute(
+                """
+                SELECT id, generation, status, content FROM records
+                WHERE subject_id = ? AND id = ?
+                """,
+                (subject_id, record_id),
+            ).fetchone()
+            if row is None:
+                continue
+            result[str(row["id"])] = {
+                "record_id": str(row["id"]),
+                "generation": int(row["generation"] or 0),
+                "status": str(row["status"]),
+                "content_sha256": f"sha256:{sha256_hex(str(row['content']))}",
+            }
+        return result
+
+    def insert_memory_proposal(
+        self,
+        *,
+        proposal_id: str,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        idempotency_key: str,
+        proposal_sha256: str,
+        action: str,
+        memory_class: str,
+        confidence: float,
+        fact_key: str | None,
+        review_state: str,
+        reason_codes: list[str],
+        proposal: dict[str, Any],
+        outcome: dict[str, Any] | None = None,
+        decided_at: str | None = None,
+    ) -> dict[str, Any]:
+        with self.transaction():
+            self._conn.execute(
+                """
+                INSERT INTO memory_proposals (
+                  proposal_id, subject_id, agent_id, workspace_id,
+                  idempotency_key, proposal_sha256, action, memory_class,
+                  confidence, fact_key, review_state, reason_codes, proposal,
+                  outcome, created_at, decided_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    proposal_id,
+                    subject_id,
+                    agent_id,
+                    workspace_id,
+                    idempotency_key,
+                    proposal_sha256,
+                    action,
+                    memory_class,
+                    float(confidence),
+                    fact_key,
+                    review_state,
+                    _json(list(reason_codes)),
+                    _json(proposal),
+                    _json(outcome or {}),
+                    utc_now(),
+                    decided_at,
+                ),
+            )
+        stored = self.get_memory_proposal(proposal_id)
+        assert stored is not None
+        return stored
+
+    def get_memory_proposal(self, proposal_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM memory_proposals WHERE proposal_id = ?", (proposal_id,)
+        ).fetchone()
+        return _memory_proposal_from_row(row) if row else None
+
+    def find_memory_proposal(
+        self, subject_id: str, agent_id: str, workspace_id: str, idempotency_key: str
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT * FROM memory_proposals
+            WHERE subject_id = ? AND agent_id = ? AND workspace_id = ?
+              AND idempotency_key = ?
+            """,
+            (subject_id, agent_id, workspace_id, idempotency_key),
+        ).fetchone()
+        return _memory_proposal_from_row(row) if row else None
+
+    def list_memory_proposals(
+        self,
+        subject_id: str | None = None,
+        *,
+        review_states: tuple[str, ...] | None = ("pending_review",),
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if subject_id is not None:
+            clauses.append("subject_id = ?")
+            params.append(subject_id)
+        if review_states is not None:
+            clauses.append(
+                f"review_state IN ({','.join('?' for _ in review_states)})"
+            )
+            params.extend(review_states)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        params.append(max(1, min(int(limit), 1000)))
+        rows = self._conn.execute(
+            f"""
+            SELECT * FROM memory_proposals {where}
+            ORDER BY created_at ASC, proposal_id ASC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+        return [_memory_proposal_from_row(row) for row in rows]
+
+    def settle_memory_proposal(
+        self,
+        proposal_id: str,
+        *,
+        review_state: str,
+        outcome: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Move a proposal out of the queue exactly once.
+
+        The pending guard is what makes two concurrent reviewers safe: the
+        second decision matches no row and the caller fails closed.
+        """
+        with self.transaction():
+            cursor = self._conn.execute(
+                """
+                UPDATE memory_proposals
+                SET review_state = ?, outcome = ?, decided_at = ?
+                WHERE proposal_id = ? AND review_state = 'pending_review'
+                """,
+                (review_state, _json(outcome), utc_now(), proposal_id),
+            )
+            if cursor.rowcount != 1:
+                return None
+        return self.get_memory_proposal(proposal_id)
+
+    def insert_memory_review(
+        self,
+        *,
+        proposal_id: str,
+        subject_id: str,
+        decision: str,
+        actor: str,
+        reason: str,
+        edited_fact_sha256: str | None = None,
+        record_ids: list[str] | None = None,
+        audit_event_id: str | None = None,
+    ) -> dict[str, Any]:
+        review_id = _new_id("rev")
+        with self.transaction():
+            self._conn.execute(
+                """
+                INSERT INTO memory_reviews (
+                  review_id, proposal_id, subject_id, decision, actor, reason,
+                  edited_fact_sha256, record_ids, audit_event_id, decided_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    review_id,
+                    proposal_id,
+                    subject_id,
+                    decision,
+                    actor,
+                    reason,
+                    edited_fact_sha256,
+                    _json(list(record_ids or ())),
+                    audit_event_id,
+                    utc_now(),
+                ),
+            )
+        rows = self.list_memory_reviews(proposal_id)
+        return next(row for row in rows if row["review_id"] == review_id)
+
+    def list_memory_reviews(self, proposal_id: str) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM memory_reviews WHERE proposal_id = ?
+            ORDER BY decided_at ASC, review_id ASC
+            """,
+            (proposal_id,),
+        ).fetchall()
+        return [
+            {
+                "review_id": str(row["review_id"]),
+                "proposal_id": str(row["proposal_id"]),
+                "subject_id": str(row["subject_id"]),
+                "decision": str(row["decision"]),
+                "actor": str(row["actor"]),
+                "reason": str(row["reason"]),
+                "edited_fact_sha256": row["edited_fact_sha256"],
+                "record_ids": _load_json(row["record_ids"], []),
+                "audit_event_id": row["audit_event_id"],
+                "decided_at": str(row["decided_at"]),
+            }
+            for row in rows
+        ]
+
+    def insert_memory_lineage(
+        self,
+        *,
+        subject_id: str,
+        relation: str,
+        predecessor_record_id: str,
+        successor_record_id: str,
+        predecessor_content_sha256: str,
+        predecessor_generation: int,
+        proposal_id: str | None = None,
+    ) -> str:
+        lineage_id = _new_id("lin")
+        with self.transaction():
+            self._conn.execute(
+                """
+                INSERT OR IGNORE INTO memory_lineage (
+                  lineage_id, subject_id, relation, predecessor_record_id,
+                  successor_record_id, predecessor_content_sha256,
+                  predecessor_generation, proposal_id, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    lineage_id,
+                    subject_id,
+                    relation,
+                    predecessor_record_id,
+                    successor_record_id,
+                    predecessor_content_sha256,
+                    int(predecessor_generation),
+                    proposal_id,
+                    utc_now(),
+                ),
+            )
+        return lineage_id
+
+    def list_memory_lineage(
+        self, subject_id: str, record_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        params: list[Any] = [subject_id]
+        clause = ""
+        if record_id is not None:
+            clause = "AND (predecessor_record_id = ? OR successor_record_id = ?)"
+            params.extend([record_id, record_id])
+        rows = self._conn.execute(
+            f"""
+            SELECT * FROM memory_lineage
+            WHERE subject_id = ? {clause}
+            ORDER BY created_at ASC, lineage_id ASC
+            """,
+            params,
+        ).fetchall()
+        return [
+            {
+                "lineage_id": str(row["lineage_id"]),
+                "subject_id": str(row["subject_id"]),
+                "relation": str(row["relation"]),
+                "predecessor_record_id": str(row["predecessor_record_id"]),
+                "successor_record_id": str(row["successor_record_id"]),
+                "predecessor_content_sha256": str(row["predecessor_content_sha256"]),
+                "predecessor_generation": int(row["predecessor_generation"]),
+                "proposal_id": row["proposal_id"],
+                "created_at": str(row["created_at"]),
+            }
+            for row in rows
+        ]
 
     def get_media_artifact(
         self,
@@ -2600,6 +2892,51 @@ class SQLiteStore:
             self._migrate_fts()
             self._migrate_graph_fts()
             self._migrate_audit_fts()
+            self._apply_bootstrap_migrations()
+
+    def _apply_bootstrap_migrations(self) -> None:
+        """Apply the reserved, append-only bootstrap steps exactly once.
+
+        The unnumbered initializer above remains the pre-registry baseline.
+        Numbered steps are recorded in ``schema_migrations`` so the future
+        canonical registry (Spec 010) can import these identifiers without
+        renumbering or replaying them. Every step is written to be safe to run
+        against a database that already contains its objects, so an interrupted
+        upgrade re-runs forward instead of needing repair.
+        """
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+              identifier TEXT PRIMARY KEY,
+              applied_at TEXT NOT NULL
+            )
+            """)
+        applied = {
+            str(row["identifier"])
+            for row in self._conn.execute(
+                "SELECT identifier FROM schema_migrations"
+            ).fetchall()
+        }
+        # Column additions cannot be expressed idempotently in a script, and
+        # 0063's trigger is compiled against the column, so it is ensured first.
+        self._ensure_column("records", "generation", "INTEGER NOT NULL DEFAULT 0")
+        for identifier, script in _BOOTSTRAP_MIGRATIONS:
+            if identifier in applied:
+                continue
+            self._conn.executescript(script)
+            self._conn.execute(
+                "INSERT OR IGNORE INTO schema_migrations(identifier, applied_at) "
+                "VALUES (?, ?)",
+                (identifier, utc_now()),
+            )
+
+    def applied_migrations(self) -> list[str]:
+        """Bootstrap identifiers this database has already applied, in order."""
+        return [
+            str(row["identifier"])
+            for row in self._conn.execute(
+                "SELECT identifier FROM schema_migrations ORDER BY identifier"
+            ).fetchall()
+        ]
 
     def _ensure_column(self, table: str, column: str, column_type: str) -> None:
         columns = {
@@ -2914,6 +3251,112 @@ class SQLiteStore:
             self._delete_graph_fts(str(row["object_type"]), str(row["object_id"]))
 
 
+# Reserved bootstrap identifiers 0060-0069 belong to Spec 006 (see
+# specs/integration-ownership.md). Steps are append-only: never renumber,
+# reuse, or edit an identifier that has shipped -- add a new one instead.
+_BOOTSTRAP_MIGRATIONS: tuple[tuple[str, str], ...] = (
+    (
+        "0060_memory_proposals",
+        """
+        CREATE TABLE IF NOT EXISTS memory_proposals (
+          proposal_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          idempotency_key TEXT NOT NULL,
+          proposal_sha256 TEXT NOT NULL,
+          action TEXT NOT NULL,
+          memory_class TEXT NOT NULL,
+          confidence REAL NOT NULL,
+          fact_key TEXT,
+          review_state TEXT NOT NULL CHECK (
+            review_state IN (
+              'committed', 'pending_review', 'rejected', 'noop', 'stale'
+            )
+          ),
+          reason_codes TEXT NOT NULL DEFAULT '[]',
+          proposal TEXT NOT NULL,
+          outcome TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL,
+          decided_at TEXT,
+          UNIQUE (subject_id, agent_id, workspace_id, idempotency_key)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_memory_proposals_queue
+          ON memory_proposals(subject_id, review_state, created_at);
+        """,
+    ),
+    (
+        "0061_memory_reviews",
+        """
+        CREATE TABLE IF NOT EXISTS memory_reviews (
+          review_id TEXT PRIMARY KEY,
+          proposal_id TEXT NOT NULL REFERENCES memory_proposals(proposal_id),
+          subject_id TEXT NOT NULL,
+          decision TEXT NOT NULL CHECK (
+            decision IN ('approved', 'edited_approved', 'rejected')
+          ),
+          actor TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          edited_fact_sha256 TEXT,
+          record_ids TEXT NOT NULL DEFAULT '[]',
+          audit_event_id TEXT,
+          decided_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_memory_reviews_proposal
+          ON memory_reviews(proposal_id, decided_at);
+        """,
+    ),
+    (
+        "0062_memory_lineage",
+        """
+        CREATE TABLE IF NOT EXISTS memory_lineage (
+          lineage_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          relation TEXT NOT NULL CHECK (
+            relation IN ('corrects', 'supersedes', 'refines')
+          ),
+          predecessor_record_id TEXT NOT NULL,
+          successor_record_id TEXT NOT NULL,
+          predecessor_content_sha256 TEXT NOT NULL,
+          predecessor_generation INTEGER NOT NULL,
+          proposal_id TEXT,
+          created_at TEXT NOT NULL,
+          UNIQUE (predecessor_record_id, successor_record_id, relation)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_memory_lineage_successor
+          ON memory_lineage(subject_id, successor_record_id);
+
+        CREATE INDEX IF NOT EXISTS idx_memory_lineage_predecessor
+          ON memory_lineage(subject_id, predecessor_record_id);
+
+        -- Lineage is history, not state: it may be purged by verifiable
+        -- deletion, but an existing row can never be rewritten in place.
+        CREATE TRIGGER IF NOT EXISTS memory_lineage_is_immutable
+        BEFORE UPDATE ON memory_lineage BEGIN
+          SELECT RAISE(ABORT, 'memory lineage rows are immutable');
+        END;
+        """,
+    ),
+    (
+        "0063_record_generation",
+        """
+        -- Optimistic concurrency for governed updates. Any writer that changes
+        -- a record without setting the column explicitly advances it, so a
+        -- proposal built against an older read fails its precondition instead
+        -- of silently overwriting a newer value.
+        CREATE TRIGGER IF NOT EXISTS records_row_generation
+        AFTER UPDATE ON records
+        WHEN NEW.generation = OLD.generation BEGIN
+          UPDATE records SET generation = OLD.generation + 1 WHERE id = NEW.id;
+        END;
+        """,
+    ),
+)
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -2939,6 +3382,27 @@ def _event_hash(event: dict[str, Any]) -> str:
     return sha256_hex(_json(event))
 
 
+def _memory_proposal_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "proposal_id": str(row["proposal_id"]),
+        "subject_id": str(row["subject_id"]),
+        "agent_id": str(row["agent_id"]),
+        "workspace_id": str(row["workspace_id"]),
+        "idempotency_key": str(row["idempotency_key"]),
+        "proposal_sha256": str(row["proposal_sha256"]),
+        "action": str(row["action"]),
+        "memory_class": str(row["memory_class"]),
+        "confidence": float(row["confidence"]),
+        "fact_key": row["fact_key"],
+        "review_state": str(row["review_state"]),
+        "reason_codes": _load_json(row["reason_codes"], []),
+        "proposal": _load_json(row["proposal"], {}),
+        "outcome": _load_json(row["outcome"], {}),
+        "created_at": str(row["created_at"]),
+        "decided_at": row["decided_at"],
+    }
+
+
 def _record_from_row(row: sqlite3.Row) -> dict[str, Any]:
     raw = _load_json(row["raw"], {})
     return {
@@ -2962,6 +3426,7 @@ def _record_from_row(row: sqlite3.Row) -> dict[str, Any]:
         "status": row["status"],
         "supersedes_id": row["supersedes_id"],
         "fact_key": row["fact_key"],
+        "generation": int(row["generation"] or 0),
         "raw": raw,
     }
 

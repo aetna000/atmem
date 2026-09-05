@@ -1,4 +1,11 @@
-"""Model-assisted proposal extraction with strict validation."""
+"""Model-assisted proposal extraction with strict validation.
+
+AtBot screens its own output before proposing anything, but it is not the
+authority: AtMem re-screens every row through
+``atmem.extract.validation.propose_from_atbot`` and decides what may be
+admitted. This local pass exists so obviously hostile content never leaves the
+companion, not so AtMem can trust the companion.
+"""
 
 from __future__ import annotations
 
@@ -41,8 +48,47 @@ FACT_SCHEMA: dict[str, Any] = {
 }
 
 
+# Content shapes that must never travel as a memory proposal. AtMem enforces
+# the same classes; keeping a copy here means a compromised prompt cannot turn
+# the companion into a delivery vehicle for its own instructions.
+_INSTRUCTION_RE = re.compile(
+    r"(?:ignore (?:all )?(?:previous|prior|above)|disregard (?:all )?(?:previous|prior)"
+    r"|you are now|you must (?:always|never)|from now on,? (?:you|always)"
+    r"|do not tell the (?:user|human)|new instructions?:|system prompt"
+    r"|im_start|im_end)",
+    re.I,
+)
+_SECRET_RE = re.compile(
+    r"(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b|\bsk-[A-Za-z0-9]{16,}\b"
+    r"|\b(?:password|passphrase|api[ _-]?key|secret|access token|bearer token)\b\s*"
+    r"(?:is|=|:)\s*\S+)",
+    re.I,
+)
+_EXCLUSION_RE = re.compile(
+    r"(?:do(?:n'?t| not) (?:remember|store|save|record) (?:this|that|it)?"
+    r"|off the record|not for memory|keep this (?:out of|off) (?:memory|the record))",
+    re.I,
+)
+
+
+def refusal_reasons(text: str) -> tuple[str, ...]:
+    """Why this text must not be proposed as memory, if it must not be."""
+    reasons: list[str] = []
+    if _INSTRUCTION_RE.search(text):
+        reasons.append("instruction_shaped_content")
+    if _SECRET_RE.search(text):
+        reasons.append("secret_material_detected")
+    if _EXCLUSION_RE.search(text):
+        reasons.append("explicit_exclusion_signal")
+    return tuple(reasons)
+
+
 def extract_facts(provider: ModelProvider, message: str) -> tuple[ExtractedFact, ...]:
     if _looks_like_question(message):
+        return ()
+    if refusal_reasons(message):
+        # The source is hostile or explicitly excluded. Nothing derived from it
+        # is proposable, so the model is never asked in the first place.
         return ()
     bundle = build_extraction_prompt(message)
     result = provider.complete(system=bundle.system, prompt=bundle.prompt, schema=FACT_SCHEMA)
@@ -57,6 +103,8 @@ def extract_facts(provider: ModelProvider, message: str) -> tuple[ExtractedFact,
         sensitivity = str(row.get("sensitivity") or "personal")
         action = str(row.get("suggested_action") or "uncertain")
         if not fact or len(fact) > 2_000 or not 0 <= confidence <= 1:
+            continue
+        if refusal_reasons(fact):
             continue
         if sensitivity not in {"public", "internal", "personal", "sensitive", "restricted"}:
             continue

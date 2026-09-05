@@ -230,6 +230,15 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 ),
             )
             return
+        if path == "/api/memory/proposals":
+            params = parse_qs(parsed.query)
+            self._json(
+                HTTPStatus.OK,
+                self.server.manager.extraction_proposals(
+                    (params.get("subject") or [None])[0]
+                ),
+            )
+            return
         if path == "/api/memory/reviews":
             self._json(
                 HTTPStatus.OK,
@@ -572,6 +581,23 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 self._json(
                     HTTPStatus.OK,
                     {"registered": registered, "status": config.status()},
+                )
+                return
+            if path == "/api/memory/proposal-decision":
+                proposal_id = str(body.get("proposal_id") or "").strip()
+                if not proposal_id or not secrets.compare_digest(
+                    str(body.get("confirm_proposal_id") or ""), proposal_id
+                ):
+                    raise ValueError("proposal confirmation does not match")
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.decide_extraction_proposal(
+                        proposal_id,
+                        str(body.get("decision") or "").strip(),
+                        actor=str(body.get("actor") or "dashboard-reviewer"),
+                        reason=str(body.get("reason") or ""),
+                        edited_fact=body.get("edited_fact"),
+                    ),
                 )
                 return
             if path == "/api/memory/review":

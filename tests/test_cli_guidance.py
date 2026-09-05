@@ -76,6 +76,7 @@ def test_openclaw_upgrade_preserves_mode_and_reports_verified_bridge(
         (["blackbox"], "Show recorder coverage and evidence-chain integrity"),
         (["index"], "Build and activate a verified versioned index epoch"),
         (["semantic"], "Set up, diagnose, and safely rebuild semantic retrieval"),
+        (["proposals"], "Inspect and decide governed memory proposals awaiting review"),
         (["dashboard", "daemon"], "{start,open,stop,restart,status,remove}"),
     ],
 )
@@ -163,3 +164,77 @@ def test_semantic_rebuild_and_verify_have_stable_human_and_json_contracts(
     )
     cli.main()
     assert "Semantic index: weak" in capsys.readouterr().out
+
+
+def test_proposal_review_is_drivable_from_the_terminal(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path
+) -> None:
+    from atmem.contracts import AuthorityScope
+    from atmem.extract import build_resolution_context, propose_from_rules
+
+    path = tmp_path / "memories.db"
+    scope = AuthorityScope("user-1", "agent-1", "workspace-1")
+    message = "My current medication is atorvastatin."
+    memory = Memory(path, auto_vectors=False)
+    try:
+        context = build_resolution_context(memory.store, scope.subject_id, scope=scope)
+        [proposal] = propose_from_rules(
+            message, scope=scope, source_id="source-1", context=context
+        )
+        submitted = memory.submit_extraction_proposal(proposal, source_text=message)
+    finally:
+        memory.close()
+    assert submitted["review_state"] == "pending_review"
+
+    monkeypatch.setattr(
+        sys, "argv", ["atmem", "proposals", "queue", str(path), "--json"]
+    )
+    cli.main()
+    queue = json.loads(capsys.readouterr().out)
+    assert queue["count"] == 1
+    assert queue["proposals"][0]["allowed_decisions"] == [
+        "approve",
+        "edit_and_approve",
+        "reject",
+    ]
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "atmem", "proposals", "decide", str(path), submitted["proposal_id"],
+            "approve", "--actor", "ops@example.com", "--reason", "confirmed",
+            "--json",
+        ],
+    )
+    cli.main()
+    decided = json.loads(capsys.readouterr().out)
+    assert decided["review_state"] == "committed"
+    assert decided["reviews"][0]["actor"] == "ops@example.com"
+
+
+def test_terminal_and_dashboard_report_the_same_proposal_state(tmp_path) -> None:
+    """One review service backs both surfaces, so their views cannot drift."""
+    from atmem.contracts import AuthorityScope
+    from atmem.extract import ReviewService, build_resolution_context, propose_from_rules
+
+    path = tmp_path / "memories.db"
+    scope = AuthorityScope("user-1", "agent-1", "workspace-1")
+    message = "My current medication is atorvastatin."
+    memory = Memory(path, auto_vectors=False)
+    try:
+        context = build_resolution_context(memory.store, scope.subject_id, scope=scope)
+        [proposal] = propose_from_rules(
+            message, scope=scope, source_id="source-1", context=context
+        )
+        memory.submit_extraction_proposal(proposal, source_text=message)
+        service = ReviewService(memory)
+        queue = service.queue(scope.subject_id)
+        detail = service.inspect(queue["proposals"][0]["proposal_id"])
+    finally:
+        memory.close()
+
+    row = queue["proposals"][0]
+    for field in ("review_state", "action", "memory_class", "reason_codes",
+                  "allowed_decisions", "evidence"):
+        assert row[field] == detail[field], field

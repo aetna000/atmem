@@ -35,7 +35,7 @@ def test_quality_floor_failure_keeps_complete_report(tmp_path) -> None:
     target.write_text(json.dumps(thresholds))
     report = run_benchmark(thresholds_path=target)
     assert report["passed"] is False
-    assert len(report["case_results"]) == 16
+    assert len(report["case_results"]) == 24
     assert any("answerable_recall" in failure for failure in report["failures"])
 
 

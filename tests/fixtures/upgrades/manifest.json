@@ -1,0 +1,36 @@
+{
+  "format": "atmem-upgrade-fixtures-v1",
+  "description": "Real persisted databases created by each supported published AtMem version, used to prove that a newer build upgrades genuine state rather than a freshly initialized schema.",
+  "expected": {
+    "active_records": 3,
+    "total_records": 5,
+    "subject_id": "upgrade-user"
+  },
+  "floors": [
+    {
+      "version": "2.0.0",
+      "file": "atmem-2.0.0.db",
+      "sha256": "613aa2831a30c456e9461b08d7fa4917f4ab341ac94500014b5e3ce9a0605e96"
+    },
+    {
+      "version": "2.1.0",
+      "file": "atmem-2.1.0.db",
+      "sha256": "32c88269c6813feaed4e4286920f2837ab1bacd1707cf46f4f95cda6f7e95983"
+    },
+    {
+      "version": "2.2.0",
+      "file": "atmem-2.2.0.db",
+      "sha256": "d6f808137bd6c9067a08e11a146c5fb1b3b87ce17d29de62064052e68c65a5d0"
+    },
+    {
+      "version": "2.2.5",
+      "file": "atmem-2.2.5.db",
+      "sha256": "ea6c9f96523f080a8fd8c02e250bd30490a2a8491481bfc216213f80f70fad64"
+    },
+    {
+      "version": "2.2.6b3",
+      "file": "atmem-2.2.6b3.db",
+      "sha256": "3f26a2dd5842cca95106b7a82baca7ff1b0dad67124783281c03e4f4711fc98e"
+    }
+  ]
+}

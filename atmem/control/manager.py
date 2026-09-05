@@ -1605,6 +1605,67 @@ class ControlPlaneManager:
             ),
         )[: max(0, min(limit, 100))]
 
+    def extraction_proposals(
+        self, subject_id: str | None = None, *, limit: int = 100
+    ) -> dict[str, Any]:
+        """Project the same review queue the CLI shows, for the dashboard.
+
+        Both surfaces read one service, so a proposal's state, evidence, and
+        allowed actions cannot drift between them.
+        """
+        from atmem.extract.review import ReviewService
+        from atmem.memory import Memory
+
+        state = self.state()
+        memory = Memory(
+            self._proposal_memory_db(state), retain_query_text=False, auto_vectors=False
+        )
+        try:
+            return ReviewService(memory).queue(subject_id, limit=limit)
+        finally:
+            memory.close()
+
+    def decide_extraction_proposal(
+        self,
+        proposal_id: str,
+        decision: str,
+        *,
+        actor: str,
+        reason: str = "",
+        edited_fact: str | None = None,
+    ) -> dict[str, Any]:
+        """Record one dashboard review decision through the shared service."""
+        from atmem.extract.review import ReviewService
+        from atmem.memory import Memory
+
+        state = self.state()
+        memory = Memory(
+            self._proposal_memory_db(state), retain_query_text=False, auto_vectors=False
+        )
+        try:
+            return ReviewService(memory).decide(
+                proposal_id,
+                decision,
+                actor=actor,
+                reason=reason,
+                edited_fact=edited_fact,
+            )
+        finally:
+            memory.close()
+
+    def _proposal_memory_db(self, state: Any) -> Path:
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import mirror_status
+
+            mirror = mirror_status(state)
+            return Path(
+                str(
+                    mirror.get("mirror_db")
+                    or Path(state.control_dir) / "openclaw-mirror.db"
+                )
+            )
+        return self._generic_memory_db(state)
+
     def memory_reviews(self) -> dict[str, Any]:
         state = self.state()
         if state.host == "openclaw":
