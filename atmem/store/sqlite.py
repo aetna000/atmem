@@ -192,6 +192,27 @@ class SQLiteStore:
             self._conn.execute(
                 "DELETE FROM memory_proposals WHERE subject_id = ?", (subject_id,)
             )
+            task_rows = self._conn.execute(
+                "SELECT task_id FROM governed_tasks WHERE subject_id = ?",
+                (subject_id,),
+            ).fetchall()
+            task_ids = [str(row["task_id"]) for row in task_rows]
+            if task_ids:
+                placeholders = ",".join("?" for _ in task_ids)
+                for table in (
+                    "governed_task_deliveries",
+                    "governed_task_steps",
+                    "governed_task_proposals",
+                    "governed_task_provenance",
+                    "governed_task_revisions",
+                ):
+                    self._conn.execute(
+                        f"DELETE FROM {table} WHERE task_id IN ({placeholders})",
+                        task_ids,
+                    )
+            self._conn.execute(
+                "DELETE FROM governed_tasks WHERE subject_id = ?", (subject_id,)
+            )
 
     def stage_user_message(
         self,
@@ -987,6 +1008,630 @@ class SQLiteStore:
             }
             for row in rows
         ]
+
+    # --- Governed Task State (Spec 007) ------------------------------------
+    #
+    # Task state is a separate authority plane from durable memory. Every read
+    # here takes the exact scope: a task is never found by id alone, so a
+    # caller in one workspace cannot reach another workspace's work even if it
+    # somehow learns the identifier.
+
+    def insert_task_profile(
+        self,
+        *,
+        version: str,
+        profile_id: str,
+        digest: str,
+        profile: dict[str, Any],
+        actor: str,
+    ) -> dict[str, Any]:
+        with self.transaction():
+            self._conn.execute(
+                """
+                INSERT INTO governed_task_profiles (
+                  version, profile_id, digest, profile, actor, registered_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (version, profile_id, digest, _json(profile), actor, utc_now()),
+            )
+        stored = self.get_task_profile(version)
+        assert stored is not None
+        return stored
+
+    def get_task_profile(self, version: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM governed_task_profiles WHERE version = ?", (version,)
+        ).fetchone()
+        return _task_profile_from_row(row) if row else None
+
+    def list_task_profiles(self) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            "SELECT * FROM governed_task_profiles ORDER BY version"
+        ).fetchall()
+        return [_task_profile_from_row(row) for row in rows]
+
+    def insert_task(
+        self,
+        *,
+        task_id: str,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        profile_id: str,
+        profile_version: str,
+        goal: str,
+        lifecycle: str,
+        head_revision: int,
+        created_at_utc: str,
+        last_progress_at_utc: str,
+        expiry_rule: dict[str, Any],
+        clock_source: str,
+        idempotency_key: str,
+        policy_generation: int = 1,
+        continues_task_id: str | None = None,
+    ) -> dict[str, Any]:
+        with self.transaction():
+            self._conn.execute(
+                """
+                INSERT INTO governed_tasks (
+                  task_id, subject_id, agent_id, workspace_id, profile_id,
+                  profile_version, goal, lifecycle, head_revision,
+                  policy_generation, created_at_utc, updated_at_utc,
+                  last_progress_at_utc, paused_at_utc, no_progress_paused_ms,
+                  expiry_rule, clock_source, terminal_reason, continues_task_id,
+                  idempotency_key
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?,
+                        NULL, ?, ?)
+                """,
+                (
+                    task_id, subject_id, agent_id, workspace_id, profile_id,
+                    profile_version, goal, lifecycle, int(head_revision),
+                    int(policy_generation), created_at_utc, created_at_utc,
+                    last_progress_at_utc, _json(expiry_rule), clock_source,
+                    continues_task_id, idempotency_key,
+                ),
+            )
+        stored = self.get_task(
+            subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id, task_id=task_id,
+        )
+        assert stored is not None
+        return stored
+
+    def get_task(
+        self,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        task_id: str,
+    ) -> dict[str, Any] | None:
+        """Read one task, and only within its exact authority scope."""
+        row = self._conn.execute(
+            """
+            SELECT * FROM governed_tasks
+            WHERE task_id = ? AND subject_id = ? AND agent_id = ?
+              AND workspace_id = ?
+            """,
+            (task_id, subject_id, agent_id, workspace_id),
+        ).fetchone()
+        return _task_from_row(row) if row else None
+
+    def find_task_by_idempotency_key(
+        self,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        idempotency_key: str,
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT * FROM governed_tasks
+            WHERE subject_id = ? AND agent_id = ? AND workspace_id = ?
+              AND idempotency_key = ?
+            """,
+            (subject_id, agent_id, workspace_id, idempotency_key),
+        ).fetchone()
+        return _task_from_row(row) if row else None
+
+    def list_tasks(
+        self,
+        *,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+        lifecycles: tuple[str, ...] | None = None,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Deterministically ordered, cursor-paginated task listing."""
+        clauses: list[str] = []
+        params: list[Any] = []
+        for column, value in (
+            ("subject_id", subject_id),
+            ("agent_id", agent_id),
+            ("workspace_id", workspace_id),
+        ):
+            if value is not None:
+                clauses.append(f"{column} = ?")
+                params.append(value)
+        if lifecycles:
+            clauses.append(f"lifecycle IN ({','.join('?' for _ in lifecycles)})")
+            params.extend(lifecycles)
+        if cursor:
+            # Ordering is (created_at, task_id), so the cursor is that pair.
+            clauses.append("(created_at_utc, task_id) > (?, ?)")
+            params.extend(cursor.split("|", 1) if "|" in cursor else [cursor, ""])
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        params.append(max(1, min(int(limit), 500)))
+        rows = self._conn.execute(
+            f"""
+            SELECT * FROM governed_tasks {where}
+            ORDER BY created_at_utc ASC, task_id ASC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+        return [_task_from_row(row) for row in rows]
+
+    def tasks_due_for_expiry_scan(
+        self, *, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        """Non-terminal tasks, oldest first. Terminal tasks are never re-evaluated."""
+        rows = self._conn.execute(
+            """
+            SELECT * FROM governed_tasks
+            WHERE lifecycle IN ('open', 'paused')
+            ORDER BY created_at_utc ASC, task_id ASC
+            LIMIT ?
+            """,
+            (max(1, min(int(limit), 1000)),),
+        ).fetchall()
+        return [_task_from_row(row) for row in rows]
+
+    def insert_task_revision(
+        self,
+        *,
+        task_id: str,
+        revision: int,
+        parent_revision: int | None,
+        state: dict[str, Any],
+        state_sha256: str,
+        semantic_sha256: str,
+        actor: str,
+        actor_role: str,
+        reason_codes: list[str],
+        evidence: list[dict[str, Any]],
+        created_at_utc: str,
+        is_progress: bool = False,
+    ) -> None:
+        """Append one immutable revision.
+
+        The unique index on (task_id, parent_revision) is what enforces "at
+        most one accepted successor": a second writer racing on the same base
+        revision raises IntegrityError rather than forking history.
+        """
+        self._conn.execute(
+            """
+            INSERT INTO governed_task_revisions (
+              task_id, revision, parent_revision, state, state_sha256,
+              semantic_sha256, actor, actor_role, reason_codes, evidence,
+              created_at_utc, is_progress
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                task_id, int(revision),
+                None if parent_revision is None else int(parent_revision),
+                _json(state), state_sha256, semantic_sha256, actor, actor_role,
+                _json(list(reason_codes)), _json(list(evidence)),
+                created_at_utc, 1 if is_progress else 0,
+            ),
+        )
+
+    def get_task_revision(
+        self, task_id: str, revision: int
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT * FROM governed_task_revisions
+            WHERE task_id = ? AND revision = ?
+            """,
+            (task_id, int(revision)),
+        ).fetchone()
+        return _task_revision_from_row(row) if row else None
+
+    def list_task_revisions(
+        self, task_id: str, *, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM governed_task_revisions
+            WHERE task_id = ?
+            ORDER BY revision ASC
+            LIMIT ?
+            """,
+            (task_id, max(1, min(int(limit), 1000))),
+        ).fetchall()
+        return [_task_revision_from_row(row) for row in rows]
+
+    def advance_task_head(
+        self,
+        *,
+        task_id: str,
+        expected_head: int,
+        new_head: int,
+        updated_at_utc: str,
+        last_progress_at_utc: str | None = None,
+        lifecycle: str | None = None,
+        terminal_reason: str | None = None,
+        paused_at_utc: str | None = None,
+        clear_paused_at: bool = False,
+        add_paused_ms: int = 0,
+    ) -> bool:
+        """Move the head exactly once, under an expected-head guard.
+
+        Returns False when another writer already advanced past
+        `expected_head`; the caller turns that into a `conflict` outcome
+        rather than retrying, so a stale proposal never silently wins.
+        """
+        assignments = [
+            "head_revision = ?",
+            "updated_at_utc = ?",
+        ]
+        params: list[Any] = [int(new_head), updated_at_utc]
+        if last_progress_at_utc is not None:
+            assignments.append("last_progress_at_utc = ?")
+            params.append(last_progress_at_utc)
+        if lifecycle is not None:
+            assignments.append("lifecycle = ?")
+            params.append(lifecycle)
+        if terminal_reason is not None:
+            assignments.append("terminal_reason = ?")
+            params.append(terminal_reason)
+        if clear_paused_at:
+            assignments.append("paused_at_utc = NULL")
+        elif paused_at_utc is not None:
+            assignments.append("paused_at_utc = ?")
+            params.append(paused_at_utc)
+        if add_paused_ms:
+            assignments.append("no_progress_paused_ms = no_progress_paused_ms + ?")
+            params.append(int(add_paused_ms))
+        params.extend([task_id, int(expected_head)])
+        cursor = self._conn.execute(
+            f"""
+            UPDATE governed_tasks SET {', '.join(assignments)}
+            WHERE task_id = ? AND head_revision = ?
+            """,
+            params,
+        )
+        return cursor.rowcount == 1
+
+    def insert_task_provenance(
+        self,
+        *,
+        task_id: str,
+        revision: int,
+        target_kind: str,
+        target_id: str,
+        actor: str,
+        actor_role: str,
+        method: str,
+        assurance: str,
+        observed_at_utc: str,
+        interpreter: str | None = None,
+        evidence: list[dict[str, Any]] | None = None,
+        superseded_revision: int | None = None,
+    ) -> str:
+        provenance_id = _new_id("prov")
+        self._conn.execute(
+            """
+            INSERT INTO governed_task_provenance (
+              provenance_id, task_id, revision, target_kind, target_id, actor,
+              actor_role, method, assurance, interpreter, evidence,
+              observed_at_utc, superseded_revision
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                provenance_id, task_id, int(revision), target_kind, target_id,
+                actor, actor_role, method, assurance, interpreter,
+                _json(list(evidence or ())), observed_at_utc,
+                None if superseded_revision is None else int(superseded_revision),
+            ),
+        )
+        return provenance_id
+
+    def list_task_provenance(
+        self,
+        task_id: str,
+        *,
+        target_kind: str | None = None,
+        target_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        clauses = ["task_id = ?"]
+        params: list[Any] = [task_id]
+        if target_kind is not None:
+            clauses.append("target_kind = ?")
+            params.append(target_kind)
+        if target_id is not None:
+            clauses.append("target_id = ?")
+            params.append(target_id)
+        rows = self._conn.execute(
+            f"""
+            SELECT * FROM governed_task_provenance
+            WHERE {' AND '.join(clauses)}
+            ORDER BY revision ASC, provenance_id ASC
+            """,
+            params,
+        ).fetchall()
+        return [_task_provenance_from_row(row) for row in rows]
+
+    def find_task_proposal(
+        self, task_id: str, idempotency_key: str
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT * FROM governed_task_proposals
+            WHERE task_id = ? AND idempotency_key = ?
+            """,
+            (task_id, idempotency_key),
+        ).fetchone()
+        return _task_proposal_from_row(row) if row else None
+
+    def insert_task_proposal(
+        self,
+        *,
+        proposal_id: str,
+        task_id: str,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        idempotency_key: str,
+        payload_sha256: str,
+        base_revision: int,
+        actor: str,
+        actor_role: str,
+        proposal: dict[str, Any],
+        decision: dict[str, Any],
+        outcome: str,
+        resulting_revision: int | None,
+        created_at_utc: str,
+    ) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO governed_task_proposals (
+              proposal_id, task_id, subject_id, agent_id, workspace_id,
+              idempotency_key, payload_sha256, base_revision, actor, actor_role,
+              proposal, decision, outcome, resulting_revision, created_at_utc
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                proposal_id, task_id, subject_id, agent_id, workspace_id,
+                idempotency_key, payload_sha256, int(base_revision), actor,
+                actor_role, _json(proposal), _json(decision), outcome,
+                None if resulting_revision is None else int(resulting_revision),
+                created_at_utc,
+            ),
+        )
+
+    def list_task_proposals(
+        self, task_id: str, *, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM governed_task_proposals
+            WHERE task_id = ?
+            ORDER BY created_at_utc ASC, proposal_id ASC
+            LIMIT ?
+            """,
+            (task_id, max(1, min(int(limit), 1000))),
+        ).fetchall()
+        return [_task_proposal_from_row(row) for row in rows]
+
+    def insert_task_step(
+        self,
+        *,
+        task_id: str,
+        step_kind: str,
+        outcome: str,
+        base_revision: int,
+        actor: str,
+        recorded_at_utc: str,
+        proposal_id: str | None = None,
+        resulting_revision: int | None = None,
+        reason_codes: list[str] | None = None,
+        action_fingerprint: str | None = None,
+        duration_ms: int = 0,
+    ) -> str:
+        step_id = _new_id("step")
+        self._conn.execute(
+            """
+            INSERT INTO governed_task_steps (
+              step_id, task_id, step_kind, outcome, proposal_id, base_revision,
+              resulting_revision, reason_codes, action_fingerprint, actor,
+              duration_ms, recorded_at_utc
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                step_id, task_id, step_kind, outcome, proposal_id,
+                int(base_revision),
+                None if resulting_revision is None else int(resulting_revision),
+                _json(list(reason_codes or ())), action_fingerprint, actor,
+                max(0, int(duration_ms)), recorded_at_utc,
+            ),
+        )
+        return step_id
+
+    def list_task_steps(
+        self, task_id: str, *, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM governed_task_steps
+            WHERE task_id = ?
+            ORDER BY recorded_at_utc ASC, step_id ASC
+            LIMIT ?
+            """,
+            (task_id, max(1, min(int(limit), 1000))),
+        ).fetchall()
+        return [_task_step_from_row(row) for row in rows]
+
+    def count_recent_equivalent_actions(
+        self, task_id: str, action_fingerprint: str, *, since_utc: str
+    ) -> int:
+        """How many equivalent actions ran since the last accepted progress."""
+        row = self._conn.execute(
+            """
+            SELECT COUNT(*) AS total FROM governed_task_steps
+            WHERE task_id = ? AND action_fingerprint = ?
+              AND recorded_at_utc >= ?
+            """,
+            (task_id, action_fingerprint, since_utc),
+        ).fetchone()
+        return int(row["total"]) if row else 0
+
+    def insert_task_delivery(
+        self,
+        *,
+        task_id: str,
+        revision: int,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        disposition: str,
+        prepared_at_utc: str,
+        reason_codes: list[str] | None = None,
+        context_sha256: str | None = None,
+        cache_key: str | None = None,
+        preparation_id: str | None = None,
+        exposure_id: str | None = None,
+    ) -> str:
+        delivery_id = _new_id("del")
+        self._conn.execute(
+            """
+            INSERT INTO governed_task_deliveries (
+              delivery_id, task_id, revision, subject_id, agent_id,
+              workspace_id, disposition, reason_codes, context_sha256,
+              cache_key, preparation_id, exposure_id, exposed, prepared_at_utc
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+            """,
+            (
+                delivery_id, task_id, int(revision), subject_id, agent_id,
+                workspace_id, disposition, _json(list(reason_codes or ())),
+                context_sha256, cache_key, preparation_id, exposure_id,
+                prepared_at_utc,
+            ),
+        )
+        return delivery_id
+
+    def mark_task_delivery_exposed(self, delivery_id: str) -> bool:
+        """Confirm exposure exactly once; a repeat is not a second exposure."""
+        cursor = self._conn.execute(
+            "UPDATE governed_task_deliveries SET exposed = 1 "
+            "WHERE delivery_id = ? AND exposed = 0",
+            (delivery_id,),
+        )
+        return cursor.rowcount == 1
+
+    def list_task_deliveries(
+        self, task_id: str, *, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM governed_task_deliveries
+            WHERE task_id = ?
+            ORDER BY prepared_at_utc ASC, delivery_id ASC
+            LIMIT ?
+            """,
+            (task_id, max(1, min(int(limit), 1000))),
+        ).fetchall()
+        return [_task_delivery_from_row(row) for row in rows]
+
+    def rebuild_task_pause_accounting(self, task_id: str) -> int:
+        """Recompute completed paused milliseconds from the revision chain.
+
+        The stored accumulator is the fast path. This is the audit: it derives
+        the same number from immutable lifecycle revisions, so a restart or a
+        suspected drift can be checked against history rather than trusted.
+        """
+        from atmem.core.time import elapsed_ms, from_iso
+
+        revisions = self.list_task_revisions(task_id, limit=1000)
+        total = 0
+        paused_since: str | None = None
+        for row in revisions:
+            lifecycle = str((row["state"] or {}).get("lifecycle") or "")
+            moment = str(row["created_at_utc"])
+            if lifecycle == "paused" and paused_since is None:
+                paused_since = moment
+            elif lifecycle != "paused" and paused_since is not None:
+                total += elapsed_ms(from_iso(paused_since), from_iso(moment))
+                paused_since = None
+        return total
+
+    def delete_task(
+        self,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        task_id: str,
+    ) -> dict[str, Any]:
+        """Remove one task and everything derived from it, in scope."""
+        task = self.get_task(
+            subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id, task_id=task_id,
+        )
+        if task is None:
+            return {"deleted": False, "task_id": task_id, "removed": {}}
+        removed: dict[str, int] = {}
+        with self.transaction():
+            for table in (
+                "governed_task_deliveries",
+                "governed_task_steps",
+                "governed_task_proposals",
+                "governed_task_provenance",
+            ):
+                cursor = self._conn.execute(
+                    f"DELETE FROM {table} WHERE task_id = ?", (task_id,)
+                )
+                removed[table] = cursor.rowcount
+            # Revisions carry an immutability trigger on UPDATE, not DELETE:
+            # verified deletion may remove history, but nothing may rewrite it.
+            cursor = self._conn.execute(
+                "DELETE FROM governed_task_revisions WHERE task_id = ?", (task_id,)
+            )
+            removed["governed_task_revisions"] = cursor.rowcount
+            cursor = self._conn.execute(
+                "DELETE FROM governed_tasks WHERE task_id = ?", (task_id,)
+            )
+            removed["governed_tasks"] = cursor.rowcount
+        return {"deleted": True, "task_id": task_id, "removed": removed}
+
+    def delete_subject_tasks(self, subject_id: str) -> dict[str, Any]:
+        """Remove every governed task belonging to one subject."""
+        rows = self._conn.execute(
+            "SELECT task_id, agent_id, workspace_id FROM governed_tasks "
+            "WHERE subject_id = ?",
+            (subject_id,),
+        ).fetchall()
+        results = [
+            self.delete_task(
+                subject_id=subject_id,
+                agent_id=str(row["agent_id"]),
+                workspace_id=str(row["workspace_id"]),
+                task_id=str(row["task_id"]),
+            )
+            for row in rows
+        ]
+        return {"task_ids": [row["task_id"] for row in results], "deleted": len(results)}
 
     def get_media_artifact(
         self,
@@ -2939,12 +3584,25 @@ class SQLiteStore:
         ]
 
     def _ensure_column(self, table: str, column: str, column_type: str) -> None:
+        """Add a column if it is missing, tolerating a concurrent first open.
+
+        `executescript` commits any open transaction, so migration steps after
+        one are not serialized by the outer BEGIN IMMEDIATE. Two processes
+        opening a new database at the same moment can therefore both decide the
+        column is missing. Losing that race is not an error: the column exists
+        either way, which is exactly what this method promises.
+        """
         columns = {
             row["name"]
             for row in self._conn.execute(f"PRAGMA table_info({table})").fetchall()
         }
-        if column not in columns:
+        if column in columns:
+            return
+        try:
             self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+        except sqlite3.OperationalError as exc:
+            if "duplicate column name" not in str(exc).lower():
+                raise
 
     def _backfill_record_normalization(self) -> None:
         rows = self._conn.execute("""
@@ -3251,9 +3909,10 @@ class SQLiteStore:
             self._delete_graph_fts(str(row["object_type"]), str(row["object_id"]))
 
 
-# Reserved bootstrap identifiers 0060-0069 belong to Spec 006 (see
-# specs/integration-ownership.md). Steps are append-only: never renumber,
-# reuse, or edit an identifier that has shipped -- add a new one instead.
+# Reserved bootstrap identifiers: 0060-0069 belong to Spec 006 and 0070-0079
+# to Spec 007 (see specs/integration-ownership.md). Steps are append-only:
+# never renumber, reuse, or edit an identifier that has shipped -- add a new
+# one instead.
 _BOOTSTRAP_MIGRATIONS: tuple[tuple[str, str], ...] = (
     (
         "0060_memory_proposals",
@@ -3354,6 +4013,212 @@ _BOOTSTRAP_MIGRATIONS: tuple[tuple[str, str], ...] = (
         END;
         """,
     ),
+    (
+        "0070_governed_task_profiles",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_profiles (
+          version TEXT PRIMARY KEY,
+          profile_id TEXT NOT NULL,
+          digest TEXT NOT NULL,
+          profile TEXT NOT NULL,
+          actor TEXT NOT NULL,
+          registered_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_governed_task_profiles_id
+          ON governed_task_profiles(profile_id, version);
+        """,
+    ),
+    (
+        "0071_governed_tasks",
+        """
+        CREATE TABLE IF NOT EXISTS governed_tasks (
+          task_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          profile_id TEXT NOT NULL,
+          profile_version TEXT NOT NULL,
+          goal TEXT NOT NULL,
+          lifecycle TEXT NOT NULL CHECK (
+            lifecycle IN ('open', 'paused', 'completed', 'cancelled', 'expired')
+          ),
+          head_revision INTEGER NOT NULL CHECK (head_revision >= 1),
+          policy_generation INTEGER NOT NULL DEFAULT 1,
+          created_at_utc TEXT NOT NULL,
+          updated_at_utc TEXT NOT NULL,
+          last_progress_at_utc TEXT NOT NULL,
+          -- Pause accounting. `paused_at_utc` is set while a task is paused;
+          -- `no_progress_paused_ms` accumulates completed paused intervals.
+          -- Together they make the no-progress clock exact after a restart
+          -- without replaying the revision chain.
+          paused_at_utc TEXT,
+          no_progress_paused_ms INTEGER NOT NULL DEFAULT 0
+            CHECK (no_progress_paused_ms >= 0),
+          expiry_rule TEXT NOT NULL DEFAULT '{}',
+          clock_source TEXT NOT NULL DEFAULT 'system-utc-v1',
+          terminal_reason TEXT,
+          continues_task_id TEXT,
+          idempotency_key TEXT NOT NULL,
+          UNIQUE (subject_id, agent_id, workspace_id, idempotency_key)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_governed_tasks_scope
+          ON governed_tasks(subject_id, agent_id, workspace_id, lifecycle);
+
+        -- Expiry scans read only non-terminal tasks ordered by age.
+        CREATE INDEX IF NOT EXISTS idx_governed_tasks_expiry
+          ON governed_tasks(lifecycle, created_at_utc, last_progress_at_utc);
+        """,
+    ),
+    (
+        "0072_governed_task_revisions",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_revisions (
+          task_id TEXT NOT NULL,
+          revision INTEGER NOT NULL CHECK (revision >= 1),
+          parent_revision INTEGER,
+          state TEXT NOT NULL,
+          state_sha256 TEXT NOT NULL,
+          semantic_sha256 TEXT NOT NULL,
+          actor TEXT NOT NULL,
+          actor_role TEXT NOT NULL,
+          reason_codes TEXT NOT NULL DEFAULT '[]',
+          evidence TEXT NOT NULL DEFAULT '[]',
+          created_at_utc TEXT NOT NULL,
+          is_progress INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (task_id, revision),
+          FOREIGN KEY (task_id) REFERENCES governed_tasks(task_id)
+        );
+
+        -- At most one successor per parent: this is the optimistic-concurrency
+        -- guarantee expressed as a database constraint rather than a hope.
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_governed_task_one_successor
+          ON governed_task_revisions(task_id, parent_revision)
+          WHERE parent_revision IS NOT NULL;
+
+        CREATE TRIGGER IF NOT EXISTS governed_task_revisions_are_immutable
+        BEFORE UPDATE ON governed_task_revisions BEGIN
+          SELECT RAISE(ABORT, 'governed task revisions are immutable');
+        END;
+        """,
+    ),
+    (
+        "0073_governed_task_provenance",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_provenance (
+          provenance_id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL,
+          revision INTEGER NOT NULL,
+          target_kind TEXT NOT NULL CHECK (
+            target_kind IN ('task', 'field', 'item', 'status', 'constraint',
+                            'transition', 'delivery', 'lifecycle')
+          ),
+          target_id TEXT NOT NULL,
+          actor TEXT NOT NULL,
+          actor_role TEXT NOT NULL,
+          method TEXT NOT NULL,
+          assurance TEXT NOT NULL,
+          interpreter TEXT,
+          evidence TEXT NOT NULL DEFAULT '[]',
+          observed_at_utc TEXT NOT NULL,
+          superseded_revision INTEGER,
+          FOREIGN KEY (task_id) REFERENCES governed_tasks(task_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_governed_task_provenance_target
+          ON governed_task_provenance(task_id, target_kind, target_id, revision);
+
+        CREATE TRIGGER IF NOT EXISTS governed_task_provenance_is_immutable
+        BEFORE UPDATE OF task_id, revision, target_kind, target_id, actor,
+                         method, assurance, observed_at_utc
+        ON governed_task_provenance BEGIN
+          SELECT RAISE(ABORT, 'governed task provenance is immutable');
+        END;
+        """,
+    ),
+    (
+        "0074_governed_task_proposals",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_proposals (
+          proposal_id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          idempotency_key TEXT NOT NULL,
+          payload_sha256 TEXT NOT NULL,
+          base_revision INTEGER NOT NULL,
+          actor TEXT NOT NULL,
+          actor_role TEXT NOT NULL,
+          proposal TEXT NOT NULL,
+          decision TEXT NOT NULL,
+          outcome TEXT NOT NULL CHECK (
+            outcome IN ('accepted', 'rejected', 'conflict', 'no_change')
+          ),
+          resulting_revision INTEGER,
+          created_at_utc TEXT NOT NULL,
+          UNIQUE (task_id, idempotency_key)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_governed_task_proposals_task
+          ON governed_task_proposals(task_id, created_at_utc);
+        """,
+    ),
+    (
+        "0075_governed_task_steps",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_steps (
+          step_id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL,
+          step_kind TEXT NOT NULL,
+          outcome TEXT NOT NULL CHECK (
+            outcome IN ('accepted', 'rejected', 'conflict', 'no_change')
+          ),
+          proposal_id TEXT,
+          base_revision INTEGER NOT NULL,
+          resulting_revision INTEGER,
+          reason_codes TEXT NOT NULL DEFAULT '[]',
+          action_fingerprint TEXT,
+          actor TEXT NOT NULL,
+          duration_ms INTEGER NOT NULL DEFAULT 0 CHECK (duration_ms >= 0),
+          recorded_at_utc TEXT NOT NULL,
+          FOREIGN KEY (task_id) REFERENCES governed_tasks(task_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_governed_task_steps_task
+          ON governed_task_steps(task_id, recorded_at_utc);
+
+        -- The no-progress guard counts recent equivalent actions.
+        CREATE INDEX IF NOT EXISTS idx_governed_task_steps_fingerprint
+          ON governed_task_steps(task_id, action_fingerprint, recorded_at_utc);
+        """,
+    ),
+    (
+        "0076_governed_task_deliveries",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_deliveries (
+          delivery_id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL,
+          revision INTEGER NOT NULL,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          disposition TEXT NOT NULL CHECK (disposition IN ('injected', 'withheld')),
+          reason_codes TEXT NOT NULL DEFAULT '[]',
+          context_sha256 TEXT,
+          cache_key TEXT,
+          preparation_id TEXT,
+          exposure_id TEXT,
+          exposed INTEGER NOT NULL DEFAULT 0,
+          prepared_at_utc TEXT NOT NULL,
+          FOREIGN KEY (task_id) REFERENCES governed_tasks(task_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_governed_task_deliveries_task
+          ON governed_task_deliveries(task_id, prepared_at_utc);
+        """,
+    ),
 )
 
 
@@ -3380,6 +4245,133 @@ def _load_json(value: str | None, default: Any) -> Any:
 
 def _event_hash(event: dict[str, Any]) -> str:
     return sha256_hex(_json(event))
+
+
+def _task_profile_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "version": str(row["version"]),
+        "profile_id": str(row["profile_id"]),
+        "digest": str(row["digest"]),
+        "profile": _load_json(row["profile"], {}),
+        "actor": str(row["actor"]),
+        "registered_at": str(row["registered_at"]),
+    }
+
+
+def _task_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "task_id": str(row["task_id"]),
+        "subject_id": str(row["subject_id"]),
+        "agent_id": str(row["agent_id"]),
+        "workspace_id": str(row["workspace_id"]),
+        "profile_id": str(row["profile_id"]),
+        "profile_version": str(row["profile_version"]),
+        "goal": str(row["goal"]),
+        "lifecycle": str(row["lifecycle"]),
+        "head_revision": int(row["head_revision"]),
+        "policy_generation": int(row["policy_generation"]),
+        "created_at_utc": str(row["created_at_utc"]),
+        "updated_at_utc": str(row["updated_at_utc"]),
+        "last_progress_at_utc": str(row["last_progress_at_utc"]),
+        "paused_at_utc": row["paused_at_utc"],
+        "no_progress_paused_ms": int(row["no_progress_paused_ms"]),
+        "expiry_rule": _load_json(row["expiry_rule"], {}),
+        "clock_source": str(row["clock_source"]),
+        "terminal_reason": row["terminal_reason"],
+        "continues_task_id": row["continues_task_id"],
+        "idempotency_key": str(row["idempotency_key"]),
+    }
+
+
+def _task_revision_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "task_id": str(row["task_id"]),
+        "revision": int(row["revision"]),
+        "parent_revision": row["parent_revision"],
+        "state": _load_json(row["state"], {}),
+        "state_sha256": str(row["state_sha256"]),
+        "semantic_sha256": str(row["semantic_sha256"]),
+        "actor": str(row["actor"]),
+        "actor_role": str(row["actor_role"]),
+        "reason_codes": _load_json(row["reason_codes"], []),
+        "evidence": _load_json(row["evidence"], []),
+        "created_at_utc": str(row["created_at_utc"]),
+        "is_progress": bool(row["is_progress"]),
+    }
+
+
+def _task_provenance_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "provenance_id": str(row["provenance_id"]),
+        "task_id": str(row["task_id"]),
+        "revision": int(row["revision"]),
+        "target_kind": str(row["target_kind"]),
+        "target_id": str(row["target_id"]),
+        "actor": str(row["actor"]),
+        "actor_role": str(row["actor_role"]),
+        "method": str(row["method"]),
+        "assurance": str(row["assurance"]),
+        "interpreter": row["interpreter"],
+        "evidence": _load_json(row["evidence"], []),
+        "observed_at_utc": str(row["observed_at_utc"]),
+        "superseded_revision": row["superseded_revision"],
+    }
+
+
+def _task_proposal_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "proposal_id": str(row["proposal_id"]),
+        "task_id": str(row["task_id"]),
+        "subject_id": str(row["subject_id"]),
+        "agent_id": str(row["agent_id"]),
+        "workspace_id": str(row["workspace_id"]),
+        "idempotency_key": str(row["idempotency_key"]),
+        "payload_sha256": str(row["payload_sha256"]),
+        "base_revision": int(row["base_revision"]),
+        "actor": str(row["actor"]),
+        "actor_role": str(row["actor_role"]),
+        "proposal": _load_json(row["proposal"], {}),
+        "decision": _load_json(row["decision"], {}),
+        "outcome": str(row["outcome"]),
+        "resulting_revision": row["resulting_revision"],
+        "created_at_utc": str(row["created_at_utc"]),
+    }
+
+
+def _task_step_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "step_id": str(row["step_id"]),
+        "task_id": str(row["task_id"]),
+        "step_kind": str(row["step_kind"]),
+        "outcome": str(row["outcome"]),
+        "proposal_id": row["proposal_id"],
+        "base_revision": int(row["base_revision"]),
+        "resulting_revision": row["resulting_revision"],
+        "reason_codes": _load_json(row["reason_codes"], []),
+        "action_fingerprint": row["action_fingerprint"],
+        "actor": str(row["actor"]),
+        "duration_ms": int(row["duration_ms"]),
+        "recorded_at_utc": str(row["recorded_at_utc"]),
+    }
+
+
+def _task_delivery_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "delivery_id": str(row["delivery_id"]),
+        "task_id": str(row["task_id"]),
+        "revision": int(row["revision"]),
+        "subject_id": str(row["subject_id"]),
+        "agent_id": str(row["agent_id"]),
+        "workspace_id": str(row["workspace_id"]),
+        "disposition": str(row["disposition"]),
+        "reason_codes": _load_json(row["reason_codes"], []),
+        "context_sha256": row["context_sha256"],
+        "cache_key": row["cache_key"],
+        "preparation_id": row["preparation_id"],
+        "exposure_id": row["exposure_id"],
+        "exposed": bool(row["exposed"]),
+        "prepared_at_utc": str(row["prepared_at_utc"]),
+    }
 
 
 def _memory_proposal_from_row(row: sqlite3.Row) -> dict[str, Any]:

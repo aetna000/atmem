@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/task-transition-decision.json",
+  "title": "AtMem governed task transition decision",
+  "description": "AtMem's answer to one observed workflow step. Only an accepted decision advances the revision.",
+  "type": "object",
+  "required": [
+    "format",
+    "decision_id",
+    "proposal_id",
+    "task_id",
+    "scope",
+    "outcome",
+    "reason_codes",
+    "base_revision"
+  ],
+  "properties": {
+    "format": {
+      "const": "atmem-task-transition-decision-v1"
+    },
+    "decision_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proposal_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "$ref": "scope.json"
+    },
+    "outcome": {
+      "enum": [
+        "accepted",
+        "rejected",
+        "conflict",
+        "no_change"
+      ]
+    },
+    "reason_codes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]{2,63}$"
+      },
+      "uniqueItems": true
+    },
+    "base_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "resulting_revision": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "decided_at": {
+      "type": "string"
+    },
+    "decided_by": {
+      "type": "string"
+    },
+    "assurance": {
+      "enum": [
+        "asserted",
+        "model_interpreted",
+        "rule_extracted",
+        "host_reported",
+        "operator_confirmed",
+        "independently_verified"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "reference_id"
+        ],
+        "properties": {
+          "format": {
+            "const": "atmem-task-evidence-ref-v1"
+          },
+          "kind": {
+            "enum": [
+              "source",
+              "record",
+              "audit_event",
+              "blackbox_event",
+              "tool_call",
+              "verifier_result",
+              "operator_request",
+              "policy_rule"
+            ]
+          },
+          "reference_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "guards": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/guard"
+      }
+    },
+    "replayed": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "const": "accepted"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "required": [
+          "resulting_revision"
+        ],
+        "properties": {
+          "resulting_revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "guard": {
+      "type": "object",
+      "required": [
+        "guard_type",
+        "task_id",
+        "revision",
+        "message"
+      ],
+      "properties": {
+        "format": {
+          "const": "atmem-task-guard-signal-v1"
+        },
+        "guard_type": {
+          "enum": [
+            "no_progress",
+            "dependency_unsatisfied",
+            "out_of_scope",
+            "completion_not_allowed"
+          ]
+        },
+        "task_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "blocking_item_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "repeated_action_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "enforced": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

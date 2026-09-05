@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/task-profile.json",
+  "title": "AtMem governed task profile",
+  "description": "Versioned, immutable rules a governed task is evaluated against.",
+  "type": "object",
+  "required": [
+    "format",
+    "profile_id",
+    "version",
+    "phases",
+    "phase_transitions"
+  ],
+  "properties": {
+    "format": {
+      "const": "atmem-task-profile-v1"
+    },
+    "profile_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "phase_transitions": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required_item_kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "optional_context_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "permitted_operations": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "set_phase",
+          "set_item_status",
+          "add_item",
+          "set_item_content",
+          "set_item_blocker",
+          "add_constraint",
+          "satisfy_constraint",
+          "mark_source_inspected",
+          "lock_schema"
+        ]
+      }
+    },
+    "no_progress_action_threshold": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "expiry": {
+      "$ref": "#/$defs/expiry"
+    },
+    "allow_schema_extension_phases": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "expiry": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": "atmem-task-expiry-policy-v1"
+        },
+        "max_absolute_age_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "exclusiveMinimum": 0
+        },
+        "max_no_progress_age_ms": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "exclusiveMinimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

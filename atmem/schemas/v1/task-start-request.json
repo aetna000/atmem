@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/task-start-request.json",
+  "title": "AtMem governed task start request",
+  "description": "An explicit request to begin governing one task. Task state is never started implicitly.",
+  "type": "object",
+  "required": [
+    "format",
+    "task_id",
+    "scope",
+    "profile_id",
+    "profile_version",
+    "goal",
+    "actor",
+    "actor_role",
+    "idempotency_key"
+  ],
+  "properties": {
+    "format": {
+      "const": "atmem-task-start-request-v1"
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "scope": {
+      "$ref": "scope.json"
+    },
+    "profile_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profile_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "actor": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "actor_role": {
+      "enum": [
+        "atmem_authority",
+        "policy_evaluator",
+        "atbot_intelligence",
+        "host_agent",
+        "operator",
+        "administrator",
+        "verifier",
+        "auditor",
+        "delegated_provider"
+      ]
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "constraints": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "string",
+        "maxLength": 2000
+      }
+    },
+    "sources_to_inspect": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "reference_id"
+        ],
+        "properties": {
+          "format": {
+            "const": "atmem-task-evidence-ref-v1"
+          },
+          "kind": {
+            "enum": [
+              "source",
+              "record",
+              "audit_event",
+              "blackbox_event",
+              "tool_call",
+              "verifier_result",
+              "operator_request",
+              "policy_rule"
+            ]
+          },
+          "reference_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "continues_task_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

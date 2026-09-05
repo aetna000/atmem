@@ -29,14 +29,19 @@ MANIFEST = json.loads((FIXTURES / "manifest.json").read_text())
 FLOORS = [row["version"] for row in MANIFEST["floors"]]
 SUBJECT = MANIFEST["expected"]["subject_id"]
 
-# Every bootstrap identifier Spec 006 reserved and shipped. Appending is
-# allowed; renumbering, reusing, or removing one is not.
+# Every bootstrap identifier Spec 006 reserved and shipped. Later specs append
+# their own reserved blocks, so this suite asserts that Spec 006's identifiers
+# are present, ordered, and unchanged -- never that they are the whole list.
 EXPECTED_MIGRATIONS = [
     "0060_memory_proposals",
     "0061_memory_reviews",
     "0062_memory_lineage",
     "0063_record_generation",
 ]
+
+
+def _spec_006(applied: list[str]) -> list[str]:
+    return [row for row in applied if row.startswith("006")]
 
 
 @pytest.fixture(params=FLOORS)
@@ -84,7 +89,9 @@ def test_upgrade_preserves_memory_and_audit_chain(upgraded: Path) -> None:
 def test_upgrade_applies_every_reserved_bootstrap_identifier(upgraded: Path) -> None:
     store = SQLiteStore(upgraded)
     try:
-        assert store.applied_migrations() == EXPECTED_MIGRATIONS
+        applied = store.applied_migrations()
+        assert _spec_006(applied) == EXPECTED_MIGRATIONS
+        assert applied == sorted(applied), "bootstrap identifiers stay append-only"
     finally:
         store.close()
 
@@ -129,7 +136,7 @@ def test_an_interrupted_upgrade_recovers_forward(upgraded: Path) -> None:
 
     recovered = SQLiteStore(upgraded)
     try:
-        assert recovered.applied_migrations() == EXPECTED_MIGRATIONS
+        assert _spec_006(recovered.applied_migrations()) == EXPECTED_MIGRATIONS
         assert recovered.list_memory_proposals(SUBJECT, review_states=None) == []
         assert len(recovered.list_records(SUBJECT)) == (
             MANIFEST["expected"]["active_records"]
@@ -142,7 +149,7 @@ def test_reopening_an_upgraded_database_is_idempotent(upgraded: Path) -> None:
     for _ in range(3):
         store = SQLiteStore(upgraded)
         try:
-            assert store.applied_migrations() == EXPECTED_MIGRATIONS
+            assert _spec_006(store.applied_migrations()) == EXPECTED_MIGRATIONS
         finally:
             store.close()
 
