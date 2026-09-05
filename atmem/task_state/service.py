@@ -842,11 +842,20 @@ class TaskStateService:
         for item in current.items:
             before = previous.item(item.item_id)
             if before is None or before.status is not item.status:
+                # The honest assurance of a status change is the strongest
+                # claim actually behind it: the item's own, or the one the
+                # proposal made. Policy checks the same pair when it decides
+                # whether a completion is evidenced.
+                claimed = (
+                    item.assurance
+                    if item.assurance.rank >= proposal.assurance.rank
+                    else proposal.assurance
+                )
                 self.store.insert_task_provenance(
                     task_id=proposal.task_id, revision=revision,
                     target_kind="status", target_id=item.item_id,
                     actor=proposal.actor, actor_role=proposal.actor_role.value,
-                    method="typed_delta", assurance=item.assurance.value,
+                    method="typed_delta", assurance=claimed.value,
                     interpreter=proposal.interpreter, observed_at_utc=now_iso,
                     evidence=evidence,
                     superseded_revision=None if before is None else previous.revision,
