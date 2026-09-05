@@ -10,6 +10,7 @@ semantic services, and the network unavailable.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 import sys
 
@@ -37,8 +38,9 @@ from atmem.contracts.task_state import (  # noqa: E402
     TaskStateProposal,
 )
 from atmem.core.time import FixedUtcClock  # noqa: E402
+from atmem.control.atbot_companion import AtBotCompanionClient  # noqa: E402
 from atmem.store.sqlite import SQLiteStore  # noqa: E402
-from atmem.task_state.service import TaskStateService  # noqa: E402
+from atmem.task_state.service import TaskStateError, TaskStateService  # noqa: E402
 
 
 SCOPE = AuthorityScope("subject-1", "agent-1", "workspace-1")
@@ -266,6 +268,68 @@ def test_atbot_receives_only_the_snapshot_atmem_authorized() -> None:
     assert "A secret goal" not in provider.prompt
 
 
+def test_atmem_client_routes_the_exact_snapshot_and_revalidates_the_delta(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import atmem.control.atbot_companion as client_module
+
+    captured: dict[str, object] = {}
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return json.dumps(
+                {
+                    "format": "atbot-task-state-proposal-result-v1",
+                    "authority_decision": None,
+                    "canonical_storage": False,
+                    "delta": {
+                        "format": "atbot-task-state-delta-v1",
+                        "task_id": "task-1",
+                        "base_revision": 3,
+                        "operations": [
+                            {
+                                "kind": "set_item_status",
+                                "item_id": "item-1",
+                                "status": "running",
+                            }
+                        ],
+                    },
+                }
+            ).encode()
+
+    def _urlopen(request, timeout):
+        captured["url"] = request.full_url
+        captured["body"] = json.loads(request.data)
+        return _Response()
+
+    client = AtBotCompanionClient()
+    monkeypatch.setattr(
+        client,
+        "health",
+        lambda: {"available": True, "csrf_token": "token"},
+    )
+    monkeypatch.setattr(client_module, "urlopen", _urlopen)
+    snapshot = {**SNAPSHOT, "task_id": "task-1", "revision": 3}
+
+    result = client.propose_task_state(
+        snapshot=snapshot,
+        observation="The review is complete.",
+        task_id="task-1",
+        base_revision=3,
+    )
+
+    assert str(captured["url"]).endswith("/api/companion/task-state/propose")
+    assert captured["body"]["snapshot"] == snapshot
+    assert result["delta"]["task_id"] == "task-1"
+    assert result["companion"] == {"available": True, "fallback": False}
+
+
 # --- AtMem reaches the same verdicts on its own ----------------------------
 
 
@@ -345,6 +409,80 @@ def test_atbot_cannot_commit_even_with_a_perfect_proposal(
     # It was accepted, but AtMem decided and AtMem wrote it.
     assert decision.outcome is StepOutcome.ACCEPTED
     assert decision.decided_by == "atmem-authority"
+
+
+def test_atbot_http_delta_is_rebuilt_revalidated_and_committed_by_atmem(
+    service: TaskStateService,
+) -> None:
+    class _Client:
+        def __init__(self) -> None:
+            self.snapshot = None
+
+        def propose_task_state(self, **kwargs):
+            self.snapshot = kwargs["snapshot"]
+            return {
+                "format": "atbot-task-state-proposal-result-v1",
+                "authority_decision": None,
+                "canonical_storage": False,
+                "delta": {
+                    "format": "atbot-task-state-delta-v1",
+                    "task_id": "task-1",
+                    "base_revision": 1,
+                    "operations": [
+                        {
+                            "kind": "set_item_status",
+                            "item_id": "item-1",
+                            "status": "running",
+                        }
+                    ],
+                },
+            }
+
+    client = _Client()
+    decision = service.submit_atbot_observation(
+        SCOPE, "task-1", "The review is complete.", client=client
+    )
+
+    assert decision.outcome is StepOutcome.ACCEPTED
+    assert decision.resulting_revision == 2
+    assert decision.decided_by == "atmem-authority"
+    assert client.snapshot["task_id"] == "task-1"
+    assert [row["item_id"] for row in client.snapshot["items"]] == ["item-1"]
+
+
+def test_an_atbot_no_delta_is_recorded_as_no_change(
+    service: TaskStateService,
+) -> None:
+    class _Client:
+        def propose_task_state(self, **kwargs):
+            return {"delta": None}
+
+    decision = service.submit_atbot_observation(
+        SCOPE, "task-1", "Nothing changed.", client=_Client()
+    )
+    assert decision.outcome is StepOutcome.NO_CHANGE
+    assert decision.resulting_revision == 1
+
+
+def test_atmem_rejects_an_atbot_delta_for_a_different_revision(
+    service: TaskStateService,
+) -> None:
+    class _Client:
+        def propose_task_state(self, **kwargs):
+            return {
+                "delta": {
+                    "format": "atbot-task-state-delta-v1",
+                    "task_id": "task-1",
+                    "base_revision": 99,
+                    "operations": [{"kind": "set_phase", "phase": "collect"}],
+                }
+            }
+
+    with pytest.raises(TaskStateError, match="identity or base revision"):
+        service.submit_atbot_observation(
+            SCOPE, "task-1", "Move on.", client=_Client()
+        )
+    assert service.get(SCOPE, "task-1").state.revision == 1
 
 
 # --- the deterministic path without AtBot ----------------------------------

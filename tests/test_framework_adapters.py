@@ -8,6 +8,7 @@ from atmem.adapters import AtMemAdapterIdentity, AtMemTurnLifecycle
 from atmem.adapters.langgraph import create_langgraph_middleware
 from atmem.adapters.pydantic_ai import PydanticAIAtMemAdapter
 from atmem.control import ControlPlaneManager
+from atmem.core.canonical import sha256_hex
 
 
 class _Manager:
@@ -16,6 +17,7 @@ class _Manager:
         self.events: list[dict[str, Any]] = []
         self.captures: list[dict[str, Any]] = []
         self.confirmed: list[str] = []
+        self.task_confirmed: list[str] = []
 
     def capture(self, message: str, **kwargs: Any) -> dict[str, Any]:
         self.captures.append({"message": message, **kwargs})
@@ -35,6 +37,21 @@ class _Manager:
 
     def confirm_exposure(self, exposure_id: str) -> bool:
         self.confirmed.append(exposure_id)
+        return True
+
+    def prepare_task_context(self, **kwargs: Any) -> dict[str, Any]:
+        context = "<<<atmem-governed-task-data>>>\ngoal: Ship safely\n<<<end-atmem-governed-task-data>>>"
+        return {
+            "disposition": "injected",
+            "context": context,
+            "context_sha256": f"sha256:{sha256_hex(context)}",
+            "delivery_id": "task-delivery-1",
+            "revision": 2,
+            "reason_codes": [],
+        }
+
+    def confirm_task_exposure(self, delivery_id: str) -> bool:
+        self.task_confirmed.append(delivery_id)
         return True
 
     def record_blackbox_event(self, **kwargs: Any) -> dict[str, Any]:
@@ -199,6 +216,22 @@ def test_pydantic_ai_hooks_inject_at_the_model_boundary() -> None:
     assert [row["event_type"] for row in manager.events][-1] == "turn.ended"
 
 
+def test_pydantic_ai_hooks_deliver_exact_governed_task_state() -> None:
+    pytest.importorskip("pydantic_ai")
+    from pydantic_ai import Agent
+    from pydantic_ai.models.test import TestModel
+
+    manager = _Manager()
+    capability = PydanticAIAtMemAdapter(
+        manager, _identity("pydantic-ai").for_task("task-1")  # type: ignore[arg-type]
+    ).capability()
+    Agent(TestModel(custom_output_text="done"), capabilities=[capability]).run_sync("continue")
+
+    assert manager.task_confirmed == ["task-delivery-1"]
+    assert "task.context.prepared" in [row["event_type"] for row in manager.events]
+    assert "task.context.exposed" in [row["event_type"] for row in manager.events]
+
+
 def test_pydantic_ai_hooks_record_tool_request_and_completion() -> None:
     pytest.importorskip("pydantic_ai")
     from pydantic_ai import Agent
@@ -243,6 +276,27 @@ def test_langgraph_middleware_injects_at_the_model_boundary() -> None:
     assert manager.confirmed == ["exposure-1"]
     assert manager.captures[0]["message"] == "What do I like?"
     assert [row["event_type"] for row in manager.events][-1] == "turn.ended"
+
+
+def test_langgraph_hooks_deliver_exact_governed_task_state() -> None:
+    pytest.importorskip("langchain")
+    from langchain.agents import create_agent
+    from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
+    from langchain_core.messages import AIMessage
+
+    manager = _Manager()
+    middleware = create_langgraph_middleware(
+        manager, _identity("langgraph").for_task("task-1")  # type: ignore[arg-type]
+    )
+    agent = create_agent(
+        model=FakeMessagesListChatModel(responses=[AIMessage(content="done")]),
+        tools=[], middleware=[middleware],
+    )
+    agent.invoke({"messages": [{"role": "user", "content": "continue"}]})
+
+    assert manager.task_confirmed == ["task-delivery-1"]
+    assert "task.context.prepared" in [row["event_type"] for row in manager.events]
+    assert "task.context.exposed" in [row["event_type"] for row in manager.events]
 
 
 def test_langgraph_middleware_records_tool_request_and_completion() -> None:

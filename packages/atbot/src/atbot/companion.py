@@ -8,6 +8,7 @@ from typing import Any
 
 from atbot.config import AtBotConfig
 from atbot.extraction import extract_facts
+from atbot.task_state import propose_task_delta
 from atbot.providers.router import ModelRouter
 from atbot import __version__
 
@@ -44,8 +45,41 @@ class CompanionRuntime:
                 "reranking": True,
                 "query_expansion": True,
                 "proposal_extraction": True,
+                "task_state_proposals": True,
             },
             "providers": self.router.status(),
+        }
+
+    def propose_task_state(
+        self,
+        *,
+        snapshot: dict[str, object],
+        observation: str,
+        task_id: str,
+        base_revision: int,
+        remote: bool = False,
+    ) -> dict[str, object]:
+        """Suggest a bounded task delta; never commit or claim authority."""
+        if str(snapshot.get("task_id") or "") != task_id:
+            raise ValueError("snapshot task identity does not match the request")
+        if int(snapshot.get("revision") or 0) != int(base_revision):
+            raise ValueError("snapshot revision does not match the request")
+        provider = self.router.select(sensitivity="personal", remote=remote)
+        delta = propose_task_delta(
+            provider,
+            snapshot=dict(snapshot),
+            observation=observation,
+            task_id=task_id,
+            base_revision=base_revision,
+        )
+        return {
+            "format": "atbot-task-state-proposal-result-v1",
+            "delta": delta.to_dict() if delta is not None else None,
+            "authority_decision": None,
+            "canonical_storage": False,
+            "provider": provider.name,
+            "model": provider.model,
+            "egress_class": provider.egress_class,
         }
 
     def expand_query(self, query: str) -> dict[str, object]:

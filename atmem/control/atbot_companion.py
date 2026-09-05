@@ -226,6 +226,97 @@ class AtBotCompanionClient:
         except (OSError, ValueError, TypeError, HTTPError, URLError, json.JSONDecodeError) as exc:
             return {**fallback, "companion": {**fallback["companion"], "reason": str(exc)}}
 
+    def propose_task_state(
+        self,
+        *,
+        snapshot: dict[str, Any],
+        observation: str,
+        task_id: str,
+        base_revision: int,
+    ) -> dict[str, Any]:
+        """Request a delta from AtBot and revalidate its authority boundary."""
+        from atmem.control.atbot_service import AtBotServiceManager
+
+        fallback = {
+            "format": "atbot-task-state-proposal-result-v1",
+            "delta": None,
+            "authority_decision": None,
+            "canonical_storage": False,
+            "companion": {"available": False, "fallback": True},
+        }
+        if (
+            str(snapshot.get("task_id") or "") != str(task_id)
+            or int(snapshot.get("revision") or 0) != int(base_revision)
+        ):
+            raise ValueError("AtMem authorized snapshot identity is inconsistent")
+        health = self.health()
+        if not health.get("available"):
+            return {**fallback, "companion": {**fallback["companion"], "reason": health.get("reason")}}
+        body = {
+            "snapshot": snapshot,
+            "observation": " ".join(str(observation).split()),
+            "task_id": task_id,
+            "base_revision": int(base_revision),
+            "remote": AtBotServiceManager().configured_egress_class() == "remote",
+        }
+        try:
+            request = Request(
+                f"{self.endpoint}/api/companion/task-state/propose",
+                data=json.dumps(body).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "X-AtBot-CSRF": str(health["csrf_token"]),
+                },
+                method="POST",
+            )
+            with urlopen(request, timeout=self.timeout) as response:
+                value = json.loads(response.read())
+            if (
+                value.get("format") != fallback["format"]
+                or value.get("authority_decision") is not None
+                or value.get("canonical_storage") is not False
+            ):
+                raise ValueError("invalid AtBot task-state boundary")
+            delta = value.get("delta")
+            if delta is not None:
+                if not isinstance(delta, dict):
+                    raise ValueError("AtBot task delta must be an object")
+                if (
+                    delta.get("format") != "atbot-task-state-delta-v1"
+                    or str(delta.get("task_id")) != str(task_id)
+                    or int(delta.get("base_revision") or 0) != int(base_revision)
+                ):
+                    raise ValueError("AtBot changed task identity or base revision")
+                known_items = {
+                    str(row.get("item_id"))
+                    for row in snapshot.get("items") or ()
+                    if isinstance(row, dict) and row.get("item_id")
+                }
+                known_constraints = {
+                    str(row.get("constraint_id"))
+                    for row in snapshot.get("constraints") or ()
+                    if isinstance(row, dict) and row.get("constraint_id")
+                }
+                known_sources = {str(row) for row in snapshot.get("sources_to_inspect") or ()}
+                known_phases = {str(row) for row in snapshot.get("phases") or ()}
+                for operation in delta.get("operations") or ():
+                    if not isinstance(operation, dict):
+                        raise ValueError("AtBot returned a malformed task operation")
+                    if operation.get("item_id") and str(operation["item_id"]) not in known_items:
+                        raise ValueError("AtBot returned an item outside the authorized snapshot")
+                    if (
+                        operation.get("constraint_id")
+                        and str(operation["constraint_id"]) not in known_constraints
+                    ):
+                        raise ValueError("AtBot returned a constraint outside the authorized snapshot")
+                    if operation.get("source_id") and str(operation["source_id"]) not in known_sources:
+                        raise ValueError("AtBot returned a source outside the authorized snapshot")
+                    if operation.get("phase") and str(operation["phase"]) not in known_phases:
+                        raise ValueError("AtBot returned a phase outside the authorized snapshot")
+            return {**value, "companion": {"available": True, "fallback": False}}
+        except (OSError, ValueError, TypeError, HTTPError, URLError, json.JSONDecodeError) as exc:
+            return {**fallback, "companion": {**fallback["companion"], "reason": str(exc)}}
+
 
 def _fallback(
     query: str, candidates: list[dict[str, Any]], health: dict[str, Any]

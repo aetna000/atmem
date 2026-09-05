@@ -25,10 +25,12 @@ from atmem.contracts.task_state import (
     GuardSignal,
     GuardType,
     ItemStatus,
+    OperationKind,
     StepOutcome,
     TaskConstraint,
     TaskItem,
     TaskLifecycle,
+    TaskOperation,
     TaskProfile,
     TaskStartRequest,
     TaskState,
@@ -342,6 +344,101 @@ class TaskStateService:
             started=started,
             step_kind=step_kind,
         )
+
+    def submit_atbot_observation(
+        self,
+        scope: AuthorityScope,
+        task_id: str,
+        observation: str,
+        *,
+        evidence: tuple[EvidenceRef, ...] = (),
+        client: Any | None = None,
+    ) -> TransitionDecision:
+        """Ask AtBot for a bounded delta, then independently validate and commit it.
+
+        Only the exact scope-authorized snapshot is sent. The companion returns
+        no authority decision; every operation is rebuilt as a closed AtMem
+        contract and evaluated against the current head again by ``submit``.
+        """
+        view = self.get(scope, task_id)
+        snapshot = view.state.to_dict()
+        snapshot["phases"] = list(view.profile.phases)
+        if client is None:
+            from atmem.control.atbot_companion import AtBotCompanionClient
+
+            client = AtBotCompanionClient()
+        result = client.propose_task_state(
+            snapshot=snapshot,
+            observation=observation,
+            task_id=task_id,
+            base_revision=view.state.revision,
+        )
+        delta = result.get("delta") if isinstance(result, dict) else None
+        operations: list[TaskOperation] = []
+        if isinstance(delta, dict):
+            if (
+                delta.get("format") != "atbot-task-state-delta-v1"
+                or str(delta.get("task_id") or "") != task_id
+                or int(delta.get("base_revision") or 0) != view.state.revision
+            ):
+                raise TaskStateError(
+                    "task_not_eligible",
+                    "AtBot changed the authorized task identity or base revision",
+                )
+            for row in delta.get("operations") or ():
+                if not isinstance(row, dict):
+                    raise TaskStateError("task_not_eligible", "AtBot returned a malformed operation")
+                try:
+                    operations.append(
+                        TaskOperation(
+                            kind=OperationKind(str(row["kind"])),
+                            item_id=row.get("item_id"),
+                            constraint_id=row.get("constraint_id"),
+                            source_id=row.get("source_id"),
+                            phase=row.get("phase"),
+                            status=ItemStatus(str(row["status"])) if row.get("status") else None,
+                            content=dict(row["content"]) if isinstance(row.get("content"), dict) else None,
+                            reason=row.get("reason"),
+                            assurance=Assurance.MODEL_INTERPRETED,
+                        )
+                    )
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise TaskStateError(
+                        "task_not_eligible", "AtBot returned an invalid operation"
+                    ) from exc
+        if not operations:
+            # A companion that finds no supported progress still resolves to
+            # the normal recorded `no_change` path; it never invents work.
+            operations.append(
+                TaskOperation(
+                    kind=OperationKind.SET_PHASE,
+                    phase=view.state.phase,
+                    assurance=Assurance.MODEL_INTERPRETED,
+                )
+            )
+        digest = sha256_hex(
+            canonical_json(
+                {
+                    "task_id": task_id,
+                    "base_revision": view.state.revision,
+                    "observation_sha256": sha256_hex(str(observation)),
+                    "operations": [operation.to_dict() for operation in operations],
+                }
+            )
+        )
+        proposal = TaskStateProposal(
+            proposal_id=f"proposal_{digest[:32]}",
+            task_id=task_id,
+            scope=scope,
+            base_revision=view.state.revision,
+            idempotency_key=f"atbot:{digest}",
+            actor="atbot",
+            actor_role=ActorRole.ATBOT_INTELLIGENCE,
+            assurance=Assurance.MODEL_INTERPRETED,
+            operations=tuple(operations),
+            evidence=evidence,
+        )
+        return self.submit(proposal, step_kind="atbot_observation")
 
     def _commit(
         self,

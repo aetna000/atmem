@@ -59,6 +59,7 @@ DELTA_SCHEMA: dict[str, Any] = {
                     "source_id": {"type": ["string", "null"]},
                     "phase": {"type": ["string", "null"]},
                     "status": {"type": ["string", "null"]},
+                    "content": {"type": ["object", "null"]},
                     "reason": {"type": ["string", "null"]},
                 },
                 "additionalProperties": False,
@@ -179,6 +180,18 @@ def _clean_operation(
             if not reason or refusal_reasons(reason):
                 return None
             operation["reason"] = reason
+
+    if kind == "set_item_content":
+        content = row.get("content")
+        if not isinstance(content, dict):
+            return None
+        operation["content"] = content
+
+    if kind == "set_item_blocker":
+        reason = " ".join(str(row.get("reason") or "").split())[:500]
+        if not reason or refusal_reasons(reason):
+            return None
+        operation["reason"] = reason
 
     if kind == "set_phase":
         phase = str(row.get("phase") or "")

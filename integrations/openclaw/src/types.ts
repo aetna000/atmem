@@ -18,6 +18,8 @@ export interface OpenClawHookCtx {
   sessionKey?: string;
   sessionId?: string;
   senderIsOwner?: boolean;
+  /** Exact governed task selected by the host. Never inferred by AtMem. */
+  taskId?: string;
 }
 
 export interface BeforePromptBuildEvent {
@@ -61,6 +63,7 @@ export interface OpenClawPluginToolContext {
   sessionKey?: string;
   sessionId?: string;
   senderIsOwner?: boolean;
+  taskId?: string;
   activeModel?: { provider?: string; modelId?: string; modelRef?: string };
 }
 

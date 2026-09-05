@@ -5,7 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from atmem.control.blackbox import EVENT_FORMAT, format_flight_report, verify_flight
+from atmem.control.blackbox import (
+    EVENT_FORMAT,
+    format_flight_report,
+    normalize_event,
+    verify_flight,
+)
 from atmem.control.manager import ControlPlaneManager
 from atmem.control.store import ControlStore
 
@@ -134,6 +139,52 @@ def test_blackbox_records_content_minimizing_verified_flight(tmp_path: Path) -> 
         "claim_boundary"
     ]
     assert "email.send" in format_flight_report(report)
+
+
+def test_blackbox_accepts_task_transition_metadata_but_never_raw_task_content() -> None:
+    event = normalize_event(
+        migration_id="migration-1",
+        host="pydantic-ai",
+        event_type="task.transition.decision",
+        run_id="run-task-1",
+        session_id="session-task-1",
+        tool_call_id=None,
+        payload={
+            "task_id": "task-1",
+            "task_outcome": "accepted",
+            "task_base_revision": 2,
+            "task_resulting_revision": 3,
+            "task_reason_codes": ["transition_accepted"],
+            "task_decision_sha256": "a" * 64,
+            "task_evidence_ids": ["evidence-1"],
+            "task_affected_item_ids": ["item-1"],
+        },
+    )
+    assert event["payload"]["task_id"] == "task-1"
+    assert event["payload"]["task_resulting_revision"] == 3
+    assert event["content_storage"] == "digests-and-bounded-metadata-only"
+
+    with pytest.raises(ValueError, match="unsupported blackbox payload field"):
+        normalize_event(
+            migration_id="migration-1",
+            host="pydantic-ai",
+            event_type="task.transition.decision",
+            run_id="run-task-1",
+            session_id=None,
+            tool_call_id=None,
+            payload={"task_raw_content": "secret task instructions"},
+        )
+
+    with pytest.raises(ValueError, match="task_base_revision must be at least 1"):
+        normalize_event(
+            migration_id="migration-1",
+            host="pydantic-ai",
+            event_type="task.transition.decision",
+            run_id="run-task-1",
+            session_id=None,
+            tool_call_id=None,
+            payload={"task_id": "task-1", "task_base_revision": 0},
+        )
 
 
 def test_blackbox_reports_missing_completion_without_claiming_success(

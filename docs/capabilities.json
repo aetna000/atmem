@@ -1,6 +1,6 @@
 {
   "product": "memory_control_plane",
-  "version": "2.2.6b4",
+  "version": "2.2.6b5",
   "development_target": null,
   "release_status": "beta",
   "engine": "model_agnostic",
@@ -8,7 +8,7 @@
   "intelligence_companion": {
     "package": "atbot",
     "distribution": "atmem-atbot",
-    "pinned_version": "0.1.0a5",
+    "pinned_version": "0.1.0a6",
     "required_distribution_dependency": true,
     "separate_process": true,
     "loopback_protocol": "1",
@@ -17,7 +17,8 @@
     "features": [
       "proposal_extraction",
       "query_expansion",
-      "reranking"
+      "reranking",
+      "task_state_proposals"
     ],
     "fallback": "deterministic_atmem"
   },
@@ -99,6 +100,13 @@
       "verifier"
     ],
     "delivery": true,
+    "task_aware_adapters": [
+      "pydantic_ai",
+      "langgraph_langchain",
+      "openclaw"
+    ],
+    "atbot_proposal_routing": true,
+    "deterministic_benchmark_cases": 10,
     "guard_detection": true,
     "guard_enforcement": false,
     "context_serializer": "atmem-task-context-utf8-v1",

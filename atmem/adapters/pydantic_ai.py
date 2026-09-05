@@ -50,9 +50,12 @@ class PydanticAIAtMemAdapter:
         async def before_model_request(ctx: Any, request_context: Any) -> Any:
             turn = self._turn(ctx)
             governed = turn.context_for_model()
+            task_governed = turn.task_context_for_model()
             messages = list(request_context.messages)
             if governed:
                 messages.append(ModelRequest(parts=[UserPromptPart(governed)]))
+            if task_governed:
+                messages.append(ModelRequest(parts=[UserPromptPart(task_governed)]))
             model_name = str(
                 getattr(request_context, "model_id", None)
                 or getattr(request_context.model, "model_name", None)

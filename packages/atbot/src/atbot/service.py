@@ -80,6 +80,26 @@ def make_handler(companion: CompanionRuntime, token: str):
                         ),
                     )
                     return
+                if self.path == "/api/companion/task-state/propose":
+                    allowed = {
+                        "snapshot", "observation", "task_id", "base_revision", "remote"
+                    }
+                    if set(value) - allowed:
+                        raise ValueError("task-state proposal contains unknown fields")
+                    snapshot = value.get("snapshot")
+                    if not isinstance(snapshot, dict):
+                        raise ValueError("authorized task snapshot is required")
+                    self._json(
+                        200,
+                        companion.propose_task_state(
+                            snapshot=snapshot,
+                            observation=str(value.get("observation") or ""),
+                            task_id=str(value.get("task_id") or ""),
+                            base_revision=int(value.get("base_revision") or 0),
+                            remote=bool(value.get("remote", False)),
+                        ),
+                    )
+                    return
                 self._json(404, {"error": "not found"})
             except (TypeError, ValueError) as exc:
                 self._json(400, {"error": str(exc)})

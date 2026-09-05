@@ -443,6 +443,8 @@ function register(api: OpenClawPluginApi): void {
       delegatedContextSha256?: string;
       delegatedAuthority?: string;
       delegatedResultSha256?: string;
+      taskDeliveryId?: string;
+      taskContextSha256?: string;
     }
   >();
   const observedTurnInputs = new Map<
@@ -1009,6 +1011,34 @@ function register(api: OpenClawPluginApi): void {
           receipt?: { id?: string; sha256?: string };
           provider?: { id?: string; version?: string; instance_id?: string };
         };
+        const taskPrepared = ctx.taskId
+          ? (await callFor(
+              ctx,
+              "control_prepare_task_context",
+              {
+                task_id: ctx.taskId,
+                session_id: sessionKey,
+                host_run_id: ctx.runId,
+                agent_id: agentIdFor(ctx),
+                workspace_id: workspaceIdFor(ctx),
+              },
+              cfg.recall.timeoutMs,
+            )) as {
+              disposition?: string;
+              context?: string;
+              context_sha256?: string;
+              delivery_id?: string;
+              revision?: number;
+              reason_codes?: string[];
+            }
+          : undefined;
+        if (
+          taskPrepared?.disposition === "injected" &&
+          (!taskPrepared.context || !taskPrepared.context_sha256 ||
+            `sha256:${digestText(taskPrepared.context)}` !== taskPrepared.context_sha256)
+        ) {
+          throw new Error("governed task context failed exact handoff digest validation");
+        }
         pendingPrompts.set(sessionKey, {
           text: userText,
           ts: Date.now(),
@@ -1022,7 +1052,18 @@ function register(api: OpenClawPluginApi): void {
             prepared.authority === "delegated" ? prepared.context_sha256 : undefined,
           delegatedAuthority: prepared.authority,
           delegatedResultSha256: prepared.result_sha256,
+          taskDeliveryId: taskPrepared?.delivery_id,
+          taskContextSha256: taskPrepared?.context_sha256,
         });
+        if (ctx.taskId) {
+          await recordBlackbox("task.context.prepared", undefined, ctx, {
+            task_id: ctx.taskId,
+            task_disposition: taskPrepared?.disposition ?? "withheld",
+            task_revision: taskPrepared?.revision,
+            task_context_sha256: taskPrepared?.context_sha256?.replace(/^sha256:/, ""),
+            task_reason_codes: taskPrepared?.reason_codes ?? [],
+          });
+        }
         if (
           prepared.authority === "delegated" &&
           prepared.inject &&
@@ -1091,8 +1132,21 @@ function register(api: OpenClawPluginApi): void {
             `${TAG} memory control plane ${prepared.mode ?? "active"} context exposed`,
           );
           return prepared.authority === "delegated"
-            ? { prependContext: prepared.context }
-            : { appendContext: prepared.context };
+            ? {
+                prependContext: prepared.context,
+                appendContext: taskPrepared?.disposition === "injected"
+                  ? taskPrepared.context
+                  : undefined,
+              }
+            : {
+                appendContext: [
+                  prepared.context,
+                  taskPrepared?.disposition === "injected" ? taskPrepared.context : "",
+                ].filter(Boolean).join("\n\n"),
+              };
+        }
+        if (taskPrepared?.disposition === "injected" && taskPrepared.context) {
+          return { appendContext: taskPrepared.context };
         }
         return;
       } catch (error) {
@@ -1351,6 +1405,19 @@ function register(api: OpenClawPluginApi): void {
             { exposure_id: cached.exposureId },
             cfg.recall.timeoutMs,
           );
+        }
+        if (cached?.taskDeliveryId) {
+          await callFor(
+            ctx,
+            "control_task_exposure_shown",
+            { delivery_id: cached.taskDeliveryId },
+            cfg.recall.timeoutMs,
+          );
+          await recordBlackbox("task.context.exposed", event.runId, ctx, {
+            task_id: ctx.taskId,
+            task_disposition: "injected",
+            task_context_sha256: cached.taskContextSha256?.replace(/^sha256:/, ""),
+          });
         }
         if (event.success !== false) {
           await callFor(

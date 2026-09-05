@@ -17,6 +17,7 @@ import re
 from typing import Any, Mapping
 
 from atmem.core.canonical import canonical_json, sha256_hex
+from atmem.control.evidence import validate_task_evidence_payload
 from atmem.store.sqlite import utc_now
 
 
@@ -41,6 +42,10 @@ _DIGEST_KEYS = {
     "context_envelope_sha256",
     "context_receipt_sha256",
     "query_sha256",
+    "task_context_sha256",
+    "task_state_sha256",
+    "task_proposal_sha256",
+    "task_decision_sha256",
 }
 _TEXT_KEYS = {
     "provider",
@@ -61,6 +66,13 @@ _TEXT_KEYS = {
     "response_digest_profile",
     "context_location",
     "tool_canonical_name",
+    "task_id",
+    "task_disposition",
+    "task_lifecycle",
+    "task_outcome",
+    "task_actor",
+    "task_actor_role",
+    "task_assurance",
 }
 _COUNT_KEYS = {
     "prompt_chars",
@@ -76,13 +88,19 @@ _COUNT_KEYS = {
     "request_payload_bytes",
     "response_stream_bytes",
     "time_to_first_byte_ms",
+    "task_revision",
+    "task_base_revision",
+    "task_resulting_revision",
 }
-_BOOL_KEYS = {"fast_mode", "cancelled", "success"}
+_BOOL_KEYS = {"fast_mode", "cancelled", "success", "task_guard_enforced"}
 _LIST_KEYS = {
     "candidate_ids",
     "param_keys",
     "derived_path_sha256",
     "context_component_event_ids",
+    "task_reason_codes",
+    "task_evidence_ids",
+    "task_affected_item_ids",
 }
 
 _CORRELATION_KEYS = (
@@ -1063,6 +1081,7 @@ def _normalize_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     )
     if unknown:
         raise ValueError(f"unsupported blackbox payload field(s): {', '.join(unknown)}")
+    validate_task_evidence_payload(payload)
     normalized: dict[str, Any] = {}
     for key, value in payload.items():
         if value is None:

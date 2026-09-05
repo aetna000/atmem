@@ -5,7 +5,7 @@ This npm package is the host bridge for AtMem. It is not a standalone memory eng
 Use the Python-owned installer:
 
 ```bash
-python -m pip install --pre --upgrade atmem==2.2.6b4
+python -m pip install --pre --upgrade atmem==2.2.6b5
 atmem openclaw install
 ```
 
@@ -21,6 +21,13 @@ mapping, not an activation switch.
 Existing AtMem 2.1 users run `atmem openclaw upgrade` after upgrading the Python
 package. This preserves the current memory mode and migration, verifies the new
 bridge with a self-test flight, and rolls back the bridge on failure.
+
+Bridge `2.2.6-beta.3` adds Spec 007 exact task-context delivery. When the host
+supplies `taskId` in hook context, the bridge requests only that governed task,
+checks its byte digest, contributes it separately from recalled memory, and
+confirms exposure. With no `taskId`, task delivery stays off and existing
+memory-only behavior is unchanged. Guard detection is available, but this
+bridge does not claim it can block OpenClaw execution.
 
 In shadow mode the bridge observes native-memory changes without injecting AtMem context. In active mode it exposes compatible memory search/get tools, model-semantic capture, bounded recall and native-path protection. `atmem control restore` restores the saved OpenClaw configuration and native memory.
 

@@ -127,6 +127,22 @@ class ControlMCPServer:
                     str(arguments["exposure_id"])
                 )
             }
+        elif name == "control_prepare_task_context":
+            value = self.manager.prepare_task_context(
+                task_id=arguments.get("task_id"),
+                subject_id=arguments.get("subject_id"),
+                agent_id=arguments.get("agent_id"),
+                workspace_id=arguments.get("workspace_id"),
+                host_run_id=arguments.get("host_run_id"),
+                session_id=arguments.get("session_id"),
+                budget_chars=int(arguments.get("budget_chars") or 4_000),
+            )
+        elif name == "control_task_exposure_shown":
+            value = {
+                "confirmed": self.manager.confirm_task_exposure(
+                    str(arguments["delivery_id"])
+                )
+            }
         elif name == "control_record_blackbox_event":
             value = self.manager.record_blackbox_event(
                 event_type=str(arguments["event_type"]),
@@ -259,6 +275,8 @@ def _host_tool_names(host: str) -> set[str]:
         sync_tool,
         "control_prepare",
         "control_exposure_shown",
+        "control_prepare_task_context",
+        "control_task_exposure_shown",
         "control_record_blackbox_event",
         "control_status",
     }
@@ -323,6 +341,34 @@ def _tools(*, operator: bool = False, host: str = "generic") -> list[dict[str, A
                 "properties": {"exposure_id": {"type": "string"}},
                 "required": ["exposure_id"],
                 "additionalProperties": False,
+            },
+        },
+        {
+            "name": "control_prepare_task_context",
+            "description": "Prepare governed task state for one exact task identity; absent identity withholds.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string"},
+                    "session_id": {"type": "string"},
+                    "host_run_id": {"type": "string"},
+                    "subject_id": {"type": "string"},
+                    "agent_id": {"type": "string"},
+                    "workspace_id": {"type": "string"},
+                    "budget_chars": {"type": "integer"}
+                },
+                "required": ["task_id", "agent_id", "workspace_id"],
+                "additionalProperties": False
+            },
+        },
+        {
+            "name": "control_task_exposure_shown",
+            "description": "Confirm exactly once that a prepared governed-task block reached the model boundary.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"delivery_id": {"type": "string"}},
+                "required": ["delivery_id"],
+                "additionalProperties": False
             },
         },
         {

@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/007-governed-task-state`  
 **Created**: 2026-09-04  
-**Status**: Draft  
+**Status**: Implemented
 **Input**: Add a governed, continually maintained execution state that gives
 agents a structured checklist of goals, phases, actionable data units, current
 status, constraints, dependencies, and verified progress without weakening

@@ -92,6 +92,119 @@ def run_benchmark(
     return validate_report(report)
 
 
+def run_task_state_benchmark(
+    dataset_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Execute Spec 007's deterministic guard/context benchmark."""
+    source = read_json(dataset_path or data_path("task-state-v1.json"))
+    if source.get("format") != "atmem-task-state-benchmark-v1":
+        raise ValueError("unsupported task-state benchmark format")
+    cases = source.get("cases")
+    if not isinstance(cases, list) or not cases:
+        raise ValueError("task-state benchmark requires cases")
+    results = [_run_task_state_case(dict(case)) for case in cases]
+    body = {
+        "format": "atmem-task-state-benchmark-report-v1",
+        "dataset": {
+            "name": source.get("name"),
+            "version": source.get("version"),
+            "sha256": canonical_digest(source),
+            "case_count": len(results),
+        },
+        "passed": all(row["passed"] for row in results),
+        "passed_cases": sum(1 for row in results if row["passed"]),
+        "case_results": results,
+        "limitations": [
+            "Deterministic policy, guard, lifecycle, and serialization benchmark; no model or host execution is measured."
+        ],
+    }
+    body["report_sha256"] = canonical_digest(body)
+    return body
+
+
+def _run_task_state_case(case: dict[str, Any]) -> dict[str, Any]:
+    from atmem.contracts.task_state import ItemStatus, TaskItem, TaskLifecycle, TaskState
+    from atmem.task_state import GENERAL_V1
+    from atmem.task_state.context import eligibility_reason, prepare
+    from atmem.task_state.guards import action_fingerprint, evaluate_completion_guard
+    from atmem.task_state.models import summarize
+
+    scope = AuthorityScope("benchmark-user", "benchmark-agent", "benchmark-workspace")
+    status = ItemStatus(str(case.get("status") or "pending"))
+    item = TaskItem(
+        item_id="item-1",
+        kind="step",
+        title=str(case.get("text") or "Finish the governed step"),
+        status=status,
+        blocker_reason="waiting for evidence" if status is ItemStatus.BLOCKED else None,
+        skip_reason="operator-approved skip" if status is ItemStatus.SKIPPED else None,
+        required=True,
+    )
+    lifecycle = TaskLifecycle(str(case.get("lifecycle") or "open"))
+    state = TaskState(
+        task_id="task-benchmark",
+        scope=scope,
+        revision=1,
+        lifecycle=lifecycle,
+        phase="execute",
+        goal="Complete the benchmark safely",
+        profile_id="general",
+        profile_version="general-v1",
+        items=(item,),
+    )
+    kind = str(case.get("kind"))
+    if kind == "status":
+        summary = summarize(state, GENERAL_V1)
+        observed = (
+            "completed" if summary["completed_items"] else
+            "skipped" if summary["skipped_items"] else
+            "failed" if summary["failed_items"] else
+            "blocked" if summary["blocked_items"] else "remaining"
+        )
+    elif kind == "repeated_action":
+        first = action_fingerprint(action="write", target="item-1", arguments={"path": "x"})
+        second = action_fingerprint(action="write", target="item-1", arguments={"path": "x"})
+        observed = "same_fingerprint" if first == second else "different_fingerprint"
+    elif kind == "premature_finish":
+        guard = evaluate_completion_guard(state, GENERAL_V1)
+        observed = guard.guard_type.value if guard else "allowed"
+    elif kind == "terminal_context":
+        observed = eligibility_reason(lifecycle, in_scope=True)
+    elif kind == "overflow":
+        package = prepare(
+            state,
+            GENERAL_V1,
+            scope=scope,
+            context_id="context-benchmark",
+            prepared_at="2026-09-05T00:00:00Z",
+            budget_chars=int(case.get("budget_chars") or 32),
+        )
+        observed = package.reason_codes[0] if package.reason_codes else package.disposition.value
+    elif kind == "instruction":
+        package = prepare(
+            state,
+            GENERAL_V1,
+            scope=scope,
+            context_id="context-instruction",
+            prepared_at="2026-09-05T00:00:00Z",
+        )
+        observed = (
+            "contained"
+            if package.context.count("<<<end-atmem-governed-task-data>>>") == 1
+            and "[escaped-delimiter]" in package.context
+            else "escaped_boundary_failed"
+        )
+    else:
+        raise ValueError(f"unknown task-state benchmark case kind: {kind}")
+    return {
+        "case_id": str(case["id"]),
+        "kind": kind,
+        "expected": case.get("expected"),
+        "observed": observed,
+        "passed": observed == case.get("expected"),
+    }
+
+
 def _run_case(case: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:
     started = time.perf_counter()
     subject = str(case.get("subject_id") or "benchmark-user")

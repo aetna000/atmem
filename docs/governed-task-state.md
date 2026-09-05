@@ -274,6 +274,24 @@ changed and must submit a fresh request.
 task-unaware operation. Absent identity disables task delivery outright and
 never triggers discovery. `identity.for_task("task-1")` binds one task.
 
+Pydantic AI capabilities and LangGraph middleware append the governed task
+block as a separate user-data message at each model boundary, after exact
+digest validation. They leave dependencies, model selection, tools, message
+history, graph state, and checkpoints untouched. Their shared turn lifecycle
+also correlates tool outcomes and explicit typed task observations with the
+bound task.
+
+The OpenClaw bridge performs the same preparation and exact-exposure handshake
+when OpenClaw supplies `taskId` in hook context. Older hosts that omit it keep
+the legacy memory-only path. The bridge does not discover an open task and
+does not advertise guard enforcement.
+
+AtBot can be called through its authenticated loopback
+`/api/companion/task-state/propose` route. It receives only the exact snapshot
+AtMem has authorized and returns no authority decision. AtMem revalidates the
+task ID, base revision, referenced items/constraints/sources/phases, operation
+shape, assurance, and policy against the current head before it alone commits.
+
 One runtime response is the capability authority:
 
 ```json
@@ -303,6 +321,11 @@ and the network all unavailable, typed host and operator transitions still
 validate, `no_change` is still recorded, current state is still delivered, and
 completion gates still apply. Nothing about a failure widens scope, invents
 progress, unlocks a schema, or bypasses a gate.
+
+The offline `run_task_state_benchmark()` release gate covers the ten named
+status, lifecycle, guard, overflow, and instruction-containment cases from the
+spec using production serializers and policy helpers. It uses no model or
+network and returns a digest-bound machine-readable report.
 
 ## Deletion and rollback
 

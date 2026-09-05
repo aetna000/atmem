@@ -2,12 +2,12 @@
 
 Updated: 5 September 2026
 
-Repository metadata is **2.2.6b4** and the matched OpenClaw bridge is
-**2.2.6-beta.2**. Both beta artifacts and the `v2.2.6b4` GitHub prerelease are
-publicly available. Native AtMem authority remains the default after
-installation or upgrade.
-The required `atmem-atbot==0.1.0a5` companion is published separately and
-installed automatically with AtMem.
+Repository metadata is **2.2.6b5** and the matched OpenClaw bridge is
+**2.2.6-beta.3**. This repository state is the release candidate; package and
+tag availability must be checked independently until the release workflow has
+published them. Native AtMem authority remains the default after installation
+or upgrade. The required `atmem-atbot==0.1.0a6` companion is packaged
+separately and installed automatically with AtMem.
 
 The release has four runtime boundaries:
 
@@ -29,6 +29,9 @@ The release has four runtime boundaries:
 | Candidate authorization before AtBot and ID revalidation afterward | Implemented | Implemented |
 | Byte-stable context preparation and exact exposure receipt | Implemented by contract | Implemented by bridge hooks |
 | Pydantic AI and LangChain/LangGraph automatic lifecycle adapters | Packaged optional adapters | Not applicable; OpenClaw uses its bridge |
+| Governed Task State revisions, lifecycle, provenance, expiry, and safe context | Exact-ID delivery through packaged adapters | Exact-ID delivery when OpenClaw supplies `taskId` |
+| AtBot task observation proposals with AtMem revalidation | Implemented through the loopback companion | Same authority boundary |
+| Task dashboard and complete task CLI | Implemented | Same dashboard and CLI |
 | Typed text observations of host-controlled media | Implemented; host retains bytes | Implemented; OpenClaw retains bytes |
 | Shadow mode without context influence | Implemented by contract | Automated and verified |
 | Explicit active mode and return to shadow | Implemented by contract | Automated |
@@ -47,7 +50,7 @@ The release has four runtime boundaries:
 
 ## Packaging and runtime status
 
-- `pyproject.toml` requires exactly `atmem-atbot==0.1.0a5`. The PyPI
+- `pyproject.toml` requires exactly `atmem-atbot==0.1.0a6`. The PyPI
   distribution is `atmem-atbot`; its Python import and command remain `atbot`.
 - AtBot source lives under `packages/atbot`; it is a separately released
   distribution and process and does not own canonical storage.
@@ -87,7 +90,7 @@ The release has four runtime boundaries:
 ## Upgrade and support status
 
 - The release workflow creates persisted data with public AtMem 2.1.0, 2.2.3,
-  2.2.4, and 2.2.5, upgrades each environment to 2.2.6b4, and verifies record identity, recall, audit
+  2.2.4, and 2.2.5, upgrades each environment to 2.2.6b5, and verifies record identity, recall, audit
   integrity, control migration identity, candidate retention, schema migration,
   and automatic vector-sidecar creation as a protected publication gate.
 - Existing OpenClaw installations upgrade the bridge with

@@ -265,3 +265,50 @@ def test_companion_does_not_propose_questions() -> None:
     result = companion().propose_memories("What food do I prefer?")
 
     assert result["proposals"] == []
+
+
+def test_companion_proposes_task_delta_without_claiming_authority(monkeypatch) -> None:
+    runtime = companion()
+
+    class _TaskProvider:
+        name = "test"
+        model = "task-reader"
+        egress_class = "none"
+
+        def complete(self, *, system, prompt, schema=None):
+            return ProviderResult(
+                text="",
+                structured={
+                    "operations": [
+                        {
+                            "kind": "set_item_status",
+                            "item_id": "item-1",
+                            "status": "completed",
+                        }
+                    ]
+                },
+                provider=self.name,
+                model=self.model,
+                egress_class=self.egress_class,
+            )
+
+    monkeypatch.setattr(runtime.router, "select", lambda **kwargs: _TaskProvider())
+    result = runtime.propose_task_state(
+        snapshot={
+            "task_id": "task-1",
+            "revision": 3,
+            "phase": "execute",
+            "phases": ["execute", "complete"],
+            "items": [{"item_id": "item-1", "status": "running"}],
+            "constraints": [],
+            "sources_to_inspect": [],
+        },
+        observation="The item completed.",
+        task_id="task-1",
+        base_revision=3,
+    )
+
+    assert result["delta"]["base_revision"] == 3
+    assert result["authority_decision"] is None
+    assert result["canonical_storage"] is False
+    assert runtime.capabilities()["features"]["task_state_proposals"] is True

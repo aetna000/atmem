@@ -319,10 +319,12 @@ try {
   const delegatedLog = path.join(dataDir, "delegated-rpc.jsonl");
   const delegatedServer = path.join(dataDir, "delegated-mcp.py");
   const exactDelegated = "Reviewed context 🧠\r\nKeep these bytes.";
+  const exactTask = "<<<atmem-governed-task-data>>>\ntask: task-1\nremaining: verify\n<<<end-atmem-governed-task-data>>>";
   writeFileSync(delegatedServer, `#!/usr/bin/env python3
 import json, sys
 LOG = ${JSON.stringify(delegatedLog)}
 EXACT = ${JSON.stringify(exactDelegated)}
+TASK = ${JSON.stringify(exactTask)}
 for line in sys.stdin:
     request = json.loads(line)
     if request.get("method") == "notifications/initialized":
@@ -334,7 +336,9 @@ for line in sys.stdin:
         name = params.get("name")
         with open(LOG, "a", encoding="utf-8") as handle:
             handle.write(json.dumps({"name": name, "arguments": params.get("arguments")}, separators=(",", ":")) + "\\n")
-        if name == "control_prepare":
+        if name == "control_prepare_task_context":
+            value = {"disposition":"injected","context":TASK,"context_sha256":"sha256:${createHash("sha256").update(exactTask).digest("hex")}","delivery_id":"task-delivery-1","revision":4,"reason_codes":[]}
+        elif name == "control_prepare":
             arguments = params.get("arguments") or {}
             query = arguments.get("query") or ""
             if not arguments.get("user_id"):
@@ -410,6 +414,17 @@ for line in sys.stdin:
   );
   assert.equal(fallback.appendContext, "native fallback context");
   assert.equal(fallback.prependContext, undefined);
+  const taskCtx = { ...delegatedCtx, taskId: "task-1", sessionKey: "task", sessionId: "task", runId: "task" };
+  const taskInsertion = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "Continue the exact governed task" },
+    taskCtx,
+  );
+  assert.equal(taskInsertion.prependContext, exactDelegated);
+  assert.equal(taskInsertion.appendContext, exactTask);
+  await delegatedRuntime.hooks.get("agent_end")(
+    { success: true, messages: [], runId: "task" },
+    taskCtx,
+  );
   const missingOwner = await delegatedRuntime.hooks.get("before_prompt_build")(
     { prompt: "missing owner" },
     { ...delegatedCtx, sessionKey: "missing", sessionId: "missing", runId: "missing", senderIsOwner: false },
@@ -431,11 +446,26 @@ for line in sys.stdin:
     row.name === "control_record_blackbox_event" &&
     row.arguments?.event_type === "context.provider_authorization"
   );
-  assert.equal(authorizationEvents.length, 5);
+  assert.equal(authorizationEvents.length, 6);
   assert.equal(authorizationEvents[0].arguments.context_receipt_id, "receipt-1");
   assert.equal(
     delegatedCalls.filter((row) => row.name === "control_prepare").length,
-    6,
+    7,
+  );
+  assert.equal(
+    delegatedCalls.filter((row) => row.name === "control_prepare_task_context").length,
+    1,
+  );
+  assert.equal(
+    delegatedCalls.filter((row) => row.name === "control_task_exposure_shown").length,
+    1,
+  );
+  assert.equal(
+    delegatedCalls.filter((row) =>
+      row.name === "control_record_blackbox_event" &&
+      row.arguments?.event_type === "task.context.exposed"
+    ).length,
+    1,
   );
   for (const service of delegatedRuntime.services) await service.stop?.();
 

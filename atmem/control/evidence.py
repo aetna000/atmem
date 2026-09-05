@@ -8,12 +8,60 @@ generic set of names can silently weaken a future evidence format.
 from __future__ import annotations
 
 from copy import deepcopy
+import re
 from typing import Any, Mapping
 
 from atmem.core.canonical import canonical_json, sha256_hex
 
 
 ZERO_SHA256 = "0" * 64
+
+_TASK_REVISION_FIELDS = {
+    "task_revision",
+    "task_base_revision",
+    "task_resulting_revision",
+}
+_TASK_DIGEST_FIELDS = {
+    "task_context_sha256",
+    "task_state_sha256",
+    "task_proposal_sha256",
+    "task_decision_sha256",
+}
+_TASK_LIST_FIELDS = {
+    "task_reason_codes",
+    "task_evidence_ids",
+    "task_affected_item_ids",
+}
+
+
+def validate_task_evidence_payload(payload: Mapping[str, Any]) -> None:
+    """Validate the identity and links on a task-related audit projection.
+
+    The canonical task ledger carries richer typed contracts. This validator
+    protects their content-minimizing cross-surface projection: any task field
+    must be bound to one exact task, revisions cannot be invented below the
+    protocol floor, and linked objects travel only by digest or bounded ID.
+    """
+    task_fields = {key: value for key, value in payload.items() if key.startswith("task_")}
+    if not task_fields:
+        return
+    task_id = str(task_fields.get("task_id") or "").strip()
+    if not task_id or len(task_id) > 512:
+        raise ValueError("task evidence requires one bounded task_id")
+    for key in _TASK_REVISION_FIELDS & task_fields.keys():
+        try:
+            revision = int(task_fields[key])
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{key} must be a task revision") from exc
+        if revision < 1:
+            raise ValueError(f"{key} must be at least 1")
+    for key in _TASK_DIGEST_FIELDS & task_fields.keys():
+        if not re.fullmatch(r"[0-9a-f]{64}", str(task_fields[key]).lower()):
+            raise ValueError(f"{key} must bind a SHA-256 digest")
+    for key in _TASK_LIST_FIELDS & task_fields.keys():
+        value = task_fields[key]
+        if not isinstance(value, list) or any(not str(item).strip() for item in value):
+            raise ValueError(f"{key} must be an array of non-empty identifiers")
 
 
 def seal_report(

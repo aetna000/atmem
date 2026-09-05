@@ -63,9 +63,9 @@ def test_readme_puts_supported_quick_starts_front_and_center() -> None:
     assert "atmem atbot setup" in opening
     assert "atmem openclaw install" in opening
     assert "atmem openclaw upgrade" in opening
-    assert "atmem[pydantic-ai]==2.2.6b4" in opening
+    assert "atmem[pydantic-ai]==2.2.6b5" in opening
     assert "PydanticAIAtMemAdapter" in opening
-    assert "atmem[langgraph]==2.2.6b4" in opening
+    assert "atmem[langgraph]==2.2.6b5" in opening
     assert "atmem delegated register --help" in opening
     assert "create_langgraph_middleware" in opening
     assert "atmem control activate" in opening
@@ -236,7 +236,11 @@ def test_public_product_namespace_is_atmem_only() -> None:
 def test_governed_task_state_adds_no_mandatory_dependency() -> None:
     """SC-010: the task plane must not drag in a model or framework SDK."""
     import sys
-    import tomllib
+
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # Python 3.10 reads TOML through tomli
+        import tomli as tomllib
 
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text())
     required = pyproject["project"].get("dependencies") or []

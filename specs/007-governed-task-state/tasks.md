@@ -33,7 +33,7 @@
 
 ## Phase 4 — US2: Governed evidence-linked transitions (P1)
 
-- [ ] [T019] [US2] Extend evidence validation and audit payloads for task proposal, decision, revision, `no_change`, expiry, field/status provenance, correction, privileged governance action, and lifecycle events in `atmem/control/evidence.py` and `atmem/control/blackbox.py` (FR-009, FR-012, FR-017, FR-021, FR-029, FR-030, FR-035, FR-036).
+- [x] [T019] [US2] Extend evidence validation and audit payloads for task proposal, decision, revision, `no_change`, expiry, field/status provenance, correction, privileged governance action, and lifecycle events in `atmem/control/evidence.py` and `atmem/control/blackbox.py` (FR-009, FR-012, FR-017, FR-021, FR-029, FR-030, FR-035, FR-036).
 - [x] [T020] [US2] Enforce actor/source/interpreter/evidence identity, assurance ceilings, and honest host-observed versus independently verified outcomes in `atmem/task_state/service.py` (FR-009, FR-012, FR-017, FR-024; SC-005).
 - [x] [T021] [US2] Add 1,000-attempt concurrency/replay tests proving one accepted successor per head and no duplicate revision for an idempotency key in `tests/test_task_state_store.py` and `tests/test_task_state_service.py` (FR-010; SC-002).
 - [x] [T022] [US2] Add tamper, stale, cross-scope, unknown-evidence, schema-widening, lifecycle, expiry, and model-overclaim tests in `tests/test_task_state_service.py` and `tests/test_control_evidence.py` (FR-007–FR-013, FR-017, FR-022, FR-024, FR-036; SC-001, SC-005).
@@ -52,23 +52,23 @@
 - [x] [T029] [US3] Implement the deterministic governed-data serializer, complete-value optional reduction, mandatory-overflow withholding, canonical escaping and provenance labels, digest, bounded context package, generation-bound cache identity, and invalidation in `atmem/task_state/context.py` (FR-015, FR-016, FR-022, FR-037, FR-038; SC-003, SC-015).
 - [x] [T030] [US3] Implement action fingerprinting, no-progress evaluation, dependency/out-of-scope guards, and completion eligibility in `atmem/task_state/guards.py` (FR-013, FR-014).
 - [x] [T031] [US3] Route expiry-aware exact task-ID resolution and separately identified task-state data through `ControlPlaneManager.prepare()` and exact exposure confirmation in `atmem/control/manager.py`, withholding on absent or ineligible identity and never discovering or falling back to another open task, without weakening existing recalled-memory revalidation in `atmem/memory.py` (FR-008, FR-015–FR-019, FR-036–FR-038; SC-003, SC-006, SC-014, SC-015).
-- [ ] [T032] [US3] Add deterministic benchmark cases for completed, remaining, blocked, skipped, failed, repeated-action, premature-finish, expired, overflow, and instruction-shaped behavior in `atmem/benchmark/data/task-state-v1.json` and `atmem/benchmark/runner.py` (FR-013, FR-014, FR-036–FR-038; SC-004, SC-014, SC-015).
+- [x] [T032] [US3] Add deterministic benchmark cases for completed, remaining, blocked, skipped, failed, repeated-action, premature-finish, expired, overflow, and instruction-shaped behavior in `atmem/benchmark/data/task-state-v1.json` and `atmem/benchmark/runner.py` (FR-013, FR-014, FR-036–FR-038; SC-004, SC-014, SC-015).
 
 ## Phase 7 — AtBot proposal intelligence and safe fallback
 
 - [x] [T033] [P] Add bounded task-state delta, attribution, affected-item, confidence, and reason types in `packages/atbot/src/atbot/domain.py` (FR-007, FR-009).
 - [x] [T034] [P] Write malicious/valid/unavailable proposal tests before implementation in `packages/atbot/tests/test_task_state.py` and `tests/test_task_state_atbot.py` (FR-007–FR-009, FR-019, FR-038; SC-001, SC-006, SC-015).
 - [x] [T035] Implement independently authored task-observation prompts and strict delta extraction in `packages/atbot/src/atbot/task_state.py` and `packages/atbot/src/atbot/prompts.py`, accepting only AtMem-authorized snapshot content and treating all observation text as data (FR-007–FR-009, FR-019, FR-028, FR-038).
-- [ ] [T036] Add AtBot companion request/response routing and AtMem revalidation in `packages/atbot/src/atbot/companion.py`, `packages/atbot/src/atbot/service.py`, `atmem/control/atbot_companion.py`, and `atmem/task_state/service.py` (FR-007–FR-009, FR-019).
+- [x] [T036] Add AtBot companion request/response routing and AtMem revalidation in `packages/atbot/src/atbot/companion.py`, `packages/atbot/src/atbot/service.py`, `atmem/control/atbot_companion.py`, and `atmem/task_state/service.py` (FR-007–FR-009, FR-019).
 - [x] [T037] Prove local typed host/operator transitions, `no_change`, completion validation, and current-state delivery with AtBot, semantic services, and network disabled in `tests/test_task_state_atbot.py` (FR-019, FR-027; SC-006).
 
 ## Phase 8 — US5: Host-neutral lifecycle integration (P2)
 
 - [x] [T038] [P] [US5] Write adapter conformance tests for exact task identity, absent/unknown/terminal/cross-scope identity, multiple-open-task non-selection, observations, context, action/tool outcomes, completion, errors, terminal state, exact exposure, multi-agent isolation, and current/legacy capability negotiation in `tests/test_task_state_adapters.py` (FR-015, FR-017–FR-019, FR-023, FR-024, FR-039; SC-003, SC-006, SC-016).
 - [x] [T039] [US5] Extend `AtMemAdapterIdentity` and `AtMemTurnLifecycle` with task identity that is optional only for legacy task-unaware operation and required for task-aware observation/transition/guard methods in `atmem/adapters/base.py`; absent identity disables task-state delivery and never triggers discovery. Add authoritative governed-task-state delivery/detection/enforcement flags in `atmem/contracts/versions.py` and align `atmem/schemas/v1/capabilities.json` (FR-006, FR-015, FR-017, FR-023, FR-024, FR-039; SC-016).
-- [ ] [T040] [P] [US5] Map Pydantic AI model/tool hooks into the task lifecycle without replacing dependencies, history, tools, or model configuration in `atmem/adapters/pydantic_ai.py` (FR-023, FR-039).
-- [ ] [T041] [P] [US5] Map LangGraph middleware and raw lifecycle helpers into the task lifecycle without replacing graph state, checkpoints, tools, or model configuration in `atmem/adapters/langgraph.py` (FR-023, FR-039).
-- [ ] [T042] [US5] Extend the OpenClaw plugin contract and tests for exact task-context delivery, action/tool outcomes, completion enforcement capability, runtime negotiation, and backward-compatible legacy behavior in `integrations/openclaw/index.ts`, `integrations/openclaw/src/rpc-client.ts`, `integrations/openclaw/src/types.ts`, `integrations/openclaw/test/hooks.mjs`, and `integrations/openclaw/test/smoke.mjs` (FR-014, FR-015, FR-017, FR-023, FR-039; SC-016).
+- [x] [T040] [P] [US5] Map Pydantic AI model/tool hooks into the task lifecycle without replacing dependencies, history, tools, or model configuration in `atmem/adapters/pydantic_ai.py` (FR-023, FR-039).
+- [x] [T041] [P] [US5] Map LangGraph middleware and raw lifecycle helpers into the task lifecycle without replacing graph state, checkpoints, tools, or model configuration in `atmem/adapters/langgraph.py` (FR-023, FR-039).
+- [x] [T042] [US5] Extend the OpenClaw plugin contract and tests for exact task-context delivery, action/tool outcomes, completion enforcement capability, runtime negotiation, and backward-compatible legacy behavior in `integrations/openclaw/index.ts`, `integrations/openclaw/src/rpc-client.ts`, `integrations/openclaw/src/types.ts`, `integrations/openclaw/test/hooks.mjs`, and `integrations/openclaw/test/smoke.mjs` (FR-014, FR-015, FR-017, FR-023, FR-039; SC-016).
 - [x] [T043] [US5] Mirror the authoritative runtime delivery, guard-detection, and guard-enforcement flags in `docs/capabilities.json`, test runtime/schema/documentation equality, and assert unsupported boundaries are never advertised in `tests/test_task_state_adapters.py` and `tests/test_documentation.py` (FR-014, FR-023, FR-039; SC-003, SC-016).
 
 ## Phase 9 — Observability foundation
@@ -135,7 +135,7 @@ Run on 2026-09-05 against the working tree.
 
 | Check | Result |
 | --- | --- |
-| Full Python suite | 1084 passed, 2 skipped |
+| Full Python suite | 1091 passed, 3 skipped |
 | Prerequisite gate (`test_task_state_prerequisites.py`) | 11 passed |
 | Walking skeleton | 2 passed |
 | Contracts + published schemas | 77 passed |
@@ -151,6 +151,7 @@ Run on 2026-09-05 against the working tree.
 | AtBot proposals + fallback | 20 passed |
 | Tamper / adversarial | 26 passed |
 | Deterministic benchmark | passed, 24/24 cases |
+| Governed Task State benchmark | passed, 10/10 cases |
 | Python 3.10 grammar compatibility | every module parses |
 | Clean import (no optional SDK) | no optional module imported |
 | OpenClaw npm test | setup, hooks, delegated-context contract passed |
@@ -178,23 +179,23 @@ Measured overhead (SC-007), 1,000 single-writer samples each, 25 ms budget:
 - Intelligence: `packages/atbot/src/atbot/task_state.py` and its prompt.
 - Documentation: `docs/governed-task-state.md`, `docs/capabilities.json`.
 
-## Not Delivered
+## Completion Pass (2.2.6b5)
 
-- **T019** — task events reuse the existing audit and step ledgers rather than
-  extending `atmem/control/blackbox.py`'s flight-event vocabulary. Every
-  proposal, decision, revision, `no_change`, expiry, correction, and lifecycle
-  change is recorded with actor, reason codes, and evidence; what is missing is
-  the blackbox *flight* projection of those events.
-- **T032** — task-state benchmark cases are not in
-  `atmem/benchmark/data/task-state-v1.json`. The equivalent coverage exists as
-  deterministic fixtures and tests (`tests/fixtures/task_state/`,
-  `test_task_state_{policy,guards,context,expiry}.py`), but it is not wired into
-  `atmem/benchmark/runner.py` as a scored profile.
-- **T036** — the AtBot companion HTTP route for task deltas is not added.
-  `packages/atbot/src/atbot/task_state.py` produces validated deltas and AtMem
-  admits them through `submit_task_proposal`; the loopback endpoint that would
-  carry them between the two processes is not wired.
-- **T040, T041, T042** — Pydantic AI, LangGraph, and the OpenClaw plugin are
-  unchanged. They keep working as task-unaware adapters through the legacy path
-  (proved in `test_task_state_adapters.py`); they do not yet bind a task id.
-  The generic contract is complete, so this is per-framework mapping work.
+- **T019** — the content-minimizing Black Box vocabulary now correlates exact
+  task identity, context preparation/exposure, revisions, outcomes, reason
+  codes, evidence IDs, affected items, and digests. Raw task content remains an
+  unsupported payload.
+- **T032** — `task-state-v1.json` and `run_task_state_benchmark()` execute the
+  ten named deterministic risk cases and bind the report to a stable digest.
+- **T036** — the authenticated loopback companion route carries only an
+  AtMem-authorized exact snapshot and observation. Both the client and the
+  authority service revalidate identity, revision, referenced entities, closed
+  operations, assurance, and policy before AtMem commits.
+- **T040–T042** — Pydantic AI, LangGraph, and OpenClaw deliver separately
+  labelled task context only when the host binds an exact task ID, acknowledge
+  exact exposure, retain legacy task-unaware behavior, and preserve host-owned
+  models, tools, history, dependencies, graph state, and checkpoints. Runtime
+  capability negotiation still truthfully reports guard enforcement as false.
+- Release artifacts built as AtMem `2.2.6b5`, AtBot `0.1.0a6`, and OpenClaw
+  bridge `2.2.6-beta.3`; both Python distributions pass `twine check`, and the
+  OpenClaw build, contract tests, and real-server smoke test pass.

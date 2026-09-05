@@ -44,12 +44,20 @@ def create_langgraph_middleware(
         def wrap_model_call(self, request: Any, handler: Any) -> Any:
             turn = self._turn(request.runtime)
             governed = turn.context_for_model()
+            task_governed = turn.task_context_for_model()
             messages = list(request.messages)
             if governed:
                 messages.append(
                     HumanMessage(
                         content=governed,
                         additional_kwargs={"atmem_governed_context": True},
+                    )
+                )
+            if task_governed:
+                messages.append(
+                    HumanMessage(
+                        content=task_governed,
+                        additional_kwargs={"atmem_governed_task_state": True},
                     )
                 )
             model_name = _model_name(request.model)
@@ -73,12 +81,20 @@ def create_langgraph_middleware(
         async def awrap_model_call(self, request: Any, handler: Any) -> Any:
             turn = self._turn(request.runtime)
             governed = turn.context_for_model()
+            task_governed = turn.task_context_for_model()
             messages = list(request.messages)
             if governed:
                 messages.append(
                     HumanMessage(
                         content=governed,
                         additional_kwargs={"atmem_governed_context": True},
+                    )
+                )
+            if task_governed:
+                messages.append(
+                    HumanMessage(
+                        content=task_governed,
+                        additional_kwargs={"atmem_governed_task_state": True},
                     )
                 )
             model_name = _model_name(request.model)

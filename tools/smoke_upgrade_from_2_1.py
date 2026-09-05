@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a published-version fixture, then prove 2.2.6b4 upgrades it safely."""
+"""Create a published-version fixture, then prove 2.2.6b5 upgrades it safely."""
 
 from __future__ import annotations
 
@@ -76,8 +76,8 @@ def create_fixture(root: Path) -> None:
 
 def verify_upgrade(root: Path) -> None:
     manifest = json.loads((root / "fixture.json").read_text(encoding="utf-8"))
-    assert importlib.metadata.version("atmem") == "2.2.6b4"
-    assert importlib.metadata.version("atmem-atbot") == "0.1.0a5"
+    assert importlib.metadata.version("atmem") == "2.2.6b5"
+    assert importlib.metadata.version("atmem-atbot") == "0.1.0a6"
 
     database = root / "memory.db"
     memory = Memory(database)
@@ -116,7 +116,7 @@ def verify_upgrade(root: Path) -> None:
             "SELECT value FROM schema_meta WHERE key = 'schema_version'"
         ).fetchone()[0]
     assert int(schema_version) == 5
-    print("AtMem persisted-state -> 2.2.6b4 upgrade smoke test passed")
+    print("AtMem persisted-state -> 2.2.6b5 upgrade smoke test passed")
 
 
 def main() -> None:

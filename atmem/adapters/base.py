@@ -146,6 +146,16 @@ class AtMemTurnLifecycle:
             "disposition": prepared.get("disposition"),
             "reason_codes": list(prepared.get("reason_codes") or ()),
         }
+        self._task_event(
+            "task.context.prepared",
+            payload={
+                "task_id": self.identity.task_id,
+                "task_disposition": prepared.get("disposition"),
+                "task_revision": prepared.get("revision"),
+                "task_context_sha256": str(prepared.get("context_sha256") or "").removeprefix("sha256:"),
+                "task_reason_codes": list(prepared.get("reason_codes") or ()),
+            },
+        )
         context = str(prepared.get("context") or "")
         if prepared.get("disposition") != "injected" or not context:
             return ""
@@ -157,7 +167,20 @@ class AtMemTurnLifecycle:
             raise RuntimeError(
                 "a task-aware observation requires an identity bound to a task"
             )
-        return self.manager.submit_task_proposal(proposal)
+        decision = self.manager.submit_task_proposal(proposal)
+        value = decision.to_dict() if hasattr(decision, "to_dict") else dict(decision)
+        self._task_event(
+            "task.transition.decision",
+            payload={
+                "task_id": self.identity.task_id,
+                "task_base_revision": value.get("base_revision"),
+                "task_resulting_revision": value.get("resulting_revision"),
+                "task_outcome": value.get("outcome"),
+                "task_reason_codes": list(value.get("reason_codes") or ()),
+                "task_decision_sha256": sha256_hex(canonical_json(value)),
+            },
+        )
+        return decision
 
     def _confirm_task_exposure(self) -> None:
         """Confirm exactly once that the task bytes reached the boundary."""
@@ -167,6 +190,15 @@ class AtMemTurnLifecycle:
         delivery_id = str(prepared.get("delivery_id") or "")
         if not delivery_id or not self.manager.confirm_task_exposure(delivery_id):
             raise RuntimeError("AtMem could not confirm exact task-state exposure")
+        self._task_event(
+            "task.context.exposed",
+            payload={
+                "task_id": self.identity.task_id,
+                "task_revision": prepared.get("revision"),
+                "task_context_sha256": str(prepared.get("context_sha256") or "").removeprefix("sha256:"),
+                "task_disposition": "injected",
+            },
+        )
 
     def model_input(
         self,
@@ -255,6 +287,7 @@ class AtMemTurnLifecycle:
                 "tool_canonical_name": tool_name,
                 "params_sha256": _digest(arguments),
                 "param_keys": keys,
+                "task_id": self.identity.task_id,
             },
         )
 
@@ -275,6 +308,7 @@ class AtMemTurnLifecycle:
                 "result_sha256": _digest(result if error is None else str(error)),
                 "outcome": "error" if error is not None else "completed",
                 "error_category": type(error).__name__ if error is not None else None,
+                "task_id": self.identity.task_id,
             },
         )
 
@@ -299,6 +333,7 @@ class AtMemTurnLifecycle:
                 "messages_count": 1,
                 "failure_kind": type(error).__name__ if error else None,
                 "harness_id": self.identity.framework,
+                "task_id": self.identity.task_id,
             },
         )
 
@@ -326,6 +361,21 @@ class AtMemTurnLifecycle:
             subject_id=self.identity.subject_id,
             payload={key: value for key, value in payload.items() if value is not None},
         )
+
+    def _task_event(self, event_type: str, *, payload: dict[str, Any]) -> dict[str, Any]:
+        """Add task flight evidence when the host scope is registered.
+
+        The canonical task step/provenance ledgers remain authoritative. A
+        legacy or not-yet-mapped host must not lose task delivery solely
+        because the optional cross-surface flight projection is unavailable.
+        """
+        try:
+            return self._event(event_type, payload=payload)
+        except ValueError as exc:
+            message = str(exc).casefold()
+            if "topology" in message or "unmapped" in message or "authorized workspace" in message:
+                return {}
+            raise
 
 
 def _stable_text(value: Any) -> str:

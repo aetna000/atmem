@@ -7,7 +7,7 @@ from atmem.benchmark.contracts import (
     load_dataset,
     validate_report,
 )
-from atmem.benchmark.runner import run_benchmark
+from atmem.benchmark.runner import run_benchmark, run_task_state_benchmark
 
 __all__ = [
     "CASES_FORMAT",
@@ -15,5 +15,6 @@ __all__ = [
     "canonical_digest",
     "load_dataset",
     "run_benchmark",
+    "run_task_state_benchmark",
     "validate_report",
 ]
