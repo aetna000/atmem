@@ -663,6 +663,41 @@ or input errors.""",
     task_correct.add_argument("--expected-revision", type=int, required=True)
     task_correct.add_argument("--yes", action="store_true")
 
+    task_bind = _scoped(
+        "bind", "Bind one host conversation to a task", needs_task=True
+    )
+    task_bind.add_argument("--actor", required=True)
+    task_bind.add_argument("--reason", required=True)
+    task_bind.add_argument(
+        "--host-type", required=True,
+        help="Which host this conversation lives in, e.g. openclaw",
+    )
+    task_bind.add_argument(
+        "--session-key", required=True, help="The host's stable conversation address"
+    )
+    task_bind.add_argument(
+        "--session-epoch", required=True,
+        help=(
+            "The host's session generation, which changes when a conversation is "
+            "reset. Required: without it a recycled key would inherit this binding"
+        ),
+    )
+    task_bind.add_argument("--source", default="")
+    task_bind.add_argument("--yes", action="store_true")
+
+    task_unbind = _scoped("unbind", "Revoke one conversation's binding")
+    task_unbind.add_argument("--binding-id", required=True)
+    task_unbind.add_argument("--actor", required=True)
+    task_unbind.add_argument("--reason", required=True)
+    task_unbind.add_argument("--yes", action="store_true")
+
+    task_bindings = _scoped("bindings", "List conversation bindings in this scope")
+    task_bindings.add_argument("--task-id", default=None)
+    task_bindings.add_argument(
+        "--include-revoked", action="store_true",
+        help="Include revoked bindings; history is retained as evidence",
+    )
+
     task_forget = _scoped(
         "forget", "Permanently delete a task and everything derived from it",
         needs_task=True,
@@ -2660,6 +2695,84 @@ def _dispatch_task_command(
         _emit_task(view.to_dict(), json_output=args.json, human=_task_human_view)
         return
 
+    if command in {"bind", "unbind", "bindings"}:
+        from atmem.contracts.task_state import HostSessionIdentity
+        from atmem.task_state.binding import BindingError, SessionBindingService
+
+        bindings = SessionBindingService(service.store, service.clock)
+
+        if command == "bindings":
+            rows = bindings.list(
+                scope,
+                task_id=getattr(args, "task_id", None),
+                include_revoked=args.include_revoked,
+            )
+            _emit_task(
+                {"format": "atmem-task-binding-list-v1", "count": len(rows),
+                 "bindings": rows},
+                json_output=args.json,
+                human=lambda value: _task_human_bindings(value, args),
+            )
+            return
+
+        if command == "unbind":
+            try:
+                bindings.revoke(
+                    scope, binding_id=args.binding_id, actor=args.actor,
+                    reason=args.reason,
+                )
+            except BindingError as exc:
+                _fail_task(args, exc.reason_code, str(exc))
+                return
+            _emit_task(
+                {"format": "atmem-task-binding-revoked-v1",
+                 "binding_id": args.binding_id},
+                json_output=args.json,
+                human=lambda value: [
+                    "Binding revoked. This conversation no longer resolves to a task.",
+                    f"Next: atmem task bindings {args.path} --subject {args.subject} "
+                    f"--agent {args.agent} --workspace {args.workspace}",
+                ],
+            )
+            return
+
+        # bind: the task must exist and be eligible before a conversation is
+        # pointed at it, so a binding never names something unreachable.
+        try:
+            view = service.get(scope, args.task_id)
+        except TaskStateError as exc:
+            _fail_task(args, exc.reason_code, str(exc))
+            return
+        try:
+            identity = HostSessionIdentity(
+                args.host_type, args.session_key, args.session_epoch
+            )
+        except ValueError as exc:
+            _fail_task(args, "session_identity_required", str(exc))
+            return
+        try:
+            binding = bindings.register(
+                scope, identity, task_id=args.task_id, actor=args.actor,
+                reason=args.reason, source=args.source, profile=view.profile,
+            )
+        except BindingError as exc:
+            _fail_task(args, exc.reason_code, str(exc))
+            return
+        _emit_task(
+            binding.to_dict(),
+            json_output=args.json,
+            human=lambda value: [
+                f"Bound this conversation to {value['task_id']}.",
+                f"Binding ID: {value['binding_id']}",
+                "That conversation now receives this task's state, and may "
+                "report progress against it and no other task.",
+                f"Next: atmem task show {args.path} {value['task_id']} "
+                f"--subject {args.subject} --agent {args.agent} "
+                f"--workspace {args.workspace}",
+            ],
+        )
+        return
+
     if command == "correct":
         _check_expected_revision(args, service, scope)
         # One identity for one correction: the same request replays, a
@@ -2823,9 +2936,45 @@ def _check_expected_revision(args: argparse.Namespace, service: Any, scope: Any)
         )
 
 
+def _task_human_bindings(value: dict[str, Any], args: argparse.Namespace) -> list[str]:
+    rows = value.get("bindings") or []
+    if not rows:
+        return [
+            "No conversation bindings in this scope.",
+            f"Next: atmem task bind {args.path} TASK --subject {args.subject} "
+            f"--agent {args.agent} --workspace {args.workspace} --actor YOU "
+            "--reason WHY --host-type HOST --session-key KEY --session-epoch EPOCH",
+        ]
+    lines = [f"Conversation bindings: {len(rows)}"]
+    for row in rows:
+        state = "revoked" if row.get("revoked_at_utc") else "active"
+        lines.append(
+            f"  {row['host_type']}:{row['session_key']} -> {row['task_id']}  [{state}]"
+        )
+        lines.append(f"    Binding ID: {row['binding_id']}")
+    return lines
+
+
+def _fail_task(args: argparse.Namespace, reason_code: str, message: str) -> None:
+    """One refusal shape for both output modes, with exit 1 per FR-040."""
+    _emit_task(
+        {
+            "format": "atmem-task-unavailable-v1",
+            "reason_code": reason_code,
+            "message": message,
+        },
+        json_output=args.json,
+        human=lambda value: [f"{value['message']} ({value['reason_code']})"],
+        stream=sys.stderr,
+    )
+    raise SystemExit(1)
+
+
 def _require_task_confirmation(args: argparse.Namespace) -> None:
     """Privileged mutations need `--yes` when nobody is at the terminal."""
-    privileged = {"cancel", "correct", "forget"}
+    # Binding decides which conversation may write to a task, so registering or
+    # revoking one carries the same weight as correcting state.
+    privileged = {"cancel", "correct", "forget", "bind", "unbind"}
     command = getattr(args, "task_command", "")
     if command == "profile" and getattr(args, "profile_command", "") == "register":
         privileged = {"profile"}

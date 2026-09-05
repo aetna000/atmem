@@ -22,6 +22,20 @@
       "type": "object",
       "additionalProperties": {
         "type": "boolean"
+      },
+      "properties": {
+        "governed_task_session_binding": {
+          "type": "boolean",
+          "description": "The runtime implements operator-registered session-to-task binding. Whether a given host can use it is per-adapter; read governed_task_session_binding_adapters."
+        },
+        "governed_task_host_proposal": {
+          "type": "boolean",
+          "description": "The runtime accepts host-boundary task proposals. Per-adapter availability is in governed_task_host_proposal_adapters."
+        },
+        "governed_task_agent_delta_tool": {
+          "type": "boolean",
+          "description": "The runtime supports a model-facing typed-delta tool. An adapter that does not register one must not be listed in governed_task_agent_delta_tool_adapters."
+        }
       }
     },
     "default_vector_provider": {
@@ -44,6 +58,27 @@
       "items": {
         "type": "string"
       }
+    },
+    "governed_task_session_binding_adapters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Adapters that supply a session generation rotating on conversation reset. An adapter that cannot must report session binding unavailable rather than binding under a lifetime alone."
+    },
+    "governed_task_host_proposal_adapters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Adapters that can submit authenticated session-bound task requests."
+    },
+    "governed_task_agent_delta_tool_adapters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Adapters that register the typed-delta tool with their model. An unregistered tool is invisible to the model and is never claimed here."
     }
   },
   "additionalProperties": false,

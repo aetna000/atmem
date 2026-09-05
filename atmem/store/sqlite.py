@@ -205,11 +205,21 @@ class SQLiteStore:
                     "governed_task_proposals",
                     "governed_task_provenance",
                     "governed_task_revisions",
+                    # A binding records which conversation was working on a
+                    # subject's task. Resetting the subject must not leave that
+                    # behind any more than it leaves the task itself.
+                    "governed_task_session_bindings",
                 ):
                     self._conn.execute(
                         f"DELETE FROM {table} WHERE task_id IN ({placeholders})",
                         task_ids,
                     )
+            # Bindings are also scoped directly, so any that outlived their task
+            # go with the subject too rather than lingering unreferenced.
+            self._conn.execute(
+                "DELETE FROM governed_task_session_bindings WHERE subject_id = ?",
+                (subject_id,),
+            )
             self._conn.execute(
                 "DELETE FROM governed_tasks WHERE subject_id = ?", (subject_id,)
             )
@@ -1192,6 +1202,177 @@ class SQLiteStore:
         ).fetchall()
         return [_task_from_row(row) for row in rows]
 
+    # --- session bindings (Amendment A, FR-042/FR-052) ---------------------
+
+    def insert_session_binding(
+        self,
+        *,
+        binding_id: str,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        host_type: str,
+        session_key: str,
+        session_epoch: str,
+        task_id: str,
+        actor: str,
+        reason: str,
+        source: str,
+        evidence: list[dict[str, Any]],
+        registered_at_utc: str,
+        expires_at_utc: str | None,
+    ) -> None:
+        """Register one binding, or raise if an active one already holds the key.
+
+        The partial unique index does the enforcing, so a concurrent second
+        register loses at the database rather than in a read-then-write race.
+        """
+        self._conn.execute(
+            """
+            INSERT INTO governed_task_session_bindings (
+              binding_id, subject_id, agent_id, workspace_id,
+              host_type, session_key, session_epoch, task_id,
+              actor, reason, source, evidence, registered_at_utc, expires_at_utc
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                binding_id, subject_id, agent_id, workspace_id,
+                host_type, session_key, session_epoch, task_id,
+                actor, reason, source, _json(evidence), registered_at_utc,
+                expires_at_utc,
+            ),
+        )
+        self._conn.commit()
+
+    def find_active_session_binding(
+        self,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        host_type: str,
+        session_key: str,
+        session_epoch: str,
+    ) -> dict[str, Any] | None:
+        """The exact-key lookup. `session_epoch` is part of it, never optional.
+
+        A caller that has no epoch has no binding to find; it must not fall
+        back to matching on the remaining fields, which is why there is no
+        variant of this method that omits one.
+        """
+        row = self._conn.execute(
+            """
+            SELECT * FROM governed_task_session_bindings
+            WHERE subject_id = ? AND agent_id = ? AND workspace_id = ?
+              AND host_type = ? AND session_key = ? AND session_epoch = ?
+              AND revoked_at_utc IS NULL
+            """,
+            (subject_id, agent_id, workspace_id, host_type, session_key, session_epoch),
+        ).fetchone()
+        return _session_binding_from_row(row) if row else None
+
+    def find_active_bindings_for_session_key(
+        self,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        host_type: str,
+        session_key: str,
+    ) -> list[dict[str, Any]]:
+        """Active bindings for a session key across every generation.
+
+        Used only to tell "this conversation was bound under a different
+        generation" apart from "this conversation was never bound", so the
+        first can withhold as stale rather than as absent. It never selects a
+        binding to use.
+        """
+        rows = self._conn.execute(
+            """
+            SELECT * FROM governed_task_session_bindings
+            WHERE subject_id = ? AND agent_id = ? AND workspace_id = ?
+              AND host_type = ? AND session_key = ? AND revoked_at_utc IS NULL
+            ORDER BY registered_at_utc DESC
+            """,
+            (subject_id, agent_id, workspace_id, host_type, session_key),
+        ).fetchall()
+        return [_session_binding_from_row(row) for row in rows]
+
+    def list_session_bindings(
+        self,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        task_id: str | None = None,
+        include_revoked: bool = False,
+    ) -> list[dict[str, Any]]:
+        clauses = ["subject_id = ?", "agent_id = ?", "workspace_id = ?"]
+        params: list[Any] = [subject_id, agent_id, workspace_id]
+        if task_id:
+            clauses.append("task_id = ?")
+            params.append(task_id)
+        if not include_revoked:
+            clauses.append("revoked_at_utc IS NULL")
+        rows = self._conn.execute(
+            f"""
+            SELECT * FROM governed_task_session_bindings
+            WHERE {" AND ".join(clauses)}
+            ORDER BY registered_at_utc DESC, binding_id ASC
+            """,
+            tuple(params),
+        ).fetchall()
+        return [_session_binding_from_row(row) for row in rows]
+
+    def revoke_session_binding(
+        self,
+        *,
+        binding_id: str,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        revoked_at_utc: str,
+        revoked_by: str,
+        revoked_reason: str,
+    ) -> bool:
+        """Mark one binding revoked. The row is retained; history is evidence."""
+        cursor = self._conn.execute(
+            """
+            UPDATE governed_task_session_bindings
+            SET revoked_at_utc = ?, revoked_by = ?, revoked_reason = ?
+            WHERE binding_id = ? AND subject_id = ? AND agent_id = ?
+              AND workspace_id = ? AND revoked_at_utc IS NULL
+            """,
+            (
+                revoked_at_utc, revoked_by, revoked_reason,
+                binding_id, subject_id, agent_id, workspace_id,
+            ),
+        )
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    def revoke_session_bindings_for_task(
+        self, *, task_id: str, revoked_at_utc: str, revoked_by: str, revoked_reason: str
+    ) -> int:
+        cursor = self._conn.execute(
+            """
+            UPDATE governed_task_session_bindings
+            SET revoked_at_utc = ?, revoked_by = ?, revoked_reason = ?
+            WHERE task_id = ? AND revoked_at_utc IS NULL
+            """,
+            (revoked_at_utc, revoked_by, revoked_reason, task_id),
+        )
+        self._conn.commit()
+        return int(cursor.rowcount or 0)
+
+    def delete_session_bindings_for_task(self, *, task_id: str) -> int:
+        """Hard delete, for task forgetting only (FR-025)."""
+        cursor = self._conn.execute(
+            "DELETE FROM governed_task_session_bindings WHERE task_id = ?", (task_id,)
+        )
+        self._conn.commit()
+        return int(cursor.rowcount or 0)
+
     def insert_task_revision(
         self,
         *,
@@ -1603,6 +1784,11 @@ class SQLiteStore:
                 "governed_task_steps",
                 "governed_task_proposals",
                 "governed_task_provenance",
+                # Bindings are derived from the task: once it is gone there is
+                # nothing left to point a conversation at, and a surviving row
+                # would name a task that no longer exists. Deleted rather than
+                # revoked, because forgetting must leave no derivative behind.
+                "governed_task_session_bindings",
             ):
                 cursor = self._conn.execute(
                     f"DELETE FROM {table} WHERE task_id = ?", (task_id,)
@@ -4245,7 +4431,68 @@ _BOOTSTRAP_MIGRATIONS: tuple[tuple[str, str], ...] = (
           ON governed_task_deliveries(task_id, sequence);
         """,
     ),
+    (
+        "0078_governed_task_session_bindings",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_session_bindings (
+          binding_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          -- Namespaces the session key so an OpenClaw key and a LangGraph key
+          -- cannot collide inside one scope.
+          host_type TEXT NOT NULL,
+          session_key TEXT NOT NULL,
+          -- The host reset signal (FR-052). Part of the key, so a new
+          -- conversation incarnation simply does not match an active row
+          -- rather than inheriting the previous one's binding.
+          session_epoch TEXT NOT NULL,
+          -- The target, deliberately OUTSIDE the uniqueness key below. That is
+          -- what makes bindings many-to-one and makes repointing a session
+          -- impossible to express as an update: it must be a revoke and a
+          -- register, each carrying its own authority and evidence.
+          task_id TEXT NOT NULL,
+          actor TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          source TEXT NOT NULL DEFAULT '',
+          evidence TEXT NOT NULL DEFAULT '[]',
+          registered_at_utc TEXT NOT NULL,
+          -- Supplemental expiry only; absence of a reset signal is never
+          -- covered by this. NULL means the profile declared no lifetime.
+          expires_at_utc TEXT,
+          -- Revoked rows are retained, not deleted: the history of what a
+          -- conversation was pointed at is evidence.
+          revoked_at_utc TEXT,
+          revoked_by TEXT,
+          revoked_reason TEXT
+        );
+
+        -- At most one ACTIVE binding per key. Partial, so revoked rows accumulate
+        -- freely and a session can be re-bound after an explicit revoke.
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_governed_task_session_bindings_active
+          ON governed_task_session_bindings(
+            subject_id, agent_id, workspace_id, host_type, session_key, session_epoch
+          )
+          WHERE revoked_at_utc IS NULL;
+
+        -- Resolution reads exactly this key on every turn.
+        CREATE INDEX IF NOT EXISTS idx_governed_task_session_bindings_lookup
+          ON governed_task_session_bindings(
+            subject_id, agent_id, workspace_id, host_type, session_key
+          );
+
+        -- Deleting a task removes its bindings; listing a task's bindings reads this.
+        CREATE INDEX IF NOT EXISTS idx_governed_task_session_bindings_task
+          ON governed_task_session_bindings(task_id);
+        """,
+    ),
 )
+
+
+def _session_binding_from_row(row: Any) -> dict[str, Any]:
+    value = dict(row)
+    value["evidence"] = _load_json(value.get("evidence"), [])
+    return value
 
 
 def utc_now() -> str:

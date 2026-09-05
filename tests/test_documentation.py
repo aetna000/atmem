@@ -63,9 +63,9 @@ def test_readme_puts_supported_quick_starts_front_and_center() -> None:
     assert "atmem atbot setup" in opening
     assert "atmem openclaw install" in opening
     assert "atmem openclaw upgrade" in opening
-    assert "atmem[pydantic-ai]==2.2.6b5" in opening
+    assert "atmem[pydantic-ai]==2.2.6b6" in opening
     assert "PydanticAIAtMemAdapter" in opening
-    assert "atmem[langgraph]==2.2.6b5" in opening
+    assert "atmem[langgraph]==2.2.6b6" in opening
     assert "atmem delegated register --help" in opening
     assert "create_langgraph_middleware" in opening
     assert "atmem control activate" in opening

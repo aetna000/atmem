@@ -115,7 +115,13 @@ const agentEnd = runtime.hooks.get("agent_end");
 const beforeWrite = runtime.hooks.get("before_message_write");
 
 try {
-  assert.equal(runtime.tools.size, 6);
+  // Six memory tools plus Amendment A's two governed-task tools. The task
+  // tools have to be registered here, with the same mechanism as memory_search:
+  // a control-plane operation the model cannot see is a checklist the agent
+  // cannot tick.
+  assert.equal(runtime.tools.size, 8);
+  assert.ok(runtime.tools.has("task_report_progress"));
+  assert.ok(runtime.tools.has("task_binding_status"));
 
   const observe = runtime.tools.get("atmem_observe");
   const attachmentBytes = Buffer.from("exact uploaded image bytes");
@@ -337,7 +343,16 @@ for line in sys.stdin:
         with open(LOG, "a", encoding="utf-8") as handle:
             handle.write(json.dumps({"name": name, "arguments": params.get("arguments")}, separators=(",", ":")) + "\\n")
         if name == "control_prepare_task_context":
-            value = {"disposition":"injected","context":TASK,"context_sha256":"sha256:${createHash("sha256").update(exactTask).digest("hex")}","delivery_id":"task-delivery-1","revision":4,"reason_codes":[]}
+            # Models the real contract: identity resolves through an explicit
+            # task id or a registered binding, and anything else withholds with
+            # zero task-state bytes. Session "task" stands in for a bound
+            # conversation; every other session is unbound.
+            arguments = params.get("arguments") or {}
+            bound = arguments.get("session_key") == "task"
+            if arguments.get("task_id") or bound:
+                value = {"disposition":"injected","context":TASK,"context_sha256":"sha256:${createHash("sha256").update(exactTask).digest("hex")}","delivery_id":"task-delivery-1","revision":4,"reason_codes":[],"task_id":arguments.get("task_id") or "task-1"}
+            else:
+                value = {"disposition":"withheld","context":"","context_sha256":None,"delivery_id":None,"revision":1,"reason_codes":["task_context_selection_required"],"task_id":None}
         elif name == "control_prepare":
             arguments = params.get("arguments") or {}
             query = arguments.get("query") or ""
@@ -452,10 +467,21 @@ for line in sys.stdin:
     delegatedCalls.filter((row) => row.name === "control_prepare").length,
     7,
   );
-  assert.equal(
-    delegatedCalls.filter((row) => row.name === "control_prepare_task_context").length,
-    1,
+  // Resolution is attempted on every turn carrying a session identity, not
+  // only when the host names a task: OpenClaw supplies no task identity of its
+  // own, so a turn that never asks can never be delivered a bound task. What
+  // stays scarce is *delivery* -- only the bound conversation gets bytes, which
+  // the exposure count below asserts.
+  const taskPrepareCalls = delegatedCalls.filter(
+    (row) => row.name === "control_prepare_task_context",
   );
+  assert.equal(taskPrepareCalls.length, 7);
+  for (const call of taskPrepareCalls) {
+    // Never a partial identity: all three parts or the bridge does not ask.
+    assert.equal(call.arguments.host_type, "openclaw");
+    assert.ok(call.arguments.session_key);
+    assert.ok(call.arguments.session_epoch);
+  }
   assert.equal(
     delegatedCalls.filter((row) => row.name === "control_task_exposure_shown").length,
     1,

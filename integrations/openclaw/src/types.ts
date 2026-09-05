@@ -15,11 +15,33 @@ export interface OpenClawLogger {
 export interface OpenClawHookCtx {
   agentId?: string;
   runId?: string;
+  /**
+   * Stable conversation address. Part of the governed-task binding key.
+   * Optional in OpenClaw's own hook contexts, so absence is ordinary and must
+   * withhold rather than resolve on whatever else survived.
+   */
   sessionKey?: string;
+  /**
+   * Session generation. AtMem binds this as `session_epoch` so a reset or
+   * recycled conversation does not inherit the previous one's task binding.
+   * Also optional upstream, and also fail-closed on absence.
+   */
   sessionId?: string;
   senderIsOwner?: boolean;
   /** Exact governed task selected by the host. Never inferred by AtMem. */
   taskId?: string;
+}
+
+/**
+ * The complete identity AtMem needs to place a turn in a conversation.
+ * All three parts or nothing: a partial identity is refused rather than
+ * resolved, because resolving on what survived would be guessing at which
+ * conversation this is.
+ */
+export interface AtmemSessionIdentity {
+  host_type: string;
+  session_key: string;
+  session_epoch: string;
 }
 
 export interface BeforePromptBuildEvent {

@@ -1,6 +1,6 @@
 (function(){
 "use strict";
-var state=null,semanticHealth=null,taskMode=null,taskList={tasks:[]},taskDetail=null,selectedTaskId=null,proposalQueue={proposals:[]},reviewQueue={records:[]},productInfo={},blackboxIndex={runs:[]},blackboxArchiveRows=[],blackboxStories={},flightRange="7d",bridgeRefreshStatus={available:false},activityVisible=10,activitySearchTimer=null,csrf="",progressTimer=null,progressStarted=0,companionProfiles={},companionStatus={},companionFormDirty=false;
+var state=null,semanticHealth=null,taskMode=null,taskHealth=null,taskList={tasks:[]},taskDetail=null,selectedTaskId=null,proposalQueue={proposals:[]},reviewQueue={records:[]},productInfo={},blackboxIndex={runs:[]},blackboxArchiveRows=[],blackboxStories={},flightRange="7d",bridgeRefreshStatus={available:false},activityVisible=10,activitySearchTimer=null,csrf="",progressTimer=null,progressStarted=0,companionProfiles={},companionStatus={},companionFormDirty=false;
 var auditCursors=[null],auditPageIndex=0,auditLast=null,auditFacetsLoaded=false;
 var $=function(id){return document.getElementById(id)};
 function text(id,value){$(id).textContent=value==null?"—":String(value)}
@@ -335,10 +335,17 @@ function renderTasks(){
  var note=$("taskModeNote");
  if(mode.enabled===false){note.textContent="Governed task state is disabled for this scope. No task context is reaching any agent."}
  else if(mode.shadow===true){note.textContent="Governed task state is in shadow mode: progress is recorded, and no task context reaches any agent."}
- else{note.textContent="Governed task state is active. Only the exact task an adapter names is delivered."}
+ else{note.textContent="Governed task state is active. A conversation receives the exact task it is bound to, and nothing else."}
  box.replaceChildren();
  if(mode.enabled===false){box.appendChild(element("div","empty","Enable this scope from the terminal: atmem task enable"));renderSelectedTask();return}
  if(!rows.length){box.appendChild(element("div","empty","No governed tasks in this scope yet."));renderSelectedTask();return}
+ // "Is anything actually reaching my agent?" is the first question here, and
+ // a task list alone cannot answer it: a task no conversation is bound to is
+ // delivered to nobody. Say so rather than leaving it to be inferred from a
+ // delivery counter that reads zero for several different reasons.
+ var health=taskHealth||{},bindings=health.bindings||{},context=health.context||{};
+ if(bindings.active===0){box.appendChild(element("div","empty","No conversation is bound to a task, so no agent is receiving task context. Bind one from the terminal: atmem task bind"))}
+ else if(context.exposed===0&&context.withheld>0){box.appendChild(element("div","empty",bindings.active+" conversation(s) bound, but nothing has reached an agent yet. Open a task to see why it was withheld."))}
  rows.forEach(function(row){
   var item=element("button","agentrow"),identity=element("span"),progress=element("span","agentscope"),status=element("small","",String(row.lifecycle||"").toUpperCase());
   item.type="button";item.setAttribute("aria-label","Open task "+(row.goal||row.task_id));
@@ -411,8 +418,8 @@ async function taskLifecycle(action){
 async function refreshTasks(silent){
  if(!taskCapabilityAvailable()){$("taskCard").hidden=true;return}
  try{
-  var values=await Promise.all([get("/api/tasks/mode"),get("/api/tasks")]);
-  taskMode=values[0];taskList=values[1];renderTasks()
+  var values=await Promise.all([get("/api/tasks/mode"),get("/api/tasks"),get("/api/tasks/health")]);
+  taskMode=values[0];taskList=values[1];taskHealth=values[2];renderTasks()
  }catch(error){if(!silent)showError(error)}
 }
 async function reviewRecord(row,decision){

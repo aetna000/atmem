@@ -358,3 +358,173 @@ def test_serializing_omits_settled_items_only_when_asked() -> None:
     assert "[item-1]" in with_settled
     assert "[item-1]" not in without
     assert "[item-2]" in without, "unsettled work is never dropped"
+
+
+# --- Amendment A: binding-resolved delivery and truthful exposure -----------
+#
+# T066 and T067. Delivery now resolves identity through the binding when the
+# host supplies none, and exposure records what actually reached the model
+# rather than what current policy would prefer had happened.
+
+
+BOUND_SUBJECT = "local-user"
+BOUND_SCOPE = AuthorityScope(BOUND_SUBJECT, "default-agent", "default-workspace")
+
+
+@pytest.fixture()
+def bound_manager(tmp_path):
+    """A live control plane with task state enabled and one open task."""
+    from atmem.contracts.task_state import ActorRole, TaskItem, TaskStartRequest
+    from atmem.control.manager import ControlPlaneManager
+    from atmem.task_state.enablement import ScopeEnablement
+
+    manager = ControlPlaneManager.start(
+        host="generic",
+        state_path=tmp_path / "control.json",
+        control_root=tmp_path / "migrations",
+        subject_id=BOUND_SUBJECT,
+        memory_db=tmp_path / "memories.db",
+    )
+    service, memory = manager._task_service()
+    try:
+        ScopeEnablement(memory.store).enable(BOUND_SCOPE, actor="operator")
+        service.start(
+            TaskStartRequest(
+                task_id="migrate", scope=BOUND_SCOPE, profile_id="general",
+                profile_version="general-v1", goal="Ship the migration",
+                actor="operator", actor_role=ActorRole.OPERATOR,
+                idempotency_key="start-migrate",
+            ),
+            items=(TaskItem(item_id="schema", kind="step", title="Apply schema",
+                            required=True),),
+        )
+    finally:
+        memory.close()
+    return manager, BOUND_SCOPE, "migrate"
+
+
+def _bind(manager, store, scope, *, task_id, session_key="session-1", epoch="epoch-1"):
+    from atmem.contracts.task_state import HostSessionIdentity
+    from atmem.task_state.binding import SessionBindingService
+
+    service, memory = manager._task_service()
+    try:
+        SessionBindingService(memory.store, service.clock).register(
+            scope,
+            HostSessionIdentity("openclaw", session_key, epoch),
+            task_id=task_id,
+            actor="operator@example.com",
+            reason="drive this task from this conversation",
+        )
+    finally:
+        memory.close()
+
+
+IDENTITY_KWARGS = {
+    "host_type": "openclaw",
+    "session_key": "session-1",
+    "session_epoch": "epoch-1",
+}
+
+
+def test_a_turn_with_no_task_id_delivers_through_its_binding(bound_manager) -> None:
+    """The gap Amendment A exists to close: OpenClaw supplies no task identity."""
+    manager, scope, task_id = bound_manager
+    _bind(manager, None, scope, task_id=task_id)
+
+    prepared = manager.prepare_task_context(task_id=None, **IDENTITY_KWARGS)
+    assert prepared["disposition"] == "injected"
+    assert prepared["task_id"] == task_id
+    assert prepared["context"]
+
+
+def test_a_turn_with_no_identity_and_no_binding_still_withholds(bound_manager) -> None:
+    manager, scope, task_id = bound_manager
+    prepared = manager.prepare_task_context(task_id=None)
+    assert prepared["disposition"] == "withheld"
+    assert list(prepared["reason_codes"]) == ["task_context_selection_required"]
+    assert not prepared["context"]
+
+
+def test_a_partial_identity_never_resolves_on_what_survives(bound_manager) -> None:
+    """Hosts declare identity fields optional, so this is an ordinary turn."""
+    manager, scope, task_id = bound_manager
+    _bind(manager, None, scope, task_id=task_id)
+
+    for dropped in ("host_type", "session_key", "session_epoch"):
+        kwargs = {k: v for k, v in IDENTITY_KWARGS.items() if k != dropped}
+        prepared = manager.prepare_task_context(task_id=None, **kwargs)
+        assert prepared["disposition"] == "withheld", dropped
+        assert not prepared["context"], dropped
+
+
+def test_a_recycled_session_withholds_as_stale(bound_manager) -> None:
+    manager, scope, task_id = bound_manager
+    _bind(manager, None, scope, task_id=task_id, epoch="epoch-1")
+
+    prepared = manager.prepare_task_context(
+        task_id=None, **{**IDENTITY_KWARGS, "session_epoch": "epoch-2"}
+    )
+    assert prepared["disposition"] == "withheld"
+    assert list(prepared["reason_codes"]) == ["task_binding_stale_session"]
+
+
+def test_an_explicit_id_disagreeing_with_a_binding_withholds(bound_manager) -> None:
+    """Neither source wins. Only withholding surfaces the contradiction."""
+    manager, scope, task_id = bound_manager
+    _bind(manager, None, scope, task_id=task_id)
+
+    prepared = manager.prepare_task_context(task_id="some-other-task", **IDENTITY_KWARGS)
+    assert prepared["disposition"] == "withheld"
+    assert list(prepared["reason_codes"]) == ["task_binding_conflict"]
+    assert not prepared["context"]
+
+
+def test_an_explicit_id_agreeing_with_a_binding_delivers(bound_manager) -> None:
+    manager, scope, task_id = bound_manager
+    _bind(manager, None, scope, task_id=task_id)
+
+    prepared = manager.prepare_task_context(task_id=task_id, **IDENTITY_KWARGS)
+    assert prepared["disposition"] == "injected"
+    assert prepared["task_id"] == task_id
+
+
+def test_exposure_is_recorded_truthfully_after_the_task_turns_terminal(
+    bound_manager,
+) -> None:
+    """FR-053. The bytes reached the model; evidence must say so.
+
+    OpenClaw confirms task exposure in `agent_end`, after the turn, so by
+    confirmation time delivery has definitely happened. Refusing to record it
+    because the task has since been cancelled would assert that a delivery did
+    not occur when it did -- manufacturing convenient history rather than
+    recording evidence.
+    """
+    manager, scope, task_id = bound_manager
+    _bind(manager, None, scope, task_id=task_id)
+
+    prepared = manager.prepare_task_context(task_id=None, **IDENTITY_KWARGS)
+    assert prepared["disposition"] == "injected"
+
+    manager.change_task_lifecycle(
+        task_id, "cancel", actor="operator@example.com", reason="stopped"
+    )
+
+    assert manager.confirm_task_exposure(prepared["delivery_id"]) is True
+    # Exactly once remains exactly once.
+    assert manager.confirm_task_exposure(prepared["delivery_id"]) is False
+
+
+def test_a_terminal_task_stops_influencing_the_next_call(bound_manager) -> None:
+    """The safety property that actually matters, delivered by re-resolution."""
+    manager, scope, task_id = bound_manager
+    _bind(manager, None, scope, task_id=task_id)
+    manager.prepare_task_context(task_id=None, **IDENTITY_KWARGS)
+
+    manager.change_task_lifecycle(
+        task_id, "cancel", actor="operator@example.com", reason="stopped"
+    )
+
+    later = manager.prepare_task_context(task_id=None, **IDENTITY_KWARGS)
+    assert later["disposition"] == "withheld"
+    assert not later["context"]

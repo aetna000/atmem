@@ -49,6 +49,12 @@ GENERAL_V1 = TaskProfile(
     no_progress_action_threshold=3,
     expiry=ExpiryPolicy(),
     allow_schema_extension_phases=("plan", "collect"),
+    # Twelve hours of supplemental binding expiry (FR-052). This is a backstop
+    # behind the host reset signal, never a replacement for it: a conversation
+    # reset inside the window is caught by the epoch, not by this. Chosen to
+    # outlast an ordinary working session so a legitimate binding is not
+    # revoked mid-task, while still bounding an abandoned one.
+    binding_lifetime_ms=12 * 60 * 60 * 1000,
     description=(
         "General agent workflow: plan the work, collect what it needs, "
         "validate that, execute, verify the result, then complete."

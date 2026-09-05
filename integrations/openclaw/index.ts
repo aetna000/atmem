@@ -30,6 +30,7 @@ import type {
   BeforePromptBuildEvent,
   BeforeMessageWriteEvent,
   AgentEndEvent,
+  AtmemSessionIdentity,
   BeforeToolCallEvent,
   BeforeModelResolveEvent,
   AfterToolCallEvent,
@@ -40,6 +41,15 @@ import type {
   OpenClawPluginToolContext,
 } from "./src/types.js";
 import { runSetup } from "./src/setup.js";
+import {
+  NOT_OWNER_MESSAGE,
+  NO_IDENTITY_MESSAGE,
+  describeDecision,
+  isConversationOwner,
+  ok,
+  refusal,
+  sessionIdentityForTool,
+} from "./src/task-tools.js";
 
 const TAG = "[memory-atmem]";
 const TAKEOVER_GUIDANCE =
@@ -445,6 +455,8 @@ function register(api: OpenClawPluginApi): void {
       delegatedResultSha256?: string;
       taskDeliveryId?: string;
       taskContextSha256?: string;
+      /** The task AtMem actually resolved, which may come from a binding. */
+      taskId?: string;
     }
   >();
   const observedTurnInputs = new Map<
@@ -472,6 +484,28 @@ function register(api: OpenClawPluginApi): void {
     }
     return cfg.subject;
   };
+  /**
+   * The identity AtMem resolves a governed task through.
+   *
+   * `sessionId` is the generation: OpenClaw changes it when a conversation is
+   * reset, which is what stops a recycled `sessionKey` from inheriting an
+   * earlier task binding. Both fields are optional upstream, so returning
+   * `undefined` is an ordinary outcome and callers must withhold rather than
+   * send a partial identity.
+   */
+  const sessionIdentityFor = (
+    ctx: OpenClawHookCtx,
+  ): AtmemSessionIdentity | undefined => {
+    const sessionKey = ctx.sessionKey ?? ctx.sessionId;
+    const sessionEpoch = ctx.sessionId;
+    if (!sessionKey || !sessionEpoch) return undefined;
+    return {
+      host_type: "openclaw",
+      session_key: sessionKey,
+      session_epoch: sessionEpoch,
+    };
+  };
+
   const workspaceIdFor = (ctx: OpenClawHookCtx): string | undefined => {
     const workspace = cfg.agentWorkspaces[agentIdFor(ctx)];
     return workspace ? `ws_${digestText(workspace).slice(0, 16)}` : undefined;
@@ -1011,12 +1045,19 @@ function register(api: OpenClawPluginApi): void {
           receipt?: { id?: string; sha256?: string };
           provider?: { id?: string; version?: string; instance_id?: string };
         };
-        const taskPrepared = ctx.taskId
+        // Task identity resolves through the manager, not from ctx.taskId
+        // alone: OpenClaw supplies no task identity of its own, so without a
+        // registered binding this branch could never run. Presenting the
+        // session identity on every lookup keeps binding and resolution from
+        // disagreeing about which conversation they mean.
+        const taskIdentity = sessionIdentityFor(ctx);
+        const taskPrepared = (ctx.taskId || taskIdentity)
           ? (await callFor(
               ctx,
               "control_prepare_task_context",
               {
-                task_id: ctx.taskId,
+                ...(ctx.taskId ? { task_id: ctx.taskId } : {}),
+                ...(taskIdentity ?? {}),
                 session_id: sessionKey,
                 host_run_id: ctx.runId,
                 agent_id: agentIdFor(ctx),
@@ -1028,6 +1069,8 @@ function register(api: OpenClawPluginApi): void {
               context?: string;
               context_sha256?: string;
               delivery_id?: string;
+              /** Which task AtMem resolved; a binding may name one the host did not. */
+              task_id?: string;
               revision?: number;
               reason_codes?: string[];
             }
@@ -1054,10 +1097,11 @@ function register(api: OpenClawPluginApi): void {
           delegatedResultSha256: prepared.result_sha256,
           taskDeliveryId: taskPrepared?.delivery_id,
           taskContextSha256: taskPrepared?.context_sha256,
+          taskId: taskPrepared?.task_id ?? ctx.taskId,
         });
-        if (ctx.taskId) {
+        if (taskPrepared) {
           await recordBlackbox("task.context.prepared", undefined, ctx, {
-            task_id: ctx.taskId,
+            task_id: taskPrepared.task_id ?? ctx.taskId,
             task_disposition: taskPrepared?.disposition ?? "withheld",
             task_revision: taskPrepared?.revision,
             task_context_sha256: taskPrepared?.context_sha256?.replace(/^sha256:/, ""),
@@ -1414,7 +1458,7 @@ function register(api: OpenClawPluginApi): void {
             cfg.recall.timeoutMs,
           );
           await recordBlackbox("task.context.exposed", event.runId, ctx, {
-            task_id: ctx.taskId,
+            task_id: cached.taskId ?? ctx.taskId,
             task_disposition: "injected",
             task_context_sha256: cached.taskContextSha256?.replace(/^sha256:/, ""),
           });
@@ -2123,6 +2167,132 @@ function register(api: OpenClawPluginApi): void {
         },
       }),
       { name: "atmem_forget_artifact" },
+    );
+
+    // --- governed task tools (Amendment A) -------------------------------
+    //
+    // A control-plane operation is invisible to a model. Without these
+    // registrations an agent receives a task checklist it has no way to tick,
+    // which is worse than receiving nothing: it looks like progress is being
+    // tracked when nothing is being recorded.
+    //
+    // Every one resolves through this conversation's own binding, so a model
+    // can only touch the task its conversation is bound to.
+
+    const taskScope = (toolCtx: OpenClawPluginToolContext) => ({
+      agent_id: agentIdFor(toolCtx),
+      workspace_id: workspaceIdFor(toolCtx),
+    });
+
+    api.registerTool(
+      (toolCtx: OpenClawPluginToolContext) => ({
+        name: "task_report_progress",
+        label: "Report Task Progress (atmem)",
+        description:
+          "Report progress on the governed task this conversation is bound to. " +
+          "State the item and its new status. AtMem validates the change and " +
+          "decides; you are proposing, not writing. If no task is bound this " +
+          "does nothing.",
+        parameters: {
+          type: "object",
+          properties: {
+            item_id: { type: "string", description: "Which task item changed" },
+            status: {
+              type: "string",
+              enum: ["ready", "running", "blocked", "completed", "skipped", "failed"],
+              description: "The item's new status",
+            },
+            base_revision: {
+              type: "integer",
+              description:
+                "The task revision you read. If the task has moved since, this " +
+                "returns a conflict instead of overwriting someone else's work.",
+            },
+            reason: { type: "string", description: "Why, in one line" },
+          },
+          required: ["item_id", "status", "base_revision"],
+        },
+        async execute(toolCallId, params) {
+          const identity = sessionIdentityForTool(toolCtx);
+          if (!identity) return refusal(NO_IDENTITY_MESSAGE);
+          const result = (await callFor(toolCtx, "control_propose_task_delta", {
+            ...identity,
+            ...taskScope(toolCtx),
+            task_id: String(params.task_id ?? ""),
+            base_revision: Number(params.base_revision ?? 0),
+            // Derived from stable host identifiers, never from payload content
+            // or a clock, so a retried tool call collapses to one decision.
+            idempotency_key: `${toolCtx.runId ?? "run"}:${toolCallId}`,
+            operations: [
+              {
+                kind: "set_item_status",
+                item_id: String(params.item_id ?? ""),
+                status: String(params.status ?? ""),
+                reason: params.reason ? String(params.reason) : undefined,
+              },
+            ],
+            adapter: "openclaw",
+            // The tool call is the evidence. Completing an item requires some,
+            // and a host reporting its own tool outcome is asserting rather
+            // than independently verifying -- AtMem records it at exactly that
+            // assurance and never upgrades it.
+            evidence: [
+              { kind: "tool_call", reference_id: `${toolCtx.runId ?? "run"}-${toolCallId}` },
+            ],
+            reason: params.reason ? String(params.reason) : "",
+          })) as Record<string, unknown>;
+          return {
+            content: [{ type: "text", text: describeDecision(result) }],
+            details: { outcome: result.outcome ?? result.reason_code ?? null },
+          };
+        },
+      }),
+      { name: "task_report_progress" },
+    );
+
+    api.registerTool(
+      (toolCtx: OpenClawPluginToolContext) => ({
+        name: "task_binding_status",
+        label: "Governed Task Binding (atmem)",
+        description:
+          "Show which governed task, if any, this conversation is bound to, and " +
+          "the exact command to bind it. Owner only.",
+        parameters: { type: "object", properties: {} },
+        async execute() {
+          if (!isConversationOwner(toolCtx)) return refusal(NOT_OWNER_MESSAGE);
+          const identity = sessionIdentityForTool(toolCtx);
+          if (!identity) return refusal(NO_IDENTITY_MESSAGE);
+          const prepared = (await callFor(toolCtx, "control_prepare_task_context", {
+            ...identity,
+            ...taskScope(toolCtx),
+          })) as { disposition?: string; task_id?: string; reason_codes?: string[] };
+          // Binding stays an authenticated operator action at the terminal, so
+          // the owner needs their own conversation's identity to run it. They
+          // cannot see it otherwise -- it is an internal host value -- and
+          // without it the whole feature is unreachable from inside OpenClaw.
+          // Handing the owner a ready-to-run command is the same "one useful
+          // next command" the CLI gives everywhere else. This discloses nothing
+          // a non-owner can obtain: the gate above already refused them.
+          const bindCommand =
+            `atmem task bind DB_PATH TASK_ID --subject SUBJECT ` +
+            `--agent ${agentIdFor(toolCtx)} --workspace ${workspaceIdFor(toolCtx) ?? "WORKSPACE"} ` +
+            `--actor YOU --reason WHY --host-type ${identity.host_type} ` +
+            `--session-key ${identity.session_key} --session-epoch ${identity.session_epoch} --yes`;
+          if (prepared.disposition !== "injected") {
+            return ok({
+              bound: false,
+              reason: (prepared.reason_codes ?? []).join(", ") || "not bound",
+              bind_with: bindCommand,
+            });
+          }
+          return ok({
+            bound: true,
+            task_id: prepared.task_id ?? null,
+            rebind_with: bindCommand,
+          });
+        },
+      }),
+      { name: "task_binding_status" },
     );
   }
 

@@ -88,6 +88,40 @@ class ControlMCPServer:
                 },
             )
 
+    _HOST_TASK_OPERATIONS = {
+        "control_observe_task_step": "observe_task_step",
+        "control_propose_task_delta": "propose_task_delta",
+        "control_request_task_lifecycle": "request_task_lifecycle",
+    }
+
+    def _host_task_call(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        """Split scope routing from the request body.
+
+        Scope arrives as transport routing; everything else is the request the
+        host is making. Keeping them apart is what lets the request contract
+        stay closed and reject any authority field the caller tries to smuggle
+        alongside its content.
+        """
+        scope_keys = ("subject_id", "agent_id", "workspace_id")
+        identity_keys = ("host_type", "session_key", "session_epoch")
+        payload = {
+            key: value
+            for key, value in arguments.items()
+            if key not in scope_keys and key not in identity_keys
+        }
+        # The wire form is flat for the same reason `control_prepare_task_context`
+        # is: a host adapter fills three strings rather than nesting an object.
+        # The contract keeps them as one value so a partial identity is a single
+        # parse failure instead of three independent optional fields.
+        payload["identity"] = {key: arguments.get(key) for key in identity_keys}
+        method = getattr(self.manager, self._HOST_TASK_OPERATIONS[name])
+        return method(
+            payload,
+            subject_id=arguments.get("subject_id"),
+            agent_id=arguments.get("agent_id"),
+            workspace_id=arguments.get("workspace_id"),
+        )
+
     def _call(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if not self.operator and name not in _host_tool_names(self.manager.state().host):
             raise ValueError(f"operator tool is not available to the host integration: {name}")
@@ -135,6 +169,9 @@ class ControlMCPServer:
                 workspace_id=arguments.get("workspace_id"),
                 host_run_id=arguments.get("host_run_id"),
                 session_id=arguments.get("session_id"),
+                host_type=arguments.get("host_type"),
+                session_key=arguments.get("session_key"),
+                session_epoch=arguments.get("session_epoch"),
                 budget_chars=int(arguments.get("budget_chars") or 4_000),
             )
         elif name == "control_task_exposure_shown":
@@ -143,6 +180,12 @@ class ControlMCPServer:
                     str(arguments["delivery_id"])
                 )
             }
+        elif name in (
+            "control_observe_task_step",
+            "control_propose_task_delta",
+            "control_request_task_lifecycle",
+        ):
+            value = self._host_task_call(name, arguments)
         elif name == "control_record_blackbox_event":
             value = self.manager.record_blackbox_event(
                 event_type=str(arguments["event_type"]),
@@ -277,6 +320,9 @@ def _host_tool_names(host: str) -> set[str]:
         "control_exposure_shown",
         "control_prepare_task_context",
         "control_task_exposure_shown",
+        "control_observe_task_step",
+        "control_propose_task_delta",
+        "control_request_task_lifecycle",
         "control_record_blackbox_event",
         "control_status",
     }
@@ -345,7 +391,7 @@ def _tools(*, operator: bool = False, host: str = "generic") -> list[dict[str, A
         },
         {
             "name": "control_prepare_task_context",
-            "description": "Prepare governed task state for one exact task identity; absent identity withholds.",
+            "description": "Prepare governed task state for one exact task identity, or for the task this conversation is bound to; unresolved identity withholds.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -355,9 +401,12 @@ def _tools(*, operator: bool = False, host: str = "generic") -> list[dict[str, A
                     "subject_id": {"type": "string"},
                     "agent_id": {"type": "string"},
                     "workspace_id": {"type": "string"},
+                    "host_type": {"type": "string"},
+                    "session_key": {"type": "string"},
+                    "session_epoch": {"type": "string"},
                     "budget_chars": {"type": "integer"}
                 },
-                "required": ["task_id", "agent_id", "workspace_id"],
+                "required": ["agent_id", "workspace_id"],
                 "additionalProperties": False
             },
         },
@@ -368,6 +417,99 @@ def _tools(*, operator: bool = False, host: str = "generic") -> list[dict[str, A
                 "type": "object",
                 "properties": {"delivery_id": {"type": "string"}},
                 "required": ["delivery_id"],
+                "additionalProperties": False
+            },
+        },
+        {
+            "name": "control_observe_task_step",
+            "description": (
+                "Report one observed workflow step against the task this conversation "
+                "is bound to. Submit what happened, never a delta: AtMem interprets and "
+                "revalidates before any commit."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "host_type": {"type": "string"},
+                    "session_key": {"type": "string"},
+                    "session_epoch": {"type": "string"},
+                    "subject_id": {"type": "string"},
+                    "agent_id": {"type": "string"},
+                    "workspace_id": {"type": "string"},
+                    "task_id": {"type": "string"},
+                    "idempotency_key": {"type": "string"},
+                    "observation": {"type": "string"},
+                    "adapter": {"type": "string"},
+                    "adapter_version": {"type": "string"},
+                    "evidence": {"type": "array"},
+                    "observed_at_utc": {"type": "string"}
+                },
+                "required": [
+                    "host_type", "session_key", "session_epoch",
+                    "task_id", "idempotency_key", "observation", "adapter"
+                ],
+                "additionalProperties": False
+            },
+        },
+        {
+            "name": "control_propose_task_delta",
+            "description": (
+                "Propose a typed bounded change to the task this conversation is bound "
+                "to. AtMem validates and decides; the proposer never writes."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "host_type": {"type": "string"},
+                    "session_key": {"type": "string"},
+                    "session_epoch": {"type": "string"},
+                    "subject_id": {"type": "string"},
+                    "agent_id": {"type": "string"},
+                    "workspace_id": {"type": "string"},
+                    "task_id": {"type": "string"},
+                    "base_revision": {"type": "integer"},
+                    "idempotency_key": {"type": "string"},
+                    "operations": {"type": "array"},
+                    "adapter": {"type": "string"},
+                    "adapter_version": {"type": "string"},
+                    "evidence": {"type": "array"},
+                    "reason": {"type": "string"}
+                },
+                "required": [
+                    "host_type", "session_key", "session_epoch", "task_id",
+                    "base_revision", "idempotency_key", "operations", "adapter"
+                ],
+                "additionalProperties": False
+            },
+        },
+        {
+            "name": "control_request_task_lifecycle",
+            "description": (
+                "Request a lifecycle change on the task this conversation is bound to. "
+                "A request, not a command: completion gates decide it. Cancellation is "
+                "operator-only and is not offered here."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "host_type": {"type": "string"},
+                    "session_key": {"type": "string"},
+                    "session_epoch": {"type": "string"},
+                    "subject_id": {"type": "string"},
+                    "agent_id": {"type": "string"},
+                    "workspace_id": {"type": "string"},
+                    "task_id": {"type": "string"},
+                    "action": {"enum": ["pause", "resume", "complete"]},
+                    "expected_revision": {"type": "integer"},
+                    "idempotency_key": {"type": "string"},
+                    "adapter": {"type": "string"},
+                    "adapter_version": {"type": "string"},
+                    "reason": {"type": "string"}
+                },
+                "required": [
+                    "host_type", "session_key", "session_epoch", "task_id",
+                    "action", "expected_revision", "idempotency_key", "adapter"
+                ],
                 "additionalProperties": False
             },
         },

@@ -277,7 +277,13 @@ def test_the_task_ui_never_claims_influence_it_does_not_have() -> None:
 
     assert "No task context is reaching any agent" in markup
     assert "no task context reaches any agent" in markup
-    assert "Only the exact task an adapter names is delivered" in markup
+    # Amendment A changed how a task is selected, not how much is claimed: a
+    # conversation receives exactly the task it is bound to, and the wording
+    # still promises delivery only, never that AtMem can stop the host.
+    assert (
+        "A conversation receives the exact task it is bound to, and nothing else"
+        in markup
+    )
 
 
 def test_a_terminal_task_is_presented_as_unchangeable() -> None:
@@ -343,3 +349,77 @@ def test_the_capability_response_is_served_to_the_dashboard() -> None:
     value = capabilities()
     assert value["features"]["governed_task_state"] is True
     assert "capabilities" in Path("atmem/control/web.py").read_text()
+
+
+# --- Amendment A: bindings answer "is anything reaching my agent?" ----------
+
+
+def test_health_reports_conversation_binding_counts(manager) -> None:
+    """A task nobody is bound to is delivered to nobody.
+
+    Without this an operator sees a healthy task list and a zero delivery
+    counter and has no way to tell an unbound scope from a broken one.
+    """
+    from atmem.contracts.task_state import HostSessionIdentity
+    from atmem.task_state.binding import SessionBindingService
+
+    enable(manager)
+    seed(manager)
+
+    health = manager.task_health()
+    assert health["bindings"] == {"active": 0, "revoked": 0}
+
+    service, memory = manager._task_service()
+    try:
+        bindings = SessionBindingService(memory.store, service.clock)
+        binding = bindings.register(
+            SCOPE,
+            HostSessionIdentity("openclaw", "session-1", "epoch-1"),
+            task_id="task-1", actor="operator", reason="drive it here",
+        )
+    finally:
+        memory.close()
+
+    assert manager.task_health()["bindings"] == {"active": 1, "revoked": 0}
+
+    service, memory = manager._task_service()
+    try:
+        SessionBindingService(memory.store, service.clock).revoke(
+            SCOPE, binding_id=binding.binding_id, actor="operator", reason="done"
+        )
+    finally:
+        memory.close()
+
+    # Revoked, not gone: what a conversation was pointed at is evidence.
+    assert manager.task_health()["bindings"] == {"active": 0, "revoked": 1}
+
+
+def test_the_task_card_explains_an_unbound_scope(manager) -> None:
+    """The empty state names the missing step instead of showing an empty list."""
+    markup = build_app_html()
+    assert "No conversation is bound to a task" in markup
+    assert "atmem task bind" in markup
+
+
+def test_health_carries_no_task_content_alongside_binding_counts(manager) -> None:
+    """Binding counters must not become a content leak."""
+    from atmem.contracts.task_state import HostSessionIdentity
+    from atmem.task_state.binding import SessionBindingService
+
+    enable(manager)
+    seed(manager, goal="Rotate the vault credential hunter2")
+    service, memory = manager._task_service()
+    try:
+        SessionBindingService(memory.store, service.clock).register(
+            SCOPE,
+            HostSessionIdentity("openclaw", "session-1", "epoch-1"),
+            task_id="task-1", actor="operator",
+            reason="a private reason nobody else should read",
+        )
+    finally:
+        memory.close()
+
+    serialized = json.dumps(manager.task_health())
+    assert "hunter2" not in serialized
+    assert "private reason" not in serialized
+    assert "session-1" not in serialized

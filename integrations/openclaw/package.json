@@ -1,6 +1,6 @@
 {
   "name": "openclaw-memory-atmem",
-  "version": "2.2.6-beta.3",
+  "version": "2.2.6-beta.4",
   "description": "OpenClaw Agent Black Box and memory control-plane bridge for AtMem",
   "type": "module",
   "main": "./dist/index.js",
@@ -40,9 +40,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node test/setup.mjs && node test/hooks.mjs && node test/delegated-context-contract.mjs",
-    "smoke": "node test/smoke.mjs",
-    "prepack": "npm run build && npm run typecheck && npm test && npm run smoke"
+    "test": "node test/hook-context-compat.mjs && node test/setup.mjs && node test/hooks.mjs && node test/task-tools.mjs && node test/delegated-context-contract.mjs",
+    "smoke": "node test/smoke.mjs && node test/task-journey.mjs",
+    "prepack": "npm run build && npm run typecheck && npm test && npm run smoke",
+    "hook-context": "node test/hook-context-compat.mjs",
+    "record-hook-context": "node test/lib/record-hook-context.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

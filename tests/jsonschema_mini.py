@@ -195,12 +195,22 @@ def _check_object(document: dict, schema: dict[str, Any], root: dict[str, Any], 
             validate(name, schema["propertyNames"], root=root, path=f"{path}.{name}")
 
 
+def _pointer(node: Any, pointer: str) -> Any:
+    for part in pointer.split("/"):
+        if part:
+            node = node[part]
+    return node
+
+
 def _resolve(reference: str, root: dict[str, Any]) -> dict[str, Any]:
     if reference.startswith("#/"):
-        node: Any = root
-        for part in reference[2:].split("/"):
-            node = node[part]
-        return node
+        return _pointer(root, reference[2:])
+    if ".json#/" in reference:
+        # A pointer into another published schema, so a shared definition such
+        # as a task operation lives in exactly one file. Duplicating it per
+        # schema is what lets two copies drift apart unnoticed.
+        filename, pointer = reference.split("#/", 1)
+        return _pointer(load(filename), pointer)
     if reference.endswith(".json"):
         return load(reference)
     raise SchemaError(f"unsupported $ref: {reference!r}")

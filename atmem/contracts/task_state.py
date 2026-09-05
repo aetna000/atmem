@@ -204,6 +204,17 @@ REASON_CODES: frozenset[str] = frozenset(
         "task_state_shadow_mode",
         "capability_unavailable",
         "integrity_check_failed",
+        # session binding (Amendment A)
+        "binding_registered",
+        "binding_revoked",
+        "binding_already_active",
+        "binding_not_found",
+        "task_binding_conflict",
+        "task_binding_stale_session",
+        "session_identity_required",
+        "host_task_not_bound_to_session",
+        "owner_required",
+        "host_proposal_accepted",
     }
 )
 
@@ -266,6 +277,15 @@ class EvidenceRef(Contract):
         _identifier("reference_id", self.reference_id)
         if self.sha256 is not None and not _DIGEST.fullmatch(str(self.sha256)):
             raise ValueError("evidence sha256 must use sha256:<64 lowercase hex>")
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "EvidenceRef":
+        data = _closed("evidence reference", payload, set(cls.__slots__))
+        return cls(
+            kind=str(data["kind"]),
+            reference_id=str(data["reference_id"]),
+            sha256=data.get("sha256"),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -340,6 +360,12 @@ class TaskProfile(Contract):
     expiry: ExpiryPolicy = field(default_factory=ExpiryPolicy)
     allow_schema_extension_phases: tuple[str, ...] = ()
     description: str = ""
+    # Supplemental expiry for session bindings (FR-052). Deliberately NOT a
+    # substitute for a host reset signal: a lifetime cannot detect a reset that
+    # happens inside it, and the reset that matters most is the one a minute
+    # after binding. A host that cannot supply a generation is reported as
+    # unable to bind at all; it is never bound under a lifetime alone.
+    binding_lifetime_ms: int | None = None
 
     def __post_init__(self) -> None:
         _identifier("profile_id", self.profile_id)
@@ -361,6 +387,8 @@ class TaskProfile(Contract):
         for phase in self.allow_schema_extension_phases:
             if phase not in self.phases:
                 raise ValueError(f"unknown schema-extension phase: {phase!r}")
+        if self.binding_lifetime_ms is not None and int(self.binding_lifetime_ms) <= 0:
+            raise ValueError("binding_lifetime_ms must be a positive number of milliseconds")
 
     @property
     def initial_phase(self) -> str:
@@ -417,7 +445,166 @@ class TaskProfile(Contract):
                 str(item) for item in data.get("allow_schema_extension_phases") or ()
             ),
             description=str(data.get("description") or ""),
+            # Absent in every profile persisted before Amendment A, and absent
+            # is the correct default: no supplemental expiry.
+            binding_lifetime_ms=(
+                int(data["binding_lifetime_ms"])
+                if data.get("binding_lifetime_ms") is not None
+                else None
+            ),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class HostSessionIdentity(Contract):
+    """Which conversation a host submission belongs to.
+
+    This is an *addressing* claim, not an authority claim. The host states
+    which conversation it is; AtMem resolves that through the registered
+    binding and decides what the conversation may do. That is why these fields
+    are permitted to arrive from the caller where an actor-role or capability
+    field is not (FR-051).
+
+    All three parts are required together. Hosts declare their identity fields
+    as optional, so a partial identity is a submission AtMem cannot place --
+    resolving on whatever survived would be guessing, and guessing is the one
+    thing the binding exists to prevent (FR-052).
+    """
+
+    format: ClassVar[str] = "atmem-host-session-identity-v1"
+    host_type: str
+    session_key: str
+    session_epoch: str
+
+    def __post_init__(self) -> None:
+        _identifier("host_type", self.host_type)
+        _identifier("session_key", self.session_key)
+        _identifier("session_epoch", self.session_epoch)
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "HostSessionIdentity":
+        data = _closed("host session identity", payload, set(cls.__slots__))
+        missing = [
+            name
+            for name in ("host_type", "session_key", "session_epoch")
+            if not str(data.get(name) or "").strip()
+        ]
+        if missing:
+            raise ValueError(
+                f"incomplete host session identity, missing {missing}; "
+                "a partial identity is never resolved on its remaining fields"
+            )
+        return cls(
+            host_type=str(data["host_type"]),
+            session_key=str(data["session_key"]),
+            session_epoch=str(data["session_epoch"]),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class SessionBinding(Contract):
+    """An operator-registered mapping from one conversation to one task.
+
+    The uniqueness key is the identity triple plus scope; `task_id` is the
+    target and deliberately outside it. That is what makes bindings many-to-one
+    and makes retargeting impossible to express as an update -- changing a
+    session's target is a revoke followed by a register, each with its own
+    authority and evidence (FR-042).
+    """
+
+    format: ClassVar[str] = "atmem-task-session-binding-v1"
+    binding_id: str
+    scope: AuthorityScope
+    identity: HostSessionIdentity
+    task_id: str
+    actor: str
+    reason: str
+    registered_at_utc: str
+    source: str = ""
+    evidence: tuple[EvidenceRef, ...] = ()
+    revoked_at_utc: str | None = None
+    revoked_by: str | None = None
+    revoked_reason: str | None = None
+
+    def __post_init__(self) -> None:
+        _identifier("binding_id", self.binding_id)
+        _identifier("task_id", self.task_id)
+        _text("actor", self.actor)
+        _text("reason", self.reason)
+        _text("registered_at_utc", self.registered_at_utc)
+
+    @property
+    def active(self) -> bool:
+        return self.revoked_at_utc is None
+
+    def key(self) -> tuple[str, str, str, str, str, str]:
+        """The exact uniqueness key. `task_id` is not part of it."""
+        return (
+            self.scope.subject_id,
+            self.scope.agent_id,
+            self.scope.workspace_id,
+            self.identity.host_type,
+            self.identity.session_key,
+            self.identity.session_epoch,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "format": self.format,
+            "binding_id": self.binding_id,
+            "scope": self.scope.to_dict(),
+            "identity": self.identity.to_dict(),
+            "task_id": self.task_id,
+            "actor": self.actor,
+            "reason": self.reason,
+            "source": self.source,
+            "registered_at_utc": self.registered_at_utc,
+            "evidence": [item.to_dict() for item in self.evidence],
+            "revoked_at_utc": self.revoked_at_utc,
+            "revoked_by": self.revoked_by,
+            "revoked_reason": self.revoked_reason,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "SessionBinding":
+        data = _closed("session binding", payload, set(cls.__slots__))
+        return cls(
+            binding_id=str(data["binding_id"]),
+            scope=AuthorityScope(**{
+                k: v for k, v in dict(data["scope"]).items() if k != "format"
+            }),
+            identity=HostSessionIdentity.from_dict(data["identity"]),
+            task_id=str(data["task_id"]),
+            actor=str(data["actor"]),
+            reason=str(data["reason"]),
+            source=str(data.get("source") or ""),
+            registered_at_utc=str(data["registered_at_utc"]),
+            evidence=tuple(
+                EvidenceRef.from_dict(item) for item in data.get("evidence") or ()
+            ),
+            revoked_at_utc=data.get("revoked_at_utc"),
+            revoked_by=data.get("revoked_by"),
+            revoked_reason=data.get("revoked_reason"),
+        )
+
+
+class BindingResolution(str, Enum):
+    """How task identity was arrived at for one call.
+
+    `EXPLICIT` and `BOUND` deliver; every other value withholds. There is
+    deliberately no value meaning "chose one", because no code path may.
+    """
+
+    EXPLICIT = "explicit"
+    BOUND = "bound"
+    NONE = "none"
+    CONFLICT = "conflict"
+    STALE_SESSION = "stale_session"
+    INELIGIBLE = "ineligible"
+
+    @property
+    def delivers(self) -> bool:
+        return self in (BindingResolution.EXPLICIT, BindingResolution.BOUND)
 
 
 @dataclass(frozen=True, slots=True)
@@ -632,6 +819,45 @@ class TaskOperation(Contract):
         value["assurance"] = self.assurance.value
         return value
 
+    @classmethod
+    def from_dict(
+        cls, payload: Mapping[str, Any], *, assurance: "Assurance | None" = None
+    ) -> "TaskOperation":
+        """Parse one operation, rejecting unknown fields.
+
+        `assurance` overrides whatever the payload claims. Callers that know
+        the assurance ceiling of their channel -- a model interpretation cannot
+        assert more than `model_interpreted` -- pass it here rather than
+        trusting the caller to be honest about it.
+        """
+        data = _closed("task operation", payload, set(cls.__slots__))
+        raw_assurance = data.get("assurance")
+        return cls(
+            kind=OperationKind(str(data["kind"])),
+            item_id=data.get("item_id"),
+            constraint_id=data.get("constraint_id"),
+            source_id=data.get("source_id"),
+            phase=data.get("phase"),
+            status=ItemStatus(str(data["status"])) if data.get("status") else None,
+            text=data.get("text"),
+            content=dict(data["content"]) if isinstance(data.get("content"), dict) else None,
+            depends_on=(
+                tuple(str(item) for item in data["depends_on"])
+                if data.get("depends_on") is not None
+                else None
+            ),
+            kind_label=data.get("kind_label"),
+            required=data.get("required"),
+            reason=data.get("reason"),
+            assurance=(
+                assurance
+                if assurance is not None
+                else Assurance(str(raw_assurance))
+                if raw_assurance
+                else Assurance.ASSERTED
+            ),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class TaskStateProposal(Contract):
@@ -677,6 +903,206 @@ class TaskStateProposal(Contract):
         value.pop("idempotency_key", None)
         value.pop("proposal_id", None)
         return f"sha256:{sha256_hex(canonical_json(value))}"
+
+
+# --------------------------------------------------------------------------
+# Host-boundary request contracts (Amendment A, FR-051)
+#
+# These are public contracts distinct from the internal `TaskStateProposal`.
+# They differ from it in two deliberate ways:
+#
+#   * They carry a complete `HostSessionIdentity`, because FR-054 resolves
+#     every submission through its own session and refuses one that names a
+#     task the session is not bound to. The submitted `task_id` is a redundant
+#     assertion AtMem checks, never the authority.
+#   * They carry no actor_role, capability, or authority field. Actor role is
+#     derived from the authenticated transport and registered adapter identity.
+#     A submission carrying one is malformed rather than honoured or silently
+#     ignored -- ignoring it would leave the caller believing it was accepted.
+# --------------------------------------------------------------------------
+
+_HOST_FORBIDDEN_FIELDS = frozenset(
+    {"actor_role", "role", "capability", "capabilities", "authority", "permissions"}
+)
+
+
+def _host_request(name: str, payload: Mapping[str, Any], allowed: set[str]) -> dict[str, Any]:
+    """Closed parse that names authority fields as malformed, not merely unknown."""
+    smuggled = sorted(set(payload) & _HOST_FORBIDDEN_FIELDS)
+    if smuggled:
+        raise ValueError(
+            f"{name} carries caller-supplied authority fields {smuggled}; "
+            "actor role derives from the authenticated transport, never the payload"
+        )
+    return _closed(name, payload, allowed)
+
+
+@dataclass(frozen=True, slots=True)
+class HostTaskObservationRequest(Contract):
+    """One bounded, authenticated workflow step observed at the host boundary.
+
+    The adapter submits what it saw; it never submits a delta. Interpretation
+    happens in the authorized AtBot path, and AtMem revalidates whatever comes
+    back against the current head before commit (FR-049).
+    """
+
+    format: ClassVar[str] = "atmem-host-task-observation-request-v1"
+    identity: HostSessionIdentity
+    task_id: str
+    idempotency_key: str
+    observation: str
+    adapter: str
+    adapter_version: str = ""
+    evidence: tuple[EvidenceRef, ...] = ()
+    observed_at_utc: str = ""
+
+    def __post_init__(self) -> None:
+        _identifier("task_id", self.task_id)
+        _text("idempotency_key", self.idempotency_key, limit=256)
+        _text("observation", self.observation, limit=MAX_TEXT_CHARS)
+        _text("adapter", self.adapter, limit=200)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "format": self.format,
+            "identity": self.identity.to_dict(),
+            "task_id": self.task_id,
+            "idempotency_key": self.idempotency_key,
+            "observation": self.observation,
+            "adapter": self.adapter,
+            "adapter_version": self.adapter_version,
+            "evidence": [item.to_dict() for item in self.evidence],
+            "observed_at_utc": self.observed_at_utc,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "HostTaskObservationRequest":
+        data = _host_request("host task observation request", payload, set(cls.__slots__))
+        return cls(
+            identity=HostSessionIdentity.from_dict(data.get("identity") or {}),
+            task_id=str(data["task_id"]),
+            idempotency_key=str(data["idempotency_key"]),
+            observation=str(data["observation"]),
+            adapter=str(data["adapter"]),
+            adapter_version=str(data.get("adapter_version") or ""),
+            evidence=tuple(EvidenceRef.from_dict(i) for i in data.get("evidence") or ()),
+            observed_at_utc=str(data.get("observed_at_utc") or ""),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class HostTaskProposalRequest(Contract):
+    """A typed bounded delta submitted at the host boundary, already in delta form."""
+
+    format: ClassVar[str] = "atmem-host-task-proposal-request-v1"
+    identity: HostSessionIdentity
+    task_id: str
+    base_revision: int
+    idempotency_key: str
+    operations: tuple[TaskOperation, ...]
+    adapter: str
+    adapter_version: str = ""
+    evidence: tuple[EvidenceRef, ...] = ()
+    reason: str = ""
+
+    def __post_init__(self) -> None:
+        _identifier("task_id", self.task_id)
+        _text("idempotency_key", self.idempotency_key, limit=256)
+        _text("adapter", self.adapter, limit=200)
+        if int(self.base_revision) < 1:
+            raise ValueError("base_revision starts at 1")
+        if not self.operations:
+            raise ValueError("a proposal must request at least one operation")
+        if len(self.operations) > MAX_OPERATIONS:
+            raise ValueError(f"a proposal may carry at most {MAX_OPERATIONS} operations")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "format": self.format,
+            "identity": self.identity.to_dict(),
+            "task_id": self.task_id,
+            "base_revision": int(self.base_revision),
+            "idempotency_key": self.idempotency_key,
+            "operations": [operation.to_dict() for operation in self.operations],
+            "adapter": self.adapter,
+            "adapter_version": self.adapter_version,
+            "evidence": [item.to_dict() for item in self.evidence],
+            "reason": self.reason,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "HostTaskProposalRequest":
+        data = _host_request("host task proposal request", payload, set(cls.__slots__))
+        return cls(
+            identity=HostSessionIdentity.from_dict(data.get("identity") or {}),
+            task_id=str(data["task_id"]),
+            base_revision=int(data["base_revision"]),
+            idempotency_key=str(data["idempotency_key"]),
+            operations=tuple(
+                TaskOperation.from_dict(item) for item in data.get("operations") or ()
+            ),
+            adapter=str(data["adapter"]),
+            adapter_version=str(data.get("adapter_version") or ""),
+            evidence=tuple(EvidenceRef.from_dict(i) for i in data.get("evidence") or ()),
+            reason=str(data.get("reason") or ""),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class HostTaskLifecycleRequest(Contract):
+    """A host *request* to change lifecycle. Gates decide; the request never bypasses them."""
+
+    format: ClassVar[str] = "atmem-host-task-lifecycle-request-v1"
+    identity: HostSessionIdentity
+    task_id: str
+    action: str
+    expected_revision: int
+    idempotency_key: str
+    adapter: str
+    adapter_version: str = ""
+    reason: str = ""
+
+    PERMITTED_ACTIONS: ClassVar[frozenset[str]] = frozenset({"pause", "resume", "complete"})
+
+    def __post_init__(self) -> None:
+        _identifier("task_id", self.task_id)
+        _text("idempotency_key", self.idempotency_key, limit=256)
+        _text("adapter", self.adapter, limit=200)
+        if self.action not in self.PERMITTED_ACTIONS:
+            # `cancel` is deliberately absent: cancellation is an operator-only
+            # action under the Governance Matrix (FR-045).
+            raise ValueError(
+                f"host lifecycle action must be one of {sorted(self.PERMITTED_ACTIONS)}"
+            )
+        if int(self.expected_revision) < 1:
+            raise ValueError("expected_revision starts at 1")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "format": self.format,
+            "identity": self.identity.to_dict(),
+            "task_id": self.task_id,
+            "action": self.action,
+            "expected_revision": int(self.expected_revision),
+            "idempotency_key": self.idempotency_key,
+            "adapter": self.adapter,
+            "adapter_version": self.adapter_version,
+            "reason": self.reason,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "HostTaskLifecycleRequest":
+        data = _host_request("host task lifecycle request", payload, set(cls.__slots__))
+        return cls(
+            identity=HostSessionIdentity.from_dict(data.get("identity") or {}),
+            task_id=str(data["task_id"]),
+            action=str(data["action"]),
+            expected_revision=int(data["expected_revision"]),
+            idempotency_key=str(data["idempotency_key"]),
+            adapter=str(data["adapter"]),
+            adapter_version=str(data.get("adapter_version") or ""),
+            reason=str(data.get("reason") or ""),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -825,11 +1251,16 @@ __all__ = [
     "ActorRole",
     "Assurance",
     "ContextDisposition",
+    "BindingResolution",
     "EvidenceRef",
     "ExpiryPolicy",
     "GovernanceCapability",
     "GuardSignal",
     "GuardType",
+    "HostSessionIdentity",
+    "HostTaskLifecycleRequest",
+    "HostTaskObservationRequest",
+    "HostTaskProposalRequest",
     "ItemStatus",
     "MAX_CONSTRAINTS",
     "MAX_ITEMS",
@@ -838,6 +1269,7 @@ __all__ = [
     "Provenance",
     "REASON_CODES",
     "SERIALIZER_VERSION",
+    "SessionBinding",
     "StepOutcome",
     "TaskConstraint",
     "TaskContextPackage",

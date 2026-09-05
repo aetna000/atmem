@@ -116,5 +116,28 @@
     "expiry": "policy_owned_absolute_and_no_progress_age",
     "guard_enforcement_source": "derived_from_registered_enforcing_adapters",
     "enforcing_adapters": []
+  },
+  "properties": {
+    "governed_task_session_binding_adapters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Adapters that supply a session generation rotating on conversation reset. An adapter that cannot must report session binding unavailable rather than binding under a lifetime alone."
+    },
+    "governed_task_host_proposal_adapters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Adapters that can submit authenticated session-bound task requests."
+    },
+    "governed_task_agent_delta_tool_adapters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Adapters that register the typed-delta tool with their model. An unregistered tool is invisible to the model and is never claimed here."
+    }
   }
 }

@@ -33,6 +33,10 @@ EXPECTED_MIGRATIONS = [
     "0075_governed_task_steps",
     "0076_governed_task_deliveries",
     "0077_governed_task_sequences",
+    # Amendment A's session bindings. Appended inside Spec 007's reserved
+    # 0070-0079 block, leaving 0079 as the last identifier available before the
+    # Spec 010 registry must be used.
+    "0078_governed_task_session_bindings",
 ]
 
 

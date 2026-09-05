@@ -53,6 +53,10 @@ TASK_MIGRATIONS = [
     "0075_governed_task_steps",
     "0076_governed_task_deliveries",
     "0077_governed_task_sequences",
+    # Amendment A. Appended, never renumbered: an upgrade from any published
+    # floor must arrive at this exact sequence, and a database that already had
+    # 0070-0077 gains only this step.
+    "0078_governed_task_session_bindings",
 ]
 
 
@@ -251,6 +255,7 @@ def test_rollback_keeps_the_previous_version_readable(upgraded: Path) -> None:
         "governed_task_proposals",
         "governed_task_steps",
         "governed_task_deliveries",
+        "governed_task_session_bindings",
     }
     # The task plane adds tables and touches none of the old ones, so an older
     # build that never reads them is unaffected by rolling back onto this file.

@@ -675,3 +675,399 @@ map its hooks and exact-delivery boundary to the host-neutral contracts.
   delivery; never infer progress.
 - Release notes distinguish task-state detection, context delivery, and host
   enforcement capabilities for every advertised adapter.
+
+---
+
+# Amendment A Plan — Host-Driven Task Binding and Proposal
+
+**Date**: 2026-09-05 | **Spec**: Amendment A in `spec.md` | **Adds**: Design
+Decisions 16–21, structure and test-strategy deltas.
+
+**Revision 5** (2026-09-05): resolves fourth-review findings I1, U1, C1.
+Decisions 17 and 19 are extended in place.
+
+**Revision 4** (2026-09-05): resolves third-review findings A1–A5. Decisions 17,
+19, and 20 are extended in place.
+
+**Revision 3** (2026-09-05): resolves second-review findings C1 (critical), I1,
+C2, I2, C3, U1, R1, I3, T1. Decisions 16, 17, 19, and 20 are corrected in place;
+Decision 21 is new. Phase 12 is renumbered into execution order.
+
+**Revision 2** (2026-09-05): resolves first-review findings I1, U1, C1, S1, C2,
+U2, A1, T1, R1. Decisions 16 and 17 are corrected in place; Decisions 18–20 are
+new.
+
+## Summary
+
+Close the two gaps that make Governed Task State unreachable from OpenClaw:
+task identity never resolves at the hook boundary, and the adapter boundary has
+no write path. Add an operator-registered session-to-task binding that AtMem
+looks up (never infers), and a host-boundary proposal operation constrained to
+the host-agent row of the existing Governance Matrix. Both reuse the committed
+policy, concurrency, evidence, and provenance path; neither adds a new authority.
+
+## Technical Context Delta
+
+- **Storage**: one new table in Spec 007's reserved bootstrap block. `0070`–
+  `0077` are consumed; `0078` takes the binding table and `0079` is the only
+  identifier left in the reserved range. Any further Spec 007 schema work must
+  either fit `0079` or request identifiers through the Spec 010 registry —
+  budget this before implementation, not during.
+- **Dependencies**: unchanged. No new mandatory SDK, Python or TypeScript.
+- **Surfaces**: three new MCP tools (`control_observe_task_step`,
+  `control_propose_task_delta`, `control_request_task_lifecycle`), one new
+  agent-facing model tool registered by the bridge, one new CLI subcommand
+  family, and one owner-gated in-host command group. No new network listener and
+  no change to the loopback-only dashboard posture.
+- **Security**: bindings are privileged operator state. A host agent consuming a
+  binding gains no capability it did not already hold for a task named
+  explicitly, so the binding is an addressing mechanism, not an authorization.
+
+### 16. Session-to-task binding
+
+Persist bindings in `governed_task_session_bindings` (migration `0078`). The
+unique key is exactly
+`(subject_id, agent_id, workspace_id, host_type, session_key, session_epoch)`.
+`AuthorityScope` supplies three fields, not four; `host_type` namespaces the
+session key so an OpenClaw key and a LangGraph key cannot collide; and
+`session_epoch` is the FR-052 generation. `task_id` is the target and is
+deliberately outside the key, which is what makes bindings many-to-one and makes
+retargeting impossible to express as an update. A partial uniqueness constraint
+admits at most one active row per key while retaining revoked rows for history.
+Columns carry task ID, registering actor, reason, source, registration and
+revocation times, and evidence ID. Registration validates that the target task
+is currently eligible; a task that later becomes terminal does not rewrite the
+binding, it makes it unresolvable at read time.
+
+Resolution lives in `atmem/task_state/binding.py` and is called only from the
+existing `ControlPlaneManager.prepare_task_context` path, so every eligibility,
+expiry, budget, escaping, and exposure rule already proven for explicit
+identity applies unchanged. The resolver returns exactly one of: a task ID, or
+a withholding reason. It never returns a candidate list, so there is no code
+path in which selection could be introduced later without deleting this
+contract.
+
+Resolution order is fixed and total — explicit identity, then active binding,
+then withhold — with disagreement between the first two withholding under
+`task_binding_conflict` rather than preferring either. Preferring the explicit
+identity would silently mask a misconfigured binding; preferring the binding
+would let stale operator state override a host that knows better. Withholding
+is the only outcome that surfaces the contradiction to an operator.
+
+Session keys are correlation identifiers and are not secrets; per FR-024 they
+must not become authorization. The binding is authorized by the scope it was
+registered under, and resolution revalidates that scope on every turn.
+
+Scope revalidation alone does **not** solve key recycling: a new conversation in
+the same subject/agent/workspace can present a reused key and would otherwise
+inherit a stale binding. FR-052 closes this with a bound session generation.
+
+Reset detection must be positive, not inferred from elapsed time. A lifetime
+cannot detect a reset that happens inside it — the reset that matters most is
+the one that happens a minute after binding — so a TTL is supplemental expiry
+protection and never a substitute. Session binding therefore *requires* an
+opaque host `session_epoch` that rotates on reset, which is part of the
+uniqueness key, so a new incarnation simply does not match any active row. A
+host that cannot supply a generation or a reliable session start reports session
+binding unavailable in the capability response and is not bound at all.
+
+OpenClaw can supply this: its plugin surface exposes `session_start`,
+`before_reset`, and `session_end`, and `ctx.sessionId` distinguishes
+incarnations. The bridge maps that identity into `session_epoch` at registration
+and presents it on every later lookup, so binding and resolution cannot disagree
+about which conversation they mean.
+
+Both stale paths withhold under `task_binding_stale_session` and require
+explicit re-confirmation; neither recovers automatically.
+
+### 17. Host-boundary proposal
+
+Add `control_propose_task_delta` and `control_request_task_lifecycle` to
+`atmem/control/server.py`, and the manager methods behind them to
+`atmem/control/manager.py`. Both route into the existing `TaskStateService`
+with `ActorRole.AGENT`, alongside — not around — the operator paths used by
+`atmem task correct` and `change_task_lifecycle`.
+
+Session identity and actor role are different kinds of claim and are handled
+differently. `host_type`, `session_key`, and `session_epoch` are **addressing**:
+the host states which conversation it is, all three are required on every
+host-boundary request, and AtMem resolves them through FR-043 and checks the
+result. A partial identity is malformed, not a licence to resolve loosely.
+Actor role is **authority** and is derived, never received. It comes from the
+authenticated transport and the registered adapter identity; a submission carrying an actor-role,
+capability, or authority field is rejected as malformed rather than honored or
+quietly dropped, because silently ignoring it leaves a caller believing it was
+accepted. The capability ceiling is likewise derived in
+`atmem/task_state/governance.py` from the Governance Matrix, not asserted at the
+tool boundary. Operator-only actions are
+refused before delta content is evaluated, so a malformed privileged proposal
+and a well-formed one produce the same capability refusal and leak nothing
+about the task. This mirrors the existing derivation approach and keeps a
+single enforcement site.
+
+Idempotency keys are supplied by the adapter and scoped to the task, so a
+retried hook, a duplicated tool result, and a replayed turn collapse to one
+decision under the SC-002 guarantees already implemented.
+
+Scope is not enough to decide *which* task a host may write to. One authorized
+scope routinely holds several concurrent tasks — the spec assumes exactly that —
+so a submission naming a sibling task passes every scope and capability check
+while belonging to a different conversation. FR-054 closes this by resolving
+`(host_type, session_key, session_epoch)` through FR-043 on every submission and
+requiring the submitted `task_id` to equal the resolved one. The submitted
+identifier is then a redundant assertion to be checked, never the authority;
+where resolution yields nothing the submission is refused rather than trusted.
+
+This puts read and write on the same resolution path, which is the property
+worth having: a host can only write to the task it is currently allowed to read.
+The mismatch refusal is non-disclosing for the same reason every other lookup
+is — otherwise naming tasks at random becomes an existence oracle.
+
+Shadow and disabled are different code paths and must not share one. A disabled
+scope refuses at the boundary before identity resolution or content evaluation,
+matching what `atmem task` already does today and keeping the non-disclosure
+property intact. Shadow evaluates fully and records the decision it would have
+made, committing nothing — that is what makes shadow a rehearsal for this path
+rather than a silent no-op. Collapsing the two would either leak task existence
+from a disabled scope or make shadow untestable.
+
+The bridge changes stay inside `integrations/openclaw/`: resolve identity via
+the manager rather than reading `ctx.taskId` alone, and submit **observations**
+— not deltas — from the existing `after_tool_call` and `agent_end` hooks where
+tool outcomes are already observed for Black Box evidence. See Decision 18 for
+why the bridge never produces a delta itself. No OpenClaw change is required; if
+OpenClaw later adds task identity to `PluginHookMessageContext`, it lands as
+the first resolution step with no further work.
+
+### 18. Where a delta comes from
+
+The bridge observes raw tool outcomes; the policy engine consumes typed deltas.
+Nothing in Revision 1 said who converts one into the other, which would have
+left each adapter to invent it — the exact failure FR-007 exists to prevent.
+
+Two entry points, and deliberately no third:
+
+**(a) Observation → AtBot → revalidate → commit.** The adapter submits one
+bounded authenticated workflow step. AtMem authorizes it, routes it through the
+companion path already built by T035–T036, and revalidates the returned delta
+against the current head before commit. This reuses the whole existing
+intelligence boundary rather than growing a second one, and it keeps AtBot in
+its matrix row: proposes, never commits. With AtBot unavailable the observation
+records a deterministic `no_change` — FR-019 already requires exactly this, so
+the fallback is not new behavior.
+
+**(b) Explicit typed delta from the agent.** A tool through which the model
+states progress directly, already in delta form. No interpretation step, so no
+interpreter to trust.
+
+A manager method and an MCP operation are invisible to the model. Path (b) is
+only real if the bridge registers it through `api.registerTool`, the same
+mechanism that already publishes `memory_search` and `memory_get`. That means
+naming the tool, defining what the model reads back for each of `accepted`,
+`rejected`, `conflict`, and `no_change` — a rejection the model cannot interpret
+is a rejection it will retry blindly — and testing it at the tool boundary.
+Unregistered, path (b) does not exist and must not be advertised.
+
+The adapter itself never synthesizes a delta. A deterministic tool-result
+mapping table was the third option and is rejected: it would put execution
+semantics in the bridge, where it could not be governed by a profile, could not
+be versioned with the policy, and would drift per host.
+
+Idempotency keys derive from the observed step's stable host identifiers —
+`runId`, tool-call id, step index — never from payload content, wall-clock, or
+randomness. Content-derived keys would collapse two legitimately identical
+actions on different items; random keys would defeat replay collapse entirely.
+Payloads are minimized to profile-declared fields before leaving the host.
+
+### 19. In-host operator binding
+
+US6 promises the operator never leaves OpenClaw, and Revision 1 shipped only
+CLI and web endpoints — which also required an opaque `sessionKey` the operator
+has no way to obtain. Add an owner-gated in-host surface for bind, unbind, and
+status, scoped to the caller's own conversation so the session key is resolved
+internally and never displayed.
+
+The owner gate is `ctx.senderIsOwner`, which the bridge already receives and
+already uses to refuse non-owner turns. Reusing it keeps one owner definition
+rather than inventing a second. A non-owner call is refused without disclosing
+whether a binding exists, matching the non-disclosure rule everywhere else.
+
+This surface is a convenience over the operator row, not an addition to it: the
+same authority, reason, source, evidence, and confirmation requirements apply,
+and it can express nothing `atmem task bind` cannot.
+
+Because OpenClaw can supply a reset signal and another adapter may not, session
+binding availability is per adapter, not global. The capabilities response
+already carries `governed_task_enforcing_adapters` as an adapter-keyed list, so
+this follows an established pattern rather than inventing one: add
+`governed_task_session_binding_adapters`,
+`governed_task_host_proposal_adapters`, and
+`governed_task_agent_delta_tool_adapters`, keep any global flag meaning only
+"the runtime implements this", and have each adapter response derive its own
+availability from the keyed data. All three vary by host — an adapter with no
+authenticated session-bound request path cannot host-propose at all — so a
+single boolean would have to lie about one of the two adapters in each case.
+
+### 20. Proving the premise without a global install
+
+Revision 1's premise gate proposed asserting from Python that an installed
+OpenClaw never populates `ctx.taskId`. That is not provable: a TypeScript
+declaration is not a runtime guarantee, and reading a globally installed
+OpenClaw makes CI depend on whichever version the machine happens to have.
+
+Move the check to the npm suite against the pinned OpenClaw dependency, with
+versioned hook fixtures recording the context shape per tested version. The
+bridge's `peerDependencies` range is open-ended (`openclaw >=2026.7.1-2`), so
+"each supported version" is not testable as written. Define instead a finite
+matrix of exactly three: the declared minimum, the version in the lockfile, and
+the latest compatible version CI resolves. All three must be installed and
+tested in CI — a fixture that is never run against its version is documentation,
+not a check — and the resolved version of the moving "latest compatible" entry
+must be recorded in the run so a regression can be attributed. Anything outside
+those three is unverified and must be described that way. If a
+future version does populate task identity, the fixture diff is the signal to
+re-scope the amendment — FR-043's first resolution step already consumes native
+identity — rather than a permanent assertion that must never change. The Python
+side keeps only what it can actually prove: that no task write tool is
+registered, and which migration identifiers remain free.
+
+### 21. Truthful exposure when a task turns terminal mid-call
+
+Revision 2 said a task expiring between preparation and exposure meant exposure
+"MUST NOT be confirmed" and the package was "discarded." That is wrong, and in
+OpenClaw it is provably wrong: task exposure is confirmed in the `agent_end`
+hook (`integrations/openclaw/index.ts`), which runs *after* the turn. By the
+time confirmation happens the bytes have already reached the model. Refusing to
+record the exposure would assert that a delivery did not occur when it did —
+manufacturing convenient history rather than recording evidence, which is the
+one thing the evidence plane exists to prevent.
+
+FR-053 inverts the rule: preparation authorizes exactly one model call, and the
+evidence records what happened on that call. If the adapter can prove the bytes
+reached the boundary, exposure is confirmed truthfully and the expiry is
+recorded as its own later event linked to that delivery. If they demonstrably
+did not, or the adapter cannot prove delivery, preparation is recorded with no
+exposure claim — which is the existing rule for detection-only adapters and is
+unchanged.
+
+The safety property people actually want is not "no exposure record." It is
+"the task stops influencing future calls," and that is delivered by
+re-resolving identity on every subsequent call and withholding. Nothing is
+gained by lying about the call that already happened, and the audit trail is
+strictly worse for it.
+
+## Project Structure Delta
+
+```text
+atmem/
+  contracts/task_state.py          # binding + host-boundary contracts
+  schemas/v1/
+    task-session-binding.json      # new
+    task-profile.json              # + binding lifetime, reset-signal requirement
+    host-task-proposal-request.json    # new (FR-051)
+    host-task-observation-request.json # new (FR-051)
+    host-task-lifecycle-request.json   # new (FR-051)
+    capabilities.json              # + binding/host-proposal flags
+  task_state/
+    binding.py                     # new: registration, revocation, resolution
+    profiles.py                    # + binding lifetime defaults for general-v1
+    governance.py                  # + host-agent ceiling derivation
+  store/sqlite.py                  # + migration 0078
+  control/
+    manager.py                     # + bind/unbind/list, propose, lifecycle request
+    server.py                      # + 3 MCP tools
+    web.py                         # + binding endpoints
+  cli.py                           # + atmem task bind | unbind | bindings
+packages/atbot/src/atbot/
+  task_state.py                    # reused unchanged by the observation path
+integrations/openclaw/
+  index.ts                         # resolve identity; submit observations
+  src/commands.ts                  # new: owner-gated bind | unbind | status
+  src/task-tools.ts                # new: registered agent-facing delta tool
+  test/fixtures/hook-context/      # new: min | lockfile | latest-compatible
+  src/rpc-client.ts
+  src/types.ts
+tests/
+  test_task_state_binding.py       # new
+  test_task_state_host_proposal.py # new
+  test_task_state_observation.py   # new (FR-049)
+```
+
+## Test Strategy Delta
+
+- **Resolution matrix**: exhaustive fixture over {explicit, binding, both-agree,
+  both-disagree, neither} × {open, paused, terminal, cross-scope, unknown},
+  asserting disposition, reason code, and byte count — zero bytes for every
+  non-delivering cell (SC-019).
+- **Concurrency**: reuse the SC-002 harness against the host-boundary path;
+  1,000 attempts, one accepted successor per head, no duplicate for a repeated
+  idempotency key (SC-020).
+- **Capability**: extend `tests/fixtures/task_state/governance-v1.json` with the
+  host-agent row so operator-only actions are proven refused at the host
+  boundary with the head unchanged (SC-021).
+- **End-to-end**: an OpenClaw hooks test that binds, delivers with no
+  `ctx.taskId`, confirms exposure once, advances by proposal, is denied
+  premature completion, and withholds after revocation, asserting the
+  prepared/exposed/withheld counter sequence (SC-022).
+- **Regression**: with no bindings registered, every existing memory-only and
+  task-unaware test must remain green and the bridge must behave identically to
+  today (FR-047).
+- **Observation**: every fixture runs twice — AtBot available and AtBot plus
+  network disabled — asserting the specified decision in the first and a
+  deterministic `no_change` in the second, with derived idempotency keys
+  collapsing retries and payloads free of prompts, full tool results, secrets,
+  and chain-of-thought (SC-024).
+- **Session recycling**: one case per reset path a supported host can produce —
+  changed epoch, host-reported session start after registration, elapsed
+  lifetime — each asserting zero bytes under `task_binding_stale_session` and no
+  inherited task (SC-025).
+- **In-host surface**: owner and non-owner calls to bind, unbind, and status,
+  asserting no session key is ever returned and non-owner refusal discloses
+  nothing (SC-026).
+- **Contract**: published-schema validation for all three host-boundary request
+  types, plus rejection-as-malformed for any submission carrying a
+  caller-supplied actor-role, capability, or authority field (SC-027).
+- **Disabled versus shadow**: the same submission against a disabled scope and a
+  shadow scope, asserting immediate refusal with minimal evidence in the first
+  and full evaluation without commit in the second (FR-046).
+- **Delivery race**: a task turning terminal after preparation, tested both
+  ways — bytes reached the boundary (exposure confirmed, expiry recorded as a
+  separate linked event) and bytes did not (preparation only, no exposure
+  claim), with every subsequent call withholding (SC-028).
+- **Reset rotation**: `session_epoch` rotation asserted across `before_reset`,
+  `session_start`, and the next `before_prompt_build`, plus a reset occurring
+  inside a declared lifetime still withholding (SC-029).
+- **Agent tool boundary**: the registered typed-delta tool invoked by the model
+  for each of `accepted`, `rejected`, `conflict`, and `no_change`, asserting the
+  result the model reads back is defined and interpretable (SC-030).
+- **Profile compatibility**: existing persisted profiles without a binding
+  lifetime load unchanged, `general-v1` gains its default, and the published
+  `task-profile.json` accepts both shapes (FR-052; SC-008).
+- **Wrong-session submission**: for each of observation, proposal, and lifecycle
+  request, two open tasks in one scope bound to two sessions, with each session
+  naming the other's task — refused before content evaluation, non-disclosing,
+  both heads unchanged; plus a submission whose session resolves to nothing
+  (FR-054; SC-031).
+- **Mixed-adapter capability**: one adapter supplying a reset signal and one not,
+  asserting each adapter response derives its own availability from the
+  adapter-keyed data rather than a global flag (FR-048; SC-023).
+
+## Rollout and Rollback Delta
+
+- Bindings ship revoked-by-default: upgrading creates none, so behavior is
+  byte-identical to the current release until an operator binds a session.
+- Host proposals are gated by the same per-scope enablement as the rest of the
+  feature and are evaluated without commit in shadow mode.
+- Rollback is revocation: revoking every binding returns delivery to the
+  current withholding behavior while retaining binding history for inspection.
+- Release notes for the amendment ship as `docs/releases/v<VERSION>.md`, the
+  artefact `AGENTS.md` requires before tagging — the repository has no
+  `CHANGELOG.md` and one must not be invented for this. The note must carry the
+  user-visible change, exact install and upgrade commands, migration and opt-in
+  behavior, compatibility, and honest limitations, with a matching section in
+  `docs/current-status.md`, aligned across the three versioned artefacts
+  released together — the `atmem` distribution, the `atbot`
+  distribution, and the OpenClaw bridge `package.json`. The entry must state
+  that guard enforcement is still unavailable: this amendment makes the feature
+  reachable, not blocking. T084 owns that preparation and no release proceeds
+  without it.

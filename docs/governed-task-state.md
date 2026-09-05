@@ -281,10 +281,11 @@ history, graph state, and checkpoints untouched. Their shared turn lifecycle
 also correlates tool outcomes and explicit typed task observations with the
 bound task.
 
-The OpenClaw bridge performs the same preparation and exact-exposure handshake
-when OpenClaw supplies `taskId` in hook context. Older hosts that omit it keep
-the legacy memory-only path. The bridge does not discover an open task and
-does not advertise guard enforcement.
+The OpenClaw bridge performs the same preparation and exact-exposure handshake.
+OpenClaw supplies no `taskId` of its own, so in practice the bridge resolves
+identity through a **conversation binding** — see below. Older hosts and unbound
+conversations keep the legacy memory-only path. The bridge does not discover an
+open task and does not advertise guard enforcement.
 
 AtBot can be called through its authenticated loopback
 `/api/companion/task-state/propose` route. It receives only the exact snapshot
@@ -301,6 +302,16 @@ One runtime response is the capability authority:
 "governed_task_guard_enforcement": false
 ```
 
+
+Availability that varies by host is **adapter-keyed**, not a single boolean:
+`governed_task_session_binding_adapters`,
+`governed_task_host_proposal_adapters`, and
+`governed_task_agent_delta_tool_adapters` list the adapters that actually have
+each capability. One adapter may supply a reset signal and register the delta
+tool while another does neither, and one flag could not describe both
+truthfully. An adapter response derives its own availability from these lists
+rather than from the global flags.
+
 Schemas, `docs/capabilities.json`, adapter replies, and tests mirror that
 response. None of them is an independent authority, and no unsupported boundary
 is ever advertised.
@@ -313,6 +324,110 @@ registration requires a checkable `blocked_actions()` rather than a promise.
 Editing a boolean cannot turn it on. The registry is empty today, which is why
 the flag is false — and why it will become true on its own the moment an
 enforcing adapter exists, without anyone having to remember to update it.
+
+## Binding a conversation to a task
+
+A host does not tell AtMem which task a conversation is working on. OpenClaw's
+plugin hook context carries a channel, a session, a run — and no task identity
+at all. So without something else, task context could never be delivered: there
+is nothing to name the task, and AtMem must never guess one.
+
+The something else is a **binding**: an operator says once that this
+conversation is that task, and AtMem records it. Later turns *look it up*.
+Resolving a recorded authorization is not inference, discovery, or selection
+among open tasks — the distinction that matters is that a human decided, not
+that a lookup happened.
+
+```bash
+atmem task bind memories.db migrate \
+  --subject user-1 --agent agent-1 --workspace ws-1 \
+  --actor you@example.com --reason "drive the migration from this chat" \
+  --host-type openclaw --session-key CONVERSATION --session-epoch GENERATION --yes
+```
+
+Inside OpenClaw the owner can use `task_binding_status` to see what the current
+conversation is bound to, without handling an opaque session key.
+
+**How identity resolves.** In one fixed, total order:
+
+1. An explicit task id the host supplied.
+2. An active binding for this exact conversation.
+3. Withhold.
+
+Nothing else. When the first two disagree, AtMem withholds under
+`task_binding_conflict` rather than picking: preferring the explicit id would
+silently mask a misconfigured binding, and preferring the binding would let
+stale operator state override a host that knows better. Only withholding
+surfaces the contradiction to someone who can fix it.
+
+**The binding key** is
+`(subject, agent, workspace, host_type, session_key, session_epoch)`. `task_id`
+is the target and deliberately *outside* the key. Two consequences follow:
+several conversations may drive one task, and repointing a conversation cannot
+be written as an update — it is a revoke and a register, each carrying its own
+authority, reason, and evidence.
+
+**Conversation resets.** `session_epoch` is the host's session generation.
+OpenClaw rotates `sessionId` when a conversation is reset, so a recycled
+session key does not match any active row and resolution withholds under
+`task_binding_stale_session` until an operator re-confirms. A profile may also
+declare `binding_lifetime_ms` as supplemental expiry, but that is a backstop and
+never a substitute: a lifetime cannot detect a reset that happens inside it, and
+the reset that matters most is the one a minute after binding. A host that can
+supply neither a generation nor a reliable session start is reported as unable
+to bind at all rather than bound unsafely.
+
+**Every identity field is optional upstream.** OpenClaw declares `sessionId`,
+`sessionKey`, and `senderIsOwner` as optional on the contexts that carry them.
+So absence is ordinary, and everything fails closed: a partial identity is
+refused rather than resolved on what survived, and an absent owner signal is
+treated as *not* the owner. Absence is never permission.
+
+## Reporting progress from a host
+
+Delivery alone would hand an agent a checklist it could not tick. Two entry
+points exist, and deliberately no third.
+
+**Observation.** The adapter submits one bounded, authenticated workflow step —
+what it saw, never a delta. AtMem authorizes it, routes it through the AtBot
+companion path for interpretation, and revalidates the returned delta against
+the current head before commit. With AtBot unavailable the observation records a
+deterministic `no_change`; it never invents progress.
+
+**Explicit typed delta.** The model calls a tool the host registered — in
+OpenClaw, `task_report_progress` — stating an item and its new status. There is
+no interpretation step, so there is no interpreter to trust. A control-plane
+operation the model cannot see is not this path: an unregistered tool is
+invisible and is never claimed in the capability response.
+
+The adapter itself never synthesizes a delta. A deterministic tool-result
+mapping table in the bridge was the third option and is rejected: it would put
+execution semantics where no profile could govern it and no version could pin
+it, and it would drift per host.
+
+**A conversation may only write to its own task.** Every host submission
+resolves through its own session, and the submitted `task_id` must equal what
+that session resolves to. Scope is not enough — one authorized scope routinely
+holds several tasks, so a submission naming a sibling would otherwise pass every
+scope and capability check. The refusal is non-disclosing: naming a task at
+random reads the same whether it exists elsewhere or not, so guessing names is
+not an existence oracle.
+
+**Capability ceiling.** A host agent may propose and may request a lifecycle
+change. It may not correct state, skip required work, cancel, delete, override
+policy, register a profile, or bind a session. Those refusals happen on
+capability grounds *before* delta content is evaluated, so a malformed
+privileged request and a well-formed one produce the same answer. Cancellation
+is absent from the host lifecycle contract entirely rather than checked later.
+
+**Disabled is not shadow.** A disabled scope refuses immediately, before
+identity resolution or content evaluation, disclosing nothing. A shadow scope
+evaluates fully and records the decision it would have made, committing
+nothing — which is what makes shadow a rehearsal rather than a silent no-op.
+
+**Idempotency** is derived from stable host identifiers such as a run id and a
+tool-call id, never from payload content, a clock, or randomness. A retried
+hook, a duplicated tool result, and a replayed turn collapse to one decision.
 
 ## Fallback
 
@@ -360,3 +475,12 @@ that no pre-existing column changed shape.
   timing claim.
 - Task progress is not durable personal memory. A fact worth keeping must go
   through the ordinary memory proposal and admission path.
+- Whether a host actually populates `sessionId`, `sessionKey`, or its owner
+  signal at runtime is not proven by any test, and cannot be from outside the
+  host. The declared surface is pinned per version, and everything fails closed
+  on absence. That gap is the reason for the fail-closed rules, not an oversight
+  in them.
+- A withholding where no task resolved is not recorded as a delivery: deliveries
+  are keyed to a task, and there is none. Inventing a placeholder would put a
+  task id in the evidence that never existed. Those turns show up as the absence
+  of a delivery, and as an unbound-conversation count in health.

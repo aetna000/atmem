@@ -2,8 +2,8 @@
 
 Updated: 5 September 2026
 
-Repository metadata is **2.2.6b5** and the matched OpenClaw bridge is
-**2.2.6-beta.3**. This repository state is the release candidate; package and
+Repository metadata is **2.2.6b6** and the matched OpenClaw bridge is
+**2.2.6-beta.4**. This repository state is the release candidate; package and
 tag availability must be checked independently until the release workflow has
 published them. Native AtMem authority remains the default after installation
 or upgrade. The required `atmem-atbot==0.1.0a6` companion is packaged
@@ -90,7 +90,7 @@ The release has four runtime boundaries:
 ## Upgrade and support status
 
 - The release workflow creates persisted data with public AtMem 2.1.0, 2.2.3,
-  2.2.4, and 2.2.5, upgrades each environment to 2.2.6b5, and verifies record identity, recall, audit
+  2.2.4, and 2.2.5, upgrades each environment to 2.2.6b6, and verifies record identity, recall, audit
   integrity, control migration identity, candidate retention, schema migration,
   and automatic vector-sidecar creation as a protected publication gate.
 - Existing OpenClaw installations upgrade the bridge with

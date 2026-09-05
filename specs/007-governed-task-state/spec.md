@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/007-governed-task-state`  
 **Created**: 2026-09-04  
-**Status**: Implemented
+**Status**: Implemented (core) · Amendment A (Host-Driven Task Binding and Proposal) proposed
 **Input**: Add a governed, continually maintained execution state that gives
 agents a structured checklist of goals, phases, actionable data units, current
 status, constraints, dependencies, and verified progress without weakening
@@ -264,6 +264,9 @@ capability, not merely an actor-supplied string.
 | Auditor/observer | Authorized redacted view | No | No | No | No | No | No | No |
 | Delegated context provider | No task access by default | No | No | No | No | No | No | No |
 
+Amendment A extends this matrix with session-binding and host-boundary
+proposal capabilities; see that amendment for the added columns.
+
 AtMem is the only row permitted to commit canonical state. Administrative
 profile registration, correction, skipping required work, cancellation,
 deletion, and any policy override require an authenticated operator permission
@@ -386,7 +389,9 @@ once to `accepted`, `rejected`, `conflict`, or `no_change`.
   envelope from the currently authorized revision and deliver it exactly once
   as governed data, separate from standing system instructions and long-term
   recalled memory. AtMem MUST NOT infer an active task from scope or choose
-  among open tasks. A missing task ID MUST withhold task state with
+  among open tasks; resolving an operator-registered session-to-task binding
+  (FR-042, FR-043) is a lookup of a recorded authorization, not inference or
+  selection. A missing task ID MUST withhold task state with
   `task_context_selection_required`; an unknown, terminal, cross-scope, or
   otherwise ineligible task ID MUST withhold it with the non-disclosing reason
   `task_context_not_eligible`, and neither outcome may create exposure evidence.
@@ -546,6 +551,7 @@ once to `accepted`, `rejected`, `conflict`, or `no_change`.
   model boundary with preparation, digest, revision, and exposure binding.
 - **Guard signal**: Explainable warning or denial such as no-progress,
   dependency-unsatisfied, out-of-scope, or completion-not-allowed.
+- **Session-task binding** and **Host task proposal**: defined in Amendment A.
 
 ## Failure and Edge Cases
 
@@ -674,3 +680,486 @@ once to `accepted`, `rejected`, `conflict`, or `no_change`.
   as independent proof unless a registered verifier supplies stronger evidence.
 - Task state is bounded and current-task oriented; durable facts discovered
   during a task require the ordinary memory proposal and admission path.
+
+---
+
+# Amendment A — Host-Driven Task Binding and Proposal
+
+**Created**: 2026-09-05
+**Status**: Proposed
+**Amends**: FR-015, Governance Matrix, Key Entities, Failure and Edge Cases
+**Adds**: User Story 6, FR-042–FR-054, SC-019–SC-031
+**Revision 6** (2026-09-05): T058 established that every host-supplied identity
+field — `sessionId`, `sessionKey`, `senderIsOwner` — is declared *optional* on
+the contexts carrying it. FR-050 and FR-052 now state the resulting fail-closed
+obligation explicitly: absent identity withholds and never resolves on partial
+fields; an absent owner signal is a non-owner.
+
+**Revision 5** (2026-09-05): resolves fourth-review findings I1, U1, C1. Host
+proposal availability joins the adapter-keyed capability data; FR-051 requires
+complete session identity in every host request contract and states why
+addressing claims are permitted where authority claims are not.
+
+**Revision 4** (2026-09-05): resolves third-review findings A1–A5. FR-054 binds
+every host submission to its own session, closing a same-scope cross-task gap
+that scope and role ceilings did not cover; FR-048 makes host-varying capability
+data adapter-keyed.
+
+**Revision 3** (2026-09-05): resolves second-review findings C1 (critical), I1,
+C2, I2, C3, U1, R1, I3, T1. FR-053 makes exposure evidence truthful when a task
+turns terminal mid-call; FR-052 now requires a positive host reset signal and
+demotes the lifetime to supplemental; FR-049 path (b) must name a registered
+model tool. Phase 12 is renumbered into execution order.
+
+**Revision 2** (2026-09-05): resolves first-review findings I1, U1, C1, S1, C2,
+U2, A1, T1, R1. FR-046 separates disabled from shadow; FR-049 fixes where deltas are
+produced; FR-050 adds the in-host operator surface; FR-051 adds versioned host
+contracts with derived actor role; FR-052 handles session recycling; FR-042
+spells out the binding key.
+
+## Motivation
+
+The core feature is implemented and its authority contracts hold. Two gaps
+prevent any of it from being reachable from OpenClaw, the primary supported
+host.
+
+**Gap 1 — the delivery branch never executes.** `integrations/openclaw/index.ts`
+prepares task context only when `ctx.taskId` is present, and
+`integrations/openclaw/src/types.ts` documents that field as *"Exact governed
+task selected by the host. Never inferred by AtMem."* The host does not supply
+it: OpenClaw's `PluginHookMessageContext` carries `channelId`, `accountId`,
+`conversationId`, `sessionKey`, `runId`, `messageId`, `senderId`, reply and
+trace correlation fields, and `callDepth` — and no task identity. OpenClaw's
+own `taskId` belongs to detached task runs and terminal sessions and is not
+plumbed to plugin hooks. The branch is therefore exercised only by
+`integrations/openclaw/test/hooks.mjs`, which constructs the context by hand.
+Observed consequence: `context prepared/exposed/withheld` reads `0/0/0` and
+`governed_task_enforcing_adapters` is empty on a live install.
+
+**Gap 2 — no host write path.** The Governance Matrix already grants the host
+agent row *"Propose delta: Yes"* and *"Change lifecycle: Requests only"*, and
+FR-007 already contemplates proposals from a host adapter. No such surface was
+built. The MCP server exposes exactly two task tools —
+`control_prepare_task_context` and `control_task_exposure_shown` — both
+read-and-deliver. Write paths exist for the CLI (`atmem task correct`,
+`complete`, `cancel`, …) and for the dashboard
+(`ControlPlaneManager.change_task_lifecycle`, which commits pause, resume,
+complete, and cancel under `ActorRole.OPERATOR` with its own stale-revision
+conflict result). The adapter boundary has neither.
+
+Gap 2 is therefore an unimplemented row of the existing matrix, not a widening
+of authority. This amendment does not grant the host any capability the core
+specification withheld; it builds the surface the matrix already permits and
+constrains it to that row.
+
+## Design Position
+
+AtMem must still never choose a task. Amendment A closes Gap 1 with an
+**operator-registered binding**, not a heuristic: a session key maps to a task
+because an authenticated operator said so, and AtMem performs a lookup of that
+recorded fact. Resolving a registered binding is not inference, is not
+discovery, and is not selection among open tasks. Where no binding exists,
+behavior is unchanged — task state is withheld.
+
+## User Scenarios and Acceptance
+
+### User Story 6 — Drive a governed task from the host (P1)
+
+As an operator running an agent inside OpenClaw, I can bind a conversation to
+an exact governed task once, and from then on the agent receives that task's
+current state and can report progress against it, without my leaving the host
+to run CLI commands and without the agent gaining authority to commit state.
+
+**Why this priority**: Without it the feature is unreachable from the primary
+supported host. Delivery cannot fire and the agent cannot report progress, so
+no host-side value of Governed Task State is realizable at all.
+
+**Independent test**: Register a binding from one session key to one open task,
+run a turn through the OpenClaw bridge with no `ctx.taskId`, and verify the
+exact task-state envelope is delivered once and exposure is confirmed. Submit a
+host-proposed item-status delta with a valid expected revision and verify it
+advances the head exactly once. Submit the same delta again, a delta against a
+stale revision, a delta that skips a required item, and a delta for a task
+bound to a different session, and verify each is refused with its stable reason
+code and leaves the head unchanged. Revoke the binding and verify the next turn
+withholds task state.
+
+**Acceptance scenarios**:
+
+1. Given an authenticated operator and an eligible open task, when a binding is
+   registered for an exact scope and session key, then AtMem records it with
+   evidence, and at most one active binding exists for that scope and session
+   key.
+2. Given a registered binding and a turn that supplies no host task identity,
+   when task context is prepared, then AtMem resolves the binding, revalidates
+   scope, eligibility, and revision, and delivers the exact current envelope
+   once under the existing delivery rules.
+3. Given a turn that supplies an explicit host task identity, when a binding
+   also exists and names the same task, then the explicit identity is used and
+   the outcome is identical; when they name different tasks, then AtMem
+   withholds task state with `task_binding_conflict` and creates no exposure.
+4. Given no binding and no host task identity, when task context is prepared,
+   then AtMem withholds with the existing `task_context_selection_required` and
+   discloses nothing about whether any task exists.
+5. Given a binding whose task became terminal, cross-scope, or unknown, when
+   task context is prepared, then AtMem withholds with the existing
+   non-disclosing `task_context_not_eligible` and the binding is marked
+   unresolvable rather than silently retargeted.
+6. Given an authenticated host agent, when it proposes a typed bounded delta
+   naming its task, expected base revision, idempotency key, and evidence, then
+   AtMem validates it through the same policy path as every other proposal and
+   returns `accepted`, `rejected`, `conflict`, or `no_change`.
+7. Given a host-proposed delta that attempts an operator-only action —
+   correcting provenance, skipping a required item, cancelling, deleting,
+   overriding policy, registering a profile, or binding a session — when
+   submitted, then AtMem refuses it on capability grounds before evaluating its
+   content and leaves the head unchanged.
+8. Given a host agent requesting task completion, when required items,
+   constraints, dependencies, or gates remain unsatisfied, then AtMem returns
+   the existing completion-not-allowed decision with blocking item IDs and
+   commits nothing.
+9. Given shadow mode, when a host proposes a delta, then AtMem evaluates and
+   records the decision but commits no revision and delivers no context. Given a
+   disabled scope, the same submission is refused immediately before identity
+   resolution or content evaluation.
+10. Given a conversation owner inside the host, when they issue the in-host bind
+    command naming an eligible task, then AtMem registers the binding for their
+    current conversation with full evidence, without the operator seeing or
+    supplying a session key; a non-owner issuing the same command is refused
+    without learning whether a binding exists.
+11. Given a bound conversation that is reset or whose session key is recycled,
+    when the next turn prepares context, then AtMem withholds with
+    `task_binding_stale_session` and delivers zero bytes until an operator
+    explicitly re-confirms; the earlier task is never inherited.
+12. Given a host observation of one tool outcome, when AtBot is available, then
+    AtMem authorizes the observation, obtains a candidate delta through the
+    companion path, revalidates it against the current head, and commits or
+    refuses it; when AtBot is unavailable, the same observation records a
+    deterministic `no_change` and never fabricates progress.
+13. Given a host submission carrying an actor-role, capability, or authority
+    field, when received, then AtMem rejects it as malformed rather than
+    honoring or silently ignoring the field.
+14. Given a bound task that expires after its context was prepared and reached
+    the model boundary, when exposure is confirmed, then AtMem records the
+    exposure truthfully and records the expiry as a separate later event linked
+    to that delivery; the next call re-resolves identity and withholds.
+15. Given a host that cannot supply a session generation or a reliable session
+    start, when binding is attempted, then the capability response reports
+    session binding unavailable and no binding is created under a lifetime
+    alone.
+16. Given two open tasks in one authorized scope, each bound to a different
+    session, when a host submission from the first session names the second
+    session's task, then AtMem refuses it before content evaluation with a
+    non-disclosing reason and leaves both heads unchanged — scope and role
+    checks alone do not separate them.
+
+## Adjustments to the Core Specification
+
+**FR-015 is amended.** The sentence *"AtMem MUST NOT infer an active task from
+scope or choose among open tasks"* stands unchanged in force. It is clarified
+to read that AtMem MUST NOT infer or select a task, and that resolving an
+operator-registered session-to-task binding is a lookup of a recorded
+authorization rather than inference or selection. The withholding reasons and
+their non-disclosure properties are unchanged.
+
+**The Governance Matrix is amended** by the following capability, which no
+existing column expresses:
+
+| Actor or component | Bind session to task | Propose delta from host boundary |
+| --- | --- | --- |
+| AtMem authority | Validates and stores | Validates, decides, commits |
+| Scoped AtMem policy evaluator | No | No |
+| AtBot intelligence | No | No (unchanged: proposes through the companion route) |
+| Host agent/framework | No | Yes, bounded, within its own authorized task |
+| Authenticated operator | Requests with permission | Yes |
+| Registered independent verifier | No | Attestation only |
+| Auditor/observer | No | No |
+| Delegated context provider | No | No |
+
+Binding and unbinding are privileged operator operations subject to the same
+preview, expected-scope, reason, source, evidence, and `--yes` requirements as
+every other privileged mutation. A host agent may consume a binding and may
+never create, retarget, or revoke one.
+
+**Key Entities gains**:
+
+- **Session-task binding**: An operator-registered, evidence-backed mapping from
+  an exact scope and host session key to one task ID, with registration actor,
+  reason, time, and revocation state. At most one is active per scope and
+  session key.
+- **Host task proposal**: A typed bounded delta submitted at the adapter
+  boundary under the host-agent capability ceiling, carrying task ID, expected
+  base revision, idempotency key, affected items, and evidence references.
+
+**Failure and Edge Cases gains**. Each case states its required outcome; none
+may be left to implementation judgement:
+
+- **Several sessions bound to one task**: permitted. Bindings are many-to-one;
+  uniqueness is per binding key, never per task. Each bound session resolves to
+  the same task and each turn is independently scope-revalidated.
+- **Retargeting an already-bound session**: refused as an update. Changing a
+  session's target MUST be an explicit revoke followed by an explicit register,
+  each carrying its own authority, reason, source, and evidence. No operation
+  may silently repoint an active binding.
+- **The bound task expires between context preparation and exposure**: governed
+  by FR-053. Evidence records what happened, not what policy would have
+  preferred. If the bytes reached the model boundary, exposure is confirmed
+  truthfully and the expiry is recorded as a separate later event; if they did
+  not, preparation is recorded without exposure. Either way the binding becomes
+  unresolvable and every subsequent call withholds. A binding never extends a
+  terminal task's reachability, but it also never rewrites the history of a call
+  that already happened.
+- **A recycled or reset session key in the same scope**: MUST NOT inherit the
+  earlier binding. Resolution MUST withhold with `task_binding_stale_session`
+  and require explicit re-confirmation (FR-052). Exact scope alone does not
+  distinguish conversations and MUST NOT be relied on for this case.
+- **A host proposes against a bound task whose scope no longer authorizes that
+  agent**: refused on scope grounds before content evaluation, with the head
+  unchanged and no disclosure of the task's existence.
+- **A host proposes against a task in its own scope but bound to another
+  session**: refused under FR-054 before content evaluation. This is a distinct
+  case from the one above and is not caught by scope or capability checks.
+- **The host supplies a task identity that disagrees with a live binding**:
+  withheld under `task_binding_conflict` (FR-043); neither source wins.
+- **A submission arrives while the scope is disabled or in shadow mode**:
+  governed by FR-046 — immediate refusal when disabled, evaluated without
+  commit when shadow.
+
+## Functional Requirements
+
+- **FR-042**: AtMem MUST support an operator-registered session-to-task binding
+  whose unique key is exactly
+  `(subject_id, agent_id, workspace_id, host_type, session_key, session_epoch)`
+  — the three `AuthorityScope` fields, the host namespace, the host session key,
+  and the session generation defined in FR-052. `task_id` is the binding's
+  target and MUST NOT be part of the uniqueness key. At most one binding MUST be
+  active per key; bindings are many-to-one, so several keys MAY target one task.
+  Registration and revocation MUST be privileged operator operations requiring
+  authenticated capability, reason, source, and tamper-evident evidence, and
+  MUST append history rather than overwrite prior bindings.
+- **FR-043**: Task identity for delivery MUST resolve in a fixed order: an
+  explicit host-supplied task ID, then an active registered binding, then
+  withholding. AtMem MUST NOT infer, discover, or select a task at any step. An
+  explicit identity that disagrees with an active binding MUST withhold task
+  state with stable reason `task_binding_conflict` and create no exposure
+  evidence. Absence of both MUST withhold with the existing
+  `task_context_selection_required`; a binding resolving to an unknown,
+  terminal, or cross-scope task MUST withhold with the existing non-disclosing
+  `task_context_not_eligible`.
+- **FR-044**: AtMem MUST expose a host-boundary proposal operation that accepts
+  a typed bounded delta with task ID, expected base revision, idempotency key,
+  affected items, actor and adapter identity, and evidence references, and MUST
+  evaluate it through the identical policy, concurrency, replay, evidence, and
+  assurance path used for every other proposal, returning `accepted`,
+  `rejected`, `conflict`, or `no_change`.
+- **FR-045**: Host-boundary proposals MUST be evaluated under the host-agent
+  capability ceiling. Operator-only actions — correction, required-item
+  skipping, cancellation, deletion, policy override, profile registration, and
+  session binding — MUST be refused on capability grounds before delta content
+  is evaluated, with a stable reason code and no state change. A host MAY
+  request a lifecycle change; the request MUST be decided by existing lifecycle
+  and completion gates and MUST NOT bypass them.
+- **FR-046**: Disabled and shadow scopes MUST behave differently and MUST NOT
+  be conflated. Where governed task state is disabled for the scope, a
+  host-boundary observation, proposal, or lifecycle request MUST be refused
+  immediately with the existing disabled reason, before task identity is
+  resolved or delta content is evaluated, recording only the minimal evidence
+  that a refused attempt occurred and disclosing nothing about whether any task
+  exists. In shadow mode, the same submission MUST be fully evaluated and
+  recorded as a decision with reason codes, MUST NOT commit a revision, and
+  MUST NOT deliver context or influence execution; shadow is the rehearsal path
+  for this boundary and must produce the same decision it would produce when
+  active.
+- **FR-047**: The OpenClaw bridge MUST resolve task identity through FR-043,
+  carry host proposals and lifecycle requests through FR-044–FR-046, preserve
+  existing memory-only behavior when no identity resolves, and continue to
+  claim no capability to block OpenClaw execution. Bridge behavior MUST remain
+  backward compatible for installations with no bindings.
+- **FR-048**: A single runtime capability response MUST remain authoritative for
+  the new boundaries, advertising session-binding availability, host-proposal
+  availability, and agent-tool availability alongside the existing delivery,
+  guard-detection, and guard-enforcement flags. Availability that varies by host
+  MUST be expressed as adapter-keyed data, not a single global boolean: session
+  binding depends on whether a given adapter supplies a reset signal, host
+  proposal depends on whether a given adapter can submit authenticated
+  session-bound requests at all, and the agent-facing delta tool depends on
+  whether a given adapter registers it. All three vary by host, so one flag
+  cannot truthfully describe two adapters at once. These MUST follow
+  the existing adapter-keyed pattern already used for guard enforcement. Where a
+  global flag is retained it MUST mean only that the capability exists in the
+  runtime, and adapter responses MUST derive their own availability from the
+  adapter-keyed data rather than from that flag. Schemas, adapter responses, tests, and documentation
+  MUST mirror that response and MUST NOT act as independent authorities.
+- **FR-049**: AtMem MUST define exactly where a typed delta is produced from a
+  raw host observation; no component may be left to infer it. A host adapter
+  MUST NOT synthesize deltas from tool output. Two entry points exist and no
+  third is permitted:
+  (a) an **observation** submission carrying one bounded, authenticated,
+  task-bound workflow step, which AtMem authorizes and routes through the
+  existing AtBot companion path to obtain a candidate delta that AtMem then
+  revalidates against the current head before commit; and
+  (b) an **explicit typed delta** submitted by the agent through a tool the
+  host registers with the model, already in delta form, carrying no
+  interpretation step. A control-plane operation is not automatically visible
+  to a model: path (b) MUST name and register an actual host model tool, define
+  the result the model receives for each decision outcome, and be tested at the
+  tool boundary, or it MUST NOT be claimed as available.
+  Where AtBot is unavailable, path (a) MUST record a deterministic `no_change`
+  rather than fabricating progress, per FR-019. Observation payloads MUST be
+  minimized to the fields the profile declares relevant, MUST remain untrusted
+  data under FR-038, and MUST NOT carry raw prompts, full tool results, secrets,
+  or chain-of-thought. Idempotency keys MUST be derived deterministically from
+  the observed step's stable host identifiers — never from payload content,
+  wall-clock time, or a random value — so a retried hook, a duplicated tool
+  result, and a replayed turn collapse to one decision.
+- **FR-050**: An operator MUST be able to bind, unbind, and inspect the binding
+  for the conversation they are in, from inside the host, without obtaining or
+  handling an opaque session key. The host surface MUST be authorized as the
+  conversation owner by the host's own owner signal, MUST carry the same
+  authority, reason, source, evidence, and confirmation requirements as the CLI
+  and dashboard paths, and MUST NOT disclose the session key, the existence of
+  other sessions' bindings, or any task outside the caller's authorized scope.
+  A caller whose owner signal is absent, unset, or anything other than an
+  explicit affirmative MUST be treated as a non-owner: the signal is optional on
+  every host context that carries it, so absence is never permission. A
+  non-owner caller MUST be refused without disclosing whether a binding
+  exists. This surface grants no capability beyond the operator row of the
+  Governance Matrix. It MUST supply the host's session identity and current
+  generation on registration, and every later context lookup MUST present the
+  same generation, so binding and resolution cannot disagree about which
+  conversation they refer to.
+- **FR-051**: Host-boundary submissions MUST use versioned public contracts
+  distinct from the internal proposal type: a host task proposal request, a host
+  observation request, and a host lifecycle request, each with a closed schema,
+  stable reason codes, and explicit adapter and host identity. Every one of the
+  three MUST carry the session identity FR-054 resolves — `host_type`,
+  `session_key`, and `session_epoch` — as required fields, or MUST obtain them
+  from an authenticated transport envelope that supplies all three; a schema
+  that admits a submission without complete session identity MUST be treated as
+  malformed. Session identity is an **addressing** claim that AtMem resolves and
+  checks, not an authority claim, and is therefore permitted where an
+  actor-role, capability, or authority field is not: the host states which
+  conversation it is, and AtMem decides what that conversation may do. Actor role MUST
+  be derived from the authenticated transport and registered adapter identity
+  and MUST NEVER be read from a caller-supplied field; a submission that carries
+  an actor-role, capability, or authority field MUST be rejected as malformed
+  rather than honored or silently ignored.
+- **FR-052**: A binding MUST NOT survive a conversation reset, and reset
+  detection MUST be positive rather than inferred from elapsed time. Session
+  binding requires a host reset signal: an opaque `session_epoch` that the host
+  changes when a conversation is reset, replaced, or newly started. AtMem MUST
+  bind that generation at registration and include it in the binding key.
+  Resolution MUST withhold with stable reason `task_binding_stale_session` when
+  the presented generation differs from the bound generation or when the host
+  reports a session start later than the binding's registration. Because hosts
+  declare these values as optional, a turn that presents no generation or no
+  session key MUST withhold rather than resolve on the remaining fields, and a
+  binding MUST NOT be registered from a call that cannot supply both; absence is
+  never treated as a match. Recovery MUST
+  require explicit operator re-confirmation and MUST NOT be automatic. A
+  profile-declared binding lifetime is **supplemental expiry protection only**
+  and MUST NOT be offered as a substitute for a reset signal: a lifetime cannot
+  detect a reset that occurs within it, so a host that cannot supply a
+  generation or a reliable session start MUST have session binding reported
+  unavailable in the capability response, and MUST NOT be bound under a
+  lifetime alone.
+- **FR-053**: Exposure evidence MUST record what actually happened at the model
+  boundary. Preparation authorizes exactly one model call. Where the adapter can
+  prove the prepared bytes reached that boundary, AtMem MUST confirm exposure
+  truthfully even when the task became terminal, ineligible, or unbound between
+  preparation and confirmation; the subsequent terminal or ineligible outcome
+  MUST be recorded as its own later event linked to that delivery. Where the
+  bytes demonstrably did not reach the boundary, or the adapter cannot prove
+  delivery, AtMem MUST record preparation without exposure and MUST NOT claim
+  exposure. AtMem MUST NOT suppress, discard, or rewrite evidence of a delivery
+  that already occurred in order to make history consistent with current policy.
+  Every call after the authorizing one MUST re-resolve identity and withhold.
+
+- **FR-054**: Every host-boundary observation, proposal, and lifecycle request
+  MUST be bound to the session that submits it. AtMem MUST resolve
+  `(host_type, session_key, session_epoch)` through FR-043 and MUST require the
+  submitted `task_id` to equal the resolved task. A mismatch MUST be refused
+  before delta content is evaluated, with a stable non-disclosing reason that
+  reveals nothing about whether the named task exists, and MUST leave the head
+  unchanged. Scope and capability checks are insufficient on their own: one
+  authorized scope may hold several concurrent tasks, so a submission naming a
+  task bound to a different session would otherwise pass both. Where FR-043
+  resolves nothing, the submission MUST be refused rather than falling back to
+  the submitted identifier.
+## Success Criteria
+
+- **SC-019**: In deterministic fixtures, every combination of {explicit
+  identity, active binding, both agreeing, both disagreeing, neither} produces
+  the specified disposition and reason code; disagreement and absence deliver
+  zero task-state bytes, and no case selects a task AtMem was not told to use.
+- **SC-020**: Across at least 1,000 concurrent or replayed host-boundary
+  proposals, each base revision has at most one accepted successor and repeated
+  idempotency keys create no duplicate revision, matching SC-002 exactly.
+- **SC-021**: A conformance matrix proves every operator-only action is refused
+  at the host boundary on capability grounds with the head unchanged, and that
+  the host capability ceiling cannot be widened by actor label, adapter
+  identity, binding ownership, or evidence content.
+- **SC-022**: An end-to-end OpenClaw test binds a session, delivers exact task
+  context on a turn carrying no host task identity, confirms exposure exactly
+  once, advances the task by host proposal, is denied premature completion,
+  and withholds after revocation — with `prepared`, `exposed`, and `withheld`
+  counters matching the expected sequence.
+- **SC-023**: Runtime capability fixtures report session-binding, host-proposal,
+  and agent-tool availability truthfully per adapter, including a mixed fixture
+  in which one adapter supplies a reset signal and another does not, and each
+  adapter response derives its own availability from the adapter-keyed data.
+  Guard enforcement remains reported as unavailable until an adapter proves it.
+- **SC-024**: Observation fixtures produce the specified decision with AtBot
+  available and, with AtBot and the network disabled, a deterministic
+  `no_change` in every case — never invented progress. Derived idempotency keys
+  collapse retried hooks, duplicated tool results, and replayed turns to exactly
+  one decision, and no observation payload contains a raw prompt, full tool
+  result, secret, or chain-of-thought.
+- **SC-025**: For every reset path a supported host can produce — changed
+  session epoch, host-reported session start after registration, and elapsed
+  binding lifetime — a recycled session key within the same scope delivers zero
+  task-state bytes under `task_binding_stale_session`, and no fixture inherits
+  an earlier task. Hosts able to supply neither a generation nor a session start
+  report session binding unavailable rather than resolving.
+- **SC-026**: The in-host binding surface registers, revokes, and reports a
+  binding for the caller's own conversation without exposing a session key;
+  every non-owner call is refused with no disclosure of binding existence, and
+  no call reaches a capability outside the operator row of the Governance
+  Matrix.
+- **SC-027**: Host-boundary contract fixtures validate against their published
+  versioned schemas; every submission carrying a caller-supplied actor-role,
+  capability, or authority field is rejected as malformed, and actor role is
+  proven to derive only from authenticated transport and registered adapter
+  identity. Every submission missing, emptying, or malforming any of
+  `host_type`, `session_key`, or `session_epoch` is likewise rejected as
+  malformed rather than resolved with a partial identity.
+- **SC-028**: Delivery-race fixtures prove exposure evidence is truthful in both
+  directions: where prepared bytes reached the boundary before the task became
+  terminal, exposure is confirmed and the terminal outcome appears as a separate
+  later linked event; where they did not, preparation is recorded with no
+  exposure claim. No fixture produces evidence that a delivery did not occur
+  when it did, and every subsequent call withholds.
+- **SC-029**: Every supported host either supplies a reset signal that rotates
+  `session_epoch` across its reset, session-start, and subsequent-prompt paths,
+  or reports session binding unavailable. No fixture binds a session under a
+  lifetime alone, and a reset occurring inside a declared lifetime still
+  withholds.
+- **SC-030**: The agent-facing typed-delta tool is registered with the host,
+  visible to the model, and returns a defined result for `accepted`, `rejected`,
+  `conflict`, and `no_change`; tool-boundary tests cover each outcome.
+
+- **SC-031**: For every host-boundary operation, a submission naming a task
+  bound to a different session in the same authorized scope is refused before
+  content evaluation with a non-disclosing reason and both heads unchanged; a
+  submission whose session resolves to nothing is refused rather than trusted.
+## Out of Scope for this Amendment
+
+- Automatic or heuristic session-to-task binding, including binding by
+  conversation title, recency, sole-open-task, or model suggestion.
+- Granting the host agent any capability beyond its existing Governance Matrix
+  row.
+- Guard enforcement at the OpenClaw execution boundary. Detection remains
+  detection; the bridge continues to make no blocking claim.
+- Changing OpenClaw itself. This amendment is implementable entirely within
+  AtMem and its bridge. If OpenClaw later adds task identity to its plugin hook
+  context, FR-043's first resolution step consumes it with no further change.

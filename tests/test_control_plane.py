@@ -299,10 +299,25 @@ def test_private_mcp_exposes_no_approval_or_mode_change_tools(
         "control_exposure_shown",
         "control_prepare_task_context",
         "control_task_exposure_shown",
+        # Amendment A's host-boundary write path. An agent that receives a
+        # checklist it cannot tick is worse than useless, so these belong on
+        # the agent surface -- but they propose and request only. AtMem
+        # decides, and operator-only actions are refused on capability grounds
+        # before any content is looked at.
+        "control_observe_task_step",
+        "control_propose_task_delta",
+        "control_request_task_lifecycle",
         "control_record_blackbox_event",
         "control_status",
     }
     assert not any("approve" in name or "mode" in name for name in names)
+    # Nothing on this surface commits on the caller's say-so: the agent may
+    # report and request, never correct, cancel, override, or delete.
+    assert not any(
+        forbidden in name
+        for name in names
+        for forbidden in ("correct", "cancel", "override", "delete", "forget")
+    )
 
 
 def test_private_mcp_refreshes_openclaw_native_memory_without_chat_capture(
@@ -615,7 +630,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         }
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.2.6-beta.3"
+        assert product["atmem_npm_version"] == "2.2.6-beta.4"
         assert product["x_url"] == "https://x.com/AtMemX"
         profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
         assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])

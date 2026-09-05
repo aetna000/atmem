@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/host-task-lifecycle-request.json",
+  "title": "AtMem host task lifecycle request",
+  "description": "A host request to change a task's lifecycle. It is a request, never a command: existing lifecycle and completion gates decide it and are never bypassed. Cancellation is absent by design -- it is operator-only under the Governance Matrix. Carries no actor_role, capability or authority field by construction. Actor role is derived from the authenticated transport and the registered adapter identity; a submission carrying one is malformed rather than honoured or silently ignored.",
+  "type": "object",
+  "required": [
+    "format",
+    "identity",
+    "task_id",
+    "action",
+    "expected_revision",
+    "idempotency_key",
+    "adapter"
+  ],
+  "properties": {
+    "format": {
+      "const": "atmem-host-task-lifecycle-request-v1"
+    },
+    "identity": {
+      "$ref": "#/$defs/identity"
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$",
+      "description": "Checked against the task the session resolves to; a redundant assertion, never the authority."
+    },
+    "action": {
+      "enum": [
+        "pause",
+        "resume",
+        "complete"
+      ]
+    },
+    "expected_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "adapter": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "adapter_version": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 2000
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "description": "All three parts are required together. Hosts declare these fields as optional, so a partial identity is one AtMem cannot place; resolving on whatever survived would be guessing, and guessing is what the binding exists to prevent.",
+      "required": [
+        "host_type",
+        "session_key",
+        "session_epoch"
+      ],
+      "properties": {
+        "format": {
+          "const": "atmem-host-session-identity-v1"
+        },
+        "host_type": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "session_key": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "session_epoch": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

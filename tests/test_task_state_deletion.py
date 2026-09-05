@@ -47,6 +47,7 @@ TASK_TABLES = (
     "governed_task_proposals",
     "governed_task_steps",
     "governed_task_deliveries",
+    "governed_task_session_bindings",
 )
 
 
@@ -97,6 +98,17 @@ def seed(
         agent_id=scope.agent_id, workspace_id=scope.workspace_id,
         disposition="injected", prepared_at_utc=to_iso(MOMENT),
         context_sha256="sha256:" + "a" * 64,
+    )
+    # A conversation binding is a derivative too: it records that this
+    # conversation was working on this task, which is exactly the kind of trace
+    # forgetting is meant to remove.
+    from atmem.contracts.task_state import HostSessionIdentity
+    from atmem.task_state.binding import SessionBindingService
+
+    SessionBindingService(service.store, service.clock).register(
+        scope,
+        HostSessionIdentity("openclaw", f"session-{task_id}", "epoch-1"),
+        task_id=task_id, actor="operator", reason=SECRET_BLOCKER,
     )
 
 
@@ -344,3 +356,51 @@ def test_history_may_be_deleted_but_never_rewritten(
     service.forget(SCOPE, "task-1", actor="admin",
                    actor_role=ActorRole.ADMINISTRATOR)
     assert _remaining(store, "task-1")["governed_task_revisions"] == 0
+
+
+# --- Amendment A: bindings are derivatives too -------------------------------
+
+
+def test_forgetting_a_task_removes_its_conversation_bindings(store, service):
+    """A binding to a deleted task would point a conversation at nothing.
+
+    Deleted, not revoked: forgetting is meant to leave no derivative behind, and
+    a retained row still records that this conversation was once working on that
+    task -- which is exactly what forgetting is supposed to remove.
+    """
+    from atmem.contracts.task_state import HostSessionIdentity
+    from atmem.task_state.binding import SessionBindingService
+
+    task_id = "task-1"
+    seed(service, task_id)
+    scope = SCOPE
+    bindings = SessionBindingService(store, service.clock)
+    assert len(bindings.list(scope, include_revoked=True)) == 1
+
+    receipt = store.delete_task(
+        subject_id=scope.subject_id, agent_id=scope.agent_id,
+        workspace_id=scope.workspace_id, task_id=task_id,
+    )
+    assert receipt["deleted"] is True
+    assert receipt["removed"]["governed_task_session_bindings"] == 1
+    assert bindings.list(scope, include_revoked=True) == []
+
+
+def test_a_revoked_binding_is_also_removed_by_forgetting(store, service):
+    """History is evidence until the task is forgotten; then it goes too."""
+    from atmem.contracts.task_state import HostSessionIdentity
+    from atmem.task_state.binding import SessionBindingService
+
+    task_id = "task-1"
+    seed(service, task_id)
+    scope = SCOPE
+    bindings = SessionBindingService(store, service.clock)
+    binding_id = bindings.list(scope)[0]["binding_id"]
+    bindings.revoke(scope, binding_id=binding_id, actor="operator", reason="done")
+    assert len(bindings.list(scope, include_revoked=True)) == 1
+
+    store.delete_task(
+        subject_id=scope.subject_id, agent_id=scope.agent_id,
+        workspace_id=scope.workspace_id, task_id=task_id,
+    )
+    assert bindings.list(scope, include_revoked=True) == []

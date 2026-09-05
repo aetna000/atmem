@@ -9,7 +9,7 @@ import re
 import shlex
 import sqlite3
 import sys
-from typing import Any
+from typing import Any, Mapping
 import uuid
 
 from atmem.core.canonical import canonical_json, sha256_hex
@@ -92,11 +92,46 @@ def _storage_row(
     }
 
 
+def _host_session_identity(
+    host_type: str | None, session_key: str | None, session_epoch: str | None
+) -> Any:
+    """Build a complete host session identity, or None.
+
+    All three parts or nothing. Hosts declare these fields as optional, so a
+    partial identity arrives routinely; resolving on whatever survived would be
+    guessing at which conversation this is, and guessing is what the binding
+    exists to prevent (FR-052).
+    """
+    from atmem.contracts.task_state import HostSessionIdentity
+
+    if not (host_type and session_key and session_epoch):
+        return None
+    try:
+        return HostSessionIdentity(host_type, session_key, session_epoch)
+    except ValueError:
+        return None
+
+
 def _withheld_task_context(
     scope: Any, task_id: str, context_id: str, prepared_at: str,
-    reason_codes: tuple[str, ...],
+    reason_codes: tuple[str, ...], *, store: Any = None,
+    host_run_id: str | None = None,
 ) -> dict[str, Any]:
-    """A refusal that carries no task-state bytes and creates no exposure."""
+    """A refusal that carries no task-state bytes and creates no exposure.
+
+    A withholding for a task that *did* resolve is recorded as a preparation
+    with no exposure (FR-015), so "the agent is being told nothing, and here is
+    why" stays answerable from the counters.
+
+    A withholding where no task resolved at all is not recorded: deliveries are
+    keyed to a task by foreign key, and there is no task to key it to. Inventing
+    a placeholder row would put a task id in the evidence that never existed.
+    Those turns are visible instead as the absence of any delivery, which is the
+    honest representation of "nothing was resolvable".
+
+    `delivery_id` stays absent either way, so no caller can confirm exposure for
+    bytes that were never sent.
+    """
     from atmem.task_state.context import withhold
 
     package = withhold(
@@ -104,6 +139,26 @@ def _withheld_task_context(
         context_id=context_id, reason_codes=reason_codes,
         prepared_at=prepared_at,
     )
+    if store is not None and task_id:
+        try:
+            store.insert_task_delivery(
+                task_id=task_id or "unknown",
+                revision=package.revision,
+                subject_id=scope.subject_id,
+                agent_id=scope.agent_id,
+                workspace_id=scope.workspace_id,
+                disposition=package.disposition.value,
+                prepared_at_utc=prepared_at,
+                reason_codes=list(package.reason_codes),
+                context_sha256=None,
+                cache_key=package.cache_key(),
+                preparation_id=host_run_id,
+            )
+        except Exception:  # pragma: no cover - never fail a refusal on bookkeeping
+            # A refusal must still be a refusal even if recording it fails.
+            # Losing the counter is bad; turning a withholding into an error, or
+            # worse into a delivery, would be far worse.
+            pass
     return {**package.to_dict(), "delivery_id": None}
 
 
@@ -1767,18 +1822,28 @@ class ControlPlaneManager:
         workspace_id: str | None = None,
         host_run_id: str | None = None,
         session_id: str | None = None,
+        host_type: str | None = None,
+        session_key: str | None = None,
+        session_epoch: str | None = None,
         budget_chars: int = 4_000,
     ) -> dict[str, Any]:
         """Build the task-state block for one exact task, or withhold it.
 
+        Task identity resolves in one fixed total order (FR-043): an explicit
+        host-supplied id, then an operator-registered binding for this exact
+        conversation, then withholding. AtMem never infers or selects among
+        open tasks; resolving a binding is a lookup of a recorded
+        authorization, not a choice.
+
         Every refusal path returns zero task-state bytes and records the
-        preparation without exposure. A missing task id withholds rather than
-        choosing among open tasks; an unknown, ineligible, or out-of-scope id
-        withholds with a reason that does not disclose which of those it was.
+        preparation without exposure. An unknown, ineligible, or out-of-scope
+        id withholds with a reason that does not disclose which of those it
+        was.
         """
         from atmem.contracts.task_state import ContextDisposition, TaskLifecycle
         from atmem.core.time import to_iso
         from atmem.task_state import context as task_context
+        from atmem.task_state.binding import SessionBindingService
         from atmem.task_state.enablement import ScopeEnablement
         from atmem.task_state.service import TaskStateError
 
@@ -1799,12 +1864,23 @@ class ControlPlaneManager:
                     ("task_state_disabled",)
                     if not mode.enabled
                     else ("task_state_shadow_mode",),
+                    store=memory.store, host_run_id=host_run_id,
                 )
-            if not task_id:
+            identity = _host_session_identity(host_type, session_key, session_epoch)
+            resolved = SessionBindingService(memory.store, service.clock).resolve(
+                scope, identity=identity, explicit_task_id=task_id
+            )
+            if not resolved.resolution.delivers:
+                # Includes disagreement between an explicit id and a live
+                # binding, which withholds rather than preferring either: one
+                # would mask a misconfigured binding, the other would let stale
+                # operator state override a host that knows better.
                 return _withheld_task_context(
-                    scope, "", context_id, prepared_at,
-                    ("task_context_selection_required",),
+                    scope, task_id or "", context_id, prepared_at,
+                    (resolved.reason_code or "task_context_selection_required",),
+                    store=memory.store, host_run_id=host_run_id,
                 )
+            task_id = resolved.task_id or ""
 
             try:
                 view = service.get(scope, task_id)
@@ -1812,6 +1888,7 @@ class ControlPlaneManager:
                 return _withheld_task_context(
                     scope, task_id, context_id, prepared_at,
                     ("task_context_not_eligible",),
+                    store=memory.store, host_run_id=host_run_id,
                 )
 
             reason = task_context.eligibility_reason(
@@ -1848,7 +1925,24 @@ class ControlPlaneManager:
             memory.close()
 
     def confirm_task_exposure(self, delivery_id: str) -> bool:
-        """Confirm exactly once that prepared task bytes reached the model."""
+        """Record that prepared task bytes reached the model. Truthfully (FR-053).
+
+        Preparation authorizes exactly one model call, and this records what
+        happened on that call. If the task expired, was cancelled, or was
+        unbound between preparation and this confirmation, the exposure is
+        still recorded: the bytes did reach the model, and evidence that says
+        otherwise is evidence that is wrong. The subsequent terminal outcome is
+        its own later event, linked to this delivery.
+
+        The safety property worth having is not "no exposure record" -- it is
+        "the task stops influencing later calls", and that comes from
+        re-resolving identity on every subsequent call and withholding. Nothing
+        is gained by denying a call that already happened, and the audit trail
+        is strictly worse for it.
+
+        Returns False only when the delivery is unknown or was already
+        confirmed, which is the exactly-once guarantee, not a policy judgement.
+        """
         service, memory = self._task_service()
         try:
             return bool(memory.store.mark_task_delivery_exposed(delivery_id))
@@ -1877,6 +1971,103 @@ class ControlPlaneManager:
                     "reason_code": exc.reason_code,
                     "message": str(exc),
                 }
+        finally:
+            memory.close()
+
+    # --- host-boundary write path (Amendment A) -----------------------------
+
+    def _host_boundary(self, state: Any = None) -> tuple[Any, Any, Any]:
+        from atmem.task_state.host_boundary import HostBoundary
+
+        service, memory = self._task_service(state)
+        return HostBoundary(service, memory.store), service, memory
+
+    def observe_task_step(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Admit one observed workflow step from a host adapter (FR-049).
+
+        The adapter reports what it saw and never a delta: interpretation
+        happens in the authorized companion path, and AtMem revalidates the
+        result against the current head before commit.
+        """
+        from atmem.contracts.task_state import HostTaskObservationRequest
+
+        return self._host_call(
+            HostTaskObservationRequest, payload, "observe",
+            subject_id=subject_id, agent_id=agent_id, workspace_id=workspace_id,
+        )
+
+    def propose_task_delta(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Admit one typed delta already in delta form (FR-044)."""
+        from atmem.contracts.task_state import HostTaskProposalRequest
+
+        return self._host_call(
+            HostTaskProposalRequest, payload, "propose",
+            subject_id=subject_id, agent_id=agent_id, workspace_id=workspace_id,
+        )
+
+    def request_task_lifecycle(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Take a host lifecycle *request*. Gates decide it; it bypasses none."""
+        from atmem.contracts.task_state import HostTaskLifecycleRequest
+
+        return self._host_call(
+            HostTaskLifecycleRequest, payload, "request_lifecycle",
+            subject_id=subject_id, agent_id=agent_id, workspace_id=workspace_id,
+        )
+
+    def _host_call(
+        self,
+        contract: Any,
+        payload: Mapping[str, Any],
+        operation: str,
+        *,
+        subject_id: str | None,
+        agent_id: str | None,
+        workspace_id: str | None,
+    ) -> dict[str, Any]:
+        """Parse, then run the shared gate sequence.
+
+        A malformed request -- incomplete session identity, a smuggled
+        authority field, an unknown key -- is refused here, before a scope is
+        even resolved. Nothing about the task surface is disclosed by it.
+        """
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id, workspace_id=workspace_id,
+        )
+        try:
+            request = contract.from_dict(dict(payload))
+        except (ValueError, KeyError, TypeError) as exc:
+            return {
+                "format": "atmem-task-unavailable-v1",
+                "reason_code": "session_identity_required"
+                if "session identity" in str(exc)
+                else "capability_denied",
+                "message": str(exc),
+            }
+        boundary, _service, memory = self._host_boundary(state)
+        try:
+            return getattr(boundary, operation)(scope, request)
         finally:
             memory.close()
 

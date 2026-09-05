@@ -490,3 +490,81 @@ def test_guards_still_report_detection_only_while_nothing_enforces() -> None:
     assert guard is not None
     assert guard.enforced is False
     assert capabilities()["features"]["governed_task_guard_enforcement"] is False
+
+
+# --- Amendment A: per-adapter capability, derived not asserted ---------------
+
+
+def test_amendment_capabilities_are_adapter_keyed_not_a_single_boolean() -> None:
+    """One flag cannot describe two hosts truthfully.
+
+    OpenClaw supplies a reset signal and registers the delta tool; another
+    adapter may do neither. A global boolean would have to lie about one of
+    them, so availability that varies by host is keyed by adapter -- the same
+    shape `governed_task_enforcing_adapters` already uses.
+    """
+    from atmem.contracts import capabilities
+
+    response = capabilities()
+    for key in (
+        "governed_task_session_binding_adapters",
+        "governed_task_host_proposal_adapters",
+        "governed_task_agent_delta_tool_adapters",
+    ):
+        assert isinstance(response[key], list), key
+        assert "openclaw" in response[key], key
+
+
+def test_a_mixed_fleet_reports_each_adapter_truthfully() -> None:
+    """One adapter with a reset signal, one without."""
+    from atmem.contracts import capabilities
+    from atmem.task_state.enforcement import (
+        register_host_proposal,
+        unregister_amendment_capabilities,
+    )
+
+    try:
+        # This adapter can submit requests but supplies no session generation,
+        # so it must never appear as able to bind.
+        register_host_proposal("hookless-host")
+        response = capabilities()
+        assert "hookless-host" in response["governed_task_host_proposal_adapters"]
+        assert "hookless-host" not in response["governed_task_session_binding_adapters"]
+        assert "hookless-host" not in response["governed_task_agent_delta_tool_adapters"]
+        assert "openclaw" in response["governed_task_session_binding_adapters"]
+    finally:
+        unregister_amendment_capabilities("hookless-host")
+
+    assert "hookless-host" not in capabilities()["governed_task_host_proposal_adapters"]
+
+
+def test_a_binding_claim_must_name_the_signal_that_rotates() -> None:
+    """Stating how the claim is met is what makes it checkable.
+
+    An adapter with nothing to name here cannot detect a reset, and a binding
+    it made would silently outlive the conversation it was made for.
+    """
+    import pytest
+
+    from atmem.task_state.enforcement import register_session_binding
+
+    with pytest.raises(ValueError, match="rotates on"):
+        register_session_binding("no-signal-host", reset_signal="")
+
+
+def test_an_agent_tool_claim_must_name_the_registered_tool() -> None:
+    import pytest
+
+    from atmem.task_state.enforcement import register_agent_delta_tool
+
+    with pytest.raises(ValueError, match="invisible to the model"):
+        register_agent_delta_tool("silent-host", tool_name="")
+
+
+def test_guard_enforcement_is_still_unavailable() -> None:
+    """Amendment A makes the feature reachable. It does not make it blocking."""
+    from atmem.contracts import capabilities
+
+    response = capabilities()
+    assert response["features"]["governed_task_guard_enforcement"] is False
+    assert response["governed_task_enforcing_adapters"] == []

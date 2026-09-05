@@ -87,6 +87,14 @@
     "description": {
       "type": "string",
       "maxLength": 2000
+    },
+    "binding_lifetime_ms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "Supplemental expiry for session bindings. Never a substitute for a host reset signal: a lifetime cannot detect a reset occurring inside it, so a host that cannot supply a session generation is reported as unable to bind rather than bound under a lifetime alone. Absent in profiles persisted before this field existed, and absent means no supplemental expiry."
     }
   },
   "additionalProperties": false,

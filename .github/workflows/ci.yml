@@ -108,9 +108,58 @@ jobs:
           fi
       - run: npm run smoke
 
+  openclaw-hook-context-matrix:
+    # Spec 007 Amendment A, T058. The bridge's peer range is open-ended, so
+    # "supported versions" is not exhaustively testable. Test a finite matrix
+    # instead — declared minimum, lockfile, and whatever `latest` resolves to —
+    # and execute the premise check against each rather than recording fixtures
+    # that never run. An unrecorded resolved version fails with instructions:
+    # a new upstream release must be reviewed, not absorbed silently.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: min
+            spec: openclaw@2026.7.1-2
+          - label: lockfile
+            spec: openclaw@2026.8.1
+          - label: latest
+            spec: openclaw@latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install ${{ matrix.spec }} in isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/oc-${{ matrix.label }}"
+          mkdir -p "$root/node_modules/openclaw" "$root/probe"
+          cd "$root"
+          npm pack "${{ matrix.spec }}" --silent >/dev/null
+          tar -xzf openclaw-*.tgz -C node_modules/openclaw --strip-components=1
+          resolved=$(node -p "require('./node_modules/openclaw/package.json').version")
+          echo "resolved=$resolved" >> "$GITHUB_ENV"
+          echo "::notice title=OpenClaw ${{ matrix.label }}::resolved $resolved"
+      - name: Check hook-context premises for the ${{ matrix.label }} version
+        working-directory: integrations/openclaw
+        shell: bash
+        run: |
+          set -euo pipefail
+          OPENCLAW_PROBE_DIR="$RUNNER_TEMP/oc-${{ matrix.label }}/probe" \
+            node test/hook-context-compat.mjs
+      - name: Record resolved version in the run summary
+        if: always()
+        shell: bash
+        run: |
+          echo "- **${{ matrix.label }}** (\`${{ matrix.spec }}\`) resolved to \`$resolved\`" \
+            >> "$GITHUB_STEP_SUMMARY"
+
   distribution:
     runs-on: ubuntu-latest
-    needs: [unit-tests, atbot-tests, latest-frameworks, provider-extras, openclaw-plugin]
+    needs: [unit-tests, atbot-tests, latest-frameworks, provider-extras, openclaw-plugin, openclaw-hook-context-matrix]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

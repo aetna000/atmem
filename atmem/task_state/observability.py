@@ -97,6 +97,19 @@ class TaskObservability:
                     }
                 )
 
+        bindings_active = bindings_revoked = 0
+        if scope is not None:
+            for row in self.store.list_session_bindings(
+                subject_id=scope.subject_id,
+                agent_id=scope.agent_id,
+                workspace_id=scope.workspace_id,
+                include_revoked=True,
+            ):
+                if row.get("revoked_at_utc"):
+                    bindings_revoked += 1
+                else:
+                    bindings_active += 1
+
         return {
             "format": "atmem-task-observability-v1",
             "observed_at_utc": to_iso(now),
@@ -130,6 +143,13 @@ class TaskObservability:
                 ),
             },
             "overdue_tasks": overdue,
+            # Bindings decide which conversations can reach a task at all, so
+            # an operator asking "why is my agent getting nothing?" needs them
+            # beside the delivery counters rather than in a separate view.
+            "bindings": {
+                "active": bindings_active,
+                "revoked": bindings_revoked,
+            },
             "integrity": self._integrity(tasks),
         }
 
