@@ -413,23 +413,16 @@ class TaskStateService:
                 evidence=proposal.evidence,
                 guards=decision.guards,
             )
-            self.store.insert_task_proposal(
-                proposal_id=proposal.proposal_id,
-                task_id=proposal.task_id,
-                subject_id=proposal.scope.subject_id,
-                agent_id=proposal.scope.agent_id,
-                workspace_id=proposal.scope.workspace_id,
-                idempotency_key=proposal.idempotency_key,
-                payload_sha256=proposal.payload_digest(),
-                base_revision=proposal.base_revision,
-                actor=proposal.actor,
-                actor_role=proposal.actor_role.value,
-                proposal=proposal.to_dict(),
-                decision=typed.to_dict(),
-                outcome=outcome.value,
-                resulting_revision=resulting_revision,
-                created_at_utc=now_iso,
-            )
+            try:
+                self._record_proposal(proposal, typed, outcome, resulting_revision, now_iso)
+            except sqlite3.IntegrityError as exc:
+                # A proposal id is an identity, not a label. Reusing one for a
+                # different delta is a caller error, not a silent overwrite.
+                raise TaskStateError(
+                    "task_not_eligible",
+                    f"proposal id {proposal.proposal_id!r} is already recorded "
+                    "for a different request",
+                ) from exc
             self.store.insert_task_step(
                 task_id=proposal.task_id,
                 step_kind=step_kind,
@@ -444,6 +437,32 @@ class TaskStateService:
                 recorded_at_utc=now_iso,
             )
         return typed
+
+    def _record_proposal(
+        self,
+        proposal: TaskStateProposal,
+        typed: TransitionDecision,
+        outcome: StepOutcome,
+        resulting_revision: int | None,
+        now_iso: str,
+    ) -> None:
+        self.store.insert_task_proposal(
+            proposal_id=proposal.proposal_id,
+            task_id=proposal.task_id,
+            subject_id=proposal.scope.subject_id,
+            agent_id=proposal.scope.agent_id,
+            workspace_id=proposal.scope.workspace_id,
+            idempotency_key=proposal.idempotency_key,
+            payload_sha256=proposal.payload_digest(),
+            base_revision=proposal.base_revision,
+            actor=proposal.actor,
+            actor_role=proposal.actor_role.value,
+            proposal=proposal.to_dict(),
+            decision=typed.to_dict(),
+            outcome=outcome.value,
+            resulting_revision=resulting_revision,
+            created_at_utc=now_iso,
+        )
 
     # --- lifecycle ----------------------------------------------------------
 

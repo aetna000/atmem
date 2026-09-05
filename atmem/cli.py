@@ -554,6 +554,145 @@ External evaluation:
                 help="Manual paraphrase used to verify the first eligible record",
             )
 
+    task_parser = subparsers.add_parser(
+        "task",
+        help="Start, inspect, and govern task state for an agent",
+        description="Start, inspect, and govern task state for an agent.",
+        epilog="""Examples:
+  atmem task enable memories.db --subject user-1 --agent agent-1 --workspace ws-1
+      Turn on governed task state for one exact scope.
+
+  atmem task start memories.db --task-id task-1 --goal "Ship the migration" \
+      --subject user-1 --agent agent-1 --workspace ws-1 --actor you@example.com
+      Begin a governed task.
+
+  atmem task list memories.db --subject user-1 --agent agent-1 --workspace ws-1
+      See open work, newest state first.
+
+  atmem task show memories.db task-1 --subject user-1 --agent agent-1 --workspace ws-1
+      Read the goal, phase, progress, blockers, and next eligible work.
+
+Exit codes: 0 for a successful read, an accepted action, or no_change;
+1 for rejected, conflict, unavailable, or integrity outcomes; 2 for usage
+or input errors.""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    task_commands = task_parser.add_subparsers(dest="task_command")
+
+    def _scoped(name: str, help_text: str, *, needs_task: bool = False):
+        command = task_commands.add_parser(name, help=help_text)
+        command.add_argument("path")
+        if needs_task:
+            command.add_argument("task_id")
+        command.add_argument("--subject", required=True)
+        command.add_argument("--agent", required=True)
+        command.add_argument("--workspace", required=True)
+        command.add_argument(
+            "--json", action="store_true", help="Print one machine-readable document"
+        )
+        return command
+
+    _scoped("enable", "Turn on governed task state for one exact scope")
+    _scoped("disable", "Turn governed task state off for one exact scope")
+
+    task_start = _scoped("start", "Start a governed task")
+    task_start.add_argument("--task-id", required=True)
+    task_start.add_argument("--goal", required=True)
+    task_start.add_argument("--actor", required=True)
+    task_start.add_argument("--profile", default="general-v1")
+    task_start.add_argument(
+        "--item", action="append", default=[],
+        help="Add an item as ID=Title, repeatable",
+    )
+    task_start.add_argument(
+        "--required-item", action="append", default=[],
+        help="Add a completion-required item as ID=Title, repeatable",
+    )
+    task_start.add_argument("--constraint", action="append", default=[])
+    task_start.add_argument("--source", action="append", default=[])
+    task_start.add_argument("--continues", default=None)
+
+    task_list = _scoped("list", "List governed tasks in this scope")
+    task_list.add_argument("--lifecycle", action="append", default=[])
+    task_list.add_argument("--cursor", default=None)
+    task_list.add_argument("--limit", type=int, default=50)
+
+    _scoped("show", "Show one task's goal, progress, blockers, and next work",
+            needs_task=True)
+    _scoped("timeline", "Show every revision, decision, and delivery for a task",
+            needs_task=True)
+    _scoped("health", "Show scope-filtered task health and counters")
+    _scoped("verify", "Check revision-chain integrity for this scope")
+
+    task_provenance = _scoped(
+        "provenance", "Explain where one task value came from", needs_task=True
+    )
+    task_provenance.add_argument(
+        "--target-kind", required=True,
+        choices=("task", "field", "item", "status", "constraint", "transition",
+                 "delivery", "lifecycle"),
+    )
+    task_provenance.add_argument("--target-id", required=True)
+
+    for name, help_text in (
+        ("pause", "Pause a task without losing its place"),
+        ("resume", "Resume a paused task"),
+        ("complete", "Complete a task once its gates are satisfied"),
+        ("cancel", "Cancel a task and record why"),
+    ):
+        command = _scoped(name, help_text, needs_task=True)
+        command.add_argument("--actor", required=True)
+        command.add_argument("--reason", default="")
+        command.add_argument("--expected-revision", type=int, default=None)
+        command.add_argument(
+            "--yes", action="store_true",
+            help="Confirm without prompting; required in non-interactive use",
+        )
+
+    task_correct = _scoped(
+        "correct", "Correct one item's status as an operator", needs_task=True
+    )
+    task_correct.add_argument("--actor", required=True)
+    task_correct.add_argument("--item", required=True)
+    task_correct.add_argument(
+        "--status", required=True,
+        choices=("pending", "ready", "running", "blocked", "completed",
+                 "skipped", "failed"),
+    )
+    task_correct.add_argument("--reason", required=True)
+    task_correct.add_argument("--expected-revision", type=int, required=True)
+    task_correct.add_argument("--yes", action="store_true")
+
+    task_forget = _scoped(
+        "forget", "Permanently delete a task and everything derived from it",
+        needs_task=True,
+    )
+    task_forget.add_argument("--actor", required=True)
+    task_forget.add_argument("--yes", action="store_true")
+
+    task_profile = task_commands.add_parser(
+        "profile", help="Inspect and register versioned task profiles"
+    )
+    profile_commands = task_profile.add_subparsers(dest="profile_command")
+    profile_list = profile_commands.add_parser("list", help="List known profiles")
+    profile_list.add_argument("path")
+    profile_list.add_argument("--json", action="store_true")
+    profile_show = profile_commands.add_parser("show", help="Show one profile")
+    profile_show.add_argument("path")
+    profile_show.add_argument("version")
+    profile_show.add_argument("--json", action="store_true")
+    profile_register = profile_commands.add_parser(
+        "register", help="Register an immutable versioned profile"
+    )
+    profile_register.add_argument("path")
+    profile_register.add_argument("file", help="JSON profile document")
+    profile_register.add_argument("--actor", required=True)
+    profile_register.add_argument(
+        "--dry-run", action="store_true", help="Validate without registering"
+    )
+    profile_register.add_argument("--yes", action="store_true")
+    profile_register.add_argument("--json", action="store_true")
+
     proposals_parser = subparsers.add_parser(
         "proposals",
         help="Inspect and decide governed memory proposals awaiting review",
@@ -1093,6 +1232,13 @@ External evaluation:
             semantic_parser.print_help()
             return
         _run_semantic(args)
+        return
+
+    if args.command == "task":
+        if args.task_command is None:
+            task_parser.print_help()
+            return
+        _run_task(args)
         return
 
     if args.command == "proposals":
@@ -2312,6 +2458,577 @@ def _semantic_configuration_digest(
         "api_key_environment_variable": args.api_key_env,
     }
     return f"sha256:{sha256_hex(canonical_json(safe))}"
+
+
+def _run_task(args: argparse.Namespace) -> None:
+    """Drive governed task state from a terminal.
+
+    Process behaviour is part of the contract: exit 0 for a successful read,
+    an accepted action, or `no_change`; exit 1 for a rejected, conflicting,
+    unavailable, or integrity outcome; exit 2 for usage errors. In `--json`
+    mode exactly one document reaches stdout and every diagnostic goes to
+    stderr, so a script can parse stdout unconditionally.
+    """
+    from atmem.contracts import AuthorityScope
+    from atmem.task_state.enablement import ScopeEnablement
+    from atmem.task_state.governance import CapabilityDenied
+    from atmem.task_state.service import TaskStateError, TaskStateService
+
+    if args.task_command == "profile":
+        _run_task_profile(args)
+        return
+
+    memory = Memory(args.path, auto_vectors=False)
+    try:
+        scope = AuthorityScope(args.subject, args.agent, args.workspace)
+        enablement = ScopeEnablement(memory.store)
+        service = TaskStateService(memory.store)
+
+        if args.task_command in {"enable", "disable"}:
+            mode = (
+                enablement.enable(scope, actor="cli-operator")
+                if args.task_command == "enable"
+                else enablement.disable(scope, actor="cli-operator")
+            )
+            _emit_task(
+                {**mode.to_dict(), "scope": scope.to_dict()},
+                json_output=args.json,
+                human=lambda value: [
+                    f"Governed task state is {value['mode']} for this scope.",
+                    "Next: atmem task start "
+                    f"{args.path} --task-id TASK --goal GOAL --subject "
+                    f"{args.subject} --agent {args.agent} --workspace "
+                    f"{args.workspace} --actor YOU"
+                    if value["enabled"]
+                    else "Next: atmem task enable "
+                    f"{args.path} --subject {args.subject} --agent {args.agent} "
+                    f"--workspace {args.workspace}",
+                ],
+            )
+            return
+
+        mode = enablement.mode(scope)
+        if not mode.enabled:
+            # Fail closed and say exactly how to proceed, rather than acting.
+            _emit_task(
+                {
+                    "format": "atmem-task-unavailable-v1",
+                    "reason_code": "task_state_disabled",
+                    "mode": mode.label,
+                    "scope": scope.to_dict(),
+                    "message": "Governed task state is disabled for this scope.",
+                },
+                json_output=args.json,
+                human=lambda value: [
+                    "Governed task state is disabled for this scope.",
+                    f"Next: atmem task enable {args.path} --subject {args.subject} "
+                    f"--agent {args.agent} --workspace {args.workspace}",
+                ],
+                stream=sys.stderr,
+            )
+            raise SystemExit(1)
+
+        _require_task_confirmation(args)
+
+        try:
+            _dispatch_task_command(args, scope=scope, service=service, mode=mode)
+        except CapabilityDenied as exc:
+            _emit_task_failure(
+                args, reason_code=exc.reason_code, message=str(exc)
+            )
+        except TaskStateError as exc:
+            _emit_task_failure(
+                args, reason_code=exc.reason_code, message=str(exc),
+                guard=getattr(exc, "guard", None),
+            )
+    finally:
+        memory.close()
+
+
+def _dispatch_task_command(
+    args: argparse.Namespace, *, scope: Any, service: Any, mode: Any
+) -> None:
+    from atmem.core.canonical import sha256_hex
+    from atmem.contracts.task_state import (
+        ActorRole,
+        Assurance,
+        ItemStatus,
+        OperationKind,
+        TaskItem,
+        TaskOperation,
+        TaskStartRequest,
+        TaskStateProposal,
+    )
+    from atmem.task_state.observability import TaskObservability
+    from atmem.task_state.provenance import ProvenanceResolver
+
+    command = args.task_command
+
+    if command == "start":
+        items = tuple(
+            TaskItem(
+                item_id=identifier, kind="step", title=title,
+                required=required,
+            )
+            # Required work is listed first: it is what completion waits on.
+            for required, pairs in (
+                (True, args.required_item), (False, args.item)
+            )
+            for identifier, title in (_task_pair(row) for row in pairs)
+        )
+        view = service.start(
+            TaskStartRequest(
+                task_id=args.task_id,
+                scope=scope,
+                profile_id=args.profile.split("-")[0],
+                profile_version=args.profile,
+                goal=args.goal,
+                actor=args.actor,
+                actor_role=ActorRole.OPERATOR,
+                idempotency_key=f"cli-start:{args.task_id}",
+                constraints=tuple(args.constraint),
+                sources_to_inspect=tuple(args.source),
+                continues_task_id=args.continues,
+            ),
+            items=items,
+        )
+        _emit_task(view.to_dict(), json_output=args.json, human=_task_human_view)
+        return
+
+    if command == "list":
+        listing = service.list(
+            scope,
+            lifecycles=tuple(args.lifecycle) or None,
+            cursor=args.cursor,
+            limit=args.limit,
+        )
+        _emit_task(listing, json_output=args.json, human=_task_human_list)
+        return
+
+    if command == "show":
+        view = service.get(scope, args.task_id)
+        _emit_task(view.to_dict(), json_output=args.json, human=_task_human_view)
+        return
+
+    if command == "timeline":
+        timeline = service.timeline(scope, args.task_id)
+        _emit_task(timeline, json_output=args.json, human=_task_human_timeline)
+        return
+
+    if command == "health":
+        snapshot = TaskObservability(service.store, clock=service.clock).snapshot(scope)
+        _emit_task(snapshot, json_output=args.json, human=_task_human_health)
+        return
+
+    if command == "verify":
+        snapshot = TaskObservability(service.store, clock=service.clock).snapshot(scope)
+        integrity = snapshot["integrity"]
+        _emit_task(
+            {
+                "format": "atmem-task-integrity-v1",
+                "scope": scope.to_dict(),
+                **integrity,
+            },
+            json_output=args.json,
+            human=lambda value: [
+                f"Revision-chain integrity: {'valid' if value['valid'] else 'FAILED'}",
+                f"Tasks checked: {value['checked_tasks']}",
+                *[f"  problem: {row}" for row in value["problems"]],
+            ],
+        )
+        if not integrity["valid"]:
+            raise SystemExit(1)
+        return
+
+    if command == "provenance":
+        result = ProvenanceResolver(service.store).resolve(
+            scope, args.task_id,
+            target_kind=args.target_kind, target_id=args.target_id,
+        )
+        _emit_task(result, json_output=args.json, human=_task_human_provenance)
+        if not result["found"]:
+            raise SystemExit(1)
+        return
+
+    if command in {"pause", "resume", "complete", "cancel"}:
+        _check_expected_revision(args, service, scope)
+        view = getattr(service, command)(
+            scope, args.task_id, actor=args.actor,
+            actor_role=ActorRole.OPERATOR,
+            reason=args.reason or command,
+        )
+        _emit_task(view.to_dict(), json_output=args.json, human=_task_human_view)
+        return
+
+    if command == "correct":
+        _check_expected_revision(args, service, scope)
+        # One identity for one correction: the same request replays, a
+        # different one gets its own proposal rather than colliding.
+        key = (
+            f"cli-correct:{args.task_id}:{args.item}:{args.status}"
+            f":{args.expected_revision}:{args.reason}"
+        )
+        decision = service.correct(
+            scope, args.task_id,
+            TaskStateProposal(
+                proposal_id=f"cli-correction-{sha256_hex(key)[:32]}",
+                task_id=args.task_id,
+                scope=scope,
+                base_revision=args.expected_revision,
+                idempotency_key=key,
+                actor=args.actor,
+                actor_role=ActorRole.OPERATOR,
+                assurance=Assurance.OPERATOR_CONFIRMED,
+                operations=(
+                    TaskOperation(
+                        kind=OperationKind.SET_ITEM_STATUS,
+                        item_id=args.item,
+                        status=ItemStatus(args.status),
+                        reason=args.reason,
+                    ),
+                ),
+                reason=args.reason,
+            ),
+            reason=args.reason,
+        )
+        _emit_task(
+            decision.to_dict(), json_output=args.json, human=_task_human_decision
+        )
+        if decision.outcome.value in {"rejected", "conflict"}:
+            raise SystemExit(1)
+        return
+
+    if command == "forget":
+        receipt = service.forget(
+            scope, args.task_id, actor=args.actor,
+            actor_role=ActorRole.ADMINISTRATOR,
+        )
+        _emit_task(
+            receipt,
+            json_output=args.json,
+            human=lambda value: [
+                f"Deleted task {value['task_id']} and everything derived from it.",
+                f"Revisions removed: {value['revisions_removed']}",
+                f"Goal digest retained for the receipt: {value['goal_sha256']}",
+            ],
+        )
+        return
+
+
+def _run_task_profile(args: argparse.Namespace) -> None:
+    """Inspect and register versioned profiles. Registration enables nothing."""
+    import json as _json
+
+    from atmem.task_state.profiles import ProfileRegistry
+
+    if args.profile_command is None:
+        raise SystemExit(2)
+    memory = Memory(args.path, auto_vectors=False)
+    try:
+        registry = ProfileRegistry(memory.store)
+        if args.profile_command == "list":
+            profiles = registry.list_profiles()
+            _emit_task(
+                {
+                    "format": "atmem-task-profile-list-v1",
+                    "count": len(profiles),
+                    "profiles": [
+                        {
+                            "version": row.version,
+                            "profile_id": row.profile_id,
+                            "phases": list(row.phases),
+                            "digest": row.profile_digest(),
+                        }
+                        for row in profiles
+                    ],
+                },
+                json_output=args.json,
+                human=lambda value: [
+                    f"Known task profiles: {value['count']}",
+                    *[
+                        f"  {row['version']}  phases: {', '.join(row['phases'])}"
+                        for row in value["profiles"]
+                    ],
+                ],
+            )
+            return
+
+        if args.profile_command == "show":
+            profile = registry.get(args.version)
+            if profile is None:
+                _emit_task_failure(
+                    args, reason_code="task_not_eligible",
+                    message=f"unknown profile version: {args.version}",
+                )
+                return
+            _emit_task(
+                {**profile.to_dict(), "digest": profile.profile_digest()},
+                json_output=args.json,
+                human=lambda value: [
+                    f"Profile {value['version']} ({value['profile_id']})",
+                    f"Phases: {', '.join(value['phases'])}",
+                    f"Digest: {value['digest']}",
+                    value.get("description") or "",
+                ],
+            )
+            return
+
+        if args.profile_command == "register":
+            _require_task_confirmation(args)
+            payload = _json.loads(Path(args.file).expanduser().read_text())
+            result = registry.register(
+                payload, actor=args.actor, dry_run=args.dry_run
+            )
+            _emit_task(
+                result.to_dict(),
+                json_output=args.json,
+                human=lambda value: [
+                    (
+                        f"Registered profile {value['version']}."
+                        if value["registered"]
+                        else f"Profile {value['version']} was not registered."
+                    ),
+                    "Reasons: " + ", ".join(value["reason_codes"]),
+                    "Registration does not enable a profile or change any task.",
+                ],
+            )
+            if not result.registered and not args.dry_run:
+                raise SystemExit(1)
+            return
+    finally:
+        memory.close()
+
+
+def _task_pair(value: str) -> tuple[str, str]:
+    identifier, separator, title = str(value).partition("=")
+    if not separator or not identifier.strip() or not title.strip():
+        raise SystemExit(2)
+    return identifier.strip(), title.strip()
+
+
+def _check_expected_revision(args: argparse.Namespace, service: Any, scope: Any) -> None:
+    """Refuse a mutation aimed at a revision that has already moved on."""
+    expected = getattr(args, "expected_revision", None)
+    if expected is None:
+        return
+    current = service.get(scope, args.task_id).state.revision
+    if int(expected) != current:
+        _emit_task_failure(
+            args,
+            reason_code="stale_base_revision",
+            message=(
+                f"This task is at revision {current}, not {expected}. "
+                "Re-read it and submit a fresh request."
+            ),
+        )
+
+
+def _require_task_confirmation(args: argparse.Namespace) -> None:
+    """Privileged mutations need `--yes` when nobody is at the terminal."""
+    privileged = {"cancel", "correct", "forget"}
+    command = getattr(args, "task_command", "")
+    if command == "profile" and getattr(args, "profile_command", "") == "register":
+        privileged = {"profile"}
+        command = "profile"
+    if command not in privileged:
+        return
+    if getattr(args, "yes", False):
+        return
+    if not sys.stdin.isatty():
+        # Fail closed rather than prompting into a pipe.
+        print(
+            f"Refusing to {command} without confirmation. Re-run with --yes.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    answer = input(f"Confirm {command}? This cannot be undone. [y/N] ")
+    if answer.strip().lower() not in {"y", "yes"}:
+        raise SystemExit(2)
+
+
+def _emit_task(
+    value: dict[str, Any],
+    *,
+    json_output: bool,
+    human: Any,
+    stream: Any = None,
+) -> None:
+    # In JSON mode the single document always goes to stdout, including for a
+    # failure, so a script can parse stdout unconditionally. Only human-mode
+    # diagnostics are routed to stderr.
+    if json_output:
+        print(json.dumps(value, indent=2, sort_keys=True))
+        return
+    target = stream or sys.stdout
+    for line in human(value):
+        if line:
+            print(line, file=target)
+
+
+def _emit_task_failure(
+    args: argparse.Namespace,
+    *,
+    reason_code: str,
+    message: str,
+    guard: Any = None,
+) -> None:
+    """One failure shape for both modes, then exit 1."""
+    payload = {
+        "format": "atmem-task-failure-v1",
+        "outcome": "rejected",
+        "reason_code": reason_code,
+        "message": message,
+    }
+    if guard is not None:
+        payload["guard"] = guard.to_dict()
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(f"{message} ({reason_code})", file=sys.stderr)
+        if guard is not None and guard.blocking_item_ids:
+            print(
+                "Blocked by: " + ", ".join(guard.blocking_item_ids), file=sys.stderr
+            )
+    raise SystemExit(1)
+
+
+def _task_human_view(value: dict[str, Any]) -> list[str]:
+    summary = value["summary"]
+    lines = [
+        f"{summary['goal']}",
+        f"State: {value['lifecycle']} · phase {summary['phase']} · "
+        f"revision {value['revision']}",
+        f"Progress: {summary['completed_items']} completed, "
+        f"{len(summary['remaining_items'])} remaining, "
+        f"{len(summary['blocked_items'])} blocked",
+    ]
+    if summary["blocked_items"]:
+        lines.append("Blocked: " + ", ".join(summary["blocked_items"]))
+    if summary["unsatisfied_constraints"]:
+        lines.append(
+            "Unsatisfied constraints: "
+            + ", ".join(summary["unsatisfied_constraints"])
+        )
+    lines.append(
+        "Completion allowed: "
+        + ("yes" if summary["completion_allowed"] else "no")
+    )
+    if summary["completion_blockers"]:
+        lines.append("Blocked by: " + ", ".join(summary["completion_blockers"]))
+    terminal = value["lifecycle"] in {"completed", "cancelled", "expired"}
+    if terminal:
+        # Terminal work has no next step. Continuing it means a new task.
+        lines.append(
+            f"This task is {value['lifecycle']}"
+            + (
+                f" ({value['terminal_reason']})"
+                if value.get("terminal_reason")
+                else ""
+            )
+            + " and cannot be changed."
+        )
+        lines.append("Next: atmem task start ... --continues " + value["task_id"])
+    elif summary["ready_items"]:
+        lines.append("Next eligible work: " + ", ".join(summary["ready_items"]))
+        lines.append(f"Next: work item {summary['ready_items'][0]}")
+    elif summary["completion_allowed"] and value["lifecycle"] == "open":
+        lines.append("Next: atmem task complete ... --actor YOU")
+    lines.append(f"Task ID: {value['task_id']}")
+    return lines
+
+
+def _task_human_list(value: dict[str, Any]) -> list[str]:
+    lines = [f"Governed tasks: {value['count']}"]
+    for row in value["tasks"]:
+        lines.append(
+            f"  {row['goal']}  [{row['lifecycle']}, revision {row['revision']}]"
+        )
+        lines.append(f"    {row['task_id']}")
+    if value.get("next_cursor"):
+        lines.append(f"Next: re-run with --cursor {value['next_cursor']}")
+    elif not value["tasks"]:
+        lines.append("Next: atmem task start ... to begin one")
+    return lines
+
+
+def _task_human_timeline(value: dict[str, Any]) -> list[str]:
+    lines = [f"Timeline for {value['task_id']}"]
+    for row in value["steps"]:
+        lines.append(
+            f"  {row['recorded_at_utc']}  {row['step_kind']}  {row['outcome']}"
+            + (
+                f"  ({', '.join(row['reason_codes'])})"
+                if row["reason_codes"]
+                else ""
+            )
+        )
+    for row in value["deliveries"]:
+        lines.append(
+            f"  {row['prepared_at_utc']}  context {row['disposition']}"
+            + (
+                f"  ({', '.join(row['reason_codes'])})"
+                if row["reason_codes"]
+                else ""
+            )
+        )
+    return lines
+
+
+def _task_human_health(value: dict[str, Any]) -> list[str]:
+    tasks = value["tasks"]
+    transitions = value["transitions"]
+    lines = [
+        f"Tasks: {tasks['total']} total, {tasks['open_or_paused']} open or paused",
+        "By lifecycle: "
+        + ", ".join(f"{name} {count}" for name, count in tasks["by_lifecycle"].items()),
+        "Decisions: "
+        + ", ".join(
+            f"{name} {count}" for name, count in transitions["by_outcome"].items()
+        ),
+        f"Stale-revision conflicts: {transitions['stale_revision_conflicts']}",
+        f"Context prepared/exposed/withheld: {value['context']['prepared']}/"
+        f"{value['context']['exposed']}/{value['context']['withheld']}",
+        f"Integrity: {'valid' if value['integrity']['valid'] else 'FAILED'}",
+    ]
+    if value["overdue_tasks"]:
+        lines.append(
+            "Overdue: "
+            + ", ".join(row["task_id"] for row in value["overdue_tasks"])
+        )
+        lines.append("Next: atmem task show PATH TASK_ID ... to inspect one")
+    return lines
+
+
+def _task_human_provenance(value: dict[str, Any]) -> list[str]:
+    if not value["found"]:
+        return ["No provenance is available for this selection."]
+    lines = [f"{value['target_kind']} {value['target_id']} on {value['task_id']}:"]
+    for row in value["history"]:
+        lines.append(f"  revision {row['revision']}: {row['summary']}")
+        for evidence in row["evidence"]:
+            lines.append(
+                f"    evidence: {evidence['kind']} {evidence['reference_id']}"
+            )
+    for row in value["deliveries"]:
+        lines.append(
+            f"  delivered at revision {row['revision']}: {row['disposition']}"
+            f" (exposed: {'yes' if row['exposed'] else 'no'})"
+        )
+    return lines
+
+
+def _task_human_decision(value: dict[str, Any]) -> list[str]:
+    lines = [
+        f"Outcome: {value['outcome']}",
+        "Reasons: " + ", ".join(value["reason_codes"]),
+    ]
+    if value.get("resulting_revision"):
+        lines.append(f"Revision: {value['resulting_revision']}")
+    for guard in value.get("guards") or ():
+        lines.append(f"Guard: {guard['message']}")
+    if value["outcome"] == "conflict":
+        lines.append("Next: re-read the task and submit a fresh request")
+    return lines
 
 
 def _run_proposals(args: argparse.Namespace) -> None:
