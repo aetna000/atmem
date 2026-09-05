@@ -193,6 +193,13 @@
         <div id="reviews"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Checking for quarantined memories…</span></div></div>
       </section>
 
+      <section class="card" id="taskCard" hidden>
+        <div class="reviewhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Governed tasks</span></h2><span class="reviewcount" id="taskCount">0</span><button class="secondary" id="taskRefresh" type="button">Refresh</button></div>
+        <p class="sub" id="taskModeNote">Governed task state tracks what an agent is doing now, separately from long-term memory.</p>
+        <div id="taskSelected" hidden></div>
+        <div id="tasks"><div class="empty">Checking governed task state…</div></div>
+      </section>
+
       <section class="card" id="proposalCard">
         <div class="reviewhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Proposed changes</span></h2><span class="reviewcount" id="proposalCount">0</span><button class="secondary" id="proposalRefresh" type="button">Refresh</button></div>
         <p class="sub">Extraction proposes; you decide. Each entry shows what would change, why it is waiting, and the exact source span it cites.</p>

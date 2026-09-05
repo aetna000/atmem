@@ -62,6 +62,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, {"csrf_token": self.server.csrf_token})
             return
         if path == "/api/product":
+            from atmem.contracts import capabilities
             from atmem.openclaw_install import (
                 OPENCLAW_PLUGIN_PACKAGE,
                 OPENCLAW_PLUGIN_VERSION,
@@ -78,6 +79,9 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     "atmem_npm_package": OPENCLAW_PLUGIN_PACKAGE,
                     "atmem_npm_version": OPENCLAW_PLUGIN_VERSION,
                     "x_url": "https://x.com/AtMemX",
+                    # The one authoritative capability response. The dashboard
+                    # gates its task surfaces on this rather than assuming.
+                    "capabilities": capabilities(),
                 },
             )
             return
@@ -230,6 +234,55 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 ),
             )
             return
+        if path.startswith("/api/tasks"):
+            params = parse_qs(parsed.query)
+            value = lambda name: (params.get(name) or [None])[0]
+            scope = {
+                "subject_id": value("subject"),
+                "agent_id": value("agent"),
+                "workspace_id": value("workspace"),
+            }
+            manager = self.server.manager
+            if path == "/api/tasks":
+                self._json(
+                    HTTPStatus.OK,
+                    manager.list_tasks(
+                        **scope,
+                        lifecycles=tuple(params.get("lifecycle") or ()) or None,
+                        cursor=value("cursor"),
+                        limit=int(value("limit") or 50),
+                    ),
+                )
+                return
+            if path == "/api/tasks/mode":
+                self._json(HTTPStatus.OK, manager.task_state_mode(**scope))
+                return
+            if path == "/api/tasks/health":
+                self._json(HTTPStatus.OK, manager.task_health(**scope))
+                return
+            if path == "/api/tasks/detail":
+                self._json(
+                    HTTPStatus.OK,
+                    manager.task_detail(str(value("task_id") or ""), **scope),
+                )
+                return
+            if path == "/api/tasks/timeline":
+                self._json(
+                    HTTPStatus.OK,
+                    manager.task_timeline(str(value("task_id") or ""), **scope),
+                )
+                return
+            if path == "/api/tasks/provenance":
+                self._json(
+                    HTTPStatus.OK,
+                    manager.task_provenance(
+                        str(value("task_id") or ""),
+                        target_kind=str(value("target_kind") or "task"),
+                        target_id=str(value("target_id") or ""),
+                        **scope,
+                    ),
+                )
+                return
         if path == "/api/memory/proposals":
             params = parse_qs(parsed.query)
             self._json(
@@ -581,6 +634,26 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 self._json(
                     HTTPStatus.OK,
                     {"registered": registered, "status": config.status()},
+                )
+                return
+            if path == "/api/tasks/lifecycle":
+                task_id = str(body.get("task_id") or "").strip()
+                if not task_id or not secrets.compare_digest(
+                    str(body.get("confirm_task_id") or ""), task_id
+                ):
+                    raise ValueError("task confirmation does not match")
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.change_task_lifecycle(
+                        task_id,
+                        str(body.get("action") or "").strip(),
+                        actor=str(body.get("actor") or "dashboard-operator"),
+                        reason=str(body.get("reason") or ""),
+                        expected_revision=body.get("expected_revision"),
+                        subject_id=body.get("subject_id"),
+                        agent_id=body.get("agent_id"),
+                        workspace_id=body.get("workspace_id"),
+                    ),
                 )
                 return
             if path == "/api/memory/proposal-decision":

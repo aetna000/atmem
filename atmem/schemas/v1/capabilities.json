@@ -3,13 +3,43 @@
   "$id": "https://atmem.dev/schemas/v1/capabilities.json",
   "title": "AtMem capabilities v1",
   "type": "object",
-  "required": ["format", "protocol_versions", "features"],
+  "required": [
+    "format",
+    "protocol_versions",
+    "features"
+  ],
   "properties": {
-    "format": {"const": "atmem-capabilities-v1"},
-    "protocol_versions": {"type": "array", "items": {"type": "string"}},
-    "features": {"type": "object", "additionalProperties": {"type": "boolean"}},
-    "default_vector_provider": {"type": "string"},
-    "context_serializer": {"type": "string"}
+    "format": {
+      "const": "atmem-capabilities-v1"
+    },
+    "protocol_versions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "boolean"
+      }
+    },
+    "default_vector_provider": {
+      "type": "string"
+    },
+    "context_serializer": {
+      "type": "string"
+    },
+    "task_context_serializer": {
+      "type": "string"
+    },
+    "governed_task_profiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "description": "The single authoritative runtime capability response. Adapter replies, documentation, and tests mirror this; none of them is an independent capability authority."
 }

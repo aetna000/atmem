@@ -231,3 +231,64 @@ def test_public_product_namespace_is_atmem_only() -> None:
                 continue
             assert legacy not in path.name.casefold(), path
             assert legacy not in path.read_text(errors="ignore").casefold(), path
+
+
+def test_governed_task_state_adds_no_mandatory_dependency() -> None:
+    """SC-010: the task plane must not drag in a model or framework SDK."""
+    import sys
+    import tomllib
+
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    required = pyproject["project"].get("dependencies") or []
+    forbidden = (
+        "torch", "transformers", "sentence-transformers", "openai", "anthropic",
+        "langchain", "langgraph", "pydantic-ai", "numpy", "requests", "httpx",
+    )
+    for name in required:
+        lowered = name.lower()
+        assert not any(lowered.startswith(row) for row in forbidden), name
+
+    before = set(sys.modules)
+    import atmem.task_state  # noqa: F401
+    import atmem.task_state.context  # noqa: F401
+    import atmem.task_state.guards  # noqa: F401
+    import atmem.task_state.observability  # noqa: F401
+    import atmem.task_state.policy  # noqa: F401
+    import atmem.task_state.provenance  # noqa: F401
+    import atmem.task_state.service  # noqa: F401
+
+    newly = set(sys.modules) - before
+    for name in forbidden + ("atbot",):
+        assert not any(row.split(".")[0] == name.replace("-", "_") for row in newly), (
+            f"importing governed task state pulled in {name}"
+        )
+
+
+def test_governed_task_state_ships_no_third_party_research_artefacts() -> None:
+    """SC-010: independently authored contracts, fixtures, and documentation."""
+    branded = (
+        "androidworld", "webarena", "osworld", "mind2web", "gaia benchmark",
+        "swe-bench", "agentbench", "toolbench", "webshop",
+    )
+    targets = [
+        *sorted((ROOT / "atmem" / "task_state").glob("*.py")),
+        *sorted((ROOT / "tests" / "fixtures" / "task_state").glob("*.json")),
+        ROOT / "atmem" / "contracts" / "task_state.py",
+        ROOT / "docs" / "governed-task-state.md",
+        *sorted((ROOT / "atmem" / "schemas" / "v1").glob("task-*.json")),
+    ]
+    for path in targets:
+        text = path.read_text().lower()
+        for name in branded:
+            assert name not in text, f"{path.name} references {name!r}"
+
+
+def test_the_governed_task_state_document_states_its_limits() -> None:
+    text = (ROOT / "docs" / "governed-task-state.md").read_text()
+
+    assert "## Limitations" in text
+    assert "Guard *enforcement* is unavailable" in text
+    assert "not independent proof" in text
+    assert "disabled by default" in text.lower()
+    # The honest framing claim: containment is structural, not semantic.
+    assert "contained structurally, not" in text

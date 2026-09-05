@@ -1,6 +1,6 @@
 (function(){
 "use strict";
-var state=null,semanticHealth=null,proposalQueue={proposals:[]},reviewQueue={records:[]},productInfo={},blackboxIndex={runs:[]},blackboxArchiveRows=[],blackboxStories={},flightRange="7d",bridgeRefreshStatus={available:false},activityVisible=10,activitySearchTimer=null,csrf="",progressTimer=null,progressStarted=0,companionProfiles={},companionStatus={},companionFormDirty=false;
+var state=null,semanticHealth=null,taskMode=null,taskList={tasks:[]},taskDetail=null,selectedTaskId=null,proposalQueue={proposals:[]},reviewQueue={records:[]},productInfo={},blackboxIndex={runs:[]},blackboxArchiveRows=[],blackboxStories={},flightRange="7d",bridgeRefreshStatus={available:false},activityVisible=10,activitySearchTimer=null,csrf="",progressTimer=null,progressStarted=0,companionProfiles={},companionStatus={},companionFormDirty=false;
 var auditCursors=[null],auditPageIndex=0,auditLast=null,auditFacetsLoaded=false;
 var $=function(id){return document.getElementById(id)};
 function text(id,value){$(id).textContent=value==null?"—":String(value)}
@@ -325,6 +325,96 @@ async function decideProposal(row,decision){
 async function refreshProposals(silent){
  try{proposalQueue=await get("/api/memory/proposals");renderProposals()}catch(error){if(!silent)showError(error)}
 }
+function taskCapabilityAvailable(){var features=(productInfo&&productInfo.capabilities&&productInfo.capabilities.features)||{};return features.governed_task_state===true}
+function renderTasks(){
+ var card=$("taskCard"),box=$("tasks"),mode=taskMode||{},rows=Array.isArray(taskList.tasks)?taskList.tasks:[];
+ // Capability gating: no task UI at all when the runtime does not offer it.
+ card.hidden=!taskCapabilityAvailable();
+ if(card.hidden)return;
+ text("taskCount",rows.length);
+ var note=$("taskModeNote");
+ if(mode.enabled===false){note.textContent="Governed task state is disabled for this scope. No task context is reaching any agent."}
+ else if(mode.shadow===true){note.textContent="Governed task state is in shadow mode: progress is recorded, and no task context reaches any agent."}
+ else{note.textContent="Governed task state is active. Only the exact task an adapter names is delivered."}
+ box.replaceChildren();
+ if(mode.enabled===false){box.appendChild(element("div","empty","Enable this scope from the terminal: atmem task enable"));renderSelectedTask();return}
+ if(!rows.length){box.appendChild(element("div","empty","No governed tasks in this scope yet."));renderSelectedTask();return}
+ rows.forEach(function(row){
+  var item=element("button","agentrow"),identity=element("span"),progress=element("span","agentscope"),status=element("small","",String(row.lifecycle||"").toUpperCase());
+  item.type="button";item.setAttribute("aria-label","Open task "+(row.goal||row.task_id));
+  if(selectedTaskId===row.task_id)item.setAttribute("aria-current","true");
+  identity.append(element("b","",row.goal||"Untitled task"),element("small","","Task ID: "+row.task_id));
+  progress.append(element("b","","Revision "+row.revision),element("small","","Last progress: "+displayTime(row.last_progress_at_utc)));
+  item.append(identity,progress,status);
+  item.onclick=function(){selectTask(row.task_id)};
+  box.appendChild(item)
+ });
+ renderSelectedTask()
+}
+function renderSelectedTask(){
+ var panel=$("taskSelected");
+ if(!selectedTaskId||!taskDetail||taskDetail.task_id!==selectedTaskId){panel.hidden=true;panel.replaceChildren();return}
+ panel.hidden=false;panel.replaceChildren();
+ if(taskDetail.reason_code){panel.appendChild(element("div","empty",taskDetail.message||"This task is unavailable."));return}
+ var summary=taskDetail.summary||{},head=element("div","semantichead"),copy=element("div"),badge=element("span","statuspill"+(taskDetail.lifecycle==="open"?" active":taskDetail.lifecycle==="paused"?" quarantined":""),taskDetail.lifecycle||"unknown");
+ copy.append(element("div","eyebrow","Selected task"),element("h2","",summary.goal||taskDetail.task_id),element("p","sub","Phase "+(summary.phase||"unknown")+" · revision "+taskDetail.revision));
+ head.append(copy,badge);panel.appendChild(head);
+ var grid=element("div","evidencegrid");
+ grid.append(
+  evidence("Completed",String(summary.completed_items!=null?summary.completed_items:"—")),
+  evidence("Remaining",String((summary.remaining_items||[]).length)),
+  evidence("Blocked",(summary.blocked_items||[]).join(", ")||"none"),
+  evidence("Next eligible work",(summary.ready_items||[]).join(", ")||"none"),
+  evidence("Completion allowed",summary.completion_allowed?"yes":"no"),
+  evidence("Task ID",taskDetail.task_id,true)
+ );
+ panel.appendChild(grid);
+ if((summary.completion_blockers||[]).length){panel.appendChild(element("p","sub","Completion is blocked by: "+summary.completion_blockers.join(", ")))}
+ var actions=element("div","actions"),terminal=["completed","cancelled","expired"].indexOf(taskDetail.lifecycle)>=0;
+ if(terminal){panel.appendChild(element("p","sub","This task is "+taskDetail.lifecycle+" and cannot be changed. Continuing the work means starting a new task."))}
+ else{
+  [["pause","Pause"],["resume","Resume"],["complete","Complete"],["cancel","Cancel"]].forEach(function(pair){
+   var action=pair[0];
+   if(action==="pause"&&taskDetail.lifecycle!=="open")return;
+   if(action==="resume"&&taskDetail.lifecycle!=="paused")return;
+   var button=element(action==="cancel"?"button":"button",action==="complete"?"primary":action==="cancel"?"reject":"secondary",pair[1]);
+   button.type="button";button.onclick=function(){taskLifecycle(action)};
+   actions.appendChild(button)
+  });
+  panel.appendChild(actions)
+ }
+ var back=element("button","secondary","Back to all tasks");back.type="button";back.onclick=function(){selectedTaskId=null;taskDetail=null;renderTasks()};
+ panel.appendChild(back)
+}
+async function selectTask(taskId){
+ selectedTaskId=taskId;
+ try{taskDetail=await get("/api/tasks/detail?task_id="+encodeURIComponent(taskId));renderTasks()}
+ catch(error){showError(error)}
+}
+async function taskLifecycle(action){
+ if(!selectedTaskId||!taskDetail)return;
+ var reason="";
+ if(action==="cancel"){reason=prompt("Why are you cancelling this task? This is recorded.","")||"";if(!reason.trim())return}
+ var summary=taskDetail.summary||{};
+ var preview="Task: "+(summary.goal||selectedTaskId)+"\nScope: this workspace\nRevision: "+taskDetail.revision+"\nEffect: "+action+" this task";
+ if(!confirm("Confirm "+action+"?\n\n"+preview))return;
+ try{
+  var result=await post("/api/tasks/lifecycle",{task_id:selectedTaskId,confirm_task_id:selectedTaskId,action:action,actor:"dashboard-operator",reason:reason,expected_revision:taskDetail.revision});
+  if(result&&result.reason_code==="stale_base_revision"){
+   // Never auto-retry: show what changed and require a fresh decision.
+   showError(new Error(result.message));await selectTask(selectedTaskId);return
+  }
+  if(result&&result.reason_code){showError(new Error(result.message||result.reason_code));await selectTask(selectedTaskId);return}
+  await refreshTasks();await selectTask(selectedTaskId)
+ }catch(error){showError(error)}
+}
+async function refreshTasks(silent){
+ if(!taskCapabilityAvailable()){$("taskCard").hidden=true;return}
+ try{
+  var values=await Promise.all([get("/api/tasks/mode"),get("/api/tasks")]);
+  taskMode=values[0];taskList=values[1];renderTasks()
+ }catch(error){if(!silent)showError(error)}
+}
 async function reviewRecord(row,decision){
  var approving=decision==="approve",verb=approving?"approve":"reject and permanently purge";
  var subject=row.media&&row.media.modality==="image"?"this exact text description as recallable memory":"this exact memory";
@@ -410,7 +500,7 @@ function render(){
  }
  updateStatusBanner();renderProductVersions()
 }
-async function reload(){var values=await Promise.all([get("/api/status"),get("/api/memory/reviews"),get("/api/semantic/health"),get("/api/memory/proposals")]);state=values[0];reviewQueue=values[1];semanticHealth=values[2];proposalQueue=values[3];render();renderSemanticHealth();renderProposals()}
+async function reload(){var values=await Promise.all([get("/api/status"),get("/api/memory/reviews"),get("/api/semantic/health"),get("/api/memory/proposals")]);state=values[0];reviewQueue=values[1];semanticHealth=values[2];proposalQueue=values[3];render();renderSemanticHealth();renderProposals();await refreshTasks(true)}
 async function searchTechnical(){
  var query=$("query").value.trim();if(!query)return;clearError();$("results").replaceChildren(loadingNode("Searching memory…","empty"));
  try{
@@ -504,7 +594,7 @@ $("refreshBtn").onclick=refresh;$("switchBtn").onclick=switchProvider;
 $("drillBtn").onclick=restoreDrill;
 $("verifyBtn").onclick=verifyNow;
 $("bridgeRefresh").onclick=refreshBridgeAndTest;
-$("reviewRefresh").onclick=refreshReviews;$("proposalRefresh").onclick=function(){refreshProposals()};
+$("reviewRefresh").onclick=refreshReviews;$("proposalRefresh").onclick=function(){refreshProposals()};$("taskRefresh").onclick=function(){refreshTasks()};
 $("browseRecords").onclick=function(){showView("evidence");$("query").focus()};
 $("blackboxRefresh").onclick=loadBlackbox;
 $("agentTopologySync").onclick=syncAgentTopology;

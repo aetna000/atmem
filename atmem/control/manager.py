@@ -92,6 +92,21 @@ def _storage_row(
     }
 
 
+def _withheld_task_context(
+    scope: Any, task_id: str, context_id: str, prepared_at: str,
+    reason_codes: tuple[str, ...],
+) -> dict[str, Any]:
+    """A refusal that carries no task-state bytes and creates no exposure."""
+    from atmem.task_state.context import withhold
+
+    package = withhold(
+        scope=scope, task_id=task_id or "unknown", revision=1,
+        context_id=context_id, reason_codes=reason_codes,
+        prepared_at=prepared_at,
+    )
+    return {**package.to_dict(), "delivery_id": None}
+
+
 class ControlPlaneManager:
     """Host-neutral memory control plane.
 
@@ -1604,6 +1619,346 @@ class ControlPlaneManager:
                 str(row["record_id"]),
             ),
         )[: max(0, min(limit, 100))]
+
+    # --- Governed Task State (Spec 007) ------------------------------------
+
+    def _task_service(self, state: Any = None) -> tuple[Any, Any]:
+        """Open the task service over the same store the memory plane uses."""
+        from atmem.memory import Memory
+        from atmem.task_state.service import TaskStateService
+
+        state = state or self.state()
+        memory = Memory(
+            self._proposal_memory_db(state), retain_query_text=False,
+            auto_vectors=False,
+        )
+        return TaskStateService(memory.store), memory
+
+    def task_state_mode(
+        self, *, subject_id: str | None = None, agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Whether governed task state runs for one exact scope."""
+        from atmem.contracts import AuthorityScope
+        from atmem.task_state.enablement import ScopeEnablement
+
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            mode = ScopeEnablement(memory.store).mode(scope)
+            return {**mode.to_dict(), "scope": scope.to_dict()}
+        finally:
+            memory.close()
+
+    def list_tasks(
+        self, *, subject_id: str | None = None, agent_id: str | None = None,
+        workspace_id: str | None = None, lifecycles: tuple[str, ...] | None = None,
+        cursor: str | None = None, limit: int = 50,
+    ) -> dict[str, Any]:
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            return service.list(
+                scope, lifecycles=lifecycles, cursor=cursor, limit=limit
+            )
+        finally:
+            memory.close()
+
+    def task_detail(
+        self, task_id: str, *, subject_id: str | None = None,
+        agent_id: str | None = None, workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """One task, or a non-disclosing refusal for anything not ours."""
+        from atmem.task_state.service import TaskStateError
+
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            return service.get(scope, task_id).to_dict()
+        except TaskStateError as exc:
+            return {
+                "format": "atmem-task-unavailable-v1",
+                "task_id": task_id,
+                "reason_code": exc.reason_code,
+                "message": str(exc),
+            }
+        finally:
+            memory.close()
+
+    def task_timeline(
+        self, task_id: str, *, subject_id: str | None = None,
+        agent_id: str | None = None, workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        from atmem.task_state.service import TaskStateError
+
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            return service.timeline(scope, task_id)
+        except TaskStateError as exc:
+            return {
+                "format": "atmem-task-unavailable-v1",
+                "task_id": task_id,
+                "reason_code": exc.reason_code,
+                "message": str(exc),
+            }
+        finally:
+            memory.close()
+
+    def task_health(
+        self, *, subject_id: str | None = None, agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        from atmem.task_state.observability import TaskObservability
+
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            return TaskObservability(memory.store, clock=service.clock).snapshot(scope)
+        finally:
+            memory.close()
+
+    def task_provenance(
+        self, task_id: str, *, target_kind: str, target_id: str,
+        subject_id: str | None = None, agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        from atmem.task_state.provenance import ProvenanceResolver
+
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            return ProvenanceResolver(memory.store).resolve(
+                scope, task_id, target_kind=target_kind, target_id=target_id
+            )
+        finally:
+            memory.close()
+
+    def prepare_task_context(
+        self,
+        *,
+        task_id: str | None,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+        host_run_id: str | None = None,
+        session_id: str | None = None,
+        budget_chars: int = 4_000,
+    ) -> dict[str, Any]:
+        """Build the task-state block for one exact task, or withhold it.
+
+        Every refusal path returns zero task-state bytes and records the
+        preparation without exposure. A missing task id withholds rather than
+        choosing among open tasks; an unknown, ineligible, or out-of-scope id
+        withholds with a reason that does not disclose which of those it was.
+        """
+        from atmem.contracts.task_state import ContextDisposition, TaskLifecycle
+        from atmem.core.time import to_iso
+        from atmem.task_state import context as task_context
+        from atmem.task_state.enablement import ScopeEnablement
+        from atmem.task_state.service import TaskStateError
+
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            prepared_at = to_iso(service.clock.now())
+            context_id = f"taskctx_{sha256_hex(f'{scope.to_dict()}{task_id}{host_run_id}')[:32]}"
+
+            mode = ScopeEnablement(memory.store).mode(scope)
+            if not mode.influences_agent:
+                return _withheld_task_context(
+                    scope, task_id or "", context_id, prepared_at,
+                    ("task_state_disabled",)
+                    if not mode.enabled
+                    else ("task_state_shadow_mode",),
+                )
+            if not task_id:
+                return _withheld_task_context(
+                    scope, "", context_id, prepared_at,
+                    ("task_context_selection_required",),
+                )
+
+            try:
+                view = service.get(scope, task_id)
+            except TaskStateError:
+                return _withheld_task_context(
+                    scope, task_id, context_id, prepared_at,
+                    ("task_context_not_eligible",),
+                )
+
+            reason = task_context.eligibility_reason(
+                view.state.lifecycle, in_scope=True
+            )
+            if reason is not None:
+                package = task_context.withhold(
+                    scope=scope, task_id=task_id, revision=view.state.revision,
+                    context_id=context_id, reason_codes=(reason,),
+                    prepared_at=prepared_at,
+                    profile_version=view.profile.version,
+                )
+            else:
+                package = task_context.prepare(
+                    view.state, view.profile, scope=scope, context_id=context_id,
+                    prepared_at=prepared_at, budget_chars=budget_chars,
+                )
+
+            delivery_id = memory.store.insert_task_delivery(
+                task_id=task_id,
+                revision=package.revision,
+                subject_id=scope.subject_id,
+                agent_id=scope.agent_id,
+                workspace_id=scope.workspace_id,
+                disposition=package.disposition.value,
+                prepared_at_utc=prepared_at,
+                reason_codes=list(package.reason_codes),
+                context_sha256=package.context_sha256 or None,
+                cache_key=package.cache_key(),
+                preparation_id=host_run_id,
+            )
+            return {**package.to_dict(), "delivery_id": delivery_id}
+        finally:
+            memory.close()
+
+    def confirm_task_exposure(self, delivery_id: str) -> bool:
+        """Confirm exactly once that prepared task bytes reached the model."""
+        service, memory = self._task_service()
+        try:
+            return bool(memory.store.mark_task_delivery_exposed(delivery_id))
+        finally:
+            memory.close()
+
+    def submit_task_proposal(self, proposal: Any) -> dict[str, Any]:
+        """Hand one typed delta to AtMem. The proposer never writes."""
+        from atmem.task_state.enablement import ScopeEnablement
+        from atmem.task_state.service import TaskStateError
+
+        service, memory = self._task_service()
+        try:
+            mode = ScopeEnablement(memory.store).mode(proposal.scope)
+            if not mode.enabled:
+                return {
+                    "format": "atmem-task-unavailable-v1",
+                    "reason_code": "task_state_disabled",
+                    "message": "Governed task state is disabled for this scope.",
+                }
+            try:
+                return service.submit(proposal).to_dict()
+            except TaskStateError as exc:
+                return {
+                    "format": "atmem-task-unavailable-v1",
+                    "reason_code": exc.reason_code,
+                    "message": str(exc),
+                }
+        finally:
+            memory.close()
+
+    def change_task_lifecycle(
+        self,
+        task_id: str,
+        action: str,
+        *,
+        actor: str,
+        reason: str = "",
+        expected_revision: Any = None,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Pause, resume, complete, or cancel one task from the dashboard.
+
+        A stale expected revision is a conflict the operator must see and
+        resubmit; it is never retried on their behalf.
+        """
+        from atmem.contracts.task_state import ActorRole
+        from atmem.task_state.service import TaskCompletionDenied, TaskStateError
+
+        if action not in {"pause", "resume", "complete", "cancel"}:
+            raise ValueError(f"unsupported task lifecycle action: {action!r}")
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            if expected_revision is not None:
+                current = service.get(scope, task_id).state.revision
+                if int(expected_revision) != current:
+                    return {
+                        "format": "atmem-task-conflict-v1",
+                        "task_id": task_id,
+                        "reason_code": "stale_base_revision",
+                        "expected_revision": int(expected_revision),
+                        "current_revision": current,
+                        "message": (
+                            f"This task is at revision {current}, not "
+                            f"{expected_revision}. Review the change and submit "
+                            "a fresh request."
+                        ),
+                    }
+            try:
+                view = getattr(service, action)(
+                    scope, task_id, actor=actor,
+                    actor_role=ActorRole.OPERATOR, reason=reason or action,
+                )
+                return {"format": "atmem-task-lifecycle-result-v1", **view.to_dict()}
+            except TaskCompletionDenied as exc:
+                return {
+                    "format": "atmem-task-unavailable-v1",
+                    "task_id": task_id,
+                    "reason_code": exc.reason_code,
+                    "message": str(exc),
+                    "guard": exc.guard.to_dict(),
+                }
+            except TaskStateError as exc:
+                return {
+                    "format": "atmem-task-unavailable-v1",
+                    "task_id": task_id,
+                    "reason_code": exc.reason_code,
+                    "message": str(exc),
+                }
+        finally:
+            memory.close()
+
+    def _task_scope(
+        self, state: Any, *, subject_id: str | None, agent_id: str | None,
+        workspace_id: str | None,
+    ) -> Any:
+        from atmem.contracts import AuthorityScope
+
+        return AuthorityScope(
+            subject_id=subject_id or state.subject_id,
+            agent_id=agent_id or "default-agent",
+            workspace_id=workspace_id or "default-workspace",
+        )
 
     def extraction_proposals(
         self, subject_id: str | None = None, *, limit: int = 100

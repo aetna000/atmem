@@ -14,15 +14,24 @@
     "loopback_protocol": "1",
     "canonical_storage": false,
     "independent_agent_product": false,
-    "features": ["proposal_extraction", "query_expansion", "reranking"],
+    "features": [
+      "proposal_extraction",
+      "query_expansion",
+      "reranking"
+    ],
     "fallback": "deterministic_atmem"
   },
   "generic_control_contract": "implemented",
   "generic_shadow_default": true,
   "generic_return_to_shadow": true,
   "generic_runtime_hook_truthfulness": "host_responsibility",
-  "reversible_switch_hosts": ["openclaw"],
-  "context_control_hosts": ["generic", "openclaw"],
+  "reversible_switch_hosts": [
+    "openclaw"
+  ],
+  "context_control_hosts": [
+    "generic",
+    "openclaw"
+  ],
   "delegated_context_provider": {
     "status": "beta",
     "default_enabled": false,
@@ -37,26 +46,65 @@
     "adapter_extras_are_independent": true,
     "adapter_start_enables_authority": false
   },
-  "native_state_restore_hosts": ["openclaw"],
+  "native_state_restore_hosts": [
+    "openclaw"
+  ],
   "shadow_changes_agent_context": false,
   "active_replaces_openclaw_supplemental_memory": true,
   "restore_supported": true,
   "semantic_search": "automatic_derived_local_vector_sidecar",
   "semantic_provider_dependencies": "optional_local_quality_upgrade",
   "semantic_governance": "candidate_nomination_with_canonical_revalidation",
-  "governed_hybrid_retrieval": ["lexical", "fact_key", "graph", "semantic", "trust", "recency"],
+  "governed_hybrid_retrieval": [
+    "lexical",
+    "fact_key",
+    "graph",
+    "semantic",
+    "trust",
+    "recency"
+  ],
   "automatic_capture": "atbot_proposals_with_atmem_admission_and_fallback",
-  "framework_adapters": ["pydantic_ai", "langgraph_langchain"],
+  "framework_adapters": [
+    "pydantic_ai",
+    "langgraph_langchain"
+  ],
   "audit_search_and_export": "implemented",
   "multimodal_bytes_stored": false,
   "multimodal_text_observations": "implemented_quarantined_by_default",
   "agent_blackbox": "implemented_generic_contract_and_openclaw_hooks",
-  "multi_agent_scopes": ["shared", "isolated", "nested"],
-  "operator_surfaces": ["guided_cli", "operator_mcp", "loopback_dashboard"],
+  "multi_agent_scopes": [
+    "shared",
+    "isolated",
+    "nested"
+  ],
+  "operator_surfaces": [
+    "guided_cli",
+    "operator_mcp",
+    "loopback_dashboard"
+  ],
   "dashboard_memory_query": true,
   "dashboard_intelligence_settings": "collapsed",
   "dashboard_csrf_session_retry": 1,
   "blackbox_raw_content_stored": false,
   "blackbox_verifies": "timeline_integrity_and_observed_hook_closure",
-  "blackbox_external_outcome_proof": false
+  "blackbox_external_outcome_proof": false,
+  "governed_task_state": {
+    "status": "beta",
+    "default_enabled": false,
+    "authority": "atmem_only",
+    "proposers": [
+      "host_agent",
+      "atbot",
+      "operator",
+      "verifier"
+    ],
+    "delivery": true,
+    "guard_detection": true,
+    "guard_enforcement": false,
+    "context_serializer": "atmem-task-context-utf8-v1",
+    "built_in_profiles": [
+      "general-v1"
+    ],
+    "expiry": "policy_owned_absolute_and_no_progress_age"
+  }
 }
