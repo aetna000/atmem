@@ -9,6 +9,15 @@ PROTOCOL_VERSION = "1"
 
 
 def capabilities() -> dict[str, Any]:
+    # Derived, not asserted. AtMem cannot stop a host action, so enforcement is
+    # reported only while an adapter has registered a real, evidence-backed
+    # blocking boundary. Editing a constant cannot turn this on.
+    from atmem.task_state.enforcement import (
+        enforcing_adapters,
+        guard_enforcement_available,
+    )
+
+    enforcement = guard_enforcement_available()
     return {
         "format": "atmem-capabilities-v1",
         "protocol_versions": [PROTOCOL_VERSION],
@@ -30,12 +39,13 @@ def capabilities() -> dict[str, Any]:
             "governed_task_state_delivery": True,
             # AtMem sees repeated equivalent actions and unmet gates.
             "governed_task_guard_detection": True,
-            # It cannot stop a host action. Only an adapter that reports having
-            # blocked one may claim enforcement, and none does today.
-            "governed_task_guard_enforcement": False,
+            # It cannot stop a host action. Only an adapter that registers a
+            # real blocking boundary flips this, and none does today.
+            "governed_task_guard_enforcement": enforcement,
         },
         "default_vector_provider": "hashing-local-v1",
         "context_serializer": "atmem-context-utf8-v1",
         "task_context_serializer": "atmem-task-context-utf8-v1",
         "governed_task_profiles": ["general-v1"],
+        "governed_task_enforcing_adapters": list(enforcing_adapters()),
     }

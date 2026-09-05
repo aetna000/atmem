@@ -407,3 +407,86 @@ def _seed_task(
         )
     finally:
         memory.close()
+
+
+# --- enforcement is derived, not asserted ----------------------------------
+
+
+def test_guard_enforcement_is_false_because_nothing_enforces() -> None:
+    """The honest state today: AtMem detects, the host executes."""
+    from atmem.task_state.enforcement import (
+        enforcing_adapters,
+        guard_enforcement_available,
+    )
+
+    assert enforcing_adapters() == ()
+    assert guard_enforcement_available() is False
+    assert capabilities()["features"]["governed_task_guard_enforcement"] is False
+
+
+def test_the_flag_flips_only_when_a_real_enforcer_registers() -> None:
+    """It cannot be turned on by editing a constant."""
+    from atmem.task_state.enforcement import (
+        register_enforcer,
+        unregister_enforcer,
+    )
+
+    class _BlockingAdapter:
+        adapter = "test-enforcer"
+
+        def blocked_actions(self) -> tuple[str, ...]:
+            return ("submit_order",)
+
+    register_enforcer("test-enforcer", _BlockingAdapter())
+    try:
+        value = capabilities()
+        assert value["features"]["governed_task_guard_enforcement"] is True
+        assert value["governed_task_enforcing_adapters"] == ["test-enforcer"]
+    finally:
+        unregister_enforcer("test-enforcer")
+
+    assert capabilities()["features"]["governed_task_guard_enforcement"] is False
+
+
+def test_an_adapter_cannot_claim_enforcement_it_cannot_evidence() -> None:
+    """Registering requires a checkable `blocked_actions()`, not a promise."""
+    from atmem.task_state.enforcement import register_enforcer
+
+    class _AllTalk:
+        adapter = "all-talk"
+
+    with pytest.raises(TypeError, match="blocked_actions"):
+        register_enforcer("all-talk", _AllTalk())
+    assert capabilities()["features"]["governed_task_guard_enforcement"] is False
+
+
+def test_an_unnamed_enforcer_is_refused() -> None:
+    from atmem.task_state.enforcement import register_enforcer
+
+    class _Anonymous:
+        adapter = ""
+
+        def blocked_actions(self) -> tuple[str, ...]:
+            return ()
+
+    with pytest.raises(ValueError, match="must be named"):
+        register_enforcer("  ", _Anonymous())
+
+
+def test_guards_still_report_detection_only_while_nothing_enforces() -> None:
+    """The guard contract and the capability response must agree."""
+    from atmem.task_state.guards import evaluate_completion_guard
+    from atmem.contracts.task_state import TaskLifecycle, TaskState
+    from atmem.task_state import GENERAL_V1
+
+    state = TaskState(
+        task_id="task-1", scope=SCOPE, revision=1, lifecycle=TaskLifecycle.OPEN,
+        phase="plan", goal="G", profile_id="general", profile_version="general-v1",
+        items=(TaskItem(item_id="item-1", kind="step", title="First",
+                        required=True),),
+    )
+    guard = evaluate_completion_guard(state, GENERAL_V1)
+
+    assert guard is not None
+    assert guard.enforced is False
+    assert capabilities()["features"]["governed_task_guard_enforcement"] is False

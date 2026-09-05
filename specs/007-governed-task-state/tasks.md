@@ -135,7 +135,7 @@ Run on 2026-09-05 against the working tree.
 
 | Check | Result |
 | --- | --- |
-| Full Python suite | 1079 passed, 2 skipped |
+| Full Python suite | 1084 passed, 2 skipped |
 | Prerequisite gate (`test_task_state_prerequisites.py`) | 11 passed |
 | Walking skeleton | 2 passed |
 | Contracts + published schemas | 77 passed |
@@ -143,7 +143,7 @@ Run on 2026-09-05 against the working tree.
 | Expiry (injectable clock, incl. maintenance scan) | 24 passed |
 | Governance conformance | 33 passed |
 | Context, guards, observability | 70 passed |
-| Adapters + capability mirroring | 25 passed |
+| Adapters + capability mirroring + derived enforcement | 30 passed |
 | CLI journey | 32 passed |
 | Dashboard states | 23 passed |
 | Deletion | 14 passed |

@@ -287,6 +287,15 @@ Schemas, `docs/capabilities.json`, adapter replies, and tests mirror that
 response. None of them is an independent authority, and no unsupported boundary
 is ever advertised.
 
+`governed_task_guard_enforcement` is **derived, not asserted**. AtMem cannot
+stop a host from calling a tool, so the flag reads a registry rather than a
+constant: it is true only while at least one adapter has registered a real
+blocking boundary through `atmem.task_state.enforcement.register_enforcer`, and
+registration requires a checkable `blocked_actions()` rather than a promise.
+Editing a boolean cannot turn it on. The registry is empty today, which is why
+the flag is false — and why it will become true on its own the moment an
+enforcing adapter exists, without anyone having to remember to update it.
+
 ## Fallback
 
 Task state is local-first and dependency-light. With AtBot, semantic services,

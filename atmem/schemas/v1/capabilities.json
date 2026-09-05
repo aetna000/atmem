@@ -38,6 +38,12 @@
       "items": {
         "type": "string"
       }
+    },
+    "governed_task_enforcing_adapters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "additionalProperties": false,

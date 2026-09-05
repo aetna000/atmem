@@ -105,6 +105,8 @@
     "built_in_profiles": [
       "general-v1"
     ],
-    "expiry": "policy_owned_absolute_and_no_progress_age"
+    "expiry": "policy_owned_absolute_and_no_progress_age",
+    "guard_enforcement_source": "derived_from_registered_enforcing_adapters",
+    "enforcing_adapters": []
   }
 }
