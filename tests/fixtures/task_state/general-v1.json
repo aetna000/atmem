@@ -1,0 +1,173 @@
+{
+  "format": "atmem-task-state-fixture-v1",
+  "name": "general-v1-three-item-workflow",
+  "version": "1.0.0",
+  "description": "An independently authored three-item workflow used to exercise progress, blocking, remaining work, restart, and no_change. It models an ordinary software change, not any third-party benchmark scenario.",
+  "profile_version": "general-v1",
+  "scope": {
+    "subject_id": "subject-1",
+    "agent_id": "agent-1",
+    "workspace_id": "workspace-1"
+  },
+  "task": {
+    "task_id": "task-fixture-1",
+    "goal": "Roll out the invoice export change",
+    "constraints": [
+      "Do not modify production data"
+    ],
+    "sources_to_inspect": [
+      "release-checklist"
+    ]
+  },
+  "items": [
+    {
+      "item_id": "item-review",
+      "kind": "step",
+      "title": "Review the change",
+      "required": true
+    },
+    {
+      "item_id": "item-deploy",
+      "kind": "step",
+      "title": "Deploy to staging",
+      "depends_on": [
+        "item-review"
+      ],
+      "required": true
+    },
+    {
+      "item_id": "item-notify",
+      "kind": "step",
+      "title": "Notify the finance team"
+    }
+  ],
+  "sequence": [
+    {
+      "label": "progress-first-item",
+      "operations": [
+        {
+          "kind": "set_item_status",
+          "item_id": "item-review",
+          "status": "completed"
+        }
+      ],
+      "expect": {
+        "outcome": "accepted",
+        "revision": 2,
+        "is_progress": true,
+        "ready_items": [
+          "item-deploy",
+          "item-notify"
+        ]
+      }
+    },
+    {
+      "label": "repeat-the-same-observation",
+      "operations": [
+        {
+          "kind": "set_item_status",
+          "item_id": "item-review",
+          "status": "completed"
+        }
+      ],
+      "expect": {
+        "outcome": "no_change",
+        "revision": 2,
+        "reason_codes": [
+          "state_already_matches"
+        ]
+      }
+    },
+    {
+      "label": "block-remaining-work",
+      "operations": [
+        {
+          "kind": "set_item_status",
+          "item_id": "item-notify",
+          "status": "blocked",
+          "reason": "Finance mailing list is unavailable"
+        }
+      ],
+      "expect": {
+        "outcome": "accepted",
+        "revision": 3,
+        "blocked_items": [
+          "item-notify"
+        ],
+        "remaining_items": [
+          "item-deploy",
+          "item-notify"
+        ]
+      }
+    },
+    {
+      "label": "premature-completion-is-denied",
+      "completion_request": true,
+      "expect": {
+        "completion_allowed": false,
+        "completion_blockers": [
+          "item-deploy",
+          "constraint:constraint-1"
+        ]
+      }
+    },
+    {
+      "label": "finish-required-work",
+      "operations": [
+        {
+          "kind": "set_item_status",
+          "item_id": "item-deploy",
+          "status": "completed"
+        }
+      ],
+      "expect": {
+        "outcome": "accepted",
+        "revision": 4,
+        "is_progress": true
+      }
+    },
+    {
+      "label": "completion-now-allowed",
+      "completion_request": true,
+      "expect": {
+        "completion_allowed": false,
+        "completion_blockers": [
+          "constraint:constraint-1"
+        ]
+      }
+    },
+    {
+      "label": "satisfy-the-declared-constraint",
+      "operations": [
+        {
+          "kind": "satisfy_constraint",
+          "constraint_id": "constraint-1"
+        }
+      ],
+      "expect": {
+        "outcome": "accepted",
+        "revision": 5,
+        "is_progress": true
+      }
+    },
+    {
+      "label": "completion-allowed-once-the-constraint-holds",
+      "completion_request": true,
+      "expect": {
+        "completion_allowed": true,
+        "completion_blockers": []
+      }
+    }
+  ],
+  "after_restart": {
+    "revision": 5,
+    "lifecycle": "open",
+    "completed_items": 2,
+    "blocked_items": [
+      "item-notify"
+    ],
+    "remaining_items": [
+      "item-notify"
+    ]
+  }
+}

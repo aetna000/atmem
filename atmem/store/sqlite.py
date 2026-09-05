@@ -1364,7 +1364,7 @@ class SQLiteStore:
             f"""
             SELECT * FROM governed_task_provenance
             WHERE {' AND '.join(clauses)}
-            ORDER BY revision ASC, provenance_id ASC
+            ORDER BY revision ASC, target_kind ASC, target_id ASC
             """,
             params,
         ).fetchall()
@@ -1454,16 +1454,18 @@ class SQLiteStore:
             INSERT INTO governed_task_steps (
               step_id, task_id, step_kind, outcome, proposal_id, base_revision,
               resulting_revision, reason_codes, action_fingerprint, actor,
-              duration_ms, recorded_at_utc
+              duration_ms, recorded_at_utc, sequence
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    (SELECT COALESCE(MAX(sequence), 0) + 1
+                     FROM governed_task_steps WHERE task_id = ?))
             """,
             (
                 step_id, task_id, step_kind, outcome, proposal_id,
                 int(base_revision),
                 None if resulting_revision is None else int(resulting_revision),
                 _json(list(reason_codes or ())), action_fingerprint, actor,
-                max(0, int(duration_ms)), recorded_at_utc,
+                max(0, int(duration_ms)), recorded_at_utc, task_id,
             ),
         )
         return step_id
@@ -1475,7 +1477,7 @@ class SQLiteStore:
             """
             SELECT * FROM governed_task_steps
             WHERE task_id = ?
-            ORDER BY recorded_at_utc ASC, step_id ASC
+            ORDER BY sequence ASC
             LIMIT ?
             """,
             (task_id, max(1, min(int(limit), 1000))),
@@ -1518,15 +1520,18 @@ class SQLiteStore:
             INSERT INTO governed_task_deliveries (
               delivery_id, task_id, revision, subject_id, agent_id,
               workspace_id, disposition, reason_codes, context_sha256,
-              cache_key, preparation_id, exposure_id, exposed, prepared_at_utc
+              cache_key, preparation_id, exposure_id, exposed, prepared_at_utc,
+              sequence
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?,
+                    (SELECT COALESCE(MAX(sequence), 0) + 1
+                     FROM governed_task_deliveries WHERE task_id = ?))
             """,
             (
                 delivery_id, task_id, int(revision), subject_id, agent_id,
                 workspace_id, disposition, _json(list(reason_codes or ())),
                 context_sha256, cache_key, preparation_id, exposure_id,
-                prepared_at_utc,
+                prepared_at_utc, task_id,
             ),
         )
         return delivery_id
@@ -1547,7 +1552,7 @@ class SQLiteStore:
             """
             SELECT * FROM governed_task_deliveries
             WHERE task_id = ?
-            ORDER BY prepared_at_utc ASC, delivery_id ASC
+            ORDER BY sequence ASC
             LIMIT ?
             """,
             (task_id, max(1, min(int(limit), 1000))),
@@ -3561,12 +3566,19 @@ class SQLiteStore:
                 "SELECT identifier FROM schema_migrations"
             ).fetchall()
         }
-        # Column additions cannot be expressed idempotently in a script, and
-        # 0063's trigger is compiled against the column, so it is ensured first.
+        # Column additions cannot be expressed idempotently in a script, so
+        # they are ensured here instead. 0063's trigger and 0077's indexes are
+        # compiled against these columns, so they are added before any script
+        # runs -- and each `_ensure_column` is safe to repeat.
         self._ensure_column("records", "generation", "INTEGER NOT NULL DEFAULT 0")
         for identifier, script in _BOOTSTRAP_MIGRATIONS:
             if identifier in applied:
                 continue
+            if identifier == "0077_governed_task_sequences":
+                for table in ("governed_task_steps", "governed_task_deliveries"):
+                    self._ensure_column(
+                        table, "sequence", "INTEGER NOT NULL DEFAULT 0"
+                    )
             self._conn.executescript(script)
             self._conn.execute(
                 "INSERT OR IGNORE INTO schema_migrations(identifier, applied_at) "
@@ -4219,6 +4231,20 @@ _BOOTSTRAP_MIGRATIONS: tuple[tuple[str, str], ...] = (
           ON governed_task_deliveries(task_id, prepared_at_utc);
         """,
     ),
+    (
+        "0077_governed_task_sequences",
+        """
+        -- The `sequence` columns these indexes cover are added through
+        -- `_ensure_column` rather than here: ALTER TABLE ADD COLUMN is not
+        -- idempotent, and every migration script must be safe to replay
+        -- against a database that already has its objects.
+        CREATE INDEX IF NOT EXISTS idx_governed_task_steps_sequence
+          ON governed_task_steps(task_id, sequence);
+
+        CREATE INDEX IF NOT EXISTS idx_governed_task_deliveries_sequence
+          ON governed_task_deliveries(task_id, sequence);
+        """,
+    ),
 )
 
 
@@ -4352,6 +4378,7 @@ def _task_step_from_row(row: sqlite3.Row) -> dict[str, Any]:
         "actor": str(row["actor"]),
         "duration_ms": int(row["duration_ms"]),
         "recorded_at_utc": str(row["recorded_at_utc"]),
+        "sequence": int(row["sequence"]),
     }
 
 
@@ -4371,6 +4398,7 @@ def _task_delivery_from_row(row: sqlite3.Row) -> dict[str, Any]:
         "exposure_id": row["exposure_id"],
         "exposed": bool(row["exposed"]),
         "prepared_at_utc": str(row["prepared_at_utc"]),
+        "sequence": int(row["sequence"]),
     }
 
 

@@ -32,6 +32,7 @@ EXPECTED_MIGRATIONS = [
     "0074_governed_task_proposals",
     "0075_governed_task_steps",
     "0076_governed_task_deliveries",
+    "0077_governed_task_sequences",
 ]
 
 

@@ -509,6 +509,14 @@ class TaskStateService:
         else:
             require(actor_role, "change_lifecycle")
         row = self._require_task(scope, task_id)
+        if target is not TaskLifecycle.EXPIRED and not (
+            TaskLifecycle(row["lifecycle"]).terminal
+        ):
+            # A task that aged out while nothing was running is already
+            # terminal; the operator's request arrives too late and must be
+            # refused rather than reviving it. (Skipped when this call *is*
+            # the expiry, which would otherwise recurse.)
+            row = self._expire_if_due(scope, row) or row
         current = TaskLifecycle(row["lifecycle"])
         if current.terminal:
             raise TaskStateError(
