@@ -54,6 +54,23 @@ class AtMemAdapterIdentity:
             raise ValueError("task_id is required to bind a task-aware identity")
         return replace(self, task_id=str(task_id))
 
+    def for_execution(
+        self,
+        *,
+        run_id: str | None = None,
+        turn_id: str | None = None,
+        task_id: str | None = None,
+        session_id: str | None = None,
+    ) -> "AtMemAdapterIdentity":
+        """Freeze native per-run identity without mutating framework state."""
+        return replace(
+            self,
+            run_id=str(run_id) if run_id else self.run_id,
+            turn_id=str(turn_id) if turn_id else self.turn_id,
+            task_id=str(task_id) if task_id else self.task_id,
+            session_id=str(session_id) if session_id else self.session_id,
+        )
+
     @property
     def task_aware(self) -> bool:
         return bool(self.task_id)
@@ -146,13 +163,20 @@ class AtMemTurnLifecycle:
             "disposition": prepared.get("disposition"),
             "reason_codes": list(prepared.get("reason_codes") or ()),
         }
+        task_context_sha256 = str(
+            prepared.get("context_sha256") or ""
+        ).removeprefix("sha256:")
         self._task_event(
             "task.context.prepared",
             payload={
                 "task_id": self.identity.task_id,
                 "task_disposition": prepared.get("disposition"),
                 "task_revision": prepared.get("revision"),
-                "task_context_sha256": str(prepared.get("context_sha256") or "").removeprefix("sha256:"),
+                **(
+                    {"task_context_sha256": task_context_sha256}
+                    if task_context_sha256
+                    else {}
+                ),
                 "task_reason_codes": list(prepared.get("reason_codes") or ()),
             },
         )
@@ -190,12 +214,19 @@ class AtMemTurnLifecycle:
         delivery_id = str(prepared.get("delivery_id") or "")
         if not delivery_id or not self.manager.confirm_task_exposure(delivery_id):
             raise RuntimeError("AtMem could not confirm exact task-state exposure")
+        task_context_sha256 = str(
+            prepared.get("context_sha256") or ""
+        ).removeprefix("sha256:")
         self._task_event(
             "task.context.exposed",
             payload={
                 "task_id": self.identity.task_id,
                 "task_revision": prepared.get("revision"),
-                "task_context_sha256": str(prepared.get("context_sha256") or "").removeprefix("sha256:"),
+                **(
+                    {"task_context_sha256": task_context_sha256}
+                    if task_context_sha256
+                    else {}
+                ),
                 "task_disposition": "injected",
             },
         )

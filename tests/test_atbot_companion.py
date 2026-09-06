@@ -352,10 +352,16 @@ def test_dashboard_contains_one_governed_memory_chat() -> None:
     assert 'collapsed?"Open memory assistant":"Hide memory assistant"' in html
     assert 'resultPanel.hidden=false' in html
     assert 'id="navSettings"' in html
-    assert 'function activateSettings()' in html
+    assert 'id="viewSettings"' in html
+    assert 'id="semanticSettingsCard"' in html
+    assert 'id="semanticModelSelect"' in html
+    assert 'id="semanticSetupAction"' in html
+    assert '/api/semantic/profiles' in html
+    assert '/api/semantic/setup' in html
+    assert 'settings:"viewSettings"' in html
     assert 'showView("settings")' in html
     assert '$("intelligenceConfig").open=false' in html
-    assert 'pair[1]==="settings"' in html
+    assert 'panel.id===panelId' in html
     assert '"activitydate"' in html
     assert '"activityclock"' in html
     assert 'csrf=(await get("/api/session")).csrf_token;return post(path,body,true)' in html

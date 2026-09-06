@@ -164,6 +164,27 @@ def test_blackbox_accepts_task_transition_metadata_but_never_raw_task_content() 
     assert event["payload"]["task_resulting_revision"] == 3
     assert event["content_storage"] == "digests-and-bounded-metadata-only"
 
+    retrieval_event = normalize_event(
+        migration_id="migration-1",
+        host="openclaw",
+        event_type="context.disposition",
+        run_id="run-task-1",
+        session_id="session-task-1",
+        tool_call_id=None,
+        payload={
+            "disposition": "no_relevant_memory",
+            "context_block_sha256": "b" * 64,
+            "candidates_considered": 8,
+            "retrieval_support_class": "no_useful_memory",
+            "retrieval_calibration_version": "retrieval-calibration-v1",
+            "retrieval_reason_codes": ["no_relevance_signal"],
+        },
+    )
+    assert retrieval_event["payload"]["candidates_considered"] == 8
+    assert retrieval_event["payload"]["retrieval_reason_codes"] == [
+        "no_relevance_signal"
+    ]
+
     with pytest.raises(ValueError, match="unsupported blackbox payload field"):
         normalize_event(
             migration_id="migration-1",

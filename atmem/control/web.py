@@ -95,6 +95,13 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 self.server.manager.semantic_health(subject_id=subject_id),
             )
             return
+        if path == "/api/semantic/profiles":
+            subject_id = (parse_qs(parsed.query).get("subject") or [None])[0]
+            self._json(
+                HTTPStatus.OK,
+                self.server.manager.semantic_profiles(subject_id=subject_id),
+            )
+            return
         if path == "/api/companion/status":
             from atmem.control.atbot_service import AtBotServiceManager
 
@@ -512,6 +519,25 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     self.server.manager.sync_memory(),
                 )
                 return
+            if path == "/api/semantic/setup":
+                provider = str(body.get("provider") or "").strip()
+                model = str(body.get("model") or "").strip()
+                if not provider or not model:
+                    raise ValueError("provider and model are required")
+                if not secrets.compare_digest(
+                    str(body.get("confirm_model") or ""), model
+                ):
+                    raise ValueError("model confirmation does not match")
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.setup_semantic_profile(
+                        provider=provider,
+                        model=model,
+                        subject_id=str(body.get("subject_id") or "").strip() or None,
+                        allow_download=body.get("allow_download") is True,
+                    ),
+                )
+                return
             if path == "/api/memory/query":
                 query = str(body.get("query") or "").strip()
                 self._json(
@@ -634,6 +660,30 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 self._json(
                     HTTPStatus.OK,
                     {"registered": registered, "status": config.status()},
+                )
+                return
+            if path == "/api/tasks/mode":
+                action = str(body.get("action") or "").strip()
+                requested_scope = {
+                    "subject_id": str(body.get("subject_id") or "").strip(),
+                    "agent_id": str(body.get("agent_id") or "").strip(),
+                    "workspace_id": str(body.get("workspace_id") or "").strip(),
+                }
+                confirmed_scope = body.get("confirm_scope")
+                if not all(requested_scope.values()):
+                    raise ValueError("complete task-state scope is required")
+                if not isinstance(confirmed_scope, dict) or {
+                    key: str(confirmed_scope.get(key) or "").strip()
+                    for key in requested_scope
+                } != requested_scope:
+                    raise ValueError("task-state scope confirmation does not match")
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.set_task_state_mode(
+                        action,
+                        actor=str(body.get("actor") or "dashboard-operator"),
+                        **requested_scope,
+                    ),
                 )
                 return
             if path == "/api/tasks/lifecycle":

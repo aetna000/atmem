@@ -77,6 +77,21 @@ Run `atmem COMMAND --help` for command-specific examples.""",
         action="store_true",
         help="Print machine-readable JSON",
     )
+    openclaw_install.add_argument(
+        "--embedding-model",
+        default="nomic-embed-text",
+        help="Local Ollama embedding model to verify and activate (default: nomic-embed-text)",
+    )
+    openclaw_install.add_argument(
+        "--allow-model-download",
+        action="store_true",
+        help="Permit OpenClaw onboarding to download the selected embedding model",
+    )
+    openclaw_install.add_argument(
+        "--skip-semantic-setup",
+        action="store_true",
+        help="Install the bridge without preparing semantic retrieval",
+    )
     openclaw_upgrade = openclaw_commands.add_parser(
         "upgrade",
         help=(
@@ -1672,6 +1687,34 @@ def _run_openclaw(args: argparse.Namespace) -> None:
             control_root=args.control_root or DEFAULT_CONTROL_ROOT,
             progress=None if args.json else show_progress,
         )
+        if not args.skip_semantic_setup:
+            from atmem.control import ControlPlaneManager
+
+            allow_download = bool(args.allow_model_download)
+            if not allow_download and not args.json and sys.stdin.isatty():
+                answer = input(
+                    "Prepare semantic retrieval with local model "
+                    f"{args.embedding_model!r}? Download it if missing [y/N]: "
+                ).strip().casefold()
+                allow_download = answer in {"y", "yes"}
+            semantic_manager = ControlPlaneManager(args.state or DEFAULT_STATE_PATH)
+            try:
+                result["semantic"] = semantic_manager.setup_semantic_profile(
+                    provider="ollama",
+                    model=args.embedding_model,
+                    allow_download=allow_download,
+                )
+            except (OSError, RuntimeError, ValueError) as semantic_error:
+                result["semantic"] = {
+                    "format": "atmem-semantic-setup-v1",
+                    "status": "needs_action",
+                    "model": args.embedding_model,
+                    "message": str(semantic_error),
+                    "next": (
+                        "rerun with --allow-model-download or choose a model "
+                        "under Dashboard Settings"
+                    ),
+                }
     except ValueError as exc:
         if args.json:
             _print(
@@ -1723,6 +1766,11 @@ def _run_openclaw(args: argparse.Namespace) -> None:
     print("  Control mode            shadow capture")
     print("  Model context changed no")
     print("  Extra provider calls  no")
+    semantic = result.get("semantic") or {}
+    print(
+        "  Semantic retrieval     "
+        + ("READY" if semantic.get("status") == "complete" else "needs setup in Settings")
+    )
     print(f"  Control ID              {result['migration_id']}")
     print(f"  Evidence directory    {result['control_dir']}")
     print(

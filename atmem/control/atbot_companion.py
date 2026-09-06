@@ -43,6 +43,8 @@ class AtBotCompanionClient:
     def query(self, query: str, candidates: list[dict[str, Any]]) -> dict[str, Any]:
         from atmem.control.atbot_service import AtBotServiceManager
 
+        if not candidates:
+            return _fallback(query, [], {"available": False, "reason": "no useful memory"})
         if AtBotServiceManager().fallback_selected():
             return _fallback(
                 query,
@@ -321,15 +323,21 @@ class AtBotCompanionClient:
 def _fallback(
     query: str, candidates: list[dict[str, Any]], health: dict[str, Any]
 ) -> dict[str, Any]:
-    del query
-    if not candidates:
+    from atmem.retrieve import decide_retrieval
+
+    decision = decide_retrieval(query, candidates)
+    selected = list(decision.ranked_record_ids[:1])
+    by_id = {
+        str(row.get("record_id") or row.get("id")): row for row in candidates
+    }
+    if not selected:
         answer = "I couldn't find governed memory that answers that question."
         ranked: list[str] = []
     else:
-        first = candidates[0]
+        first = by_id[selected[0]]
         content = str(first.get("content") or first.get("match_excerpt") or "")
         answer = f"The closest governed memory is: {content}"
-        ranked = [str(first.get("record_id") or first.get("id"))]
+        ranked = selected
     return {
         "format": "atbot-memory-query-result-v1",
         "answer": answer,
@@ -337,6 +345,7 @@ def _fallback(
         "explanation": "AtMem used its safe fallback because AtBot was unavailable.",
         "provider": "atmem-fallback",
         "model": "authority-ranking-v1",
+        "retrieval_decision": decision.to_dict(),
         "companion": {
             "available": False,
             "fallback": True,

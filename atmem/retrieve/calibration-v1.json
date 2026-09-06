@@ -1,0 +1,9 @@
+{
+  "format": "atmem-retrieval-calibration-v1",
+  "version": "retrieval-calibration-v1",
+  "direct_threshold": 0.5,
+  "background_threshold": 0.25,
+  "production_semantic_threshold": 0.72,
+  "relevance_weight": 0.85,
+  "prior_weight": 0.15
+}

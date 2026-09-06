@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/007-governed-task-state`  
 **Created**: 2026-09-04  
-**Status**: Implemented (core) · Amendment A (Host-Driven Task Binding and Proposal) proposed
+**Status**: Implemented (core and Amendment A) · Amendment B (Execution Correlation and Investigation) proposed
 **Input**: Add a governed, continually maintained execution state that gives
 agents a structured checklist of goals, phases, actionable data units, current
 status, constraints, dependencies, and verified progress without weakening
@@ -1163,3 +1163,198 @@ may be left to implementation judgement:
 - Changing OpenClaw itself. This amendment is implementable entirely within
   AtMem and its bridge. If OpenClaw later adds task identity to its plugin hook
   context, FR-043's first resolution step consumes it with no further change.
+
+# Amendment B — Execution Correlation, Task Focus, and Investigation
+
+**Created**: 2026-09-06
+**Status**: Proposed
+
+## Motivation
+
+A governed task is currently durable and a flight is currently auditable, but
+the relationship between them is not a first-class host-neutral object. A
+session, run, or turn is execution identity, not business-task identity: one
+long conversation can perform many tasks, and one task can span several
+sessions, agents, frameworks, and model runs. Operators must be able to start
+from a clue they actually possess — time, host, agent, session, run, turn,
+task, memory, or exact question text — and trace to the related work without
+AtMem retaining unnecessary prompt or response bodies.
+
+Amendment B adds an append-only task-focus interval and execution-link model,
+a privacy-preserving investigation locator, and equivalent adapter semantics.
+OpenClaw is one conforming host. Pydantic AI, LangGraph/LangChain, and MCP use
+the same contracts and may expose only the capabilities their boundaries can
+prove.
+
+## User Scenarios and Acceptance
+
+### User Story 7 — Trace old agent work from a human clue (P1)
+
+As an operator investigating work from days ago, I can give AtBot a time,
+session/run/turn identifier, task or memory identifier, or exact question text
+and receive authorized, human-readable matches linking the task, flight,
+turns, tool outcomes, and memory consideration or exposure evidence.
+
+**Independent test**: Record two tasks across several turns in one session and
+one task across a second framework run. Locate each by time window, session,
+run, task, injected memory, and the exact original question. Verify every
+result has a stated match basis and scope, and cross-scope clues disclose
+nothing.
+
+**Acceptance scenarios**:
+
+1. Given an exact complete question whose body was not retained, when the
+   operator searches with that question, then AtMem applies the versioned
+   normalization and digest profile and locates matching turns without storing
+   or returning the original question.
+2. Given only part of a question, when the host supports authorized transcript
+   lookup, then AtMem asks that host for opaque turn references and correlates
+   only the returned references; when the host does not support it and no
+   private search index was explicitly enabled, AtMem states that partial-text
+   search is unavailable rather than guessing.
+3. Given a time window, task, memory, agent, workspace, session, run, turn,
+   tool, model, outcome, or reason code, when the operator searches, then every
+   result identifies why it matched and offers pivots to its related task,
+   flight, turn, memory use, and evidence.
+4. Given a clue outside the caller's scope, when investigation runs, then it
+   produces the same empty result as an unknown clue and reveals no inaccessible
+   identifier, count, digest, or content.
+
+### User Story 8 — Work on many tasks in one conversation (P1)
+
+As an operator, I can explicitly focus a conversation or run on one governed
+task, switch focus later, leave task mode for ordinary questions, and resume a
+task from another supported agent without confusing session identity with task
+identity.
+
+**Independent test**: In one host session, focus task A for two turns, clear
+focus for an ordinary question, focus task B for three turns, and later resume
+task A from a different conforming adapter. Verify each turn has zero or one
+primary task, every interval is retained, no task is inferred, and all task
+deliveries and proposals attach to the correct execution link.
+
+**Acceptance scenarios**:
+
+1. Given an owner-authorized focus operation, when task A becomes current,
+   then later task-aware turns resolve A until focus is explicitly cleared,
+   switched, revoked, expired, or invalidated by session generation.
+2. Given task A is focused, when the owner switches to task B, then AtMem closes
+   A's focus interval and opens B's atomically, retaining both histories and
+   never rewriting prior flights.
+3. Given no current focus, when an ordinary question runs, then task context is
+   withheld and the turn remains searchable as a non-task flight.
+4. Given AtBot suggests that a turn resembles a task, when no authenticated
+   operator or explicit framework state confirms it, then no task focus or
+   execution link is created.
+
+## Functional Requirements
+
+- **FR-055**: AtMem MUST define a versioned host-neutral `ExecutionIdentity`
+  containing host/framework, subject, agent, workspace, session key and
+  generation where available, run ID, turn ID, and optional tool-call/step ID.
+  Missing optional host fields MUST remain explicit; one identifier MUST NOT be
+  silently substituted for a different identity level.
+- **FR-056**: AtMem MUST persist an append-only `TaskExecutionLink` joining one
+  exact task and optional item to an `ExecutionIdentity`, task revision,
+  binding/focus source, activation time, optional deactivation time, and
+  evidence digest. A turn MUST have zero or one primary task; a task MAY span
+  many turns, sessions, agents, and frameworks.
+- **FR-057**: Task focus MUST support owner-authorized activate, clear, switch,
+  inspect, and history operations. Switching MUST atomically close the prior
+  focus and open the next; it MUST NOT overwrite, heuristically retarget, or
+  infer from the sole open task, conversation title, recency, prompt text, or
+  model suggestion. AtBot MAY propose a focus candidate but cannot activate it.
+- **FR-058**: Every task-context preparation/exposure, host observation, typed
+  delta, lifecycle request, accepted/rejected/no-change decision, and related
+  flight event MUST carry the same `task_execution_link_id` plus task/run/turn
+  projections needed for indexed pivots. The canonical task and flight chains
+  remain separate authorities joined by this immutable correlation evidence.
+- **FR-059**: AtMem MUST expose a versioned investigation query accepting an
+  authorized combination of time range, host/framework, agent, workspace,
+  session, run, turn, task, task item, memory record, retrieval, tool, model,
+  outcome, reason code, or exact prompt/response text. Exact text MUST be
+  normalized with a versioned digest profile and matched to retained digests;
+  the query body MUST NOT be persisted by default.
+- **FR-060**: Partial or semantic prompt/response lookup MUST be unavailable by
+  default unless either (a) a registered host performs an authorized transcript
+  lookup and returns opaque execution references, or (b) an operator explicitly
+  enables a local private investigation index. Such an index is derived
+  sensitive data with declared representation/model identity, scope, retention,
+  deletion verification, key rotation where keyed search is used, and explicit
+  egress policy; it MUST NOT silently retain raw prompts, responses, secrets, or
+  chain-of-thought.
+- **FR-061**: Investigation results MUST be authorization-filtered before AtBot
+  sees them and MUST return human-readable time, host, agent, task title/status,
+  turn outcome, memories considered/selected/exposed, and match basis. Technical
+  IDs, digests, and chain evidence remain available as drill-down, not the main
+  answer. AtBot may interpret and rank eligible results but cannot introduce a
+  result AtMem did not supply.
+- **FR-062**: OpenClaw, Pydantic AI, LangGraph/LangChain, and MCP MUST use the
+  same execution/focus/investigation contracts. Capability negotiation MUST be
+  adapter-keyed for focus, task proposal, exact-text lookup, host-assisted
+  partial-text lookup, model-boundary exposure, and blocking enforcement; MCP
+  remains the universal tool-only fallback and MUST NOT claim automatic hooks.
+- **FR-063**: OpenClaw's `task_report_progress` MUST resolve the task from the
+  authenticated current conversation focus inside the adapter, pass the
+  resolved task ID as a redundant assertion to the host-boundary contract, and
+  never depend on a model-supplied hidden `task_id`. A real registered-tool test
+  MUST execute successful, conflict, rejected, no-change, unbound, and
+  wrong-session paths.
+- **FR-064**: Pydantic AI and LangGraph/LangChain MUST accept task identity or
+  focus per run/turn from their native dependency/runtime/configurable state,
+  not only from adapter construction. They MUST preserve framework state and
+  checkpoints and MUST record the same execution links and exposure receipts as
+  OpenClaw where their hooks can prove delivery.
+- **FR-065**: The dashboard MUST provide a task-centric projection showing goal,
+  progress, phase, blockers, completion readiness, current/recent agents, focus
+  history, and related flights. It MUST support Task → Flight → Turn → Memory
+  and Memory/Flight → Task pivots, show considered/selected/exposed distinctly,
+  and keep raw IDs/hashes in an expandable evidence view.
+- **FR-066**: Existing sessions, flights, tasks, bindings, and memory-only
+  adapters MUST upgrade without fabricated links. Historical rows lacking a
+  provable relationship remain `unlinked`; migrations MUST use the Spec 010
+  registry, be idempotent, and be tested from every supported published floor.
+- **FR-067**: Forgetting a task, subject, flight, or private investigation index
+  MUST remove or redact its derived correlation/search representations according
+  to retention policy and produce verifiable counts/digests without deleting
+  unrelated canonical evidence.
+- **FR-068**: Indexed investigation by exact identifier or bounded time range
+  MUST meet a documented local p95 target on the declared scale without scanning
+  every task revision or full evidence body; authorization and deletion
+  revalidation remain mandatory on cache hits.
+
+## Success Criteria
+
+- **SC-032**: A conformance fixture traces two sequential tasks and one non-task
+  turn in one session, plus one task across two frameworks, with 100% correct
+  zero-or-one primary task association.
+- **SC-033**: Exact full-text digest lookup finds every matching retained turn
+  and zero non-matching turns without retaining the supplied query or original
+  prompt body.
+- **SC-034**: Every supported clue type produces authorization-safe results with
+  a match basis and working task/flight/turn/memory pivots; all cross-scope
+  adversarial cases disclose zero identifiers and content.
+- **SC-035**: OpenClaw's registered `task_report_progress` tool passes all six
+  FR-063 boundary outcomes and advances the bound task exactly once on success.
+- **SC-036**: Pydantic AI and LangGraph/LangChain each demonstrate different
+  task identities on successive runs through native runtime state, exact task
+  exposure confirmation, and unchanged native history/checkpoint semantics.
+- **SC-037**: MCP exposes the same locator/focus/proposal schemas as tools while
+  truthfully reporting that automatic capture, injection, and exposure hooks are
+  unavailable through MCP alone.
+- **SC-038**: Dashboard tests prove a user can start from a task, flight, or
+  memory and reach the other two in at most two actions, with technical evidence
+  collapsed by default.
+- **SC-039**: Upgrade fixtures create no inferred historical links and deletion
+  fixtures leave no searchable derived correlation for the forgotten scope.
+- **SC-040**: On a fixture of at least 100,000 correlation rows, exact-ID and
+  seven-day time-window investigation each complete within 100 ms p95 on the
+  documented reference machine, excluding optional host/model calls.
+
+## Out of Scope for this Amendment
+
+- Retaining every prompt or response body by default.
+- Inferring task identity from semantic similarity or conversation content.
+- Replacing host transcript search, LangGraph checkpoints, or framework tracing.
+- Claiming that an AtMem correlation proves a real-world outcome beyond the
+  evidence assurance recorded for that outcome.

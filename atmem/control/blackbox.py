@@ -73,6 +73,8 @@ _TEXT_KEYS = {
     "task_actor",
     "task_actor_role",
     "task_assurance",
+    "retrieval_support_class",
+    "retrieval_calibration_version",
 }
 _COUNT_KEYS = {
     "prompt_chars",
@@ -91,6 +93,7 @@ _COUNT_KEYS = {
     "task_revision",
     "task_base_revision",
     "task_resulting_revision",
+    "candidates_considered",
 }
 _BOOL_KEYS = {"fast_mode", "cancelled", "success", "task_guard_enforced"}
 _LIST_KEYS = {
@@ -101,6 +104,7 @@ _LIST_KEYS = {
     "task_reason_codes",
     "task_evidence_ids",
     "task_affected_item_ids",
+    "retrieval_reason_codes",
 }
 
 _CORRELATION_KEYS = (

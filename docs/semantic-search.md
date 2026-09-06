@@ -2,11 +2,18 @@
 
 AtMem keeps canonical memory in SQLite and semantic vectors in a disposable
 sidecar. A base installation automatically provides deterministic local
-hashing, so canonical memory and lexical/hybrid recall remain useful without a
-model runtime, network connection, or hosted provider. Semantic vectors never
-authorize, admit, promote, or change a memory.
+hashing for diagnostics and index plumbing, so canonical memory and lexical
+recall remain useful without a model runtime, network connection, or hosted
+provider. Diagnostic hash similarity cannot independently authorize injection.
+Semantic vectors never authorize, admit, promote, or change a memory.
 
 ## Guided local setup
+
+The dashboard exposes the same flow under **Settings → Embedding model**.
+Choose a hardware-compatible catalog model and confirm once. AtMem installs the
+local model when needed, builds a staged vector epoch, verifies canonical
+coverage and model identity, and activates it only after verification passes.
+Changing models never changes canonical memory.
 
 Install the optional runtime, then run the guided command:
 
@@ -48,9 +55,9 @@ atmem semantic setup memories.db --subject user-1 \
 
 Setup builds a staged epoch, verifies its manifest and canonical coverage, and
 runs a paraphrase smoke test. A manual representative paraphrase can be supplied
-with `--smoke-query`. Refusing a download or egress leaves deterministic hashing
-available and reports `cancelled`; it does not silently install or contact
-anything.
+with `--smoke-query`. Refusing a download or egress leaves lexical/fact-key
+retrieval plus deterministic diagnostic hashing available and reports
+`cancelled`; it does not silently install or contact anything.
 
 ## Health and recovery
 
@@ -66,7 +73,9 @@ atmem semantic rebuild memories.db --subject user-1
 Health is one of:
 
 - `healthy`: model identity, dimensions, source digest, and coverage verify.
-- `weak`: the safe deterministic hashing fallback is active.
+- `weak`: deterministic diagnostic hashing is active; it is not a
+  production-quality semantic profile and cannot independently authorize
+  injection.
 - `missing`: no active epoch exists.
 - `legacy`: the active epoch lacks enough identity or manifest evidence.
 - `stale`: canonical content, lifecycle, generation, coverage, or the household
@@ -101,9 +110,10 @@ rebuild`; the stale partial epoch is retired when its replacement starts.
   nomination and reloads every result from canonical memory.
 - Deletion purges registered vector sidecars; policy or lifecycle drift makes
   health stale until repaired.
-- Missing, stale, legacy, incompatible, or partial epochs are withheld. Use
-  lexical search, or rebuild. Hashing remains local and deterministic but does
-  not provide model-quality paraphrase understanding.
+- Missing, stale, legacy, incompatible, or partial production epochs are
+  withheld. Use lexical/fact-key search, or rebuild. Hashing remains local and
+  deterministic for diagnostics but neither provides model-quality paraphrase
+  understanding nor independently establishes answer support.
 - Model availability, download time, tokenizer behavior, numerical output, and
   retrieval quality are third-party/runtime concerns. Approximate catalog sizes
   are planning guidance, not download guarantees.

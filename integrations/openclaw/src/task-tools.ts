@@ -35,6 +35,43 @@ export function sessionIdentityForTool(
   };
 }
 
+export type BoundTaskResolution =
+  | { ok: true; identity: AtmemSessionIdentity; taskId: string; revision?: number }
+  | { ok: false; message: string; reasonCodes: string[] };
+
+/** Resolve authority from the authenticated conversation, never model input. */
+export async function resolveBoundTaskForTool(
+  ctx: OpenClawPluginToolContext,
+  prepare: (identity: AtmemSessionIdentity) => Promise<unknown>,
+): Promise<BoundTaskResolution> {
+  const identity = sessionIdentityForTool(ctx);
+  if (!identity) {
+    return { ok: false, message: NO_IDENTITY_MESSAGE, reasonCodes: ["host_identity_missing"] };
+  }
+  const prepared = (await prepare(identity)) as {
+    disposition?: string;
+    task_id?: string;
+    revision?: number;
+    reason_codes?: string[];
+  };
+  if (prepared.disposition !== "injected" || !prepared.task_id) {
+    const reasons = (prepared.reason_codes ?? []).map(String);
+    return {
+      ok: false,
+      message:
+        "This conversation has no active governed task focus. " +
+        "No task progress was recorded.",
+      reasonCodes: reasons.length ? reasons : ["task_context_selection_required"],
+    };
+  }
+  return {
+    ok: true,
+    identity,
+    taskId: String(prepared.task_id),
+    revision: prepared.revision,
+  };
+}
+
 /** Absence is never permission. Only an explicit affirmative is the owner. */
 export function isConversationOwner(ctx: OpenClawPluginToolContext): boolean {
   return ctx.senderIsOwner === true;

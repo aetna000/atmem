@@ -47,6 +47,7 @@ class OllamaEmbedder:
         self.model_version = (
             self.model_digest if model_version == "unverified" else model_version
         )
+        self.profile = _model_profile(model)
 
     @property
     def identity(self) -> dict[str, Any]:
@@ -57,13 +58,14 @@ class OllamaEmbedder:
             "model_digest": self.model_digest,
             "endpoint": self.endpoint,
             "normalization": "l2",
+            **self.profile,
         }
 
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
-        return self._embed(list(texts))
+        return self._embed([self.profile["document_prefix"] + text for text in texts])
 
     def embed_query(self, text: str) -> list[float]:
-        return self._embed([text])[0]
+        return self._embed([self.profile["query_prefix"] + text])[0]
 
     def verify_identity(self) -> None:
         current = _ollama_model_digest(
@@ -104,6 +106,7 @@ class OpenAICompatibleEmbedder:
         self.api_key = api_key
         self.model_version = model_version
         self.timeout = timeout
+        self.profile = _model_profile(model)
 
     @property
     def identity(self) -> dict[str, Any]:
@@ -113,13 +116,14 @@ class OpenAICompatibleEmbedder:
             "version": self.model_version,
             "endpoint": self.endpoint,
             "normalization": "l2",
+            **self.profile,
         }
 
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
-        return self._embed(list(texts))
+        return self._embed([self.profile["document_prefix"] + text for text in texts])
 
     def embed_query(self, text: str) -> list[float]:
-        return self._embed([text])[0]
+        return self._embed([self.profile["query_prefix"] + text])[0]
 
     def _embed(self, texts: list[str]) -> list[list[float]]:
         headers = {"Content-Type": "application/json"}
@@ -151,6 +155,7 @@ class SentenceTransformersEmbedder:
         self.model_name = model
         self.model_version = model_version
         self._model = SentenceTransformer(model)
+        self.profile = _model_profile(model)
 
     @property
     def identity(self) -> dict[str, Any]:
@@ -159,12 +164,13 @@ class SentenceTransformersEmbedder:
             "model": self.model_name,
             "version": self.model_version,
             "normalization": "l2",
+            **self.profile,
         }
 
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
         method = getattr(self._model, "encode_document", self._model.encode)
         values = method(
-            list(texts),
+            [self.profile["document_prefix"] + text for text in texts],
             convert_to_numpy=True,
             normalize_embeddings=True,
             show_progress_bar=False,
@@ -174,7 +180,7 @@ class SentenceTransformersEmbedder:
     def embed_query(self, text: str) -> list[float]:
         method = getattr(self._model, "encode_query", self._model.encode)
         values = method(
-            [text],
+            [self.profile["query_prefix"] + text],
             convert_to_numpy=True,
             normalize_embeddings=True,
             show_progress_bar=False,
@@ -200,6 +206,10 @@ class HashingEmbedder:
             "model": f"token-hash-{self.dimensions}",
             "version": "1",
             "normalization": "l2",
+            "query_prefix": "",
+            "document_prefix": "",
+            "preprocessing_version": "atmem-embedding-text-v1",
+            "quality_class": "diagnostic",
         }
 
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
@@ -217,6 +227,23 @@ class HashingEmbedder:
             sign = -1.0 if digest[4] & 1 else 1.0
             vector[index] += sign
         return _normalize(vector)
+
+
+def _model_profile(model: str) -> dict[str, str]:
+    name = model.casefold()
+    query_prefix = ""
+    document_prefix = ""
+    if "bge-" in name:
+        query_prefix = "Represent this sentence for searching relevant passages: "
+    elif "nomic-embed" in name:
+        query_prefix = "search_query: "
+        document_prefix = "search_document: "
+    return {
+        "query_prefix": query_prefix,
+        "document_prefix": document_prefix,
+        "preprocessing_version": "atmem-embedding-text-v1",
+        "quality_class": "production",
+    }
 
 
 def create_embedder(

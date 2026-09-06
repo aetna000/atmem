@@ -121,6 +121,38 @@ def test_an_empty_scope_lists_nothing_rather_than_erroring(manager) -> None:
     assert listing["tasks"] == []
 
 
+def test_dashboard_mode_action_enables_and_disables_one_exact_scope(manager) -> None:
+    enabled = manager.set_task_state_mode(
+        "enable",
+        actor="dashboard-operator",
+        subject_id=SUBJECT,
+        agent_id=AGENT,
+        workspace_id=WORKSPACE,
+    )
+    assert enabled["mode"] == "active"
+    assert enabled["changed"] is True
+    assert enabled["scope"] == SCOPE.to_dict()
+
+    repeated = manager.set_task_state_mode(
+        "enable",
+        actor="dashboard-operator",
+        subject_id=SUBJECT,
+        agent_id=AGENT,
+        workspace_id=WORKSPACE,
+    )
+    assert repeated["changed"] is False
+
+    disabled = manager.set_task_state_mode(
+        "disable",
+        actor="dashboard-operator",
+        subject_id=SUBJECT,
+        agent_id=AGENT,
+        workspace_id=WORKSPACE,
+    )
+    assert disabled["mode"] == "disabled"
+    assert disabled["data_preserved"] is True
+
+
 def test_task_detail_carries_the_plain_language_summary_first(manager) -> None:
     enable(manager)
     seed(manager)
@@ -133,6 +165,46 @@ def test_task_detail_carries_the_plain_language_summary_first(manager) -> None:
     assert detail["summary"]["completion_allowed"] is False
     assert detail["summary"]["completion_blockers"] == ["item-1"]
     assert detail["lifecycle"] == "open"
+    assert detail["projection"]["format"] == "atmem-task-centric-projection-v1"
+    assert detail["projection"]["correlation_state"] == "unlinked"
+    assert detail["projection"]["related_flights"] == []
+
+
+def test_task_detail_links_only_explicit_scope_matched_flight_evidence(manager) -> None:
+    enable(manager)
+    seed(manager)
+    from atmem.control.blackbox import EVIDENCE_KIND, normalize_event
+
+    state = manager.state()
+    store = manager._store(state)
+    try:
+        store.append_evidence(
+            state.migration_id,
+            kind=EVIDENCE_KIND,
+            body=normalize_event(
+                migration_id=state.migration_id,
+                host="test",
+                event_type="task.context.prepared",
+                run_id="run-task-1",
+                session_id="session-1",
+                turn_id="turn-1",
+                subject_id=SUBJECT,
+                agent_id=AGENT,
+                workspace_id=WORKSPACE,
+                tool_call_id=None,
+                payload={"task_id": "task-1", "task_disposition": "injected"},
+            ),
+        )
+    finally:
+        store.close()
+
+    detail = manager.task_detail(
+        "task-1", subject_id=SUBJECT, agent_id=AGENT, workspace_id=WORKSPACE
+    )
+
+    assert detail["projection"]["correlation_state"] == "explicit_evidence"
+    assert detail["projection"]["related_flights"][0]["run_id"] == "run-task-1"
+    assert detail["projection"]["related_flights"][0]["turn_ids"] == ["turn-1"]
 
 
 def test_an_unknown_task_returns_a_non_disclosing_refusal(manager) -> None:
@@ -275,13 +347,17 @@ def test_the_dashboard_still_has_exactly_four_workspaces() -> None:
 def test_the_task_ui_never_claims_influence_it_does_not_have() -> None:
     markup = html()
 
-    assert "No task context is reaching any agent" in markup
-    assert "no task context reaches any agent" in markup
+    assert 'id="viewSettings"' in markup
+    assert 'id="taskModeSettingsCard"' in markup
+    assert "No task context reaches this agent" in markup
+    assert 'id="taskModeAction"' in markup
+    assert "Existing tasks and evidence will be preserved" in markup
+    assert "confirm_scope" in markup
     # Amendment A changed how a task is selected, not how much is claimed: a
     # conversation receives exactly the task it is bound to, and the wording
     # still promises delivery only, never that AtMem can stop the host.
     assert (
-        "A conversation receives the exact task it is bound to, and nothing else"
+        "Only a task explicitly bound to a conversation may reach the agent"
         in markup
     )
 
@@ -321,6 +397,8 @@ def test_task_controls_are_keyboard_operable_and_labelled() -> None:
     assert 'item.type="button"' in markup
     assert 'setAttribute("aria-label","Open task ' in markup
     assert 'setAttribute("aria-current","true")' in markup
+    assert "Recent task activity" in markup
+    assert "AtMem does not guess historical links" in markup
 
 
 def test_task_status_is_readable_without_colour() -> None:
@@ -334,6 +412,14 @@ def test_the_selected_task_offers_a_return_path() -> None:
     markup = html()
     assert "Back to all tasks" in markup
     assert 'id="taskSelected"' in markup
+
+
+def test_memory_assistant_renders_execution_matches_as_evidence_pivots() -> None:
+    markup = html()
+
+    assert "renderInvestigationMatches" in markup
+    assert "Matching agent runs" in markup
+    assert "Exact execution evidence search. No memory was retrieved" in markup
 
 
 def test_memory_only_dashboards_are_unaffected_when_task_state_is_off() -> None:

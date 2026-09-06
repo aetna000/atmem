@@ -754,20 +754,28 @@ class Memory:
                 epoch = index.active_epoch(scope.subject_id)
                 if epoch:
                     embedder = _embedder_for_epoch(epoch)
-                    semantic = index.search(
-                        self,
-                        scope.subject_id,
-                        request.query,
-                        embedder,
-                        statuses=("active",),
-                        limit=request.candidate_limit,
-                        min_similarity=0.0,
-                    )
+                    try:
+                        semantic = index.search(
+                            self,
+                            scope.subject_id,
+                            request.query,
+                            embedder,
+                            statuses=("active",),
+                            limit=request.candidate_limit,
+                            min_similarity=0.0,
+                        )
+                    except ValueError:
+                        # An old/incompatible epoch is a derived-index miss,
+                        # never a reason to break governed lexical retrieval.
+                        semantic = []
                     by_id = {str(row["id"]): row for row in recalled}
                     records = self.store.get_records(
                         scope.subject_id, [str(row["record_id"]) for row in semantic]
                     )
                     for match in semantic:
+                        match["provider"] = str(
+                            (epoch.get("identity") or {}).get("provider") or "unknown"
+                        )
                         record_id = str(match["record_id"])
                         score = float(match["similarity"])
                         if record_id in by_id:
@@ -821,6 +829,7 @@ class Memory:
                 created_at=str(record.get("created_at") or ""),
                 signals={
                     "lexical": "lexical" in request.signals,
+                    "fact_key": str(record.get("fact_key") or ""),
                     "graph": record.get("graph"),
                     "semantic": "semantic" in request.signals,
                     "semantic_evidence": record.get("semantic"),
@@ -933,6 +942,7 @@ class Memory:
             if supplied_content and supplied_content != canonical_content:
                 raise ValueError("candidate content changed before persistence")
             signals = dict(value.get("signals") or {})
+            signals["fact_key"] = str(record.get("fact_key") or "")
             signals["matched_queries"] = list(value.get("matched_queries") or ())
             signals["expansion_rank"] = int(value.get("expansion_rank") or 0)
             eligible_rows.append(

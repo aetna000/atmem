@@ -78,6 +78,34 @@
     </div>
   </section>
 
+  <div class="tabpanel" id="viewSettings">
+  <div class="pageheading"><div><div class="eyebrow">Configuration</div><h1>Settings</h1><p>Control memory intelligence, governed task state, and optional context providers.</p></div></div>
+
+  <section class="card semanticcard" id="taskModeSettingsCard" hidden>
+    <div class="semantichead">
+      <div><div class="eyebrow">Agent context</div><h2>Governed task state</h2><p class="sub" id="taskModeNote">Choose whether the selected agent and workspace may receive explicitly bound task context. Existing tasks and evidence are preserved when this is off.</p></div>
+      <span class="statuspill" id="taskModeStatus">Checking…</span>
+    </div>
+    <div class="evidencegrid">
+      <div class="evidence"><span>Current scope</span><b id="taskModeScope">Detecting agent and workspace…</b></div>
+      <div class="evidence"><span>Effect</span><b id="taskModeEffect">Checking whether task context can reach this agent…</b></div>
+    </div>
+    <div class="actions"><button class="primary" id="taskModeAction" type="button" disabled>Enable task state</button></div>
+  </section>
+
+  <section class="card semanticcard" id="semanticSettingsCard">
+    <div class="semantichead">
+      <div><div class="eyebrow">Semantic retrieval</div><h2>Embedding model</h2><p class="sub" id="semanticSettingsNote">Choose a local production embedding model. AtMem downloads only after confirmation, then builds and verifies the disposable vector index automatically.</p></div>
+      <span class="statuspill" id="semanticSettingsStatus">Checking…</span>
+    </div>
+    <div class="intelligencefields">
+      <label class="field wide"><span>Local embedding profile</span><select id="semanticModelSelect" aria-label="Embedding model"></select></label>
+    </div>
+    <div class="evidencegrid" id="semanticSettingsEvidence"></div>
+    <div class="actions"><button class="primary" id="semanticSetupAction" type="button" disabled>Install and activate</button></div>
+    <p class="foot">The canonical memory database remains authoritative. Changing models creates and verifies a new vector epoch before activation.</p>
+  </section>
+
   <details class="intelligenceconfig" id="intelligenceConfig">
     <summary class="intelligencesummary">
       <div class="intelligencesummarycopy"><b id="intelligenceConfigTitle">Memory intelligence</b><span>Provider and model settings</span></div>
@@ -135,6 +163,8 @@
       <div class="intelligenceguide"><code>atmem delegated register --help</code><button class="secondary compact" id="contextAuthorityCopy" type="button">Copy CLI command</button></div>
     </div>
   </details>
+
+  </div>
 
   <div class="tabpanel active" id="viewStatus">
   <div class="pageheading"><div><h1>Activity</h1><p>Every recorded agent session, memory change, and governed decision.</p></div></div>
@@ -195,7 +225,7 @@
 
       <section class="card" id="taskCard" hidden>
         <div class="reviewhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Governed tasks</span></h2><span class="reviewcount" id="taskCount">0</span><button class="secondary" id="taskRefresh" type="button">Refresh</button></div>
-        <p class="sub" id="taskModeNote">Governed task state tracks what an agent is doing now, separately from long-term memory.</p>
+        <p class="sub">Inspect active task checklists, lifecycle, progress, context delivery, and linked agent flights. Enable or disable task state from Settings.</p>
         <div id="taskSelected" hidden></div>
         <div id="tasks"><div class="empty">Checking governed task state…</div></div>
       </section>

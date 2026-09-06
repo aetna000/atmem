@@ -773,6 +773,10 @@ class SemanticIndex:
             "model_digest",
             "endpoint",
             "normalization",
+            "query_prefix",
+            "document_prefix",
+            "preprocessing_version",
+            "quality_class",
         ):
             if str(current.get(key)) != str(stored.get(key)):
                 raise ValueError(

@@ -47,6 +47,7 @@ import {
   describeDecision,
   isConversationOwner,
   ok,
+  resolveBoundTaskForTool,
   refusal,
   sessionIdentityForTool,
 } from "./src/task-tools.js";
@@ -1044,6 +1045,16 @@ function register(api: OpenClawPluginApi): void {
           native_fallback?: boolean;
           receipt?: { id?: string; sha256?: string };
           provider?: { id?: string; version?: string; instance_id?: string };
+          retrieval?: {
+            eligible_candidate_count?: number;
+            ranked_candidate_ids?: string[];
+            decision?: {
+              support_class?: string;
+              reason_codes?: string[];
+              ranked_record_ids?: string[];
+              calibration_version?: string;
+            };
+          };
         };
         // Task identity resolves through the manager, not from ctx.taskId
         // alone: OpenClaw supplies no task identity of its own, so without a
@@ -1104,7 +1115,9 @@ function register(api: OpenClawPluginApi): void {
             task_id: taskPrepared.task_id ?? ctx.taskId,
             task_disposition: taskPrepared?.disposition ?? "withheld",
             task_revision: taskPrepared?.revision,
-            task_context_sha256: taskPrepared?.context_sha256?.replace(/^sha256:/, ""),
+            ...(taskPrepared?.context_sha256
+              ? { task_context_sha256: taskPrepared.context_sha256.replace(/^sha256:/, "") }
+              : {}),
             task_reason_codes: taskPrepared?.reason_codes ?? [],
           });
         }
@@ -1160,6 +1173,13 @@ function register(api: OpenClawPluginApi): void {
             digest_profile: "atmem-context-envelope-canonical-json-v1",
             context_chars: (prepared.context ?? "").length,
             candidate_ids: prepared.candidate_ids ?? [],
+            candidates_considered: prepared.retrieval?.eligible_candidate_count ?? 0,
+            retrieval_support_class:
+              prepared.retrieval?.decision?.support_class ?? "not_recorded",
+            retrieval_reason_codes:
+              prepared.retrieval?.decision?.reason_codes ?? [],
+            retrieval_calibration_version:
+              prepared.retrieval?.decision?.calibration_version,
             exposure_id: prepared.exposure_id,
             mode: prepared.mode,
             context_location: prepared.inject
@@ -2213,12 +2233,25 @@ function register(api: OpenClawPluginApi): void {
           required: ["item_id", "status", "base_revision"],
         },
         async execute(toolCallId, params) {
-          const identity = sessionIdentityForTool(toolCtx);
-          if (!identity) return refusal(NO_IDENTITY_MESSAGE);
+          const resolution = await resolveBoundTaskForTool(
+            toolCtx,
+            (identity) => callFor(toolCtx, "control_prepare_task_context", {
+              ...identity,
+              ...taskScope(toolCtx),
+              host_run_id: toolCtx.runId,
+            }),
+          );
+          if (!resolution.ok) {
+            return refusal(
+              `${resolution.message} (${resolution.reasonCodes.join(", ")})`,
+            );
+          }
           const result = (await callFor(toolCtx, "control_propose_task_delta", {
-            ...identity,
+            ...resolution.identity,
             ...taskScope(toolCtx),
-            task_id: String(params.task_id ?? ""),
+            // Redundant checked assertion. Authority came from the current
+            // conversation focus above, never from the model's parameters.
+            task_id: resolution.taskId,
             base_revision: Number(params.base_revision ?? 0),
             // Derived from stable host identifiers, never from payload content
             // or a clock, so a retried tool call collapses to one decision.

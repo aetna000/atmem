@@ -52,6 +52,28 @@ def _memory_overview_query(query: str) -> bool:
     )
 
 
+_UUID_IDENTIFIER_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+_EXECUTION_IDENTIFIER_RE = re.compile(
+    r"^(run|session|turn)\s*(?::|=)\s*([A-Za-z0-9][A-Za-z0-9._:-]{2,255})$",
+    re.IGNORECASE,
+)
+
+
+def _execution_identifier_query(query: str) -> tuple[str | None, str] | None:
+    """Recognize exact execution identifiers without guessing from prose."""
+
+    clean = query.strip()
+    explicit = _EXECUTION_IDENTIFIER_RE.fullmatch(clean)
+    if explicit:
+        return explicit.group(1).casefold(), explicit.group(2)
+    if _UUID_IDENTIFIER_RE.fullmatch(clean):
+        return None, clean
+    return None
+
+
 def _protocol_fact_key(value: Any) -> str | None:
     """Translate legacy human-readable slots into protocol-safe namespaces."""
     if value is None or not str(value).strip():
@@ -563,6 +585,129 @@ class ControlPlaneManager:
             return inspect_semantic_health(
                 index, memory, selected_subject
             ).to_dict()
+        finally:
+            index.close()
+            memory.close()
+
+    def semantic_profiles(self, subject_id: str | None = None) -> dict[str, Any]:
+        """Return selectable enterprise-safe embedding profiles and live state."""
+        from atmem.semantic import HardwareProfile, recommend_local_models
+
+        state = self.state()
+        selected_subject = subject_id or state.subject_id
+        return {
+            "format": "atmem-semantic-profiles-v1",
+            "subject_id": selected_subject,
+            "health": self.semantic_health(selected_subject),
+            "hardware": HardwareProfile.detect().to_dict(),
+            "models": recommend_local_models(HardwareProfile.detect()),
+            "download_requires_confirmation": True,
+        }
+
+    def setup_semantic_profile(
+        self,
+        *,
+        provider: str,
+        model: str,
+        subject_id: str | None = None,
+        allow_download: bool = False,
+    ) -> dict[str, Any]:
+        """Install, build, verify, and activate one catalog embedding profile."""
+        import shutil
+        import subprocess
+
+        from atmem.memory import Memory
+        from atmem.semantic import (
+            SemanticIndex,
+            create_embedder,
+            default_index_path,
+            inspect_semantic_health,
+            load_model_catalog,
+        )
+
+        catalog = load_model_catalog()
+        selected = next(
+            (
+                dict(row)
+                for row in catalog.get("models", [])
+                if str(row.get("provider")) == provider
+                and str(row.get("model")) == model
+            ),
+            None,
+        )
+        if selected is None:
+            raise ValueError("select an embedding model from AtMem's verified catalog")
+        if str(selected.get("quality_class")) != "production":
+            raise ValueError("dashboard setup accepts production embedding profiles only")
+
+        state = self.state()
+        selected_subject = subject_id or state.subject_id
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import mirror_status
+
+            mirror = mirror_status(state)
+            memory_path = Path(
+                str(
+                    mirror.get("mirror_db")
+                    or Path(state.control_dir) / "openclaw-mirror.db"
+                )
+            )
+        else:
+            memory_path = self._generic_memory_db(state)
+
+        memory = Memory(memory_path, retain_query_text=False, auto_vectors=False)
+        index = SemanticIndex(default_index_path(memory_path), policy=memory.policy)
+        try:
+            memory.log_action(
+                selected_subject,
+                "semantic.setup_approved",
+                {
+                    "provider": provider,
+                    "model": model,
+                    "download_approved": allow_download,
+                    "source": "dashboard",
+                },
+                actor="dashboard-operator",
+            )
+            if provider == "ollama" and allow_download:
+                executable = shutil.which("ollama")
+                if executable is None:
+                    raise ValueError("Ollama is not installed; install it or choose another profile")
+                completed = subprocess.run(
+                    [executable, "pull", model],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=900,
+                )
+                if completed.returncode != 0:
+                    detail = (completed.stderr or completed.stdout).strip()[-500:]
+                    raise ValueError(f"Ollama could not install {model}: {detail}")
+            elif provider not in {"ollama", "sentence-transformers"}:
+                raise ValueError("dashboard setup currently supports local embedding profiles")
+
+            embedder = create_embedder(provider, model)
+            identity = dict(embedder.identity)
+            if (
+                str(identity.get("provider")) != provider
+                or str(identity.get("model")) != model
+            ):
+                raise ValueError("embedding runtime identity does not match the selected profile")
+            build = index.build(memory, selected_subject, embedder, batch_size=64)
+            health = inspect_semantic_health(
+                index, memory, selected_subject
+            ).to_dict()
+            if health.get("status") != "healthy":
+                raise ValueError(
+                    "the semantic index was built but did not pass health verification"
+                )
+            return {
+                "format": "atmem-semantic-setup-v1",
+                "status": "complete",
+                "profile": selected,
+                "build": build,
+                "health": health,
+            }
         finally:
             index.close()
             memory.close()
@@ -1372,6 +1517,15 @@ class ControlPlaneManager:
         subject = self._resolve_subject(
             state, subject_id=subject_id, agent_id=agent_id
         )
+        execution_identifier = _execution_identifier_query(clean)
+        if execution_identifier is not None:
+            return self._execution_identifier_result(
+                clean,
+                identifier_type=execution_identifier[0],
+                identifier=execution_identifier[1],
+                subject_id=subject,
+                agent_id=agent_id,
+            )
         expanded_queries = [clean]
         if _memory_overview_query(clean):
             scope, memory_path = self._memory_authority_scope(
@@ -1442,6 +1596,18 @@ class ControlPlaneManager:
             candidates.append(row)
         from atmem.control.atbot_companion import AtBotCompanionClient
 
+        from atmem.retrieve import SupportClass, decide_retrieval
+
+        retrieval_decision = decide_retrieval(clean, candidates)
+        if not _memory_overview_query(clean):
+            directly_supported = set(retrieval_decision.ranked_record_ids)
+            candidates = [
+                row for row in candidates
+                if str(row.get("record_id") or row.get("id")) in directly_supported
+            ]
+        elif candidates:
+            retrieval_decision = None
+
         result = AtBotCompanionClient().query(clean, list(candidates))
         allowed = {
             str(row.get("record_id") or row.get("id")): row for row in candidates
@@ -1486,6 +1652,122 @@ class ControlPlaneManager:
                 "candidate_generation": candidate_set.generation,
                 "candidate_digest": candidate_set.candidate_digest,
                 "preparation_id": package.preparation_id,
+                "decision": (
+                    retrieval_decision.to_dict() if retrieval_decision is not None else {
+                        "format": "atmem-retrieval-decision-v1",
+                        "support_class": SupportClass.DIRECT.value,
+                        "reason_codes": ["explicit_memory_overview"],
+                    }
+                ),
+            },
+        }
+
+    def _execution_identifier_result(
+        self,
+        query: str,
+        *,
+        identifier_type: str | None,
+        identifier: str,
+        subject_id: str,
+        agent_id: str | None,
+    ) -> dict[str, Any]:
+        """Resolve a run/session/turn ID to scoped flight evidence, never memory."""
+
+        fields = {
+            "run": ("run_id",),
+            "session": ("session_id",),
+            "turn": ("turn_id",),
+            None: ("run_id", "session_id", "turn_id"),
+        }[identifier_type]
+        entries = self.blackbox_events()
+        by_run: dict[str, dict[str, Any]] = {}
+        for entry in entries:
+            body = dict(entry.get("body") or {})
+            if str(body.get("subject_id") or "") != subject_id:
+                continue
+            if agent_id and str(body.get("agent_id") or "") != agent_id:
+                continue
+            if not any(str(body.get(field) or "") == identifier for field in fields):
+                continue
+            run_id = str(body.get("run_id") or "")
+            if not run_id:
+                continue
+            row = by_run.setdefault(
+                run_id,
+                {
+                    "run_id": run_id,
+                    "session_id": str(body.get("session_id") or ""),
+                    "agent_id": str(body.get("agent_id") or ""),
+                    "workspace_id": str(body.get("workspace_id") or ""),
+                    "subject_id": subject_id,
+                    "started_at": str(body.get("recorded_at") or ""),
+                    "ended_at": str(body.get("recorded_at") or ""),
+                    "turn_ids": [],
+                    "events": 0,
+                    "success": None,
+                },
+            )
+            recorded_at = str(body.get("recorded_at") or "")
+            if recorded_at:
+                row["started_at"] = min(str(row["started_at"] or recorded_at), recorded_at)
+                row["ended_at"] = max(str(row["ended_at"] or recorded_at), recorded_at)
+            turn_id = str(body.get("turn_id") or "")
+            if turn_id and turn_id not in row["turn_ids"]:
+                row["turn_ids"].append(turn_id)
+            row["events"] += 1
+            if body.get("event_type") == "turn.ended":
+                success = (body.get("payload") or {}).get("success")
+                row["success"] = success if isinstance(success, bool) else None
+        matches = sorted(
+            by_run.values(),
+            key=lambda row: (str(row.get("ended_at") or ""), str(row["run_id"])),
+            reverse=True,
+        )
+        kind = identifier_type or "run, session or turn"
+        if not matches:
+            answer = f"I couldn't find scoped agent evidence matching that {kind} ID."
+        elif identifier_type == "session" or (
+            identifier_type is None
+            and any(row.get("session_id") == identifier for row in matches)
+        ):
+            answer = (
+                f"I found {len(matches)} agent run{'s' if len(matches) != 1 else ''} "
+                "in that session. Open a matching run below to inspect its request, "
+                "memory context, tools and outcome."
+            )
+        else:
+            answer = (
+                f"I found {len(matches)} matching agent run"
+                f"{'s' if len(matches) != 1 else ''}. Open the evidence below."
+            )
+        return {
+            "format": "atmem-dashboard-investigation-query-v1",
+            "query": query,
+            "query_kind": "execution_identifier",
+            "subject_id": subject_id,
+            "answer": answer,
+            "used_memories": [],
+            "candidate_count": 0,
+            "investigation": {
+                "identifier": identifier,
+                "identifier_type": identifier_type or "auto",
+                "matches": matches,
+            },
+            "companion": {
+                "available": False,
+                "fallback": False,
+                "skipped": True,
+                "reason": "execution identifiers are resolved from AtMem evidence",
+            },
+            "retrieval": {
+                "queries": [],
+                "signals": ["exact_execution_identifier", "scope"],
+                "decision": {
+                    "format": "atmem-retrieval-decision-v1",
+                    "support_class": "no_useful_memory",
+                    "ranked_record_ids": [],
+                    "reason_codes": ["execution_investigation_routed_outside_memory"],
+                },
             },
         }
 
@@ -1709,6 +1991,56 @@ class ControlPlaneManager:
         finally:
             memory.close()
 
+    def set_task_state_mode(
+        self,
+        action: str,
+        *,
+        actor: str,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Explicitly enable or disable governed task state for one scope."""
+
+        if action not in {"enable", "disable"}:
+            raise ValueError("task-state action must be enable or disable")
+        if not actor.strip():
+            raise ValueError("actor is required")
+        state = self.state()
+        scope = self._task_scope(
+            state,
+            subject_id=subject_id,
+            agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        _service, memory = self._task_service(state)
+        try:
+            from atmem.task_state.enablement import ScopeEnablement
+
+            enablement = ScopeEnablement(memory.store)
+            before = enablement.mode(scope)
+            if action == "enable" and before.enabled and not before.shadow:
+                mode = before
+                changed = False
+            elif action == "disable" and not before.enabled:
+                mode = before
+                changed = False
+            else:
+                mode = (
+                    enablement.enable(scope, actor=actor, shadow=False)
+                    if action == "enable"
+                    else enablement.disable(scope, actor=actor)
+                )
+                changed = True
+            return {
+                **mode.to_dict(),
+                "scope": scope.to_dict(),
+                "changed": changed,
+                "data_preserved": True,
+            }
+        finally:
+            memory.close()
+
     def list_tasks(
         self, *, subject_id: str | None = None, agent_id: str | None = None,
         workspace_id: str | None = None, lifecycles: tuple[str, ...] | None = None,
@@ -1741,7 +2073,60 @@ class ControlPlaneManager:
         )
         service, memory = self._task_service(state)
         try:
-            return service.get(scope, task_id).to_dict()
+            task = service.get(scope, task_id).to_dict()
+            from atmem.task_state.observability import TaskObservability
+
+            activity = TaskObservability(
+                memory.store, clock=service.clock
+            ).task_detail(scope, task_id)
+            related_by_run: dict[str, dict[str, Any]] = {}
+            for entry in self.blackbox_events():
+                body = dict(entry.get("body") or {})
+                payload = dict(body.get("payload") or {})
+                if str(payload.get("task_id") or "") != task_id:
+                    continue
+                if (
+                    str(body.get("subject_id") or "") != scope.subject_id
+                    or str(body.get("agent_id") or "") != scope.agent_id
+                    or str(body.get("workspace_id") or "") != scope.workspace_id
+                ):
+                    continue
+                run_id = str(body.get("run_id") or "")
+                if not run_id:
+                    continue
+                row = related_by_run.setdefault(
+                    run_id,
+                    {
+                        "run_id": run_id,
+                        "host": body.get("host"),
+                        "session_id": body.get("session_id"),
+                        "started_at": body.get("recorded_at"),
+                        "ended_at": body.get("recorded_at"),
+                        "event_types": [],
+                        "turn_ids": [],
+                    },
+                )
+                row["ended_at"] = body.get("recorded_at")
+                event_type = str(body.get("event_type") or "")
+                if event_type and event_type not in row["event_types"]:
+                    row["event_types"].append(event_type)
+                turn_id = str(body.get("turn_id") or "")
+                if turn_id and turn_id not in row["turn_ids"]:
+                    row["turn_ids"].append(turn_id)
+            return {
+                **task,
+                "projection": {
+                    "format": "atmem-task-centric-projection-v1",
+                    "current_agent_id": scope.agent_id,
+                    "recent_decisions": activity.get("recent_decisions", []),
+                    "context_deliveries": activity.get("deliveries", []),
+                    "related_flights": list(related_by_run.values()),
+                    "focus_history": [],
+                    "correlation_state": (
+                        "explicit_evidence" if related_by_run else "unlinked"
+                    ),
+                },
+            }
         except TaskStateError as exc:
             return {
                 "format": "atmem-task-unavailable-v1",
@@ -3462,6 +3847,14 @@ class ControlPlaneManager:
                 min_score=min_score,
             )
             eligible_rows = [row.to_dict() for row in candidate_set.candidates]
+            from atmem.retrieve import decide_retrieval
+
+            retrieval_decision = decide_retrieval(query, eligible_rows)
+            supported_ids = set(retrieval_decision.ranked_record_ids)
+            eligible_rows = [
+                row for row in eligible_rows
+                if str(row["record_id"]) in supported_ids
+            ]
             eligible = {str(row["record_id"]): row for row in eligible_rows}
             ranking = companion.query(query, eligible_rows)
             ranked_ids = list(
@@ -3571,6 +3964,7 @@ class ControlPlaneManager:
                     "candidate_digest": candidate_set.candidate_digest,
                     "preparation_id": package.preparation_id,
                     "companion": ranking.get("companion"),
+                    "decision": retrieval_decision.to_dict(),
                 },
             }
         finally:

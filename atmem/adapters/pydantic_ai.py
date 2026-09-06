@@ -38,9 +38,15 @@ class PydanticAIAtMemAdapter:
         @hooks.on.before_run
         async def before_run(ctx: Any) -> None:
             run_id = self._run_id(ctx)
+            runtime_identity = _pydantic_execution_identity(ctx)
             turn = AtMemTurnLifecycle(
                 self.manager,
-                replace(self.identity, run_id=run_id),
+                self.identity.for_execution(
+                    run_id=run_id,
+                    turn_id=runtime_identity.get("turn_id"),
+                    task_id=runtime_identity.get("task_id"),
+                    session_id=runtime_identity.get("session_id"),
+                ),
             )
             turn.begin(_prompt_text(ctx.prompt))
             with self._lock:
@@ -180,3 +186,26 @@ def _prompt_text(prompt: Any) -> str:
         if text.strip():
             return text
     return _stable_text(prompt)
+
+
+def _pydantic_execution_identity(ctx: Any) -> dict[str, str]:
+    """Read optional identity from native run dependencies without mutation."""
+    deps = getattr(ctx, "deps", None)
+    values: dict[str, Any] = deps if isinstance(deps, dict) else {}
+
+    def read(*names: str) -> str | None:
+        for name in names:
+            value = values.get(name) if values else getattr(deps, name, None)
+            if value is not None and str(value).strip():
+                return str(value)
+        return None
+
+    return {
+        key: value
+        for key, value in {
+            "task_id": read("atmem_task_id", "task_id"),
+            "turn_id": read("atmem_turn_id", "turn_id"),
+            "session_id": read("atmem_session_id", "session_id"),
+        }.items()
+        if value
+    }

@@ -1,6 +1,6 @@
 (function(){
 "use strict";
-var state=null,semanticHealth=null,taskMode=null,taskHealth=null,taskList={tasks:[]},taskDetail=null,selectedTaskId=null,proposalQueue={proposals:[]},reviewQueue={records:[]},productInfo={},blackboxIndex={runs:[]},blackboxArchiveRows=[],blackboxStories={},flightRange="7d",bridgeRefreshStatus={available:false},activityVisible=10,activitySearchTimer=null,csrf="",progressTimer=null,progressStarted=0,companionProfiles={},companionStatus={},companionFormDirty=false;
+var state=null,semanticHealth=null,semanticProfiles={models:[]},taskMode=null,taskHealth=null,taskList={tasks:[]},taskDetail=null,selectedTaskId=null,proposalQueue={proposals:[]},reviewQueue={records:[]},productInfo={},blackboxIndex={runs:[]},blackboxArchiveRows=[],blackboxStories={},flightRange="7d",bridgeRefreshStatus={available:false},activityVisible=10,activitySearchTimer=null,csrf="",progressTimer=null,progressStarted=0,companionProfiles={},companionStatus={},companionFormDirty=false;
 var auditCursors=[null],auditPageIndex=0,auditLast=null,auditFacetsLoaded=false;
 var $=function(id){return document.getElementById(id)};
 function text(id,value){$(id).textContent=value==null?"—":String(value)}
@@ -45,6 +45,9 @@ function renderStorages(){var rows=Array.isArray(state&&state.storages)?state.st
 function renderAgentTopology(){var topology=(state&&state.agent_topology)||{},agents=Array.isArray(topology.agents)?topology.agents:[],workspaces=Array.isArray(topology.workspaces)?topology.workspaces:[],box=$("agentMap"),verified=topology.verified===true,isOpenClaw=state&&state.host==="openclaw",actions=$("agentCoverageActions"),sync=$("agentTopologySync");var byId={};workspaces.forEach(function(row){byId[row.workspace_id]=row});text("agentCount",agents.length);text("workspaceCount",workspaces.length);$("agentCoverageStatus").classList.toggle("bad",!verified);text("agentCoverageIcon",verified?"✓":"!");text("agentCoverageHeadline",verified?"All registered agents are covered":topology.status==="unavailable"?"Agent coverage could not be checked":isOpenClaw?"Agent coverage needs syncing":"Agent topology needs correction");text("agentCoverageDetail",topology.reason||"No agent topology evidence is available.");actions.hidden=verified;sync.style.display=!verified&&isOpenClaw?"inline-block":"none";box.replaceChildren();if(!agents.length){box.appendChild(element("div","activityempty",isOpenClaw?"No persistent OpenClaw agents were detected.":"No persistent agents are registered."));return}agents.forEach(function(agent){var scope=byId[agent.workspace_id]||{},members=scope.agent_ids||[],mode=scope.parent_workspace_id?"Nested isolated memory":members.length>1?"Shared workspace memory":"Isolated workspace memory",row=element("button","agentrow"),identity=element("span"),scopeBox=element("span","agentscope"),workspace=element("span"),status=element("small","",verified?"✓ Working":"! Not verified");row.type="button";row.title="Filter recent actions for "+(agent.name||agent.agent_id);identity.append(element("b","",agent.name||agent.agent_id||"Unnamed agent"),element("small","","Agent ID: "+(agent.agent_id||"not recorded")+(agent.is_default?" · default":"")));scopeBox.append(element("b","",mode),element("small","","Memory subject: "+(agent.subject_id||scope.subject_id||"not recorded")+(members.length>1?" · shared with "+members.filter(function(id){return id!==agent.agent_id}).join(", "):"")));workspace.append(element("b","",String(agent.workspace||"Workspace unavailable").split("/").filter(Boolean).slice(-2).join("/")),element("small","","Workspace: "+(agent.workspace||"not recorded")));row.append(identity,scopeBox,workspace,status);row.onclick=function(){$("activityQuery").value=agent.agent_id||"";applyActivityFilters().catch(showError);$("blackboxCard").scrollIntoView({behavior:"smooth",block:"start"})};box.appendChild(row)})}
 function renderProductVersions(){var verification=(state&&state.verification)||{},npmVersion=bridgeRefreshStatus.runtime_version||bridgeRefreshStatus.installed_version||productInfo.atmem_npm_version,isOpenClaw=state&&state.host==="openclaw";text("versionOpenClaw",verification.host_version||"not detected");text("versionPip",productInfo.atmem_pip_version||"not detected");text("versionNpm",npmVersion||"not detected");$("versionOpenClawChip").style.display=isOpenClaw?"inline-flex":"none";$("versionNpmChip").style.display=isOpenClaw?"inline-flex":"none"}
 function renderSemanticHealth(){var value=semanticHealth||{},manifest=value.manifest||{},status=value.status||"missing",good=status==="healthy"||status==="weak",badge=$("semanticHealthStatus"),evidenceBox=$("semanticHealthEvidence"),actions=$("semanticHealthActions");text("semanticHealthStatus",status);badge.className="statuspill"+(good?" active":status==="rebuilding"?" quarantined":"");text("semanticHealthDetail",(value.reasons||[]).join(", ").replaceAll("_"," ")||"No semantic health evidence is available.");evidenceBox.replaceChildren();evidenceBox.append(evidence("Provider",manifest.provider||"not configured"),evidence("Model",manifest.model||"not configured"),evidence("Dimensions",manifest.dimensions||"not recorded"),evidence("Epoch",manifest.epoch_id||"not built",true),evidence("Source digest",manifest.source_sha256||"not recorded",true),evidence("Record coverage",manifest.record_count==null?"not recorded":manifest.record_count+" records"));actions.replaceChildren();(value.actions||[]).forEach(function(action){var button=element("button","secondary",String(action).replaceAll("_"," "));button.type="button";button.onclick=function(){var command="atmem semantic "+(action==="setup"?"setup":action==="verify"?"verify":"rebuild")+" "+((state&&state.mirror&&state.mirror.memory_db)||"MEMORY_DB")+" --subject "+((state&&state.subject_id)||"local-user");copyToClipboard(command,button,"the semantic command")};if(action==="discard_partial")button.disabled=true;actions.appendChild(button)})}
+function selectedSemanticProfile(){var key=$("semanticModelSelect").value;return(semanticProfiles.models||[]).find(function(row){return row.provider+"::"+row.model===key})||null}
+function renderSemanticSettings(){var rows=semanticProfiles.models||[],select=$("semanticModelSelect"),health=semanticProfiles.health||semanticHealth||{},manifest=health.manifest||{},selectedKey=select.value||[manifest.provider,manifest.model].filter(Boolean).join("::");select.replaceChildren();rows.forEach(function(row){var option=document.createElement("option");option.value=row.provider+"::"+row.model;option.textContent=row.model+" · "+row.provider+" · ~"+row.approximate_download_mib+" MiB";select.appendChild(option)});if(rows.some(function(row){return row.provider+"::"+row.model===selectedKey}))select.value=selectedKey;var profile=selectedSemanticProfile(),status=health.status||"missing",badge=$("semanticSettingsStatus"),box=$("semanticSettingsEvidence"),button=$("semanticSetupAction");text("semanticSettingsStatus",status);badge.className="statuspill"+(status==="healthy"?" active":status==="rebuilding"?" quarantined":"");box.replaceChildren();if(profile){box.append(evidence("License",profile.license||"not recorded"),evidence("Download","~"+profile.approximate_download_mib+" MiB"),evidence("Memory",profile.minimum_memory_gib+" GiB minimum"),evidence("Notes",profile.caveat||"Local production embedding profile"))}button.disabled=!profile;var active=profile&&status==="healthy"&&manifest.provider===profile.provider&&manifest.model===profile.model;text("semanticSetupAction",active?"Rebuild and verify":"Install and activate")}
+async function setupSemanticProfile(){var profile=selectedSemanticProfile();if(!profile)return;var message="Install and activate "+profile.model+"?\n\nProvider: "+profile.provider+"\nDownload: approximately "+profile.approximate_download_mib+" MiB\nLicense: "+profile.license+"\n\nAtMem will build and verify a new vector epoch before switching.";if(!confirm(message))return;try{await working("Preparing semantic retrieval","Installing the selected local model, embedding authorized records, and verifying the new epoch before activation.",async function(){var result=await post("/api/semantic/setup",{provider:profile.provider,model:profile.model,confirm_model:profile.model,subject_id:(state&&state.subject_id)||"local-user",allow_download:true});semanticHealth=result.health;semanticProfiles.health=result.health;renderSemanticHealth();renderSemanticSettings()})}catch(error){showError(error)}}
 function providerState(){return (state&&state.provider_state)||"unavailable"}
 function active(){return providerState()==="active"}
 function recovery(){return providerState()==="restore_required"}
@@ -127,7 +130,7 @@ async function inspectBlackbox(runId){
   else{decisionTitle="Healthy — no action needed";decisionCopy="This is the latest activity. It completed normally and the required audit evidence is present."}
   decision.append(element("b","",decisionTitle),element("p","",decisionCopy));body.appendChild(decision);
   var storyCard=element("section","card"),storyFlow=element("div","storyflow"),requestText=story.request_text||"Request text was not retained by this runtime adapter.",responseText=story.response_text||"No final response text was retained.",receivedLabel=state&&state.host==="openclaw"?"OpenClaw received this request":"The agent runtime received this request";storyCard.append(element("h2","","What happened"),element("p","sub",report.agent_id?"Persistent agent: "+report.agent_id:"Persistent agent identity was not recorded for this flight."));storyFlow.appendChild(storyStep("1",receivedLabel,requestText));
-  var memoryBox=element("div");if((story.memories||[]).length){(story.memories||[]).forEach(function(memory){var button=element("button","memoryline",memory.content||"Memory text unavailable"),id=element("small","mono",memory.record_id);button.type="button";button.appendChild(id);button.onclick=function(){inspectRecord(memory.record_id,function(){inspectBlackbox(runId)})};memoryBox.appendChild(button)})}else memoryBox.appendChild(element("p","storytext",Number(story.memory_count||0)?"Memory IDs were recorded, but their text is no longer available in the configured memory source.":"No memory was added to this request."));storyFlow.appendChild(storyStep("2","AtMem added this memory before the model ran",memoryBox));
+  var memoryBox=element("div");if((story.memories||[]).length){(story.memories||[]).forEach(function(memory){var button=element("button","memoryline",memory.content||"Memory text unavailable"),id=element("small","mono",memory.record_id);button.type="button";button.appendChild(id);button.onclick=function(){inspectRecord(memory.record_id,function(){inspectBlackbox(runId)})};memoryBox.appendChild(button)})}else memoryBox.appendChild(element("p","storytext",Number(story.memory_count||0)?"Delivered memory IDs were recorded, but their text is no longer available in the configured memory source.":"No governed memory was delivered to the model."));storyFlow.appendChild(storyStep("2","Governed memories delivered to the model",memoryBox));
   storyFlow.appendChild(storyStep("3","Model",[story.provider,story.model].filter(Boolean).join(" / ")||"Not recorded"));storyFlow.appendChild(storyStep("4","Response",responseText));storyFlow.appendChild(storyStep("5","Outcome",story.blocked_by||((story.tools||[]).length?"Tools: "+story.tools.join(", "):story.success?"Completed successfully.":"No completed result was recorded.")));storyCard.appendChild(storyFlow);body.appendChild(storyCard);
   var impact=element("section","card"),impactFlow=element("div","storyflow"),usage=story.usage||{},externalBox=element("div");if(!(story.websites||[]).length&&!(story.tools||[]).length)externalBox.appendChild(element("p","storytext","No website was contacted and no external tool was called."));(story.websites||[]).forEach(function(url){var link=element("a","memoryline",url);link.href=url;link.target="_blank";link.rel="noopener noreferrer";externalBox.appendChild(link)});(story.tools||[]).forEach(function(name){var button=element("button","memoryline","Tool: "+name);button.type="button";button.onclick=function(){focusFlightEvidence(name)};externalBox.appendChild(button)});var usageText=usage.total_tokens!=null?number(usage.total_tokens)+" tokens ("+number(usage.input_tokens)+" input, "+number(usage.output_tokens)+" output).":"Token usage was not recorded.";usageText+=" "+(usage.recorded_cost_usd!=null?"Recorded model cost: $"+Number(usage.recorded_cost_usd).toFixed(4)+" USD.":"Monetary cost was not recorded, so the dashboard cannot honestly show a dollar amount.");impact.append(element("h2","","Impact, cost and risk"),element("p","sub","What left the machine, what could have changed, and what was or was not proven."));impactFlow.appendChild(storyStep("6","External systems and websites",externalBox));impactFlow.appendChild(storyStep("7","Tokens and cost",usageText));impactFlow.appendChild(storyStep("8","Data exposure and risk",(story.risks||[]).length?(story.risks||[]).join("\n"):"No additional risk was identified from the retained evidence."));impactFlow.appendChild(storyStep("9","What blocked or failed",story.blocked_by||"Nothing blocked this flight and no failure was recorded."));impactFlow.appendChild(storyStep("10","Compromise and outcome proof",(story.compromise_assessment||"No compromise assessment is available.")+"\n"+(story.outcome_evidence||"No independent outcome evidence is available.")));impact.appendChild(impactFlow);body.appendChild(impact);
   if(!historical&&reportPoints.length){var actionCard=element("section","card"),actions=element("div","reviewactions"),inspect=element("button","secondary","Technical details"),ack=element("button","primary","Acknowledge"),point=reportPoints[0],toolEvidence=[].concat(tools.missing_completions||[],tools.orphan_completions||[],tools.conflicting_requests||[],tools.conflicting_completions||[])[0];actionCard.append(element("h2","","Next action"),element("p","sub",point.action));inspect.type="button";inspect.onclick=function(){focusFlightEvidence(toolEvidence||point.code)};ack.type="button";ack.onclick=function(){acknowledgeAttention(runId,point.code)};actions.append(inspect,ack);actionCard.appendChild(actions);body.appendChild(actionCard)}
@@ -204,7 +207,8 @@ async function checkContextAuthority(path){try{var result=await get(path),messag
 function appendChatMessage(role,content){var box=$("memoryChatMessages"),message=element("div","chatmessage "+role),copy=element("p","",content);message.appendChild(copy);box.appendChild(message);box.scrollTop=box.scrollHeight;return message}
 function appendThinking(){var message=element("div","chatmessage assistant thinking"),dots=element("span","thinkingdots");dots.setAttribute("aria-label","AtMem is searching and AtBot is ranking");dots.append(element("i"),element("i"),element("i"));message.append(dots,element("span","thinkinglabel","Searching authorized memory…"));$("memoryChatMessages").appendChild(message);$("memoryChatMessages").scrollTop=$("memoryChatMessages").scrollHeight;return message}
 function renderUsedMemories(message,rows){if(!rows.length)return;var used=element("div","chatused"),label=element("span","","Memories used"),buttons=element("div","chatusedbuttons");rows.forEach(function(row,index){var id=String(row.record_id||row.id||""),button=element("button","","Memory "+(index+1));button.type="button";button.title=String(row.content||row.match_excerpt||"Open provenance");button.onclick=function(){inspectRecord(id)};buttons.appendChild(button)});used.append(label,buttons);message.appendChild(used)}
-async function askMemory(question){var clean=String(question||$("memoryChatInput").value||"").trim();if(!clean)return;var send=$("memoryChatSend"),input=$("memoryChatInput"),resultPanel=$("memoryChatResult");resultPanel.hidden=false;appendChatMessage("user",clean);input.value="";input.style.height="auto";send.disabled=true;var thinking=appendThinking();text("memoryChatNote","AtMem is authorizing candidates before AtBot sees them.");try{var result=await post("/api/memory/query",{query:clean}),message=appendChatMessage("assistant",result.answer||"No answer was returned."),companion=result.companion||{};renderUsedMemories(message,result.used_memories||[]);renderCompanionStatus(Object.assign({},companionStatus,{available:companion.available===true}));text("memoryChatNote",companion.fallback?"AtBot was unavailable, so AtMem used its safe local ranking.":"AtBot ranked only candidates already authorized by AtMem.")}catch(error){appendChatMessage("assistant error","I couldn't query governed memory. "+(error.message||String(error)));text("memoryChatNote","Your stored memory was not changed.")}finally{thinking.remove();send.disabled=false;input.focus()}}
+function renderInvestigationMatches(message,value){var rows=(value&&value.matches)||[];if(!rows.length)return;var used=element("div","chatused"),label=element("span","","Matching agent runs"),buttons=element("div","chatusedbuttons");rows.slice(0,12).forEach(function(row,index){var button=element("button","","Run "+(index+1)+" · "+displayTime(row.ended_at||row.started_at));button.type="button";button.title=[row.run_id,row.agent_id?"agent "+row.agent_id:"",row.events+" evidence events"].filter(Boolean).join(" · ");button.onclick=function(){inspectBlackbox(row.run_id)};buttons.appendChild(button)});used.append(label,buttons);message.appendChild(used)}
+async function askMemory(question){var clean=String(question||$("memoryChatInput").value||"").trim();if(!clean)return;var send=$("memoryChatSend"),input=$("memoryChatInput"),resultPanel=$("memoryChatResult");resultPanel.hidden=false;appendChatMessage("user",clean);input.value="";input.style.height="auto";send.disabled=true;var thinking=appendThinking();text("memoryChatNote","AtMem is authorizing candidates before AtBot sees them.");try{var result=await post("/api/memory/query",{query:clean}),message=appendChatMessage("assistant",result.answer||"No answer was returned."),companion=result.companion||{};renderUsedMemories(message,result.used_memories||[]);renderInvestigationMatches(message,result.investigation||{});if(result.query_kind==="execution_identifier"){text("memoryChatNote","Exact execution evidence search. No memory was retrieved and AtBot was not called.")}else{renderCompanionStatus(Object.assign({},companionStatus,{available:companion.available===true}));text("memoryChatNote",companion.fallback?"AtBot was unavailable, so AtMem used its safe local ranking.":"AtBot ranked only candidates already authorized by AtMem.")}}catch(error){appendChatMessage("assistant error","I couldn't query governed memory. "+(error.message||String(error)));text("memoryChatNote","Your stored memory was not changed.")}finally{thinking.remove();send.disabled=false;input.focus()}}
 function recordSessionName(sessionId){var value=String(sessionId||"");if(value.indexOf(":investigator")>=0)return "AtMem dashboard search";if(value.indexOf("atmem-bridge-self-test")>=0)return "OpenClaw bridge self-test";if(value.indexOf("dashboard")>=0)return "Dashboard memory check";return value?"Agent session":"Session name was not recorded"}
 function recordEvidenceChip(label,value){var button=element("button","evidencechip",label+": "+value);button.type="button";button.title="Find this value in the complete audit history";button.onclick=function(){closeAuditor();showView("evidence");$("auditQuery").value=String(value);auditSearch(true);$("auditQuery").scrollIntoView({behavior:"smooth",block:"center"})};return button}
 async function inspectRecordTechnical(recordId,backAction){
@@ -326,18 +330,24 @@ async function refreshProposals(silent){
  try{proposalQueue=await get("/api/memory/proposals");renderProposals()}catch(error){if(!silent)showError(error)}
 }
 function taskCapabilityAvailable(){var features=(productInfo&&productInfo.capabilities&&productInfo.capabilities.features)||{};return features.governed_task_state===true}
+function currentTaskScope(){var existing=(taskMode&&taskMode.scope)||null;if(existing&&existing.subject_id&&existing.agent_id&&existing.workspace_id)return existing;var topology=(state&&state.agent_topology)||{},agents=Array.isArray(topology.agents)?topology.agents:[],agentId=topology.default_agent_id||"default-agent",agent=agents.find(function(row){return row.agent_id===agentId})||agents[0]||{};return{subject_id:agent.subject_id||(state&&state.subject_id)||"local-user",agent_id:agent.agent_id||agentId,workspace_id:agent.workspace_id||topology.primary_workspace_id||"default-workspace"}}
+function taskScopeQuery(extra){var scope=currentTaskScope(),params=new URLSearchParams();params.set("subject",scope.subject_id);params.set("agent",scope.agent_id);params.set("workspace",scope.workspace_id);Object.keys(extra||{}).forEach(function(key){if(extra[key]!=null)params.set(key,extra[key])});return params.toString()}
 function renderTasks(){
- var card=$("taskCard"),box=$("tasks"),mode=taskMode||{},rows=Array.isArray(taskList.tasks)?taskList.tasks:[];
+ var card=$("taskCard"),settingsCard=$("taskModeSettingsCard"),box=$("tasks"),mode=taskMode||{},rows=Array.isArray(taskList.tasks)?taskList.tasks:[];
  // Capability gating: no task UI at all when the runtime does not offer it.
- card.hidden=!taskCapabilityAvailable();
+ card.hidden=!taskCapabilityAvailable();settingsCard.hidden=card.hidden;
  if(card.hidden)return;
  text("taskCount",rows.length);
- var note=$("taskModeNote");
- if(mode.enabled===false){note.textContent="Governed task state is disabled for this scope. No task context is reaching any agent."}
- else if(mode.shadow===true){note.textContent="Governed task state is in shadow mode: progress is recorded, and no task context reaches any agent."}
- else{note.textContent="Governed task state is active. A conversation receives the exact task it is bound to, and nothing else."}
+ var note=$("taskModeNote"),scope=currentTaskScope();
+ var modeStatus=$("taskModeStatus"),modeAction=$("taskModeAction");
+ text("taskModeStatus",mode.mode||"unknown");modeStatus.className="statuspill"+(mode.enabled&&!mode.shadow?" active":mode.shadow?" quarantined":"");
+ text("taskModeAction",mode.enabled?"Disable task state":"Enable task state");modeAction.disabled=false;modeAction.className=mode.enabled?"secondary":"primary";
+ text("taskModeScope",scope.agent_id+" · "+scope.workspace_id);
+ if(mode.enabled===false){note.textContent="Task state is off for this scope. Existing tasks and evidence are preserved.";text("taskModeEffect","No task context reaches this agent.")}
+ else if(mode.shadow===true){note.textContent="Task state is observing this scope without influencing the agent.";text("taskModeEffect","Progress is recorded; task context is withheld.")}
+ else{note.textContent="Task state is active for this scope.";text("taskModeEffect","Only a task explicitly bound to a conversation may reach the agent.")}
  box.replaceChildren();
- if(mode.enabled===false){box.appendChild(element("div","empty","Enable this scope from the terminal: atmem task enable"));renderSelectedTask();return}
+ if(mode.enabled===false){box.appendChild(element("div","empty","Task state is off for this agent and workspace. Enable it here when you want governed task context."));renderSelectedTask();return}
  if(!rows.length){box.appendChild(element("div","empty","No governed tasks in this scope yet."));renderSelectedTask();return}
  // "Is anything actually reaching my agent?" is the first question here, and
  // a task list alone cannot answer it: a task no conversation is bound to is
@@ -376,6 +386,17 @@ function renderSelectedTask(){
   evidence("Task ID",taskDetail.task_id,true)
  );
  panel.appendChild(grid);
+ var projection=taskDetail.projection||{},activity=element("div","taskactivity");
+ activity.appendChild(element("h3","","Recent task activity"));
+ var decisions=Array.isArray(projection.recent_decisions)?projection.recent_decisions:[];
+ var deliveries=Array.isArray(projection.context_deliveries)?projection.context_deliveries:[];
+ if(!decisions.length&&!deliveries.length){activity.appendChild(element("p","sub","No task decisions or context deliveries have been recorded yet."))}
+ decisions.slice(-5).reverse().forEach(function(row){activity.appendChild(element("div","evidencerow",displayTime(row.recorded_at_utc)+" · "+String(row.outcome||row.step_kind||"decision")))});
+ deliveries.slice(-5).reverse().forEach(function(row){activity.appendChild(element("div","evidencerow",displayTime(row.prepared_at_utc)+" · Context "+String(row.disposition||"prepared")+(row.exposed?" and delivered":"")))});
+ var flights=Array.isArray(projection.related_flights)?projection.related_flights:[];
+ flights.slice(-5).reverse().forEach(function(row){var flight=element("button","secondary","Open flight "+String(row.run_id));flight.type="button";flight.onclick=function(){openFlight(String(row.run_id))};activity.appendChild(flight)});
+ if(projection.correlation_state==="unlinked"){activity.appendChild(element("p","sub","Flight links will appear only when an adapter supplies provable run and turn identity; AtMem does not guess historical links."))}
+ panel.appendChild(activity);
  if((summary.completion_blockers||[]).length){panel.appendChild(element("p","sub","Completion is blocked by: "+summary.completion_blockers.join(", ")))}
  var actions=element("div","actions"),terminal=["completed","cancelled","expired"].indexOf(taskDetail.lifecycle)>=0;
  if(terminal){panel.appendChild(element("p","sub","This task is "+taskDetail.lifecycle+" and cannot be changed. Continuing the work means starting a new task."))}
@@ -395,9 +416,10 @@ function renderSelectedTask(){
 }
 async function selectTask(taskId){
  selectedTaskId=taskId;
- try{taskDetail=await get("/api/tasks/detail?task_id="+encodeURIComponent(taskId));renderTasks()}
+ try{taskDetail=await get("/api/tasks/detail?"+taskScopeQuery({task_id:taskId}));renderTasks()}
  catch(error){showError(error)}
 }
+async function setTaskStateMode(){var scope=currentTaskScope(),enable=!(taskMode&&taskMode.enabled),action=enable?"enable":"disable",effect=enable?"Governed task state may be injected only into conversations explicitly bound to a task.":"No task context will reach this agent. Existing tasks and evidence will be preserved.";if(!confirm((enable?"Enable":"Disable")+" governed task state?\n\nAgent: "+scope.agent_id+"\nWorkspace: "+scope.workspace_id+"\n\n"+effect))return;var button=$("taskModeAction");button.disabled=true;try{await post("/api/tasks/mode",{action:action,actor:"dashboard-operator",subject_id:scope.subject_id,agent_id:scope.agent_id,workspace_id:scope.workspace_id,confirm_scope:scope});selectedTaskId=null;taskDetail=null;await refreshTasks()}catch(error){showError(error)}finally{button.disabled=false}}
 async function taskLifecycle(action){
  if(!selectedTaskId||!taskDetail)return;
  var reason="";
@@ -406,7 +428,7 @@ async function taskLifecycle(action){
  var preview="Task: "+(summary.goal||selectedTaskId)+"\nScope: this workspace\nRevision: "+taskDetail.revision+"\nEffect: "+action+" this task";
  if(!confirm("Confirm "+action+"?\n\n"+preview))return;
  try{
-  var result=await post("/api/tasks/lifecycle",{task_id:selectedTaskId,confirm_task_id:selectedTaskId,action:action,actor:"dashboard-operator",reason:reason,expected_revision:taskDetail.revision});
+  var scope=currentTaskScope(),result=await post("/api/tasks/lifecycle",{task_id:selectedTaskId,confirm_task_id:selectedTaskId,action:action,actor:"dashboard-operator",reason:reason,expected_revision:taskDetail.revision,subject_id:scope.subject_id,agent_id:scope.agent_id,workspace_id:scope.workspace_id});
   if(result&&result.reason_code==="stale_base_revision"){
    // Never auto-retry: show what changed and require a fresh decision.
    showError(new Error(result.message));await selectTask(selectedTaskId);return
@@ -416,9 +438,9 @@ async function taskLifecycle(action){
  }catch(error){showError(error)}
 }
 async function refreshTasks(silent){
- if(!taskCapabilityAvailable()){$("taskCard").hidden=true;return}
+ if(!taskCapabilityAvailable()){$("taskCard").hidden=true;$("taskModeSettingsCard").hidden=true;return}
  try{
-  var values=await Promise.all([get("/api/tasks/mode"),get("/api/tasks"),get("/api/tasks/health")]);
+  var query=taskScopeQuery(),values=await Promise.all([get("/api/tasks/mode?"+query),get("/api/tasks?"+query),get("/api/tasks/health?"+query)]);
   taskMode=values[0];taskList=values[1];taskHealth=values[2];renderTasks()
  }catch(error){if(!silent)showError(error)}
 }
@@ -507,7 +529,7 @@ function render(){
  }
  updateStatusBanner();renderProductVersions()
 }
-async function reload(){var values=await Promise.all([get("/api/status"),get("/api/memory/reviews"),get("/api/semantic/health"),get("/api/memory/proposals")]);state=values[0];reviewQueue=values[1];semanticHealth=values[2];proposalQueue=values[3];render();renderSemanticHealth();renderProposals();await refreshTasks(true)}
+async function reload(){var values=await Promise.all([get("/api/status"),get("/api/memory/reviews"),get("/api/semantic/health"),get("/api/memory/proposals"),get("/api/semantic/profiles")]);state=values[0];reviewQueue=values[1];semanticHealth=values[2];proposalQueue=values[3];semanticProfiles=values[4];render();renderSemanticHealth();renderSemanticSettings();renderProposals();await refreshTasks(true)}
 async function searchTechnical(){
  var query=$("query").value.trim();if(!query)return;clearError();$("results").replaceChildren(loadingNode("Searching memory…","empty"));
  try{
@@ -573,19 +595,16 @@ async function switchProvider(){
  try{await working("Activating AtMem",state.host==="openclaw"?"Freezing native memory, checking compatibility, restarting OpenClaw, and verifying memory tools. This can take a minute.":"Authorizing the runtime adapter to use only AtMem context explicitly marked for injection.",async function(){await post("/api/mode",{mode:"active",confirm_host:entered});await reload()})}
  catch(error){showError(error)}
 }
-var VIEWS={status:"viewStatus",decisions:"viewDecisions",evidence:"viewEvidence"};
+var VIEWS={status:"viewStatus",decisions:"viewDecisions",evidence:"viewEvidence",settings:"viewSettings"};
 function activateView(name){
  var panelId=VIEWS[name]||VIEWS.status;
- $("intelligenceConfig").open=false;
- $("contextAuthorityConfig").open=false;
+ if(name!=="settings"){$("intelligenceConfig").open=false;$("contextAuthorityConfig").open=false}
  document.querySelectorAll(".tabpanel").forEach(function(panel){panel.classList.toggle("active",panel.id===panelId)});
  [["navStatus","status"],["navDecisions","decisions"],["navEvidence","evidence"],["navSettings","settings"]].forEach(function(pair){var btn=$(pair[0]);var isActive=(VIEWS[name]?name:"status")===pair[1];btn.classList.toggle("active",isActive);btn.setAttribute("aria-selected",isActive?"true":"false")})
 }
-function activateSettings(){var settings=$("intelligenceConfig");settings.open=true;[["navStatus","status"],["navDecisions","decisions"],["navEvidence","evidence"],["navSettings","settings"]].forEach(function(pair){var active=pair[1]==="settings",btn=$(pair[0]);btn.classList.toggle("active",active);btn.setAttribute("aria-selected",active?"true":"false")});settings.scrollIntoView({behavior:"smooth",block:"start"})}
 function showView(name){if(location.hash!=="#"+name){location.hash=name}else{applyRoute()}}
 function applyRoute(){
  var hash=(location.hash||"#status").slice(1);
- if(hash==="settings"){activateSettings();return}
  if(VIEWS[hash]){activateView(hash);return}
  var target=document.getElementById(hash);
  if(target){var panel=target.closest(".tabpanel");if(panel){var name=Object.keys(VIEWS).find(function(key){return VIEWS[key]===panel.id});activateView(name||"status")}target.scrollIntoView({behavior:"smooth",block:"start"});return}
@@ -594,7 +613,6 @@ function applyRoute(){
 window.addEventListener("hashchange",applyRoute);applyRoute();
 $("navStatus").onclick=function(){showView("status")};$("navDecisions").onclick=function(){showView("decisions")};$("navEvidence").onclick=function(){showView("evidence")};
 $("navSettings").onclick=function(){showView("settings")};
-$("intelligenceConfig").addEventListener("toggle",function(){if(!this.open&&location.hash==="#settings"){history.replaceState(null,"","#status");activateView("status")}});
 $("searchBtn").onclick=search;$("query").addEventListener("keydown",function(event){if(event.key==="Enter")search()});
 ["memoryStatus","memorySource","memoryMethod","memorySort"].forEach(function(id){$(id).onchange=function(){if($("query").value.trim())search()}});
 $("refreshBtn").onclick=refresh;$("switchBtn").onclick=switchProvider;
@@ -602,6 +620,9 @@ $("drillBtn").onclick=restoreDrill;
 $("verifyBtn").onclick=verifyNow;
 $("bridgeRefresh").onclick=refreshBridgeAndTest;
 $("reviewRefresh").onclick=refreshReviews;$("proposalRefresh").onclick=function(){refreshProposals()};$("taskRefresh").onclick=function(){refreshTasks()};
+$("taskModeAction").onclick=setTaskStateMode;
+$("semanticModelSelect").onchange=renderSemanticSettings;
+$("semanticSetupAction").onclick=setupSemanticProfile;
 $("browseRecords").onclick=function(){showView("evidence");$("query").focus()};
 $("blackboxRefresh").onclick=loadBlackbox;
 $("agentTopologySync").onclick=syncAgentTopology;

@@ -1071,3 +1071,169 @@ tests/
   that guard enforcement is still unavailable: this amendment makes the feature
   reachable, not blocking. T084 owns that preparation and no release proceeds
   without it.
+
+# Amendment B Plan — Execution Correlation, Task Focus, and Investigation
+
+**Date**: 2026-09-06 | **Spec**: Amendment B in `spec.md`
+
+## Summary
+
+Add one host-neutral execution identity and append-only task-execution link so
+task state, flight evidence, and memory exposure can be traversed without using
+a session as a task. Add explicit focus intervals for many sequential tasks in
+one conversation and a privacy-safe investigator supporting metadata, time,
+identifier, memory, and exact-text digest clues. OpenClaw, Pydantic AI,
+LangGraph/LangChain, and MCP adapt to this contract according to capabilities.
+
+## Technical Context Delta
+
+- **Persistence**: add correlation/focus storage through the Spec 010 migration
+  registry rather than consuming or reusing Spec 007's last bootstrap ID.
+- **Contracts**: dependency-free execution identity, task execution link, focus
+  mutation/result, investigation query/result, match-basis, and adapter
+  capability schemas under `atmem/contracts/` and `atmem/schemas/v1/`.
+- **Privacy**: existing prompt/response digests remain the default search
+  surface. Partial text is federated to a registered host or uses a separately
+  enabled local derived index; neither mode is silently enabled.
+- **UI**: extend the existing four-workspace dashboard shell. No fifth workspace
+  or new authority store is introduced.
+- **Compatibility**: old rows stay unlinked unless evidence proves a join;
+  no migration guesses from timestamps, shared sessions, or similar text.
+
+## Constitution Check Delta
+
+| Principle | Result | Required evidence |
+| --- | --- | --- |
+| Authority Before Intelligence | PASS | AtMem filters locator results before AtBot ranks; AtBot cannot create focus. |
+| Provenance and Exact Evidence | PASS | Every link names exact execution/task identities and evidence digests. |
+| Safe Defaults and Reversibility | PASS | No focus and no private text index by default; focus clearing is append-only. |
+| Scope, Privacy, and Verifiable Deletion | PASS | Cross-scope lookup is non-disclosing; derived lookup representations are deletable. |
+| Contract-First Host Neutrality | PASS | One contract with adapter-keyed capabilities; OpenClaw is one mapping. |
+| Executable Claims | PASS | Actual tool execution and cross-adapter conformance gate capability claims. |
+| Local-First and Replaceable Intelligence | PASS | Metadata/digest lookup works without AtBot, network, or optional embeddings. |
+
+## Architecture
+
+### 1. Identity levels remain distinct
+
+`ExecutionIdentity` stores explicit nullable fields for host/framework,
+session key/generation, run, turn, and tool/step. Code must never use `run_id`
+as a turn ID or `session_id` as a task ID. Adapters normalize native identifiers
+once at their boundary.
+
+### 2. Append-only focus intervals
+
+`TaskFocusService` stores a focus interval per exact scope and host execution
+address. Activate, clear, and switch run in one transaction. A switch closes
+the prior interval and creates a successor with separate evidence. Resolution
+returns one focused task or one withholding reason, never a candidate list.
+Existing Amendment A bindings remain readable until explicitly switched; no
+historical row is rewritten or guessed.
+
+### 3. Immutable execution joins
+
+`TaskExecutionLink` is created only after focus/explicit identity resolution
+and task eligibility checks. The link ID is carried by task deliveries, task
+steps, and the content-minimized flight projection. Task and flight hash chains
+remain independently verifiable; a link joins evidence and does not merge
+authorities.
+
+### 4. Investigation locator
+
+`InvestigationService` queries indexed, scope-filtered correlation metadata.
+Exact prompt/response text is normalized using the same versioned digest
+profile used at capture and discarded after lookup. Results state their match
+basis (`exact_id`, `time_window`, `exact_text_digest`, `task`, `memory`,
+`retrieval`, or `host_reference`) and provide authorized pivot identifiers.
+AtBot receives only these eligible result projections for natural-language
+interpretation and ranking.
+
+Partial text follows a registered `TranscriptLocator` protocol. The host owns
+the text and returns opaque execution references; AtMem revalidates each
+reference. An optional private local index is a later slice behind explicit
+enablement, retention, deletion, key/model identity, and egress controls. The
+base implementation returns `partial_text_lookup_unavailable`, never a weak
+guess.
+
+### 5. Adapter mappings
+
+- **OpenClaw**: owner commands activate/clear/switch focus using its session key
+  and rotating session ID. `task_report_progress` resolves focus internally and
+  submits the resolved task ID; its public model schema never asks the model for
+  a hidden task ID.
+- **Pydantic AI**: a task resolver reads native run dependencies/context at
+  `before_run` and freezes the task reference for that run.
+- **LangGraph/LangChain**: a resolver reads configurable/runtime state at
+  `before_agent`; the selected task is checkpoint-compatible but AtMem does not
+  mutate graph state.
+- **MCP**: versioned focus, locator, and proposal tools expose manual/tool-only
+  operations. MCP advertises no automatic model-boundary delivery.
+
+### 6. Dashboard projection
+
+The governed-task card becomes task-centric: progress, next work, blockers,
+completion readiness, current focus, recent agents, and related flights. Its
+detail drawer merges human-readable task transitions and execution links and
+provides two-action pivots Task ↔ Flight ↔ Memory. IDs and digests stay in an
+expanded evidence region.
+
+## Data and Index Plan
+
+- Add `governed_task_focus_intervals` with exact scope, host identity, task,
+  activation/deactivation, reason, actor, evidence, and indexes for active
+  resolution and history.
+- Add `governed_task_execution_links` with task/item/revision, execution
+  identity, focus source, evidence digest, timestamps, and unique idempotency
+  identity.
+- Add nullable `task_execution_link_id` to task deliveries/steps or a normalized
+  join table where backend portability makes column alteration unsafe.
+- Add indexes for scope+time, task+time, session/run/turn, memory/retrieval pivot,
+  and exact prompt/response digest. Confirm each with query-plan tests.
+- Request migration IDs through Spec 010; do not use `0079` until ownership and
+  upgrade order are recorded centrally.
+
+## Test Strategy
+
+1. Unit-test closed contracts, normalization/digest profiles, focus state
+   transitions, exact zero-or-one resolution, and non-disclosure.
+2. Upgrade published stores and prove no inferred historical links.
+3. Execute OpenClaw's real registered progress tool across every disposition.
+4. Run one shared conformance journey through OpenClaw, Pydantic AI,
+   LangGraph/LangChain, and MCP, checking capability truthfulness.
+5. Generate 100,000 links and measure exact-ID/time-window query plans and p95.
+6. Test deletion, host-locator fault/timeout, AtBot absence, and private-index
+   disabled behavior.
+7. Run all existing memory, flight, task, adapter, migration, and OpenClaw gates.
+
+## Project Structure Delta
+
+```text
+atmem/
+  contracts/execution.py
+  investigation/{models,service,transcript}.py
+  task_state/{focus,correlation}.py
+  adapters/{base,pydantic_ai,langgraph}.py
+  control/{manager,server,web}.py
+  control/assets/{app.html,app.js,app.css}
+  mcp/server.py
+  schemas/v1/{execution-identity,task-focus,task-execution-link,investigation-query,investigation-result}.json
+integrations/openclaw/
+  index.ts
+  src/{types,commands,task-tools}.ts
+  test/hooks.mjs
+tests/
+  test_task_execution_correlation.py
+  test_investigation_locator.py
+  test_task_state_cross_adapter.py
+  test_task_state_upgrade.py
+  test_task_state_dashboard.py
+```
+
+## Rollout and Rollback
+
+Ship correlation recording in shadow first. Existing Amendment A bindings keep
+working. Activating task focus is explicit per scope/adapter; clearing all focus
+intervals returns task delivery to withholding without changing task state.
+Disabling the optional private locator deletes its derived index subject to a
+verified receipt. No public capability is advertised until its adapter journey
+passes.

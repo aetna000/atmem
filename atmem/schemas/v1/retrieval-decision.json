@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/retrieval-decision.json",
+  "title": "AtMem Retrieval Decision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "calibration_version", "support_class", "ranked_record_ids", "candidates", "reason_codes"],
+  "properties": {
+    "format": {"const": "atmem-retrieval-decision-v1"},
+    "calibration_version": {"type": "string", "minLength": 1},
+    "support_class": {"enum": ["direct_support", "background_context", "no_useful_memory"]},
+    "ranked_record_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "reason_codes": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["record_id", "support_class", "relevance_score", "rank_score", "signals", "reason_codes"],
+        "properties": {
+          "record_id": {"type": "string", "minLength": 1},
+          "support_class": {"enum": ["direct_support", "background_context", "no_useful_memory"]},
+          "relevance_score": {"type": "number", "minimum": 0, "maximum": 1},
+          "rank_score": {"type": "number", "minimum": 0, "maximum": 1},
+          "signals": {"type": "object", "additionalProperties": {"type": "number"}},
+          "reason_codes": {"type": "array", "items": {"type": "string", "minLength": 1}}
+        }
+      }
+    }
+  }
+}

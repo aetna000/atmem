@@ -382,7 +382,11 @@ def _epoch_policy_sha256(epoch: Mapping[str, Any]) -> str | None:
 
 def _identity_matches(epoch: Mapping[str, Any], expected: Mapping[str, Any]) -> bool:
     identity = epoch.get("identity", {})
-    keys = ("provider", "model", "version", "model_digest", "endpoint", "normalization")
+    keys = (
+        "provider", "model", "version", "model_digest", "endpoint",
+        "normalization", "query_prefix", "document_prefix",
+        "preprocessing_version", "quality_class",
+    )
     return all(
         key not in expected or str(expected.get(key)) == str(identity.get(key))
         for key in keys

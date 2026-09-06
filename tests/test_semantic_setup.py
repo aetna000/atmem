@@ -7,15 +7,25 @@ import pytest
 
 from atmem import Memory
 from atmem import cli
+from atmem.control import ControlPlaneManager
 from atmem.semantic import SemanticIndex
 
 
 class LocalSemanticEmbedder:
+    def __init__(
+        self,
+        *,
+        provider="sentence-transformers",
+        model="fixture/local-model",
+    ):
+        self.provider = provider
+        self.model = model
+
     @property
     def identity(self):
         return {
-            "provider": "sentence-transformers",
-            "model": "fixture/local-model",
+            "provider": self.provider,
+            "model": self.model,
             "version": "fixture-1",
             "normalization": "l2",
         }
@@ -25,6 +35,38 @@ class LocalSemanticEmbedder:
 
     def embed_query(self, _text):
         return [1.0, 0.0]
+
+
+def test_dashboard_profile_setup_builds_verifies_and_activates(tmp_path, monkeypatch) -> None:
+    database = tmp_path / "memory.db"
+    manager = ControlPlaneManager.start(
+        host="generic",
+        state_path=tmp_path / "state.json",
+        control_root=tmp_path / "control",
+        memory_db=database,
+    )
+    memory = Memory(database)
+    memory.remember(
+        "local-user",
+        "I prefer aisle seats.",
+        interpreted_fact="I prefer aisle seats.",
+        interpreted_fact_key="seat preference",
+    )
+    memory.close()
+    embedder = LocalSemanticEmbedder(model="BAAI/bge-small-en-v1.5")
+    monkeypatch.setattr(
+        "atmem.semantic.create_embedder", lambda *_args, **_kwargs: embedder
+    )
+
+    result = manager.setup_semantic_profile(
+        provider="sentence-transformers",
+        model="BAAI/bge-small-en-v1.5",
+        allow_download=True,
+    )
+
+    assert result["status"] == "complete"
+    assert result["health"]["status"] == "healthy"
+    assert result["profile"]["quality_class"] == "production"
 
 
 def test_semantic_setup_requires_download_consent_and_keeps_fallback(

@@ -1,9 +1,9 @@
 # Current implementation status
 
-Updated: 5 September 2026
+Updated: 6 September 2026
 
-Repository metadata is **2.2.6b8** and the matched OpenClaw bridge is
-**2.2.6-beta.5**. This repository state is the release candidate; package and
+Repository metadata is **2.2.6b9** and the matched OpenClaw bridge is
+**2.2.6-beta.6**. This repository state is the release candidate; package and
 tag availability must be checked independently until the release workflow has
 published them. Native AtMem authority remains the default after installation
 or upgrade. The required `atmem-atbot==0.1.0a6` companion is packaged
@@ -62,10 +62,11 @@ The release has four runtime boundaries:
 - Publishing uses the dedicated trusted-publisher workflow documented in
   [Publishing the AtBot companion](atbot-release.md); no PyPI token belongs in
   repository or service configuration.
-- Model choice is never automatic. Local Ollama, loopback OpenAI-compatible,
-  named hosted providers, custom HTTPS, or deterministic fallback are explicit
-  choices. Configuration stores an API-key environment-variable name, never the
-  secret value.
+- AtMem recommends a hardware-compatible local embedding profile during
+  onboarding, but model download and activation remain explicit. Local Ollama,
+  loopback OpenAI-compatible, named hosted providers, custom HTTPS, or
+  deterministic fallback remain operator choices. Configuration stores an
+  API-key environment-variable name, never the secret value.
 - The dashboard renews one expired local CSRF session and retries once; it
   remains loopback-only and has no hosted authentication layer.
 - `atmem[mem0]`, `atmem[langgraph-provider]`, and
@@ -90,7 +91,7 @@ The release has four runtime boundaries:
 ## Upgrade and support status
 
 - The release workflow creates persisted data with public AtMem 2.1.0, 2.2.3,
-  2.2.4, and 2.2.5, upgrades each environment to 2.2.6b8, and verifies record identity, recall, audit
+  2.2.4, and 2.2.5, upgrades each environment to 2.2.6b9, and verifies record identity, recall, audit
   integrity, control migration identity, candidate retention, schema migration,
   and automatic vector-sidecar creation as a protected publication gate.
 - Existing OpenClaw installations upgrade the bridge with

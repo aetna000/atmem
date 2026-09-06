@@ -610,6 +610,21 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
     )
 
     manager = _manager(tmp_path)
+    semantic_setup_calls: list[dict[str, object]] = []
+
+    def semantic_setup(**kwargs):
+        semantic_setup_calls.append(kwargs)
+        return {
+            "format": "atmem-semantic-setup-v1",
+            "status": "complete",
+            "profile": {
+                "provider": kwargs["provider"],
+                "model": kwargs["model"],
+            },
+            "health": {"status": "healthy"},
+        }
+
+    monkeypatch.setattr(manager, "setup_semantic_profile", semantic_setup)
     server = ControlDashboardServer(("127.0.0.1", 0), manager, html="<html>safe</html>")
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -628,9 +643,49 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         assert semantic["status"] in {
             "missing", "legacy", "weak", "stale", "incompatible", "rebuilding", "healthy"
         }
+        semantic_profiles = json.loads(
+            opener.open(f"{base}/api/semantic/profiles").read()
+        )
+        assert semantic_profiles["download_requires_confirmation"] is True
+        assert semantic_profiles["models"]
+        assert all(
+            row["quality_class"] == "production"
+            for row in semantic_profiles["models"]
+        )
+        selected_semantic = semantic_profiles["models"][0]
+        semantic_setup_request = Request(
+            f"{base}/api/semantic/setup",
+            data=json.dumps(
+                {
+                    "provider": selected_semantic["provider"],
+                    "model": selected_semantic["model"],
+                    "confirm_model": selected_semantic["model"],
+                    "subject_id": "local-user",
+                    "allow_download": True,
+                }
+            ).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base,
+                "X-CSRF-Token": json.loads(
+                    opener.open(f"{base}/api/session").read()
+                )["csrf_token"],
+            },
+            method="POST",
+        )
+        semantic_setup_result = json.loads(opener.open(semantic_setup_request).read())
+        assert semantic_setup_result["status"] == "complete"
+        assert semantic_setup_calls == [
+            {
+                "provider": selected_semantic["provider"],
+                "model": selected_semantic["model"],
+                "subject_id": "local-user",
+                "allow_download": True,
+            }
+        ]
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.2.6-beta.5"
+        assert product["atmem_npm_version"] == "2.2.6-beta.6"
         assert product["x_url"] == "https://x.com/AtMemX"
         profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
         assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])
@@ -639,6 +694,53 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         assert delegated["authority_default"] == "atmem"
         assert delegated["enabled"] is False
         setup_session = json.loads(opener.open(f"{base}/api/session").read())
+        task_scope = {
+            "subject_id": "local-user",
+            "agent_id": "main",
+            "workspace_id": "ws-main",
+        }
+        task_enable = Request(
+            f"{base}/api/tasks/mode",
+            data=json.dumps(
+                {
+                    "action": "enable",
+                    "actor": "dashboard-operator",
+                    **task_scope,
+                    "confirm_scope": task_scope,
+                }
+            ).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base,
+                "X-CSRF-Token": setup_session["csrf_token"],
+            },
+            method="POST",
+        )
+        task_enabled = json.loads(opener.open(task_enable).read())
+        assert task_enabled["mode"] == "active"
+        assert task_enabled["scope"] == {
+            "format": "atmem-authority-scope-v1",
+            **task_scope,
+        }
+        task_disable = Request(
+            f"{base}/api/tasks/mode",
+            data=json.dumps(
+                {
+                    "action": "disable",
+                    **task_scope,
+                    "confirm_scope": task_scope,
+                }
+            ).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base,
+                "X-CSRF-Token": setup_session["csrf_token"],
+            },
+            method="POST",
+        )
+        task_disabled = json.loads(opener.open(task_disable).read())
+        assert task_disabled["mode"] == "disabled"
+        assert task_disabled["data_preserved"] is True
         public_key = base64.b64encode(b"\x01" * 32).decode("ascii")
         register = Request(
             f"{base}/api/delegated/register",
@@ -931,6 +1033,8 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/product",
         "/api/status",
         "/api/semantic/health",
+        "/api/semantic/profiles",
+        "/api/semantic/setup",
         "/api/companion/status",
         "/api/companion/profiles",
         "/api/companion/configure",

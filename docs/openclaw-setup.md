@@ -9,12 +9,27 @@
 ## Install
 
 ```bash
-python -m pip install --pre --upgrade atmem==2.2.6b5
+python -m pip install --pre --upgrade atmem==2.2.6b9
 atmem --version
 atmem openclaw install
 ```
 
 Do not install `openclaw-memory-atmem` directly. It is a bridge, not a standalone memory engine. `atmem openclaw install` selects the matching bridge version, pins the exact Python executable, shows staged progress, restarts the gateway and verifies the running plugin.
+
+The installer also prepares semantic retrieval. In a terminal it asks before
+downloading the default `nomic-embed-text` model. For unattended installation,
+approve the download explicitly and optionally select another cataloged Ollama
+model:
+
+```bash
+atmem openclaw install --allow-model-download
+atmem openclaw install --embedding-model mxbai-embed-large --allow-model-download
+```
+
+AtMem then builds and verifies a new vector epoch before activation. The same
+model selection is available later under **Dashboard → Settings → Embedding
+model**. Canonical memory remains usable through safe lexical fallback if model
+setup is skipped or fails.
 
 ## Upgrade from 2.1
 
@@ -22,7 +37,7 @@ Upgrade AtMem first, then refresh the existing bridge without creating a new
 migration or changing the current shadow/active mode:
 
 ```bash
-python -m pip install --pre --upgrade atmem==2.2.6b5
+python -m pip install --pre --upgrade atmem==2.2.6b9
 atmem openclaw upgrade
 atmem control verify
 atmem atbot doctor

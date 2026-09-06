@@ -1,6 +1,6 @@
 # AtMem
 
-[![Version 2.2.6b8](https://img.shields.io/badge/version-2.2.6b8-blue)](./docs/releases/v2.2.6b8.md)
+[![Version 2.2.6b9](https://img.shields.io/badge/version-2.2.6b9-blue)](./docs/releases/v2.2.6b9.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
@@ -15,7 +15,7 @@ authorizes, stores, scopes, injects, corrects, and deletes memory.
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --pre --upgrade atmem==2.2.6b8
+python -m pip install --pre --upgrade atmem==2.2.6b9
 atmem atbot setup
 atmem atbot doctor
 atmem dashboard
@@ -38,12 +38,16 @@ atmem control verify
 
 AtMem installs the matching npm bridge, discovers OpenClaw agents and
 workspaces, starts in safe shadow mode, restarts the gateway, and verifies the
-connection. Do not install the npm package yourself.
+connection. It also offers to download the default local embedding model and
+build, verify, and activate its vector epoch. For unattended setup, make that
+approval explicit with `atmem openclaw install --allow-model-download`; choose
+another Ollama model with `--embedding-model MODEL`. Do not install the npm
+package yourself.
 
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --pre --upgrade atmem==2.2.6b8
+python -m pip install --pre --upgrade atmem==2.2.6b9
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -66,7 +70,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install --pre 'atmem[pydantic-ai]==2.2.6b8'
+python -m pip install --pre 'atmem[pydantic-ai]==2.2.6b9'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -90,7 +94,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install --pre 'atmem[langgraph]==2.2.6b8'
+python -m pip install --pre 'atmem[langgraph]==2.2.6b9'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -119,7 +123,7 @@ multi-agent, and low-level `StateGraph` integration.
 
 ### Spec 007 milestone: govern work in progress
 
-AtMem 2.2.6b8 completes Governed Task State: a separate, revisioned authority
+AtMem 2.2.6b9 advances Governed Task State: a separate, revisioned authority
 plane for what an agent is doing now, what remains, what is blocked, and
 whether completion is allowed. It is **disabled by default** and never turns
 temporary task progress into long-term personal memory.
@@ -138,16 +142,18 @@ atmem task show ~/.atmem/memories.db release-007 \
 atmem dashboard
 ```
 
-The dashboard's **Governed tasks** card shows progress, blockers, the current
-revision, and guarded lifecycle actions. Model delivery still requires the
-host adapter to provide that exact task ID: use `identity.for_task("release-007")`
-with Pydantic AI or LangGraph, or `taskId: "release-007"` in OpenClaw hook
-context. AtMem never guesses which open task is active. AtBot may interpret an
-observation into a bounded proposal, but AtMem revalidates and commits it.
+The dashboard's **Governed tasks** card shows progress, blockers, recent task
+decisions, context delivery, the current revision, and guarded lifecycle
+actions. Model delivery requires an exact task identity. Pydantic AI may supply
+`atmem_task_id` in run dependencies; LangGraph may supply it through
+`configurable`; construction-time `identity.for_task("release-007")` remains a
+backward-compatible fallback. OpenClaw resolves the owner-authorized current
+conversation binding. AtMem never guesses from prompt text or chooses among
+open tasks. AtBot may propose a change, but AtMem revalidates and commits it.
 
 See the [Governed Task State guide](docs/governed-task-state.md) for lifecycle,
 correction, provenance, expiry, benchmark, and automation examples, and read
-the [2.2.6b8 release notes](docs/releases/v2.2.6b8.md) before upgrading.
+the [2.2.6b9 release notes](docs/releases/v2.2.6b9.md) before upgrading.
 
 ### Prove memory quality locally
 
@@ -179,7 +185,7 @@ If AtBot or its selected model is unavailable, AtMem continues with safe local
 capture and hybrid ranking. Memory authority and agent operation do not depend
 on a hosted model.
 
-> **Release status:** this repository describes **AtMem 2.2.6b8**. AtBot is a
+> **Release status:** this repository describes **AtMem 2.2.6b9**. AtBot is a
 > separately packaged, headless component installed and managed by AtMem; it is
 > not an independent agent or a second memory authority.
 
@@ -240,15 +246,17 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install --pre atmem==2.2.6b8
+python -m pip install --pre atmem==2.2.6b9
 atmem --version
 ```
 
 AtMem requires Python 3.10 or newer. It always creates a dependency-free local
-vector sidecar; the semantic extra adds an optional local embedding upgrade:
+vector sidecar. `atmem openclaw install` can automatically prepare an Ollama
+embedding model, while the semantic extra adds local sentence-transformer
+choices:
 
 ```bash
-python -m pip install --pre 'atmem[semantic]==2.2.6b8'
+python -m pip install --pre 'atmem[semantic]==2.2.6b9'
 ```
 
 For repository development, install both workspace packages:
@@ -428,7 +436,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --pre --upgrade atmem==2.2.6b8
+python -m pip install --pre --upgrade atmem==2.2.6b9
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -580,7 +588,7 @@ npm test
 npm run smoke
 ```
 
-Current repository metadata is version **2.2.6b8**. The installer pins the
+Current repository metadata is version **2.2.6b9**. The installer pins the
 compatible OpenClaw bridge independently; provider-only Python releases do not
 force an unnecessary npm publication.
 

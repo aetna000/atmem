@@ -159,6 +159,50 @@ started.
 - [x] [T084] Prepare release artefacts per `AGENTS.md`: add `docs/releases/v<VERSION>.md` — the artefact required before tagging; the repository has no `CHANGELOG.md` and one must not be invented — carrying the user-visible change, exact install and upgrade commands, migration and opt-in behavior, compatibility, and honest limitations. Align versions across the `atmem` distribution, the `atbot` distribution, and the OpenClaw bridge `package.json`, and add a matching `docs/current-status.md` section. The note MUST state that guard enforcement remains unavailable and that this amendment makes Governed Task State reachable rather than blocking. No release proceeds without this task (FR-047, FR-048).
 - [x] [T085] Run the full amendment gate — resolution matrix including stale generation, delivery-race exposure truthfulness both ways, observation with and without AtBot, agent-tool boundary outcomes, epoch rotation across reset hooks, in-host owner gating, host-contract validation, disabled-versus-shadow separation, wrong-session refusal across all three host operations, mixed-adapter capability derivation, host-proposal concurrency, capability conformance, no-bindings regression, persisted upgrade, profile compatibility, dashboard state and accessibility, and the complete existing suite — and record exact evidence in this file (SC-019–SC-031, and SC-001–SC-018 unregressed).
 
+## Phase 13 — Amendment B: execution correlation, task focus, and investigation
+
+### 13a — Immediate OpenClaw correctness gate
+
+- [ ] [T086] Add a failing real registered-tool regression to `integrations/openclaw/test/hooks.mjs` that invokes `task_report_progress` without a model-visible `task_id`, resolves the current conversation binding, and proves successful, conflict, rejected, `no_change`, unbound, and wrong-session outcomes; assert the public tool schema contains no hidden task authority field (FR-063; SC-035).
+- [x] [T087] Fix `task_report_progress` in `integrations/openclaw/index.ts` and `integrations/openclaw/src/task-tools.ts` to resolve the authenticated current focus/binding first and submit the resolved task ID as a redundant checked assertion, never `params.task_id`; preserve idempotency, scope, reason, evidence assurance, and non-disclosing refusal (FR-063; SC-035).
+
+### 13b — Contracts, migration ownership, and persistence
+
+- [ ] [T088] Define closed `ExecutionIdentity`, `TaskExecutionLink`, focus operation/result, investigation query/result, and match-basis contracts in `atmem/contracts/execution.py` with independently authored schemas under `atmem/schemas/v1/`; include invalid vectors for substituted identity levels, incomplete session generations, multiple primary tasks, raw-text retention, and caller-supplied authority (FR-055–FR-061).
+- [ ] [T089] Allocate correlation migrations through the Spec 010 registry and record ownership/order in `specs/integration-ownership.md`; add idempotent focus-interval, execution-link, and normalized pivot storage plus measured indexes in `atmem/store/sqlite.py`, without reusing `0079` or rewriting existing bindings (FR-056, FR-058, FR-066, FR-068).
+- [ ] [T090] Add upgrade, restart, concurrency, no-inferred-backfill, and deletion tests in `tests/test_task_execution_correlation.py`, `tests/test_task_state_upgrade.py`, and `tests/test_task_state_deletion.py`; prove a turn has zero or one primary link while tasks span sessions/frameworks (FR-056–FR-058, FR-066–FR-067; SC-032, SC-039).
+
+### 13c — Focus and correlation services
+
+- [ ] [T091] Implement atomic activate, clear, switch, inspect, history, exact resolution, compatibility projection, and stale-generation behavior in `atmem/task_state/focus.py`; AtBot suggestions remain non-authoritative and absence returns withholding (FR-057).
+- [ ] [T092] Implement task-execution link creation and idempotent propagation through task context deliveries, observations, proposals, lifecycle requests, decisions, and content-minimized flight events in `atmem/task_state/correlation.py`, `atmem/task_state/service.py`, `atmem/control/manager.py`, and `atmem/control/blackbox.py` (FR-055–FR-058; SC-032).
+
+### 13d — Privacy-safe investigation locator
+
+- [ ] [T093] Write failing locator tests for every clue type, exact prompt/response digest normalization, combined filters, pagination, match basis, AtBot authorization ordering, cross-scope non-disclosure, partial-text unavailable, host timeout, and zero query-body retention in `tests/test_investigation_locator.py` (FR-059–FR-061, FR-067–FR-068; SC-033–SC-034).
+- [ ] [T094] Implement the indexed metadata and exact-digest locator in `atmem/investigation/{models,service}.py`, returning authorized task/flight/turn/memory pivots before optional AtBot ranking and stable `partial_text_lookup_unavailable` when no registered host/private index can serve partial text (FR-059–FR-061, FR-068).
+- [ ] [T095] Define the optional `TranscriptLocator` protocol and registration/capability surface in `atmem/investigation/transcript.py`; implement an OpenClaw adapter that returns opaque execution references from host-owned transcripts, then revalidate every reference in AtMem. Keep the private local semantic/text index disabled and explicitly unsupported until its retention/key/deletion subprofile is implemented (FR-060, FR-062).
+- [ ] [T096] Expose investigation through host-neutral manager/service methods, CLI human/JSON output, local API, and MCP tools in `atmem/control/manager.py`, `atmem/control/server.py`, `atmem/cli.py`, and `atmem/mcp/server.py`; exact text is transient input and MCP advertises tool-only limitations (FR-059, FR-062; SC-033, SC-037).
+
+### 13e — Cross-adapter task identity and conformance
+
+- [ ] [T097] Extend `AtMemTurnLifecycle` with a frozen per-turn execution identity and task resolver in `atmem/adapters/base.py`, retaining adapter-construction `task_id` as a backward-compatible fallback and recording one execution link across capture, preparation, exposure, tools, model output, and terminal event (FR-055–FR-058, FR-064).
+- [ ] [T098] Update Pydantic AI hooks to resolve task focus from native run dependencies/context at `before_run`, and LangGraph/LangChain middleware to resolve it from configurable/runtime state at `before_agent`, without mutating dependencies, messages, graph state, or checkpoints in `atmem/adapters/pydantic_ai.py` and `atmem/adapters/langgraph.py` (FR-064; SC-036).
+- [ ] [T099] Add MCP focus/locator/proposal schemas and tools while explicitly reporting no automatic-hook/exposure capability in `atmem/mcp/server.py`; add equivalent focus and locator handling to OpenClaw without making its host-specific identifiers part of core contracts (FR-062; SC-037).
+- [ ] [T100] Create a shared cross-adapter conformance suite in `tests/test_task_state_cross_adapter.py` and run it against OpenClaw fixtures, Pydantic AI, LangGraph/LangChain, and MCP for two tasks plus a non-task turn, focus switching, exact exposure, proposals, failures, reset, scope isolation, and honest capability negotiation (FR-062–FR-064; SC-032, SC-035–SC-037).
+
+### 13f — Task-centric product surface
+
+- [ ] [T101] Add scope-filtered task-centric view models and APIs for current/recent agents, focus history, related flights, turn outcomes, and considered/selected/exposed memory distinctions in `atmem/task_state/observability.py`, `atmem/control/manager.py`, and `atmem/control/web.py` (FR-061, FR-065).
+- [ ] [T102] Build the task-centric dashboard projection and investigation input in `atmem/control/assets/app.{html,js,css}` within the existing four-workspace shell, providing Task ↔ Flight ↔ Memory pivots in at most two actions and collapsing technical evidence by default (FR-061, FR-065; SC-038).
+- [ ] [T103] Add dashboard contract, accessibility, responsive-state, empty/error/loading, cross-scope, and two-action pivot tests in `tests/test_task_state_dashboard.py` and `tests/test_dashboard.py` (FR-065; SC-038).
+
+### 13g — Performance, documentation, and release evidence
+
+- [ ] [T104] Add 100,000-row exact-ID and seven-day time-window query-plan/p95 benchmarks plus cache/deletion revalidation in `tests/test_investigation_performance.py`, documenting the reference machine and excluding host/model calls (FR-068; SC-040).
+- [ ] [T105] Document the three planes, identity hierarchy, focus switching, investigator clue types, privacy modes, host capability matrix, CLI/MCP examples, dashboard pivots, migration, deletion, and limitations in `docs/governed-task-state.md`, `docs/framework-adapters.md`, `README.md`, and `docs/current-status.md` (FR-055–FR-068).
+- [ ] [T106] Run contract/schema, upgrade, deletion, privacy, OpenClaw registered-tool, Pydantic AI, LangGraph/LangChain, MCP, dashboard, performance, full Python, npm, and installed-artifact gates; record exact evidence and leave every unsupported capability unadvertised (SC-032–SC-040 and all earlier criteria unregressed).
+
 ### T058 evidence (2026-09-05)
 
 Premises verified against all three matrix entries, each executed rather than

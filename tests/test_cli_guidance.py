@@ -66,6 +66,23 @@ def test_openclaw_upgrade_preserves_mode_and_reports_verified_bridge(
     assert result["dashboard"]["restarted"] is True
 
 
+def test_openclaw_install_help_exposes_automatic_embedding_setup(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        sys, "argv", ["atmem", "openclaw", "install", "--help"]
+    )
+
+    with pytest.raises(SystemExit) as stopped:
+        cli.main()
+
+    assert stopped.value.code == 0
+    output = capsys.readouterr().out
+    assert "--embedding-model" in output
+    assert "--allow-model-download" in output
+    assert "--skip-semantic-setup" in output
+
+
 @pytest.mark.parametrize(
     ("arguments", "expected"),
     [

@@ -1,67 +1,89 @@
-# Implementation Plan: Retrieval Quality and Reranking
+# Implementation Plan: Retrieval Quality, Embeddings, and Reranking
 
-**Branch**: `future/008-retrieval-quality-and-reranking` | **Date**: 2026-09-05 | **Spec**: `specs/008-retrieval-quality-and-reranking/spec.md`
-
-**Input**: Feature specification from `specs/008-retrieval-quality-and-reranking/spec.md`
+**Branch**: `storizon` | **Date**: 2026-09-06 | **Spec**: `specs/008-retrieval-quality-and-reranking/spec.md`
 
 ## Summary
 
-Extend Spec 002 with independently measurable registered signals, calibrated withholding/support classes, optional local reranking, and safe explanations.
+Build one host-neutral pipeline: authorize, generate candidates broadly, normalize signals, establish original-query support, optionally rerank eligible records, revalidate, and build byte-stable context. Replace first-candidate fallback and raw-score fusion. Guide a strong local embedding profile while keeping hashing diagnostic-only.
 
 ## Technical Context
 
-- **Language/Version**: Python 3.10–3.13.
-- **Dependencies**: Implemented Spec 002; Spec 005 vector health; optional local cross-encoder/AtBot extras.
-- **Storage**: No new canonical store; versioned calibration and benchmark data are checked-in artifacts.
-- **Testing/Target**: pytest, benchmark ablations, privacy adversaries, deterministic fallback, CLI/dashboard contract tests.
-- **Constraints/Scale**: Final `prepare_context_v1()` revalidation and byte-stable delivery cannot change.
-
-Extend the implemented Spec 002 ranking path around typed signal contributions and a versioned calibration profile. Reuse fact keys, Spec 005 semantic epoch health, policy revalidation, AtBot, and benchmark infrastructure. Spec 009 later supplies the graph/entity plugin without taking ownership of the base ranker.
+- Python 3.10–3.13; TypeScript for OpenClaw.
+- Existing SQLite canonical/graph/vector stores and semantic epochs.
+- Optional AtBot, sentence-transformers/Ollama/OpenAI-compatible embeddings, and reranker.
+- Dashboard, control protocol, OpenClaw, Pydantic AI, LangGraph, and MCP consumers.
 
 ## Constitution Check
 
-| Principle | Gate | Evidence required |
-| --- | --- | --- |
-| I. Authority Before Intelligence | PASS | Signals and rerankers see authorized candidates only; final canonical revalidation remains. |
-| II. Provenance and Exact Evidence | PASS | Every score, stage, support class, rank, and delivery decision is attributable. |
-| III. Safe Defaults and Reversibility | PASS | `no_useful_memory`, deterministic fallback, shadow scoring, and version rollback are explicit. |
-| IV. Scope, Privacy, and Verifiable Deletion | PASS | Scope/lifecycle/deletion/exclusion checks from Spec 002 remain mandatory. |
-| V. Contract-First Host Neutrality | PASS | Candidate/signal/decision contracts are host-neutral and extensible by Spec 009. |
-| VI. Executable Claims | PASS | Ablation, compatibility, calibration, safety, and fallback fixtures gate release. |
-| VII. Local-First, Explicit Egress, and Replaceable Intelligence | PASS | Cross-encoder and AtBot are optional/replaceable, own no canonical or independent authority database, and all AtBot egress remains explicit. |
+| Principle | Gate |
+| --- | --- |
+| Authority Before Intelligence | Authorization precedes content egress; AtMem revalidates selected IDs. |
+| Provenance and Exact Evidence | Decisions record components, epochs, models, reasons, and selected IDs. |
+| Safe Defaults and Reversibility | Withholding is first class; profiles are rebuildable; fallback remains. |
+| Scope, Privacy, Deletion | Cache/final reload include scope, policy, lifecycle, generation, deletion. |
+| Host Neutrality | Every host consumes one retrieval-decision schema. |
+| Executable Claims | Held-out retrieval, privacy, poisoning, fallback, and conformance gate activation. |
+| Local First | Strong local setup is guided; hosted intelligence remains optional. |
 
-Re-check after design: Spec 002 FR-010 and all `prepare_context_v1()` checks MUST still pass byte-for-byte compatibility tests.
+## Architecture
 
-## Design
+```text
+query + authenticated scope
+ -> AtMem authorization
+ -> lexical / fact-key / graph / vector / expansion generators
+ -> normalized signals (diagnostic hash cannot establish support)
+ -> original-query support: direct | background | none
+ -> eligible IDs -> optional AtBot/cross-encoder rerank
+ -> AtMem canonical revalidation
+ -> prepare_context_v1 -> host/MCP
+```
 
-1. Define candidate, signal contribution, support class, rank decision, and explanation contracts.
-2. Give every generator a common authorized input/output boundary and measure it independently.
-3. Fit/check in calibration only from declared training fixtures; evaluate separate holdout fixtures.
-4. Add optional batched local cross-encoder behind the same boundary and deterministic tie-breaking.
-5. Feed only revalidated selected records to existing context preparation and evidence recording.
+Generation optimizes recall; support gating optimizes safe use. Trust/recency operate only after relevance. Expansion never substitutes for original-query support.
 
-## Spec 002 Compatibility Contract
+## Contracts and Persistence
 
-Spec 002 remains the shipped supporting-evidence foundation. Its aggregation identity, bounded supporting-chunk signals, deterministic fallback ordering, and every FR-010 `prepare_context_v1()` revalidation check remain mandatory. Spec 008 may add typed signal envelopes and calibration around that path but MUST NOT bypass or weaken expiry, generation, lifecycle, deletion, exclusion, scope, egress, byte-stable serialization, or final canonical reload checks. Compatibility tests pin existing Spec 002 fixtures and public output fields before shadow activation.
+Add typed signal, embedding identity, candidate, decision, and reason-code contracts under `atmem/retrieve/`, plus a JSON schema and `calibration-v1.json`. Enrich semantic compatibility identity with prefixes/preprocessing. Preserve public fields while adding the typed decision. No new canonical authority store is introduced.
+
+## Ranking and Withholding
+
+- Normalize lexical, fact-key, and production-vector signals independently.
+- Use bounded edit-distance lexical tolerance as a deterministic spelling fallback;
+  it cannot by itself broaden scope or bypass answer-support calibration.
+- Require answer-support evidence for direct support; ignore hashing similarity for eligibility.
+- Treat trust/recency as ordering priors.
+- Make fallback query-aware and able to abstain.
+- Give AtBot eligible candidates only and accept only those IDs back.
+- Inject background only under explicit policy-permitted request.
+
+## Production Embeddings
+
+Use an explicitly supported local semantic model profile, applying model-specific query/document prefixes. Record exact model/revision, dimensions, normalization, distance, preprocessing, provider, epoch, and enterprise-compatible license metadata. Keep hashing only for tests, diagnostics, and plumbing.
+
+## Integration
+
+`Memory.eligible_candidates()` returns broad authorized candidates with signals, not an injection verdict. A shared retrieval service feeds dashboard query and `control_prepare`. OpenClaw, Pydantic AI, LangGraph, and MCP preserve the resulting support class and no-useful-memory outcome. The dashboard shows selected memories, withholding/degradation reason, and embedding health. Settings lists hardware-compatible catalog profiles and turns one confirmed selection into model installation, epoch build, verification, and atomic activation.
+
+## Cache Safety
+
+Derived-work cache keys include query bytes, subject/agent/workspace, generation, semantic epoch, calibration, requested support class, and policy. Cached IDs are canonically revalidated before delivery.
 
 ## Test Strategy
 
-Run per-signal ablations, calibration/holdout tests, topical-not-answer negatives, temporal/conflict cases, privacy adversaries, fallback fault injection, explanation reconciliation, and deterministic byte-output tests.
+Lock the Australian-cars negative, burger paraphrase, and AtBot-down cases first. Unit-test calibration, diagnostic-hash exclusion, prefixes, staleness, and cache keys. Run identical fixtures through every host. Then run Spec 002 privacy/poisoning and held-out AtMem evaluation, with optional pinned Mem0 comparison under equal assumptions.
 
 ## Rollout
 
-Shadow-score beside current ranking, compare decisions, then activate by versioned configuration. Rollback selects the prior calibration/ranker without data migration.
-
-## Cross-Spec Dependencies
-
-- **Spec 002**: implemented supporting-evidence aggregation and final revalidation contract.
-- **Spec 005**: semantic model/epoch identity and compatibility health for the vector signal.
-- **Spec 009**: downstream extension only; it registers entity/graph signals after this feature and is not a prerequisite.
+Shadow the new versioned retrieval profile, activate after SC-001–SC-008, and retain rollback without canonical migration. Users without a strong model continue with lexical/fact-key retrieval and safe abstention.
 
 ## Project Structure
 
-The base ranker and registry remain under `atmem/retrieve/`; schemas under `atmem/schemas/v1/`; benchmark fixtures under `atmem/benchmark/`; UI projections reuse existing CLI/control-plane files.
+- `atmem/retrieve/`: contracts, signals, calibration, ranking, cache, service.
+- `atmem/semantic/`: embedding profiles/providers and epoch health.
+- `atmem/schemas/v1/`: schemas and capabilities.
+- `atmem/benchmark/data/`: calibration and held-out fixtures.
+- `atmem/control/`, `atmem/adapters/`, `integrations/openclaw/`: thin consumers.
+- `tests/`: unit, integration, cross-adapter, privacy, regression.
 
-## Dashboard and CLI Integration
+## Cross-Spec Dependencies
 
-Follow `docs/dashboard-design-language.md`, preserve the four-workspace layout, and follow `specs/integration-ownership.md`: Spec 007 owns shared dashboard-shell integration and Spec 012 owns shared CLI routing/output conventions.
+Spec 002 supplies aggregation/revalidation; Spec 005 supplies semantic epochs; Spec 007 Amendment B supplies run/turn/task correlation; Spec 009 later registers graph/entity signals.

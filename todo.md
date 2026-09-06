@@ -23,7 +23,8 @@ or exact-delivery guarantees.
 
 ### 2. Easy high-quality semantic retrieval
 
-- [ ] Keep dependency-free hashing as the safe base fallback.
+- [ ] Keep dependency-free hashing for deterministic diagnostics and plumbing,
+      but never let it independently authorize semantic injection.
 - [ ] Add one-command setup for a strong local embedding model.
 - [ ] Detect weak, missing, stale, or incompatible indexes in CLI and dashboard.
 - [ ] Rebuild indexes safely after model changes.
@@ -88,6 +89,11 @@ every selection is explainable.
       state, multi-agent isolation, and backward-compatible persisted data.
 - [ ] Negotiate task-state delivery and guard capabilities through the runtime
       capability contract rather than documentation-only claims.
+- [ ] Correlate task focus with exact host/framework, session generation, run,
+      turn, tool step, flight, and memory exposure; support explicit focus
+      switching and clue-based investigation without retaining raw prompts.
+- [ ] Provide a task-centric dashboard with human-readable Task → Flight → Turn
+      → Memory pivots and technical identifiers collapsed by default.
 
 **Done when:** supported agents can reliably distinguish completed, ready,
 blocked, skipped, and remaining work throughout a multi-step task, and every
@@ -283,4 +289,8 @@ every later spec attests into its registry. Roadmap checkboxes remain open
 until their implementation tasks and release evidence are complete.
 
 
-before: agent ran for 40 minutes, something broke, no idea where
+X:
+1) Tried running by the new Qwen on my Mac, you need a custom harness for low context models otherwise they can’t do tool loops.
+
+2) before: agent ran for 40 minutes, something broke, no idea where
+3) Tried running by the new Qwen on my Mac, you need a custom harness for low context models otherwise they can’t do tool loops.

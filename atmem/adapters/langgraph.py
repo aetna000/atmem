@@ -151,9 +151,15 @@ def create_langgraph_middleware(
 
         def _begin(self, state: Any, runtime: Any) -> None:
             run_id = _runtime_run_id(runtime, configured.run_id)
+            runtime_identity = _langgraph_execution_identity(runtime)
             turn = AtMemTurnLifecycle(
                 manager,
-                replace(configured, run_id=run_id),
+                configured.for_execution(
+                    run_id=run_id,
+                    turn_id=runtime_identity.get("turn_id"),
+                    task_id=runtime_identity.get("task_id"),
+                    session_id=runtime_identity.get("session_id"),
+                ),
             )
             turn.begin(_latest_user_text(state))
             with self._lock:
@@ -187,6 +193,34 @@ def _runtime_run_id(runtime: Any, fallback: str | None) -> str:
     if isinstance(configurable, dict) and configurable.get("thread_id"):
         return str(configurable["thread_id"])
     return str(fallback or "langgraph-run")
+
+
+def _langgraph_execution_identity(runtime: Any) -> dict[str, str]:
+    """Read task/turn identity from LangGraph runtime/configurable state."""
+    config = getattr(runtime, "config", None) or {}
+    configurable = config.get("configurable") if isinstance(config, dict) else {}
+    configurable = configurable if isinstance(configurable, dict) else {}
+    context = getattr(runtime, "context", None)
+    context_values = context if isinstance(context, dict) else {}
+
+    def read(*names: str) -> str | None:
+        for name in names:
+            value = configurable.get(name)
+            if value is None:
+                value = context_values.get(name) if context_values else getattr(context, name, None)
+            if value is not None and str(value).strip():
+                return str(value)
+        return None
+
+    return {
+        key: value
+        for key, value in {
+            "task_id": read("atmem_task_id", "task_id"),
+            "turn_id": read("atmem_turn_id", "turn_id"),
+            "session_id": read("atmem_session_id", "session_id", "thread_id"),
+        }.items()
+        if value
+    }
 
 
 def _latest_user_text(state: Any) -> str:

@@ -20,6 +20,7 @@ import {
   isConversationOwner,
   ok,
   refusal,
+  resolveBoundTaskForTool,
   sessionIdentityForTool,
 } from "../dist/src/task-tools.js";
 
@@ -138,6 +139,42 @@ assert.ok(ownerView.bind_with.startsWith("atmem task bind"));
 
 // A non-owner still learns nothing, including whether a binding exists.
 assert.ok(!NOT_OWNER_MESSAGE.includes("session"));
+
+// Progress authority is resolved from the authenticated conversation. The
+// public model payload has no task id to smuggle or accidentally omit.
+const resolved = await resolveBoundTaskForTool(
+  { sessionKey: "conv-1", sessionId: "gen-1" },
+  async (identity) => {
+    assert.deepEqual(identity, beforeReset);
+    return { disposition: "injected", task_id: "task-1", revision: 7 };
+  },
+);
+assert.deepEqual(resolved, {
+  ok: true,
+  identity: beforeReset,
+  taskId: "task-1",
+  revision: 7,
+});
+
+const unbound = await resolveBoundTaskForTool(
+  { sessionKey: "conv-1", sessionId: "gen-1" },
+  async () => ({
+    disposition: "withheld",
+    reason_codes: ["host_task_not_bound_to_session"],
+  }),
+);
+assert.equal(unbound.ok, false);
+assert.deepEqual(unbound.reasonCodes, ["host_task_not_bound_to_session"]);
+
+const wrongGeneration = await resolveBoundTaskForTool(
+  { sessionKey: "conv-1", sessionId: "gen-2" },
+  async (identity) => {
+    assert.equal(identity.session_epoch, "gen-2");
+    return { disposition: "withheld", reason_codes: ["task_binding_stale"] };
+  },
+);
+assert.equal(wrongGeneration.ok, false);
+assert.ok(wrongGeneration.reasonCodes.includes("task_binding_stale"));
 
 console.log(
   "task tools: identity completeness, epoch rotation, owner gating, and " +

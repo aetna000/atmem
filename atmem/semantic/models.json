@@ -8,6 +8,8 @@
       "approximate_download_mib": 274,
       "architectures": ["any"],
       "priority": 5,
+      "quality_class": "production",
+      "license": "Apache-2.0",
       "caveat": "Requires a running Ollama service; avoids installing a Python model runtime."
     },
     {
@@ -17,6 +19,8 @@
       "approximate_download_mib": 130,
       "architectures": ["any"],
       "priority": 10,
+      "quality_class": "production",
+      "license": "MIT",
       "caveat": "Higher quality than the smallest catalog option; CPU indexing may be slower."
     },
     {
@@ -26,6 +30,8 @@
       "approximate_download_mib": 670,
       "architectures": ["any"],
       "priority": 15,
+      "quality_class": "production",
+      "license": "Apache-2.0",
       "caveat": "Larger Ollama embedding model; needs more memory and a running service."
     },
     {
@@ -35,6 +41,8 @@
       "approximate_download_mib": 90,
       "architectures": ["any"],
       "priority": 20,
+      "quality_class": "production",
+      "license": "Apache-2.0",
       "caveat": "Small and fast, with lower retrieval quality on specialized domains."
     },
     {
@@ -44,6 +52,8 @@
       "approximate_download_mib": 520,
       "architectures": ["any"],
       "priority": 30,
+      "quality_class": "production",
+      "license": "Apache-2.0",
       "caveat": "Larger download and memory footprint; model-specific prefixes may improve quality."
     }
   ]

@@ -5,8 +5,14 @@ from typing import Any
 import pytest
 
 from atmem.adapters import AtMemAdapterIdentity, AtMemTurnLifecycle
-from atmem.adapters.langgraph import create_langgraph_middleware
-from atmem.adapters.pydantic_ai import PydanticAIAtMemAdapter
+from atmem.adapters.langgraph import (
+    _langgraph_execution_identity,
+    create_langgraph_middleware,
+)
+from atmem.adapters.pydantic_ai import (
+    PydanticAIAtMemAdapter,
+    _pydantic_execution_identity,
+)
 from atmem.control import ControlPlaneManager
 from atmem.core.canonical import sha256_hex
 
@@ -18,6 +24,7 @@ class _Manager:
         self.captures: list[dict[str, Any]] = []
         self.confirmed: list[str] = []
         self.task_confirmed: list[str] = []
+        self.task_preparations: list[dict[str, Any]] = []
 
     def capture(self, message: str, **kwargs: Any) -> dict[str, Any]:
         self.captures.append({"message": message, **kwargs})
@@ -40,6 +47,7 @@ class _Manager:
         return True
 
     def prepare_task_context(self, **kwargs: Any) -> dict[str, Any]:
+        self.task_preparations.append(kwargs)
         context = "<<<atmem-governed-task-data>>>\ngoal: Ship safely\n<<<end-atmem-governed-task-data>>>"
         return {
             "disposition": "injected",
@@ -69,6 +77,43 @@ def _identity(framework: str = "test") -> AtMemAdapterIdentity:
         turn_id="turn-1",
         framework=framework,
     )
+
+
+def test_pydantic_identity_can_change_per_run_without_mutating_dependencies() -> None:
+    class Context:
+        deps = {
+            "atmem_task_id": "task-run-2",
+            "atmem_turn_id": "turn-2",
+            "atmem_session_id": "session-2",
+        }
+
+    before = dict(Context.deps)
+    assert _pydantic_execution_identity(Context()) == {
+        "task_id": "task-run-2",
+        "turn_id": "turn-2",
+        "session_id": "session-2",
+    }
+    assert Context.deps == before
+
+
+def test_langgraph_identity_can_change_per_run_without_mutating_config() -> None:
+    class Runtime:
+        config = {
+            "configurable": {
+                "thread_id": "thread-2",
+                "atmem_task_id": "task-run-2",
+                "atmem_turn_id": "turn-2",
+            }
+        }
+        context = {}
+
+    before = {"configurable": dict(Runtime.config["configurable"])}
+    assert _langgraph_execution_identity(Runtime()) == {
+        "task_id": "task-run-2",
+        "turn_id": "turn-2",
+        "session_id": "thread-2",
+    }
+    assert Runtime.config == before
 
 
 def test_shared_lifecycle_captures_injects_confirms_and_closes() -> None:
@@ -230,6 +275,34 @@ def test_pydantic_ai_hooks_deliver_exact_governed_task_state() -> None:
     assert manager.task_confirmed == ["task-delivery-1"]
     assert "task.context.prepared" in [row["event_type"] for row in manager.events]
     assert "task.context.exposed" in [row["event_type"] for row in manager.events]
+
+
+def test_pydantic_ai_task_identity_can_be_supplied_per_run() -> None:
+    pytest.importorskip("pydantic_ai")
+    from pydantic_ai import Agent
+    from pydantic_ai.models.test import TestModel
+
+    manager = _Manager()
+    capability = PydanticAIAtMemAdapter(
+        manager, _identity("pydantic-ai")  # type: ignore[arg-type]
+    ).capability()
+    agent = Agent(
+        TestModel(custom_output_text="done"),
+        deps_type=dict,
+        capabilities=[capability],
+    )
+
+    agent.run_sync(
+        "continue",
+        deps={
+            "atmem_task_id": "task-runtime",
+            "atmem_turn_id": "turn-runtime",
+            "atmem_session_id": "session-runtime",
+        },
+    )
+
+    assert manager.task_preparations[0]["task_id"] == "task-runtime"
+    assert manager.task_preparations[0]["session_id"] == "session-runtime"
 
 
 def test_pydantic_ai_hooks_record_tool_request_and_completion() -> None:

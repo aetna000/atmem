@@ -264,15 +264,27 @@ Disabled, shadow, empty, conflict, and terminal states each have a plain-languag
 presentation with no false active controls, and the card states plainly whether
 any task context is reaching an agent.
 
+The **Settings → Governed task state** control can enable or disable the exact
+displayed agent/workspace scope. The Decisions task card is reserved for
+inspecting task checklists, lifecycle, context delivery, and linked flights.
+Enabling previews that only explicitly bound conversations can receive task
+context. Disabling stops task-context delivery while preserving tasks, history,
+and evidence. Both actions require a same-origin CSRF token, an exact echoed
+scope, and operator confirmation.
+
 Mutations preview their exact scope, task, revision, and effect before
 confirmation. **A conflict is never auto-retried**: the operator is shown what
 changed and must submit a fresh request.
 
 ## Hosts and adapters
 
-`AtMemAdapterIdentity` carries an optional `task_id`, optional only for legacy,
-task-unaware operation. Absent identity disables task delivery outright and
-never triggers discovery. `identity.for_task("task-1")` binds one task.
+`AtMemAdapterIdentity` carries an optional construction-time `task_id` for
+backward compatibility. Pydantic AI can override it per run with
+`atmem_task_id`, `atmem_turn_id`, and `atmem_session_id` in native dependencies;
+LangGraph can supply the same fields in `configurable` or runtime context.
+Absent identity disables task delivery and never triggers semantic discovery or
+selection among open tasks. `identity.for_task("task-1")` remains the simplest
+static binding.
 
 Pydantic AI capabilities and LangGraph middleware append the governed task
 block as a separate user-data message at each model boundary, after exact
