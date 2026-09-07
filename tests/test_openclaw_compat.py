@@ -82,7 +82,7 @@ def test_the_matrix_covers_the_declared_peer_range_floor() -> None:
 
 def test_an_unlisted_host_is_refused_rather_than_assumed() -> None:
     """Fail closed. A newer host is not silently treated as compatible."""
-    assert evaluate_host_version("2026.9.1") == "tested"
+    assert evaluate_host_version("2026.9.2") == "tested"
     assert evaluate_host_version("2027.1.1") == "untested"
     # A patch inside a tested minor is distinguishable from a wholly new line,
     # so the two can be handled differently without conflating them.

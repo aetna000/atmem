@@ -24,6 +24,15 @@ from atmem.delegated.validation import parse_and_verify_envelope, parse_json_str
 
 FIXTURES = Path(__file__).parents[1] / "docs/contracts/delegated-context-provider-v1"
 NOW = datetime(2026, 9, 1, 12, 1, tzinfo=timezone.utc)
+_REQUEST_CREDENTIAL = {}
+
+
+@pytest.fixture(autouse=True)
+def request_credential(tmp_path, monkeypatch):
+    from atmem.delegated.transport import configure_keyring
+    value = configure_keyring(tmp_path / "request-auth.json", provider_id="fixture-provider", instance_id="local")
+    monkeypatch.setitem(_REQUEST_CREDENTIAL, "request_key_id", value["request_key_id"])
+    monkeypatch.setitem(_REQUEST_CREDENTIAL, "request_secret_file", value["request_secret_file"])
 
 
 def _json(name: str) -> dict:
@@ -35,6 +44,7 @@ def _registration(*, enabled: bool = True, fallback: bool = False, endpoint: str
     value.pop("fixture_key_only")
     return DelegatedRegistration(
         **value,
+        **_REQUEST_CREDENTIAL,
         endpoint=endpoint,
         timeout_ms=3000,
         max_context_bytes=262_144,
@@ -158,6 +168,7 @@ def test_registration_cannot_enable_authority_and_overlapping_scopes_fail(tmp_pa
     config.register(first)
     config.set_enabled(first.registration_id, True)
     second = DelegatedRegistration(
+        **_REQUEST_CREDENTIAL,
         provider_id="fixture-provider",
         provider_version=first.provider_version,
         provider_instance_id="second",
@@ -332,6 +343,7 @@ def test_loopback_transport_enforces_timeout() -> None:
                         "key_id", "public_key_base64", "endpoint", "workspace_ids",
                         "agent_ids", "user_ids", "max_context_bytes", "enabled",
                         "native_fallback_on_failure",
+                        "request_key_id", "request_secret_file",
                     )
                 },
                 "timeout_ms": 100,
@@ -345,7 +357,7 @@ def test_loopback_transport_enforces_timeout() -> None:
         thread.join(timeout=2)
 
 
-def test_doctor_distinguishes_reachable_and_degraded_provider(tmp_path: Path) -> None:
+def test_doctor_does_not_mistake_open_tcp_for_authenticated_health(tmp_path: Path) -> None:
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
             return
@@ -363,9 +375,9 @@ def test_doctor_distinguishes_reachable_and_degraded_provider(tmp_path: Path) ->
     service = DelegatedContextService(config)
     try:
         healthy = service.doctor()
-        assert healthy["state"] == "ready"
-        assert healthy["ready"] is True
-        assert healthy["provider_health"][0]["reachable"] is True
+        assert healthy["state"] == "degraded"
+        assert healthy["ready"] is False
+        assert healthy["provider_health"][0]["authenticated"] is False
     finally:
         server.shutdown()
         server.server_close()

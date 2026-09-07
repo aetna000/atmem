@@ -11,7 +11,10 @@ import subprocess
 import sys
 import time
 from typing import Any
-from urllib.request import urlopen
+from urllib.request import Request, build_opener
+from atmem.delegated.client import _NoRedirect
+from atmem.delegated.transport import (PROFILE, RequestAuthenticator, configure_keyring,
+    load_keyring, load_secret, revoke_key, sign_headers)
 
 from .langgraph import LangGraphContextProvider
 from .loading import create_from_factory
@@ -68,6 +71,7 @@ def initialize(
     config_path = root / "config.json"
     config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     os.chmod(config_path, 0o600)
+    configure_keyring(root / "request-auth.json", provider_id=config["provider_id"], instance_id=instance)
     result = status(instance)
     result["public_key_file"] = str(public_path)
     result["registration_command"] = registration_command(config, public_path)
@@ -94,6 +98,7 @@ def load_config(instance: str) -> tuple[Path, dict[str, Any]]:
 
 def build_runtime(instance: str) -> ProviderRuntime:
     root, config = load_config(instance)
+    authenticator = RequestAuthenticator(root / "request-auth.json", root / "request-nonces.db")
     kind = config["kind"]
     try:
         created = create_from_factory(config["factory"]) if config["factory"] else None
@@ -111,22 +116,47 @@ def build_runtime(instance: str) -> ProviderRuntime:
     else:
         raise ValueError("unsupported provider kind")
     identity = ProviderRuntimeIdentity(config["provider_id"], config["provider_version"], instance, config["key_id"])
-    return ProviderRuntime(provider=provider, identity=identity, private_key=load_private_key(root / "private.key"), adapter_kind=kind)
+    runtime = ProviderRuntime(provider=provider, identity=identity, private_key=load_private_key(root / "private.key"), adapter_kind=kind)
+    runtime.request_authenticator = authenticator
+    return runtime
 
 
 def registration_command(config: dict[str, Any], public_path: Path) -> str:
     quoted = shlex.quote
+    try:
+        ring = load_keyring(public_path.parent / "request-auth.json")
+        active = next(key for key in ring["keys"] if key["key_id"] == ring["active_key_id"])
+        authentication = f"--request-key-id {quoted(active['key_id'])} --request-secret-file {quoted(active['secret_file'])} "
+    except ValueError:
+        authentication = "--request-key-id KEY_ID --request-secret-file PRIVATE_FILE "
     return (
         f"atmem delegated register --provider-id {quoted(config['provider_id'])} "
         f"--provider-version {quoted(config['provider_version'])} --instance-id {quoted(config['instance'])} "
         f"--key-id {quoted(config['key_id'])} --public-key-file {quoted(str(public_path))} "
         f"--endpoint http://127.0.0.1:{config['port']}/v1/delegated-context "
+        + authentication +
         "--workspace YOUR_WORKSPACE --agent YOUR_AGENT --user YOUR_USER"
     )
 
 
+def auth_configure(instance: str, *, rotate: bool = False, overlap_seconds: int = 30) -> dict[str, Any]:
+    root, config = load_config(instance)
+    result = configure_keyring(root / "request-auth.json", provider_id=config["provider_id"],
+        instance_id=instance, rotate=rotate, overlap_seconds=overlap_seconds)
+    return {**result, "registration_command": registration_command(config, root / "public.key"),
+        "next_action": f"Run atmem delegated set-request-auth {config['provider_id']}:{instance} "
+        f"--request-key-id {shlex.quote(result['request_key_id'])} --request-secret-file {shlex.quote(result['request_secret_file'])}; explicitly enable afterward."}
+
+
+def auth_revoke(instance: str, key_id: str) -> dict[str, Any]:
+    root, _ = load_config(instance)
+    revoke_key(root / "request-auth.json", key_id)
+    return {"revoked": key_id, "instance": instance}
+
+
 def start(instance: str) -> dict[str, Any]:
     root, config = load_config(instance)
+    load_keyring(root / "request-auth.json")
     if _live_pid(root):
         raise ValueError("provider instance is already running")
     log = open(root / "service.log", "ab", buffering=0)
@@ -165,6 +195,11 @@ def status(instance: str) -> dict[str, Any]:
     root, config = load_config(instance)
     pid = _live_pid(root)
     health = _health(config) if pid is not None else None
+    try:
+        load_keyring(root / "request-auth.json")
+        auth_state = "configured"
+    except ValueError:
+        auth_state = "migration_required"
     return {
         "format": "atmem-provider-status-v1", "instance": instance,
         "kind": config["kind"], "running": pid is not None, "pid": pid,
@@ -176,6 +211,8 @@ def status(instance: str) -> dict[str, Any]:
         "startup_enabled_authority": False,
         "authority_activation": "separate_atmem_delegated_registration",
         "health": health,
+        "request_authentication": auth_state,
+        "next_action": f"atmem provider auth-init {instance}" if auth_state == "migration_required" else f"atmem provider doctor {instance}",
     }
 
 
@@ -207,6 +244,13 @@ def remove(instance: str) -> dict[str, Any]:
     root, _ = load_config(instance)
     if _live_pid(root):
         raise ValueError("stop the provider before removing it")
+    # Only generated credential filenames inside this validated instance.
+    import re
+    for path in root.iterdir():
+        if re.fullmatch(r"request-[0-9a-f]{24}\.key", path.name):
+            path.unlink()
+    for name in ("request-auth.json", "request-auth.json.lock", "request-nonces.db", "request-nonces.db-journal", "request-nonces.db.initialized"):
+        (root / name).unlink(missing_ok=True)
     for name in ("service.pid", "service.log", "config.json", "public.key", "private.key"):
         (root / name).unlink(missing_ok=True)
     root.rmdir()
@@ -261,8 +305,16 @@ def _pid_command(pid: int) -> str:
 
 def _health(config: dict[str, Any]) -> dict[str, Any] | None:
     try:
-        with urlopen(f"http://127.0.0.1:{config['port']}/health", timeout=0.5) as response:
-            value = json.loads(response.read())
-        return value if isinstance(value, dict) and value.get("status") == "ready" else None
+        ring = load_keyring(instance_dir(config["instance"]) / "request-auth.json")
+        active = next(key for key in ring["keys"] if key["key_id"] == ring["active_key_id"])
+        authority = f"127.0.0.1:{config['port']}"
+        headers = sign_headers(secret=load_secret(active["secret_file"]), provider_id=config["provider_id"],
+            instance_id=config["instance"], key_id=active["key_id"], method="GET", authority=authority, target="/health")
+        with build_opener(_NoRedirect()).open(Request(f"http://{authority}/health", headers=headers), timeout=0.5) as response:
+            raw = response.read(16385)
+        if len(raw) > 16384:
+            return None
+        value = json.loads(raw)
+        return value if isinstance(value, dict) and value.get("status") == "ready" and value.get("transport_profile") == PROFILE and (value.get("provider_id"), value.get("instance_id")) == (config["provider_id"], config["instance"]) else None
     except (OSError, ValueError, json.JSONDecodeError):
         return None

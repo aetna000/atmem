@@ -629,7 +629,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     "provider_id", "provider_version", "provider_instance_id",
                     "key_id", "public_key_base64", "endpoint", "workspace_ids",
                     "agent_ids", "user_ids", "timeout_ms", "max_context_bytes",
-                    "native_fallback_on_failure", "replace",
+                    "native_fallback_on_failure", "replace", "request_key_id", "request_secret_file",
                 }
                 if set(body) - allowed:
                     raise ValueError("unsupported delegated registration fields")
@@ -647,6 +647,8 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                         key_id=str(body.get("key_id") or "").strip(),
                         public_key_base64=str(body.get("public_key_base64") or "").strip(),
                         endpoint=str(body.get("endpoint") or "").strip(),
+                        request_key_id=body.get("request_key_id"),
+                        request_secret_file=body.get("request_secret_file"),
                         workspace_ids=identifiers("workspace_ids"),
                         agent_ids=identifiers("agent_ids"),
                         user_ids=identifiers("user_ids"),

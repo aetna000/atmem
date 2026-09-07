@@ -1,0 +1,40 @@
+{
+  "profile": "atmem-hmac-sha256-v1",
+  "fixture_only": true,
+  "secret_base64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+  "method": "POST",
+  "authority": "127.0.0.1:8788",
+  "target": "/v1/delegated-context",
+  "body_utf8": "{\"query\":\"synthetic\"}",
+  "provider_id": "fixture-provider",
+  "instance_id": "fixture-instance",
+  "key_id": "fixture-request-key",
+  "issued": 1800000000,
+  "expires": 1800000030,
+  "nonce": "0101010101010101010101010101010101010101010101010101010101010101",
+  "body_sha256": "189c3c2cd4ab8f87f05e3ac3fdc90b6eed494d415af28e465563abb72fad5999",
+  "signature": "e2adb20f53abd3d8b6f8433a7574bad687ab39421bff358c63b97b749e08f28a",
+  "negative_vectors": [
+    {"id": "unsigned", "mutation": "remove_all_auth_headers"},
+    {"id": "duplicate", "mutation": "duplicate_signature"},
+    {"id": "body", "mutation": "append_body_space"},
+    {"id": "method", "mutation": "change_method"},
+    {"id": "target", "mutation": "change_target"},
+    {"id": "authority", "mutation": "change_host"},
+    {"id": "provider", "mutation": "change_provider"},
+    {"id": "instance", "mutation": "change_instance"},
+    {"id": "key", "mutation": "change_key"},
+    {"id": "nonce", "mutation": "change_nonce"},
+    {"id": "expiry", "mutation": "change_expiry"},
+    {"id": "signature", "mutation": "change_signature"},
+    {"id": "expired", "mutation": "clock_at_expiry"},
+    {"id": "future", "mutation": "clock_before_issue_skew"}
+  ],
+  "stateful_vectors": [
+    {"id": "exact-replay", "expected": ["accept", "reject"]},
+    {"id": "restart-replay", "expected": ["accept", "restart", "reject"]},
+    {"id": "concurrent-replay", "expected_accepts": 1},
+    {"id": "rotation", "expected": ["old_accept_during_overlap", "new_accept", "old_reject_after_expiry"]},
+    {"id": "revocation", "expected": ["old_reject", "new_accept"]}
+  ]
+}

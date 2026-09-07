@@ -685,7 +685,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         ]
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.2.6-beta.6"
+        assert product["atmem_npm_version"] == "2.2.6-beta.10"
         assert product["x_url"] == "https://x.com/AtMemX"
         profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
         assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])
@@ -742,6 +742,8 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         assert task_disabled["mode"] == "disabled"
         assert task_disabled["data_preserved"] is True
         public_key = base64.b64encode(b"\x01" * 32).decode("ascii")
+        from atmem.delegated.transport import configure_keyring
+        credential = configure_keyring(tmp_path / "request-auth.json", provider_id="fixture-provider", instance_id="local")
         register = Request(
             f"{base}/api/delegated/register",
             data=json.dumps(
@@ -752,6 +754,8 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
                     "key_id": "primary",
                     "public_key_base64": public_key,
                     "endpoint": "http://127.0.0.1:8788/v1/delegated-context",
+                    "request_key_id": credential["request_key_id"],
+                    "request_secret_file": credential["request_secret_file"],
                     "workspace_ids": ["ws_test"],
                     "agent_ids": ["main"],
                     "user_ids": ["owner"],

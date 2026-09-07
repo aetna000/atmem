@@ -54,3 +54,26 @@ def test_status_does_not_expose_factory_or_credentials(tmp_path: Path, monkeypat
     value = json.dumps(lifecycle.status("safe"))
     assert "secret.module" not in value
     assert "API_KEY" not in value
+
+
+def test_provider_cli_guides_legacy_migration_rotation_and_revocation(tmp_path, monkeypatch, capsys):
+    from atmem.delegated.transport import load_keyring
+    monkeypatch.setenv("ATMEM_PROVIDER_ROOT", str(tmp_path / "providers"))
+    lifecycle.initialize(instance="legacy", kind="mem0", port=8788, factory="test:factory")
+    root = tmp_path / "providers/legacy"
+    # A beta provider had no auth configuration; keep its response keys untouched.
+    public_before = (root / "public.key").read_bytes()
+    (root / "request-auth.json").unlink()
+    assert lifecycle.status("legacy")["request_authentication"] == "migration_required"
+    with pytest.raises(ValueError):
+        lifecycle.start("legacy")
+    output, _ = run_cli(monkeypatch, capsys, "provider", "auth-init", "legacy", "--json")
+    old = json.loads(output)
+    assert Path(old["request_secret_file"]).read_text().strip() not in output
+    output, _ = run_cli(monkeypatch, capsys, "provider", "auth-rotate", "legacy", "--overlap-seconds", "300", "--json")
+    new = json.loads(output)
+    assert old["request_key_id"] != new["request_key_id"]
+    assert len(load_keyring(root / "request-auth.json")["keys"]) == 2
+    run_cli(monkeypatch, capsys, "provider", "auth-revoke", "legacy", "--request-key-id", old["request_key_id"], "--json")
+    assert len(load_keyring(root / "request-auth.json")["keys"]) == 1
+    assert (root / "public.key").read_bytes() == public_before

@@ -1,9 +1,9 @@
 # Current implementation status
 
-Updated: 6 September 2026
+Updated: 7 September 2026
 
-Repository metadata is **2.2.6b9** and the matched OpenClaw bridge is
-**2.2.6-beta.6**. This repository state is the release candidate; package and
+Repository metadata is **2.2.6b10** and the matched OpenClaw bridge is
+**2.2.6-beta.10**. This repository state is the release candidate; package and
 tag availability must be checked independently until the release workflow has
 published them. Native AtMem authority remains the default after installation
 or upgrade. The required `atmem-atbot==0.1.0a6` companion is packaged
@@ -91,7 +91,7 @@ The release has four runtime boundaries:
 ## Upgrade and support status
 
 - The release workflow creates persisted data with public AtMem 2.1.0, 2.2.3,
-  2.2.4, and 2.2.5, upgrades each environment to 2.2.6b9, and verifies record identity, recall, audit
+  2.2.4, and 2.2.5, upgrades each environment to 2.2.6b10, and verifies record identity, recall, audit
   integrity, control migration identity, candidate retention, schema migration,
   and automatic vector-sidecar creation as a protected publication gate.
 - Existing OpenClaw installations upgrade the bridge with
@@ -99,7 +99,8 @@ The release has four runtime boundaries:
   a running dashboard under the upgraded isolated Python runtime, restarts the
   gateway, runs a test flight, and restores the previous bridge on failure. The
   command remains safe to rerun when the bridge is already current.
-- OpenClaw 2026.7.1-2 and 2026.8.1 are tested host versions. On OpenClaw 2.0
+- OpenClaw 2026.7.1-2, 2026.8.1 and 2026.9.2 are tested declaration-shape
+  versions; the locked 2026.8.1 bridge suite also exercises runtime hooks. On OpenClaw 2.0
   (2026.8.1), the managed installer supplies the host's explicit third-party
   capability-consent flags for the exact pinned bridge.
 - The framework gate exercises Pydantic AI 2.36.0, LangChain 1.3.18, and

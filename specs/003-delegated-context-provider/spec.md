@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/003-delegated-context-provider`
 **Created**: 2026-09-03
-**Status**: Implemented, verified, and published as provider-neutral beta 2
+**Status**: Base contract published; Amendment A verified for the 2.2.6b10 release candidate
 **Input**: Implement the provider-neutral delegated context-provider v1 contract proposed in PR #1. Existing AtMem authority remains the default. Delegated mode is an explicit opt-in that lets a compatible provider remain the sole context-decision authority for a bound turn while AtMem owns host delivery and flight evidence.
 
 ## Overview
@@ -165,3 +165,62 @@ As an evaluator, I can install or upgrade to the beta, configure a test provider
 - Removing or disabling a provider affects only future turns and does not rewrite retained flight evidence.
 - Existing OpenClaw configuration without delegated fields remains valid.
 - The provider contract and event formats are versioned. Additive evolution is preferred; incompatible changes require a new contract/version.
+
+## Amendment A — Authenticated local transport (2026-09-07)
+
+The beta-9 review confirmed that beta-3 transport still permits unsigned local
+requests and repeated provider access. Signed responses do not authenticate
+callers. This amendment supersedes the original transport/readiness behavior;
+historical release versions above describe completed base work, not this change.
+This work implements and verifies source/artifacts; publication is a separate
+release operation. Storizon remains an independent consumer of the shared profile.
+
+### User outcomes and requirements
+
+- **FR-019**: Each provider installation MUST use its own random request secret,
+  independent of Ed25519 response keys. Registrations MUST reference a private
+  credential file and request key ID; secrets MUST never appear in commands,
+  status, logs, evidence, or committed production configuration.
+- **FR-020**: A versioned host-neutral HMAC-SHA256 HTTP profile MUST authenticate
+  the exact method, authority, target, body bytes, provider/instance/key IDs,
+  issue/expiry times and nonce. Missing, duplicate, malformed, unknown-key,
+  wrong-instance and tampered authentication MUST fail before provider access.
+- **FR-021**: Request expiry and durable atomic replay rejection MUST precede
+  memory/model/provider callback access. Concurrent and restart replay attempts
+  MUST invoke the callback at most once. Replay storage MUST be bounded, retain
+  only authentication metadata, and fail closed on storage failure/clock rollback.
+  An identical HTTP retry is rejected; existing signed-result retry idempotency
+  remains unchanged. Fresh transport nonces do not promise business idempotency.
+- **FR-022**: Health MUST use the same authenticated transport and MUST disclose
+  no provider identity on authentication failure. Doctor MUST distinguish an
+  authenticated healthy endpoint from an open TCP port.
+- **FR-023**: Operators MUST have explicit credential setup, client credential
+  replacement, provider rotation and old-key revocation commands. Rotation MUST
+  permit a bounded overlap (at most 300 seconds), reload without restarting,
+  preserve replay history, and never change response keys or enable delegation.
+- **FR-024**: Old provider/configuration files MUST remain inspectable with
+  actionable migration guidance. Missing credentials MUST prevent enablement
+  and network calls, including previously enabled legacy registrations; they
+  MUST NOT silently fall through to native retrieval. Native-only installations
+  remain unchanged. Operators may explicitly disable delegation to restore native.
+- **FR-025**: Shared positive/negative transport vectors and HTTP boundary tests
+  MUST prove reject-before-access, authenticated health, safe rotation, migration,
+  exact query/context bytes, privacy, and unchanged signed-result validation.
+  Installed-wheel tests and an OpenClaw delegated turn through authenticated
+  HTTP, exact llm_input delivery and flight closure MUST verify the claim.
+
+### Acceptance scenarios
+
+1. Another local process without the credential receives a generic rejection
+   for context and health; provider callback/status spies remain untouched.
+2. A valid request produces a verifiable signed inject/withhold response;
+   changing any signed component or replaying the HTTP request is rejected.
+3. Concurrent duplicate requests and duplicates after process restart invoke
+   the provider only once. Expired requests invoke it zero times.
+4. Rotation accepts old/new credentials only during the declared overlap;
+   revocation or overlap expiry rejects the old key without clearing nonce state.
+5. A beta-3/beta-9 enabled registration without credentials stays visibly blocked;
+   guided configuration and explicit enablement restore authenticated operation.
+6. The installed artifact completes an instrumented OpenClaw delegated turn with
+   exact bytes at llm_input and a closed flight. A private live Storizon endpoint
+   is not required for this test and must not be claimed as independently tested.

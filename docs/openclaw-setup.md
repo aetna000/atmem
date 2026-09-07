@@ -9,7 +9,7 @@
 ## Install
 
 ```bash
-python -m pip install --pre --upgrade atmem==2.2.6b9
+python -m pip install --pre --upgrade atmem==2.2.6b10
 atmem --version
 atmem openclaw install
 ```
@@ -37,7 +37,7 @@ Upgrade AtMem first, then refresh the existing bridge without creating a new
 migration or changing the current shadow/active mode:
 
 ```bash
-python -m pip install --pre --upgrade atmem==2.2.6b9
+python -m pip install --pre --upgrade atmem==2.2.6b10
 atmem openclaw upgrade
 atmem control verify
 atmem atbot doctor

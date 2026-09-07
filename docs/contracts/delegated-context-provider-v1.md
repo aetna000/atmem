@@ -290,3 +290,9 @@ provided positive, negative, and stateful vector.
 
 The AtMem request is closed by
 [`delegated-context-request-v1.schema.json`](delegated-context-request-v1.schema.json).
+
+Spec 003 Amendment A adds the [authenticated HTTP transport profile](delegated-request-auth-v1.md)
+without changing either JSON contract or Ed25519 signing bytes. Identical HTTP
+request replay is rejected before provider access; the existing exact signed
+result acceptance/idempotency rule above remains unchanged. Published beta 9
+does not contain this transport update; see the profile for migration.

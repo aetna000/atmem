@@ -7,12 +7,14 @@ import socket
 import time
 from concurrent.futures import ThreadPoolExecutor
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 import pytest
 
 from atmem.delegated.contracts import DelegatedBinding, DelegatedContextRequest
 from atmem.provider_adapters import lifecycle
 from atmem.provider_adapters.server import create_server
+from atmem.delegated.transport import load_keyring, load_secret, sign_headers
 
 
 def test_server_rejects_non_loopback_before_binding() -> None:
@@ -39,6 +41,12 @@ def test_managed_service_health_signed_request_and_stop(tmp_path: Path, monkeypa
         instance="live", kind="mem0", port=port,
         factory="provider_fixture:client",
     )
+    ring = load_keyring(tmp_path / "providers/live/request-auth.json")
+    active = ring["keys"][0]
+    def headers_for(body):
+        return {"Content-Type": "application/json", **sign_headers(secret=load_secret(active["secret_file"]),
+            provider_id=ring["provider_id"], instance_id="live", key_id=active["key_id"],
+            method="POST", authority=f"127.0.0.1:{port}", target="/v1/delegated-context", body=body)}
     try:
         lifecycle.start("live")
         for _ in range(40):
@@ -54,7 +62,7 @@ def test_managed_service_health_signed_request_and_stop(tmp_path: Path, monkeypa
         request = Request(
             f"http://127.0.0.1:{port}/v1/delegated-context",
             data=json.dumps(request_value).encode(),
-            headers={"Content-Type": "application/json"}, method="POST",
+            headers=headers_for(json.dumps(request_value).encode()), method="POST",
         )
         with urlopen(request, timeout=2) as response:
             envelope = json.loads(response.read())
@@ -65,6 +73,18 @@ def test_managed_service_health_signed_request_and_stop(tmp_path: Path, monkeypa
         assert health["last_adapter_latency_ms"] >= 0
         assert health["attribution"] == {"adapter": "mem0", "mode": "factory"}
 
+        # Replay the exact signed HTTP request after a genuine worker restart.
+        lifecycle.stop("live")
+        lifecycle.start("live")
+        for _ in range(40):
+            if lifecycle.status("live")["health"]:
+                break
+            time.sleep(0.05)
+        with pytest.raises(HTTPError) as replay:
+            urlopen(request, timeout=2)
+        assert replay.value.code == 401
+        assert lifecycle.status("live")["health"]["requests"] == 0
+
         def one_request(number: int) -> str:
             value = DelegatedContextRequest.create(
                 binding=DelegatedBinding("r", f"turn-{number}", "s", "a", "u", "w"),
@@ -73,7 +93,7 @@ def test_managed_service_health_signed_request_and_stop(tmp_path: Path, monkeypa
             call = Request(
                 f"http://127.0.0.1:{port}/v1/delegated-context",
                 data=json.dumps(value).encode(),
-                headers={"Content-Type": "application/json"}, method="POST",
+                headers=headers_for(json.dumps(value).encode()), method="POST",
             )
             with urlopen(call, timeout=3) as response:
                 return json.loads(response.read())["binding"]["turn_id"]

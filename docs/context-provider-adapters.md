@@ -9,7 +9,7 @@ Installing or starting an adapter does not enable it. The safe sequence is:
 
 1. install exactly one optional extra;
 2. initialize and start its private loopback service;
-3. register its public key and exact user, agent, and workspace scopes;
+3. register its public key, request-credential references and exact user, agent, and workspace scopes;
 4. inspect status and doctor output;
 5. explicitly enable that registration.
 
@@ -94,6 +94,7 @@ atmem delegated register \
   --instance-id mem0-local --key-id primary \
   --public-key-file ~/.atmem/providers/mem0-local/public.key \
   --endpoint http://127.0.0.1:8788/v1/delegated-context \
+  --request-key-id REQUEST_KEY_ID --request-secret-file /absolute/private/request.key \
   --workspace WORKSPACE_ID --agent AGENT_ID --user USER_ID
 atmem delegated status
 atmem delegated enable mem0-context-provider:mem0-local
@@ -116,3 +117,27 @@ atmem provider remove mem0-local --yes
 Removal deletes the provider's local key and configuration. It does not delete
 the external provider's database and does not erase AtMem's historical flight
 evidence.
+
+## Authenticated HTTP and beta migration
+
+Beta 10 requires the shared
+[HMAC request profile](contracts/delegated-request-auth-v1.md). Newly initialized instances generate
+their own request secret independently of their Ed25519 keys. The init command
+prints the exact request key ID and secret-file reference in its registration
+command; use those values instead of the placeholders above.
+
+Unsigned context and health requests are rejected before provider access.
+Doctor checks authenticated health. An identical HTTP replay is rejected even
+after restart; signed-response acceptance idempotency is unchanged.
+
+For an old managed instance, stop it, run `atmem provider auth-init INSTANCE`,
+and start it again. Attach the returned credential references with
+`atmem delegated set-request-auth PROVIDER:INSTANCE --request-key-id KEY_ID
+--request-secret-file /absolute/private/request.key`, check doctor, then
+explicitly enable. Legacy enabled registrations without credentials stay blocked
+until migrated or explicitly disabled. Provider `auth-rotate` and `auth-revoke`
+support bounded overlap without restarting; see the profile for exact commands.
+
+Custom providers such as Storizon must adopt the same HTTP profile and generate
+their own per-installation request secret. AtMem's managed-provider commands do
+not configure an external Storizon service. Public demo keys remain test-only.

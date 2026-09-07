@@ -238,3 +238,40 @@ pyproject.toml, integrations/openclaw/package.json prerelease metadata
 ## Rollback
 
 Disable delegated mode first. Native AtMem behavior resumes for future turns. Schema v5 tables are additive and may remain unread by older releases, so package rollback after opening a v5 control database requires restoring the pre-upgrade control-plane backup. Canonical memory databases are unchanged. Historical evidence and acceptances are never rewritten by disable/remove.
+
+## Amendment A implementation plan
+
+The base sections above describe historical delivery. Amendment A adds
+`atmem/delegated/transport.py`: one standard-library HMAC implementation,
+strict header parsing, private secret-file handling, an atomically replaced
+provider keyring, and a separate durable SQLite nonce ledger. Keys are 32 random
+bytes encoded as base64 in owner-only regular files. The ledger has a capacity
+limit, expiry pruning and a persisted clock high-water mark. Authentication,
+expiry and nonce reservation happen before runtime.handle/status. Body deadlines
+remain validated before provider.decide. Server health signs an empty body using
+the same profile. No unsigned HTTP compatibility path exists.
+
+`DelegatedRegistration` gains optional request_key_id/request_secret_file fields
+so legacy registrations parse; enable and match fail closed if absent/unreadable.
+`client.py` signs the exact serialized body and performs authenticated health.
+`service.py` doctor uses authenticated health rather than TCP reachability.
+Provider initialize creates a distinct keyring per instance; serve/worker load
+the authenticator before accepting requests. Each request reloads the keyring
+so rotation/revocation takes effect without restarting. Rotation stages a new
+secret file and atomically switches keyring metadata, keeping at most one old
+key until a maximum 300-second overlap expires. Nonce identity excludes key ID.
+
+CLI adds provider auth-init/auth-rotate/auth-revoke and delegated set-request-auth;
+registration accepts credential references. Dashboard registration uses those
+same optional fields and reports migration guidance through shared safe status.
+Secret values never travel through dashboard fields. Changes preserve unrelated
+dashboard work already present in the working tree.
+
+Publish a normative profile and deterministic vectors under docs/contracts,
+including retry semantics and beta migration commands. Test real HTTP with
+callback/status counters, concurrent/restart replay, framing tampering, missing
+credentials, rotation, clock rollback, full storage, and unchanged result fixtures.
+Build a wheel into an isolated directory and verify it from outside the checkout.
+Run the locked OpenClaw harness including a complete authenticated delegated turn.
+The separate latest-OpenClaw fixture issue remains outside this transport change.
+No production Storizon key or test response key is used as a request credential.

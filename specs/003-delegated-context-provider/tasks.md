@@ -54,6 +54,46 @@
 
 ## Verification evidence
 
+### Amendment A — authenticated transport
+
+- [x] T032 Define normative shared HTTP signing profile and deterministic vectors in `docs/contracts/delegated-request-auth-v1.md` and companion JSON (FR-019–FR-025).
+- [x] T033 Implement credentials, HMAC validation, durable bounded replay ledger and rotation in `atmem/delegated/transport.py` (FR-019–FR-023).
+- [x] T034 Integrate signed requests/health, registration migration gates and readiness in `atmem/delegated/{client,config,service}.py` (FR-019, FR-020, FR-022, FR-024).
+- [x] T035 Enforce authentication before provider access and add lifecycle/CLI/dashboard configuration paths in `atmem/provider_adapters`, `atmem/cli.py`, `atmem/control/web.py` (FR-020–FR-024).
+- [x] T036 Add shared-vector, adversarial HTTP, concurrency/restart, rotation and migration tests in `tests/test_delegated_transport.py`; update existing contract/control/provider tests (FR-019–FR-025).
+- [x] T037 Verify installed-wheel authenticated transport and complete OpenClaw delegated llm_input/flight closure in `tools` and `integrations/openclaw/test` (FR-025).
+- [x] T038 Update integration/migration guidance and record exact verification and limitations in this file and `docs/context-provider-adapters.md` (FR-024, FR-025).
+
+Amendment A verification (2026-09-07, `storizon` release-candidate work based on
+`f903180979c21924d61555fd5073898a111e3797`):
+
+- Final full Python suite: **1334 passed, 3 skipped**, one third-party Pydantic
+  deprecation warning. Skips are optional LangChain coverage in this environment.
+- Final focused transport/provider-server/provider-CLI suite: **64 passed**,
+  including concurrent replay, actual managed-worker restart, malformed/missing
+  replay storage, capacity, clock rollback, rotation/revocation and beta migration.
+- Companion suite: **17 passed**. Locked OpenClaw **2026.8.1** build, typecheck,
+  hook tests and smoke passed, including all **3 positive and 20 negative/stateful**
+  unchanged signed-response conformance vectors and the new delegated journey.
+- Built wheel/sdist, Twine validation and isolated installed-wheel dependency
+  validation passed. Installed native, signed-result and authenticated transport
+  smoke passed from outside the checkout with `PYTHONPATH` cleared; the wheel's
+  transport bytes match source, and the sdist includes the shared profile/vectors.
+- The real bridge hook handlers, installed AtMem MCP and authenticated synthetic
+  HTTP provider completed inject and withhold turns: exact `llm_input` bytes,
+  one delivery where applicable, and verified closed flights. This exposed and
+  fixed a missing `context_byte_length` allowance in Black Box event validation.
+  Host/model events are instrumented synthetic inputs, not a live OpenClaw model
+  session or an independently exercised private Storizon endpoint.
+- Spec/plan/tasks consistency review maps FR-019–FR-025 to T032–T038 and executable
+  checks. Dashboard JavaScript syntax and scoped whitespace checks passed.
+- Published beta 9 remains unchanged and does **not** contain this implementation.
+  The implementation is assigned to beta 10; its tag, workflow and public package
+  availability remain independently verifiable release outputs.
+  Storizon must adopt the normative transport profile before joint acceptance.
+  The latest-OpenClaw 2026.9.2 missing hook-context fixture remains a separate open
+  compatibility-evidence gate, not a demonstrated host failure.
+
 - 2026-09-04: full Python source suite passed: 385 tests, one third-party
   Pydantic AI deprecation warning.
 - 2026-09-04: delegated integration review passed: 87 tests before final

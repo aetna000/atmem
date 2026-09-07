@@ -245,6 +245,8 @@ wants AtMem to resume native context preparation when the provider fails.""",
     delegated_register.add_argument("--key-id", required=True)
     delegated_register.add_argument("--public-key-file", required=True)
     delegated_register.add_argument("--endpoint", required=True)
+    delegated_register.add_argument("--request-key-id")
+    delegated_register.add_argument("--request-secret-file", help="Private base64 secret file; never pass secret bytes")
     delegated_register.add_argument("--workspace", action="append", required=True)
     delegated_register.add_argument("--agent", action="append", required=True)
     delegated_register.add_argument("--user", action="append", required=True)
@@ -253,6 +255,11 @@ wants AtMem to resume native context preparation when the provider fails.""",
     delegated_register.add_argument("--native-fallback", action="store_true")
     delegated_register.add_argument("--replace", action="store_true")
     delegated_register.add_argument("--json", action="store_true")
+    delegated_auth = delegated_commands.add_parser("set-request-auth", help="Migrate or replace request credentials; disables until explicitly enabled")
+    delegated_auth.add_argument("registration_id")
+    delegated_auth.add_argument("--request-key-id", required=True)
+    delegated_auth.add_argument("--request-secret-file", required=True)
+    delegated_auth.add_argument("--json", action="store_true")
     for name, help_text in (
         ("enable", "Explicitly enable one registered provider scope"),
         ("disable", "Return one provider scope to native AtMem authority"),
@@ -307,6 +314,14 @@ matching `atmem delegated enable` command only after reviewing the exact scopes.
     provider_init.add_argument("--provider-version", default="1.0")
     provider_init.add_argument("--egress", choices=("local", "hosted"), default="local")
     provider_init.add_argument("--json", action="store_true")
+    for name in ("auth-init", "auth-rotate", "auth-revoke"):
+        auth_parser = provider_commands.add_parser(name, help="Configure, rotate or revoke per-instance HMAC request credentials")
+        auth_parser.add_argument("instance")
+        auth_parser.add_argument("--json", action="store_true")
+        if name == "auth-rotate":
+            auth_parser.add_argument("--overlap-seconds", type=int, default=30)
+        if name == "auth-revoke":
+            auth_parser.add_argument("--request-key-id", required=True)
     for name, help_text in (
         ("serve", "Run one provider in the foreground"),
         ("start", "Start one private background provider process"),
@@ -3488,6 +3503,8 @@ def _run_delegated(args: argparse.Namespace) -> None:
                     key_id=args.key_id,
                     public_key_base64=public_key,
                     endpoint=args.endpoint,
+                    request_key_id=args.request_key_id,
+                    request_secret_file=str(Path(args.request_secret_file).expanduser().absolute()) if args.request_secret_file else None,
                     workspace_ids=tuple(args.workspace),
                     agent_ids=tuple(args.agent),
                     user_ids=tuple(args.user),
@@ -3498,6 +3515,8 @@ def _run_delegated(args: argparse.Namespace) -> None:
                 ),
                 replace=bool(args.replace),
             )
+        elif command == "set-request-auth":
+            result = config.set_request_auth(args.registration_id, args.request_key_id, args.request_secret_file)
         elif command in {"enable", "disable"}:
             result = config.set_enabled(args.registration_id, command == "enable")
         elif command == "remove":
@@ -3549,6 +3568,11 @@ def _run_provider(args: argparse.Namespace) -> None:
                 factory=args.factory, mode=args.mode, provider_id=args.provider_id,
                 provider_version=args.provider_version, egress=args.egress,
             )
+        elif command in {"auth-init", "auth-rotate"}:
+            result = lifecycle.auth_configure(args.instance, rotate=command == "auth-rotate",
+                overlap_seconds=getattr(args, "overlap_seconds", 30))
+        elif command == "auth-revoke":
+            result = lifecycle.auth_revoke(args.instance, args.request_key_id)
         elif command == "serve":
             from atmem.provider_adapters.server import serve
 

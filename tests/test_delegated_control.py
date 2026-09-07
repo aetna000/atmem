@@ -31,6 +31,8 @@ def _active_manager(tmp_path: Path):
 
 
 def _enable(tmp_path: Path, monkeypatch, workspace_id: str, *, fallback: bool = False):
+    from atmem.delegated.transport import configure_keyring
+    credential = configure_keyring(tmp_path / "request-auth.json", provider_id="fixture-provider", instance_id="local")
     path = tmp_path / "delegated.json"
     monkeypatch.setenv("ATMEM_DELEGATED_CONFIG", str(path))
     private = Ed25519PrivateKey.generate()
@@ -51,6 +53,8 @@ def _enable(tmp_path: Path, monkeypatch, workspace_id: str, *, fallback: bool = 
             user_ids=("owner",),
             enabled=False,
             native_fallback_on_failure=fallback,
+            request_key_id=credential["request_key_id"],
+            request_secret_file=credential["request_secret_file"],
         )
     )
     DelegatedConfigStore(path).set_enabled("fixture-provider:local", True)

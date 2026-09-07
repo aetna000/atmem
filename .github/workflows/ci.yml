@@ -211,6 +211,7 @@ jobs:
           python -c "import importlib.util; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None"
           python "$GITHUB_WORKSPACE/tools/smoke_installed_package.py"
           python "$GITHUB_WORKSPACE/tools/smoke_delegated_package.py"
+          python "$GITHUB_WORKSPACE/tools/smoke_delegated_transport.py"
 
   installed-atbot-wheel:
     runs-on: ubuntu-latest

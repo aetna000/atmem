@@ -83,6 +83,7 @@ _COUNT_KEYS = {
     "images_count",
     "tools_count",
     "context_chars",
+    "context_byte_length",
     "response_chars",
     "response_count",
     "messages_count",

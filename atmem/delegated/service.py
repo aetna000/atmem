@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from typing import Any, Callable
-import socket
 from urllib.parse import urlparse
 
-from atmem.delegated.client import request_context
+from atmem.delegated.client import request_context, request_health
 from atmem.delegated.config import DelegatedConfigStore
 from atmem.delegated.contracts import DelegatedBinding, DelegatedContextDecision
 from atmem.delegated.validation import parse_and_verify_envelope
@@ -200,18 +199,20 @@ class DelegatedContextService:
         status = self.status()
         registrations = status["registrations"]
         reachability = []
-        for row in registrations:
-            parsed = urlparse(str(row["endpoint"]))
-            reachable = _tcp_reachable(
-                str(parsed.hostname or ""),
-                int(parsed.port or 0),
-                timeout_ms=min(int(row["timeout_ms"]), 1000),
-            )
+        for registration in self.config.registrations():
+            row = registration.safe_dict()
+            try:
+                request_health(registration)
+                reachable = True
+            except (OSError, ValueError):
+                reachable = False
             reachability.append(
                 {
                     "registration_id": row["registration_id"],
                     "enabled": bool(row["enabled"]),
                     "reachable": reachable,
+                    "authenticated": reachable,
+                    "request_authentication": row["request_authentication"],
                 }
             )
         enabled_health = [row for row in reachability if row["enabled"]]
@@ -219,6 +220,7 @@ class DelegatedContextService:
             "native_default": status["authority_default"] == "atmem",
             "delegation_explicit": status["delegated_mode_default"] is False,
             "configuration_readable": True,
+            "request_credentials_configured": all(row["request_authentication"] == "configured" for row in registrations),
             "trust_registered": bool(registrations),
             "enabled_scope_present": any(row["enabled"] for row in registrations),
             "loopback_only": all(
@@ -231,6 +233,8 @@ class DelegatedContextService:
         state = (
             "unconfigured"
             if not registrations
+            else "migration_required"
+            if any(row["request_authentication"] == "migration_required" for row in registrations)
             else "registered_disabled"
             if not enabled_health
             else "ready"
@@ -241,7 +245,7 @@ class DelegatedContextService:
             "format": "atmem-delegated-context-doctor-v1",
             "healthy": all(
                 checks[name]
-                for name in ("native_default", "delegation_explicit", "configuration_readable", "loopback_only")
+                for name in ("native_default", "delegation_explicit", "configuration_readable", "loopback_only", "request_credentials_configured")
             ),
             "ready": state == "ready",
             "state": state,
@@ -258,12 +262,13 @@ class DelegatedContextService:
         sample = b"atmem-delegated-context-self-test"
         signature = private.sign(sample)
         private.public_key().verify(signature, sample)
+        configuration_ok = self.doctor()["healthy"]
         return {
             "format": "atmem-delegated-context-self-test-v1",
-            "passed": True,
+            "passed": configuration_ok,
             "checks": {
                 "ed25519": True,
-                "configuration": self.doctor()["healthy"],
+                "configuration": configuration_ok,
                 "native_default": True,
             },
         }
@@ -272,13 +277,3 @@ class DelegatedContextService:
 def _safe_reason(exc: Exception) -> str:
     reason = " ".join(str(exc).split())[:300]
     return reason or type(exc).__name__
-
-
-def _tcp_reachable(host: str, port: int, *, timeout_ms: int) -> bool:
-    if not host or not port:
-        return False
-    try:
-        with socket.create_connection((host, port), timeout=timeout_ms / 1000):
-            return True
-    except OSError:
-        return False

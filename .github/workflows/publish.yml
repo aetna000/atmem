@@ -218,9 +218,10 @@ jobs:
           python -c "import importlib.util; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None"
           python "$GITHUB_WORKSPACE/tools/smoke_installed_package.py"
           python "$GITHUB_WORKSPACE/tools/smoke_delegated_package.py"
+          python "$GITHUB_WORKSPACE/tools/smoke_delegated_transport.py"
 
   upgrade-existing:
-    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.2.6b9
+    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.2.6b10
     needs: build
     runs-on: ubuntu-latest
     strategy:

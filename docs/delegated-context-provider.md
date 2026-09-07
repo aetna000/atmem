@@ -30,7 +30,7 @@ Pydantic AI, or LangGraph.
   injects context.
 - The provider must implement the closed v1 request/result contracts and hold
   the private half of an Ed25519 signing key.
-- AtMem receives only the base64 public key and a numeric loopback HTTP endpoint
+- AtMem receives the base64 public key, a request key ID/private secret-file reference, and a numeric loopback HTTP endpoint
   such as `127.0.0.1`. Remote endpoints and wildcard scopes are rejected in this
   beta.
 - The host must supply an authenticated `user_id`. Prompt text, a memory subject,
@@ -39,8 +39,9 @@ Pydantic AI, or LangGraph.
 ## Set up a delegated provider
 
 Obtain the provider version, instance ID, key ID, base64 Ed25519
-public key, and loopback endpoint. Save only the base64 public key in a local
-file. Find the governed workspace ID with `atmem control agents --json`, then
+public key, request-credential references, and loopback endpoint. Keep the
+provider's request secret in its private mode-0600 file; never paste its bytes.
+Find the governed workspace ID with `atmem control agents --json`, then
 register exact scopes:
 
 ```bash
@@ -50,6 +51,7 @@ atmem delegated register \
   --instance-id local \
   --key-id primary \
   --public-key-file ./provider.pub \
+  --request-key-id REQUEST_KEY_ID --request-secret-file /absolute/private/request.key \
   --endpoint http://127.0.0.1:8788/v1/delegated-context \
   --workspace ws_123 \
   --agent main \
@@ -65,13 +67,13 @@ atmem delegated enable context-provider:local
 atmem delegated doctor
 ```
 
-`self-test` verifies local signature and configuration primitives without
-contacting the provider. `doctor` checks the configured scope and whether the
-enabled loopback service is reachable. Its state is one of:
+`self-test` verifies local signature/configuration primitives and runs doctor.
+`doctor` checks the configured scope and authenticated provider health. Its state is one of:
 
 - `unconfigured`: no trust registration exists;
 - `registered_disabled`: trust exists, but native AtMem remains authoritative;
-- `ready`: an enabled provider is reachable for its registered scope;
+- `migration_required`: configure request credentials before enabling or making delegated calls;
+- `ready`: an enabled provider passed authenticated health for its registered identity;
 - `degraded`: delegation is enabled, but the provider cannot be reached.
 
 The dashboard exposes the same state and actions under **Settings → Context
@@ -197,6 +199,7 @@ atmem delegated disable context-provider:local
 atmem delegated register --replace \
   --provider-id context-provider --provider-version 1.0 --instance-id local \
   --key-id rotated-2026-09 --public-key-file ./provider-rotated.pub \
+  --request-key-id REQUEST_KEY_ID --request-secret-file /absolute/private/request.key \
   --endpoint http://127.0.0.1:8788/v1/delegated-context \
   --workspace ws_123 --agent main --user local-owner
 atmem delegated status
@@ -208,6 +211,10 @@ atmem delegated doctor
 
 Implement the [request schema](contracts/delegated-context-request-v1.schema.json)
 and the [signed result contract](contracts/delegated-context-provider-v1.md).
+Implement the [authenticated HTTP profile](contracts/delegated-request-auth-v1.md)
+for context and health before provider memory/model access. That profile also
+defines request-secret rotation and guided migration from beta 3/beta 9 and is
+required by beta 10.
 The contract directory includes signed inject/withhold examples and all
 positive, negative, and stateful conformance vectors. Treat the request
 deadline as a hard bound and return the exact binding unchanged.

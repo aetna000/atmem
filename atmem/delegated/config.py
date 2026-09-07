@@ -33,6 +33,8 @@ class DelegatedRegistration:
     max_context_bytes: int = MAX_CONTEXT_BYTES
     enabled: bool = False
     native_fallback_on_failure: bool = False
+    request_key_id: str | None = None
+    request_secret_file: str | None = None
 
     def __post_init__(self) -> None:
         _validate_registration(self)
@@ -48,7 +50,7 @@ class DelegatedRegistration:
             "public_key_base64", "endpoint", "workspace_ids", "agent_ids", "user_ids",
             "timeout_ms", "max_context_bytes", "enabled", "native_fallback_on_failure",
         }
-        if set(value) != expected:
+        if not expected <= set(value) or set(value) - expected - {"request_key_id", "request_secret_file"}:
             raise ValueError("delegated registration fields do not match the contract")
         registration = cls(
             provider_id=str(value["provider_id"]),
@@ -64,6 +66,8 @@ class DelegatedRegistration:
             max_context_bytes=int(value["max_context_bytes"]),
             enabled=value["enabled"],
             native_fallback_on_failure=value["native_fallback_on_failure"],
+            request_key_id=value.get("request_key_id"),
+            request_secret_file=value.get("request_secret_file"),
         )
         _validate_registration(registration)
         return registration
@@ -76,7 +80,24 @@ class DelegatedRegistration:
         value["user_ids"] = list(self.user_ids)
         value["registration_id"] = self.registration_id
         value["key_fingerprint"] = public_key_fingerprint(self.public_key_base64)
+        try:
+            self.request_secret()
+            value["request_authentication"] = "configured"
+        except ValueError:
+            value["request_authentication"] = "migration_required"
+        value["next_action"] = (
+            "Run atmem delegated doctor to verify authenticated provider health."
+            if value["request_authentication"] == "configured" else
+            f"Configure provider HMAC, then run atmem delegated set-request-auth {self.registration_id} "
+            "--request-key-id KEY_ID --request-secret-file PRIVATE_FILE; explicitly enable afterward."
+        )
         return value
+
+    def request_secret(self) -> bytes:
+        from atmem.delegated.transport import AuthenticationError, load_secret
+        if not self.request_key_id or not self.request_secret_file:
+            raise AuthenticationError("request authentication migration required; use atmem delegated set-request-auth")
+        return load_secret(self.request_secret_file)
 
 
 class DelegatedConfigStore:
@@ -121,6 +142,8 @@ class DelegatedConfigStore:
         for row in rows:
             if row.registration_id == registration_id:
                 found = True
+                if enabled:
+                    row.request_secret()
                 row = DelegatedRegistration(**{**asdict(row), "enabled": bool(enabled)})
             changed.append(row)
         if not found:
@@ -128,6 +151,18 @@ class DelegatedConfigStore:
         _reject_ambiguous_enabled(changed)
         self._write(changed)
         return next(row.safe_dict() for row in changed if row.registration_id == registration_id)
+
+    def set_request_auth(self, registration_id: str, key_id: str, secret_file: str) -> dict[str, Any]:
+        rows = self.registrations()
+        for index, row in enumerate(rows):
+            if row.registration_id == registration_id:
+                updated = DelegatedRegistration(**{**asdict(row), "request_key_id": key_id,
+                    "request_secret_file": str(Path(secret_file).expanduser().absolute()), "enabled": False})
+                updated.request_secret()
+                rows[index] = updated
+                self._write(rows)
+                return updated.safe_dict()
+        raise ValueError("delegated provider registration was not found")
 
     def remove(self, registration_id: str) -> bool:
         rows = self.registrations()
@@ -151,6 +186,7 @@ class DelegatedConfigStore:
             raise ValueError("delegated provider scope is ambiguous")
         if not matched:
             raise ValueError("no delegated provider is trusted for this user")
+        matched[0].request_secret()
         return matched[0]
 
     def has_enabled_for_agent(self, agent_id: str | None) -> bool:
@@ -170,6 +206,8 @@ class DelegatedConfigStore:
             "registrations": [row.safe_dict() for row in rows],
             "config_path": str(self.path),
             "next_action": (
+                "Request authentication migration required; inspect registrations and run delegated set-request-auth."
+                if any(row.safe_dict()["request_authentication"] == "migration_required" for row in rows) else
                 "Register a trusted provider; native AtMem authority remains active."
                 if not rows else
                 "Delegated authority is enabled for matching scopes."
@@ -207,11 +245,20 @@ class DelegatedConfigStore:
 
 
 def _validate_registration(row: DelegatedRegistration) -> None:
+    import re
+    if bool(row.request_key_id) != bool(row.request_secret_file):
+        raise ValueError("request key ID and secret-file reference must be supplied together")
+    if row.request_key_id and (not isinstance(row.request_key_id, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,256}", row.request_key_id)):
+        raise ValueError("invalid request key ID")
+    if row.request_secret_file and (not isinstance(row.request_secret_file, str) or not Path(row.request_secret_file).is_absolute()):
+        raise ValueError("request secret-file reference must be an absolute path")
     for value in (row.provider_id, row.provider_version, row.provider_instance_id, row.key_id):
         if not value or value != value.strip() or len(value) > 256:
             raise ValueError("invalid delegated provider identifier")
     strict_base64(row.public_key_base64, expected_length=32)
     parsed = urlparse(row.endpoint)
+    if parsed.fragment:
+        raise ValueError("delegated endpoints cannot contain fragments")
     if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "::1"} or parsed.username or parsed.password:
         raise ValueError("delegated beta endpoints must use loopback HTTP")
     if not parsed.port:
