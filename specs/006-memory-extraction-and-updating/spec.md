@@ -88,3 +88,6 @@ Autonomous policy changes, unbounded conversation replay, or deleting historical
 - Existing fact-key and canonical admission primitives remain available.
 - Policy determines sensitive/uncertain thresholds and authorized reviewers.
 - Spec 015 owns general retention and expiry; this feature owns admission/update proposal semantics.
+## Invariant Attestation
+
+Touches INV-001, INV-002, INV-006, and INV-011 through `spec006.canonical-write`, `spec006.pre-extraction-auth`, `spec006.history`, and `spec006.upgrade`.

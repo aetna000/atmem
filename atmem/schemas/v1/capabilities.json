@@ -79,6 +79,20 @@
         "type": "string"
       },
       "description": "Adapters that register the typed-delta tool with their model. An unregistered tool is invisible to the model and is never claimed here."
+    },
+    "framework_adapters": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["integration", "exact_injection", "tool_lifecycle"],
+        "properties": {
+          "integration": {"type": "string"},
+          "exact_injection": {"type": "boolean"},
+          "tool_lifecycle": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      },
+      "description": "Authoritative per-framework proof capability matrix."
     }
   },
   "additionalProperties": false,

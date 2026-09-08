@@ -81,6 +81,12 @@
   <div class="tabpanel" id="viewSettings">
   <div class="pageheading"><div><div class="eyebrow">Configuration</div><h1>Settings</h1><p>Control memory intelligence, governed task state, and optional context providers.</p></div></div>
 
+  <section class="card semanticcard" id="featureCapabilityCard">
+    <div class="semantichead"><div><div class="eyebrow">Extensibility</div><h2>Feature and adapter readiness</h2><p class="sub">Runtime-derived capability status for graph, storage, framework adapters, interchange, lifecycle, media, onboarding, and production operation.</p></div><span class="statuspill" id="featureCapabilityStatus">Checking…</span></div>
+    <div class="evidencegrid" id="featureCapabilityRows"></div>
+    <div class="actions"><button class="secondary" id="featureCapabilityRefresh" type="button">Refresh capabilities</button></div>
+  </section>
+
   <section class="card semanticcard" id="taskModeSettingsCard" hidden>
     <div class="semantichead">
       <div><div class="eyebrow">Agent context</div><h2>Governed task state</h2><p class="sub" id="taskModeNote">Choose whether the selected agent and workspace may receive explicitly bound task context. Existing tasks and evidence are preserved when this is off.</p></div>

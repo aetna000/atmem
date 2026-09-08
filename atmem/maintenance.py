@@ -10,6 +10,27 @@ from typing import Callable
 from atmem.memory import Memory
 
 
+_MAINTENANCE_JOBS: dict[str, Callable[..., object]] = {}
+
+
+def register_maintenance_job(name: str, callback: Callable[..., object]) -> None:
+    if not name.strip() or name in _MAINTENANCE_JOBS or not callable(callback):
+        raise ValueError(f"invalid or duplicate maintenance job: {name!r}")
+    _MAINTENANCE_JOBS[name] = callback
+
+
+def maintenance_jobs() -> tuple[str, ...]:
+    return tuple(sorted(_MAINTENANCE_JOBS))
+
+
+def run_maintenance_job(name: str, **kwargs: object) -> object:
+    try:
+        callback = _MAINTENANCE_JOBS[name]
+    except KeyError as exc:
+        raise ValueError(f"unknown maintenance job: {name}") from exc
+    return callback(**kwargs)
+
+
 class GraphMaintenanceWorker:
     def __init__(
         self,

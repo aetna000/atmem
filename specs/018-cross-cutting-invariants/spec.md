@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/018-cross-cutting-invariants`
 **Created**: 2026-09-05
-**Status**: Draft
+**Status**: Implemented
 **Input**: `todo.md` "Do not weaken existing AtMem advantages"
 
 ## Overview

@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/011-framework-adapter-conformance`
 **Created**: 2026-09-05
-**Status**: Draft
+**Status**: Implemented
 **Input**: `todo.md` P1.10
 
 ## Overview
@@ -81,3 +81,6 @@ Spec 007 is a prerequisite for task-aware adapter identity, runtime capability a
 - Spec 007 remains the sole runtime capability and task-aware lifecycle authority.
 - Framework public hooks differ; conformance reports may declare unsupported proof points.
 - Framework SDKs remain optional extras and supported version ranges are pinned by evidence.
+## Invariant Attestation
+
+Touches INV-004, INV-005, and INV-008 through `spec011.activation`, `spec011.exact-injection`, and `spec011.lifecycle-proof`.

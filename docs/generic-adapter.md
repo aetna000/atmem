@@ -108,3 +108,7 @@ the additive `control_prepare` binding fields and must truthfully implement the
 same one-segment delivery confirmation. See the
 [delegated context-provider v1 contract](contracts/delegated-context-provider-v1.md)
 for the closed schema, signed fixtures, replay rules, and conformance cases.
+
+## Hermes and callback recipe
+
+Create `CallbackAtMemAdapter(manager, identity, framework="hermes")`. Call `begin` after authenticating the run identity; replace the model message list with the value returned by `model_input`; mirror tool request/completion; record `model_output`; and always call `finish` in a `finally` block. Pass `cancelled=True` for cancellation and `error=exc` for failures. Never separately reconstruct or inject the returned governed context.

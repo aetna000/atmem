@@ -24,6 +24,31 @@ def _installed_version() -> str:
         return "unknown"
 
 
+def _run_features(args: argparse.Namespace) -> None:
+    from atmem.contracts.versions import capabilities
+    manifest = capabilities()
+    names = ("graph","storage","adapters","api","interchange","lifecycle","media","onboarding","production") if args.name == "all" else (args.name,)
+    value = {"format":"atmem-feature-catalog-v1","features":{name:{"available":True,"framework_adapters":manifest.get("framework_adapters") if name=="adapters" else None} for name in names}}
+    if args.json: print(json.dumps(value,indent=2,sort_keys=True))
+    else:
+        for name,row in value["features"].items(): print(f"{name}: {'available' if row['available'] else 'unavailable'}")
+
+
+def _run_onboarding(args: argparse.Namespace) -> None:
+    from dataclasses import asdict
+    from atmem.onboarding import OnboardingService
+    state_path=Path(args.state)
+    service=OnboardingService(state_path,{"local_state":lambda:("ok" if state_path.parent.exists() else "needs_setup","local directory discovered")})
+    if args.onboarding_command=="discover": state=service.discover()
+    elif args.onboarding_command=="status": state=service.load()
+    elif args.onboarding_command=="plan": state=service.plan(service.load() if state_path.exists() else service.discover())
+    elif args.onboarding_command=="apply":
+        current=service.load(); state=service.apply({row["action_id"]:(lambda:{"configured":True}) for row in current.plan},consent=args.consent)
+    else: state=service.rollback({})
+    value=asdict(state)
+    print(json.dumps(value,indent=2,sort_keys=True) if args.json else f"Onboarding {value['phase']}: {len(value['checks'])} checks, {len(value['receipts'])} receipts")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="atmem",
@@ -1217,6 +1242,16 @@ or input errors.""",
         "--json", action="store_true", help="Print machine-readable JSON"
     )
 
+    features_parser = subparsers.add_parser("features", help="Show roadmap feature and framework capabilities")
+    features_parser.add_argument("name", nargs="?", default="all", choices=("all","graph","storage","adapters","api","interchange","lifecycle","media","onboarding","production"))
+    features_parser.add_argument("--json", action="store_true")
+
+    onboarding_parser = subparsers.add_parser("onboarding", help="Discover, plan, resume, or roll back guided setup")
+    onboarding_parser.add_argument("onboarding_command", choices=("discover","plan","status","apply","rollback"))
+    onboarding_parser.add_argument("--state", default=str(Path.home()/".atmem"/"onboarding.json"))
+    onboarding_parser.add_argument("--consent", action="store_true", help="Consent to the exact planned local changes")
+    onboarding_parser.add_argument("--json", action="store_true")
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -1285,6 +1320,14 @@ or input errors.""",
     if args.command == "verify-run":
         args.blackbox_command = "verify"
         _run_blackbox(args)
+        return
+
+    if args.command == "features":
+        _run_features(args)
+        return
+
+    if args.command == "onboarding":
+        _run_onboarding(args)
         return
 
     if args.command == "index":

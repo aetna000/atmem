@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/014-memory-migration-interoperability`
 **Created**: 2026-09-05
-**Status**: Draft
+**Status**: Implemented
 **Input**: `todo.md` P1.12
 
 ## Overview
@@ -76,3 +76,6 @@ Importing credentials, trusting foreign embeddings as authority, or promising lo
 - Spec 006 provides typed proposal validation and review.
 - Mem0 input is user-supplied and its exact supported versions are documented.
 - Unsupported fields are reported rather than silently dropped.
+## Invariant Attestation
+
+Touches INV-001, INV-006, INV-007, and INV-011 through `spec014.canonical-import`, `spec014.lineage`, `spec014.rollback`, and `spec014.format-upgrade`.

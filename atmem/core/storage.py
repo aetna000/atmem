@@ -6,7 +6,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
-from typing import Any, Literal
+from typing import Any, Literal, Mapping, Protocol, runtime_checkable
 
 
 SQLITE_HEADER = b"SQLite format 3\x00"
@@ -207,3 +207,73 @@ def row_factory_for(policy: HouseholdPolicy):
     except ImportError as exc:
         raise RuntimeError("encrypted household requires sqlcipher3") from exc
     return sqlcipher.Row
+
+
+class UnsupportedStorageCapability(RuntimeError):
+    """A backend explicitly does not provide the requested guarantee."""
+
+    def __init__(self, backend: str, capability: str) -> None:
+        self.backend = backend
+        self.capability = capability
+        super().__init__(f"{backend} does not support {capability}")
+
+
+class StorageUnavailable(RuntimeError):
+    """A configured storage dependency is unavailable or unsafe to use."""
+
+
+@dataclass(frozen=True, slots=True)
+class BackendCapabilities:
+    backend_id: str
+    role: Literal["canonical", "derived"]
+    transactions: bool
+    concurrency: bool
+    rebuild: bool
+    backup: bool
+    restore: bool
+    migration: bool
+    verified_deletion: bool
+    format: str = "atmem-storage-capabilities-v1"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "format": self.format,
+            "backend_id": self.backend_id,
+            "role": self.role,
+            "transactions": self.transactions,
+            "concurrency": self.concurrency,
+            "rebuild": self.rebuild,
+            "backup": self.backup,
+            "restore": self.restore,
+            "migration": self.migration,
+            "verified_deletion": self.verified_deletion,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DerivedGeneration:
+    generation_id: str
+    canonical_generation: int
+    source_sha256: str
+    configuration_sha256: str
+    active: bool = False
+
+
+@runtime_checkable
+class CanonicalStore(Protocol):
+    """Minimum authority-bearing backend contract."""
+
+    def capabilities(self) -> BackendCapabilities: ...
+    def record_generation(self, subject_id: str) -> int: ...
+    def get_record(self, subject_id: str, record_id: str) -> Mapping[str, Any] | None: ...
+    def list_records(self, subject_id: str, **kwargs: Any) -> list[dict[str, Any]]: ...
+    def transaction(self, **kwargs: Any): ...
+
+
+@runtime_checkable
+class DerivedIndex(Protocol):
+    """Rebuildable candidate source that never authorizes records."""
+
+    def capabilities(self) -> BackendCapabilities: ...
+    def active_generation(self, subject_id: str) -> DerivedGeneration | None: ...
+    def discard_generation(self, subject_id: str, generation_id: str) -> None: ...

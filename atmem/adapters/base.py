@@ -479,7 +479,13 @@ class AtMemTurnLifecycle:
             },
         )
 
-    def end(self, *, success: bool, error: BaseException | None = None) -> None:
+    def end(
+        self,
+        *,
+        success: bool,
+        error: BaseException | None = None,
+        cancelled: bool = False,
+    ) -> None:
         if self.ended:
             return
         self.ended = True
@@ -487,13 +493,14 @@ class AtMemTurnLifecycle:
             "turn.ended",
             payload={
                 "success": bool(success),
-                "cancelled": False,
+                "cancelled": bool(cancelled),
                 "messages_sha256": sha256_hex(
                     canonical_json(
                         {
                             "query_sha256": sha256_hex(self.query),
                             "success": bool(success),
                             "error": type(error).__name__ if error else None,
+                            "cancelled": bool(cancelled),
                         }
                     )
                 ),

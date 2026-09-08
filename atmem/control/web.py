@@ -26,6 +26,9 @@ class ControlDashboardServer(ThreadingHTTPServer):
             raise ValueError("memory control plane dashboard is loopback-only")
         super().__init__(address, ControlDashboardHandler)
         self.manager = manager
+        from atmem.service import AtMemApplication
+
+        self.application = AtMemApplication(manager)
         self.html = html
         self.csrf_token = secrets.token_urlsafe(32)
 
@@ -39,6 +42,9 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             return
         parsed = urlparse(self.path)
         path = _canonical_api_path(parsed.path)
+        if path.startswith("/v1/"):
+            self._v1_get(path, parse_qs(parsed.query))
+            return
         if path == "/":
             body = self.server.html.encode("utf-8")
             self.send_response(HTTPStatus.OK)
@@ -468,6 +474,13 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
     def do_POST(self) -> None:  # noqa: N802
+        path = urlparse(self.path).path
+        if path.startswith("/v1/"):
+            if not self._valid_host():
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid Host header"})
+                return
+            self._v1_post(path)
+            return
         if not self._same_origin() or not secrets.compare_digest(
             self.headers.get("X-CSRF-Token", ""), self.server.csrf_token
         ):
@@ -813,6 +826,94 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
         except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
             self._json(HTTPStatus.CONFLICT, {"error": str(exc)})
+
+    def _v1_principal(self):
+        from atmem.service import APIError, APIPrincipal
+
+        authorization = self.headers.get("Authorization", "")
+        prefix = "Bearer "
+        if not authorization.startswith(prefix) or not secrets.compare_digest(
+            authorization[len(prefix) :], self.server.csrf_token
+        ):
+            raise APIError("unauthenticated", "a valid local bearer credential is required", status=401)
+        role = self.headers.get("X-AtMem-Role", "agent").strip().lower()
+        if role not in {"agent", "admin"}:
+            raise APIError("invalid_principal", "role must be agent or admin", status=400)
+        subject_id = self.headers.get("X-AtMem-Subject", "").strip() or self.server.manager.state().subject_id
+        return APIPrincipal(
+            principal_id=self.headers.get("X-AtMem-Principal", "local-client").strip() or "local-client",
+            role=role,
+            subject_id=subject_id,
+            agent_id=self.headers.get("X-AtMem-Agent", "").strip() or None,
+            workspace_id=self.headers.get("X-AtMem-Workspace", "").strip() or None,
+        )
+
+    def _v1_get(self, path: str, query: dict[str, list[str]]) -> None:
+        from atmem.service import APIError
+
+        try:
+            principal = self._v1_principal()
+            if path == "/v1/health":
+                value = self.server.application.health(principal)
+            elif path == "/v1/capabilities":
+                value = self.server.application.capability_manifest(principal)
+            elif path == "/v1/memories":
+                value = self.server.application.list_memories(
+                    principal,
+                    query=(query.get("query") or [""])[0],
+                    limit=int((query.get("limit") or ["50"])[0]),
+                    cursor=(query.get("cursor") or [None])[0],
+                ).to_dict()
+            elif path == "/v1/reviews":
+                value = self.server.application.reviews(principal)
+            elif path == "/v1/audit":
+                value = self.server.application.audit(
+                    principal,
+                    limit=int((query.get("limit") or ["100"])[0]),
+                    cursor=int((query.get("cursor") or ["0"])[0]) or None,
+                )
+            elif path == "/v1/configuration":
+                value = self.server.application.configuration(principal)
+            elif path.startswith("/v1/features/"):
+                value = self.server.application.feature_status(principal, path.rsplit("/", 1)[-1])
+            elif path == "/v1/lifecycle":
+                value = self.server.application.lifecycle(principal, (query.get("record_id") or [""])[0], evaluated_at=(query.get("evaluated_at") or [None])[0])
+            else:
+                raise APIError("not_found", "resource not found", status=404)
+            self._json(HTTPStatus.OK, value)
+        except APIError as exc:
+            self._json(exc.status, exc.to_dict())
+        except (TypeError, ValueError) as exc:
+            self._json(HTTPStatus.BAD_REQUEST, APIError("invalid_request", str(exc), status=400).to_dict())
+
+    def _v1_post(self, path: str) -> None:
+        from atmem.service import APIError
+
+        try:
+            principal = self._v1_principal()
+            body = self._body()
+            if path == "/v1/memories":
+                value = self.server.application.create_memory(
+                    principal,
+                    str(body.get("message") or ""),
+                    idempotency_key=str(body.get("idempotency_key") or ""),
+                    session_id=body.get("session_id"),
+                )
+            elif path == "/v1/query":
+                value = self.server.application.query(principal, str(body.get("query") or ""))
+            elif path == "/v1/lifecycle":
+                value = self.server.application.transition_lifecycle(principal, body)
+            elif path == "/v1/interchange/plan":
+                value = self.server.application.interchange_plan(principal, body)
+            elif path == "/v1/media/revoke":
+                value = self.server.application.revoke_media(principal, str(body.get("artifact_id") or ""))
+            else:
+                raise APIError("not_found", "resource not found", status=404)
+            self._json(HTTPStatus.OK, value)
+        except APIError as exc:
+            self._json(exc.status, exc.to_dict())
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
+            self._json(HTTPStatus.CONFLICT, APIError("conflict", str(exc), status=409).to_dict())
 
     def log_message(self, format: str, *args: Any) -> None:
         del format, args

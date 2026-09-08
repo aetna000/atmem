@@ -149,3 +149,7 @@ middleware never takes ownership of state, checkpoints, tools, or model calls.
 - AtBot failure falls back to AtMem's deterministic capture and hybrid ranking.
 - MCP remains available as a tool-only fallback, but cannot by itself prove
   automatic model-boundary injection.
+
+## Expanded callback adapters (Spec 011)
+
+OpenAI Agents, Microsoft Agent Framework, Google ADK, smolagents and CrewAI use the shared `CallbackAtMemAdapter` boundary. Install only the matching optional extra. The runtime `capabilities()` response is authoritative, and every exact-injection claim is checked by the common conformance suite. MCP remains a tool-only fallback: it cannot prove exact model-boundary placement or complete tool/terminal coverage.

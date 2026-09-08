@@ -81,3 +81,6 @@ Hosted embedding recommendations, changing canonical memory, or guaranteeing a p
 - Supported local model recommendations come from a versioned checked-in catalog.
 - Hardware discovery may be incomplete; manual model selection remains available.
 - Existing indexes without sufficient identity metadata are treated as legacy/unknown, not healthy.
+## Invariant Attestation
+
+Touches INV-003 and INV-010 through `spec005.semantic-health` and `spec005.local-fallback`.

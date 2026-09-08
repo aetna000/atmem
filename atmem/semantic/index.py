@@ -13,7 +13,7 @@ from typing import Any, Callable, Iterator, Sequence
 import uuid
 
 from atmem.core.canonical import canonical_json, sha256_hex
-from atmem.core.storage import HouseholdLock, HouseholdPolicy, connect, row_factory_for
+from atmem.core.storage import BackendCapabilities, DerivedGeneration, HouseholdLock, HouseholdPolicy, connect, row_factory_for
 from atmem.memory import Memory
 from atmem.semantic.providers import Embedder
 from atmem.store.sqlite import utc_now
@@ -62,6 +62,36 @@ class SemanticIndex:
             self._conn.close()
         finally:
             self._household_lock.close()
+
+    def capabilities(self) -> BackendCapabilities:
+        return BackendCapabilities("sqlite-vector-v2", "derived", True, True, True, True, True, True, True)
+
+    def active_generation(self, subject_id: str) -> DerivedGeneration | None:
+        row = self.active_epoch(subject_id)
+        if row is None:
+            return None
+        identity = row.get("identity") or {}
+        return DerivedGeneration(
+            generation_id=str(row["epoch_id"]),
+            canonical_generation=int(row.get("canonical_generation") or 0),
+            source_sha256=str(row.get("source_sha256") or ""),
+            configuration_sha256=sha256_hex(canonical_json(identity)),
+            active=str(row.get("status")) == "active",
+        )
+
+    def discard_generation(self, subject_id: str, generation_id: str) -> None:
+        with self.transaction():
+            row = self._conn.execute(
+                "SELECT status FROM vector_epochs WHERE subject_id=? AND epoch_id=?",
+                (subject_id, generation_id),
+            ).fetchone()
+            if row is None:
+                return
+            if str(row["status"]) == "active":
+                raise ValueError("cannot discard an active derived generation")
+            self._conn.execute("DELETE FROM vector_entries WHERE epoch_id=?", (generation_id,))
+            self._conn.execute("DELETE FROM semantic_rebuilds WHERE epoch_id=?", (generation_id,))
+            self._conn.execute("DELETE FROM vector_epochs WHERE epoch_id=?", (generation_id,))
 
     def policy_fingerprint(self) -> str:
         """Digest the household policy identity that derived vectors depend on.

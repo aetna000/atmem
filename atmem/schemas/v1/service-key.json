@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["key_id","principal_id","expires_at","state"],"properties":{"key_id":{"type":"string"},"principal_id":{"type":"string"},"expires_at":{"type":"number"},"state":{"enum":["active","expired","revoked"]}},"additionalProperties":false}

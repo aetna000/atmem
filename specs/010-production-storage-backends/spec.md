@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/010-production-storage-backends`
 **Created**: 2026-09-05
-**Status**: Draft
+**Status**: Implemented
 **Input**: `todo.md` P1.7–P1.8
 
 ## Overview
@@ -82,3 +82,6 @@ Replacing canonical truth with a vector database, automatic production provision
 - Specs 005 and 008 define semantic epoch and retrieval/cache identities.
 - Reference performance hardware will be recorded with each report rather than implied universally.
 - Optional services and drivers are installed through explicit extras.
+## Invariant Attestation
+
+Touches INV-001, INV-003, INV-007, INV-010, and INV-011 through `spec010.canonical-protocol`, `spec010.final-reload`, `spec010.derived-invalidation`, `spec010.degradation`, and `spec010.migrations`.

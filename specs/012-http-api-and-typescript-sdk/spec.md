@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/012-http-api-and-typescript-sdk`
 **Created**: 2026-09-05
-**Status**: Draft
+**Status**: Implemented
 **Input**: `todo.md` P1.11
 
 ## Overview
@@ -80,3 +80,6 @@ Internet-facing production hardening (Spec 013), browser-specific SDKs, or hidin
 - The initial API binds to the existing loopback control server.
 - `atmem/service/` becomes the only transport-neutral application-service package.
 - Spec 013 supplies non-loopback production authentication and deployment controls.
+## Invariant Attestation
+
+Touches INV-001, INV-002, INV-005, and INV-008 through `spec012.application-authority`, `spec012.api-auth`, `spec012.idempotency`, and `spec012.transport-proof`.

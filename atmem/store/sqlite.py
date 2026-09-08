@@ -12,6 +12,7 @@ import uuid
 from atmem.core.canonical import canonical_json, sha256_hex
 from atmem.core.policy import normalize_content
 from atmem.core.storage import HouseholdLock, HouseholdPolicy, connect, row_factory_for
+from atmem.core.storage import BackendCapabilities
 
 
 class SQLiteStore:
@@ -61,6 +62,55 @@ class SQLiteStore:
             self._conn.close()
         finally:
             self._household_lock.close()
+
+    def capabilities(self) -> BackendCapabilities:
+        return BackendCapabilities(
+            backend_id="sqlite-v1",
+            role="canonical",
+            transactions=True,
+            concurrency=True,
+            rebuild=False,
+            backup=True,
+            restore=True,
+            migration=True,
+            verified_deletion=True,
+        )
+
+    def backup_to(self, destination: str | Path) -> dict[str, Any]:
+        """Create and integrity-check a consistent SQLite backup."""
+        target = Path(destination).expanduser().resolve()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        backup = sqlite3.connect(str(target))
+        try:
+            self._conn.backup(backup)
+            result = str(backup.execute("PRAGMA integrity_check").fetchone()[0])
+        finally:
+            backup.close()
+        if result != "ok":
+            raise RuntimeError(f"backup integrity check failed: {result}")
+        return {"format": "atmem-storage-backup-v1", "backend_id": "sqlite-v1", "path": str(target), "integrity": result}
+
+    def restore_from(self, source: str | Path) -> dict[str, Any]:
+        """Replace this open database from a verified SQLite snapshot."""
+        if self._transaction_depth:
+            raise RuntimeError("restore cannot run inside a transaction")
+        origin = sqlite3.connect(str(Path(source).expanduser().resolve()))
+        try:
+            integrity = str(origin.execute("PRAGMA integrity_check").fetchone()[0])
+            if integrity != "ok":
+                raise RuntimeError(f"restore source integrity check failed: {integrity}")
+            origin.backup(self._conn)
+        finally:
+            origin.close()
+        self._migrate()
+        return {"format": "atmem-storage-restore-v1", "backend_id": "sqlite-v1", "integrity": integrity, "migrations": self.applied_migrations()}
+
+    def lifecycle_generation(self, subject_id: str) -> int:
+        row = self._conn.execute(
+            "SELECT COALESCE(SUM(generation), 0) AS generation FROM memory_lifecycle WHERE subject_id=?",
+            (subject_id,),
+        ).fetchone()
+        return int(row["generation"] if row else 0)
 
     @contextmanager
     def transaction(self, *, immediate: bool = True) -> Iterator["SQLiteStore"]:
@@ -3757,7 +3807,7 @@ class SQLiteStore:
         # compiled against these columns, so they are added before any script
         # runs -- and each `_ensure_column` is safe to repeat.
         self._ensure_column("records", "generation", "INTEGER NOT NULL DEFAULT 0")
-        for identifier, script in _BOOTSTRAP_MIGRATIONS:
+        for identifier, script in MIGRATION_REGISTRY:
             if identifier in applied:
                 continue
             if identifier == "0077_governed_task_sequences":
@@ -4107,11 +4157,14 @@ class SQLiteStore:
             self._delete_graph_fts(str(row["object_type"]), str(row["object_id"]))
 
 
-# Reserved bootstrap identifiers: 0060-0069 belong to Spec 006 and 0070-0079
-# to Spec 007 (see specs/integration-ownership.md). Steps are append-only:
-# never renumber, reuse, or edit an identifier that has shipped -- add a new
-# one instead.
-_BOOTSTRAP_MIGRATIONS: tuple[tuple[str, str], ...] = (
+# Global append-only migration registry. ``0000`` records the compatible
+# pre-registry initializer; 0060-0069 and 0070-0079 retain the identifiers
+# reserved by their owning specs. Never renumber or edit a shipped step.
+MIGRATION_REGISTRY: tuple[tuple[str, str], ...] = (
+    (
+        "0000_pre_registry_baseline",
+        """SELECT 1;""",
+    ),
     (
         "0060_memory_proposals",
         """
@@ -4486,7 +4539,185 @@ _BOOTSTRAP_MIGRATIONS: tuple[tuple[str, str], ...] = (
           ON governed_task_session_bindings(task_id);
         """,
     ),
+    (
+        "0090_graph_generations_and_lineage",
+        """
+        CREATE TABLE IF NOT EXISTS graph_generations (
+          generation_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          canonical_generation INTEGER NOT NULL,
+          graph_sha256 TEXT NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('active','retired','repair_required')),
+          created_at TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_graph_generation_active
+          ON graph_generations(subject_id) WHERE status='active';
+        CREATE TABLE IF NOT EXISTS graph_identity_mutations (
+          mutation_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          action TEXT NOT NULL,
+          preview_sha256 TEXT NOT NULL,
+          before_json TEXT NOT NULL,
+          after_json TEXT NOT NULL,
+          actor TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          rolled_back_at TEXT
+        );
+        """,
+    ),
+    (
+        "0100_storage_backend_metadata",
+        """
+        CREATE TABLE IF NOT EXISTS storage_backend_metadata (
+          backend_id TEXT PRIMARY KEY,
+          role TEXT NOT NULL CHECK (role IN ('canonical', 'derived')),
+          capabilities_json TEXT NOT NULL,
+          configuration_sha256 TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        """,
+    ),
+    (
+        "0120_api_idempotency_receipts",
+        """
+        CREATE TABLE IF NOT EXISTS api_idempotency_receipts (
+          principal_scope_sha256 TEXT NOT NULL,
+          operation TEXT NOT NULL,
+          idempotency_key TEXT NOT NULL,
+          payload_sha256 TEXT NOT NULL,
+          response_json TEXT NOT NULL,
+          status_code INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          PRIMARY KEY (principal_scope_sha256, operation, idempotency_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_api_idempotency_expiry
+          ON api_idempotency_receipts(expires_at);
+        """,
+    ),
+    (
+        "0140_interchange_runs",
+        """
+        CREATE TABLE IF NOT EXISTS interchange_runs (
+          run_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          archive_sha256 TEXT NOT NULL,
+          options_sha256 TEXT NOT NULL,
+          state TEXT NOT NULL,
+          checkpoint INTEGER NOT NULL DEFAULT 0,
+          counts_json TEXT NOT NULL DEFAULT '{}',
+          affected_ids_json TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(subject_id, archive_sha256, options_sha256)
+        );
+        CREATE TABLE IF NOT EXISTS interchange_items (
+          run_id TEXT NOT NULL,
+          source_id TEXT NOT NULL,
+          source_sha256 TEXT NOT NULL,
+          outcome TEXT NOT NULL,
+          record_ids_json TEXT NOT NULL DEFAULT '[]',
+          committed_at TEXT NOT NULL,
+          PRIMARY KEY(run_id, source_id),
+          FOREIGN KEY(run_id) REFERENCES interchange_runs(run_id)
+        );
+        """,
+    ),
+    (
+        "0150_memory_lifecycle",
+        """
+        CREATE TABLE IF NOT EXISTS memory_lifecycle (
+          subject_id TEXT NOT NULL,
+          record_id TEXT NOT NULL,
+          state TEXT NOT NULL,
+          generation INTEGER NOT NULL DEFAULT 1,
+          learned_at TEXT NOT NULL,
+          valid_from TEXT,
+          valid_to TEXT,
+          replaced_at TEXT,
+          last_used_at TEXT,
+          review_at TEXT,
+          expires_at TEXT,
+          archived_at TEXT,
+          deleted_at TEXT,
+          policy_json TEXT NOT NULL DEFAULT '{}',
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (subject_id, record_id),
+          FOREIGN KEY (record_id) REFERENCES records(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_memory_lifecycle_scan
+          ON memory_lifecycle(subject_id, state, expires_at, review_at);
+        CREATE TABLE IF NOT EXISTS memory_lifecycle_transitions (
+          transition_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          record_id TEXT NOT NULL,
+          from_state TEXT NOT NULL,
+          to_state TEXT NOT NULL,
+          base_generation INTEGER NOT NULL,
+          resulting_generation INTEGER NOT NULL,
+          actor TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          evidence_json TEXT NOT NULL DEFAULT '[]',
+          invalidation_json TEXT NOT NULL DEFAULT '{}',
+          occurred_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_memory_lifecycle_history
+          ON memory_lifecycle_transitions(subject_id, record_id, occurred_at);
+        CREATE TRIGGER IF NOT EXISTS memory_lifecycle_transitions_immutable
+        BEFORE UPDATE ON memory_lifecycle_transitions BEGIN
+          SELECT RAISE(ABORT, 'memory lifecycle transitions are immutable');
+        END;
+        """,
+    ),
+    (
+        "0160_governed_media_references",
+        """
+        CREATE TABLE IF NOT EXISTS governed_media_references (
+          artifact_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          media_kind TEXT NOT NULL,
+          locator_sha256 TEXT NOT NULL,
+          locator_json TEXT NOT NULL,
+          content_sha256 TEXT NOT NULL,
+          custody TEXT NOT NULL,
+          consent TEXT NOT NULL,
+          consent_generation INTEGER NOT NULL,
+          retention_json TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_governed_media_scope
+          ON governed_media_references(subject_id,workspace_id,status,consent);
+        CREATE TABLE IF NOT EXISTS governed_media_observations (
+          observation_id TEXT PRIMARY KEY,
+          artifact_id TEXT NOT NULL,
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          text_sha256 TEXT NOT NULL,
+          text TEXT NOT NULL,
+          evidence_region_json TEXT NOT NULL,
+          processor_json TEXT NOT NULL,
+          prompt_config_sha256 TEXT NOT NULL,
+          confidence REAL,
+          consent_generation INTEGER NOT NULL,
+          egress TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY(artifact_id) REFERENCES governed_media_references(artifact_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_governed_media_observation_scope
+          ON governed_media_observations(subject_id,workspace_id,status,artifact_id);
+        """,
+    ),
 )
+
+# Compatibility alias retained for downstream tests/extensions that imported
+# the pre-Spec-010 private name. The tuple itself is now the global registry.
+_BOOTSTRAP_MIGRATIONS = MIGRATION_REGISTRY
 
 
 def _session_binding_from_row(row: Any) -> dict[str, Any]:

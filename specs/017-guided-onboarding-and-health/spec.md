@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/017-guided-onboarding-and-health`
 **Created**: 2026-09-05
-**Status**: Draft
+**Status**: Implemented
 **Input**: `todo.md` P2.16
 
 ## Overview
@@ -77,3 +77,6 @@ Hiding security choices, auto-activating delivery, collecting private diagnostic
 - Specs 005, 006, 008, 012, and 015 supply the component contracts composed by the wizard.
 - Controlled usability evidence supplements rather than replaces automated state-machine tests.
 - Existing advanced setup commands remain supported during migration.
+## Invariant Attestation
+
+Touches INV-004, INV-006, INV-008, INV-009, and INV-010 through `spec017.activation-guard`, `spec017.explanation`, `spec017.health-proof`, `spec017.rollback`, and `spec017.local-discovery`.

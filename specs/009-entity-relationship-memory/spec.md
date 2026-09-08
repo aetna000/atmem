@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/009-entity-relationship-memory`
 **Created**: 2026-09-05
-**Status**: Draft
+**Status**: Implemented
 **Input**: `todo.md` P1.6
 
 ## Overview
@@ -74,3 +74,6 @@ An authoritative knowledge graph, unbounded traversal, or inferred edges without
 - Spec 008 provides the signal registry and rank/explanation contracts.
 - Graph materialization is always reproducible from canonical eligible records.
 - Ambiguous alias resolution requires review rather than probabilistic auto-merge.
+## Invariant Attestation
+
+Touches INV-001, INV-003, INV-006, and INV-007 through `spec009.derived-authority`, `spec009.path-revalidation`, `spec009.graph-provenance`, and `spec009.graph-deletion`.

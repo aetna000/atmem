@@ -64,6 +64,26 @@ frameworks = [
   "langgraph>=1.1.5,<2",
   "langchain>=1.0,<2",
 ]
+openai-agents = ["openai-agents>=0.2,<1"]
+microsoft-agent = ["agent-framework>=1.0.0b1,<2"]
+google-adk = ["google-adk>=1,<2"]
+smolagents = ["smolagents>=1,<2"]
+crewai = ["crewai>=0.100,<2"]
+postgres = [
+  "psycopg>=3.2,<4",
+]
+pgvector = [
+  "psycopg>=3.2,<4",
+  "pgvector>=0.4,<1",
+]
+qdrant = [
+  "qdrant-client>=1.15,<2",
+]
+storage-backends = [
+  "psycopg>=3.2,<4",
+  "pgvector>=0.4,<1",
+  "qdrant-client>=1.15,<2",
+]
 
 [project.scripts]
 atmem = "atmem.cli:main"

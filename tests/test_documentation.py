@@ -29,6 +29,13 @@ def test_documentation_structure_and_local_links() -> None:
             assert (path.parent / target).exists(), f"broken link in {path}: {target}"
 
 
+def test_onboarding_examples_cover_supported_entry_points() -> None:
+    examples = ROOT / "docs" / "examples" / "onboarding"
+    for name in ("openclaw.md", "pydantic-ai.md", "langgraph.md", "http.md"):
+        text = (examples / name).read_text(encoding="utf-8")
+        assert "onboarding" in text.casefold()
+
+
 def test_documented_mcp_catalog_matches_runtime() -> None:
     runtime_names = {
         tool["name"] for tool in MCPServer(Memory(":memory:"))._tool_definitions()

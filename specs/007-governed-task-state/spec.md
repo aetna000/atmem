@@ -1358,3 +1358,6 @@ deliveries and proposals attach to the correct execution link.
 - Replacing host transcript search, LangGraph checkpoints, or framework tracing.
 - Claiming that an AtMem correlation proves a real-world outcome beyond the
   evidence assurance recorded for that outcome.
+## Invariant Attestation
+
+Touches INV-001, INV-004, INV-005, and INV-008 through `spec007.task-authority`, `spec007.activation`, `spec007.delivery`, and `spec007.proof`.

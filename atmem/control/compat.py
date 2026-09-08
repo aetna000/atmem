@@ -17,7 +17,7 @@ import re
 # and every CLI surface the takeover path calls -- config get, plugins inspect,
 # gateway status/restart/stop, hooks disable -- were checked against a live
 # 2026.9.2 install.
-TESTED_OPENCLAW_VERSIONS = ("2026.7.1-2", "2026.8.1", "2026.9.2")
+TESTED_OPENCLAW_VERSIONS = ("2026.7.1-2", "2026.8.1", "2026.9.2", "2026.9.3")
 
 _VERSION_RE = re.compile(r"(?<!\d)(\d{4})\.(\d+)\.(\d+)(?:-(\d+))?(?!\d)")
 

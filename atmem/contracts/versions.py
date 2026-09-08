@@ -7,6 +7,18 @@ from typing import Any
 
 PROTOCOL_VERSION = "1"
 
+FRAMEWORK_ADAPTERS = {
+    "pydantic-ai": {"integration": "native-hooks", "exact_injection": True, "tool_lifecycle": True},
+    "langgraph": {"integration": "native-middleware", "exact_injection": True, "tool_lifecycle": True},
+    "openai-agents": {"integration": "callbacks", "exact_injection": True, "tool_lifecycle": True},
+    "microsoft-agent-framework": {"integration": "callbacks", "exact_injection": True, "tool_lifecycle": True},
+    "google-adk": {"integration": "callbacks", "exact_injection": True, "tool_lifecycle": True},
+    "smolagents": {"integration": "callbacks", "exact_injection": True, "tool_lifecycle": True},
+    "crewai": {"integration": "callbacks", "exact_injection": True, "tool_lifecycle": True},
+    "generic": {"integration": "callbacks", "exact_injection": True, "tool_lifecycle": True},
+    "mcp": {"integration": "tool-only", "exact_injection": False, "tool_lifecycle": False},
+}
+
 
 def capabilities() -> dict[str, Any]:
     # Derived, not asserted. AtMem cannot stop a host action, so enforcement is
@@ -64,4 +76,5 @@ def capabilities() -> dict[str, Any]:
         "governed_task_session_binding_adapters": list(session_binding_adapters()),
         "governed_task_host_proposal_adapters": list(host_proposal_adapters()),
         "governed_task_agent_delta_tool_adapters": list(agent_delta_tool_adapters()),
+        "framework_adapters": FRAMEWORK_ADAPTERS,
     }

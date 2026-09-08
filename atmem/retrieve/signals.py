@@ -24,6 +24,33 @@ SIGNAL_VERSIONS = {
     "atbot_rerank": "atbot-eligible-rerank-v1",
 }
 
+_EXTENSION_SIGNALS: dict[str, tuple[str, Callable[..., Any]]] = {}
+
+
+def register_signal(name: str, version: str, callback: Callable[..., Any]) -> None:
+    """Register one namespaced optional signal without replacing base signals."""
+    if name in SIGNAL_VERSIONS or name in _EXTENSION_SIGNALS:
+        raise ValueError(f"retrieval signal is already registered: {name}")
+    if not name.startswith("extension.") or not version.strip() or not callable(callback):
+        raise ValueError("extension signals require a namespaced name, version and callback")
+    _EXTENSION_SIGNALS[name] = (version, callback)
+
+
+def unregister_signal(name: str) -> None:
+    _EXTENSION_SIGNALS.pop(name, None)
+
+
+def registered_signals() -> dict[str, str]:
+    return {**SIGNAL_VERSIONS, **{name: value[0] for name, value in _EXTENSION_SIGNALS.items()}}
+
+
+def run_extension_signal(name: str, *args: Any, **kwargs: Any) -> Any:
+    try:
+        callback = _EXTENSION_SIGNALS[name][1]
+    except KeyError as exc:
+        raise ValueError(f"unregistered retrieval signal: {name}") from exc
+    return callback(*args, **kwargs)
+
 
 def bounded_score(value: Any) -> float:
     """Return a finite score in ``[0, 1]``; malformed evidence contributes 0."""

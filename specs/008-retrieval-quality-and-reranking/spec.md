@@ -105,3 +105,6 @@ Model-owned authorization, generated answers as canonical evidence, mandatory ho
 ## Assumptions
 
 Specs 002 and 005 provide aggregation and semantic-epoch foundations. Spec 009 registers graph/entity signals later. Strong embedding dependencies remain optional and enterprise-compatible.
+## Invariant Attestation
+
+Touches INV-002, INV-003, INV-005, and INV-010 through `spec008.authorization`, `spec008.revalidation`, `spec008.stable-context`, and `spec008.fallback`.

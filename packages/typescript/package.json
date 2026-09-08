@@ -1,0 +1,17 @@
+{
+  "name": "@atmem/client",
+  "version": "0.1.0-beta.1",
+  "description": "Typed client for the AtMem v1 API",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "engines": {"node": ">=20"},
+  "devDependencies": {"typescript": "^5.9.2"}
+}

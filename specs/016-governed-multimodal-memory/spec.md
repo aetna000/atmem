@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/016-governed-multimodal-memory`
 **Created**: 2026-09-05
-**Status**: Draft
+**Status**: Implemented
 **Input**: `todo.md` P2.15
 
 ## Overview
@@ -78,3 +78,6 @@ Becoming a general media store, silently retaining originals, or treating model 
 - Specs 005, 008, and 015 provide index, retrieval, and lifecycle foundations.
 - Hosts can resolve approved references through a bounded callback contract.
 - Unknown legacy consent/custody is not assumed permissive.
+## Invariant Attestation
+
+Touches INV-001, INV-002, INV-003, INV-006, and INV-007 through `spec016.reference-authority`, `spec016.preprocessor-auth`, `spec016.observation-revalidation`, `spec016.lineage`, and `spec016.revocation`.

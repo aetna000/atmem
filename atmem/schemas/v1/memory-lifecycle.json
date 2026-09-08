@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/memory-lifecycle.json",
+  "title": "AtMem Memory Lifecycle v1",
+  "type": "object",
+  "required": ["format", "subject_id", "record_id", "state", "generation", "learned_at", "evaluated_at", "eligible", "reason_codes"],
+  "properties": {
+    "format": {"const": "atmem-memory-lifecycle-v1"},
+    "subject_id": {"type": "string", "minLength": 1},
+    "record_id": {"type": "string", "minLength": 1},
+    "state": {"enum": ["active", "quarantined", "rejected", "superseded", "excluded", "archived", "forgotten"]},
+    "generation": {"type": "integer", "minimum": 1},
+    "learned_at": {"type": "string", "format": "date-time"},
+    "evaluated_at": {"type": "string", "format": "date-time"},
+    "eligible": {"type": "boolean"},
+    "reason_codes": {"type": "array", "items": {"type": "string"}}
+  }
+}

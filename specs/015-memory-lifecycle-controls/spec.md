@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/015-memory-lifecycle-controls`
 **Created**: 2026-09-05
-**Status**: Draft
+**Status**: Implemented
 **Input**: `todo.md` P2.14
 
 ## Overview
@@ -76,3 +76,6 @@ Unexplained autonomous deletion, rewriting immutable evidence, or claiming physi
 - Canonical evaluation uses a trusted explicit clock supplied to policy code.
 - Spec 010 registers non-SQLite derived stores and cache invalidators.
 - Backup deletion claims follow the documented retention or cryptographic-erasure boundary.
+## Invariant Attestation
+
+Touches INV-001, INV-003, INV-006, INV-007, and INV-011 through `spec015.lifecycle-authority`, `spec015.eligibility`, `spec015.timeline`, `spec015.forget`, and `spec015.migration`.

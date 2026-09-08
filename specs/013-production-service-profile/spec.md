@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/013-production-service-profile`
 **Created**: 2026-09-05
-**Status**: Draft
+**Status**: Implemented
 **Input**: `todo.md` P2.13
 
 ## Overview
@@ -76,3 +76,6 @@ Managed SaaS operation, unsupported multi-region consensus, or storing plaintext
 - Specs 010, 012, and 015 are completed before production readiness is claimed.
 - Operators provide supported TLS certificates, secret storage, and backup destinations.
 - The local single-user profile remains a distinct supported deployment mode.
+## Invariant Attestation
+
+Touches INV-001, INV-002, INV-007, INV-008, and INV-010 through `spec013.tenant-authority`, `spec013.key-auth`, `spec013.deletion-recovery`, `spec013.admin-audit`, and `spec013.degradation`.
