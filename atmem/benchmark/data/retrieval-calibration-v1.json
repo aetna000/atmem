@@ -1,0 +1,11 @@
+{
+  "format": "atmem-retrieval-quality-cases-v1",
+  "name": "retrieval-calibration-v1",
+  "purpose": "Threshold development only; never used as held-out release evidence.",
+  "cases": [
+    {"id":"cal-food-1","query":"what is my favourite lunch?","expected_record_id":"burger","candidates":[{"record_id":"burger","content":"JT likes burgers.","score":0.8,"signals":{"fact_key":"food preference"}}]},
+    {"id":"cal-food-2","query":"which food do I prefer?","expected_record_id":"burger","candidates":[{"record_id":"burger","content":"JT likes burgers.","score":0.8,"signals":{"fact_key":"food preference"}}]},
+    {"id":"cal-none-1","query":"Australian car availability","candidates":[{"record_id":"burger","content":"JT likes burgers.","score":0.9,"signals":{"fact_key":"food preference"}}]},
+    {"id":"cal-none-2","query":"weather in Hobart","candidates":[{"record_id":"burger","content":"JT likes burgers.","score":0.9,"signals":{"fact_key":"food preference"}}]}
+  ]
+}

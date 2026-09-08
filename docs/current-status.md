@@ -1,9 +1,9 @@
 # Current implementation status
 
-Updated: 7 September 2026
+Updated: 9 September 2026
 
-Repository metadata is **2.2.6b10** and the matched OpenClaw bridge is
-**2.2.6-beta.10**. This repository state is the release candidate; package and
+Repository metadata is **2.2.6b11** and the matched OpenClaw bridge is
+**2.2.6-beta.11**. This repository state is the release candidate; package and
 tag availability must be checked independently until the release workflow has
 published them. Native AtMem authority remains the default after installation
 or upgrade. The required `atmem-atbot==0.1.0a6` companion is packaged
@@ -29,6 +29,8 @@ The release has four runtime boundaries:
 | Candidate authorization before AtBot and ID revalidation afterward | Implemented | Implemented |
 | Byte-stable context preparation and exact exposure receipt | Implemented by contract | Implemented by bridge hooks |
 | Pydantic AI and LangChain/LangGraph automatic lifecycle adapters | Packaged optional adapters | Not applicable; OpenClaw uses its bridge |
+| Shared calibrated direct/background/no-useful retrieval decision | Dashboard, control, Pydantic AI, LangGraph, governed MCP | Native OpenClaw control path |
+| Delegated exact-byte context delivery | Pydantic AI and LangChain/LangGraph | OpenClaw bridge |
 | Governed Task State revisions, lifecycle, provenance, expiry, and safe context | Exact-ID delivery through packaged adapters | Exact-ID delivery when OpenClaw supplies `taskId` |
 | AtBot task observation proposals with AtMem revalidation | Implemented through the loopback companion | Same authority boundary |
 | Task dashboard and complete task CLI | Implemented | Same dashboard and CLI |
@@ -91,7 +93,7 @@ The release has four runtime boundaries:
 ## Upgrade and support status
 
 - The release workflow creates persisted data with public AtMem 2.1.0, 2.2.3,
-  2.2.4, and 2.2.5, upgrades each environment to 2.2.6b10, and verifies record identity, recall, audit
+  2.2.4, and 2.2.5, upgrades each environment to 2.2.6b11, and verifies record identity, recall, audit
   integrity, control migration identity, candidate retention, schema migration,
   and automatic vector-sidecar creation as a protected publication gate.
 - Existing OpenClaw installations upgrade the bridge with

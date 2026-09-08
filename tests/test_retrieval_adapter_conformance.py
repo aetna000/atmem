@@ -8,6 +8,7 @@ from atmem import Memory
 from atmem.adapters import AtMemAdapterIdentity, AtMemTurnLifecycle
 from atmem.control import ControlMode, ControlPlaneManager
 from atmem.control.server import ControlMCPServer
+from atmem.mcp.server import MCPServer
 
 
 @pytest.fixture
@@ -84,3 +85,25 @@ def test_control_mcp_preserves_no_useful_memory(governed_manager) -> None:
     assert payload["inject"] is False
     assert payload["candidate_ids"] == []
     assert payload["retrieval"]["decision"]["support_class"] == "no_useful_memory"
+
+
+def test_dashboard_exposes_safe_reconciled_decision(governed_manager) -> None:
+    payload = governed_manager.memory_query("what cars are available in Australia?")
+    assert payload["explanation"]["support_class"] == "no_useful_memory"
+    assert payload["explanation"]["selected_record_ids"] == []
+    assert payload["explanation"]["content_included"] is False
+    assert payload["semantic_health"]["status"] in {"missing", "weak", "healthy"}
+
+
+def test_raw_mcp_governed_recall_preserves_no_useful_memory(tmp_path) -> None:
+    memory = Memory(tmp_path / "mcp.db")
+    try:
+        memory.remember("local-user", "JT likes burgers.")
+        payload = MCPServer(memory, default_subject="local-user")._tool_recall_decision(
+            {"query": "what cars are available in Australia?"}
+        )
+        assert payload["decision"]["support_class"] == "no_useful_memory"
+        assert payload["records"] == []
+        assert payload["context"]["record_ids"] == ()
+    finally:
+        memory.close()

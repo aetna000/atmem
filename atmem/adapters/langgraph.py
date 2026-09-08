@@ -63,6 +63,8 @@ def create_langgraph_middleware(
             model_name = _model_name(request.model)
             turn.model_input(
                 [_message_value(message) for message in messages],
+                context_segments=[_message_value(message) for message in messages],
+                context_location="langgraph:human-message",
                 provider="langchain",
                 model=model_name,
                 history_count=len(messages),
@@ -100,6 +102,8 @@ def create_langgraph_middleware(
             model_name = _model_name(request.model)
             turn.model_input(
                 [_message_value(message) for message in messages],
+                context_segments=[_message_value(message) for message in messages],
+                context_location="langgraph:human-message",
                 provider="langchain",
                 model=model_name,
                 history_count=len(messages),
@@ -159,6 +163,7 @@ def create_langgraph_middleware(
                     turn_id=runtime_identity.get("turn_id"),
                     task_id=runtime_identity.get("task_id"),
                     session_id=runtime_identity.get("session_id"),
+                    user_id=runtime_identity.get("user_id"),
                 ),
             )
             turn.begin(_latest_user_text(state))
@@ -170,7 +175,9 @@ def create_langgraph_middleware(
             with self._lock:
                 turn = self._turns.get(run_id)
             if turn is None:
-                raise RuntimeError("AtMem LangGraph before_agent hook did not initialize")
+                raise RuntimeError(
+                    "AtMem LangGraph before_agent hook did not initialize"
+                )
             return turn
 
         def _finish(self, runtime: Any) -> None:
@@ -207,7 +214,11 @@ def _langgraph_execution_identity(runtime: Any) -> dict[str, str]:
         for name in names:
             value = configurable.get(name)
             if value is None:
-                value = context_values.get(name) if context_values else getattr(context, name, None)
+                value = (
+                    context_values.get(name)
+                    if context_values
+                    else getattr(context, name, None)
+                )
             if value is not None and str(value).strip():
                 return str(value)
         return None
@@ -218,6 +229,7 @@ def _langgraph_execution_identity(runtime: Any) -> dict[str, str]:
             "task_id": read("atmem_task_id", "task_id"),
             "turn_id": read("atmem_turn_id", "turn_id"),
             "session_id": read("atmem_session_id", "session_id", "thread_id"),
+            "user_id": read("atmem_authenticated_user_id"),
         }.items()
         if value
     }
@@ -226,7 +238,9 @@ def _langgraph_execution_identity(runtime: Any) -> dict[str, str]:
 def _latest_user_text(state: Any) -> str:
     messages = state.get("messages", ()) if isinstance(state, dict) else ()
     for message in reversed(list(messages)):
-        role = str(getattr(message, "type", None) or getattr(message, "role", None) or "")
+        role = str(
+            getattr(message, "type", None) or getattr(message, "role", None) or ""
+        )
         if role in {"human", "user"}:
             return _message_value(message)
         if isinstance(message, dict) and str(message.get("role")) == "user":

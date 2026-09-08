@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from copy import deepcopy
+from datetime import datetime, timezone
 import json
 import re
 from typing import Any, Mapping
@@ -24,6 +25,7 @@ from atmem.store.sqlite import utc_now
 EVENT_FORMAT = "atmem-agent-blackbox-event-v2"
 REPORT_FORMAT = "atmem-agent-blackbox-report-v2"
 EVIDENCE_KIND = "agent_blackbox"
+OPEN_FLIGHT_GRACE_SECONDS = 15 * 60
 
 _EVENT_TYPE = re.compile(r"^[a-z][a-z0-9_.-]{1,63}$")
 _DIGEST_KEYS = {
@@ -237,6 +239,7 @@ def verify_flight(
     entries: list[dict[str, Any]],
     chain: Mapping[str, Any],
     model_baseline: tuple[str, str] | None = None,
+    as_of: str | None = None,
 ) -> dict[str, Any]:
     selected = [
         entry
@@ -303,6 +306,29 @@ def verify_flight(
     event_types = [str(entry["body"].get("event_type") or "") for entry in selected]
     turn_input = "turn.input" in event_types
     terminal = "turn.ended" in event_types
+    generated_at = as_of or utc_now()
+    open_age_seconds: float | None = None
+    if not terminal:
+        try:
+            observed = datetime.fromisoformat(
+                str(selected[-1]["body"]["recorded_at"]).replace("Z", "+00:00")
+            )
+            current = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+            if observed.tzinfo is not None and current.tzinfo is not None:
+                open_age_seconds = max(
+                    0.0,
+                    (
+                        current.astimezone(timezone.utc)
+                        - observed.astimezone(timezone.utc)
+                    ).total_seconds(),
+                )
+        except (KeyError, TypeError, ValueError):
+            open_age_seconds = None
+    flight_in_progress = bool(
+        not terminal
+        and open_age_seconds is not None
+        and open_age_seconds < OPEN_FLIGHT_GRACE_SECONDS
+    )
     model_input = "model.input" in event_types
     model_output = "model.output" in event_types
     context_entry = next(
@@ -448,6 +474,8 @@ def verify_flight(
         if cancelled
         else "failed"
         if any(value == "failed" for value in component_status.values())
+        else "in_progress"
+        if flight_in_progress
         else "incomplete"
         if any(value == "missing" for value in component_status.values())
         else "warning"
@@ -460,6 +488,8 @@ def verify_flight(
         verdict = "cancelled"
     elif failed:
         verdict = "failed"
+    elif flight_in_progress:
+        verdict = "in_progress"
     elif not structurally_complete:
         verdict = "incomplete_evidence"
     elif tool_errors:
@@ -494,7 +524,7 @@ def verify_flight(
     legacy_flight = not current_contract_observed
     report_body = {
         "format": REPORT_FORMAT,
-        "generated_at": utc_now(),
+        "generated_at": generated_at,
         "run_id": run_id,
         "session_id": next(
             (
@@ -535,6 +565,15 @@ def verify_flight(
             "components": component_status,
         },
         "lifecycle": {
+            "state": (
+                "completed"
+                if terminal
+                else "in_progress"
+                if flight_in_progress
+                else "awaiting_terminal"
+            ),
+            "seconds_since_last_event": open_age_seconds,
+            "stale_after_seconds": OPEN_FLIGHT_GRACE_SECONDS if not terminal else None,
             "success": succeeded,
             "failed": failed,
             "cancelled": cancelled,
@@ -714,9 +753,10 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
             "completion",
             "medium",
             "recording_stopped",
-            "Run ended without a recorded result",
-            observed + " No tool failure or external change is proven.",
-            "Review the OpenClaw result, then acknowledge this recording gap.",
+            "Run has not reported a final result",
+            observed
+            + " The run may still be active; no tool failure, ending, or external change is proven.",
+            "Check whether the host run is still active, then review this recording gap if it has stopped.",
         )
     components = (report.get("coverage_matrix") or {}).get("components") or {}
     if verdict == "failed":
@@ -760,7 +800,19 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
     ) + int(tools.get("uncorrelated_requests") or 0) + int(
         tools.get("uncorrelated_completions") or 0
     )
-    if tool_gaps and not legacy_flight and not recording_gap:
+    tool_evidence_conflict = bool(
+        tools.get("orphan_completions")
+        or tools.get("conflicting_requests")
+        or tools.get("conflicting_completions")
+        or tools.get("uncorrelated_requests")
+        or tools.get("uncorrelated_completions")
+    )
+    if (
+        tool_gaps
+        and (verdict != "in_progress" or tool_evidence_conflict)
+        and not legacy_flight
+        and not recording_gap
+    ):
         add(
             "tools",
             "high",
@@ -800,6 +852,7 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
         )
     elif (
         not coverage.get("context_disposition_observed")
+        and verdict != "in_progress"
         and not legacy_flight
         and not recording_gap
     ):

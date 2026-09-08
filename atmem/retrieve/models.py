@@ -43,11 +43,15 @@ class CandidateDecision:
     relevance_score: float
     rank_score: float
     signals: dict[str, float]
+    signal_contributions: tuple[SignalContribution, ...]
     reason_codes: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
         value["support_class"] = self.support_class.value
+        value["signal_contributions"] = [
+            asdict(signal) for signal in self.signal_contributions
+        ]
         return value
 
 

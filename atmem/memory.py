@@ -73,6 +73,7 @@ def _embedder_for_epoch(epoch: dict[str, Any]) -> Any:
         str(identity.get("model") or ""),
         endpoint=endpoint,
         model_version=str(identity.get("version") or "unverified"),
+        dimensions=int(epoch.get("dimensions") or 0) or None,
     )
 
 
@@ -779,9 +780,9 @@ class Memory:
                         record_id = str(match["record_id"])
                         score = float(match["similarity"])
                         if record_id in by_id:
-                            by_id[record_id]["score"] = max(
-                                float(by_id[record_id].get("score") or 0.0), score
-                            )
+                            # Preserve the native candidate prior. Semantic
+                            # similarity has its own normalized signal and is
+                            # never fused with lexical/trust/recency via raw max.
                             by_id[record_id]["semantic"] = match
                         elif record_id in records:
                             row = {**records[record_id], "score": score, "semantic": match}

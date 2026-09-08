@@ -42,6 +42,8 @@ class SemanticHealthReason(str, Enum):
     CANONICAL_DRIFT = "canonical_drift"
     POLICY_CHANGED = "policy_changed"
     VERIFICATION_FAILED = "verification_failed"
+    PROFILE_INCOMPLETE = "profile_incomplete"
+    REVISION_UNVERIFIED = "revision_unverified"
     VERIFIED = "verified"
 
 
@@ -301,6 +303,31 @@ def evaluate_semantic_health(
             manifest,
             _report_digest(verification),
         )
+    identity = active_epoch.get("identity") or {}
+    required_profile = (
+        "revision", "distance", "normalization", "query_prefix",
+        "document_prefix", "preprocessing_version", "quality_class", "license",
+    )
+    if identity.get("quality_class") and any(key not in identity for key in required_profile):
+        return SemanticHealth(
+            SemanticHealthStatus.LEGACY,
+            subject_id,
+            (SemanticHealthReason.PROFILE_INCOMPLETE,),
+            ("rebuild",),
+            manifest,
+            _report_digest(verification),
+        )
+    if identity.get("quality_class") == "production" and str(
+        identity.get("revision") or identity.get("version") or ""
+    ).casefold() in {"", "unverified", "latest", "main"}:
+        return SemanticHealth(
+            SemanticHealthStatus.INCOMPATIBLE,
+            subject_id,
+            (SemanticHealthReason.REVISION_UNVERIFIED,),
+            ("rebuild",),
+            manifest,
+            _report_digest(verification),
+        )
     return SemanticHealth(
         SemanticHealthStatus.HEALTHY,
         subject_id,
@@ -383,9 +410,9 @@ def _epoch_policy_sha256(epoch: Mapping[str, Any]) -> str | None:
 def _identity_matches(epoch: Mapping[str, Any], expected: Mapping[str, Any]) -> bool:
     identity = epoch.get("identity", {})
     keys = (
-        "provider", "model", "version", "model_digest", "endpoint",
-        "normalization", "query_prefix", "document_prefix",
-        "preprocessing_version", "quality_class",
+        "provider", "model", "version", "revision", "model_digest", "endpoint",
+        "dimensions", "distance", "normalization", "query_prefix", "document_prefix",
+        "preprocessing_version", "quality_class", "license",
     )
     return all(
         key not in expected or str(expected.get(key)) == str(identity.get(key))

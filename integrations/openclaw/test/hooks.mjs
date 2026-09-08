@@ -358,6 +358,8 @@ for line in sys.stdin:
             query = arguments.get("query") or ""
             if not arguments.get("user_id"):
                 value = {"inject":False,"context":"","authority":"delegated","decision":"provider_failure","mode":"active","candidate_ids":[],"reason":"missing authenticated user"}
+            elif "Australia" in query:
+                value = {"inject":False,"context":"","authority":"atmem","decision":"no_useful_memory","mode":"active","candidate_ids":[],"retrieval":{"decision":{"format":"atmem-retrieval-decision-v1","calibration_version":"retrieval-calibration-v1","support_class":"no_useful_memory","ranked_record_ids":[],"candidates":[],"reason_codes":["no_relevance_signal"]}}}
             elif "withhold" in query:
                 value = {"inject":False,"context":"","authority":"delegated","decision":"withhold","mode":"active","candidate_ids":[],"context_receipt_id":"receipt-withhold"}
             elif "reject" in query:
@@ -413,6 +415,11 @@ for line in sys.stdin:
     { ...delegatedCtx, sessionKey: "withhold", sessionId: "withhold", runId: "withhold" },
   );
   assert.equal(withheld, undefined);
+  const unrelated = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "what cars are available in Australia?" },
+    { ...delegatedCtx, sessionKey: "cars", sessionId: "cars", runId: "cars" },
+  );
+  assert.equal(unrelated, undefined);
   const rejected = await delegatedRuntime.hooks.get("before_prompt_build")(
     { prompt: "reject invalid signed result" },
     { ...delegatedCtx, sessionKey: "reject", sessionId: "reject", runId: "reject" },
@@ -465,7 +472,7 @@ for line in sys.stdin:
   assert.equal(authorizationEvents[0].arguments.context_receipt_id, "receipt-1");
   assert.equal(
     delegatedCalls.filter((row) => row.name === "control_prepare").length,
-    7,
+    8,
   );
   // Resolution is attempted on every turn carrying a session identity, not
   // only when the host names a task: OpenClaw supplies no task identity of its
@@ -475,7 +482,7 @@ for line in sys.stdin:
   const taskPrepareCalls = delegatedCalls.filter(
     (row) => row.name === "control_prepare_task_context",
   );
-  assert.equal(taskPrepareCalls.length, 7);
+  assert.equal(taskPrepareCalls.length, 8);
   for (const call of taskPrepareCalls) {
     // Never a partial identity: all three parts or the bridge does not ask.
     assert.equal(call.arguments.host_type, "openclaw");

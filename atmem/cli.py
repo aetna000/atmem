@@ -518,6 +518,7 @@ External evaluation:
     )
     index_build.add_argument("--model", default=None)
     index_build.add_argument("--model-version", default="unverified")
+    index_build.add_argument("--dimensions", type=int, default=None)
     index_build.add_argument("--endpoint", default=None)
     index_build.add_argument("--api-key-env", default=None)
     index_build.add_argument("--index-path", default=None)
@@ -564,6 +565,7 @@ External evaluation:
             )
             command_parser.add_argument("--model", default=None)
             command_parser.add_argument("--model-version", default="unverified")
+            command_parser.add_argument("--dimensions", type=int, default=None)
             command_parser.add_argument("--endpoint", default=None)
             command_parser.add_argument("--api-key-env", default=None)
             command_parser.add_argument("--batch-size", type=int, default=64)
@@ -2255,6 +2257,7 @@ def _semantic_search_resources(
         endpoint=args.endpoint or identity.get("endpoint"),
         api_key_env=args.api_key_env,
         model_version=args.model_version or str(identity.get("version", "unverified")),
+        dimensions=getattr(args, "dimensions", None) or int(epoch.get("dimensions") or 0) or None,
     )
     return index, embedder
 
@@ -2286,6 +2289,7 @@ def _run_index(args: argparse.Namespace) -> None:
                 endpoint=args.endpoint,
                 api_key_env=args.api_key_env,
                 model_version=args.model_version,
+                dimensions=args.dimensions,
             )
             report = index.build(
                 memory,
@@ -2381,6 +2385,7 @@ def _run_semantic(args: argparse.Namespace) -> None:
             endpoint=args.endpoint,
             api_key_env=args.api_key_env,
             model_version=args.model_version,
+            dimensions=args.dimensions,
         )
         built = index.build(
             memory,

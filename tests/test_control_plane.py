@@ -685,7 +685,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         ]
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.2.6-beta.10"
+        assert product["atmem_npm_version"] == "2.2.6-beta.11"
         assert product["x_url"] == "https://x.com/AtMemX"
         profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
         assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])
@@ -1006,6 +1006,7 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
         "hero",
         "checks",
         "blackboxArchiveCard",
+        "blackboxWorkspace",
         "memorySearchCard",
         "mirrorCard",
         "auditExplorer",
@@ -1025,6 +1026,26 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     assert document["styles"] == 1
     assert document["scripts"] == 1
     assert 'src="/assets/atmem.jpg"' in html
+
+
+def test_dashboard_evidence_uses_an_inline_responsive_master_detail_view() -> None:
+    from atmem.control.web import dashboard_html
+
+    html = dashboard_html()
+    workspace = html.index('id="blackboxWorkspace"')
+    flights = html.index('id="blackboxFlights"')
+    evidence = html.index('id="auditorBackdrop"')
+    archive_end = html.index('id="mirrorCard"')
+
+    assert workspace < flights < evidence < archive_end
+    assert 'class="backdrop auditorpane"' in html
+    assert 'role="region" aria-labelledby="auditorTitle"' in html
+    assert 'aria-modal="true"' not in html
+    assert ".blackboxworkspace.detail-open" in html
+    assert "overflow-wrap:anywhere" in html
+    assert 'document.body.style.overflow="hidden"' not in html
+    assert 'function openAuditor(){showView("evidence")' not in html
+    assert 'active=document.querySelector(".tabpanel.active")' in html
 
 
 def test_dashboard_references_only_known_api_endpoints() -> None:
@@ -1113,6 +1134,36 @@ def test_dashboard_copy_keeps_product_safety_invariants() -> None:
     assert "Source image being reviewed" in html
     assert "not the image pixels" in html
     assert "Reject and purge" in html
+    # A failed-verification banner must navigate to the concrete verification
+    # result, even when the user is already looking at the Evidence tab.
+    assert 'text("statusAction","Review failure")' in html
+    assert 'showView("verifyStatus")' in html
+    assert "routefocus" in html
+    assert 'headline="Agent run in progress"' in html
+    assert '.activityrow.running:after{content:"In progress"' in html
+    # Dense controls stay compact until the operator asks for detail.
+    assert 'class="memorydelivery"' not in html
+    assert 'element("details","memorydelivery")' in html
+    assert '"governed memories delivered"' in html
+    assert ".memorychat.collapsed{left:auto;right:24px;width:auto" in html
+    assert 'element("button","evidencechip technicaljump","Technical evidence")' in html
+    assert 'storyCard=element("section","card audittable")' in html
+    assert ".audittable .storystep>div{display:grid;grid-template-columns:156px" in html
+    # Flight review leads with exact problem events and distinguishes a tool
+    # error from a missing host completion observation.
+    assert 'element("section","card flightdiagnosis")' in html
+    assert 'title:"Completion evidence is missing"' in html
+    assert 'title:"Tool returned an error"' in html
+    assert 'item.dataset.eventSequence=String(event.sequence)' in html
+    assert ".technical .event.issue-error" in html
+    assert 'return "Acknowledge evidence gap"' in html
+    assert 'return "Acknowledge tool failure"' in html
+    assert 'element("section","card reviewresolution")' in html
+    assert "it never repairs, retries, or deletes evidence" in html
+    assert 'item=element("article","flight "+tone)' in html
+    assert 'element("time","flighttimestamp",displayTime(row.ended_at||row.started_at))' in html
+    assert ".flight.review{border-left-color:var(--warn)" in html
+    assert ".flight.failed{border-left-color:var(--bad)" in html
     # The public namespace is atmem only.
     assert ("aetna" + "mem") not in html.casefold()
     # Mockup-only comparison figures must never be presented as live evidence.

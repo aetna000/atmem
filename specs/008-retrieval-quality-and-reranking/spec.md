@@ -2,8 +2,8 @@
 
 **Feature directory**: `specs/008-retrieval-quality-and-reranking`
 **Created**: 2026-09-05
-**Updated**: 2026-09-06
-**Status**: Approved for implementation
+**Updated**: 2026-09-08
+**Status**: Implemented
 **Input**: `todo.md` P0.4 and the cross-adapter retrieval investigation
 
 ## Overview

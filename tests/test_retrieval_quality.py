@@ -138,6 +138,15 @@ def test_topical_non_answer_is_background_and_withheld_by_default() -> None:
     assert decision.support_class is SupportClass.BACKGROUND
     assert decision.ranked_record_ids == ()
 
+    permitted = decide_retrieval(
+        "transport safety innovation efficiency",
+        [_candidate("transport", "A transport preference was recorded.")],
+        allow_background=True,
+    )
+    assert permitted.support_class is SupportClass.BACKGROUND
+    assert permitted.ranked_record_ids == ("transport",)
+    assert permitted.reason_codes == ("background_context_permitted",)
+
 
 def test_retrieval_decision_matches_the_published_contract() -> None:
     decision = decide_retrieval(

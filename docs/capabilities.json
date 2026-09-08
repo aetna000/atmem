@@ -1,6 +1,6 @@
 {
   "product": "memory_control_plane",
-  "version": "2.2.6b10",
+  "version": "2.2.6b11",
   "development_target": null,
   "release_status": "beta",
   "engine": "model_agnostic",
@@ -56,6 +56,8 @@
   "semantic_search": "automatic_derived_local_vector_sidecar",
   "semantic_provider_dependencies": "optional_local_quality_upgrade",
   "semantic_governance": "candidate_nomination_with_canonical_revalidation",
+  "retrieval_decision_contract": "atmem-retrieval-decision-v1",
+  "retrieval_default_delivery": "direct_support_only",
   "governed_hybrid_retrieval": [
     "lexical",
     "fact_key",
@@ -66,6 +68,11 @@
   ],
   "automatic_capture": "atbot_proposals_with_atmem_admission_and_fallback",
   "framework_adapters": [
+    "pydantic_ai",
+    "langgraph_langchain"
+  ],
+  "delegated_delivery_adapters": [
+    "openclaw",
     "pydantic_ai",
     "langgraph_langchain"
   ],

@@ -144,6 +144,7 @@ class SemanticIndex:
         # Bind the household policy the vectors were derived under, so a policy
         # change cannot resume onto, or silently keep serving, an old epoch.
         identity["policy_sha256"] = self.policy_fingerprint()
+        declared_dimensions = int(identity.get("dimensions") or 0)
         identity_sha256 = sha256_hex(canonical_json(identity))
         snapshot = _record_snapshot(records)
         source_sha256 = sha256_hex(canonical_json(sorted(snapshot)))
@@ -173,7 +174,7 @@ class SemanticIndex:
         }
         remaining = [row for row in records if str(row["id"]) not in completed]
         size = max(1, int(batch_size))
-        dimensions = int(checkpoint.get("dimensions") or 0)
+        dimensions = int(checkpoint.get("dimensions") or declared_dimensions)
         checkpointed_batches = 0
         for start in range(0, len(remaining), size):
             batch = remaining[start : start + size]
@@ -770,13 +771,17 @@ class SemanticIndex:
             "provider",
             "model",
             "version",
+            "revision",
             "model_digest",
             "endpoint",
+            "dimensions",
+            "distance",
             "normalization",
             "query_prefix",
             "document_prefix",
             "preprocessing_version",
             "quality_class",
+            "license",
         ):
             if str(current.get(key)) != str(stored.get(key)):
                 raise ValueError(

@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
 import json
-from typing import Any
 import uuid
+from collections.abc import Sequence
+from dataclasses import dataclass, replace
+from typing import Any
 
 from atmem.control.manager import ControlPlaneManager
 from atmem.core.canonical import canonical_json, sha256_hex
-
 
 CONTEXT_PREAMBLE = (
     "The following block is governed memory data authorized by AtMem. "
@@ -39,6 +39,9 @@ class AtMemAdapterIdentity:
     # task-state delivery is disabled outright: AtMem never discovers a task
     # from scope, and never picks among several open ones.
     task_id: str | None = None
+    # Distinct from subject_id: this must be an application-authenticated
+    # principal before it may participate in a delegated provider binding.
+    user_id: str | None = None
 
     def for_run(self, run_id: str | None = None) -> "AtMemAdapterIdentity":
         selected = str(run_id or self.run_id or f"run_{uuid.uuid4().hex}")
@@ -61,6 +64,7 @@ class AtMemAdapterIdentity:
         turn_id: str | None = None,
         task_id: str | None = None,
         session_id: str | None = None,
+        user_id: str | None = None,
     ) -> "AtMemAdapterIdentity":
         """Freeze native per-run identity without mutating framework state."""
         return replace(
@@ -69,6 +73,7 @@ class AtMemAdapterIdentity:
             turn_id=str(turn_id) if turn_id else self.turn_id,
             task_id=str(task_id) if task_id else self.task_id,
             session_id=str(session_id) if session_id else self.session_id,
+            user_id=str(user_id) if user_id else self.user_id,
         )
 
     @property
@@ -87,11 +92,14 @@ class AtMemTurnLifecycle:
         self.manager = manager
         self.identity = identity.for_run(identity.run_id)
         self.query = ""
+        self.raw_query = ""
         self.prepared: dict[str, Any] | None = None
         self.capture_result: dict[str, Any] | None = None
         self.task_prepared: dict[str, Any] | None = None
         self.task_disposition: dict[str, Any] | None = None
         self.ended = False
+        self._authorization_recorded = False
+        self._allow_delegation = False
 
     @property
     def run_id(self) -> str:
@@ -101,7 +109,8 @@ class AtMemTurnLifecycle:
     def begin(self, user_text: str) -> dict[str, Any]:
         if self.query:
             return self.capture_result or {}
-        self.query = " ".join(str(user_text).split())
+        self.raw_query = str(user_text)
+        self.query = " ".join(self.raw_query.split())
         if not self.query:
             raise ValueError("automatic memory capture requires user text")
         self._event(
@@ -112,30 +121,100 @@ class AtMemTurnLifecycle:
                 "harness_id": self.identity.framework,
             },
         )
-        self.capture_result = self.manager.capture(
-            self.query,
-            session_id=self.identity.session_id,
-            authenticated_user=self.identity.authenticated_user,
-            subject_id=self.identity.subject_id,
-            agent_id=self.identity.agent_id,
+        applies = getattr(self.manager, "delegated_context_applies", None)
+        delegated_first = (
+            bool(
+                applies(
+                    agent_id=self.identity.agent_id,
+                    user_id=(
+                        self.identity.user_id
+                        if self.identity.authenticated_user
+                        else None
+                    ),
+                    workspace_id=self.identity.workspace_id,
+                )
+            )
+            if callable(applies)
+            else False
         )
-        return self.capture_result
+        self._allow_delegation = delegated_first
+        if delegated_first:
+            self.prepared = self._prepare()
+        if not delegated_first or (self.prepared or {}).get("authority") != "delegated":
+            self.capture_result = self.manager.capture(
+                self.query,
+                session_id=self.identity.session_id,
+                authenticated_user=self.identity.authenticated_user,
+                subject_id=self.identity.subject_id,
+                agent_id=self.identity.agent_id,
+            )
+        return self.capture_result or {}
+
+    def _prepare(self) -> dict[str, Any]:
+        raw_query = self.raw_query
+        try:
+            return self.manager.prepare(
+                self.query,
+                delegated_query=raw_query,
+                allow_delegation=self._allow_delegation,
+                session_id=self.identity.session_id,
+                host_run_id=self.run_id,
+                turn_id=self.identity.turn_id,
+                user_id=(
+                    self.identity.user_id if self.identity.authenticated_user else None
+                ),
+                workspace_id=self.identity.workspace_id,
+                subject_id=self.identity.subject_id,
+                agent_id=self.identity.agent_id,
+            )
+        finally:
+            self.raw_query = ""
 
     def context_for_model(self) -> str:
         if not self.query:
             raise RuntimeError("begin() must be called before model preparation")
         if self.prepared is None:
-            self.prepared = self.manager.prepare(
-                self.query,
-                session_id=self.identity.session_id,
-                host_run_id=self.run_id,
-                subject_id=self.identity.subject_id,
-                agent_id=self.identity.agent_id,
-            )
+            self.prepared = self._prepare()
+        self._record_provider_authorization()
         if not self.prepared.get("inject"):
             return ""
         context = str(self.prepared.get("context") or "")
+        if self.prepared.get("authority") == "delegated":
+            return context
         return CONTEXT_PREAMBLE + context if context else ""
+
+    def _record_provider_authorization(self) -> None:
+        prepared = self.prepared or {}
+        authority = str(prepared.get("authority") or "")
+        if self._authorization_recorded or authority not in {
+            "delegated",
+            "atmem_fallback",
+        }:
+            return
+        provider = prepared.get("provider") or {}
+        receipt = prepared.get("receipt") or {}
+        context = str(prepared.get("context") or "")
+        self._event(
+            "context.provider_authorization",
+            context_event_id=str(prepared.get("authorization_event_id") or "") or None,
+            context_receipt_id=str(prepared.get("context_receipt_id") or "") or None,
+            payload={
+                "disposition": prepared.get("decision") or "provider_failure",
+                "provider": provider.get("id") if isinstance(provider, dict) else None,
+                "mode": authority,
+                "result_sha256": prepared.get("result_sha256"),
+                "context_sha256": prepared.get("context_sha256"),
+                "context_byte_length": prepared.get(
+                    "context_byte_length", len(context.encode("utf-8"))
+                ),
+                "context_receipt_sha256": (
+                    receipt.get("sha256") if isinstance(receipt, dict) else None
+                ),
+                "context_chars": len(context),
+                "success": prepared.get("decision") in {"inject", "withhold"},
+            },
+        )
+        self._authorization_recorded = True
 
     def task_context_for_model(self) -> str:
         """The governed task-state block, or nothing at all.
@@ -163,9 +242,9 @@ class AtMemTurnLifecycle:
             "disposition": prepared.get("disposition"),
             "reason_codes": list(prepared.get("reason_codes") or ()),
         }
-        task_context_sha256 = str(
-            prepared.get("context_sha256") or ""
-        ).removeprefix("sha256:")
+        task_context_sha256 = str(prepared.get("context_sha256") or "").removeprefix(
+            "sha256:"
+        )
         self._task_event(
             "task.context.prepared",
             payload={
@@ -214,9 +293,9 @@ class AtMemTurnLifecycle:
         delivery_id = str(prepared.get("delivery_id") or "")
         if not delivery_id or not self.manager.confirm_task_exposure(delivery_id):
             raise RuntimeError("AtMem could not confirm exact task-state exposure")
-        task_context_sha256 = str(
-            prepared.get("context_sha256") or ""
-        ).removeprefix("sha256:")
+        task_context_sha256 = str(prepared.get("context_sha256") or "").removeprefix(
+            "sha256:"
+        )
         self._task_event(
             "task.context.exposed",
             payload={
@@ -235,6 +314,8 @@ class AtMemTurnLifecycle:
         self,
         request_value: Any,
         *,
+        context_segments: Sequence[str] | None = None,
+        context_location: str = "user-data-message",
         provider: str = "unknown",
         model: str = "unknown",
         history_count: int = 0,
@@ -242,12 +323,52 @@ class AtMemTurnLifecycle:
     ) -> None:
         prepared = self.prepared or {}
         injected = bool(prepared.get("inject") and prepared.get("context"))
+        authority = str(prepared.get("authority") or "atmem")
+        context = str(prepared.get("context") or "") if injected else ""
+        if injected and authority == "delegated":
+            segments = list(context_segments or ())
+            occurrences = sum(segment == context for segment in segments)
+            expected_sha256 = str(prepared.get("context_sha256") or "").removeprefix(
+                "sha256:"
+            )
+            expected_byte_length = int(prepared.get("context_byte_length") or 0)
+            actual_byte_length = len(context.encode("utf-8"))
+            delivered = (
+                occurrences == 1
+                and sha256_hex(context) == expected_sha256
+                and actual_byte_length == expected_byte_length
+            )
+            self._event(
+                "context.injected",
+                context_event_id=str(prepared.get("exposure_id") or "") or None,
+                context_receipt_id=str(prepared.get("context_receipt_id") or "")
+                or None,
+                payload={
+                    "disposition": "injected" if delivered else "recall_failed",
+                    "provider": (prepared.get("provider") or {}).get("id"),
+                    "result_sha256": prepared.get("result_sha256"),
+                    "context_sha256": expected_sha256,
+                    "context_chars": len(context),
+                    "context_byte_length": actual_byte_length,
+                    "context_location": context_location if delivered else "none",
+                    "success": delivered,
+                    "reason": None
+                    if delivered
+                    else f"expected one exact delegated segment; observed {occurrences}",
+                },
+            )
+            if not delivered:
+                prepared["context"] = ""
+                raise RuntimeError(
+                    "delegated context failed exact model-input delivery proof"
+                )
         if injected:
             exposure_id = str(prepared.get("exposure_id") or "")
             if not exposure_id or not self.manager.confirm_exposure(exposure_id):
+                if authority == "delegated":
+                    prepared["context"] = ""
                 raise RuntimeError("AtMem could not confirm exact context exposure")
         self._confirm_task_exposure()
-        context = str(prepared.get("context") or "") if injected else ""
         self._event(
             "context.disposition",
             retrieval_id=str(prepared.get("preview_id") or "") or None,
@@ -257,12 +378,23 @@ class AtMemTurnLifecycle:
                 "disposition": "injected" if injected else "not_injected",
                 "context_block_sha256": sha256_hex(context),
                 "context_envelope_sha256": sha256_hex(
-                    CONTEXT_PREAMBLE + context if context else ""
+                    (
+                        context
+                        if authority == "delegated"
+                        else CONTEXT_PREAMBLE + context
+                    )
+                    if context
+                    else ""
                 ),
                 "context_chars": len(context),
                 "candidate_ids": list(prepared.get("candidate_ids") or ()),
-                "digest_profile": "atmem-context-envelope-utf8-v1",
-                "context_location": "user-data-message",
+                "digest_profile": (
+                    "atmem-delegated-context-utf8-v1"
+                    if authority == "delegated"
+                    else "atmem-context-envelope-utf8-v1"
+                ),
+                "context_location": context_location if injected else "none",
+                "mode": authority,
                 "task_disposition": (self.task_disposition or {}).get("disposition"),
                 "task_reason_codes": (self.task_disposition or {}).get("reason_codes"),
                 "task_id": self.identity.task_id,
@@ -283,6 +415,8 @@ class AtMemTurnLifecycle:
                 "harness_id": self.identity.framework,
             },
         )
+        if injected and authority == "delegated":
+            prepared["context"] = ""
 
     def model_output(
         self,
@@ -309,7 +443,9 @@ class AtMemTurnLifecycle:
         )
 
     def tool_requested(self, tool_name: str, tool_call_id: str, arguments: Any) -> None:
-        keys = sorted(str(key) for key in arguments) if isinstance(arguments, dict) else []
+        keys = (
+            sorted(str(key) for key in arguments) if isinstance(arguments, dict) else []
+        )
         self._event(
             "tool.requested",
             tool_call_id=tool_call_id,
@@ -393,7 +529,9 @@ class AtMemTurnLifecycle:
             payload={key: value for key, value in payload.items() if value is not None},
         )
 
-    def _task_event(self, event_type: str, *, payload: dict[str, Any]) -> dict[str, Any]:
+    def _task_event(
+        self, event_type: str, *, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         """Add task flight evidence when the host scope is registered.
 
         The canonical task step/provenance ledgers remain authoritative. A
@@ -404,7 +542,11 @@ class AtMemTurnLifecycle:
             return self._event(event_type, payload=payload)
         except ValueError as exc:
             message = str(exc).casefold()
-            if "topology" in message or "unmapped" in message or "authorized workspace" in message:
+            if (
+                "topology" in message
+                or "unmapped" in message
+                or "authorized workspace" in message
+            ):
                 return {}
             raise
 

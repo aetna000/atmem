@@ -1635,6 +1635,16 @@ class ControlPlaneManager:
             memory.close()
         accepted = set(package.record_ids)
         ranked = [record_id for record_id in ranked if record_id in accepted]
+        decision_payload = (
+            retrieval_decision.to_dict() if retrieval_decision is not None else {
+                "format": "atmem-retrieval-decision-v1",
+                "calibration_version": "explicit-overview-v1",
+                "support_class": SupportClass.DIRECT.value,
+                "ranked_record_ids": ranked,
+                "candidates": [],
+                "reason_codes": ["explicit_memory_overview"],
+            }
+        )
         return {
             **result,
             "format": "atmem-dashboard-memory-query-v1",
@@ -1645,6 +1655,14 @@ class ControlPlaneManager:
             "candidate_set_id": candidate_set.candidate_set_id,
             "preparation_id": package.preparation_id,
             "context_sha256": package.context_sha256,
+            "explanation": {
+                "support_class": decision_payload["support_class"],
+                "selected_record_ids": ranked,
+                "reason_codes": decision_payload["reason_codes"],
+                "calibration_version": decision_payload["calibration_version"],
+                "content_included": False,
+            },
+            "semantic_health": self.semantic_health(subject),
             "retrieval": {
                 "queries": expanded_queries,
                 "signals": ["lexical", "fact_key", "semantic", "graph", "trust", "recency"],
@@ -1652,13 +1670,7 @@ class ControlPlaneManager:
                 "candidate_generation": candidate_set.generation,
                 "candidate_digest": candidate_set.candidate_digest,
                 "preparation_id": package.preparation_id,
-                "decision": (
-                    retrieval_decision.to_dict() if retrieval_decision is not None else {
-                        "format": "atmem-retrieval-decision-v1",
-                        "support_class": SupportClass.DIRECT.value,
-                        "reason_codes": ["explicit_memory_overview"],
-                    }
-                ),
+                "decision": decision_payload,
             },
         }
 
@@ -3709,10 +3721,42 @@ class ControlPlaneManager:
             "message": "Generic shadow capture is event-driven; there are no host files to synchronize.",
         }
 
+    def delegated_context_applies(
+        self,
+        *,
+        agent_id: str | None,
+        user_id: str | None,
+        workspace_id: str | None,
+    ) -> bool:
+        """Return whether this scope must cross the delegated authority gate.
+
+        Invalid or incomplete identity deliberately returns ``True`` whenever
+        the agent has an enabled registration. The subsequent prepare call then
+        records the normal fail-closed decision instead of silently capturing
+        the prompt as native memory.
+        """
+        from atmem.delegated import DelegatedContextService
+
+        service = DelegatedContextService()
+        try:
+            if not service.config.has_enabled_for_agent(agent_id):
+                return False
+            if not agent_id or not user_id or not workspace_id:
+                return True
+            return service.config.match(
+                workspace_id=workspace_id,
+                agent_id=agent_id,
+                user_id=user_id,
+            ) is not None
+        except (OSError, ValueError):
+            return True
+
     def prepare(
         self,
         query: str,
         *,
+        delegated_query: str | None = None,
+        allow_delegation: bool = True,
         session_id: str | None = None,
         host_run_id: str | None = None,
         turn_id: str | None = None,
@@ -3736,7 +3780,9 @@ class ControlPlaneManager:
 
             delegated_service = DelegatedContextService()
             delegated_decision: dict[str, Any] | None = None
-            if delegated_service.config.has_enabled_for_agent(agent_id):
+            if allow_delegation and delegated_service.config.has_enabled_for_agent(
+                agent_id
+            ):
                 missing = [
                     name
                     for name, value in (
@@ -3795,7 +3841,7 @@ class ControlPlaneManager:
                     }
                 )
                 delegated_decision = delegated_service.prepare(
-                    query=query,
+                    query=query if delegated_query is None else delegated_query,
                     binding=binding,
                     migration_id=state.migration_id,
                     store=store,

@@ -64,6 +64,48 @@
 - [x] T037 Verify installed-wheel authenticated transport and complete OpenClaw delegated llm_input/flight closure in `tools` and `integrations/openclaw/test` (FR-025).
 - [x] T038 Update integration/migration guidance and record exact verification and limitations in this file and `docs/context-provider-adapters.md` (FR-024, FR-025).
 
+### Amendment B — Pydantic AI and LangChain/LangGraph host adapters
+
+- [x] T039 Extend the shared adapter identity and manager prepare boundary with
+  authenticated user binding, enabled-delegation discovery, and an exact
+  delegated-query channel that preserves native normalization (FR-026, FR-027).
+- [x] T040 Implement exclusive delegated/native capture and context routing in
+  `AtMemTurnLifecycle`, including verbatim delegated handoff and no canonical
+  prompt capture for delegated-authority turns (FR-027, FR-028, FR-031).
+- [x] T041 Add exact one-segment delivery proof, separate authorization/delivery/
+  disposition evidence, delegated exposure confirmation, fail-before-model
+  behavior, and transient byte erasure to the shared lifecycle (FR-029, FR-030).
+- [x] T042 Wire trusted per-run identity and exact message-boundary observations
+  into the Pydantic AI capability and sync/async LangChain/LangGraph middleware
+  without mutating host state or adding an enable flag (FR-026, FR-028, FR-031).
+- [x] T043 Add shared-lifecycle and real-framework tests for exact CRLF/emoji
+  inject, withhold, failure, fallback, missing identity, double injection,
+  delivery tamper, prompt privacy, evidence separation, async parity, and native
+  regression (SC-009–SC-011).
+- [x] T044 Update framework integration guidance and run focused framework,
+  delegated/control, Black Box, and full Python verification; record exact
+  results and honest optional-dependency limitations here (SC-009–SC-011).
+
+Amendment B verification (2026-09-08, packaged for 2.2.6b11):
+
+- Focused shared lifecycle, real Pydantic AI, synchronous/asynchronous
+  LangChain/LangGraph, delegated control, and authenticated transport suites:
+  **93 passed** after the final adversarial, native-authority-freeze, and
+  fail-before-model-handler expansion.
+- Final full Python suite with both framework extras installed: **1354 passed**
+  in 89.41 seconds, with one third-party Pydantic event-loop deprecation warning
+  and no skips.
+- An authenticated loopback provider completed HMAC request verification, exact
+  raw-query receipt, Ed25519 result verification, CRLF/emoji context handoff,
+  one-segment model-boundary proof, delegated exposure confirmation, content-free
+  storage assertions, and a structurally complete successful Black Box flight.
+- Native framework/task regressions passed. Delegated tests prove no canonical
+  prompt capture, no native-plus-delegated memory contribution, fail-before-model
+  handling for duplicate/prefixed/suffixed/normalized/digest/length changes, and
+  explicit `atmem_fallback` labeling.
+- The implementation is included in the 2.2.6b11 release candidate and becomes
+  independently installable only after its publication workflow succeeds.
+
 Amendment A verification (2026-09-07, `storizon` release-candidate work based on
 `f903180979c21924d61555fd5073898a111e3797`):
 

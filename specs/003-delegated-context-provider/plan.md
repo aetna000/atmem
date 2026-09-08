@@ -275,3 +275,49 @@ Build a wheel into an isolated directory and verify it from outside the checkout
 Run the locked OpenClaw harness including a complete authenticated delegated turn.
 The separate latest-OpenClaw fixture issue remains outside this transport change.
 No production Storizon key or test response key is used as a request credential.
+
+## Amendment B implementation plan
+
+Amendment B extends the existing host-neutral `AtMemTurnLifecycle`; it does not
+route through `atmem.provider_adapters`, because those modules expose a
+framework-backed application as a delegated provider rather than integrating
+AtMem into a framework-hosted agent.
+
+`AtMemAdapterIdentity` gains a distinct authenticated `user_id`. Pydantic AI
+dependencies and LangGraph configurable/runtime context may supply only the
+explicit `atmem_authenticated_user_id` override, while adapter construction may
+bind a trusted default. The shared lifecycle forwards all six binding fields to
+`ControlPlaneManager.prepare`. The manager accepts an additive
+`delegated_query` value: delegated transport receives the untouched framework
+prompt, while native query expansion, capture, retrieval, and evidence continue
+to use the existing normalized query.
+
+Before capture, the lifecycle asks the manager whether any enabled delegated
+registration exists for the agent. With none, the current native sequence is
+unchanged and native authority is frozen for that turn, so a mid-turn
+configuration change applies only to the next turn. With one, preparation
+happens first. Delegated authority suppresses
+canonical prompt capture; a nonmatching scope or explicit native fallback then
+performs the normal normalized capture. Missing binding or provider failure
+remains delegated and fail closed, so sensitive prompt text is not silently
+stored during a failed delegation attempt.
+
+The shared lifecycle returns native context with `CONTEXT_PREAMBLE`, but returns
+delegated context verbatim. Pydantic AI appends exactly one `UserPromptPart` and
+LangGraph appends exactly one `HumanMessage`. Each adapter passes the complete
+textual message-segment list and a framework-specific location to
+`model_input`. For delegated injection the lifecycle requires exactly one segment
+equal to the accepted context and a matching UTF-8 SHA-256 before it confirms
+the delegated delivery. It records `context.provider_authorization`,
+`context.injected`, and compatible `context.disposition` separately, then drops
+the transient context bytes. Exact raw query bytes are also erased from lifecycle
+state as soon as preparation returns or raises. Native and task exposure behavior
+stays unchanged.
+
+Focused tests use a delegated manager double for branch/adversarial behavior and
+real optional Pydantic AI and LangChain/LangGraph runtimes for hook-boundary
+proof. A control-plane integration test uses an authenticated loopback provider
+to verify HMAC request authentication, signed response validation, exact bytes,
+content-free persistence, and a closed flight. Existing framework, delegated,
+Black Box, and full Python suites form the regression gate. No package version,
+tag, publication, or dashboard change is part of this implementation request.

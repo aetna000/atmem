@@ -2,7 +2,7 @@
 
 **Feature directory**: `specs/003-delegated-context-provider`
 **Created**: 2026-09-03
-**Status**: Base contract published; Amendment A verified for the 2.2.6b10 release candidate
+**Status**: Base contract and Amendment A published in 2.2.6b10; Amendment B packaged in 2.2.6b11
 **Input**: Implement the provider-neutral delegated context-provider v1 contract proposed in PR #1. Existing AtMem authority remains the default. Delegated mode is an explicit opt-in that lets a compatible provider remain the sole context-decision authority for a bound turn while AtMem owns host delivery and flight evidence.
 
 ## Overview
@@ -154,7 +154,9 @@ As an evaluator, I can install or upgrade to the beta, configure a test provider
 - Giving a delegated provider access to AtMem internals or giving AtMem access to the provider's memory store.
 - AtMem independently authorizing or modifying provider-selected context in delegated mode.
 - Remote provider transport in the first beta.
-- Pydantic AI, LangGraph, Hermes, or other host runtime implementation in this beta; only provider-neutral core contracts are required.
+- Hermes and other host runtime implementations beyond OpenClaw, Pydantic AI,
+  and LangChain/LangGraph. Pydantic AI and LangChain/LangGraph are brought into
+  scope by Amendment B below.
 - Treating authorization, delivery, model use, tool execution, or real-world outcome as equivalent claims.
 - Automatic native fallback or silent downgrade.
 
@@ -224,3 +226,79 @@ release operation. Storizon remains an independent consumer of the shared profil
 6. The installed artifact completes an instrumented OpenClaw delegated turn with
    exact bytes at llm_input and a closed flight. A private live Storizon endpoint
    is not required for this test and must not be claimed as independently tested.
+
+## Amendment B — Pydantic AI and LangChain/LangGraph host adapters (2026-09-08)
+
+The base release provided provider-side framework adapters and a complete
+OpenClaw host path. This amendment adds the host-side delegated lifecycle to the
+existing Pydantic AI capability and LangChain/LangGraph middleware. It does not
+turn those frameworks into providers and does not change who owns their state,
+checkpoints, tools, or model calls.
+
+### User outcomes and requirements
+
+- **FR-026**: The existing Pydantic AI and LangChain/LangGraph host adapters MUST
+  pass the complete run, turn, session, agent, authenticated user, and workspace
+  binding to `control_prepare`. The authenticated user MAY come from the
+  adapter's application-configured identity or the framework's trusted runtime
+  dependency/context under the explicit `atmem_authenticated_user_id` field. A
+  subject ID, prompt value, model output, or tool argument MUST NOT be promoted
+  to an authenticated user identity.
+- **FR-027**: When an enabled delegated registration matches the adapter's full
+  scope, the provider request MUST receive the exact user-prompt text before
+  whitespace normalization. The delegated prompt MUST NOT be captured into
+  AtMem canonical memory. If no registration matches and native authority
+  remains selected, existing normalized native capture and retrieval behavior
+  MUST remain intact.
+- **FR-028**: A verified delegated `inject` MUST bypass the native AtMem context
+  preamble and contribute exactly one unchanged context segment: one Pydantic AI
+  `UserPromptPart`, or one LangChain `HumanMessage`. A verified `withhold` or
+  fail-closed result MUST contribute no delegated or native memory segment.
+  Explicit native fallback retains the native preamble and is labeled
+  `atmem_fallback`.
+- **FR-029**: Immediately before the Pydantic AI model request or LangGraph model
+  handler, the adapter MUST prove that exactly one message segment equals the
+  accepted delegated context and that its UTF-8 digest matches the accepted
+  digest. A mismatch MUST fail before the model call, MUST NOT confirm exposure,
+  and MUST record failed delivery. Successful proof MUST confirm the delegated
+  delivery and erase transient context bytes from adapter state.
+- **FR-030**: Pydantic AI and LangChain/LangGraph flights MUST record provider
+  authorization separately from `context.injected` delivery and the compatible
+  `context.disposition` summary. Evidence MUST contain only bindings, decisions,
+  provider/receipt identifiers, hashes, lengths, locations, and safe failure
+  reasons—never raw query or context bytes.
+- **FR-031**: The shared lifecycle MUST remain host-neutral and preserve native
+  capture, task-state delivery, tool evidence, model evidence, sync/async
+  LangGraph behavior, and Pydantic AI behavior when delegation is absent or
+  disabled. One AtMem provider registration remains the only authority switch;
+  neither framework adapter may add a second enable flag.
+
+### Acceptance scenarios
+
+1. A Pydantic AI run and both synchronous and asynchronous LangGraph model calls
+   deliver the signed CRLF-and-emoji fixture as one exact message segment and
+   close a verifiable flight.
+2. Framework runtime identity overrides are read without mutating dependencies,
+   context, state, messages, checkpoints, or tool configuration; missing or
+   unauthenticated user identity fails closed before provider access.
+3. Delegated inject, withhold, provider failure, and explicit fallback each
+   select only one authority path. Spies prove no native candidate retrieval or
+   canonical prompt capture occurs on a delegated-authority turn.
+4. A duplicate, prefixed, suffixed, normalized, or digest-mismatched delegated
+   segment is rejected before the model handler and remains unconfirmed.
+5. With delegated configuration absent or disabled, the existing Pydantic AI,
+   LangChain/LangGraph, task-state, and generic lifecycle regression tests remain
+   behaviorally unchanged.
+
+### Success criteria
+
+- **SC-009**: Focused tests using real Pydantic AI and synchronous/asynchronous
+  LangChain/LangGraph boundaries plus shared-lifecycle branch tests cover
+  delegated inject/withhold/failure/fallback, exact delivery, identity, privacy,
+  evidence separation, and flight closure.
+- **SC-010**: Native framework regression tests pass unchanged, and delegated
+  tests prove zero raw prompt capture, zero native-plus-delegated double
+  injection, and zero model calls after failed exact-delivery proof.
+- **SC-011**: Optional framework imports remain lazy, supported Python versions
+  remain unchanged, and framework adapters continue to preserve host-owned
+  state, checkpoints, tools, and model execution.

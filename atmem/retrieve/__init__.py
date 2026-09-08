@@ -19,6 +19,8 @@ from atmem.retrieve.support import (
     aggregate_supporting_evidence,
     aggregation_signal_digest,
 )
+from atmem.retrieve.cache import RetrievalCacheKey, RetrievalDecisionCache, final_reload
+from atmem.retrieve.signals import SIGNAL_REGISTRY_VERSION, SIGNAL_VERSIONS
 
 __all__ = [
     "ScoredRecord",
@@ -34,4 +36,9 @@ __all__ = [
     "SUPPORT_AGGREGATION_VERSION",
     "aggregate_supporting_evidence",
     "aggregation_signal_digest",
+    "RetrievalCacheKey",
+    "RetrievalDecisionCache",
+    "final_reload",
+    "SIGNAL_REGISTRY_VERSION",
+    "SIGNAL_VERSIONS",
 ]

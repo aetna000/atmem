@@ -299,7 +299,19 @@
       <div class="field"><label for="flightUntil">Through date</label><input id="flightUntil" type="date"></div>
       <button class="primary" id="flightSearch" type="button">Find sessions</button>
     </div>
-    <div class="flights" id="blackboxFlights"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading recent agent runs…</span></div></div>
+    <div class="blackboxworkspace" id="blackboxWorkspace">
+      <div class="flights" id="blackboxFlights"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading recent agent runs…</span></div></div>
+      <div class="backdrop auditorpane" id="auditorBackdrop" aria-hidden="true">
+        <aside class="drawer" role="region" aria-labelledby="auditorTitle">
+          <div class="drawerhead">
+            <div><div class="eyebrow" id="auditorEyebrow">Evidence investigation</div><h2 id="auditorTitle"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></h2>
+            <div class="auditoridentifiers" id="auditorId"></div></div>
+            <button class="close" id="auditorClose" aria-label="Close evidence details">×</button>
+          </div>
+          <div class="auditorbody" id="auditorBody"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading the verified audit chain…</span></div></div>
+        </aside>
+      </div>
+    </div>
   </section>
 
   <section class="card" id="mirrorCard">
@@ -394,16 +406,6 @@
     </div>
   </footer>
 </main>
-<div class="backdrop" id="auditorBackdrop" aria-hidden="true">
-  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="auditorTitle">
-    <div class="drawerhead">
-      <div><div class="eyebrow" id="auditorEyebrow">Evidence investigation</div><h2 id="auditorTitle"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></h2>
-      <div class="mono small" id="auditorId"></div></div>
-      <button class="close" id="auditorClose" aria-label="Close record history">×</button>
-    </div>
-    <div class="auditorbody" id="auditorBody"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading the verified audit chain…</span></div></div>
-  </aside>
-</div>
 <script>
 /*==ATMEM_INLINE_JS==*/
 </script>

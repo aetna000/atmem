@@ -265,7 +265,7 @@ def test_blackbox_reports_missing_completion_without_claiming_success(
     assert "no completion was observed" in tool_point["detail"]
 
 
-def test_open_flight_reports_one_recording_gap_not_tool_failure(
+def test_open_flight_stays_in_progress_before_it_is_stale(
     tmp_path: Path,
 ) -> None:
     manager = _manager(tmp_path)
@@ -320,12 +320,23 @@ def test_open_flight_reports_one_recording_gap_not_tool_failure(
     report = manager.verify_blackbox_flight("run-open")
 
     assert report["coverage_matrix"]["components"]["tools"] == "missing"
-    assert report["coverage_matrix"]["overall_status"] == "incomplete"
-    assert [point["code"] for point in report["attention_points"]] == [
+    assert report["verdict"] == "in_progress"
+    assert report["coverage_matrix"]["overall_status"] == "in_progress"
+    assert report["lifecycle"]["state"] == "in_progress"
+    assert report["attention_points"] == []
+
+    stale = verify_flight(
+        run_id="run-open",
+        entries=manager.blackbox_events(run_id="run-open"),
+        chain={"valid": True},
+        as_of="2099-01-01T00:00:00+00:00",
+    )
+    assert stale["verdict"] == "incomplete_evidence"
+    assert [point["code"] for point in stale["attention_points"]] == [
         "recording_stopped"
     ]
-    assert "3 commands were requested" in report["attention_points"][0]["detail"]
-    assert "No tool failure" in report["attention_points"][0]["detail"]
+    assert "3 commands were requested" in stale["attention_points"][0]["detail"]
+    assert "may still be active" in stale["attention_points"][0]["detail"]
 
 
 def test_flight_story_uses_local_openclaw_failure_when_hooks_stop(

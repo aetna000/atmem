@@ -18,6 +18,7 @@ import json
 from pathlib import Path
 import sys
 from typing import Any, Callable, TextIO
+import uuid
 
 PROTOCOL_VERSION = "2025-06-18"
 
@@ -26,7 +27,7 @@ try:
 
     SERVER_VERSION = _pkg_version("atmem")
 except Exception:  # not installed (e.g. run from a checkout)
-    SERVER_VERSION = "2.2.6b10"
+    SERVER_VERSION = "2.2.6b11"
 
 _SUBJECT_PROPERTY = {
     "subject_id": {
@@ -129,6 +130,7 @@ class MCPServer:
             "memory_clear_user_message": self._tool_clear_user_message,
             "memory_observe": self._tool_observe,
             "memory_recall": self._tool_recall,
+            "memory_recall_decision": self._tool_recall_decision,
             "memory_get_record": self._tool_get_record,
             "memory_get_source": self._tool_get_source,
             "memory_recall_block": self._tool_recall_block,
@@ -287,6 +289,46 @@ class MCPServer:
             use_graph=arguments.get("use_graph"),
             include_scores=bool(arguments.get("include_scores", False)),
         )
+
+    def _tool_recall_decision(self, arguments: dict[str, Any]) -> Any:
+        """Governed host-neutral recall with abstention and final reload."""
+        from atmem.contracts import AuthorityScope, ContextRequest, RecallRequest
+        from atmem.retrieve import decide_retrieval
+
+        subject = self._subject(arguments)
+        scope = AuthorityScope(
+            subject_id=subject,
+            agent_id=str(arguments.get("agent_id") or "mcp"),
+            workspace_id=str(arguments.get("workspace_id") or f"mcp:{subject}"),
+        )
+        request = RecallRequest(
+            request_id=f"mcp_{uuid.uuid4().hex}",
+            scope=scope,
+            query=str(arguments["query"]),
+            limit=max(1, min(100, int(arguments.get("limit", 10)))),
+            candidate_limit=max(1, min(200, int(arguments.get("candidate_limit", 100)))),
+            min_score=float(arguments.get("min_score") or 0.0),
+            egress_class="none",
+        )
+        candidate_set = self.memory.eligible_candidates(request)
+        rows = [candidate.to_dict() for candidate in candidate_set.candidates]
+        decision = decide_retrieval(request.query, rows)
+        context = self.memory.prepare_context_v1(
+            ContextRequest(
+                context_id=f"mcp_context_{uuid.uuid4().hex}",
+                candidate_set_id=candidate_set.candidate_set_id,
+                scope=scope,
+                record_ids=decision.ranked_record_ids,
+                budget_chars=max(1, int(arguments.get("budget_chars", 1800))),
+            )
+        )
+        selected = set(context.record_ids)
+        return {
+            "format": "atmem-mcp-recall-decision-v1",
+            "decision": decision.to_dict(),
+            "records": [row for row in rows if row["record_id"] in selected],
+            "context": context.to_dict(),
+        }
 
     def _tool_get_record(self, arguments: dict[str, Any]) -> Any:
         subject = self._subject(arguments)
@@ -601,7 +643,9 @@ class MCPServer:
             ),
             _tool(
                 "memory_recall",
-                "Retrieve the most relevant active memories for a query "
+                "Legacy diagnostic search for active memories. This does not "
+                "authorize prompt injection; use memory_recall_decision for that. "
+                "Ranks by "
                 "(text relevance + trust + recency). Every recall is logged "
                 "with a bounded score sample for auditability.",
                 {
@@ -621,6 +665,23 @@ class MCPServer:
                         "default": False,
                         "description": "Include each returned record's audited ranking score.",
                     },
+                    **_SESSION_PROPERTIES,
+                },
+                required=["query"],
+            ),
+            _tool(
+                "memory_recall_decision",
+                "Retrieve governed memory context using AtMem's shared calibrated "
+                "direct/background/no-useful-memory decision and final eligibility reload.",
+                {
+                    **_SUBJECT_PROPERTY,
+                    "agent_id": {"type": "string", "default": "mcp"},
+                    "workspace_id": {"type": "string"},
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer", "default": 10},
+                    "candidate_limit": {"type": "integer", "default": 100},
+                    "min_score": {"type": "number", "default": 0.0},
+                    "budget_chars": {"type": "integer", "default": 1800},
                     **_SESSION_PROPERTIES,
                 },
                 required=["query"],

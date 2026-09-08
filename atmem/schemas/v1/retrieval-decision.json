@@ -16,13 +16,28 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["record_id", "support_class", "relevance_score", "rank_score", "signals", "reason_codes"],
+        "required": ["record_id", "support_class", "relevance_score", "rank_score", "signals", "signal_contributions", "reason_codes"],
         "properties": {
           "record_id": {"type": "string", "minLength": 1},
           "support_class": {"enum": ["direct_support", "background_context", "no_useful_memory"]},
           "relevance_score": {"type": "number", "minimum": 0, "maximum": 1},
           "rank_score": {"type": "number", "minimum": 0, "maximum": 1},
           "signals": {"type": "object", "additionalProperties": {"type": "number"}},
+          "signal_contributions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "version", "normalized_score", "raw_score", "eligible_for_support"],
+              "properties": {
+                "name": {"type": "string", "minLength": 1},
+                "version": {"type": "string", "minLength": 1},
+                "normalized_score": {"type": "number", "minimum": 0, "maximum": 1},
+                "raw_score": {"type": ["number", "null"]},
+                "eligible_for_support": {"type": "boolean"}
+              }
+            }
+          },
           "reason_codes": {"type": "array", "items": {"type": "string", "minLength": 1}}
         }
       }

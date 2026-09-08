@@ -1,10 +1,9 @@
 """General-purpose recall ranking.
 
-Recall has top-k semantics: a bounded set of the subject's *active* records
-is scored by text relevance + trust + recency and the best `limit` are
-returned. There is no query-specific keyword table; when nothing matches
-lexically the trust/recency prior still surfaces recent, reliable candidates.
-Retrieval events retain a bounded score sample.
+Candidate generation has top-k semantics over active records. Injection does
+not: the original query must establish calibrated support, and trust/recency
+can only reorder supported candidates. Retrieval events retain a bounded score
+sample.
 """
 
 from __future__ import annotations
@@ -15,6 +14,7 @@ from typing import Any
 
 from atmem.retrieve.calibration import load_calibration
 from atmem.retrieve.models import CandidateDecision, RetrievalDecision, SupportClass
+from atmem.retrieve.signals import contribution, semantic_contribution
 
 TEXT_WEIGHT = 0.75
 TRUST_WEIGHT = 0.15
@@ -71,6 +71,8 @@ class ScoredRecord:
 def decide_retrieval(
     query: str,
     candidates: list[dict[str, Any]],
+    *,
+    allow_background: bool = False,
 ) -> RetrievalDecision:
     """Classify original-query support before optional intelligence reranks.
 
@@ -87,9 +89,12 @@ def decide_retrieval(
     for candidate in candidates:
         signals = dict(candidate.get("signals") or {})
         fact_key = str(signals.get("fact_key") or candidate.get("fact_key") or "")
-        content = f"{candidate.get('content') or ''} {fact_key.replace('_', ' ')}"
+        content = str(candidate.get("content") or "")
         content_concepts = _concept_tokens(content)
         lexical = _concept_overlap(query_concepts, content_concepts)
+        fact_support = _concept_overlap(
+            query_concepts, _concept_tokens(fact_key.replace("_", " "))
+        )
         semantic = float(
             signals.get("semantic_similarity")
             or ((signals.get("semantic_evidence") or {}).get("similarity") or 0.0)
@@ -98,9 +103,20 @@ def decide_retrieval(
             signals.get("semantic_provider")
             or ((signals.get("semantic_evidence") or {}).get("provider") or "")
         )
-        diagnostic = provider == "hashing-diagnostic"
-        semantic_support = 0.0 if diagnostic or semantic < semantic_gate else semantic
-        relevance = max(lexical, semantic_support)
+        quality_class = str(
+            signals.get("semantic_quality_class")
+            or ((signals.get("semantic_evidence") or {}).get("quality_class") or "")
+        )
+        semantic_signal = semantic_contribution(
+            semantic, provider, quality_class=quality_class
+        )
+        diagnostic = not semantic_signal.eligible_for_support
+        semantic_support = (
+            semantic_signal.normalized_score
+            if semantic_signal.eligible_for_support and semantic >= semantic_gate
+            else 0.0
+        )
+        relevance = max(lexical, fact_support, semantic_support)
         if relevance >= direct:
             support = SupportClass.DIRECT
             reasons = ["original_query_supported"]
@@ -112,7 +128,23 @@ def decide_retrieval(
             reasons = ["no_relevance_signal"]
         if diagnostic:
             reasons.append("diagnostic_semantic_ignored")
-        prior = min(1.0, max(0.0, float(candidate.get("score") or 0.0)))
+        prior_signal = contribution("candidate_prior", candidate.get("score") or 0.0)
+        prior = prior_signal.normalized_score
+        lexical_signal = contribution("lexical_support", lexical)
+        typo_signal = contribution(
+            "typo_tolerant_support",
+            1.0 if lexical > 0.0 and not (query_concepts & content_concepts) else 0.0,
+        )
+        fact_signal = contribution("fact_support", fact_support)
+        graph = signals.get("graph") or candidate.get("graph") or {}
+        graph_signal = contribution(
+            "graph_prior", graph.get("score", 0.0) if isinstance(graph, dict) else 0.0
+        )
+        trust_signal = contribution(
+            "trust_prior", _TRUST_SCORES.get(str(candidate.get("trust_tier") or ""), 0.4)
+        )
+        recency_signal = contribution("recency_prior", signals.get("recency_score", 0.0))
+        atbot_signal = contribution("atbot_rerank", signals.get("atbot_score", 0.0))
         rank_score = (
             float(calibration["relevance_weight"]) * relevance
             + float(calibration["prior_weight"]) * prior
@@ -131,22 +163,42 @@ def decide_retrieval(
                         lexical > 0.0 and not (query_concepts & content_concepts)
                     ) else 0.0,
                     "semantic_support": round(semantic_support, 6),
+                    "fact_support": round(fact_support, 6),
+                    "graph_prior": graph_signal.normalized_score,
+                    "trust_prior": trust_signal.normalized_score,
+                    "recency_prior": recency_signal.normalized_score,
+                    "atbot_rerank": atbot_signal.normalized_score,
                     "candidate_prior": round(prior, 6),
                 },
+                signal_contributions=(
+                    lexical_signal,
+                    typo_signal,
+                    fact_signal,
+                    semantic_signal,
+                    graph_signal,
+                    trust_signal,
+                    recency_signal,
+                    atbot_signal,
+                    prior_signal,
+                ),
                 reason_codes=tuple(reasons),
             )
         )
     decisions.sort(key=lambda row: (-row.rank_score, row.record_id))
-    selected = tuple(
+    direct_selected = tuple(
         row.record_id for row in decisions if row.support_class is SupportClass.DIRECT
     )
-    overall = SupportClass.DIRECT if selected else (
+    background_selected = tuple(
+        row.record_id for row in decisions if row.support_class is SupportClass.BACKGROUND
+    )
+    selected = direct_selected or (background_selected if allow_background else ())
+    overall = SupportClass.DIRECT if direct_selected else (
         SupportClass.BACKGROUND
         if any(row.support_class is SupportClass.BACKGROUND for row in decisions)
         else SupportClass.NONE
     )
-    reasons = ("direct_support_found",) if selected else (
-        ("background_context_withheld",)
+    reasons = ("direct_support_found",) if direct_selected else (
+        (("background_context_permitted",) if allow_background else ("background_context_withheld",))
         if overall is SupportClass.BACKGROUND
         else ("no_relevance_signal",)
     )
