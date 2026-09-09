@@ -1,6 +1,6 @@
 # Pydantic AI and LangGraph adapters
 
-> AtMem 2.2.6b11 packages delegated exact-delivery support for Pydantic AI and
+> AtMem 2.2.6 packages delegated exact-delivery support for Pydantic AI and
 > LangChain/LangGraph as well as OpenClaw. Delegation remains opt-in and requires
 > an enabled registration matching the authenticated scope.
 

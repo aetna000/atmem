@@ -3,6 +3,8 @@
 **Updated**: 2026-09-09
 **Status**: Implementation backlog; product capabilities below require their acceptance gates.
 
+**Numbered releases**: [Release roadmap — proposed 2.3 investigation preview through 2.8 enterprise fleet](../docs/release-roadmap.md). It maps the work groups below to independently scoped releases; version numbers are planning targets, not publication claims.
+
 > Agent memory is just a start. Governance gives us control. Investigation turns that control and evidence into something people can use every day.
 
 AtMem helps agents remember, controls the context they receive, and makes their work understandable when things go wrong.

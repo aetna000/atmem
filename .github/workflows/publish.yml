@@ -136,22 +136,16 @@ jobs:
           python-version: "3.12"
       - name: Install build dependencies
         run: python -m pip install --upgrade pip build twine
-      - name: Require tag to match package version
-        if: github.ref_type == 'tag'
+      - name: Validate package and bridge release metadata
         env:
           RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
         run: |
-          python - <<'PY'
-          import os
-          import tomllib
-          from pathlib import Path
-
-          project = tomllib.loads(Path("pyproject.toml").read_text())["project"]
-          expected = f"v{project['version']}"
-          actual = os.environ["RELEASE_TAG"]
-          if actual != expected:
-              raise SystemExit(f"release tag {actual!r} must equal {expected!r}")
-          PY
+          if [ "$RELEASE_REF_TYPE" = "tag" ]; then
+            python tools/release_metadata.py --tag "$RELEASE_TAG"
+          else
+            python tools/release_metadata.py
+          fi
       - name: Build distributions
         run: |
           python -m build
@@ -229,7 +223,7 @@ jobs:
           python "$GITHUB_WORKSPACE/tools/smoke_delegated_transport.py"
 
   upgrade-existing:
-    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.2.6b11
+    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.2.6
     needs: build
     runs-on: ubuntu-latest
     strategy:
@@ -264,7 +258,7 @@ jobs:
   pypi:
     name: Publish tested artifacts to PyPI
     if: github.ref_type == 'tag'
-    needs: [installed-wheel, upgrade-existing]
+    needs: [installed-wheel, installed-atbot-wheel, upgrade-existing]
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -304,30 +298,23 @@ jobs:
           cache: npm
           cache-dependency-path: integrations/openclaw/package-lock.json
       - name: Require a compatible plugin release line
+        id: release-metadata
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          node -e '
-            const pkg = require("./package.json");
-            const plugin = pkg.version.match(/^(\d+\.\d+\.\d+)-beta\.(\d+)$/);
-            const release = process.env.RELEASE_TAG.match(/^v(\d+\.\d+\.\d+)(?:b(\d+))?$/);
-            if (!plugin || !release || plugin[1] !== release[1]) {
-              throw new Error(`release ${process.env.RELEASE_TAG} is incompatible with plugin ${pkg.version}`);
-            }
-            if (release[2] && Number(plugin[2]) > Number(release[2])) {
-              throw new Error(`plugin ${pkg.version} is newer than release ${process.env.RELEASE_TAG}`);
-            }
-          '
+          python ../../tools/release_metadata.py --tag "$RELEASE_TAG" --github-output >> "$GITHUB_OUTPUT"
       - run: python -m pip install -e ../../packages/atbot -e ../..
       - run: npm ci
       - name: Publish plugin unless this exact version already exists
+        env:
+          NPM_RELEASE_CHANNEL: ${{ steps.release-metadata.outputs.npm_tag }}
         run: |
           version=$(node -p 'require("./package.json").version')
           published=$(npm view "openclaw-memory-atmem@$version" version 2>/dev/null || true)
           if [ "$published" = "$version" ]; then
             echo "openclaw-memory-atmem@$version is already published"
           else
-            npm publish --access public --provenance --tag beta
+            npm publish --access public --provenance --tag "$NPM_RELEASE_CHANNEL"
           fi
 
   release:
@@ -339,6 +326,14 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Determine release stability
+        id: release-metadata
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python tools/release_metadata.py --tag "$RELEASE_TAG" --github-output >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with:
           name: release-distributions
@@ -358,7 +353,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           body_path: docs/releases/${{ github.ref_name }}.md
-          prerelease: true
+          prerelease: ${{ steps.release-metadata.outputs.prerelease == 'true' }}
           files: |
             dist/*
             docs/showcases/openclaw-memory-control-plane/atmem-openclaw-memory-control-plane.mp4
