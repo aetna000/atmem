@@ -6,7 +6,7 @@ The PyPI distribution is named `atmem-atbot` to keep its ownership explicit.
 It intentionally installs the shorter `atbot` Python package and CLI command:
 
 ```bash
-python -m pip install atmem-atbot
+python -m pip install atmem-atbot==0.1.0
 atbot --version
 ```
 
@@ -57,3 +57,8 @@ commercial and internal enterprise use, modification, and distribution,
 subject to the license terms. Apache-2.0 also provides an explicit contributor
 patent grant and does not require an organization to publish private changes
 merely because it runs the software as a service.
+
+AtBot 0.1.0 is the first stable companion release, retaining the existing
+headless proposal/ranking interface. AtMem remains the authorization and storage
+authority. This version does not claim independent agent operation or universal
+model-provider compatibility.

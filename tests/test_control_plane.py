@@ -685,7 +685,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         ]
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.2.6"
+        assert product["atmem_npm_version"] == atmem.openclaw_install.OPENCLAW_PLUGIN_VERSION
         assert product["x_url"] == "https://x.com/AtMemX"
         profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
         assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])
@@ -1101,6 +1101,7 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/memory/audit-export",
         "/api/memory/media-preview",
         "/api/blackbox/runs",
+        "/api/blackbox/revision",
         "/api/blackbox/story",
         "/api/blackbox/flight",
         "/api/blackbox/export",

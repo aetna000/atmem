@@ -95,3 +95,62 @@ Touches INV-004, INV-005, INV-006, INV-008, INV-009, INV-010 through `spec022.sc
 - **SC-005**: Browser/API fixtures cover multiple agents with private and shared memory, read-only versus administrative controls, native/external providers, successful/stale/denied/unknown states and both viewports. Every status has readable reason and actual time/unknown marker, keyboard access and a scoped evidence/action path; the declared usability protocol includes these tasks.
 
 This work extends existing authority and preserves legacy scopes. Private/shared memory and multi-framework claims require their own evidence; M0 delivers only its applicable capture/feedback subset. See the central ownership and release matrix.
+
+
+## Existing dashboard usability amendment — 2026-09-09
+
+Scope: improve the current four-tab dashboard without claiming the future
+seven-route workspace is implemented. Keep all retained evidence and permissions.
+
+- **FR-012**: Activity leads with the foreground run outcome in a compact status
+  card. Host-reported completion with recording gaps is “Completed · evidence
+  notes”, not a failed task. Red denotes observed run failure or integrity
+  failure; amber denotes inconsistent/missing evidence. Actual tool errors remain
+  red at their own event boundary even when the overall run completes.
+- **FR-013**: Identify the supported OpenClaw internal skill-review run/session
+  convention as background work, not the last foreground answer. Provide a
+  labelled background toggle and count; preserve those runs for inspection. Do
+  not infer successful completion or erase conflicts from a visible answer.
+- **FR-014**: Review shows outcome, short reason, affected tool, timezone-qualified
+  time and links to every conflicting event. Collapse IDs/hashes by default.
+  Missing lifecycle, conflicting requests/results and orphan completions receive
+  explicit diagnostic rows and amber timeline markers. Later healthy runs never
+  imply older unresolved incidents were repaired.
+- **FR-015**: The page automatically checks a lightweight scoped evidence revision
+  every three seconds while visible, refreshes changed run data and open details,
+  preserves open timeline steps/scroll, prevents overlapping live refresh calls,
+  and labels connection failure rather than silently showing a stale “live” state.
+  Refresh hints are not verification or agent-status claims. Existing host hooks
+  remain authoritative; the dashboard does not synthesize missing completion.
+- **FR-016**: Render a bounded run page before optional stories/bridge inspection.
+  Load stories on demand and hydrate only visible recent rows in the background.
+  Move detailed system health/agent coverage into Settings and start the memory
+  assistant collapsed. Keep navigation and diagnostic actions accessible at
+  desktop and narrow widths.
+- **SC-006**: Browser fixtures verify a completed answer with conflicting tool
+  evidence, background work, live in-progress-to-complete transitions, paused
+  updates, exact-event navigation, collapsed technical details, and responsive
+  layout. Report measured loading times as local observations, not universal
+  performance guarantees.
+
+### Completed runs with failed steps and precise time — 2026-09-09
+
+- **FR-017**: A host-successful run with only confirmed tool errors displays a
+  completed run indicator and an explicit failed-step count/action. Failed tool
+  events remain red in details; uncertain evidence stays amber. Do not present
+  confirmed tool errors as mere evidence quality issues or claim they were
+  recovered without evidence. A successful answer is not proof that its missing
+  sources were unnecessary. Integrity and actual run failures retain precedence.
+- **FR-018**: Show local date/time including seconds, milliseconds and timezone,
+  with the exact UTC record available in details. Explain context selection as one
+  decision containing unique memories and, when recorded, persona/recall counts.
+  A no-relevant-memory disposition must never be titled as memory injection.
+- **SC-007**: Deterministic presentation and browser checks cover successful runs
+  with tool errors, unrecovered run failure, ambiguous evidence, missing times,
+  UTC/local DST conversion, and readable mobile timestamps without overflow.
+
+The activity list includes a visible text-and-colour legend explaining green run
+completion, amber review/uncertainty, red reported run/tool failure and purple
+in-progress state. It explicitly distinguishes a run's completion from the
+outcome of each tool call and from answer correctness; colour is never the only
+label.

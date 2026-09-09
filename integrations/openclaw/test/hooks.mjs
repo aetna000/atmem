@@ -237,10 +237,23 @@ try {
   );
   assert.equal(injected.prependContext, undefined);
   assert.ok(injected.appendSystemContext.includes("<user_persona>"));
-  assert.ok(injected.appendContext.includes("<relevant_memories>"));
-  assert.ok(injected.appendContext.includes("teal"));
-  assert.match(injected.appendContext, /\[m:[a-f0-9]{8}\]/);
-  assert.doesNotMatch(injected.appendContext, /\[rec_[a-f0-9]+\]/);
+  assert.equal(injected.appendContext, undefined, "persona records must not repeat in recall");
+  assert.ok(injected.appendSystemContext.includes("teal"));
+  assert.match(injected.appendSystemContext, /\[m:[a-f0-9]{8}\]/);
+  assert.doesNotMatch(injected.appendSystemContext, /\[rec_[a-f0-9]+\]/);
+  const selectiveRuntime = fakeApi({ ...base, persona: undefined });
+  try {
+    const selective = await selectiveRuntime.hooks.get("before_prompt_build")(
+      { prompt: "favorite color" }, { sessionKey: "selective-recall" });
+    assert.ok(selective.appendContext.includes("teal"));
+    assert.ok(!selective.appendSystemContext?.includes("<user_persona>"));
+    const unrelated = await selectiveRuntime.hooks.get("before_prompt_build")(
+      { prompt: "list all chinese shops in botany road selling roasted duck" },
+      { sessionKey: "selective-unrelated" });
+    assert.ok(!JSON.stringify(unrelated || {}).includes("teal"));
+  } finally {
+    for (const service of selectiveRuntime.services) await service.stop?.();
+  }
 
   const compatibleSearch = runtime.tools.get("memory_search");
   const searchResult = await compatibleSearch.execute("compat-search-1", {
@@ -590,6 +603,38 @@ for line in sys.stdin:
     ).length,
     2,
   );
+  assert.ok(delegatedRuntime.logs.some(line => line.includes("delegated_sender_not_owner")));
+  const localWorkspace = path.join(dataDir, "delegated-workspace");
+  const localRuntime = fakeApi({
+    ...base, command: delegatedServer,
+    controlPlane: { enabled: true, statePath: path.join(dataDir, "unused-state.json") },
+    agentWorkspaces: { main: localWorkspace },
+    delegatedContext: { userId: "owner", requireOwner: false, localOperator: {
+      isolated: true, agentId: "main", workspaceDir: localWorkspace,
+      sessionKey: "isolated", sessionId: "epoch-1",
+    } },
+  });
+  try {
+    const localCtx = { agentId: "main", workspaceDir: localWorkspace,
+      sessionKey: "isolated", sessionId: "epoch-1", runId: "local-turn", messageProvider: "cli" };
+    const insertion = await localRuntime.hooks.get("before_prompt_build")({ prompt: "local context" }, localCtx);
+    assert.equal(insertion?.prependContext, exactDelegated);
+    for (const patch of [{ senderIsOwner: false }, { channel: "discord" },
+      { sessionId: "epoch-2" }, { workspaceDir: "/different" }, { messageProvider: undefined }]) {
+      const denied = await localRuntime.hooks.get("before_prompt_build")({ prompt: "denied context" }, { ...localCtx, ...patch });
+      assert.equal(denied, undefined);
+    }
+    // Both hook contracts can carry the invocation ID in context only.
+    const toolCtx = { ...localCtx, toolCallId: "context-call" };
+    await localRuntime.hooks.get("before_tool_call")({ toolName: "read", params: {} }, toolCtx);
+    await localRuntime.hooks.get("after_tool_call")({ toolName: "read", params: {}, result: "observed" }, toolCtx);
+    const rows = readFileSync(delegatedLog, "utf8").trim().split("\n").map(JSON.parse);
+    const tools = rows.filter(row => row.arguments?.tool_call_id === "context-call");
+    assert.deepEqual(tools.map(row => row.arguments.event_type), ["tool.requested", "tool.completed"]);
+    assert.ok(tools.every(row => row.arguments.run_id === "local-turn"));
+  } finally {
+    for (const service of localRuntime.services) await service.stop?.();
+  }
   for (const service of delegatedRuntime.services) await service.stop?.();
 
   const takeover = fakeApi({
@@ -825,6 +870,35 @@ for line in sys.stdin:
     claudeCliFlight.timeline.filter((entry) => entry.event_type === "turn.input").length,
     1,
   );
+  // Real bridge hooks → RPC persistence → projection: equivalent host envelopes.
+  const progressDetails = { revision: 3, steps: { completed: 3, total: 3 } };
+  const progressResult = { content: [
+    { type: "text", text: "Progress card updated (rev 3, 3/3 done)" },
+    { type: "text", text: JSON.stringify(progressDetails, null, 2) },
+  ], details: progressDetails };
+  for (const result of [progressResult, progressResult.content.map(v => ({ ...v, type: "input_text" }))]) {
+    const event = { toolName: "progress_card", toolCallId: "progress-dual", runId: "run-progress-dual", params: { plan: [] } };
+    const ctx = { ...blackboxCtx, runId: event.runId };
+    await controlPlane.hooks.get("before_tool_call")(event, ctx);
+    await controlPlane.hooks.get("after_tool_call")({ ...event, result }, ctx);
+  }
+  const progressFlight = blackboxCli("verify", "run-progress-dual", "--state", migrationState);
+  assert.deepEqual(progressFlight.tools.conflicting_completions, []);
+  assert.equal(progressFlight.tools.coalesced_wrapper_calls[0].comparison_profile, "openclaw-progress-card-v1");
+  assert.equal(new Set(progressFlight.timeline.filter(e => e.event_type === "tool.completed").map(e => e.payload.result_sha256)).size, 2);
+  // A host exception without a result must retain its diagnostic separately.
+  await controlPlane.hooks.get("after_tool_call")({
+    toolName: "web_fetch", toolCallId: "fetch-error", runId: "run-fetch-error",
+    params: {}, error: "Fetch failed (403): https://private.example/?token=secret\nprivate stack", durationMs: 305,
+  }, { ...blackboxCtx, runId: "run-fetch-error" });
+  const errorFlight = blackboxCli("verify", "run-fetch-error", "--state", migrationState);
+  const failure = errorFlight.timeline.find(entry => entry.event_type === "tool.completed").payload;
+  assert.equal(failure.outcome, "error");
+  assert.equal(failure.error_reason, "Fetch failed (403): [redacted-url]");
+  assert.equal(failure.result_present, false);
+  assert.match(failure.error_sha256, /^[0-9a-f]{64}$/);
+  assert.equal(errorFlight.tools.errors[0].error_reason, failure.error_reason);
+  assert.doesNotMatch(JSON.stringify(errorFlight), /private.example|private stack|token=secret/);
   for (const service of controlPlane.services) await service.stop?.();
 
   // Managed active mode uses the normal memory engine and a separate private

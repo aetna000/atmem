@@ -78,3 +78,38 @@ Terminology and legacy projections follow the canonical mapping table in `specs/
 Implement FR-011 through `atmem/execution/projection.py`, consuming Spec 012 space/membership and feedback contracts, 019 context authorization, 020 time/identity evidence and the owner mappings in `specs/product-requirements.md`. Allocate persisted changes through Spec 010; retain legacy scope behavior and keep new private/shared space behavior explicit. Domain code owns facts and permissions; UI and transports project the same result.
 
 Add boundary fixtures in `tests/test_execution_capture.py` for SC-005, including positive/negative scope access, concurrent membership changes and real-versus-unknown verification time. Report unsupported host/provider coverage rather than infer it. Existing OpenClaw APIs are adapter compatibility surfaces, not required core fields. The relevant tasks below gate this requirement; broader future features do not block M0's scoped profile.
+
+
+## Existing Black Box diagnostic fix (FR-012–FR-014)
+
+Extend the current OpenClaw completion hooks and correlated terminal-event cache
+with bounded redacted reasons and separate error digests. Permit the additional
+metadata in Black Box normalization and carry reasons into report error rows.
+Display reasons, honest legacy fallbacks and recovery guidance in both diagnosis
+rows and expanded timeline events. No event rewrite, storage migration, version
+bump, broader execution service implementation or automatic retry is required.
+
+Validate with Black Box persistence tests, the bridge hook integration suite,
+terminal-observation tests, dashboard diagnostic function tests, existing dashboard
+copy tests, and TypeScript build/typecheck. This is local source verification; a
+fresh real-host deployment is not established by these tests.
+
+### Progress-card equivalence implementation
+
+Add a narrow bridge result-comparison helper for the two inspected OpenClaw
+2026.9.1 progress-card shapes. Persist profile, shape and comparison digest beside
+the unchanged raw digest; project proven equivalence through the existing
+coalesced-call report. Reject unknown shapes and preserve historical conflicts.
+Use incident-hash reproduction, bridge-to-RPC integration and persisted negative
+fixtures; clarify successful duplicate wording in the dashboard. No migration,
+version bump, host package patch or historical evidence mutation is required.
+
+### Selective context and timing slice
+
+Reuse the calibrated `decide_retrieval` direct-support gate at automatic block
+selection, with an additive MCP flag and persona exclusion list. Default bridge
+persona and setup persona to disabled; preserve explicit opt-in and leave manual
+search available. Apply the user's local config to this selective policy. Retain
+current UTC microsecond storage; expose milliseconds locally without a storage
+migration. Extract only the recognized wrapped HTTP prefix and distinguish
+successful run completion from individual tool errors in Spec 022 presentation.

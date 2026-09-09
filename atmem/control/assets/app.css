@@ -393,3 +393,72 @@ main{padding:0 0 46px}
 .auditorpane .auditoridentifiers .evidencechip{max-width:min(100%,240px);overflow-wrap:anywhere;word-break:break-word;white-space:normal}
 @media(max-width:1050px){.blackboxworkspace.detail-open,#viewStatus.active.auditor-open{grid-template-columns:1fr}.blackboxworkspace .drawer,.tabpanel>.auditorpane .drawer{position:relative;top:auto;max-height:none}.blackboxworkspace.detail-open .flight{grid-template-columns:minmax(0,1.4fr) repeat(3,minmax(85px,.55fr)) auto}.blackboxworkspace.detail-open .flight>.flightstat{display:block}.blackboxworkspace.detail-open .flight>.secondary{grid-column:auto;grid-row:auto}#viewStatus.auditor-open>.auditorpane{grid-column:1;grid-row:auto}#viewStatus.auditor-open>.agentoverview,#viewStatus.auditor-open>.metrics{display:block}}
 @media(max-width:700px){.blackboxworkspace .drawer{width:100%;padding:0 12px 18px}.blackboxworkspace.detail-open .flight{grid-template-columns:minmax(0,1fr) auto}.blackboxworkspace.detail-open .flight>.flightstat{display:none}.blackboxworkspace.detail-open .flight>.secondary{grid-column:2;grid-row:1 / span 2}.auditorpane .audittable .storystep>div{grid-template-columns:1fr}}
+
+/* Compact outcome indicator: recording gaps are amber, confirmed failures red. */
+.statusbanner{width:auto;margin:0 0 18px;padding:14px 18px;border:1px solid var(--line);border-radius:12px;background:var(--card);align-items:center;gap:12px}
+.statusbanner.bad,.statusbanner.warn,.statusbanner.good,.statusbanner.pending{background:var(--card);border-color:var(--line)}
+.statusbanner .statuslabel{display:block;color:var(--muted);font-size:10px}
+.statusbanner b{font-size:17px;line-height:1.4;color:var(--ink)}
+.statusbanner.bad b{color:var(--bad)}
+.statusbanner.warn .statusicon{color:var(--warn,#e9aa39)}
+.statusbanner.warn b{color:var(--ink)}
+.statusbanner p{font-size:13px;margin-top:4px;max-width:100ch}
+.statusbanner small{display:inline-block;font-size:11px;color:var(--muted);margin:6px 14px 0 0}
+.statusbanner .statusaction{width:auto;margin-left:auto;font-size:12px}
+.runidentifiers{font-size:12px;color:var(--muted);margin-top:6px}
+.runidentifiers summary{cursor:pointer}
+.attentionitem.medium{border-left:3px solid var(--warn,#e9aa39)}
+@media(max-width:700px){.statusbanner{padding:12px;flex-wrap:wrap}.statusbanner b{font-size:16px}.statusbanner .statusaction{margin-left:34px}}
+
+/* Outcome-first activity; operational configuration belongs in Settings. */
+#viewStatus.active{display:block}
+#viewStatus.active.auditor-open{display:grid;grid-template-columns:minmax(340px,.8fr) minmax(0,1.2fr);gap:24px}
+.activityscope{display:flex;gap:14px;align-items:center;margin:0 0 12px;color:var(--muted);font-size:12px}
+.activityscope button{font-size:12px;padding:6px 10px}
+.activityrow.warn{background:transparent;border-left:2px solid var(--warn,#e9aa39)}
+.activityrow.warn:after{content:"Evidence note"}
+.activityrow.bad:after{content:"Failed"}
+.activitycopy>span{color:var(--muted)}
+.systemhealth>summary{cursor:pointer;font-size:15px;font-weight:600;padding:4px}
+.systemhealth>.metrics,.systemhealth>.agentoverview,.systemhealth>#semanticHealthCard{position:static;width:auto;margin:16px 0;grid-column:auto;grid-row:auto}
+.systemhealth .metrics{display:grid;grid-template-columns:repeat(4,1fr)}
+.statusbanner[hidden]{display:none}
+.statusbanner.warn .statusicon:before{-webkit-mask-image:var(--icon-alert);mask-image:var(--icon-alert)}
+.diagnosisrow{grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:16px}
+.diagnosismarker{grid-column:1/-1;font-family:inherit;font-size:11px;color:var(--muted)}
+.diagnosismeta{grid-column:1/-1}
+.diagnosiscopy p{font-size:13px;line-height:1.55}
+#viewStatus.auditor-open .activitytools{grid-template-columns:minmax(0,1fr) auto}
+#viewStatus.auditor-open .activitytools input{grid-column:1/-1}
+#viewStatus.auditor-open .activitytools select{min-width:90px}
+@media(max-width:1050px){#viewStatus.active.auditor-open{display:block}.systemhealth .metrics{grid-template-columns:repeat(2,1fr)}}
+body:has(.memorychat.collapsed){padding-bottom:70px}
+
+.settingsgroup>summary{display:flex;flex-direction:column;gap:4px;cursor:pointer;font-size:15px}
+.settingsgroup>summary span{font-size:12px;color:var(--muted)}
+.settingsgroup[open]>.semantichead{margin-top:20px}
+.decisionchecks>summary{cursor:pointer;font-weight:600}
+.decisionchecks[open]>.withicon{margin-top:16px}
+#viewDecisions .providerhero{padding:20px;margin-bottom:20px}
+#viewDecisions .providerhero h1{font-size:23px}
+@media(max-width:700px){.statusbanner>div:nth-child(2){flex:1 1 calc(100% - 42px)}.statusbanner .statusaction{margin-left:34px;max-width:calc(100% - 34px)}.statusbanner small{line-height:1.5}}
+
+.statusbanner.pending b,.statusbanner.pending .statusicon{color:var(--muted)}
+/* Keep wide evidence tables scrollable inside their own viewport. */
+.tabpanel,.auditviewport{min-width:0;max-width:100%}
+.auditviewport{overflow:auto}
+.auditpager{flex-wrap:wrap}
+@media(max-width:700px){.auditpager{padding:12px}.auditpager .grow{display:none}.sectionnav{max-width:100%;box-sizing:border-box}.systemhealth .metric{min-width:0}.diagnosisrow{grid-template-columns:minmax(0,1fr)}.diagnosisrow>button,.diagnosismeta{grid-column:1}}
+.flightidentitytop{flex-wrap:wrap;min-width:0}
+@media(max-width:700px){.flighttimestamp{flex:1 1 100%;min-width:0;white-space:normal;overflow-wrap:anywhere}.flightstatus{white-space:normal}.flightidentitytop{gap:5px}}
+/* Precise local event time stays legible without stealing the run title width. */
+.activityclock{white-space:normal;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+@media(max-width:760px){.activityrow .activitytime{display:flex}.activityclock{font-size:11px}}
+
+.activitylegend{margin:12px 0 18px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-size:12px;line-height:1.5}
+.activitylegend .legendlabel{font-weight:600;color:var(--ink)}
+.activitylegend ul{display:flex;flex-wrap:wrap;gap:6px 16px;list-style:none;margin:7px 0;padding:0}
+.activitylegend li{display:flex;align-items:baseline;gap:7px;min-width:0}
+.activitylegend b{font-weight:600}.activitylegend p{margin:6px 0 0}
+.legenddot{display:inline-block;flex:0 0 8px;width:8px;height:8px;border-radius:50%}
+.legenddot.complete{background:var(--good)}.legenddot.review{background:var(--warn)}.legenddot.failed{background:var(--bad)}.legenddot.running{background:var(--brand)}

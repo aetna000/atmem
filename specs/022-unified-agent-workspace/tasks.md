@@ -43,3 +43,13 @@ A task is complete only when its named boundary and evidence exist. Fake-host, m
 - [ ] [T018] Define independent boundary fixtures for FR-011/SC-005 in `tests/test_unified_workspace.py` using `specs/product-requirements.md`, including private/shared scopes, readable feedback and timestamp provenance as applicable.
 - [ ] [T019] Implement FR-011 through `atmem/control/assets/app.js` and the owning service contracts; preserve legacy scope behavior and authorize all displayed facts/actions (depends on T018).
 - [ ] [T020] Verify SC-005 through the applicable public/host/UI boundary in `tests/test_unified_workspace.py`; retain versions, coverage, failures and usability evidence in a new entry under `docs/implementation-evidence/022/` and link changed capability status from `docs/current-status.md` before advertising the capability (depends on T019).
+
+
+## Current dashboard usability slice — 2026-09-09
+
+- [x] [T021] Implement FR-012–FR-014: outcome/evidence separation, background identification, compact summaries, grouped conflicts and exact-event navigation.
+- [x] [T022] Implement FR-015: scoped revision polling, non-overlapping refresh, visible reconnect state, and preservation of inspected details.
+- [x] [T023] Implement FR-016: bounded initial run load, on-demand stories, progressive disclosure for technical/configuration controls, and collapsed assistant.
+- [x] [T024] Complete browser and affected regression validation for this slice, record local measurements/limitations in `docs/implementation-evidence/022/20260909-dashboard-usability.md`, and install the local preview. This does not complete T013–T020 or the wider human usability protocol.
+
+- [x] [T025] Implement and verify completed-with-tool-errors presentation, context-decision wording and precise local/UTC timestamps (FR-017–FR-018, SC-007); record local installation evidence with Spec 020 T035.

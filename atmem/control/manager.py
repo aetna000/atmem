@@ -4147,6 +4147,16 @@ class ControlPlaneManager:
             if str((entry.get("body") or {}).get("run_id") or "") == run_id
         ]
 
+    def blackbox_revision(self) -> dict[str, Any]:
+        from atmem.control.blackbox import EVIDENCE_KIND
+
+        state = self.state()
+        store = self._store(state)
+        try:
+            return store.evidence_revision(state.migration_id, kind=EVIDENCE_KIND)
+        finally:
+            store.close()
+
     def blackbox_runs(self, *, limit: int = 50, offset: int = 0) -> dict[str, Any]:
         from atmem.control.blackbox import (
             EVIDENCE_KIND,
@@ -4186,6 +4196,15 @@ class ControlPlaneManager:
             )
             points = report.get("attention_points") or []
             row["verdict"] = report.get("verdict")
+            row["run_kind"] = report.get("run_kind")
+            row["lifecycle"] = report.get("lifecycle")
+            row["coverage"] = report.get("coverage")
+            tool_report = report.get("tools") or {}
+            row["evidence_summary"] = {
+                "conflicting_calls": len(set(tool_report.get("conflicting_requests") or []) | set(tool_report.get("conflicting_completions") or [])),
+                "missing_completions": len(tool_report.get("missing_completions") or []),
+                "tool_errors": len(tool_report.get("errors") or []),
+            }
             row["coverage_status"] = (report.get("coverage_matrix") or {}).get(
                 "overall_status"
             )

@@ -7,12 +7,19 @@ reviews under `specs/` remain historical snapshots.
 
 Updated: 9 September 2026
 
-Repository metadata is **2.2.6** and the matched OpenClaw bridge is
-**2.2.6**. This repository state is the release candidate; package and
+Repository metadata is **2.2.7b1** and the matched OpenClaw bridge is
+**2.2.7-beta.1**. This repository state is the release candidate; package and
 tag availability must be checked independently until the release workflow has
 published them. Native AtMem authority remains the default after installation
-or upgrade. The required `atmem-atbot==0.1.0a6` companion is packaged
+or upgrade. The required `atmem-atbot==0.1.0` companion is packaged
 separately and installed automatically with AtMem.
+
+Spec 003's 2.2.6 local identity and tool-observation fixes pass real Mem0/Claude
+CLI acceptance on latest OpenClaw 2026.9.2 and 2026.9.3. Inject/withhold, exact
+digests/deliveries, default-owner refusal, successful/error tool closure and
+missing-result refusal are recorded in the [latest-host evidence](implementation-evidence/003/20260909T052000Z-740c5c89d63c-mem0-latest-hosts.md).
+Identity role-play passes; live shared-channel authentication and independent
+Storizon verification remain unverified. See the [compatibility matrix](context-provider-adapters.md#226-delegated-host-compatibility).
 
 The release has four runtime boundaries:
 
@@ -57,7 +64,7 @@ The release has four runtime boundaries:
 
 ## Packaging and runtime status
 
-- `pyproject.toml` requires exactly `atmem-atbot==0.1.0a6`. The PyPI
+- `pyproject.toml` requires exactly `atmem-atbot==0.1.0`. The PyPI
   distribution is `atmem-atbot`; its Python import and command remain `atbot`.
 - AtBot source lives under `packages/atbot`; it is a separately released
   distribution and process and does not own canonical storage.
@@ -100,7 +107,7 @@ The release has four runtime boundaries:
 ## Upgrade and support status
 
 - The release workflow creates persisted data with public AtMem 2.1.0, 2.2.3,
-  2.2.4, and 2.2.5, upgrades each environment to 2.2.6, and verifies record identity, recall, audit
+  2.2.4, and 2.2.5, upgrades each environment to 2.2.7b1, and verifies record identity, recall, audit
   integrity, control migration identity, candidate retention, schema migration,
   and automatic vector-sidecar creation as a protected publication gate.
 - Existing OpenClaw installations upgrade the bridge with
@@ -119,3 +126,7 @@ The release has four runtime boundaries:
   are tested by the release workflow.
 - The exact trust and hosted-service limitations above remain product boundaries,
   not hidden release claims.
+
+The 2.2.7b1 beta includes selective automatic context, improved evidence
+diagnostics, precise local timestamps and the dashboard colour legend. See
+[release notes](releases/v2.2.7b1.md) for configuration changes and limitations.

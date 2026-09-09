@@ -74,3 +74,27 @@ Terminology and legacy projections follow the canonical mapping table in `specs/
 Implement FR-011 through `atmem/control/assets/app.js`, consuming Spec 012 space/membership and feedback contracts, 019 context authorization, 020 time/identity evidence and the owner mappings in `specs/product-requirements.md`. Allocate persisted changes through Spec 010; retain legacy scope behavior and keep new private/shared space behavior explicit. Domain code owns facts and permissions; UI and transports project the same result.
 
 Add boundary fixtures in `tests/test_unified_workspace.py` for SC-005, including positive/negative scope access, concurrent membership changes and real-versus-unknown verification time. Report unsupported host/provider coverage rather than infer it. Existing OpenClaw APIs are adapter compatibility surfaces, not required core fields. The relevant tasks below gate this requirement; broader future features do not block M0's scoped profile.
+
+
+## Current dashboard usability slice (FR-012–FR-016)
+
+Use existing four-tab navigation and domain verdicts. Add observed lifecycle and
+tool-summary fields to run projections; retain full evidence verdicts unchanged.
+A lightweight revision read drives non-overlapping, visibility-aware refresh.
+Avoid eager full-story fanout, preserve open details on updates, and retry failed
+revision reads with visible connection status. No host completion is fabricated.
+
+Activity prioritizes a compact foreground outcome, short row summaries, a
+background-review toggle, and grouped findings linked to all affected events.
+Technical identifiers, system diagnostics, embedding configuration and recovery
+checks use progressive disclosure. The memory assistant starts collapsed.
+
+Validate backend projections/revisions, diagnostic classification, browser live
+transitions and reconnect, keyboard-accessible native disclosure controls, and
+all four routes at desktop/mobile widths. This is an improvement to the current
+UI, not completion of the future seven-route workspace or human usability study.
+
+For the 2026-09-09 follow-up, separate run completion from failed tool steps in
+status, list and detail views. Expose precise local timestamps and original UTC
+without modifying historical records. Keep confirmed step failures visible and
+provide explicit source-dependency guidance rather than blanket retry advice.

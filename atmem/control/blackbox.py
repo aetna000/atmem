@@ -35,6 +35,8 @@ _DIGEST_KEYS = {
     "context_sha256",
     "params_sha256",
     "result_sha256",
+    "result_comparison_sha256",
+    "error_sha256",
     "response_sha256",
     "messages_sha256",
     "assistant_visible_text_sha256",
@@ -50,6 +52,9 @@ _DIGEST_KEYS = {
     "task_decision_sha256",
 }
 _TEXT_KEYS = {
+    "context_selection_profile",
+    "result_comparison_profile",
+    "result_observation_shape",
     "provider",
     "model",
     "resolved_ref",
@@ -61,6 +66,7 @@ _TEXT_KEYS = {
     "tool_kind",
     "outcome",
     "error_category",
+    "error_reason",
     "failure_kind",
     "reason",
     "disposition",
@@ -79,6 +85,8 @@ _TEXT_KEYS = {
     "retrieval_calibration_version",
 }
 _COUNT_KEYS = {
+    "persona_record_count",
+    "recall_record_count",
     "prompt_chars",
     "system_chars",
     "history_count",
@@ -98,7 +106,7 @@ _COUNT_KEYS = {
     "task_resulting_revision",
     "candidates_considered",
 }
-_BOOL_KEYS = {"fast_mode", "cancelled", "success", "task_guard_enforced"}
+_BOOL_KEYS = {"fast_mode", "cancelled", "success", "task_guard_enforced", "result_present"}
 _LIST_KEYS = {
     "candidate_ids",
     "param_keys",
@@ -276,6 +284,7 @@ def verify_flight(
                         "tool_call_id": call_id or None,
                         "tool_name": payload.get("tool_name"),
                         "error_category": payload.get("error_category"),
+                        "error_reason": payload.get("error_reason"),
                     }
                 )
 
@@ -303,6 +312,30 @@ def verify_flight(
         for call_id in conflicting_completions
         if call_id not in coalesced_call_ids
     ]
+    # A repeated invocation ID is not sufficient proof of closure. Host scope,
+    # turn, tool and observation ordering must also agree. Apply this after
+    # wrapper coalescing so wrappers cannot erase a cross-scope conflict.
+    def same_invocation(request: dict[str, Any], completion: dict[str, Any]) -> bool:
+        before, after = request["body"], completion["body"]
+        before_payload, after_payload = before.get("payload") or {}, after.get("payload") or {}
+        return bool(
+            all(before.get(field) == after.get(field) for field in (
+                "turn_id", "session_id", "agent_id", "workspace_id", "subject_id",
+            ))
+            and (before_payload.get("tool_canonical_name") or before_payload.get("tool_name"))
+            == (after_payload.get("tool_canonical_name") or after_payload.get("tool_name"))
+            and int(request.get("sequence") or 0) < int(completion.get("sequence") or 0)
+        )
+
+    for call_id in set(requested) & set(completed):
+        if (
+            any(not any(same_invocation(request, completion) for request in requested[call_id])
+                for completion in completed[call_id])
+            or any(not any(same_invocation(request, completion) for completion in completed[call_id])
+                   for request in requested[call_id])
+        ):
+            conflicting_completions.append(call_id)
+    conflicting_completions = sorted(set(conflicting_completions))
     event_types = [str(entry["body"].get("event_type") or "") for entry in selected]
     turn_input = "turn.input" in event_types
     terminal = "turn.ended" in event_types
@@ -628,6 +661,12 @@ def verify_flight(
         ),
         "raw_content_stored": False,
     }
+    report_body["run_kind"] = (
+        "background_skill_review"
+        if run_id.startswith("skill-workshop-review:")
+        and str(report_body["session_id"] or "").startswith("internal-session-effects-skill-workshop-review_")
+        else "agent_run"
+    )
     report_body["attention_points"] = flight_attention(report_body)
     return {
         **report_body,
@@ -753,8 +792,9 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
             "completion",
             "medium",
             "recording_stopped",
-            "Run has not reported a final result",
+            "Background review completion not recorded" if report.get("run_kind") == "background_skill_review" else "Run completion not recorded",
             observed
+            + (" This is a separate OpenClaw background review, not the foreground conversation." if report.get("run_kind") == "background_skill_review" else " Model output and run completion are separate observations.")
             + " The run may still be active; no tool failure, ending, or external change is proven.",
             "Check whether the host run is still active, then review this recording gap if it has stopped.",
         )
@@ -815,9 +855,9 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
     ):
         add(
             "tools",
-            "high",
+            "medium",
             "tool_lifecycle_mismatch",
-            "AtMem could not prove one or more tool calls closed correctly",
+            "Run completed · tool evidence needs review" if (report.get("lifecycle") or {}).get("success") else "Tool completion evidence needs review",
             _tool_lifecycle_detail(report),
             "Open the named call below and compare its request with its completion. Acknowledge it only after deciding whether this was an agent failure or an observation gap.",
         )
@@ -1009,6 +1049,33 @@ def _coalesced_wrapper_calls(
             str(payload.get("tool_name") or canonical_name)
             for payload in completion_payloads
         }
+        # Same-name progress_card hooks carry two strictly validated host formats.
+        # Historical hash-only observations cannot establish this equivalence.
+        comparisons = {p.get("result_comparison_sha256") for p in completion_payloads}
+        if (
+            canonical_name == "progress_card"
+            and request_names == completion_names == {"progress_card"}
+            and len(completion_payloads) == 2
+            and len({p.get("params_sha256") for p in request_payloads}) == 1
+            and all(p.get("params_sha256") for p in request_payloads)
+            and all(p.get("outcome") == "completed" and not p.get("error_sha256")
+                    and not p.get("error_category") for p in completion_payloads)
+            and all(p.get("result_comparison_profile") == "openclaw-progress-card-v1"
+                    for p in completion_payloads)
+            and len(comparisons) == 1
+            and all(isinstance(v, str) and len(v) == 64
+                    and all(c in "0123456789abcdef" for c in v) for v in comparisons)
+            and {p.get("result_observation_shape") for p in completion_payloads}
+                == {"native_input_text", "tool_content_details"}
+        ):
+            coalesced.append({
+                "tool_call_id": call_id, "tool_name": canonical_name,
+                "observed_names": [canonical_name],
+                "request_observations": len(request_entries),
+                "completion_observations": 2, "outcome": "completed",
+                "comparison_profile": "openclaw-progress-card-v1",
+            })
+            continue
         if (
             len(request_names) < 2
             or len(completion_names) < 2

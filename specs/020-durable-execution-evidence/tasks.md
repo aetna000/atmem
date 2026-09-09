@@ -53,3 +53,23 @@ The sequence below supersedes the all-T001–T017 ordering only for the non-cont
 - [ ] [T023] Define independent boundary fixtures for FR-011/SC-005 in `tests/test_execution_capture.py` using `specs/product-requirements.md`, including private/shared scopes, readable feedback and timestamp provenance as applicable.
 - [ ] [T024] Implement FR-011 through `atmem/execution/projection.py` and the owning service contracts; preserve legacy scope behavior and authorize all displayed facts/actions (depends on T023).
 - [ ] [T025] Verify SC-005 through the applicable public/host/UI boundary in `tests/test_execution_capture.py`; retain versions, coverage, failures and usability evidence in a new entry under `docs/implementation-evidence/020/` and link changed capability status from `docs/current-status.md` before advertising the capability (depends on T024).
+
+
+## Existing Black Box error diagnostics — 2026-09-09
+
+- [x] [T026] Implement FR-012–FR-013 for typed and correlated terminal tool completions, including redacted bounded reasons, independent error digests, absent-result metadata and persisted report propagation.
+- [x] [T027] Implement FR-014 in the existing dashboard diagnosis list and expanded timeline: explain uncertainty, show the reason or legacy fallback, and direct operators to host logs and bridge verification before retrying.
+- [x] [T028] Verify SC-006 with `tests/test_blackbox.py`, relevant dashboard checks in `tests/test_control_plane.py`, `test/hooks.mjs`, `test/tool-observations.mjs`, `test/blackbox-diagnostics.mjs`, and TypeScript build/typecheck. Local checks pass; no real-host deployment or reconstruction of historical errors is claimed.
+
+## Progress-card duplicate observations — 2026-09-09
+
+- [x] [T029] Trace local OpenClaw runner/native-relay reporting and independently reproduce both progress-card incident result hashes (FR-016, SC-007).
+- [x] [T030] Add strict shape validation, comparison metadata and scoped projection without removing raw observations; cover changed/unknown/error/legacy cases (FR-016–FR-017).
+- [x] [T031] Complete bridge, Python and presentation checks, install tested local artifacts and document limits; no fresh live-host conformance claim (SC-007).
+
+## Selective context and timestamp clarity — 2026-09-09
+
+- [x] [T032] Inspect latest run and component audits; distinguish one nine-record context block from repeated injections and identify wrapped HTTP 403 errors.
+- [x] [T033] Implement direct-support automatic recall, opt-in persona, exclusion of duplicate persona IDs and selection metadata (FR-018).
+- [x] [T034] Extract bounded known wrapper diagnostics and show local millisecond time with original UTC evidence (FR-019–FR-020).
+- [x] [T035] Verify selection, bridge/MCP, wrapped errors, UTC/local timezone and mobile layout; install tested local artifacts and document limits (SC-008–SC-009).

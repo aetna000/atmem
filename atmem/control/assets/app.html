@@ -50,15 +50,15 @@
     <div class="progressbar" aria-hidden="true"><span></span></div>
   </div>
 
-  <section class="statusbanner" id="statusBanner">
+  <section class="statusbanner" id="statusBanner" aria-live="polite">
     <div class="statusicon" id="statusIcon">…</div>
-    <div><span class="statuslabel">Current condition</span><b id="statusHeadline"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></b><p id="statusDetail">Loading verified evidence…</p></div>
+    <div><span class="statuslabel">Latest agent run</span><b id="statusHeadline"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></b><p id="statusDetail">Loading verified evidence…</p><small id="backgroundStatus"></small><small id="liveStatus" aria-live="off">Connecting to run updates…</small></div>
     <button class="primary statusaction" id="statusAction" type="button" style="display:none">Open issue</button>
   </section>
 
-  <section class="memorychat" id="memoryChat" aria-labelledby="memoryChatTitle">
+  <section class="memorychat collapsed" id="memoryChat" aria-labelledby="memoryChatTitle">
     <h1 class="visuallyhidden" id="memoryChatTitle">Ask governed memory</h1>
-    <button class="memorychattoggle" id="memoryChatToggle" type="button" aria-expanded="true" aria-label="Hide memory assistant" aria-controls="memoryChatResult memoryChatForm memoryChatDockMeta"><span><svg class="icon icon-sm" aria-hidden="true"><use href="#i-node"/></svg>Memory assistant</span><i aria-hidden="true"></i></button>
+    <button class="memorychattoggle" id="memoryChatToggle" type="button" aria-expanded="false" aria-label="Open memory assistant" aria-controls="memoryChatResult memoryChatForm memoryChatDockMeta"><span><svg class="icon icon-sm" aria-hidden="true"><use href="#i-node"/></svg>Memory assistant</span><i aria-hidden="true"></i></button>
     <div class="chatresult" id="memoryChatResult" hidden>
       <div class="chatresulthead">Governed memory conversation</div>
       <div class="chatmessages" id="memoryChatMessages" aria-live="polite"></div>
@@ -81,11 +81,11 @@
   <div class="tabpanel" id="viewSettings">
   <div class="pageheading"><div><div class="eyebrow">Configuration</div><h1>Settings</h1><p>Control memory intelligence, governed task state, and optional context providers.</p></div></div>
 
-  <section class="card semanticcard" id="featureCapabilityCard">
+  <details class="card settingsgroup" id="featureCapabilityCard"><summary><b>Advanced capabilities</b><span>Optional adapters and feature readiness</span></summary>
     <div class="semantichead"><div><div class="eyebrow">Extensibility</div><h2>Feature and adapter readiness</h2><p class="sub">Runtime-derived capability status for graph, storage, framework adapters, interchange, lifecycle, media, onboarding, and production operation.</p></div><span class="statuspill" id="featureCapabilityStatus">Checking…</span></div>
     <div class="evidencegrid" id="featureCapabilityRows"></div>
     <div class="actions"><button class="secondary" id="featureCapabilityRefresh" type="button">Refresh capabilities</button></div>
-  </section>
+  </details>
 
   <section class="card semanticcard" id="taskModeSettingsCard" hidden>
     <div class="semantichead">
@@ -99,7 +99,7 @@
     <div class="actions"><button class="primary" id="taskModeAction" type="button" disabled>Enable task state</button></div>
   </section>
 
-  <section class="card semanticcard" id="semanticSettingsCard">
+  <details class="card settingsgroup" id="semanticSettingsCard"><summary><b>Embedding model</b><span>Configure local semantic search</span></summary>
     <div class="semantichead">
       <div><div class="eyebrow">Semantic retrieval</div><h2>Embedding model</h2><p class="sub" id="semanticSettingsNote">Choose a local production embedding model. AtMem downloads only after confirmation, then builds and verifies the disposable vector index automatically.</p></div>
       <span class="statuspill" id="semanticSettingsStatus">Checking…</span>
@@ -110,7 +110,7 @@
     <div class="evidencegrid" id="semanticSettingsEvidence"></div>
     <div class="actions"><button class="primary" id="semanticSetupAction" type="button" disabled>Install and activate</button></div>
     <p class="foot">The canonical memory database remains authoritative. Changing models creates and verifies a new vector epoch before activation.</p>
-  </section>
+  </details>
 
   <details class="intelligenceconfig" id="intelligenceConfig">
     <summary class="intelligencesummary">
@@ -172,12 +172,7 @@
     </div>
   </details>
 
-  </div>
-
-  <div class="tabpanel active" id="viewStatus">
-  <div class="pageheading"><div><h1>Activity</h1><p>Every recorded agent session, memory change, and governed decision.</p></div></div>
-
-  <div class="metrics">
+  <details class="card systemhealth" id="systemHealth"><summary>System health &amp; agent coverage</summary><p class="sub">Memory indexes, registered agents, and verification details.</p>  <div class="metrics">
     <div class="metric"><b class="mono" id="sourceCount">—</b><span id="sourceCountLabel">memory sources</span></div>
     <div class="metric"><b class="mono" id="recordCount">—</b><span id="recordCountLabel">searchable records</span></div>
     <div class="metric"><b class="mono" id="sourceBytes">—</b><span id="sourceBytesLabel">source bytes preserved</span></div>
@@ -199,8 +194,25 @@
     <div class="agentmap" id="agentMap"><div class="activityempty">Loading agents…</div></div>
   </section>
 
+</details>
+  </div>
+
+  <div class="tabpanel active" id="viewStatus">
+  <div class="pageheading"><div><h1>Activity</h1><p>Recent runs, their outcomes, and anything worth checking.</p></div></div>
+
   <section class="card" id="blackboxCard">
     <div class="activityhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-pulse"/></svg><span>Recent agent activity</span></h2><div class="activitytools"><input id="activityQuery" aria-label="Search recent agent activity" placeholder="Search actions…"><select id="activityTopic" aria-label="Filter by topic"><option value="all">All topics</option><option value="agents">Agents</option><option value="memory">Memory</option><option value="tools">Tools</option><option value="web">Web</option><option value="email">Email</option><option value="conversation">Conversation</option></select><select id="activityWhen" aria-label="Filter by time"><option value="all">All time</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select><button class="secondary" id="blackboxRefresh" type="button">Refresh</button></div></div>
+    <div class="activityscope"><button class="secondary" id="activityBackground" type="button" aria-pressed="false">Show background reviews</button><span>Updates automatically</span></div>
+    <aside class="activitylegend" aria-label="Status colour legend">
+     <span class="legendlabel">Colour guide</span>
+     <ul>
+      <li><span class="legenddot complete" aria-hidden="true"></span><span><b>Green</b> · Run completed</span></li>
+      <li><span class="legenddot review" aria-hidden="true"></span><span><b>Amber</b> · Review needed or evidence uncertain</span></li>
+      <li><span class="legenddot failed" aria-hidden="true"></span><span><b>Red</b> · Run or tool reported a failure</span></li>
+      <li><span class="legenddot running" aria-hidden="true"></span><span><b>Purple</b> · In progress</span></li>
+     </ul>
+     <p>Colours describe each item separately. A completed run can contain failed tool calls; completion does not verify the answer.</p>
+    </aside>
     <div class="activitytimeline" id="activityTimeline"><div class="activityempty">Loading…</div></div>
     <div class="activitymore"><button class="secondary" id="activityLoadMore" type="button">Load more</button><span id="activityCount"></span></div>
     <p class="foot">Each row is one agent session; open it for the audit events behind it.</p>
@@ -246,7 +258,7 @@
     </div>
 
     <aside>
-      <section class="card">
+      <details class="card decisionchecks"><summary>Verification &amp; recovery</summary>
         <div class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-shield-check"/></svg><h2 id="switchTitle">Ready to switch?</h2></div>
         <p class="sub" id="switchCopy">AtMem checks the active adapter before allowing context injection.</p>
         <div id="checks"></div>
@@ -254,7 +266,7 @@
         <button class="secondary" id="drillBtn" type="button">Test file restoration</button>
         <div class="small" id="verifyStatus" style="margin-top:12px;line-height:1.7"></div>
         <div class="small" id="drillStatus" style="margin-top:12px;line-height:1.7"></div>
-      </section>
+      </details>
       <details class="card">
         <summary><svg class="icon" aria-hidden="true"><use href="#i-shield-check"/></svg><span class="summarytitle"><b>What changes</b></span></summary>
         <div class="detailsbody">
@@ -311,7 +323,7 @@
         <aside class="drawer" role="region" aria-labelledby="auditorTitle">
           <div class="drawerhead">
             <div><div class="eyebrow" id="auditorEyebrow">Evidence investigation</div><h2 id="auditorTitle"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></h2>
-            <div class="auditoridentifiers" id="auditorId"></div></div>
+            <details class="runidentifiers"><summary>Run IDs and technical evidence</summary><div class="auditoridentifiers" id="auditorId"></div></details></div>
             <button class="close" id="auditorClose" aria-label="Close evidence details">×</button>
           </div>
           <div class="auditorbody" id="auditorBody"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading the verified audit chain…</span></div></div>

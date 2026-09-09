@@ -168,6 +168,9 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 self._json(HTTPStatus.CONFLICT, {"error": str(exc)})
             return
+        if path == "/api/blackbox/revision":
+            self._json(HTTPStatus.OK, self.server.manager.blackbox_revision())
+            return
         if path == "/api/blackbox/runs":
             params = parse_qs(parsed.query)
             try:
@@ -192,6 +195,12 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             if not run_id:
                 self._json(HTTPStatus.BAD_REQUEST, {"error": "run_id is required"})
                 return
+            if path == "/api/blackbox/story":
+                try:
+                    self._json(HTTPStatus.OK, self.server.manager.blackbox_flight_story(run_id))
+                except ValueError as exc:
+                    self._json(HTTPStatus.NOT_FOUND, {"error": str(exc)})
+                return
             try:
                 report = self.server.manager.verify_blackbox_flight(run_id)
             except ValueError as exc:
@@ -199,12 +208,6 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 return
             if path == "/api/blackbox/flight":
                 self._json(HTTPStatus.OK, report)
-                return
-            if path == "/api/blackbox/story":
-                self._json(
-                    HTTPStatus.OK,
-                    self.server.manager.blackbox_flight_story(run_id),
-                )
                 return
             output_format = (params.get("format") or ["json"])[0]
             if output_format == "text":

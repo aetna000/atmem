@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atmem-atbot"
-version = "0.1.0a6"
+version = "0.1.0"
 description = "The local-first intelligence companion for AtMem."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,7 +14,7 @@ authors = [{ name = "aetna000", email = "aetna000@gmail.com" }]
 maintainers = [{ name = "aetna000", email = "aetna000@gmail.com" }]
 keywords = ["agent-memory", "memory-inference", "memory-retrieval", "atmem"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",

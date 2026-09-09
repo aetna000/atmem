@@ -421,6 +421,20 @@ class ControlStore:
             "entry_sha256": entry_sha256,
         }
 
+    def evidence_revision(self, migration_id: str, *, kind: str) -> dict[str, Any]:
+        """Cheap refresh hint; never a substitute for chain verification."""
+        row = self._conn.execute(
+            "SELECT sequence, entry_sha256 FROM evidence WHERE migration_id = ? AND kind = ? ORDER BY sequence DESC LIMIT 1",
+            (migration_id, kind),
+        ).fetchone()
+        ack = self._conn.execute(
+            "SELECT COUNT(*) AS count FROM attention_acknowledgements WHERE migration_id = ?",
+            (migration_id,),
+        ).fetchone()
+        return {"migration_id": migration_id, "sequence": row["sequence"] if row else 0,
+                "entry_sha256": row["entry_sha256"] if row else None,
+                "acknowledgements": ack["count"]}
+
     def list_evidence(self, migration_id: str, *, kind: str) -> list[dict[str, Any]]:
         rows = self._conn.execute(
             """

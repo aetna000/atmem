@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import inspect
 
+import pytest
+
 from atmem.delegated.contracts import DelegatedBinding
 from atmem.provider_adapters.mem0 import Mem0ContextProvider
 from atmem.provider_adapters.models import ProviderRequest
@@ -45,6 +47,7 @@ def test_mem0_empty_or_malformed_rows_withhold() -> None:
 def test_mem0_2_sdk_accepts_the_scoped_search_contract() -> None:
     """Exercise the real optional SDK surface without network or model access."""
 
+    pytest.importorskip("mem0", reason="real SDK contract runs in the mem0 provider-extra gate")
     from mem0 import Memory, MemoryClient
     from mem0.client.types import SearchMemoryOptions
 

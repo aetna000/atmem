@@ -836,3 +836,144 @@ def test_blackbox_global_chain_detects_tampering(tmp_path: Path) -> None:
     report = manager.verify_blackbox_flight("run-tamper")
     assert report["timeline_chain_valid"] is False
     assert report["verdict"] == "tampered_or_invalid_chain"
+
+
+@pytest.mark.parametrize("case", [
+    "complete", "error", "missing", "call", "turn", "session", "agent",
+    "workspace", "tool", "before_request", "other_run", "reused_request",
+])
+def test_tool_closure_requires_same_invocation_scope_and_order(tmp_path: Path, case: str) -> None:
+    manager = _manager(tmp_path)
+    scope = dict(run_id="closure", turn_id="turn-1", session_id="session-1",
+                 agent_id="main", workspace_id="workspace-1")
+    for event_type, payload in [
+        ("turn.input", {"prompt_sha256": "0" * 64}),
+        ("context.disposition", {"disposition": "not_applicable"}),
+        ("model.input", {"provider": "fixture", "model": "fixture"}),
+    ]:
+        manager.record_blackbox_event(event_type=event_type, payload=payload, **scope)
+    completion = dict(scope, tool_call_id="call-1")
+    for label, field in [("call", "tool_call_id"), ("turn", "turn_id"),
+                         ("session", "session_id"), ("agent", "agent_id"),
+                         ("workspace", "workspace_id"), ("other_run", "run_id")]:
+        if case == label:
+            completion[field] = "different"
+    payload = {"tool_name": "exec" if case == "tool" else "read",
+               "result_sha256": "1" * 64,
+               "outcome": "error" if case == "error" else "completed"}
+    if case == "before_request":
+        manager.record_blackbox_event(event_type="tool.completed", payload=payload, **completion)
+    manager.record_blackbox_event(event_type="tool.requested", tool_call_id="call-1",
+                                  payload={"tool_name": "read", "params_sha256": "2" * 64}, **scope)
+    if case == "reused_request":
+        manager.record_blackbox_event(event_type="tool.requested", tool_call_id="call-1",
+                                      payload={"tool_name": "read", "params_sha256": "2" * 64},
+                                      **dict(scope, turn_id="other-turn"))
+    if case not in {"missing", "before_request"}:
+        manager.record_blackbox_event(event_type="tool.completed", payload=payload, **completion)
+    manager.record_blackbox_event(event_type="model.output", payload={
+        "provider": "fixture", "model": "fixture", "response_sha256": "3" * 64,
+        "assistant_visible_text_sha256": "3" * 64,
+    }, **scope)
+    manager.record_blackbox_event(event_type="turn.ended", payload={
+        "success": True, "assistant_visible_text_sha256": "3" * 64,
+    }, **scope)
+    report = manager.verify_blackbox_flight("closure")
+    assert report["timeline_chain_valid"] is True
+    assert report["structurally_complete"] is (case in {"complete", "error"})
+    assert report["verdict"] == (
+        "completed_successfully" if case == "complete" else
+        "completed_with_tool_errors" if case == "error" else "incomplete_evidence"
+    )
+
+
+@pytest.mark.parametrize("reason", [None, "Fetch failed (403): [redacted-url]"])
+def test_tool_error_reason_survives_persisted_report(tmp_path: Path, reason: str | None) -> None:
+    manager = _manager(tmp_path)
+    manager.record_blackbox_event(
+        event_type="tool.completed", run_id="error-diagnostic", tool_call_id="fetch-1",
+        payload={"tool_name": "web_fetch", "outcome": "error", "error_category": "tool_error",
+                 "error_reason": reason, "error_sha256": "a" * 64, "result_present": False},
+    )
+    report = manager.verify_blackbox_flight("error-diagnostic")
+    assert report["timeline_chain_valid"] is True
+    assert report["tools"]["errors"][0]["error_reason"] == reason
+    payload = report["timeline"][0]["payload"]
+    assert payload["result_present"] is False
+    assert payload["error_sha256"] == "a" * 64
+
+
+def test_blackbox_revision_changes_only_for_retained_evidence(tmp_path: Path) -> None:
+    manager = _manager(tmp_path)
+    before = manager.blackbox_revision()
+    assert before == manager.blackbox_revision()
+    assert before["sequence"] == 0
+    manager.record_blackbox_event(event_type="model.output", run_id="revision-run",
+                                  payload={"response_sha256": "1" * 64})
+    after = manager.blackbox_revision()
+    assert after["sequence"] == 1
+    assert after["entry_sha256"] != before["entry_sha256"]
+    assert after == manager.blackbox_revision()
+    assert "body" not in after
+
+
+def test_background_review_is_separate_from_foreground_outcome(tmp_path: Path) -> None:
+    manager = _manager(tmp_path)
+    for run_id, session_id in [("foreground", "chat-session"),
+                               ("skill-workshop-review:test", "internal-session-effects-skill-workshop-review_test")]:
+        manager.record_blackbox_event(event_type="model.output", run_id=run_id, session_id=session_id,
+                                      payload={"response_sha256": "1" * 64})
+    manager.record_blackbox_event(event_type="turn.ended", run_id="foreground", session_id="chat-session",
+                                  payload={"success": True})
+    rows = {row["run_id"]: row for row in manager.blackbox_runs()["runs"]}
+    assert rows["foreground"]["run_kind"] == "agent_run"
+    assert rows["foreground"]["lifecycle"]["success"] is True
+    assert rows["skill-workshop-review:test"]["run_kind"] == "background_skill_review"
+    assert rows["skill-workshop-review:test"]["coverage"]["terminal_event_observed"] is False
+    assert rows["foreground"]["evidence_summary"]["conflicting_calls"] == 0
+
+@pytest.mark.parametrize('variation', ['equivalent', 'different_digest', 'same_shape', 'legacy', 'error', 'different_params', 'third_observation', 'wrong_tool'])
+def test_progress_card_comparison_preserves_real_conflicts(tmp_path: Path, variation: str) -> None:
+    manager = _manager(tmp_path)
+    name = 'exec' if variation == 'wrong_tool' else 'progress_card'
+    for i in range(3 if variation == 'third_observation' else 2):
+        manager.record_blackbox_event(event_type='tool.requested', run_id='progress', tool_call_id='call', payload={
+            'tool_name': name, 'tool_canonical_name': name,
+            'params_sha256': str(i) * 64 if variation == 'different_params' else 'a' * 64,
+        })
+        payload = {
+            'tool_name': name, 'tool_canonical_name': name, 'result_sha256': str(i) * 64,
+            'outcome': 'error' if variation == 'error' and i else 'completed',
+            'result_comparison_profile': 'openclaw-progress-card-v1',
+            'result_comparison_sha256': str(i) * 64 if variation == 'different_digest' else 'b' * 64,
+            'result_observation_shape': 'native_input_text' if i and variation != 'same_shape' else 'tool_content_details',
+        }
+        if variation == 'legacy':
+            payload = {k: v for k, v in payload.items() if not k.startswith(('result_comparison', 'result_observation'))}
+        manager.record_blackbox_event(event_type='tool.completed', run_id='progress', tool_call_id='call', payload=payload)
+    report = manager.verify_blackbox_flight('progress')
+    assert bool(report['tools']['coalesced_wrapper_calls']) == (variation == 'equivalent')
+    assert report['tools']['conflicting_completions'] == ([] if variation == 'equivalent' else ['call'])
+    assert len({e['payload']['result_sha256'] for e in report['timeline'] if e['event_type'] == 'tool.completed'}) >= 2
+
+
+def test_recorded_timestamp_is_utc_with_subsecond_precision() -> None:
+    import re
+    from datetime import datetime, timedelta
+    event = normalize_event(event_type='model.output', run_id='precise-time', payload={},
+        migration_id='test', host='openclaw', session_id=None, tool_call_id=None)
+    timestamp = event['recorded_at']
+    assert re.fullmatch(r'\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3,6}(?:Z|\+00:00)', timestamp)
+    assert datetime.fromisoformat(timestamp.replace('Z', '+00:00')).utcoffset() == timedelta(0)
+
+
+def test_utc_now_keeps_fractional_digits_at_exact_second(monkeypatch) -> None:
+    from datetime import datetime, timezone
+    import atmem.store.sqlite as storage
+    class Clock:
+        @staticmethod
+        def now(tz):
+            assert tz == timezone.utc
+            return datetime(2026, 9, 9, 8, 42, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(storage, 'datetime', Clock)
+    assert storage.utc_now() == '2026-09-09T08:42:00.000000+00:00'
