@@ -47,7 +47,7 @@ Primary boundary suite: `tests/test_incident_resolution.py`. Add fixture-level g
 - **SC-001**: Cross-domain software-engineering, research, enterprise-knowledge and business-operation fixtures covering successful runs, permission denial, recovered retry, missing hooks, child failure and failures unrelated to memory yield correct classification, exact evidence links and zero unsupported causation/outcome claims.
 - **SC-002**: An unknown external side-effect outcome produces no executable retry; acknowledgment leaves remediation and verification unchanged; replayed operator requests create one revision.
 - **SC-003**: Cross-scope explanation/action/export adversaries disclose zero inaccessible identifiers or content; model-unavailable runs retain a useful deterministic incident report.
-- **SC-004**: Controlled usability with at least 10 representative operators achieves >=90% finding the relevant break, affected work/uncertainty and justified next action within two minutes; publish failures separately from automated fixture results.
+- **SC-004**: At least 9 of 10 operators complete the declared investigation protocol within two minutes per task, replicated on a second independent cohort of ten before advertising the usability capability; publish both cohorts and failures separately under specs/usability-protocol.md.
 
 ## Constitution check
 
@@ -66,3 +66,15 @@ No constitutional amendment is proposed. The separately named trusted-delegation
 ## Rollout and rollback
 
 Ship contracts and non-influencing inspection first. Negotiate capability per deployed adapter/configuration, validate the milestone fixtures, then enable supported influence or actions explicitly. Preserve legacy wire/CLI paths, add redirects where applicable and keep old evidence inspectable. Rollback stops new feature actions and preserves audit; it does not undo prior model disclosure or external effects.
+
+## M0 release profile
+
+[The M0 release slice](../m0-investigation-preview.md) defines independent OpenClaw investigation-only delivery and exact prerequisite tasks. It overrides full-feature sequencing for that profile only: shared non-task identity, capture and minimal findings in the existing dashboard can ship before task links, providers, other hosts or the new shell. Completing the slice does not complete broader requirements. Usability claims follow [the declared protocol](../usability-protocol.md).
+
+Terminology and legacy projections follow the canonical mapping table in `specs/integration-ownership.md`; add one shared fixture set for unlinked flights, multi-flight executions, attention-to-finding reconciliation and receipt/package distinctions. Each owning boundary suite validates its projection; no UI-only verdict mapping is permitted.
+
+## Product-wide integration (FR-011, SC-005)
+
+Implement FR-011 through `atmem/incidents/projection.py`, consuming Spec 012 space/membership and feedback contracts, 019 context authorization, 020 time/identity evidence and the owner mappings in `specs/product-requirements.md`. Allocate persisted changes through Spec 010; retain legacy scope behavior and keep new private/shared space behavior explicit. Domain code owns facts and permissions; UI and transports project the same result.
+
+Add boundary fixtures in `tests/test_incident_resolution.py` for SC-005, including positive/negative scope access, concurrent membership changes and real-versus-unknown verification time. Report unsupported host/provider coverage rather than infer it. Existing OpenClaw APIs are adapter compatibility surfaces, not required core fields. The relevant tasks below gate this requirement; broader future features do not block M0's scoped profile.

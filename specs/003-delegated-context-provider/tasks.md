@@ -1,91 +1,93 @@
 # Tasks: Delegated Context Provider
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/003/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 ## Phase 1: Contract and Validation Foundation
 
-- [x] T001 Add the maintained Ed25519 verification dependency and `atmem/delegated` package exports in `pyproject.toml` and `atmem/delegated/__init__.py` (FR-003, FR-005, FR-007, FR-017)
-- [x] T002 Implement frozen provider-neutral binding, request, trust, result, and decision types in `atmem/delegated/contracts.py` and `atmem/delegated/config.py` (FR-003, FR-015)
-- [x] T003 Implement restricted canonical JSON, signing input, result digest, key fingerprint, and idempotency calculation in `atmem/delegated/canonical.py` (FR-003, FR-007)
-- [x] T004 Implement duplicate-key rejecting parsing, closed structural/semantic validation, exact bytes, time, binding, trust, and Ed25519 verification in `atmem/delegated/validation.py` (FR-003, FR-005–FR-007)
-- [x] T005 Run all PR positive and negative/stateful fixtures against production Python validation in `tests/test_delegated_context.py` (SC-002)
+- [x] [T001] Add the maintained Ed25519 verification dependency and `atmem/delegated` package exports in `pyproject.toml` and `atmem/delegated/__init__.py` (FR-003, FR-005, FR-007, FR-017)
+- [x] [T002] Implement frozen provider-neutral binding, request, trust, result, and decision types in `atmem/delegated/contracts.py` and `atmem/delegated/config.py` (FR-003, FR-015)
+- [x] [T003] Implement restricted canonical JSON, signing input, result digest, key fingerprint, and idempotency calculation in `atmem/delegated/canonical.py` (FR-003, FR-007)
+- [x] [T004] Implement duplicate-key rejecting parsing, closed structural/semantic validation, exact bytes, time, binding, trust, and Ed25519 verification in `atmem/delegated/validation.py` (FR-003, FR-005–FR-007)
+- [x] [T005] Run all PR positive and negative/stateful fixtures against production Python validation in `tests/test_delegated_context.py` (SC-002)
 
 ## Phase 2: Safe Configuration and Transport
 
-- [x] T006 Implement symlink-safe, mode-0600, atomic delegated registration storage with disabled-by-default activation and safe status projection in `atmem/delegated/config.py` (FR-001, FR-002, FR-005, FR-011)
-- [x] T007 Implement bounded no-redirect loopback HTTP transport and the closed request-v1 shape in `atmem/delegated/client.py` (FR-004, FR-015)
-- [x] T008 Add configuration and transport tests for scope ambiguity, malformed keys, remote endpoints, timeout/size limits, redirect rejection, and secret-safe output in `tests/test_delegated_context.py` (FR-004, FR-005, SC-007)
+- [x] [T006] Implement symlink-safe, mode-0600, atomic delegated registration storage with disabled-by-default activation and safe status projection in `atmem/delegated/config.py` (FR-001, FR-002, FR-005, FR-011)
+- [x] [T007] Implement bounded no-redirect loopback HTTP transport and the closed request-v1 shape in `atmem/delegated/client.py` (FR-004, FR-015)
+- [x] [T008] Add configuration and transport tests for scope ambiguity, malformed keys, remote endpoints, timeout/size limits, redirect rejection, and secret-safe output in `tests/test_delegated_context.py` (FR-004, FR-005, SC-007)
 
 ## Phase 3: Durable Acceptance and Evidence
 
-- [x] T009 Add additive schema-v5 delegated acceptance/replay and content-free delivery tables and indexes to `atmem/control/store.py` without reusing native context-persisting previews (FR-008, FR-012, FR-012a, FR-016)
-- [x] T010 Implement atomic accept/idempotent retry/conflicting-turn/nonce/idempotency reservation APIs without persisting query or context bytes in `atmem/control/store.py` (FR-008, FR-012)
-- [x] T011 Add schema-4 upgrade, concurrency, restart replay, backup/restore, removal, and content-minimization tests in `tests/test_delegated_context.py` and `tests/test_delegated_control.py` (FR-008, FR-012, FR-016, SC-004, SC-006)
-- [x] T012 Implement provider-neutral delegated orchestration and evidence projections in `atmem/delegated/service.py` (FR-007–FR-012, FR-015)
+- [x] [T009] Add additive schema-v5 delegated acceptance/replay and content-free delivery tables and indexes to `atmem/control/store.py` without reusing native context-persisting previews (FR-008, FR-012, FR-012a, FR-016)
+- [x] [T010] Implement atomic accept/idempotent retry/conflicting-turn/nonce/idempotency reservation APIs without persisting query or context bytes in `atmem/control/store.py` (FR-008, FR-012)
+- [x] [T011] Add schema-4 upgrade, concurrency, restart replay, backup/restore, removal, and content-minimization tests in `tests/test_delegated_context.py` and `tests/test_delegated_control.py` (FR-008, FR-012, FR-016, SC-004, SC-006)
+- [x] [T012] Implement provider-neutral delegated orchestration and evidence projections in `atmem/delegated/service.py` (FR-007–FR-012, FR-015)
 
 ## Phase 4: Exclusive Control-Plane Routing
 
-- [x] T013 Extend `control_prepare` inputs and `ControlManager.prepare()` with turn/user/workspace bindings while preserving older callers in `atmem/control/server.py` and `atmem/control/manager.py` (FR-001, FR-006, FR-015)
-- [x] T014 Route matching enabled scopes through delegated orchestration before all native candidate retrieval and context preparation in `atmem/control/manager.py` (FR-008–FR-011)
-- [x] T015 Return additive authority, decision, exact context, location, receipt, acceptance, provider, and delegated exposure fields while persisting only content-free delivery state in `atmem/control/manager.py` (FR-009–FR-012a)
-- [x] T016 Add manager spies and integration cases proving native default, valid inject, valid withhold, default failure, explicit native fallback, late output, exact retry, and zero native-plus-delegated double injection in `tests/test_delegated_control.py` (FR-001, FR-009–FR-013, SC-003–SC-005)
+- [x] [T013] Extend `control_prepare` inputs and `ControlManager.prepare()` with turn/user/workspace bindings while preserving older callers in `atmem/control/server.py` and `atmem/control/manager.py` (FR-001, FR-006, FR-015)
+- [x] [T014] Route matching enabled scopes through delegated orchestration before all native candidate retrieval and context preparation in `atmem/control/manager.py` (FR-008–FR-011)
+- [x] [T015] Return additive authority, decision, exact context, location, receipt, acceptance, provider, and delegated exposure fields while persisting only content-free delivery state in `atmem/control/manager.py` (FR-009–FR-012a)
+- [x] [T016] Add manager spies and integration cases proving native default, valid inject, valid withhold, default failure, explicit native fallback, late output, exact retry, and zero native-plus-delegated double injection in `tests/test_delegated_control.py` (FR-001, FR-009–FR-013, SC-003–SC-005)
 
 ## Phase 5: CLI and Dashboard Product Experience
 
-- [x] T017 Add discoverable `atmem delegated register|enable|disable|status|doctor|self-test|remove` commands with examples, JSON output, safe next actions, and confirmation semantics in `atmem/cli.py` (FR-002, FR-014)
-- [x] T018 Add delegated configuration/status/doctor/self-test/remove APIs to `atmem/control/web.py` using the same service layer as CLI (FR-014)
-- [x] T019 Add a collapsed Settings “Context authority” experience showing native default and optional delegated-provider trust/scope/failure configuration in `atmem/control/assets/app.js` and `app.css` (FR-002, FR-014, SC-007)
-- [x] T020 Add CLI, API, dashboard, CSRF, no-key-leakage, and disabled-default tests in `tests/test_delegated_control.py`, `tests/test_cli.py`, and `tests/test_control_plane.py` (FR-001, FR-002, FR-014, SC-007)
+- [x] [T017] Add discoverable `atmem delegated register|enable|disable|status|doctor|self-test|remove` commands with examples, JSON output, safe next actions, and confirmation semantics in `atmem/cli.py` (FR-002, FR-014)
+- [x] [T018] Add delegated configuration/status/doctor/self-test/remove APIs to `atmem/control/web.py` using the same service layer as CLI (FR-014)
+- [x] [T019] Add a collapsed Settings “Context authority” experience showing native default and optional delegated-provider trust/scope/failure configuration in `atmem/control/assets/app.js` and `app.css` (FR-002, FR-014, SC-007)
+- [x] [T020] Add CLI, API, dashboard, CSRF, no-key-leakage, and disabled-default tests in `tests/test_delegated_control.py`, `tests/test_cli.py`, and `tests/test_control_plane.py` (FR-001, FR-002, FR-014, SC-007)
 
 ## Phase 6: OpenClaw Exact-Delivery Adapter
 
-- [x] T021 Add optional authenticated owner/user mapping—without a second authority enable switch—to `integrations/openclaw/openclaw.plugin.json`, `src/types.ts`, and `index.ts` (FR-001, FR-002, FR-002a, FR-006)
-- [x] T022 Implement exclusive delegated `prependContext` insertion with stable turn binding, no suffix/normalization, and no native candidate/persona injection in `integrations/openclaw/index.ts` (FR-009, FR-010, FR-013)
-- [x] T023 Retain exact delegated context only in bounded process memory, record separate provider-authorization/delivery/compatible disposition events, confirm one exact inserted segment at `llm_input`, and erase transient bytes immediately in `integrations/openclaw/index.ts` (FR-012, FR-012a, FR-013)
-- [x] T024 Extend OpenClaw tests for exact emoji/CRLF bytes, one context contribution, inject/withhold/reject/fallback, missing identity, owner enforcement, receipt correlation, and native regression in `integrations/openclaw/test/hooks.mjs` and `delegated-context-contract.mjs` (FR-006, FR-009–FR-013, SC-003–SC-005)
+- [x] [T021] Add optional authenticated owner/user mapping—without a second authority enable switch—to `integrations/openclaw/openclaw.plugin.json`, `src/types.ts`, and `index.ts` (FR-001, FR-002, FR-002a, FR-006)
+- [x] [T022] Implement exclusive delegated `prependContext` insertion with stable turn binding, no suffix/normalization, and no native candidate/persona injection in `integrations/openclaw/index.ts` (FR-009, FR-010, FR-013)
+- [x] [T023] Retain exact delegated context only in bounded process memory, record separate provider-authorization/delivery/compatible disposition events, confirm one exact inserted segment at `llm_input`, and erase transient bytes immediately in `integrations/openclaw/index.ts` (FR-012, FR-012a, FR-013)
+- [x] [T024] Extend OpenClaw tests for exact emoji/CRLF bytes, one context contribution, inject/withhold/reject/fallback, missing identity, owner enforcement, receipt correlation, and native regression in `integrations/openclaw/test/hooks.mjs` and `delegated-context-contract.mjs` (FR-006, FR-009–FR-013, SC-003–SC-005)
 
 ## Phase 7: Documentation, Compatibility, and Beta Release
 
-- [x] T025 Update the contract status and request contract, README quick start, generic/OpenClaw guides, dashboard language, current status, release notes, and `todo.md` with native-default and opt-in authority wording (FR-001, FR-002, FR-014, FR-018)
-- [x] T026 Run native deterministic, AtBot, semantic, Pydantic AI, LangGraph, multi-agent, restore, dashboard, and Agent Black Box regressions with delegated mode absent/disabled (FR-001, FR-016, SC-001)
-- [x] T027 Run all Python and OpenClaw typecheck/build/test/smoke suites and the deterministic release gate; record exact results here (SC-001–SC-005)
-- [x] T028 Bump Python to `2.2.6b1` and OpenClaw npm to `2.2.6-beta.1`, add release notes, and verify version consistency without changing AtBot independently in `pyproject.toml`, package metadata, and adapter metadata (FR-018)
-- [x] T029 Build and inspect isolated wheel/sdist/npm artifacts, verify licenses and contents, install clean, upgrade from AtMem 2.2.5, and rerun native plus delegated installed-artifact smoke tests (FR-016–FR-018, SC-006, SC-008)
-- [x] T030 Commit and push the feature branch, publish the verified `2.2.6b1` Python prerelease and npm beta only when their respective tested artifacts changed, tag consistently, and verify public installation metadata (FR-018, SC-008)
-- [x] T031 Build, inspect, publish, and publicly verify the provider-neutral `2.2.6b2` Python prerelease and matching `2.2.6-beta.2` OpenClaw adapter without rewriting beta 1 history (FR-015, FR-018, SC-008)
+- [x] [T025] Update the contract status and request contract, README quick start, generic/OpenClaw guides, dashboard language, current status, release notes, and `todo.md` with native-default and opt-in authority wording (FR-001, FR-002, FR-014, FR-018)
+- [x] [T026] Run native deterministic, AtBot, semantic, Pydantic AI, LangGraph, multi-agent, restore, dashboard, and Agent Black Box regressions with delegated mode absent/disabled (FR-001, FR-016, SC-001)
+- [x] [T027] Run all Python and OpenClaw typecheck/build/test/smoke suites and the deterministic release gate; record exact results here (SC-001–SC-005)
+- [x] [T028] Bump Python to `2.2.6b1` and OpenClaw npm to `2.2.6-beta.1`, add release notes, and verify version consistency without changing AtBot independently in `pyproject.toml`, package metadata, and adapter metadata (FR-018)
+- [x] [T029] Build and inspect isolated wheel/sdist/npm artifacts, verify licenses and contents, install clean, upgrade from AtMem 2.2.5, and rerun native plus delegated installed-artifact smoke tests (FR-016–FR-018, SC-006, SC-008)
+- [x] [T030] Commit and push the feature branch, publish the verified `2.2.6b1` Python prerelease and npm beta only when their respective tested artifacts changed, tag consistently, and verify public installation metadata (FR-018, SC-008)
+- [x] [T031] Build, inspect, publish, and publicly verify the provider-neutral `2.2.6b2` Python prerelease and matching `2.2.6-beta.2` OpenClaw adapter without rewriting beta 1 history (FR-015, FR-018, SC-008)
 
 ## Verification evidence
 
 ### Amendment A — authenticated transport
 
-- [x] T032 Define normative shared HTTP signing profile and deterministic vectors in `docs/contracts/delegated-request-auth-v1.md` and companion JSON (FR-019–FR-025).
-- [x] T033 Implement credentials, HMAC validation, durable bounded replay ledger and rotation in `atmem/delegated/transport.py` (FR-019–FR-023).
-- [x] T034 Integrate signed requests/health, registration migration gates and readiness in `atmem/delegated/{client,config,service}.py` (FR-019, FR-020, FR-022, FR-024).
-- [x] T035 Enforce authentication before provider access and add lifecycle/CLI/dashboard configuration paths in `atmem/provider_adapters`, `atmem/cli.py`, `atmem/control/web.py` (FR-020–FR-024).
-- [x] T036 Add shared-vector, adversarial HTTP, concurrency/restart, rotation and migration tests in `tests/test_delegated_transport.py`; update existing contract/control/provider tests (FR-019–FR-025).
-- [x] T037 Verify installed-wheel authenticated transport and complete OpenClaw delegated llm_input/flight closure in `tools` and `integrations/openclaw/test` (FR-025).
-- [x] T038 Update integration/migration guidance and record exact verification and limitations in this file and `docs/context-provider-adapters.md` (FR-024, FR-025).
+- [x] [T032] Define normative shared HTTP signing profile and deterministic vectors in `docs/contracts/delegated-request-auth-v1.md` and companion JSON (FR-019–FR-025).
+- [x] [T033] Implement credentials, HMAC validation, durable bounded replay ledger and rotation in `atmem/delegated/transport.py` (FR-019–FR-023).
+- [x] [T034] Integrate signed requests/health, registration migration gates and readiness in `atmem/delegated/{client,config,service}.py` (FR-019, FR-020, FR-022, FR-024).
+- [x] [T035] Enforce authentication before provider access and add lifecycle/CLI/dashboard configuration paths in `atmem/provider_adapters`, `atmem/cli.py`, `atmem/control/web.py` (FR-020–FR-024).
+- [x] [T036] Add shared-vector, adversarial HTTP, concurrency/restart, rotation and migration tests in `tests/test_delegated_transport.py`; update existing contract/control/provider tests (FR-019–FR-025).
+- [x] [T037] Verify installed-wheel authenticated transport and complete OpenClaw delegated llm_input/flight closure in `tools` and `integrations/openclaw/test` (FR-025).
+- [x] [T038] Update integration/migration guidance and record exact verification and limitations in this file and `docs/context-provider-adapters.md` (FR-024, FR-025).
 
 ### Amendment B — Pydantic AI and LangChain/LangGraph host adapters
 
-- [x] T039 Extend the shared adapter identity and manager prepare boundary with
+- [x] [T039] Extend the shared adapter identity and manager prepare boundary with
   authenticated user binding, enabled-delegation discovery, and an exact
   delegated-query channel that preserves native normalization (FR-026, FR-027).
-- [x] T040 Implement exclusive delegated/native capture and context routing in
+- [x] [T040] Implement exclusive delegated/native capture and context routing in
   `AtMemTurnLifecycle`, including verbatim delegated handoff and no canonical
   prompt capture for delegated-authority turns (FR-027, FR-028, FR-031).
-- [x] T041 Add exact one-segment delivery proof, separate authorization/delivery/
+- [x] [T041] Add exact one-segment delivery proof, separate authorization/delivery/
   disposition evidence, delegated exposure confirmation, fail-before-model
   behavior, and transient byte erasure to the shared lifecycle (FR-029, FR-030).
-- [x] T042 Wire trusted per-run identity and exact message-boundary observations
+- [x] [T042] Wire trusted per-run identity and exact message-boundary observations
   into the Pydantic AI capability and sync/async LangChain/LangGraph middleware
   without mutating host state or adding an enable flag (FR-026, FR-028, FR-031).
-- [x] T043 Add shared-lifecycle and real-framework tests for exact CRLF/emoji
+- [x] [T043] Add shared-lifecycle and real-framework tests for exact CRLF/emoji
   inject, withhold, failure, fallback, missing identity, double injection,
   delivery tamper, prompt privacy, evidence separation, async parity, and native
   regression (SC-009–SC-011).
-- [x] T044 Update framework integration guidance and run focused framework,
+- [x] [T044] Update framework integration guidance and run focused framework,
   delegated/control, Black Box, and full Python verification; record exact
   results and honest optional-dependency limitations here (SC-009–SC-011).
-- [x] T045 Define placement-neutral delivered-context and structural-envelope
+- [x] [T045] Define placement-neutral delivered-context and structural-envelope
   digest semantics in Spec 003 and the provider contract, with regression
   coverage for memory-withhold plus governed-task injection (FR-012b).
 
@@ -177,4 +179,4 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 
 - [ ] [T046] Define failing boundary fixtures for FR-032, FR-033, SC-012 using `tests/test_delegated_context.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T047] Project existing delegated decisions into the shared envelope without changing v1 in `atmem/delegated/service.py`, `atmem/delegated/contracts.py` (FR-032, FR-033); depend on T046 and the published prerequisite contracts, preserving baseline behavior.
-- [ ] [T048] Verify SC-012 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T047 and do not mark completion from declarations alone.
+- [ ] [T048] Verify SC-012 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/003/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T047 and do not mark completion from declarations alone.

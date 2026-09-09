@@ -10,7 +10,7 @@ Python 3.10–3.13; current SQLite/control evidence stores and optional declared
 
 ## Foundation prerequisites
 
-007 Amendment B T088/T089/T092 identity/link foundation, baseline 010 storage, 011 adapters, 012 services and 018 invariants. Context capture accepts optional 019 references; non-context execution capture is independent of 019.
+For M0, 007 T110 delivers the non-task ExecutionIdentity subset of T088; use existing control-store migrations and baseline adapters/services/invariants. T089/T092 task-link storage and propagation are required only for task-enabled expansion. Context capture accepts optional 019 references; investigation-only capture is independent of 019, 022 and 025.
 
 ## Architecture and file ownership
 
@@ -18,7 +18,7 @@ Python 3.10–3.13; current SQLite/control evidence stores and optional declared
 - **FR-002** → `atmem/execution/events.py`: Record append-only typed events for model/context/tool boundaries, lifecycle, explicit progress, waiting, retry and child execution. Event identity binds producer instance/epoch and sequence; duplicate same-payload events replay idempotently, conflicting duplicates remain visible integrity findings.
 - **FR-003** → `atmem/execution/spool.py`: Persist a bounded local capture spool and acknowledgment checkpoints; acknowledge only durable acceptance. Restart resends unacknowledged events without duplicate evidence. Disk-full, dropped events, producer reset and expired retention create explicit coverage gaps.
 - **FR-004** → `atmem/execution/ordering.py`: Retain event time and ingest time; use producer sequence and explicit dependencies for ordering, and label incomparable cross-producer ordering and clock skew. Render elapsed time without claiming a universal exact causal order.
-- **FR-005** → `atmem/execution/coverage.py`: Publish per-adapter/version/configuration coverage for supported, observed and enforced boundaries, including omitted hooks. Static availability or successful retrieval cannot prove model placement, tool completion or blocking.
+- **FR-005** → `atmem/execution/coverage.py`: Publish per-adapter/version/configuration coverage for supported, observed and enforced boundaries, including omitted hooks. Static availability or successful retrieval cannot prove model placement, tool completion or blocking. Use the public Spec 011 conformance manifest format for published results, retaining actual runtime coverage and issuer assurance separately.
 - **FR-006** → `atmem/execution/status.py`: Classify running, waiting, succeeded, failed, cancelled and incomplete executions from observed events; silence becomes missing heartbeat or suspected stall under a declared threshold, never automatic proof of failure.
 - **FR-007** → `atmem/execution/projection.py`: Build bounded scope-filtered execution projections across attempts/children, with cycle rejection, orphan references, cancellation, late completion and partial children explicit. Late evidence produces revised projections with provenance, not rewritten events.
 - **FR-008** → `atmem/adapters/base.py`: Keep investigation-only mode usable without native memory, embeddings, AtBot, task activation or context changes. Link optional context packages and task revisions when supplied by authenticated hosts.
@@ -66,3 +66,15 @@ No constitutional amendment is proposed. The separately named trusted-delegation
 ## Rollout and rollback
 
 Ship contracts and non-influencing inspection first. Negotiate capability per deployed adapter/configuration, validate the milestone fixtures, then enable supported influence or actions explicitly. Preserve legacy wire/CLI paths, add redirects where applicable and keep old evidence inspectable. Rollback stops new feature actions and preserves audit; it does not undo prior model disclosure or external effects.
+
+## M0 release profile
+
+[The M0 release slice](../m0-investigation-preview.md) defines independent OpenClaw investigation-only delivery and exact prerequisite tasks. It overrides full-feature sequencing for that profile only: shared non-task identity, capture and minimal findings in the existing dashboard can ship before task links, providers, other hosts or the new shell. Completing the slice does not complete broader requirements. Usability claims follow [the declared protocol](../usability-protocol.md).
+
+Terminology and legacy projections follow the canonical mapping table in `specs/integration-ownership.md`; add one shared fixture set for unlinked flights, multi-flight executions, attention-to-finding reconciliation and receipt/package distinctions. Each owning boundary suite validates its projection; no UI-only verdict mapping is permitted.
+
+## Product-wide integration (FR-011, SC-005)
+
+Implement FR-011 through `atmem/execution/projection.py`, consuming Spec 012 space/membership and feedback contracts, 019 context authorization, 020 time/identity evidence and the owner mappings in `specs/product-requirements.md`. Allocate persisted changes through Spec 010; retain legacy scope behavior and keep new private/shared space behavior explicit. Domain code owns facts and permissions; UI and transports project the same result.
+
+Add boundary fixtures in `tests/test_execution_capture.py` for SC-005, including positive/negative scope access, concurrent membership changes and real-versus-unknown verification time. Report unsupported host/provider coverage rather than infer it. Existing OpenClaw APIs are adapter compatibility surfaces, not required core fields. The relevant tasks below gate this requirement; broader future features do not block M0's scoped profile.

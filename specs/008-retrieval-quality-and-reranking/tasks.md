@@ -1,5 +1,7 @@
 # Tasks: Retrieval Quality, Embeddings, and Reranking
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/008/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 ## Phase 1 — Lock the defects
 
 - [x] [T001] Add failing burger-paraphrase, Australian-cars no-useful-memory, topical-non-answer, and AtBot-down fixtures in `tests/test_retrieval_quality.py` (FR-003–FR-005, FR-011–FR-014; SC-002–SC-005)
@@ -45,4 +47,4 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 
 - [ ] [T017] Define failing boundary fixtures for FR-021, FR-022, SC-009 using `tests/test_retrieval_adapter_conformance.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T018] Map native support decisions into provider-neutral context evidence in `atmem/retrieve/` (FR-021, FR-022); depend on T017 and the published prerequisite contracts, preserving baseline behavior.
-- [ ] [T019] Verify SC-009 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T018 and do not mark completion from declarations alone.
+- [ ] [T019] Verify SC-009 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/008/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T018 and do not mark completion from declarations alone.

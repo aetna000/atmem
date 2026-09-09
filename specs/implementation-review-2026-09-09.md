@@ -1,5 +1,7 @@
 # Implementation review for the unified AtMem product
 
+> **Frozen historical record.** The findings and counts below describe the original review snapshot and are not maintained as current totals. Preserve the inspected commit and original body. New verification belongs in the [per-feature evidence journal](../docs/implementation-evidence/README.md); [current implementation status](../docs/current-status.md) links to subsequent evidence.
+
 **Date**: 2026-09-09 (Australia/Sydney)
 **Inspected base commit**: `793a00d6c03d92b505903624fa1ece1403e3231a`
 **Scope**: Specs 001–018, associated plans/tasks, and targeted implementation paths relevant to native memory, provider governance, execution evidence, onboarding and production operation.

@@ -1,5 +1,7 @@
 # Tasks: Memory Migration and Interoperability
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/014/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 **Input**: Design documents from `specs/014-memory-migration-interoperability/`
 
 **Prerequisites**: Spec 006 plus the feature plan
@@ -38,4 +40,4 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 
 - [ ] [T009] Define failing boundary fixtures for FR-010, FR-011, SC-005 using `tests/test_interchange.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T010] Add no-migration provider-switch journeys alongside explicit archive migration in `atmem/interchange/`, `docs/memory-interchange.md` (FR-010, FR-011); depend on T009 and the published prerequisite contracts, preserving baseline behavior.
-- [ ] [T011] Verify SC-005 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T010 and do not mark completion from declarations alone.
+- [ ] [T011] Verify SC-005 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/014/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T010 and do not mark completion from declarations alone.

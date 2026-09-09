@@ -1,5 +1,7 @@
 # Tasks: Provider-Neutral Context Governance
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/019/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 **Status**: All work below is planned and unchecked.
 **Input**: [spec.md](spec.md), [plan.md](plan.md), [ownership](../integration-ownership.md).
 **Prerequisites**: Baseline 003, 004, 008, 012 and 018. Reuse 007 ExecutionIdentity once its contract task T088 lands; optional execution references remain absent for memory-only use.
@@ -28,10 +30,16 @@
 - [ ] [T014] Execute SC-002 using `tests/test_context_governance.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: Cross-scope, destination-denied, changed-byte, expired-grant, replay and unavailable-attribute fixtures result in zero unauthorized delivery or provider query egress. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
 - [ ] [T015] Execute SC-003 using `tests/test_context_governance.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: All three authority modes identify the actual content authorizer and AtMem checks through service, SDK/HTTP, MCP and dashboard projections. A proposal cannot authorize governed-external delivery; unregistered delegation, changed bytes, invalid binding, expiry and replay are rejected with no silent mode fallback. Legacy native/trusted-v1 fixtures preserve exact bytes and single-path behavior; withhold returns no context or false exposure. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
 - [ ] [T016] Execute SC-004 using `tests/test_context_governance.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: Report policy-only and packaging overhead separately across 1,000 local synthetic requests; p95 <= 25 ms on documented hardware excluding provider/model execution. A miss is a failed target, not an omitted sample. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
-- [ ] [T017] Run affected baseline regressions, Spec 018 assertions, privacy/deletion and applicable published-state upgrade/recovery gates; update `docs/current-status.md`, `specs/implementation-review-2026-09-09.md` and feature documentation with exact artifacts, commands, measurements, limitations and activation/rollback guidance (FR-001–FR-010, SC-001–SC-004; depends on T013–T016).
+- [ ] [T017] Run affected baseline regressions, Spec 018 assertions, privacy/deletion and applicable published-state upgrade/recovery gates; update `docs/current-status.md`, `docs/implementation-evidence/019/` (new append-only entry; see `docs/implementation-evidence/README.md`) and feature documentation with exact artifacts, commands, measurements, limitations and activation/rollback guidance (FR-001–FR-010, SC-001–SC-004; depends on T013–T016).
 
 ## Dependency and completion rules
 
 T001 → T002 → T003–T012 in listed order → T013–T016 → T017. Cross-spec dependencies are the foundation/contract milestones named above, not every future integration task in the older specs. Shared baseline owners provide integration support after contracts freeze; they do not create a dependency cycle.
 
 A task is complete only when its named boundary and evidence exist. Fake-host, mocked provider, browser automation and human usability measurements are different evidence classes. An unavailable optional test is not a pass for the corresponding advertised capability. No task authorizes a release, live customer action, migration of customer data or automatic external retry.
+
+## Product-wide integration
+
+- [ ] [T018] Define independent boundary fixtures for FR-011/SC-005 in `tests/test_context_governance.py` using `specs/product-requirements.md`, including private/shared scopes, readable feedback and timestamp provenance as applicable.
+- [ ] [T019] Implement FR-011 through `atmem/context/policy.py` and the owning service contracts; preserve legacy scope behavior and authorize all displayed facts/actions (depends on T018).
+- [ ] [T020] Verify SC-005 through the applicable public/host/UI boundary in `tests/test_context_governance.py`; retain versions, coverage, failures and usability evidence in a new entry under `docs/implementation-evidence/019/` and link changed capability status from `docs/current-status.md` before advertising the capability (depends on T019).

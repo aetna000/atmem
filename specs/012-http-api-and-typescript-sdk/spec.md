@@ -1,5 +1,7 @@
 # Feature Specification: HTTP API and TypeScript SDK
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/012-http-api-and-typescript-sdk`
 **Created**: 2026-09-05
 **Status**: Implemented
@@ -108,3 +110,16 @@ Touches INV-001, INV-002, INV-005, and INV-008 through `spec012.application-auth
 ### Compatibility and ownership
 
 Integration contracts: Specs 019–021. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.
+
+## Product-wide requirements — agent neutrality and clear evidence
+
+**Required, not yet implemented:** [Product requirements](../product-requirements.md) PR-001–PR-006. This amendment applies to this feature's public and UI boundaries; host-specific integrations cannot redefine core identity or authority.
+
+- **FR-015**: Extend the existing scope authority with a versioned MemorySpace and SpaceMembership service: tenant/workspace-bound owner, private/shared visibility, independent read/write-propose/admin grants, expected revision, authenticated actor, audit and idempotency. New spaces default private; legacy scope behavior remains unchanged. Publish one feedback contract containing readable reason, accessible resource/agent references, assurance, known effect/uncertainty, event/received/evaluated/verified timestamps with provenance, evidence links and authorized action or absence reason. All transports authorize joins/counts/exports and share these semantics.
+- **SC-007**: SDK, HTTP, MCP, CLI and dashboard fixtures agree on membership, space visibility and feedback facts across restart and concurrent revisions; agents cannot select another principal, administer their own grants, read inaccessible histories or leak private metadata through summaries.
+
+This work extends existing authority and preserves legacy scopes. Private/shared memory and multi-framework claims require their own evidence; M0 delivers only its applicable capture/feedback subset. See the central ownership and release matrix.
+
+### FR-015 implementation and acceptance decomposition
+
+FR-015 is a persisted authority subsystem. Tasks T016–T032 separately deliver contracts, migrations, scoped repositories, independent grants, revisioned membership/owner changes, admission, provider retrieval, revocation races, cross-space lineage, independent log/credential visibility, feedback, transports, clients and installed acceptance. T014 is their roll-up; T015 remains the final SC-007 gate. The detailed plan defines atomic generation/audit/invalidation boundaries and the 013 principal-contract handoff. No single façade change satisfies this requirement.

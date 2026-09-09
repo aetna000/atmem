@@ -1,5 +1,7 @@
 # Feature Specification: Governed Supporting-Evidence Ranking
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/002-supporting-evidence-ranking`
 **Created**: 2026-09-02
 **Status**: Implemented

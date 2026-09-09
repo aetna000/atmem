@@ -1,5 +1,7 @@
 # Tasks: Governed Task State
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/007/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 ## Phase 0 — Concrete prerequisite gate
 
 - [x] [T000] Pin and test the existing `AuthorityScope`, canonical JSON/digest, SQLite transaction/migration, control preparation/exposure, adapter identity, and authorized AtBot-boundary APIs in `tests/test_task_state_prerequisites.py`; fail explicitly when a required primitive is absent and keep all task-specific proposal/evidence types inside Spec 007 without depending on unpublished roadmap work.
@@ -194,7 +196,7 @@ started.
 ### 13f — Task-centric product surface
 
 - [ ] [T101] Add scope-filtered task-centric view models and APIs for current/recent agents, focus history, related flights, turn outcomes, and considered/selected/exposed memory distinctions in `atmem/task_state/observability.py`, `atmem/control/manager.py`, and `atmem/control/web.py` (FR-061, FR-065).
-- [ ] [T102] Build the task-centric dashboard projection and investigation input in `atmem/control/assets/app.{html,js,css}` within the existing four-workspace shell, providing Task ↔ Flight ↔ Memory pivots in at most two actions and collapsing technical evidence by default (FR-061, FR-065; SC-038).
+- [ ] [T102] [LAYOUT SUPERSEDED by 022 FR-002, extended by 025] Build the task-centric dashboard projection and investigation input in `atmem/control/assets/app.{html,js,css}` under the current 022/025 navigation contract, providing Task ↔ Execution/Flight ↔ Context/Memory pivots in at most two actions and collapsing technical evidence by default (FR-061, FR-065; SC-038). The old four-workspace constraint is retired; the projection work remains required. M0's separate existing-shell view is owned by 021 T019.
 - [ ] [T103] Add dashboard contract, accessibility, responsive-state, empty/error/loading, cross-scope, and two-action pivot tests in `tests/test_task_state_dashboard.py` and `tests/test_dashboard.py` (FR-065; SC-038).
 
 ### 13g — Performance, documentation, and release evidence
@@ -496,4 +498,8 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 
 - [ ] [T107] Define failing boundary fixtures for FR-069, FR-070, SC-041 using `tests/test_task_execution_correlation.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T108] Integrate canonical task/link projections into job investigation after Amendment B in `atmem/contracts/execution.py`, `atmem/task_state/correlation.py` (FR-069, FR-070); depend on T107 and the published prerequisite contracts, preserving baseline behavior.
-- [ ] [T109] Verify SC-041 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T108 and do not mark completion from declarations alone.
+- [ ] [T109] Verify SC-041 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/007/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T108 and do not mark completion from declarations alone.
+
+## M0 identity extraction
+
+- [ ] [T110] Extract the non-task identity subset of T088 into `atmem/contracts/execution.py` and independent vectors in `tests/test_execution_identity.py`: authenticated scope and supplied session/run/turn/tool/attempt/parent references, absent task fields and no inferred relationships. This is the prerequisite for 020 T018; leave T088's full task/focus/locator contract scope unchecked until complete (FR-055–FR-056; specs/m0-investigation-preview.md).

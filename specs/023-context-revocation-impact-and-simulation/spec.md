@@ -1,5 +1,7 @@
 # Feature Specification: Context Revocation, Exposure Impact and Policy Simulation
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/023-context-revocation-impact-and-simulation`
 **Created**: 2026-09-09
 **Status**: Specified; not implemented

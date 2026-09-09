@@ -1,5 +1,7 @@
 # Tasks: Memory Lifecycle Controls
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/015/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 **Input**: Design documents from `specs/015-memory-lifecycle-controls/`
 
 **Prerequisites**: Spec 010 for production backends plus the feature plan
@@ -38,4 +40,10 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 
 - [ ] [T009] Define failing boundary fixtures for FR-011, FR-012, SC-005 using `tests/test_lifecycle.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T010] Connect lifecycle events and cleanup receipts to context-grant invalidation in `atmem/lifecycle/` (FR-011, FR-012); depend on T009 and the published prerequisite contracts, preserving baseline behavior.
-- [ ] [T011] Verify SC-005 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T010 and do not mark completion from declarations alone.
+- [ ] [T011] Verify SC-005 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/015/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T010 and do not mark completion from declarations alone.
+
+## Product-wide integration
+
+- [ ] [T012] Define independent boundary fixtures for FR-013/SC-006 in `tests/test_memory_space_revocation.py` using `specs/product-requirements.md`, including private/shared scopes, readable feedback and timestamp provenance as applicable.
+- [ ] [T013] Implement FR-013 through `atmem/lifecycle/invalidation.py` and the owning service contracts; preserve legacy scope behavior and authorize all displayed facts/actions (depends on T012).
+- [ ] [T014] Verify SC-006 through the applicable public/host/UI boundary in `tests/test_memory_space_revocation.py`; retain versions, coverage, failures and usability evidence in a new entry under `docs/implementation-evidence/015/` and link changed capability status from `docs/current-status.md` before advertising the capability (depends on T013).

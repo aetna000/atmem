@@ -54,7 +54,7 @@ Contracts and logic live under `atmem/extract/`; canonical commits remain in `at
 
 ## Dashboard and CLI Integration
 
-Follow `docs/dashboard-design-language.md`, implement the Spec 022 six-section target with legacy-route migration, and follow `specs/integration-ownership.md`: Spec 022 owns shared dashboard-shell integration and Spec 012 owns shared CLI routing/output conventions.
+Follow `docs/dashboard-design-language.md`, implement the Spec 022/025 seven-section target with legacy-route migration, and follow `specs/integration-ownership.md`: Spec 022 owns shared dashboard-shell integration and Spec 012 owns shared CLI routing/output conventions.
 
 
 ## Unified product integration plan — 2026-09-09
@@ -64,3 +64,9 @@ Implement memory admission integration against the new contract owners (Specs 01
 Touch points (existing or proposed tests): `atmem/extract/`, `atmem/memory.py`, `tests/test_extract_upgrade.py`. Add optional execution provenance to explicit native capture. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
 
 Verification: write boundary fixtures for FR-012, FR-013, SC-005 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.
+
+## Product-wide integration (FR-014, SC-006)
+
+Implement FR-014 through `atmem/memory.py`, consuming Spec 012 space/membership and feedback contracts, 019 context authorization, 020 time/identity evidence and the owner mappings in `specs/product-requirements.md`. Allocate persisted changes through Spec 010; retain legacy scope behavior and keep new private/shared space behavior explicit. Domain code owns facts and permissions; UI and transports project the same result.
+
+Add boundary fixtures in `tests/test_memory_space_admission.py` for SC-006, including positive/negative scope access, concurrent membership changes and real-versus-unknown verification time. Report unsupported host/provider coverage rather than infer it. Existing OpenClaw APIs are adapter compatibility surfaces, not required core fields. The relevant tasks below gate this requirement; broader future features do not block M0's scoped profile.

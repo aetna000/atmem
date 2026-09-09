@@ -1,5 +1,7 @@
 # Feature Specification: Memory Extraction and Updating
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/006-memory-extraction-and-updating`
 **Created**: 2026-09-05
 **Status**: Draft
@@ -116,3 +118,12 @@ Touches INV-001, INV-002, INV-006, and INV-011 through `spec006.canonical-write`
 ### Compatibility and ownership
 
 Integration contracts: Specs 019, 021. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.
+
+## Product-wide requirements — agent neutrality and clear evidence
+
+**Required, not yet implemented:** [Product requirements](../product-requirements.md) PR-002–PR-004. This amendment applies to this feature's public and UI boundaries; host-specific integrations cannot redefine core identity or authority.
+
+- **FR-014**: Require one explicitly authorized destination memory space for admission or proposals and retain original contributor, authenticated actor, source and membership/policy revision. Shared read permission cannot authorize writes, promotion or sharing; cross-space duplicates/conflicts retain lineage and existing scopes keep their upgrade behavior.
+- **SC-006**: Private/shared write fixtures reject unauthorized members and read-only writers, preserve contributor lineage under concurrent proposals, and do not import or reclassify legacy memory on upgrade.
+
+This work extends existing authority and preserves legacy scopes. Private/shared memory and multi-framework claims require their own evidence; M0 delivers only its applicable capture/feedback subset. See the central ownership and release matrix.

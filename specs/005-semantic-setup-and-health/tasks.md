@@ -1,5 +1,7 @@
 # Tasks: Semantic Setup and Health
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/005/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 **Input**: Design documents from `specs/005-semantic-setup-and-health/`
 
 **Prerequisites**: Specs 001 and the feature plan
@@ -40,4 +42,4 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 
 - [ ] [T010] Define failing boundary fixtures for FR-011, FR-012, SC-006 using `tests/test_semantic_parity.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T011] Make semantic readiness provider-specific in shared health projections in `atmem/semantic/health.py` (FR-011, FR-012); depend on T010 and the published prerequisite contracts, preserving baseline behavior.
-- [ ] [T012] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T011 and do not mark completion from declarations alone.
+- [ ] [T012] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/005/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T011 and do not mark completion from declarations alone.

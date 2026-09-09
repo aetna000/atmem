@@ -1,5 +1,7 @@
 # Tasks: Enterprise Fleet and Evidence Operations
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/024/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 **Status**: All work below is planned and unchecked.
 **Input**: [spec.md](spec.md), [plan.md](plan.md), [ownership](../integration-ownership.md).
 **Prerequisites**: Baseline 010/012/013/015/018 and their production hardening gaps; 019–023 resource schemas as relevant. Fleet administration is optional and never a prerequisite for local milestones.
@@ -28,7 +30,7 @@
 - [ ] [T014] Execute SC-002 using `tests/server/test_fleet_operations.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: Across restart and two replicas, revoked identities cannot submit events, access incidents or activate policy; cross-tenant API/job/export/metrics tests reveal zero forbidden data. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
 - [ ] [T015] Execute SC-003 using `tests/server/test_fleet_operations.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: An offline verifier detects bundle mutation and checkpoint inconsistency using customer trust roots; unavailable external anchoring is visibly unproven rather than green. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
 - [ ] [T016] Execute SC-004 using `tests/server/test_fleet_operations.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: A published reference restore drill demonstrates RPO <=60 seconds and RTO <=30 minutes for its declared dataset/deployment; failures remain failed targets and are not generalized to untested scale. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
-- [ ] [T017] Run affected baseline regressions, Spec 018 assertions, privacy/deletion and applicable published-state upgrade/recovery gates; update `docs/current-status.md`, `specs/implementation-review-2026-09-09.md` and feature documentation with exact artifacts, commands, measurements, limitations and activation/rollback guidance (FR-001–FR-010, SC-001–SC-004; depends on T013–T016).
+- [ ] [T017] Run affected baseline regressions, Spec 018 assertions, privacy/deletion and applicable published-state upgrade/recovery gates; update `docs/current-status.md`, `docs/implementation-evidence/024/` (new append-only entry; see `docs/implementation-evidence/README.md`) and feature documentation with exact artifacts, commands, measurements, limitations and activation/rollback guidance (FR-001–FR-010, SC-001–SC-004; depends on T013–T016).
 
 ## Dependency and completion rules
 

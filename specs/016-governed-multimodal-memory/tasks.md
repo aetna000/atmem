@@ -1,5 +1,7 @@
 # Tasks: Governed Multimodal Memory
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/016/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 **Input**: Design documents from `specs/016-governed-multimodal-memory/`
 
 **Prerequisites**: Specs 005, 008, and 015 plus the feature plan
@@ -39,4 +41,4 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 
 - [ ] [T010] Define failing boundary fixtures for FR-011, FR-012, SC-006 using `tests/test_media_governance.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T011] Map media observations and consent to provider-neutral lineage in `atmem/media/` (FR-011, FR-012); depend on T010 and the published prerequisite contracts, preserving baseline behavior.
-- [ ] [T012] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T011 and do not mark completion from declarations alone.
+- [ ] [T012] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/016/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T011 and do not mark completion from declarations alone.

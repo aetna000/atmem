@@ -1,5 +1,7 @@
 # Tasks: Incident Investigation and Resolution
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/021/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 **Status**: All work below is planned and unchecked.
 **Input**: [spec.md](spec.md), [plan.md](plan.md), [ownership](../integration-ownership.md).
 **Prerequisites**: 020 execution evidence and baseline 007 task/locator contracts, 012 services and 018 invariants. Optional 019 context packages enrich investigation; missing context must not block tool-failure diagnosis.
@@ -27,11 +29,29 @@
 - [ ] [T013] Execute SC-001 using `tests/test_incident_resolution.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: Cross-domain software-engineering, research, enterprise-knowledge and business-operation fixtures covering successful runs, permission denial, recovered retry, missing hooks, child failure and failures unrelated to memory yield correct classification, exact evidence links and zero unsupported causation/outcome claims. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
 - [ ] [T014] Execute SC-002 using `tests/test_incident_resolution.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: An unknown external side-effect outcome produces no executable retry; acknowledgment leaves remediation and verification unchanged; replayed operator requests create one revision. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
 - [ ] [T015] Execute SC-003 using `tests/test_incident_resolution.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: Cross-scope explanation/action/export adversaries disclose zero inaccessible identifiers or content; model-unavailable runs retain a useful deterministic incident report. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
-- [ ] [T016] Execute SC-004 using `tests/test_incident_resolution.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: Controlled usability with at least 10 representative operators achieves >=90% finding the relevant break, affected work/uncertainty and justified next action within two minutes; publish failures separately from automated fixture results. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
-- [ ] [T017] Run affected baseline regressions, Spec 018 assertions, privacy/deletion and applicable published-state upgrade/recovery gates; update `docs/current-status.md`, `specs/implementation-review-2026-09-09.md` and feature documentation with exact artifacts, commands, measurements, limitations and activation/rollback guidance (FR-001–FR-010, SC-001–SC-004; depends on T013–T016).
+- [ ] [T016] Execute SC-004 using `tests/test_incident_resolution.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: At least 9 of 10 operators complete the declared investigation protocol within two minutes per task, replicated on a second independent cohort of ten before advertising the usability capability; publish both cohorts and failures separately under specs/usability-protocol.md. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
+- [ ] [T017] Run affected baseline regressions, Spec 018 assertions, privacy/deletion and applicable published-state upgrade/recovery gates; update `docs/current-status.md`, `docs/implementation-evidence/021/` (new append-only entry; see `docs/implementation-evidence/README.md`) and feature documentation with exact artifacts, commands, measurements, limitations and activation/rollback guidance (FR-001–FR-010, SC-001–SC-004; depends on T013–T016).
 
 ## Dependency and completion rules
 
 T001 → T002 → T003–T012 in listed order → T013–T016 → T017. Cross-spec dependencies are the foundation/contract milestones named above, not every future integration task in the older specs. Shared baseline owners provide integration support after contracts freeze; they do not create a dependency cycle.
 
 A task is complete only when its named boundary and evidence exist. Fake-host, mocked provider, browser automation and human usability measurements are different evidence classes. An unavailable optional test is not a pass for the corresponding advertised capability. No task authorizes a release, live customer action, migration of customer data or automatic external retry.
+
+## M0 minimal findings and existing dashboard
+
+These tasks independently deliver the profile in `specs/m0-investigation-preview.md`; they do not require completion of T001–T017 or Spec 022. Broader incident actions and dependency-impact requirements stay open.
+
+- [ ] [T018] Reuse `verify_flight` through `atmem/incidents/detect.py` for observed error, missing completion and recovered-error findings linked to scoped events; support late-evidence revisions, deterministic text and unknown external outcomes without models or context providers in `tests/test_incident_resolution.py` (FR-001–FR-002, FR-006, FR-009; depends on 020 T020).
+- [ ] [T019] Render these findings in existing Activity/Evidence views in `atmem/control/assets/app.{html,js,css}` through shared scoped service projections, following `specs/integration-ownership.md` terminology. Show timestamps, exact event and inspection guidance; no new navigation or executable remediation. Verify privacy, keyboard access and event pivots in `tests/test_dashboard.py` (FR-004, FR-009; depends on T018).
+- [ ] [T020] Run M0 success/error/gap/recovery, privacy, keyboard, timestamp and evidence-pivot UI gates in `tests/test_dashboard.py` and `tests/test_incident_resolution.py`; append technical results under `docs/implementation-evidence/021/` and link preview readiness in `docs/current-status.md`. Complete this task when technical gates pass; usability validation is independently tracked by T024 and does not block the engineering preview (SC-001, SC-003; depends on T019).
+
+## Product-wide integration
+
+- [ ] [T021] Define independent boundary fixtures for FR-011/SC-005 in `tests/test_incident_resolution.py` using `specs/product-requirements.md`, including private/shared scopes, readable feedback and timestamp provenance as applicable.
+- [ ] [T022] Implement FR-011 through `atmem/incidents/projection.py` and the owning service contracts; preserve legacy scope behavior and authorize all displayed facts/actions (depends on T021).
+- [ ] [T023] Verify SC-005 through the applicable public/host/UI boundary in `tests/test_incident_resolution.py`; retain versions, coverage, failures and usability evidence in a new entry under `docs/implementation-evidence/021/` and link changed capability status from `docs/current-status.md` before advertising the capability (depends on T022).
+
+## Independent usability claim gate
+
+- [ ] [T024] Register and execute `specs/usability-protocol.md` on the applicable M0 interface; retain protocol/build identity and both independent cohorts under `docs/implementation-evidence/021/`, then update `docs/current-status.md` with supported claims. Complete only when at least nine of ten operators pass in each cohort. This gates advertised measured usability, not completion of T020 or availability of the engineering preview (SC-004; depends on T019; a material interface change requires new protocol evidence).

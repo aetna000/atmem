@@ -1,5 +1,7 @@
 # Tasks: Cross-Cutting Invariant Conformance
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/018/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 **Input**: Design documents from `specs/018-cross-cutting-invariants/`
 
 **Prerequisites**: Shipped behavior of Specs 001–004 plus the feature plan
@@ -43,8 +45,8 @@
 
 ## Phase 6: Unified product integration
 
-New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019–024 assertion contracts; no foundation dependency cycle; see the roadmap for foundation versus integration ordering.
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: assertion contracts for every spec with an invariant-bearing surface; no foundation dependency cycle; see the roadmap for foundation versus integration ordering.
 
 - [ ] [T015] Define failing boundary fixtures for FR-012, FR-013, SC-006 using `tests/invariants/`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T016] Add scoped claim coverage and mutation cases for the new product surfaces in `atmem/invariants/`, `tools/check_invariants.py` (FR-012, FR-013); depend on T015 and the published prerequisite contracts, preserving baseline behavior.
-- [ ] [T017] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T016 and do not mark completion from declarations alone.
+- [ ] [T017] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/018/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T016 and do not mark completion from declarations alone.

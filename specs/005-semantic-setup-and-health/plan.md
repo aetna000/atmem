@@ -54,7 +54,7 @@ Implementation stays in `atmem/semantic/`, with public orchestration in `atmem/c
 
 ## Dashboard and CLI Integration
 
-Follow `docs/dashboard-design-language.md`, implement the Spec 022 six-section target with legacy-route migration, and follow `specs/integration-ownership.md`: Spec 022 owns shared dashboard-shell integration and Spec 012 owns shared CLI routing/output conventions.
+Follow `docs/dashboard-design-language.md`, implement the Spec 022/025 seven-section target with legacy-route migration, and follow `specs/integration-ownership.md`: Spec 022 owns shared dashboard-shell integration and Spec 012 owns shared CLI routing/output conventions.
 
 
 ## Unified product integration plan — 2026-09-09

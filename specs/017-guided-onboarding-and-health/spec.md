@@ -1,5 +1,7 @@
 # Feature Specification: Guided Onboarding and Health
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/017-guided-onboarding-and-health`
 **Created**: 2026-09-05
 **Status**: Implemented
@@ -105,3 +107,12 @@ Touches INV-004, INV-006, INV-008, INV-009, and INV-010 through `spec017.activat
 ### Compatibility and ownership
 
 Integration contracts: Specs 019–022. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.
+
+## Product-wide requirements — agent neutrality and clear evidence
+
+**Required, not yet implemented:** [Product requirements](../product-requirements.md) PR-001–PR-006. This amendment applies to this feature's public and UI boundaries; host-specific integrations cannot redefine core identity or authority.
+
+- **FR-012**: Onboard by customer need and authenticated agents/spaces, not host-specific defaults. Offer private space by default for new memory, explicit shared-space selection and readable permission previews; no implicit membership from parent/child relationships. Show health reason, verification time/age and permitted next action. Existing scopes and investigation-only users require no sharing or migration.
+- **SC-007**: Native/private, shared-memory and investigation-only onboarding complete without OpenClaw dependencies in core tests; disabled sharing stays disabled, inaccessible spaces remain undisclosed and refresh alone never renews a health check.
+
+This work extends existing authority and preserves legacy scopes. Private/shared memory and multi-framework claims require their own evidence; M0 delivers only its applicable capture/feedback subset. See the central ownership and release matrix.

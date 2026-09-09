@@ -52,7 +52,7 @@ Compatible public media imports move into `atmem/media/`; models, access, proces
 
 ## Dashboard and CLI Integration
 
-Follow `docs/dashboard-design-language.md`, implement the Spec 022 six-section target with legacy-route migration, and follow `specs/integration-ownership.md`: Spec 022 owns shared dashboard-shell integration and Spec 012 owns shared CLI routing/output conventions.
+Follow `docs/dashboard-design-language.md`, implement the Spec 022/025 seven-section target with legacy-route migration, and follow `specs/integration-ownership.md`: Spec 022 owns shared dashboard-shell integration and Spec 012 owns shared CLI routing/output conventions.
 
 ## Test Strategy
 

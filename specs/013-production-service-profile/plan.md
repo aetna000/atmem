@@ -62,8 +62,31 @@ Keep behind an explicit `production` profile. Require preflight and recovery reh
 
 ## Unified product integration plan — 2026-09-09
 
-Implement production service hardening integration against the new contract owners (Specs 024; existing 010/012/015); use [integration ownership](../integration-ownership.md) and [roadmap order](../product-roadmap.md). Baseline prerequisites refer to existing implementations, not completion of all later amendments.
+Implement production service hardening against existing 010/012/015 contracts; 024 and 025 are downstream consumers. Use [integration ownership](../integration-ownership.md) and [roadmap order](../product-roadmap.md). Baseline prerequisites refer to existing implementations, not completion of all later amendments.
 
 Touch points (existing or proposed tests): `atmem/server/auth.py`, `atmem/server/config.py`, `atmem/server/jobs.py`, `tests/server/`. Close durable credential and end-to-end production-route enforcement gaps. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
 
 Verification: write boundary fixtures for FR-010, FR-011, SC-005 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.
+
+## FR-010 detailed credential and enforcement architecture
+
+T010 is a roll-up marker for T012–T025. The current in-memory `KeyAuthority` does not satisfy durable production authentication.
+
+| Work package | Tasks | Owning artifacts |
+| --- | --- | --- |
+| Identity and trust contract | T012 | Principal/credential schemas and production threat model |
+| Durable credential storage | T013–T014 | `atmem/server/credential_store.py`, `auth.py`, allocated migrations |
+| Rotation/revocation and audit | T015–T016 | Transactional generations, idempotency, `admin_audit.py` |
+| Replica consistency | T017 | Repository reads, cache generations, measured propagation policy |
+| Actual request/route enforcement | T018–T019 | `control/web.py`, production auth, application operation matrix |
+| Jobs and secondary surfaces | T020–T021 | Worker claim/effect checks, caches, exports, metrics and audit |
+| Recovery and degraded profiles | T022–T023 | Revocation-safe restore, partitions and fail-closed startup |
+| Installed evidence and handoff | T024–T025, then T011 | Two-replica installed suite, journal and operations guide |
+
+Store opaque high-entropy credential verifiers with tenant/principal identity and versioned role/scope/expiry/revocation state. Public APIs expose safe metadata only. Rotation defines explicit overlap or immediate replacement; concurrent rotation/revocation uses expected generations and scoped idempotency. Administrative changes and their audit evidence commit together or remain a visibly unsuccessful operation.
+
+Freeze authoritative-read and propagation behavior in T012/T017. Cached success cannot outlive the declared revocation bound; privileged operations that cannot establish sufficiently current authority withhold. Test the actual network boundary and worker effect boundary, not a configuration flag. A caller-provided role/tenant header is untrusted unless it is carried through the explicitly authenticated configured proxy boundary.
+
+Restore must not silently reactivate a previously revoked credential. Preserve a current revocation authority outside the restored snapshot, or quarantine restored credentials and require explicit reissuance when currency cannot be established. Record which strategy a deployment supports; do not assume a stale database proves current permission. In-flight effects remain separate from authorization of future operations.
+
+The route matrix is derived from registered production operations; new 012/024/025 routes need explicit decisions and boundary tests. Contract freeze can precede those routes, but their enterprise claims require their own acceptance. T012 consumes the existing 012 principal contract; membership T016 consumes T012. This is a contract handoff, not a dependency on completed future consumers or fleet availability.

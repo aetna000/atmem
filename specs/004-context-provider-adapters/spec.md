@@ -1,5 +1,7 @@
 # Feature Specification: Delegated Context-Provider Adapters
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/004-context-provider-adapters`  
 **Created**: 2026-09-04  
 **Status**: Implemented  

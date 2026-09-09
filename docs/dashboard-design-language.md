@@ -7,13 +7,33 @@ a new section, button, or state to the dashboard, check here first.
 
 ## Who this page serves
 
+**Binding product requirements:** [PR-001–PR-006](../specs/product-requirements.md).
+The shared interface is agent/framework-neutral. Display readable agent and
+workspace identity, private/shared memory space, owner and permitted membership
+actions without assuming an OpenClaw installation. Keep memory permissions,
+execution visibility and credential administration independent.
+
+Every status card explains what happened, its accessible target, evidence,
+known effect or uncertainty, and an allowed next action or absence reason.
+Show absolute timestamps with timezone/offset, elapsed time when known, and
+the last actual check plus its age. Event time, receipt time, expiry and check
+time are different facts. Label stale/missing/skewed time; page refresh cannot
+renew a verification. Apply this to healthy, pending and disabled states as
+well as red/yellow errors. Icons, color and relative time remain supplemental.
+
 ### Target product amendment — 2026-09-09
 
 Spec 022 (`specs/022-unified-agent-workspace/`) owns the next dashboard shell:
-**Overview, Executions, Context, Policies, Tasks, Settings**. This is the target
+**Overview, Executions, Context, Connections, Policies, Tasks, Settings**. This is the target
 design, not a claim that the current application already implements these routes.
 It supersedes the four-workspace restriction for future work, preserves existing
 task authority and requires legacy-route redirects with scoped selection intact.
+
+Spec 025 adds the Connections destination to the earlier six-section target.
+Connection cards show name, authority, owner, scope, authentication health,
+expiry and last observed delivery. Guided setup provides simple decisions first,
+with access, credential and evidence details available progressively. Connected,
+authorized, active and observed/enforced delivery remain separate states.
 
 The main workflow is **Outcome → important events → affected work → next actions
 → supporting evidence**. Overview prioritizes active work and unresolved

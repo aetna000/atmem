@@ -50,7 +50,7 @@ Framework bindings live in `atmem/adapters/`; capability truth stays in `atmem/c
 
 ## Dashboard and CLI Integration
 
-Follow `docs/dashboard-design-language.md`, implement the Spec 022 six-section target with legacy-route migration, and follow `specs/integration-ownership.md`: Spec 022 owns shared dashboard-shell integration; Spec 007 retains task/capability activation and Spec 012 owns shared CLI routing/output conventions.
+Follow `docs/dashboard-design-language.md`, implement the Spec 022/025 seven-section target with legacy-route migration, and follow `specs/integration-ownership.md`: Spec 022 owns shared dashboard-shell integration; Spec 007 retains task/capability activation and Spec 012 owns shared CLI routing/output conventions.
 
 ## Test Strategy
 
@@ -68,3 +68,17 @@ Implement adapter coverage integration against the new contract owners (Specs 01
 Touch points (existing or proposed tests): `atmem/adapters/`, `atmem/contracts/versions.py`, `tests/test_framework_adapter_conformance.py`. Extend actual host hooks and negotiated evidence coverage without a second registry. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
 
 Verification: write boundary fixtures for FR-011, FR-012, SC-006 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.
+
+## Public conformance kit implementation
+
+Implement FR-013–FR-016 through an installable `atmem/conformance/` runner/harness reusing existing adapter contracts. Publish `atmem/schemas/v1/host-conformance-manifest.json` from the [manifest contract](conformance-manifest.md), plus contributor commands in `docs/host-conformance.md`. Spec 012 integrates CLI entry points; 020 supplies execution coverage without another schema. Ship test fixture support as packaged resources, not imports from repository-private tests.
+
+Store reviewed listing metadata in a versioned `docs/compatibility/hosts.json` catalog with explicit issuer/reviewer/reproducer identity and immutable evidence references. Schema validation does not award verification. Maintainers review proposed listings; private runs do not submit automatically. Reject secret-bearing payloads and overclaimed assurance; stale versions retain historical records with visible status.
+
+Test SC-007/SC-008 with `tests/test_host_conformance_kit.py`, a clean installed external adapter fixture, negative schema/assurance/privacy vectors and local CLI/dashboard projection checks. Dependent third-party runners need only stable adapter contracts, not completed provider integration or every framework.
+
+## Product-wide integration (FR-017, SC-009)
+
+Implement FR-017 through `atmem/conformance/`, consuming Spec 012 space/membership and feedback contracts, 019 context authorization, 020 time/identity evidence and the owner mappings in `specs/product-requirements.md`. Allocate persisted changes through Spec 010; retain legacy scope behavior and keep new private/shared space behavior explicit. Domain code owns facts and permissions; UI and transports project the same result.
+
+Add boundary fixtures in `tests/test_host_conformance_kit.py` for SC-009, including positive/negative scope access, concurrent membership changes and real-versus-unknown verification time. Report unsupported host/provider coverage rather than infer it. Existing OpenClaw APIs are adapter compatibility surfaces, not required core fields. The relevant tasks below gate this requirement; broader future features do not block M0's scoped profile.

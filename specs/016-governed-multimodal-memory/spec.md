@@ -1,5 +1,7 @@
 # Feature Specification: Governed Multimodal Memory
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/016-governed-multimodal-memory`
 **Created**: 2026-09-05
 **Status**: Implemented

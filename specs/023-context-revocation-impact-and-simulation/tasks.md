@@ -1,5 +1,7 @@
 # Tasks: Context Revocation, Exposure Impact and Policy Simulation
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/023/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 **Status**: All work below is planned and unchecked.
 **Input**: [spec.md](spec.md), [plan.md](plan.md), [ownership](../integration-ownership.md).
 **Prerequisites**: 019 package/grant contracts, 020 observed exposures, 021 findings, baseline 015 invalidation and 012 services. Basic incident investigation must ship independently of this later milestone.
@@ -28,7 +30,7 @@
 - [ ] [T014] Execute SC-002 using `tests/test_context_lifecycle.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: Impact fixtures return exactly authorized observed source-version exposures; unknown derivative lineage produces explicit incomplete coverage and no causal assertion. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
 - [ ] [T015] Execute SC-003 using `tests/test_context_lifecycle.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: Simulation leaves live policy/memory/tool state unchanged, reports all unevaluable cases and performs zero unapproved source egress. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
 - [ ] [T016] Execute SC-004 using `tests/test_context_lifecycle.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: Measure and publish notification-to-enforcement p95 and maximum for 1,000 revocations; initial connected-profile target is <=5 seconds, with expired/disconnected grant behavior separately exercised. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
-- [ ] [T017] Run affected baseline regressions, Spec 018 assertions, privacy/deletion and applicable published-state upgrade/recovery gates; update `docs/current-status.md`, `specs/implementation-review-2026-09-09.md` and feature documentation with exact artifacts, commands, measurements, limitations and activation/rollback guidance (FR-001–FR-010, SC-001–SC-004; depends on T013–T016).
+- [ ] [T017] Run affected baseline regressions, Spec 018 assertions, privacy/deletion and applicable published-state upgrade/recovery gates; update `docs/current-status.md`, `docs/implementation-evidence/023/` (new append-only entry; see `docs/implementation-evidence/README.md`) and feature documentation with exact artifacts, commands, measurements, limitations and activation/rollback guidance (FR-001–FR-010, SC-001–SC-004; depends on T013–T016).
 
 ## Dependency and completion rules
 

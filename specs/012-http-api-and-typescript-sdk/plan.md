@@ -54,7 +54,7 @@ Application services live in `atmem/service/`; routes reuse `atmem/control/serve
 
 ## Dashboard and CLI Integration
 
-Follow `docs/dashboard-design-language.md`, implement the Spec 022 six-section target with legacy-route migration, and follow `specs/integration-ownership.md`: Spec 022 owns the dashboard shell while this feature owns shared CLI routing, public output/error conventions, and API transport integration.
+Follow `docs/dashboard-design-language.md`, implement the Spec 022/025 seven-section target with legacy-route migration, and follow `specs/integration-ownership.md`: Spec 022 owns the dashboard shell while this feature owns shared CLI routing, public output/error conventions, and API transport integration.
 
 
 ## Unified product integration plan — 2026-09-09
@@ -64,3 +64,33 @@ Implement public services and transports integration against the new contract ow
 Touch points (existing or proposed tests): `atmem/service/application.py`, `atmem/client.py`, `packages/typescript/`, `docs/contracts/atmem-api-v1.openapi.yaml`. Extend public service models and transport projections for the unified workflow. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
 
 Verification: write boundary fixtures for FR-013, FR-014, SC-006 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.
+
+## Product-wide integration (FR-015, SC-007)
+
+**Decomposition:** T014 is a roll-up marker for T016–T032, not a single coding task. `application.py` remains the façade; the contracts, persistence, permission decisions and mutation services below carry the subsystem.
+
+Implement FR-015 through `atmem/service/application.py`, consuming Spec 012 space/membership and feedback contracts, 019 context authorization, 020 time/identity evidence and the owner mappings in `specs/product-requirements.md`. Allocate persisted changes through Spec 010; retain legacy scope behavior and keep new private/shared space behavior explicit. Domain code owns facts and permissions; UI and transports project the same result.
+
+Add boundary fixtures in `tests/test_memory_space_contracts.py` for SC-007, including positive/negative scope access, concurrent membership changes and real-versus-unknown verification time. Report unsupported host/provider coverage rather than infer it. Existing OpenClaw APIs are adapter compatibility surfaces, not required core fields. The relevant tasks below gate this requirement; broader future features do not block M0's scoped profile.
+
+## FR-015 detailed architecture and delivery boundaries
+
+| Work package | Tasks | Owning artifacts |
+| --- | --- | --- |
+| Contracts and compatibility | T016 | `atmem/service/space_contracts.py`, versioned schemas |
+| Durable ownership/membership | T017–T018 | Spec 010 migration registry and `atmem/service/spaces.py` |
+| Permission and mutation authority | T019–T020 | `space_permissions.py`, `spaces.py`, revision/audit storage |
+| Admission and provider retrieval | T021–T022 | Spec 006 `memory.py`, Spec 019 context policy |
+| Revocation and lineage | T023–T024 | Spec 015 invalidation, context grants, explicit share transitions |
+| Independent visibility grants | T025 | Shared application/resource services |
+| Feedback and public transports | T026–T028 | `feedback.py`, routers, Python/TypeScript clients |
+| Upgrade, adversaries and measured scale | T029–T031 | Published-state fixtures, race schedules, performance suite |
+| Installed acceptance | T032, then T015 | Per-feature journal and compatibility documentation |
+
+Space identity and tenant/workspace binding are immutable. Owner transfer is an authorized revisioned operation; prevent removing the last owner through a membership edit. Freeze how deactivation/tenant deletion resolves ownership before implementing mutations. Membership grants never override subject/source restrictions, and none of read, write/propose or administer implies either other grant. Canonical admission approval remains separately authorized.
+
+Persist membership changes, authority generation and administrative evidence atomically; publish invalidation via a durable outbox or equivalent retryable transaction boundary. Until required current membership can be validated, governed dispatch withholds. Record the linearization point for concurrent removal and dispatch, and distinguish previously completed exposure from future denied use. Do not promise recall of unmanaged external copies.
+
+Multi-space retrieval preserves contributor/source identifiers, restrictions and contradictions. Explicit copy/share actions retain lineage and require permission at both boundaries; no de-duplication may silently erase conflicting claims or widen source policy. Memory, execution, incident and credential visibility use independent grants even when resources share a workspace.
+
+Dependency order: T016 follows T013 fixtures and the 013 T012 principal contract; persistence and permissions precede mutations and consumers. T026 feedback can run alongside storage after T016. Production route acceptance consumes 013 T018/T019. Those tasks depend on baseline 012 operation contracts, not completion of this membership subsystem. Specs 015/019 consume stable generation/package interfaces; their entire future backlogs are not prerequisites.

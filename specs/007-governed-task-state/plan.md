@@ -1095,7 +1095,7 @@ LangGraph/LangChain, and MCP adapt to this contract according to capabilities.
 - **Privacy**: existing prompt/response digests remain the default search
   surface. Partial text is federated to a registered host or uses a separately
   enabled local derived index; neither mode is silently enabled.
-- **UI**: integrate task projections into Spec 022's six-section shell with
+- **UI**: integrate task projections into Spec 022/025's seven-section shell with
   legacy-route migration. No new task authority store is introduced.
 - **Compatibility**: old rows stay unlinked unless evidence proves a join;
   no migration guesses from timestamps, shared sessions, or similar text.
@@ -1246,3 +1246,7 @@ Implement task and execution correlation integration against the new contract ow
 Touch points (existing or proposed tests): `atmem/contracts/execution.py`, `atmem/task_state/correlation.py`, `tests/test_task_execution_correlation.py`. Integrate canonical task/link projections into job investigation after Amendment B. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
 
 Verification: write boundary fixtures for FR-069, FR-070, SC-041 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.
+
+## M0 release profile
+
+[The M0 release slice](../m0-investigation-preview.md) defines independent OpenClaw investigation-only delivery and exact prerequisite tasks. It overrides full-feature sequencing for that profile only: shared non-task identity, capture and minimal findings in the existing dashboard can ship before task links, providers, other hosts or the new shell. Completing the slice does not complete broader requirements. Usability claims follow [the declared protocol](../usability-protocol.md).

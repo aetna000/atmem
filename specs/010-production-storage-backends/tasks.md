@@ -1,5 +1,7 @@
 # Tasks: Production Storage Backends
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/010/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 **Input**: Design documents from `specs/010-production-storage-backends/`
 
 **Prerequisites**: Specs 005 and 008 plus the feature plan
@@ -40,4 +42,4 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 
 - [ ] [T011] Define failing boundary fixtures for FR-014, FR-015, SC-006 using `tests/storage/`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T012] Provide registered migrations and indexed storage conformance for new projections in `atmem/store/`, `atmem/control/store.py`, `tools/benchmark_storage.py` (FR-014, FR-015); depend on T011 and the published prerequisite contracts, preserving baseline behavior.
-- [ ] [T013] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T012 and do not mark completion from declarations alone.
+- [ ] [T013] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/010/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T012 and do not mark completion from declarations alone.

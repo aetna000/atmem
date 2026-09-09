@@ -14,14 +14,14 @@ _DEFINITIONS = (
     ("INV-006", "Provenance and memory history remain human-readable.", "II", "delivery.provenance_history"),
     ("INV-007", "Deletion covers canonical, graph, vector, and derived copies.", "IV", "deletion.all_registered_copies"),
     ("INV-008", "Agent Black Box retains honest proof boundaries.", "II, VI", "proof.blackbox_boundaries"),
-    ("INV-009", "OpenClaw migration remains reversible.", "III", "delivery.openclaw_restore"),
+    ("INV-009", "Host integration remains reversible.", "III, V", "delivery.openclaw_restore"),
     ("INV-010", "Local operation and deterministic fallback remain available.", "III, VII", "local.deterministic_fallback"),
     ("INV-011", "Persisted-data upgrades remain backward compatible.", "V, VI", "upgrade.persisted_compatibility"),
 )
 
 
 REGISTRY = InvariantRegistry(
-    version="1.0.0",
+    version="1.1.0",
     invariants=tuple(
         Invariant(
             invariant_id=invariant_id,
@@ -29,6 +29,18 @@ REGISTRY = InvariantRegistry(
             principle=principle,
             owning_spec="specs/018-cross-cutting-invariants",
             assertions=(assertion,),
+            amendments=(
+                {
+                    "id": "018-A001",
+                    "date": "2026-09-09",
+                    "principle": "III, V, VI",
+                    "previous_guarantee": "OpenClaw migration remains reversible.",
+                    "reason": "Apply reversibility to host integrations while retaining host-specific proof.",
+                    "compatibility_impact": "Stable INV-009, v1 wire format and delivery.openclaw_restore assertion retained; registry content version is 1.1.0.",
+                    "replacement_coverage": "OpenClaw remains the baseline assertion; other hosts require separately executed conformance evidence. Legacy base results do not prove other host configurations.",
+                    "record": "specs/018-cross-cutting-invariants/amendments/018-A001-host-reversibility.md",
+                },
+            ) if invariant_id == "INV-009" else (),
         )
         for invariant_id, guarantee, principle, assertion in _DEFINITIONS
     ),

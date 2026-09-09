@@ -26,6 +26,26 @@ def test_invariant_without_assertion_is_rejected() -> None:
         Invariant("INV-999", "guarantee", "I", "spec", ())
 
 
+def test_host_reversibility_amendment_preserves_identity_and_limits_coverage() -> None:
+    from dataclasses import replace
+
+    invariant = REGISTRY.by_id("INV-009")
+    assert invariant.guarantee == "Host integration remains reversible."
+    assert invariant.assertions == ("delivery.openclaw_restore",)
+    serialized = next(row for row in REGISTRY.to_dict()["invariants"] if row["invariant_id"] == "INV-009")
+    amendment = serialized["amendments"][0]
+    assert amendment["id"] == "018-A001"
+    assert amendment["previous_guarantee"] == "OpenClaw migration remains reversible."
+    assert (Path(__file__).parents[2] / amendment["record"]).is_file()
+    assert REGISTRY.version == "1.1.0"
+    declared = replace(invariant, configurations=("openclaw", "another-host"))
+    verdict = evaluate_invariant(declared, (
+        AssertionResult("delivery.openclaw_restore", "openclaw", True, True, "synthetic-test"),
+    ))
+    assert verdict.status.value == "partially_proven"
+    assert verdict.uncovered_configurations == ("another-host",)
+
+
 def test_verdicts_fail_closed_and_name_gaps() -> None:
     invariant = Invariant(
         "INV-999", "guarantee", "I", "spec", ("a",), ("base", "postgres")

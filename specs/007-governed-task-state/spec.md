@@ -1,5 +1,7 @@
 # Feature Specification: Governed Task State
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/007-governed-task-state`  
 **Created**: 2026-09-04  
 **Status**: Implemented (core and Amendment A) · Amendment B (Execution Correlation and Investigation) proposed
@@ -519,8 +521,9 @@ once to `accepted`, `rejected`, `conflict`, or `no_change`.
   revision, reason, and source requirement; omission MUST fail closed without
   prompting. CLI output MUST never disclose whether an unauthorized task ID
   exists.
-- **FR-041**: Dashboard task surfaces MUST be capability-gated and follow the
-  Spec 022 six-section target (amended 2026-09-09; legacy routes redirect). Disabled, shadow,
+- **FR-041**: **[LAYOUT SUPERSEDED by 022 FR-002, extended by 025]** Dashboard
+  task surfaces MUST be capability-gated and follow the Spec 022/025
+  seven-section target (amended 2026-09-09; legacy routes redirect). Disabled, shadow,
   unavailable, legacy, empty, loading, degraded, permission-denied, conflict,
   integrity-failed, and terminal states MUST each have a tested plain-language
   presentation with no false active controls. A selected task MUST persist
@@ -1386,3 +1389,7 @@ Touches INV-001, INV-004, INV-005, and INV-008 through `spec007.task-authority`,
 ### Compatibility and ownership
 
 Integration contracts: Specs 020–022, after existing Amendment B. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.
+
+## M0 release profile
+
+[The M0 release slice](../m0-investigation-preview.md) defines independent OpenClaw investigation-only delivery and exact prerequisite tasks. It overrides full-feature sequencing for that profile only: shared non-task identity, capture and minimal findings in the existing dashboard can ship before task links, providers, other hosts or the new shell. Completing the slice does not complete broader requirements. Usability claims follow [the declared protocol](../usability-protocol.md).

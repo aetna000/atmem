@@ -1,5 +1,7 @@
 # Feature Specification: Cross-Cutting Invariant Conformance
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/018-cross-cutting-invariants`
 **Created**: 2026-09-05
 **Status**: Implemented
@@ -55,7 +57,7 @@ A feature spec declares which invariants its changes affect and extends the matc
 
 - **FR-001**: Publish a versioned machine-readable invariant registry binding each of `INV-001` through `INV-011` to its guarantee statement, governing constitution principle, owning assertions, and current verdict.
 - **FR-002**: Every invariant MUST have at least one executable assertion at the boundary where the claim is made; a documentation-only or comment-only invariant MUST fail validation.
-- **FR-003**: `INV-001` canonical authority, `INV-002` authorization before intelligence, `INV-003` ranking revalidation, `INV-004` explicit shadow mode and activation, `INV-005` byte-stable receipt-bound context, `INV-006` human-readable provenance and history, `INV-007` deletion across canonical/graph/vector/derived copies, `INV-008` honest Agent Black Box proof boundaries, `INV-009` reversible OpenClaw migration, `INV-010` local operation and deterministic fallback, and `INV-011` backward-compatible persisted-data upgrades MUST each be represented as a separately addressable invariant.
+- **FR-003**: `INV-001` canonical authority, `INV-002` authorization before intelligence, `INV-003` ranking revalidation, `INV-004` explicit shadow mode and activation, `INV-005` byte-stable receipt-bound context, `INV-006` human-readable provenance and history, `INV-007` deletion across canonical/graph/vector/derived copies, `INV-008` honest Agent Black Box proof boundaries, `INV-009` reversible host integration, `INV-010` local operation and deterministic fallback, and `INV-011` backward-compatible persisted-data upgrades MUST each be represented as a separately addressable invariant.
 - **FR-004**: The suite MUST execute against the installed package on every supported Python version, with no optional extras, no configured model provider, and no network access.
 - **FR-005**: Each verdict MUST be exactly one of `proven`, `partially_proven`, or `unproven`; `partially_proven` MUST name the uncovered configuration and `unproven` MUST name the missing or unrunnable assertion.
 - **FR-006**: A feature specification that changes an invariant-bearing surface MUST record an attestation naming the affected invariant IDs and the assertions it adds or extends.
@@ -103,7 +105,7 @@ Replacing feature-local test suites, proving semantic truth or real-world outcom
 
 ### Additional functional requirements
 
-- **FR-012**: Extend existing invariant attestations for Specs 019–024 without silently retitling or narrowing INV-001–INV-011; separately report tested, partial and unsupported configurations.
+- **FR-012**: Require and maintain invariant attestations for every spec with an invariant-bearing surface without silently retitling or narrowing INV-001–INV-011; separately report tested, partial and unsupported configurations.
 - **FR-013**: Gate product claims on real interface assertions for provider authorization, exact delivery, execution completeness, evidence-linked incident statements and resolution assurance; do not count declarations or fake-host tests as installed enforcement proof.
 
 ### Acceptance and success criteria
@@ -114,4 +116,12 @@ Replacing feature-local test suites, proving semantic truth or real-world outcom
 
 ### Compatibility and ownership
 
-Integration contracts: Specs 019–024 assertion contracts; no foundation dependency cycle. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.
+Integration contracts: assertion contracts for every spec with an invariant-bearing surface; no foundation dependency cycle. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.
+
+## Amendment record 018-A001 — 2026-09-09
+
+INV-009 is retitled **Host integration remains reversible** under Principles III, V and VI. The stable ID and `delivery.openclaw_restore` assertion remain; registry content version becomes 1.1.0 with the v1 wire format preserved. [Amendment 018-A001](amendments/018-A001-host-reversibility.md) records reason, compatibility and host-specific coverage. Other host guarantees require executed conformance evidence; this amendment creates no new proof.
+
+## Invariant Attestation
+
+Touches INV-009 through `registry.host_reversibility_amendment`, exercised by `tests/invariants/test_registry.py`; preserves the existing `delivery.openclaw_restore` owner. This registry-amendment assertion verifies compatibility and declared coverage limits, not a live-host restore.

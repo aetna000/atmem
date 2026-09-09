@@ -1,5 +1,7 @@
 # Tasks: Guided Onboarding and Health
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/017/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 **Input**: Design documents from `specs/017-guided-onboarding-and-health/`
 
 **Prerequisites**: Specs 005, 006, 008, 012, and 015 plus the feature plan
@@ -39,4 +41,10 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 
 - [ ] [T010] Define failing boundary fixtures for FR-010, FR-011, SC-006 using `tests/test_onboarding.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T011] Replace unconditional memory readiness with adoption-specific checks in `atmem/onboarding.py`, `atmem/onboarding_verify.py` (FR-010, FR-011); depend on T010 and the published prerequisite contracts, preserving baseline behavior.
-- [ ] [T012] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T011 and do not mark completion from declarations alone.
+- [ ] [T012] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/017/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T011 and do not mark completion from declarations alone.
+
+## Product-wide integration
+
+- [ ] [T013] Define independent boundary fixtures for FR-012/SC-007 in `tests/test_onboarding.py` using `specs/product-requirements.md`, including private/shared scopes, readable feedback and timestamp provenance as applicable.
+- [ ] [T014] Implement FR-012 through `atmem/onboarding.py` and the owning service contracts; preserve legacy scope behavior and authorize all displayed facts/actions (depends on T013).
+- [ ] [T015] Verify SC-007 through the applicable public/host/UI boundary in `tests/test_onboarding.py`; retain versions, coverage, failures and usability evidence in a new entry under `docs/implementation-evidence/017/` and link changed capability status from `docs/current-status.md` before advertising the capability (depends on T014).

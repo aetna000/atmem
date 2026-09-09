@@ -1,5 +1,7 @@
 # Feature Specification: Enterprise Fleet and Evidence Operations
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/024-enterprise-fleet-and-evidence-operations`
 **Created**: 2026-09-09
 **Status**: Specified; not implemented

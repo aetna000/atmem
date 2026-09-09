@@ -1,5 +1,7 @@
 # Feature Specification: Framework Adapter Conformance
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/011-framework-adapter-conformance`
 **Created**: 2026-09-05
 **Status**: Implemented
@@ -84,7 +86,7 @@ Spec 007 is a prerequisite for task-aware adapter identity, runtime capability a
 - Framework SDKs remain optional extras and supported version ranges are pinned by evidence.
 ## Invariant Attestation
 
-Touches INV-004, INV-005, and INV-008 through `spec011.activation`, `spec011.exact-injection`, and `spec011.lifecycle-proof`.
+Touches INV-004, INV-005, INV-008, and INV-009 through `spec011.activation`, `spec011.exact-injection`, and `spec011.lifecycle-proof` and `spec011.host-restore`.
 
 
 ## Unified product amendment — 2026-09-09
@@ -109,3 +111,28 @@ Touches INV-004, INV-005, and INV-008 through `spec011.activation`, `spec011.exa
 ### Compatibility and ownership
 
 Integration contracts: Specs 019, 020. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.
+
+## Public extensibility deliverable: AtMem Host Conformance Kit
+
+### User story — Publish a third-party integration (P1)
+
+A developer outside the AtMem repository installs the conformance kit, supplies an adapter through the documented harness, runs selected profiles, publishes a manifest and submits a compatibility listing. They need no private repository tests or AtMem signing credentials. A customer sees exactly what was tested, by whom and which boundaries remain unsupported.
+
+- **FR-013**: Publish a versioned, independently installable Host Conformance Kit with documented adapter entry points, deterministic fixtures, runnable host-boundary profiles and machine-readable outcomes. It extends existing adapter contracts, includes disable/restore/interrupted-activation coverage for INV-009, and runs without requiring all supported framework SDKs.
+- **FR-014**: Publish the [conformance manifest contract](conformance-manifest.md) and schema binding adapter/host/AtMem/suite versions, configuration identity, test profiles, evidence digests, timestamps and per-boundary supported/observed/enforced results. Failure, skip, unsupported and not-tested are separate; mock evidence cannot attest real-host enforcement. 020 coverage reuses this format.
+- **FR-015**: Provide a documented third-party submission and listing process. A validated self-reported manifest is eligible for a clearly labelled listing after explicit maintainer review; independent reproduction and AtMem verification require separate evidence and issuer identity. Reject unsupported schema, version mismatch and unsupported claims; mark stale or withdrawn listings with reason and retain history. A listing is neither automatic activation nor an unqualified endorsement.
+- **FR-016**: Permit private customer/offline conformance runs and local manifest validation without submission or a cloud account. Published results contain sanitized configuration and evidence references without secrets or customer content. Runtime capability is still determined by the deployed integration; an old manifest cannot override current negotiated coverage.
+
+- **SC-007**: A third-party example adapter runs the published kit from a clean environment without repository-private helpers, produces a valid manifest, and completes the documented submission path using a test registry. Record commands and pinned installed artifacts; fixture execution and real-host execution have separate profiles.
+- **SC-008**: Negative fixtures reject fabricated enforcement, missing evidence, incompatible versions, modified artifacts, secret-bearing metadata and self-assigned verified badges. The same valid manifest renders identical coverage in CLI and dashboard; an unexecuted host restore remains unproven. Independently reproduced listings retain both issuer and reproducer evidence.
+
+These requirements add a distributable product surface; the current tests/adapter_conformance.py helper alone does not satisfy them. Kit delivery and additional hosts may follow M0 without blocking its single-host release.
+
+## Product-wide requirements — agent neutrality and clear evidence
+
+**Required, not yet implemented:** [Product requirements](../product-requirements.md) PR-001–PR-004. This amendment applies to this feature's public and UI boundaries; host-specific integrations cannot redefine core identity or authority.
+
+- **FR-017**: Extend the published Host Conformance Kit with framework-qualified agent identity, multiple concurrent agents, explicit private/shared-space access and child-without-inherited-access cases. Core tests run without OpenClaw installed; a host adapter maps identities without making its names or dependencies mandatory in core services.
+- **SC-009**: Two distinct real host profiles exercise shared read and denied private access through the same service before cross-framework shared-memory support is advertised; identical agent display names do not merge identity, and missing hooks remain declared gaps.
+
+This work extends existing authority and preserves legacy scopes. Private/shared memory and multi-framework claims require their own evidence; M0 delivers only its applicable capture/feedback subset. See the central ownership and release matrix.

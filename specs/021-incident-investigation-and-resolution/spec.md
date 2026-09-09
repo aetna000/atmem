@@ -1,5 +1,7 @@
 # Feature Specification: Incident Investigation and Resolution
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/021-incident-investigation-and-resolution`
 **Created**: 2026-09-09
 **Status**: Specified; not implemented
@@ -60,7 +62,7 @@ An existing user enables this capability explicitly and retains native memory, t
 - **SC-001**: Cross-domain software-engineering, research, enterprise-knowledge and business-operation fixtures covering successful runs, permission denial, recovered retry, missing hooks, child failure and failures unrelated to memory yield correct classification, exact evidence links and zero unsupported causation/outcome claims.
 - **SC-002**: An unknown external side-effect outcome produces no executable retry; acknowledgment leaves remediation and verification unchanged; replayed operator requests create one revision.
 - **SC-003**: Cross-scope explanation/action/export adversaries disclose zero inaccessible identifiers or content; model-unavailable runs retain a useful deterministic incident report.
-- **SC-004**: Controlled usability with at least 10 representative operators achieves >=90% finding the relevant break, affected work/uncertainty and justified next action within two minutes; publish failures separately from automated fixture results.
+- **SC-004**: At least 9 of 10 operators complete the declared investigation protocol within two minutes per task, replicated on a second independent cohort of ten before advertising the usability capability; publish both cohorts and failures separately under specs/usability-protocol.md.
 
 ## Failure and edge cases
 
@@ -83,3 +85,16 @@ Autonomous compensation, owning runtime checkpoints, semantic proof of answer co
 ## Invariant Attestation
 
 Touches INV-001, INV-002, INV-006, INV-008, INV-010, INV-011 through `spec021.scope`, `spec021.evidence`, `spec021.compatibility` and `spec021.failure`. These are planned assertion identifiers, not claims of executing tests. They become proven only when boundary tests and installed-artifact evidence exist.
+
+## M0 release profile
+
+[The M0 release slice](../m0-investigation-preview.md) defines independent OpenClaw investigation-only delivery and exact prerequisite tasks. It overrides full-feature sequencing for that profile only: shared non-task identity, capture and minimal findings in the existing dashboard can ship before task links, providers, other hosts or the new shell. Completing the slice does not complete broader requirements. Usability claims follow [the declared protocol](../usability-protocol.md).
+
+## Product-wide requirements — agent neutrality and clear evidence
+
+**Required, not yet implemented:** [Product requirements](../product-requirements.md) PR-002, PR-005–PR-006. This amendment applies to this feature's public and UI boundaries; host-specific integrations cannot redefine core identity or authority.
+
+- **FR-011**: Every finding/summary states what happened, the accessible acting agent/resource, absolute time, evidence basis, known effect or uncertainty and authorized next action or reason none is available. Keep status, severity, acknowledgment and assurance independent. Domain services supply deterministic reasons and timestamps; denied explanations do not disclose hidden agents, spaces or sources.
+- **SC-005**: Successful, recovered, denied, failed and missing-evidence fixtures yield understandable explanations without a model or color; inspection advice is evidence-linked, stale checks show age, and unavailable time/impact/action remain explicitly unknown.
+
+This work extends existing authority and preserves legacy scopes. Private/shared memory and multi-framework claims require their own evidence; M0 delivers only its applicable capture/feedback subset. See the central ownership and release matrix.

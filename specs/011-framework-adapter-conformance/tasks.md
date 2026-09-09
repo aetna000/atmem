@@ -1,5 +1,7 @@
 # Tasks: Framework Adapter Conformance
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/011/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 **Input**: Design documents from `specs/011-framework-adapter-conformance/`
 
 **Prerequisites**: Spec 007 plus the feature plan
@@ -39,4 +41,17 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 
 - [ ] [T010] Define failing boundary fixtures for FR-011, FR-012, SC-006 using `tests/test_framework_adapter_conformance.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T011] Extend actual host hooks and negotiated evidence coverage without a second registry in `atmem/adapters/`, `atmem/contracts/versions.py` (FR-011, FR-012); depend on T010 and the published prerequisite contracts, preserving baseline behavior.
-- [ ] [T012] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T011 and do not mark completion from declarations alone.
+- [ ] [T012] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/011/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T011 and do not mark completion from declarations alone.
+
+## Phase 6: Public Host Conformance Kit
+
+- [ ] [T013] Freeze FR-014 manifest schema in `atmem/schemas/v1/host-conformance-manifest.json` and independent validation fixtures in `tests/test_host_conformance_kit.py`, following `conformance-manifest.md`; coordinate 020 coverage and 007 capability authority (FR-014, SC-008).
+- [ ] [T014] Package the standalone runner, adapter harness and fixture resources in `atmem/conformance/` with CLI entry points through Spec 012; include host restoration and offline profiles, then run an external adapter from a clean install (FR-013, FR-016, SC-007; depends on T013).
+- [ ] [T015] Publish contributor instructions in `docs/host-conformance.md` and reviewed listing structure in `docs/compatibility/hosts.json`; implement validation and self-reported/reproduced/AtMem-verified projection rules with explicit maintainer review (FR-015–FR-016, SC-008; depends on T014).
+- [ ] [T016] Run third-party submission, evidence-tamper, version-mismatch, secret-redaction, offline and installed-artifact checks in `tests/test_host_conformance_kit.py`; retain exact outcomes and limits in `docs/framework-adapters.md` before advertising the kit (SC-007–SC-008; depends on T015).
+
+## Product-wide integration
+
+- [ ] [T017] Define independent boundary fixtures for FR-017/SC-009 in `tests/test_host_conformance_kit.py` using `specs/product-requirements.md`, including private/shared scopes, readable feedback and timestamp provenance as applicable.
+- [ ] [T018] Implement FR-017 through `atmem/conformance/` and the owning service contracts; preserve legacy scope behavior and authorize all displayed facts/actions (depends on T017).
+- [ ] [T019] Verify SC-009 through the applicable public/host/UI boundary in `tests/test_host_conformance_kit.py`; retain versions, coverage, failures and usability evidence in a new entry under `docs/implementation-evidence/011/` and link changed capability status from `docs/current-status.md` before advertising the capability (depends on T018).

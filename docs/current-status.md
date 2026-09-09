@@ -1,5 +1,10 @@
 # Current implementation status
 
+Verification history is retained in the [per-feature evidence journal](implementation-evidence/README.md).
+This page is a maintained capability summary; new test runs create immutable
+journal entries, and summary changes link to the relevant evidence. Dated
+reviews under `specs/` remain historical snapshots.
+
 Updated: 9 September 2026
 
 Repository metadata is **2.2.6b11** and the matched OpenClaw bridge is

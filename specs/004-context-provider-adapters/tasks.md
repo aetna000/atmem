@@ -1,5 +1,7 @@
 # Tasks: Delegated Context-Provider Adapters
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/004/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 ## Phase 1 — Packaging and shared foundations
 
 - [x] [T001] Add independent `mem0`, `langgraph-provider`, and `pydantic-provider` optional extras without changing base imports in `pyproject.toml`.
@@ -81,4 +83,4 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 
 - [ ] [T033] Define failing boundary fixtures for FR-021, FR-022, SC-009 using `tests/test_provider_integration.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T034] Implement native/Mem0/document connector bindings against the shared contract in `atmem/provider_adapters/`, `pyproject.toml` (FR-021, FR-022); depend on T033 and the published prerequisite contracts, preserving baseline behavior.
-- [ ] [T035] Verify SC-009 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T034 and do not mark completion from declarations alone.
+- [ ] [T035] Verify SC-009 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/004/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T034 and do not mark completion from declarations alone.

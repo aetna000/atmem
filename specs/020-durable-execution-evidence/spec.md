@@ -1,5 +1,7 @@
 # Feature Specification: Durable Execution Evidence and Coverage
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/020-durable-execution-evidence`
 **Created**: 2026-09-09
 **Status**: Specified; not implemented
@@ -39,7 +41,7 @@ An existing user enables this capability explicitly and retains native memory, t
 - **FR-002**: Record append-only typed events for model/context/tool boundaries, lifecycle, explicit progress, waiting, retry and child execution. Event identity binds producer instance/epoch and sequence; duplicate same-payload events replay idempotently, conflicting duplicates remain visible integrity findings.
 - **FR-003**: Persist a bounded local capture spool and acknowledgment checkpoints; acknowledge only durable acceptance. Restart resends unacknowledged events without duplicate evidence. Disk-full, dropped events, producer reset and expired retention create explicit coverage gaps.
 - **FR-004**: Retain event time and ingest time; use producer sequence and explicit dependencies for ordering, and label incomparable cross-producer ordering and clock skew. Render elapsed time without claiming a universal exact causal order.
-- **FR-005**: Publish per-adapter/version/configuration coverage for supported, observed and enforced boundaries, including omitted hooks. Static availability or successful retrieval cannot prove model placement, tool completion or blocking.
+- **FR-005**: Publish per-adapter/version/configuration coverage for supported, observed and enforced boundaries, including omitted hooks. Static availability or successful retrieval cannot prove model placement, tool completion or blocking. Use the public Spec 011 conformance manifest format for published results, retaining actual runtime coverage and issuer assurance separately.
 - **FR-006**: Classify running, waiting, succeeded, failed, cancelled and incomplete executions from observed events; silence becomes missing heartbeat or suspected stall under a declared threshold, never automatic proof of failure.
 - **FR-007**: Build bounded scope-filtered execution projections across attempts/children, with cycle rejection, orphan references, cancellation, late completion and partial children explicit. Late evidence produces revised projections with provenance, not rewritten events.
 - **FR-008**: Keep investigation-only mode usable without native memory, embeddings, AtBot, task activation or context changes. Link optional context packages and task revisions when supplied by authenticated hosts.
@@ -68,7 +70,7 @@ Missing identity, inaccessible parent/reference, duplicate or conflicting delive
 
 ## Dependencies and ownership
 
-007 Amendment B T088/T089/T092 identity/link foundation, baseline 010 storage, 011 adapters, 012 services and 018 invariants. Context capture accepts optional 019 references; non-context execution capture is independent of 019.
+For M0, 007 T110 delivers the non-task ExecutionIdentity subset of T088; use existing control-store migrations and baseline adapters/services/invariants. T089/T092 task-link storage and propagation are required only for task-enabled expansion. Context capture accepts optional 019 references; investigation-only capture is independent of 019, 022 and 025.
 
 The dependency list distinguishes existing baseline modules from new contract milestones. Feature-specific assertions feed Spec 018; Spec 018's existing registry is a baseline prerequisite, not a cycle requiring future consumer code before its contracts exist.
 
@@ -83,3 +85,16 @@ Owning host scheduling/checkpoints, guaranteeing capture of unreported events, t
 ## Invariant Attestation
 
 Touches INV-004, INV-005, INV-006, INV-008, INV-010, INV-011 through `spec020.scope`, `spec020.evidence`, `spec020.compatibility` and `spec020.failure`. These are planned assertion identifiers, not claims of executing tests. They become proven only when boundary tests and installed-artifact evidence exist.
+
+## M0 release profile
+
+[The M0 release slice](../m0-investigation-preview.md) defines independent OpenClaw investigation-only delivery and exact prerequisite tasks. It overrides full-feature sequencing for that profile only: shared non-task identity, capture and minimal findings in the existing dashboard can ship before task links, providers, other hosts or the new shell. Completing the slice does not complete broader requirements. Usability claims follow [the declared protocol](../usability-protocol.md).
+
+## Product-wide requirements — agent neutrality and clear evidence
+
+**Required, not yet implemented:** [Product requirements](../product-requirements.md) PR-001–PR-002, PR-005–PR-006. This amendment applies to this feature's public and UI boundaries; host-specific integrations cannot redefine core identity or authority.
+
+- **FR-011**: Preserve authenticated framework-qualified agent identities across concurrent and explicitly linked parent/child work without inheriting access. Publish event time, receive time, clock/source provenance, elapsed duration where calculable and last actual coverage verification. Unknown/skewed clocks and late events remain explicit; display refresh cannot change event or verification time.
+- **SC-005**: Concurrent agents with colliding display names retain distinct scope and evidence; time fixtures cover late arrival, absent timestamps, clock skew, timezone/daylight-saving changes and refresh without re-verification, with zero invented ordering or timestamp claims.
+
+This work extends existing authority and preserves legacy scopes. Private/shared memory and multi-framework claims require their own evidence; M0 delivers only its applicable capture/feedback subset. See the central ownership and release matrix.

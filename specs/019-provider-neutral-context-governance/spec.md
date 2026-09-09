@@ -1,5 +1,7 @@
 # Feature Specification: Provider-Neutral Context Governance
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/019-provider-neutral-context-governance`
 **Created**: 2026-09-09
 **Status**: Specified; not implemented
@@ -94,3 +96,12 @@ Replacing external memory stores, general model routing, automatic provider setu
 ## Invariant Attestation
 
 Touches INV-001, INV-002, INV-003, INV-004, INV-005, INV-008, INV-010, INV-011 through `spec019.scope`, `spec019.evidence`, `spec019.compatibility` and `spec019.failure`. These are planned assertion identifiers, not claims of executing tests. They become proven only when boundary tests and installed-artifact evidence exist.
+
+## Product-wide requirements — agent neutrality and clear evidence
+
+**Required, not yet implemented:** [Product requirements](../product-requirements.md) PR-002–PR-006. This amendment applies to this feature's public and UI boundaries; host-specific integrations cannot redefine core identity or authority.
+
+- **FR-011**: Authorize each queried private/shared memory space through the Spec 012 membership service before provider egress and context assembly. Bind source space, contributor and consuming agent when known, membership/policy generation, authority mode and destination to evidence; revalidate at supported dispatch. External provider credentials or group membership never authorize an entire corpus or missing source attributes. Multi-space retrieval preserves source restrictions/conflicts and never silently merges trusted-delegation authority.
+- **SC-005**: Native and governed-external providers pass the same authorized shared-read, denied private-read, denied write, member-removal and destination-policy cases; trusted delegation remains exact-package authority, with missing attribution explicit rather than guessed.
+
+This work extends existing authority and preserves legacy scopes. Private/shared memory and multi-framework claims require their own evidence; M0 delivers only its applicable capture/feedback subset. See the central ownership and release matrix.

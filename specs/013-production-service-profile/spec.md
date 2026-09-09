@@ -1,5 +1,7 @@
 # Feature Specification: Production Service Profile
 
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+
 **Feature directory**: `specs/013-production-service-profile`
 **Created**: 2026-09-05
 **Status**: Implemented
@@ -89,6 +91,8 @@ Touches INV-001, INV-002, INV-007, INV-008, and INV-010 through `spec013.tenant-
 **Product role**: production service hardening. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
 
 **Observed foundation**: Configuration, keys, jobs and recovery primitives exist; KeyAuthority stores keys in memory, so durable fleet authentication is not proven.
+
+FR-010 is decomposed into T012–T025: identity contracts, durable storage, issuance, rotation/revocation, audit, replica currency, actual request/route enforcement, workers, secondary surfaces, revocation-safe recovery and installed evidence. T010 is a roll-up; T011 remains the final SC-005 gate. Spec 024 fleet and Spec 025 approval/activation consume this foundation; they do not precede it.
 
 ### Additional functional requirements
 

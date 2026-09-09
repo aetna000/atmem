@@ -1,5 +1,7 @@
 # Tasks: Entity and Relationship Memory
 
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/009/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
 **Input**: Design documents from `specs/009-entity-relationship-memory/`
 
 **Prerequisites**: Spec 008 plus the feature plan
@@ -38,4 +40,4 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 
 - [ ] [T009] Define failing boundary fixtures for FR-008, FR-009, SC-005 using `tests/test_graph_lifecycle.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T010] Publish graph path provenance through common packages and lifecycle references in `atmem/graph/`, `atmem/retrieve/graph_signal.py` (FR-008, FR-009); depend on T009 and the published prerequisite contracts, preserving baseline behavior.
-- [ ] [T011] Verify SC-005 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T010 and do not mark completion from declarations alone.
+- [ ] [T011] Verify SC-005 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/009/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T010 and do not mark completion from declarations alone.
