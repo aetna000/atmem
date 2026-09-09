@@ -7,12 +7,13 @@ reviews under `specs/` remain historical snapshots.
 
 Updated: 9 September 2026
 
-Repository metadata is **2.2.6** and the matched OpenClaw bridge is
-**2.2.6**. This repository state is the release candidate; package and
-tag availability must be checked independently until the release workflow has
-published them. Native AtMem authority remains the default after installation
-or upgrade. The required `atmem-atbot==0.1.0a6` companion is packaged
-separately and installed automatically with AtMem.
+AtMem **2.2.6** and the matched OpenClaw bridge **2.2.6** are
+[published](https://github.com/aetna000/atmem/releases/tag/v2.2.6) from `main`
+commit `04a063c`, tagged `v2.2.6`. GitHub, PyPI, npm and clean public installed
+artifacts were independently verified; see the [publication record](implementation-evidence/003/20260909T055300Z-04a063ce1e7b-publication.md).
+Native AtMem authority remains the default after installation or upgrade.
+The required `atmem-atbot==0.1.0a6` companion is packaged separately and installed
+automatically with AtMem.
 
 Spec 003's 2.2.6 local identity and tool-observation fixes pass real Mem0/Claude
 CLI acceptance on latest OpenClaw 2026.9.2 and 2026.9.3. Inject/withhold, exact
