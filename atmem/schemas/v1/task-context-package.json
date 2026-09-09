@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/task-context-package.json",
+  "title": "AtMem governed task context package",
+  "description": "Bounded, byte-stable current state delivered at a model boundary as governed data, never as instructions. A withheld package carries zero task-state bytes.",
+  "type": "object",
+  "required": [
+    "format",
+    "context_id",
+    "task_id",
+    "scope",
+    "revision",
+    "disposition"
+  ],
+  "properties": {
+    "format": {
+      "const": "atmem-task-context-package-v1"
+    },
+    "context_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "$ref": "scope.json"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "disposition": {
+      "enum": [
+        "injected",
+        "withheld"
+      ]
+    },
+    "context": {
+      "type": "string"
+    },
+    "context_sha256": {
+      "type": "string"
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]{2,63}$"
+      }
+    },
+    "serializer_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profile_version": {
+      "type": "string"
+    },
+    "policy_generation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "omitted_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "prepared_at": {
+      "type": "string"
+    },
+    "preparation_id": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "disposition": {
+            "const": "withheld"
+          }
+        },
+        "required": [
+          "disposition"
+        ]
+      },
+      "then": {
+        "properties": {
+          "context": {
+            "const": ""
+          }
+        }
+      }
+    }
+  ]
+}

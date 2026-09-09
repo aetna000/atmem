@@ -3,13 +3,98 @@
   "$id": "https://atmem.dev/schemas/v1/capabilities.json",
   "title": "AtMem capabilities v1",
   "type": "object",
-  "required": ["format", "protocol_versions", "features"],
+  "required": [
+    "format",
+    "protocol_versions",
+    "features"
+  ],
   "properties": {
-    "format": {"const": "atmem-capabilities-v1"},
-    "protocol_versions": {"type": "array", "items": {"type": "string"}},
-    "features": {"type": "object", "additionalProperties": {"type": "boolean"}},
-    "default_vector_provider": {"type": "string"},
-    "context_serializer": {"type": "string"}
+    "format": {
+      "const": "atmem-capabilities-v1"
+    },
+    "protocol_versions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "properties": {
+        "governed_task_session_binding": {
+          "type": "boolean",
+          "description": "The runtime implements operator-registered session-to-task binding. Whether a given host can use it is per-adapter; read governed_task_session_binding_adapters."
+        },
+        "governed_task_host_proposal": {
+          "type": "boolean",
+          "description": "The runtime accepts host-boundary task proposals. Per-adapter availability is in governed_task_host_proposal_adapters."
+        },
+        "governed_task_agent_delta_tool": {
+          "type": "boolean",
+          "description": "The runtime supports a model-facing typed-delta tool. An adapter that does not register one must not be listed in governed_task_agent_delta_tool_adapters."
+        }
+      }
+    },
+    "default_vector_provider": {
+      "type": "string"
+    },
+    "context_serializer": {
+      "type": "string"
+    },
+    "task_context_serializer": {
+      "type": "string"
+    },
+    "governed_task_profiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "governed_task_enforcing_adapters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "governed_task_session_binding_adapters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Adapters that supply a session generation rotating on conversation reset. An adapter that cannot must report session binding unavailable rather than binding under a lifetime alone."
+    },
+    "governed_task_host_proposal_adapters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Adapters that can submit authenticated session-bound task requests."
+    },
+    "governed_task_agent_delta_tool_adapters": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Adapters that register the typed-delta tool with their model. An unregistered tool is invisible to the model and is never claimed here."
+    },
+    "framework_adapters": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["integration", "exact_injection", "tool_lifecycle"],
+        "properties": {
+          "integration": {"type": "string"},
+          "exact_injection": {"type": "boolean"},
+          "tool_lifecycle": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      },
+      "description": "Authoritative per-framework proof capability matrix."
+    }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "description": "The single authoritative runtime capability response. Adapter replies, documentation, and tests mirror this; none of them is an independent capability authority."
 }

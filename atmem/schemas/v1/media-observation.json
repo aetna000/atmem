@@ -1,0 +1,10 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://atmem.dev/schemas/v1/media-observation.json",
+  "title":"AtMem Governed Media Observation v1",
+  "type":"object",
+  "required":["format","observation_id","artifact_id","subject_id","workspace_id","text","processor","prompt_config_sha256","consent_generation","egress","created_at"],
+  "properties":{
+    "format":{"const":"atmem-media-derived-observation-v1"},"observation_id":{"type":"string"},"artifact_id":{"type":"string"},"subject_id":{"type":"string"},"workspace_id":{"type":"string"},"text":{"type":"string"},"processor":{"type":"object"},"prompt_config_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"consent_generation":{"type":"integer","minimum":1},"egress":{"enum":["local","hosted"]},"created_at":{"type":"string","format":"date-time"}
+  }
+}

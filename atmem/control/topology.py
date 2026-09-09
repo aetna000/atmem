@@ -148,3 +148,15 @@ def load_topology(control_dir: str | Path, *, subject_id: str) -> dict[str, Any]
 
 def _workspace_id(workspace: str) -> str:
     return "ws_" + sha256_hex(workspace)[:16]
+
+
+def aggregate_health(components: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Build the one redacted health model consumed by CLI and dashboard."""
+    required = ("host", "store", "atbot", "semantic", "evidence", "deletion", "backup")
+    rows = []
+    for name in required:
+        value = components.get(name) or {"status": "unknown"}
+        status = str(value.get("status") or "unknown")
+        rows.append({"component": name, "status": status, "reason_codes": list(value.get("reason_codes") or ()), "safe_action": value.get("safe_action")})
+    failed = [row for row in rows if row["status"] not in {"ok", "healthy", "ready"}]
+    return {"format": "atmem-unified-health-v1", "status": "healthy" if not failed else "degraded", "components": rows, "safe_actions": [row["safe_action"] for row in failed if row["safe_action"]]}

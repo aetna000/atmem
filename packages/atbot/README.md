@@ -45,9 +45,10 @@ python -m pytest -q
 python -m pytest -q packages/atbot/tests
 ```
 
-See [the companion specification](research/research.md) and
-[architecture](docs/architecture.md). Maintainers publish this distribution
-through AtMem's [AtBot release procedure](https://github.com/aetna000/atmem/blob/main/docs/atbot-release.md).
+See the current [architecture](docs/architecture.md) and repository
+[implementation status](../../docs/current-status.md). Maintainers publish this
+distribution through AtMem's
+[AtBot release procedure](https://github.com/aetna000/atmem/blob/main/docs/atbot-release.md).
 
 ## License
 

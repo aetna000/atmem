@@ -9,7 +9,7 @@ import re
 import shlex
 import sqlite3
 import sys
-from typing import Any
+from typing import Any, Mapping
 import uuid
 
 from atmem.core.canonical import canonical_json, sha256_hex
@@ -52,6 +52,28 @@ def _memory_overview_query(query: str) -> bool:
     )
 
 
+_UUID_IDENTIFIER_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+_EXECUTION_IDENTIFIER_RE = re.compile(
+    r"^(run|session|turn)\s*(?::|=)\s*([A-Za-z0-9][A-Za-z0-9._:-]{2,255})$",
+    re.IGNORECASE,
+)
+
+
+def _execution_identifier_query(query: str) -> tuple[str | None, str] | None:
+    """Recognize exact execution identifiers without guessing from prose."""
+
+    clean = query.strip()
+    explicit = _EXECUTION_IDENTIFIER_RE.fullmatch(clean)
+    if explicit:
+        return explicit.group(1).casefold(), explicit.group(2)
+    if _UUID_IDENTIFIER_RE.fullmatch(clean):
+        return None, clean
+    return None
+
+
 def _protocol_fact_key(value: Any) -> str | None:
     """Translate legacy human-readable slots into protocol-safe namespaces."""
     if value is None or not str(value).strip():
@@ -90,6 +112,76 @@ def _storage_row(
         "optional": optional,
         "size_bytes": size_bytes,
     }
+
+
+def _host_session_identity(
+    host_type: str | None, session_key: str | None, session_epoch: str | None
+) -> Any:
+    """Build a complete host session identity, or None.
+
+    All three parts or nothing. Hosts declare these fields as optional, so a
+    partial identity arrives routinely; resolving on whatever survived would be
+    guessing at which conversation this is, and guessing is what the binding
+    exists to prevent (FR-052).
+    """
+    from atmem.contracts.task_state import HostSessionIdentity
+
+    if not (host_type and session_key and session_epoch):
+        return None
+    try:
+        return HostSessionIdentity(host_type, session_key, session_epoch)
+    except ValueError:
+        return None
+
+
+def _withheld_task_context(
+    scope: Any, task_id: str, context_id: str, prepared_at: str,
+    reason_codes: tuple[str, ...], *, store: Any = None,
+    host_run_id: str | None = None,
+) -> dict[str, Any]:
+    """A refusal that carries no task-state bytes and creates no exposure.
+
+    A withholding for a task that *did* resolve is recorded as a preparation
+    with no exposure (FR-015), so "the agent is being told nothing, and here is
+    why" stays answerable from the counters.
+
+    A withholding where no task resolved at all is not recorded: deliveries are
+    keyed to a task by foreign key, and there is no task to key it to. Inventing
+    a placeholder row would put a task id in the evidence that never existed.
+    Those turns are visible instead as the absence of any delivery, which is the
+    honest representation of "nothing was resolvable".
+
+    `delivery_id` stays absent either way, so no caller can confirm exposure for
+    bytes that were never sent.
+    """
+    from atmem.task_state.context import withhold
+
+    package = withhold(
+        scope=scope, task_id=task_id or "unknown", revision=1,
+        context_id=context_id, reason_codes=reason_codes,
+        prepared_at=prepared_at,
+    )
+    if store is not None and task_id:
+        try:
+            store.insert_task_delivery(
+                task_id=task_id or "unknown",
+                revision=package.revision,
+                subject_id=scope.subject_id,
+                agent_id=scope.agent_id,
+                workspace_id=scope.workspace_id,
+                disposition=package.disposition.value,
+                prepared_at_utc=prepared_at,
+                reason_codes=list(package.reason_codes),
+                context_sha256=None,
+                cache_key=package.cache_key(),
+                preparation_id=host_run_id,
+            )
+        except Exception:  # pragma: no cover - never fail a refusal on bookkeeping
+            # A refusal must still be a refusal even if recording it fails.
+            # Losing the counter is bad; turning a withholding into an error, or
+            # worse into a delivery, would be far worse.
+            pass
+    return {**package.to_dict(), "delivery_id": None}
 
 
 class ControlPlaneManager:
@@ -448,6 +540,177 @@ class ControlPlaneManager:
             migration_id=state.migration_id,
         ).value
         return result
+
+    def semantic_health(self, subject_id: str | None = None) -> dict[str, Any]:
+        """Project the same semantic-health contract used by the CLI."""
+
+        from atmem.memory import Memory
+        from atmem.semantic import (
+            SemanticIndex,
+            default_index_path,
+            evaluate_semantic_health,
+            inspect_semantic_health,
+        )
+
+        state = self.state()
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import mirror_status
+
+            mirror = mirror_status(state)
+            memory_path = Path(
+                str(
+                    mirror.get("mirror_db")
+                    or Path(state.control_dir) / "openclaw-mirror.db"
+                )
+            )
+        else:
+            memory_path = self._generic_memory_db(state)
+        selected_subject = subject_id or state.subject_id
+        memory = Memory(memory_path, retain_query_text=False, auto_vectors=False)
+        registered = memory.store.semantic_index_paths(selected_subject)
+        candidates = [
+            Path(str(row["index_path"])).expanduser()
+            for row in registered
+            if row.get("index_path")
+        ]
+        candidates.append(default_index_path(memory_path))
+        index_path = next((path for path in candidates if path.exists()), None)
+        if index_path is None:
+            memory.close()
+            return evaluate_semantic_health(
+                selected_subject, active_epoch=None
+            ).to_dict()
+        index = SemanticIndex(index_path, policy=memory.policy)
+        try:
+            return inspect_semantic_health(
+                index, memory, selected_subject
+            ).to_dict()
+        finally:
+            index.close()
+            memory.close()
+
+    def semantic_profiles(self, subject_id: str | None = None) -> dict[str, Any]:
+        """Return selectable enterprise-safe embedding profiles and live state."""
+        from atmem.semantic import HardwareProfile, recommend_local_models
+
+        state = self.state()
+        selected_subject = subject_id or state.subject_id
+        return {
+            "format": "atmem-semantic-profiles-v1",
+            "subject_id": selected_subject,
+            "health": self.semantic_health(selected_subject),
+            "hardware": HardwareProfile.detect().to_dict(),
+            "models": recommend_local_models(HardwareProfile.detect()),
+            "download_requires_confirmation": True,
+        }
+
+    def setup_semantic_profile(
+        self,
+        *,
+        provider: str,
+        model: str,
+        subject_id: str | None = None,
+        allow_download: bool = False,
+    ) -> dict[str, Any]:
+        """Install, build, verify, and activate one catalog embedding profile."""
+        import shutil
+        import subprocess
+
+        from atmem.memory import Memory
+        from atmem.semantic import (
+            SemanticIndex,
+            create_embedder,
+            default_index_path,
+            inspect_semantic_health,
+            load_model_catalog,
+        )
+
+        catalog = load_model_catalog()
+        selected = next(
+            (
+                dict(row)
+                for row in catalog.get("models", [])
+                if str(row.get("provider")) == provider
+                and str(row.get("model")) == model
+            ),
+            None,
+        )
+        if selected is None:
+            raise ValueError("select an embedding model from AtMem's verified catalog")
+        if str(selected.get("quality_class")) != "production":
+            raise ValueError("dashboard setup accepts production embedding profiles only")
+
+        state = self.state()
+        selected_subject = subject_id or state.subject_id
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import mirror_status
+
+            mirror = mirror_status(state)
+            memory_path = Path(
+                str(
+                    mirror.get("mirror_db")
+                    or Path(state.control_dir) / "openclaw-mirror.db"
+                )
+            )
+        else:
+            memory_path = self._generic_memory_db(state)
+
+        memory = Memory(memory_path, retain_query_text=False, auto_vectors=False)
+        index = SemanticIndex(default_index_path(memory_path), policy=memory.policy)
+        try:
+            memory.log_action(
+                selected_subject,
+                "semantic.setup_approved",
+                {
+                    "provider": provider,
+                    "model": model,
+                    "download_approved": allow_download,
+                    "source": "dashboard",
+                },
+                actor="dashboard-operator",
+            )
+            if provider == "ollama" and allow_download:
+                executable = shutil.which("ollama")
+                if executable is None:
+                    raise ValueError("Ollama is not installed; install it or choose another profile")
+                completed = subprocess.run(
+                    [executable, "pull", model],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=900,
+                )
+                if completed.returncode != 0:
+                    detail = (completed.stderr or completed.stdout).strip()[-500:]
+                    raise ValueError(f"Ollama could not install {model}: {detail}")
+            elif provider not in {"ollama", "sentence-transformers"}:
+                raise ValueError("dashboard setup currently supports local embedding profiles")
+
+            embedder = create_embedder(provider, model)
+            identity = dict(embedder.identity)
+            if (
+                str(identity.get("provider")) != provider
+                or str(identity.get("model")) != model
+            ):
+                raise ValueError("embedding runtime identity does not match the selected profile")
+            build = index.build(memory, selected_subject, embedder, batch_size=64)
+            health = inspect_semantic_health(
+                index, memory, selected_subject
+            ).to_dict()
+            if health.get("status") != "healthy":
+                raise ValueError(
+                    "the semantic index was built but did not pass health verification"
+                )
+            return {
+                "format": "atmem-semantic-setup-v1",
+                "status": "complete",
+                "profile": selected,
+                "build": build,
+                "health": health,
+            }
+        finally:
+            index.close()
+            memory.close()
 
     def _storage_inventory(
         self,
@@ -1254,6 +1517,15 @@ class ControlPlaneManager:
         subject = self._resolve_subject(
             state, subject_id=subject_id, agent_id=agent_id
         )
+        execution_identifier = _execution_identifier_query(clean)
+        if execution_identifier is not None:
+            return self._execution_identifier_result(
+                clean,
+                identifier_type=execution_identifier[0],
+                identifier=execution_identifier[1],
+                subject_id=subject,
+                agent_id=agent_id,
+            )
         expanded_queries = [clean]
         if _memory_overview_query(clean):
             scope, memory_path = self._memory_authority_scope(
@@ -1324,6 +1596,18 @@ class ControlPlaneManager:
             candidates.append(row)
         from atmem.control.atbot_companion import AtBotCompanionClient
 
+        from atmem.retrieve import SupportClass, decide_retrieval
+
+        retrieval_decision = decide_retrieval(clean, candidates)
+        if not _memory_overview_query(clean):
+            directly_supported = set(retrieval_decision.ranked_record_ids)
+            candidates = [
+                row for row in candidates
+                if str(row.get("record_id") or row.get("id")) in directly_supported
+            ]
+        elif candidates:
+            retrieval_decision = None
+
         result = AtBotCompanionClient().query(clean, list(candidates))
         allowed = {
             str(row.get("record_id") or row.get("id")): row for row in candidates
@@ -1351,6 +1635,16 @@ class ControlPlaneManager:
             memory.close()
         accepted = set(package.record_ids)
         ranked = [record_id for record_id in ranked if record_id in accepted]
+        decision_payload = (
+            retrieval_decision.to_dict() if retrieval_decision is not None else {
+                "format": "atmem-retrieval-decision-v1",
+                "calibration_version": "explicit-overview-v1",
+                "support_class": SupportClass.DIRECT.value,
+                "ranked_record_ids": ranked,
+                "candidates": [],
+                "reason_codes": ["explicit_memory_overview"],
+            }
+        )
         return {
             **result,
             "format": "atmem-dashboard-memory-query-v1",
@@ -1361,6 +1655,14 @@ class ControlPlaneManager:
             "candidate_set_id": candidate_set.candidate_set_id,
             "preparation_id": package.preparation_id,
             "context_sha256": package.context_sha256,
+            "explanation": {
+                "support_class": decision_payload["support_class"],
+                "selected_record_ids": ranked,
+                "reason_codes": decision_payload["reason_codes"],
+                "calibration_version": decision_payload["calibration_version"],
+                "content_included": False,
+            },
+            "semantic_health": self.semantic_health(subject),
             "retrieval": {
                 "queries": expanded_queries,
                 "signals": ["lexical", "fact_key", "semantic", "graph", "trust", "recency"],
@@ -1368,6 +1670,116 @@ class ControlPlaneManager:
                 "candidate_generation": candidate_set.generation,
                 "candidate_digest": candidate_set.candidate_digest,
                 "preparation_id": package.preparation_id,
+                "decision": decision_payload,
+            },
+        }
+
+    def _execution_identifier_result(
+        self,
+        query: str,
+        *,
+        identifier_type: str | None,
+        identifier: str,
+        subject_id: str,
+        agent_id: str | None,
+    ) -> dict[str, Any]:
+        """Resolve a run/session/turn ID to scoped flight evidence, never memory."""
+
+        fields = {
+            "run": ("run_id",),
+            "session": ("session_id",),
+            "turn": ("turn_id",),
+            None: ("run_id", "session_id", "turn_id"),
+        }[identifier_type]
+        entries = self.blackbox_events()
+        by_run: dict[str, dict[str, Any]] = {}
+        for entry in entries:
+            body = dict(entry.get("body") or {})
+            if str(body.get("subject_id") or "") != subject_id:
+                continue
+            if agent_id and str(body.get("agent_id") or "") != agent_id:
+                continue
+            if not any(str(body.get(field) or "") == identifier for field in fields):
+                continue
+            run_id = str(body.get("run_id") or "")
+            if not run_id:
+                continue
+            row = by_run.setdefault(
+                run_id,
+                {
+                    "run_id": run_id,
+                    "session_id": str(body.get("session_id") or ""),
+                    "agent_id": str(body.get("agent_id") or ""),
+                    "workspace_id": str(body.get("workspace_id") or ""),
+                    "subject_id": subject_id,
+                    "started_at": str(body.get("recorded_at") or ""),
+                    "ended_at": str(body.get("recorded_at") or ""),
+                    "turn_ids": [],
+                    "events": 0,
+                    "success": None,
+                },
+            )
+            recorded_at = str(body.get("recorded_at") or "")
+            if recorded_at:
+                row["started_at"] = min(str(row["started_at"] or recorded_at), recorded_at)
+                row["ended_at"] = max(str(row["ended_at"] or recorded_at), recorded_at)
+            turn_id = str(body.get("turn_id") or "")
+            if turn_id and turn_id not in row["turn_ids"]:
+                row["turn_ids"].append(turn_id)
+            row["events"] += 1
+            if body.get("event_type") == "turn.ended":
+                success = (body.get("payload") or {}).get("success")
+                row["success"] = success if isinstance(success, bool) else None
+        matches = sorted(
+            by_run.values(),
+            key=lambda row: (str(row.get("ended_at") or ""), str(row["run_id"])),
+            reverse=True,
+        )
+        kind = identifier_type or "run, session or turn"
+        if not matches:
+            answer = f"I couldn't find scoped agent evidence matching that {kind} ID."
+        elif identifier_type == "session" or (
+            identifier_type is None
+            and any(row.get("session_id") == identifier for row in matches)
+        ):
+            answer = (
+                f"I found {len(matches)} agent run{'s' if len(matches) != 1 else ''} "
+                "in that session. Open a matching run below to inspect its request, "
+                "memory context, tools and outcome."
+            )
+        else:
+            answer = (
+                f"I found {len(matches)} matching agent run"
+                f"{'s' if len(matches) != 1 else ''}. Open the evidence below."
+            )
+        return {
+            "format": "atmem-dashboard-investigation-query-v1",
+            "query": query,
+            "query_kind": "execution_identifier",
+            "subject_id": subject_id,
+            "answer": answer,
+            "used_memories": [],
+            "candidate_count": 0,
+            "investigation": {
+                "identifier": identifier,
+                "identifier_type": identifier_type or "auto",
+                "matches": matches,
+            },
+            "companion": {
+                "available": False,
+                "fallback": False,
+                "skipped": True,
+                "reason": "execution identifiers are resolved from AtMem evidence",
+            },
+            "retrieval": {
+                "queries": [],
+                "signals": ["exact_execution_identifier", "scope"],
+                "decision": {
+                    "format": "atmem-retrieval-decision-v1",
+                    "support_class": "no_useful_memory",
+                    "ranked_record_ids": [],
+                    "reason_codes": ["execution_investigation_routed_outside_memory"],
+                },
             },
         }
 
@@ -1556,6 +1968,646 @@ class ControlPlaneManager:
                 str(row["record_id"]),
             ),
         )[: max(0, min(limit, 100))]
+
+    # --- Governed Task State (Spec 007) ------------------------------------
+
+    def _task_service(self, state: Any = None) -> tuple[Any, Any]:
+        """Open the task service over the same store the memory plane uses."""
+        from atmem.memory import Memory
+        from atmem.task_state.service import TaskStateService
+
+        state = state or self.state()
+        memory = Memory(
+            self._proposal_memory_db(state), retain_query_text=False,
+            auto_vectors=False,
+        )
+        return TaskStateService(memory.store), memory
+
+    def task_state_mode(
+        self, *, subject_id: str | None = None, agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Whether governed task state runs for one exact scope."""
+        from atmem.contracts import AuthorityScope
+        from atmem.task_state.enablement import ScopeEnablement
+
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            mode = ScopeEnablement(memory.store).mode(scope)
+            return {**mode.to_dict(), "scope": scope.to_dict()}
+        finally:
+            memory.close()
+
+    def set_task_state_mode(
+        self,
+        action: str,
+        *,
+        actor: str,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Explicitly enable or disable governed task state for one scope."""
+
+        if action not in {"enable", "disable"}:
+            raise ValueError("task-state action must be enable or disable")
+        if not actor.strip():
+            raise ValueError("actor is required")
+        state = self.state()
+        scope = self._task_scope(
+            state,
+            subject_id=subject_id,
+            agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        _service, memory = self._task_service(state)
+        try:
+            from atmem.task_state.enablement import ScopeEnablement
+
+            enablement = ScopeEnablement(memory.store)
+            before = enablement.mode(scope)
+            if action == "enable" and before.enabled and not before.shadow:
+                mode = before
+                changed = False
+            elif action == "disable" and not before.enabled:
+                mode = before
+                changed = False
+            else:
+                mode = (
+                    enablement.enable(scope, actor=actor, shadow=False)
+                    if action == "enable"
+                    else enablement.disable(scope, actor=actor)
+                )
+                changed = True
+            return {
+                **mode.to_dict(),
+                "scope": scope.to_dict(),
+                "changed": changed,
+                "data_preserved": True,
+            }
+        finally:
+            memory.close()
+
+    def list_tasks(
+        self, *, subject_id: str | None = None, agent_id: str | None = None,
+        workspace_id: str | None = None, lifecycles: tuple[str, ...] | None = None,
+        cursor: str | None = None, limit: int = 50,
+    ) -> dict[str, Any]:
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            return service.list(
+                scope, lifecycles=lifecycles, cursor=cursor, limit=limit
+            )
+        finally:
+            memory.close()
+
+    def task_detail(
+        self, task_id: str, *, subject_id: str | None = None,
+        agent_id: str | None = None, workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """One task, or a non-disclosing refusal for anything not ours."""
+        from atmem.task_state.service import TaskStateError
+
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            task = service.get(scope, task_id).to_dict()
+            from atmem.task_state.observability import TaskObservability
+
+            activity = TaskObservability(
+                memory.store, clock=service.clock
+            ).task_detail(scope, task_id)
+            related_by_run: dict[str, dict[str, Any]] = {}
+            for entry in self.blackbox_events():
+                body = dict(entry.get("body") or {})
+                payload = dict(body.get("payload") or {})
+                if str(payload.get("task_id") or "") != task_id:
+                    continue
+                if (
+                    str(body.get("subject_id") or "") != scope.subject_id
+                    or str(body.get("agent_id") or "") != scope.agent_id
+                    or str(body.get("workspace_id") or "") != scope.workspace_id
+                ):
+                    continue
+                run_id = str(body.get("run_id") or "")
+                if not run_id:
+                    continue
+                row = related_by_run.setdefault(
+                    run_id,
+                    {
+                        "run_id": run_id,
+                        "host": body.get("host"),
+                        "session_id": body.get("session_id"),
+                        "started_at": body.get("recorded_at"),
+                        "ended_at": body.get("recorded_at"),
+                        "event_types": [],
+                        "turn_ids": [],
+                    },
+                )
+                row["ended_at"] = body.get("recorded_at")
+                event_type = str(body.get("event_type") or "")
+                if event_type and event_type not in row["event_types"]:
+                    row["event_types"].append(event_type)
+                turn_id = str(body.get("turn_id") or "")
+                if turn_id and turn_id not in row["turn_ids"]:
+                    row["turn_ids"].append(turn_id)
+            return {
+                **task,
+                "projection": {
+                    "format": "atmem-task-centric-projection-v1",
+                    "current_agent_id": scope.agent_id,
+                    "recent_decisions": activity.get("recent_decisions", []),
+                    "context_deliveries": activity.get("deliveries", []),
+                    "related_flights": list(related_by_run.values()),
+                    "focus_history": [],
+                    "correlation_state": (
+                        "explicit_evidence" if related_by_run else "unlinked"
+                    ),
+                },
+            }
+        except TaskStateError as exc:
+            return {
+                "format": "atmem-task-unavailable-v1",
+                "task_id": task_id,
+                "reason_code": exc.reason_code,
+                "message": str(exc),
+            }
+        finally:
+            memory.close()
+
+    def task_timeline(
+        self, task_id: str, *, subject_id: str | None = None,
+        agent_id: str | None = None, workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        from atmem.task_state.service import TaskStateError
+
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            return service.timeline(scope, task_id)
+        except TaskStateError as exc:
+            return {
+                "format": "atmem-task-unavailable-v1",
+                "task_id": task_id,
+                "reason_code": exc.reason_code,
+                "message": str(exc),
+            }
+        finally:
+            memory.close()
+
+    def task_health(
+        self, *, subject_id: str | None = None, agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        from atmem.task_state.observability import TaskObservability
+
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            return TaskObservability(memory.store, clock=service.clock).snapshot(scope)
+        finally:
+            memory.close()
+
+    def task_provenance(
+        self, task_id: str, *, target_kind: str, target_id: str,
+        subject_id: str | None = None, agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        from atmem.task_state.provenance import ProvenanceResolver
+
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            return ProvenanceResolver(memory.store).resolve(
+                scope, task_id, target_kind=target_kind, target_id=target_id
+            )
+        finally:
+            memory.close()
+
+    def prepare_task_context(
+        self,
+        *,
+        task_id: str | None,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+        host_run_id: str | None = None,
+        session_id: str | None = None,
+        host_type: str | None = None,
+        session_key: str | None = None,
+        session_epoch: str | None = None,
+        budget_chars: int = 4_000,
+    ) -> dict[str, Any]:
+        """Build the task-state block for one exact task, or withhold it.
+
+        Task identity resolves in one fixed total order (FR-043): an explicit
+        host-supplied id, then an operator-registered binding for this exact
+        conversation, then withholding. AtMem never infers or selects among
+        open tasks; resolving a binding is a lookup of a recorded
+        authorization, not a choice.
+
+        Every refusal path returns zero task-state bytes and records the
+        preparation without exposure. An unknown, ineligible, or out-of-scope
+        id withholds with a reason that does not disclose which of those it
+        was.
+        """
+        from atmem.contracts.task_state import ContextDisposition, TaskLifecycle
+        from atmem.core.time import to_iso
+        from atmem.task_state import context as task_context
+        from atmem.task_state.binding import SessionBindingService
+        from atmem.task_state.enablement import ScopeEnablement
+        from atmem.task_state.service import TaskStateError
+
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            prepared_at = to_iso(service.clock.now())
+            context_id = f"taskctx_{sha256_hex(f'{scope.to_dict()}{task_id}{host_run_id}')[:32]}"
+
+            mode = ScopeEnablement(memory.store).mode(scope)
+            if not mode.influences_agent:
+                return _withheld_task_context(
+                    scope, task_id or "", context_id, prepared_at,
+                    ("task_state_disabled",)
+                    if not mode.enabled
+                    else ("task_state_shadow_mode",),
+                    store=memory.store, host_run_id=host_run_id,
+                )
+            identity = _host_session_identity(host_type, session_key, session_epoch)
+            resolved = SessionBindingService(memory.store, service.clock).resolve(
+                scope, identity=identity, explicit_task_id=task_id
+            )
+            if not resolved.resolution.delivers:
+                # Includes disagreement between an explicit id and a live
+                # binding, which withholds rather than preferring either: one
+                # would mask a misconfigured binding, the other would let stale
+                # operator state override a host that knows better.
+                return _withheld_task_context(
+                    scope, task_id or "", context_id, prepared_at,
+                    (resolved.reason_code or "task_context_selection_required",),
+                    store=memory.store, host_run_id=host_run_id,
+                )
+            task_id = resolved.task_id or ""
+
+            try:
+                view = service.get(scope, task_id)
+            except TaskStateError:
+                return _withheld_task_context(
+                    scope, task_id, context_id, prepared_at,
+                    ("task_context_not_eligible",),
+                    store=memory.store, host_run_id=host_run_id,
+                )
+
+            reason = task_context.eligibility_reason(
+                view.state.lifecycle, in_scope=True
+            )
+            if reason is not None:
+                package = task_context.withhold(
+                    scope=scope, task_id=task_id, revision=view.state.revision,
+                    context_id=context_id, reason_codes=(reason,),
+                    prepared_at=prepared_at,
+                    profile_version=view.profile.version,
+                )
+            else:
+                package = task_context.prepare(
+                    view.state, view.profile, scope=scope, context_id=context_id,
+                    prepared_at=prepared_at, budget_chars=budget_chars,
+                )
+
+            delivery_id = memory.store.insert_task_delivery(
+                task_id=task_id,
+                revision=package.revision,
+                subject_id=scope.subject_id,
+                agent_id=scope.agent_id,
+                workspace_id=scope.workspace_id,
+                disposition=package.disposition.value,
+                prepared_at_utc=prepared_at,
+                reason_codes=list(package.reason_codes),
+                context_sha256=package.context_sha256 or None,
+                cache_key=package.cache_key(),
+                preparation_id=host_run_id,
+            )
+            return {**package.to_dict(), "delivery_id": delivery_id}
+        finally:
+            memory.close()
+
+    def confirm_task_exposure(self, delivery_id: str) -> bool:
+        """Record that prepared task bytes reached the model. Truthfully (FR-053).
+
+        Preparation authorizes exactly one model call, and this records what
+        happened on that call. If the task expired, was cancelled, or was
+        unbound between preparation and this confirmation, the exposure is
+        still recorded: the bytes did reach the model, and evidence that says
+        otherwise is evidence that is wrong. The subsequent terminal outcome is
+        its own later event, linked to this delivery.
+
+        The safety property worth having is not "no exposure record" -- it is
+        "the task stops influencing later calls", and that comes from
+        re-resolving identity on every subsequent call and withholding. Nothing
+        is gained by denying a call that already happened, and the audit trail
+        is strictly worse for it.
+
+        Returns False only when the delivery is unknown or was already
+        confirmed, which is the exactly-once guarantee, not a policy judgement.
+        """
+        service, memory = self._task_service()
+        try:
+            return bool(memory.store.mark_task_delivery_exposed(delivery_id))
+        finally:
+            memory.close()
+
+    def submit_task_proposal(self, proposal: Any) -> dict[str, Any]:
+        """Hand one typed delta to AtMem. The proposer never writes."""
+        from atmem.task_state.enablement import ScopeEnablement
+        from atmem.task_state.service import TaskStateError
+
+        service, memory = self._task_service()
+        try:
+            mode = ScopeEnablement(memory.store).mode(proposal.scope)
+            if not mode.enabled:
+                return {
+                    "format": "atmem-task-unavailable-v1",
+                    "reason_code": "task_state_disabled",
+                    "message": "Governed task state is disabled for this scope.",
+                }
+            try:
+                return service.submit(proposal).to_dict()
+            except TaskStateError as exc:
+                return {
+                    "format": "atmem-task-unavailable-v1",
+                    "reason_code": exc.reason_code,
+                    "message": str(exc),
+                }
+        finally:
+            memory.close()
+
+    # --- host-boundary write path (Amendment A) -----------------------------
+
+    def _host_boundary(self, state: Any = None) -> tuple[Any, Any, Any]:
+        from atmem.task_state.host_boundary import HostBoundary
+
+        service, memory = self._task_service(state)
+        return HostBoundary(service, memory.store), service, memory
+
+    def observe_task_step(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Admit one observed workflow step from a host adapter (FR-049).
+
+        The adapter reports what it saw and never a delta: interpretation
+        happens in the authorized companion path, and AtMem revalidates the
+        result against the current head before commit.
+        """
+        from atmem.contracts.task_state import HostTaskObservationRequest
+
+        return self._host_call(
+            HostTaskObservationRequest, payload, "observe",
+            subject_id=subject_id, agent_id=agent_id, workspace_id=workspace_id,
+        )
+
+    def propose_task_delta(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Admit one typed delta already in delta form (FR-044)."""
+        from atmem.contracts.task_state import HostTaskProposalRequest
+
+        return self._host_call(
+            HostTaskProposalRequest, payload, "propose",
+            subject_id=subject_id, agent_id=agent_id, workspace_id=workspace_id,
+        )
+
+    def request_task_lifecycle(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Take a host lifecycle *request*. Gates decide it; it bypasses none."""
+        from atmem.contracts.task_state import HostTaskLifecycleRequest
+
+        return self._host_call(
+            HostTaskLifecycleRequest, payload, "request_lifecycle",
+            subject_id=subject_id, agent_id=agent_id, workspace_id=workspace_id,
+        )
+
+    def _host_call(
+        self,
+        contract: Any,
+        payload: Mapping[str, Any],
+        operation: str,
+        *,
+        subject_id: str | None,
+        agent_id: str | None,
+        workspace_id: str | None,
+    ) -> dict[str, Any]:
+        """Parse, then run the shared gate sequence.
+
+        A malformed request -- incomplete session identity, a smuggled
+        authority field, an unknown key -- is refused here, before a scope is
+        even resolved. Nothing about the task surface is disclosed by it.
+        """
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id, workspace_id=workspace_id,
+        )
+        try:
+            request = contract.from_dict(dict(payload))
+        except (ValueError, KeyError, TypeError) as exc:
+            return {
+                "format": "atmem-task-unavailable-v1",
+                "reason_code": "session_identity_required"
+                if "session identity" in str(exc)
+                else "capability_denied",
+                "message": str(exc),
+            }
+        boundary, _service, memory = self._host_boundary(state)
+        try:
+            return getattr(boundary, operation)(scope, request)
+        finally:
+            memory.close()
+
+    def change_task_lifecycle(
+        self,
+        task_id: str,
+        action: str,
+        *,
+        actor: str,
+        reason: str = "",
+        expected_revision: Any = None,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Pause, resume, complete, or cancel one task from the dashboard.
+
+        A stale expected revision is a conflict the operator must see and
+        resubmit; it is never retried on their behalf.
+        """
+        from atmem.contracts.task_state import ActorRole
+        from atmem.task_state.service import TaskCompletionDenied, TaskStateError
+
+        if action not in {"pause", "resume", "complete", "cancel"}:
+            raise ValueError(f"unsupported task lifecycle action: {action!r}")
+        state = self.state()
+        scope = self._task_scope(
+            state, subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id,
+        )
+        service, memory = self._task_service(state)
+        try:
+            if expected_revision is not None:
+                current = service.get(scope, task_id).state.revision
+                if int(expected_revision) != current:
+                    return {
+                        "format": "atmem-task-conflict-v1",
+                        "task_id": task_id,
+                        "reason_code": "stale_base_revision",
+                        "expected_revision": int(expected_revision),
+                        "current_revision": current,
+                        "message": (
+                            f"This task is at revision {current}, not "
+                            f"{expected_revision}. Review the change and submit "
+                            "a fresh request."
+                        ),
+                    }
+            try:
+                view = getattr(service, action)(
+                    scope, task_id, actor=actor,
+                    actor_role=ActorRole.OPERATOR, reason=reason or action,
+                )
+                return {"format": "atmem-task-lifecycle-result-v1", **view.to_dict()}
+            except TaskCompletionDenied as exc:
+                return {
+                    "format": "atmem-task-unavailable-v1",
+                    "task_id": task_id,
+                    "reason_code": exc.reason_code,
+                    "message": str(exc),
+                    "guard": exc.guard.to_dict(),
+                }
+            except TaskStateError as exc:
+                return {
+                    "format": "atmem-task-unavailable-v1",
+                    "task_id": task_id,
+                    "reason_code": exc.reason_code,
+                    "message": str(exc),
+                }
+        finally:
+            memory.close()
+
+    def _task_scope(
+        self, state: Any, *, subject_id: str | None, agent_id: str | None,
+        workspace_id: str | None,
+    ) -> Any:
+        from atmem.contracts import AuthorityScope
+
+        return AuthorityScope(
+            subject_id=subject_id or state.subject_id,
+            agent_id=agent_id or "default-agent",
+            workspace_id=workspace_id or "default-workspace",
+        )
+
+    def extraction_proposals(
+        self, subject_id: str | None = None, *, limit: int = 100
+    ) -> dict[str, Any]:
+        """Project the same review queue the CLI shows, for the dashboard.
+
+        Both surfaces read one service, so a proposal's state, evidence, and
+        allowed actions cannot drift between them.
+        """
+        from atmem.extract.review import ReviewService
+        from atmem.memory import Memory
+
+        state = self.state()
+        memory = Memory(
+            self._proposal_memory_db(state), retain_query_text=False, auto_vectors=False
+        )
+        try:
+            return ReviewService(memory).queue(subject_id, limit=limit)
+        finally:
+            memory.close()
+
+    def decide_extraction_proposal(
+        self,
+        proposal_id: str,
+        decision: str,
+        *,
+        actor: str,
+        reason: str = "",
+        edited_fact: str | None = None,
+    ) -> dict[str, Any]:
+        """Record one dashboard review decision through the shared service."""
+        from atmem.extract.review import ReviewService
+        from atmem.memory import Memory
+
+        state = self.state()
+        memory = Memory(
+            self._proposal_memory_db(state), retain_query_text=False, auto_vectors=False
+        )
+        try:
+            return ReviewService(memory).decide(
+                proposal_id,
+                decision,
+                actor=actor,
+                reason=reason,
+                edited_fact=edited_fact,
+            )
+        finally:
+            memory.close()
+
+    def _proposal_memory_db(self, state: Any) -> Path:
+        if state.host == "openclaw":
+            from atmem.control.openclaw_native import mirror_status
+
+            mirror = mirror_status(state)
+            return Path(
+                str(
+                    mirror.get("mirror_db")
+                    or Path(state.control_dir) / "openclaw-mirror.db"
+                )
+            )
+        return self._generic_memory_db(state)
 
     def memory_reviews(self) -> dict[str, Any]:
         state = self.state()
@@ -2669,12 +3721,47 @@ class ControlPlaneManager:
             "message": "Generic shadow capture is event-driven; there are no host files to synchronize.",
         }
 
+    def delegated_context_applies(
+        self,
+        *,
+        agent_id: str | None,
+        user_id: str | None,
+        workspace_id: str | None,
+    ) -> bool:
+        """Return whether this scope must cross the delegated authority gate.
+
+        Invalid or incomplete identity deliberately returns ``True`` whenever
+        the agent has an enabled registration. The subsequent prepare call then
+        records the normal fail-closed decision instead of silently capturing
+        the prompt as native memory.
+        """
+        from atmem.delegated import DelegatedContextService
+
+        service = DelegatedContextService()
+        try:
+            if not service.config.has_enabled_for_agent(agent_id):
+                return False
+            if not agent_id or not user_id or not workspace_id:
+                return True
+            return service.config.match(
+                workspace_id=workspace_id,
+                agent_id=agent_id,
+                user_id=user_id,
+            ) is not None
+        except (OSError, ValueError):
+            return True
+
     def prepare(
         self,
         query: str,
         *,
+        delegated_query: str | None = None,
+        allow_delegation: bool = True,
         session_id: str | None = None,
         host_run_id: str | None = None,
+        turn_id: str | None = None,
+        user_id: str | None = None,
+        workspace_id: str | None = None,
         limit: int = 3,
         max_chars: int = 1200,
         min_score: float = 0.3,
@@ -2689,6 +3776,108 @@ class ControlPlaneManager:
         )
         store = self._store(state)
         try:
+            from atmem.delegated import DelegatedBinding, DelegatedContextService
+
+            delegated_service = DelegatedContextService()
+            delegated_decision: dict[str, Any] | None = None
+            if allow_delegation and delegated_service.config.has_enabled_for_agent(
+                agent_id
+            ):
+                missing = [
+                    name
+                    for name, value in (
+                        ("host_run_id", host_run_id),
+                        ("turn_id", turn_id),
+                        ("session_id", session_id),
+                        ("agent_id", agent_id),
+                        ("user_id", user_id),
+                        ("workspace_id", workspace_id),
+                    )
+                    if not value
+                ]
+                if missing:
+                    return {
+                        **self._no_context(
+                            state,
+                            "delegated context failed closed: missing " + ", ".join(missing),
+                        ),
+                        "authority": "delegated",
+                        "decision": "provider_failure",
+                        "native_fallback": False,
+                    }
+                if not state.mode.influences_agent:
+                    return {
+                        **self._no_context(state, "delegated context requires active mode"),
+                        "authority": "delegated",
+                        "decision": "withhold",
+                        "native_fallback": False,
+                    }
+                topology = self.agent_topology(state=state)
+                scoped_agent = next(
+                    (
+                        row for row in topology.get("agents") or []
+                        if str(row.get("agent_id") or "") == agent_id
+                    ),
+                    None,
+                )
+                if scoped_agent is None or str(scoped_agent.get("workspace_id") or "") != workspace_id:
+                    return {
+                        **self._no_context(
+                            state,
+                            "delegated context failed closed: agent and workspace are not bound by AtMem topology",
+                        ),
+                        "authority": "delegated",
+                        "decision": "provider_failure",
+                        "native_fallback": False,
+                    }
+                binding = DelegatedBinding.from_dict(
+                    {
+                        "run_id": host_run_id,
+                        "turn_id": turn_id,
+                        "session_id": session_id,
+                        "agent_id": agent_id,
+                        "user_id": user_id,
+                        "workspace_id": workspace_id,
+                    }
+                )
+                delegated_decision = delegated_service.prepare(
+                    query=query if delegated_query is None else delegated_query,
+                    binding=binding,
+                    migration_id=state.migration_id,
+                    store=store,
+                )
+                if delegated_decision and not delegated_decision.get("native_fallback"):
+                    delegated_reason = delegated_decision.get("withhold_reason")
+                    if isinstance(delegated_reason, dict):
+                        delegated_reason = delegated_reason.get("code")
+                    decision = delegated_decision.get("decision")
+                    reason = (
+                        delegated_reason
+                        if decision == "withhold"
+                        else delegated_decision.get("failure_reason")
+                        if decision == "provider_failure"
+                        else None
+                    )
+                    response = {
+                        **self._no_context(
+                            state,
+                            None
+                            if decision == "inject"
+                            else reason or "delegated provider withheld context",
+                        ),
+                        **delegated_decision,
+                        "mode": state.mode.value,
+                        "context_receipt_id": (
+                            (delegated_decision.get("receipt") or {}).get("id")
+                        ),
+                        "manifest_sha256": delegated_decision.get("result_sha256"),
+                        # Delegated bytes are transient delivery material, not
+                        # the dashboard's persisted/native preview channel.
+                        "preview_context": None,
+                        "candidate_ids": [],
+                    }
+                    return response
+
             from atmem.control.atbot_companion import AtBotCompanionClient
             from atmem.contracts import ContextRequest
             from atmem.memory import Memory
@@ -2715,6 +3904,14 @@ class ControlPlaneManager:
                 min_score=min_score,
             )
             eligible_rows = [row.to_dict() for row in candidate_set.candidates]
+            from atmem.retrieve import decide_retrieval
+
+            retrieval_decision = decide_retrieval(query, eligible_rows)
+            supported_ids = set(retrieval_decision.ranked_record_ids)
+            eligible_rows = [
+                row for row in eligible_rows
+                if str(row["record_id"]) in supported_ids
+            ]
             eligible = {str(row["record_id"]): row for row in eligible_rows}
             ranking = companion.query(query, eligible_rows)
             ranked_ids = list(
@@ -2787,6 +3984,12 @@ class ControlPlaneManager:
                     mode=state.mode.value,
                 )
             return {
+                "authority": (
+                    "atmem_fallback" if delegated_decision else "atmem"
+                ),
+                "decision": "native_context",
+                "native_fallback": bool(delegated_decision),
+                "delegated": delegated_decision,
                 "mode": state.mode.value,
                 "turn_id": turn["id"],
                 "preview_id": preview["id"],
@@ -2818,6 +4021,7 @@ class ControlPlaneManager:
                     "candidate_digest": candidate_set.candidate_digest,
                     "preparation_id": package.preparation_id,
                     "companion": ranking.get("companion"),
+                    "decision": retrieval_decision.to_dict(),
                 },
             }
         finally:
@@ -3605,7 +4809,7 @@ class ControlPlaneManager:
         )
 
     @staticmethod
-    def _no_context(state: ControlState, reason: str) -> dict[str, Any]:
+    def _no_context(state: ControlState, reason: str | None) -> dict[str, Any]:
         return {
             "mode": ControlMode.OFF.value
             if state.migration_id == "unavailable"

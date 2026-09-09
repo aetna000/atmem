@@ -1,0 +1,75 @@
+{
+  "format": "atmem-benchmark-comparison-v1",
+  "fair_comparison": true,
+  "dataset": {
+    "name": "LongMemEval-S cleaned",
+    "upstream_commit": "98d7416c24c778c2fee6e6f3006e7a073259d48f",
+    "source_sha256": "sha256:d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+    "selection": "sha256-question-id-stratified-v1",
+    "cases_per_question_type": 2,
+    "selection_sha256": "sha256:7727df19803a6589fc47fb7684803e9b06bcee731326cb74c758ea755dfac800"
+  },
+  "case_ids": [
+    "07741c45", "b6019101", "720133ac", "gpt4_7fce9456",
+    "c4f10528", "1d4da289", "54026fce", "06878be2",
+    "58bf7951", "c8c3f81d", "gpt4_d31cdae3", "gpt4_4edbafa2"
+  ],
+  "scoring_format": "atmem-memory-quality-scoring-v1",
+  "model_configuration": {
+    "task": "evidence-session-retrieval",
+    "ingestion": "raw-infer-disabled",
+    "embedding_provider": "ollama",
+    "embedding_model": "nomic-embed-text:latest",
+    "chunk_chars": 1600,
+    "session_cutoff": 5,
+    "retrieved_chunk_limit": 100,
+    "scorer": "longmemeval-session-retrieval-v1"
+  },
+  "systems": ["atmem-local", "mem0-oss-2.0.19"],
+  "metrics": {
+    "session_recall_any_at_5": {
+      "direction": "higher",
+      "values": {"atmem-local": 1.0, "mem0-oss-2.0.19": 1.0},
+      "winner": "tie"
+    },
+    "session_recall_all_at_5": {
+      "direction": "higher",
+      "values": {"atmem-local": 1.0, "mem0-oss-2.0.19": 1.0},
+      "winner": "tie"
+    },
+    "session_mrr_at_5": {
+      "direction": "higher",
+      "values": {"atmem-local": 0.9583333333333334, "mem0-oss-2.0.19": 1.0},
+      "winner": "mem0-oss-2.0.19"
+    },
+    "latency_p50_ms": {
+      "direction": "lower",
+      "values": {"atmem-local": 129.95402098749764, "mem0-oss-2.0.19": 47.84989601466805},
+      "winner": "mem0-oss-2.0.19"
+    },
+    "latency_p95_ms": {
+      "direction": "lower",
+      "values": {"atmem-local": 193.06858303025365, "mem0-oss-2.0.19": 57.895416975952685},
+      "winner": "mem0-oss-2.0.19"
+    }
+  },
+  "overall": {
+    "outcome": "mem0_better",
+    "winner": "mem0-oss-2.0.19",
+    "statement": "Mem0 performed better than AtMem on this benchmark.",
+    "method": "pareto-no-worse-on-all-comparable-quality-metrics",
+    "considered_metrics": [
+      "session_mrr_at_5", "session_recall_all_at_5", "session_recall_any_at_5"
+    ]
+  },
+  "limitations": {
+    "atmem-local": [
+      "Fixed 12-case stratified retrieval campaign, not the complete answer-generation evaluation.",
+      "Raw ingestion isolates retrieval quality; automatic extraction is scored separately."
+    ],
+    "mem0-oss-2.0.19": [
+      "Fixed 12-case stratified retrieval campaign, not the complete answer-generation evaluation.",
+      "Raw ingestion isolates retrieval quality; automatic extraction is scored separately."
+    ]
+  }
+}

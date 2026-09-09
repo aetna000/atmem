@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:atmem:delegated-context-request:v1",
+  "title": "AtMem delegated context request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_id", "binding", "query", "query_sha256", "max_context_bytes", "deadline"],
+  "properties": {
+    "contract_id": {"const": "atmem.delegated-context-request.v1"},
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "turn_id", "session_id", "agent_id", "user_id", "workspace_id"],
+      "properties": {
+        "run_id": {"$ref": "#/$defs/id"},
+        "turn_id": {"$ref": "#/$defs/id"},
+        "session_id": {"$ref": "#/$defs/id"},
+        "agent_id": {"$ref": "#/$defs/id"},
+        "user_id": {"$ref": "#/$defs/id"},
+        "workspace_id": {"$ref": "#/$defs/id"}
+      }
+    },
+    "query": {"type": "string", "minLength": 1, "maxLength": 100000},
+    "query_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "max_context_bytes": {"type": "integer", "minimum": 1, "maximum": 262144},
+    "deadline": {"type": "string", "format": "date-time", "pattern": "Z$"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^\\S(?:.*\\S)?$"}
+  }
+}

@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["format","status","components","safe_actions"],"properties":{"format":{"const":"atmem-unified-health-v1"},"status":{"enum":["healthy","degraded"]},"components":{"type":"array"},"safe_actions":{"type":"array","items":{"type":"string"}}},"additionalProperties":false}

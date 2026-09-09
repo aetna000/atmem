@@ -1,0 +1,11 @@
+{
+  "provider_id": "fixture-provider",
+  "provider_version": "1.0.0",
+  "provider_instance_id": "fixture-instance",
+  "key_id": "fixture-key-1",
+  "public_key_base64": "A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg=",
+  "workspace_ids": ["workspace-demo"],
+  "agent_ids": ["agent-main"],
+  "user_ids": ["user-opaque-001"],
+  "fixture_key_only": true
+}

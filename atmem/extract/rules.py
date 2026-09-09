@@ -33,6 +33,11 @@ class CandidateFact:
     trust_tier: str
     fact_key: str | None = None
     scope: str = "user_private"
+    # The exact substring of the original message this candidate was read
+    # from, and its offsets in that message. Governed proposals cite these
+    # verbatim; a candidate that cannot name its span cannot cite evidence.
+    source_text: str | None = None
+    source_span: tuple[int, int] | None = None
 
 
 _REMEMBER_RE = re.compile(r"\bremember that\b\s*(?P<fact>.+)", re.I | re.S)
@@ -97,21 +102,25 @@ def extract_facts(message: str, *, source_type: str | None = None) -> list[Candi
 
     if source != "user_message":
         body = _embedded_body(message)
-        return _candidates_from_text(body, source) if body else []
+        return (
+            _candidates_from_text(body, source, origin=message) if body else []
+        )
 
     if is_forget_request(message):
         return []
-    return _candidates_from_text(message, source)
+    return _candidates_from_text(message, source, origin=message)
 
 
-def _candidates_from_text(text: str, source_type: str) -> list[CandidateFact]:
+def _candidates_from_text(
+    text: str, source_type: str, *, origin: str
+) -> list[CandidateFact]:
     trust_tier = trust_tier_for_source(source_type)
     trusted = initial_status(trust_tier) == "active"
 
     parsed = _parse_statement(text)
     if parsed is None:
         return []
-    content, fact_key, confidence = parsed
+    content, fact_key, confidence, source_text = parsed
 
     return [
         CandidateFact(
@@ -120,20 +129,34 @@ def _candidates_from_text(text: str, source_type: str) -> list[CandidateFact]:
             source_type=source_type,
             trust_tier=trust_tier,
             fact_key=fact_key,
+            source_text=source_text,
+            source_span=_span_in(origin, source_text),
         )
     ]
 
 
-def _parse_statement(text: str) -> tuple[str, str | None, float] | None:
-    """Return (content, fact_key, confidence) for a declarative statement."""
+def _span_in(origin: str, source_text: str | None) -> tuple[int, int] | None:
+    """Locate the read span in the original message, or admit it is unknown."""
+    if not source_text:
+        return None
+    start = origin.find(source_text)
+    if start < 0:
+        return None
+    return (start, start + len(source_text))
+
+
+def _parse_statement(text: str) -> tuple[str, str | None, float, str] | None:
+    """Return (content, fact_key, confidence, source_text) for a statement."""
     remember = _REMEMBER_RE.search(text)
     if remember:
-        payload = _clean(remember.group("fact"))
+        raw_payload = remember.group("fact")
+        payload = _clean(raw_payload)
         structured = _parse_slot(payload)
         if structured:
-            return structured
+            content, fact_key, confidence, _ = structured
+            return content, fact_key, confidence, raw_payload.strip()
         if payload:
-            return _third_person(payload), None, 0.85
+            return _third_person(payload), None, 0.85, raw_payload.strip()
         return None
 
     if _QUESTION_LEAD_RE.match(text):
@@ -147,7 +170,7 @@ def _parse_statement(text: str) -> tuple[str, str | None, float] | None:
     if avoid:
         what = _clean(avoid.group("what")).rstrip(" .?!")
         if what:
-            return f"User avoids {what}.", None, 0.8
+            return f"User avoids {what}.", None, 0.8, avoid.group(0).strip()
 
     preference = _PREFERENCE_RE.search(text)
     if preference:
@@ -160,19 +183,24 @@ def _parse_statement(text: str) -> tuple[str, str | None, float] | None:
             "enjoy": "enjoys",
         }[verb]
         if what:
-            return f"User {third_person} {what}.", None, 0.85
+            return (
+                f"User {third_person} {what}.",
+                None,
+                0.85,
+                preference.group(0).strip(),
+            )
 
     return None
 
 
-def _parse_slot(text: str) -> tuple[str, str, float] | None:
+def _parse_slot(text: str) -> tuple[str, str, float, str] | None:
     """Parse "my <attr> is <value>" / "use <value> as my <attr>" shapes."""
     use_as = _USE_AS_RE.search(text)
     if use_as:
         attr = _normalize_attr(use_as.group("attr"))
         value = _clean(use_as.group("value")).rstrip(" .?!")
         if attr and value:
-            return f"User's {attr} is {value}.", attr, 0.9
+            return f"User's {attr} is {value}.", attr, 0.9, use_as.group(0).strip()
 
     for line in text.splitlines():
         copular = _COPULAR_RE.search(line)
@@ -180,7 +208,12 @@ def _parse_slot(text: str) -> tuple[str, str, float] | None:
             attr = _normalize_attr(copular.group("attr"))
             value = _clean(copular.group("value")).rstrip(" .?!")
             if attr and value:
-                return f"User's {attr} is {value}.", attr, 0.9
+                return (
+                    f"User's {attr} is {value}.",
+                    attr,
+                    0.9,
+                    copular.group(0).strip(),
+                )
         named = _NAMED_COPULAR_RE.match(line)
         if named:
             owner = _clean(named.group("owner")).strip()
@@ -188,7 +221,12 @@ def _parse_slot(text: str) -> tuple[str, str, float] | None:
             value = _clean(named.group("value")).rstrip(" .?!")
             if owner and attr and value:
                 fact_key = f"{owner.lower()}::{attr}"
-                return f"{owner}'s {attr} is {value}.", fact_key, 0.88
+                return (
+                    f"{owner}'s {attr} is {value}.",
+                    fact_key,
+                    0.88,
+                    named.group(0).strip(),
+                )
     return None
 
 

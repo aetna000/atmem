@@ -1,0 +1,64 @@
+openapi: 3.1.0
+info:
+  title: AtMem Local API
+  version: 1.0.0
+  description: Additive v1 contract; deprecated fields remain for one supported minor line and include sunset metadata.
+servers:
+  - url: http://127.0.0.1:8765/v1
+security:
+  - bearerAuth: []
+paths:
+  /v1/lifecycle:
+    get: {summary: Inspect point-in-time memory lifecycle, responses: {'200': {description: Lifecycle timeline}}}
+    post: {summary: Apply a generation-checked lifecycle transition, responses: {'200': {description: Transition receipt}, '403': {description: Admin required}}}
+  /v1/interchange/plan:
+    post: {summary: Dry-run a scoped neutral import, responses: {'200': {description: Deterministic import plan}, '403': {description: Admin required}}}
+  /v1/media/revoke:
+    post: {summary: Revoke a media reference and derived observations, responses: {'200': {description: Revocation receipt}, '403': {description: Admin required}}}
+  /v1/features/{feature}:
+    get:
+      summary: Read a runtime-derived feature capability
+      parameters:
+        - in: path
+          name: feature
+          required: true
+          schema: {type: string}
+      responses:
+        '200': {description: Feature capability}
+        '401': {description: Authentication required}
+  /health:
+    get: {operationId: getHealth, responses: {'200': {description: Authenticated health}}}
+  /capabilities:
+    get: {operationId: getCapabilities, responses: {'200': {description: Negotiated capabilities}}}
+  /memories:
+    get:
+      operationId: listMemories
+      parameters:
+        - {name: cursor, in: query, schema: {type: string}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100}}
+      responses: {'200': {description: Scoped cursor page}}
+    post:
+      operationId: createMemory
+      responses: {'200': {description: Idempotent mutation receipt}, '409': {description: Idempotency or precondition conflict}}
+  /query:
+    post: {operationId: queryMemory, responses: {'200': {description: Governed query result}}}
+  /reviews:
+    get: {operationId: listReviews, responses: {'200': {description: Scope-safe review status}}}
+  /audit:
+    get: {operationId: listAudit, responses: {'200': {description: Administrator audit}, '403': {description: Forbidden}}}
+  /configuration:
+    get: {operationId: getConfiguration, responses: {'200': {description: Administrator configuration}, '403': {description: Forbidden}}}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer}
+  schemas:
+    Error:
+      type: object
+      required: [format, error, request_id]
+      properties:
+        format: {const: atmem-api-error-v1}
+        request_id: {type: string}
+        error:
+          type: object
+          required: [code, message]
+          properties: {code: {type: string}, message: {type: string}}

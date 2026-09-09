@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/memory-archive.json",
+  "title": "AtMem Neutral Memory Archive v1",
+  "type": "object",
+  "required": ["format", "version", "archive_id", "created_at", "record_count", "records_sha256", "source"],
+  "properties": {
+    "format": {"const": "atmem-memory-archive-v1"}, "version": {"const": "1"},
+    "archive_id": {"type": "string"}, "created_at": {"type": "string", "format": "date-time"},
+    "record_count": {"type": "integer", "minimum": 0}, "records_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source": {"type": "string"}
+  }
+}

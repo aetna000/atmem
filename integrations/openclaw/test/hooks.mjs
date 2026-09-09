@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -115,7 +115,13 @@ const agentEnd = runtime.hooks.get("agent_end");
 const beforeWrite = runtime.hooks.get("before_message_write");
 
 try {
-  assert.equal(runtime.tools.size, 6);
+  // Six memory tools plus Amendment A's two governed-task tools. The task
+  // tools have to be registered here, with the same mechanism as memory_search:
+  // a control-plane operation the model cannot see is a checklist the agent
+  // cannot tick.
+  assert.equal(runtime.tools.size, 8);
+  assert.ok(runtime.tools.has("task_report_progress"));
+  assert.ok(runtime.tools.has("task_binding_status"));
 
   const observe = runtime.tools.get("atmem_observe");
   const attachmentBytes = Buffer.from("exact uploaded image bytes");
@@ -313,6 +319,310 @@ try {
   assert.equal(legacyInjection.appendContext, undefined);
   assert.equal(legacyInjection.appendSystemContext, undefined);
   for (const service of legacy.services) await service.stop?.();
+
+  // Delegated context is an exclusive, exact prepend contribution. The
+  // adapter keeps it only until llm_input proves one exact occurrence.
+  const delegatedLog = path.join(dataDir, "delegated-rpc.jsonl");
+  const delegatedServer = path.join(dataDir, "delegated-mcp.py");
+  const exactDelegated = "Reviewed context 🧠\r\nKeep these bytes.";
+  const exactTask = "<<<atmem-governed-task-data>>>\ntask: task-1\nremaining: verify\n<<<end-atmem-governed-task-data>>>";
+  writeFileSync(delegatedServer, `#!/usr/bin/env python3
+import json, sys
+LOG = ${JSON.stringify(delegatedLog)}
+EXACT = ${JSON.stringify(exactDelegated)}
+TASK = ${JSON.stringify(exactTask)}
+for line in sys.stdin:
+    request = json.loads(line)
+    if request.get("method") == "notifications/initialized":
+        continue
+    if request.get("method") == "initialize":
+        result = {"protocolVersion":"2025-06-18","capabilities":{},"serverInfo":{"name":"fake","version":"1"}}
+    elif request.get("method") == "tools/call":
+        params = request.get("params") or {}
+        name = params.get("name")
+        with open(LOG, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps({"name": name, "arguments": params.get("arguments")}, separators=(",", ":")) + "\\n")
+        if name == "control_prepare_task_context":
+            # Models the real contract: identity resolves through an explicit
+            # task id or a registered binding, and anything else withholds with
+            # zero task-state bytes. Session "task" stands in for a bound
+            # conversation; every other session is unbound.
+            arguments = params.get("arguments") or {}
+            bound = arguments.get("session_key") == "task"
+            if arguments.get("task_id") or bound:
+                value = {"disposition":"injected","context":TASK,"context_sha256":"sha256:${createHash("sha256").update(exactTask).digest("hex")}","delivery_id":"task-delivery-1","revision":4,"reason_codes":[],"task_id":arguments.get("task_id") or "task-1"}
+            else:
+                value = {"disposition":"withheld","context":"","context_sha256":None,"delivery_id":None,"revision":1,"reason_codes":["task_context_selection_required"],"task_id":None}
+        elif name == "control_prepare":
+            arguments = params.get("arguments") or {}
+            query = arguments.get("query") or ""
+            if not arguments.get("user_id"):
+                value = {"inject":False,"context":"","authority":"delegated","decision":"provider_failure","mode":"active","candidate_ids":[],"reason":"missing authenticated user"}
+            elif "Australia" in query:
+                value = {"inject":False,"context":"","authority":"atmem","decision":"no_useful_memory","mode":"active","candidate_ids":[],"retrieval":{"decision":{"format":"atmem-retrieval-decision-v1","calibration_version":"retrieval-calibration-v1","support_class":"no_useful_memory","ranked_record_ids":[],"candidates":[],"reason_codes":["no_relevance_signal"]}}}
+            elif "withhold" in query:
+                value = {"inject":False,"context":"","authority":"delegated","decision":"withhold","mode":"active","candidate_ids":[],"context_receipt_id":"receipt-withhold"}
+            elif "reject" in query:
+                value = {"inject":False,"context":"","authority":"delegated","decision":"provider_failure","mode":"active","candidate_ids":[],"reason":"signature verification failed"}
+            elif "corrupt" in query:
+                value = {"inject":True,"context":EXACT,"context_sha256":"${"0".repeat(64)}","authority":"delegated","decision":"inject","result_sha256":"${"e".repeat(64)}","exposure_id":"delivery-corrupt","context_receipt_id":"receipt-corrupt","receipt":{"id":"receipt-corrupt","sha256":"${"f".repeat(64)}"},"provider":{"id":"fixture-provider","version":"test","instance_id":"local"},"mode":"active","candidate_ids":[]}
+            elif "fallback" in query:
+                value = {"inject":True,"context":"native fallback context","authority":"atmem_fallback","decision":"native_context","native_fallback":True,"mode":"active","candidate_ids":["native-1"]}
+            else:
+                value = {"inject":True,"context":EXACT,"context_sha256":"${createHash("sha256").update(exactDelegated).digest("hex")}","authority":"delegated","decision":"inject","result_sha256":"${"c".repeat(64)}","exposure_id":"delivery-1","context_receipt_id":"receipt-1","receipt":{"id":"receipt-1","sha256":"${"d".repeat(64)}"},"provider":{"id":"fixture-provider","version":"test","instance_id":"local"},"mode":"active","candidate_ids":[]}
+        else:
+            value = {"ok": True}
+        result = {"content":[{"type":"text","text":json.dumps(value, separators=(",", ":"))}],"isError":False}
+    else:
+        result = {}
+    print(json.dumps({"jsonrpc":"2.0","id":request.get("id"),"result":result}, separators=(",", ":")), flush=True)
+`);
+  chmodSync(delegatedServer, 0o700);
+  const delegatedRuntime = fakeApi({
+    ...base,
+    command: delegatedServer,
+    controlPlane: { enabled: true, statePath: path.join(dataDir, "unused-state.json") },
+    agentWorkspaces: { main: path.join(dataDir, "delegated-workspace") },
+    delegatedContext: { userId: "owner", requireOwner: true },
+  });
+  const delegatedCtx = {
+    agentId: "main",
+    sessionKey: "delegated-session",
+    sessionId: "delegated-session",
+    runId: "delegated-run",
+    senderIsOwner: true,
+  };
+  const delegatedInsertion = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "What context should I use?" },
+    delegatedCtx,
+  );
+  assert.equal(delegatedInsertion.prependContext, exactDelegated);
+  assert.equal(delegatedInsertion.appendContext, undefined);
+  const delegatedModelInput = {
+    runId: "delegated-run",
+    sessionId: "delegated-session",
+    provider: "anthropic",
+    model: "test",
+    prompt: exactDelegated + "\nWhat context should I use?",
+    historyMessages: [],
+    imagesCount: 0,
+    tools: [],
+  };
+  await delegatedRuntime.hooks.get("llm_input")(delegatedModelInput, delegatedCtx);
+  await delegatedRuntime.hooks.get("llm_input")(delegatedModelInput, delegatedCtx);
+  // before_prompt_build has no event session fallback. Confirmation must use
+  // the same ctx/run-derived key even when llm_input alone carries sessionId.
+  const eventOnlyCtx = {
+    agentId: "main",
+    runId: "event-only-run",
+    senderIsOwner: true,
+  };
+  const eventOnlyInsertion = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "Confirm using the event-only session." },
+    eventOnlyCtx,
+  );
+  assert.equal(eventOnlyInsertion.prependContext, exactDelegated);
+  await delegatedRuntime.hooks.get("llm_input")(
+    {
+      ...delegatedModelInput,
+      runId: "event-only-run",
+      sessionId: "event-only-session",
+      prompt: exactDelegated + "\nConfirm using the event-only session.",
+    },
+    eventOnlyCtx,
+  );
+  const missingPendingWarning = "exact delegated delivery confirmation is unavailable";
+  const warningsBeforeEmpty = delegatedRuntime.logs.filter((line) =>
+    line.includes(missingPendingWarning)
+  ).length;
+  const emptyCtx = { ...delegatedCtx, sessionKey: "empty", sessionId: "empty", runId: "empty" };
+  const emptyInsertion = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "" },
+    emptyCtx,
+  );
+  assert.equal(emptyInsertion, undefined);
+  await delegatedRuntime.hooks.get("llm_input")(
+    { ...delegatedModelInput, runId: "empty", sessionId: "empty", prompt: "" },
+    emptyCtx,
+  );
+  assert.equal(
+    delegatedRuntime.logs.filter((line) => line.includes(missingPendingWarning)).length,
+    warningsBeforeEmpty,
+  );
+  const withheld = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "withhold this turn" },
+    { ...delegatedCtx, sessionKey: "withhold", sessionId: "withhold", runId: "withhold" },
+  );
+  assert.equal(withheld, undefined);
+  const unrelated = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "what cars are available in Australia?" },
+    { ...delegatedCtx, sessionKey: "cars", sessionId: "cars", runId: "cars" },
+  );
+  assert.equal(unrelated, undefined);
+  const rejected = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "reject invalid signed result" },
+    { ...delegatedCtx, sessionKey: "reject", sessionId: "reject", runId: "reject" },
+  );
+  assert.equal(rejected, undefined);
+  const corrupt = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "corrupt local handoff" },
+    { ...delegatedCtx, sessionKey: "corrupt", sessionId: "corrupt", runId: "corrupt" },
+  );
+  assert.equal(corrupt, undefined);
+  const fallback = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "fallback this turn" },
+    { ...delegatedCtx, sessionKey: "fallback", sessionId: "fallback", runId: "fallback" },
+  );
+  assert.equal(fallback.appendContext, "native fallback context");
+  assert.equal(fallback.prependContext, undefined);
+  const taskCtx = { ...delegatedCtx, taskId: "task-1", sessionKey: "task", sessionId: "task", runId: "task" };
+  const taskInsertion = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "Continue the exact governed task" },
+    taskCtx,
+  );
+  assert.equal(taskInsertion.prependContext, exactDelegated);
+  assert.equal(taskInsertion.appendContext, exactTask);
+  await delegatedRuntime.hooks.get("agent_end")(
+    { success: true, messages: [], runId: "task" },
+    taskCtx,
+  );
+  const taskOnlyCtx = {
+    ...delegatedCtx,
+    taskId: "task-1",
+    sessionKey: "task-only",
+    sessionId: "task-only",
+    runId: "task-only",
+  };
+  const taskOnlyInsertion = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "withhold memory but continue the governed task" },
+    taskOnlyCtx,
+  );
+  assert.equal(taskOnlyInsertion.prependContext, undefined);
+  assert.equal(taskOnlyInsertion.appendContext, exactTask);
+  await delegatedRuntime.hooks.get("agent_end")(
+    { success: true, messages: [], runId: "task-only" },
+    taskOnlyCtx,
+  );
+  const missingOwner = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "missing owner" },
+    { ...delegatedCtx, sessionKey: "missing", sessionId: "missing", runId: "missing", senderIsOwner: false },
+  );
+  assert.equal(missingOwner, undefined);
+  const delegatedCalls = readFileSync(delegatedLog, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line));
+  assert.equal(JSON.stringify(delegatedCalls).includes(exactDelegated), false);
+  assert.equal(
+    delegatedCalls.filter((row) =>
+      row.name === "control_record_blackbox_event" &&
+      row.arguments?.event_type === "context.injected"
+    ).length,
+    2,
+  );
+  const authorizationEvents = delegatedCalls.filter((row) =>
+    row.name === "control_record_blackbox_event" &&
+    row.arguments?.event_type === "context.provider_authorization"
+  );
+  assert.equal(authorizationEvents.length, 8);
+  assert.equal(authorizationEvents[0].arguments.context_receipt_id, "receipt-1");
+  assert.equal(
+    delegatedCalls.filter((row) => row.name === "control_prepare").length,
+    10,
+  );
+  const taskDisposition = delegatedCalls.find((row) =>
+    row.name === "control_record_blackbox_event" &&
+    row.arguments?.event_type === "context.disposition" &&
+    row.arguments?.run_id === "task"
+  );
+  const exactEnvelopeSha256 = createHash("sha256")
+    .update(JSON.stringify({ appendContext: exactTask, prependContext: exactDelegated }))
+    .digest("hex");
+  assert.equal(
+    taskDisposition.arguments.payload.context_envelope_sha256,
+    exactEnvelopeSha256,
+  );
+  assert.equal(
+    taskDisposition.arguments.payload.context_location,
+    "prependContext+appendContext",
+  );
+  const taskOnlyDisposition = delegatedCalls.find((row) =>
+    row.name === "control_record_blackbox_event" &&
+    row.arguments?.event_type === "context.disposition" &&
+    row.arguments?.run_id === "task-only"
+  );
+  const taskContextSha256 = createHash("sha256").update(exactTask).digest("hex");
+  const taskOnlyEnvelopeSha256 = createHash("sha256")
+    .update(JSON.stringify({ appendContext: exactTask }))
+    .digest("hex");
+  assert.equal(taskOnlyDisposition.arguments.payload.disposition, "injected");
+  assert.equal(taskOnlyDisposition.arguments.payload.context_chars, exactTask.length);
+  assert.equal(taskOnlyDisposition.arguments.payload.context_location, "appendContext");
+  assert.equal(taskOnlyDisposition.arguments.payload.context_sha256, taskContextSha256);
+  assert.equal(taskOnlyDisposition.arguments.payload.context_block_sha256, taskContextSha256);
+  assert.equal(
+    taskOnlyDisposition.arguments.payload.context_envelope_sha256,
+    taskOnlyEnvelopeSha256,
+  );
+  // Resolution is attempted on every turn carrying a session identity, not
+  // only when the host names a task: OpenClaw supplies no task identity of its
+  // own, so a turn that never asks can never be delivered a bound task. What
+  // stays scarce is *delivery* -- only the bound conversation gets bytes, which
+  // the exposure count below asserts.
+  const taskPrepareCalls = delegatedCalls.filter(
+    (row) => row.name === "control_prepare_task_context",
+  );
+  assert.equal(taskPrepareCalls.length, 9);
+  for (const call of taskPrepareCalls) {
+    // Never a partial identity: all three parts or the bridge does not ask.
+    assert.equal(call.arguments.host_type, "openclaw");
+    assert.ok(call.arguments.session_key);
+    assert.ok(call.arguments.session_epoch);
+  }
+  assert.equal(
+    delegatedCalls.filter((row) => row.name === "control_task_exposure_shown").length,
+    2,
+  );
+  assert.equal(
+    delegatedCalls.filter((row) =>
+      row.name === "control_record_blackbox_event" &&
+      row.arguments?.event_type === "task.context.exposed"
+    ).length,
+    2,
+  );
+  assert.ok(delegatedRuntime.logs.some(line => line.includes("delegated_sender_not_owner")));
+  const localWorkspace = path.join(dataDir, "delegated-workspace");
+  const localRuntime = fakeApi({
+    ...base, command: delegatedServer,
+    controlPlane: { enabled: true, statePath: path.join(dataDir, "unused-state.json") },
+    agentWorkspaces: { main: localWorkspace },
+    delegatedContext: { userId: "owner", requireOwner: false, localOperator: {
+      isolated: true, agentId: "main", workspaceDir: localWorkspace,
+      sessionKey: "isolated", sessionId: "epoch-1",
+    } },
+  });
+  try {
+    const localCtx = { agentId: "main", workspaceDir: localWorkspace,
+      sessionKey: "isolated", sessionId: "epoch-1", runId: "local-turn", messageProvider: "cli" };
+    const insertion = await localRuntime.hooks.get("before_prompt_build")({ prompt: "local context" }, localCtx);
+    assert.equal(insertion?.prependContext, exactDelegated);
+    for (const patch of [{ senderIsOwner: false }, { channel: "discord" },
+      { sessionId: "epoch-2" }, { workspaceDir: "/different" }, { messageProvider: undefined }]) {
+      const denied = await localRuntime.hooks.get("before_prompt_build")({ prompt: "denied context" }, { ...localCtx, ...patch });
+      assert.equal(denied, undefined);
+    }
+    // Both hook contracts can carry the invocation ID in context only.
+    const toolCtx = { ...localCtx, toolCallId: "context-call" };
+    await localRuntime.hooks.get("before_tool_call")({ toolName: "read", params: {} }, toolCtx);
+    await localRuntime.hooks.get("after_tool_call")({ toolName: "read", params: {}, result: "observed" }, toolCtx);
+    const rows = readFileSync(delegatedLog, "utf8").trim().split("\n").map(JSON.parse);
+    const tools = rows.filter(row => row.arguments?.tool_call_id === "context-call");
+    assert.deepEqual(tools.map(row => row.arguments.event_type), ["tool.requested", "tool.completed"]);
+    assert.ok(tools.every(row => row.arguments.run_id === "local-turn"));
+  } finally {
+    for (const service of localRuntime.services) await service.stop?.();
+  }
+  for (const service of delegatedRuntime.services) await service.stop?.();
 
   const takeover = fakeApi({
     ...base,

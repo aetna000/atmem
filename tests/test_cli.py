@@ -26,6 +26,50 @@ def test_cli_version_reports_installed_distribution_version() -> None:
     assert result.stdout.strip() == f"atmem {version('atmem')}"
 
 
+def test_delegated_cli_is_explicit_scoped_and_secret_safe(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config = tmp_path / "delegated.json"
+    monkeypatch.setenv("ATMEM_DELEGATED_CONFIG", str(config))
+    trust = json.loads(
+        (ROOT / "docs/contracts/delegated-context-provider-v1/trust.json").read_text()
+    )
+    key_file = tmp_path / "provider.pub"
+    key_file.write_text(trust["public_key_base64"], encoding="utf-8")
+
+    initial = _run("delegated", "status", "--json")
+    assert initial.returncode == 0
+    assert json.loads(initial.stdout)["enabled"] is False
+    registered = _run(
+        "delegated", "register",
+        "--provider-id", trust["provider_id"],
+        "--provider-version", trust["provider_version"],
+        "--instance-id", trust["provider_instance_id"],
+        "--key-id", trust["key_id"],
+        "--public-key-file", str(key_file),
+        "--endpoint", "http://127.0.0.1:8788/v1/delegated-context",
+        "--workspace", trust["workspace_ids"][0],
+        "--agent", trust["agent_ids"][0],
+        "--user", trust["user_ids"][0],
+        "--json",
+    )
+    assert registered.returncode == 0, registered.stderr
+    registration_id = json.loads(registered.stdout)["registration_id"]
+    assert trust["public_key_base64"] not in registered.stdout
+    assert _run("delegated", "enable", registration_id, "--json").returncode == 2
+    from atmem.delegated.transport import configure_keyring
+    credential = configure_keyring(tmp_path / "auth.json", provider_id=trust["provider_id"], instance_id=trust["provider_instance_id"])
+    configured = _run("delegated", "set-request-auth", registration_id,
+        "--request-key-id", credential["request_key_id"], "--request-secret-file", credential["request_secret_file"], "--json")
+    assert configured.returncode == 0, configured.stderr
+    assert json.loads(configured.stdout)["enabled"] is False
+    enabled = _run("delegated", "enable", registration_id, "--json")
+    assert json.loads(enabled.stdout)["enabled"] is True
+    assert _run("delegated", "remove", registration_id, "--yes").returncode == 2
+    assert _run("delegated", "disable", registration_id).returncode == 0
+    assert _run("delegated", "remove", registration_id, "--yes").returncode == 0
+
+
 def test_cli_remember_recall_forget_roundtrip(tmp_path: Path) -> None:
     db = str(tmp_path / "mem.db")
 

@@ -3,7 +3,21 @@ from __future__ import annotations
 import re
 
 
-TESTED_OPENCLAW_VERSIONS = ("2026.7.1-2", "2026.8.1")
+# Hosts AtMem has actually been exercised against. Activation fails closed on
+# anything else rather than taking over native memory on an unverified host.
+#
+# This list must match the recorded bridge fixtures in
+# `integrations/openclaw/test/fixtures/hook-context/`, which pin the declared
+# hook-context surface per version. Two lists describing "which OpenClaw do we
+# support" that nobody checks against each other is how the 2.2.6b6 manifest
+# drift happened; `test_openclaw_compat.py` ties them together.
+#
+# 2026.9.2 verification: the declared hook-context surface (no task identity;
+# sessionId, sessionKey and senderIsOwner present), the full bridge npm suite,
+# and every CLI surface the takeover path calls -- config get, plugins inspect,
+# gateway status/restart/stop, hooks disable -- were checked against a live
+# 2026.9.2 install.
+TESTED_OPENCLAW_VERSIONS = ("2026.7.1-2", "2026.8.1", "2026.9.2", "2026.9.3")
 
 _VERSION_RE = re.compile(r"(?<!\d)(\d{4})\.(\d+)\.(\d+)(?:-(\d+))?(?!\d)")
 

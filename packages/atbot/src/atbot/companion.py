@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 from atbot.config import AtBotConfig
 from atbot.extraction import extract_facts
+from atbot.task_state import propose_task_delta
 from atbot.providers.router import ModelRouter
 from atbot import __version__
 
@@ -43,8 +45,41 @@ class CompanionRuntime:
                 "reranking": True,
                 "query_expansion": True,
                 "proposal_extraction": True,
+                "task_state_proposals": True,
             },
             "providers": self.router.status(),
+        }
+
+    def propose_task_state(
+        self,
+        *,
+        snapshot: dict[str, object],
+        observation: str,
+        task_id: str,
+        base_revision: int,
+        remote: bool = False,
+    ) -> dict[str, object]:
+        """Suggest a bounded task delta; never commit or claim authority."""
+        if str(snapshot.get("task_id") or "") != task_id:
+            raise ValueError("snapshot task identity does not match the request")
+        if int(snapshot.get("revision") or 0) != int(base_revision):
+            raise ValueError("snapshot revision does not match the request")
+        provider = self.router.select(sensitivity="personal", remote=remote)
+        delta = propose_task_delta(
+            provider,
+            snapshot=dict(snapshot),
+            observation=observation,
+            task_id=task_id,
+            base_revision=base_revision,
+        )
+        return {
+            "format": "atbot-task-state-proposal-result-v1",
+            "delta": delta.to_dict() if delta is not None else None,
+            "authority_decision": None,
+            "canonical_storage": False,
+            "provider": provider.name,
+            "model": provider.model,
+            "egress_class": provider.egress_class,
         }
 
     def expand_query(self, query: str) -> dict[str, object]:
@@ -137,6 +172,7 @@ class CompanionRuntime:
                 "record_id": record_id,
                 "content": content,
                 "score": float(row.get("score") or 0.0),
+                **_safe_aggregation_signals(row.get("signals")),
             }
         if not allowed:
             return {
@@ -220,6 +256,43 @@ def _overview_query(query: str) -> bool:
             "everything you remember",
         )
     )
+
+
+def _safe_aggregation_signals(value: object) -> dict[str, object]:
+    """Allow only bounded, opaque AtMem ranking signals into model input."""
+    if not isinstance(value, dict):
+        return {}
+    if value.get("support_aggregation_version") != "supporting-evidence-v1":
+        return {}
+    group_id = str(value.get("support_group_id") or "")
+    if not group_id.startswith("sgrp_") or len(group_id) != 69:
+        return {}
+    result: dict[str, object] = {
+        "support_aggregation_version": "supporting-evidence-v1",
+        "support_group_id": group_id,
+    }
+    for key in ("record_score", "support_score", "aggregate_score"):
+        raw = value.get(key)
+        if isinstance(raw, bool):
+            return {}
+        try:
+            score = float(raw)
+        except (TypeError, ValueError):
+            return {}
+        if not math.isfinite(score) or not 0.0 <= score <= 1.0:
+            return {}
+        result[key] = score
+    count = value.get("eligible_support_count")
+    if isinstance(count, bool):
+        return {}
+    try:
+        parsed_count = int(count)
+    except (TypeError, ValueError):
+        return {}
+    if parsed_count < 0 or parsed_count > 99:
+        return {}
+    result["eligible_support_count"] = parsed_count
+    return result
 
 
 def _source_noise(content: str) -> bool:

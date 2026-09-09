@@ -1,0 +1,180 @@
+{
+  "format": "atmem-pre-amendment-mcp-surface-v1",
+  "recorded_at_utc": "2026-09-05",
+  "why": "Spec 007 Amendment A, T058. Frozen record of the MCP tool surface as it stood before Amendment A added any host-boundary write path. The amendment's second premise -- that the adapter boundary could read task state and not change it -- is a claim about this exact surface. Freezing it keeps that claim checkable after T069 and T073 add tools, instead of requiring the assertion to be weakened to let the amendment land.",
+  "surfaces": {
+    "host": {
+      "control_capture": [
+        "agent_id",
+        "authenticated_user",
+        "message",
+        "session_id",
+        "subject_id"
+      ],
+      "control_exposure_shown": [
+        "exposure_id"
+      ],
+      "control_prepare": [
+        "agent_id",
+        "host_run_id",
+        "query",
+        "session_id",
+        "subject_id",
+        "turn_id",
+        "user_id",
+        "workspace_id"
+      ],
+      "control_prepare_task_context": [
+        "agent_id",
+        "budget_chars",
+        "host_run_id",
+        "session_id",
+        "subject_id",
+        "task_id",
+        "workspace_id"
+      ],
+      "control_record_blackbox_event": [
+        "agent_id",
+        "context_event_id",
+        "context_receipt_id",
+        "event_type",
+        "outcome_id",
+        "payload",
+        "retrieval_id",
+        "run_id",
+        "session_id",
+        "subject_id",
+        "tool_call_id",
+        "turn_id",
+        "workspace_id"
+      ],
+      "control_status": [],
+      "control_sync_memory": [],
+      "control_task_exposure_shown": [
+        "delivery_id"
+      ]
+    },
+    "operator": {
+      "control_acknowledge_finding": [
+        "actor",
+        "attention_code",
+        "run_id"
+      ],
+      "control_activate": [
+        "actor"
+      ],
+      "control_capture": [
+        "agent_id",
+        "authenticated_user",
+        "message",
+        "session_id",
+        "subject_id"
+      ],
+      "control_configure_agents": [
+        "agents"
+      ],
+      "control_export_flight": [
+        "format",
+        "run_id"
+      ],
+      "control_export_memory_audit": [
+        "actor",
+        "direction",
+        "event_type",
+        "format",
+        "query",
+        "record_id",
+        "session_id",
+        "since",
+        "until"
+      ],
+      "control_exposure_shown": [
+        "exposure_id"
+      ],
+      "control_get_flight": [
+        "run_id"
+      ],
+      "control_get_flight_story": [
+        "run_id"
+      ],
+      "control_get_memory_record": [
+        "record_id"
+      ],
+      "control_list_agents": [],
+      "control_list_flights": [
+        "limit",
+        "offset"
+      ],
+      "control_list_memory_reviews": [],
+      "control_memory_status": [],
+      "control_prepare": [
+        "agent_id",
+        "host_run_id",
+        "query",
+        "session_id",
+        "subject_id",
+        "turn_id",
+        "user_id",
+        "workspace_id"
+      ],
+      "control_prepare_task_context": [
+        "agent_id",
+        "budget_chars",
+        "host_run_id",
+        "session_id",
+        "subject_id",
+        "task_id",
+        "workspace_id"
+      ],
+      "control_record_blackbox_event": [
+        "agent_id",
+        "context_event_id",
+        "context_receipt_id",
+        "event_type",
+        "outcome_id",
+        "payload",
+        "retrieval_id",
+        "run_id",
+        "session_id",
+        "subject_id",
+        "tool_call_id",
+        "turn_id",
+        "workspace_id"
+      ],
+      "control_return_to_shadow": [
+        "actor"
+      ],
+      "control_review_memory": [
+        "decision",
+        "record_id"
+      ],
+      "control_search_memory": [
+        "agent_id",
+        "limit",
+        "query",
+        "subject_id"
+      ],
+      "control_search_memory_audit": [
+        "actor",
+        "cursor",
+        "direction",
+        "event_type",
+        "include_facets",
+        "limit",
+        "query",
+        "record_id",
+        "session_id",
+        "since",
+        "until"
+      ],
+      "control_status": [],
+      "control_sync_memory": [],
+      "control_task_exposure_shown": [
+        "delivery_id"
+      ],
+      "control_verify": [
+        "probe"
+      ]
+    }
+  }
+}

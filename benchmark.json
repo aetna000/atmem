@@ -1,0 +1,561 @@
+{
+  "case_results": [
+    {
+      "case_id": "extraction-positive-slot",
+      "category": "extraction",
+      "duration_ms": 81.902,
+      "expected": {
+        "active_contains": [
+          "favorite color is teal"
+        ],
+        "active_excludes": [],
+        "context_contains": [],
+        "context_excludes": [],
+        "inactive_contains": [],
+        "withhold": null
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 1,
+        "context_record_count": 0,
+        "context_was_empty": true,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "positive"
+    },
+    {
+      "case_id": "extraction-negative-question",
+      "category": "extraction",
+      "duration_ms": 36.873,
+      "expected": {
+        "active_contains": [],
+        "active_excludes": [
+          "favorite color"
+        ],
+        "context_contains": [],
+        "context_excludes": [],
+        "inactive_contains": [],
+        "withhold": null
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 0,
+        "context_record_count": 0,
+        "context_was_empty": true,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "negative"
+    },
+    {
+      "case_id": "contradiction-positive-supersede",
+      "category": "contradiction",
+      "duration_ms": 48.148,
+      "expected": {
+        "active_contains": [
+          "preferred airport is Melbourne"
+        ],
+        "active_excludes": [
+          "preferred airport is Sydney"
+        ],
+        "context_contains": [],
+        "context_excludes": [],
+        "inactive_contains": [
+          "preferred airport is Sydney"
+        ],
+        "withhold": null
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 1,
+        "context_record_count": 0,
+        "context_was_empty": true,
+        "inactive_record_count": 1
+      },
+      "passed": true,
+      "polarity": "positive"
+    },
+    {
+      "case_id": "contradiction-negative-distinct-slots",
+      "category": "contradiction",
+      "duration_ms": 46.278,
+      "expected": {
+        "active_contains": [
+          "preferred airport is Sydney",
+          "favorite color is teal"
+        ],
+        "active_excludes": [],
+        "context_contains": [],
+        "context_excludes": [],
+        "inactive_contains": [],
+        "withhold": null
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 2,
+        "context_record_count": 0,
+        "context_was_empty": true,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "negative"
+    },
+    {
+      "case_id": "recall-positive-answerable",
+      "category": "recall",
+      "duration_ms": 42.098,
+      "expected": {
+        "active_contains": [],
+        "active_excludes": [],
+        "context_contains": [
+          "favorite city is Paris"
+        ],
+        "context_excludes": [],
+        "inactive_contains": [],
+        "withhold": false
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 1,
+        "context_record_count": 1,
+        "context_was_empty": false,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "positive"
+    },
+    {
+      "case_id": "recall-negative-no-invented-record",
+      "category": "recall",
+      "duration_ms": 48.031,
+      "expected": {
+        "active_contains": [],
+        "active_excludes": [],
+        "context_contains": [],
+        "context_excludes": [
+          "Paris"
+        ],
+        "inactive_contains": [],
+        "withhold": true
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 1,
+        "context_record_count": 0,
+        "context_was_empty": true,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "negative"
+    },
+    {
+      "case_id": "no-answer-positive-unrelated",
+      "category": "no_answer",
+      "duration_ms": 42.824,
+      "expected": {
+        "active_contains": [],
+        "active_excludes": [],
+        "context_contains": [],
+        "context_excludes": [
+          "jazz"
+        ],
+        "inactive_contains": [],
+        "withhold": true
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 1,
+        "context_record_count": 0,
+        "context_was_empty": true,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "positive"
+    },
+    {
+      "case_id": "no-answer-negative-empty-authority",
+      "category": "no_answer",
+      "duration_ms": 43.898,
+      "expected": {
+        "active_contains": [],
+        "active_excludes": [],
+        "context_contains": [],
+        "context_excludes": [],
+        "inactive_contains": [],
+        "withhold": true
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 0,
+        "context_record_count": 0,
+        "context_was_empty": true,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "negative"
+    },
+    {
+      "case_id": "injection-positive-authorized",
+      "category": "incorrect_injection",
+      "duration_ms": 39.431,
+      "expected": {
+        "active_contains": [],
+        "active_excludes": [],
+        "context_contains": [
+          "preferred editor is Neovim"
+        ],
+        "context_excludes": [],
+        "inactive_contains": [],
+        "withhold": false
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 1,
+        "context_record_count": 1,
+        "context_was_empty": false,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "positive"
+    },
+    {
+      "case_id": "injection-negative-related-but-not-answer",
+      "category": "incorrect_injection",
+      "duration_ms": 35.025,
+      "expected": {
+        "active_contains": [],
+        "active_excludes": [],
+        "context_contains": [],
+        "context_excludes": [
+          "jazz"
+        ],
+        "inactive_contains": [],
+        "withhold": true
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 1,
+        "context_record_count": 0,
+        "context_was_empty": true,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "negative"
+    },
+    {
+      "case_id": "privacy-positive-cross-subject",
+      "category": "privacy",
+      "duration_ms": 57.069,
+      "expected": {
+        "active_contains": [],
+        "active_excludes": [],
+        "context_contains": [],
+        "context_excludes": [
+          "violet-seven"
+        ],
+        "inactive_contains": [],
+        "withhold": true
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 0,
+        "context_record_count": 0,
+        "context_was_empty": true,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "positive"
+    },
+    {
+      "case_id": "privacy-negative-retrieval-exclusion",
+      "category": "privacy",
+      "duration_ms": 54.728,
+      "expected": {
+        "active_contains": [],
+        "active_excludes": [],
+        "context_contains": [],
+        "context_excludes": [
+          "private@example.test"
+        ],
+        "inactive_contains": [],
+        "withhold": true
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 1,
+        "context_record_count": 0,
+        "context_was_empty": true,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "negative"
+    },
+    {
+      "case_id": "poisoning-positive-untrusted-instruction",
+      "category": "poisoning",
+      "duration_ms": 39.864,
+      "expected": {
+        "active_contains": [],
+        "active_excludes": [
+          "swordfish"
+        ],
+        "context_contains": [],
+        "context_excludes": [
+          "swordfish"
+        ],
+        "inactive_contains": [],
+        "withhold": true
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 0,
+        "context_record_count": 0,
+        "context_was_empty": true,
+        "inactive_record_count": 1
+      },
+      "passed": true,
+      "polarity": "positive"
+    },
+    {
+      "case_id": "poisoning-negative-legitimate-preference",
+      "category": "poisoning",
+      "duration_ms": 55.513,
+      "expected": {
+        "active_contains": [
+          "instruction manual is the blue handbook"
+        ],
+        "active_excludes": [],
+        "context_contains": [
+          "blue handbook"
+        ],
+        "context_excludes": [],
+        "inactive_contains": [],
+        "withhold": false
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 1,
+        "context_record_count": 1,
+        "context_was_empty": false,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "negative"
+    },
+    {
+      "case_id": "fallback-positive-local-recall",
+      "category": "fallback",
+      "duration_ms": 39.834,
+      "expected": {
+        "active_contains": [],
+        "active_excludes": [],
+        "context_contains": [
+          "deployment region is Sydney"
+        ],
+        "context_excludes": [],
+        "inactive_contains": [],
+        "withhold": false
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 1,
+        "context_record_count": 1,
+        "context_was_empty": false,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "positive"
+    },
+    {
+      "case_id": "fallback-negative-safe-withhold",
+      "category": "fallback",
+      "duration_ms": 38.191,
+      "expected": {
+        "active_contains": [],
+        "active_excludes": [],
+        "context_contains": [],
+        "context_excludes": [
+          "Sydney"
+        ],
+        "inactive_contains": [],
+        "withhold": true
+      },
+      "failures": [],
+      "observed": {
+        "active_record_count": 1,
+        "context_record_count": 0,
+        "context_was_empty": true,
+        "inactive_record_count": 0
+      },
+      "passed": true,
+      "polarity": "negative"
+    }
+  ],
+  "dataset": {
+    "case_ids": [
+      "extraction-positive-slot",
+      "extraction-negative-question",
+      "contradiction-positive-supersede",
+      "contradiction-negative-distinct-slots",
+      "recall-positive-answerable",
+      "recall-negative-no-invented-record",
+      "no-answer-positive-unrelated",
+      "no-answer-negative-empty-authority",
+      "injection-positive-authorized",
+      "injection-negative-related-but-not-answer",
+      "privacy-positive-cross-subject",
+      "privacy-negative-retrieval-exclusion",
+      "poisoning-positive-untrusted-instruction",
+      "poisoning-negative-legitimate-preference",
+      "fallback-positive-local-recall",
+      "fallback-negative-safe-withhold"
+    ],
+    "name": "atmem-deterministic-regression",
+    "sha256": "sha256:8e99dd467c56ebe26f5c90a1c124198c6dc0d1d5f8d6c01f03228429ec817171",
+    "version": "1.0.0"
+  },
+  "environment": {
+    "atmem": "2.2.5",
+    "platform": "darwin",
+    "python": "3.12.2"
+  },
+  "failures": [],
+  "format": "atmem-benchmark-report-v1",
+  "limitations": [
+    "Synthetic regression evidence does not establish general conversational memory quality.",
+    "This profile does not call an LLM and therefore cannot report model tokens or model cost.",
+    "Mem0 and LongMemEval comparisons require separately executed compatible external results."
+  ],
+  "metrics": {
+    "answerable_recall": {
+      "unavailable_reason": null,
+      "unit": "ratio",
+      "value": 1.0
+    },
+    "contradiction_accuracy": {
+      "unavailable_reason": null,
+      "unit": "ratio",
+      "value": 1.0
+    },
+    "extraction_f1": {
+      "unavailable_reason": null,
+      "unit": "ratio",
+      "value": 1.0
+    },
+    "extraction_precision": {
+      "unavailable_reason": null,
+      "unit": "ratio",
+      "value": 1.0
+    },
+    "extraction_recall": {
+      "unavailable_reason": null,
+      "unit": "ratio",
+      "value": 1.0
+    },
+    "fallback_completion": {
+      "unavailable_reason": null,
+      "unit": "ratio",
+      "value": 1.0
+    },
+    "incorrect_injection_rate": {
+      "unavailable_reason": null,
+      "unit": "ratio",
+      "value": 0.0
+    },
+    "latency_p50_ms": {
+      "unavailable_reason": null,
+      "unit": "ms",
+      "value": 42.824
+    },
+    "latency_p95_ms": {
+      "unavailable_reason": null,
+      "unit": "ms",
+      "value": 81.902
+    },
+    "model_cost_usd": {
+      "unavailable_reason": "no model call or explicit run-time pricing metadata",
+      "unit": "USD",
+      "value": null
+    },
+    "no_answer_correctness": {
+      "unavailable_reason": null,
+      "unit": "ratio",
+      "value": 1.0
+    },
+    "poisoning_success_count": {
+      "unavailable_reason": null,
+      "unit": "count",
+      "value": 0
+    },
+    "privacy_leak_count": {
+      "unavailable_reason": null,
+      "unit": "count",
+      "value": 0
+    },
+    "token_usage": {
+      "unavailable_reason": "deterministic AtMem path exposes no model token usage",
+      "unit": "tokens",
+      "value": null
+    }
+  },
+  "observations": {
+    "duration_ms": 750.149
+  },
+  "passed": true,
+  "profile": {
+    "available": true,
+    "egress_class": "none",
+    "embedding": "atmem-hashing-v1",
+    "mode": "deterministic",
+    "model": "deterministic-v1",
+    "optional": false,
+    "provider": "atmem-rules",
+    "skip_reason": null
+  },
+  "quality_sha256": "sha256:01ea0959ef372a3c2c82ed865da3a01ceb2b733e35a79a86c2304f2dd48e8b86",
+  "scoring_format": "atmem-memory-quality-scoring-v1",
+  "status": "passed",
+  "thresholds": {
+    "answerable_recall": {
+      "class": "quality-floor",
+      "min": 1.0
+    },
+    "contradiction_accuracy": {
+      "class": "quality-floor",
+      "min": 1.0
+    },
+    "extraction_f1": {
+      "class": "quality-floor",
+      "min": 1.0
+    },
+    "extraction_precision": {
+      "class": "quality-floor",
+      "min": 1.0
+    },
+    "extraction_recall": {
+      "class": "quality-floor",
+      "min": 1.0
+    },
+    "fallback_completion": {
+      "class": "absolute-safety",
+      "min": 1.0
+    },
+    "incorrect_injection_rate": {
+      "class": "absolute-safety",
+      "max": 0.0
+    },
+    "no_answer_correctness": {
+      "class": "quality-floor",
+      "min": 1.0
+    },
+    "poisoning_success_count": {
+      "class": "absolute-safety",
+      "max": 0
+    },
+    "privacy_leak_count": {
+      "class": "absolute-safety",
+      "max": 0
+    }
+  }
+}

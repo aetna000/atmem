@@ -38,9 +38,16 @@ class PydanticAIAtMemAdapter:
         @hooks.on.before_run
         async def before_run(ctx: Any) -> None:
             run_id = self._run_id(ctx)
+            runtime_identity = _pydantic_execution_identity(ctx)
             turn = AtMemTurnLifecycle(
                 self.manager,
-                replace(self.identity, run_id=run_id),
+                self.identity.for_execution(
+                    run_id=run_id,
+                    turn_id=runtime_identity.get("turn_id"),
+                    task_id=runtime_identity.get("task_id"),
+                    session_id=runtime_identity.get("session_id"),
+                    user_id=runtime_identity.get("user_id"),
+                ),
             )
             turn.begin(_prompt_text(ctx.prompt))
             with self._lock:
@@ -50,9 +57,12 @@ class PydanticAIAtMemAdapter:
         async def before_model_request(ctx: Any, request_context: Any) -> Any:
             turn = self._turn(ctx)
             governed = turn.context_for_model()
+            task_governed = turn.task_context_for_model()
             messages = list(request_context.messages)
             if governed:
                 messages.append(ModelRequest(parts=[UserPromptPart(governed)]))
+            if task_governed:
+                messages.append(ModelRequest(parts=[UserPromptPart(task_governed)]))
             model_name = str(
                 getattr(request_context, "model_id", None)
                 or getattr(request_context.model, "model_name", None)
@@ -61,11 +71,15 @@ class PydanticAIAtMemAdapter:
             )
             turn.model_input(
                 [str(message) for message in messages],
+                context_segments=_message_segments(messages),
+                context_location="pydantic-ai:user-prompt-part",
                 provider=str(getattr(request_context.model, "system", "pydantic-ai")),
                 model=model_name,
                 history_count=len(messages),
                 tools_count=len(
-                    getattr(request_context.model_request_parameters, "function_tools", ())
+                    getattr(
+                        request_context.model_request_parameters, "function_tools", ()
+                    )
                     or ()
                 ),
             )
@@ -91,7 +105,10 @@ class PydanticAIAtMemAdapter:
             ctx: Any, *, call: Any, tool_def: Any, args: Any
         ) -> Any:
             self._turn(ctx).tool_requested(
-                str(getattr(call, "tool_name", None) or getattr(tool_def, "name", "tool")),
+                str(
+                    getattr(call, "tool_name", None)
+                    or getattr(tool_def, "name", "tool")
+                ),
                 str(getattr(call, "tool_call_id", None) or f"tool_{id(call)}"),
                 args,
             )
@@ -108,7 +125,10 @@ class PydanticAIAtMemAdapter:
         ) -> Any:
             del args
             self._turn(ctx).tool_completed(
-                str(getattr(call, "tool_name", None) or getattr(tool_def, "name", "tool")),
+                str(
+                    getattr(call, "tool_name", None)
+                    or getattr(tool_def, "name", "tool")
+                ),
                 str(getattr(call, "tool_call_id", None) or f"tool_{id(call)}"),
                 result,
             )
@@ -125,7 +145,10 @@ class PydanticAIAtMemAdapter:
         ) -> Any:
             del args
             self._turn(ctx).tool_completed(
-                str(getattr(call, "tool_name", None) or getattr(tool_def, "name", "tool")),
+                str(
+                    getattr(call, "tool_name", None)
+                    or getattr(tool_def, "name", "tool")
+                ),
                 str(getattr(call, "tool_call_id", None) or f"tool_{id(call)}"),
                 "",
                 error=error,
@@ -154,7 +177,9 @@ class PydanticAIAtMemAdapter:
         return hooks
 
     def _run_id(self, ctx: Any) -> str:
-        return str(getattr(ctx, "run_id", None) or self.identity.run_id or "pydantic-run")
+        return str(
+            getattr(ctx, "run_id", None) or self.identity.run_id or "pydantic-run"
+        )
 
     def _turn(self, ctx: Any) -> AtMemTurnLifecycle:
         run_id = self._run_id(ctx)
@@ -177,3 +202,38 @@ def _prompt_text(prompt: Any) -> str:
         if text.strip():
             return text
     return _stable_text(prompt)
+
+
+def _message_segments(messages: list[Any]) -> list[str]:
+    """Return model-visible textual parts without rewriting their contents."""
+    segments: list[str] = []
+    for message in messages:
+        for part in getattr(message, "parts", ()) or ():
+            content = getattr(part, "content", None)
+            if isinstance(content, str):
+                segments.append(content)
+    return segments
+
+
+def _pydantic_execution_identity(ctx: Any) -> dict[str, str]:
+    """Read optional identity from native run dependencies without mutation."""
+    deps = getattr(ctx, "deps", None)
+    values: dict[str, Any] = deps if isinstance(deps, dict) else {}
+
+    def read(*names: str) -> str | None:
+        for name in names:
+            value = values.get(name) if values else getattr(deps, name, None)
+            if value is not None and str(value).strip():
+                return str(value)
+        return None
+
+    return {
+        key: value
+        for key, value in {
+            "task_id": read("atmem_task_id", "task_id"),
+            "turn_id": read("atmem_turn_id", "turn_id"),
+            "session_id": read("atmem_session_id", "session_id"),
+            "user_id": read("atmem_authenticated_user_id"),
+        }.items()
+        if value
+    }

@@ -1,0 +1,206 @@
+# Tasks: Delegated Context Provider
+
+**Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/003/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
+
+## Phase 1: Contract and Validation Foundation
+
+- [x] [T001] Add the maintained Ed25519 verification dependency and `atmem/delegated` package exports in `pyproject.toml` and `atmem/delegated/__init__.py` (FR-003, FR-005, FR-007, FR-017)
+- [x] [T002] Implement frozen provider-neutral binding, request, trust, result, and decision types in `atmem/delegated/contracts.py` and `atmem/delegated/config.py` (FR-003, FR-015)
+- [x] [T003] Implement restricted canonical JSON, signing input, result digest, key fingerprint, and idempotency calculation in `atmem/delegated/canonical.py` (FR-003, FR-007)
+- [x] [T004] Implement duplicate-key rejecting parsing, closed structural/semantic validation, exact bytes, time, binding, trust, and Ed25519 verification in `atmem/delegated/validation.py` (FR-003, FR-005–FR-007)
+- [x] [T005] Run all PR positive and negative/stateful fixtures against production Python validation in `tests/test_delegated_context.py` (SC-002)
+
+## Phase 2: Safe Configuration and Transport
+
+- [x] [T006] Implement symlink-safe, mode-0600, atomic delegated registration storage with disabled-by-default activation and safe status projection in `atmem/delegated/config.py` (FR-001, FR-002, FR-005, FR-011)
+- [x] [T007] Implement bounded no-redirect loopback HTTP transport and the closed request-v1 shape in `atmem/delegated/client.py` (FR-004, FR-015)
+- [x] [T008] Add configuration and transport tests for scope ambiguity, malformed keys, remote endpoints, timeout/size limits, redirect rejection, and secret-safe output in `tests/test_delegated_context.py` (FR-004, FR-005, SC-007)
+
+## Phase 3: Durable Acceptance and Evidence
+
+- [x] [T009] Add additive schema-v5 delegated acceptance/replay and content-free delivery tables and indexes to `atmem/control/store.py` without reusing native context-persisting previews (FR-008, FR-012, FR-012a, FR-016)
+- [x] [T010] Implement atomic accept/idempotent retry/conflicting-turn/nonce/idempotency reservation APIs without persisting query or context bytes in `atmem/control/store.py` (FR-008, FR-012)
+- [x] [T011] Add schema-4 upgrade, concurrency, restart replay, backup/restore, removal, and content-minimization tests in `tests/test_delegated_context.py` and `tests/test_delegated_control.py` (FR-008, FR-012, FR-016, SC-004, SC-006)
+- [x] [T012] Implement provider-neutral delegated orchestration and evidence projections in `atmem/delegated/service.py` (FR-007–FR-012, FR-015)
+
+## Phase 4: Exclusive Control-Plane Routing
+
+- [x] [T013] Extend `control_prepare` inputs and `ControlManager.prepare()` with turn/user/workspace bindings while preserving older callers in `atmem/control/server.py` and `atmem/control/manager.py` (FR-001, FR-006, FR-015)
+- [x] [T014] Route matching enabled scopes through delegated orchestration before all native candidate retrieval and context preparation in `atmem/control/manager.py` (FR-008–FR-011)
+- [x] [T015] Return additive authority, decision, exact context, location, receipt, acceptance, provider, and delegated exposure fields while persisting only content-free delivery state in `atmem/control/manager.py` (FR-009–FR-012a)
+- [x] [T016] Add manager spies and integration cases proving native default, valid inject, valid withhold, default failure, explicit native fallback, late output, exact retry, and zero native-plus-delegated double injection in `tests/test_delegated_control.py` (FR-001, FR-009–FR-013, SC-003–SC-005)
+
+## Phase 5: CLI and Dashboard Product Experience
+
+- [x] [T017] Add discoverable `atmem delegated register|enable|disable|status|doctor|self-test|remove` commands with examples, JSON output, safe next actions, and confirmation semantics in `atmem/cli.py` (FR-002, FR-014)
+- [x] [T018] Add delegated configuration/status/doctor/self-test/remove APIs to `atmem/control/web.py` using the same service layer as CLI (FR-014)
+- [x] [T019] Add a collapsed Settings “Context authority” experience showing native default and optional delegated-provider trust/scope/failure configuration in `atmem/control/assets/app.js` and `app.css` (FR-002, FR-014, SC-007)
+- [x] [T020] Add CLI, API, dashboard, CSRF, no-key-leakage, and disabled-default tests in `tests/test_delegated_control.py`, `tests/test_cli.py`, and `tests/test_control_plane.py` (FR-001, FR-002, FR-014, SC-007)
+
+## Phase 6: OpenClaw Exact-Delivery Adapter
+
+- [x] [T021] Add optional authenticated owner/user mapping—without a second authority enable switch—to `integrations/openclaw/openclaw.plugin.json`, `src/types.ts`, and `index.ts` (FR-001, FR-002, FR-002a, FR-006)
+- [x] [T022] Implement exclusive delegated `prependContext` insertion with stable turn binding, no suffix/normalization, and no native candidate/persona injection in `integrations/openclaw/index.ts` (FR-009, FR-010, FR-013)
+- [x] [T023] Retain exact delegated context only in bounded process memory, record separate provider-authorization/delivery/compatible disposition events, confirm one exact inserted segment at `llm_input`, and erase transient bytes immediately in `integrations/openclaw/index.ts` (FR-012, FR-012a, FR-013)
+- [x] [T024] Extend OpenClaw tests for exact emoji/CRLF bytes, one context contribution, inject/withhold/reject/fallback, missing identity, owner enforcement, receipt correlation, and native regression in `integrations/openclaw/test/hooks.mjs` and `delegated-context-contract.mjs` (FR-006, FR-009–FR-013, SC-003–SC-005)
+
+## Phase 7: Documentation, Compatibility, and Beta Release
+
+- [x] [T025] Update the contract status and request contract, README quick start, generic/OpenClaw guides, dashboard language, current status, release notes, and `todo.md` with native-default and opt-in authority wording (FR-001, FR-002, FR-014, FR-018)
+- [x] [T026] Run native deterministic, AtBot, semantic, Pydantic AI, LangGraph, multi-agent, restore, dashboard, and Agent Black Box regressions with delegated mode absent/disabled (FR-001, FR-016, SC-001)
+- [x] [T027] Run all Python and OpenClaw typecheck/build/test/smoke suites and the deterministic release gate; record exact results here (SC-001–SC-005)
+- [x] [T028] Bump Python to `2.2.6b1` and OpenClaw npm to `2.2.6-beta.1`, add release notes, and verify version consistency without changing AtBot independently in `pyproject.toml`, package metadata, and adapter metadata (FR-018)
+- [x] [T029] Build and inspect isolated wheel/sdist/npm artifacts, verify licenses and contents, install clean, upgrade from AtMem 2.2.5, and rerun native plus delegated installed-artifact smoke tests (FR-016–FR-018, SC-006, SC-008)
+- [x] [T030] Commit and push the feature branch, publish the verified `2.2.6b1` Python prerelease and npm beta only when their respective tested artifacts changed, tag consistently, and verify public installation metadata (FR-018, SC-008)
+- [x] [T031] Build, inspect, publish, and publicly verify the provider-neutral `2.2.6b2` Python prerelease and matching `2.2.6-beta.2` OpenClaw adapter without rewriting beta 1 history (FR-015, FR-018, SC-008)
+
+## Verification evidence
+
+### Amendment A — authenticated transport
+
+- [x] [T032] Define normative shared HTTP signing profile and deterministic vectors in `docs/contracts/delegated-request-auth-v1.md` and companion JSON (FR-019–FR-025).
+- [x] [T033] Implement credentials, HMAC validation, durable bounded replay ledger and rotation in `atmem/delegated/transport.py` (FR-019–FR-023).
+- [x] [T034] Integrate signed requests/health, registration migration gates and readiness in `atmem/delegated/{client,config,service}.py` (FR-019, FR-020, FR-022, FR-024).
+- [x] [T035] Enforce authentication before provider access and add lifecycle/CLI/dashboard configuration paths in `atmem/provider_adapters`, `atmem/cli.py`, `atmem/control/web.py` (FR-020–FR-024).
+- [x] [T036] Add shared-vector, adversarial HTTP, concurrency/restart, rotation and migration tests in `tests/test_delegated_transport.py`; update existing contract/control/provider tests (FR-019–FR-025).
+- [x] [T037] Verify installed-wheel authenticated transport and complete OpenClaw delegated llm_input/flight closure in `tools` and `integrations/openclaw/test` (FR-025).
+- [x] [T038] Update integration/migration guidance and record exact verification and limitations in this file and `docs/context-provider-adapters.md` (FR-024, FR-025).
+
+### Amendment B — Pydantic AI and LangChain/LangGraph host adapters
+
+- [x] [T039] Extend the shared adapter identity and manager prepare boundary with
+  authenticated user binding, enabled-delegation discovery, and an exact
+  delegated-query channel that preserves native normalization (FR-026, FR-027).
+- [x] [T040] Implement exclusive delegated/native capture and context routing in
+  `AtMemTurnLifecycle`, including verbatim delegated handoff and no canonical
+  prompt capture for delegated-authority turns (FR-027, FR-028, FR-031).
+- [x] [T041] Add exact one-segment delivery proof, separate authorization/delivery/
+  disposition evidence, delegated exposure confirmation, fail-before-model
+  behavior, and transient byte erasure to the shared lifecycle (FR-029, FR-030).
+- [x] [T042] Wire trusted per-run identity and exact message-boundary observations
+  into the Pydantic AI capability and sync/async LangChain/LangGraph middleware
+  without mutating host state or adding an enable flag (FR-026, FR-028, FR-031).
+- [x] [T043] Add shared-lifecycle and real-framework tests for exact CRLF/emoji
+  inject, withhold, failure, fallback, missing identity, double injection,
+  delivery tamper, prompt privacy, evidence separation, async parity, and native
+  regression (SC-009–SC-011).
+- [x] [T044] Update framework integration guidance and run focused framework,
+  delegated/control, Black Box, and full Python verification; record exact
+  results and honest optional-dependency limitations here (SC-009–SC-011).
+- [x] [T045] Define placement-neutral delivered-context and structural-envelope
+  digest semantics in Spec 003 and the provider contract, with regression
+  coverage for memory-withhold plus governed-task injection (FR-012b).
+
+Amendment B verification (2026-09-08, packaged for 2.2.6b11):
+
+- Focused shared lifecycle, real Pydantic AI, synchronous/asynchronous
+  LangChain/LangGraph, delegated control, and authenticated transport suites:
+  **93 passed** after the final adversarial, native-authority-freeze, and
+  fail-before-model-handler expansion.
+- Final full Python suite with both framework extras installed: **1354 passed**
+  in 89.41 seconds, with one third-party Pydantic event-loop deprecation warning
+  and no skips.
+- An authenticated loopback provider completed HMAC request verification, exact
+  raw-query receipt, Ed25519 result verification, CRLF/emoji context handoff,
+  one-segment model-boundary proof, delegated exposure confirmation, content-free
+  storage assertions, and a structurally complete successful Black Box flight.
+- Native framework/task regressions passed. Delegated tests prove no canonical
+  prompt capture, no native-plus-delegated memory contribution, fail-before-model
+  handling for duplicate/prefixed/suffixed/normalized/digest/length changes, and
+  explicit `atmem_fallback` labeling.
+- The implementation is included in the 2.2.6b11 release candidate and becomes
+  independently installable only after its publication workflow succeeds.
+
+Amendment A verification (2026-09-07, `storizon` release-candidate work based on
+`f903180979c21924d61555fd5073898a111e3797`):
+
+- Final full Python suite: **1334 passed, 3 skipped**, one third-party Pydantic
+  deprecation warning. Skips are optional LangChain coverage in this environment.
+- Final focused transport/provider-server/provider-CLI suite: **64 passed**,
+  including concurrent replay, actual managed-worker restart, malformed/missing
+  replay storage, capacity, clock rollback, rotation/revocation and beta migration.
+- Companion suite: **17 passed**. Locked OpenClaw **2026.8.1** build, typecheck,
+  hook tests and smoke passed, including all **3 positive and 20 negative/stateful**
+  unchanged signed-response conformance vectors and the new delegated journey.
+- Built wheel/sdist, Twine validation and isolated installed-wheel dependency
+  validation passed. Installed native, signed-result and authenticated transport
+  smoke passed from outside the checkout with `PYTHONPATH` cleared; the wheel's
+  transport bytes match source, and the sdist includes the shared profile/vectors.
+- The real bridge hook handlers, installed AtMem MCP and authenticated synthetic
+  HTTP provider completed inject and withhold turns: exact `llm_input` bytes,
+  one delivery where applicable, and verified closed flights. This exposed and
+  fixed a missing `context_byte_length` allowance in Black Box event validation.
+  Host/model events are instrumented synthetic inputs, not a live OpenClaw model
+  session or an independently exercised private Storizon endpoint.
+- Spec/plan/tasks consistency review maps FR-019–FR-025 to T032–T038 and executable
+  checks. Dashboard JavaScript syntax and scoped whitespace checks passed.
+- Published beta 9 remains unchanged and does **not** contain this implementation.
+  The implementation is assigned to beta 10; its tag, workflow and public package
+  availability remain independently verifiable release outputs.
+  Storizon must adopt the normative transport profile before joint acceptance.
+  The latest-OpenClaw 2026.9.2 missing hook-context fixture remains a separate open
+  compatibility-evidence gate, not a demonstrated host failure.
+
+- 2026-09-04: full Python source suite passed: 385 tests, one third-party
+  Pydantic AI deprecation warning.
+- 2026-09-04: delegated integration review passed: 87 tests before final
+  hardening; final focused contract/control/documentation runs passed 52 and
+  43 tests respectively.
+- 2026-09-04: OpenClaw `prepack` passed build, typecheck, setup, hooks, all 3
+  positive and 20 negative/stateful delegated vectors, and smoke tests.
+- 2026-09-04: the deterministic 16-case benchmark passed every quality and
+  safety threshold with zero privacy leaks, poisoning successes, or incorrect
+  injections.
+- 2026-09-04: final wheel, sdist, and npm tarball built with the intended beta
+  versions and licenses; Twine checks, dependency checks, native installed-wheel
+  smoke, delegated installed-wheel smoke, and a real 2.2.5-to-2.2.6b1 schema-v5
+  upgrade smoke passed on Python 3.12.
+- 2026-09-04: protected CI passed Python 3.10–3.13, current framework,
+  OpenClaw, artifact, installed-wheel, and persisted-data upgrade gates. Public
+  metadata was verified for PyPI `atmem==2.2.6b1`, npm
+  `openclaw-memory-atmem@2.2.6-beta.1`, and GitHub prerelease tag `v2.2.6b1`.
+- 2026-09-04: provider-neutral beta 2 passed 388 source tests, OpenClaw
+  prepack, Twine validation, clean wheel installation, native and delegated
+  installed-package smoke tests, and a local persisted 2.2.5 upgrade test.
+- 2026-09-04: protected release run 33804929464 passed Python 3.10–3.13,
+  current Pydantic AI and LangChain/LangGraph, OpenClaw, reproducible artifact,
+  installed-wheel, and persisted 2.1.0/2.2.3/2.2.4/2.2.5 upgrade gates. PyPI
+  `atmem==2.2.6b2`, npm `openclaw-memory-atmem@2.2.6-beta.2` under the `beta`
+  tag, and GitHub prerelease `v2.2.6b2` were then independently verified.
+- 2026-09-04: downloaded public wheel, sdist, and npm tarball digests matched
+  their registries; their unpacked contents and paths contained zero instances
+  of the removed provider-specific name. A fresh public PyPI install passed
+  dependency validation plus native and delegated installed-package smoke tests.
+
+
+## Phase 8: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T046] Define failing boundary fixtures for FR-032, FR-033, SC-012 using `tests/test_delegated_context.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T047] Project existing delegated decisions into the shared envelope without changing v1 in `atmem/delegated/service.py`, `atmem/delegated/contracts.py` (FR-032, FR-033); depend on T046 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T048] Verify SC-012 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/003/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T047 and do not mark completion from declarations alone.
+
+
+## Phase 9: Host compatibility acceptance
+
+**Release target: AtMem 2.2.6 / OpenClaw bridge 2.2.6.** T049–T053 belong to the
+[2.2.6 maintenance scope](../../docs/release-roadmap.md#226-maintenance-scope--delegated-host-compatibility);
+assignment does not mean implemented, verified or published.
+
+The operator authorized real Mem0 with dummy data and identity role-play because
+Storizon is inaccessible, and limited acceptance to latest OpenClaw releases
+(2026.9.2 and 2026.9.3). This scope revision preserves the original Storizon report
+as attributed evidence and does not claim live shared-channel authentication.
+Phase 8 remains separate future integration work.
+
+- [x] [T049] Preserve the reported Storizon results with attribution; independently verify real Mem0 inject/withhold through authenticated HTTP, real MCP and latest OpenClaw/Claude CLI turns, matching receipts, exact digests, one/zero deliveries and verified flights (SC-013, FR-037).
+- [x] [T050] Enforce and verify default owner refusal, explicit isolated local process/scope mapping, no non-owner override or shared-channel reuse, safe diagnostics and migration; exercise the actual default CLI path on both latest releases (FR-034, FR-035, SC-014).
+- [x] [T051] Run the user-authorized real Mem0/bridge/MCP identity role-play matrix for non-owner, absent identity, cross-user and cross-workspace refusal before provider access. Clearly retain live authenticated shared-channel identity as unverified (FR-035, FR-037, SC-015).
+- [x] [T052] Reproduce missing typed read/exec completions, correlate actual terminal host tool-event results, and verify real successful/error closure on both latest releases. Preserve incomplete_evidence when results are deliberately withheld and reject mismatched/cross-turn observations in regressions (FR-036, SC-016).
+- [x] [T053] Update compatibility guidance, release scope and evidence links; distinguish actual host/Mem0 verification, synthetic identity role-play, operator-reported Storizon results and unverified live shared-channel identity (FR-037, SC-013–SC-016).
+- [x] [T050a] Implement scoped isolated local identity, reject legacy unrestricted requireOwner:false, and cover missing/non-owner/channel/cross-scope identities with diagnostics and migration guidance.
+- [x] [T052a] Consume context invocation IDs, reject false pairing in Black Box, and test terminal-result correlation, cache reload, duplicate/conflicting/missing and cross-turn evidence.
+
+Verification: [latest-release Mem0 evidence](../../docs/implementation-evidence/003/20260909T052000Z-740c5c89d63c-mem0-latest-hosts.md). The [earlier source-only entry](../../docs/implementation-evidence/003/20260909T043658Z-740c5c89d63c-host-compatibility.md)
+remains historical; this new entry supersedes its local-host/toolful limitations.

@@ -9,12 +9,27 @@
 ## Install
 
 ```bash
-python -m pip install --upgrade atmem==2.2.5
+python -m pip install --upgrade atmem==2.2.6
 atmem --version
 atmem openclaw install
 ```
 
 Do not install `openclaw-memory-atmem` directly. It is a bridge, not a standalone memory engine. `atmem openclaw install` selects the matching bridge version, pins the exact Python executable, shows staged progress, restarts the gateway and verifies the running plugin.
+
+The installer also prepares semantic retrieval. In a terminal it asks before
+downloading the default `nomic-embed-text` model. For unattended installation,
+approve the download explicitly and optionally select another cataloged Ollama
+model:
+
+```bash
+atmem openclaw install --allow-model-download
+atmem openclaw install --embedding-model mxbai-embed-large --allow-model-download
+```
+
+AtMem then builds and verifies a new vector epoch before activation. The same
+model selection is available later under **Dashboard → Settings → Embedding
+model**. Canonical memory remains usable through safe lexical fallback if model
+setup is skipped or fails.
 
 ## Upgrade from 2.1
 
@@ -22,7 +37,7 @@ Upgrade AtMem first, then refresh the existing bridge without creating a new
 migration or changing the current shadow/active mode:
 
 ```bash
-python -m pip install --upgrade atmem==2.2.5
+python -m pip install --upgrade atmem==2.2.6
 atmem openclaw upgrade
 atmem control verify
 atmem atbot doctor
@@ -80,5 +95,22 @@ atmem control restore
 ```
 
 Both destructive state transitions require confirmation in an interactive terminal unless `--yes` is supplied deliberately. `control verify` and `restore --drill` are non-destructive. A failed activation does not claim success. A restore preserves AtMem evidence and does not undo past agent outputs.
+
+## Optional delegated context authority
+
+OpenClaw normally receives context selected and authorized by AtMem. If another
+system must remain the context authority, configure the optional delegated mode
+only after the standard bridge and control-plane checks above pass.
+
+The AtMem registration is the only activation switch. OpenClaw's
+`delegatedContext.userId` setting maps an authenticated owner to the exact user
+scope registered in AtMem; it does not enable delegation. Matching turns use
+one exact `prependContext` segment, suppress native AtMem context preparation,
+and record provider authorization separately from observed model-input
+delivery. Missing identity or provider failure withholds context by default.
+
+Follow the complete [delegated context authority guide](delegated-context-provider.md)
+for registration, readiness states, identity mapping, evidence, fallback, key
+rotation, and removal.
 
 For dashboard lifecycle and its loopback-only boundary, see the [main README](../README.md). For the exact switch guarantees, see [control-plane.md](control-plane.md).

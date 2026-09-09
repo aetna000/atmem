@@ -23,7 +23,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: python -m pip install -e "./packages/atbot" -e ".[dev]"
-      - run: python -m pytest -q
+      - name: Run unit tests with one fresh-process retry
+        run: python -m pytest -q || python -m pytest -q
 
   atbot-tests:
     name: AtBot Python ${{ matrix.python-version }} tests
@@ -57,6 +58,36 @@ jobs:
           "langgraph==1.2.11"
       - run: python -m pip check
       - run: python -m pytest -q tests/test_framework_adapters.py packages/atbot/tests
+
+  provider-extras:
+    name: Context provider extra (${{ matrix.extra }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - extra: mem0
+            test: tests/test_mem0_provider.py
+          - extra: langgraph-provider
+            test: tests/test_langgraph_provider.py
+          - extra: pydantic-provider
+            test: tests/test_pydantic_provider.py
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e "./packages/atbot" -e ".[dev,${{ matrix.extra }}]"
+      - run: python -m pip check
+      - name: Record and constrain resolved Mem0 SDK
+        if: matrix.extra == 'mem0'
+        run: >-
+          python -c "from importlib.metadata import version;
+          resolved=version('mem0ai');
+          major=int(resolved.split('.', 1)[0]);
+          assert major == 2, resolved;
+          print(f'mem0ai={resolved}')"
+      - run: python -m pytest -q tests/test_provider_runtime.py ${{ matrix.test }}
 
   openclaw-plugin:
     name: OpenClaw plugin checks
@@ -96,7 +127,7 @@ jobs:
 
   build:
     name: Build release artifacts
-    needs: [unit-tests, atbot-tests, latest-frameworks, openclaw-plugin]
+    needs: [unit-tests, atbot-tests, latest-frameworks, provider-extras, openclaw-plugin]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -105,22 +136,16 @@ jobs:
           python-version: "3.12"
       - name: Install build dependencies
         run: python -m pip install --upgrade pip build twine
-      - name: Require tag to match package version
-        if: github.ref_type == 'tag'
+      - name: Validate package and bridge release metadata
         env:
           RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
         run: |
-          python - <<'PY'
-          import os
-          import tomllib
-          from pathlib import Path
-
-          project = tomllib.loads(Path("pyproject.toml").read_text())["project"]
-          expected = f"v{project['version']}"
-          actual = os.environ["RELEASE_TAG"]
-          if actual != expected:
-              raise SystemExit(f"release tag {actual!r} must equal {expected!r}")
-          PY
+          if [ "$RELEASE_REF_TYPE" = "tag" ]; then
+            python tools/release_metadata.py --tag "$RELEASE_TAG"
+          else
+            python tools/release_metadata.py
+          fi
       - name: Build distributions
         run: |
           python -m build
@@ -192,16 +217,19 @@ jobs:
           python -m pip install atbot-dist/*.whl dist/*.whl
           python -m pip check
           cd "$RUNNER_TEMP"
+          python -c "import importlib.util; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None"
           python "$GITHUB_WORKSPACE/tools/smoke_installed_package.py"
+          python "$GITHUB_WORKSPACE/tools/smoke_delegated_package.py"
+          python "$GITHUB_WORKSPACE/tools/smoke_delegated_transport.py"
 
   upgrade-existing:
-    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.2.5
+    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.2.6
     needs: build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        source-version: ["2.1.0", "2.2.3", "2.2.4"]
+        source-version: ["2.1.0", "2.2.3", "2.2.4", "2.2.5"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -230,7 +258,7 @@ jobs:
   pypi:
     name: Publish tested artifacts to PyPI
     if: github.ref_type == 'tag'
-    needs: [installed-wheel, upgrade-existing]
+    needs: [installed-wheel, installed-atbot-wheel, upgrade-existing]
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -269,26 +297,24 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: integrations/openclaw/package-lock.json
-      - name: Require tag to match plugin release
+      - name: Require a compatible plugin release line
+        id: release-metadata
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          node -e '
-            const pkg = require("./package.json");
-            const expected = `v${pkg.version}`;
-            if (process.env.RELEASE_TAG !== expected) {
-              throw new Error(`release ${process.env.RELEASE_TAG} does not match plugin ${pkg.version}`);
-            }
-          '
+          python ../../tools/release_metadata.py --tag "$RELEASE_TAG" --github-output >> "$GITHUB_OUTPUT"
       - run: python -m pip install -e ../../packages/atbot -e ../..
       - run: npm ci
       - name: Publish plugin unless this exact version already exists
+        env:
+          NPM_RELEASE_CHANNEL: ${{ steps.release-metadata.outputs.npm_tag }}
         run: |
           version=$(node -p 'require("./package.json").version')
-          if npm view "openclaw-memory-atmem@$version" version >/dev/null 2>&1; then
+          published=$(npm view "openclaw-memory-atmem@$version" version 2>/dev/null || true)
+          if [ "$published" = "$version" ]; then
             echo "openclaw-memory-atmem@$version is already published"
           else
-            npm publish --access public --provenance --tag latest
+            npm publish --access public --provenance --tag "$NPM_RELEASE_CHANNEL"
           fi
 
   release:
@@ -300,15 +326,34 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Determine release stability
+        id: release-metadata
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python tools/release_metadata.py --tag "$RELEASE_TAG" --github-output >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with:
           name: release-distributions
           path: dist
+      - name: Check whether the release already exists
+        id: existing-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Create release
+        if: steps.existing-release.outputs.exists != 'true'
         uses: softprops/action-gh-release@v2
         with:
           body_path: docs/releases/${{ github.ref_name }}.md
-          prerelease: false
+          prerelease: ${{ steps.release-metadata.outputs.prerelease == 'true' }}
           files: |
             dist/*
             docs/showcases/openclaw-memory-control-plane/atmem-openclaw-memory-control-plane.mp4

@@ -1,0 +1,341 @@
+{
+  "label": "min",
+  "version": "2026.7.1-2",
+  "hookContexts": {
+    "before_prompt_build": "PluginHookAgentContext",
+    "llm_input": "PluginHookAgentContext",
+    "agent_end": "PluginHookAgentContext",
+    "after_tool_call": "PluginHookToolContext",
+    "before_reset": "PluginHookAgentContext",
+    "session_start": "PluginHookSessionContext",
+    "session_end": "PluginHookSessionContext"
+  },
+  "types": {
+    "PluginHookAgentContext": [
+      {
+        "name": "agentId",
+        "optional": true
+      },
+      {
+        "name": "channel",
+        "optional": true
+      },
+      {
+        "name": "channelContext",
+        "optional": true
+      },
+      {
+        "name": "channelId",
+        "optional": true
+      },
+      {
+        "name": "chatId",
+        "optional": true
+      },
+      {
+        "name": "contextTokenBudget",
+        "optional": true
+      },
+      {
+        "name": "contextWindowReferenceTokens",
+        "optional": true
+      },
+      {
+        "name": "contextWindowSource",
+        "optional": true
+      },
+      {
+        "name": "jobId",
+        "optional": true
+      },
+      {
+        "name": "messageProvider",
+        "optional": true
+      },
+      {
+        "name": "modelId",
+        "optional": true
+      },
+      {
+        "name": "modelProviderId",
+        "optional": true
+      },
+      {
+        "name": "runId",
+        "optional": true
+      },
+      {
+        "name": "senderExternalId",
+        "optional": true
+      },
+      {
+        "name": "senderId",
+        "optional": true
+      },
+      {
+        "name": "sessionId",
+        "optional": true
+      },
+      {
+        "name": "sessionKey",
+        "optional": true
+      },
+      {
+        "name": "trace",
+        "optional": true
+      },
+      {
+        "name": "trigger",
+        "optional": true
+      },
+      {
+        "name": "workspaceDir",
+        "optional": true
+      }
+    ],
+    "PluginHookToolContext": [
+      {
+        "name": "agentId",
+        "optional": true
+      },
+      {
+        "name": "channelId",
+        "optional": true
+      },
+      {
+        "name": "getSessionExtension",
+        "optional": true
+      },
+      {
+        "name": "runId",
+        "optional": true
+      },
+      {
+        "name": "sessionId",
+        "optional": true
+      },
+      {
+        "name": "sessionKey",
+        "optional": true
+      },
+      {
+        "name": "toolCallId",
+        "optional": true
+      },
+      {
+        "name": "toolInputKind",
+        "optional": true
+      },
+      {
+        "name": "toolKind",
+        "optional": true
+      },
+      {
+        "name": "toolName",
+        "optional": false
+      },
+      {
+        "name": "trace",
+        "optional": true
+      }
+    ],
+    "PluginHookSessionContext": [
+      {
+        "name": "agentId",
+        "optional": true
+      },
+      {
+        "name": "sessionId",
+        "optional": false
+      },
+      {
+        "name": "sessionKey",
+        "optional": true
+      }
+    ],
+    "OpenClawPluginToolContext": [
+      {
+        "name": "activeModel",
+        "optional": true
+      },
+      {
+        "name": "agentAccountId",
+        "optional": true
+      },
+      {
+        "name": "agentDir",
+        "optional": true
+      },
+      {
+        "name": "agentId",
+        "optional": true
+      },
+      {
+        "name": "browser",
+        "optional": true
+      },
+      {
+        "name": "config",
+        "optional": true
+      },
+      {
+        "name": "deliveryContext",
+        "optional": true
+      },
+      {
+        "name": "fsPolicy",
+        "optional": true
+      },
+      {
+        "name": "getRuntimeConfig",
+        "optional": true
+      },
+      {
+        "name": "hasAuthForProvider",
+        "optional": true
+      },
+      {
+        "name": "messageChannel",
+        "optional": true
+      },
+      {
+        "name": "oneShotCliRun",
+        "optional": true
+      },
+      {
+        "name": "requesterSenderId",
+        "optional": true
+      },
+      {
+        "name": "resolveApiKeyForProvider",
+        "optional": true
+      },
+      {
+        "name": "runtimeConfig",
+        "optional": true
+      },
+      {
+        "name": "sandboxed",
+        "optional": true
+      },
+      {
+        "name": "senderIsOwner",
+        "optional": true
+      },
+      {
+        "name": "sessionId",
+        "optional": true
+      },
+      {
+        "name": "sessionKey",
+        "optional": true
+      },
+      {
+        "name": "workspaceDir",
+        "optional": true
+      }
+    ],
+    "PluginCommandContext": [
+      {
+        "name": "accountId",
+        "optional": true
+      },
+      {
+        "name": "agentId",
+        "optional": true
+      },
+      {
+        "name": "args",
+        "optional": true
+      },
+      {
+        "name": "channel",
+        "optional": false
+      },
+      {
+        "name": "channelId",
+        "optional": true
+      },
+      {
+        "name": "commandBody",
+        "optional": false
+      },
+      {
+        "name": "config",
+        "optional": false
+      },
+      {
+        "name": "detachConversationBinding",
+        "optional": false
+      },
+      {
+        "name": "diagnosticsPreviewOnly",
+        "optional": true
+      },
+      {
+        "name": "diagnosticsPrivateRouted",
+        "optional": true
+      },
+      {
+        "name": "diagnosticsSessions",
+        "optional": true
+      },
+      {
+        "name": "diagnosticsUploadApproved",
+        "optional": true
+      },
+      {
+        "name": "from",
+        "optional": true
+      },
+      {
+        "name": "gatewayClientScopes",
+        "optional": true
+      },
+      {
+        "name": "getCurrentConversationBinding",
+        "optional": false
+      },
+      {
+        "name": "isAuthorizedSender",
+        "optional": false
+      },
+      {
+        "name": "messageThreadId",
+        "optional": true
+      },
+      {
+        "name": "requestConversationBinding",
+        "optional": false
+      },
+      {
+        "name": "runtimeContext",
+        "optional": true
+      },
+      {
+        "name": "senderIsOwner",
+        "optional": true
+      },
+      {
+        "name": "sessionFile",
+        "optional": true
+      },
+      {
+        "name": "sessionId",
+        "optional": true
+      },
+      {
+        "name": "sessionKey",
+        "optional": true
+      },
+      {
+        "name": "threadParentId",
+        "optional": true
+      },
+      {
+        "name": "to",
+        "optional": true
+      }
+    ]
+  }
+}

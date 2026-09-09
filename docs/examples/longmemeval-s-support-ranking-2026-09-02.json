@@ -1,0 +1,80 @@
+{
+  "format": "atmem-support-ranking-evidence-v1",
+  "recorded_at": "2026-09-02",
+  "system": "atmem-local",
+  "dataset": {
+    "name": "LongMemEval-S cleaned",
+    "upstream_commit": "98d7416c24c778c2fee6e6f3006e7a073259d48f",
+    "source_sha256": "sha256:d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442"
+  },
+  "model_configuration": {
+    "task": "pre-atbot-evidence-session-retrieval",
+    "ingestion": "raw-infer-disabled",
+    "embedding_provider": "ollama",
+    "embedding_model": "nomic-embed-text:latest",
+    "chunk_chars": 1600,
+    "retrieved_chunk_limit": 100,
+    "session_cutoff": 5,
+    "support_aggregation_version": "supporting-evidence-v1"
+  },
+  "fixed_12": {
+    "selection": "sha256-question-id-stratified-v1",
+    "selection_sha256": "sha256:7727df19803a6589fc47fb7684803e9b06bcee731326cb74c758ea755dfac800",
+    "metrics": {
+      "session_recall_any_at_5": 1.0,
+      "session_recall_all_at_5": 1.0,
+      "session_mrr_at_5": 0.9583333333333334,
+      "latency_p50_ms": 135.76235400978476,
+      "latency_p95_ms": 221.6427919920534
+    },
+    "case_results": [
+      {"case_id":"07741c45","question_type":"knowledge-update","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"b6019101","question_type":"knowledge-update","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"720133ac","question_type":"multi-session","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"gpt4_7fce9456","question_type":"multi-session","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"c4f10528","question_type":"single-session-assistant","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"1d4da289","question_type":"single-session-assistant","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"54026fce","question_type":"single-session-preference","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"06878be2","question_type":"single-session-preference","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"58bf7951","question_type":"single-session-user","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"c8c3f81d","question_type":"single-session-user","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"gpt4_d31cdae3","question_type":"temporal-reasoning","baseline_reciprocal_rank":0.5,"aggregate_reciprocal_rank":0.5},
+      {"case_id":"gpt4_4edbafa2","question_type":"temporal-reasoning","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0}
+    ]
+  },
+  "held_out_6": {
+    "selection": "third-sha256-ordered-case-per-question-type-v1",
+    "selection_sha256": "sha256:e73f36e23d479780731a1415726cd826b7555256f8fe9de53283fd0e144f08af",
+    "case_ids": ["6071bd76", "09ba9854", "70b3e69b", "195a1a1b", "ad7109d1", "bcbe585f"],
+    "metrics": {
+      "session_recall_any_at_5": 1.0,
+      "session_recall_all_at_5": 1.0,
+      "session_mrr_at_5": 1.0,
+      "latency_p50_ms": 126.68022900470532,
+      "latency_p95_ms": 150.207333965227
+    },
+    "case_results": [
+      {"case_id":"6071bd76","question_type":"knowledge-update","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"09ba9854","question_type":"multi-session","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"70b3e69b","question_type":"single-session-assistant","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"195a1a1b","question_type":"single-session-preference","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"ad7109d1","question_type":"single-session-user","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0},
+      {"case_id":"bcbe585f","question_type":"temporal-reasoning","baseline_reciprocal_rank":1.0,"aggregate_reciprocal_rank":1.0}
+    ]
+  },
+  "focused_case": {
+    "case_id": "gpt4_d31cdae3",
+    "question_type": "temporal-reasoning",
+    "expected_session_ids": ["answer_8464304d_1", "answer_8464304d_2"],
+    "baseline_retrieved_session_ids": ["ultrachat_324099", "answer_8464304d_2", "de695a4e", "answer_8464304d_1", "55033f6f"],
+    "aggregate_retrieved_session_ids": ["ultrachat_324099", "answer_8464304d_2", "de695a4e", "answer_8464304d_1", "55033f6f"],
+    "baseline_reciprocal_rank": 0.5,
+    "aggregate_reciprocal_rank": 0.5,
+    "diagnosis": "The generic travel decoy also contains several mutually supporting chunks. Supporting-evidence aggregation cannot resolve the temporal comparison; the authorized candidates require AtBot temporal reranking."
+  },
+  "limitations": [
+    "The external runner measures vector retrieval plus deterministic supporting-evidence aggregation before AtBot reranking.",
+    "The fixed campaign contains 12 questions and the non-overlapping held-out campaign contains six; neither is the complete LongMemEval answer-generation evaluation.",
+    "Raw ingestion isolates retrieval quality; automatic extraction is evaluated by the deterministic release gate."
+  ]
+}

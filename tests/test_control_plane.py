@@ -297,10 +297,27 @@ def test_private_mcp_exposes_no_approval_or_mode_change_tools(
         "control_sync_openclaw_memory",
         "control_prepare",
         "control_exposure_shown",
+        "control_prepare_task_context",
+        "control_task_exposure_shown",
+        # Amendment A's host-boundary write path. An agent that receives a
+        # checklist it cannot tick is worse than useless, so these belong on
+        # the agent surface -- but they propose and request only. AtMem
+        # decides, and operator-only actions are refused on capability grounds
+        # before any content is looked at.
+        "control_observe_task_step",
+        "control_propose_task_delta",
+        "control_request_task_lifecycle",
         "control_record_blackbox_event",
         "control_status",
     }
     assert not any("approve" in name or "mode" in name for name in names)
+    # Nothing on this surface commits on the caller's say-so: the agent may
+    # report and request, never correct, cancel, override, or delete.
+    assert not any(
+        forbidden in name
+        for name in names
+        for forbidden in ("correct", "cancel", "override", "delete", "forget")
+    )
 
 
 def test_private_mcp_refreshes_openclaw_native_memory_without_chat_capture(
@@ -392,6 +409,61 @@ def test_dashboard_review_queue_approves_or_purges_exact_quarantined_records(
         and row["actor"] == "dashboard-reviewer"
         for row in rejection_report["timeline"]
     )
+
+
+def test_dashboard_proposal_queue_shares_the_cli_review_service(
+    tmp_path: Path,
+) -> None:
+    """The dashboard must not build its own view of a proposal's state."""
+    from atmem.contracts import AuthorityScope
+    from atmem.extract import build_resolution_context, propose_from_rules
+
+    manager = _manager(tmp_path)
+    workspace = tmp_path / "openclaw-workspace"
+    workspace.mkdir()
+    (workspace / "MEMORY.md").write_text("# Memory\n", encoding="utf-8")
+    mirror = sync_mirror(manager.state(), workspace=workspace)
+
+    scope = AuthorityScope("local-user", "agent-1", "workspace-1")
+    message = "My current medication is atorvastatin."
+    memory = Memory(mirror["mirror_db"])
+    try:
+        context = build_resolution_context(memory.store, scope.subject_id, scope=scope)
+        [proposal] = propose_from_rules(
+            message, scope=scope, source_id="source-1", context=context
+        )
+        submitted = memory.submit_extraction_proposal(proposal, source_text=message)
+    finally:
+        memory.close()
+    assert submitted["review_state"] == "pending_review"
+
+    queue = manager.extraction_proposals("local-user")
+    assert queue["format"] == "atmem-extraction-review-queue-v1"
+    assert queue["count"] == 1
+    [row] = queue["proposals"]
+    assert row["proposal_id"] == submitted["proposal_id"]
+    assert row["allowed_decisions"] == ["approve", "edit_and_approve", "reject"]
+    assert row["evidence"]
+
+    decided = manager.decide_extraction_proposal(
+        submitted["proposal_id"],
+        "approve",
+        actor="dashboard-reviewer",
+        reason="confirmed in the dashboard",
+    )
+    assert decided["review_state"] == "committed"
+    assert decided["reviews"][0]["actor"] == "dashboard-reviewer"
+    assert manager.extraction_proposals("local-user")["count"] == 0
+
+    memory = Memory(mirror["mirror_db"])
+    try:
+        assert any(
+            row["content"] == "User's current medication is atorvastatin."
+            for row in memory.list("local-user")
+        )
+        assert memory.verify("local-user")["valid"] is True
+    finally:
+        memory.close()
 
 
 def test_state_digest_tampering_turns_integration_off(tmp_path: Path) -> None:
@@ -518,6 +590,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
             },
         },
     )
+    monkeypatch.setenv("ATMEM_DELEGATED_CONFIG", str(tmp_path / "delegated.json"))
     atbot_service = AtBotServiceManager(tmp_path / "atbot")
     monkeypatch.setattr(
         "atmem.control.atbot_service.AtBotServiceManager", lambda: atbot_service
@@ -537,6 +610,21 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
     )
 
     manager = _manager(tmp_path)
+    semantic_setup_calls: list[dict[str, object]] = []
+
+    def semantic_setup(**kwargs):
+        semantic_setup_calls.append(kwargs)
+        return {
+            "format": "atmem-semantic-setup-v1",
+            "status": "complete",
+            "profile": {
+                "provider": kwargs["provider"],
+                "model": kwargs["model"],
+            },
+            "health": {"status": "healthy"},
+        }
+
+    monkeypatch.setattr(manager, "setup_semantic_profile", semantic_setup)
     server = ControlDashboardServer(("127.0.0.1", 0), manager, html="<html>safe</html>")
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -550,14 +638,154 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
             "62162f08e28144079c80389e9ff89b568841333a82cff49d891e2ae39afb6af4"
         )
         assert opener.open(f"{base}/api/status").status == 200
+        semantic = json.loads(opener.open(f"{base}/api/semantic/health").read())
+        assert semantic["format"] == "atmem-semantic-health-v1"
+        assert semantic["status"] in {
+            "missing", "legacy", "weak", "stale", "incompatible", "rebuilding", "healthy"
+        }
+        semantic_profiles = json.loads(
+            opener.open(f"{base}/api/semantic/profiles").read()
+        )
+        assert semantic_profiles["download_requires_confirmation"] is True
+        assert semantic_profiles["models"]
+        assert all(
+            row["quality_class"] == "production"
+            for row in semantic_profiles["models"]
+        )
+        selected_semantic = semantic_profiles["models"][0]
+        semantic_setup_request = Request(
+            f"{base}/api/semantic/setup",
+            data=json.dumps(
+                {
+                    "provider": selected_semantic["provider"],
+                    "model": selected_semantic["model"],
+                    "confirm_model": selected_semantic["model"],
+                    "subject_id": "local-user",
+                    "allow_download": True,
+                }
+            ).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base,
+                "X-CSRF-Token": json.loads(
+                    opener.open(f"{base}/api/session").read()
+                )["csrf_token"],
+            },
+            method="POST",
+        )
+        semantic_setup_result = json.loads(opener.open(semantic_setup_request).read())
+        assert semantic_setup_result["status"] == "complete"
+        assert semantic_setup_calls == [
+            {
+                "provider": selected_semantic["provider"],
+                "model": selected_semantic["model"],
+                "subject_id": "local-user",
+                "allow_download": True,
+            }
+        ]
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.2.5"
+        assert product["atmem_npm_version"] == "2.2.6"
         assert product["x_url"] == "https://x.com/AtMemX"
         profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
         assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])
         assert profiles["security"]["stores_api_keys"] is False
+        delegated = json.loads(opener.open(f"{base}/api/delegated/status").read())
+        assert delegated["authority_default"] == "atmem"
+        assert delegated["enabled"] is False
         setup_session = json.loads(opener.open(f"{base}/api/session").read())
+        task_scope = {
+            "subject_id": "local-user",
+            "agent_id": "main",
+            "workspace_id": "ws-main",
+        }
+        task_enable = Request(
+            f"{base}/api/tasks/mode",
+            data=json.dumps(
+                {
+                    "action": "enable",
+                    "actor": "dashboard-operator",
+                    **task_scope,
+                    "confirm_scope": task_scope,
+                }
+            ).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base,
+                "X-CSRF-Token": setup_session["csrf_token"],
+            },
+            method="POST",
+        )
+        task_enabled = json.loads(opener.open(task_enable).read())
+        assert task_enabled["mode"] == "active"
+        assert task_enabled["scope"] == {
+            "format": "atmem-authority-scope-v1",
+            **task_scope,
+        }
+        task_disable = Request(
+            f"{base}/api/tasks/mode",
+            data=json.dumps(
+                {
+                    "action": "disable",
+                    **task_scope,
+                    "confirm_scope": task_scope,
+                }
+            ).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base,
+                "X-CSRF-Token": setup_session["csrf_token"],
+            },
+            method="POST",
+        )
+        task_disabled = json.loads(opener.open(task_disable).read())
+        assert task_disabled["mode"] == "disabled"
+        assert task_disabled["data_preserved"] is True
+        public_key = base64.b64encode(b"\x01" * 32).decode("ascii")
+        from atmem.delegated.transport import configure_keyring
+        credential = configure_keyring(tmp_path / "request-auth.json", provider_id="fixture-provider", instance_id="local")
+        register = Request(
+            f"{base}/api/delegated/register",
+            data=json.dumps(
+                {
+                    "provider_id": "fixture-provider",
+                    "provider_version": "test",
+                    "provider_instance_id": "local",
+                    "key_id": "primary",
+                    "public_key_base64": public_key,
+                    "endpoint": "http://127.0.0.1:8788/v1/delegated-context",
+                    "request_key_id": credential["request_key_id"],
+                    "request_secret_file": credential["request_secret_file"],
+                    "workspace_ids": ["ws_test"],
+                    "agent_ids": ["main"],
+                    "user_ids": ["owner"],
+                }
+            ).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base,
+                "X-CSRF-Token": setup_session["csrf_token"],
+            },
+            method="POST",
+        )
+        registered = json.loads(opener.open(register).read())
+        assert registered["registered"]["enabled"] is False
+        assert public_key not in json.dumps(registered)
+        enable = Request(
+            f"{base}/api/delegated/action",
+            data=json.dumps(
+                {"action": "enable", "registration_id": "fixture-provider:local"}
+            ).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Origin": base,
+                "X-CSRF-Token": setup_session["csrf_token"],
+            },
+            method="POST",
+        )
+        enabled = json.loads(opener.open(enable).read())
+        assert enabled["status"]["enabled"] is True
+        assert public_key not in json.dumps(enabled)
         configure = Request(
             f"{base}/api/companion/configure",
             data=json.dumps(
@@ -778,6 +1006,7 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
         "hero",
         "checks",
         "blackboxArchiveCard",
+        "blackboxWorkspace",
         "memorySearchCard",
         "mirrorCard",
         "auditExplorer",
@@ -799,6 +1028,26 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     assert 'src="/assets/atmem.jpg"' in html
 
 
+def test_dashboard_evidence_uses_an_inline_responsive_master_detail_view() -> None:
+    from atmem.control.web import dashboard_html
+
+    html = dashboard_html()
+    workspace = html.index('id="blackboxWorkspace"')
+    flights = html.index('id="blackboxFlights"')
+    evidence = html.index('id="auditorBackdrop"')
+    archive_end = html.index('id="mirrorCard"')
+
+    assert workspace < flights < evidence < archive_end
+    assert 'class="backdrop auditorpane"' in html
+    assert 'role="region" aria-labelledby="auditorTitle"' in html
+    assert 'aria-modal="true"' not in html
+    assert ".blackboxworkspace.detail-open" in html
+    assert "overflow-wrap:anywhere" in html
+    assert 'document.body.style.overflow="hidden"' not in html
+    assert 'function openAuditor(){showView("evidence")' not in html
+    assert 'active=document.querySelector(".tabpanel.active")' in html
+
+
 def test_dashboard_references_only_known_api_endpoints() -> None:
     import re
 
@@ -808,10 +1057,18 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/session",
         "/api/product",
         "/api/status",
+        "/api/semantic/health",
+        "/api/semantic/profiles",
+        "/api/semantic/setup",
         "/api/companion/status",
         "/api/companion/profiles",
         "/api/companion/configure",
-        "/api/companion/action",
+            "/api/companion/action",
+            "/api/delegated/status",
+            "/api/delegated/doctor",
+            "/api/delegated/self-test",
+            "/api/delegated/action",
+            "/api/delegated/register",
         "/api/storage/preview",
         "/api/mode",
         "/api/restore",
@@ -820,6 +1077,15 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/bridge/status",
         "/api/bridge/refresh-test",
         "/api/memory/reviews",
+        "/api/memory/proposals",
+        "/api/memory/proposal-decision",
+        "/api/tasks",
+        "/api/tasks/mode",
+        "/api/tasks/health",
+        "/api/tasks/detail",
+        "/api/tasks/timeline",
+        "/api/tasks/provenance",
+        "/api/tasks/lifecycle",
         "/api/memory/review",
         "/api/memory/search",
         "/api/memory/query",
@@ -868,6 +1134,36 @@ def test_dashboard_copy_keeps_product_safety_invariants() -> None:
     assert "Source image being reviewed" in html
     assert "not the image pixels" in html
     assert "Reject and purge" in html
+    # A failed-verification banner must navigate to the concrete verification
+    # result, even when the user is already looking at the Evidence tab.
+    assert 'text("statusAction","Review failure")' in html
+    assert 'showView("verifyStatus")' in html
+    assert "routefocus" in html
+    assert 'headline="Agent run in progress"' in html
+    assert '.activityrow.running:after{content:"In progress"' in html
+    # Dense controls stay compact until the operator asks for detail.
+    assert 'class="memorydelivery"' not in html
+    assert 'element("details","memorydelivery")' in html
+    assert '"governed memories delivered"' in html
+    assert ".memorychat.collapsed{left:auto;right:24px;width:auto" in html
+    assert 'element("button","evidencechip technicaljump","Technical evidence")' in html
+    assert 'storyCard=element("section","card audittable")' in html
+    assert ".audittable .storystep>div{display:grid;grid-template-columns:156px" in html
+    # Flight review leads with exact problem events and distinguishes a tool
+    # error from a missing host completion observation.
+    assert 'element("section","card flightdiagnosis")' in html
+    assert 'title:"Completion evidence is missing"' in html
+    assert 'title:"Tool returned an error"' in html
+    assert 'item.dataset.eventSequence=String(event.sequence)' in html
+    assert ".technical .event.issue-error" in html
+    assert 'return "Acknowledge evidence gap"' in html
+    assert 'return "Acknowledge tool failure"' in html
+    assert 'element("section","card reviewresolution")' in html
+    assert "it never repairs, retries, or deletes evidence" in html
+    assert 'item=element("article","flight "+tone)' in html
+    assert 'element("time","flighttimestamp",displayTime(row.ended_at||row.started_at))' in html
+    assert ".flight.review{border-left-color:var(--warn)" in html
+    assert ".flight.failed{border-left-color:var(--bad)" in html
     # The public namespace is atmem only.
     assert ("aetna" + "mem") not in html.casefold()
     # Mockup-only comparison figures must never be presented as live evidence.

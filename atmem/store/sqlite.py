@@ -12,6 +12,7 @@ import uuid
 from atmem.core.canonical import canonical_json, sha256_hex
 from atmem.core.policy import normalize_content
 from atmem.core.storage import HouseholdLock, HouseholdPolicy, connect, row_factory_for
+from atmem.core.storage import BackendCapabilities
 
 
 class SQLiteStore:
@@ -61,6 +62,55 @@ class SQLiteStore:
             self._conn.close()
         finally:
             self._household_lock.close()
+
+    def capabilities(self) -> BackendCapabilities:
+        return BackendCapabilities(
+            backend_id="sqlite-v1",
+            role="canonical",
+            transactions=True,
+            concurrency=True,
+            rebuild=False,
+            backup=True,
+            restore=True,
+            migration=True,
+            verified_deletion=True,
+        )
+
+    def backup_to(self, destination: str | Path) -> dict[str, Any]:
+        """Create and integrity-check a consistent SQLite backup."""
+        target = Path(destination).expanduser().resolve()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        backup = sqlite3.connect(str(target))
+        try:
+            self._conn.backup(backup)
+            result = str(backup.execute("PRAGMA integrity_check").fetchone()[0])
+        finally:
+            backup.close()
+        if result != "ok":
+            raise RuntimeError(f"backup integrity check failed: {result}")
+        return {"format": "atmem-storage-backup-v1", "backend_id": "sqlite-v1", "path": str(target), "integrity": result}
+
+    def restore_from(self, source: str | Path) -> dict[str, Any]:
+        """Replace this open database from a verified SQLite snapshot."""
+        if self._transaction_depth:
+            raise RuntimeError("restore cannot run inside a transaction")
+        origin = sqlite3.connect(str(Path(source).expanduser().resolve()))
+        try:
+            integrity = str(origin.execute("PRAGMA integrity_check").fetchone()[0])
+            if integrity != "ok":
+                raise RuntimeError(f"restore source integrity check failed: {integrity}")
+            origin.backup(self._conn)
+        finally:
+            origin.close()
+        self._migrate()
+        return {"format": "atmem-storage-restore-v1", "backend_id": "sqlite-v1", "integrity": integrity, "migrations": self.applied_migrations()}
+
+    def lifecycle_generation(self, subject_id: str) -> int:
+        row = self._conn.execute(
+            "SELECT COALESCE(SUM(generation), 0) AS generation FROM memory_lifecycle WHERE subject_id=?",
+            (subject_id,),
+        ).fetchone()
+        return int(row["generation"] if row else 0)
 
     @contextmanager
     def transaction(self, *, immediate: bool = True) -> Iterator["SQLiteStore"]:
@@ -182,6 +232,46 @@ class SQLiteStore:
             )
             self._conn.execute(
                 "DELETE FROM pending_user_messages WHERE subject_id = ?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM memory_lineage WHERE subject_id = ?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM memory_reviews WHERE subject_id = ?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM memory_proposals WHERE subject_id = ?", (subject_id,)
+            )
+            task_rows = self._conn.execute(
+                "SELECT task_id FROM governed_tasks WHERE subject_id = ?",
+                (subject_id,),
+            ).fetchall()
+            task_ids = [str(row["task_id"]) for row in task_rows]
+            if task_ids:
+                placeholders = ",".join("?" for _ in task_ids)
+                for table in (
+                    "governed_task_deliveries",
+                    "governed_task_steps",
+                    "governed_task_proposals",
+                    "governed_task_provenance",
+                    "governed_task_revisions",
+                    # A binding records which conversation was working on a
+                    # subject's task. Resetting the subject must not leave that
+                    # behind any more than it leaves the task itself.
+                    "governed_task_session_bindings",
+                ):
+                    self._conn.execute(
+                        f"DELETE FROM {table} WHERE task_id IN ({placeholders})",
+                        task_ids,
+                    )
+            # Bindings are also scoped directly, so any that outlived their task
+            # go with the subject too rather than lingering unreferenced.
+            self._conn.execute(
+                "DELETE FROM governed_task_session_bindings WHERE subject_id = ?",
+                (subject_id,),
+            )
+            self._conn.execute(
+                "DELETE FROM governed_tasks WHERE subject_id = ?", (subject_id,)
             )
 
     def stage_user_message(
@@ -695,6 +785,1094 @@ class SQLiteStore:
             (subject_id,),
         ).fetchone()
         return int(row["generation"]) if row else 0
+
+    def record_preconditions(
+        self, subject_id: str, record_ids: list[str]
+    ) -> dict[str, dict[str, Any]]:
+        """Current generation, status, and content digest per named record.
+
+        This is the exact state a governed proposal must pin. It is read
+        inside the committing transaction so a concurrent writer either loses
+        the BEGIN IMMEDIATE race or is detected by the generation check.
+        """
+        result: dict[str, dict[str, Any]] = {}
+        for record_id in dict.fromkeys(record_ids):
+            row = self._conn.execute(
+                """
+                SELECT id, generation, status, content FROM records
+                WHERE subject_id = ? AND id = ?
+                """,
+                (subject_id, record_id),
+            ).fetchone()
+            if row is None:
+                continue
+            result[str(row["id"])] = {
+                "record_id": str(row["id"]),
+                "generation": int(row["generation"] or 0),
+                "status": str(row["status"]),
+                "content_sha256": f"sha256:{sha256_hex(str(row['content']))}",
+            }
+        return result
+
+    def insert_memory_proposal(
+        self,
+        *,
+        proposal_id: str,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        idempotency_key: str,
+        proposal_sha256: str,
+        action: str,
+        memory_class: str,
+        confidence: float,
+        fact_key: str | None,
+        review_state: str,
+        reason_codes: list[str],
+        proposal: dict[str, Any],
+        outcome: dict[str, Any] | None = None,
+        decided_at: str | None = None,
+    ) -> dict[str, Any]:
+        with self.transaction():
+            self._conn.execute(
+                """
+                INSERT INTO memory_proposals (
+                  proposal_id, subject_id, agent_id, workspace_id,
+                  idempotency_key, proposal_sha256, action, memory_class,
+                  confidence, fact_key, review_state, reason_codes, proposal,
+                  outcome, created_at, decided_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    proposal_id,
+                    subject_id,
+                    agent_id,
+                    workspace_id,
+                    idempotency_key,
+                    proposal_sha256,
+                    action,
+                    memory_class,
+                    float(confidence),
+                    fact_key,
+                    review_state,
+                    _json(list(reason_codes)),
+                    _json(proposal),
+                    _json(outcome or {}),
+                    utc_now(),
+                    decided_at,
+                ),
+            )
+        stored = self.get_memory_proposal(proposal_id)
+        assert stored is not None
+        return stored
+
+    def get_memory_proposal(self, proposal_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM memory_proposals WHERE proposal_id = ?", (proposal_id,)
+        ).fetchone()
+        return _memory_proposal_from_row(row) if row else None
+
+    def find_memory_proposal(
+        self, subject_id: str, agent_id: str, workspace_id: str, idempotency_key: str
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT * FROM memory_proposals
+            WHERE subject_id = ? AND agent_id = ? AND workspace_id = ?
+              AND idempotency_key = ?
+            """,
+            (subject_id, agent_id, workspace_id, idempotency_key),
+        ).fetchone()
+        return _memory_proposal_from_row(row) if row else None
+
+    def list_memory_proposals(
+        self,
+        subject_id: str | None = None,
+        *,
+        review_states: tuple[str, ...] | None = ("pending_review",),
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if subject_id is not None:
+            clauses.append("subject_id = ?")
+            params.append(subject_id)
+        if review_states is not None:
+            clauses.append(
+                f"review_state IN ({','.join('?' for _ in review_states)})"
+            )
+            params.extend(review_states)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        params.append(max(1, min(int(limit), 1000)))
+        rows = self._conn.execute(
+            f"""
+            SELECT * FROM memory_proposals {where}
+            ORDER BY created_at ASC, proposal_id ASC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+        return [_memory_proposal_from_row(row) for row in rows]
+
+    def settle_memory_proposal(
+        self,
+        proposal_id: str,
+        *,
+        review_state: str,
+        outcome: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Move a proposal out of the queue exactly once.
+
+        The pending guard is what makes two concurrent reviewers safe: the
+        second decision matches no row and the caller fails closed.
+        """
+        with self.transaction():
+            cursor = self._conn.execute(
+                """
+                UPDATE memory_proposals
+                SET review_state = ?, outcome = ?, decided_at = ?
+                WHERE proposal_id = ? AND review_state = 'pending_review'
+                """,
+                (review_state, _json(outcome), utc_now(), proposal_id),
+            )
+            if cursor.rowcount != 1:
+                return None
+        return self.get_memory_proposal(proposal_id)
+
+    def insert_memory_review(
+        self,
+        *,
+        proposal_id: str,
+        subject_id: str,
+        decision: str,
+        actor: str,
+        reason: str,
+        edited_fact_sha256: str | None = None,
+        record_ids: list[str] | None = None,
+        audit_event_id: str | None = None,
+    ) -> dict[str, Any]:
+        review_id = _new_id("rev")
+        with self.transaction():
+            self._conn.execute(
+                """
+                INSERT INTO memory_reviews (
+                  review_id, proposal_id, subject_id, decision, actor, reason,
+                  edited_fact_sha256, record_ids, audit_event_id, decided_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    review_id,
+                    proposal_id,
+                    subject_id,
+                    decision,
+                    actor,
+                    reason,
+                    edited_fact_sha256,
+                    _json(list(record_ids or ())),
+                    audit_event_id,
+                    utc_now(),
+                ),
+            )
+        rows = self.list_memory_reviews(proposal_id)
+        return next(row for row in rows if row["review_id"] == review_id)
+
+    def list_memory_reviews(self, proposal_id: str) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM memory_reviews WHERE proposal_id = ?
+            ORDER BY decided_at ASC, review_id ASC
+            """,
+            (proposal_id,),
+        ).fetchall()
+        return [
+            {
+                "review_id": str(row["review_id"]),
+                "proposal_id": str(row["proposal_id"]),
+                "subject_id": str(row["subject_id"]),
+                "decision": str(row["decision"]),
+                "actor": str(row["actor"]),
+                "reason": str(row["reason"]),
+                "edited_fact_sha256": row["edited_fact_sha256"],
+                "record_ids": _load_json(row["record_ids"], []),
+                "audit_event_id": row["audit_event_id"],
+                "decided_at": str(row["decided_at"]),
+            }
+            for row in rows
+        ]
+
+    def insert_memory_lineage(
+        self,
+        *,
+        subject_id: str,
+        relation: str,
+        predecessor_record_id: str,
+        successor_record_id: str,
+        predecessor_content_sha256: str,
+        predecessor_generation: int,
+        proposal_id: str | None = None,
+    ) -> str:
+        lineage_id = _new_id("lin")
+        with self.transaction():
+            self._conn.execute(
+                """
+                INSERT OR IGNORE INTO memory_lineage (
+                  lineage_id, subject_id, relation, predecessor_record_id,
+                  successor_record_id, predecessor_content_sha256,
+                  predecessor_generation, proposal_id, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    lineage_id,
+                    subject_id,
+                    relation,
+                    predecessor_record_id,
+                    successor_record_id,
+                    predecessor_content_sha256,
+                    int(predecessor_generation),
+                    proposal_id,
+                    utc_now(),
+                ),
+            )
+        return lineage_id
+
+    def list_memory_lineage(
+        self, subject_id: str, record_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        params: list[Any] = [subject_id]
+        clause = ""
+        if record_id is not None:
+            clause = "AND (predecessor_record_id = ? OR successor_record_id = ?)"
+            params.extend([record_id, record_id])
+        rows = self._conn.execute(
+            f"""
+            SELECT * FROM memory_lineage
+            WHERE subject_id = ? {clause}
+            ORDER BY created_at ASC, lineage_id ASC
+            """,
+            params,
+        ).fetchall()
+        return [
+            {
+                "lineage_id": str(row["lineage_id"]),
+                "subject_id": str(row["subject_id"]),
+                "relation": str(row["relation"]),
+                "predecessor_record_id": str(row["predecessor_record_id"]),
+                "successor_record_id": str(row["successor_record_id"]),
+                "predecessor_content_sha256": str(row["predecessor_content_sha256"]),
+                "predecessor_generation": int(row["predecessor_generation"]),
+                "proposal_id": row["proposal_id"],
+                "created_at": str(row["created_at"]),
+            }
+            for row in rows
+        ]
+
+    # --- Governed Task State (Spec 007) ------------------------------------
+    #
+    # Task state is a separate authority plane from durable memory. Every read
+    # here takes the exact scope: a task is never found by id alone, so a
+    # caller in one workspace cannot reach another workspace's work even if it
+    # somehow learns the identifier.
+
+    def insert_task_profile(
+        self,
+        *,
+        version: str,
+        profile_id: str,
+        digest: str,
+        profile: dict[str, Any],
+        actor: str,
+    ) -> dict[str, Any]:
+        with self.transaction():
+            self._conn.execute(
+                """
+                INSERT INTO governed_task_profiles (
+                  version, profile_id, digest, profile, actor, registered_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (version, profile_id, digest, _json(profile), actor, utc_now()),
+            )
+        stored = self.get_task_profile(version)
+        assert stored is not None
+        return stored
+
+    def get_task_profile(self, version: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM governed_task_profiles WHERE version = ?", (version,)
+        ).fetchone()
+        return _task_profile_from_row(row) if row else None
+
+    def list_task_profiles(self) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            "SELECT * FROM governed_task_profiles ORDER BY version"
+        ).fetchall()
+        return [_task_profile_from_row(row) for row in rows]
+
+    def insert_task(
+        self,
+        *,
+        task_id: str,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        profile_id: str,
+        profile_version: str,
+        goal: str,
+        lifecycle: str,
+        head_revision: int,
+        created_at_utc: str,
+        last_progress_at_utc: str,
+        expiry_rule: dict[str, Any],
+        clock_source: str,
+        idempotency_key: str,
+        policy_generation: int = 1,
+        continues_task_id: str | None = None,
+    ) -> dict[str, Any]:
+        with self.transaction():
+            self._conn.execute(
+                """
+                INSERT INTO governed_tasks (
+                  task_id, subject_id, agent_id, workspace_id, profile_id,
+                  profile_version, goal, lifecycle, head_revision,
+                  policy_generation, created_at_utc, updated_at_utc,
+                  last_progress_at_utc, paused_at_utc, no_progress_paused_ms,
+                  expiry_rule, clock_source, terminal_reason, continues_task_id,
+                  idempotency_key
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?,
+                        NULL, ?, ?)
+                """,
+                (
+                    task_id, subject_id, agent_id, workspace_id, profile_id,
+                    profile_version, goal, lifecycle, int(head_revision),
+                    int(policy_generation), created_at_utc, created_at_utc,
+                    last_progress_at_utc, _json(expiry_rule), clock_source,
+                    continues_task_id, idempotency_key,
+                ),
+            )
+        stored = self.get_task(
+            subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id, task_id=task_id,
+        )
+        assert stored is not None
+        return stored
+
+    def get_task(
+        self,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        task_id: str,
+    ) -> dict[str, Any] | None:
+        """Read one task, and only within its exact authority scope."""
+        row = self._conn.execute(
+            """
+            SELECT * FROM governed_tasks
+            WHERE task_id = ? AND subject_id = ? AND agent_id = ?
+              AND workspace_id = ?
+            """,
+            (task_id, subject_id, agent_id, workspace_id),
+        ).fetchone()
+        return _task_from_row(row) if row else None
+
+    def find_task_by_idempotency_key(
+        self,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        idempotency_key: str,
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT * FROM governed_tasks
+            WHERE subject_id = ? AND agent_id = ? AND workspace_id = ?
+              AND idempotency_key = ?
+            """,
+            (subject_id, agent_id, workspace_id, idempotency_key),
+        ).fetchone()
+        return _task_from_row(row) if row else None
+
+    def list_tasks(
+        self,
+        *,
+        subject_id: str | None = None,
+        agent_id: str | None = None,
+        workspace_id: str | None = None,
+        lifecycles: tuple[str, ...] | None = None,
+        cursor: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Deterministically ordered, cursor-paginated task listing."""
+        clauses: list[str] = []
+        params: list[Any] = []
+        for column, value in (
+            ("subject_id", subject_id),
+            ("agent_id", agent_id),
+            ("workspace_id", workspace_id),
+        ):
+            if value is not None:
+                clauses.append(f"{column} = ?")
+                params.append(value)
+        if lifecycles:
+            clauses.append(f"lifecycle IN ({','.join('?' for _ in lifecycles)})")
+            params.extend(lifecycles)
+        if cursor:
+            # Ordering is (created_at, task_id), so the cursor is that pair.
+            clauses.append("(created_at_utc, task_id) > (?, ?)")
+            params.extend(cursor.split("|", 1) if "|" in cursor else [cursor, ""])
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        params.append(max(1, min(int(limit), 500)))
+        rows = self._conn.execute(
+            f"""
+            SELECT * FROM governed_tasks {where}
+            ORDER BY created_at_utc ASC, task_id ASC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+        return [_task_from_row(row) for row in rows]
+
+    def tasks_due_for_expiry_scan(
+        self, *, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        """Non-terminal tasks, oldest first. Terminal tasks are never re-evaluated."""
+        rows = self._conn.execute(
+            """
+            SELECT * FROM governed_tasks
+            WHERE lifecycle IN ('open', 'paused')
+            ORDER BY created_at_utc ASC, task_id ASC
+            LIMIT ?
+            """,
+            (max(1, min(int(limit), 1000)),),
+        ).fetchall()
+        return [_task_from_row(row) for row in rows]
+
+    # --- session bindings (Amendment A, FR-042/FR-052) ---------------------
+
+    def insert_session_binding(
+        self,
+        *,
+        binding_id: str,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        host_type: str,
+        session_key: str,
+        session_epoch: str,
+        task_id: str,
+        actor: str,
+        reason: str,
+        source: str,
+        evidence: list[dict[str, Any]],
+        registered_at_utc: str,
+        expires_at_utc: str | None,
+    ) -> None:
+        """Register one binding, or raise if an active one already holds the key.
+
+        The partial unique index does the enforcing, so a concurrent second
+        register loses at the database rather than in a read-then-write race.
+        """
+        self._conn.execute(
+            """
+            INSERT INTO governed_task_session_bindings (
+              binding_id, subject_id, agent_id, workspace_id,
+              host_type, session_key, session_epoch, task_id,
+              actor, reason, source, evidence, registered_at_utc, expires_at_utc
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                binding_id, subject_id, agent_id, workspace_id,
+                host_type, session_key, session_epoch, task_id,
+                actor, reason, source, _json(evidence), registered_at_utc,
+                expires_at_utc,
+            ),
+        )
+        self._conn.commit()
+
+    def find_active_session_binding(
+        self,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        host_type: str,
+        session_key: str,
+        session_epoch: str,
+    ) -> dict[str, Any] | None:
+        """The exact-key lookup. `session_epoch` is part of it, never optional.
+
+        A caller that has no epoch has no binding to find; it must not fall
+        back to matching on the remaining fields, which is why there is no
+        variant of this method that omits one.
+        """
+        row = self._conn.execute(
+            """
+            SELECT * FROM governed_task_session_bindings
+            WHERE subject_id = ? AND agent_id = ? AND workspace_id = ?
+              AND host_type = ? AND session_key = ? AND session_epoch = ?
+              AND revoked_at_utc IS NULL
+            """,
+            (subject_id, agent_id, workspace_id, host_type, session_key, session_epoch),
+        ).fetchone()
+        return _session_binding_from_row(row) if row else None
+
+    def find_active_bindings_for_session_key(
+        self,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        host_type: str,
+        session_key: str,
+    ) -> list[dict[str, Any]]:
+        """Active bindings for a session key across every generation.
+
+        Used only to tell "this conversation was bound under a different
+        generation" apart from "this conversation was never bound", so the
+        first can withhold as stale rather than as absent. It never selects a
+        binding to use.
+        """
+        rows = self._conn.execute(
+            """
+            SELECT * FROM governed_task_session_bindings
+            WHERE subject_id = ? AND agent_id = ? AND workspace_id = ?
+              AND host_type = ? AND session_key = ? AND revoked_at_utc IS NULL
+            ORDER BY registered_at_utc DESC
+            """,
+            (subject_id, agent_id, workspace_id, host_type, session_key),
+        ).fetchall()
+        return [_session_binding_from_row(row) for row in rows]
+
+    def list_session_bindings(
+        self,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        task_id: str | None = None,
+        include_revoked: bool = False,
+    ) -> list[dict[str, Any]]:
+        clauses = ["subject_id = ?", "agent_id = ?", "workspace_id = ?"]
+        params: list[Any] = [subject_id, agent_id, workspace_id]
+        if task_id:
+            clauses.append("task_id = ?")
+            params.append(task_id)
+        if not include_revoked:
+            clauses.append("revoked_at_utc IS NULL")
+        rows = self._conn.execute(
+            f"""
+            SELECT * FROM governed_task_session_bindings
+            WHERE {" AND ".join(clauses)}
+            ORDER BY registered_at_utc DESC, binding_id ASC
+            """,
+            tuple(params),
+        ).fetchall()
+        return [_session_binding_from_row(row) for row in rows]
+
+    def revoke_session_binding(
+        self,
+        *,
+        binding_id: str,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        revoked_at_utc: str,
+        revoked_by: str,
+        revoked_reason: str,
+    ) -> bool:
+        """Mark one binding revoked. The row is retained; history is evidence."""
+        cursor = self._conn.execute(
+            """
+            UPDATE governed_task_session_bindings
+            SET revoked_at_utc = ?, revoked_by = ?, revoked_reason = ?
+            WHERE binding_id = ? AND subject_id = ? AND agent_id = ?
+              AND workspace_id = ? AND revoked_at_utc IS NULL
+            """,
+            (
+                revoked_at_utc, revoked_by, revoked_reason,
+                binding_id, subject_id, agent_id, workspace_id,
+            ),
+        )
+        self._conn.commit()
+        return cursor.rowcount > 0
+
+    def revoke_session_bindings_for_task(
+        self, *, task_id: str, revoked_at_utc: str, revoked_by: str, revoked_reason: str
+    ) -> int:
+        cursor = self._conn.execute(
+            """
+            UPDATE governed_task_session_bindings
+            SET revoked_at_utc = ?, revoked_by = ?, revoked_reason = ?
+            WHERE task_id = ? AND revoked_at_utc IS NULL
+            """,
+            (revoked_at_utc, revoked_by, revoked_reason, task_id),
+        )
+        self._conn.commit()
+        return int(cursor.rowcount or 0)
+
+    def delete_session_bindings_for_task(self, *, task_id: str) -> int:
+        """Hard delete, for task forgetting only (FR-025)."""
+        cursor = self._conn.execute(
+            "DELETE FROM governed_task_session_bindings WHERE task_id = ?", (task_id,)
+        )
+        self._conn.commit()
+        return int(cursor.rowcount or 0)
+
+    def insert_task_revision(
+        self,
+        *,
+        task_id: str,
+        revision: int,
+        parent_revision: int | None,
+        state: dict[str, Any],
+        state_sha256: str,
+        semantic_sha256: str,
+        actor: str,
+        actor_role: str,
+        reason_codes: list[str],
+        evidence: list[dict[str, Any]],
+        created_at_utc: str,
+        is_progress: bool = False,
+    ) -> None:
+        """Append one immutable revision.
+
+        The unique index on (task_id, parent_revision) is what enforces "at
+        most one accepted successor": a second writer racing on the same base
+        revision raises IntegrityError rather than forking history.
+        """
+        self._conn.execute(
+            """
+            INSERT INTO governed_task_revisions (
+              task_id, revision, parent_revision, state, state_sha256,
+              semantic_sha256, actor, actor_role, reason_codes, evidence,
+              created_at_utc, is_progress
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                task_id, int(revision),
+                None if parent_revision is None else int(parent_revision),
+                _json(state), state_sha256, semantic_sha256, actor, actor_role,
+                _json(list(reason_codes)), _json(list(evidence)),
+                created_at_utc, 1 if is_progress else 0,
+            ),
+        )
+
+    def get_task_revision(
+        self, task_id: str, revision: int
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT * FROM governed_task_revisions
+            WHERE task_id = ? AND revision = ?
+            """,
+            (task_id, int(revision)),
+        ).fetchone()
+        return _task_revision_from_row(row) if row else None
+
+    def list_task_revisions(
+        self, task_id: str, *, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM governed_task_revisions
+            WHERE task_id = ?
+            ORDER BY revision ASC
+            LIMIT ?
+            """,
+            (task_id, max(1, min(int(limit), 1000))),
+        ).fetchall()
+        return [_task_revision_from_row(row) for row in rows]
+
+    def advance_task_head(
+        self,
+        *,
+        task_id: str,
+        expected_head: int,
+        new_head: int,
+        updated_at_utc: str,
+        last_progress_at_utc: str | None = None,
+        lifecycle: str | None = None,
+        terminal_reason: str | None = None,
+        paused_at_utc: str | None = None,
+        clear_paused_at: bool = False,
+        add_paused_ms: int = 0,
+    ) -> bool:
+        """Move the head exactly once, under an expected-head guard.
+
+        Returns False when another writer already advanced past
+        `expected_head`; the caller turns that into a `conflict` outcome
+        rather than retrying, so a stale proposal never silently wins.
+        """
+        assignments = [
+            "head_revision = ?",
+            "updated_at_utc = ?",
+        ]
+        params: list[Any] = [int(new_head), updated_at_utc]
+        if last_progress_at_utc is not None:
+            assignments.append("last_progress_at_utc = ?")
+            params.append(last_progress_at_utc)
+        if lifecycle is not None:
+            assignments.append("lifecycle = ?")
+            params.append(lifecycle)
+        if terminal_reason is not None:
+            assignments.append("terminal_reason = ?")
+            params.append(terminal_reason)
+        if clear_paused_at:
+            assignments.append("paused_at_utc = NULL")
+        elif paused_at_utc is not None:
+            assignments.append("paused_at_utc = ?")
+            params.append(paused_at_utc)
+        if add_paused_ms:
+            assignments.append("no_progress_paused_ms = no_progress_paused_ms + ?")
+            params.append(int(add_paused_ms))
+        params.extend([task_id, int(expected_head)])
+        cursor = self._conn.execute(
+            f"""
+            UPDATE governed_tasks SET {', '.join(assignments)}
+            WHERE task_id = ? AND head_revision = ?
+            """,
+            params,
+        )
+        return cursor.rowcount == 1
+
+    def insert_task_provenance(
+        self,
+        *,
+        task_id: str,
+        revision: int,
+        target_kind: str,
+        target_id: str,
+        actor: str,
+        actor_role: str,
+        method: str,
+        assurance: str,
+        observed_at_utc: str,
+        interpreter: str | None = None,
+        evidence: list[dict[str, Any]] | None = None,
+        superseded_revision: int | None = None,
+    ) -> str:
+        provenance_id = _new_id("prov")
+        self._conn.execute(
+            """
+            INSERT INTO governed_task_provenance (
+              provenance_id, task_id, revision, target_kind, target_id, actor,
+              actor_role, method, assurance, interpreter, evidence,
+              observed_at_utc, superseded_revision
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                provenance_id, task_id, int(revision), target_kind, target_id,
+                actor, actor_role, method, assurance, interpreter,
+                _json(list(evidence or ())), observed_at_utc,
+                None if superseded_revision is None else int(superseded_revision),
+            ),
+        )
+        return provenance_id
+
+    def list_task_provenance(
+        self,
+        task_id: str,
+        *,
+        target_kind: str | None = None,
+        target_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        clauses = ["task_id = ?"]
+        params: list[Any] = [task_id]
+        if target_kind is not None:
+            clauses.append("target_kind = ?")
+            params.append(target_kind)
+        if target_id is not None:
+            clauses.append("target_id = ?")
+            params.append(target_id)
+        rows = self._conn.execute(
+            f"""
+            SELECT * FROM governed_task_provenance
+            WHERE {' AND '.join(clauses)}
+            ORDER BY revision ASC, target_kind ASC, target_id ASC
+            """,
+            params,
+        ).fetchall()
+        return [_task_provenance_from_row(row) for row in rows]
+
+    def find_task_proposal(
+        self, task_id: str, idempotency_key: str
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT * FROM governed_task_proposals
+            WHERE task_id = ? AND idempotency_key = ?
+            """,
+            (task_id, idempotency_key),
+        ).fetchone()
+        return _task_proposal_from_row(row) if row else None
+
+    def insert_task_proposal(
+        self,
+        *,
+        proposal_id: str,
+        task_id: str,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        idempotency_key: str,
+        payload_sha256: str,
+        base_revision: int,
+        actor: str,
+        actor_role: str,
+        proposal: dict[str, Any],
+        decision: dict[str, Any],
+        outcome: str,
+        resulting_revision: int | None,
+        created_at_utc: str,
+    ) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO governed_task_proposals (
+              proposal_id, task_id, subject_id, agent_id, workspace_id,
+              idempotency_key, payload_sha256, base_revision, actor, actor_role,
+              proposal, decision, outcome, resulting_revision, created_at_utc
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                proposal_id, task_id, subject_id, agent_id, workspace_id,
+                idempotency_key, payload_sha256, int(base_revision), actor,
+                actor_role, _json(proposal), _json(decision), outcome,
+                None if resulting_revision is None else int(resulting_revision),
+                created_at_utc,
+            ),
+        )
+
+    def list_task_proposals(
+        self, task_id: str, *, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM governed_task_proposals
+            WHERE task_id = ?
+            ORDER BY created_at_utc ASC, proposal_id ASC
+            LIMIT ?
+            """,
+            (task_id, max(1, min(int(limit), 1000))),
+        ).fetchall()
+        return [_task_proposal_from_row(row) for row in rows]
+
+    def insert_task_step(
+        self,
+        *,
+        task_id: str,
+        step_kind: str,
+        outcome: str,
+        base_revision: int,
+        actor: str,
+        recorded_at_utc: str,
+        proposal_id: str | None = None,
+        resulting_revision: int | None = None,
+        reason_codes: list[str] | None = None,
+        action_fingerprint: str | None = None,
+        duration_ms: int = 0,
+    ) -> str:
+        step_id = _new_id("step")
+        self._conn.execute(
+            """
+            INSERT INTO governed_task_steps (
+              step_id, task_id, step_kind, outcome, proposal_id, base_revision,
+              resulting_revision, reason_codes, action_fingerprint, actor,
+              duration_ms, recorded_at_utc, sequence
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    (SELECT COALESCE(MAX(sequence), 0) + 1
+                     FROM governed_task_steps WHERE task_id = ?))
+            """,
+            (
+                step_id, task_id, step_kind, outcome, proposal_id,
+                int(base_revision),
+                None if resulting_revision is None else int(resulting_revision),
+                _json(list(reason_codes or ())), action_fingerprint, actor,
+                max(0, int(duration_ms)), recorded_at_utc, task_id,
+            ),
+        )
+        return step_id
+
+    def list_task_steps(
+        self, task_id: str, *, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM governed_task_steps
+            WHERE task_id = ?
+            ORDER BY sequence ASC
+            LIMIT ?
+            """,
+            (task_id, max(1, min(int(limit), 1000))),
+        ).fetchall()
+        return [_task_step_from_row(row) for row in rows]
+
+    def count_recent_equivalent_actions(
+        self, task_id: str, action_fingerprint: str, *, since_utc: str
+    ) -> int:
+        """How many equivalent actions ran since the last accepted progress."""
+        row = self._conn.execute(
+            """
+            SELECT COUNT(*) AS total FROM governed_task_steps
+            WHERE task_id = ? AND action_fingerprint = ?
+              AND recorded_at_utc >= ?
+            """,
+            (task_id, action_fingerprint, since_utc),
+        ).fetchone()
+        return int(row["total"]) if row else 0
+
+    def insert_task_delivery(
+        self,
+        *,
+        task_id: str,
+        revision: int,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        disposition: str,
+        prepared_at_utc: str,
+        reason_codes: list[str] | None = None,
+        context_sha256: str | None = None,
+        cache_key: str | None = None,
+        preparation_id: str | None = None,
+        exposure_id: str | None = None,
+    ) -> str:
+        delivery_id = _new_id("del")
+        self._conn.execute(
+            """
+            INSERT INTO governed_task_deliveries (
+              delivery_id, task_id, revision, subject_id, agent_id,
+              workspace_id, disposition, reason_codes, context_sha256,
+              cache_key, preparation_id, exposure_id, exposed, prepared_at_utc,
+              sequence
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?,
+                    (SELECT COALESCE(MAX(sequence), 0) + 1
+                     FROM governed_task_deliveries WHERE task_id = ?))
+            """,
+            (
+                delivery_id, task_id, int(revision), subject_id, agent_id,
+                workspace_id, disposition, _json(list(reason_codes or ())),
+                context_sha256, cache_key, preparation_id, exposure_id,
+                prepared_at_utc, task_id,
+            ),
+        )
+        return delivery_id
+
+    def mark_task_delivery_exposed(self, delivery_id: str) -> bool:
+        """Confirm exposure exactly once; a repeat is not a second exposure."""
+        cursor = self._conn.execute(
+            "UPDATE governed_task_deliveries SET exposed = 1 "
+            "WHERE delivery_id = ? AND exposed = 0",
+            (delivery_id,),
+        )
+        return cursor.rowcount == 1
+
+    def list_task_deliveries(
+        self, task_id: str, *, limit: int = 200
+    ) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            """
+            SELECT * FROM governed_task_deliveries
+            WHERE task_id = ?
+            ORDER BY sequence ASC
+            LIMIT ?
+            """,
+            (task_id, max(1, min(int(limit), 1000))),
+        ).fetchall()
+        return [_task_delivery_from_row(row) for row in rows]
+
+    def rebuild_task_pause_accounting(self, task_id: str) -> int:
+        """Recompute completed paused milliseconds from the revision chain.
+
+        The stored accumulator is the fast path. This is the audit: it derives
+        the same number from immutable lifecycle revisions, so a restart or a
+        suspected drift can be checked against history rather than trusted.
+        """
+        from atmem.core.time import elapsed_ms, from_iso
+
+        revisions = self.list_task_revisions(task_id, limit=1000)
+        total = 0
+        paused_since: str | None = None
+        for row in revisions:
+            lifecycle = str((row["state"] or {}).get("lifecycle") or "")
+            moment = str(row["created_at_utc"])
+            if lifecycle == "paused" and paused_since is None:
+                paused_since = moment
+            elif lifecycle != "paused" and paused_since is not None:
+                total += elapsed_ms(from_iso(paused_since), from_iso(moment))
+                paused_since = None
+        return total
+
+    def delete_task(
+        self,
+        *,
+        subject_id: str,
+        agent_id: str,
+        workspace_id: str,
+        task_id: str,
+    ) -> dict[str, Any]:
+        """Remove one task and everything derived from it, in scope."""
+        task = self.get_task(
+            subject_id=subject_id, agent_id=agent_id,
+            workspace_id=workspace_id, task_id=task_id,
+        )
+        if task is None:
+            return {"deleted": False, "task_id": task_id, "removed": {}}
+        removed: dict[str, int] = {}
+        with self.transaction():
+            for table in (
+                "governed_task_deliveries",
+                "governed_task_steps",
+                "governed_task_proposals",
+                "governed_task_provenance",
+                # Bindings are derived from the task: once it is gone there is
+                # nothing left to point a conversation at, and a surviving row
+                # would name a task that no longer exists. Deleted rather than
+                # revoked, because forgetting must leave no derivative behind.
+                "governed_task_session_bindings",
+            ):
+                cursor = self._conn.execute(
+                    f"DELETE FROM {table} WHERE task_id = ?", (task_id,)
+                )
+                removed[table] = cursor.rowcount
+            # Revisions carry an immutability trigger on UPDATE, not DELETE:
+            # verified deletion may remove history, but nothing may rewrite it.
+            cursor = self._conn.execute(
+                "DELETE FROM governed_task_revisions WHERE task_id = ?", (task_id,)
+            )
+            removed["governed_task_revisions"] = cursor.rowcount
+            cursor = self._conn.execute(
+                "DELETE FROM governed_tasks WHERE task_id = ?", (task_id,)
+            )
+            removed["governed_tasks"] = cursor.rowcount
+        return {"deleted": True, "task_id": task_id, "removed": removed}
+
+    def delete_subject_tasks(self, subject_id: str) -> dict[str, Any]:
+        """Remove every governed task belonging to one subject."""
+        rows = self._conn.execute(
+            "SELECT task_id, agent_id, workspace_id FROM governed_tasks "
+            "WHERE subject_id = ?",
+            (subject_id,),
+        ).fetchall()
+        results = [
+            self.delete_task(
+                subject_id=subject_id,
+                agent_id=str(row["agent_id"]),
+                workspace_id=str(row["workspace_id"]),
+                task_id=str(row["task_id"]),
+            )
+            for row in rows
+        ]
+        return {"task_ids": [row["task_id"] for row in results], "deleted": len(results)}
 
     def get_media_artifact(
         self,
@@ -2600,14 +3778,79 @@ class SQLiteStore:
             self._migrate_fts()
             self._migrate_graph_fts()
             self._migrate_audit_fts()
+            self._apply_bootstrap_migrations()
+
+    def _apply_bootstrap_migrations(self) -> None:
+        """Apply the reserved, append-only bootstrap steps exactly once.
+
+        The unnumbered initializer above remains the pre-registry baseline.
+        Numbered steps are recorded in ``schema_migrations`` so the future
+        canonical registry (Spec 010) can import these identifiers without
+        renumbering or replaying them. Every step is written to be safe to run
+        against a database that already contains its objects, so an interrupted
+        upgrade re-runs forward instead of needing repair.
+        """
+        self._conn.execute("""
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+              identifier TEXT PRIMARY KEY,
+              applied_at TEXT NOT NULL
+            )
+            """)
+        applied = {
+            str(row["identifier"])
+            for row in self._conn.execute(
+                "SELECT identifier FROM schema_migrations"
+            ).fetchall()
+        }
+        # Column additions cannot be expressed idempotently in a script, so
+        # they are ensured here instead. 0063's trigger and 0077's indexes are
+        # compiled against these columns, so they are added before any script
+        # runs -- and each `_ensure_column` is safe to repeat.
+        self._ensure_column("records", "generation", "INTEGER NOT NULL DEFAULT 0")
+        for identifier, script in MIGRATION_REGISTRY:
+            if identifier in applied:
+                continue
+            if identifier == "0077_governed_task_sequences":
+                for table in ("governed_task_steps", "governed_task_deliveries"):
+                    self._ensure_column(
+                        table, "sequence", "INTEGER NOT NULL DEFAULT 0"
+                    )
+            self._conn.executescript(script)
+            self._conn.execute(
+                "INSERT OR IGNORE INTO schema_migrations(identifier, applied_at) "
+                "VALUES (?, ?)",
+                (identifier, utc_now()),
+            )
+
+    def applied_migrations(self) -> list[str]:
+        """Bootstrap identifiers this database has already applied, in order."""
+        return [
+            str(row["identifier"])
+            for row in self._conn.execute(
+                "SELECT identifier FROM schema_migrations ORDER BY identifier"
+            ).fetchall()
+        ]
 
     def _ensure_column(self, table: str, column: str, column_type: str) -> None:
+        """Add a column if it is missing, tolerating a concurrent first open.
+
+        `executescript` commits any open transaction, so migration steps after
+        one are not serialized by the outer BEGIN IMMEDIATE. Two processes
+        opening a new database at the same moment can therefore both decide the
+        column is missing. Losing that race is not an error: the column exists
+        either way, which is exactly what this method promises.
+        """
         columns = {
             row["name"]
             for row in self._conn.execute(f"PRAGMA table_info({table})").fetchall()
         }
-        if column not in columns:
+        if column in columns:
+            return
+        try:
             self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}")
+        except sqlite3.OperationalError as exc:
+            if "duplicate column name" not in str(exc).lower():
+                raise
 
     def _backfill_record_normalization(self) -> None:
         rows = self._conn.execute("""
@@ -2914,6 +4157,575 @@ class SQLiteStore:
             self._delete_graph_fts(str(row["object_type"]), str(row["object_id"]))
 
 
+# Global append-only migration registry. ``0000`` records the compatible
+# pre-registry initializer; 0060-0069 and 0070-0079 retain the identifiers
+# reserved by their owning specs. Never renumber or edit a shipped step.
+MIGRATION_REGISTRY: tuple[tuple[str, str], ...] = (
+    (
+        "0000_pre_registry_baseline",
+        """SELECT 1;""",
+    ),
+    (
+        "0060_memory_proposals",
+        """
+        CREATE TABLE IF NOT EXISTS memory_proposals (
+          proposal_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          idempotency_key TEXT NOT NULL,
+          proposal_sha256 TEXT NOT NULL,
+          action TEXT NOT NULL,
+          memory_class TEXT NOT NULL,
+          confidence REAL NOT NULL,
+          fact_key TEXT,
+          review_state TEXT NOT NULL CHECK (
+            review_state IN (
+              'committed', 'pending_review', 'rejected', 'noop', 'stale'
+            )
+          ),
+          reason_codes TEXT NOT NULL DEFAULT '[]',
+          proposal TEXT NOT NULL,
+          outcome TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL,
+          decided_at TEXT,
+          UNIQUE (subject_id, agent_id, workspace_id, idempotency_key)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_memory_proposals_queue
+          ON memory_proposals(subject_id, review_state, created_at);
+        """,
+    ),
+    (
+        "0061_memory_reviews",
+        """
+        CREATE TABLE IF NOT EXISTS memory_reviews (
+          review_id TEXT PRIMARY KEY,
+          proposal_id TEXT NOT NULL REFERENCES memory_proposals(proposal_id),
+          subject_id TEXT NOT NULL,
+          decision TEXT NOT NULL CHECK (
+            decision IN ('approved', 'edited_approved', 'rejected')
+          ),
+          actor TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          edited_fact_sha256 TEXT,
+          record_ids TEXT NOT NULL DEFAULT '[]',
+          audit_event_id TEXT,
+          decided_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_memory_reviews_proposal
+          ON memory_reviews(proposal_id, decided_at);
+        """,
+    ),
+    (
+        "0062_memory_lineage",
+        """
+        CREATE TABLE IF NOT EXISTS memory_lineage (
+          lineage_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          relation TEXT NOT NULL CHECK (
+            relation IN ('corrects', 'supersedes', 'refines')
+          ),
+          predecessor_record_id TEXT NOT NULL,
+          successor_record_id TEXT NOT NULL,
+          predecessor_content_sha256 TEXT NOT NULL,
+          predecessor_generation INTEGER NOT NULL,
+          proposal_id TEXT,
+          created_at TEXT NOT NULL,
+          UNIQUE (predecessor_record_id, successor_record_id, relation)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_memory_lineage_successor
+          ON memory_lineage(subject_id, successor_record_id);
+
+        CREATE INDEX IF NOT EXISTS idx_memory_lineage_predecessor
+          ON memory_lineage(subject_id, predecessor_record_id);
+
+        -- Lineage is history, not state: it may be purged by verifiable
+        -- deletion, but an existing row can never be rewritten in place.
+        CREATE TRIGGER IF NOT EXISTS memory_lineage_is_immutable
+        BEFORE UPDATE ON memory_lineage BEGIN
+          SELECT RAISE(ABORT, 'memory lineage rows are immutable');
+        END;
+        """,
+    ),
+    (
+        "0063_record_generation",
+        """
+        -- Optimistic concurrency for governed updates. Any writer that changes
+        -- a record without setting the column explicitly advances it, so a
+        -- proposal built against an older read fails its precondition instead
+        -- of silently overwriting a newer value.
+        CREATE TRIGGER IF NOT EXISTS records_row_generation
+        AFTER UPDATE ON records
+        WHEN NEW.generation = OLD.generation BEGIN
+          UPDATE records SET generation = OLD.generation + 1 WHERE id = NEW.id;
+        END;
+        """,
+    ),
+    (
+        "0070_governed_task_profiles",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_profiles (
+          version TEXT PRIMARY KEY,
+          profile_id TEXT NOT NULL,
+          digest TEXT NOT NULL,
+          profile TEXT NOT NULL,
+          actor TEXT NOT NULL,
+          registered_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_governed_task_profiles_id
+          ON governed_task_profiles(profile_id, version);
+        """,
+    ),
+    (
+        "0071_governed_tasks",
+        """
+        CREATE TABLE IF NOT EXISTS governed_tasks (
+          task_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          profile_id TEXT NOT NULL,
+          profile_version TEXT NOT NULL,
+          goal TEXT NOT NULL,
+          lifecycle TEXT NOT NULL CHECK (
+            lifecycle IN ('open', 'paused', 'completed', 'cancelled', 'expired')
+          ),
+          head_revision INTEGER NOT NULL CHECK (head_revision >= 1),
+          policy_generation INTEGER NOT NULL DEFAULT 1,
+          created_at_utc TEXT NOT NULL,
+          updated_at_utc TEXT NOT NULL,
+          last_progress_at_utc TEXT NOT NULL,
+          -- Pause accounting. `paused_at_utc` is set while a task is paused;
+          -- `no_progress_paused_ms` accumulates completed paused intervals.
+          -- Together they make the no-progress clock exact after a restart
+          -- without replaying the revision chain.
+          paused_at_utc TEXT,
+          no_progress_paused_ms INTEGER NOT NULL DEFAULT 0
+            CHECK (no_progress_paused_ms >= 0),
+          expiry_rule TEXT NOT NULL DEFAULT '{}',
+          clock_source TEXT NOT NULL DEFAULT 'system-utc-v1',
+          terminal_reason TEXT,
+          continues_task_id TEXT,
+          idempotency_key TEXT NOT NULL,
+          UNIQUE (subject_id, agent_id, workspace_id, idempotency_key)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_governed_tasks_scope
+          ON governed_tasks(subject_id, agent_id, workspace_id, lifecycle);
+
+        -- Expiry scans read only non-terminal tasks ordered by age.
+        CREATE INDEX IF NOT EXISTS idx_governed_tasks_expiry
+          ON governed_tasks(lifecycle, created_at_utc, last_progress_at_utc);
+        """,
+    ),
+    (
+        "0072_governed_task_revisions",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_revisions (
+          task_id TEXT NOT NULL,
+          revision INTEGER NOT NULL CHECK (revision >= 1),
+          parent_revision INTEGER,
+          state TEXT NOT NULL,
+          state_sha256 TEXT NOT NULL,
+          semantic_sha256 TEXT NOT NULL,
+          actor TEXT NOT NULL,
+          actor_role TEXT NOT NULL,
+          reason_codes TEXT NOT NULL DEFAULT '[]',
+          evidence TEXT NOT NULL DEFAULT '[]',
+          created_at_utc TEXT NOT NULL,
+          is_progress INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (task_id, revision),
+          FOREIGN KEY (task_id) REFERENCES governed_tasks(task_id)
+        );
+
+        -- At most one successor per parent: this is the optimistic-concurrency
+        -- guarantee expressed as a database constraint rather than a hope.
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_governed_task_one_successor
+          ON governed_task_revisions(task_id, parent_revision)
+          WHERE parent_revision IS NOT NULL;
+
+        CREATE TRIGGER IF NOT EXISTS governed_task_revisions_are_immutable
+        BEFORE UPDATE ON governed_task_revisions BEGIN
+          SELECT RAISE(ABORT, 'governed task revisions are immutable');
+        END;
+        """,
+    ),
+    (
+        "0073_governed_task_provenance",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_provenance (
+          provenance_id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL,
+          revision INTEGER NOT NULL,
+          target_kind TEXT NOT NULL CHECK (
+            target_kind IN ('task', 'field', 'item', 'status', 'constraint',
+                            'transition', 'delivery', 'lifecycle')
+          ),
+          target_id TEXT NOT NULL,
+          actor TEXT NOT NULL,
+          actor_role TEXT NOT NULL,
+          method TEXT NOT NULL,
+          assurance TEXT NOT NULL,
+          interpreter TEXT,
+          evidence TEXT NOT NULL DEFAULT '[]',
+          observed_at_utc TEXT NOT NULL,
+          superseded_revision INTEGER,
+          FOREIGN KEY (task_id) REFERENCES governed_tasks(task_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_governed_task_provenance_target
+          ON governed_task_provenance(task_id, target_kind, target_id, revision);
+
+        CREATE TRIGGER IF NOT EXISTS governed_task_provenance_is_immutable
+        BEFORE UPDATE OF task_id, revision, target_kind, target_id, actor,
+                         method, assurance, observed_at_utc
+        ON governed_task_provenance BEGIN
+          SELECT RAISE(ABORT, 'governed task provenance is immutable');
+        END;
+        """,
+    ),
+    (
+        "0074_governed_task_proposals",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_proposals (
+          proposal_id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          idempotency_key TEXT NOT NULL,
+          payload_sha256 TEXT NOT NULL,
+          base_revision INTEGER NOT NULL,
+          actor TEXT NOT NULL,
+          actor_role TEXT NOT NULL,
+          proposal TEXT NOT NULL,
+          decision TEXT NOT NULL,
+          outcome TEXT NOT NULL CHECK (
+            outcome IN ('accepted', 'rejected', 'conflict', 'no_change')
+          ),
+          resulting_revision INTEGER,
+          created_at_utc TEXT NOT NULL,
+          UNIQUE (task_id, idempotency_key)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_governed_task_proposals_task
+          ON governed_task_proposals(task_id, created_at_utc);
+        """,
+    ),
+    (
+        "0075_governed_task_steps",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_steps (
+          step_id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL,
+          step_kind TEXT NOT NULL,
+          outcome TEXT NOT NULL CHECK (
+            outcome IN ('accepted', 'rejected', 'conflict', 'no_change')
+          ),
+          proposal_id TEXT,
+          base_revision INTEGER NOT NULL,
+          resulting_revision INTEGER,
+          reason_codes TEXT NOT NULL DEFAULT '[]',
+          action_fingerprint TEXT,
+          actor TEXT NOT NULL,
+          duration_ms INTEGER NOT NULL DEFAULT 0 CHECK (duration_ms >= 0),
+          recorded_at_utc TEXT NOT NULL,
+          FOREIGN KEY (task_id) REFERENCES governed_tasks(task_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_governed_task_steps_task
+          ON governed_task_steps(task_id, recorded_at_utc);
+
+        -- The no-progress guard counts recent equivalent actions.
+        CREATE INDEX IF NOT EXISTS idx_governed_task_steps_fingerprint
+          ON governed_task_steps(task_id, action_fingerprint, recorded_at_utc);
+        """,
+    ),
+    (
+        "0076_governed_task_deliveries",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_deliveries (
+          delivery_id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL,
+          revision INTEGER NOT NULL,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          disposition TEXT NOT NULL CHECK (disposition IN ('injected', 'withheld')),
+          reason_codes TEXT NOT NULL DEFAULT '[]',
+          context_sha256 TEXT,
+          cache_key TEXT,
+          preparation_id TEXT,
+          exposure_id TEXT,
+          exposed INTEGER NOT NULL DEFAULT 0,
+          prepared_at_utc TEXT NOT NULL,
+          FOREIGN KEY (task_id) REFERENCES governed_tasks(task_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_governed_task_deliveries_task
+          ON governed_task_deliveries(task_id, prepared_at_utc);
+        """,
+    ),
+    (
+        "0077_governed_task_sequences",
+        """
+        -- The `sequence` columns these indexes cover are added through
+        -- `_ensure_column` rather than here: ALTER TABLE ADD COLUMN is not
+        -- idempotent, and every migration script must be safe to replay
+        -- against a database that already has its objects.
+        CREATE INDEX IF NOT EXISTS idx_governed_task_steps_sequence
+          ON governed_task_steps(task_id, sequence);
+
+        CREATE INDEX IF NOT EXISTS idx_governed_task_deliveries_sequence
+          ON governed_task_deliveries(task_id, sequence);
+        """,
+    ),
+    (
+        "0078_governed_task_session_bindings",
+        """
+        CREATE TABLE IF NOT EXISTS governed_task_session_bindings (
+          binding_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          -- Namespaces the session key so an OpenClaw key and a LangGraph key
+          -- cannot collide inside one scope.
+          host_type TEXT NOT NULL,
+          session_key TEXT NOT NULL,
+          -- The host reset signal (FR-052). Part of the key, so a new
+          -- conversation incarnation simply does not match an active row
+          -- rather than inheriting the previous one's binding.
+          session_epoch TEXT NOT NULL,
+          -- The target, deliberately OUTSIDE the uniqueness key below. That is
+          -- what makes bindings many-to-one and makes repointing a session
+          -- impossible to express as an update: it must be a revoke and a
+          -- register, each carrying its own authority and evidence.
+          task_id TEXT NOT NULL,
+          actor TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          source TEXT NOT NULL DEFAULT '',
+          evidence TEXT NOT NULL DEFAULT '[]',
+          registered_at_utc TEXT NOT NULL,
+          -- Supplemental expiry only; absence of a reset signal is never
+          -- covered by this. NULL means the profile declared no lifetime.
+          expires_at_utc TEXT,
+          -- Revoked rows are retained, not deleted: the history of what a
+          -- conversation was pointed at is evidence.
+          revoked_at_utc TEXT,
+          revoked_by TEXT,
+          revoked_reason TEXT
+        );
+
+        -- At most one ACTIVE binding per key. Partial, so revoked rows accumulate
+        -- freely and a session can be re-bound after an explicit revoke.
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_governed_task_session_bindings_active
+          ON governed_task_session_bindings(
+            subject_id, agent_id, workspace_id, host_type, session_key, session_epoch
+          )
+          WHERE revoked_at_utc IS NULL;
+
+        -- Resolution reads exactly this key on every turn.
+        CREATE INDEX IF NOT EXISTS idx_governed_task_session_bindings_lookup
+          ON governed_task_session_bindings(
+            subject_id, agent_id, workspace_id, host_type, session_key
+          );
+
+        -- Deleting a task removes its bindings; listing a task's bindings reads this.
+        CREATE INDEX IF NOT EXISTS idx_governed_task_session_bindings_task
+          ON governed_task_session_bindings(task_id);
+        """,
+    ),
+    (
+        "0090_graph_generations_and_lineage",
+        """
+        CREATE TABLE IF NOT EXISTS graph_generations (
+          generation_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          canonical_generation INTEGER NOT NULL,
+          graph_sha256 TEXT NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('active','retired','repair_required')),
+          created_at TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_graph_generation_active
+          ON graph_generations(subject_id) WHERE status='active';
+        CREATE TABLE IF NOT EXISTS graph_identity_mutations (
+          mutation_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          action TEXT NOT NULL,
+          preview_sha256 TEXT NOT NULL,
+          before_json TEXT NOT NULL,
+          after_json TEXT NOT NULL,
+          actor TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          rolled_back_at TEXT
+        );
+        """,
+    ),
+    (
+        "0100_storage_backend_metadata",
+        """
+        CREATE TABLE IF NOT EXISTS storage_backend_metadata (
+          backend_id TEXT PRIMARY KEY,
+          role TEXT NOT NULL CHECK (role IN ('canonical', 'derived')),
+          capabilities_json TEXT NOT NULL,
+          configuration_sha256 TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        """,
+    ),
+    (
+        "0120_api_idempotency_receipts",
+        """
+        CREATE TABLE IF NOT EXISTS api_idempotency_receipts (
+          principal_scope_sha256 TEXT NOT NULL,
+          operation TEXT NOT NULL,
+          idempotency_key TEXT NOT NULL,
+          payload_sha256 TEXT NOT NULL,
+          response_json TEXT NOT NULL,
+          status_code INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          expires_at TEXT NOT NULL,
+          PRIMARY KEY (principal_scope_sha256, operation, idempotency_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_api_idempotency_expiry
+          ON api_idempotency_receipts(expires_at);
+        """,
+    ),
+    (
+        "0140_interchange_runs",
+        """
+        CREATE TABLE IF NOT EXISTS interchange_runs (
+          run_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          archive_sha256 TEXT NOT NULL,
+          options_sha256 TEXT NOT NULL,
+          state TEXT NOT NULL,
+          checkpoint INTEGER NOT NULL DEFAULT 0,
+          counts_json TEXT NOT NULL DEFAULT '{}',
+          affected_ids_json TEXT NOT NULL DEFAULT '[]',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(subject_id, archive_sha256, options_sha256)
+        );
+        CREATE TABLE IF NOT EXISTS interchange_items (
+          run_id TEXT NOT NULL,
+          source_id TEXT NOT NULL,
+          source_sha256 TEXT NOT NULL,
+          outcome TEXT NOT NULL,
+          record_ids_json TEXT NOT NULL DEFAULT '[]',
+          committed_at TEXT NOT NULL,
+          PRIMARY KEY(run_id, source_id),
+          FOREIGN KEY(run_id) REFERENCES interchange_runs(run_id)
+        );
+        """,
+    ),
+    (
+        "0150_memory_lifecycle",
+        """
+        CREATE TABLE IF NOT EXISTS memory_lifecycle (
+          subject_id TEXT NOT NULL,
+          record_id TEXT NOT NULL,
+          state TEXT NOT NULL,
+          generation INTEGER NOT NULL DEFAULT 1,
+          learned_at TEXT NOT NULL,
+          valid_from TEXT,
+          valid_to TEXT,
+          replaced_at TEXT,
+          last_used_at TEXT,
+          review_at TEXT,
+          expires_at TEXT,
+          archived_at TEXT,
+          deleted_at TEXT,
+          policy_json TEXT NOT NULL DEFAULT '{}',
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (subject_id, record_id),
+          FOREIGN KEY (record_id) REFERENCES records(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_memory_lifecycle_scan
+          ON memory_lifecycle(subject_id, state, expires_at, review_at);
+        CREATE TABLE IF NOT EXISTS memory_lifecycle_transitions (
+          transition_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          record_id TEXT NOT NULL,
+          from_state TEXT NOT NULL,
+          to_state TEXT NOT NULL,
+          base_generation INTEGER NOT NULL,
+          resulting_generation INTEGER NOT NULL,
+          actor TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          evidence_json TEXT NOT NULL DEFAULT '[]',
+          invalidation_json TEXT NOT NULL DEFAULT '{}',
+          occurred_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_memory_lifecycle_history
+          ON memory_lifecycle_transitions(subject_id, record_id, occurred_at);
+        CREATE TRIGGER IF NOT EXISTS memory_lifecycle_transitions_immutable
+        BEFORE UPDATE ON memory_lifecycle_transitions BEGIN
+          SELECT RAISE(ABORT, 'memory lifecycle transitions are immutable');
+        END;
+        """,
+    ),
+    (
+        "0160_governed_media_references",
+        """
+        CREATE TABLE IF NOT EXISTS governed_media_references (
+          artifact_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          media_kind TEXT NOT NULL,
+          locator_sha256 TEXT NOT NULL,
+          locator_json TEXT NOT NULL,
+          content_sha256 TEXT NOT NULL,
+          custody TEXT NOT NULL,
+          consent TEXT NOT NULL,
+          consent_generation INTEGER NOT NULL,
+          retention_json TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_governed_media_scope
+          ON governed_media_references(subject_id,workspace_id,status,consent);
+        CREATE TABLE IF NOT EXISTS governed_media_observations (
+          observation_id TEXT PRIMARY KEY,
+          artifact_id TEXT NOT NULL,
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          text_sha256 TEXT NOT NULL,
+          text TEXT NOT NULL,
+          evidence_region_json TEXT NOT NULL,
+          processor_json TEXT NOT NULL,
+          prompt_config_sha256 TEXT NOT NULL,
+          confidence REAL,
+          consent_generation INTEGER NOT NULL,
+          egress TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY(artifact_id) REFERENCES governed_media_references(artifact_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_governed_media_observation_scope
+          ON governed_media_observations(subject_id,workspace_id,status,artifact_id);
+        """,
+    ),
+)
+
+# Compatibility alias retained for downstream tests/extensions that imported
+# the pre-Spec-010 private name. The tuple itself is now the global registry.
+_BOOTSTRAP_MIGRATIONS = MIGRATION_REGISTRY
+
+
+def _session_binding_from_row(row: Any) -> dict[str, Any]:
+    value = dict(row)
+    value["evidence"] = _load_json(value.get("evidence"), [])
+    return value
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -2939,6 +4751,156 @@ def _event_hash(event: dict[str, Any]) -> str:
     return sha256_hex(_json(event))
 
 
+def _task_profile_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "version": str(row["version"]),
+        "profile_id": str(row["profile_id"]),
+        "digest": str(row["digest"]),
+        "profile": _load_json(row["profile"], {}),
+        "actor": str(row["actor"]),
+        "registered_at": str(row["registered_at"]),
+    }
+
+
+def _task_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "task_id": str(row["task_id"]),
+        "subject_id": str(row["subject_id"]),
+        "agent_id": str(row["agent_id"]),
+        "workspace_id": str(row["workspace_id"]),
+        "profile_id": str(row["profile_id"]),
+        "profile_version": str(row["profile_version"]),
+        "goal": str(row["goal"]),
+        "lifecycle": str(row["lifecycle"]),
+        "head_revision": int(row["head_revision"]),
+        "policy_generation": int(row["policy_generation"]),
+        "created_at_utc": str(row["created_at_utc"]),
+        "updated_at_utc": str(row["updated_at_utc"]),
+        "last_progress_at_utc": str(row["last_progress_at_utc"]),
+        "paused_at_utc": row["paused_at_utc"],
+        "no_progress_paused_ms": int(row["no_progress_paused_ms"]),
+        "expiry_rule": _load_json(row["expiry_rule"], {}),
+        "clock_source": str(row["clock_source"]),
+        "terminal_reason": row["terminal_reason"],
+        "continues_task_id": row["continues_task_id"],
+        "idempotency_key": str(row["idempotency_key"]),
+    }
+
+
+def _task_revision_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "task_id": str(row["task_id"]),
+        "revision": int(row["revision"]),
+        "parent_revision": row["parent_revision"],
+        "state": _load_json(row["state"], {}),
+        "state_sha256": str(row["state_sha256"]),
+        "semantic_sha256": str(row["semantic_sha256"]),
+        "actor": str(row["actor"]),
+        "actor_role": str(row["actor_role"]),
+        "reason_codes": _load_json(row["reason_codes"], []),
+        "evidence": _load_json(row["evidence"], []),
+        "created_at_utc": str(row["created_at_utc"]),
+        "is_progress": bool(row["is_progress"]),
+    }
+
+
+def _task_provenance_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "provenance_id": str(row["provenance_id"]),
+        "task_id": str(row["task_id"]),
+        "revision": int(row["revision"]),
+        "target_kind": str(row["target_kind"]),
+        "target_id": str(row["target_id"]),
+        "actor": str(row["actor"]),
+        "actor_role": str(row["actor_role"]),
+        "method": str(row["method"]),
+        "assurance": str(row["assurance"]),
+        "interpreter": row["interpreter"],
+        "evidence": _load_json(row["evidence"], []),
+        "observed_at_utc": str(row["observed_at_utc"]),
+        "superseded_revision": row["superseded_revision"],
+    }
+
+
+def _task_proposal_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "proposal_id": str(row["proposal_id"]),
+        "task_id": str(row["task_id"]),
+        "subject_id": str(row["subject_id"]),
+        "agent_id": str(row["agent_id"]),
+        "workspace_id": str(row["workspace_id"]),
+        "idempotency_key": str(row["idempotency_key"]),
+        "payload_sha256": str(row["payload_sha256"]),
+        "base_revision": int(row["base_revision"]),
+        "actor": str(row["actor"]),
+        "actor_role": str(row["actor_role"]),
+        "proposal": _load_json(row["proposal"], {}),
+        "decision": _load_json(row["decision"], {}),
+        "outcome": str(row["outcome"]),
+        "resulting_revision": row["resulting_revision"],
+        "created_at_utc": str(row["created_at_utc"]),
+    }
+
+
+def _task_step_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "step_id": str(row["step_id"]),
+        "task_id": str(row["task_id"]),
+        "step_kind": str(row["step_kind"]),
+        "outcome": str(row["outcome"]),
+        "proposal_id": row["proposal_id"],
+        "base_revision": int(row["base_revision"]),
+        "resulting_revision": row["resulting_revision"],
+        "reason_codes": _load_json(row["reason_codes"], []),
+        "action_fingerprint": row["action_fingerprint"],
+        "actor": str(row["actor"]),
+        "duration_ms": int(row["duration_ms"]),
+        "recorded_at_utc": str(row["recorded_at_utc"]),
+        "sequence": int(row["sequence"]),
+    }
+
+
+def _task_delivery_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "delivery_id": str(row["delivery_id"]),
+        "task_id": str(row["task_id"]),
+        "revision": int(row["revision"]),
+        "subject_id": str(row["subject_id"]),
+        "agent_id": str(row["agent_id"]),
+        "workspace_id": str(row["workspace_id"]),
+        "disposition": str(row["disposition"]),
+        "reason_codes": _load_json(row["reason_codes"], []),
+        "context_sha256": row["context_sha256"],
+        "cache_key": row["cache_key"],
+        "preparation_id": row["preparation_id"],
+        "exposure_id": row["exposure_id"],
+        "exposed": bool(row["exposed"]),
+        "prepared_at_utc": str(row["prepared_at_utc"]),
+        "sequence": int(row["sequence"]),
+    }
+
+
+def _memory_proposal_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "proposal_id": str(row["proposal_id"]),
+        "subject_id": str(row["subject_id"]),
+        "agent_id": str(row["agent_id"]),
+        "workspace_id": str(row["workspace_id"]),
+        "idempotency_key": str(row["idempotency_key"]),
+        "proposal_sha256": str(row["proposal_sha256"]),
+        "action": str(row["action"]),
+        "memory_class": str(row["memory_class"]),
+        "confidence": float(row["confidence"]),
+        "fact_key": row["fact_key"],
+        "review_state": str(row["review_state"]),
+        "reason_codes": _load_json(row["reason_codes"], []),
+        "proposal": _load_json(row["proposal"], {}),
+        "outcome": _load_json(row["outcome"], {}),
+        "created_at": str(row["created_at"]),
+        "decided_at": row["decided_at"],
+    }
+
+
 def _record_from_row(row: sqlite3.Row) -> dict[str, Any]:
     raw = _load_json(row["raw"], {})
     return {
@@ -2962,6 +4924,7 @@ def _record_from_row(row: sqlite3.Row) -> dict[str, Any]:
         "status": row["status"],
         "supersedes_id": row["supersedes_id"],
         "fact_key": row["fact_key"],
+        "generation": int(row["generation"] or 0),
         "raw": raw,
     }
 

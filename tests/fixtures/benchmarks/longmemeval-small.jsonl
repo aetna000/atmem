@@ -1,0 +1,3 @@
+{"question_id":"lme-1","question":"Which city does the user prefer?","answer":"Paris","haystack_sessions":[[{"role":"user","content":"I prefer Paris."}]]}
+{"question_id":"lme-2","question":"Missing answer","haystack_sessions":[]}
+{"question_id":"lme-3","answer":"unknown"}

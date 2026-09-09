@@ -19,6 +19,7 @@ from atmem.core.policy import (
     trust_tier_for_source,
 )
 from atmem.extract import extract_facts
+from atmem.extract.validation import screen_content
 from atmem.extract.rules import CandidateFact
 from atmem.graph import GRAPH_EXTRACTOR_VERSION, GraphIndex
 from atmem.media import MediaObservationEnvelope, normalize_media_sha256
@@ -72,6 +73,7 @@ def _embedder_for_epoch(epoch: dict[str, Any]) -> Any:
         str(identity.get("model") or ""),
         endpoint=endpoint,
         model_version=str(identity.get("version") or "unverified"),
+        dimensions=int(epoch.get("dimensions") or 0) or None,
     )
 
 
@@ -452,6 +454,276 @@ class Memory:
         return admission
 
     @_atomic
+    def submit_extraction_proposal(
+        self,
+        proposal: Any,
+        *,
+        source_text: str,
+        session_id: str | None = None,
+        turn_id: str | int | None = None,
+        actor: str = "atmem-policy",
+        window: int = 8,
+        review_confidence: float = 0.6,
+        review_policy: Any = None,
+    ) -> dict[str, Any]:
+        """Validate one typed proposal and commit it, or route it to review.
+
+        This is the only path a v2 proposal may take into canonical memory. A
+        proposer never writes: it hands over an :class:`ExtractionProposal`,
+        AtMem re-derives the evidence, policy, scope, and lifecycle
+        preconditions inside this transaction, and only then mutates. The
+        generation check is what makes concurrent proposals safe -- a proposal
+        built against a value that has since changed fails closed with
+        ``stale_proposal_generation`` instead of overwriting the newer fact.
+        """
+        from atmem.extract.context import build_resolution_context
+        from atmem.extract.models import ExtractionProposal, ProposalAction
+        from atmem.extract.review import ReviewPolicy
+        from atmem.extract.validation import validate_proposal
+
+        if not isinstance(proposal, ExtractionProposal):
+            raise TypeError("proposal must be ExtractionProposal")
+        scope = proposal.scope
+        subject_id = scope.subject_id
+        turn = _turn_id(turn_id)
+
+        existing = self.store.find_memory_proposal(
+            subject_id, scope.agent_id, scope.workspace_id, proposal.idempotency_key
+        )
+        if existing is not None:
+            if existing["proposal_sha256"] != proposal.digest():
+                raise ValueError(
+                    "proposal idempotency key was reused with a different payload"
+                )
+            return {**_extraction_outcome(existing), "replayed": True}
+
+        context = build_resolution_context(
+            self.store, subject_id, scope=scope, window=window
+        )
+        validation = validate_proposal(
+            proposal,
+            source_text=source_text,
+            context=context,
+            scope=scope,
+            review_confidence=review_confidence,
+        )
+        mutations = {
+            ProposalAction.ADD,
+            ProposalAction.UPDATE,
+            ProposalAction.SUPERSEDE,
+        }
+        policy = review_policy or ReviewPolicy(min_confidence=review_confidence)
+        quarantine = policy.requires_review(proposal)
+        if not validation.valid:
+            state, reason_codes = "rejected", validation.reason_codes
+        elif proposal.action is ProposalAction.REJECT:
+            state, reason_codes = "rejected", proposal.reason_codes
+        elif proposal.action is ProposalAction.NOOP:
+            state, reason_codes = "noop", proposal.reason_codes
+        elif validation.review_required or quarantine:
+            state = "pending_review"
+            reason_codes = proposal.reason_codes + quarantine
+        else:
+            state, reason_codes = "committed", proposal.reason_codes
+
+        record_ids: list[str] = []
+        superseded_ids: list[str] = []
+        lineage_ids: list[str] = []
+        if state == "committed" and proposal.action in mutations:
+            record_ids, superseded_ids, lineage_ids = self._commit_extraction(
+                proposal,
+                context=context,
+                session_id=session_id,
+                turn=turn,
+            )
+
+        outcome = {
+            "state": state,
+            "reason_codes": list(dict.fromkeys(reason_codes)),
+            "record_ids": record_ids,
+            "superseded_record_ids": superseded_ids,
+            "lineage_ids": lineage_ids,
+            "resolution_receipts": context.receipts(),
+        }
+        event_id = self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type=f"memory.proposal_{state}",
+            actor=actor,
+            session_id=session_id,
+            turn_id=turn,
+            record_id=(record_ids or [None])[0],
+            payload={
+                "proposal_id": proposal.proposal_id,
+                "proposal_sha256": proposal.digest(),
+                "action": proposal.action.value,
+                "memory_class": proposal.memory_class.value,
+                "confidence": proposal.confidence,
+                "fact_key": proposal.fact_key,
+                "reason_codes": outcome["reason_codes"],
+                "record_ids": record_ids,
+                "superseded_record_ids": superseded_ids,
+                "lineage_ids": lineage_ids,
+                "workspace_id": scope.workspace_id,
+                "agent_id": scope.agent_id,
+                "evidence": [
+                    {
+                        "source_id": item.source_id,
+                        "source_sha256": item.source_sha256,
+                        "start_offset": item.start_offset,
+                        "end_offset": item.end_offset,
+                        "excerpt_sha256": item.excerpt_sha256,
+                    }
+                    for item in proposal.evidence
+                ],
+                "resolution_receipts": outcome["resolution_receipts"],
+            },
+        )
+        outcome["audit_event_id"] = event_id
+        stored = self.store.insert_memory_proposal(
+            proposal_id=proposal.proposal_id,
+            subject_id=subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            idempotency_key=proposal.idempotency_key,
+            proposal_sha256=proposal.digest(),
+            action=proposal.action.value,
+            memory_class=proposal.memory_class.value,
+            confidence=proposal.confidence,
+            fact_key=proposal.fact_key,
+            review_state=state,
+            reason_codes=outcome["reason_codes"],
+            proposal=proposal.to_dict(),
+            outcome=outcome,
+            decided_at=None if state == "pending_review" else utc_now(),
+        )
+        return {**_extraction_outcome(stored), "replayed": False}
+
+    def _commit_extraction(
+        self,
+        proposal: Any,
+        *,
+        context: Any,
+        session_id: str | None,
+        turn: str | None,
+        fact: str | None = None,
+    ) -> tuple[list[str], list[str], list[str]]:
+        """Write one validated mutation and its immutable lineage.
+
+        Runs inside the caller's transaction. Preconditions were checked
+        against the same read, and ``supersede_records`` only matches rows
+        still active, so a lost race leaves the older fact untouched.
+        """
+        from atmem.extract.models import ProposalAction
+
+        content = fact if fact is not None else str(proposal.fact or "")
+        episode_id = self.store.insert_episode(
+            subject_id=proposal.scope.subject_id,
+            session_id=session_id,
+            turn_id=turn,
+            message=content,
+            source_type="proposal",
+            raw={
+                "format": "atmem-extraction-source-v2",
+                "proposal_id": proposal.proposal_id,
+                "evidence": [
+                    {
+                        "source_id": item.source_id,
+                        "source_sha256": item.source_sha256,
+                        "start_offset": item.start_offset,
+                        "end_offset": item.end_offset,
+                        "excerpt_sha256": item.excerpt_sha256,
+                    }
+                    for item in proposal.evidence
+                ],
+            },
+        )
+        targets = [
+            row
+            for row in context.records
+            if str(row["id"]) in set(proposal.affected_record_ids)
+        ]
+        record_id = self.store.insert_record(
+            subject_id=proposal.scope.subject_id,
+            content=content,
+            source_type="user_message",
+            trust_tier="trusted_user",
+            source_session_id=session_id,
+            source_turn_id=turn,
+            episode_id=episode_id,
+            confidence=float(proposal.confidence),
+            scope="user_private",
+            status="active",
+            supersedes_id=str(targets[0]["id"]) if targets else None,
+            fact_key=proposal.fact_key,
+            raw={
+                "authority_scope": proposal.scope.to_dict(),
+                "proposal_id": proposal.proposal_id,
+                "memory_class": proposal.memory_class.value,
+                "reason_codes": list(proposal.reason_codes),
+            },
+        )
+        relation = (
+            "refines" if proposal.action is ProposalAction.UPDATE else "supersedes"
+        )
+        if "explicit_correction" in proposal.reason_codes:
+            relation = "corrects"
+        superseded_ids = [str(row["id"]) for row in targets]
+        self.store.supersede_records(
+            subject_id=proposal.scope.subject_id,
+            record_ids=superseded_ids,
+            superseded_by_id=record_id,
+        )
+        lineage_ids = [
+            self.store.insert_memory_lineage(
+                subject_id=proposal.scope.subject_id,
+                relation=relation,
+                predecessor_record_id=str(row["id"]),
+                successor_record_id=record_id,
+                predecessor_content_sha256=(
+                    f"sha256:{_sha256(str(row.get('content') or ''))}"
+                ),
+                predecessor_generation=int(row.get("generation") or 0),
+                proposal_id=proposal.proposal_id,
+            )
+            for row in targets
+        ]
+        stored = self.store.get_record(proposal.scope.subject_id, record_id)
+        assert stored is not None
+        graph_mutations = self.graph.supersede_records(
+            proposal.scope.subject_id, superseded_ids, record_id
+        )
+        graph_mutations.extend(self.graph.index_record(stored))
+        self._audit_graph_mutations(
+            proposal.scope.subject_id,
+            graph_mutations,
+            session_id=session_id,
+            turn_id=turn,
+            record_id=record_id,
+        )
+        return [record_id], superseded_ids, lineage_ids
+
+    def list_extraction_proposals(
+        self,
+        subject_id: str | None = None,
+        *,
+        review_states: tuple[str, ...] | None = ("pending_review",),
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Proposals awaiting or past review, in stable submission order."""
+        return [
+            _extraction_outcome(row)
+            for row in self.store.list_memory_proposals(
+                subject_id, review_states=review_states, limit=limit
+            )
+        ]
+
+    def memory_lineage(
+        self, subject_id: str, record_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        """The immutable relationships among original and replacing records."""
+        return self.store.list_memory_lineage(subject_id, record_id)
+
+    @_atomic
     def eligible_candidates(self, request: Any) -> Any:
         """Return only scope-authorized candidates for a declared reranker."""
         from atmem.contracts import (
@@ -483,26 +755,34 @@ class Memory:
                 epoch = index.active_epoch(scope.subject_id)
                 if epoch:
                     embedder = _embedder_for_epoch(epoch)
-                    semantic = index.search(
-                        self,
-                        scope.subject_id,
-                        request.query,
-                        embedder,
-                        statuses=("active",),
-                        limit=request.candidate_limit,
-                        min_similarity=0.0,
-                    )
+                    try:
+                        semantic = index.search(
+                            self,
+                            scope.subject_id,
+                            request.query,
+                            embedder,
+                            statuses=("active",),
+                            limit=request.candidate_limit,
+                            min_similarity=0.0,
+                        )
+                    except ValueError:
+                        # An old/incompatible epoch is a derived-index miss,
+                        # never a reason to break governed lexical retrieval.
+                        semantic = []
                     by_id = {str(row["id"]): row for row in recalled}
                     records = self.store.get_records(
                         scope.subject_id, [str(row["record_id"]) for row in semantic]
                     )
                     for match in semantic:
+                        match["provider"] = str(
+                            (epoch.get("identity") or {}).get("provider") or "unknown"
+                        )
                         record_id = str(match["record_id"])
                         score = float(match["similarity"])
                         if record_id in by_id:
-                            by_id[record_id]["score"] = max(
-                                float(by_id[record_id].get("score") or 0.0), score
-                            )
+                            # Preserve the native candidate prior. Semantic
+                            # similarity has its own normalized signal and is
+                            # never fused with lexical/trust/recency via raw max.
                             by_id[record_id]["semantic"] = match
                         elif record_id in records:
                             row = {**records[record_id], "score": score, "semantic": match}
@@ -550,6 +830,7 @@ class Memory:
                 created_at=str(record.get("created_at") or ""),
                 signals={
                     "lexical": "lexical" in request.signals,
+                    "fact_key": str(record.get("fact_key") or ""),
                     "graph": record.get("graph"),
                     "semantic": "semantic" in request.signals,
                     "semantic_evidence": record.get("semantic"),
@@ -634,7 +915,7 @@ class Memory:
             scope.subject_id, [row["record_id"] for row in ordered_rows]
         )
         excluded = self.store.excluded_record_ids(scope.subject_id)
-        durable: list[EligibleCandidate] = []
+        eligible_rows: list[dict[str, Any]] = []
         for value in ordered_rows:
             record_id = value["record_id"]
             record = records.get(record_id)
@@ -662,22 +943,59 @@ class Memory:
             if supplied_content and supplied_content != canonical_content:
                 raise ValueError("candidate content changed before persistence")
             signals = dict(value.get("signals") or {})
+            signals["fact_key"] = str(record.get("fact_key") or "")
             signals["matched_queries"] = list(value.get("matched_queries") or ())
             signals["expansion_rank"] = int(value.get("expansion_rank") or 0)
-            durable.append(
-                EligibleCandidate(
-                    record_id=record_id,
-                    content=canonical_content,
-                    score=float(value.get("score") or 0.0),
-                    rank=len(durable) + 1,
-                    source_type=str(record.get("source_type") or "unknown"),
-                    trust_tier=str(record.get("trust_tier") or "unknown"),
-                    created_at=str(record.get("created_at") or ""),
-                    signals=signals,
-                )
+            eligible_rows.append(
+                {
+                    "record_id": record_id,
+                    "content": canonical_content,
+                    "score": value.get("score", 0.0),
+                    "source_type": str(record.get("source_type") or "unknown"),
+                    "trust_tier": str(record.get("trust_tier") or "unknown"),
+                    "created_at": str(record.get("created_at") or ""),
+                    "source_session_id": record.get("source_session_id"),
+                    "signals": signals,
+                }
             )
-            if len(durable) >= request.limit:
-                break
+
+        # Supporting evidence is intelligence over an already-authorized set.
+        # Raw session provenance exists only in this in-process input; the
+        # ranker returns an opaque scope-bound group identity and bounded
+        # numeric signals, never the host session identifier.
+        from atmem.retrieve import (
+            SUPPORT_AGGREGATION_VERSION,
+            aggregate_supporting_evidence,
+            aggregation_signal_digest,
+        )
+
+        aggregated = aggregate_supporting_evidence(
+            eligible_rows,
+            subject_id=scope.subject_id,
+            workspace_id=scope.workspace_id,
+            agent_id=scope.agent_id,
+        )
+        durable = [
+            EligibleCandidate(
+                record_id=str(value["record_id"]),
+                content=str(value["content"]),
+                score=float(value["score"]),
+                rank=rank,
+                source_type=str(value["source_type"]),
+                trust_tier=str(value["trust_tier"]),
+                created_at=str(value["created_at"]),
+                signals=dict(value.get("signals") or {}),
+            )
+            for rank, value in enumerate(aggregated[: request.limit], start=1)
+        ]
+        aggregation_digest = aggregation_signal_digest(
+            row.to_dict() for row in durable
+        )
+        grouped_candidates = [
+            row
+            for row in durable
+            if int(row.signals.get("eligible_support_count") or 0) > 0
+        ]
 
         generation = self.store.record_generation(scope.subject_id)
         candidate_set_id = f"cset_{uuid.uuid4().hex}"
@@ -704,6 +1022,15 @@ class Memory:
                         query
                         for row in ordered_rows
                         for query in row.get("matched_queries") or ()
+                    }
+                ),
+                "support_aggregation_version": SUPPORT_AGGREGATION_VERSION,
+                "aggregation_signal_digest": aggregation_digest,
+                "grouped_candidate_count": len(grouped_candidates),
+                "supported_group_count": len(
+                    {
+                        str(row.signals.get("support_group_id") or "")
+                        for row in grouped_candidates
                     }
                 ),
             },
@@ -1008,6 +1335,31 @@ class Memory:
                 },
             )
         else:
+            # Instruction-shaped, secret-bearing, and explicitly excluded
+            # content is refused before extraction so it never becomes a
+            # record to be reviewed later. The instruction screen is scoped to
+            # untrusted sources: a user's own "always do X" is a preference.
+            screening = screen_content(text, trusted=source == "user_message")
+            if not screening.admissible:
+                self.store.append_audit_event(
+                    subject_id=subject_id,
+                    event_type="memory.content_refused",
+                    actor="system",
+                    session_id=session_id,
+                    turn_id=turn,
+                    payload={
+                        "episode_id": episode_id,
+                        "source_type": source,
+                        "reason_codes": list(screening.reason_codes),
+                        "message_sha256": _sha256(text),
+                    },
+                )
+                return {
+                    "episode_id": episode_id,
+                    "records": [],
+                    "duplicate_ids": [],
+                    "refused": list(screening.reason_codes),
+                }
             candidates = extract_facts(text, source_type=source)
         if force and not candidates and source == "user_message":
             candidates = [
@@ -3118,6 +3470,34 @@ class Memory:
 
     def reset_subject(self, subject_id: str) -> None:
         self.store.reset_subject(subject_id)
+
+
+def _extraction_outcome(row: dict[str, Any]) -> dict[str, Any]:
+    """Project one stored proposal into the shared review contract."""
+    outcome = dict(row.get("outcome") or {})
+    return {
+        "format": "atmem-extraction-outcome-v1",
+        "proposal_id": row["proposal_id"],
+        "subject_id": row["subject_id"],
+        "agent_id": row["agent_id"],
+        "workspace_id": row["workspace_id"],
+        "action": row["action"],
+        "memory_class": row["memory_class"],
+        "confidence": row["confidence"],
+        "fact_key": row.get("fact_key"),
+        "review_state": row["review_state"],
+        "reason_codes": list(
+            outcome.get("reason_codes") or row.get("reason_codes") or ()
+        ),
+        "record_ids": list(outcome.get("record_ids") or ()),
+        "superseded_record_ids": list(outcome.get("superseded_record_ids") or ()),
+        "lineage_ids": list(outcome.get("lineage_ids") or ()),
+        "resolution_receipts": list(outcome.get("resolution_receipts") or ()),
+        "audit_event_id": outcome.get("audit_event_id"),
+        "proposal": row.get("proposal") or {},
+        "created_at": row["created_at"],
+        "decided_at": row.get("decided_at"),
+    }
 
 
 def _turn_id(value: str | int | None) -> str | None:

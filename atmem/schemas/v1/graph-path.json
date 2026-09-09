@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/graph-path.json",
+  "title": "AtMem Authorized Graph Path v1",
+  "type": "object",
+  "required": ["format", "entities", "relations", "record_ids", "byte_length", "reason_codes"],
+  "properties": {
+    "format": {"const": "atmem-graph-path-v1"},
+    "entities": {"type": "array", "items": {"type": "string"}},
+    "relations": {"type": "array", "items": {"type": "string"}},
+    "record_ids": {"type": "array", "items": {"type": "string"}},
+    "byte_length": {"type": "integer", "minimum": 0},
+    "reason_codes": {"type": "array", "items": {"type": "string"}}
+  }
+}

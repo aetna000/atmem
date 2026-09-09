@@ -7,6 +7,46 @@ a new section, button, or state to the dashboard, check here first.
 
 ## Who this page serves
 
+**Binding product requirements:** [PR-001–PR-006](../specs/product-requirements.md).
+The shared interface is agent/framework-neutral. Display readable agent and
+workspace identity, private/shared memory space, owner and permitted membership
+actions without assuming an OpenClaw installation. Keep memory permissions,
+execution visibility and credential administration independent.
+
+Every status card explains what happened, its accessible target, evidence,
+known effect or uncertainty, and an allowed next action or absence reason.
+Show absolute timestamps with timezone/offset, elapsed time when known, and
+the last actual check plus its age. Event time, receipt time, expiry and check
+time are different facts. Label stale/missing/skewed time; page refresh cannot
+renew a verification. Apply this to healthy, pending and disabled states as
+well as red/yellow errors. Icons, color and relative time remain supplemental.
+
+### Target product amendment — 2026-09-09
+
+Spec 022 (`specs/022-unified-agent-workspace/`) owns the next dashboard shell:
+**Overview, Executions, Context, Connections, Policies, Tasks, Settings**. This is the target
+design, not a claim that the current application already implements these routes.
+It supersedes the four-workspace restriction for future work, preserves existing
+task authority and requires legacy-route redirects with scoped selection intact.
+
+Spec 025 adds the Connections destination to the earlier six-section target.
+Connection cards show name, authority, owner, scope, authentication health,
+expiry and last observed delivery. Guided setup provides simple decisions first,
+with access, credential and evidence details available progressively. Connected,
+authorized, active and observed/enforced delivery remain separate states.
+
+The main workflow is **Outcome → important events → affected work → next actions
+→ supporting evidence**. Overview prioritizes active work and unresolved
+incidents; Context supports native memory and external providers equally.
+Onboarding offers memory-only, govern-existing-context and investigation-only
+paths. The last path requires no memory import, embeddings or context activation.
+
+Global attention, execution outcome, coverage, remediation and verification are
+distinct labelled dimensions. Acknowledgment never means repaired or verified.
+Show absolute timestamps and elapsed time, classify recovered errors separately,
+and link exact evidence without requiring copied IDs. All states need textual
+labels, keyboard operation and non-color cues. Existing visual tokens remain.
+
 The dashboard is read by four different people, often in the same week:
 
 | Persona | What they came for | What they must never have to do |
@@ -26,10 +66,10 @@ wrong change.
    fine?" from a single element, not by reconciling a header chip, a banner,
    a card, and a badge that could disagree. The status banner is the single
    source of truth for "is everything OK" on the whole page.
-2. **Memory-first, not database-first.** Storage diagrams, hash chains, and
-   record categories are real and important, but they are *evidence*, not
-   *status*. They live in the Evidence view, one click away — never on the
-   page a manager glances at.
+2. **Lead with the user's work.** Show execution outcomes and actionable
+   findings first; retain useful native-memory entry points for memory-only
+   users. Storage diagrams, hash chains and technical IDs belong in expandable
+   evidence beside the context or execution they explain.
 3. **Progressive disclosure.** Show the headline. Let the reader open the
    technical detail. Every card should be understandable from its heading and
    first line alone; the `<details class="technical">` pattern already used
@@ -74,7 +114,7 @@ definition per token, no duplicated theme blocks — keep it that way).
 | `--brand` / `--brand-soft` | Chrome and primary actions | Buttons, active tab, eyebrow pills |
 | `--good` / `--warn` / `--bad` (+ `-soft`) | **Status only** | Verified/healthy, needs review, failed. Never used decoratively |
 | `--signal` / `--signal-soft` (new) | **AtBot / memory intelligence only** | The companion chip, the chat composer focus ring, the memory mark. This is the one color reserved for "this came from AI reasoning, not raw governance state" — keeping it scarce is what makes it memorable |
-| `--danger-action` | Destructive confirmation | Restore/reject buttons only |
+| `--danger-action` | Destructive confirmation | Restore/reject and confirmed task cancellation/deletion only |
 
 Rule: if you're tempted to add a new color, check whether `--signal` or a
 status color already means what you want first. A new hue is a last resort,
@@ -142,7 +182,7 @@ it's a copy problem, not an icon problem — write a clearer headline instead.
 
 ## Layout
 
-### Views, not scroll depth
+### Legacy layout — retained until Spec 022 implementation
 
 The 56px application bar contains **Activity, Decisions, Evidence, Settings**.
 Nothing is duplicated across workspaces: a section lives in exactly one view,
@@ -161,6 +201,48 @@ collapsed Memory intelligence control in place; it is not a second dashboard.
   audit trail — all technical detail lives here, behind a click.
 - **Settings**: open the existing collapsed provider/model configuration and
   scroll it into view. It must never displace Activity as the landing page.
+
+### Governed task state
+
+Historically Governed Task State extended these four workspaces. Spec 022 now
+supersedes that restriction with a dedicated Tasks route and shared execution
+pivots; the remaining legacy layout notes describe the pre-migration UI only.
+Task UI is rendered only when the authoritative runtime capability says it is
+available. When disabled, the existing memory-only dashboard is unchanged and
+contains no empty task panels. Shadow mode is labelled **Observing only** and
+must not imply that task context affects an agent. An unavailable or legacy
+adapter gets one short boundary explanation and at most one safe next action.
+
+Selecting a task establishes one persistent task context. Activity, Decisions,
+and Evidence link directly to one another while preserving the exact task ID.
+Each linked view repeats only a compact header containing goal, lifecycle,
+phase, progress, and **Back to tasks**; job-specific content remains owned by
+one workspace:
+
+| Workspace | Task-state ownership |
+|---|---|
+| **Activity** | Task list, current progress, blockers, and next eligible work |
+| **Decisions** | Pending correction, skip, completion, cancellation, and conflict resolution |
+| **Evidence** | Timeline, provenance, assurance, expiry, and integrity proof |
+| **Settings** | Profile administration and a separated task-deletion danger zone |
+
+The global verdict band remains the only whole-dashboard health verdict. A
+task card may report its own lifecycle or attention state but may not introduce
+a second global banner, health score, or competing call to action.
+
+Every task surface defines these states explicitly: empty, loading, disabled,
+shadow, unavailable, legacy, degraded, permission denied, stale conflict,
+integrity failure, terminal, and content overflow. Each state uses a short fact,
+one supporting line when necessary, and at most one permitted next action.
+Unavailable actions are absent rather than merely styled as active. Denials do
+not reveal whether an unauthorized task ID exists.
+
+Before cancellation, required-item skip, provenance correction, policy
+override, profile registration, or deletion, show a confirmation summary with
+the exact scope, task or profile, expected revision, effect, reason, and source.
+Never auto-retry a stale mutation. Reload the current head, identify what
+changed in plain language, and require the operator to review and submit a new
+request. Restore focus to the invoking control when a dialog closes.
 
 ### Governed-memory dock
 
@@ -210,12 +292,29 @@ State the fact, then the one thing the reader can do about it
 pattern in `updateStatusBanner()` — keep extending it, don't regress to
 paragraphs.
 
+## Accessibility and responsive behavior
+
+- Every tab, link, disclosure, dialog, timeline control, and mutation is fully
+  operable by keyboard with visible focus.
+- Use semantic elements and programmatic labels; icon-only controls require an
+  accessible name. Dialog titles and descriptions are associated with their
+  dialog, and focus is trapped only while a modal is open.
+- Loading, completion, denial, conflict, and integrity updates use a polite live
+  region. Never announce streaming fragments individually.
+- Status meaning is present in text and structure, never color, icon, hover, or
+  animation alone. Existing check/alert shapes remain supporting signals.
+- Respect `prefers-reduced-motion`. At narrow widths, preserve task identity,
+  lifecycle, the primary action, and the return path before secondary metadata.
+- Long goals, item text, reason codes, actor names, and IDs wrap or disclose
+  safely without horizontal page scrolling or clipped controls.
+
 ## Extending this system
 
 Adding a new card? Answer these before writing markup:
 
-1. Which of the three views does this belong to — Status, Decisions, or
-   Evidence? (If you're unsure, it's Evidence.)
+1. Which of the four views does this belong to — Activity, Decisions, Evidence,
+   or Settings? (If you're unsure, operational proof belongs in Evidence and
+   configuration belongs in Settings.)
 2. Does it need progressive disclosure (`<details>`), or is it genuinely
    glanceable?
 3. Which existing icon already means what you need? (Don't add a new one

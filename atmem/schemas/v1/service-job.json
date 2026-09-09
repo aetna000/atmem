@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","required":["job_id","tenant_id","scope","idempotency_key","state"],"properties":{"job_id":{"type":"string"},"tenant_id":{"type":"string"},"scope":{"type":"string"},"idempotency_key":{"type":"string"},"state":{"enum":["queued","running","completed","cancelled","dead"]}},"additionalProperties":true}

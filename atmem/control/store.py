@@ -13,7 +13,7 @@ from atmem.core.storage import HouseholdLock, HouseholdPolicy, connect, row_fact
 from atmem.store.sqlite import utc_now
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 class ControlStore:
@@ -146,6 +146,7 @@ class ControlStore:
             with self._conn:
                 self._ensure_multiagent_schema()
                 self._create_evidence_schema()
+                self._create_delegated_schema()
                 self._conn.execute(
                     "INSERT INTO schema_meta(key, value) VALUES('schema_version', ?)",
                     (str(SCHEMA_VERSION),),
@@ -163,6 +164,7 @@ class ControlStore:
             with self._conn:
                 self._ensure_multiagent_schema()
                 self._create_evidence_schema()
+                self._create_delegated_schema()
                 self._conn.execute(
                     "UPDATE schema_meta SET value = ? WHERE key = 'schema_version'",
                     (str(SCHEMA_VERSION),),
@@ -170,6 +172,7 @@ class ControlStore:
             return
         self._ensure_multiagent_schema()
         self._create_evidence_schema()
+        self._create_delegated_schema()
 
     def _ensure_multiagent_schema(self) -> None:
         candidate_columns = {
@@ -268,6 +271,72 @@ class ControlStore:
             """
             CREATE INDEX IF NOT EXISTS attention_ack_migration_run
             ON attention_acknowledgements(migration_id, run_id, created_at)
+            """
+        )
+
+    def _create_delegated_schema(self) -> None:
+        self._conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS delegated_context_acceptances (
+                id TEXT PRIMARY KEY,
+                migration_id TEXT NOT NULL REFERENCES migrations(migration_id),
+                envelope_sha256 TEXT NOT NULL,
+                provider_id TEXT NOT NULL,
+                provider_version TEXT NOT NULL,
+                provider_instance_id TEXT NOT NULL,
+                key_id TEXT NOT NULL,
+                run_id TEXT NOT NULL,
+                turn_id TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                agent_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                workspace_id TEXT NOT NULL,
+                decision TEXT NOT NULL CHECK(decision IN ('inject','withhold')),
+                receipt_id TEXT NOT NULL,
+                receipt_contract_id TEXT NOT NULL,
+                receipt_sha256 TEXT NOT NULL,
+                context_sha256 TEXT,
+                context_byte_length INTEGER NOT NULL,
+                nonce_sha256 TEXT NOT NULL,
+                idempotency_key TEXT NOT NULL,
+                provider_created_at TEXT NOT NULL,
+                provider_expires_at TEXT NOT NULL,
+                withhold_reason_json TEXT,
+                accepted_at TEXT NOT NULL,
+                UNIQUE(migration_id, run_id, turn_id, session_id, agent_id, user_id, workspace_id),
+                UNIQUE(provider_id, provider_instance_id, nonce_sha256),
+                UNIQUE(provider_id, provider_instance_id, idempotency_key)
+            );
+            CREATE INDEX IF NOT EXISTS delegated_acceptance_migration_time
+            ON delegated_context_acceptances(migration_id, accepted_at);
+            CREATE TABLE IF NOT EXISTS delegated_context_deliveries (
+                id TEXT PRIMARY KEY,
+                migration_id TEXT NOT NULL REFERENCES migrations(migration_id),
+                acceptance_id TEXT NOT NULL REFERENCES delegated_context_acceptances(id),
+                context_sha256 TEXT,
+                context_byte_length INTEGER NOT NULL,
+                requested_at TEXT NOT NULL,
+                shown INTEGER,
+                shown_at TEXT,
+                failure_code TEXT,
+                UNIQUE(acceptance_id)
+            );
+            CREATE INDEX IF NOT EXISTS delegated_delivery_migration_time
+            ON delegated_context_deliveries(migration_id, requested_at);
+            CREATE TABLE IF NOT EXISTS delegated_turn_reservations (
+                id TEXT PRIMARY KEY,
+                migration_id TEXT NOT NULL REFERENCES migrations(migration_id),
+                run_id TEXT NOT NULL,
+                turn_id TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                agent_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                workspace_id TEXT NOT NULL,
+                disposition TEXT NOT NULL CHECK(disposition IN ('accepted','provider_failure','native_fallback')),
+                envelope_sha256 TEXT,
+                created_at TEXT NOT NULL,
+                UNIQUE(migration_id, run_id, turn_id, session_id, agent_id, user_id, workspace_id)
+            );
             """
         )
 
@@ -734,7 +803,206 @@ class ControlStore:
                 """,
                 (utc_now(), migration_id, exposure_id),
             )
-        return cursor.rowcount == 1
+            if cursor.rowcount == 1:
+                return True
+            delegated = self._conn.execute(
+                """
+                UPDATE delegated_context_deliveries SET shown = 1, shown_at = ?
+                WHERE migration_id = ? AND id = ?
+                """,
+                (utc_now(), migration_id, exposure_id),
+            )
+        return delegated.rowcount == 1
+
+    def accept_delegated_context(self, migration_id: str, result: Any) -> dict[str, Any]:
+        """Atomically reserve one verified result without retaining its content."""
+        binding = result.binding
+        nonce_sha256 = sha256_hex(result.nonce)
+        identity = (
+            migration_id,
+            binding.run_id,
+            binding.turn_id,
+            binding.session_id,
+            binding.agent_id,
+            binding.user_id,
+            binding.workspace_id,
+        )
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+            existing = self._conn.execute(
+                """
+                SELECT * FROM delegated_context_acceptances
+                WHERE migration_id = ? AND run_id = ? AND turn_id = ?
+                  AND session_id = ? AND agent_id = ? AND user_id = ?
+                  AND workspace_id = ?
+                """,
+                identity,
+            ).fetchone()
+            reservation = self._conn.execute(
+                """
+                SELECT * FROM delegated_turn_reservations
+                WHERE migration_id = ? AND run_id = ? AND turn_id = ?
+                  AND session_id = ? AND agent_id = ? AND user_id = ?
+                  AND workspace_id = ?
+                """,
+                identity,
+            ).fetchone()
+            if existing is not None:
+                if str(existing["envelope_sha256"]) != result.envelope_sha256:
+                    raise ValueError("another delegated result already reserved this turn")
+                self._conn.commit()
+                return {**dict(existing), "idempotent": True}
+            if reservation is not None:
+                if reservation["disposition"] == "accepted":
+                    raise ValueError("another delegated result already reserved this turn")
+                raise ValueError("delegated turn was already closed")
+            for column, value, label in (
+                ("nonce_sha256", nonce_sha256, "nonce"),
+                ("idempotency_key", result.idempotency_key, "idempotency key"),
+            ):
+                reused = self._conn.execute(
+                    f"""
+                    SELECT envelope_sha256 FROM delegated_context_acceptances
+                    WHERE provider_id = ? AND provider_instance_id = ? AND {column} = ?
+                    """,
+                    (result.provider_id, result.provider_instance_id, value),
+                ).fetchone()
+                if reused is not None:
+                    raise ValueError(f"delegated {label} was already used")
+            acceptance_id = f"dca_{uuid.uuid4().hex}"
+            accepted_at = utc_now()
+            self._conn.execute(
+                """
+                INSERT INTO delegated_context_acceptances(
+                    id, migration_id, envelope_sha256, provider_id, provider_version,
+                    provider_instance_id, key_id, run_id, turn_id, session_id,
+                    agent_id, user_id, workspace_id, decision, receipt_id,
+                    receipt_contract_id, receipt_sha256, context_sha256,
+                    context_byte_length, nonce_sha256, idempotency_key,
+                    provider_created_at, provider_expires_at, withhold_reason_json,
+                    accepted_at
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    acceptance_id, migration_id, result.envelope_sha256,
+                    result.provider_id, result.provider_version,
+                    result.provider_instance_id, result.key_id, binding.run_id,
+                    binding.turn_id, binding.session_id, binding.agent_id,
+                    binding.user_id, binding.workspace_id, result.decision,
+                    result.receipt_id, result.receipt_contract_id,
+                    result.receipt_sha256, result.context_sha256,
+                    result.context_byte_length, nonce_sha256,
+                    result.idempotency_key, result.created_at, result.expires_at,
+                    canonical_json(result.withhold_reason)
+                    if result.withhold_reason is not None else None,
+                    accepted_at,
+                ),
+            )
+            if reservation is None:
+                self._conn.execute(
+                    """
+                    INSERT INTO delegated_turn_reservations(
+                        id, migration_id, run_id, turn_id, session_id, agent_id,
+                        user_id, workspace_id, disposition, envelope_sha256, created_at
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        f"dtr_{uuid.uuid4().hex}", migration_id, binding.run_id,
+                        binding.turn_id, binding.session_id, binding.agent_id,
+                        binding.user_id, binding.workspace_id, "accepted",
+                        result.envelope_sha256, accepted_at,
+                    ),
+                )
+            self._conn.commit()
+        except Exception:
+            self._conn.rollback()
+            raise
+        row = self._conn.execute(
+            "SELECT * FROM delegated_context_acceptances WHERE id = ?",
+            (acceptance_id,),
+        ).fetchone()
+        assert row is not None
+        return {**dict(row), "idempotent": False}
+
+    def reserve_delegated_failure(
+        self,
+        migration_id: str,
+        binding: Any,
+        *,
+        native_fallback: bool,
+    ) -> dict[str, Any]:
+        """Close a delegated turn so a late provider result cannot replace it."""
+        identity = (
+            migration_id, binding.run_id, binding.turn_id, binding.session_id,
+            binding.agent_id, binding.user_id, binding.workspace_id,
+        )
+        disposition = "native_fallback" if native_fallback else "provider_failure"
+        with self._conn:
+            existing = self._conn.execute(
+                """
+                SELECT * FROM delegated_turn_reservations
+                WHERE migration_id = ? AND run_id = ? AND turn_id = ?
+                  AND session_id = ? AND agent_id = ? AND user_id = ?
+                  AND workspace_id = ?
+                """,
+                identity,
+            ).fetchone()
+            if existing is not None:
+                if existing["disposition"] != disposition:
+                    raise ValueError("delegated turn was already closed differently")
+                return {**dict(existing), "idempotent": True}
+            reservation_id = f"dtr_{uuid.uuid4().hex}"
+            self._conn.execute(
+                """
+                INSERT INTO delegated_turn_reservations(
+                    id, migration_id, run_id, turn_id, session_id, agent_id,
+                    user_id, workspace_id, disposition, envelope_sha256, created_at
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                """,
+                (reservation_id, *identity, disposition, None, utc_now()),
+            )
+        row = self._conn.execute(
+            "SELECT * FROM delegated_turn_reservations WHERE id = ?",
+            (reservation_id,),
+        ).fetchone()
+        assert row is not None
+        return {**dict(row), "idempotent": False}
+
+    def request_delegated_delivery(
+        self,
+        migration_id: str,
+        acceptance_id: str,
+        *,
+        context_sha256: str | None,
+        context_byte_length: int,
+    ) -> dict[str, Any]:
+        delivery_id = f"dcd_{uuid.uuid4().hex}"
+        with self._conn:
+            self._conn.execute(
+                """
+                INSERT OR IGNORE INTO delegated_context_deliveries(
+                    id, migration_id, acceptance_id, context_sha256,
+                    context_byte_length, requested_at
+                ) VALUES(?,?,?,?,?,?)
+                """,
+                (
+                    delivery_id, migration_id, acceptance_id, context_sha256,
+                    int(context_byte_length), utc_now(),
+                ),
+            )
+        row = self._conn.execute(
+            "SELECT * FROM delegated_context_deliveries WHERE acceptance_id = ?",
+            (acceptance_id,),
+        ).fetchone()
+        assert row is not None
+        return dict(row)
+
+    def delegated_acceptance(self, acceptance_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM delegated_context_acceptances WHERE id = ?",
+            (acceptance_id,),
+        ).fetchone()
+        return dict(row) if row is not None else None
 
     def list_record_exposures(
         self, migration_id: str, record_id: str

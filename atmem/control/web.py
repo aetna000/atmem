@@ -26,6 +26,9 @@ class ControlDashboardServer(ThreadingHTTPServer):
             raise ValueError("memory control plane dashboard is loopback-only")
         super().__init__(address, ControlDashboardHandler)
         self.manager = manager
+        from atmem.service import AtMemApplication
+
+        self.application = AtMemApplication(manager)
         self.html = html
         self.csrf_token = secrets.token_urlsafe(32)
 
@@ -39,6 +42,9 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             return
         parsed = urlparse(self.path)
         path = _canonical_api_path(parsed.path)
+        if path.startswith("/v1/"):
+            self._v1_get(path, parse_qs(parsed.query))
+            return
         if path == "/":
             body = self.server.html.encode("utf-8")
             self.send_response(HTTPStatus.OK)
@@ -62,6 +68,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, {"csrf_token": self.server.csrf_token})
             return
         if path == "/api/product":
+            from atmem.contracts import capabilities
             from atmem.openclaw_install import (
                 OPENCLAW_PLUGIN_PACKAGE,
                 OPENCLAW_PLUGIN_VERSION,
@@ -78,11 +85,28 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     "atmem_npm_package": OPENCLAW_PLUGIN_PACKAGE,
                     "atmem_npm_version": OPENCLAW_PLUGIN_VERSION,
                     "x_url": "https://x.com/AtMemX",
+                    # The one authoritative capability response. The dashboard
+                    # gates its task surfaces on this rather than assuming.
+                    "capabilities": capabilities(),
                 },
             )
             return
         if path == "/api/status":
             self._json(HTTPStatus.OK, self.server.manager.status())
+            return
+        if path == "/api/semantic/health":
+            subject_id = (parse_qs(parsed.query).get("subject") or [None])[0]
+            self._json(
+                HTTPStatus.OK,
+                self.server.manager.semantic_health(subject_id=subject_id),
+            )
+            return
+        if path == "/api/semantic/profiles":
+            subject_id = (parse_qs(parsed.query).get("subject") or [None])[0]
+            self._json(
+                HTTPStatus.OK,
+                self.server.manager.semantic_profiles(subject_id=subject_id),
+            )
             return
         if path == "/api/companion/status":
             from atmem.control.atbot_service import AtBotServiceManager
@@ -104,6 +128,19 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     },
                 },
             )
+            return
+        if path in {"/api/delegated/status", "/api/delegated/doctor", "/api/delegated/self-test"}:
+            from atmem.delegated import DelegatedContextService
+
+            service = DelegatedContextService()
+            value = (
+                service.status()
+                if path.endswith("/status")
+                else service.doctor()
+                if path.endswith("/doctor")
+                else service.self_test()
+            )
+            self._json(HTTPStatus.OK, value)
             return
         if path == "/api/storage/preview":
             params = parse_qs(parsed.query)
@@ -207,6 +244,64 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     limit=12,
                     agent_id=(params.get("agent_id") or [None])[0],
                     subject_id=(params.get("subject_id") or [None])[0],
+                ),
+            )
+            return
+        if path.startswith("/api/tasks"):
+            params = parse_qs(parsed.query)
+            value = lambda name: (params.get(name) or [None])[0]
+            scope = {
+                "subject_id": value("subject"),
+                "agent_id": value("agent"),
+                "workspace_id": value("workspace"),
+            }
+            manager = self.server.manager
+            if path == "/api/tasks":
+                self._json(
+                    HTTPStatus.OK,
+                    manager.list_tasks(
+                        **scope,
+                        lifecycles=tuple(params.get("lifecycle") or ()) or None,
+                        cursor=value("cursor"),
+                        limit=int(value("limit") or 50),
+                    ),
+                )
+                return
+            if path == "/api/tasks/mode":
+                self._json(HTTPStatus.OK, manager.task_state_mode(**scope))
+                return
+            if path == "/api/tasks/health":
+                self._json(HTTPStatus.OK, manager.task_health(**scope))
+                return
+            if path == "/api/tasks/detail":
+                self._json(
+                    HTTPStatus.OK,
+                    manager.task_detail(str(value("task_id") or ""), **scope),
+                )
+                return
+            if path == "/api/tasks/timeline":
+                self._json(
+                    HTTPStatus.OK,
+                    manager.task_timeline(str(value("task_id") or ""), **scope),
+                )
+                return
+            if path == "/api/tasks/provenance":
+                self._json(
+                    HTTPStatus.OK,
+                    manager.task_provenance(
+                        str(value("task_id") or ""),
+                        target_kind=str(value("target_kind") or "task"),
+                        target_id=str(value("target_id") or ""),
+                        **scope,
+                    ),
+                )
+                return
+        if path == "/api/memory/proposals":
+            params = parse_qs(parsed.query)
+            self._json(
+                HTTPStatus.OK,
+                self.server.manager.extraction_proposals(
+                    (params.get("subject") or [None])[0]
                 ),
             )
             return
@@ -379,6 +474,13 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
     def do_POST(self) -> None:  # noqa: N802
+        path = urlparse(self.path).path
+        if path.startswith("/v1/"):
+            if not self._valid_host():
+                self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid Host header"})
+                return
+            self._v1_post(path)
+            return
         if not self._same_origin() or not secrets.compare_digest(
             self.headers.get("X-CSRF-Token", ""), self.server.csrf_token
         ):
@@ -428,6 +530,25 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 self._json(
                     HTTPStatus.OK,
                     self.server.manager.sync_memory(),
+                )
+                return
+            if path == "/api/semantic/setup":
+                provider = str(body.get("provider") or "").strip()
+                model = str(body.get("model") or "").strip()
+                if not provider or not model:
+                    raise ValueError("provider and model are required")
+                if not secrets.compare_digest(
+                    str(body.get("confirm_model") or ""), model
+                ):
+                    raise ValueError("model confirmation does not match")
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.setup_semantic_profile(
+                        provider=provider,
+                        model=model,
+                        subject_id=str(body.get("subject_id") or "").strip() or None,
+                        allow_download=body.get("allow_download") is True,
+                    ),
                 )
                 return
             if path == "/api/memory/query":
@@ -480,6 +601,142 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 else:
                     raise ValueError("action must be start, stop, restart, or skip")
                 self._json(HTTPStatus.OK, result)
+                return
+            if path == "/api/delegated/action":
+                from atmem.delegated import DelegatedConfigStore
+
+                if set(body) - {"action", "registration_id", "confirm_registration_id"}:
+                    raise ValueError("unsupported delegated action fields")
+                action = str(body.get("action") or "")
+                registration_id = str(body.get("registration_id") or "").strip()
+                if action not in {"enable", "disable", "remove"}:
+                    raise ValueError("action must be enable, disable, or remove")
+                if not registration_id:
+                    raise ValueError("registration_id is required")
+                config = DelegatedConfigStore()
+                if action == "remove":
+                    if not secrets.compare_digest(
+                        str(body.get("confirm_registration_id") or ""), registration_id
+                    ):
+                        raise ValueError("registration confirmation does not match")
+                    current = next(
+                        (row for row in config.registrations() if row.registration_id == registration_id),
+                        None,
+                    )
+                    if current is None:
+                        raise ValueError("delegated provider registration was not found")
+                    if current.enabled:
+                        raise ValueError("disable the delegated provider before removing it")
+                    result = {"removed": config.remove(registration_id)}
+                else:
+                    result = config.set_enabled(registration_id, action == "enable")
+                self._json(
+                    HTTPStatus.OK,
+                    {"result": result, "status": config.status()},
+                )
+                return
+            if path == "/api/delegated/register":
+                from atmem.delegated import DelegatedConfigStore, DelegatedRegistration
+
+                allowed = {
+                    "provider_id", "provider_version", "provider_instance_id",
+                    "key_id", "public_key_base64", "endpoint", "workspace_ids",
+                    "agent_ids", "user_ids", "timeout_ms", "max_context_bytes",
+                    "native_fallback_on_failure", "replace", "request_key_id", "request_secret_file",
+                }
+                if set(body) - allowed:
+                    raise ValueError("unsupported delegated registration fields")
+                def identifiers(name: str) -> tuple[str, ...]:
+                    value = body.get(name)
+                    if not isinstance(value, list):
+                        raise ValueError(f"{name} must be a list")
+                    return tuple(str(item).strip() for item in value)
+                config = DelegatedConfigStore()
+                registered = config.register(
+                    DelegatedRegistration(
+                        provider_id=str(body.get("provider_id") or "").strip(),
+                        provider_version=str(body.get("provider_version") or "").strip(),
+                        provider_instance_id=str(body.get("provider_instance_id") or "").strip(),
+                        key_id=str(body.get("key_id") or "").strip(),
+                        public_key_base64=str(body.get("public_key_base64") or "").strip(),
+                        endpoint=str(body.get("endpoint") or "").strip(),
+                        request_key_id=body.get("request_key_id"),
+                        request_secret_file=body.get("request_secret_file"),
+                        workspace_ids=identifiers("workspace_ids"),
+                        agent_ids=identifiers("agent_ids"),
+                        user_ids=identifiers("user_ids"),
+                        timeout_ms=int(body.get("timeout_ms") or 3000),
+                        max_context_bytes=int(body.get("max_context_bytes") or 262144),
+                        enabled=False,
+                        native_fallback_on_failure=bool(body.get("native_fallback_on_failure", False)),
+                    ),
+                    replace=bool(body.get("replace", False)),
+                )
+                self._json(
+                    HTTPStatus.OK,
+                    {"registered": registered, "status": config.status()},
+                )
+                return
+            if path == "/api/tasks/mode":
+                action = str(body.get("action") or "").strip()
+                requested_scope = {
+                    "subject_id": str(body.get("subject_id") or "").strip(),
+                    "agent_id": str(body.get("agent_id") or "").strip(),
+                    "workspace_id": str(body.get("workspace_id") or "").strip(),
+                }
+                confirmed_scope = body.get("confirm_scope")
+                if not all(requested_scope.values()):
+                    raise ValueError("complete task-state scope is required")
+                if not isinstance(confirmed_scope, dict) or {
+                    key: str(confirmed_scope.get(key) or "").strip()
+                    for key in requested_scope
+                } != requested_scope:
+                    raise ValueError("task-state scope confirmation does not match")
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.set_task_state_mode(
+                        action,
+                        actor=str(body.get("actor") or "dashboard-operator"),
+                        **requested_scope,
+                    ),
+                )
+                return
+            if path == "/api/tasks/lifecycle":
+                task_id = str(body.get("task_id") or "").strip()
+                if not task_id or not secrets.compare_digest(
+                    str(body.get("confirm_task_id") or ""), task_id
+                ):
+                    raise ValueError("task confirmation does not match")
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.change_task_lifecycle(
+                        task_id,
+                        str(body.get("action") or "").strip(),
+                        actor=str(body.get("actor") or "dashboard-operator"),
+                        reason=str(body.get("reason") or ""),
+                        expected_revision=body.get("expected_revision"),
+                        subject_id=body.get("subject_id"),
+                        agent_id=body.get("agent_id"),
+                        workspace_id=body.get("workspace_id"),
+                    ),
+                )
+                return
+            if path == "/api/memory/proposal-decision":
+                proposal_id = str(body.get("proposal_id") or "").strip()
+                if not proposal_id or not secrets.compare_digest(
+                    str(body.get("confirm_proposal_id") or ""), proposal_id
+                ):
+                    raise ValueError("proposal confirmation does not match")
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.decide_extraction_proposal(
+                        proposal_id,
+                        str(body.get("decision") or "").strip(),
+                        actor=str(body.get("actor") or "dashboard-reviewer"),
+                        reason=str(body.get("reason") or ""),
+                        edited_fact=body.get("edited_fact"),
+                    ),
+                )
                 return
             if path == "/api/memory/review":
                 record_id = str(body.get("record_id") or "").strip()
@@ -569,6 +826,94 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
         except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
             self._json(HTTPStatus.CONFLICT, {"error": str(exc)})
+
+    def _v1_principal(self):
+        from atmem.service import APIError, APIPrincipal
+
+        authorization = self.headers.get("Authorization", "")
+        prefix = "Bearer "
+        if not authorization.startswith(prefix) or not secrets.compare_digest(
+            authorization[len(prefix) :], self.server.csrf_token
+        ):
+            raise APIError("unauthenticated", "a valid local bearer credential is required", status=401)
+        role = self.headers.get("X-AtMem-Role", "agent").strip().lower()
+        if role not in {"agent", "admin"}:
+            raise APIError("invalid_principal", "role must be agent or admin", status=400)
+        subject_id = self.headers.get("X-AtMem-Subject", "").strip() or self.server.manager.state().subject_id
+        return APIPrincipal(
+            principal_id=self.headers.get("X-AtMem-Principal", "local-client").strip() or "local-client",
+            role=role,
+            subject_id=subject_id,
+            agent_id=self.headers.get("X-AtMem-Agent", "").strip() or None,
+            workspace_id=self.headers.get("X-AtMem-Workspace", "").strip() or None,
+        )
+
+    def _v1_get(self, path: str, query: dict[str, list[str]]) -> None:
+        from atmem.service import APIError
+
+        try:
+            principal = self._v1_principal()
+            if path == "/v1/health":
+                value = self.server.application.health(principal)
+            elif path == "/v1/capabilities":
+                value = self.server.application.capability_manifest(principal)
+            elif path == "/v1/memories":
+                value = self.server.application.list_memories(
+                    principal,
+                    query=(query.get("query") or [""])[0],
+                    limit=int((query.get("limit") or ["50"])[0]),
+                    cursor=(query.get("cursor") or [None])[0],
+                ).to_dict()
+            elif path == "/v1/reviews":
+                value = self.server.application.reviews(principal)
+            elif path == "/v1/audit":
+                value = self.server.application.audit(
+                    principal,
+                    limit=int((query.get("limit") or ["100"])[0]),
+                    cursor=int((query.get("cursor") or ["0"])[0]) or None,
+                )
+            elif path == "/v1/configuration":
+                value = self.server.application.configuration(principal)
+            elif path.startswith("/v1/features/"):
+                value = self.server.application.feature_status(principal, path.rsplit("/", 1)[-1])
+            elif path == "/v1/lifecycle":
+                value = self.server.application.lifecycle(principal, (query.get("record_id") or [""])[0], evaluated_at=(query.get("evaluated_at") or [None])[0])
+            else:
+                raise APIError("not_found", "resource not found", status=404)
+            self._json(HTTPStatus.OK, value)
+        except APIError as exc:
+            self._json(exc.status, exc.to_dict())
+        except (TypeError, ValueError) as exc:
+            self._json(HTTPStatus.BAD_REQUEST, APIError("invalid_request", str(exc), status=400).to_dict())
+
+    def _v1_post(self, path: str) -> None:
+        from atmem.service import APIError
+
+        try:
+            principal = self._v1_principal()
+            body = self._body()
+            if path == "/v1/memories":
+                value = self.server.application.create_memory(
+                    principal,
+                    str(body.get("message") or ""),
+                    idempotency_key=str(body.get("idempotency_key") or ""),
+                    session_id=body.get("session_id"),
+                )
+            elif path == "/v1/query":
+                value = self.server.application.query(principal, str(body.get("query") or ""))
+            elif path == "/v1/lifecycle":
+                value = self.server.application.transition_lifecycle(principal, body)
+            elif path == "/v1/interchange/plan":
+                value = self.server.application.interchange_plan(principal, body)
+            elif path == "/v1/media/revoke":
+                value = self.server.application.revoke_media(principal, str(body.get("artifact_id") or ""))
+            else:
+                raise APIError("not_found", "resource not found", status=404)
+            self._json(HTTPStatus.OK, value)
+        except APIError as exc:
+            self._json(exc.status, exc.to_dict())
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
+            self._json(HTTPStatus.CONFLICT, APIError("conflict", str(exc), status=409).to_dict())
 
     def log_message(self, format: str, *args: Any) -> None:
         del format, args

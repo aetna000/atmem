@@ -1,6 +1,6 @@
 # AtMem
 
-[![Version 2.2.5](https://img.shields.io/badge/version-2.2.5-blue)](./docs/releases/v2.2.5.md)
+[![Version 2.2.6](https://img.shields.io/badge/version-2.2.6-blue)](./docs/releases/v2.2.6.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
@@ -15,7 +15,7 @@ authorizes, stores, scopes, injects, corrects, and deletes memory.
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --upgrade atmem==2.2.5
+python -m pip install --upgrade atmem==2.2.6
 atmem atbot setup
 atmem atbot doctor
 atmem dashboard
@@ -38,12 +38,16 @@ atmem control verify
 
 AtMem installs the matching npm bridge, discovers OpenClaw agents and
 workspaces, starts in safe shadow mode, restarts the gateway, and verifies the
-connection. Do not install the npm package yourself.
+connection. It also offers to download the default local embedding model and
+build, verify, and activate its vector epoch. For unattended setup, make that
+approval explicit with `atmem openclaw install --allow-model-download`; choose
+another Ollama model with `--embedding-model MODEL`. Do not install the npm
+package yourself.
 
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.2.5
+python -m pip install --upgrade atmem==2.2.6
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -66,7 +70,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.2.5'
+python -m pip install 'atmem[pydantic-ai]==2.2.6'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -82,6 +86,7 @@ identity = AtMemAdapterIdentity(
     agent_id=scope["agent_id"],
     workspace_id=scope["workspace_id"],
     subject_id=scope["subject_id"],
+    user_id="authenticated-application-user",  # required only for delegation
 )
 memory = PydanticAIAtMemAdapter(manager, identity).capability()
 agent = Agent("openai:gpt-5-mini", capabilities=[memory])
@@ -90,7 +95,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.2.5'
+python -m pip install 'atmem[langgraph]==2.2.6'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -106,16 +111,68 @@ identity = AtMemAdapterIdentity(
     agent_id=scope["agent_id"],
     workspace_id=scope["workspace_id"],
     subject_id=scope["subject_id"],
+    user_id="authenticated-application-user",  # required only for delegation
 )
 memory = create_langgraph_middleware(manager, identity)
 agent = create_agent(model="openai:gpt-5-mini", tools=[], middleware=[memory])
 ```
 
 The framework hooks automate authenticated capture, governed retrieval,
-context injection, exposure proof, and turn/tool evidence. They do not replace
+context injection, exposure proof, and turn/tool evidence. When an enabled
+delegated-provider registration matches the complete scope, they instead carry
+the exact HMAC-authenticated provider workflow through the Pydantic AI or
+LangChain/LangGraph model boundary, without also using native AtMem context.
+This delegated host path is packaged in 2.2.6. The adapters do not replace
 your agent's model, tools, conversation history, or LangGraph checkpoints. See
 the [complete framework adapter guide](docs/framework-adapters.md) for async,
 multi-agent, and low-level `StateGraph` integration.
+
+### Spec 007 milestone: govern work in progress
+
+AtMem 2.2.6 includes Governed Task State: a separate, revisioned authority
+plane for what an agent is doing now, what remains, what is blocked, and
+whether completion is allowed. It is **disabled by default** and never turns
+temporary task progress into long-term personal memory.
+
+Start one exact scope and inspect it from either the CLI or the dashboard:
+
+```bash
+atmem task enable ~/.atmem/memories.db \
+  --subject user-1 --agent agent-1 --workspace workspace-1
+atmem task start ~/.atmem/memories.db --task-id release-007 \
+  --goal "Ship the governed task-state milestone" --actor you@example.com \
+  --required-item verify="Run release verification" \
+  --subject user-1 --agent agent-1 --workspace workspace-1
+atmem task show ~/.atmem/memories.db release-007 \
+  --subject user-1 --agent agent-1 --workspace workspace-1
+atmem dashboard
+```
+
+The dashboard's **Governed tasks** card shows progress, blockers, recent task
+decisions, context delivery, the current revision, and guarded lifecycle
+actions. Model delivery requires an exact task identity. Pydantic AI may supply
+`atmem_task_id` in run dependencies; LangGraph may supply it through
+`configurable`; construction-time `identity.for_task("release-007")` remains a
+backward-compatible fallback. OpenClaw resolves the owner-authorized current
+conversation binding. AtMem never guesses from prompt text or chooses among
+open tasks. AtBot may propose a change, but AtMem revalidates and commits it.
+
+See the [Governed Task State guide](docs/governed-task-state.md) for lifecycle,
+correction, provenance, expiry, benchmark, and automation examples, and read
+the [2.2.6 release notes](docs/releases/v2.2.6.md) before upgrading.
+
+### Prove memory quality locally
+
+```bash
+atmem benchmark run --output benchmark.json
+```
+
+This offline release gate runs 16 isolated extraction, contradiction, recall,
+withholding, injection, privacy, poisoning and fallback cases. Safety must be
+perfect; other quality metrics cannot fall below checked-in baselines. Optional
+local/hosted profiles, LongMemEval import and fair Mem0 OSS comparison are also
+available without adding Mem0 or model SDKs to the base install. See the
+[memory benchmark guide](docs/benchmarks.md) for commands and honest limits.
 
 ### 3. Review, then activate
 
@@ -134,9 +191,56 @@ If AtBot or its selected model is unavailable, AtMem continues with safe local
 capture and hybrid ranking. Memory authority and agent operation do not depend
 on a hosted model.
 
-> **Release status:** this repository describes **AtMem 2.2.5**. AtBot is a
+> **Release status:** this repository describes the **AtMem 2.2.6 release candidate**, not verified publication. AtBot is a
 > separately packaged, headless component installed and managed by AtMem; it is
 > not an independent agent or a second memory authority.
+
+### Optional: delegate context authority
+
+Beta 10 requires per-instance HMAC request credentials for delegated context and
+health. See the
+[shared profile and beta migration](docs/contracts/delegated-request-auth-v1.md)
+before enabling an older delegated registration.
+
+AtMem uses its own governed retrieval by default. The 2.2.6 beta adds an
+explicit, provider-neutral delegated mode for deployments where another
+compatible provider must make the context decision while AtMem owns
+host integration and flight evidence.
+
+```bash
+atmem delegated register --help
+atmem delegated status
+atmem delegated enable context-provider:local
+atmem delegated doctor
+```
+
+Registration is disabled by default and is bound to exact user, agent, and
+workspace scopes. On matching turns, AtMem verifies the signed result, injects
+the provider's exact bytes once, and separately proves delivery. It does not
+run native retrieval after an accepted delegated decision. Provider failure
+withholds context unless the operator explicitly registered native fallback.
+See the [delegated context-provider guide](docs/delegated-context-provider.md).
+
+AtMem also ships provider-side adapters, each as an independent optional extra:
+
+```bash
+# Mem0 chooses context; AtMem verifies and records delivery
+python -m pip install 'atmem[mem0]'
+atmem provider init mem0-local --kind mem0 --mode oss --port 8788
+
+# Or use an application-owned LangGraph / Pydantic AI factory
+python -m pip install 'atmem[langgraph-provider]'
+atmem provider init graph-context --kind langgraph \
+  --factory myapp.memory_graph:build_graph --port 8789
+
+python -m pip install 'atmem[pydantic-provider]'
+atmem provider init ai-context --kind pydantic-ai \
+  --factory myapp.memory_agent:build_agent --port 8790
+```
+
+`atmem provider init` creates private signing material and prints the exact
+registration command; it does not enable delegated authority. See the
+[context-provider adapter quick starts](docs/context-provider-adapters.md).
 
 It gives agent runtimes one governed memory source and one tamper-evident record
 of what the host observed: memory considered and injected, model boundaries,
@@ -153,15 +257,17 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install atmem==2.2.5
+python -m pip install atmem==2.2.6
 atmem --version
 ```
 
 AtMem requires Python 3.10 or newer. It always creates a dependency-free local
-vector sidecar; the semantic extra adds an optional local embedding upgrade:
+vector sidecar. `atmem openclaw install` can automatically prepare an Ollama
+embedding model, while the semantic extra adds local sentence-transformer
+choices:
 
 ```bash
-python -m pip install 'atmem[semantic]==2.2.5'
+python -m pip install 'atmem[semantic]==2.2.6'
 ```
 
 For repository development, install both workspace packages:
@@ -341,7 +447,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --upgrade atmem==2.2.5
+python -m pip install --upgrade atmem==2.2.6
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -401,6 +507,7 @@ atmem mcp --db ~/.atmem/memories.db --subject user-1
 ```
 
 MCP tools: `memory_remember`, `memory_observe`, `memory_recall`,
+`memory_recall_decision`,
 `memory_get_record`, `memory_get_source`, `memory_recall_block`,
 `memory_persona`, `memory_context_pack`, `memory_capture`, `memory_list`,
 `memory_forget`, `memory_forget_artifact`, `memory_promote`, `memory_audit`,
@@ -438,6 +545,7 @@ system-of-record verification.
 
 - [Current implementation status](docs/current-status.md)
 - [Generic runtime adapter](docs/generic-adapter.md)
+- [Delegated context-provider contract](docs/contracts/delegated-context-provider-v1.md)
 - [Agent Black Box](docs/agent-blackbox.md)
 - [Integration guide](docs/integration-guide.md)
 - [OpenClaw setup](docs/openclaw-setup.md)
@@ -446,8 +554,13 @@ system-of-record verification.
 - [Audit log specification](docs/audit-log-spec.md)
 - [Audit investigation](docs/audit-search.md)
 - [Storage, backup, and recovery](docs/data-storage-and-backup.md)
+- [Spec-driven development](docs/spec-kit.md)
 
 ## Development verification
+
+Material features use the repository's GitHub Spec Kit Lean workflow. See
+[Spec-driven development](docs/spec-kit.md) for feature directories, Codex
+skills, and the constitution-backed delivery sequence.
 
 AtMem and its separately packaged AtBot companion share this repository. They
 remain separate processes and communicate only through the loopback companion
@@ -487,9 +600,9 @@ npm test
 npm run smoke
 ```
 
-Current repository metadata is version **2.2.5**. Python and npm release
-versions are intentionally kept equal because the OpenClaw installer pins the
-matching bridge.
+Current repository metadata is version **2.2.6**, with the matched OpenClaw
+bridge **2.2.6**. Release validation requires exact Python/bridge alignment;
+AtBot retains its independent compatible version **0.1.0a6**.
 
 ## License
 

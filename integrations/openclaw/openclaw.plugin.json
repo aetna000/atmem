@@ -2,7 +2,7 @@
   "id": "memory-atmem",
   "name": "Memory (atmem)",
   "description": "OpenClaw bridge installed and managed by the AtMem memory control plane.",
-  "version": "2.2.5",
+  "version": "2.2.6",
   "commandAliases": ["memory-atmem"],
   "activation": {
     "onStartup": true,
@@ -16,7 +16,9 @@
       "atmem_search",
       "atmem_forget",
       "atmem_observe",
-      "atmem_forget_artifact"
+      "atmem_forget_artifact",
+      "task_report_progress",
+      "task_binding_status"
     ]
   },
   "configSchema": {
@@ -133,6 +135,36 @@
             "type": "boolean",
             "default": false,
             "description": "Record content-minimizing agent flights through the private control protocol. Managed automatically by the AtMem installer."
+          }
+        }
+      },
+      "delegatedContext": {
+        "type": "object",
+        "description": "Identity mapping used only when AtMem has an explicitly enabled delegated context-provider registration. This does not enable delegation.",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "default": "",
+            "description": "Opaque authenticated user ID registered with AtMem. Leave empty unless delegated authority is configured."
+          },
+          "requireOwner": {
+            "type": "boolean",
+            "default": true,
+            "description": "Require authenticated owner metadata (default). False requires the explicit isolated localOperator mapping; it is not an ownership bypass."
+          },
+          "localOperator": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["isolated", "agentId", "workspaceDir", "sessionKey", "sessionId"],
+            "description": "Only for a dedicated local CLI process with channels disabled by the operator. Requires host messageProvider=cli, workspace and exact session generation; channel-originated turns are refused.",
+            "properties": {
+              "isolated": { "type": "boolean", "const": true, "description": "Operator assertion that this process is isolated from shared channels and other users." },
+              "stateDir": { "type": "string", "minLength": 1, "description": "Optional dedicated owner-only OPENCLAW_STATE_DIR. Required when a direct agent --local process omits CLI origin metadata; channels and delivery flags must be absent." },
+              "agentId": { "type": "string", "minLength": 1 },
+              "workspaceDir": { "type": "string", "minLength": 1 },
+              "sessionKey": { "type": "string", "minLength": 1 },
+              "sessionId": { "type": "string", "minLength": 1 }
+            }
           }
         }
       }

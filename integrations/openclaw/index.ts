@@ -24,12 +24,15 @@ import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { lstat, mkdir, readFile, realpath, rename, unlink, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { ToolObservations, observationContext } from "./src/tool-observations.js";
+import { delegatedIdentity, isolatedCliProcess, type DelegatedIdentityConfig } from "./src/delegated-identity.js";
 import { AtmemClient } from "./src/rpc-client.js";
 import type {
   OpenClawPluginApi,
   BeforePromptBuildEvent,
   BeforeMessageWriteEvent,
   AgentEndEvent,
+  AtmemSessionIdentity,
   BeforeToolCallEvent,
   BeforeModelResolveEvent,
   AfterToolCallEvent,
@@ -40,6 +43,16 @@ import type {
   OpenClawPluginToolContext,
 } from "./src/types.js";
 import { runSetup } from "./src/setup.js";
+import {
+  NOT_OWNER_MESSAGE,
+  NO_IDENTITY_MESSAGE,
+  describeDecision,
+  isConversationOwner,
+  ok,
+  resolveBoundTaskForTool,
+  refusal,
+  sessionIdentityForTool,
+} from "./src/task-tools.js";
 
 const TAG = "[memory-atmem]";
 const TAKEOVER_GUIDANCE =
@@ -57,6 +70,7 @@ const TAKEOVER_GUIDANCE =
 const INJECT_RE =
   /<(relevant_memories|user_persona|working_memory|episodic_memory|procedural_memory|atmem_control_plane|atmem_memory_provider)>[\s\S]*?<\/(relevant_memories|user_persona|working_memory|episodic_memory|procedural_memory|atmem_control_plane|atmem_memory_provider)>\s*/g;
 const PROMPT_CACHE_TTL_MS = 10 * 60 * 1000;
+const MAX_PENDING_PROMPTS = 256;
 
 interface PluginConfig {
   command: string;
@@ -85,6 +99,7 @@ interface PluginConfig {
     statePath: string;
     blackboxEnabled: boolean;
   };
+  delegatedContext: DelegatedIdentityConfig;
 }
 
 function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
@@ -114,6 +129,18 @@ function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
     ),
     blackboxEnabled:
       cfg.controlPlane?.enabled === true || cfg.controlPlane?.blackboxEnabled === true,
+  };
+  const delegatedContext = {
+    userId: String(cfg.delegatedContext?.userId ?? "").trim(),
+    requireOwner: cfg.delegatedContext?.requireOwner !== false,
+    localOperator: cfg.delegatedContext?.localOperator ? {
+      isolated: cfg.delegatedContext.localOperator.isolated === true,
+      stateDir: expandHome(String(cfg.delegatedContext.localOperator.stateDir ?? "")),
+      agentId: String(cfg.delegatedContext.localOperator.agentId ?? "").trim(),
+      workspaceDir: expandHome(String(cfg.delegatedContext.localOperator.workspaceDir ?? "")),
+      sessionKey: String(cfg.delegatedContext.localOperator.sessionKey ?? "").trim(),
+      sessionId: String(cfg.delegatedContext.localOperator.sessionId ?? "").trim(),
+    } : undefined,
   };
   return {
     command: String(cfg.command ?? "atmem"),
@@ -152,6 +179,7 @@ function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
     },
     tools: { enabled: cfg.tools?.enabled !== false },
     controlPlane,
+    delegatedContext,
   };
 }
 
@@ -417,21 +445,28 @@ function register(api: OpenClawPluginApi): void {
 
   // Per-turn recall state. Semantic admission uses a short-lived SQLite handoff
   // because OpenClaw may run prompt hooks and agent tools in separate runtimes.
-  const pendingPrompts = new Map<
-    string,
-    {
-      text: string;
-      ts: number;
-      manifestSha256?: string;
-      exposureId?: string;
-      injectedRecordIds?: string[];
-      retrievalId?: string;
-      contextEventId?: string;
-      contextReceiptId?: string;
-      assistantVisibleTextSha256?: string;
-      modelOutputBundleSha256?: string;
-    }
-  >();
+  type PendingPrompt = {
+    text: string;
+    ts: number;
+    manifestSha256?: string;
+    exposureId?: string;
+    injectedRecordIds?: string[];
+    retrievalId?: string;
+    contextEventId?: string;
+    contextReceiptId?: string;
+    assistantVisibleTextSha256?: string;
+    modelOutputBundleSha256?: string;
+    delegatedContext?: string;
+    delegatedContextSha256?: string;
+    delegatedAuthority?: string;
+    delegatedResultSha256?: string;
+    taskDeliveryId?: string;
+    taskContextSha256?: string;
+    /** The task AtMem actually resolved, which may come from a binding. */
+    taskId?: string;
+  };
+  const pendingPrompts = new Map<string, PendingPrompt>();
+  const pendingPromptTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const observedTurnInputs = new Map<
     string,
     { promptSha256: string; observedAt: number; pending: Promise<void> }
@@ -457,8 +492,50 @@ function register(api: OpenClawPluginApi): void {
     }
     return cfg.subject;
   };
+  /**
+   * The identity AtMem resolves a governed task through.
+   *
+   * `sessionId` is the generation: OpenClaw changes it when a conversation is
+   * reset, which is what stops a recycled `sessionKey` from inheriting an
+   * earlier task binding. Both fields are optional upstream, so returning
+   * `undefined` is an ordinary outcome and callers must withhold rather than
+   * send a partial identity.
+   */
+  const sessionIdentityFor = (
+    ctx: OpenClawHookCtx,
+  ): AtmemSessionIdentity | undefined => {
+    const sessionKey = ctx.sessionKey ?? ctx.sessionId;
+    const sessionEpoch = ctx.sessionId;
+    if (!sessionKey || !sessionEpoch) return undefined;
+    return {
+      host_type: "openclaw",
+      session_key: sessionKey,
+      session_epoch: sessionEpoch,
+    };
+  };
+
+  const workspaceIdFor = (ctx: OpenClawHookCtx): string | undefined => {
+    const workspace = cfg.agentWorkspaces[agentIdFor(ctx)];
+    return workspace ? `ws_${digestText(workspace).slice(0, 16)}` : undefined;
+  };
+  const verifiedIsolatedProcess = isolatedCliProcess(cfg.delegatedContext, api.config);
+  const delegatedUserIdFor = (ctx: OpenClawHookCtx): string | undefined => {
+    const identity = delegatedIdentity(
+      cfg.delegatedContext, ctx, cfg.agentWorkspaces[agentIdFor(ctx)], verifiedIsolatedProcess,
+    );
+    if (!identity.userId && cfg.delegatedContext.userId) {
+      api.logger.warn(`${TAG} delegated identity withheld: ${identity.reason}. ` +
+        "Use authenticated owner metadata or an explicitly isolated, scope-bound CLI mapping; " +
+        "provider HMAC authentication does not establish sender identity.");
+    }
+    return identity.userId;
+  };
   const scopedKey = (value: string, ctx: OpenClawHookCtx): string =>
     `${agentIdFor(ctx)}:${value}`;
+  // Lifecycle hooks must resolve one key. An llm_input-only event.sessionId
+  // must not redirect confirmation away from before_prompt_build's entry.
+  const sessionKeyFor = (ctx: OpenClawHookCtx): string =>
+    scopedKey(ctx.sessionKey ?? ctx.sessionId ?? ctx.runId ?? "default-session", ctx);
   const contextIds = (ctx: OpenClawHookCtx): string[] =>
     [...new Set([ctx.runId, ctx.sessionKey, ctx.sessionId].filter(
       (value): value is string => Boolean(value),
@@ -527,6 +604,7 @@ function register(api: OpenClawPluginApi): void {
           event_type: eventType,
           run_id: flightRunId(eventRunId, ctx),
           agent_id: agentIdFor(ctx),
+          workspace_id: workspaceIdFor(ctx),
           subject_id: Object.keys(cfg.agentSubjects).length ? subjectFor(ctx) : undefined,
           session_id: ctx.sessionId ?? ctx.sessionKey,
           tool_call_id: toolCallId,
@@ -739,6 +817,59 @@ function register(api: OpenClawPluginApi): void {
   });
 
   api.on("llm_input", async (event: LlmInputEvent, ctx) => {
+    const sessionKey = sessionKeyFor(ctx);
+    const pending = pendingPrompts.get(sessionKey);
+    if (
+      !pending &&
+      cfg.controlPlane.enabled &&
+      Boolean(cfg.delegatedContext.userId) &&
+      event.prompt.trim().length > 0
+    ) {
+      api.logger.warn(
+        `${TAG} no pending prompt state for llm_input; exact delegated delivery confirmation is unavailable`,
+      );
+    }
+    if (pending?.delegatedContext !== undefined) {
+      const exact = pending.delegatedContext;
+      const promptOccurrences = exact ? event.prompt.split(exact).length - 1 : 0;
+      const systemOccurrences = exact
+        ? (event.systemPrompt ?? "").split(exact).length - 1
+        : 0;
+      const occurrences = promptOccurrences + systemOccurrences;
+      const deliveredLocation = promptOccurrences === 1
+        ? "prompt"
+        : systemOccurrences === 1
+          ? "systemPrompt"
+          : "none";
+      const delivered = occurrences === 1 && digestText(exact) === pending.delegatedContextSha256;
+      await recordBlackbox(
+        "context.injected",
+        event.runId,
+        ctx,
+        {
+          disposition: delivered ? "injected" : "recall_failed",
+          provider: pending.delegatedAuthority,
+          result_sha256: pending.delegatedResultSha256,
+          context_sha256: pending.delegatedContextSha256,
+          context_chars: exact.length,
+          context_byte_length: Buffer.byteLength(exact, "utf8"),
+          context_location: deliveredLocation,
+          success: delivered,
+          reason: delivered ? undefined : `expected one exact delegated segment; observed ${occurrences}`,
+        },
+        undefined,
+        { contextReceiptId: pending.contextReceiptId },
+      );
+      if (delivered && pending.exposureId) {
+        await callFor(
+          ctx,
+          "control_exposure_shown",
+          { exposure_id: pending.exposureId },
+          cfg.recall.timeoutMs,
+        );
+      }
+      cachePendingPrompt(sessionKey, { ...pending, delegatedContext: undefined });
+    }
     await recordBlackbox("model.input", event.runId, ctx, {
       provider: event.provider,
       model: event.model,
@@ -758,13 +889,10 @@ function register(api: OpenClawPluginApi): void {
     const visibleText = responses.map(String).join("");
     const assistantVisibleTextSha256 = digestText(visibleText);
     const modelOutputBundleSha256 = digestJson(responses);
-    const sessionKey = scopedKey(
-      ctx.sessionKey ?? ctx.sessionId ?? event.sessionId ?? "default-session",
-      ctx,
-    );
+    const sessionKey = sessionKeyFor(ctx);
     const pending = pendingPrompts.get(sessionKey);
     if (pending) {
-      pendingPrompts.set(sessionKey, {
+      cachePendingPrompt(sessionKey, {
         ...pending,
         assistantVisibleTextSha256,
         modelOutputBundleSha256,
@@ -853,7 +981,7 @@ function register(api: OpenClawPluginApi): void {
   const sweep = () => {
     const now = Date.now();
     for (const [key, value] of pendingPrompts) {
-      if (now - value.ts > PROMPT_CACHE_TTL_MS) pendingPrompts.delete(key);
+      if (now - value.ts > PROMPT_CACHE_TTL_MS) deletePendingPrompt(key);
     }
     for (const [key, value] of observedTurnInputs) {
       if (now - value.observedAt > PROMPT_CACHE_TTL_MS) observedTurnInputs.delete(key);
@@ -862,6 +990,29 @@ function register(api: OpenClawPluginApi): void {
       if (now - value.ts > PROMPT_CACHE_TTL_MS) inboundAttachments.delete(key);
     }
   };
+
+  function deletePendingPrompt(key: string): void {
+    const timer = pendingPromptTimers.get(key);
+    if (timer) clearTimeout(timer);
+    pendingPromptTimers.delete(key);
+    pendingPrompts.delete(key);
+  }
+
+  function cachePendingPrompt(key: string, value: PendingPrompt): void {
+    deletePendingPrompt(key);
+    pendingPrompts.set(key, value);
+    const timer = setTimeout(() => {
+      const current = pendingPrompts.get(key);
+      if (current?.ts === value.ts) deletePendingPrompt(key);
+    }, PROMPT_CACHE_TTL_MS);
+    timer.unref?.();
+    pendingPromptTimers.set(key, timer);
+    while (pendingPrompts.size > MAX_PENDING_PROMPTS) {
+      const oldest = pendingPrompts.keys().next().value as string | undefined;
+      if (oldest === undefined) break;
+      deletePendingPrompt(oldest);
+    }
+  }
 
   async function personaBlock(sessionKey: string, ctx: OpenClawHookCtx): Promise<{
     block: string;
@@ -902,17 +1053,25 @@ function register(api: OpenClawPluginApi): void {
     const userText = event.prompt;
     if (!userText) return;
     await observeTurnInput(userText, ctx, "before_prompt_build");
-    const sessionKey = scopedKey(ctx.sessionKey ?? ctx.sessionId ?? "default-session", ctx);
+    const sessionKey = sessionKeyFor(ctx);
     const takeoverGuidance = cfg.takeoverActive ? TAKEOVER_GUIDANCE : "";
-    pendingPrompts.set(sessionKey, { text: userText, ts: Date.now() });
     sweep();
+    cachePendingPrompt(sessionKey, { text: userText, ts: Date.now() });
 
     if (cfg.controlPlane.enabled) {
       try {
         const prepared = (await callFor(
           ctx,
           "control_prepare",
-          { query: userText, session_id: sessionKey, agent_id: agentIdFor(ctx) },
+          {
+            query: userText,
+            session_id: sessionKey,
+            host_run_id: ctx.runId,
+            turn_id: ctx.runId,
+            agent_id: agentIdFor(ctx),
+            user_id: delegatedUserIdFor(ctx),
+            workspace_id: workspaceIdFor(ctx),
+          },
           cfg.recall.timeoutMs,
         )) as {
           inject?: boolean;
@@ -924,47 +1083,191 @@ function register(api: OpenClawPluginApi): void {
           manifest_sha256?: string;
           turn_id?: string;
           context_receipt_id?: string;
+          context_sha256?: string;
+          authority?: string;
+          decision?: string;
+          result_sha256?: string;
+          native_fallback?: boolean;
+          receipt?: { id?: string; sha256?: string };
+          provider?: { id?: string; version?: string; instance_id?: string };
+          retrieval?: {
+            eligible_candidate_count?: number;
+            ranked_candidate_ids?: string[];
+            decision?: {
+              support_class?: string;
+              reason_codes?: string[];
+              ranked_record_ids?: string[];
+              calibration_version?: string;
+            };
+          };
         };
-        pendingPrompts.set(sessionKey, {
+        // Task identity resolves through the manager, not from ctx.taskId
+        // alone: OpenClaw supplies no task identity of its own, so without a
+        // registered binding this branch could never run. Presenting the
+        // session identity on every lookup keeps binding and resolution from
+        // disagreeing about which conversation they mean.
+        const taskIdentity = sessionIdentityFor(ctx);
+        const taskPrepared = (ctx.taskId || taskIdentity)
+          ? (await callFor(
+              ctx,
+              "control_prepare_task_context",
+              {
+                ...(ctx.taskId ? { task_id: ctx.taskId } : {}),
+                ...(taskIdentity ?? {}),
+                session_id: sessionKey,
+                host_run_id: ctx.runId,
+                agent_id: agentIdFor(ctx),
+                workspace_id: workspaceIdFor(ctx),
+              },
+              cfg.recall.timeoutMs,
+            )) as {
+              disposition?: string;
+              context?: string;
+              context_sha256?: string;
+              delivery_id?: string;
+              /** Which task AtMem resolved; a binding may name one the host did not. */
+              task_id?: string;
+              revision?: number;
+              reason_codes?: string[];
+            }
+          : undefined;
+        if (
+          taskPrepared?.disposition === "injected" &&
+          (!taskPrepared.context || !taskPrepared.context_sha256 ||
+            `sha256:${digestText(taskPrepared.context)}` !== taskPrepared.context_sha256)
+        ) {
+          throw new Error("governed task context failed exact handoff digest validation");
+        }
+        if (
+          prepared.authority === "delegated" &&
+          prepared.inject &&
+          (
+            !prepared.context ||
+            !prepared.context_sha256 ||
+            digestText(prepared.context) !== prepared.context_sha256
+          )
+        ) {
+          throw new Error("delegated context failed exact handoff digest validation");
+        }
+        cachePendingPrompt(sessionKey, {
           text: userText,
           ts: Date.now(),
           exposureId: prepared.exposure_id,
           contextReceiptId: prepared.context_receipt_id,
+          delegatedContext:
+            prepared.authority === "delegated" && prepared.inject
+              ? prepared.context ?? ""
+              : undefined,
+          delegatedContextSha256:
+            prepared.authority === "delegated" ? prepared.context_sha256 : undefined,
+          delegatedAuthority: prepared.authority,
+          delegatedResultSha256: prepared.result_sha256,
+          taskDeliveryId: taskPrepared?.delivery_id,
+          taskContextSha256: taskPrepared?.context_sha256,
+          taskId: taskPrepared?.task_id ?? ctx.taskId,
         });
+        if (taskPrepared) {
+          await recordBlackbox("task.context.prepared", undefined, ctx, {
+            task_id: taskPrepared.task_id ?? ctx.taskId,
+            task_disposition: taskPrepared?.disposition ?? "withheld",
+            task_revision: taskPrepared?.revision,
+            ...(taskPrepared?.context_sha256
+              ? { task_context_sha256: taskPrepared.context_sha256.replace(/^sha256:/, "") }
+              : {}),
+            task_reason_codes: taskPrepared?.reason_codes ?? [],
+          });
+        }
+        if (prepared.authority === "delegated" || prepared.authority === "atmem_fallback") {
+          await recordBlackbox(
+            "context.provider_authorization",
+            undefined,
+            ctx,
+            {
+              disposition: prepared.decision ?? "provider_failure",
+              provider: prepared.provider?.id,
+              mode: prepared.authority,
+              result_sha256: prepared.result_sha256,
+              context_sha256: prepared.context_sha256,
+              context_byte_length: Buffer.byteLength(prepared.context ?? "", "utf8"),
+              context_receipt_sha256: prepared.receipt?.sha256,
+              context_chars: (prepared.context ?? "").length,
+              success: prepared.decision === "inject" || prepared.decision === "withhold",
+            },
+            undefined,
+            { contextReceiptId: prepared.context_receipt_id },
+          );
+        }
+        const taskContext = taskPrepared?.disposition === "injected"
+          ? taskPrepared.context ?? ""
+          : "";
+        let contextEnvelope: {
+          prependContext?: string;
+          appendContext?: string;
+        } = {};
+        if (prepared.inject && prepared.context) {
+          contextEnvelope = prepared.authority === "delegated"
+            ? {
+                prependContext: prepared.context,
+                ...(taskContext ? { appendContext: taskContext } : {}),
+              }
+            : {
+                appendContext: [prepared.context, taskContext].filter(Boolean).join("\n\n"),
+              };
+        } else if (taskContext) {
+          contextEnvelope = { appendContext: taskContext };
+        }
+        const contextLocations = [
+          contextEnvelope.prependContext ? "prependContext" : "",
+          contextEnvelope.appendContext ? "appendContext" : "",
+        ].filter(Boolean);
+        const deliveredContext = [
+          contextEnvelope.prependContext,
+          contextEnvelope.appendContext,
+        ].filter((value): value is string => Boolean(value)).join("\n\n");
         await recordBlackbox(
           "context.disposition",
           undefined,
           ctx,
           {
-            disposition: prepared.inject && prepared.context
+            disposition: deliveredContext
               ? "injected"
               : prepared.mode === "shadow" && (prepared.preview_context ?? "")
                 ? "withheld_by_policy"
                 : "no_relevant_memory",
-            context_sha256: digestText(prepared.context ?? ""),
-            context_block_sha256: digestText(prepared.context ?? ""),
-            context_envelope_sha256: digestJson({ appendContext: prepared.context ?? "" }),
+            context_sha256: digestText(deliveredContext),
+            context_block_sha256: digestText(deliveredContext),
+            context_envelope_sha256: digestJson(contextEnvelope),
             context_receipt_sha256: prepared.manifest_sha256,
             digest_profile: "atmem-context-envelope-canonical-json-v1",
-            context_chars: (prepared.context ?? "").length,
+            context_chars: deliveredContext.length,
             candidate_ids: prepared.candidate_ids ?? [],
+            candidates_considered: prepared.retrieval?.eligible_candidate_count ?? 0,
+            retrieval_support_class:
+              prepared.retrieval?.decision?.support_class ?? "not_recorded",
+            retrieval_reason_codes:
+              prepared.retrieval?.decision?.reason_codes ?? [],
+            retrieval_calibration_version:
+              prepared.retrieval?.decision?.calibration_version,
             exposure_id: prepared.exposure_id,
             mode: prepared.mode,
-            context_location: prepared.inject ? "appendContext" : "none",
+            context_location: contextLocations.length ? contextLocations.join("+") : "none",
           },
           undefined,
           {
             contextReceiptId: prepared.context_receipt_id,
           },
         );
-        if (prepared.inject && prepared.context) {
+        if (Object.keys(contextEnvelope).length) {
           api.logger.info(
             `${TAG} memory control plane ${prepared.mode ?? "active"} context exposed`,
           );
-          return { appendContext: prepared.context };
+          return contextEnvelope;
         }
         return;
       } catch (error) {
+        // Any exact delegated bytes retained while constructing evidence are
+        // discarded immediately on the fail-closed path.
+        cachePendingPrompt(sessionKey, { text: userText, ts: Date.now() });
         await recordBlackbox("context.disposition", undefined, ctx, {
           disposition: "recall_failed",
           context_block_sha256: digestText(""),
@@ -1049,7 +1352,7 @@ function register(api: OpenClawPluginApi): void {
           recall = result.block;
           const current = pendingPrompts.get(sessionKey);
           if (current) {
-            pendingPrompts.set(sessionKey, {
+            cachePendingPrompt(sessionKey, {
               ...current,
               injectedRecordIds: result.record_ids ?? [],
               retrievalId: result.retrieval_id,
@@ -1102,7 +1405,7 @@ function register(api: OpenClawPluginApi): void {
       ? `ctxr_${digestJson({ componentEventIds, contextEnvelopeSha256 })}`
       : undefined;
     if (current) {
-      pendingPrompts.set(sessionKey, { ...current, contextReceiptId });
+      cachePendingPrompt(sessionKey, { ...current, contextReceiptId });
     }
     await recordBlackbox(
       "context.disposition",
@@ -1134,8 +1437,27 @@ function register(api: OpenClawPluginApi): void {
     if (Object.keys(result).length) return result;
   });
 
+  // Latest CLI harnesses emit terminal results on the agent-event stream.
+  // Feature-detect both API generations; never infer completion from a request.
+  const runContext = api.runContext ?? (api.setRunContext && api.getRunContext ? {
+    setRunContext: api.setRunContext.bind(api), getRunContext: api.getRunContext.bind(api),
+  } : undefined);
+  const subscribe = api.agent?.events?.registerAgentEventSubscription?.bind(api.agent.events)
+    ?? api.registerAgentEventSubscription?.bind(api);
+  const toolObservations = cfg.controlPlane.blackboxEnabled && subscribe
+    ? new ToolObservations(observationContext(runContext, digestJson({
+        command: cfg.command, args: cfg.commandArgs, state: cfg.controlPlane.statePath,
+        subjects: cfg.agentSubjects, workspaces: cfg.agentWorkspaces,
+      })), digestJson) : undefined;
+  if (toolObservations && subscribe) subscribe({
+    id: "atmem-terminal-tool-observations", streams: ["tool"],
+    handle: event => toolObservations.observe(event),
+  });
+
   // ---- flight recorder + takeover enforcement --------------------------
   api.on("before_tool_call", async (event: BeforeToolCallEvent, ctx) => {
+    toolObservations?.request(event.toolName, event.toolCallId ?? ctx.toolCallId,
+      { ...ctx, runId: event.runId ?? ctx.runId, agentId: agentIdFor(ctx) });
     await recordBlackbox(
       "tool.requested",
       event.runId,
@@ -1150,7 +1472,7 @@ function register(api: OpenClawPluginApi): void {
           ? event.derivedPaths.map((value) => digestText(String(value)))
           : [],
       },
-      event.toolCallId,
+      event.toolCallId ?? ctx.toolCallId,
     );
     if (!cfg.takeoverActive || !cfg.nativeWorkspaces.some(
       (workspace) => touchesNativeMemory(event, workspace),
@@ -1171,13 +1493,15 @@ function register(api: OpenClawPluginApi): void {
         result_sha256: digestText(reason),
         duration_ms: 0,
       },
-      event.toolCallId,
+      event.toolCallId ?? ctx.toolCallId,
     );
     api.logger.warn(`${TAG} ${reason} Tool: ${event.toolName}`);
     return { block: true, blockReason: reason };
   });
 
   api.on("after_tool_call", async (event: AfterToolCallEvent, ctx) => {
+    toolObservations?.completed(event.toolCallId ?? ctx.toolCallId,
+      { ...ctx, runId: event.runId ?? ctx.runId, agentId: agentIdFor(ctx) });
     await recordBlackbox(
       "tool.completed",
       event.runId,
@@ -1190,17 +1514,25 @@ function register(api: OpenClawPluginApi): void {
         error_category: event.error ? "tool_error" : undefined,
         duration_ms: event.durationMs ?? 0,
       },
-      event.toolCallId,
+      event.toolCallId ?? ctx.toolCallId,
     );
   });
 
   // ---- auto-capture: user turn through the pipeline, assistant as digest -
   api.on("agent_end", async (event: AgentEndEvent, ctx) => {
-    const sessionKey = scopedKey(ctx.sessionKey ?? ctx.sessionId ?? "default-session", ctx);
+    await toolObservations?.flush({ ...ctx, runId: event.runId ?? ctx.runId, agentId: agentIdFor(ctx) }, async saved => {
+      await recordBlackbox("tool.completed", saved.ctx.runId, saved.ctx, {
+        tool_name: saved.name, tool_canonical_name: canonicalToolName(saved.name),
+        result_sha256: saved.result!.digest, outcome: saved.result!.error ? "error" : "completed",
+        error_category: saved.result!.error ? "tool_error" : undefined,
+        reason: "observed_terminal_host_tool_event",
+      }, saved.callId);
+    });
+    const sessionKey = sessionKeyFor(ctx);
     const observedTurnInputKey = turnInputKey(ctx);
 
     const cached = pendingPrompts.get(sessionKey);
-    pendingPrompts.delete(sessionKey);
+    deletePendingPrompt(sessionKey);
     const userText = cached?.text?.replace(INJECT_RE, "").trim();
 
     try {
@@ -1220,6 +1552,19 @@ function register(api: OpenClawPluginApi): void {
             { exposure_id: cached.exposureId },
             cfg.recall.timeoutMs,
           );
+        }
+        if (cached?.taskDeliveryId) {
+          await callFor(
+            ctx,
+            "control_task_exposure_shown",
+            { delivery_id: cached.taskDeliveryId },
+            cfg.recall.timeoutMs,
+          );
+          await recordBlackbox("task.context.exposed", event.runId, ctx, {
+            task_id: cached.taskId ?? ctx.taskId,
+            task_disposition: "injected",
+            task_context_sha256: cached.taskContextSha256?.replace(/^sha256:/, ""),
+          });
         }
         if (event.success !== false) {
           await callFor(
@@ -1925,6 +2270,145 @@ function register(api: OpenClawPluginApi): void {
         },
       }),
       { name: "atmem_forget_artifact" },
+    );
+
+    // --- governed task tools (Amendment A) -------------------------------
+    //
+    // A control-plane operation is invisible to a model. Without these
+    // registrations an agent receives a task checklist it has no way to tick,
+    // which is worse than receiving nothing: it looks like progress is being
+    // tracked when nothing is being recorded.
+    //
+    // Every one resolves through this conversation's own binding, so a model
+    // can only touch the task its conversation is bound to.
+
+    const taskScope = (toolCtx: OpenClawPluginToolContext) => ({
+      agent_id: agentIdFor(toolCtx),
+      workspace_id: workspaceIdFor(toolCtx),
+    });
+
+    api.registerTool(
+      (toolCtx: OpenClawPluginToolContext) => ({
+        name: "task_report_progress",
+        label: "Report Task Progress (atmem)",
+        description:
+          "Report progress on the governed task this conversation is bound to. " +
+          "State the item and its new status. AtMem validates the change and " +
+          "decides; you are proposing, not writing. If no task is bound this " +
+          "does nothing.",
+        parameters: {
+          type: "object",
+          properties: {
+            item_id: { type: "string", description: "Which task item changed" },
+            status: {
+              type: "string",
+              enum: ["ready", "running", "blocked", "completed", "skipped", "failed"],
+              description: "The item's new status",
+            },
+            base_revision: {
+              type: "integer",
+              description:
+                "The task revision you read. If the task has moved since, this " +
+                "returns a conflict instead of overwriting someone else's work.",
+            },
+            reason: { type: "string", description: "Why, in one line" },
+          },
+          required: ["item_id", "status", "base_revision"],
+        },
+        async execute(toolCallId, params) {
+          const resolution = await resolveBoundTaskForTool(
+            toolCtx,
+            (identity) => callFor(toolCtx, "control_prepare_task_context", {
+              ...identity,
+              ...taskScope(toolCtx),
+              host_run_id: toolCtx.runId,
+            }),
+          );
+          if (!resolution.ok) {
+            return refusal(
+              `${resolution.message} (${resolution.reasonCodes.join(", ")})`,
+            );
+          }
+          const result = (await callFor(toolCtx, "control_propose_task_delta", {
+            ...resolution.identity,
+            ...taskScope(toolCtx),
+            // Redundant checked assertion. Authority came from the current
+            // conversation focus above, never from the model's parameters.
+            task_id: resolution.taskId,
+            base_revision: Number(params.base_revision ?? 0),
+            // Derived from stable host identifiers, never from payload content
+            // or a clock, so a retried tool call collapses to one decision.
+            idempotency_key: `${toolCtx.runId ?? "run"}:${toolCallId}`,
+            operations: [
+              {
+                kind: "set_item_status",
+                item_id: String(params.item_id ?? ""),
+                status: String(params.status ?? ""),
+                reason: params.reason ? String(params.reason) : undefined,
+              },
+            ],
+            adapter: "openclaw",
+            // The tool call is the evidence. Completing an item requires some,
+            // and a host reporting its own tool outcome is asserting rather
+            // than independently verifying -- AtMem records it at exactly that
+            // assurance and never upgrades it.
+            evidence: [
+              { kind: "tool_call", reference_id: `${toolCtx.runId ?? "run"}-${toolCallId}` },
+            ],
+            reason: params.reason ? String(params.reason) : "",
+          })) as Record<string, unknown>;
+          return {
+            content: [{ type: "text", text: describeDecision(result) }],
+            details: { outcome: result.outcome ?? result.reason_code ?? null },
+          };
+        },
+      }),
+      { name: "task_report_progress" },
+    );
+
+    api.registerTool(
+      (toolCtx: OpenClawPluginToolContext) => ({
+        name: "task_binding_status",
+        label: "Governed Task Binding (atmem)",
+        description:
+          "Show which governed task, if any, this conversation is bound to, and " +
+          "the exact command to bind it. Owner only.",
+        parameters: { type: "object", properties: {} },
+        async execute() {
+          if (!isConversationOwner(toolCtx)) return refusal(NOT_OWNER_MESSAGE);
+          const identity = sessionIdentityForTool(toolCtx);
+          if (!identity) return refusal(NO_IDENTITY_MESSAGE);
+          const prepared = (await callFor(toolCtx, "control_prepare_task_context", {
+            ...identity,
+            ...taskScope(toolCtx),
+          })) as { disposition?: string; task_id?: string; reason_codes?: string[] };
+          // Binding stays an authenticated operator action at the terminal, so
+          // the owner needs their own conversation's identity to run it. They
+          // cannot see it otherwise -- it is an internal host value -- and
+          // without it the whole feature is unreachable from inside OpenClaw.
+          // Handing the owner a ready-to-run command is the same "one useful
+          // next command" the CLI gives everywhere else. This discloses nothing
+          // a non-owner can obtain: the gate above already refused them.
+          const bindCommand =
+            `atmem task bind DB_PATH TASK_ID --subject SUBJECT ` +
+            `--agent ${agentIdFor(toolCtx)} --workspace ${workspaceIdFor(toolCtx) ?? "WORKSPACE"} ` +
+            `--actor YOU --reason WHY --host-type ${identity.host_type} ` +
+            `--session-key ${identity.session_key} --session-epoch ${identity.session_epoch} --yes`;
+          if (prepared.disposition !== "injected") {
+            return ok({
+              bound: false,
+              reason: (prepared.reason_codes ?? []).join(", ") || "not bound",
+              bind_with: bindCommand,
+            });
+          }
+          return ok({
+            bound: true,
+            task_id: prepared.task_id ?? null,
+            rebind_with: bindCommand,
+          });
+        },
+      }),
+      { name: "task_binding_status" },
     );
   }
 

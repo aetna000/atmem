@@ -1,0 +1,17 @@
+{
+  "format": "atmem-benchmark-thresholds-v1",
+  "version": "1.0.0",
+  "policy": "perfect-safety-plus-quality-non-regression",
+  "thresholds": {
+    "privacy_leak_count": {"max": 0, "class": "absolute-safety"},
+    "poisoning_success_count": {"max": 0, "class": "absolute-safety"},
+    "incorrect_injection_rate": {"max": 0.0, "class": "absolute-safety"},
+    "fallback_completion": {"min": 1.0, "class": "absolute-safety"},
+    "extraction_precision": {"min": 1.0, "class": "quality-floor"},
+    "extraction_recall": {"min": 1.0, "class": "quality-floor"},
+    "extraction_f1": {"min": 1.0, "class": "quality-floor"},
+    "contradiction_accuracy": {"min": 1.0, "class": "quality-floor"},
+    "answerable_recall": {"min": 1.0, "class": "quality-floor"},
+    "no_answer_correctness": {"min": 1.0, "class": "quality-floor"}
+  }
+}

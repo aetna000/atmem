@@ -5,7 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from atmem.control.blackbox import EVENT_FORMAT, format_flight_report, verify_flight
+from atmem.control.blackbox import (
+    EVENT_FORMAT,
+    format_flight_report,
+    normalize_event,
+    verify_flight,
+)
 from atmem.control.manager import ControlPlaneManager
 from atmem.control.store import ControlStore
 
@@ -136,6 +141,73 @@ def test_blackbox_records_content_minimizing_verified_flight(tmp_path: Path) -> 
     assert "email.send" in format_flight_report(report)
 
 
+def test_blackbox_accepts_task_transition_metadata_but_never_raw_task_content() -> None:
+    event = normalize_event(
+        migration_id="migration-1",
+        host="pydantic-ai",
+        event_type="task.transition.decision",
+        run_id="run-task-1",
+        session_id="session-task-1",
+        tool_call_id=None,
+        payload={
+            "task_id": "task-1",
+            "task_outcome": "accepted",
+            "task_base_revision": 2,
+            "task_resulting_revision": 3,
+            "task_reason_codes": ["transition_accepted"],
+            "task_decision_sha256": "a" * 64,
+            "task_evidence_ids": ["evidence-1"],
+            "task_affected_item_ids": ["item-1"],
+        },
+    )
+    assert event["payload"]["task_id"] == "task-1"
+    assert event["payload"]["task_resulting_revision"] == 3
+    assert event["content_storage"] == "digests-and-bounded-metadata-only"
+
+    retrieval_event = normalize_event(
+        migration_id="migration-1",
+        host="openclaw",
+        event_type="context.disposition",
+        run_id="run-task-1",
+        session_id="session-task-1",
+        tool_call_id=None,
+        payload={
+            "disposition": "no_relevant_memory",
+            "context_block_sha256": "b" * 64,
+            "candidates_considered": 8,
+            "retrieval_support_class": "no_useful_memory",
+            "retrieval_calibration_version": "retrieval-calibration-v1",
+            "retrieval_reason_codes": ["no_relevance_signal"],
+        },
+    )
+    assert retrieval_event["payload"]["candidates_considered"] == 8
+    assert retrieval_event["payload"]["retrieval_reason_codes"] == [
+        "no_relevance_signal"
+    ]
+
+    with pytest.raises(ValueError, match="unsupported blackbox payload field"):
+        normalize_event(
+            migration_id="migration-1",
+            host="pydantic-ai",
+            event_type="task.transition.decision",
+            run_id="run-task-1",
+            session_id=None,
+            tool_call_id=None,
+            payload={"task_raw_content": "secret task instructions"},
+        )
+
+    with pytest.raises(ValueError, match="task_base_revision must be at least 1"):
+        normalize_event(
+            migration_id="migration-1",
+            host="pydantic-ai",
+            event_type="task.transition.decision",
+            run_id="run-task-1",
+            session_id=None,
+            tool_call_id=None,
+            payload={"task_id": "task-1", "task_base_revision": 0},
+        )
+
+
 def test_blackbox_reports_missing_completion_without_claiming_success(
     tmp_path: Path,
 ) -> None:
@@ -193,7 +265,7 @@ def test_blackbox_reports_missing_completion_without_claiming_success(
     assert "no completion was observed" in tool_point["detail"]
 
 
-def test_open_flight_reports_one_recording_gap_not_tool_failure(
+def test_open_flight_stays_in_progress_before_it_is_stale(
     tmp_path: Path,
 ) -> None:
     manager = _manager(tmp_path)
@@ -248,12 +320,23 @@ def test_open_flight_reports_one_recording_gap_not_tool_failure(
     report = manager.verify_blackbox_flight("run-open")
 
     assert report["coverage_matrix"]["components"]["tools"] == "missing"
-    assert report["coverage_matrix"]["overall_status"] == "incomplete"
-    assert [point["code"] for point in report["attention_points"]] == [
+    assert report["verdict"] == "in_progress"
+    assert report["coverage_matrix"]["overall_status"] == "in_progress"
+    assert report["lifecycle"]["state"] == "in_progress"
+    assert report["attention_points"] == []
+
+    stale = verify_flight(
+        run_id="run-open",
+        entries=manager.blackbox_events(run_id="run-open"),
+        chain={"valid": True},
+        as_of="2099-01-01T00:00:00+00:00",
+    )
+    assert stale["verdict"] == "incomplete_evidence"
+    assert [point["code"] for point in stale["attention_points"]] == [
         "recording_stopped"
     ]
-    assert "3 commands were requested" in report["attention_points"][0]["detail"]
-    assert "No tool failure" in report["attention_points"][0]["detail"]
+    assert "3 commands were requested" in stale["attention_points"][0]["detail"]
+    assert "may still be active" in stale["attention_points"][0]["detail"]
 
 
 def test_flight_story_uses_local_openclaw_failure_when_hooks_stop(
@@ -753,3 +836,52 @@ def test_blackbox_global_chain_detects_tampering(tmp_path: Path) -> None:
     report = manager.verify_blackbox_flight("run-tamper")
     assert report["timeline_chain_valid"] is False
     assert report["verdict"] == "tampered_or_invalid_chain"
+
+
+@pytest.mark.parametrize("case", [
+    "complete", "error", "missing", "call", "turn", "session", "agent",
+    "workspace", "tool", "before_request", "other_run", "reused_request",
+])
+def test_tool_closure_requires_same_invocation_scope_and_order(tmp_path: Path, case: str) -> None:
+    manager = _manager(tmp_path)
+    scope = dict(run_id="closure", turn_id="turn-1", session_id="session-1",
+                 agent_id="main", workspace_id="workspace-1")
+    for event_type, payload in [
+        ("turn.input", {"prompt_sha256": "0" * 64}),
+        ("context.disposition", {"disposition": "not_applicable"}),
+        ("model.input", {"provider": "fixture", "model": "fixture"}),
+    ]:
+        manager.record_blackbox_event(event_type=event_type, payload=payload, **scope)
+    completion = dict(scope, tool_call_id="call-1")
+    for label, field in [("call", "tool_call_id"), ("turn", "turn_id"),
+                         ("session", "session_id"), ("agent", "agent_id"),
+                         ("workspace", "workspace_id"), ("other_run", "run_id")]:
+        if case == label:
+            completion[field] = "different"
+    payload = {"tool_name": "exec" if case == "tool" else "read",
+               "result_sha256": "1" * 64,
+               "outcome": "error" if case == "error" else "completed"}
+    if case == "before_request":
+        manager.record_blackbox_event(event_type="tool.completed", payload=payload, **completion)
+    manager.record_blackbox_event(event_type="tool.requested", tool_call_id="call-1",
+                                  payload={"tool_name": "read", "params_sha256": "2" * 64}, **scope)
+    if case == "reused_request":
+        manager.record_blackbox_event(event_type="tool.requested", tool_call_id="call-1",
+                                      payload={"tool_name": "read", "params_sha256": "2" * 64},
+                                      **dict(scope, turn_id="other-turn"))
+    if case not in {"missing", "before_request"}:
+        manager.record_blackbox_event(event_type="tool.completed", payload=payload, **completion)
+    manager.record_blackbox_event(event_type="model.output", payload={
+        "provider": "fixture", "model": "fixture", "response_sha256": "3" * 64,
+        "assistant_visible_text_sha256": "3" * 64,
+    }, **scope)
+    manager.record_blackbox_event(event_type="turn.ended", payload={
+        "success": True, "assistant_visible_text_sha256": "3" * 64,
+    }, **scope)
+    report = manager.verify_blackbox_flight("closure")
+    assert report["timeline_chain_valid"] is True
+    assert report["structurally_complete"] is (case in {"complete", "error"})
+    assert report["verdict"] == (
+        "completed_successfully" if case == "complete" else
+        "completed_with_tool_errors" if case == "error" else "incomplete_evidence"
+    )

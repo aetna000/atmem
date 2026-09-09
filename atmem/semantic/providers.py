@@ -31,6 +31,7 @@ class OllamaEmbedder:
         *,
         endpoint: str = "http://127.0.0.1:11434",
         model_version: str = "unverified",
+        dimensions: int | None = None,
         timeout: float = 120.0,
     ) -> None:
         self.model = model
@@ -47,6 +48,11 @@ class OllamaEmbedder:
         self.model_version = (
             self.model_digest if model_version == "unverified" else model_version
         )
+        self.profile = _model_profile("ollama", model)
+        if dimensions is not None:
+            if dimensions < 1:
+                raise ValueError("embedding dimensions must be positive")
+            self.profile["dimensions"] = int(dimensions)
 
     @property
     def identity(self) -> dict[str, Any]:
@@ -54,16 +60,19 @@ class OllamaEmbedder:
             "provider": "ollama",
             "model": self.model,
             "version": self.model_version,
+            "revision": self.model_version,
             "model_digest": self.model_digest,
             "endpoint": self.endpoint,
             "normalization": "l2",
+            "distance": "cosine",
+            **self.profile,
         }
 
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
-        return self._embed(list(texts))
+        return self._embed([_embedding_text(text, self.profile, "document") for text in texts])
 
     def embed_query(self, text: str) -> list[float]:
-        return self._embed([text])[0]
+        return self._embed([_embedding_text(text, self.profile, "query")])[0]
 
     def verify_identity(self) -> None:
         current = _ollama_model_digest(
@@ -97,6 +106,7 @@ class OpenAICompatibleEmbedder:
         endpoint: str,
         api_key: str | None = None,
         model_version: str = "unverified",
+        dimensions: int | None = None,
         timeout: float = 120.0,
     ) -> None:
         self.model = model
@@ -104,6 +114,11 @@ class OpenAICompatibleEmbedder:
         self.api_key = api_key
         self.model_version = model_version
         self.timeout = timeout
+        self.profile = _model_profile("openai-compatible", model)
+        if dimensions is not None:
+            if dimensions < 1:
+                raise ValueError("embedding dimensions must be positive")
+            self.profile["dimensions"] = int(dimensions)
 
     @property
     def identity(self) -> dict[str, Any]:
@@ -111,15 +126,18 @@ class OpenAICompatibleEmbedder:
             "provider": "openai-compatible",
             "model": self.model,
             "version": self.model_version,
+            "revision": self.model_version,
             "endpoint": self.endpoint,
             "normalization": "l2",
+            "distance": "cosine",
+            **self.profile,
         }
 
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
-        return self._embed(list(texts))
+        return self._embed([_embedding_text(text, self.profile, "document") for text in texts])
 
     def embed_query(self, text: str) -> list[float]:
-        return self._embed([text])[0]
+        return self._embed([_embedding_text(text, self.profile, "query")])[0]
 
     def _embed(self, texts: list[str]) -> list[list[float]]:
         headers = {"Content-Type": "application/json"}
@@ -141,7 +159,10 @@ class OpenAICompatibleEmbedder:
 class SentenceTransformersEmbedder:
     """Optional local adapter, loaded only when the semantic extra is installed."""
 
-    def __init__(self, model: str, *, model_version: str = "unverified") -> None:
+    def __init__(
+        self, model: str, *, model_version: str = "unverified",
+        dimensions: int | None = None,
+    ) -> None:
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError as exc:
@@ -151,6 +172,20 @@ class SentenceTransformersEmbedder:
         self.model_name = model
         self.model_version = model_version
         self._model = SentenceTransformer(model)
+        self.profile = _model_profile("sentence-transformers", model)
+        observed_dimensions = int(self._model.get_sentence_embedding_dimension())
+        declared_dimensions = int(
+            dimensions or self.profile.get("dimensions") or observed_dimensions
+        )
+        if observed_dimensions != declared_dimensions:
+            raise ValueError(
+                "sentence-transformers dimension mismatch: "
+                f"profile={declared_dimensions}, runtime={observed_dimensions}"
+            )
+        self.profile["dimensions"] = observed_dimensions
+        if model_version == "unverified":
+            model_version = _sentence_transformer_revision(self._model)
+        self.model_version = model_version
 
     @property
     def identity(self) -> dict[str, Any]:
@@ -158,13 +193,16 @@ class SentenceTransformersEmbedder:
             "provider": "sentence-transformers",
             "model": self.model_name,
             "version": self.model_version,
+            "revision": self.model_version,
             "normalization": "l2",
+            "distance": "cosine",
+            **self.profile,
         }
 
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
         method = getattr(self._model, "encode_document", self._model.encode)
         values = method(
-            list(texts),
+            [_embedding_text(text, self.profile, "document") for text in texts],
             convert_to_numpy=True,
             normalize_embeddings=True,
             show_progress_bar=False,
@@ -174,7 +212,7 @@ class SentenceTransformersEmbedder:
     def embed_query(self, text: str) -> list[float]:
         method = getattr(self._model, "encode_query", self._model.encode)
         values = method(
-            [text],
+            [_embedding_text(text, self.profile, "query")],
             convert_to_numpy=True,
             normalize_embeddings=True,
             show_progress_bar=False,
@@ -199,7 +237,15 @@ class HashingEmbedder:
             "provider": "hashing-diagnostic",
             "model": f"token-hash-{self.dimensions}",
             "version": "1",
+            "revision": "1",
+            "dimensions": self.dimensions,
+            "distance": "cosine",
             "normalization": "l2",
+            "query_prefix": "",
+            "document_prefix": "",
+            "preprocessing_version": "atmem-embedding-text-v1",
+            "quality_class": "diagnostic",
+            "license": "internal-diagnostic",
         }
 
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
@@ -219,6 +265,52 @@ class HashingEmbedder:
         return _normalize(vector)
 
 
+def _model_profile(provider: str, model: str) -> dict[str, Any]:
+    try:
+        from atmem.semantic.health import load_model_catalog
+
+        match = next(
+            (
+                row for row in load_model_catalog().get("models", [])
+                if row.get("provider") == provider and row.get("model") == model
+            ),
+            None,
+        )
+        if match:
+            return {
+                key: match[key]
+                for key in (
+                    "dimensions", "query_prefix", "document_prefix",
+                    "preprocessing_version", "quality_class", "license",
+                )
+            }
+    except (OSError, ValueError, StopIteration, KeyError):
+        pass
+    name = model.casefold()
+    query_prefix = ""
+    document_prefix = ""
+    if "bge-" in name:
+        query_prefix = "Represent this sentence for searching relevant passages: "
+    elif "nomic-embed" in name:
+        query_prefix = "search_query: "
+        document_prefix = "search_document: "
+    return {
+        "query_prefix": query_prefix,
+        "document_prefix": document_prefix,
+        "preprocessing_version": "atmem-embedding-text-v1",
+        "quality_class": "production",
+        "license": "operator-supplied",
+    }
+
+
+def _embedding_text(text: str, profile: dict[str, Any], kind: str) -> str:
+    """Apply the profile's deterministic preprocessing and role prefix."""
+    if profile.get("preprocessing_version") != "atmem-embedding-text-v1":
+        raise ValueError("unsupported embedding preprocessing version")
+    normalized = str(text).replace("\r\n", "\n").replace("\r", "\n").strip()
+    return str(profile[f"{kind}_prefix"]) + normalized
+
+
 def create_embedder(
     provider: str,
     model: str | None,
@@ -226,6 +318,7 @@ def create_embedder(
     endpoint: str | None = None,
     api_key_env: str | None = None,
     model_version: str = "unverified",
+    dimensions: int | None = None,
 ) -> Embedder:
     if provider == "hashing":
         dimensions = int(model) if model and model.isdigit() else 128
@@ -237,6 +330,7 @@ def create_embedder(
             model,
             endpoint=endpoint or "http://127.0.0.1:11434",
             model_version=model_version,
+            dimensions=dimensions,
         )
     if provider == "openai-compatible":
         if not endpoint:
@@ -249,10 +343,23 @@ def create_embedder(
             endpoint=endpoint,
             api_key=api_key,
             model_version=model_version,
+            dimensions=dimensions,
         )
     if provider == "sentence-transformers":
-        return SentenceTransformersEmbedder(model, model_version=model_version)
+        return SentenceTransformersEmbedder(
+            model, model_version=model_version, dimensions=dimensions
+        )
     raise ValueError(f"unknown embedding provider: {provider}")
+
+
+def _sentence_transformer_revision(model: Any) -> str:
+    modules = getattr(model, "_modules", {})
+    for module in modules.values() if hasattr(modules, "values") else ():
+        config = getattr(getattr(module, "auto_model", None), "config", None)
+        revision = getattr(config, "_commit_hash", None)
+        if isinstance(revision, str) and re.fullmatch(r"[0-9a-f]{7,64}", revision):
+            return f"huggingface:{revision}"
+    return "unverified"
 
 
 def _post_json(

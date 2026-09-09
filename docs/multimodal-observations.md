@@ -1,26 +1,24 @@
-# Multimodal observations
+# Governed multimodal observations
 
-AtMem does not store or interpret media bytes. A multimodal host or model interprets an image, audio clip or video and submits a typed text observation envelope.
+AtMem stores scoped artifact references and derived observations for images,
+audio, video, files and tool artifacts. Original bytes remain in host custody
+by default. A controlled copy, thumbnail or transcode requires an explicit
+storage policy and a receipt naming the copied-byte digest.
 
-The envelope binds:
+Supported locators are secret-free `host`, `openclaw`, `file` and `tool`
+references resolved through a bounded host callback. Credentials, query
+parameters and fragments are rejected. The host is responsible for access
+control, stable exact-byte digests, malware checks, retention and deletion of
+host-held originals.
 
-- modality and exact byte-stream SHA-256;
-- host-controlled reference;
-- observation text and segment identity;
-- extractor provider, model and version;
-- source/session identity and optional confidence;
-- digest-assurance level.
+Processors receive only authorized bounded bytes. Hosted processing requires
+explicit egress approval; receipts record local/hosted execution, redaction,
+model/provider/revision, prompt/configuration digest and evidence region.
+Observations are model inferences with confidence and provenance, not ground
+truth.
 
-The resulting record is quarantined by default. A reviewer sees the exact description that would become recallable and, where the OpenClaw host reference remains available and its digest verifies, the source image beside it. Approval promotes the text description—not the image bytes. Recall returns the description and provenance.
-
-Confidence is evidence only. It never controls ranking or approval. A caller cannot self-assert `verified_by_atmem`; that assurance is reserved for a trusted path that actually hashes bytes.
-
-Two extractors may create accumulating observations of the same artifact. A rerun of the same artifact, segment and extractor lineage supersedes only that lineage and never silently displaces a promoted fact.
-
-```bash
-atmem observe memories.db user-1 --envelope observation.json
-atmem promote memories.db user-1 rec_123
-atmem forget-artifact memories.db user-1 <64-character-sha256>
-```
-
-Forget-by-artifact deletes memories derived from that exact byte stream and returns a verified receipt. Re-encoded or resized copies have different digests. The original host file, copies, backups and provider logs remain outside AtMem's deletion boundary.
+Consent and scope are revalidated before storage, indexing, retrieval and
+delivery. Revocation increments the consent generation, tombstones controlled
+observations and indexes, and prevents late processor output from activating.
+Receipts honestly distinguish controlled copies from host originals and from
+backup copies governed by the declared backup-retention policy.

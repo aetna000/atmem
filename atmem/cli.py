@@ -24,6 +24,31 @@ def _installed_version() -> str:
         return "unknown"
 
 
+def _run_features(args: argparse.Namespace) -> None:
+    from atmem.contracts.versions import capabilities
+    manifest = capabilities()
+    names = ("graph","storage","adapters","api","interchange","lifecycle","media","onboarding","production") if args.name == "all" else (args.name,)
+    value = {"format":"atmem-feature-catalog-v1","features":{name:{"available":True,"framework_adapters":manifest.get("framework_adapters") if name=="adapters" else None} for name in names}}
+    if args.json: print(json.dumps(value,indent=2,sort_keys=True))
+    else:
+        for name,row in value["features"].items(): print(f"{name}: {'available' if row['available'] else 'unavailable'}")
+
+
+def _run_onboarding(args: argparse.Namespace) -> None:
+    from dataclasses import asdict
+    from atmem.onboarding import OnboardingService
+    state_path=Path(args.state)
+    service=OnboardingService(state_path,{"local_state":lambda:("ok" if state_path.parent.exists() else "needs_setup","local directory discovered")})
+    if args.onboarding_command=="discover": state=service.discover()
+    elif args.onboarding_command=="status": state=service.load()
+    elif args.onboarding_command=="plan": state=service.plan(service.load() if state_path.exists() else service.discover())
+    elif args.onboarding_command=="apply":
+        current=service.load(); state=service.apply({row["action_id"]:(lambda:{"configured":True}) for row in current.plan},consent=args.consent)
+    else: state=service.rollback({})
+    value=asdict(state)
+    print(json.dumps(value,indent=2,sort_keys=True) if args.json else f"Onboarding {value['phase']}: {len(value['checks'])} checks, {len(value['receipts'])} receipts")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="atmem",
@@ -76,6 +101,21 @@ Run `atmem COMMAND --help` for command-specific examples.""",
         "--json",
         action="store_true",
         help="Print machine-readable JSON",
+    )
+    openclaw_install.add_argument(
+        "--embedding-model",
+        default="nomic-embed-text",
+        help="Local Ollama embedding model to verify and activate (default: nomic-embed-text)",
+    )
+    openclaw_install.add_argument(
+        "--allow-model-download",
+        action="store_true",
+        help="Permit OpenClaw onboarding to download the selected embedding model",
+    )
+    openclaw_install.add_argument(
+        "--skip-semantic-setup",
+        action="store_true",
+        help="Install the bridge without preparing semantic retrieval",
     )
     openclaw_upgrade = openclaw_commands.add_parser(
         "upgrade",
@@ -200,6 +240,172 @@ AtMem stores the variable name, never the key.""",
             command_parser.add_argument(
                 "--force", action="store_true", help="Replace the existing AtBot configuration"
             )
+
+    delegated_parser = subparsers.add_parser(
+        "delegated",
+        help="Optionally trust an external context authority",
+        description=(
+            "Native AtMem authority remains the default. Registration never enables "
+            "delegation; opt in separately for explicit user, agent, and workspace scopes."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Example:
+  atmem delegated register --provider-id context-provider --provider-version 1.0 \
+    --instance-id local --key-id primary --public-key-file provider.pub \
+    --endpoint http://127.0.0.1:8788/v1/delegated-context \
+    --workspace ws_123 --agent main --user local-owner
+  atmem delegated enable context-provider:local
+  atmem delegated doctor
+
+Failure is closed by default. Add --native-fallback only if the operator explicitly
+wants AtMem to resume native context preparation when the provider fails.""",
+    )
+    delegated_commands = delegated_parser.add_subparsers(dest="delegated_command")
+    delegated_register = delegated_commands.add_parser(
+        "register", help="Register trust and exact scopes; remains disabled"
+    )
+    delegated_register.add_argument("--provider-id", required=True)
+    delegated_register.add_argument("--provider-version", required=True)
+    delegated_register.add_argument("--instance-id", required=True)
+    delegated_register.add_argument("--key-id", required=True)
+    delegated_register.add_argument("--public-key-file", required=True)
+    delegated_register.add_argument("--endpoint", required=True)
+    delegated_register.add_argument("--request-key-id")
+    delegated_register.add_argument("--request-secret-file", help="Private base64 secret file; never pass secret bytes")
+    delegated_register.add_argument("--workspace", action="append", required=True)
+    delegated_register.add_argument("--agent", action="append", required=True)
+    delegated_register.add_argument("--user", action="append", required=True)
+    delegated_register.add_argument("--timeout-ms", type=int, default=3000)
+    delegated_register.add_argument("--max-context-bytes", type=int, default=262144)
+    delegated_register.add_argument("--native-fallback", action="store_true")
+    delegated_register.add_argument("--replace", action="store_true")
+    delegated_register.add_argument("--json", action="store_true")
+    delegated_auth = delegated_commands.add_parser("set-request-auth", help="Migrate or replace request credentials; disables until explicitly enabled")
+    delegated_auth.add_argument("registration_id")
+    delegated_auth.add_argument("--request-key-id", required=True)
+    delegated_auth.add_argument("--request-secret-file", required=True)
+    delegated_auth.add_argument("--json", action="store_true")
+    for name, help_text in (
+        ("enable", "Explicitly enable one registered provider scope"),
+        ("disable", "Return one provider scope to native AtMem authority"),
+        ("remove", "Remove one disabled provider registration"),
+    ):
+        command_parser = delegated_commands.add_parser(name, help=help_text)
+        command_parser.add_argument("registration_id")
+        command_parser.add_argument("--json", action="store_true")
+        if name == "remove":
+            command_parser.add_argument("--yes", action="store_true")
+    for name, help_text in (
+        ("status", "Show authority mode, safe scopes, and next action"),
+        ("doctor", "Check trust, configuration, and activation safety"),
+        ("self-test", "Verify local signature and configuration primitives"),
+    ):
+        command_parser = delegated_commands.add_parser(name, help=help_text)
+        command_parser.add_argument("--json", action="store_true")
+
+    provider_parser = subparsers.add_parser(
+        "provider",
+        help="Run an optional Mem0, LangGraph, or Pydantic AI context authority",
+        description=(
+            "Create a signed local context-provider service. Initialization and startup "
+            "do not change AtMem authority; registration and enablement remain explicit."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Examples:
+  python -m pip install 'atmem[mem0]'
+  atmem provider init memory-provider --kind mem0 --mode oss --port 8788
+  atmem provider start memory-provider
+  atmem provider doctor memory-provider
+
+  python -m pip install 'atmem[langgraph-provider]'
+  atmem provider init graph-provider --kind langgraph \
+    --factory myapp.context:build_graph --port 8789
+
+  python -m pip install 'atmem[pydantic-provider]'
+  atmem provider init ai-provider --kind pydantic-ai \
+    --factory myapp.context:build_agent --egress hosted --port 8790
+
+The init result prints the separate `atmem delegated register` command. Run its
+matching `atmem delegated enable` command only after reviewing the exact scopes.""",
+    )
+    provider_commands = provider_parser.add_subparsers(dest="provider_command")
+    provider_init = provider_commands.add_parser("init", help="Create private keys and secret-free configuration")
+    provider_init.add_argument("instance")
+    provider_init.add_argument("--kind", required=True, choices=("mem0", "langgraph", "pydantic-ai"))
+    provider_init.add_argument("--port", type=int, default=8788)
+    provider_init.add_argument("--factory", default=None, help="Operator factory in module:attribute form")
+    provider_init.add_argument("--mode", choices=("oss", "platform"), default=None, help="Mem0 client mode")
+    provider_init.add_argument("--provider-id", default=None)
+    provider_init.add_argument("--provider-version", default="1.0")
+    provider_init.add_argument("--egress", choices=("local", "hosted"), default="local")
+    provider_init.add_argument("--json", action="store_true")
+    for name in ("auth-init", "auth-rotate", "auth-revoke"):
+        auth_parser = provider_commands.add_parser(name, help="Configure, rotate or revoke per-instance HMAC request credentials")
+        auth_parser.add_argument("instance")
+        auth_parser.add_argument("--json", action="store_true")
+        if name == "auth-rotate":
+            auth_parser.add_argument("--overlap-seconds", type=int, default=30)
+        if name == "auth-revoke":
+            auth_parser.add_argument("--request-key-id", required=True)
+    for name, help_text in (
+        ("serve", "Run one provider in the foreground"),
+        ("start", "Start one private background provider process"),
+        ("stop", "Stop only the PID owned by this provider instance"),
+        ("doctor", "Check dependencies, files, service health, and next trust step"),
+    ):
+        command_parser = provider_commands.add_parser(name, help=help_text)
+        command_parser.add_argument("instance")
+        command_parser.add_argument("--json", action="store_true")
+    provider_status = provider_commands.add_parser("status", help="Show redacted provider state")
+    provider_status.add_argument("instance", nargs="?")
+    provider_status.add_argument("--json", action="store_true")
+    provider_remove = provider_commands.add_parser("remove", help="Remove a stopped provider; AtMem evidence is retained")
+    provider_remove.add_argument("instance")
+    provider_remove.add_argument("--yes", action="store_true")
+    provider_remove.add_argument("--json", action="store_true")
+
+    benchmark_parser = subparsers.add_parser(
+        "benchmark",
+        help="Run reproducible memory-quality gates and compare external results",
+        description="Offline by default. Optional model profiles require explicit configuration.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Release gate:
+  atmem benchmark run --output benchmark.json
+
+Optional evidence:
+  atmem benchmark profiles
+  atmem benchmark run --profile local-embeddings --output local.json
+
+External evaluation:
+  atmem benchmark import-longmemeval INPUT.jsonl --output cases.json
+  atmem benchmark compare atmem.json mem0.json --output comparison.json""",
+    )
+    benchmark_commands = benchmark_parser.add_subparsers(dest="benchmark_command")
+    benchmark_run = benchmark_commands.add_parser("run", help="Run one isolated benchmark profile")
+    benchmark_run.add_argument(
+        "--profile",
+        choices=("deterministic", "local-embeddings", "local-atbot", "hosted-atbot"),
+        default="deterministic",
+    )
+    benchmark_run.add_argument("--dataset", default=None)
+    benchmark_run.add_argument("--thresholds", default=None)
+    benchmark_run.add_argument("--output", default=None)
+    benchmark_run.add_argument("--json", action="store_true")
+    benchmark_profiles = benchmark_commands.add_parser("profiles", help="Show profile availability and egress")
+    benchmark_profiles.add_argument("--json", action="store_true")
+    benchmark_import = benchmark_commands.add_parser(
+        "import-longmemeval", help="Normalize a locally supplied LongMemEval JSON or JSONL file"
+    )
+    benchmark_import.add_argument("input")
+    benchmark_import.add_argument("--output", required=True)
+    benchmark_import.add_argument("--json", action="store_true")
+    benchmark_compare = benchmark_commands.add_parser(
+        "compare", help="Compare compatible AtMem and external result envelopes"
+    )
+    benchmark_compare.add_argument("left")
+    benchmark_compare.add_argument("right")
+    benchmark_compare.add_argument("--output", default=None)
+    benchmark_compare.add_argument("--json", action="store_true")
 
     dashboard_parser = subparsers.add_parser(
         "dashboard",
@@ -337,6 +543,7 @@ AtMem stores the variable name, never the key.""",
     )
     index_build.add_argument("--model", default=None)
     index_build.add_argument("--model-version", default="unverified")
+    index_build.add_argument("--dimensions", type=int, default=None)
     index_build.add_argument("--endpoint", default=None)
     index_build.add_argument("--api-key-env", default=None)
     index_build.add_argument("--index-path", default=None)
@@ -355,6 +562,284 @@ AtMem stores the variable name, never the key.""",
     index_verify.add_argument("path")
     index_verify.add_argument("--subject", required=True)
     index_verify.add_argument("--index-path", default=None)
+
+    semantic_parser = subparsers.add_parser(
+        "semantic",
+        help="Set up, diagnose, and safely rebuild semantic retrieval",
+        description="Set up, diagnose, and safely rebuild semantic retrieval.",
+    )
+    semantic_commands = semantic_parser.add_subparsers(dest="semantic_command")
+    for name, help_text in (
+        ("setup", "Choose a local model, build its index, and test a paraphrase"),
+        ("status", "Show authoritative semantic health and corrective actions"),
+        ("rebuild", "Resume or rebuild an inactive epoch, then activate it safely"),
+        ("verify", "Verify coverage, identity, dimensions, and canonical digests"),
+    ):
+        command_parser = semantic_commands.add_parser(name, help=help_text)
+        command_parser.add_argument("path")
+        command_parser.add_argument("--subject", required=True)
+        command_parser.add_argument("--index-path", default=None)
+        command_parser.add_argument(
+            "--json", action="store_true", help="Print machine-readable JSON"
+        )
+        if name in {"setup", "rebuild"}:
+            command_parser.add_argument(
+                "--provider",
+                choices=("ollama", "openai-compatible", "sentence-transformers", "hashing"),
+                default=None,
+            )
+            command_parser.add_argument("--model", default=None)
+            command_parser.add_argument("--model-version", default="unverified")
+            command_parser.add_argument("--dimensions", type=int, default=None)
+            command_parser.add_argument("--endpoint", default=None)
+            command_parser.add_argument("--api-key-env", default=None)
+            command_parser.add_argument("--batch-size", type=int, default=64)
+        if name == "setup":
+            command_parser.add_argument(
+                "--allow-download",
+                action="store_true",
+                help="Explicitly permit the selected local runtime to download model files",
+            )
+            command_parser.add_argument(
+                "--allow-egress",
+                action="store_true",
+                help="Explicitly permit requests to a configured remote embedding endpoint",
+            )
+            command_parser.add_argument(
+                "--smoke-query",
+                default=None,
+                help="Manual paraphrase used to verify the first eligible record",
+            )
+
+    task_parser = subparsers.add_parser(
+        "task",
+        help="Start, inspect, and govern task state for an agent",
+        description="Start, inspect, and govern task state for an agent.",
+        epilog="""Examples:
+  atmem task enable memories.db --subject user-1 --agent agent-1 --workspace ws-1
+      Turn on governed task state for one exact scope.
+
+  atmem task start memories.db --task-id task-1 --goal "Ship the migration" \
+      --subject user-1 --agent agent-1 --workspace ws-1 --actor you@example.com
+      Begin a governed task.
+
+  atmem task list memories.db --subject user-1 --agent agent-1 --workspace ws-1
+      See open work, newest state first.
+
+  atmem task show memories.db task-1 --subject user-1 --agent agent-1 --workspace ws-1
+      Read the goal, phase, progress, blockers, and next eligible work.
+
+Exit codes: 0 for a successful read, an accepted action, or no_change;
+1 for rejected, conflict, unavailable, or integrity outcomes; 2 for usage
+or input errors.""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    task_commands = task_parser.add_subparsers(dest="task_command")
+
+    def _scoped(name: str, help_text: str, *, needs_task: bool = False):
+        command = task_commands.add_parser(name, help=help_text)
+        command.add_argument("path")
+        if needs_task:
+            command.add_argument("task_id")
+        command.add_argument("--subject", required=True)
+        command.add_argument("--agent", required=True)
+        command.add_argument("--workspace", required=True)
+        command.add_argument(
+            "--json", action="store_true", help="Print one machine-readable document"
+        )
+        return command
+
+    _scoped("enable", "Turn on governed task state for one exact scope")
+    _scoped("disable", "Turn governed task state off for one exact scope")
+
+    task_start = _scoped("start", "Start a governed task")
+    task_start.add_argument("--task-id", required=True)
+    task_start.add_argument("--goal", required=True)
+    task_start.add_argument("--actor", required=True)
+    task_start.add_argument("--profile", default="general-v1")
+    task_start.add_argument(
+        "--item", action="append", default=[],
+        help="Add an item as ID=Title, repeatable",
+    )
+    task_start.add_argument(
+        "--required-item", action="append", default=[],
+        help="Add a completion-required item as ID=Title, repeatable",
+    )
+    task_start.add_argument("--constraint", action="append", default=[])
+    task_start.add_argument("--source", action="append", default=[])
+    task_start.add_argument("--continues", default=None)
+
+    task_list = _scoped("list", "List governed tasks in this scope")
+    task_list.add_argument("--lifecycle", action="append", default=[])
+    task_list.add_argument("--cursor", default=None)
+    task_list.add_argument("--limit", type=int, default=50)
+
+    _scoped("show", "Show one task's goal, progress, blockers, and next work",
+            needs_task=True)
+    _scoped("timeline", "Show every revision, decision, and delivery for a task",
+            needs_task=True)
+    _scoped("health", "Show scope-filtered task health and counters")
+    _scoped("verify", "Check revision-chain integrity for this scope")
+
+    task_provenance = _scoped(
+        "provenance", "Explain where one task value came from", needs_task=True
+    )
+    task_provenance.add_argument(
+        "--target-kind", required=True,
+        choices=("task", "field", "item", "status", "constraint", "transition",
+                 "delivery", "lifecycle"),
+    )
+    task_provenance.add_argument("--target-id", required=True)
+
+    for name, help_text in (
+        ("pause", "Pause a task without losing its place"),
+        ("resume", "Resume a paused task"),
+        ("complete", "Complete a task once its gates are satisfied"),
+        ("cancel", "Cancel a task and record why"),
+    ):
+        command = _scoped(name, help_text, needs_task=True)
+        command.add_argument("--actor", required=True)
+        command.add_argument("--reason", default="")
+        command.add_argument("--expected-revision", type=int, default=None)
+        command.add_argument(
+            "--yes", action="store_true",
+            help="Confirm without prompting; required in non-interactive use",
+        )
+
+    task_correct = _scoped(
+        "correct", "Correct one item's status as an operator", needs_task=True
+    )
+    task_correct.add_argument("--actor", required=True)
+    task_correct.add_argument("--item", required=True)
+    task_correct.add_argument(
+        "--status", required=True,
+        choices=("pending", "ready", "running", "blocked", "completed",
+                 "skipped", "failed"),
+    )
+    task_correct.add_argument("--reason", required=True)
+    task_correct.add_argument("--expected-revision", type=int, required=True)
+    task_correct.add_argument("--yes", action="store_true")
+
+    task_bind = _scoped(
+        "bind", "Bind one host conversation to a task", needs_task=True
+    )
+    task_bind.add_argument("--actor", required=True)
+    task_bind.add_argument("--reason", required=True)
+    task_bind.add_argument(
+        "--host-type", required=True,
+        help="Which host this conversation lives in, e.g. openclaw",
+    )
+    task_bind.add_argument(
+        "--session-key", required=True, help="The host's stable conversation address"
+    )
+    task_bind.add_argument(
+        "--session-epoch", required=True,
+        help=(
+            "The host's session generation, which changes when a conversation is "
+            "reset. Required: without it a recycled key would inherit this binding"
+        ),
+    )
+    task_bind.add_argument("--source", default="")
+    task_bind.add_argument("--yes", action="store_true")
+
+    task_unbind = _scoped("unbind", "Revoke one conversation's binding")
+    task_unbind.add_argument("--binding-id", required=True)
+    task_unbind.add_argument("--actor", required=True)
+    task_unbind.add_argument("--reason", required=True)
+    task_unbind.add_argument("--yes", action="store_true")
+
+    task_bindings = _scoped("bindings", "List conversation bindings in this scope")
+    task_bindings.add_argument("--task-id", default=None)
+    task_bindings.add_argument(
+        "--include-revoked", action="store_true",
+        help="Include revoked bindings; history is retained as evidence",
+    )
+
+    task_forget = _scoped(
+        "forget", "Permanently delete a task and everything derived from it",
+        needs_task=True,
+    )
+    task_forget.add_argument("--actor", required=True)
+    task_forget.add_argument("--yes", action="store_true")
+
+    task_profile = task_commands.add_parser(
+        "profile", help="Inspect and register versioned task profiles"
+    )
+    profile_commands = task_profile.add_subparsers(dest="profile_command")
+    profile_list = profile_commands.add_parser("list", help="List known profiles")
+    profile_list.add_argument("path")
+    profile_list.add_argument("--json", action="store_true")
+    profile_show = profile_commands.add_parser("show", help="Show one profile")
+    profile_show.add_argument("path")
+    profile_show.add_argument("version")
+    profile_show.add_argument("--json", action="store_true")
+    profile_register = profile_commands.add_parser(
+        "register", help="Register an immutable versioned profile"
+    )
+    profile_register.add_argument("path")
+    profile_register.add_argument("file", help="JSON profile document")
+    profile_register.add_argument("--actor", required=True)
+    profile_register.add_argument(
+        "--dry-run", action="store_true", help="Validate without registering"
+    )
+    profile_register.add_argument("--yes", action="store_true")
+    profile_register.add_argument("--json", action="store_true")
+
+    proposals_parser = subparsers.add_parser(
+        "proposals",
+        help="Inspect and decide governed memory proposals awaiting review",
+        description="Inspect and decide governed memory proposals awaiting review.",
+    )
+    proposals_commands = proposals_parser.add_subparsers(dest="proposals_command")
+
+    proposals_queue = proposals_commands.add_parser(
+        "queue", help="List proposals waiting for a review decision"
+    )
+    proposals_queue.add_argument("path")
+    proposals_queue.add_argument("--subject", default=None)
+    proposals_queue.add_argument("--limit", type=int, default=100)
+    proposals_queue.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON"
+    )
+
+    proposals_show = proposals_commands.add_parser(
+        "show", help="Show one proposal with its exact source evidence"
+    )
+    proposals_show.add_argument("path")
+    proposals_show.add_argument("proposal_id")
+    proposals_show.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON"
+    )
+
+    proposals_decide = proposals_commands.add_parser(
+        "decide", help="Approve, edit and approve, or reject one proposal"
+    )
+    proposals_decide.add_argument("path")
+    proposals_decide.add_argument("proposal_id")
+    proposals_decide.add_argument(
+        "decision", choices=("approve", "edit_and_approve", "reject")
+    )
+    proposals_decide.add_argument(
+        "--actor", required=True, help="Who is making this decision, for the audit log"
+    )
+    proposals_decide.add_argument("--reason", default="")
+    proposals_decide.add_argument(
+        "--fact", default=None, help="Replacement fact text for edit_and_approve"
+    )
+    proposals_decide.add_argument("--session", default=None)
+    proposals_decide.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON"
+    )
+
+    proposals_lineage = proposals_commands.add_parser(
+        "lineage", help="Show how corrected and superseding records relate"
+    )
+    proposals_lineage.add_argument("path")
+    proposals_lineage.add_argument("subject_id")
+    proposals_lineage.add_argument("--record-id", default=None)
+    proposals_lineage.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON"
+    )
 
     list_parser = subparsers.add_parser("list", help="List a subject's records")
     list_parser.add_argument("path")
@@ -757,6 +1242,16 @@ AtMem stores the variable name, never the key.""",
         "--json", action="store_true", help="Print machine-readable JSON"
     )
 
+    features_parser = subparsers.add_parser("features", help="Show roadmap feature and framework capabilities")
+    features_parser.add_argument("name", nargs="?", default="all", choices=("all","graph","storage","adapters","api","interchange","lifecycle","media","onboarding","production"))
+    features_parser.add_argument("--json", action="store_true")
+
+    onboarding_parser = subparsers.add_parser("onboarding", help="Discover, plan, resume, or roll back guided setup")
+    onboarding_parser.add_argument("onboarding_command", choices=("discover","plan","status","apply","rollback"))
+    onboarding_parser.add_argument("--state", default=str(Path.home()/".atmem"/"onboarding.json"))
+    onboarding_parser.add_argument("--consent", action="store_true", help="Consent to the exact planned local changes")
+    onboarding_parser.add_argument("--json", action="store_true")
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -778,6 +1273,27 @@ AtMem stores the variable name, never the key.""",
             atbot_parser.print_help()
             return
         _run_atbot(args)
+        return
+
+    if args.command == "delegated":
+        if args.delegated_command is None:
+            delegated_parser.print_help()
+            return
+        _run_delegated(args)
+        return
+
+    if args.command == "provider":
+        if args.provider_command is None:
+            provider_parser.print_help()
+            return
+        _run_provider(args)
+        return
+
+    if args.command == "benchmark":
+        if args.benchmark_command is None:
+            benchmark_parser.print_help()
+            return
+        _run_benchmark_cli(args)
         return
 
     if args.command == "dashboard":
@@ -806,11 +1322,40 @@ AtMem stores the variable name, never the key.""",
         _run_blackbox(args)
         return
 
+    if args.command == "features":
+        _run_features(args)
+        return
+
+    if args.command == "onboarding":
+        _run_onboarding(args)
+        return
+
     if args.command == "index":
         if args.index_command is None:
             index_parser.print_help()
             return
         _run_index(args)
+        return
+
+    if args.command == "semantic":
+        if args.semantic_command is None:
+            semantic_parser.print_help()
+            return
+        _run_semantic(args)
+        return
+
+    if args.command == "task":
+        if args.task_command is None:
+            task_parser.print_help()
+            return
+        _run_task(args)
+        return
+
+    if args.command == "proposals":
+        if args.proposals_command is None:
+            proposals_parser.print_help()
+            return
+        _run_proposals(args)
         return
 
     if args.command == "mcp":
@@ -1202,6 +1747,34 @@ def _run_openclaw(args: argparse.Namespace) -> None:
             control_root=args.control_root or DEFAULT_CONTROL_ROOT,
             progress=None if args.json else show_progress,
         )
+        if not args.skip_semantic_setup:
+            from atmem.control import ControlPlaneManager
+
+            allow_download = bool(args.allow_model_download)
+            if not allow_download and not args.json and sys.stdin.isatty():
+                answer = input(
+                    "Prepare semantic retrieval with local model "
+                    f"{args.embedding_model!r}? Download it if missing [y/N]: "
+                ).strip().casefold()
+                allow_download = answer in {"y", "yes"}
+            semantic_manager = ControlPlaneManager(args.state or DEFAULT_STATE_PATH)
+            try:
+                result["semantic"] = semantic_manager.setup_semantic_profile(
+                    provider="ollama",
+                    model=args.embedding_model,
+                    allow_download=allow_download,
+                )
+            except (OSError, RuntimeError, ValueError) as semantic_error:
+                result["semantic"] = {
+                    "format": "atmem-semantic-setup-v1",
+                    "status": "needs_action",
+                    "model": args.embedding_model,
+                    "message": str(semantic_error),
+                    "next": (
+                        "rerun with --allow-model-download or choose a model "
+                        "under Dashboard Settings"
+                    ),
+                }
     except ValueError as exc:
         if args.json:
             _print(
@@ -1253,6 +1826,11 @@ def _run_openclaw(args: argparse.Namespace) -> None:
     print("  Control mode            shadow capture")
     print("  Model context changed no")
     print("  Extra provider calls  no")
+    semantic = result.get("semantic") or {}
+    print(
+        "  Semantic retrieval     "
+        + ("READY" if semantic.get("status") == "complete" else "needs setup in Settings")
+    )
     print(f"  Control ID              {result['migration_id']}")
     print(f"  Evidence directory    {result['control_dir']}")
     print(
@@ -1700,6 +2278,15 @@ def _semantic_search_resources(
         raise ValueError(
             f"no semantic index for {args.subject!r}; run `atmem index build` first"
         )
+    from atmem.semantic import inspect_semantic_health
+
+    health = inspect_semantic_health(index, memory, args.subject)
+    if health.status.value not in {"healthy", "weak"}:
+        index.close()
+        raise ValueError(
+            f"semantic index is {health.status.value}; "
+            "run `atmem semantic status` and rebuild before semantic retrieval"
+        )
     identity = epoch["identity"]
     provider = args.embedder or str(identity["provider"])
     if provider == "hashing-diagnostic":
@@ -1713,6 +2300,7 @@ def _semantic_search_resources(
         endpoint=args.endpoint or identity.get("endpoint"),
         api_key_env=args.api_key_env,
         model_version=args.model_version or str(identity.get("version", "unverified")),
+        dimensions=getattr(args, "dimensions", None) or int(epoch.get("dimensions") or 0) or None,
     )
     return index, embedder
 
@@ -1744,6 +2332,7 @@ def _run_index(args: argparse.Namespace) -> None:
                 endpoint=args.endpoint,
                 api_key_env=args.api_key_env,
                 model_version=args.model_version,
+                dimensions=args.dimensions,
             )
             report = index.build(
                 memory,
@@ -1757,6 +2346,1088 @@ def _run_index(args: argparse.Namespace) -> None:
     finally:
         index.close()
         memory.close()
+
+
+def _run_semantic(args: argparse.Namespace) -> None:
+    from atmem.semantic import (
+        HardwareProfile,
+        SemanticIndex,
+        create_embedder,
+        default_index_path,
+        evaluate_semantic_health,
+        inspect_semantic_health,
+        recommend_local_models,
+    )
+
+    memory = Memory(args.path, auto_vectors=False)
+    index_path = Path(args.index_path or default_index_path(args.path)).expanduser()
+    index = None
+    try:
+        if args.semantic_command == "status" and not index_path.exists():
+            health = evaluate_semantic_health(args.subject, active_epoch=None)
+            _emit_semantic_health(health.to_dict(), json_output=args.json)
+            return
+        index = SemanticIndex(index_path, policy=memory.policy)
+        if args.semantic_command == "status":
+            _emit_semantic_health(
+                inspect_semantic_health(index, memory, args.subject).to_dict(),
+                json_output=args.json,
+            )
+            return
+        if args.semantic_command == "verify":
+            health = inspect_semantic_health(index, memory, args.subject).to_dict()
+            _emit_semantic_health(health, json_output=args.json)
+            if health["status"] not in {"healthy", "weak"}:
+                raise SystemExit(1)
+            return
+
+        provider, model = _semantic_provider_selection(args, index)
+        if args.semantic_command == "setup":
+            consent = _semantic_setup_consent(args, provider, model)
+            if not consent:
+                memory.log_action(
+                    args.subject,
+                    "semantic.setup_declined",
+                    {"provider": provider, "model": model},
+                    actor="cli-operator",
+                )
+                result = {
+                    "format": "atmem-semantic-setup-v1",
+                    "status": "cancelled",
+                    "provider": provider,
+                    "model": model,
+                    "fallback": "hashing-diagnostic",
+                    "decisions": list(_semantic_decisions(args)),
+                    "decision_count": len(_semantic_decisions(args)),
+                    "message": "No download or egress occurred; deterministic hashing remains available.",
+                }
+                _emit_semantic_setup(result, json_output=args.json)
+                return
+            hardware = HardwareProfile.detect()
+            recommendations = recommend_local_models(hardware)
+            approval = {
+                "provider": provider,
+                "model": model,
+                "download_approved": bool(args.allow_download),
+                "egress_approved": bool(args.allow_egress),
+                "configuration_sha256": _semantic_configuration_digest(args, provider, model),
+            }
+            memory.log_action(
+                args.subject,
+                "semantic.setup_approved",
+                approval,
+                actor="cli-operator",
+            )
+        else:
+            hardware = None
+            recommendations = []
+
+        embedder = create_embedder(
+            provider,
+            model,
+            endpoint=args.endpoint,
+            api_key_env=args.api_key_env,
+            model_version=args.model_version,
+            dimensions=args.dimensions,
+        )
+        built = index.build(
+            memory,
+            args.subject,
+            embedder,
+            batch_size=args.batch_size,
+        )
+        health = inspect_semantic_health(index, memory, args.subject).to_dict()
+        if args.semantic_command == "rebuild":
+            result = {
+                "format": "atmem-semantic-rebuild-v1",
+                "build": built,
+                "health": health,
+            }
+            _emit_semantic_setup(result, json_output=args.json)
+            return
+
+        records = memory.store.list_records(args.subject, statuses=("active",))
+        expected = str(records[0]["id"]) if records else None
+        query = args.smoke_query or (
+            f"In other words: {records[0]['content']}" if records else ""
+        )
+        matches = (
+            index.search(
+                memory,
+                args.subject,
+                query,
+                embedder,
+                statuses=("active",),
+                limit=3,
+                min_similarity=-1.0,
+            )
+            if query and expected
+            else []
+        )
+        smoke = {
+            "query": query,
+            "expected_record_id": expected,
+            "returned_record_ids": [row["record_id"] for row in matches],
+            "passed": expected is not None
+            and expected in {str(row["record_id"]) for row in matches},
+        }
+        result = {
+            "format": "atmem-semantic-setup-v1",
+            "status": "complete" if smoke["passed"] else "verification_failed",
+            "decisions": list(_semantic_decisions(args)),
+            "decision_count": len(_semantic_decisions(args)),
+            "hardware": hardware.to_dict() if hardware else None,
+            "recommendations": recommendations,
+            "build": built,
+            "health": health,
+            "smoke_test": smoke,
+        }
+        _emit_semantic_setup(result, json_output=args.json)
+        if not smoke["passed"]:
+            raise SystemExit(1)
+    finally:
+        if index is not None:
+            index.close()
+        memory.close()
+
+
+def _semantic_decisions(args: argparse.Namespace) -> list[str]:
+    """Every operator decision the setup flow actually consumed.
+
+    SC-005 bounds the number of decisions, so this must be counted from the
+    flow rather than asserted as a constant.
+    """
+
+    decisions = getattr(args, "_semantic_decision_log", None)
+    if decisions is None:
+        decisions = []
+        setattr(args, "_semantic_decision_log", decisions)
+    return decisions
+
+
+def _record_semantic_decision(args: argparse.Namespace, name: str) -> None:
+    _semantic_decisions(args).append(name)
+
+
+def _semantic_provider_selection(
+    args: argparse.Namespace, index: object
+) -> tuple[str, str | None]:
+    from atmem.semantic import HardwareProfile, recommend_local_models
+
+    provider = args.provider
+    model = args.model
+    active = index.active_epoch(args.subject)
+    if args.semantic_command == "rebuild" and active is not None:
+        identity = active["identity"]
+        provider = provider or str(identity["provider"])
+        model = model or str(identity["model"])
+        if provider == "hashing-diagnostic":
+            provider = "hashing"
+            model = str(active["dimensions"])
+        if args.model_version == "unverified":
+            args.model_version = str(identity.get("version", "unverified"))
+        args.endpoint = args.endpoint or identity.get("endpoint")
+    if provider is None:
+        recommendations = recommend_local_models(HardwareProfile.detect())
+        if not recommendations:
+            raise ValueError(
+                "no catalog model fits detected hardware; select --provider and --model manually"
+            )
+        selected = 0
+        if args.semantic_command == "setup" and sys.stdin.isatty():
+            print("Recommended local embedding models:")
+            for position, recommendation in enumerate(recommendations, start=1):
+                print(
+                    f"  {position}. {recommendation['model']} · "
+                    f"~{recommendation['approximate_download_mib']} MiB · "
+                    f"{recommendation['caveat']}"
+                )
+            answer = input("Choose a model [1], or use --provider/--model manually: ").strip()
+            _record_semantic_decision(args, "model_selection")
+            if answer:
+                try:
+                    selected = int(answer) - 1
+                except ValueError as exc:
+                    raise ValueError("model choice must be a listed number") from exc
+                if not 0 <= selected < len(recommendations):
+                    raise ValueError("model choice is outside the recommendation list")
+        provider = str(recommendations[selected]["provider"])
+        model = model or str(recommendations[selected]["model"])
+    if provider == "ollama" and not model:
+        model = "nomic-embed-text"
+    return provider, model
+
+
+def _semantic_setup_consent(
+    args: argparse.Namespace, provider: str, model: str | None
+) -> bool:
+    if provider == "sentence-transformers" and not args.allow_download:
+        if not sys.stdin.isatty():
+            return False
+        answer = input(
+            f"Allow the local model runtime to download {model!r} if absent? [y/N] "
+        )
+        _record_semantic_decision(args, "download_consent")
+        if answer.strip().casefold() not in {"y", "yes"}:
+            return False
+        args.allow_download = True
+    elif provider == "sentence-transformers":
+        _record_semantic_decision(args, "download_consent_flag")
+    if provider in {"openai-compatible", "ollama"} and not args.allow_egress:
+        if not sys.stdin.isatty():
+            return False
+        target = (
+            "the configured HTTPS endpoint"
+            if provider == "openai-compatible"
+            else "the configured Ollama endpoint (which may pull the model)"
+        )
+        answer = input(f"Allow embedding requests to {target}? [y/N] ")
+        _record_semantic_decision(args, "egress_consent")
+        if answer.strip().casefold() not in {"y", "yes"}:
+            return False
+        args.allow_egress = True
+    elif provider in {"openai-compatible", "ollama"}:
+        _record_semantic_decision(args, "egress_consent_flag")
+    return True
+
+
+def _semantic_configuration_digest(
+    args: argparse.Namespace, provider: str, model: str | None
+) -> str:
+    from atmem.core.canonical import canonical_json, sha256_hex
+
+    safe = {
+        "provider": provider,
+        "model": model,
+        "model_version": args.model_version,
+        "endpoint": args.endpoint,
+        "api_key_environment_variable": args.api_key_env,
+    }
+    return f"sha256:{sha256_hex(canonical_json(safe))}"
+
+
+def _run_task(args: argparse.Namespace) -> None:
+    """Drive governed task state from a terminal.
+
+    Process behaviour is part of the contract: exit 0 for a successful read,
+    an accepted action, or `no_change`; exit 1 for a rejected, conflicting,
+    unavailable, or integrity outcome; exit 2 for usage errors. In `--json`
+    mode exactly one document reaches stdout and every diagnostic goes to
+    stderr, so a script can parse stdout unconditionally.
+    """
+    from atmem.contracts import AuthorityScope
+    from atmem.task_state.enablement import ScopeEnablement
+    from atmem.task_state.governance import CapabilityDenied
+    from atmem.task_state.service import TaskStateError, TaskStateService
+
+    if args.task_command == "profile":
+        _run_task_profile(args)
+        return
+
+    memory = Memory(args.path, auto_vectors=False)
+    try:
+        scope = AuthorityScope(args.subject, args.agent, args.workspace)
+        enablement = ScopeEnablement(memory.store)
+        service = TaskStateService(memory.store)
+
+        if args.task_command in {"enable", "disable"}:
+            mode = (
+                enablement.enable(scope, actor="cli-operator")
+                if args.task_command == "enable"
+                else enablement.disable(scope, actor="cli-operator")
+            )
+            _emit_task(
+                {**mode.to_dict(), "scope": scope.to_dict()},
+                json_output=args.json,
+                human=lambda value: [
+                    f"Governed task state is {value['mode']} for this scope.",
+                    "Next: atmem task start "
+                    f"{args.path} --task-id TASK --goal GOAL --subject "
+                    f"{args.subject} --agent {args.agent} --workspace "
+                    f"{args.workspace} --actor YOU"
+                    if value["enabled"]
+                    else "Next: atmem task enable "
+                    f"{args.path} --subject {args.subject} --agent {args.agent} "
+                    f"--workspace {args.workspace}",
+                ],
+            )
+            return
+
+        mode = enablement.mode(scope)
+        if not mode.enabled:
+            # Fail closed and say exactly how to proceed, rather than acting.
+            _emit_task(
+                {
+                    "format": "atmem-task-unavailable-v1",
+                    "reason_code": "task_state_disabled",
+                    "mode": mode.label,
+                    "scope": scope.to_dict(),
+                    "message": "Governed task state is disabled for this scope.",
+                },
+                json_output=args.json,
+                human=lambda value: [
+                    "Governed task state is disabled for this scope.",
+                    f"Next: atmem task enable {args.path} --subject {args.subject} "
+                    f"--agent {args.agent} --workspace {args.workspace}",
+                ],
+                stream=sys.stderr,
+            )
+            raise SystemExit(1)
+
+        _require_task_confirmation(args)
+
+        try:
+            _dispatch_task_command(args, scope=scope, service=service, mode=mode)
+        except CapabilityDenied as exc:
+            _emit_task_failure(
+                args, reason_code=exc.reason_code, message=str(exc)
+            )
+        except TaskStateError as exc:
+            _emit_task_failure(
+                args, reason_code=exc.reason_code, message=str(exc),
+                guard=getattr(exc, "guard", None),
+            )
+    finally:
+        memory.close()
+
+
+def _dispatch_task_command(
+    args: argparse.Namespace, *, scope: Any, service: Any, mode: Any
+) -> None:
+    from atmem.core.canonical import sha256_hex
+    from atmem.contracts.task_state import (
+        ActorRole,
+        Assurance,
+        ItemStatus,
+        OperationKind,
+        TaskItem,
+        TaskOperation,
+        TaskStartRequest,
+        TaskStateProposal,
+    )
+    from atmem.task_state.observability import TaskObservability
+    from atmem.task_state.provenance import ProvenanceResolver
+
+    command = args.task_command
+
+    if command == "start":
+        items = tuple(
+            TaskItem(
+                item_id=identifier, kind="step", title=title,
+                required=required,
+            )
+            # Required work is listed first: it is what completion waits on.
+            for required, pairs in (
+                (True, args.required_item), (False, args.item)
+            )
+            for identifier, title in (_task_pair(row) for row in pairs)
+        )
+        view = service.start(
+            TaskStartRequest(
+                task_id=args.task_id,
+                scope=scope,
+                profile_id=args.profile.split("-")[0],
+                profile_version=args.profile,
+                goal=args.goal,
+                actor=args.actor,
+                actor_role=ActorRole.OPERATOR,
+                idempotency_key=f"cli-start:{args.task_id}",
+                constraints=tuple(args.constraint),
+                sources_to_inspect=tuple(args.source),
+                continues_task_id=args.continues,
+            ),
+            items=items,
+        )
+        _emit_task(view.to_dict(), json_output=args.json, human=_task_human_view)
+        return
+
+    if command == "list":
+        listing = service.list(
+            scope,
+            lifecycles=tuple(args.lifecycle) or None,
+            cursor=args.cursor,
+            limit=args.limit,
+        )
+        _emit_task(listing, json_output=args.json, human=_task_human_list)
+        return
+
+    if command == "show":
+        view = service.get(scope, args.task_id)
+        _emit_task(view.to_dict(), json_output=args.json, human=_task_human_view)
+        return
+
+    if command == "timeline":
+        timeline = service.timeline(scope, args.task_id)
+        _emit_task(timeline, json_output=args.json, human=_task_human_timeline)
+        return
+
+    if command == "health":
+        snapshot = TaskObservability(service.store, clock=service.clock).snapshot(scope)
+        _emit_task(snapshot, json_output=args.json, human=_task_human_health)
+        return
+
+    if command == "verify":
+        snapshot = TaskObservability(service.store, clock=service.clock).snapshot(scope)
+        integrity = snapshot["integrity"]
+        _emit_task(
+            {
+                "format": "atmem-task-integrity-v1",
+                "scope": scope.to_dict(),
+                **integrity,
+            },
+            json_output=args.json,
+            human=lambda value: [
+                f"Revision-chain integrity: {'valid' if value['valid'] else 'FAILED'}",
+                f"Tasks checked: {value['checked_tasks']}",
+                *[f"  problem: {row}" for row in value["problems"]],
+            ],
+        )
+        if not integrity["valid"]:
+            raise SystemExit(1)
+        return
+
+    if command == "provenance":
+        result = ProvenanceResolver(service.store).resolve(
+            scope, args.task_id,
+            target_kind=args.target_kind, target_id=args.target_id,
+        )
+        _emit_task(result, json_output=args.json, human=_task_human_provenance)
+        if not result["found"]:
+            raise SystemExit(1)
+        return
+
+    if command in {"pause", "resume", "complete", "cancel"}:
+        _check_expected_revision(args, service, scope)
+        view = getattr(service, command)(
+            scope, args.task_id, actor=args.actor,
+            actor_role=ActorRole.OPERATOR,
+            reason=args.reason or command,
+        )
+        _emit_task(view.to_dict(), json_output=args.json, human=_task_human_view)
+        return
+
+    if command in {"bind", "unbind", "bindings"}:
+        from atmem.contracts.task_state import HostSessionIdentity
+        from atmem.task_state.binding import BindingError, SessionBindingService
+
+        bindings = SessionBindingService(service.store, service.clock)
+
+        if command == "bindings":
+            rows = bindings.list(
+                scope,
+                task_id=getattr(args, "task_id", None),
+                include_revoked=args.include_revoked,
+            )
+            _emit_task(
+                {"format": "atmem-task-binding-list-v1", "count": len(rows),
+                 "bindings": rows},
+                json_output=args.json,
+                human=lambda value: _task_human_bindings(value, args),
+            )
+            return
+
+        if command == "unbind":
+            try:
+                bindings.revoke(
+                    scope, binding_id=args.binding_id, actor=args.actor,
+                    reason=args.reason,
+                )
+            except BindingError as exc:
+                _fail_task(args, exc.reason_code, str(exc))
+                return
+            _emit_task(
+                {"format": "atmem-task-binding-revoked-v1",
+                 "binding_id": args.binding_id},
+                json_output=args.json,
+                human=lambda value: [
+                    "Binding revoked. This conversation no longer resolves to a task.",
+                    f"Next: atmem task bindings {args.path} --subject {args.subject} "
+                    f"--agent {args.agent} --workspace {args.workspace}",
+                ],
+            )
+            return
+
+        # bind: the task must exist and be eligible before a conversation is
+        # pointed at it, so a binding never names something unreachable.
+        try:
+            view = service.get(scope, args.task_id)
+        except TaskStateError as exc:
+            _fail_task(args, exc.reason_code, str(exc))
+            return
+        try:
+            identity = HostSessionIdentity(
+                args.host_type, args.session_key, args.session_epoch
+            )
+        except ValueError as exc:
+            _fail_task(args, "session_identity_required", str(exc))
+            return
+        try:
+            binding = bindings.register(
+                scope, identity, task_id=args.task_id, actor=args.actor,
+                reason=args.reason, source=args.source, profile=view.profile,
+            )
+        except BindingError as exc:
+            _fail_task(args, exc.reason_code, str(exc))
+            return
+        _emit_task(
+            binding.to_dict(),
+            json_output=args.json,
+            human=lambda value: [
+                f"Bound this conversation to {value['task_id']}.",
+                f"Binding ID: {value['binding_id']}",
+                "That conversation now receives this task's state, and may "
+                "report progress against it and no other task.",
+                f"Next: atmem task show {args.path} {value['task_id']} "
+                f"--subject {args.subject} --agent {args.agent} "
+                f"--workspace {args.workspace}",
+            ],
+        )
+        return
+
+    if command == "correct":
+        _check_expected_revision(args, service, scope)
+        # One identity for one correction: the same request replays, a
+        # different one gets its own proposal rather than colliding.
+        key = (
+            f"cli-correct:{args.task_id}:{args.item}:{args.status}"
+            f":{args.expected_revision}:{args.reason}"
+        )
+        decision = service.correct(
+            scope, args.task_id,
+            TaskStateProposal(
+                proposal_id=f"cli-correction-{sha256_hex(key)[:32]}",
+                task_id=args.task_id,
+                scope=scope,
+                base_revision=args.expected_revision,
+                idempotency_key=key,
+                actor=args.actor,
+                actor_role=ActorRole.OPERATOR,
+                assurance=Assurance.OPERATOR_CONFIRMED,
+                operations=(
+                    TaskOperation(
+                        kind=OperationKind.SET_ITEM_STATUS,
+                        item_id=args.item,
+                        status=ItemStatus(args.status),
+                        reason=args.reason,
+                    ),
+                ),
+                reason=args.reason,
+            ),
+            reason=args.reason,
+        )
+        _emit_task(
+            decision.to_dict(), json_output=args.json, human=_task_human_decision
+        )
+        if decision.outcome.value in {"rejected", "conflict"}:
+            raise SystemExit(1)
+        return
+
+    if command == "forget":
+        receipt = service.forget(
+            scope, args.task_id, actor=args.actor,
+            actor_role=ActorRole.ADMINISTRATOR,
+        )
+        _emit_task(
+            receipt,
+            json_output=args.json,
+            human=lambda value: [
+                f"Deleted task {value['task_id']} and everything derived from it.",
+                f"Revisions removed: {value['revisions_removed']}",
+                f"Goal digest retained for the receipt: {value['goal_sha256']}",
+            ],
+        )
+        return
+
+
+def _run_task_profile(args: argparse.Namespace) -> None:
+    """Inspect and register versioned profiles. Registration enables nothing."""
+    import json as _json
+
+    from atmem.task_state.profiles import ProfileRegistry
+
+    if args.profile_command is None:
+        raise SystemExit(2)
+    memory = Memory(args.path, auto_vectors=False)
+    try:
+        registry = ProfileRegistry(memory.store)
+        if args.profile_command == "list":
+            profiles = registry.list_profiles()
+            _emit_task(
+                {
+                    "format": "atmem-task-profile-list-v1",
+                    "count": len(profiles),
+                    "profiles": [
+                        {
+                            "version": row.version,
+                            "profile_id": row.profile_id,
+                            "phases": list(row.phases),
+                            "digest": row.profile_digest(),
+                        }
+                        for row in profiles
+                    ],
+                },
+                json_output=args.json,
+                human=lambda value: [
+                    f"Known task profiles: {value['count']}",
+                    *[
+                        f"  {row['version']}  phases: {', '.join(row['phases'])}"
+                        for row in value["profiles"]
+                    ],
+                ],
+            )
+            return
+
+        if args.profile_command == "show":
+            profile = registry.get(args.version)
+            if profile is None:
+                _emit_task_failure(
+                    args, reason_code="task_not_eligible",
+                    message=f"unknown profile version: {args.version}",
+                )
+                return
+            _emit_task(
+                {**profile.to_dict(), "digest": profile.profile_digest()},
+                json_output=args.json,
+                human=lambda value: [
+                    f"Profile {value['version']} ({value['profile_id']})",
+                    f"Phases: {', '.join(value['phases'])}",
+                    f"Digest: {value['digest']}",
+                    value.get("description") or "",
+                ],
+            )
+            return
+
+        if args.profile_command == "register":
+            _require_task_confirmation(args)
+            payload = _json.loads(Path(args.file).expanduser().read_text())
+            result = registry.register(
+                payload, actor=args.actor, dry_run=args.dry_run
+            )
+            _emit_task(
+                result.to_dict(),
+                json_output=args.json,
+                human=lambda value: [
+                    (
+                        f"Registered profile {value['version']}."
+                        if value["registered"]
+                        else f"Profile {value['version']} was not registered."
+                    ),
+                    "Reasons: " + ", ".join(value["reason_codes"]),
+                    "Registration does not enable a profile or change any task.",
+                ],
+            )
+            if not result.registered and not args.dry_run:
+                raise SystemExit(1)
+            return
+    finally:
+        memory.close()
+
+
+def _task_pair(value: str) -> tuple[str, str]:
+    identifier, separator, title = str(value).partition("=")
+    if not separator or not identifier.strip() or not title.strip():
+        raise SystemExit(2)
+    return identifier.strip(), title.strip()
+
+
+def _check_expected_revision(args: argparse.Namespace, service: Any, scope: Any) -> None:
+    """Refuse a mutation aimed at a revision that has already moved on."""
+    expected = getattr(args, "expected_revision", None)
+    if expected is None:
+        return
+    current = service.get(scope, args.task_id).state.revision
+    if int(expected) != current:
+        _emit_task_failure(
+            args,
+            reason_code="stale_base_revision",
+            message=(
+                f"This task is at revision {current}, not {expected}. "
+                "Re-read it and submit a fresh request."
+            ),
+        )
+
+
+def _task_human_bindings(value: dict[str, Any], args: argparse.Namespace) -> list[str]:
+    rows = value.get("bindings") or []
+    if not rows:
+        return [
+            "No conversation bindings in this scope.",
+            f"Next: atmem task bind {args.path} TASK --subject {args.subject} "
+            f"--agent {args.agent} --workspace {args.workspace} --actor YOU "
+            "--reason WHY --host-type HOST --session-key KEY --session-epoch EPOCH",
+        ]
+    lines = [f"Conversation bindings: {len(rows)}"]
+    for row in rows:
+        state = "revoked" if row.get("revoked_at_utc") else "active"
+        lines.append(
+            f"  {row['host_type']}:{row['session_key']} -> {row['task_id']}  [{state}]"
+        )
+        lines.append(f"    Binding ID: {row['binding_id']}")
+    return lines
+
+
+def _fail_task(args: argparse.Namespace, reason_code: str, message: str) -> None:
+    """One refusal shape for both output modes, with exit 1 per FR-040."""
+    _emit_task(
+        {
+            "format": "atmem-task-unavailable-v1",
+            "reason_code": reason_code,
+            "message": message,
+        },
+        json_output=args.json,
+        human=lambda value: [f"{value['message']} ({value['reason_code']})"],
+        stream=sys.stderr,
+    )
+    raise SystemExit(1)
+
+
+def _require_task_confirmation(args: argparse.Namespace) -> None:
+    """Privileged mutations need `--yes` when nobody is at the terminal."""
+    # Binding decides which conversation may write to a task, so registering or
+    # revoking one carries the same weight as correcting state.
+    privileged = {"cancel", "correct", "forget", "bind", "unbind"}
+    command = getattr(args, "task_command", "")
+    if command == "profile" and getattr(args, "profile_command", "") == "register":
+        privileged = {"profile"}
+        command = "profile"
+    if command not in privileged:
+        return
+    if getattr(args, "yes", False):
+        return
+    if not sys.stdin.isatty():
+        # Fail closed rather than prompting into a pipe.
+        print(
+            f"Refusing to {command} without confirmation. Re-run with --yes.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    answer = input(f"Confirm {command}? This cannot be undone. [y/N] ")
+    if answer.strip().lower() not in {"y", "yes"}:
+        raise SystemExit(2)
+
+
+def _emit_task(
+    value: dict[str, Any],
+    *,
+    json_output: bool,
+    human: Any,
+    stream: Any = None,
+) -> None:
+    # In JSON mode the single document always goes to stdout, including for a
+    # failure, so a script can parse stdout unconditionally. Only human-mode
+    # diagnostics are routed to stderr.
+    if json_output:
+        print(json.dumps(value, indent=2, sort_keys=True))
+        return
+    target = stream or sys.stdout
+    for line in human(value):
+        if line:
+            print(line, file=target)
+
+
+def _emit_task_failure(
+    args: argparse.Namespace,
+    *,
+    reason_code: str,
+    message: str,
+    guard: Any = None,
+) -> None:
+    """One failure shape for both modes, then exit 1."""
+    payload = {
+        "format": "atmem-task-failure-v1",
+        "outcome": "rejected",
+        "reason_code": reason_code,
+        "message": message,
+    }
+    if guard is not None:
+        payload["guard"] = guard.to_dict()
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(f"{message} ({reason_code})", file=sys.stderr)
+        if guard is not None and guard.blocking_item_ids:
+            print(
+                "Blocked by: " + ", ".join(guard.blocking_item_ids), file=sys.stderr
+            )
+    raise SystemExit(1)
+
+
+def _task_human_view(value: dict[str, Any]) -> list[str]:
+    summary = value["summary"]
+    lines = [
+        f"{summary['goal']}",
+        f"State: {value['lifecycle']} · phase {summary['phase']} · "
+        f"revision {value['revision']}",
+        f"Progress: {summary['completed_items']} completed, "
+        f"{len(summary['remaining_items'])} remaining, "
+        f"{len(summary['blocked_items'])} blocked",
+    ]
+    if summary["blocked_items"]:
+        lines.append("Blocked: " + ", ".join(summary["blocked_items"]))
+    if summary["unsatisfied_constraints"]:
+        lines.append(
+            "Unsatisfied constraints: "
+            + ", ".join(summary["unsatisfied_constraints"])
+        )
+    lines.append(
+        "Completion allowed: "
+        + ("yes" if summary["completion_allowed"] else "no")
+    )
+    if summary["completion_blockers"]:
+        lines.append("Blocked by: " + ", ".join(summary["completion_blockers"]))
+    terminal = value["lifecycle"] in {"completed", "cancelled", "expired"}
+    if terminal:
+        # Terminal work has no next step. Continuing it means a new task.
+        lines.append(
+            f"This task is {value['lifecycle']}"
+            + (
+                f" ({value['terminal_reason']})"
+                if value.get("terminal_reason")
+                else ""
+            )
+            + " and cannot be changed."
+        )
+        lines.append("Next: atmem task start ... --continues " + value["task_id"])
+    elif summary["ready_items"]:
+        lines.append("Next eligible work: " + ", ".join(summary["ready_items"]))
+        lines.append(f"Next: work item {summary['ready_items'][0]}")
+    elif summary["completion_allowed"] and value["lifecycle"] == "open":
+        lines.append("Next: atmem task complete ... --actor YOU")
+    lines.append(f"Task ID: {value['task_id']}")
+    return lines
+
+
+def _task_human_list(value: dict[str, Any]) -> list[str]:
+    lines = [f"Governed tasks: {value['count']}"]
+    for row in value["tasks"]:
+        lines.append(
+            f"  {row['goal']}  [{row['lifecycle']}, revision {row['revision']}]"
+        )
+        lines.append(f"    {row['task_id']}")
+    if value.get("next_cursor"):
+        lines.append(f"Next: re-run with --cursor {value['next_cursor']}")
+    elif not value["tasks"]:
+        lines.append("Next: atmem task start ... to begin one")
+    return lines
+
+
+def _task_human_timeline(value: dict[str, Any]) -> list[str]:
+    lines = [f"Timeline for {value['task_id']}"]
+    for row in value["steps"]:
+        lines.append(
+            f"  {row['recorded_at_utc']}  {row['step_kind']}  {row['outcome']}"
+            + (
+                f"  ({', '.join(row['reason_codes'])})"
+                if row["reason_codes"]
+                else ""
+            )
+        )
+    for row in value["deliveries"]:
+        lines.append(
+            f"  {row['prepared_at_utc']}  context {row['disposition']}"
+            + (
+                f"  ({', '.join(row['reason_codes'])})"
+                if row["reason_codes"]
+                else ""
+            )
+        )
+    return lines
+
+
+def _task_human_health(value: dict[str, Any]) -> list[str]:
+    tasks = value["tasks"]
+    transitions = value["transitions"]
+    lines = [
+        f"Tasks: {tasks['total']} total, {tasks['open_or_paused']} open or paused",
+        "By lifecycle: "
+        + ", ".join(f"{name} {count}" for name, count in tasks["by_lifecycle"].items()),
+        "Decisions: "
+        + ", ".join(
+            f"{name} {count}" for name, count in transitions["by_outcome"].items()
+        ),
+        f"Stale-revision conflicts: {transitions['stale_revision_conflicts']}",
+        f"Context prepared/exposed/withheld: {value['context']['prepared']}/"
+        f"{value['context']['exposed']}/{value['context']['withheld']}",
+        f"Integrity: {'valid' if value['integrity']['valid'] else 'FAILED'}",
+    ]
+    if value["overdue_tasks"]:
+        lines.append(
+            "Overdue: "
+            + ", ".join(row["task_id"] for row in value["overdue_tasks"])
+        )
+        lines.append("Next: atmem task show PATH TASK_ID ... to inspect one")
+    return lines
+
+
+def _task_human_provenance(value: dict[str, Any]) -> list[str]:
+    if not value["found"]:
+        return ["No provenance is available for this selection."]
+    lines = [f"{value['target_kind']} {value['target_id']} on {value['task_id']}:"]
+    for row in value["history"]:
+        lines.append(f"  revision {row['revision']}: {row['summary']}")
+        for evidence in row["evidence"]:
+            lines.append(
+                f"    evidence: {evidence['kind']} {evidence['reference_id']}"
+            )
+    for row in value["deliveries"]:
+        lines.append(
+            f"  delivered at revision {row['revision']}: {row['disposition']}"
+            f" (exposed: {'yes' if row['exposed'] else 'no'})"
+        )
+    return lines
+
+
+def _task_human_decision(value: dict[str, Any]) -> list[str]:
+    lines = [
+        f"Outcome: {value['outcome']}",
+        "Reasons: " + ", ".join(value["reason_codes"]),
+    ]
+    if value.get("resulting_revision"):
+        lines.append(f"Revision: {value['resulting_revision']}")
+    for guard in value.get("guards") or ():
+        lines.append(f"Guard: {guard['message']}")
+    if value["outcome"] == "conflict":
+        lines.append("Next: re-read the task and submit a fresh request")
+    return lines
+
+
+def _run_proposals(args: argparse.Namespace) -> None:
+    """Drive the same review service the dashboard uses, from a terminal."""
+    from atmem.extract.review import ReviewService
+
+    memory = Memory(args.path, auto_vectors=False)
+    try:
+        service = ReviewService(memory)
+        if args.proposals_command == "queue":
+            queue = service.queue(args.subject, limit=args.limit)
+            _emit_proposal_queue(queue, json_output=args.json)
+            return
+        if args.proposals_command == "show":
+            _emit_proposal(service.inspect(args.proposal_id), json_output=args.json)
+            return
+        if args.proposals_command == "lineage":
+            lineage = memory.memory_lineage(args.subject_id, args.record_id)
+            if args.json:
+                _print({"format": "atmem-memory-lineage-v1", "lineage": lineage})
+                return
+            if not lineage:
+                print("No lineage is recorded for this selection.")
+                return
+            for row in lineage:
+                print(
+                    f"{row['predecessor_record_id']} --{row['relation']}--> "
+                    f"{row['successor_record_id']}  ({row['created_at']})"
+                )
+            return
+        if args.proposals_command == "decide":
+            result = service.decide(
+                args.proposal_id,
+                args.decision,
+                actor=args.actor,
+                reason=args.reason,
+                edited_fact=args.fact,
+                session_id=args.session,
+            )
+            _emit_proposal(result, json_output=args.json)
+            if result["review_state"] == "stale":
+                # Nothing was committed: the memory this proposal targeted
+                # changed while it waited, so the operator must look again.
+                raise SystemExit(1)
+            return
+    finally:
+        memory.close()
+
+
+def _emit_proposal_queue(value: dict[str, Any], *, json_output: bool) -> None:
+    if json_output:
+        _print(value)
+        return
+    rows = value.get("proposals") or []
+    print(f"Proposals awaiting review: {len(rows)}")
+    for row in rows:
+        print(
+            f"  {row['proposal_id']}  {row['action']}  {row['memory_class']}  "
+            f"confidence {row['confidence']:.2f}"
+        )
+        print(f"    proposed fact: {row.get('fact') or '(no fact)'}")
+        print("    reasons: " + ", ".join(row.get("reason_codes") or ["none"]))
+    if rows:
+        print("Decide with: atmem proposals decide PATH PROPOSAL_ID DECISION --actor YOU")
+
+
+def _emit_proposal(value: dict[str, Any], *, json_output: bool) -> None:
+    if json_output:
+        _print(value)
+        return
+    print(f"Proposal: {value['proposal_id']}")
+    print(f"State: {value['review_state']}")
+    print(f"Action: {value['action']} ({value['memory_class']})")
+    print(f"Confidence: {value['confidence']:.2f}")
+    # The proposed text, not necessarily what was committed: an
+    # edit-and-approve stores the reviewer's wording instead.
+    print(f"Proposed fact: {value.get('fact') or '(no fact)'}")
+    print("Reasons: " + ", ".join(value.get("reason_codes") or ["none"]))
+    for item in value.get("evidence") or []:
+        print(
+            f"Evidence: {item['source_id']} "
+            f"[{item['start_offset']}:{item['end_offset']}] {item['excerpt_sha256']}"
+        )
+    if value.get("affected_record_ids"):
+        print("Affects: " + ", ".join(value["affected_record_ids"]))
+    if value.get("record_ids"):
+        print("Committed records: " + ", ".join(value["record_ids"]))
+    if value.get("superseded_record_ids"):
+        print("Superseded records: " + ", ".join(value["superseded_record_ids"]))
+    if value.get("allowed_decisions"):
+        print("Allowed decisions: " + ", ".join(value["allowed_decisions"]))
+    for review in value.get("reviews") or []:
+        print(
+            f"Decision: {review['decision']} by {review['actor']} "
+            f"at {review['decided_at']} — {review['reason'] or 'no reason given'}"
+        )
+
+
+def _emit_semantic_health(value: dict[str, Any], *, json_output: bool) -> None:
+    if json_output:
+        _print(value)
+        return
+    manifest = value.get("manifest") or {}
+    print(f"Semantic index: {value['status']}")
+    print(f"Subject: {value['subject_id']}")
+    print("Reasons: " + ", ".join(value.get("reasons") or ["none recorded"]))
+    if manifest:
+        print(
+            "Model: "
+            f"{manifest.get('provider')}/{manifest.get('model')} "
+            f"({manifest.get('dimensions')} dimensions)"
+        )
+        print(f"Epoch: {manifest.get('epoch_id')}")
+        print(f"Source digest: {manifest.get('source_sha256')}")
+        print(f"Record coverage: {manifest.get('record_count')} records")
+    print("Next actions: " + ", ".join(value.get("actions") or ["none"]))
+
+
+def _emit_semantic_setup(value: dict[str, Any], *, json_output: bool) -> None:
+    if json_output:
+        _print(value)
+        return
+    print(f"Semantic operation: {value.get('status', 'complete')}")
+    if value.get("message"):
+        print(value["message"])
+    health = value.get("health") or {}
+    if health:
+        print(f"Health: {health.get('status')}")
+    recommendations = value.get("recommendations") or []
+    if recommendations:
+        print("Compatible local models:")
+        for row in recommendations:
+            print(
+                f"  {row['model']} · ~{row['approximate_download_mib']} MiB · "
+                f"{row['caveat']}"
+            )
+    smoke = value.get("smoke_test") or {}
+    if smoke:
+        print("Paraphrase smoke test: " + ("passed" if smoke.get("passed") else "failed"))
 
 
 def _emit_report(value: object, text: str, args: argparse.Namespace) -> None:
@@ -1854,6 +3525,148 @@ def _run_atbot(args: argparse.Namespace) -> None:
             print(f"Runtime: {result['installed_version']} (pinned {result['pinned_version']})")
         for action in result.get("setup_actions") or []:
             print(action)
+
+
+def _run_delegated(args: argparse.Namespace) -> None:
+    from atmem.delegated import (
+        DelegatedConfigStore,
+        DelegatedContextService,
+        DelegatedRegistration,
+    )
+
+    config = DelegatedConfigStore()
+    service = DelegatedContextService(config)
+    command = args.delegated_command
+    try:
+        if command == "register":
+            key_path = Path(args.public_key_file).expanduser()
+            if key_path.is_symlink() or not key_path.is_file():
+                raise ValueError("public key file must be a regular, non-symlink file")
+            public_key = key_path.read_text(encoding="utf-8").strip()
+            result = config.register(
+                DelegatedRegistration(
+                    provider_id=args.provider_id,
+                    provider_version=args.provider_version,
+                    provider_instance_id=args.instance_id,
+                    key_id=args.key_id,
+                    public_key_base64=public_key,
+                    endpoint=args.endpoint,
+                    request_key_id=args.request_key_id,
+                    request_secret_file=str(Path(args.request_secret_file).expanduser().absolute()) if args.request_secret_file else None,
+                    workspace_ids=tuple(args.workspace),
+                    agent_ids=tuple(args.agent),
+                    user_ids=tuple(args.user),
+                    timeout_ms=args.timeout_ms,
+                    max_context_bytes=args.max_context_bytes,
+                    enabled=False,
+                    native_fallback_on_failure=bool(args.native_fallback),
+                ),
+                replace=bool(args.replace),
+            )
+        elif command == "set-request-auth":
+            result = config.set_request_auth(args.registration_id, args.request_key_id, args.request_secret_file)
+        elif command in {"enable", "disable"}:
+            result = config.set_enabled(args.registration_id, command == "enable")
+        elif command == "remove":
+            current = next(
+                (row for row in config.registrations() if row.registration_id == args.registration_id),
+                None,
+            )
+            if current is None:
+                raise ValueError("delegated provider registration was not found")
+            if current.enabled:
+                raise ValueError("disable the delegated provider before removing it")
+            if not args.yes:
+                raise ValueError("removal requires --yes")
+            result = {"removed": config.remove(args.registration_id), "registration_id": args.registration_id}
+        elif command == "status":
+            result = service.status()
+        elif command == "doctor":
+            result = service.doctor()
+        elif command == "self-test":
+            result = service.self_test()
+        else:  # pragma: no cover
+            raise ValueError(f"unknown delegated command: {command}")
+    except (OSError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True, default=str))
+        return
+    if command == "register":
+        print(f"Registered {result['registration_id']} (disabled).")
+        print(f"Enable explicitly: atmem delegated enable {result['registration_id']}")
+    elif command in {"enable", "disable"}:
+        authority = "delegated" if result["enabled"] else "native AtMem"
+        print(f"Context authority for this scope: {authority}")
+    elif command == "remove":
+        print(f"Removed {result['registration_id']}")
+    else:
+        print(json.dumps(result, indent=2, sort_keys=True, default=str))
+
+
+def _run_provider(args: argparse.Namespace) -> None:
+    from atmem.provider_adapters import lifecycle
+
+    command = args.provider_command
+    try:
+        if command == "init":
+            result = lifecycle.initialize(
+                instance=args.instance, kind=args.kind, port=args.port,
+                factory=args.factory, mode=args.mode, provider_id=args.provider_id,
+                provider_version=args.provider_version, egress=args.egress,
+            )
+        elif command in {"auth-init", "auth-rotate"}:
+            result = lifecycle.auth_configure(args.instance, rotate=command == "auth-rotate",
+                overlap_seconds=getattr(args, "overlap_seconds", 30))
+        elif command == "auth-revoke":
+            result = lifecycle.auth_revoke(args.instance, args.request_key_id)
+        elif command == "serve":
+            from atmem.provider_adapters.server import serve
+
+            _, config = lifecycle.load_config(args.instance)
+            serve(lifecycle.build_runtime(args.instance), config["host"], config["port"])
+            return
+        elif command == "start":
+            result = lifecycle.start(args.instance)
+        elif command == "stop":
+            result = lifecycle.stop(args.instance)
+        elif command == "doctor":
+            result = lifecycle.doctor(args.instance)
+        elif command == "status":
+            if args.instance:
+                result = lifecycle.status(args.instance)
+            else:
+                root = lifecycle.provider_root()
+                result = {
+                    "format": "atmem-provider-status-list-v1",
+                    "providers": [
+                        lifecycle.status(path.name)
+                        for path in sorted(root.iterdir())
+                        if path.is_dir() and not path.is_symlink()
+                    ] if root.is_dir() else [],
+                }
+        elif command == "remove":
+            if not args.yes:
+                raise ValueError("provider removal requires --yes")
+            result = lifecycle.remove(args.instance)
+        else:  # pragma: no cover
+            raise ValueError(f"unknown provider command: {command}")
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+    if getattr(args, "json", False):
+        print(json.dumps(result, indent=2, sort_keys=True, default=str))
+        return
+    if command == "init":
+        print(f"Created provider {result['instance']} (authority remains native AtMem).")
+        print("Start it:")
+        print(f"  atmem provider start {result['instance']}")
+        print("Register exact trust scopes (still disabled):")
+        print(f"  {result['registration_command']}")
+        print(f"Then review and enable: atmem delegated enable {result['provider_id']}:{result['instance']}")
+    else:
+        print(json.dumps(result, indent=2, sort_keys=True, default=str))
 
 
 def _interactive_atbot_setup(manager: Any) -> dict[str, Any]:
@@ -2348,6 +4161,79 @@ def _run_blackbox(args: argparse.Namespace) -> None:
         _print(report)
     else:
         print(format_flight_report(report), end="")
+
+
+def _run_benchmark_cli(args: argparse.Namespace) -> None:
+    from atmem.benchmark.contracts import read_json, write_json
+    from atmem.benchmark.external import compare_results, import_longmemeval
+    from atmem.benchmark.profiles import list_profiles
+    from atmem.benchmark.runner import run_benchmark
+
+    command = args.benchmark_command
+    if command == "profiles":
+        profiles = list_profiles()
+        if args.json:
+            _print({"profiles": profiles})
+        else:
+            for profile in profiles:
+                state = "ready" if profile["available"] else "not ready"
+                print(
+                    f"{profile['mode']}: {state}; egress={profile['egress_class']}; "
+                    f"provider={profile['provider']}"
+                )
+                if profile.get("skip_reason"):
+                    print(f"  {profile['skip_reason']}")
+        return
+    if command == "import-longmemeval":
+        result = import_longmemeval(args.input)
+        write_json(args.output, result)
+        if args.json:
+            _print(result)
+        else:
+            counts = result["counts"]
+            print(
+                f"Imported {counts['supported']} supported cases; "
+                f"{counts['skipped']} skipped; {counts['unsupported']} unsupported."
+            )
+            print(f"Wrote {Path(args.output).resolve(strict=False)}")
+        return
+    if command == "compare":
+        result = compare_results(read_json(args.left), read_json(args.right))
+        if args.output:
+            write_json(args.output, result)
+        if args.json:
+            _print(result)
+        else:
+            print("Fair comparison: yes")
+            print("Systems: " + " vs ".join(result["systems"]))
+            print("Outcome: " + result["overall"]["outcome"])
+            print(result["overall"]["statement"])
+            for name, metric_result in result["metrics"].items():
+                print(f"  {name}: {metric_result['winner']}")
+            if args.output:
+                print(f"Wrote {Path(args.output).resolve(strict=False)}")
+        return
+
+    report = run_benchmark(
+        profile_name=args.profile,
+        dataset_path=args.dataset,
+        thresholds_path=args.thresholds,
+    )
+    if args.output:
+        write_json(args.output, report)
+    if args.json:
+        _print(report)
+    else:
+        print(f"Memory benchmark: {report['status'].upper()}")
+        print(f"Profile: {report['profile']['mode']}")
+        print(f"Cases: {len(report['case_results'])}")
+        print(f"Quality digest: {report['quality_sha256']}")
+        for failure in report["failures"]:
+            print(f"  FAIL: {failure}")
+        if args.output:
+            print(f"Wrote {Path(args.output).resolve(strict=False)}")
+    if not report["passed"]:
+        raise SystemExit(2 if report["status"] == "skipped" else 1)
 
 
 def _confirm_control_host(

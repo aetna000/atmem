@@ -1,24 +1,78 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://atmem.dev/schemas/v1/memory-proposal.json",
-  "title": "AtMem memory proposal v1",
-  "type": "object",
-  "required": ["format", "proposal_id", "idempotency_key", "scope", "fact", "source_ids", "interpreter", "source_binding"],
-  "properties": {
-    "format": {"const": "atmem-memory-proposal-v1"},
-    "proposal_id": {"type": "string", "minLength": 1, "maxLength": 128},
-    "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 256},
-    "scope": {"$ref": "scope.json"},
-    "fact": {"type": "string", "minLength": 1, "maxLength": 2000},
-    "source_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
-    "fact_key": {"type": ["string", "null"]},
-    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-    "entities": {"type": "array", "items": {"type": "object"}},
-    "suggested_action": {"enum": ["add", "duplicate", "supports", "extends", "contradicts", "supersedes", "uncertain"]},
-    "related_record_ids": {"type": "array", "items": {"type": "string"}},
-    "sensitivity": {"enum": ["public", "internal", "personal", "sensitive", "restricted"]},
-    "interpreter": {"type": "object"},
-    "source_binding": {"type": "object"}
-  },
-  "additionalProperties": false
+  "title": "AtMem memory proposal",
+  "oneOf": [
+    {"$ref": "#/$defs/v1"},
+    {"$ref": "#/$defs/v2"}
+  ],
+  "$defs": {
+    "v1": {
+      "type": "object",
+      "required": ["format", "proposal_id", "idempotency_key", "scope", "fact", "source_ids", "interpreter", "source_binding"],
+      "properties": {
+        "format": {"const": "atmem-memory-proposal-v1"},
+        "proposal_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 256},
+        "scope": {"$ref": "scope.json"},
+        "fact": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "source_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+        "fact_key": {"type": ["string", "null"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "entities": {"type": "array", "items": {"type": "object"}},
+        "suggested_action": {"enum": ["add", "duplicate", "supports", "extends", "contradicts", "supersedes", "uncertain"]},
+        "related_record_ids": {"type": "array", "items": {"type": "string"}},
+        "sensitivity": {"enum": ["public", "internal", "personal", "sensitive", "restricted"]},
+        "session_id": {"type": ["string", "null"]},
+        "turn_id": {"type": ["string", "null"]},
+        "interpreter": {"type": "object"},
+        "source_binding": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["source_id", "source_sha256", "start_offset", "end_offset", "excerpt_sha256"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1},
+        "source_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "start_offset": {"type": "integer", "minimum": 0},
+        "end_offset": {"type": "integer", "minimum": 1},
+        "excerpt_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "precondition": {
+      "type": "object",
+      "required": ["record_id", "generation", "status", "content_sha256"],
+      "properties": {
+        "record_id": {"type": "string", "minLength": 1},
+        "generation": {"type": "integer", "minimum": 0},
+        "status": {"type": "string", "minLength": 1},
+        "content_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "v2": {
+      "type": "object",
+      "required": ["format", "proposal_id", "idempotency_key", "scope", "action", "memory_class", "confidence", "reason_codes", "evidence", "fact", "fact_key", "affected_record_ids", "preconditions", "review_required"],
+      "properties": {
+        "format": {"const": "atmem-memory-proposal-v2"},
+        "proposal_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 256},
+        "scope": {"$ref": "scope.json"},
+        "action": {"enum": ["ADD", "UPDATE", "SUPERSEDE", "REJECT", "NOOP"]},
+        "memory_class": {"enum": ["durable_fact", "temporary_state", "episode", "procedure", "non_memory"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "reason_codes": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "evidence": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/evidence"}},
+        "fact": {"type": ["string", "null"], "maxLength": 2000},
+        "fact_key": {"type": ["string", "null"]},
+        "affected_record_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "preconditions": {"type": "array", "items": {"$ref": "#/$defs/precondition"}},
+        "review_required": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  }
 }

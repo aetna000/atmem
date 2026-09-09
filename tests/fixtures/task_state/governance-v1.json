@@ -1,0 +1,134 @@
+{
+  "format": "atmem-task-governance-fixture-v1",
+  "version": "1.0.0",
+  "description": "The complete Governance Matrix as data. Every actor role is listed with every action, so a capability that silently widens fails this fixture rather than shipping.",
+  "actions": [
+    "read_state",
+    "propose_delta",
+    "commit_state",
+    "correct_state",
+    "register_profile",
+    "change_lifecycle",
+    "expire_task",
+    "deliver_context",
+    "delete_state"
+  ],
+  "matrix": [
+    {
+      "actor_role": "atmem_authority",
+      "read_state": true,
+      "propose_delta": true,
+      "commit_state": true,
+      "correct_state": true,
+      "register_profile": true,
+      "change_lifecycle": true,
+      "expire_task": false,
+      "deliver_context": true,
+      "delete_state": true
+    },
+    {
+      "actor_role": "policy_evaluator",
+      "read_state": false,
+      "propose_delta": false,
+      "commit_state": false,
+      "correct_state": false,
+      "register_profile": false,
+      "change_lifecycle": false,
+      "expire_task": true,
+      "deliver_context": false,
+      "delete_state": false
+    },
+    {
+      "actor_role": "atbot_intelligence",
+      "read_state": true,
+      "propose_delta": true,
+      "commit_state": false,
+      "correct_state": false,
+      "register_profile": false,
+      "change_lifecycle": false,
+      "expire_task": false,
+      "deliver_context": false,
+      "delete_state": false
+    },
+    {
+      "actor_role": "host_agent",
+      "read_state": true,
+      "propose_delta": true,
+      "commit_state": false,
+      "correct_state": false,
+      "register_profile": false,
+      "change_lifecycle": false,
+      "expire_task": false,
+      "deliver_context": false,
+      "delete_state": false
+    },
+    {
+      "actor_role": "operator",
+      "read_state": true,
+      "propose_delta": true,
+      "commit_state": false,
+      "correct_state": true,
+      "register_profile": false,
+      "change_lifecycle": true,
+      "expire_task": false,
+      "deliver_context": false,
+      "delete_state": false
+    },
+    {
+      "actor_role": "administrator",
+      "read_state": true,
+      "propose_delta": true,
+      "commit_state": false,
+      "correct_state": true,
+      "register_profile": true,
+      "change_lifecycle": true,
+      "expire_task": false,
+      "deliver_context": false,
+      "delete_state": true
+    },
+    {
+      "actor_role": "verifier",
+      "read_state": true,
+      "propose_delta": true,
+      "commit_state": false,
+      "correct_state": false,
+      "register_profile": false,
+      "change_lifecycle": false,
+      "expire_task": false,
+      "deliver_context": false,
+      "delete_state": false
+    },
+    {
+      "actor_role": "auditor",
+      "read_state": true,
+      "propose_delta": false,
+      "commit_state": false,
+      "correct_state": false,
+      "register_profile": false,
+      "change_lifecycle": false,
+      "expire_task": false,
+      "deliver_context": false,
+      "delete_state": false
+    },
+    {
+      "actor_role": "delegated_provider",
+      "read_state": false,
+      "propose_delta": false,
+      "commit_state": false,
+      "correct_state": false,
+      "register_profile": false,
+      "change_lifecycle": false,
+      "expire_task": false,
+      "deliver_context": false,
+      "delete_state": false
+    }
+  ],
+  "invariants": [
+    "atmem_authority is the only role permitted to commit canonical state",
+    "policy_evaluator holds expire_task and nothing else",
+    "atbot_intelligence may propose but never commit, correct, or deliver",
+    "delegated_provider holds no task capability at all",
+    "expire_task is held by exactly one role",
+    "register_profile and delete_state require administrative permission"
+  ]
+}

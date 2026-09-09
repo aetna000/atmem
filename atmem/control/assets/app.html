@@ -78,6 +78,40 @@
     </div>
   </section>
 
+  <div class="tabpanel" id="viewSettings">
+  <div class="pageheading"><div><div class="eyebrow">Configuration</div><h1>Settings</h1><p>Control memory intelligence, governed task state, and optional context providers.</p></div></div>
+
+  <section class="card semanticcard" id="featureCapabilityCard">
+    <div class="semantichead"><div><div class="eyebrow">Extensibility</div><h2>Feature and adapter readiness</h2><p class="sub">Runtime-derived capability status for graph, storage, framework adapters, interchange, lifecycle, media, onboarding, and production operation.</p></div><span class="statuspill" id="featureCapabilityStatus">Checking…</span></div>
+    <div class="evidencegrid" id="featureCapabilityRows"></div>
+    <div class="actions"><button class="secondary" id="featureCapabilityRefresh" type="button">Refresh capabilities</button></div>
+  </section>
+
+  <section class="card semanticcard" id="taskModeSettingsCard" hidden>
+    <div class="semantichead">
+      <div><div class="eyebrow">Agent context</div><h2>Governed task state</h2><p class="sub" id="taskModeNote">Choose whether the selected agent and workspace may receive explicitly bound task context. Existing tasks and evidence are preserved when this is off.</p></div>
+      <span class="statuspill" id="taskModeStatus">Checking…</span>
+    </div>
+    <div class="evidencegrid">
+      <div class="evidence"><span>Current scope</span><b id="taskModeScope">Detecting agent and workspace…</b></div>
+      <div class="evidence"><span>Effect</span><b id="taskModeEffect">Checking whether task context can reach this agent…</b></div>
+    </div>
+    <div class="actions"><button class="primary" id="taskModeAction" type="button" disabled>Enable task state</button></div>
+  </section>
+
+  <section class="card semanticcard" id="semanticSettingsCard">
+    <div class="semantichead">
+      <div><div class="eyebrow">Semantic retrieval</div><h2>Embedding model</h2><p class="sub" id="semanticSettingsNote">Choose a local production embedding model. AtMem downloads only after confirmation, then builds and verifies the disposable vector index automatically.</p></div>
+      <span class="statuspill" id="semanticSettingsStatus">Checking…</span>
+    </div>
+    <div class="intelligencefields">
+      <label class="field wide"><span>Local embedding profile</span><select id="semanticModelSelect" aria-label="Embedding model"></select></label>
+    </div>
+    <div class="evidencegrid" id="semanticSettingsEvidence"></div>
+    <div class="actions"><button class="primary" id="semanticSetupAction" type="button" disabled>Install and activate</button></div>
+    <p class="foot">The canonical memory database remains authoritative. Changing models creates and verifies a new vector epoch before activation.</p>
+  </section>
+
   <details class="intelligenceconfig" id="intelligenceConfig">
     <summary class="intelligencesummary">
       <div class="intelligencesummarycopy"><b id="intelligenceConfigTitle">Memory intelligence</b><span>Provider and model settings</span></div>
@@ -107,6 +141,39 @@
     </div>
   </details>
 
+  <details class="intelligenceconfig" id="contextAuthorityConfig">
+    <summary class="intelligencesummary">
+      <div class="intelligencesummarycopy"><b>Context authority</b><span>Native AtMem by default; optional delegated provider</span></div>
+      <div class="intelligencesummarymeta"><span class="statuspill" id="contextAuthorityStatus">Native AtMem</span><span class="settingshint">Settings <span aria-hidden="true">⌄</span></span></div>
+    </summary>
+    <div class="intelligencebody">
+      <div class="intelligencehead"><div><h2>Delegated context provider</h2><p class="sub" id="contextAuthorityGuidance">AtMem currently decides what context may reach your agent.</p></div></div>
+      <div id="contextAuthorityRegistrations" class="authorityregistrations"></div>
+      <div class="intelligenceactions"><button class="secondary" id="authorityDoctor" type="button">Check readiness</button><button class="secondary" id="authoritySelfTest" type="button">Run self-test</button></div>
+      <details class="technical authoritysetup"><summary>Register a trusted local provider</summary>
+        <div class="intelligencefields">
+          <label class="field"><span>Provider</span><input id="authorityProvider" placeholder="context-provider"></label>
+          <label class="field"><span>Version</span><input id="authorityVersion" placeholder="1.0"></label>
+          <label class="field"><span>Instance</span><input id="authorityInstance" placeholder="local"></label>
+          <label class="field"><span>Key ID</span><input id="authorityKeyId" placeholder="primary"></label>
+          <label class="field"><span>Request key ID</span><input id="authorityRequestKeyId" placeholder="Request credential ID from provider setup"></label>
+          <label class="field wide"><span>Private request-secret file</span><input id="authorityRequestSecretFile" autocomplete="off" placeholder="Absolute local file path — never paste secret bytes"></label>
+          <label class="field wide"><span>Loopback endpoint</span><input id="authorityEndpoint" value="http://127.0.0.1:8788/v1/delegated-context"></label>
+          <label class="field wide"><span>Ed25519 public key (base64)</span><input id="authorityPublicKey" autocomplete="off" spellcheck="false" placeholder="Public verification key — never a private key"></label>
+          <label class="field"><span>Workspace IDs</span><input id="authorityWorkspaces" placeholder="ws_123"></label>
+          <label class="field"><span>Agent IDs</span><input id="authorityAgents" placeholder="main"></label>
+          <label class="field"><span>User IDs</span><input id="authorityUsers" placeholder="local-owner"></label>
+          <label class="field authoritycheck"><span><input id="authorityFallback" type="checkbox"> Use native AtMem if provider fails</span></label>
+        </div>
+        <div class="intelligenceactions"><button class="primary" id="authorityRegister" type="button">Register disabled</button></div>
+      </details>
+      <div class="intelligencesecurity"><b>Explicit opt-in only.</b> Register trust and exact scopes here or in the CLI. AtMem verifies signed results, injects the exact bytes once, and records delivery without storing the delegated context.</div>
+      <div class="intelligenceguide"><code>atmem delegated register --help</code><button class="secondary compact" id="contextAuthorityCopy" type="button">Copy CLI command</button></div>
+    </div>
+  </details>
+
+  </div>
+
   <div class="tabpanel active" id="viewStatus">
   <div class="pageheading"><div><h1>Activity</h1><p>Every recorded agent session, memory change, and governed decision.</p></div></div>
 
@@ -116,6 +183,15 @@
     <div class="metric"><b class="mono" id="sourceBytes">—</b><span id="sourceBytesLabel">source bytes preserved</span></div>
     <div class="metric"><b id="verified">—</b><span>memory verification</span></div>
   </div>
+
+  <section class="card semanticcard" id="semanticHealthCard">
+    <div class="semantichead">
+      <div><div class="eyebrow">Semantic retrieval</div><h2>Index health</h2><p class="sub" id="semanticHealthDetail">Checking model identity, record coverage, and canonical digests…</p></div>
+      <span class="statuspill" id="semanticHealthStatus">Checking…</span>
+    </div>
+    <div class="evidencegrid" id="semanticHealthEvidence"></div>
+    <div class="actions" id="semanticHealthActions"></div>
+  </section>
 
   <section class="card agentoverview" id="agentOverview">
     <div class="agentoverviewhead"><div><div class="eyebrow">Persistent agent coverage</div><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-users"/></svg><span>Agents &amp; workspaces</span></h2><p class="sub">Which agents share memory, which are isolated, and whether every workspace is verified.</p></div><div class="agentcounts"><div class="agentcount"><b id="agentCount">—</b><span>agents detected</span></div><div class="agentcount"><b id="workspaceCount">—</b><span>workspaces</span></div></div></div>
@@ -153,6 +229,19 @@
         <div class="reviewhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Memory decisions</span></h2><span class="reviewcount" id="reviewCount">0</span><button class="secondary" id="reviewRefresh" type="button">Refresh</button></div>
         <p class="sub">External observations stay out of agent recall until you approve them. Rejection permanently purges the candidate content.</p>
         <div id="reviews"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Checking for quarantined memories…</span></div></div>
+      </section>
+
+      <section class="card" id="taskCard" hidden>
+        <div class="reviewhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Governed tasks</span></h2><span class="reviewcount" id="taskCount">0</span><button class="secondary" id="taskRefresh" type="button">Refresh</button></div>
+        <p class="sub">Inspect active task checklists, lifecycle, progress, context delivery, and linked agent flights. Enable or disable task state from Settings.</p>
+        <div id="taskSelected" hidden></div>
+        <div id="tasks"><div class="empty">Checking governed task state…</div></div>
+      </section>
+
+      <section class="card" id="proposalCard">
+        <div class="reviewhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Proposed changes</span></h2><span class="reviewcount" id="proposalCount">0</span><button class="secondary" id="proposalRefresh" type="button">Refresh</button></div>
+        <p class="sub">Extraction proposes; you decide. Each entry shows what would change, why it is waiting, and the exact source span it cites.</p>
+        <div id="proposals"><div class="empty">Checking for proposals awaiting review…</div></div>
       </section>
     </div>
 
@@ -216,7 +305,19 @@
       <div class="field"><label for="flightUntil">Through date</label><input id="flightUntil" type="date"></div>
       <button class="primary" id="flightSearch" type="button">Find sessions</button>
     </div>
-    <div class="flights" id="blackboxFlights"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading recent agent runs…</span></div></div>
+    <div class="blackboxworkspace" id="blackboxWorkspace">
+      <div class="flights" id="blackboxFlights"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading recent agent runs…</span></div></div>
+      <div class="backdrop auditorpane" id="auditorBackdrop" aria-hidden="true">
+        <aside class="drawer" role="region" aria-labelledby="auditorTitle">
+          <div class="drawerhead">
+            <div><div class="eyebrow" id="auditorEyebrow">Evidence investigation</div><h2 id="auditorTitle"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></h2>
+            <div class="auditoridentifiers" id="auditorId"></div></div>
+            <button class="close" id="auditorClose" aria-label="Close evidence details">×</button>
+          </div>
+          <div class="auditorbody" id="auditorBody"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading the verified audit chain…</span></div></div>
+        </aside>
+      </div>
+    </div>
   </section>
 
   <section class="card" id="mirrorCard">
@@ -311,16 +412,6 @@
     </div>
   </footer>
 </main>
-<div class="backdrop" id="auditorBackdrop" aria-hidden="true">
-  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="auditorTitle">
-    <div class="drawerhead">
-      <div><div class="eyebrow" id="auditorEyebrow">Evidence investigation</div><h2 id="auditorTitle"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></h2>
-      <div class="mono small" id="auditorId"></div></div>
-      <button class="close" id="auditorClose" aria-label="Close record history">×</button>
-    </div>
-    <div class="auditorbody" id="auditorBody"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading the verified audit chain…</span></div></div>
-  </aside>
-</div>
 <script>
 /*==ATMEM_INLINE_JS==*/
 </script>

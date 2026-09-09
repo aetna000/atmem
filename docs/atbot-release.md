@@ -31,10 +31,16 @@ stored in GitHub.
 2. Run both Python suites and build both distributions locally.
 3. Push the reviewed changes.
 4. Create and push a tag matching `atbot-v<VERSION>`, for example
-   `atbot-v0.1.0a4`.
+   `atbot-v0.1.0a6`.
 5. Approve the protected `pypi-atbot` environment deployment.
 6. Confirm `python -m pip install atmem-atbot==<VERSION>` installs an `atbot`
    command with the same version.
+
+When the same commit also releases AtMem, wait for this companion publication
+and verify it on PyPI **before** pushing the AtMem `v<VERSION>` tag. That second
+tag triggers the main workflow, which publishes AtMem and the compatible npm
+bridge and creates the GitHub prerelease from
+`docs/releases/v<VERSION>.md`. Pushing a branch alone creates no GitHub Release.
 
 The workflow rejects a tag that does not exactly match the version in
 `packages/atbot/pyproject.toml`, tests the companion, validates its wheel and

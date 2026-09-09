@@ -12,17 +12,20 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from copy import deepcopy
+from datetime import datetime, timezone
 import json
 import re
 from typing import Any, Mapping
 
 from atmem.core.canonical import canonical_json, sha256_hex
+from atmem.control.evidence import validate_task_evidence_payload
 from atmem.store.sqlite import utc_now
 
 
 EVENT_FORMAT = "atmem-agent-blackbox-event-v2"
 REPORT_FORMAT = "atmem-agent-blackbox-report-v2"
 EVIDENCE_KIND = "agent_blackbox"
+OPEN_FLIGHT_GRACE_SECONDS = 15 * 60
 
 _EVENT_TYPE = re.compile(r"^[a-z][a-z0-9_.-]{1,63}$")
 _DIGEST_KEYS = {
@@ -41,6 +44,10 @@ _DIGEST_KEYS = {
     "context_envelope_sha256",
     "context_receipt_sha256",
     "query_sha256",
+    "task_context_sha256",
+    "task_state_sha256",
+    "task_proposal_sha256",
+    "task_decision_sha256",
 }
 _TEXT_KEYS = {
     "provider",
@@ -61,6 +68,15 @@ _TEXT_KEYS = {
     "response_digest_profile",
     "context_location",
     "tool_canonical_name",
+    "task_id",
+    "task_disposition",
+    "task_lifecycle",
+    "task_outcome",
+    "task_actor",
+    "task_actor_role",
+    "task_assurance",
+    "retrieval_support_class",
+    "retrieval_calibration_version",
 }
 _COUNT_KEYS = {
     "prompt_chars",
@@ -69,6 +85,7 @@ _COUNT_KEYS = {
     "images_count",
     "tools_count",
     "context_chars",
+    "context_byte_length",
     "response_chars",
     "response_count",
     "messages_count",
@@ -76,13 +93,21 @@ _COUNT_KEYS = {
     "request_payload_bytes",
     "response_stream_bytes",
     "time_to_first_byte_ms",
+    "task_revision",
+    "task_base_revision",
+    "task_resulting_revision",
+    "candidates_considered",
 }
-_BOOL_KEYS = {"fast_mode", "cancelled", "success"}
+_BOOL_KEYS = {"fast_mode", "cancelled", "success", "task_guard_enforced"}
 _LIST_KEYS = {
     "candidate_ids",
     "param_keys",
     "derived_path_sha256",
     "context_component_event_ids",
+    "task_reason_codes",
+    "task_evidence_ids",
+    "task_affected_item_ids",
+    "retrieval_reason_codes",
 }
 
 _CORRELATION_KEYS = (
@@ -214,6 +239,7 @@ def verify_flight(
     entries: list[dict[str, Any]],
     chain: Mapping[str, Any],
     model_baseline: tuple[str, str] | None = None,
+    as_of: str | None = None,
 ) -> dict[str, Any]:
     selected = [
         entry
@@ -277,9 +303,56 @@ def verify_flight(
         for call_id in conflicting_completions
         if call_id not in coalesced_call_ids
     ]
+    # A repeated invocation ID is not sufficient proof of closure. Host scope,
+    # turn, tool and observation ordering must also agree. Apply this after
+    # wrapper coalescing so wrappers cannot erase a cross-scope conflict.
+    def same_invocation(request: dict[str, Any], completion: dict[str, Any]) -> bool:
+        before, after = request["body"], completion["body"]
+        before_payload, after_payload = before.get("payload") or {}, after.get("payload") or {}
+        return bool(
+            all(before.get(field) == after.get(field) for field in (
+                "turn_id", "session_id", "agent_id", "workspace_id", "subject_id",
+            ))
+            and (before_payload.get("tool_canonical_name") or before_payload.get("tool_name"))
+            == (after_payload.get("tool_canonical_name") or after_payload.get("tool_name"))
+            and int(request.get("sequence") or 0) < int(completion.get("sequence") or 0)
+        )
+
+    for call_id in set(requested) & set(completed):
+        if (
+            any(not any(same_invocation(request, completion) for request in requested[call_id])
+                for completion in completed[call_id])
+            or any(not any(same_invocation(request, completion) for completion in completed[call_id])
+                   for request in requested[call_id])
+        ):
+            conflicting_completions.append(call_id)
+    conflicting_completions = sorted(set(conflicting_completions))
     event_types = [str(entry["body"].get("event_type") or "") for entry in selected]
     turn_input = "turn.input" in event_types
     terminal = "turn.ended" in event_types
+    generated_at = as_of or utc_now()
+    open_age_seconds: float | None = None
+    if not terminal:
+        try:
+            observed = datetime.fromisoformat(
+                str(selected[-1]["body"]["recorded_at"]).replace("Z", "+00:00")
+            )
+            current = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+            if observed.tzinfo is not None and current.tzinfo is not None:
+                open_age_seconds = max(
+                    0.0,
+                    (
+                        current.astimezone(timezone.utc)
+                        - observed.astimezone(timezone.utc)
+                    ).total_seconds(),
+                )
+        except (KeyError, TypeError, ValueError):
+            open_age_seconds = None
+    flight_in_progress = bool(
+        not terminal
+        and open_age_seconds is not None
+        and open_age_seconds < OPEN_FLIGHT_GRACE_SECONDS
+    )
     model_input = "model.input" in event_types
     model_output = "model.output" in event_types
     context_entry = next(
@@ -425,6 +498,8 @@ def verify_flight(
         if cancelled
         else "failed"
         if any(value == "failed" for value in component_status.values())
+        else "in_progress"
+        if flight_in_progress
         else "incomplete"
         if any(value == "missing" for value in component_status.values())
         else "warning"
@@ -437,6 +512,8 @@ def verify_flight(
         verdict = "cancelled"
     elif failed:
         verdict = "failed"
+    elif flight_in_progress:
+        verdict = "in_progress"
     elif not structurally_complete:
         verdict = "incomplete_evidence"
     elif tool_errors:
@@ -471,7 +548,7 @@ def verify_flight(
     legacy_flight = not current_contract_observed
     report_body = {
         "format": REPORT_FORMAT,
-        "generated_at": utc_now(),
+        "generated_at": generated_at,
         "run_id": run_id,
         "session_id": next(
             (
@@ -512,6 +589,15 @@ def verify_flight(
             "components": component_status,
         },
         "lifecycle": {
+            "state": (
+                "completed"
+                if terminal
+                else "in_progress"
+                if flight_in_progress
+                else "awaiting_terminal"
+            ),
+            "seconds_since_last_event": open_age_seconds,
+            "stale_after_seconds": OPEN_FLIGHT_GRACE_SECONDS if not terminal else None,
             "success": succeeded,
             "failed": failed,
             "cancelled": cancelled,
@@ -691,9 +777,10 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
             "completion",
             "medium",
             "recording_stopped",
-            "Run ended without a recorded result",
-            observed + " No tool failure or external change is proven.",
-            "Review the OpenClaw result, then acknowledge this recording gap.",
+            "Run has not reported a final result",
+            observed
+            + " The run may still be active; no tool failure, ending, or external change is proven.",
+            "Check whether the host run is still active, then review this recording gap if it has stopped.",
         )
     components = (report.get("coverage_matrix") or {}).get("components") or {}
     if verdict == "failed":
@@ -737,7 +824,19 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
     ) + int(tools.get("uncorrelated_requests") or 0) + int(
         tools.get("uncorrelated_completions") or 0
     )
-    if tool_gaps and not legacy_flight and not recording_gap:
+    tool_evidence_conflict = bool(
+        tools.get("orphan_completions")
+        or tools.get("conflicting_requests")
+        or tools.get("conflicting_completions")
+        or tools.get("uncorrelated_requests")
+        or tools.get("uncorrelated_completions")
+    )
+    if (
+        tool_gaps
+        and (verdict != "in_progress" or tool_evidence_conflict)
+        and not legacy_flight
+        and not recording_gap
+    ):
         add(
             "tools",
             "high",
@@ -777,6 +876,7 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
         )
     elif (
         not coverage.get("context_disposition_observed")
+        and verdict != "in_progress"
         and not legacy_flight
         and not recording_gap
     ):
@@ -1063,6 +1163,7 @@ def _normalize_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     )
     if unknown:
         raise ValueError(f"unsupported blackbox payload field(s): {', '.join(unknown)}")
+    validate_task_evidence_payload(payload)
     normalized: dict[str, Any] = {}
     for key, value in payload.items():
         if value is None:

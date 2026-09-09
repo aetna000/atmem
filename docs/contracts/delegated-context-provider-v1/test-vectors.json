@@ -1,0 +1,126 @@
+{
+  "contract_id": "atmem.delegated-context-provider-test-vectors.v1",
+  "verification_time": "2026-09-01T12:01:00Z",
+  "positive": [
+    {
+      "id": "signed-inject-unicode-crlf",
+      "fixture": "inject.valid.json",
+      "expected_decision": "inject",
+      "expected_context_sha256": "b9daebf92b8034e9fd9dc3b704bc339c18b64f332bf2d09674c4d6a6c8950461"
+    },
+    {
+      "id": "signed-withhold-no-context",
+      "fixture": "withhold.valid.json",
+      "expected_decision": "withhold",
+      "expected_reason": "REQUIRED_CONTEXT_MISSING"
+    },
+    {
+      "id": "exact-idempotent-retry",
+      "fixture": "inject.valid.json",
+      "accept_count": 2,
+      "expected_second_idempotent": true
+    }
+  ],
+  "negative": [
+    {
+      "id": "untrusted-provider",
+      "operation": "remove trusted-provider registration",
+      "expected_failure": "trusted_provider"
+    },
+    {
+      "id": "wrong-run-binding",
+      "operation": "verify inject.valid.json against a different run_id",
+      "expected_failure": "turn_scope_binding"
+    },
+    {
+      "id": "wrong-turn-binding",
+      "operation": "verify inject.valid.json against a different turn_id",
+      "expected_failure": "turn_scope_binding"
+    },
+    {
+      "id": "wrong-session-binding",
+      "operation": "verify inject.valid.json against a different session_id",
+      "expected_failure": "turn_scope_binding"
+    },
+    {
+      "id": "wrong-agent-binding",
+      "operation": "verify inject.valid.json against a different agent_id",
+      "expected_failure": "turn_scope_binding"
+    },
+    {
+      "id": "wrong-user-binding",
+      "operation": "verify inject.valid.json against a different user_id",
+      "expected_failure": "turn_scope_binding"
+    },
+    {
+      "id": "wrong-workspace-binding",
+      "operation": "verify inject.valid.json against a different workspace_id",
+      "expected_failure": "turn_scope_binding"
+    },
+    {
+      "id": "expired",
+      "operation": "verify inject.valid.json at or after expires_at",
+      "expected_failure": "not_expired"
+    },
+    {
+      "id": "future-created",
+      "operation": "verify more than 30 seconds before created_at",
+      "expected_failure": "not_created_in_future"
+    },
+    {
+      "id": "excessive-lifetime",
+      "operation": "verify an otherwise valid result whose lifetime exceeds 300 seconds",
+      "expected_failure": "lifetime"
+    },
+    {
+      "id": "context-digest-mismatch",
+      "operation": "replace context.sha256 without changing bytes",
+      "expected_failure": "context_sha256"
+    },
+    {
+      "id": "context-length-mismatch",
+      "operation": "increment context.byte_length",
+      "expected_failure": "context_byte_length"
+    },
+    {
+      "id": "invalid-base64",
+      "operation": "replace context.bytes_base64 with non-base64 text",
+      "expected_failure": "context_base64"
+    },
+    {
+      "id": "signature-tamper",
+      "operation": "flip one bit in signature.value_base64",
+      "expected_failure": "signature"
+    },
+    {
+      "id": "idempotency-tamper",
+      "operation": "replace idempotency_key",
+      "expected_failure": "idempotency_binding"
+    },
+    {
+      "id": "unknown-field",
+      "operation": "add any undeclared top-level or nested field",
+      "expected_failure": "contract_shape"
+    },
+    {
+      "id": "inject-with-reason",
+      "operation": "set a non-null withhold_reason on an inject result",
+      "expected_failure": "contract_shape"
+    },
+    {
+      "id": "withhold-with-context",
+      "operation": "retain context on a withhold result",
+      "expected_failure": "contract_shape"
+    },
+    {
+      "id": "second-result-same-turn",
+      "operation": "accept a separately signed, different result after accepting inject.valid.json for the same bound turn",
+      "expected_failure": "turn"
+    },
+    {
+      "id": "nonce-replay-other-turn",
+      "operation": "accept inject.next-turn-same-nonce.valid.json after inject.valid.json",
+      "expected_failure": "nonce"
+    }
+  ]
+}

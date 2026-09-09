@@ -29,7 +29,8 @@ atmem mcp --db ~/.atmem/memories.db --subject user-1
 | --- | --- |
 | `memory_remember` | Admit authenticated text through policy and provenance checks. |
 | `memory_observe` | Admit a typed, quarantined text observation of host-controlled media. |
-| `memory_recall` | Return bounded active memories for a query. |
+| `memory_recall` | Legacy diagnostic search; its ranking does not authorize prompt injection. |
+| `memory_recall_decision` | Return the shared governed retrieval decision and revalidated context package. |
 | `memory_get_record` | Read one canonical record by ID. |
 | `memory_get_source` | Read the source episode associated with a record. |
 | `memory_recall_block` | Render bounded recall for direct context injection. |

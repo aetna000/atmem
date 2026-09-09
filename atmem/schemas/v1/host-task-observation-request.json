@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/host-task-observation-request.json",
+  "title": "AtMem host task observation request",
+  "description": "One bounded, authenticated workflow step observed at a host boundary. The adapter submits what it saw and never a delta: interpretation happens in the authorized companion path, and AtMem revalidates the result against the current head before commit. Carries no actor_role, capability or authority field by construction. Actor role is derived from the authenticated transport and the registered adapter identity; a submission carrying one is malformed rather than honoured or silently ignored.",
+  "type": "object",
+  "required": [
+    "format",
+    "identity",
+    "task_id",
+    "idempotency_key",
+    "observation",
+    "adapter"
+  ],
+  "properties": {
+    "format": {
+      "const": "atmem-host-task-observation-request-v1"
+    },
+    "identity": {
+      "$ref": "#/$defs/identity"
+    },
+    "task_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$",
+      "description": "Checked against the task the session resolves to; a redundant assertion, never the authority."
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Derived from stable host identifiers such as run id and tool-call id, never from payload content, wall-clock time, or randomness."
+    },
+    "observation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "adapter": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "adapter_version": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "evidence": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "observed_at_utc": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "identity": {
+      "type": "object",
+      "description": "All three parts are required together. Hosts declare these fields as optional, so a partial identity is one AtMem cannot place; resolving on whatever survived would be guessing, and guessing is what the binding exists to prevent.",
+      "required": [
+        "host_type",
+        "session_key",
+        "session_epoch"
+      ],
+      "properties": {
+        "format": {
+          "const": "atmem-host-session-identity-v1"
+        },
+        "host_type": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "session_key": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "session_epoch": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "kind",
+        "reference_id"
+      ],
+      "properties": {
+        "format": {
+          "const": "atmem-task-evidence-ref-v1"
+        },
+        "kind": {
+          "enum": [
+            "source",
+            "record",
+            "audit_event",
+            "blackbox_event",
+            "tool_call",
+            "verifier_result",
+            "operator_request",
+            "policy_rule"
+          ]
+        },
+        "reference_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
