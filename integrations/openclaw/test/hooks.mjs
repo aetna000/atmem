@@ -590,6 +590,38 @@ for line in sys.stdin:
     ).length,
     2,
   );
+  assert.ok(delegatedRuntime.logs.some(line => line.includes("delegated_sender_not_owner")));
+  const localWorkspace = path.join(dataDir, "delegated-workspace");
+  const localRuntime = fakeApi({
+    ...base, command: delegatedServer,
+    controlPlane: { enabled: true, statePath: path.join(dataDir, "unused-state.json") },
+    agentWorkspaces: { main: localWorkspace },
+    delegatedContext: { userId: "owner", requireOwner: false, localOperator: {
+      isolated: true, agentId: "main", workspaceDir: localWorkspace,
+      sessionKey: "isolated", sessionId: "epoch-1",
+    } },
+  });
+  try {
+    const localCtx = { agentId: "main", workspaceDir: localWorkspace,
+      sessionKey: "isolated", sessionId: "epoch-1", runId: "local-turn", messageProvider: "cli" };
+    const insertion = await localRuntime.hooks.get("before_prompt_build")({ prompt: "local context" }, localCtx);
+    assert.equal(insertion?.prependContext, exactDelegated);
+    for (const patch of [{ senderIsOwner: false }, { channel: "discord" },
+      { sessionId: "epoch-2" }, { workspaceDir: "/different" }, { messageProvider: undefined }]) {
+      const denied = await localRuntime.hooks.get("before_prompt_build")({ prompt: "denied context" }, { ...localCtx, ...patch });
+      assert.equal(denied, undefined);
+    }
+    // Both hook contracts can carry the invocation ID in context only.
+    const toolCtx = { ...localCtx, toolCallId: "context-call" };
+    await localRuntime.hooks.get("before_tool_call")({ toolName: "read", params: {} }, toolCtx);
+    await localRuntime.hooks.get("after_tool_call")({ toolName: "read", params: {}, result: "observed" }, toolCtx);
+    const rows = readFileSync(delegatedLog, "utf8").trim().split("\n").map(JSON.parse);
+    const tools = rows.filter(row => row.arguments?.tool_call_id === "context-call");
+    assert.deepEqual(tools.map(row => row.arguments.event_type), ["tool.requested", "tool.completed"]);
+    assert.ok(tools.every(row => row.arguments.run_id === "local-turn"));
+  } finally {
+    for (const service of localRuntime.services) await service.stop?.();
+  }
   for (const service of delegatedRuntime.services) await service.stop?.();
 
   const takeover = fakeApi({

@@ -150,7 +150,21 @@
           "requireOwner": {
             "type": "boolean",
             "default": true,
-            "description": "Send the mapped user ID only when OpenClaw marks the sender as owner."
+            "description": "Require authenticated owner metadata (default). False requires the explicit isolated localOperator mapping; it is not an ownership bypass."
+          },
+          "localOperator": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["isolated", "agentId", "workspaceDir", "sessionKey", "sessionId"],
+            "description": "Only for a dedicated local CLI process with channels disabled by the operator. Requires host messageProvider=cli, workspace and exact session generation; channel-originated turns are refused.",
+            "properties": {
+              "isolated": { "type": "boolean", "const": true, "description": "Operator assertion that this process is isolated from shared channels and other users." },
+              "stateDir": { "type": "string", "minLength": 1, "description": "Optional dedicated owner-only OPENCLAW_STATE_DIR. Required when a direct agent --local process omits CLI origin metadata; channels and delivery flags must be absent." },
+              "agentId": { "type": "string", "minLength": 1 },
+              "workspaceDir": { "type": "string", "minLength": 1 },
+              "sessionKey": { "type": "string", "minLength": 1 },
+              "sessionId": { "type": "string", "minLength": 1 }
+            }
           }
         }
       }

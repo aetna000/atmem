@@ -340,3 +340,39 @@ Implement delegated authority integration against the new contract owners (Specs
 Touch points (existing or proposed tests): `atmem/delegated/service.py`, `atmem/delegated/contracts.py`, `tests/test_delegated_context.py`. Project existing delegated decisions into the shared envelope without changing v1. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
 
 Verification: write boundary fixtures for FR-032, FR-033, SC-012 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.
+
+
+## Host compatibility acceptance plan — 2026-09-09
+
+Release target: AtMem and bridge 2.2.6, T049–T053, independently of Phase 8.
+The operator authorized real Mem0/dummy data and identity role-play in place of
+unavailable Storizon access, then restricted support checks to latest releases:
+OpenClaw 2026.9.2 and 2026.9.3. Publication is a separate operation.
+
+Use `tools/smoke_mem0_roleplay.py` for local Mem0/Qdrant/Ollama semantic retrieval
+and the existing authenticated provider server. Use `tools/run_mem0_openclaw_live.py`
+for isolated real Claude CLI turns, with private state, exact session mapping,
+conversation-hook consent and no channel delivery. Assert default-owner refusal,
+inject/withhold receipt and context digests, one/zero deliveries, successful
+read/exec closure, terminal tool errors, and deliberately dropped result events.
+Use `test/delegated-journey.mjs` with the real Mem0 fixture for explicit identity
+role-play. Record its synthetic identity source separately from real host turns.
+
+`delegated-identity.ts` enforces exact operator scope and default owner refusal.
+Hosts omitting CLI origin can use the explicitly configured private state path
+only in an unrouted `agent --local` process with no configured shared channels.
+`requireOwner: false` alone remains refused; no prompt supplies identity.
+
+`tool-observations.ts` correlates actual terminal tool-event results when typed
+completion hooks are absent. Match known requests, run/session and canonical
+tool names, retain only content-free scope and result digests, and deduplicate
+normal completion hooks. Feature-detect both event API generations. A bounded
+10-minute process cache survives registry reloads where host run-context writes
+are unavailable; missing/expired/conflicting observations fail closed. Black Box
+also checks invocation scope, tool and event ordering using existing contracts.
+
+Run Python and OpenClaw regression/build/typecheck gates, build wheel/sdist/npm,
+verify installed artifacts and deploy the reviewed artifacts locally. Record
+versions, hashes, commands, retries and limitations in an append-only entry.
+Private Storizon and live shared-channel identity remain separate unverified
+boundaries; neither is implied by Mem0 role-play acceptance.

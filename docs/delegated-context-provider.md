@@ -95,6 +95,51 @@ This mapping does not enable delegation. The AtMem registration is the single
 activation switch. If OpenClaw cannot prove the sender is the owner, AtMem
 withholds delegated context.
 
+### Isolated local CLI identity (2.2.6)
+
+`requireOwner: false` alone no longer grants a user identity. Existing users of
+that bypass must restore the default owner gate or configure a dedicated local
+mapping. This is an intentional fail-closed tightening; it does not change the
+HMAC profile or delegated payload. Native-only installations are unaffected.
+
+For a dedicated single-operator CLI process, with shared channels disabled and
+no untrusted users able to submit turns, an operator may explicitly configure:
+
+```json
+{
+  "agentWorkspaces": { "main": "/absolute/isolated-workspace" },
+  "delegatedContext": {
+    "userId": "local-owner",
+    "requireOwner": false,
+    "localOperator": {
+      "isolated": true,
+      "stateDir": "/absolute/private-openclaw-state",
+      "agentId": "main",
+      "workspaceDir": "/absolute/isolated-workspace",
+      "sessionKey": "EXACT_HOST_SESSION_KEY",
+      "sessionId": "EXACT_HOST_SESSION_GENERATION"
+    }
+  }
+}
+```
+
+Use actual host identifiers, not model text. Agent, absolute workspace, session
+key/generation and run ID must match, with no channel/account/chat/sender metadata.
+An explicit non-owner result always refuses. Session reset requires rebinding.
+
+When `messageProvider: "cli"` is absent, set `OPENCLAW_STATE_DIR` to the configured
+`stateDir`: an absolute, non-symlink directory owned by the current OS user with
+mode 0700. Run `openclaw agent --local` with no delivery/channel/recipient flags;
+the effective host configuration must have no configured channels. The mapping
+is a deliberate local trust assertion and cannot protect against a hostile
+process running as the same OS user. Never configure it on a shared gateway.
+Missing scope or unverified process origin fails closed. `requireOwner: false`
+and the complete mapping are both required; the default owner gate is unchanged.
+
+Logs distinguish identity failures from provider authentication failures.
+Real Mem0/Claude CLI acceptance passes on OpenClaw 2026.9.2 and 2026.9.3; see the
+[compatibility matrix](context-provider-adapters.md#226-delegated-host-compatibility).
+
 After changing the OpenClaw bridge configuration, verify the complete path:
 
 ```bash

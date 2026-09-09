@@ -836,3 +836,52 @@ def test_blackbox_global_chain_detects_tampering(tmp_path: Path) -> None:
     report = manager.verify_blackbox_flight("run-tamper")
     assert report["timeline_chain_valid"] is False
     assert report["verdict"] == "tampered_or_invalid_chain"
+
+
+@pytest.mark.parametrize("case", [
+    "complete", "error", "missing", "call", "turn", "session", "agent",
+    "workspace", "tool", "before_request", "other_run", "reused_request",
+])
+def test_tool_closure_requires_same_invocation_scope_and_order(tmp_path: Path, case: str) -> None:
+    manager = _manager(tmp_path)
+    scope = dict(run_id="closure", turn_id="turn-1", session_id="session-1",
+                 agent_id="main", workspace_id="workspace-1")
+    for event_type, payload in [
+        ("turn.input", {"prompt_sha256": "0" * 64}),
+        ("context.disposition", {"disposition": "not_applicable"}),
+        ("model.input", {"provider": "fixture", "model": "fixture"}),
+    ]:
+        manager.record_blackbox_event(event_type=event_type, payload=payload, **scope)
+    completion = dict(scope, tool_call_id="call-1")
+    for label, field in [("call", "tool_call_id"), ("turn", "turn_id"),
+                         ("session", "session_id"), ("agent", "agent_id"),
+                         ("workspace", "workspace_id"), ("other_run", "run_id")]:
+        if case == label:
+            completion[field] = "different"
+    payload = {"tool_name": "exec" if case == "tool" else "read",
+               "result_sha256": "1" * 64,
+               "outcome": "error" if case == "error" else "completed"}
+    if case == "before_request":
+        manager.record_blackbox_event(event_type="tool.completed", payload=payload, **completion)
+    manager.record_blackbox_event(event_type="tool.requested", tool_call_id="call-1",
+                                  payload={"tool_name": "read", "params_sha256": "2" * 64}, **scope)
+    if case == "reused_request":
+        manager.record_blackbox_event(event_type="tool.requested", tool_call_id="call-1",
+                                      payload={"tool_name": "read", "params_sha256": "2" * 64},
+                                      **dict(scope, turn_id="other-turn"))
+    if case not in {"missing", "before_request"}:
+        manager.record_blackbox_event(event_type="tool.completed", payload=payload, **completion)
+    manager.record_blackbox_event(event_type="model.output", payload={
+        "provider": "fixture", "model": "fixture", "response_sha256": "3" * 64,
+        "assistant_visible_text_sha256": "3" * 64,
+    }, **scope)
+    manager.record_blackbox_event(event_type="turn.ended", payload={
+        "success": True, "assistant_visible_text_sha256": "3" * 64,
+    }, **scope)
+    report = manager.verify_blackbox_flight("closure")
+    assert report["timeline_chain_valid"] is True
+    assert report["structurally_complete"] is (case in {"complete", "error"})
+    assert report["verdict"] == (
+        "completed_successfully" if case == "complete" else
+        "completed_with_tool_errors" if case == "error" else "incomplete_evidence"
+    )

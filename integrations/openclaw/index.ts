@@ -24,6 +24,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { lstat, mkdir, readFile, realpath, rename, unlink, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { ToolObservations, observationContext } from "./src/tool-observations.js";
+import { delegatedIdentity, isolatedCliProcess, type DelegatedIdentityConfig } from "./src/delegated-identity.js";
 import { AtmemClient } from "./src/rpc-client.js";
 import type {
   OpenClawPluginApi,
@@ -97,10 +99,7 @@ interface PluginConfig {
     statePath: string;
     blackboxEnabled: boolean;
   };
-  delegatedContext: {
-    userId: string;
-    requireOwner: boolean;
-  };
+  delegatedContext: DelegatedIdentityConfig;
 }
 
 function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
@@ -134,6 +133,14 @@ function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
   const delegatedContext = {
     userId: String(cfg.delegatedContext?.userId ?? "").trim(),
     requireOwner: cfg.delegatedContext?.requireOwner !== false,
+    localOperator: cfg.delegatedContext?.localOperator ? {
+      isolated: cfg.delegatedContext.localOperator.isolated === true,
+      stateDir: expandHome(String(cfg.delegatedContext.localOperator.stateDir ?? "")),
+      agentId: String(cfg.delegatedContext.localOperator.agentId ?? "").trim(),
+      workspaceDir: expandHome(String(cfg.delegatedContext.localOperator.workspaceDir ?? "")),
+      sessionKey: String(cfg.delegatedContext.localOperator.sessionKey ?? "").trim(),
+      sessionId: String(cfg.delegatedContext.localOperator.sessionId ?? "").trim(),
+    } : undefined,
   };
   return {
     command: String(cfg.command ?? "atmem"),
@@ -511,10 +518,17 @@ function register(api: OpenClawPluginApi): void {
     const workspace = cfg.agentWorkspaces[agentIdFor(ctx)];
     return workspace ? `ws_${digestText(workspace).slice(0, 16)}` : undefined;
   };
+  const verifiedIsolatedProcess = isolatedCliProcess(cfg.delegatedContext, api.config);
   const delegatedUserIdFor = (ctx: OpenClawHookCtx): string | undefined => {
-    if (!cfg.delegatedContext.userId) return undefined;
-    if (cfg.delegatedContext.requireOwner && ctx.senderIsOwner !== true) return undefined;
-    return cfg.delegatedContext.userId;
+    const identity = delegatedIdentity(
+      cfg.delegatedContext, ctx, cfg.agentWorkspaces[agentIdFor(ctx)], verifiedIsolatedProcess,
+    );
+    if (!identity.userId && cfg.delegatedContext.userId) {
+      api.logger.warn(`${TAG} delegated identity withheld: ${identity.reason}. ` +
+        "Use authenticated owner metadata or an explicitly isolated, scope-bound CLI mapping; " +
+        "provider HMAC authentication does not establish sender identity.");
+    }
+    return identity.userId;
   };
   const scopedKey = (value: string, ctx: OpenClawHookCtx): string =>
     `${agentIdFor(ctx)}:${value}`;
@@ -1423,8 +1437,27 @@ function register(api: OpenClawPluginApi): void {
     if (Object.keys(result).length) return result;
   });
 
+  // Latest CLI harnesses emit terminal results on the agent-event stream.
+  // Feature-detect both API generations; never infer completion from a request.
+  const runContext = api.runContext ?? (api.setRunContext && api.getRunContext ? {
+    setRunContext: api.setRunContext.bind(api), getRunContext: api.getRunContext.bind(api),
+  } : undefined);
+  const subscribe = api.agent?.events?.registerAgentEventSubscription?.bind(api.agent.events)
+    ?? api.registerAgentEventSubscription?.bind(api);
+  const toolObservations = cfg.controlPlane.blackboxEnabled && subscribe
+    ? new ToolObservations(observationContext(runContext, digestJson({
+        command: cfg.command, args: cfg.commandArgs, state: cfg.controlPlane.statePath,
+        subjects: cfg.agentSubjects, workspaces: cfg.agentWorkspaces,
+      })), digestJson) : undefined;
+  if (toolObservations && subscribe) subscribe({
+    id: "atmem-terminal-tool-observations", streams: ["tool"],
+    handle: event => toolObservations.observe(event),
+  });
+
   // ---- flight recorder + takeover enforcement --------------------------
   api.on("before_tool_call", async (event: BeforeToolCallEvent, ctx) => {
+    toolObservations?.request(event.toolName, event.toolCallId ?? ctx.toolCallId,
+      { ...ctx, runId: event.runId ?? ctx.runId, agentId: agentIdFor(ctx) });
     await recordBlackbox(
       "tool.requested",
       event.runId,
@@ -1439,7 +1472,7 @@ function register(api: OpenClawPluginApi): void {
           ? event.derivedPaths.map((value) => digestText(String(value)))
           : [],
       },
-      event.toolCallId,
+      event.toolCallId ?? ctx.toolCallId,
     );
     if (!cfg.takeoverActive || !cfg.nativeWorkspaces.some(
       (workspace) => touchesNativeMemory(event, workspace),
@@ -1460,13 +1493,15 @@ function register(api: OpenClawPluginApi): void {
         result_sha256: digestText(reason),
         duration_ms: 0,
       },
-      event.toolCallId,
+      event.toolCallId ?? ctx.toolCallId,
     );
     api.logger.warn(`${TAG} ${reason} Tool: ${event.toolName}`);
     return { block: true, blockReason: reason };
   });
 
   api.on("after_tool_call", async (event: AfterToolCallEvent, ctx) => {
+    toolObservations?.completed(event.toolCallId ?? ctx.toolCallId,
+      { ...ctx, runId: event.runId ?? ctx.runId, agentId: agentIdFor(ctx) });
     await recordBlackbox(
       "tool.completed",
       event.runId,
@@ -1479,12 +1514,20 @@ function register(api: OpenClawPluginApi): void {
         error_category: event.error ? "tool_error" : undefined,
         duration_ms: event.durationMs ?? 0,
       },
-      event.toolCallId,
+      event.toolCallId ?? ctx.toolCallId,
     );
   });
 
   // ---- auto-capture: user turn through the pipeline, assistant as digest -
   api.on("agent_end", async (event: AgentEndEvent, ctx) => {
+    await toolObservations?.flush({ ...ctx, runId: event.runId ?? ctx.runId, agentId: agentIdFor(ctx) }, async saved => {
+      await recordBlackbox("tool.completed", saved.ctx.runId, saved.ctx, {
+        tool_name: saved.name, tool_canonical_name: canonicalToolName(saved.name),
+        result_sha256: saved.result!.digest, outcome: saved.result!.error ? "error" : "completed",
+        error_category: saved.result!.error ? "tool_error" : undefined,
+        reason: "observed_terminal_host_tool_event",
+      }, saved.callId);
+    });
     const sessionKey = sessionKeyFor(ctx);
     const observedTurnInputKey = turnInputKey(ctx);
 

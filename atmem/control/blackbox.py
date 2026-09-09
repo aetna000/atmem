@@ -303,6 +303,30 @@ def verify_flight(
         for call_id in conflicting_completions
         if call_id not in coalesced_call_ids
     ]
+    # A repeated invocation ID is not sufficient proof of closure. Host scope,
+    # turn, tool and observation ordering must also agree. Apply this after
+    # wrapper coalescing so wrappers cannot erase a cross-scope conflict.
+    def same_invocation(request: dict[str, Any], completion: dict[str, Any]) -> bool:
+        before, after = request["body"], completion["body"]
+        before_payload, after_payload = before.get("payload") or {}, after.get("payload") or {}
+        return bool(
+            all(before.get(field) == after.get(field) for field in (
+                "turn_id", "session_id", "agent_id", "workspace_id", "subject_id",
+            ))
+            and (before_payload.get("tool_canonical_name") or before_payload.get("tool_name"))
+            == (after_payload.get("tool_canonical_name") or after_payload.get("tool_name"))
+            and int(request.get("sequence") or 0) < int(completion.get("sequence") or 0)
+        )
+
+    for call_id in set(requested) & set(completed):
+        if (
+            any(not any(same_invocation(request, completion) for request in requested[call_id])
+                for completion in completed[call_id])
+            or any(not any(same_invocation(request, completion) for completion in completed[call_id])
+                   for request in requested[call_id])
+        ):
+            conflicting_completions.append(call_id)
+    conflicting_completions = sorted(set(conflicting_completions))
     event_types = [str(entry["body"].get("event_type") or "") for entry in selected]
     turn_input = "turn.input" in event_types
     terminal = "turn.ended" in event_types

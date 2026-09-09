@@ -35,3 +35,22 @@ In shadow mode the bridge observes native-memory changes without injecting AtMem
 The bridge also supplies Agent Black Box hooks. It records model/tool lifecycle digests and bounded metadata—not raw prompts, responses, parameters or results—so `atmem blackbox verify RUN_ID` can check timeline integrity and observed tool-hook closure. See the [Agent Black Box guide](../../docs/agent-blackbox.md) for the exact boundary.
 
 See the repository [OpenClaw setup](../../docs/openclaw-setup.md) and [control-plane guarantees](../../docs/control-plane.md).
+
+
+### Delegated local CLI identity and tool evidence in 2.2.6
+
+The default delegated user mapping requires `senderIsOwner: true`. Setting
+`requireOwner: false` alone no longer bypasses identity checks. A dedicated local
+CLI process can use the explicit [isolated mapping configuration](../../docs/delegated-context-provider.md#isolated-local-cli-identity-226)
+with matching workspace, agent and exact session generation. If CLI origin is
+absent, an explicitly configured private state directory and an unrouted
+`agent --local` process with no configured shared channels establish the local
+process boundary. Shared-channel and explicit non-owner turns are refused.
+
+Tool completion hooks use the event's invocation ID or, when absent, the host
+context's ID. The verifier requires matching tool, turn and scope and a request
+preceding completion. Missing completion observations remain `incomplete_evidence`;
+actual terminal host tool-event results supply fallback observations when typed
+completion hooks are absent. Only matched requests close, with content-free
+bounded caching and duplicate suppression. Fully observed
+terminal tool errors close evidence as `completed_with_tool_errors`, not success.

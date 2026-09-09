@@ -14,6 +14,13 @@ published them. Native AtMem authority remains the default after installation
 or upgrade. The required `atmem-atbot==0.1.0a6` companion is packaged
 separately and installed automatically with AtMem.
 
+Spec 003's 2.2.6 local identity and tool-observation fixes pass real Mem0/Claude
+CLI acceptance on latest OpenClaw 2026.9.2 and 2026.9.3. Inject/withhold, exact
+digests/deliveries, default-owner refusal, successful/error tool closure and
+missing-result refusal are recorded in the [latest-host evidence](implementation-evidence/003/20260909T052000Z-740c5c89d63c-mem0-latest-hosts.md).
+Identity role-play passes; live shared-channel authentication and independent
+Storizon verification remain unverified. See the [compatibility matrix](context-provider-adapters.md#226-delegated-host-compatibility).
+
 The release has four runtime boundaries:
 
 1. AtMem's model-agnostic authority engine and canonical SQLite memory;
