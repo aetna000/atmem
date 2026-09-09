@@ -88,6 +88,9 @@ As an auditor, I can distinguish what the provider authorized from what AtMem de
 2. Provider authorization and AtMem delivery are separate stages and neither implies model use, tool success, or real-world outcome.
 3. Dashboard and CLI use plain language—“Provider authorized” and “AtMem delivered”—while technical IDs remain available on demand.
 4. Existing Agent Black Box verification remains valid for native and delegated flights.
+5. Compatibility disposition evidence distinguishes a placement-neutral digest
+   of all context AtMem delivered in the turn from the structural digest of the
+   exact host-return envelope and from the later exact-segment model-input proof.
 
 ### User Story 6 — Beta installation and recovery are simple (P2)
 
@@ -117,6 +120,14 @@ As an evaluator, I can install or upgrade to the beta, configure a test provider
 - **FR-011**: Invalid, unavailable, or timed-out delegation MUST fail closed by default. Native fallback MUST require explicit per-registration configuration and MUST create separately labeled AtMem-authorized evidence.
 - **FR-012**: Evidence MUST separately represent provider authorization and AtMem delivery/exposure, minimize content, remain hash-chain bound, and correlate receipt/result/context digests with the bound flight.
 - **FR-012a**: Delegated query and context bytes MUST NOT be persisted in control previews, acceptance rows, delivery rows, configuration, or flight evidence. The adapter MAY retain the exact accepted context only in bounded process memory until `llm_input` confirmation or expiry.
+- **FR-012b**: For `context.disposition`, `context_sha256` and
+  `context_block_sha256` MUST hash the same placement-neutral delivered-context
+  aggregate: non-empty `prependContext` and `appendContext` values in that
+  order, joined with exactly two LF bytes. This aggregate is not a claim that
+  the values were adjacent in the rendered prompt. `context_envelope_sha256`
+  MUST separately hash the canonical exact host-return object and remains the
+  structural authority for field placement. Equivalent delivered content on
+  delegated and native paths MUST therefore have the same aggregate digest.
 - **FR-013**: The OpenClaw adapter MUST never perform both delegated and native injection for one turn and MUST confirm actual delegated context bytes at `llm_input` where the host exposes that boundary.
 - **FR-014**: CLI and dashboard MUST support register, inspect, enable, disable, status, doctor, self-test, and remove actions with clear authority and fallback language.
 - **FR-015**: The implementation MUST expose provider-neutral Python/control contracts so later Pydantic AI, LangGraph, Hermes, and other adapters can integrate without provider-specific core logic.

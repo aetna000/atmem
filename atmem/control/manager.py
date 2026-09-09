@@ -3850,12 +3850,20 @@ class ControlPlaneManager:
                     delegated_reason = delegated_decision.get("withhold_reason")
                     if isinstance(delegated_reason, dict):
                         delegated_reason = delegated_reason.get("code")
-                    return {
+                    decision = delegated_decision.get("decision")
+                    reason = (
+                        delegated_reason
+                        if decision == "withhold"
+                        else delegated_decision.get("failure_reason")
+                        if decision == "provider_failure"
+                        else None
+                    )
+                    response = {
                         **self._no_context(
                             state,
-                            delegated_reason
-                            or delegated_decision.get("failure_reason")
-                            or "delegated provider withheld context",
+                            None
+                            if decision == "inject"
+                            else reason or "delegated provider withheld context",
                         ),
                         **delegated_decision,
                         "mode": state.mode.value,
@@ -3863,9 +3871,12 @@ class ControlPlaneManager:
                             (delegated_decision.get("receipt") or {}).get("id")
                         ),
                         "manifest_sha256": delegated_decision.get("result_sha256"),
-                        "preview_context": delegated_decision.get("context", ""),
+                        # Delegated bytes are transient delivery material, not
+                        # the dashboard's persisted/native preview channel.
+                        "preview_context": None,
                         "candidate_ids": [],
                     }
+                    return response
 
             from atmem.control.atbot_companion import AtBotCompanionClient
             from atmem.contracts import ContextRequest
@@ -4798,7 +4809,7 @@ class ControlPlaneManager:
         )
 
     @staticmethod
-    def _no_context(state: ControlState, reason: str) -> dict[str, Any]:
+    def _no_context(state: ControlState, reason: str | None) -> dict[str, Any]:
         return {
             "mode": ControlMode.OFF.value
             if state.migration_id == "unavailable"

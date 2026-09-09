@@ -256,6 +256,32 @@ atmem.delivery          = injected | not_injected | failed
 Provider authorization does not imply delivery. Delivery does not imply model
 use or an external outcome.
 
+### 7.1 Host evidence digest semantics
+
+The provider result's `context_sha256` always authenticates the exact decoded
+provider context bytes. Host-side `context.disposition` evidence uses separate
+compatibility semantics:
+
+- `context_sha256` and `context_block_sha256` are equal and hash the UTF-8 bytes
+  of a placement-neutral delivered-context aggregate. Build it from the
+  non-empty `prependContext` and `appendContext` values, in that order, joined
+  with exactly `"\n\n"` (two LF bytes).
+- This aggregate does not claim those blocks are adjacent in the host's rendered
+  prompt. It intentionally makes identical content hash identically across
+  delegated and native delivery paths.
+- `context_envelope_sha256` hashes the canonical JSON form of the exact object
+  returned to the host, including whether each value occupied
+  `prependContext` or `appendContext`. It is the structural authority.
+- `context.injected` at `llm_input` separately verifies that the exact delegated
+  provider segment occurs once in the actual model input. Neither disposition
+  digest replaces that model-boundary proof.
+
+For example, returning delegated memory in `prependContext` and governed task
+context in `appendContext` hashes their values joined by `"\n\n"` for the two
+block-digest fields, while the envelope digest hashes the two-field object.
+If memory is withheld and only task context is returned, both block-digest
+fields hash the task context rather than the empty memory value.
+
 ## 8. Conformance assets
 
 The fixture directory contains:
@@ -275,6 +301,9 @@ AtMem implementation tests must additionally prove:
 - accepted delegation suppresses every AtMem retrieval/injection path;
 - OpenClaw receives exactly one context contribution;
 - `llm_input` observes the provider context-block digest;
+- memory-withhold plus governed-task injection records an injected disposition
+  whose character count, location, block digests, and envelope digest all
+  describe the context actually returned;
 - authorization and delivery remain separate evidence records;
 - invalid delegation never reaches the model; and
 - fallback occurs only under explicit configuration and is labeled

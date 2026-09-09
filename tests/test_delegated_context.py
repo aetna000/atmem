@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 from copy import deepcopy
 from datetime import datetime, timezone
+import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
@@ -377,6 +378,7 @@ def test_doctor_does_not_mistake_open_tcp_for_authenticated_health(tmp_path: Pat
         healthy = service.doctor()
         assert healthy["state"] == "degraded"
         assert healthy["ready"] is False
+        assert healthy["provider_health"][0]["reachable"] is True
         assert healthy["provider_health"][0]["authenticated"] is False
     finally:
         server.shutdown()
@@ -385,6 +387,36 @@ def test_doctor_does_not_mistake_open_tcp_for_authenticated_health(tmp_path: Pat
     degraded = service.doctor()
     assert degraded["state"] == "degraded"
     assert degraded["ready"] is False
+
+
+def test_doctor_handles_non_http_listener_without_crashing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config = DelegatedConfigStore(tmp_path / "delegated.json")
+    registration = _registration(enabled=False)
+    config.register(registration)
+    config.set_enabled(registration.registration_id, True)
+    monkeypatch.setattr("atmem.delegated.service._tcp_reachable", lambda *args: True)
+    monkeypatch.setattr(
+        "atmem.delegated.service.request_health",
+        lambda *args: (_ for _ in ()).throw(http.client.BadStatusLine("not HTTP")),
+    )
+
+    result = DelegatedContextService(config).doctor()
+
+    assert result["state"] == "degraded"
+    assert result["provider_health"][0]["reachable"] is True
+    assert result["provider_health"][0]["authenticated"] is False
+
+
+def test_self_test_exercises_exact_request_hmac(tmp_path: Path) -> None:
+    result = DelegatedContextService(
+        DelegatedConfigStore(tmp_path / "delegated.json")
+    ).self_test()
+
+    assert result["passed"] is True
+    assert result["checks"]["ed25519"] is True
+    assert result["checks"]["hmac_exact_request"] is True
 
 
 def test_removing_registration_does_not_rewrite_historical_evidence(tmp_path: Path) -> None:
@@ -449,6 +481,63 @@ def test_service_separates_authorization_delivery_and_persists_no_content(
             row["kind"] for row in store._conn.execute("SELECT kind FROM evidence")
         }
         assert "delegated_context" in kinds
+    finally:
+        store.close()
+
+
+def test_post_acceptance_failure_keeps_cause_and_records_delivery_failure(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config = DelegatedConfigStore(tmp_path / "delegated.json")
+    registration = _registration(enabled=False)
+    config.register(registration)
+    config.set_enabled(registration.registration_id, True)
+    verified = _verify(_json("inject.valid.json"))
+    monkeypatch.setattr(
+        "atmem.delegated.service.parse_and_verify_envelope",
+        lambda *args, **kwargs: verified,
+    )
+    store = ControlStore(tmp_path / "control.db")
+    store.create_migration("migration", "openclaw", "subject")
+    append_evidence = store.append_evidence
+    failed = False
+
+    def fail_authorization_once(*args, **kwargs):
+        nonlocal failed
+        if kwargs.get("kind") == "delegated_context" and not failed:
+            failed = True
+            raise RuntimeError("authorization evidence unavailable")
+        return append_evidence(*args, **kwargs)
+
+    monkeypatch.setattr(store, "append_evidence", fail_authorization_once)
+    try:
+        decision = DelegatedContextService(
+            config,
+            transport=lambda *args, **kwargs: b"verified-by-test",
+        ).prepare(
+            query="private delegated query",
+            binding=verified.binding,
+            migration_id="migration",
+            store=store,
+        )
+
+        assert decision is not None
+        assert decision["decision"] == "provider_failure"
+        assert decision["inject"] is False
+        assert decision["context"] == ""
+        assert decision["failure_code"] == "RuntimeError"
+        assert decision["failure_reason"] == "authorization evidence unavailable"
+        assert decision["acceptance_id"]
+        reservation = store._conn.execute(
+            "SELECT disposition FROM delegated_turn_reservations"
+        ).fetchone()
+        assert reservation["disposition"] == "accepted"
+        failure = store.latest_evidence(
+            "migration", kind="delegated_context_delivery"
+        )
+        assert failure is not None
+        assert failure["body"]["acceptance_id"] == decision["acceptance_id"]
+        assert failure["body"]["failure_reason"] == "authorization evidence unavailable"
     finally:
         store.close()
 

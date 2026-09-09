@@ -85,6 +85,9 @@
 - [x] T044 Update framework integration guidance and run focused framework,
   delegated/control, Black Box, and full Python verification; record exact
   results and honest optional-dependency limitations here (SC-009–SC-011).
+- [x] T045 Define placement-neutral delivered-context and structural-envelope
+  digest semantics in Spec 003 and the provider contract, with regression
+  coverage for memory-withhold plus governed-task injection (FR-012b).
 
 Amendment B verification (2026-09-08, packaged for 2.2.6b11):
 

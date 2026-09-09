@@ -79,6 +79,14 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install -e "./packages/atbot" -e ".[dev,${{ matrix.extra }}]"
       - run: python -m pip check
+      - name: Record and constrain resolved Mem0 SDK
+        if: matrix.extra == 'mem0'
+        run: >-
+          python -c "from importlib.metadata import version;
+          resolved=version('mem0ai');
+          major=int(resolved.split('.', 1)[0]);
+          assert major == 2, resolved;
+          print(f'mem0ai={resolved}')"
       - run: python -m pytest -q tests/test_provider_runtime.py ${{ matrix.test }}
 
   openclaw-plugin:

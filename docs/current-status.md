@@ -74,6 +74,8 @@ The release has four runtime boundaries:
 - `atmem[mem0]`, `atmem[langgraph-provider]`, and
   `atmem[pydantic-provider]` are independent provider-side extras. They do not
   alter the base import graph or the existing host-side framework adapters.
+  The Mem0 extra supports and continuously checks the current Python 2.x SDK
+  contract (`mem0ai>=2.0.20,<3`) for both OSS and Platform scoped search.
 
 ## Exact claim boundary
 

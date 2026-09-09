@@ -410,6 +410,45 @@ for line in sys.stdin:
   };
   await delegatedRuntime.hooks.get("llm_input")(delegatedModelInput, delegatedCtx);
   await delegatedRuntime.hooks.get("llm_input")(delegatedModelInput, delegatedCtx);
+  // before_prompt_build has no event session fallback. Confirmation must use
+  // the same ctx/run-derived key even when llm_input alone carries sessionId.
+  const eventOnlyCtx = {
+    agentId: "main",
+    runId: "event-only-run",
+    senderIsOwner: true,
+  };
+  const eventOnlyInsertion = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "Confirm using the event-only session." },
+    eventOnlyCtx,
+  );
+  assert.equal(eventOnlyInsertion.prependContext, exactDelegated);
+  await delegatedRuntime.hooks.get("llm_input")(
+    {
+      ...delegatedModelInput,
+      runId: "event-only-run",
+      sessionId: "event-only-session",
+      prompt: exactDelegated + "\nConfirm using the event-only session.",
+    },
+    eventOnlyCtx,
+  );
+  const missingPendingWarning = "exact delegated delivery confirmation is unavailable";
+  const warningsBeforeEmpty = delegatedRuntime.logs.filter((line) =>
+    line.includes(missingPendingWarning)
+  ).length;
+  const emptyCtx = { ...delegatedCtx, sessionKey: "empty", sessionId: "empty", runId: "empty" };
+  const emptyInsertion = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "" },
+    emptyCtx,
+  );
+  assert.equal(emptyInsertion, undefined);
+  await delegatedRuntime.hooks.get("llm_input")(
+    { ...delegatedModelInput, runId: "empty", sessionId: "empty", prompt: "" },
+    emptyCtx,
+  );
+  assert.equal(
+    delegatedRuntime.logs.filter((line) => line.includes(missingPendingWarning)).length,
+    warningsBeforeEmpty,
+  );
   const withheld = await delegatedRuntime.hooks.get("before_prompt_build")(
     { prompt: "withhold this turn" },
     { ...delegatedCtx, sessionKey: "withhold", sessionId: "withhold", runId: "withhold" },
@@ -447,6 +486,23 @@ for line in sys.stdin:
     { success: true, messages: [], runId: "task" },
     taskCtx,
   );
+  const taskOnlyCtx = {
+    ...delegatedCtx,
+    taskId: "task-1",
+    sessionKey: "task-only",
+    sessionId: "task-only",
+    runId: "task-only",
+  };
+  const taskOnlyInsertion = await delegatedRuntime.hooks.get("before_prompt_build")(
+    { prompt: "withhold memory but continue the governed task" },
+    taskOnlyCtx,
+  );
+  assert.equal(taskOnlyInsertion.prependContext, undefined);
+  assert.equal(taskOnlyInsertion.appendContext, exactTask);
+  await delegatedRuntime.hooks.get("agent_end")(
+    { success: true, messages: [], runId: "task-only" },
+    taskOnlyCtx,
+  );
   const missingOwner = await delegatedRuntime.hooks.get("before_prompt_build")(
     { prompt: "missing owner" },
     { ...delegatedCtx, sessionKey: "missing", sessionId: "missing", runId: "missing", senderIsOwner: false },
@@ -462,17 +518,51 @@ for line in sys.stdin:
       row.name === "control_record_blackbox_event" &&
       row.arguments?.event_type === "context.injected"
     ).length,
-    1,
+    2,
   );
   const authorizationEvents = delegatedCalls.filter((row) =>
     row.name === "control_record_blackbox_event" &&
     row.arguments?.event_type === "context.provider_authorization"
   );
-  assert.equal(authorizationEvents.length, 6);
+  assert.equal(authorizationEvents.length, 8);
   assert.equal(authorizationEvents[0].arguments.context_receipt_id, "receipt-1");
   assert.equal(
     delegatedCalls.filter((row) => row.name === "control_prepare").length,
-    8,
+    10,
+  );
+  const taskDisposition = delegatedCalls.find((row) =>
+    row.name === "control_record_blackbox_event" &&
+    row.arguments?.event_type === "context.disposition" &&
+    row.arguments?.run_id === "task"
+  );
+  const exactEnvelopeSha256 = createHash("sha256")
+    .update(JSON.stringify({ appendContext: exactTask, prependContext: exactDelegated }))
+    .digest("hex");
+  assert.equal(
+    taskDisposition.arguments.payload.context_envelope_sha256,
+    exactEnvelopeSha256,
+  );
+  assert.equal(
+    taskDisposition.arguments.payload.context_location,
+    "prependContext+appendContext",
+  );
+  const taskOnlyDisposition = delegatedCalls.find((row) =>
+    row.name === "control_record_blackbox_event" &&
+    row.arguments?.event_type === "context.disposition" &&
+    row.arguments?.run_id === "task-only"
+  );
+  const taskContextSha256 = createHash("sha256").update(exactTask).digest("hex");
+  const taskOnlyEnvelopeSha256 = createHash("sha256")
+    .update(JSON.stringify({ appendContext: exactTask }))
+    .digest("hex");
+  assert.equal(taskOnlyDisposition.arguments.payload.disposition, "injected");
+  assert.equal(taskOnlyDisposition.arguments.payload.context_chars, exactTask.length);
+  assert.equal(taskOnlyDisposition.arguments.payload.context_location, "appendContext");
+  assert.equal(taskOnlyDisposition.arguments.payload.context_sha256, taskContextSha256);
+  assert.equal(taskOnlyDisposition.arguments.payload.context_block_sha256, taskContextSha256);
+  assert.equal(
+    taskOnlyDisposition.arguments.payload.context_envelope_sha256,
+    taskOnlyEnvelopeSha256,
   );
   // Resolution is attempted on every turn carrying a session identity, not
   // only when the host names a task: OpenClaw supplies no task identity of its
@@ -482,7 +572,7 @@ for line in sys.stdin:
   const taskPrepareCalls = delegatedCalls.filter(
     (row) => row.name === "control_prepare_task_context",
   );
-  assert.equal(taskPrepareCalls.length, 8);
+  assert.equal(taskPrepareCalls.length, 9);
   for (const call of taskPrepareCalls) {
     // Never a partial identity: all three parts or the bridge does not ask.
     assert.equal(call.arguments.host_type, "openclaw");
@@ -491,14 +581,14 @@ for line in sys.stdin:
   }
   assert.equal(
     delegatedCalls.filter((row) => row.name === "control_task_exposure_shown").length,
-    1,
+    2,
   );
   assert.equal(
     delegatedCalls.filter((row) =>
       row.name === "control_record_blackbox_event" &&
       row.arguments?.event_type === "task.context.exposed"
     ).length,
-    1,
+    2,
   );
   for (const service of delegatedRuntime.services) await service.stop?.();
 

@@ -68,6 +68,7 @@ const TAKEOVER_GUIDANCE =
 const INJECT_RE =
   /<(relevant_memories|user_persona|working_memory|episodic_memory|procedural_memory|atmem_control_plane|atmem_memory_provider)>[\s\S]*?<\/(relevant_memories|user_persona|working_memory|episodic_memory|procedural_memory|atmem_control_plane|atmem_memory_provider)>\s*/g;
 const PROMPT_CACHE_TTL_MS = 10 * 60 * 1000;
+const MAX_PENDING_PROMPTS = 256;
 
 interface PluginConfig {
   command: string;
@@ -437,29 +438,28 @@ function register(api: OpenClawPluginApi): void {
 
   // Per-turn recall state. Semantic admission uses a short-lived SQLite handoff
   // because OpenClaw may run prompt hooks and agent tools in separate runtimes.
-  const pendingPrompts = new Map<
-    string,
-    {
-      text: string;
-      ts: number;
-      manifestSha256?: string;
-      exposureId?: string;
-      injectedRecordIds?: string[];
-      retrievalId?: string;
-      contextEventId?: string;
-      contextReceiptId?: string;
-      assistantVisibleTextSha256?: string;
-      modelOutputBundleSha256?: string;
-      delegatedContext?: string;
-      delegatedContextSha256?: string;
-      delegatedAuthority?: string;
-      delegatedResultSha256?: string;
-      taskDeliveryId?: string;
-      taskContextSha256?: string;
-      /** The task AtMem actually resolved, which may come from a binding. */
-      taskId?: string;
-    }
-  >();
+  type PendingPrompt = {
+    text: string;
+    ts: number;
+    manifestSha256?: string;
+    exposureId?: string;
+    injectedRecordIds?: string[];
+    retrievalId?: string;
+    contextEventId?: string;
+    contextReceiptId?: string;
+    assistantVisibleTextSha256?: string;
+    modelOutputBundleSha256?: string;
+    delegatedContext?: string;
+    delegatedContextSha256?: string;
+    delegatedAuthority?: string;
+    delegatedResultSha256?: string;
+    taskDeliveryId?: string;
+    taskContextSha256?: string;
+    /** The task AtMem actually resolved, which may come from a binding. */
+    taskId?: string;
+  };
+  const pendingPrompts = new Map<string, PendingPrompt>();
+  const pendingPromptTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const observedTurnInputs = new Map<
     string,
     { promptSha256: string; observedAt: number; pending: Promise<void> }
@@ -518,6 +518,10 @@ function register(api: OpenClawPluginApi): void {
   };
   const scopedKey = (value: string, ctx: OpenClawHookCtx): string =>
     `${agentIdFor(ctx)}:${value}`;
+  // Lifecycle hooks must resolve one key. An llm_input-only event.sessionId
+  // must not redirect confirmation away from before_prompt_build's entry.
+  const sessionKeyFor = (ctx: OpenClawHookCtx): string =>
+    scopedKey(ctx.sessionKey ?? ctx.sessionId ?? ctx.runId ?? "default-session", ctx);
   const contextIds = (ctx: OpenClawHookCtx): string[] =>
     [...new Set([ctx.runId, ctx.sessionKey, ctx.sessionId].filter(
       (value): value is string => Boolean(value),
@@ -799,11 +803,18 @@ function register(api: OpenClawPluginApi): void {
   });
 
   api.on("llm_input", async (event: LlmInputEvent, ctx) => {
-    const sessionKey = scopedKey(
-      ctx.sessionKey ?? ctx.sessionId ?? event.sessionId ?? "default-session",
-      ctx,
-    );
+    const sessionKey = sessionKeyFor(ctx);
     const pending = pendingPrompts.get(sessionKey);
+    if (
+      !pending &&
+      cfg.controlPlane.enabled &&
+      Boolean(cfg.delegatedContext.userId) &&
+      event.prompt.trim().length > 0
+    ) {
+      api.logger.warn(
+        `${TAG} no pending prompt state for llm_input; exact delegated delivery confirmation is unavailable`,
+      );
+    }
     if (pending?.delegatedContext !== undefined) {
       const exact = pending.delegatedContext;
       const promptOccurrences = exact ? event.prompt.split(exact).length - 1 : 0;
@@ -843,7 +854,7 @@ function register(api: OpenClawPluginApi): void {
           cfg.recall.timeoutMs,
         );
       }
-      pendingPrompts.set(sessionKey, { ...pending, delegatedContext: undefined });
+      cachePendingPrompt(sessionKey, { ...pending, delegatedContext: undefined });
     }
     await recordBlackbox("model.input", event.runId, ctx, {
       provider: event.provider,
@@ -864,13 +875,10 @@ function register(api: OpenClawPluginApi): void {
     const visibleText = responses.map(String).join("");
     const assistantVisibleTextSha256 = digestText(visibleText);
     const modelOutputBundleSha256 = digestJson(responses);
-    const sessionKey = scopedKey(
-      ctx.sessionKey ?? ctx.sessionId ?? event.sessionId ?? "default-session",
-      ctx,
-    );
+    const sessionKey = sessionKeyFor(ctx);
     const pending = pendingPrompts.get(sessionKey);
     if (pending) {
-      pendingPrompts.set(sessionKey, {
+      cachePendingPrompt(sessionKey, {
         ...pending,
         assistantVisibleTextSha256,
         modelOutputBundleSha256,
@@ -959,7 +967,7 @@ function register(api: OpenClawPluginApi): void {
   const sweep = () => {
     const now = Date.now();
     for (const [key, value] of pendingPrompts) {
-      if (now - value.ts > PROMPT_CACHE_TTL_MS) pendingPrompts.delete(key);
+      if (now - value.ts > PROMPT_CACHE_TTL_MS) deletePendingPrompt(key);
     }
     for (const [key, value] of observedTurnInputs) {
       if (now - value.observedAt > PROMPT_CACHE_TTL_MS) observedTurnInputs.delete(key);
@@ -968,6 +976,29 @@ function register(api: OpenClawPluginApi): void {
       if (now - value.ts > PROMPT_CACHE_TTL_MS) inboundAttachments.delete(key);
     }
   };
+
+  function deletePendingPrompt(key: string): void {
+    const timer = pendingPromptTimers.get(key);
+    if (timer) clearTimeout(timer);
+    pendingPromptTimers.delete(key);
+    pendingPrompts.delete(key);
+  }
+
+  function cachePendingPrompt(key: string, value: PendingPrompt): void {
+    deletePendingPrompt(key);
+    pendingPrompts.set(key, value);
+    const timer = setTimeout(() => {
+      const current = pendingPrompts.get(key);
+      if (current?.ts === value.ts) deletePendingPrompt(key);
+    }, PROMPT_CACHE_TTL_MS);
+    timer.unref?.();
+    pendingPromptTimers.set(key, timer);
+    while (pendingPrompts.size > MAX_PENDING_PROMPTS) {
+      const oldest = pendingPrompts.keys().next().value as string | undefined;
+      if (oldest === undefined) break;
+      deletePendingPrompt(oldest);
+    }
+  }
 
   async function personaBlock(sessionKey: string, ctx: OpenClawHookCtx): Promise<{
     block: string;
@@ -1008,10 +1039,10 @@ function register(api: OpenClawPluginApi): void {
     const userText = event.prompt;
     if (!userText) return;
     await observeTurnInput(userText, ctx, "before_prompt_build");
-    const sessionKey = scopedKey(ctx.sessionKey ?? ctx.sessionId ?? "default-session", ctx);
+    const sessionKey = sessionKeyFor(ctx);
     const takeoverGuidance = cfg.takeoverActive ? TAKEOVER_GUIDANCE : "";
-    pendingPrompts.set(sessionKey, { text: userText, ts: Date.now() });
     sweep();
+    cachePendingPrompt(sessionKey, { text: userText, ts: Date.now() });
 
     if (cfg.controlPlane.enabled) {
       try {
@@ -1093,7 +1124,18 @@ function register(api: OpenClawPluginApi): void {
         ) {
           throw new Error("governed task context failed exact handoff digest validation");
         }
-        pendingPrompts.set(sessionKey, {
+        if (
+          prepared.authority === "delegated" &&
+          prepared.inject &&
+          (
+            !prepared.context ||
+            !prepared.context_sha256 ||
+            digestText(prepared.context) !== prepared.context_sha256
+          )
+        ) {
+          throw new Error("delegated context failed exact handoff digest validation");
+        }
+        cachePendingPrompt(sessionKey, {
           text: userText,
           ts: Date.now(),
           exposureId: prepared.exposure_id,
@@ -1121,17 +1163,6 @@ function register(api: OpenClawPluginApi): void {
             task_reason_codes: taskPrepared?.reason_codes ?? [],
           });
         }
-        if (
-          prepared.authority === "delegated" &&
-          prepared.inject &&
-          (
-            !prepared.context ||
-            !prepared.context_sha256 ||
-            digestText(prepared.context) !== prepared.context_sha256
-          )
-        ) {
-          throw new Error("delegated context failed exact handoff digest validation");
-        }
         if (prepared.authority === "delegated" || prepared.authority === "atmem_fallback") {
           await recordBlackbox(
             "context.provider_authorization",
@@ -1152,26 +1183,49 @@ function register(api: OpenClawPluginApi): void {
             { contextReceiptId: prepared.context_receipt_id },
           );
         }
+        const taskContext = taskPrepared?.disposition === "injected"
+          ? taskPrepared.context ?? ""
+          : "";
+        let contextEnvelope: {
+          prependContext?: string;
+          appendContext?: string;
+        } = {};
+        if (prepared.inject && prepared.context) {
+          contextEnvelope = prepared.authority === "delegated"
+            ? {
+                prependContext: prepared.context,
+                ...(taskContext ? { appendContext: taskContext } : {}),
+              }
+            : {
+                appendContext: [prepared.context, taskContext].filter(Boolean).join("\n\n"),
+              };
+        } else if (taskContext) {
+          contextEnvelope = { appendContext: taskContext };
+        }
+        const contextLocations = [
+          contextEnvelope.prependContext ? "prependContext" : "",
+          contextEnvelope.appendContext ? "appendContext" : "",
+        ].filter(Boolean);
+        const deliveredContext = [
+          contextEnvelope.prependContext,
+          contextEnvelope.appendContext,
+        ].filter((value): value is string => Boolean(value)).join("\n\n");
         await recordBlackbox(
           "context.disposition",
           undefined,
           ctx,
           {
-            disposition: prepared.inject && prepared.context
+            disposition: deliveredContext
               ? "injected"
               : prepared.mode === "shadow" && (prepared.preview_context ?? "")
                 ? "withheld_by_policy"
                 : "no_relevant_memory",
-            context_sha256: digestText(prepared.context ?? ""),
-            context_block_sha256: digestText(prepared.context ?? ""),
-            context_envelope_sha256: digestJson(
-              prepared.authority === "delegated"
-                ? { prependContext: prepared.context ?? "" }
-                : { appendContext: prepared.context ?? "" },
-            ),
+            context_sha256: digestText(deliveredContext),
+            context_block_sha256: digestText(deliveredContext),
+            context_envelope_sha256: digestJson(contextEnvelope),
             context_receipt_sha256: prepared.manifest_sha256,
             digest_profile: "atmem-context-envelope-canonical-json-v1",
-            context_chars: (prepared.context ?? "").length,
+            context_chars: deliveredContext.length,
             candidate_ids: prepared.candidate_ids ?? [],
             candidates_considered: prepared.retrieval?.eligible_candidate_count ?? 0,
             retrieval_support_class:
@@ -1182,38 +1236,24 @@ function register(api: OpenClawPluginApi): void {
               prepared.retrieval?.decision?.calibration_version,
             exposure_id: prepared.exposure_id,
             mode: prepared.mode,
-            context_location: prepared.inject
-              ? prepared.authority === "delegated" ? "prependContext" : "appendContext"
-              : "none",
+            context_location: contextLocations.length ? contextLocations.join("+") : "none",
           },
           undefined,
           {
             contextReceiptId: prepared.context_receipt_id,
           },
         );
-        if (prepared.inject && prepared.context) {
+        if (Object.keys(contextEnvelope).length) {
           api.logger.info(
             `${TAG} memory control plane ${prepared.mode ?? "active"} context exposed`,
           );
-          return prepared.authority === "delegated"
-            ? {
-                prependContext: prepared.context,
-                appendContext: taskPrepared?.disposition === "injected"
-                  ? taskPrepared.context
-                  : undefined,
-              }
-            : {
-                appendContext: [
-                  prepared.context,
-                  taskPrepared?.disposition === "injected" ? taskPrepared.context : "",
-                ].filter(Boolean).join("\n\n"),
-              };
-        }
-        if (taskPrepared?.disposition === "injected" && taskPrepared.context) {
-          return { appendContext: taskPrepared.context };
+          return contextEnvelope;
         }
         return;
       } catch (error) {
+        // Any exact delegated bytes retained while constructing evidence are
+        // discarded immediately on the fail-closed path.
+        cachePendingPrompt(sessionKey, { text: userText, ts: Date.now() });
         await recordBlackbox("context.disposition", undefined, ctx, {
           disposition: "recall_failed",
           context_block_sha256: digestText(""),
@@ -1298,7 +1338,7 @@ function register(api: OpenClawPluginApi): void {
           recall = result.block;
           const current = pendingPrompts.get(sessionKey);
           if (current) {
-            pendingPrompts.set(sessionKey, {
+            cachePendingPrompt(sessionKey, {
               ...current,
               injectedRecordIds: result.record_ids ?? [],
               retrievalId: result.retrieval_id,
@@ -1351,7 +1391,7 @@ function register(api: OpenClawPluginApi): void {
       ? `ctxr_${digestJson({ componentEventIds, contextEnvelopeSha256 })}`
       : undefined;
     if (current) {
-      pendingPrompts.set(sessionKey, { ...current, contextReceiptId });
+      cachePendingPrompt(sessionKey, { ...current, contextReceiptId });
     }
     await recordBlackbox(
       "context.disposition",
@@ -1445,11 +1485,11 @@ function register(api: OpenClawPluginApi): void {
 
   // ---- auto-capture: user turn through the pipeline, assistant as digest -
   api.on("agent_end", async (event: AgentEndEvent, ctx) => {
-    const sessionKey = scopedKey(ctx.sessionKey ?? ctx.sessionId ?? "default-session", ctx);
+    const sessionKey = sessionKeyFor(ctx);
     const observedTurnInputKey = turnInputKey(ctx);
 
     const cached = pendingPrompts.get(sessionKey);
-    pendingPrompts.delete(sessionKey);
+    deletePendingPrompt(sessionKey);
     const userText = cached?.text?.replace(INJECT_RE, "").trim();
 
     try {

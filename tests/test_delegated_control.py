@@ -110,6 +110,8 @@ def test_delegated_inject_is_exclusive_and_exact(tmp_path: Path, monkeypatch) ->
     assert result["context"].encode() == exact.encode()
     assert result["authority"] == "delegated"
     assert result["candidate_ids"] == []
+    assert result["reason"] is None
+    assert result["preview_context"] is None
 
 
 def test_delegated_withhold_and_missing_identity_fail_closed(tmp_path: Path, monkeypatch) -> None:

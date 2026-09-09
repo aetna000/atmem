@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import http.client
+import socket
 from typing import Any, Callable
 from urllib.parse import urlparse
 
@@ -91,56 +95,6 @@ class DelegatedContextService:
                 max_context_bytes=registration.max_context_bytes,
             )
             acceptance = store.accept_delegated_context(migration_id, verified)
-            evidence = {
-                **verified.evidence(),
-                "acceptance_id": str(acceptance["id"]),
-                "acceptance_disposition": (
-                    "idempotent_retry" if acceptance["idempotent"] else "accepted"
-                ),
-                "key_fingerprint": registration.safe_dict()["key_fingerprint"],
-            }
-            event = store.append_evidence(
-                migration_id,
-                kind="delegated_context",
-                body=evidence,
-            )
-            delivery = None
-            if verified.decision == "inject":
-                delivery = store.request_delegated_delivery(
-                    migration_id,
-                    str(acceptance["id"]),
-                    context_sha256=verified.context_sha256,
-                    context_byte_length=verified.context_byte_length,
-                )
-            return {
-                **DelegatedContextDecision(
-                    authority="delegated",
-                    decision=verified.decision,
-                    inject=verified.decision == "inject",
-                    context=verified.context_text,
-                    context_sha256=verified.context_sha256,
-                    context_byte_length=verified.context_byte_length,
-                    native_fallback=False,
-                ).to_dict(),
-                "acceptance_id": str(acceptance["id"]),
-                "exposure_id": str(delivery["id"]) if delivery else None,
-                "authorization_event_id": str(event["id"]),
-                "result_sha256": verified.envelope_sha256,
-                "receipt": {
-                    "id": verified.receipt_id,
-                    "contract_id": verified.receipt_contract_id,
-                    "sha256": verified.receipt_sha256,
-                },
-                "provider": {
-                    "id": verified.provider_id,
-                    "version": verified.provider_version,
-                    "instance_id": verified.provider_instance_id,
-                    "key_id": verified.key_id,
-                    "key_fingerprint": registration.safe_dict()["key_fingerprint"],
-                },
-                "withhold_reason": verified.withhold_reason,
-                "idempotent": bool(acceptance["idempotent"]),
-            }
         except Exception as exc:
             reservation = store.reserve_delegated_failure(
                 migration_id,
@@ -192,6 +146,111 @@ class DelegatedContextService:
                 "provider": failure["provider"],
             }
 
+        authorization_event_id: str | None = None
+        try:
+            evidence = {
+                **verified.evidence(),
+                "acceptance_id": str(acceptance["id"]),
+                "acceptance_disposition": (
+                    "idempotent_retry" if acceptance["idempotent"] else "accepted"
+                ),
+                "key_fingerprint": registration.safe_dict()["key_fingerprint"],
+            }
+            event = store.append_evidence(
+                migration_id,
+                kind="delegated_context",
+                body=evidence,
+            )
+            authorization_event_id = str(event["id"])
+            delivery = None
+            if verified.decision == "inject":
+                delivery = store.request_delegated_delivery(
+                    migration_id,
+                    str(acceptance["id"]),
+                    context_sha256=verified.context_sha256,
+                    context_byte_length=verified.context_byte_length,
+                )
+            return {
+                **DelegatedContextDecision(
+                    authority="delegated",
+                    decision=verified.decision,
+                    inject=verified.decision == "inject",
+                    context=verified.context_text,
+                    context_sha256=verified.context_sha256,
+                    context_byte_length=verified.context_byte_length,
+                    native_fallback=False,
+                ).to_dict(),
+                "acceptance_id": str(acceptance["id"]),
+                "exposure_id": str(delivery["id"]) if delivery else None,
+                "authorization_event_id": authorization_event_id,
+                "result_sha256": verified.envelope_sha256,
+                "receipt": {
+                    "id": verified.receipt_id,
+                    "contract_id": verified.receipt_contract_id,
+                    "sha256": verified.receipt_sha256,
+                },
+                "provider": {
+                    "id": verified.provider_id,
+                    "version": verified.provider_version,
+                    "instance_id": verified.provider_instance_id,
+                    "key_id": verified.key_id,
+                    "key_fingerprint": registration.safe_dict()["key_fingerprint"],
+                },
+                "withhold_reason": verified.withhold_reason,
+                "idempotent": bool(acceptance["idempotent"]),
+            }
+        except Exception as exc:
+            # Acceptance is already durable and owns this turn. Never try to
+            # reserve it again: that masks the original post-acceptance fault.
+            # Record a content-free delivery failure bound to the acceptance.
+            failure = {
+                "format": "atmem-delegated-context-delivery-failure-v1",
+                "provider": {
+                    "id": verified.provider_id,
+                    "version": verified.provider_version,
+                    "instance_id": verified.provider_instance_id,
+                },
+                "binding": binding.to_dict(),
+                "decision": "delivery_failure",
+                "acceptance_id": str(acceptance["id"]),
+                "authorization_event_id": authorization_event_id,
+                "result_sha256": verified.envelope_sha256,
+                "context_sha256": verified.context_sha256,
+                "context_byte_length": verified.context_byte_length,
+                "failure_code": type(exc).__name__,
+                "failure_reason": _safe_reason(exc),
+            }
+            failure_event_id: str | None = None
+            try:
+                failure_event = store.append_evidence(
+                    migration_id,
+                    kind="delegated_context_delivery",
+                    body=failure,
+                )
+                failure_event_id = str(failure_event["id"])
+            except Exception:
+                # The original failure remains the operator-facing cause even
+                # if the evidence store itself is unavailable.
+                pass
+            return {
+                **DelegatedContextDecision(
+                    authority="delegated",
+                    decision="provider_failure",
+                    inject=False,
+                    context="",
+                    context_sha256=None,
+                    context_byte_length=0,
+                    native_fallback=False,
+                ).to_dict(),
+                "acceptance_id": str(acceptance["id"]),
+                "authorization_event_id": authorization_event_id,
+                "delivery_failure_event_id": failure_event_id,
+                "result_sha256": verified.envelope_sha256,
+                "failure_code": type(exc).__name__,
+                "failure_reason": _safe_reason(exc),
+                "provider": failure["provider"],
+            }
+
     def status(self) -> dict[str, Any]:
         return self.config.status()
 
@@ -201,17 +260,18 @@ class DelegatedContextService:
         reachability = []
         for registration in self.config.registrations():
             row = registration.safe_dict()
+            reachable = _tcp_reachable(registration.endpoint, registration.timeout_ms)
             try:
                 request_health(registration)
-                reachable = True
-            except (OSError, ValueError):
-                reachable = False
+                authenticated = True
+            except (OSError, ValueError, http.client.HTTPException):
+                authenticated = False
             reachability.append(
                 {
                     "registration_id": row["registration_id"],
                     "enabled": bool(row["enabled"]),
                     "reachable": reachable,
-                    "authenticated": reachable,
+                    "authenticated": authenticated,
                     "request_authentication": row["request_authentication"],
                 }
             )
@@ -229,6 +289,8 @@ class DelegatedContextService:
             ),
             "enabled_providers_reachable": bool(enabled_health)
             and all(row["reachable"] for row in enabled_health),
+            "enabled_providers_authenticated": bool(enabled_health)
+            and all(row["authenticated"] for row in enabled_health),
         }
         state = (
             "unconfigured"
@@ -238,7 +300,7 @@ class DelegatedContextService:
             else "registered_disabled"
             if not enabled_health
             else "ready"
-            if checks["enabled_providers_reachable"]
+            if checks["enabled_providers_authenticated"]
             else "degraded"
         )
         return {
@@ -257,17 +319,52 @@ class DelegatedContextService:
 
     def self_test(self) -> dict[str, Any]:
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        from atmem.delegated.transport import FIELDS, PREFIX, sign_headers, signing_input
 
-        private = Ed25519PrivateKey.generate()
         sample = b"atmem-delegated-context-self-test"
-        signature = private.sign(sample)
-        private.public_key().verify(signature, sample)
+        ed25519_ok = False
+        try:
+            private = Ed25519PrivateKey.generate()
+            signature = private.sign(sample)
+            private.public_key().verify(signature, sample)
+            ed25519_ok = True
+        except Exception:
+            pass
+        secret = hashlib.sha256(b"atmem-delegated-context-self-test-hmac").digest()
+        method, authority, target = "POST", "127.0.0.1:8788", "/v1/delegated-context"
+        headers = sign_headers(
+            secret=secret,
+            provider_id="self-test",
+            instance_id="local",
+            key_id="self-test-key",
+            method=method,
+            authority=authority,
+            target=target,
+            body=sample,
+        )
+        fields = {name: headers[PREFIX + name] for name in FIELDS}
+        expected = hmac.new(
+            secret,
+            signing_input(method, authority, target, sample, fields),
+            hashlib.sha256,
+        ).hexdigest()
+        hmac_ok = hmac.compare_digest(headers[PREFIX + "Signature"], expected)
+        tamper_rejected = not hmac.compare_digest(
+            headers[PREFIX + "Signature"],
+            hmac.new(
+                secret,
+                signing_input(method, authority, target, sample + b"!", fields),
+                hashlib.sha256,
+            ).hexdigest(),
+        )
         configuration_ok = self.doctor()["healthy"]
+        transport_ok = hmac_ok and tamper_rejected
         return {
             "format": "atmem-delegated-context-self-test-v1",
-            "passed": configuration_ok,
+            "passed": configuration_ok and ed25519_ok and transport_ok,
             "checks": {
-                "ed25519": True,
+                "ed25519": ed25519_ok,
+                "hmac_exact_request": transport_ok,
                 "configuration": configuration_ok,
                 "native_default": True,
             },
@@ -277,3 +374,19 @@ class DelegatedContextService:
 def _safe_reason(exc: Exception) -> str:
     reason = " ".join(str(exc).split())[:300]
     return reason or type(exc).__name__
+
+
+def _tcp_reachable(endpoint: str, timeout_ms: int) -> bool:
+    """Distinguish an open socket from authenticated provider health."""
+
+    try:
+        parsed = urlparse(endpoint)
+        if not parsed.hostname:
+            return False
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        with socket.create_connection(
+            (parsed.hostname, port), timeout=min(timeout_ms / 1000, 1)
+        ):
+            return True
+    except (OSError, ValueError):
+        return False

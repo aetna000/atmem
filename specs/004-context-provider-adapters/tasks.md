@@ -70,3 +70,6 @@
 - [x] [T029] Correct the FR-003 wording so v1 request bindings are preserved while nonce and idempotency are generated and bound in the signed result, without changing wire fields, in `specs/004-context-provider-adapters/spec.md`.
 - [x] [T030] Expose redacted provider readiness, last decision, and adapter latency, and make doctor report actionable optional-extra/factory failures before startup in `atmem/provider_adapters/runtime.py`, `atmem/provider_adapters/server.py`, and `atmem/provider_adapters/lifecycle.py`.
 - [x] [T031] Assert in clean installed-wheel CI that Mem0, LangGraph, and Pydantic AI SDKs are absent from the base installation in `.github/workflows/ci.yml`.
+- [x] [T032] Upgrade the independent Mem0 extra to `mem0ai>=2.0.20,<3`, bind
+  the exact filtered/top-k call against the real OSS and Platform SDK surfaces,
+  and retain injected-client normalization tests without network/model access.

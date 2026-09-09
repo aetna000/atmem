@@ -26,6 +26,12 @@ atmem provider start mem0-local
 atmem provider doctor mem0-local
 ```
 
+The Mem0 extra installs the verified Python 2.x SDK range
+`mem0ai>=2.0.20,<3`. AtMem calls both OSS and Platform search with mandatory
+`filters={"user_id", "agent_id", "app_id"}` plus bounded `top_k`; it never
+retries without those three scope boundaries. Accepted results retain Mem0's
+ranked order when the provider runtime builds the signed context proposal.
+
 For Mem0 Platform, export the credential only in the provider process
 environment and select platform mode:
 

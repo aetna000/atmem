@@ -8,6 +8,7 @@ def test_provider_extras_are_independent_and_base_imports_are_sdk_neutral() -> N
     assert 'mem0 = [' in pyproject
     assert 'langgraph-provider = [' in pyproject
     assert 'pydantic-provider = [' in pyproject
+    assert '"mem0ai>=2.0.20,<3"' in pyproject
     for path in (Path("atmem/provider_adapters/__init__.py"), Path("atmem/provider_adapters/runtime.py")):
         source = path.read_text(encoding="utf-8")
         assert "from mem0 import" not in source

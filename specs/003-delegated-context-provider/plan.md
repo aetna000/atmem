@@ -185,6 +185,16 @@ The context exists only in the immediate prepare response. Persisted evidence om
 
 Every event uses versioned formats and hashes. Provider authorization never sets delivery fields.
 
+The compatibility disposition has two intentionally different digest layers.
+`context_sha256` and `context_block_sha256` hash a placement-neutral aggregate
+of every non-empty context value AtMem returned for the turn: `prependContext`
+followed by `appendContext`, joined with `"\n\n"`. This makes equal delivered
+content comparable across native and delegated paths; it does not assert that
+the blocks are adjacent in the rendered prompt. `context_envelope_sha256`
+hashes the canonical exact return object and is authoritative for structure and
+placement. The later `llm_input` event independently proves that the exact
+delegated segment appeared once at the model boundary.
+
 ## Failure and Threat Analysis
 
 - **Self-authorization**: response keys are ignored; only local trust matches.

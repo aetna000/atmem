@@ -131,10 +131,15 @@ signed test request, and shut it down without changing native AtMem data.
   instance ID, key ID, health, latency, decision, and provider/model attribution
   without exposing secrets or unnecessary raw content.
 - **FR-008**: The Mem0 adapter MUST support an injected compatible client for
-  tests and a documented optional Mem0 SDK installation for real deployments.
+  tests and the independently installable `mem0ai>=2.0.20,<3` SDK for real
+  deployments. Compatibility tests MUST bind AtMem's exact scoped search call
+  against both the OSS `Memory.search` and Platform `MemoryClient.search`
+  surfaces without making network or model calls.
 - **FR-009**: The Mem0 adapter MUST map authenticated AtMem user, agent, and
   workspace scope to configured Mem0 filters and MUST NOT silently drop those
-  boundaries.
+  boundaries. It MUST preserve the order of accepted Mem0 search results so
+  Mem0 remains the ranking authority; filtering malformed, duplicate, or
+  scope-contradicting rows MUST NOT reorder the remaining results.
 - **FR-010**: The LangGraph adapter MUST support sync and async compiled graphs
   or compatible callables through a closed input/output state contract.
 - **FR-011**: The LangGraph adapter MUST preserve operator-owned workflow state,

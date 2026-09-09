@@ -128,8 +128,9 @@ The adapter calls `search(query, filters=..., top_k=...)`; it never retries
 without filters. Both documented `{results: [...]}` and list response
 containers are normalized. Each selected result must have a nonempty memory
 text and opaque ID; duplicates, malformed rows, overlong items, and rows whose
-returned entity fields contradict the binding are rejected. No useful result
-returns `NO_USEFUL_MEMORY` withholding.
+returned entity fields contradict the binding are rejected without reordering
+the remaining Mem0-ranked rows. No useful result returns `NO_USEFUL_MEMORY`
+withholding.
 
 Platform egress is explicit via a mode/config flag and secret environment
 variable name. Secret values are read only by the provider process.
@@ -191,7 +192,7 @@ process.
 Add these independent extras:
 
 ```toml
-mem0 = ["mem0ai>=1,<2"]
+mem0 = ["mem0ai>=2.0.20,<3"]
 langgraph-provider = ["langgraph>=1.1.5,<2"]
 pydantic-provider = ["pydantic-ai-slim>=2,<3", "pydantic>=2,<3"]
 ```
@@ -271,4 +272,3 @@ only if required by packaging validation. The v1 schemas remain unchanged.
   does not modify Mem0 memory, graph checkpoints, or agent dependencies.
 - No persisted canonical-memory migration is needed. Provider configuration is
   additive and removable.
-
