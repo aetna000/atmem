@@ -55,3 +55,12 @@
 
 - [ ] T028 Run the local AtBot profile end to end against a configured, version-pinned local model; retain exact identity, availability, results, latency, and limitations in `docs/examples/benchmark-local-atbot-v1.json` and add an installed-package smoke test in `tests/test_benchmark_profiles_e2e.py` (FR-006–FR-008, SC-004, SC-008)
 - [ ] T029 Run the hosted AtBot profile end to end with explicit opt-in; retain provider/model identity, egress, token usage, pricing source/time or explicit unknown cost, results, latency, and redacted diagnostics in `docs/examples/benchmark-hosted-atbot-v1.json` with credential-safety coverage in `tests/test_benchmark_profiles_e2e.py` (FR-005–FR-008, FR-015–FR-016, SC-004, SC-008)
+
+
+## Phase 10: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019–022; later 023; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T030] Define cross-domain success and failing boundary fixtures from the roadmap acceptance matrix for FR-019, FR-020, SC-009 using `tests/test_execution_journey.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T031] Add the cross-product fixture runner and separately measured usability protocol in `atmem/benchmark/runner.py` (FR-019, FR-020); depend on T030 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T032] Verify SC-009 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T031 and do not mark completion from declarations alone.

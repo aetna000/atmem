@@ -3,6 +3,7 @@
 **Feature directory**: `specs/004-context-provider-adapters`  
 **Created**: 2026-09-04  
 **Status**: Implemented  
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: Provide supported adapters that let Mem0, LangGraph, or Pydantic AI remain the context-decision authority while AtMem verifies the signed decision, delivers accepted context exactly once, and records flight evidence.
 
 ## Overview
@@ -230,3 +231,27 @@ signed test request, and shut it down without changing native AtMem data.
   AtMem internals and can return to native authority with one disable command.
 - **SC-008**: Adapter overhead excluding provider execution is measured, with a
   local p95 target below 25 ms across at least 100 deterministic requests.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: provider adapters. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Mem0/framework provider adapters exist; current dependency permits Mem0 2.0.20; there is no common native/external governance adapter yet.
+
+### Additional functional requirements
+
+- **FR-021**: Adapt native memory and supported external memory providers to Spec 019's shared provider capabilities and provenance contract without copying external memories or changing canonical authority.
+- **FR-022**: Add one documented document-search connector with source-version and access-attribute provenance; require outbound request authorization and explicit unsupported metadata rather than trusting model-generated access labels.
+
+### Acceptance and success criteria
+
+- **SC-009**: The same host application switches native and external providers without migration and retains the same package/decision/exposure inspection shape; connector isolation and provider-version installed tests pass.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

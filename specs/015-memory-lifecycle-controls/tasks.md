@@ -30,3 +30,12 @@
 
 **Cross-spec dependencies**: Spec 010 for non-SQLite backend conformance.
 **Task dependencies**: T001 → all; T002 → T003; T003/T004 → T005/T007; T005 → T006/T008.
+
+
+## Phase 5: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019, 023; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T009] Define failing boundary fixtures for FR-011, FR-012, SC-005 using `tests/test_lifecycle.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T010] Connect lifecycle events and cleanup receipts to context-grant invalidation in `atmem/lifecycle/` (FR-011, FR-012); depend on T009 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T011] Verify SC-005 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T010 and do not mark completion from declarations alone.

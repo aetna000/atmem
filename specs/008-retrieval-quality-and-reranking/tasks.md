@@ -37,3 +37,12 @@
 ## Dependencies
 
 T001–T002 fail first. T003–T005 precede T006. T006 precedes T007–T009. T010 precedes T011–T012. T006–T012 precede T013–T014. T001–T014 precede T015–T016. Spec 007 Amendment B identity contracts precede task-aware T013–T014.
+
+
+## Phase 7: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T017] Define failing boundary fixtures for FR-021, FR-022, SC-009 using `tests/test_retrieval_adapter_conformance.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T018] Map native support decisions into provider-neutral context evidence in `atmem/retrieve/` (FR-021, FR-022); depend on T017 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T019] Verify SC-009 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T018 and do not mark completion from declarations alone.

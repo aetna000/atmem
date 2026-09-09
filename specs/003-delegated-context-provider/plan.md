@@ -331,3 +331,12 @@ to verify HMAC request authentication, signed response validation, exact bytes,
 content-free persistence, and a closed flight. Existing framework, delegated,
 Black Box, and full Python suites form the regression gate. No package version,
 tag, publication, or dashboard change is part of this implementation request.
+
+
+## Unified product integration plan — 2026-09-09
+
+Implement delegated authority integration against the new contract owners (Specs 019); use [integration ownership](../integration-ownership.md) and [roadmap order](../product-roadmap.md). Baseline prerequisites refer to existing implementations, not completion of all later amendments.
+
+Touch points (existing or proposed tests): `atmem/delegated/service.py`, `atmem/delegated/contracts.py`, `tests/test_delegated_context.py`. Project existing delegated decisions into the shared envelope without changing v1. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
+
+Verification: write boundary fixtures for FR-032, FR-033, SC-012 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.

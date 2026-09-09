@@ -39,3 +39,12 @@
 
 **Cross-spec dependencies**: None. Specs 005–017 attest into this registry; this spec does not consume their output.
 **Task dependencies**: T001 → all; T002/T003 → T004–T008; T004–T008 → T009/T010; T003 → T011; T011 → T012; T009/T010/T012 → T013; T008 → T014.
+
+
+## Phase 6: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019–024 assertion contracts; no foundation dependency cycle; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T015] Define failing boundary fixtures for FR-012, FR-013, SC-006 using `tests/invariants/`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T016] Add scoped claim coverage and mutation cases for the new product surfaces in `atmem/invariants/`, `tools/check_invariants.py` (FR-012, FR-013); depend on T015 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T017] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T016 and do not mark completion from declarations alone.

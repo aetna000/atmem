@@ -48,3 +48,12 @@
   with real published fixtures in `tests/fixtures/upgrades/`, and eight new
   deterministic benchmark cases.
 - Documentation: `docs/memory-extraction.md`.
+
+
+## Phase 6: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019, 021; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T010] Define failing boundary fixtures for FR-012, FR-013, SC-005 using `tests/test_extract_upgrade.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T011] Add optional execution provenance to explicit native capture in `atmem/extract/`, `atmem/memory.py` (FR-012, FR-013); depend on T010 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T012] Verify SC-005 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T011 and do not mark completion from declarations alone.

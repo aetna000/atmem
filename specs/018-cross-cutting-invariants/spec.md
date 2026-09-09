@@ -3,6 +3,7 @@
 **Feature directory**: `specs/018-cross-cutting-invariants`
 **Created**: 2026-09-05
 **Status**: Implemented
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: `todo.md` "Do not weaken existing AtMem advantages"
 
 ## Overview
@@ -90,3 +91,27 @@ Replacing feature-local test suites, proving semantic truth or real-world outcom
 - Specs 001–004 represent the shipped baseline behavior the registry locks in.
 - Feature specs own their own assertions; this spec owns the registry, verdict semantics, and gate.
 - Optional backends and extras are covered as declared configurations, not assumed.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: executable claims. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Invariant registry and attestations exist; new product boundaries need executing assertions and declared deployment coverage.
+
+### Additional functional requirements
+
+- **FR-012**: Extend existing invariant attestations for Specs 019–024 without silently retitling or narrowing INV-001–INV-011; separately report tested, partial and unsupported configurations.
+- **FR-013**: Gate product claims on real interface assertions for provider authorization, exact delivery, execution completeness, evidence-linked incident statements and resolution assurance; do not count declarations or fake-host tests as installed enforcement proof.
+
+### Acceptance and success criteria
+
+- **SC-006**: Each new invariant-bearing surface has a named executing test or an explicit unproven verdict; missing optional live integration cannot become a release pass for an advertised capability.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019–024 assertion contracts; no foundation dependency cycle. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

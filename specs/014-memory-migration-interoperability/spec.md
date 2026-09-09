@@ -3,6 +3,7 @@
 **Feature directory**: `specs/014-memory-migration-interoperability`
 **Created**: 2026-09-05
 **Status**: Implemented
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: `todo.md` P1.12
 
 ## Overview
@@ -79,3 +80,27 @@ Importing credentials, trusting foreign embeddings as authority, or promising lo
 ## Invariant Attestation
 
 Touches INV-001, INV-006, INV-007, and INV-011 through `spec014.canonical-import`, `spec014.lineage`, `spec014.rollback`, and `spec014.format-upgrade`.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: migration and provider switching. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Explicit archive migration exists; switching context providers should not require it.
+
+### Additional functional requirements
+
+- **FR-010**: Distinguish selecting a retrieval provider from importing memories; provider selection alone MUST perform no canonical import or deletion.
+- **FR-011**: Preserve provider-qualified source references and historical package/execution evidence across switches; imports retain original provenance and report unsupported mappings.
+
+### Acceptance and success criteria
+
+- **SC-005**: Switch native to external and back with zero unintended memory writes, while old incident links resolve to retained evidence or explicitly unavailable source references.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019, 022. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

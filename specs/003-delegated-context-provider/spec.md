@@ -3,6 +3,7 @@
 **Feature directory**: `specs/003-delegated-context-provider`
 **Created**: 2026-09-03
 **Status**: Base contract and Amendment A published in 2.2.6b10; Amendment B packaged in 2.2.6b11
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: Implement the provider-neutral delegated context-provider v1 contract proposed in PR #1. Existing AtMem authority remains the default. Delegated mode is an explicit opt-in that lets a compatible provider remain the sole context-decision authority for a bound turn while AtMem owns host delivery and flight evidence.
 
 ## Overview
@@ -313,3 +314,27 @@ checkpoints, tools, or model calls.
 - **SC-011**: Optional framework imports remain lazy, supported Python versions
   remain unchanged, and framework adapters continue to preserve host-owned
   state, checkpoints, tools, and model execution.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: delegated authority. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Signed exact-byte delegation, replay protection and exposure evidence exist; independent enterprise content authorization is a different mode.
+
+### Additional functional requirements
+
+- **FR-032**: Keep trusted delegation separately named from native and governed-external retrieval; record provider authorization, AtMem delegation-policy decision and observed delivery as distinct evidence.
+- **FR-033**: Preserve closed delegated v1 fields and exact bytes; any enterprise redaction or composition MUST create a new versioned derived package with parent digests rather than modifying a signed provider response.
+
+### Acceptance and success criteria
+
+- **SC-012**: Legacy v1 inject/withhold/fallback fixtures remain compatible; native-plus-delegated double injection and relabeling provider approval as independent AtMem approval are rejected.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

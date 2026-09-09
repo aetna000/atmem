@@ -61,3 +61,12 @@ Registry, verdict model, attestation loader, and report writer live under `atmem
 ## Dashboard and CLI Integration
 
 This feature adds no dashboard workspace and no user-facing CLI command family. The conformance report is a build artifact surfaced through CI and `docs/invariants.md`. Ownership of the invariant registry is recorded in `specs/integration-ownership.md`.
+
+
+## Unified product integration plan — 2026-09-09
+
+Implement executable claims integration against the new contract owners (Specs 019–024 assertion contracts; no foundation dependency cycle); use [integration ownership](../integration-ownership.md) and [roadmap order](../product-roadmap.md). Baseline prerequisites refer to existing implementations, not completion of all later amendments.
+
+Touch points (existing or proposed tests): `atmem/invariants/`, `tests/invariants/`, `tools/check_invariants.py`. Add scoped claim coverage and mutation cases for the new product surfaces. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
+
+Verification: write boundary fixtures for FR-012, FR-013, SC-006 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.

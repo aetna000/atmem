@@ -3,6 +3,7 @@
 **Feature directory**: `specs/012-http-api-and-typescript-sdk`
 **Created**: 2026-09-05
 **Status**: Implemented
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: `todo.md` P1.11
 
 ## Overview
@@ -83,3 +84,27 @@ Internet-facing production hardening (Spec 013), browser-specific SDKs, or hidin
 ## Invariant Attestation
 
 Touches INV-001, INV-002, INV-005, and INV-008 through `spec012.application-authority`, `spec012.api-auth`, `spec012.idempotency`, and `spec012.transport-proof`.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: public services and transports. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Shared application facade and clients exist; execution, incident and resolution services are not exposed as one public surface.
+
+### Additional functional requirements
+
+- **FR-013**: Expose execution, context-package, policy-decision, incident and resolution resources through one transport-neutral service with equivalent SDK, HTTP, CLI, MCP and dashboard semantics.
+- **FR-014**: Separate runtime context/evidence operations from operator provider/policy/resolution actions; derive scopes from authenticated principals and enforce pagination, idempotency and non-disclosing errors across all new resources.
+
+### Acceptance and success criteria
+
+- **SC-006**: Cross-language and MCP golden fixtures reconcile response identities and outcomes; agent credentials cannot acknowledge organizational findings, edit policies, approve retries or inspect other scopes.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019–021. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

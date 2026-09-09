@@ -31,3 +31,12 @@
 
 **Cross-spec dependencies**: Spec 007.
 **Task dependencies**: T001 → all; T002–T004 → T005/T006/T008; T005 → T008; T009 gates release.
+
+
+## Phase 5: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019, 020; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T010] Define failing boundary fixtures for FR-011, FR-012, SC-006 using `tests/test_framework_adapter_conformance.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T011] Extend actual host hooks and negotiated evidence coverage without a second registry in `atmem/adapters/`, `atmem/contracts/versions.py` (FR-011, FR-012); depend on T010 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T012] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T011 and do not mark completion from declarations alone.

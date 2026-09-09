@@ -3,6 +3,7 @@
 **Feature directory**: `specs/002-supporting-evidence-ranking`
 **Created**: 2026-09-02
 **Status**: Implemented
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: Improve evidence ranking after a matched LongMemEval-S campaign found every required session in AtMem's top five but placed one first relevant session at rank two. Implement `vector candidates → supporting-chunk aggregation → AtBot reranking → AtMem revalidation` without weakening authority, privacy, fallback, or compatibility.
 
 ## Overview
@@ -134,3 +135,27 @@ As a maintainer, I want per-case ranking evidence and reproducible focused runs 
 - Existing candidate and AtBot protocol format identifiers remain unchanged.
 - Aggregation fields are additive entries inside the already-extensible candidate `signals` mapping.
 - Older AtBot companions may ignore the new signals and continue returning eligible record IDs; AtMem fallback and final revalidation remain authoritative.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: native evidence ranking. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Governed supporting-evidence aggregation exists; it is a retrieval signal, not causal incident evidence.
+
+### Additional functional requirements
+
+- **FR-018**: Expose source-group and ranking provenance through the native provider's context package while retaining authorization-before-ranking and final canonical reload.
+- **FR-019**: Keep retrieval support and execution dependency relationships different typed links; a ranking score or shared source group MUST NOT establish that a memory caused a failure.
+
+### Acceptance and success criteria
+
+- **SC-008**: Native package fixtures retain eligible source lineage and deterministic ranking, and an unrelated tool failure receives no invented memory-causation link.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019, 021. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

@@ -3,6 +3,7 @@
 **Feature directory**: `specs/013-production-service-profile`
 **Created**: 2026-09-05
 **Status**: Implemented
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: `todo.md` P2.13
 
 ## Overview
@@ -79,3 +80,27 @@ Managed SaaS operation, unsupported multi-region consensus, or storing plaintext
 ## Invariant Attestation
 
 Touches INV-001, INV-002, INV-007, INV-008, and INV-010 through `spec013.tenant-authority`, `spec013.key-auth`, `spec013.deletion-recovery`, `spec013.admin-audit`, and `spec013.degradation`.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: production service hardening. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Configuration, keys, jobs and recovery primitives exist; KeyAuthority stores keys in memory, so durable fleet authentication is not proven.
+
+### Additional functional requirements
+
+- **FR-010**: Persist production credentials, revocations and administrative decisions across restart and replicas, integrating authenticated enforcement into actual routes and jobs rather than only validating configuration.
+- **FR-011**: Support explicit embedded/local, customer-hosted and disconnected profiles; fleet management in Spec 024 MUST NOT be required for local memory or investigation.
+
+### Acceptance and success criteria
+
+- **SC-005**: Restart/replica tests preserve revocation and deny unauthorized route/job/export access; an isolated customer deployment completes a documented restore with declared RPO/RTO and no cloud dependency.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 024; existing 010/012/015. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

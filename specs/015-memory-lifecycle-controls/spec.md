@@ -3,6 +3,7 @@
 **Feature directory**: `specs/015-memory-lifecycle-controls`
 **Created**: 2026-09-05
 **Status**: Implemented
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: `todo.md` P2.14
 
 ## Overview
@@ -79,3 +80,27 @@ Unexplained autonomous deletion, rewriting immutable evidence, or claiming physi
 ## Invariant Attestation
 
 Touches INV-001, INV-003, INV-006, INV-007, and INV-011 through `spec015.lifecycle-authority`, `spec015.eligibility`, `spec015.timeline`, `spec015.forget`, and `spec015.migration`.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: lifecycle and revocation. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Canonical lifecycle and invalidation registry exist; provider-wide source exposure impact and grants are extensions.
+
+### Additional functional requirements
+
+- **FR-011**: Publish scoped source lifecycle/generation changes to Spec 023 through the existing invalidation registry, identifying controlled derivatives and external consumers separately.
+- **FR-012**: Distinguish a deletion request, local invalidation, external acknowledgment and verified deletion; never describe revocation as erasing past model exposure or unmanaged backups.
+
+### Acceptance and success criteria
+
+- **SC-005**: Revocation races prevent future supported governed delivery; local and external cleanup statuses remain distinct and historical evidence follows retention without resurrecting deleted content.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019, 023. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

@@ -172,3 +172,14 @@ Existing files changed:
 - **Latency makes reports unstable**: separate volatile observations from deterministic quality digest and publish environment facts.
 - **Optional model dependencies pollute base installs**: detect availability lazily and never import optional SDKs in the deterministic path.
 - **Benchmark accidentally bypasses authority**: score final AtMem context and inspect record lifecycle; do not score AtBot output as admitted or injected memory.
+
+
+## Unified product integration plan — 2026-09-09
+
+Implement benchmark evidence integration against the new contract owners (Specs 019–022; later 023); use [integration ownership](../integration-ownership.md) and [roadmap order](../product-roadmap.md). Baseline prerequisites refer to existing implementations, not completion of all later amendments.
+
+Touch points (existing or proposed tests): `atmem/benchmark/runner.py`, `tests/test_execution_journey.py`. Add the cross-product fixture runner and separately measured usability protocol. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
+
+Verification: write boundary fixtures for FR-019, FR-020, SC-009 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.
+
+The FR-019 campaign follows the roadmap's domain-neutral acceptance matrix: successful work, software engineering, research, enterprise knowledge and business operations. Parameterize fixtures and scoring by authority mode, tool behavior, evidence coverage and expected outcome; no refund-specific core logic. Record mode/domain/host coverage explicitly in the benchmark report.

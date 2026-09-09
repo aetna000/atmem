@@ -3,6 +3,7 @@
 **Feature directory**: `specs/010-production-storage-backends`
 **Created**: 2026-09-05
 **Status**: Implemented
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: `todo.md` P1.7–P1.8
 
 ## Overview
@@ -85,3 +86,27 @@ Replacing canonical truth with a vector database, automatic production provision
 ## Invariant Attestation
 
 Touches INV-001, INV-003, INV-007, INV-010, and INV-011 through `spec010.canonical-protocol`, `spec010.final-reload`, `spec010.derived-invalidation`, `spec010.degradation`, and `spec010.migrations`.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: storage and performance. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Canonical/derived protocols and caches exist; broad production completion is not established by this focused review.
+
+### Additional functional requirements
+
+- **FR-014**: Allocate execution/incident/context metadata migrations through existing canonical and control-store registries without copying memory authority; add bounded indexed reads for execution timelines and source-exposure pivots.
+- **FR-015**: Measure governance decision, evidence append, query and provider latency independently; cache keys bind principal/scope, policy and source generations and revalidate on use.
+
+### Acceptance and success criteria
+
+- **SC-006**: Restart/upgrade/deletion fixtures preserve existing receipts and unlinked history; a declared 100,000-event local profile returns the first 100 execution events at p95 <= 200 ms excluding provider/model calls.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019–021, 023. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

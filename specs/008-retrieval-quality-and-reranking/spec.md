@@ -4,6 +4,7 @@
 **Created**: 2026-09-05
 **Updated**: 2026-09-08
 **Status**: Implemented
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: `todo.md` P0.4 and the cross-adapter retrieval investigation
 
 ## Overview
@@ -108,3 +109,27 @@ Specs 002 and 005 provide aggregation and semantic-epoch foundations. Spec 009 r
 ## Invariant Attestation
 
 Touches INV-002, INV-003, INV-005, and INV-010 through `spec008.authorization`, `spec008.revalidation`, `spec008.stable-context`, and `spec008.fallback`.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: retrieval explanations. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Shared native support classification and fallback exist; external ranking must remain provider-owned.
+
+### Additional functional requirements
+
+- **FR-021**: Emit direct/background/no-useful support and final revalidation reasons as native-provider decision provenance in the common context envelope.
+- **FR-022**: Do not force an external provider through AtMem's native ranker or compare uncalibrated provider scores as interchangeable confidence; any composition uses Spec 019's explicit policy and lineage.
+
+### Acceptance and success criteria
+
+- **SC-009**: Native fallback and abstention match baseline tests; external-provider fixtures preserve provider ranking without bypassing AtMem's governed-external authorization.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

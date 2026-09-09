@@ -30,3 +30,12 @@
 
 **Cross-spec dependencies**: Spec 006.
 **Task dependencies**: T001 → all; T002/T003 → T004; T004 → T005/T006; T005 → T007/T008.
+
+
+## Phase 5: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019, 022; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T009] Define failing boundary fixtures for FR-010, FR-011, SC-005 using `tests/test_interchange.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T010] Add no-migration provider-switch journeys alongside explicit archive migration in `atmem/interchange/`, `docs/memory-interchange.md` (FR-010, FR-011); depend on T009 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T011] Verify SC-005 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T010 and do not mark completion from declarations alone.

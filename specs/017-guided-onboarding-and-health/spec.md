@@ -3,6 +3,7 @@
 **Feature directory**: `specs/017-guided-onboarding-and-health`
 **Created**: 2026-09-05
 **Status**: Implemented
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: `todo.md` P2.16
 
 ## Overview
@@ -80,3 +81,27 @@ Hiding security choices, auto-activating delivery, collecting private diagnostic
 ## Invariant Attestation
 
 Touches INV-004, INV-006, INV-008, INV-009, and INV-010 through `spec017.activation-guard`, `spec017.explanation`, `spec017.health-proof`, `spec017.rollback`, and `spec017.local-discovery`.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: adoption and onboarding. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Resumable setup exists; activate currently requires capture/paraphrase/context/evidence/restore checks for every path.
+
+### Additional functional requirements
+
+- **FR-010**: Offer memory-only, govern-existing-context and investigate-existing-agent adoption paths with path-specific checks; investigation MUST NOT require native migration, embeddings, AtBot or memory activation.
+- **FR-011**: Preserve explicit activation for context influence and show observed/enforced/missing coverage during a synthetic connected-agent failure walkthrough.
+
+### Acceptance and success criteria
+
+- **SC-006**: Each adoption path completes with irrelevant components absent; choosing investigation performs zero canonical imports and no context injection, while failed required delivery checks block governance activation.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019–022. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

@@ -1,0 +1,37 @@
+# Tasks: Context Revocation, Exposure Impact and Policy Simulation
+
+**Status**: All work below is planned and unchecked.
+**Input**: [spec.md](spec.md), [plan.md](plan.md), [ownership](../integration-ownership.md).
+**Prerequisites**: 019 package/grant contracts, 020 observed exposures, 021 findings, baseline 015 invalidation and 012 services. Basic incident investigation must ship independently of this later milestone.
+
+## Phase 1: Setup and contracts
+
+- [ ] [T001] Freeze the feature's versioned entity/operation/state/reason contracts and independent valid/invalid fixtures in `tests/fixtures/product/023/`, using the owning modules from `plan.md`; reconcile public schemas with Spec 012 and allocate any migrations through the existing registries (FR-001–FR-010).
+- [ ] [T002] Add failing authorized, denied, missing, stale, replay/conflict and optional-dependency-unavailable boundary fixtures in `tests/test_context_lifecycle.py`; map every FR and SC to an assertion and declare real-host versus simulated coverage (FR-001–FR-010, SC-001–SC-004; depends on T001).
+
+## Phase 2: Foundation and primary user stories
+
+- [ ] [T003] [US1] Implement FR-001 in `atmem/context/lifecycle/revocation.py`: Extend Spec 019 delivery grants with scoped source/provider/policy revocation generations; revalidate at the last supported pre-dispatch boundary and document the remaining dispatch race and propagation bound. Verify its boundary assertions in `tests/test_context_lifecycle.py` (depends on T002).
+- [ ] [T004] [US1] Implement FR-002 in `atmem/lifecycle/invalidation.py`: Invalidate controlled package caches and derivative consumers through Spec 015; distinguish local completion, external requested/acknowledged/verified cleanup and unknown/unmanaged copies. Verify its boundary assertions in `tests/test_context_lifecycle.py` (depends on T003).
+- [ ] [T005] [US1] Implement FR-003 in `atmem/context/lifecycle/lineage.py`: Maintain provider-qualified source-version to package to exposure to execution links; direct exposure and explicitly supplied derivative lineage remain different relationship types with coverage. Verify its boundary assertions in `tests/test_context_lifecycle.py` (depends on T004).
+- [ ] [T006] [US1] Implement FR-004 in `atmem/context/lifecycle/impact.py`: Report authorized historical executions exposed to a revoked/corrected source and associated declared dependent work without claiming source causation or retracting past disclosure. Verify its boundary assertions in `tests/test_context_lifecycle.py` (depends on T005).
+- [ ] [T007] [US1] Implement FR-005 in `atmem/context/lifecycle/simulation.py`: Simulate a versioned candidate policy over retained authorized attributes or explicitly authorized source re-fetch; do not reconstruct raw content from hashes. Missing or expired inputs are unevaluable and reported in the denominator. Verify its boundary assertions in `tests/test_context_lifecycle.py` (depends on T006).
+- [ ] [T008] [US2] Implement FR-006 in `atmem/context/lifecycle/simulation.py`: Simulation MUST NOT activate policies, inject context, mutate provider memory or execute tools. Re-fetch is an explicit egress/read operation with a receipt and remains optional. Verify its boundary assertions in `tests/test_context_lifecycle.py` (depends on T007).
+- [ ] [T009] [US2] Implement FR-007 in `atmem/context/lifecycle/comparison.py`: Compare current and candidate allow/withhold/routing outcomes, counts and reason changes; redact inaccessible data and distinguish simulated alternatives from observed historical behavior. Verify its boundary assertions in `tests/test_context_lifecycle.py` (depends on T008).
+- [ ] [T010] [US2] Implement FR-008 in `atmem/context/lifecycle/activation.py`: Require explicit authorized activation after preview with policy-generation preconditions and rollback to a recorded prior policy; older cached decisions cannot silently satisfy the new policy. Verify its boundary assertions in `tests/test_context_lifecycle.py` (depends on T009).
+- [ ] [T011] [US3] Implement FR-009 in `atmem/context/lifecycle/notifications.py`: Authenticate, scope and deduplicate provider revocation notifications; reject replay/conflicting versions and record sequence gaps or unavailable source versions without assuming cleanup. Verify its boundary assertions in `tests/test_context_lifecycle.py` (depends on T010).
+- [ ] [T012] [US3] Implement FR-010 in `atmem/context/lifecycle/retention.py`: Apply retention/deletion to source-exposure indexes and simulations; document that historical model disclosure and unmanaged backups cannot be undone. Unknown-source lineage remains unknown. Verify its boundary assertions in `tests/test_context_lifecycle.py` (depends on T011).
+
+## Phase 3: Acceptance, compatibility and handoff
+
+- [ ] [T013] Execute SC-001 using `tests/test_context_lifecycle.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: Revocation between retrieval and dispatch prevents new delivery in every declared enforcing adapter fixture; post-dispatch revocation records the actual earlier exposure without falsification. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
+- [ ] [T014] Execute SC-002 using `tests/test_context_lifecycle.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: Impact fixtures return exactly authorized observed source-version exposures; unknown derivative lineage produces explicit incomplete coverage and no causal assertion. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
+- [ ] [T015] Execute SC-003 using `tests/test_context_lifecycle.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: Simulation leaves live policy/memory/tool state unchanged, reports all unevaluable cases and performs zero unapproved source egress. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
+- [ ] [T016] Execute SC-004 using `tests/test_context_lifecycle.py` and the applicable installed-host/browser/load/human protocol from `plan.md`: Measure and publish notification-to-enforcement p95 and maximum for 1,000 revocations; initial connected-profile target is <=5 seconds, with expired/disconnected grant behavior separately exercised. Retain versioned evidence or explicitly record unavailable prerequisites (depends on T012).
+- [ ] [T017] Run affected baseline regressions, Spec 018 assertions, privacy/deletion and applicable published-state upgrade/recovery gates; update `docs/current-status.md`, `specs/implementation-review-2026-09-09.md` and feature documentation with exact artifacts, commands, measurements, limitations and activation/rollback guidance (FR-001–FR-010, SC-001–SC-004; depends on T013–T016).
+
+## Dependency and completion rules
+
+T001 → T002 → T003–T012 in listed order → T013–T016 → T017. Cross-spec dependencies are the foundation/contract milestones named above, not every future integration task in the older specs. Shared baseline owners provide integration support after contracts freeze; they do not create a dependency cycle.
+
+A task is complete only when its named boundary and evidence exist. Fake-host, mocked provider, browser automation and human usability measurements are different evidence classes. An unavailable optional test is not a pass for the corresponding advertised capability. No task authorizes a release, live customer action, migration of customer data or automatic external retry.

@@ -87,3 +87,12 @@ Shadow the new versioned retrieval profile, activate after SC-001–SC-008, and 
 ## Cross-Spec Dependencies
 
 Spec 002 supplies aggregation/revalidation; Spec 005 supplies semantic epochs; Spec 007 Amendment B supplies run/turn/task correlation; Spec 009 later registers graph/entity signals.
+
+
+## Unified product integration plan — 2026-09-09
+
+Implement retrieval explanations integration against the new contract owners (Specs 019); use [integration ownership](../integration-ownership.md) and [roadmap order](../product-roadmap.md). Baseline prerequisites refer to existing implementations, not completion of all later amendments.
+
+Touch points (existing or proposed tests): `atmem/retrieve/`, `tests/test_retrieval_adapter_conformance.py`. Map native support decisions into provider-neutral context evidence. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
+
+Verification: write boundary fixtures for FR-021, FR-022, SC-009 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.

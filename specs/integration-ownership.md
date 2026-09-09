@@ -1,6 +1,6 @@
 # Cross-Spec Integration Ownership
 
-This file resolves shared-surface ownership for Specs 005–018.
+This file resolves shared-surface ownership for Specs 001–024. The 2026-09-09 amendment below governs the unified product; see `specs/product-roadmap.md` for contract-first delivery order.
 
 ## Invariant registry
 
@@ -8,7 +8,7 @@ Spec 018 owns `atmem/invariants/`, the `INV-001`–`INV-011` registry, verdict s
 
 ## Dashboard shell
 
-`docs/dashboard-design-language.md` and Spec 007 own the four-workspace information architecture, navigation, single global verdict, shared accessibility behavior, and integration points in `atmem/control/assets/app.js`. Feature specs own their scoped view models and feature modules. Changes to the shared shell are serialized through the Spec 007 contract; no feature may add a fifth workspace or a competing global verdict.
+Spec 022 owns the target six-section information architecture (Overview, Executions, Context, Policies, Tasks, Settings), route migration, accessibility and shared shell integration in `atmem/control/assets/`. `docs/dashboard-design-language.md` remains the visual reference. This explicitly supersedes Spec 007 FR-041's four-workspace constraint and future execution of T102; completed four-workspace tasks remain historical evidence. Spec 007 retains canonical task/focus semantics and scoped task view models. Feature views consume one authority projection: global attention, execution outcome, remediation and verification are separate labelled dimensions, not competing or conflated verdicts. Shell edits are serialized through Spec 022.
 
 ## CLI shell
 
@@ -41,3 +41,27 @@ Spec 010 owns `atmem/retrieve/cache.py`, including key identity, invalidation, r
 ## Lifecycle invalidation
 
 Spec 015 owns `atmem/lifecycle/invalidation.py` and its derived-consumer registry. Spec 016 registers media observations, previews, embeddings, and retained-copy verifiers through that registry; it does not modify lifecycle ordering or verification semantics independently.
+
+## Provider-neutral context (019)
+
+Spec 019 owns `atmem/context/` package/decision/provider/grant contracts and native-provider orchestration. Spec 004 owns external connector implementations and SDK compatibility; Spec 008 still owns native ranking. Spec 003 owns unchanged closed trusted-delegation v1 and signature semantics. Governed-external authorization is independently performed by AtMem; trusted delegation stays explicitly labelled. Spec 023 owns only the lifecycle subpackage and consumes the 019 grant interface. Provider packages never create a second canonical memory store.
+
+## Execution and investigation (007, 020, 021)
+
+Spec 007 Amendment B owns `atmem/contracts/execution.py` baseline identity, task focus/links and `atmem/investigation/` locator. Spec 020 extends that same identity with job/attempt/parent/producer fields and owns `atmem/execution/` durable capture, coverage and execution projections. Existing `atmem/control/blackbox.py` remains the flight-verification foundation; event-contract additions are serialized through 020. Its control-store migrations use the existing control-store version sequence, coordinated with Spec 010 for any canonical references. Do not put execution authority in task memory or fabricate old associations.
+
+Spec 021 owns `atmem/incidents/` findings, dependency-impact projections, explanation claims and resolution revisions. It consumes the existing locator and 020 evidence, with optional 019 context links. It never creates another task, flight or memory authority. Checkpoint ownership and external-effect verification stay with registered hosts/verifiers.
+
+## Application projections (012)
+
+Spec 012 owns shared operation authorization, public schemas, HTTP/MCP/SDK/CLI mappings and `atmem/service/`. New feature service modules (context, executions, incidents, fleet) live inside that package and invoke their domain owners. Runtime submissions and operator actions have distinct authenticated capabilities. Spec 011 owns actual framework bindings; 020 adds coverage contracts through the existing `capabilities()` authority rather than a parallel registry.
+
+## Context lifecycle and fleet (023, 024)
+
+Spec 023 owns `atmem/context/lifecycle/` revocation, exposure lineage and policy simulation, registering invalidation through 015 and obtaining observed exposures through 020. It cannot rewrite past deliveries or claim causal influence from exposure.
+
+Spec 024 owns optional `atmem/fleet/` policy distribution and evidence anchoring; Spec 013 owns production route authentication, credentials, workers and recovery under `atmem/server/`. Local operation is independent of fleet availability. Administrative evidence remains distinct from agent-reported events.
+
+## Cross-product acceptance (001, 018)
+
+Spec 001 owns the reproducible cross-domain fixture campaign, including successful runs and 40-minute investigations and separated measurements. Specs 019–024 own their boundary tests; Spec 018 owns invariant registry and verdict semantics, including future assertion registration. No new invariant ID is allocated by this documentation amendment. Dependencies on 018 mean its existing registry, not completion of every future consumer test. New contracts can land before old features' integration amendments consume them; the roadmap must not be interpreted as a cyclic all-features prerequisite.

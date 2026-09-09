@@ -31,3 +31,12 @@
 
 **Cross-spec dependencies**: Specs 005, 008, and 015.
 **Task dependencies**: T001 → all; T002/T003 → T004/T005; T005 → T006/T007/T008; T009 gates release.
+
+
+## Phase 5: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019, 023; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T010] Define failing boundary fixtures for FR-011, FR-012, SC-006 using `tests/test_media_governance.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T011] Map media observations and consent to provider-neutral lineage in `atmem/media/` (FR-011, FR-012); depend on T010 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T012] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T011 and do not mark completion from declarations alone.

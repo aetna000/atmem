@@ -58,3 +58,12 @@ Authorization matrix and tenant adversaries, key lifecycle, TLS/config rejection
 ## Rollout
 
 Keep behind an explicit `production` profile. Require preflight and recovery rehearsal before readiness; preserve loopback defaults and provide rollback documentation.
+
+
+## Unified product integration plan — 2026-09-09
+
+Implement production service hardening integration against the new contract owners (Specs 024; existing 010/012/015); use [integration ownership](../integration-ownership.md) and [roadmap order](../product-roadmap.md). Baseline prerequisites refer to existing implementations, not completion of all later amendments.
+
+Touch points (existing or proposed tests): `atmem/server/auth.py`, `atmem/server/config.py`, `atmem/server/jobs.py`, `tests/server/`. Close durable credential and end-to-end production-route enforcement gaps. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
+
+Verification: write boundary fixtures for FR-010, FR-011, SC-005 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.

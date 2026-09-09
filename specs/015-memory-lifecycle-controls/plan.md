@@ -59,4 +59,13 @@ Models, policy, service, and invalidation live under `atmem/lifecycle/`; canonic
 
 ## Dashboard and CLI Integration
 
-Follow `docs/dashboard-design-language.md`, preserve the four-workspace layout, and follow `specs/integration-ownership.md`: Spec 007 owns shared dashboard-shell integration and Spec 012 owns shared CLI routing/output conventions.
+Follow `docs/dashboard-design-language.md`, implement the Spec 022 six-section target with legacy-route migration, and follow `specs/integration-ownership.md`: Spec 022 owns shared dashboard-shell integration and Spec 012 owns shared CLI routing/output conventions.
+
+
+## Unified product integration plan — 2026-09-09
+
+Implement lifecycle and revocation integration against the new contract owners (Specs 019, 023); use [integration ownership](../integration-ownership.md) and [roadmap order](../product-roadmap.md). Baseline prerequisites refer to existing implementations, not completion of all later amendments.
+
+Touch points (existing or proposed tests): `atmem/lifecycle/`, `tests/test_lifecycle.py`. Connect lifecycle events and cleanup receipts to context-grant invalidation. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
+
+Verification: write boundary fixtures for FR-011, FR-012, SC-005 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.

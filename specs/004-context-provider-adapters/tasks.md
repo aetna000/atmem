@@ -73,3 +73,12 @@
 - [x] [T032] Upgrade the independent Mem0 extra to `mem0ai>=2.0.20,<3`, bind
   the exact filtered/top-k call against the real OSS and Platform SDK surfaces,
   and retain injected-client normalization tests without network/model access.
+
+
+## Phase 7: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T033] Define failing boundary fixtures for FR-021, FR-022, SC-009 using `tests/test_provider_integration.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T034] Implement native/Mem0/document connector bindings against the shared contract in `atmem/provider_adapters/`, `pyproject.toml` (FR-021, FR-022); depend on T033 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T035] Verify SC-009 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T034 and do not mark completion from declarations alone.

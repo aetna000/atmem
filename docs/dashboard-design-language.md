@@ -7,6 +7,26 @@ a new section, button, or state to the dashboard, check here first.
 
 ## Who this page serves
 
+### Target product amendment — 2026-09-09
+
+Spec 022 (`specs/022-unified-agent-workspace/`) owns the next dashboard shell:
+**Overview, Executions, Context, Policies, Tasks, Settings**. This is the target
+design, not a claim that the current application already implements these routes.
+It supersedes the four-workspace restriction for future work, preserves existing
+task authority and requires legacy-route redirects with scoped selection intact.
+
+The main workflow is **Outcome → important events → affected work → next actions
+→ supporting evidence**. Overview prioritizes active work and unresolved
+incidents; Context supports native memory and external providers equally.
+Onboarding offers memory-only, govern-existing-context and investigation-only
+paths. The last path requires no memory import, embeddings or context activation.
+
+Global attention, execution outcome, coverage, remediation and verification are
+distinct labelled dimensions. Acknowledgment never means repaired or verified.
+Show absolute timestamps and elapsed time, classify recovered errors separately,
+and link exact evidence without requiring copied IDs. All states need textual
+labels, keyboard operation and non-color cues. Existing visual tokens remain.
+
 The dashboard is read by four different people, often in the same week:
 
 | Persona | What they came for | What they must never have to do |
@@ -26,10 +46,10 @@ wrong change.
    fine?" from a single element, not by reconciling a header chip, a banner,
    a card, and a badge that could disagree. The status banner is the single
    source of truth for "is everything OK" on the whole page.
-2. **Memory-first, not database-first.** Storage diagrams, hash chains, and
-   record categories are real and important, but they are *evidence*, not
-   *status*. They live in the Evidence view, one click away — never on the
-   page a manager glances at.
+2. **Lead with the user's work.** Show execution outcomes and actionable
+   findings first; retain useful native-memory entry points for memory-only
+   users. Storage diagrams, hash chains and technical IDs belong in expandable
+   evidence beside the context or execution they explain.
 3. **Progressive disclosure.** Show the headline. Let the reader open the
    technical detail. Every card should be understandable from its heading and
    first line alone; the `<details class="technical">` pattern already used
@@ -142,7 +162,7 @@ it's a copy problem, not an icon problem — write a clearer headline instead.
 
 ## Layout
 
-### Views, not scroll depth
+### Legacy layout — retained until Spec 022 implementation
 
 The 56px application bar contains **Activity, Decisions, Evidence, Settings**.
 Nothing is duplicated across workspaces: a section lives in exactly one view,
@@ -164,7 +184,9 @@ collapsed Memory intelligence control in place; it is not a second dashboard.
 
 ### Governed task state
 
-Governed Task State extends these four workspaces; it never creates a fifth.
+Historically Governed Task State extended these four workspaces. Spec 022 now
+supersedes that restriction with a dedicated Tasks route and shared execution
+pivots; the remaining legacy layout notes describe the pre-migration UI only.
 Task UI is rendered only when the authoritative runtime capability says it is
 available. When disabled, the existing memory-only dashboard is unchanged and
 contains no empty task panels. Shadow mode is labelled **Observing only** and

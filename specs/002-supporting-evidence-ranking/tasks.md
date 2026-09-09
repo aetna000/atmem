@@ -37,3 +37,12 @@
 - [x] T018 Run the deterministic benchmark release gate and confirm extraction, contradiction, injection, privacy, poisoning, fallback, token, and cost evidence remains valid (FR-014, SC-005) — 16/16 passed; extraction/contradiction/recall/fallback 1.000; incorrect injection/privacy leaks/poisoning successes 0; token and cost remain explicitly unavailable for the no-model deterministic path
 - [x] T019 Run ranker, contract, control-plane, framework-adapter, OpenClaw, semantic, deletion, and AtBot package tests; record exact results in this task file (FR-014, SC-005) — focused regression selection: 129 passed, 2 skipped; AtBot package: 16 passed
 - [x] T020 Run the full AtMem test suite with required loopback permission, confirm no dependency/schema/format-version drift, and reconcile implementation with `spec.md` and `plan.md` (FR-013, FR-014, SC-005) — full suite: 341 passed, 2 skipped, 1 upstream deprecation warning; `git diff --check` clean; no feature dependency, SQLite schema, or public format-identifier change
+
+
+## Phase 7: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019, 021; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T021] Define failing boundary fixtures for FR-018, FR-019, SC-008 using `tests/test_supporting_evidence.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T022] Connect bounded native ranking explanations to context-package provenance in `atmem/retrieve/support.py`, `atmem/control/atbot_companion.py` (FR-018, FR-019); depend on T021 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T023] Verify SC-008 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T022 and do not mark completion from declarations alone.

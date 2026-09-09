@@ -3,6 +3,7 @@
 **Feature directory**: `specs/006-memory-extraction-and-updating`
 **Created**: 2026-09-05
 **Status**: Draft
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: `todo.md` P0.3
 
 ## Overview
@@ -91,3 +92,27 @@ Autonomous policy changes, unbounded conversation replay, or deleting historical
 ## Invariant Attestation
 
 Touches INV-001, INV-002, INV-006, and INV-011 through `spec006.canonical-write`, `spec006.pre-extraction-auth`, `spec006.history`, and `spec006.upgrade`.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: memory admission. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Typed admission, review and immutable correction lineage exist.
+
+### Additional functional requirements
+
+- **FR-012**: Native memory writes MUST continue through existing admission and review when native memory uses the shared provider interface; retrieval connectors have no implicit write authority.
+- **FR-013**: Link an explicitly captured native memory proposal to observed execution/source evidence when available; investigation summaries and temporary task progress MUST NOT automatically become durable memories.
+
+### Acceptance and success criteria
+
+- **SC-005**: Standalone capture still works without an execution ID; external retrieval and incident-summary fixtures create zero canonical memories without an explicit authorized capture.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019, 021. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

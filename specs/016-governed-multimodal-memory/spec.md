@@ -3,6 +3,7 @@
 **Feature directory**: `specs/016-governed-multimodal-memory`
 **Created**: 2026-09-05
 **Status**: Implemented
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: `todo.md` P2.15
 
 ## Overview
@@ -81,3 +82,27 @@ Becoming a general media store, silently retaining originals, or treating model 
 ## Invariant Attestation
 
 Touches INV-001, INV-002, INV-003, INV-006, and INV-007 through `spec016.reference-authority`, `spec016.preprocessor-auth`, `spec016.observation-revalidation`, `spec016.lineage`, and `spec016.revocation`.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: media context lineage. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Host-custodied references and derived observations exist.
+
+### Additional functional requirements
+
+- **FR-011**: Represent media-derived context through the common provider/package envelope with artifact version, observation region, consent, processor and egress provenance.
+- **FR-012**: Revalidate source access before explanation or preview; expired consent and missing host artifacts MUST yield explicit unavailable evidence, not fetches outside registered access.
+
+### Acceptance and success criteria
+
+- **SC-006**: An artifact-consent revocation prevents new governed delivery and preview while retaining only permitted exposure links; no raw media or secret enters the incident summary.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019, 023. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

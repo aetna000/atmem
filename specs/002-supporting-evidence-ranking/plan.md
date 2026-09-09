@@ -184,3 +184,12 @@ docs/examples/                                    new result artifact after live
 ## Rollback
 
 The implementation introduces no schema or package migration. Rollback removes the helper call and additive signals. Existing persisted candidate sets expire after five minutes and remain readable because consumers already treat `signals` as an open mapping.
+
+
+## Unified product integration plan — 2026-09-09
+
+Implement native evidence ranking integration against the new contract owners (Specs 019, 021); use [integration ownership](../integration-ownership.md) and [roadmap order](../product-roadmap.md). Baseline prerequisites refer to existing implementations, not completion of all later amendments.
+
+Touch points (existing or proposed tests): `atmem/retrieve/support.py`, `atmem/control/atbot_companion.py`, `tests/test_supporting_evidence.py`. Connect bounded native ranking explanations to context-package provenance. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
+
+Verification: write boundary fixtures for FR-018, FR-019, SC-008 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.

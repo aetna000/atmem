@@ -5,6 +5,7 @@
 **Created**: 2026-09-01
 
 **Status**: Implemented; local and hosted AtBot end-to-end evidence pending
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 
 **Input**: P0.1 from `todo.md`: establish repeatable memory-quality benchmarks and release gates for AtMem, including deterministic regression data, LongMemEval compatibility, execution-mode isolation, and a reproducible Mem0 OSS comparison.
 
@@ -154,3 +155,27 @@ As a user reading an AtMem quality claim, I can find the exact command, configur
 - Optional local and hosted profiles are enabled explicitly and may be executed outside continuous integration.
 - LongMemEval and Mem0 versions/configurations are pinned in reproducibility manifests when their optional runs are performed.
 - Raw upstream datasets and third-party outputs remain outside source control unless their licenses explicitly allow redistribution.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: benchmark evidence. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Existing isolated memory benchmark and matched external reports; local/hosted AtBot evidence remains open (T028–T029).
+
+### Additional functional requirements
+
+- **FR-019**: Provide a synthetic cross-domain campaign (software engineering, research, enterprise knowledge and business operations), including successful runs and a 40-minute virtual-clock execution covering native memory, external retrieval and investigation-only adoption; separate memory quality, authorization, observed delivery, incident accuracy and operator usability results.
+- **FR-020**: Record exact code/dataset/configuration identity, stage latency, missing coverage and supported adapter versions; include recovered retry, unknown external side-effect outcome, missing completion, child failure, crash and source revocation cases without counting skips as passes.
+
+### Acceptance and success criteria
+
+- **SC-009**: All deterministic safety cases have zero cross-scope exposure, zero invented outcomes and zero unsafe retry recommendations; report incident localization accuracy and a separate controlled study target of 90% of operators finding the issue and justified next action within two minutes.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019–022; later 023. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

@@ -32,3 +32,12 @@
 
 **Cross-spec dependencies**: Specs 005 and 008.
 **Task dependencies**: T001 → all; T002 → T003/T004; T003/T004 → T005/T008/T009; T006 → T007/T009; T005/T007/T008 → T009; T010 gates release.
+
+
+## Phase 5: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019–021, 023; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T011] Define failing boundary fixtures for FR-014, FR-015, SC-006 using `tests/storage/`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T012] Provide registered migrations and indexed storage conformance for new projections in `atmem/store/`, `atmem/control/store.py`, `tools/benchmark_storage.py` (FR-014, FR-015); depend on T011 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T013] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T012 and do not mark completion from declarations alone.

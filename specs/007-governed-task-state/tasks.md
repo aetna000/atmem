@@ -488,3 +488,12 @@ Measured overhead (SC-007), 1,000 single-writer samples each, 25 ms budget:
 - Release artifacts built as AtMem `2.2.6b5`, AtBot `0.1.0a6`, and OpenClaw
   bridge `2.2.6-beta.3`; both Python distributions pass `twine check`, and the
   OpenClaw build, contract tests, and real-server smoke test pass.
+
+
+## Phase 14: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 020–022, after existing Amendment B; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T107] Define failing boundary fixtures for FR-069, FR-070, SC-041 using `tests/test_task_execution_correlation.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T108] Integrate canonical task/link projections into job investigation after Amendment B in `atmem/contracts/execution.py`, `atmem/task_state/correlation.py` (FR-069, FR-070); depend on T107 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T109] Verify SC-041 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T108 and do not mark completion from declarations alone.

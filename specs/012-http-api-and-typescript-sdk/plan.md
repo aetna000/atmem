@@ -54,4 +54,13 @@ Application services live in `atmem/service/`; routes reuse `atmem/control/serve
 
 ## Dashboard and CLI Integration
 
-Follow `docs/dashboard-design-language.md`, preserve the four-workspace layout, and follow `specs/integration-ownership.md`: Spec 007 owns the dashboard shell while this feature owns shared CLI routing, public output/error conventions, and API transport integration.
+Follow `docs/dashboard-design-language.md`, implement the Spec 022 six-section target with legacy-route migration, and follow `specs/integration-ownership.md`: Spec 022 owns the dashboard shell while this feature owns shared CLI routing, public output/error conventions, and API transport integration.
+
+
+## Unified product integration plan — 2026-09-09
+
+Implement public services and transports integration against the new contract owners (Specs 019–021); use [integration ownership](../integration-ownership.md) and [roadmap order](../product-roadmap.md). Baseline prerequisites refer to existing implementations, not completion of all later amendments.
+
+Touch points (existing or proposed tests): `atmem/service/application.py`, `atmem/client.py`, `packages/typescript/`, `docs/contracts/atmem-api-v1.openapi.yaml`. Extend public service models and transport projections for the unified workflow. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
+
+Verification: write boundary fixtures for FR-013, FR-014, SC-006 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.

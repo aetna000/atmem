@@ -169,3 +169,12 @@ Amendment A verification (2026-09-07, `storizon` release-candidate work based on
   their registries; their unpacked contents and paths contained zero instances
   of the removed provider-specific name. A fresh public PyPI install passed
   dependency validation plus native and delegated installed-package smoke tests.
+
+
+## Phase 8: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T046] Define failing boundary fixtures for FR-032, FR-033, SC-012 using `tests/test_delegated_context.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T047] Project existing delegated decisions into the shared envelope without changing v1 in `atmem/delegated/service.py`, `atmem/delegated/contracts.py` (FR-032, FR-033); depend on T046 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T048] Verify SC-012 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T047 and do not mark completion from declarations alone.

@@ -32,3 +32,12 @@
 
 **Cross-spec dependencies**: None.
 **Task dependencies**: T001 → T003–T009; T002 → T004; T003 → T005/T007/T008; T005 → T006/T006a/T009.
+
+
+## Phase 5: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019, 022; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T010] Define failing boundary fixtures for FR-011, FR-012, SC-006 using `tests/test_semantic_parity.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T011] Make semantic readiness provider-specific in shared health projections in `atmem/semantic/health.py` (FR-011, FR-012); depend on T010 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T012] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T011 and do not mark completion from declarations alone.

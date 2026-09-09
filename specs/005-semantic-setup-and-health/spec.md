@@ -3,6 +3,7 @@
 **Feature directory**: `specs/005-semantic-setup-and-health`
 **Created**: 2026-09-05
 **Status**: Implemented
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: `todo.md` P0.2
 
 ## Overview
@@ -84,3 +85,27 @@ Hosted embedding recommendations, changing canonical memory, or guaranteeing a p
 ## Invariant Attestation
 
 Touches INV-003 and INV-010 through `spec005.semantic-health` and `spec005.local-fallback`.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: semantic health. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Staged epochs and health states exist; semantic health is specific to native retrieval.
+
+### Additional functional requirements
+
+- **FR-011**: Report native embedding health as provider-specific readiness, not a global prerequisite for external-context or investigation-only use.
+- **FR-012**: Bind native package provenance to epoch/model/generation and expose withheld stale or incompatible index reasons through execution evidence without marking an unrelated tool execution failed.
+
+### Acceptance and success criteria
+
+- **SC-006**: With no local embedding runtime, investigation-only and eligible external-provider flows remain operational; native stale-epoch use is withheld with exact reasons.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019, 022. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

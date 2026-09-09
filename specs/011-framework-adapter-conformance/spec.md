@@ -3,6 +3,7 @@
 **Feature directory**: `specs/011-framework-adapter-conformance`
 **Created**: 2026-09-05
 **Status**: Implemented
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: `todo.md` P1.10
 
 ## Overview
@@ -84,3 +85,27 @@ Spec 007 is a prerequisite for task-aware adapter identity, runtime capability a
 ## Invariant Attestation
 
 Touches INV-004, INV-005, and INV-008 through `spec011.activation`, `spec011.exact-injection`, and `spec011.lifecycle-proof`.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: adapter coverage. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Native framework hooks and callbacks exist; static capability declarations do not prove a deployed host exercised a boundary.
+
+### Additional functional requirements
+
+- **FR-011**: Expose adapter/version/configuration-specific detected, supported and verified coverage for retrieval, returned context, model placement, blocking, retries and child execution; do not infer enforcement from callback availability.
+- **FR-012**: Carry Spec 020 execution/attempt/event identities through supported hooks and Spec 019 package delivery; MCP-only operation MUST remain explicitly tool-observed with no automatic model-placement claim.
+
+### Acceptance and success criteria
+
+- **SC-006**: Real supported OpenClaw/Pydantic AI/LangGraph boundary fixtures distinguish observed and enforced behavior, including missing hooks, streaming cancellation, retries and child runs; unsupported paths remain visible.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019, 020. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

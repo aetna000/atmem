@@ -31,3 +31,12 @@
 
 **Cross-spec dependencies**: Specs 005, 006, 008, 012, and 015.
 **Task dependencies**: T001 → all; T002 → T003; T003/T004/T005/T006 → T007; T007/T008 → T009.
+
+
+## Phase 5: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019–022; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T010] Define failing boundary fixtures for FR-010, FR-011, SC-006 using `tests/test_onboarding.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T011] Replace unconditional memory readiness with adoption-specific checks in `atmem/onboarding.py`, `atmem/onboarding_verify.py` (FR-010, FR-011); depend on T010 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T012] Verify SC-006 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T011 and do not mark completion from declarations alone.

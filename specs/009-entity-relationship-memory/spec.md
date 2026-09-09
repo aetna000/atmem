@@ -3,6 +3,7 @@
 **Feature directory**: `specs/009-entity-relationship-memory`
 **Created**: 2026-09-05
 **Status**: Implemented
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: `todo.md` P1.6
 
 ## Overview
@@ -77,3 +78,27 @@ An authoritative knowledge graph, unbounded traversal, or inferred edges without
 ## Invariant Attestation
 
 Touches INV-001, INV-003, INV-006, and INV-007 through `spec009.derived-authority`, `spec009.path-revalidation`, `spec009.graph-provenance`, and `spec009.graph-deletion`.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: graph provenance. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Derived entity/path evidence exists; it is not an execution impact graph.
+
+### Additional functional requirements
+
+- **FR-008**: Supply authorized graph-path and source-version references to native context packages with bounded, scope-filtered drill-down.
+- **FR-009**: Keep entity relations separate from Spec 020 execution dependencies and Spec 023 exposure lineage; deleting supporting graph evidence invalidates controlled derivatives without rewriting historical observed delivery.
+
+### Acceptance and success criteria
+
+- **SC-005**: An inaccessible edge never appears in package or incident explanations, and graph deletion leaves only policy-permitted historical evidence with explicit unavailable sources.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 019, 023. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

@@ -3,6 +3,7 @@
 **Feature directory**: `specs/007-governed-task-state`  
 **Created**: 2026-09-04  
 **Status**: Implemented (core and Amendment A) · Amendment B (Execution Correlation and Investigation) proposed
+**Unified product amendment status**: Specified; implementation and verification pending. The status above describes the historical baseline only.
 **Input**: Add a governed, continually maintained execution state that gives
 agents a structured checklist of goals, phases, actionable data units, current
 status, constraints, dependencies, and verified progress without weakening
@@ -518,12 +519,12 @@ once to `accepted`, `rejected`, `conflict`, or `no_change`.
   revision, reason, and source requirement; omission MUST fail closed without
   prompting. CLI output MUST never disclose whether an unauthorized task ID
   exists.
-- **FR-041**: Dashboard task surfaces MUST be capability-gated and preserve the
-  current four-workspace information architecture. Disabled, shadow,
+- **FR-041**: Dashboard task surfaces MUST be capability-gated and follow the
+  Spec 022 six-section target (amended 2026-09-09; legacy routes redirect). Disabled, shadow,
   unavailable, legacy, empty, loading, degraded, permission-denied, conflict,
   integrity-failed, and terminal states MUST each have a tested plain-language
   presentation with no false active controls. A selected task MUST persist
-  across direct links among Activity, Decisions, and Evidence with a consistent
+  across direct links among Tasks, Executions, Context, and Policies with a consistent
   compact summary and return path; Settings owns profile configuration and
   destructive task deletion. Mutations MUST preview exact effect and authority
   scope, use accessible confirmation, and never auto-retry after conflict.
@@ -1361,3 +1362,27 @@ deliveries and proposals attach to the correct execution link.
 ## Invariant Attestation
 
 Touches INV-001, INV-004, INV-005, and INV-008 through `spec007.task-authority`, `spec007.activation`, `spec007.delivery`, and `spec007.proof`.
+
+
+## Unified product amendment — 2026-09-09
+
+**Roadmap status**: Baseline status above is historical; this amendment is specified and not implemented. Existing unchecked tasks remain prerequisites where referenced.
+
+**Product role**: task and execution correlation. See [product roadmap](../product-roadmap.md) and [implementation review](../implementation-review-2026-09-09.md).
+
+**Observed foundation**: Task authority and binding exist; Amendment B still has 20 unchecked tasks, including indexed execution/investigation contracts.
+
+### Additional functional requirements
+
+- **FR-069**: Complete existing Amendment B identity, focus and task-execution link work before advertising unified investigation; extend its identities through Spec 020 without inferring task focus or substituting session/run/job IDs.
+- **FR-070**: Expose task readiness and dependency evidence to incident investigation while preserving host ownership of execution and optional task state; Spec 022 supersedes the old four-workspace shell mandate, including T102 layout constraints.
+
+### Acceptance and success criteria
+
+- **SC-041**: A job containing two tasks and a non-task turn retains exact associations, supports Tasks-to-Executions pivots, and remains investigable when task state is disabled.
+
+**Scenario**: Given the declared capability and scope, when the integrated journey executes with the relevant provider or host failure, then the additional requirements above hold and the result distinguishes observed, enforced, missing and unsupported evidence.
+
+### Compatibility and ownership
+
+Integration contracts: Specs 020–022, after existing Amendment B. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.

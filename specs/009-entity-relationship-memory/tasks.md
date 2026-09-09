@@ -30,3 +30,12 @@
 
 **Cross-spec dependencies**: Spec 008.
 **Task dependencies**: T001 → all; T002/T003 → T004/T005; T004/T005 → T006/T007; T007 → T008.
+
+
+## Phase 5: Unified product integration
+
+New work is unchecked. Existing task IDs and completion history remain intact. Contract prerequisites: Specs 019, 023; see the roadmap for foundation versus integration ordering.
+
+- [ ] [T009] Define failing boundary fixtures for FR-008, FR-009, SC-005 using `tests/test_graph_lifecycle.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
+- [ ] [T010] Publish graph path provenance through common packages and lifecycle references in `atmem/graph/`, `atmem/retrieve/graph_signal.py` (FR-008, FR-009); depend on T009 and the published prerequisite contracts, preserving baseline behavior.
+- [ ] [T011] Verify SC-005 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `specs/implementation-review-2026-09-09.md`; depend on T010 and do not mark completion from declarations alone.
