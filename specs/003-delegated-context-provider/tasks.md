@@ -180,3 +180,29 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 - [ ] [T046] Define failing boundary fixtures for FR-032, FR-033, SC-012 using `tests/test_delegated_context.py`; exercise authorized success, relevant failure, missing evidence and cross-scope refusal.
 - [ ] [T047] Project existing delegated decisions into the shared envelope without changing v1 in `atmem/delegated/service.py`, `atmem/delegated/contracts.py` (FR-032, FR-033); depend on T046 and the published prerequisite contracts, preserving baseline behavior.
 - [ ] [T048] Verify SC-012 through the affected public/host boundaries, run regression and applicable upgrade/privacy gates, and record exact tested versions, commands, unsupported configurations and results in `docs/implementation-evidence/003/` (new append-only entry; see `docs/implementation-evidence/README.md`); depend on T047 and do not mark completion from declarations alone.
+
+
+## Phase 9: Host compatibility acceptance
+
+**Release target: AtMem 2.2.6 / OpenClaw bridge 2.2.6.** T049–T053 belong to the
+[2.2.6 maintenance scope](../../docs/release-roadmap.md#226-maintenance-scope--delegated-host-compatibility);
+assignment does not mean implemented, verified or published.
+
+The operator authorized real Mem0 with dummy data and identity role-play for
+maintainer-run acceptance and limited that acceptance to latest OpenClaw releases
+(2026.9.2 and 2026.9.3). A subsequent attributed Storizon rerun covers the same
+hosts against the published 2.2.6 artifacts. Neither result claims live
+shared-channel authentication.
+Phase 8 remains separate future integration work.
+
+- [x] [T049] Preserve the reported Storizon results with attribution; independently verify real Mem0 inject/withhold through authenticated HTTP, real MCP and latest OpenClaw/Claude CLI turns, matching receipts, exact digests, one/zero deliveries and verified flights (SC-013, FR-037).
+- [x] [T050] Enforce and verify default owner refusal, explicit isolated local process/scope mapping, no non-owner override or shared-channel reuse, safe diagnostics and migration; exercise the actual default CLI path on both latest releases (FR-034, FR-035, SC-014).
+- [x] [T051] Run the user-authorized real Mem0/bridge/MCP identity role-play matrix for non-owner, absent identity, cross-user and cross-workspace refusal before provider access. Clearly retain live authenticated shared-channel identity as unverified (FR-035, FR-037, SC-015).
+- [x] [T052] Reproduce missing typed read/exec completions, correlate actual terminal host tool-event results, and verify real successful/error closure on both latest releases. Preserve incomplete_evidence when results are deliberately withheld and reject mismatched/cross-turn observations in regressions (FR-036, SC-016).
+- [x] [T053] Update compatibility guidance, release scope and evidence links; distinguish actual host/Mem0 verification, synthetic identity role-play, operator-reported Storizon results and unverified live shared-channel identity (FR-037, SC-013–SC-016).
+- [x] [T050a] Implement scoped isolated local identity, reject legacy unrestricted requireOwner:false, and cover missing/non-owner/channel/cross-scope identities with diagnostics and migration guidance.
+- [x] [T052a] Consume context invocation IDs, reject false pairing in Black Box, and test terminal-result correlation, cache reload, duplicate/conflicting/missing and cross-turn evidence.
+
+Verification: [latest-release Mem0 evidence](../../docs/implementation-evidence/003/20260909T052000Z-740c5c89d63c-mem0-latest-hosts.md)
+and [attributed Storizon 2.2.6 report](../../docs/implementation-evidence/003/20260910-storizon-published-2.2.6.md). The [earlier source-only entry](../../docs/implementation-evidence/003/20260909T043658Z-740c5c89d63c-host-compatibility.md)
+remains historical; this new entry supersedes its local-host/toolful limitations.

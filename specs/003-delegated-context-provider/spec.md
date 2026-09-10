@@ -326,6 +326,17 @@ checkpoints, tools, or model calls.
 
 **Observed foundation**: Signed exact-byte delegation, replay protection and exposure evidence exist; independent enterprise content authorization is a different mode.
 
+### Authorized acceptance scope
+
+The operator subsequently authorized real Mem0 with generated dummy data and
+identity role-play because Storizon access is unavailable, and limited host
+compatibility to the latest releases. The current matrix targets OpenClaw
+2026.9.2 and 2026.9.3 with Claude CLI 2.1.236; historical and future versions
+are not a universal compatibility promise. Real Mem0 retrieval, authenticated
+HTTP, real AtMem MCP and actual CLI turns establish local delivery and tool
+lifecycle behavior. Role-play establishes adapter enforcement under supplied
+host identities, not authenticated identity on a live shared channel.
+
 ### Additional functional requirements
 
 - **FR-032**: Keep trusted delegation separately named from native and governed-external retrieval; record provider authorization, AtMem delegation-policy decision and observed delivery as distinct evidence.
@@ -340,3 +351,112 @@ checkpoints, tools, or model calls.
 ### Compatibility and ownership
 
 Integration contracts: Specs 019. This feature owns its existing component adaptation only; new contract ownership is in `specs/integration-ownership.md`. New navigation follows Spec 022; historical four-workspace task text is retained as delivery history and is superseded for future integration. Preserve canonical authority, explicit activation, optional task state, host-owned checkpoints, local fallback and existing public contracts. No new capability may be advertised until its acceptance evidence passes.
+
+
+## Host compatibility acceptance amendment — 2026-09-09
+
+**Status**: Implemented and verified locally for the latest-release Mem0 scope,
+with attributed Storizon acceptance against the published 2.2.6 artifacts; live
+shared-channel identity remains unverified.
+This amendment refines FR-006, FR-013 and evidence/readiness claims without
+changing the shared HMAC profile or the closed delegated v1 response contract.
+Historical verification entries above retain their original scope and date.
+
+### Reported verification and limits
+
+The Storizon operator subsequently reported a complete rerun against published
+`atmem==2.2.6` and `openclaw-memory-atmem@2.2.6` at release commit
+`04a063ce1e7bd2c95bf7d0c04bf9098f5f30c08e`. Actual Storizon, authenticated
+HTTP, real AtMem MCP, OpenClaw 2026.9.2/2026.9.3, Claude CLI 2.1.251, Haiku 4.5,
+Node 26.5.0 and Linux exercised eight scenarios per host. All 16 assertions
+reportedly passed: three identity refusals before provider access; inject and
+withhold with matching Storizon v2 receipts, exact context digests and one/zero
+deliveries; successful read/exec closure; observed tool-error closure; and
+deliberately suppressed result observations retaining `incomplete_evidence`.
+The existing HMAC implementation required no change.
+
+These results close the previously reported Storizon-specific v2 receipt and
+local toolful lifecycle gaps for those exact versions and the isolated scoped
+configuration. They are attributed partner results, not tests rerun by the AtMem
+maintainer during this specification update. The release tag and published AtMem
+and bridge versions were independently checked; the partner harness, CI run and
+private fixture state were not independently reproduced here. Live shared-channel
+identity, other hosts/backends and independent external task outcomes remain
+unverified or outside scope.
+
+### Authorized acceptance scope
+
+The operator authorized real Mem0 with generated dummy data and identity
+role-play for local maintainer acceptance, and limited host compatibility to the
+latest releases. The Mem0 matrix targets OpenClaw
+2026.9.2 and 2026.9.3 with Claude CLI 2.1.236; historical and future versions
+are not a universal compatibility promise. Real Mem0 retrieval, authenticated
+HTTP, real AtMem MCP and actual CLI turns establish local delivery and tool
+lifecycle behavior. Role-play establishes adapter enforcement under supplied
+host identities, not authenticated identity on a live shared channel.
+
+### Additional functional requirements
+
+- **FR-034**: The default OpenClaw owner gate MUST remain fail closed when
+  `senderIsOwner` is absent or false. Diagnostics MUST distinguish missing host
+  identity/ownership evidence from provider authentication or HMAC failure.
+  Successful provider authentication MUST NOT establish host user identity.
+- **FR-035**: An explicit local-operator mapping MUST be limited to an isolated,
+  trusted local execution context and a bound operator/workspace/agent scope.
+  It MUST NOT silently activate, infer ownership from missing metadata, override
+  an explicit non-owner result, or authorize shared-channel participants. This
+  refines FR-006 only for an explicitly trusted isolated local mapping; shared
+  channels still require authenticated per-turn host identity. If isolation or
+  the mapping scope cannot be established, delegation MUST fail closed. The
+  mapping is identity configuration, not a second delegated-authority switch.
+  If the host omits CLI origin, the mapping additionally MUST name an absolute,
+  owner-only, non-symlink state directory matching `OPENCLAW_STATE_DIR`; the
+  current process MUST be `agent --local`, without delivery/routing flags and
+  without configured shared channels. Exact agent, workspace, session key and
+  session generation remain required. Missing ownership is never inferred.
+- **FR-036**: Observed read/exec requests MUST NOT imply tool completion or a
+  complete verified toolful flight. Required terminal observations MUST correlate
+  to the same tool invocation and turn; missing observations MUST retain
+  `incomplete_evidence`, even when delegated delivery and the text response pass.
+  A terminal tool failure MAY close evidence when fully observed, but MUST NOT
+  be reported as successful tool execution. When typed completion hooks are
+  absent, a real terminal host tool-event result MAY supply the observation only
+  when its run, session, invocation and canonical tool match a recorded request.
+  Store only scope and result digests in a bounded, expiring process cache;
+  deduplicate typed completions and reject conflicting or incomplete results.
+  Feature-detect host event APIs rather than accepting a version string as proof.
+- **FR-037**: Compatibility reporting MUST separately identify provider protocol
+  conformance, isolated local text-only execution, default owner-gate behavior,
+  shared-channel identity, and toolful lifecycle closure. Each claim MUST state
+  its tested host/package versions, identity configuration, evidence source,
+  and passed/blocked/unverified outcome. Local text-only success MUST NOT promote
+  either remaining gate to ready or imply compatibility with other host versions.
+
+### Acceptance and success criteria
+
+- **SC-013**: Retain the supplied Storizon report with its original attribution;
+  independently exercise real Mem0 inject/withhold through authenticated HTTP,
+  MCP and the latest real OpenClaw CLI releases. Match provider receipt digests
+  to the bound flight, exact context digests, one/zero deliveries and verification
+  results. Mem0 receipts do not establish Storizon v2 receipt compatibility.
+- **SC-014**: On the real CLI path, absent `senderIsOwner` blocks the default
+  owner gate. An explicit isolated local mapping permits only its trusted scope;
+  absent mapping, explicit non-owner identity, scope mismatch, and attempted
+  shared-channel reuse fail closed without provider access or delegated delivery.
+- **SC-015**: Under the authorized role-play substitute, exercise non-owner,
+  missing identity and cross-user/workspace refusals through the real bridge/MCP
+  with real Mem0, proving denied turns never access the provider. Keep live
+  authenticated shared-channel principal binding explicitly unverified; local
+  success cannot authorize a broader shared-channel readiness claim.
+- **SC-016**: A separate real toolful check correlates read/exec requests with
+  observed terminal results and verifies flight closure with truthful tool
+  outcomes. A missing-completion case returns `incomplete_evidence`; unmatched
+  or cross-turn observations cannot close it. Toolful lifecycle readiness for a
+  host/provider profile remains unverified until that profile has positive
+  closure evidence. Text-only completion does not satisfy this criterion.
+
+Shared-channel identity and toolful lifecycle closure are independent acceptance
+gates before broader readiness claims. Toolful closure now passes for the scoped
+Mem0 and attributed Storizon configurations above; shared-channel identity does
+not. Host lifecycle evidence contracts remain owned by Specs 011 and 020; this
+feature verifies their use on delegated turns.

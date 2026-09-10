@@ -9,7 +9,7 @@ AtMem is an agent-neutral product for memory, context governance and execution i
 
 | Proposed AtMem version | Customer value and included scope | Primary specs | Readiness boundary |
 | --- | --- | --- | --- |
-| **2.2.6** — optional maintenance | Stabilize already implemented 2.2 capabilities and verified fixes; publish accurate installation/upgrade guidance | Existing runtime and applicable regression gates | No claim that the new roadmap capabilities are delivered. This maintenance release is optional and does not block 2.3 development. |
+| **2.2.6** — optional maintenance | Stabilize already implemented 2.2 capabilities, including delegated host identity/lifecycle fixes and compatibility checks; publish accurate installation/upgrade guidance | Existing runtime; 003 T049–T053; applicable regression gates | Spec 003 host compatibility work is assigned to 2.2.6; unresolved host profiles remain explicitly blocked/unverified. No claim that the new roadmap capabilities are delivered. This maintenance release is optional and does not block 2.3 development. |
 | **2.3.0b1** — investigation preview | Find an observed failure or missing event across an agent run, with exact evidence, agent identity, readable explanations and timestamps, in the existing dashboard | 007 identity subset, 020 capture, minimal 021 findings; M0 | Initial installed host profile plus host-neutral core tests; durable capture/replay, isolation, compatibility and technical UI gates. No provider migration or new memory system required. |
 | **2.3.0** — investigation and host extensibility | Stabilize investigation, verify additional host profiles and publish the runnable Host Conformance Kit, coverage manifests and third-party listing process | Scoped 011, 020 and 021; M0 stabilization plus M2 capture-profile deliverables | At least two distinct real host profiles for cross-framework investigation claims; independently installable kit and explicit observed/enforced/missing coverage. Full shared-memory conformance follows in 2.4. |
 | **2.4.0** — multi-agent memory and access foundations | Agents use private and explicitly shared spaces with separate read/write/admin permissions, ownership, membership changes and provenance. Establish durable authenticated administration for supported production profiles | 006, 010, 012, 013, 015, applicable 017/019/022 consumers | Membership and credential subsystems pass their decomposed gates; no cross-space leaks, stale-grant delivery or revoked-key resurrection. Local use remains lightweight; broader enterprise/federation claims remain scoped. |
@@ -19,6 +19,29 @@ AtMem is an agent-neutral product for memory, context governance and execution i
 | **2.8.0** — enterprise fleet operations | Customer-hosted fleet policy distribution, scoped administration, supported federation/workload identity, independent evidence anchoring and verified recovery profiles | Hardened 013, 024, applicable 025 integration; M3 | Real deployment, replica, partition, credential, recovery and evidence-verification gates pass. Managed hosting remains optional. |
 
 The sequence scopes deliverables rather than requiring every task in each named spec to finish. Carry deferred work explicitly; never mark an entire spec complete from a passing release profile. M1 is intentionally split across 2.4–2.6 so memory authority, provider onboarding and incident resolution each reach users separately. The capture conformance subset of M2 lands earlier in 2.3; milestone labels are work groups, not a mandatory numeric delivery order.
+
+## 2.2.6 maintenance scope — delegated host compatibility
+
+Assign [Spec 003 Phase 9](../specs/003-delegated-context-provider/tasks.md#phase-9-host-compatibility-acceptance)
+(T049–T053; FR-034–FR-037, SC-013–SC-016) to **2.2.6**, ahead of the
+2.3 feature work. This includes retaining attributed Storizon reports, verifying real Mem0, enforcing the
+default owner gate and isolated local mapping, exercising identity role-play,
+addressing supported read/exec completion-observation gaps, and publishing an
+accurate compatibility matrix. The user-authorized real Mem0/dummy-data and
+identity role-play substitute now passes local acceptance on latest OpenClaw
+2026.9.2 and 2026.9.3. A later attributed Storizon rerun against the published
+2.2.6 artifacts closes its v2 receipt and local toolful gaps for the same two
+hosts and scoped isolated configuration. Live shared-channel identity remains
+outside the demonstrated scope.
+
+The shared HMAC profile and delegated v1 payload remain unchanged. Missing
+`senderIsOwner` must fail closed by default; local text-only success cannot
+establish shared-channel identity. Missing tool completion observations must
+remain `incomplete_evidence`. Shared-channel and toolful checks are separate
+gates: passing both is required for broader readiness claims. An unavailable
+host boundary must be documented as blocked/unverified with the exact limitation,
+not counted as a passing fix. Apply the normal regression/artifact release gates
+to the final implemented changes before publication.
 
 ## Immediate next release: 2.3.0b1
 

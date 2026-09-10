@@ -147,3 +147,34 @@ support bounded overlap without restarting; see the profile for exact commands.
 Custom providers such as Storizon must adopt the same HTTP profile and generate
 their own per-installation request secret. AtMem's managed-provider commands do
 not configure an external Storizon service. Public demo keys remain test-only.
+
+
+## 2.2.6 delegated host compatibility
+
+The maintainer-run acceptance scope is OpenClaw **2026.9.2 and 2026.9.3** with
+Claude CLI **2.1.236**, real local Mem0, Qdrant and Ollama, and dummy data. A
+separate attributed Storizon rerun used the same OpenClaw versions with Claude
+CLI **2.1.251**, Haiku 4.5, Node 26.5.0 and Linux against the published AtMem and
+bridge 2.2.6 artifacts.
+
+| Boundary | Evidence | Result |
+| --- | --- | --- |
+| Storizon HMAC/v2 receipts | Partner rerun against published 2.2.6 artifacts | Reported pass on both hosts; exact receipt/context digests and one/zero deliveries |
+| Storizon identity refusal | Three scenarios per host | Missing ownership, legacy owner bypass without mapping, and wrong session generation refused before callback |
+| Storizon tool lifecycle | Actual read/exec, missing-file error and suppressed-observation scenarios | Reported complete success, completed_with_tool_errors and incomplete_evidence respectively |
+| Default owner gate | Actual CLI turns on both latest releases | Missing owner metadata refused; zero provider acceptance |
+| Isolated local inject/withhold | Actual CLI, real Mem0, authenticated HTTP and real MCP | Exact receipt/context digests, one/zero deliveries, complete flights |
+| Read/exec and terminal errors | Actual tool execution on both latest releases | Complete success or completed_with_tool_errors, with observed terminal results |
+| Missing completion | Actual tool execution with deliberate result-observation suppression | incomplete_evidence on both releases |
+| Identity role-play | Real Mem0/MCP/bridge; synthetic host principals/scopes | Non-owner, missing owner, cross-user and cross-workspace denied before provider access |
+| Live shared-channel identity | No authenticated shared-channel fixture | Unverified; role-play cannot establish it |
+
+The CLI sends terminal results on the host tool-event stream when typed completion
+hooks are absent. The bridge matches those observations to requests and records
+result digests; requests or model text never create completion evidence. Missing,
+conflicting or mismatched observations still fail closed. This matrix does not
+promise every historical/future OpenClaw version or every channel/backend.
+
+See [identity configuration](delegated-context-provider.md#isolated-local-cli-identity-226),
+[maintainer-run Mem0 evidence](implementation-evidence/003/20260909T052000Z-740c5c89d63c-mem0-latest-hosts.md),
+and the [attributed Storizon 2.2.6 report](implementation-evidence/003/20260910-storizon-published-2.2.6.md).
