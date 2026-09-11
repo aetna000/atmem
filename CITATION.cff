@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use AtMem in research, please cite this software."
+title: "AtMem: a host-neutral Agent Black Box and reversible memory control plane"
+type: software
+authors:
+  - family-names: "Taghia"
+    given-names: "Javad"
+version: 2.2.6
+date-released: 2026-09-09
+url: "https://atmem.ai"
+repository-code: "https://github.com/aetna000/atmem"
+license: Apache-2.0
+keywords:
+  - agent memory
+  - context governance
+  - execution investigation
+  - provenance
+  - verifiable forgetting

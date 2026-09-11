@@ -10,8 +10,8 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
-authors = [{ name = "aetna000", email = "aetna000@gmail.com" }]
-maintainers = [{ name = "aetna000", email = "aetna000@gmail.com" }]
+authors = [{ name = "Javad Taghia", email = "taghia.javad@gmail.com" }]
+maintainers = [{ name = "Aetna / AtMem", email = "aetna000@gmail.com" }]
 keywords = ["agent-black-box", "agent-memory", "audit", "mcp", "provenance", "sqlite"]
 classifiers = [
   "Development Status :: 4 - Beta",

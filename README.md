@@ -5,6 +5,9 @@
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
+Created and maintained by [Javad Taghia](https://github.com/javadtaghia)
+([@JavadTaghia](https://x.com/JavadTaghia)).
+
 Install AtMem once and give OpenClaw, Pydantic AI, LangChain/LangGraph, or a
 custom agent governed long-term memory. **AtBot is installed automatically** as
 AtMem's private intelligence companion: AtBot proposes and ranks; AtMem alone
