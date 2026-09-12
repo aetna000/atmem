@@ -2,9 +2,10 @@
 
 **Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/022/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
 
-**Status**: All work below is planned and unchecked.
+**Status**: The current-dashboard slice T021–T025 is complete; the independent
+evidence-box workspace T026–T029 and broader unified workspace remain open.
 **Input**: [spec.md](spec.md), [plan.md](plan.md), [ownership](../integration-ownership.md).
-**Prerequisites**: 019 context, 020 execution and 021 incident public read/action contracts, baseline 007 tasks, 012 transport and 017 onboarding. Build read-only views on stable contracts before enabling mutations.
+**Prerequisites**: The full workspace uses 019 context, 020 execution, 021 incident public read/action contracts, baseline 007 tasks, 012 transport and 017 onboarding. The M0 evidence-box slice T026–T029 requires its explicitly named 020/021 reconstruction contracts, existing read transport, and Spec 028's authorized application projection plus compact protection-settings contract and future implementation tasks; it does not require provider unification, Connections or onboarding. The browser never receives storage keys. Build read-only views on stable contracts before enabling mutations.
 
 ## Phase 1: Setup and contracts
 
@@ -43,3 +44,32 @@ A task is complete only when its named boundary and evidence exist. Fake-host, m
 - [ ] [T018] Define independent boundary fixtures for FR-011/SC-005 in `tests/test_unified_workspace.py` using `specs/product-requirements.md`, including private/shared scopes, readable feedback and timestamp provenance as applicable.
 - [ ] [T019] Implement FR-011 through `atmem/control/assets/app.js` and the owning service contracts; preserve legacy scope behavior and authorize all displayed facts/actions (depends on T018).
 - [ ] [T020] Verify SC-005 through the applicable public/host/UI boundary in `tests/test_unified_workspace.py`; retain versions, coverage, failures and usability evidence in a new entry under `docs/implementation-evidence/022/` and link changed capability status from `docs/current-status.md` before advertising the capability (depends on T019).
+
+
+## Current dashboard usability slice — 2026-09-09
+
+- [x] [T021] Implement FR-012–FR-014: outcome/evidence separation, background identification, compact summaries, grouped conflicts and exact-event navigation.
+- [x] [T022] Implement FR-015: scoped revision polling, non-overlapping refresh, visible reconnect state, and preservation of inspected details.
+- [x] [T023] Implement FR-016: bounded initial run load, on-demand stories, progressive disclosure for technical/configuration controls, and collapsed assistant.
+- [x] [T024] Complete browser and affected regression validation for this slice, record local measurements/limitations in `docs/implementation-evidence/022/20260909-dashboard-usability.md`, and install the local preview. This does not complete T013–T020 or the wider human usability protocol.
+
+- [x] [T025] Implement and verify completed-with-tool-errors presentation, context-decision wording and precise local/UTC timestamps (FR-017–FR-018, SC-007); record local installation evidence with Spec 020 T035.
+
+## Independent evidence-box workspace — 2026-09-13
+
+- [ ] [T026] Add failing browser/API fixtures for Runs, Memory, Decisions, Tools
+  and media, and Audit using only a copied standalone evidence store. Assert
+  exact prompt, context, decision, call arguments/target, result/error and
+  original text/image/audio/video/file/page evidence; reject generic/hash/ID-only
+  substitutes (FR-019–FR-022, SC-008–SC-009; depends on 020 T043 and 021 T025).
+- [ ] [T027] Implement the evidence-box navigation and ordered run story in
+  `atmem/control/assets/app.{html,js,css}` using shared reconstruction services;
+  preserve legacy redirects and keep integrity IDs as secondary proof
+  (depends on T026 and 021 T026).
+- [ ] [T028] Implement inline multimodal rendering, exact artifact downloads,
+  capture-completeness display and explicit `not reconstructable` states for
+  metadata-only/off/partial/legacy runs (depends on T027).
+- [ ] [T029] Execute desktop/mobile/keyboard/browser and exact-download checks
+  with the fixture agent, logs, workspace, providers and network absent. Do not
+  mark complete from mock screenshots or hash comparisons alone (depends on
+  T028 and 020 T050).

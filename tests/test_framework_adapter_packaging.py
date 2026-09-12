@@ -1,5 +1,8 @@
 from pathlib import Path
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 
 def test_framework_extras_are_optional_and_base_has_no_framework_sdk():
     data = tomllib.loads(Path("pyproject.toml").read_text())

@@ -10,7 +10,7 @@ Python 3.10–3.13; current SQLite/control evidence stores and optional declared
 
 ## Foundation prerequisites
 
-020 execution evidence and baseline 007 task/locator contracts, 012 services and 018 invariants. Optional 019 context packages enrich investigation; missing context must not block tool-failure diagnosis.
+020 execution evidence and baseline 007 task/locator contracts, 012 services and 018 invariants. Exact reconstruction additionally consumes Spec 028's authorized AtMem plaintext projection; investigation code does not receive keys or introduce a second decryption API. Optional 019 context packages enrich investigation; missing context must not block tool-failure diagnosis.
 
 ## Architecture and file ownership
 
@@ -22,7 +22,7 @@ Python 3.10–3.13; current SQLite/control evidence stores and optional declared
 - **FR-006** → `atmem/incidents/reconcile.py`: Acknowledgment records review only; it cannot change execution outcomes, hide underlying evidence, claim a fix or trigger a retry. Late evidence can supersede a finding and reopen an investigation with a recorded reason.
 - **FR-007** → `atmem/incidents/actions.py`: Offer scope-authorized actions to inspect, assign, request correction, disable an applicable provider, revoke supported grants or record verification. Action availability comes from service authority/capabilities; unsupported remediation provides manual guidance.
 - **FR-008** → `atmem/incidents/recovery.py`: Before recommending executable retry/resume, require a host checkpoint reference, declared idempotency behavior and available evidence about prior external effects. Timeout after dispatch means unknown outcome until checked; absent prerequisites permit inspection advice but no automatic replay.
-- **FR-009** → `atmem/incidents/privacy.py`: Keep explanations, assignment, exports and actionable commands tenant/scope filtered and content-minimizing; do not store incident narratives as durable personal memory automatically.
+- **FR-009** → `atmem/incidents/access.py`: Scope and audit explanations, assignment, exports and actionable commands while preserving full-fidelity evidence for authorized investigation; do not turn incident narratives into automatically recalled personal memory.
 - **FR-010** → `atmem/service/incidents.py`: Expose one incident/resolution service to HTTP, SDKs, MCP and dashboard. Core schemas, classifications, APIs and default UI MUST be domain-neutral: no mandatory customer, order, refund or payment fields and no tool-name-based outcome inference. Domain-specific labels and verifier integrations are optional, registered and scoped; the same evidence and action rules apply to read-only, compute and side-effecting tools. Operator permissions are distinct from agent evidence submission. External verification requires a registered verifier and receipt rather than a model's success claim.
 
 Shared router edits go through Spec 012; shared shell edits through Spec 022; canonical schema allocations through Spec 010; existing flight-store schema evolution through its current registry coordinated by Spec 020. Preserve existing task authority and reuse Spec 007 identities. Do not allocate duplicate public resource schemas in two feature packages.
@@ -54,9 +54,9 @@ Primary boundary suite: `tests/test_incident_resolution.py`. Add fixture-level g
 | Principle | Planned enforcement |
 | --- | --- |
 | I — Authority before intelligence | Existing canonical admission remains exclusive; external proposals are checked; trusted delegation stays explicitly named. |
-| II — Provenance and exact evidence | Stable scoped references and digests; observed, inferred and independently verified are distinct. |
+| II — Provenance, full-fidelity evidence and replay | Reconstruct exact prompt-to-outcome evidence from AtMem alone; integrity digests remain supporting proof. |
 | III — Safe defaults and reversibility | Non-influencing initial state, explicit activation, bounded failure and no silent replay. |
-| IV — Scope, privacy and deletion | Authorize joins/actions/exports; retain minimum evidence and verify controlled derivative deletion. |
+| IV — Scoped transparency and deletion | Authorize and audit disclosure/actions/exports/replay while retaining exact evidence by default and verifying deletion. |
 | V — Host neutrality | Extend shared contracts and service; preserve host checkpoints, tools and histories. |
 | VI — Executable claims | Boundary and installed-artifact evidence required; planned tests are not proofs. |
 | VII — Local operation and explicit egress | No required hosted model, no unapproved provider query, optional extras and deterministic explanation. |
@@ -69,7 +69,7 @@ Ship contracts and non-influencing inspection first. Negotiate capability per de
 
 ## M0 release profile
 
-[The M0 release slice](../m0-investigation-preview.md) defines independent OpenClaw investigation-only delivery and exact prerequisite tasks. It overrides full-feature sequencing for that profile only: shared non-task identity, capture and minimal findings in the existing dashboard can ship before task links, providers, other hosts or the new shell. Completing the slice does not complete broader requirements. Usability claims follow [the declared protocol](../usability-protocol.md).
+[The M0 release slice](../m0-investigation-preview.md) defines independent OpenClaw investigation-only delivery and exact prerequisite tasks. It overrides full-feature sequencing for that profile only: shared non-task identity, store-only diagnosis and the evidence-specific Spec 022 destinations can ship before task links, providers, other hosts or the broader application shell. Completing the slice does not complete broader requirements. Usability claims follow [the declared protocol](../usability-protocol.md).
 
 Terminology and legacy projections follow the canonical mapping table in `specs/integration-ownership.md`; add one shared fixture set for unlinked flights, multi-flight executions, attention-to-finding reconciliation and receipt/package distinctions. Each owning boundary suite validates its projection; no UI-only verdict mapping is permitted.
 
@@ -78,3 +78,19 @@ Terminology and legacy projections follow the canonical mapping table in `specs/
 Implement FR-011 through `atmem/incidents/projection.py`, consuming Spec 012 space/membership and feedback contracts, 019 context authorization, 020 time/identity evidence and the owner mappings in `specs/product-requirements.md`. Allocate persisted changes through Spec 010; retain legacy scope behavior and keep new private/shared space behavior explicit. Domain code owns facts and permissions; UI and transports project the same result.
 
 Add boundary fixtures in `tests/test_incident_resolution.py` for SC-005, including positive/negative scope access, concurrent membership changes and real-versus-unknown verification time. Report unsupported host/provider coverage rather than infer it. Existing OpenClaw APIs are adapter compatibility surfaces, not required core fields. The relevant tasks below gate this requirement; broader future features do not block M0's scoped profile.
+
+## Standalone full-evidence investigation (FR-012–FR-015)
+
+Consume Spec 020 reconstruction projections; never query the original host,
+provider or mutable memory store to fill a historical story. Extend incident
+projections with ordered original evidence parts and exact call descriptions.
+The deterministic renderer leads with concrete nouns and values—prompt, memory,
+decision, tool, arguments, target, result/error—then assurance and technical
+proof. Add media render/download handlers without converting originals to text.
+Replay-manifest inspection is read-only; any future execution action stays in a
+separate authorized service and new run.
+
+Validate through `tests/test_incident_resolution.py`, the Spec 020 dead-agent
+fixture and browser tests. Remove acceptance of generic “a tool failed” copy
+when exact evidence exists. Metadata-only/legacy views identify the exact
+missing boundary and `not_reconstructable` status.

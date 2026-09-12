@@ -1,0 +1,29 @@
+{
+  "format": "atmem-m0-requirement-map-v1",
+  "in_scope": [
+    "FR-001:explicit-non-task-identity",
+    "FR-002:typed-producer-sequenced-events",
+    "FR-003:bounded-spool-replay-and-gaps",
+    "FR-004:event-and-receive-time",
+    "FR-005:openclaw-and-mcp-coverage",
+    "FR-006:observed-lifecycle-only",
+    "FR-007:bounded-non-task-projection",
+    "FR-008:investigation-without-memory-atbot-or-task-state",
+    "FR-009:scope-authorized-read",
+    "FR-010:control-store-migration-and-content-minimization"
+  ],
+  "deferred": [
+    "task-execution-links",
+    "task-focus",
+    "cross-framework-campaign",
+    "provider-unification",
+    "executable-remediation",
+    "measured-human-usability"
+  ],
+  "evidence_classes": {
+    "core": "deterministic-fixture",
+    "openclaw": "installed-host",
+    "ui": "automated-browser-and-static-keyboard-contract",
+    "usability": "not-claimed"
+  }
+}

@@ -1,6 +1,6 @@
 # Feature Specification: Unified Agent Workspace and Adoption
 
-**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+**Product-wide requirements**: [Agent neutrality, standalone full-fidelity evidence and encrypted privileged plaintext](../product-requirements.md) (PR-001–PR-008). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
 
 **Feature directory**: `specs/022-unified-agent-workspace`
 **Created**: 2026-09-09
@@ -77,7 +77,7 @@ The dependency list distinguishes existing baseline modules from new contract mi
 
 ## Compatibility, privacy and migration
 
-Keep Python 3.10–3.13, optional provider/model/framework imports, local operation, explicit activation and egress, unchanged host-owned state and distinct canonical memory/task/evidence authorities. Closed wire schemas get new versions when needed; additive fields require negotiation. Allocate migrations through existing registries, retain legacy projections, test supported published floors, and never fabricate historical links. No default raw transcript, chain-of-thought or secret retention. Evidence metadata and hashes still require access control and retention.
+Keep Python 3.10–3.13, optional provider/model/framework imports, local operation, explicit activation and egress, unchanged host-owned state and distinct canonical memory/task/evidence authorities. Closed wire schemas get new versions when needed; additive fields require negotiation. Allocate migrations through existing registries, retain legacy projections, test supported published floors, and never fabricate historical links or content. Render full-fidelity evidence and original multimodal artifacts by default for authorized users; protect credentials reversibly and audit access.
 
 ## Out of scope
 
@@ -89,9 +89,108 @@ Touches INV-004, INV-005, INV-006, INV-008, INV-009, INV-010 through `spec022.sc
 
 ## Product-wide requirements — agent neutrality and clear evidence
 
-**Required, not yet implemented:** [Product requirements](../product-requirements.md) PR-001–PR-006. This amendment applies to this feature's public and UI boundaries; host-specific integrations cannot redefine core identity or authority.
+**Required, not yet implemented:** [Product requirements](../product-requirements.md) PR-001–PR-008. This amendment applies to this feature's public and UI boundaries; host-specific integrations cannot redefine core identity, authority or the encrypted application-only plaintext boundary.
 
 - **FR-011**: Apply specs/product-requirements.md to every section: visible authenticated agent/workspace/space context, readable private/shared owner and membership controls, provider authority and provenance, explanatory status with evidence/known effect/next action, absolute timezone-qualified time and evidence age. Memory sharing never shares execution logs or credentials implicitly. New-space privacy defaults and authorized membership changes use the Spec 012 service. Relative time and color are supplemental; no bare red/yellow code or invented refreshed verification.
 - **SC-005**: Browser/API fixtures cover multiple agents with private and shared memory, read-only versus administrative controls, native/external providers, successful/stale/denied/unknown states and both viewports. Every status has readable reason and actual time/unknown marker, keyboard access and a scoped evidence/action path; the declared usability protocol includes these tasks.
 
 This work extends existing authority and preserves legacy scopes. Private/shared memory and multi-framework claims require their own evidence; M0 delivers only its applicable capture/feedback subset. See the central ownership and release matrix.
+
+
+## Existing dashboard usability amendment — 2026-09-09
+
+Scope: historical improvement of the then-current four-tab dashboard without
+claiming the then-planned seven-route workspace was implemented. The later
+FR-019–FR-022 amendment supersedes that target. Keep all retained evidence and permissions.
+
+- **FR-012**: Activity leads with the foreground run outcome in a compact status
+  card. Host-reported completion with recording gaps is “Completed · evidence
+  notes”, not a failed task. Red denotes observed run failure or integrity
+  failure; amber denotes inconsistent/missing evidence. Actual tool errors remain
+  red at their own event boundary even when the overall run completes.
+- **FR-013**: Identify the supported OpenClaw internal skill-review run/session
+  convention as background work, not the last foreground answer. Provide a
+  labelled background toggle and count; preserve those runs for inspection. Do
+  not infer successful completion or erase conflicts from a visible answer.
+- **FR-014**: Review shows outcome, short reason, affected tool, timezone-qualified
+  time and links to every conflicting event. Collapse IDs/hashes by default.
+  Missing lifecycle, conflicting requests/results and orphan completions receive
+  explicit diagnostic rows and amber timeline markers. Later healthy runs never
+  imply older unresolved incidents were repaired.
+- **FR-015**: The page automatically checks a lightweight scoped evidence revision
+  every three seconds while visible, refreshes changed run data and open details,
+  preserves open timeline steps/scroll, prevents overlapping live refresh calls,
+  and labels connection failure rather than silently showing a stale “live” state.
+  Refresh hints are not verification or agent-status claims. Existing host hooks
+  remain authoritative; the dashboard does not synthesize missing completion.
+- **FR-016**: Render a bounded run page before optional stories/bridge inspection.
+  Load stories on demand and hydrate only visible recent rows in the background.
+  Move detailed system health/agent coverage into Settings and start the memory
+  assistant collapsed. Keep navigation and diagnostic actions accessible at
+  desktop and narrow widths.
+- **SC-006**: Browser fixtures verify a completed answer with conflicting tool
+  evidence, background work, live in-progress-to-complete transitions, paused
+  updates, exact-event navigation, collapsed technical details, and responsive
+  layout. Report measured loading times as local observations, not universal
+  performance guarantees.
+
+### Completed runs with failed steps and precise time — 2026-09-09
+
+- **FR-017**: A host-successful run with only confirmed tool errors displays a
+  completed run indicator and an explicit failed-step count/action. Failed tool
+  events remain red in details; uncertain evidence stays amber. Do not present
+  confirmed tool errors as mere evidence quality issues or claim they were
+  recovered without evidence. A successful answer is not proof that its missing
+  sources were unnecessary. Integrity and actual run failures retain precedence.
+- **FR-018**: Show local date/time including seconds, milliseconds and timezone,
+  with the exact UTC record available in details. Explain context selection as one
+  decision containing unique memories and, when recorded, persona/recall counts.
+  A no-relevant-memory disposition must never be titled as memory injection.
+- **SC-007**: Deterministic presentation and browser checks cover successful runs
+  with tool errors, unrecovered run failure, ambiguous evidence, missing times,
+  UTC/local DST conversion, and readable mobile timestamps without overflow.
+
+The activity list includes a visible text-and-colour legend explaining green run
+completion, amber review/uncertainty, red reported run/tool failure and purple
+in-progress state. It explicitly distinguishes a run's completion from the
+outcome of each tool call and from answer correctness; colour is never the only
+label.
+
+## Independent evidence-box workspace amendment — 2026-09-13
+
+This amendment supersedes the earlier route and progressive-disclosure order
+where it hides full evidence behind generic summaries. Technical hashes remain
+secondary disclosure; captured execution content does not.
+
+- **FR-019**: The primary workspace MUST organize the independent AtMem evidence
+  system as Runs, Memory, Decisions, Tools and media, and Audit. A run opens as
+  one ordered story: user input → memory/context → decisions → model exchange →
+  tools/media → result/error → observed outcome → reconstruction/replay options.
+- **FR-020**: When exact evidence exists, the first screen MUST name and show the
+  prompt, memory/context, decision, tool call, arguments/URL/path/command and
+  result/error. Counts, colors, generic phrases, hashes and opaque IDs are never
+  the only or primary explanation. IDs/hashes support verification.
+- **FR-021**: Render original text, fetched pages, files, images/screenshots,
+  audio and video inline where supported and provide exact downloads otherwise.
+  Captions/transcripts are additional accessible/searchable views, not
+  replacements for original artifacts.
+- **FR-022**: The workspace MUST operate from the AtMem store alone and clearly
+  display capture completeness. Full fidelity is the default. Explicit
+  metadata-only/off and legacy hash-only runs display `not reconstructable` and
+  identify each missing boundary without sending the user to the dead agent.
+
+Spec 028 owns evidence protection behavior and privilege decisions. This feature
+integrates that authority as one collapsed `Evidence protection` row with a
+focused action drawer; it MUST NOT expand routine encryption management into a
+page-sized form or create a second key, grant or export-policy authority.
+
+- **SC-008**: Browser tests load the copied dead-agent evidence store with no
+  network/provider/host access and recover every expected story value and media
+  artifact in at most two actions from the run. Exact-content assertions—not
+  screenshots alone—verify agreement with API/export bytes.
+- **SC-009**: Negative browser tests fail generic “a tool failed”, count-only,
+  hash-only, ID-only, transcript-instead-of-audio and thumbnail-instead-of-image
+  rendering whenever original captured evidence is available.
+
+The Spec 028 compact-settings acceptance runs in this shared shell at both 375px
+and 1280px and is required before the encrypted evidence-box profile is claimed.

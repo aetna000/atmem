@@ -8,7 +8,7 @@
 - **Default behavior**: Native AtMem context authority remains unchanged. Delegated mode is absent/off unless a scoped registration is explicitly enabled.
 - **Transport**: HTTP POST to a loopback endpoint only for this beta. The request deadline and response size are bounded.
 - **Trust**: Locally registered Ed25519 public keys and exact provider/version/instance/key/scope matching. `cryptography` supplies maintained Ed25519 verification; no model SDK is added.
-- **Persistence**: Private configuration stores registration and activation state. Control SQLite schema v5 stores atomic acceptance/replay state. Flight evidence remains content-minimizing.
+- **Persistence**: Private configuration stores registration and activation state. Control SQLite schema v5 stores atomic acceptance/replay state. Operational flight projections may remain content-free indexes, while the Spec 020 evidence store retains the exact reconstructable content.
 - **Host path**: `control_prepare` chooses exactly one authority path. OpenClaw injects delegated bytes in one `prependContext` contribution and records delivery separately at `llm_input`.
 
 ## Constitution Check
@@ -18,7 +18,7 @@
 | I. Authority Before Intelligence | Native mode remains governed by AtMem. Delegated mode is separately named and explicit; AtMem enforces contract/trust but does not reinterpret provider-selected context. |
 | II. Provenance and Exact Evidence | Signed bytes, provider receipt, bindings, acceptance, handoff, and delivery use distinct digests and events. |
 | III. Safe Defaults and Reversibility | Delegation is disabled by default, fail-closed, independently reversible, and native fallback requires explicit opt-in. |
-| IV. Scope, Privacy and Deletion | Trust is scope-bound; raw delegated context is not persisted in flight evidence; configuration removal affects future turns only. |
+| IV. Scope, Privacy and Deletion | Trust is scope-bound; operational projections remain content-free while exact delegated bytes required for standalone reconstruction are retained only in the Spec 020 evidence envelope protected by Spec 028 encryption and privilege checks; configuration removal affects future turns only. |
 | V. Contract-First Host Neutrality | Core request/result/decision types are provider- and host-neutral. OpenClaw owns only host mapping and injection. |
 | VI. Executable Claims | PR fixtures, production validation, concurrency/restart, exact-byte, native regression, upgrade, wheel, and npm tests gate release. |
 | VII. Local-First and Explicit Delegation | Loopback-only beta, explicit authority label, and no self-authorizing result key satisfy the separately named delegated-authority exception. |
@@ -31,7 +31,7 @@ No constitution amendment is required.
 
 Create `atmem/delegated/`:
 
-- `contracts.py`: frozen request/binding/result/decision types and content-minimizing public result dictionaries;
+- `contracts.py`: frozen request/binding/result/decision types plus public result dictionaries that reference the exact Spec 020 evidence envelope without duplicating it;
 - `canonical.py`: restricted RFC 8785-compatible serialization for the closed integral/string schema, domain separation, and deterministic idempotency calculation;
 - `validation.py`: duplicate-key rejecting JSON parser, closed-shape/semantic validation, exact digest/base64/UTF-8 checks, time checks, trust matching, and Ed25519 verification;
 - `config.py`: private atomic configuration with registration, enabled state, scoped trust, timeout, maximum bytes, explicit fallback, fingerprint, and safe status projection;
@@ -205,10 +205,10 @@ delegated segment appeared once at the model boundary.
 - **Unicode mutation**: strict UTF-8 decode once, byte hash before/after transport, no whitespace transformations.
 - **Configuration tamper**: private regular file, no symlink, atomic writes, closed versioned shape, safe projections.
 - **Endpoint abuse**: loopback host, HTTP only, bounded timeout/response, no redirects, no userinfo.
-- **Evidence leakage**: no raw query/context/public key in configuration,
-  acceptance, delivery, preview, audit, or flight persistence; exact context
-  exists only in the immediate response and bounded adapter memory until
-  delivery confirmation.
+- **Evidence separation**: no raw query/context/public key is duplicated into
+  configuration or content-free replay/security rows. Exact observed query and
+  context are appended once to the protected Spec 020 evidence store and
+  referenced by acceptance, delivery, preview, audit, and flight projections.
 - **Restore without provider**: history verifies; future delegation remains disabled/degraded until local config and trust return.
 
 ## Implementation Touch Points
@@ -320,15 +320,15 @@ textual message-segment list and a framework-specific location to
 equal to the accepted context and a matching UTF-8 SHA-256 before it confirms
 the delegated delivery. It records `context.provider_authorization`,
 `context.injected`, and compatible `context.disposition` separately, then drops
-the transient context bytes. Exact raw query bytes are also erased from lifecycle
-state as soon as preparation returns or raises. Native and task exposure behavior
-stays unchanged.
+the transient context bytes only after durable Spec 020 capture is acknowledged.
+Exact raw query bytes are likewise removed from lifecycle state only after their
+evidence envelope is durable. Native and task exposure behavior stays unchanged.
 
 Focused tests use a delegated manager double for branch/adversarial behavior and
 real optional Pydantic AI and LangChain/LangGraph runtimes for hook-boundary
 proof. A control-plane integration test uses an authenticated loopback provider
 to verify HMAC request authentication, signed response validation, exact bytes,
-content-free persistence, and a closed flight. Existing framework, delegated,
+content-free security indexes, canonical full-fidelity evidence, and a closed flight. Existing framework, delegated,
 Black Box, and full Python suites form the regression gate. No package version,
 tag, publication, or dashboard change is part of this implementation request.
 
@@ -340,3 +340,59 @@ Implement delegated authority integration against the new contract owners (Specs
 Touch points (existing or proposed tests): `atmem/delegated/service.py`, `atmem/delegated/contracts.py`, `tests/test_delegated_context.py`. Project existing delegated decisions into the shared envelope without changing v1. Reuse the existing application service and authoritative capability response. Public fields are additive/versioned; persisted changes require allocated migrations, real published-floor upgrade/recovery tests and no inferred historical relationships. UI shell ownership transfers to Spec 022; this feature supplies its view models.
 
 Verification: write boundary fixtures for FR-032, FR-033, SC-012 before integration, then run the affected native/delegated, scope, fallback and interface regressions. Missing live-provider or real-host evidence is reported as unavailable, never substituted by a mock pass. Constitution I–VII remain binding; this amendment does not change the constitution or delegate canonical memory authority.
+
+
+## Host compatibility acceptance plan — 2026-09-09
+
+Release target: AtMem and bridge 2.2.6, T049–T053, independently of Phase 8.
+The operator authorized real Mem0/dummy data and identity role-play in place of
+unavailable Storizon access, then restricted support checks to latest releases:
+OpenClaw 2026.9.2 and 2026.9.3. Publication is a separate operation.
+
+Use `tools/smoke_mem0_roleplay.py` for local Mem0/Qdrant/Ollama semantic retrieval
+and the existing authenticated provider server. Use `tools/run_mem0_openclaw_live.py`
+for isolated real Claude CLI turns, with private state, exact session mapping,
+conversation-hook consent and no channel delivery. Assert default-owner refusal,
+inject/withhold receipt and context digests, one/zero deliveries, successful
+read/exec closure, terminal tool errors, and deliberately dropped result events.
+Use `test/delegated-journey.mjs` with the real Mem0 fixture for explicit identity
+role-play. Record its synthetic identity source separately from real host turns.
+
+`delegated-identity.ts` enforces exact operator scope and default owner refusal.
+Hosts omitting CLI origin can use the explicitly configured private state path
+only in an unrouted `agent --local` process with no configured shared channels.
+`requireOwner: false` alone remains refused; no prompt supplies identity.
+
+`tool-observations.ts` correlates actual terminal tool-event results when typed
+completion hooks are absent. Match known requests, run/session and canonical
+tool names, retain only content-free scope and result digests in the bounded
+correlation cache, durably append the exact result/error to Spec 020, and
+deduplicate normal completion hooks. Feature-detect both event API generations. A bounded
+10-minute process cache survives registry reloads where host run-context writes
+are unavailable; missing/expired/conflicting observations fail closed. Black Box
+also checks invocation scope, tool and event ordering using existing contracts.
+
+Run Python and OpenClaw regression/build/typecheck gates, build wheel/sdist/npm,
+verify installed artifacts and deploy the reviewed artifacts locally. Record
+versions, hashes, commands, retries and limitations in an append-only entry.
+Private Storizon and live shared-channel identity remain separate unverified
+boundaries; neither is implied by Mem0 role-play acceptance.
+
+## Standalone delegated-evidence plan — 2026-09-13
+
+Keep the delegated v1 wire contracts and authenticated transport unchanged.
+After request construction and at every observed provider, delivery, model, and
+tool boundary, append the exact ordered content and original multimodal
+artifacts through Spec 020's evidence service. The existing content-free
+acceptance/delivery tables and bounded process caches remain replay/security
+indexes and carry stable references to the canonical evidence envelope; they
+are no longer treated as the reconstructable Black Box.
+
+OpenClaw, Pydantic AI, and LangChain/LangGraph adapters must use the same
+capture contract. Tests construct one delegated run containing text, URL/page,
+file, image, audio, and video evidence, copy only the AtMem store, remove the
+agent state, logs, workspace, provider fixture, model fixture, and caches, deny
+network access, then compare reconstructed bytes and ordering with the fixture
+oracle. Metadata/off profiles are separate explicit tests and must render
+`not_reconstructable`. This work depends on Spec 020 T042–T049 and is a release
+gate through Spec 020 T050–T051.

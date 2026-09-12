@@ -1,10 +1,10 @@
 # Feature Specification: Incident Investigation and Resolution
 
-**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+**Product-wide requirements**: [Agent neutrality, standalone full-fidelity evidence and encrypted privileged plaintext](../product-requirements.md) (PR-001–PR-008). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
 
 **Feature directory**: `specs/021-incident-investigation-and-resolution`
 **Created**: 2026-09-09
-**Status**: Specified; not implemented
+**Status**: Earlier deterministic findings are implemented, but standalone reconstruction/diagnosis T025–T028 is open and the revised 2.3.0b1 profile is not release-ready
 **Input**: Unified memory, governance and investigation product direction; [roadmap](../product-roadmap.md).
 
 ## Overview
@@ -45,7 +45,7 @@ An existing user enables this capability explicitly and retains native memory, t
 - **FR-006**: Acknowledgment records review only; it cannot change execution outcomes, hide underlying evidence, claim a fix or trigger a retry. Late evidence can supersede a finding and reopen an investigation with a recorded reason.
 - **FR-007**: Offer scope-authorized actions to inspect, assign, request correction, disable an applicable provider, revoke supported grants or record verification. Action availability comes from service authority/capabilities; unsupported remediation provides manual guidance.
 - **FR-008**: Before recommending executable retry/resume, require a host checkpoint reference, declared idempotency behavior and available evidence about prior external effects. Timeout after dispatch means unknown outcome until checked; absent prerequisites permit inspection advice but no automatic replay.
-- **FR-009**: Keep explanations, assignment, exports and actionable commands tenant/scope filtered and content-minimizing; do not store incident narratives as durable personal memory automatically.
+- **FR-009**: Keep explanations, assignment, exports and actionable commands tenant/scope filtered while exposing full-fidelity evidence to authorized owners/investigators. Store the canonical incident narrative as execution evidence, not as automatically recalled personal memory.
 - **FR-010**: Expose one incident/resolution service to HTTP, SDKs, MCP and dashboard. Core schemas, classifications, APIs and default UI MUST be domain-neutral: no mandatory customer, order, refund or payment fields and no tool-name-based outcome inference. Domain-specific labels and verifier integrations are optional, registered and scoped; the same evidence and action rules apply to read-only, compute and side-effecting tools. Operator permissions are distinct from agent evidence submission. External verification requires a registered verifier and receipt rather than a model's success claim.
 
 ## Key entities
@@ -76,7 +76,7 @@ The dependency list distinguishes existing baseline modules from new contract mi
 
 ## Compatibility, privacy and migration
 
-Keep Python 3.10–3.13, optional provider/model/framework imports, local operation, explicit activation and egress, unchanged host-owned state and distinct canonical memory/task/evidence authorities. Closed wire schemas get new versions when needed; additive fields require negotiation. Allocate migrations through existing registries, retain legacy projections, test supported published floors, and never fabricate historical links. No default raw transcript, chain-of-thought or secret retention. Evidence metadata and hashes still require access control and retention.
+Keep Python 3.10–3.13, optional provider/model/framework imports, local operation, explicit activation and egress, unchanged host-owned state and distinct canonical memory/task/evidence authorities. Closed wire schemas get new versions when needed; additive fields require negotiation. Allocate migrations through existing registries, retain legacy projections, test supported published floors, and never fabricate historical links or content. Full-fidelity boundary evidence is retained by default; access is scoped/audited and credentials receive reversible protection.
 
 ## Out of scope
 
@@ -88,13 +88,47 @@ Touches INV-001, INV-002, INV-006, INV-008, INV-010, INV-011 through `spec021.sc
 
 ## M0 release profile
 
-[The M0 release slice](../m0-investigation-preview.md) defines independent OpenClaw investigation-only delivery and exact prerequisite tasks. It overrides full-feature sequencing for that profile only: shared non-task identity, capture and minimal findings in the existing dashboard can ship before task links, providers, other hosts or the new shell. Completing the slice does not complete broader requirements. Usability claims follow [the declared protocol](../usability-protocol.md).
+[The M0 release slice](../m0-investigation-preview.md) defines independent OpenClaw investigation-only delivery and exact prerequisite tasks. It overrides full-feature sequencing for that profile only: shared non-task identity, store-only diagnosis and the evidence-specific Spec 022 destinations can ship before task links, providers, other hosts or the broader application shell. Completing the slice does not complete broader requirements. Usability claims follow [the declared protocol](../usability-protocol.md).
 
-## Product-wide requirements — agent neutrality and clear evidence
+## Product-wide requirements — agent neutrality and standalone evidence
 
-**Required, not yet implemented:** [Product requirements](../product-requirements.md) PR-002, PR-005–PR-006. This amendment applies to this feature's public and UI boundaries; host-specific integrations cannot redefine core identity or authority.
+**Required, not yet implemented:** [Product requirements](../product-requirements.md) PR-002 and PR-005–PR-007. This amendment applies to this feature's public and UI boundaries; host-specific integrations cannot redefine core identity or authority.
 
 - **FR-011**: Every finding/summary states what happened, the accessible acting agent/resource, absolute time, evidence basis, known effect or uncertainty and authorized next action or reason none is available. Keep status, severity, acknowledgment and assurance independent. Domain services supply deterministic reasons and timestamps; denied explanations do not disclose hidden agents, spaces or sources.
 - **SC-005**: Successful, recovered, denied, failed and missing-evidence fixtures yield understandable explanations without a model or color; inspection advice is evidence-linked, stale checks show age, and unavailable time/impact/action remain explicitly unknown.
 
 This work extends existing authority and preserves legacy scopes. Private/shared memory and multi-framework claims require their own evidence; M0 delivers only its applicable capture/feedback subset. See the central ownership and release matrix.
+
+## Standalone reconstruction and transparent diagnosis amendment — 2026-09-13
+
+This amendment supersedes FR-009 and the compatibility section wherever
+“content-minimizing” or “no default raw transcript” would prevent an authorized
+owner from seeing full evidence captured under Spec 020.
+
+- **FR-012**: Build every finding from the standalone AtMem evidence store. The
+  primary narrative MUST state the exact user request, relevant memory/context
+  and decision, exact model step, exact tool name/call/arguments/target, exact
+  result or error and known outcome. “A tool failed”, a count, hash, opaque ID or
+  instruction to ask the original agent/log is never a sufficient diagnosis.
+- **FR-013**: Render and export original multimodal evidence—text, links/fetched
+  pages, files, images, screenshots, audio and video—in its captured order.
+  Captions and transcripts assist search and accessibility but do not replace
+  original artifacts.
+- **FR-014**: Investigation MUST remain functional when the agent, logs,
+  workspace, memory/provider database, model and network are unavailable. Live
+  external references may enrich current evidence but cannot be required to
+  explain a retained run.
+- **FR-015**: Present replay as three distinct states: historical reconstruction,
+  effect-free simulation and newly authorized execution. A replay manifest shows
+  exact captured inputs and missing prerequisites. It cannot silently call a
+  tool, repeat an external effect or rewrite the historical run.
+
+- **SC-006**: From the Spec 020 dead-agent fixture and copied AtMem store alone,
+  ten of ten scripted investigations recover the planted prompt, memory/context,
+  decision, model exchange, exact tool target/arguments, result/error and all
+  multimodal artifacts. Expected wording tests reject generic nouns and counts
+  when exact evidence exists.
+- **SC-007**: Full-capture, metadata-only, missing-boundary and legacy hash-only
+  runs are visibly distinct. Only full capture is described as reconstructable;
+  every missing byte names the exact unavailable boundary without referring the
+  user to destroyed host logs.

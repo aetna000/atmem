@@ -280,9 +280,13 @@ class ControlPlaneManager:
                 created_at=now,
                 updated_at=now,
             )
+            from atmem.evidence import EvidenceService
+
+            evidence_service = EvidenceService(control_dir, vault_id=migration_id)
             store = ControlStore(
                 control_dir / "evidence.db",
                 policy=HouseholdPolicy.load(control_dir / "openclaw-mirror.db"),
+                encryption_key=evidence_service.storage_key(),
             )
             try:
                 store.create_migration(migration_id, host, state.subject_id)
@@ -4051,8 +4055,17 @@ class ControlPlaneManager:
         workspace_id: str | None = None,
         subject_id: str | None = None,
         payload: dict[str, Any] | None = None,
+        event_id: str | None = None,
+        producer_instance_id: str | None = None,
+        producer_epoch: str | None = None,
+        producer_sequence: int | None = None,
+        event_time: str | None = None,
+        execution_id: str | None = None,
+        parent_execution_id: str | None = None,
+        attempt_id: str | None = None,
+        retry_of_attempt_id: str | None = None,
     ) -> dict[str, Any]:
-        """Append one content-minimizing host observation to the flight chain."""
+        """Append a legacy projection and an encrypted exact host observation."""
 
         from atmem.control.blackbox import EVIDENCE_KIND, normalize_event
 
@@ -4097,6 +4110,29 @@ class ControlPlaneManager:
             raise ValueError("workspace and subject identify different scopes")
         if workspace_subject:
             resolved_subject = workspace_subject
+        submitted_payload = dict(payload or {})
+        exact_evidence = submitted_payload.pop("_atmem_evidence", None)
+        if exact_evidence is not None and not isinstance(exact_evidence, dict):
+            raise ValueError("_atmem_evidence must be an object")
+        evidence_service = self.evidence_service()
+        protection_status = evidence_service.protection_status()
+        if protection_status["capture_mode"] == "off":
+            return {
+                "recorded": False,
+                "decision": "accepted",
+                "durably_accepted": True,
+                "durably_classified": True,
+                "event_id": event_id,
+                "sequence": None,
+                "entry_sha256": None,
+                "protected_evidence": {
+                    "format": "atmem-protected-capture-receipt-v1",
+                    "captured": False,
+                    "capture_mode": "off",
+                    "reconstructable": False,
+                    "object_id": None,
+                },
+            }
         body = normalize_event(
             migration_id=state.migration_id,
             host=state.host,
@@ -4112,23 +4148,69 @@ class ControlPlaneManager:
             agent_id=agent_id,
             workspace_id=resolved_workspace,
             subject_id=resolved_subject,
-            payload=payload,
+            event_id=event_id,
+            producer_instance_id=producer_instance_id,
+            producer_epoch=producer_epoch,
+            producer_sequence=producer_sequence,
+            event_time=event_time,
+            execution_id=execution_id,
+            parent_execution_id=parent_execution_id,
+            attempt_id=attempt_id,
+            retry_of_attempt_id=retry_of_attempt_id,
+            payload=submitted_payload,
         )
         store = self._store(state)
         try:
-            entry = store.append_evidence(
-                state.migration_id,
-                kind=EVIDENCE_KIND,
-                body=body,
-            )
+            if producer_instance_id is not None:
+                if not str(event_id or "").strip():
+                    raise ValueError("event_id is required for producer-sequenced delivery")
+                entry = store.accept_execution_delivery(
+                    state.migration_id,
+                    body=body,
+                    producer_instance_id=str(producer_instance_id),
+                    producer_epoch=str(producer_epoch),
+                    producer_sequence=int(producer_sequence or 0),
+                    event_id=str(event_id or ""),
+                )
+            else:
+                entry = store.append_evidence(
+                    state.migration_id,
+                    kind=EVIDENCE_KIND,
+                    body=body,
+                )
         finally:
             store.close()
+        decision = str(entry.get("decision") or "accepted")
+        if decision != "conflict":
+            protected = dict(body)
+            protected["content_storage"] = "encrypted-full-fidelity-v1"
+            if exact_evidence is not None:
+                protected["evidence"] = exact_evidence
+            protected_receipt = evidence_service.capture(protected)
+        else:
+            protected_receipt = {
+                "captured": False,
+                "capture_mode": protection_status["capture_mode"],
+                "reconstructable": False,
+                "object_id": None,
+            }
+        if "decision" in entry:
+            return {**entry, "protected_evidence": protected_receipt}
         return {
             "recorded": True,
             "event_id": entry["id"],
             "sequence": entry["sequence"],
             "entry_sha256": entry["entry_sha256"],
+            "protected_evidence": protected_receipt,
         }
+
+    def evidence_service(self):
+        """Return the application-owned protected evidence boundary."""
+
+        from atmem.evidence import EvidenceService
+
+        state = self.state()
+        return EvidenceService(state.control_dir, vault_id=state.migration_id)
 
     def blackbox_events(self, *, run_id: str | None = None) -> list[dict[str, Any]]:
         from atmem.control.blackbox import EVIDENCE_KIND
@@ -4147,6 +4229,30 @@ class ControlPlaneManager:
             if str((entry.get("body") or {}).get("run_id") or "") == run_id
         ]
 
+    def execution_events(
+        self, *, subject_id: str, execution_id: str, limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        state = self.state()
+        store = self._store(state)
+        try:
+            return store.execution_events(
+                state.migration_id, subject_id=subject_id,
+                execution_id=execution_id, limit=limit, offset=offset,
+            )
+        finally:
+            store.close()
+
+    def blackbox_revision(self) -> dict[str, Any]:
+        from atmem.control.blackbox import EVIDENCE_KIND
+
+        state = self.state()
+        store = self._store(state)
+        try:
+            return store.evidence_revision(state.migration_id, kind=EVIDENCE_KIND)
+        finally:
+            store.close()
+
     def blackbox_runs(self, *, limit: int = 50, offset: int = 0) -> dict[str, Any]:
         from atmem.control.blackbox import (
             EVIDENCE_KIND,
@@ -4154,6 +4260,8 @@ class ControlPlaneManager:
             recent_model_baseline,
             verify_flight,
         )
+        from atmem.execution.coverage import coverage_manifest
+        from atmem.adapters.evidence_profiles import supported_boundaries
 
         state = self.state()
         store = self._store(state)
@@ -4165,9 +4273,51 @@ class ControlPlaneManager:
             acknowledgements = store.list_attention_acknowledgements(
                 state.migration_id
             )
+            delivery_counts = store.execution_delivery_counts(state.migration_id)
         finally:
             store.close()
         runs = flight_runs(entries)
+        observed_boundaries = sorted(
+            {
+                str((entry.get("body") or {}).get("event_type") or "")
+                for entry in entries
+                if (entry.get("body") or {}).get("event_type")
+            }
+        )
+        declared_boundaries = supported_boundaries(
+            host=state.host, observed=observed_boundaries
+        )
+        adapter_coverage = coverage_manifest(
+            adapter=state.host,
+            version="not-recorded",
+            configuration="blackbox-opt-in",
+            supported=declared_boundaries,
+            observed=observed_boundaries,
+            gaps=("adapter_version_not_recorded",),
+        )
+        supported_boundaries = (
+            [
+                "context.disposition",
+                "model.input",
+                "model.output",
+                "tool.completed",
+                "tool.requested",
+                "turn.ended",
+                "turn.input",
+            ]
+            if state.host == "openclaw"
+            else observed_boundaries
+        )
+        adapter_coverage = coverage_manifest(
+            adapter=state.host,
+            version="not-recorded-by-evidence-store",
+            configuration="blackbox-opt-in",
+            supported=supported_boundaries,
+            observed=observed_boundaries,
+            gaps=(
+                "runtime adapter version is not retained by this evidence store",
+            ),
+        )
         page_offset = max(0, int(offset))
         page_limit = max(0, min(int(limit), 500))
         visible_runs = runs[page_offset : page_offset + page_limit]
@@ -4186,6 +4336,15 @@ class ControlPlaneManager:
             )
             points = report.get("attention_points") or []
             row["verdict"] = report.get("verdict")
+            row["run_kind"] = report.get("run_kind")
+            row["lifecycle"] = report.get("lifecycle")
+            row["coverage"] = report.get("coverage")
+            tool_report = report.get("tools") or {}
+            row["evidence_summary"] = {
+                "conflicting_calls": len(set(tool_report.get("conflicting_requests") or []) | set(tool_report.get("conflicting_completions") or [])),
+                "missing_completions": len(tool_report.get("missing_completions") or []),
+                "tool_errors": len(tool_report.get("errors") or []),
+            }
             row["coverage_status"] = (report.get("coverage_matrix") or {}).get(
                 "overall_status"
             )
@@ -4262,6 +4421,11 @@ class ControlPlaneManager:
             "chain": chain,
             "total_runs": len(runs),
             "total_events": len(entries),
+            "capture_delivery": {
+                **delivery_counts,
+            },
+            "capture_coverage": adapter_coverage,
+            "adapter_coverage": adapter_coverage,
             "attention": {
                 **{
                     name: len(codes)
@@ -4296,6 +4460,8 @@ class ControlPlaneManager:
         finally:
             store.close()
         report = verify_flight(run_id=run_id, entries=entries, chain=chain)
+        from atmem.incidents.detect import detect_findings
+        report["findings"] = detect_findings(report)
         acknowledgement_keys = {
             (str(item["attention_code"]), str(item["attention_sha256"])): item
             for item in acknowledgements
@@ -4803,9 +4969,11 @@ class ControlPlaneManager:
 
     def _store(self, state: ControlState) -> ControlStore:
         control_dir = Path(state.control_dir)
+        evidence_service = self.evidence_service()
         return ControlStore(
             control_dir / "evidence.db",
             policy=HouseholdPolicy.load(control_dir / "openclaw-mirror.db"),
+            encryption_key=evidence_service.storage_key(),
         )
 
     @staticmethod

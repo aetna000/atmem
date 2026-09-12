@@ -1,43 +1,162 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+import base64
 import json
+import os
 from pathlib import Path
 import sqlite3
 from typing import Any, Iterator
 import uuid
 
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
 from atmem.control.evidence import ZERO_SHA256, evidence_entry_sha256
 from atmem.core.canonical import canonical_json, sha256_hex
 from atmem.core.storage import HouseholdLock, HouseholdPolicy, connect, row_factory_for
+from atmem.execution.events import CoverageGap
 from atmem.store.sqlite import utc_now
 
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
+ENCRYPTED_CONTROL_MAGIC = b"ATMEM-CONTROL-DB-V1\n"
+
+
+def _portable_sqlite_image(value: bytes) -> bytes:
+    """Force a serialized image out of WAL header mode for in-memory restore."""
+
+    if len(value) >= 20 and value.startswith(b"SQLite format 3\x00"):
+        mutable = bytearray(value)
+        mutable[18] = 1
+        mutable[19] = 1
+        return bytes(mutable)
+    return value
+
+
+def reencrypt_control_container(path: str | Path, old_key: bytes, new_key: bytes) -> bool:
+    """Atomically re-encrypt an application control container without plaintext disk."""
+
+    target = Path(path)
+    if not target.is_file():
+        return False
+    raw = target.read_bytes()
+    if not raw.startswith(ENCRYPTED_CONTROL_MAGIC):
+        raise RuntimeError("control database must be migrated before key rotation")
+    nonce = raw[len(ENCRYPTED_CONTROL_MAGIC):len(ENCRYPTED_CONTROL_MAGIC) + 12]
+    ciphertext = raw[len(ENCRYPTED_CONTROL_MAGIC) + 12:]
+    try:
+        AESGCM(new_key).decrypt(nonce, ciphertext, ENCRYPTED_CONTROL_MAGIC)
+        return False
+    except Exception:
+        serialized = AESGCM(old_key).decrypt(nonce, ciphertext, ENCRYPTED_CONTROL_MAGIC)
+    new_nonce = os.urandom(12)
+    sealed = AESGCM(new_key).encrypt(new_nonce, serialized, ENCRYPTED_CONTROL_MAGIC)
+    temporary = target.with_name(f".{target.name}.{os.getpid()}.rotate")
+    descriptor = os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(ENCRYPTED_CONTROL_MAGIC + new_nonce + sealed)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return True
+
+
+class _PersistingConnection(sqlite3.Connection):
+    persist_callback: Any = None
+
+    def commit(self) -> None:
+        super().commit()
+        if self.persist_callback is not None:
+            self.persist_callback()
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> bool:
+        result = super().__exit__(exc_type, exc, traceback)
+        if exc_type is None and self.persist_callback is not None:
+            self.persist_callback()
+        return result
 
 
 class ControlStore:
     """Separate memory control plane evidence store; never part of live agent recall."""
 
     def __init__(
-        self, path: str | Path, *, policy: HouseholdPolicy | None = None
+        self, path: str | Path, *, policy: HouseholdPolicy | None = None,
+        encryption_key: bytes | None = None,
     ) -> None:
         self.path = str(Path(path).expanduser().resolve())
         self.policy = policy or HouseholdPolicy.load(path)
         self._household_lock = HouseholdLock(self.policy).acquire()
         Path(self.path).parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        raw = Path(self.path).read_bytes() if Path(self.path).is_file() else b""
+        if encryption_key is None and raw.startswith(ENCRYPTED_CONTROL_MAGIC):
+            inferred = Path(self.path).parent.parent / ".evidence-keys" / f"{Path(self.path).parent.name}.key"
+            from atmem.evidence.crypto import load_existing_key
+
+            encryption_key = load_existing_key(inferred)
+        self._encryption_key = encryption_key
         try:
-            self._conn = connect(self.path, policy=self.policy)
+            if self._encryption_key is None:
+                self._conn = connect(self.path, policy=self.policy)
+            else:
+                if len(self._encryption_key) != 32:
+                    raise ValueError("encrypted control storage requires a 256-bit key")
+                self._conn = sqlite3.connect(":memory:", factory=_PersistingConnection)
+                if raw.startswith(ENCRYPTED_CONTROL_MAGIC):
+                    nonce = raw[len(ENCRYPTED_CONTROL_MAGIC):len(ENCRYPTED_CONTROL_MAGIC) + 12]
+                    ciphertext = raw[len(ENCRYPTED_CONTROL_MAGIC) + 12:]
+                    serialized = AESGCM(self._encryption_key).decrypt(
+                        nonce, ciphertext, ENCRYPTED_CONTROL_MAGIC
+                    )
+                    self._conn.deserialize(_portable_sqlite_image(serialized))
+                elif raw:
+                    source = connect(self.path, policy=self.policy)
+                    try:
+                        source.backup(self._conn)
+                    finally:
+                        source.close()
         except Exception:
             self._household_lock.close()
             raise
         self._conn.row_factory = row_factory_for(self.policy)
         self._conn.execute("PRAGMA foreign_keys = ON")
-        self._conn.execute("PRAGMA journal_mode = WAL")
+        if self._encryption_key is None:
+            self._conn.execute("PRAGMA journal_mode = WAL")
+        else:
+            self._conn.execute("PRAGMA journal_mode = MEMORY")
         self._init_schema()
+        if self._encryption_key is not None:
+            self._conn.persist_callback = self._persist_encrypted
+            self._persist_encrypted()
+
+    def _persist_encrypted(self) -> None:
+        if self._encryption_key is None:
+            return
+        serialized = _portable_sqlite_image(self._conn.serialize())
+        nonce = os.urandom(12)
+        ciphertext = AESGCM(self._encryption_key).encrypt(
+            nonce, serialized, ENCRYPTED_CONTROL_MAGIC
+        )
+        target = Path(self.path)
+        temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+        descriptor = os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        try:
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(ENCRYPTED_CONTROL_MAGIC + nonce + ciphertext)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, target)
+            for suffix in ("-wal", "-shm", "-journal"):
+                Path(self.path + suffix).unlink(missing_ok=True)
+        finally:
+            temporary.unlink(missing_ok=True)
 
     def close(self) -> None:
         try:
+            if self._encryption_key is not None:
+                self._persist_encrypted()
             self._conn.close()
         finally:
             self._household_lock.close()
@@ -147,6 +266,7 @@ class ControlStore:
                 self._ensure_multiagent_schema()
                 self._create_evidence_schema()
                 self._create_delegated_schema()
+                self._create_execution_schema()
                 self._conn.execute(
                     "INSERT INTO schema_meta(key, value) VALUES('schema_version', ?)",
                     (str(SCHEMA_VERSION),),
@@ -165,6 +285,7 @@ class ControlStore:
                 self._ensure_multiagent_schema()
                 self._create_evidence_schema()
                 self._create_delegated_schema()
+                self._create_execution_schema()
                 self._conn.execute(
                     "UPDATE schema_meta SET value = ? WHERE key = 'schema_version'",
                     (str(SCHEMA_VERSION),),
@@ -173,6 +294,73 @@ class ControlStore:
         self._ensure_multiagent_schema()
         self._create_evidence_schema()
         self._create_delegated_schema()
+        self._create_execution_schema()
+
+    def _create_execution_schema(self) -> None:
+        """Allocate M0 delivery/checkpoint state in the control-store registry."""
+        self._conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS execution_deliveries (
+                id TEXT PRIMARY KEY,
+                migration_id TEXT NOT NULL REFERENCES migrations(migration_id),
+                producer_instance_id TEXT NOT NULL,
+                producer_epoch TEXT NOT NULL,
+                producer_sequence INTEGER NOT NULL CHECK(producer_sequence > 0),
+                event_id TEXT NOT NULL,
+                body_sha256 TEXT NOT NULL,
+                evidence_id TEXT NOT NULL REFERENCES evidence(id),
+                subject_id TEXT,
+                execution_id TEXT,
+                run_id TEXT,
+                received_at TEXT NOT NULL,
+                UNIQUE(migration_id, producer_instance_id, producer_epoch, producer_sequence),
+                UNIQUE(migration_id, event_id)
+            );
+            CREATE TABLE IF NOT EXISTS execution_delivery_conflicts (
+                id TEXT PRIMARY KEY,
+                migration_id TEXT NOT NULL REFERENCES migrations(migration_id),
+                producer_instance_id TEXT NOT NULL,
+                producer_epoch TEXT NOT NULL,
+                producer_sequence INTEGER NOT NULL,
+                event_id TEXT NOT NULL,
+                accepted_body_sha256 TEXT NOT NULL,
+                conflicting_body_sha256 TEXT NOT NULL,
+                received_at TEXT NOT NULL,
+                UNIQUE(migration_id, producer_instance_id, producer_epoch,
+                       producer_sequence, conflicting_body_sha256)
+            );
+            CREATE TABLE IF NOT EXISTS execution_coverage_gaps (
+                id TEXT PRIMARY KEY,
+                migration_id TEXT NOT NULL REFERENCES migrations(migration_id),
+                producer_instance_id TEXT NOT NULL,
+                producer_epoch TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                first_sequence INTEGER,
+                last_sequence INTEGER,
+                detail TEXT,
+                created_at TEXT NOT NULL
+            );
+            """
+        )
+        columns = {
+            str(row["name"])
+            for row in self._conn.execute("PRAGMA table_info(execution_deliveries)").fetchall()
+        }
+        for name in ("subject_id", "execution_id", "run_id"):
+            if name not in columns:
+                self._conn.execute(f"ALTER TABLE execution_deliveries ADD COLUMN {name} TEXT")
+        self._conn.executescript(
+            """
+            CREATE INDEX IF NOT EXISTS execution_deliveries_migration_received
+            ON execution_deliveries(migration_id, received_at);
+            CREATE INDEX IF NOT EXISTS execution_deliveries_scope_execution
+            ON execution_deliveries(migration_id, subject_id, execution_id,
+                                    producer_sequence, received_at);
+            CREATE INDEX IF NOT EXISTS execution_deliveries_scope_run
+            ON execution_deliveries(migration_id, subject_id, run_id,
+                                    producer_sequence, received_at);
+            """
+        )
 
     def _ensure_multiagent_schema(self) -> None:
         candidate_columns = {
@@ -420,6 +608,279 @@ class ControlStore:
             "prev_sha256": prev_sha256,
             "entry_sha256": entry_sha256,
         }
+
+    def accept_execution_delivery(
+        self,
+        migration_id: str,
+        *,
+        body: dict[str, Any],
+        producer_instance_id: str,
+        producer_epoch: str,
+        producer_sequence: int,
+        event_id: str,
+    ) -> dict[str, Any]:
+        """Durably accept or classify one replayed producer event.
+
+        The delivery identity is checked before the append-only evidence chain.
+        Same bytes replay idempotently; different bytes at the same producer
+        position are retained as an integrity finding and never replace the
+        accepted event.
+        """
+        body_json = canonical_json(body)
+        evidence_body_sha256 = sha256_hex(body_json)
+        delivery_body = {key: value for key, value in body.items() if key != "received_at"}
+        delivery_body_sha256 = sha256_hex(canonical_json(delivery_body))
+        key = (migration_id, producer_instance_id, producer_epoch, producer_sequence)
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+            existing = self._conn.execute(
+                """SELECT * FROM execution_deliveries
+                   WHERE migration_id = ? AND (
+                     (producer_instance_id = ? AND producer_epoch = ? AND producer_sequence = ?)
+                     OR event_id = ?
+                   ) ORDER BY producer_sequence LIMIT 1""",
+                (*key, event_id),
+            ).fetchone()
+            if existing is not None:
+                same_position = (
+                    existing["producer_instance_id"] == producer_instance_id
+                    and existing["producer_epoch"] == producer_epoch
+                    and int(existing["producer_sequence"]) == producer_sequence
+                )
+                decision = (
+                    "replayed"
+                    if same_position and existing["body_sha256"] == delivery_body_sha256
+                    else "conflict"
+                )
+                if decision == "conflict":
+                    self._conn.execute(
+                        """INSERT OR IGNORE INTO execution_delivery_conflicts(
+                               id, migration_id, producer_instance_id, producer_epoch,
+                               producer_sequence, event_id, accepted_body_sha256,
+                               conflicting_body_sha256, received_at
+                           ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            f"conflict_{uuid.uuid4().hex}", *key, event_id,
+                            existing["body_sha256"], delivery_body_sha256, utc_now(),
+                        ),
+                    )
+                self._conn.commit()
+                return {
+                    "decision": decision,
+                    "durably_accepted": decision == "replayed",
+                    "durably_classified": True,
+                    "event_id": existing["event_id"],
+                    "evidence_id": existing["evidence_id"],
+                    "producer_sequence": producer_sequence,
+                }
+
+            previous = self._conn.execute(
+                """SELECT sequence, entry_sha256 FROM evidence
+                   WHERE migration_id = ? AND kind = 'agent_blackbox'
+                   ORDER BY sequence DESC LIMIT 1""",
+                (migration_id,),
+            ).fetchone()
+            sequence = int(previous["sequence"]) + 1 if previous else 1
+            prev_sha256 = str(previous["entry_sha256"]) if previous else ZERO_SHA256
+            entry_sha256 = evidence_entry_sha256(
+                previous_sha256=prev_sha256,
+                migration_id=migration_id,
+                kind="agent_blackbox",
+                sequence=sequence,
+                body_sha256=evidence_body_sha256,
+            )
+            evidence_id = f"ev_{uuid.uuid4().hex}"
+            created_at = utc_now()
+            self._conn.execute(
+                """INSERT INTO evidence(
+                       id, migration_id, kind, sequence, created_at, body_json,
+                       body_sha256, prev_sha256, entry_sha256
+                   ) VALUES(?, ?, 'agent_blackbox', ?, ?, ?, ?, ?, ?)""",
+                (evidence_id, migration_id, sequence, created_at, body_json,
+                 evidence_body_sha256, prev_sha256, entry_sha256),
+            )
+            self._conn.execute(
+                """INSERT INTO execution_deliveries(
+                       id, migration_id, producer_instance_id, producer_epoch,
+                       producer_sequence, event_id, body_sha256, evidence_id, received_at,
+                       subject_id, execution_id, run_id
+                   ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    f"delivery_{uuid.uuid4().hex}", *key, event_id,
+                    delivery_body_sha256, evidence_id, created_at,
+                    body.get("subject_id"), body.get("execution_id"), body.get("run_id"),
+                ),
+            )
+            if body.get("event_type") == "capture.gap":
+                payload = body.get("payload") or {}
+                gap = CoverageGap(
+                    reason=str(payload.get("reason") or "capture_gap"),
+                    producer_instance_id=producer_instance_id,
+                    producer_epoch=producer_epoch,
+                    first_sequence=payload.get("first_sequence"),
+                    last_sequence=payload.get("last_sequence"),
+                    detail=payload.get("error_reason") or payload.get("reason"),
+                )
+                self._insert_execution_gap(migration_id, gap=gap, event_id=event_id)
+            self._conn.commit()
+        except Exception:
+            self._conn.rollback()
+            raise
+        return {
+            "decision": "accepted",
+            "durably_accepted": True,
+            "durably_classified": True,
+            "event_id": event_id,
+            "evidence_id": evidence_id,
+            "sequence": sequence,
+            "entry_sha256": entry_sha256,
+            "producer_sequence": producer_sequence,
+        }
+
+    def record_execution_gap(
+        self, migration_id: str, *, producer_instance_id: str,
+        producer_epoch: str, reason: str, first_sequence: int | None = None,
+        last_sequence: int | None = None, detail: str | None = None,
+    ) -> dict[str, Any]:
+        gap = CoverageGap(
+            reason=reason,
+            producer_instance_id=producer_instance_id,
+            producer_epoch=producer_epoch,
+            first_sequence=first_sequence,
+            last_sequence=last_sequence,
+            detail=detail,
+        )
+        gap_id, created_at = self._insert_execution_gap(
+            migration_id, gap=gap, event_id=uuid.uuid4().hex
+        )
+        self._conn.commit()
+        return {"id": gap_id, "reason": gap.reason, "created_at": created_at}
+
+    def _insert_execution_gap(
+        self, migration_id: str, *, gap: CoverageGap, event_id: str
+    ) -> tuple[str, str]:
+        gap_id = f"gap_{sha256_hex(f'{migration_id}:{event_id}')[:32]}"
+        created_at = utc_now()
+        self._conn.execute(
+            """INSERT OR IGNORE INTO execution_coverage_gaps(
+                   id, migration_id, producer_instance_id, producer_epoch, reason,
+                   first_sequence, last_sequence, detail, created_at
+               ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                gap_id,
+                migration_id,
+                gap.producer_instance_id,
+                gap.producer_epoch,
+                gap.reason,
+                gap.first_sequence,
+                gap.last_sequence,
+                gap.detail,
+                created_at,
+            ),
+        )
+        return gap_id, created_at
+
+    def execution_delivery_state(self, migration_id: str) -> dict[str, Any]:
+        deliveries = [dict(row) for row in self._conn.execute(
+            "SELECT * FROM execution_deliveries WHERE migration_id = ? ORDER BY received_at, id",
+            (migration_id,),
+        ).fetchall()]
+        conflicts = [dict(row) for row in self._conn.execute(
+            "SELECT * FROM execution_delivery_conflicts WHERE migration_id = ? ORDER BY received_at, id",
+            (migration_id,),
+        ).fetchall()]
+        gaps = [dict(row) for row in self._conn.execute(
+            "SELECT * FROM execution_coverage_gaps WHERE migration_id = ? ORDER BY created_at, id",
+            (migration_id,),
+        ).fetchall()]
+        return {"deliveries": deliveries, "conflicts": conflicts, "gaps": gaps}
+
+    def execution_delivery_counts(self, migration_id: str) -> dict[str, int]:
+        """Return dashboard counters without materializing delivery tables."""
+
+        queries = {
+            "durable_deliveries": "execution_deliveries",
+            "conflicts": "execution_delivery_conflicts",
+            "reported_gaps": "execution_coverage_gaps",
+        }
+        return {
+            name: int(
+                self._conn.execute(
+                    f"SELECT COUNT(*) AS count FROM {table} WHERE migration_id = ?",
+                    (migration_id,),
+                ).fetchone()["count"]
+            )
+            for name, table in queries.items()
+        }
+
+    def execution_events(
+        self, migration_id: str, *, subject_id: str, execution_id: str,
+        limit: int = 100, offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Read one authorized first-page timeline through the M0 index."""
+        bounded_limit = max(1, min(int(limit), 500))
+        bounded_offset = max(0, int(offset))
+        has_exact_execution = self._conn.execute(
+            """SELECT 1 FROM execution_deliveries
+               WHERE migration_id = ? AND subject_id = ? AND execution_id = ?
+               LIMIT 1""",
+            (migration_id, subject_id, execution_id),
+        ).fetchone() is not None
+        rows = []
+        if has_exact_execution:
+            rows = self._conn.execute(
+                """SELECT e.* FROM execution_deliveries d
+                   JOIN evidence e ON e.id = d.evidence_id
+                   WHERE d.migration_id = ? AND d.subject_id = ?
+                     AND d.execution_id = ?
+                   ORDER BY d.producer_sequence, d.received_at, d.id
+                   LIMIT ? OFFSET ?""",
+                (migration_id, subject_id, execution_id, bounded_limit, bounded_offset),
+            ).fetchall()
+        # Pre-v6 flights have only a run ID. Keep that compatibility branch
+        # separate so the normal exact-execution path stays indexable.
+        if not has_exact_execution:
+            rows = self._conn.execute(
+                """SELECT e.* FROM execution_deliveries d
+                   JOIN evidence e ON e.id = d.evidence_id
+                   WHERE d.migration_id = ? AND d.subject_id = ?
+                     AND d.execution_id IS NULL AND d.run_id = ?
+                   ORDER BY d.producer_sequence, d.received_at, d.id
+                   LIMIT ? OFFSET ?""",
+                (migration_id, subject_id, execution_id, bounded_limit, bounded_offset),
+            ).fetchall()
+        return [{**dict(row), "body": json.loads(str(row["body_json"]))} for row in rows]
+
+    def prune_execution_projections(self, migration_id: str, *, before: str) -> dict[str, int]:
+        """Delete derived delivery indexes without rewriting signed evidence."""
+        with self._conn:
+            conflicts = self._conn.execute(
+                "DELETE FROM execution_delivery_conflicts WHERE migration_id = ? AND received_at < ?",
+                (migration_id, before),
+            ).rowcount
+            gaps = self._conn.execute(
+                "DELETE FROM execution_coverage_gaps WHERE migration_id = ? AND created_at < ?",
+                (migration_id, before),
+            ).rowcount
+            deliveries = self._conn.execute(
+                "DELETE FROM execution_deliveries WHERE migration_id = ? AND received_at < ?",
+                (migration_id, before),
+            ).rowcount
+        return {"deliveries": deliveries, "conflicts": conflicts, "gaps": gaps}
+
+    def evidence_revision(self, migration_id: str, *, kind: str) -> dict[str, Any]:
+        """Cheap refresh hint; never a substitute for chain verification."""
+        row = self._conn.execute(
+            "SELECT sequence, entry_sha256 FROM evidence WHERE migration_id = ? AND kind = ? ORDER BY sequence DESC LIMIT 1",
+            (migration_id, kind),
+        ).fetchone()
+        ack = self._conn.execute(
+            "SELECT COUNT(*) AS count FROM attention_acknowledgements WHERE migration_id = ?",
+            (migration_id,),
+        ).fetchone()
+        return {"migration_id": migration_id, "sequence": row["sequence"] if row else 0,
+                "entry_sha256": row["entry_sha256"] if row else None,
+                "acknowledgements": ack["count"]}
 
     def list_evidence(self, migration_id: str, *, kind: str) -> list[dict[str, Any]]:
         rows = self._conn.execute(

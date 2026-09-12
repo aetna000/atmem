@@ -166,7 +166,7 @@ export class AtmemClient {
       capabilities: {},
       clientInfo: {
         name: "openclaw-memory-atmem",
-        version: "2.2.6",
+        version: "2.3.0-beta.1",
       },
     });
     this.notify("notifications/initialized", {});

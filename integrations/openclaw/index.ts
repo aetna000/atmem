@@ -21,9 +21,13 @@
 import os from "node:os";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import { createReadStream } from "node:fs";
 import { lstat, mkdir, readFile, realpath, rename, unlink, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { ToolObservations, observationContext } from "./src/tool-observations.js";
+import { progressCardComparison } from "./src/tool-result-comparison.js";
+import { toolErrorReason } from "./src/tool-errors.js";
+import { ExecutionSpool } from "./src/execution-spool.js";
+import { delegatedIdentity, isolatedCliProcess, type DelegatedIdentityConfig } from "./src/delegated-identity.js";
 import { AtmemClient } from "./src/rpc-client.js";
 import type {
   OpenClawPluginApi,
@@ -86,6 +90,7 @@ interface PluginConfig {
     maxRecords: number;
     maxChars: number;
     minScore: number;
+    requireDirectSupport: boolean;
     timeoutMs: number;
   };
   persona: { enabled: boolean; maxChars: number; ttlSeconds: number };
@@ -97,10 +102,7 @@ interface PluginConfig {
     statePath: string;
     blackboxEnabled: boolean;
   };
-  delegatedContext: {
-    userId: string;
-    requireOwner: boolean;
-  };
+  delegatedContext: DelegatedIdentityConfig;
 }
 
 function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
@@ -129,11 +131,19 @@ function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
       String(cfg.controlPlane?.statePath ?? "~/.atmem/control-plane.json"),
     ),
     blackboxEnabled:
-      cfg.controlPlane?.enabled === true || cfg.controlPlane?.blackboxEnabled === true,
+      Boolean(cfg.controlPlane) && cfg.controlPlane?.blackboxEnabled !== false,
   };
   const delegatedContext = {
     userId: String(cfg.delegatedContext?.userId ?? "").trim(),
     requireOwner: cfg.delegatedContext?.requireOwner !== false,
+    localOperator: cfg.delegatedContext?.localOperator ? {
+      isolated: cfg.delegatedContext.localOperator.isolated === true,
+      stateDir: expandHome(String(cfg.delegatedContext.localOperator.stateDir ?? "")),
+      agentId: String(cfg.delegatedContext.localOperator.agentId ?? "").trim(),
+      workspaceDir: expandHome(String(cfg.delegatedContext.localOperator.workspaceDir ?? "")),
+      sessionKey: String(cfg.delegatedContext.localOperator.sessionKey ?? "").trim(),
+      sessionId: String(cfg.delegatedContext.localOperator.sessionId ?? "").trim(),
+    } : undefined,
   };
   return {
     command: String(cfg.command ?? "atmem"),
@@ -155,10 +165,11 @@ function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
       maxRecords: Number(cfg.recall?.maxRecords ?? 3),
       maxChars: Number(cfg.recall?.maxChars ?? 1200),
       minScore: Number(cfg.recall?.minScore ?? 0.3),
+      requireDirectSupport: cfg.recall?.requireDirectSupport !== false,
       timeoutMs: Number(cfg.recall?.timeoutMs ?? 4000),
     },
     persona: {
-      enabled: cfg.persona?.enabled !== false,
+      enabled: cfg.persona?.enabled === true,
       maxChars: Number(cfg.persona?.maxChars ?? 600),
       ttlSeconds: Number(cfg.persona?.ttlSeconds ?? 300),
     },
@@ -272,6 +283,8 @@ type InboundAttachmentEvidence = {
   mimeType: string;
   bytes: number;
   capturedAt: number;
+  /** Exact bytes live only in memory until the encrypted AtMem capture is acknowledged. */
+  dataBase64?: string;
 };
 
 type DurableAttachmentBinding = {
@@ -309,7 +322,7 @@ async function writeAttachmentBinding(
   const payload: DurableAttachmentBinding = {
     format: "atmem-openclaw-attachment-binding-v1",
     keySha256: createHash("sha256").update(key).digest("hex"),
-    items,
+    items: items.map(({ dataBase64: _discarded, ...item }) => item),
     updatedAt: Date.now(),
   };
   await writeFile(temporary, JSON.stringify(payload), { encoding: "utf8", mode: 0o600 });
@@ -371,11 +384,12 @@ async function hashInboundAttachment(
     throw new Error("OpenClaw attachment path is outside the managed media directory");
   }
   const before = await lstat(resolved);
-  if (!before.isFile() || before.size > 512 * 1024 * 1024) {
+  // The 2.3 consumer-hardware profile is measured and bounded at 100 MiB per artifact.
+  if (!before.isFile() || before.size > 100 * 1024 * 1024) {
     throw new Error("OpenClaw attachment is not a bounded regular file");
   }
-  const hash = createHash("sha256");
-  for await (const chunk of createReadStream(resolved)) hash.update(chunk as Buffer);
+  const exactBytes = await readFile(resolved);
+  const hash = createHash("sha256").update(exactBytes);
   const after = await lstat(resolved);
   if (before.size !== after.size || before.mtimeMs !== after.mtimeMs) {
     throw new Error("OpenClaw attachment changed while its digest was computed");
@@ -390,6 +404,7 @@ async function hashInboundAttachment(
     mimeType,
     bytes: before.size,
     capturedAt: Date.now(),
+    dataBase64: exactBytes.toString("base64"),
   };
 }
 
@@ -421,6 +436,9 @@ function register(api: OpenClawPluginApi): void {
         log: (message) => api.logger.debug?.(`${TAG} ${message}`),
         logError: (message) => api.logger.warn(`${TAG} ${message}`),
       });
+  const executionSpool = new ExecutionSpool(
+    path.join(path.dirname(cfg.controlPlane.statePath), "openclaw-execution-spool.json"),
+  );
   // Let long-lived hosts close the stdio child during lifecycle shutdown.
   // The client's bounded idle shutdown also covers one-shot local runners.
   api.registerService?.({
@@ -511,10 +529,17 @@ function register(api: OpenClawPluginApi): void {
     const workspace = cfg.agentWorkspaces[agentIdFor(ctx)];
     return workspace ? `ws_${digestText(workspace).slice(0, 16)}` : undefined;
   };
+  const verifiedIsolatedProcess = isolatedCliProcess(cfg.delegatedContext, api.config);
   const delegatedUserIdFor = (ctx: OpenClawHookCtx): string | undefined => {
-    if (!cfg.delegatedContext.userId) return undefined;
-    if (cfg.delegatedContext.requireOwner && ctx.senderIsOwner !== true) return undefined;
-    return cfg.delegatedContext.userId;
+    const identity = delegatedIdentity(
+      cfg.delegatedContext, ctx, cfg.agentWorkspaces[agentIdFor(ctx)], verifiedIsolatedProcess,
+    );
+    if (!identity.userId && cfg.delegatedContext.userId) {
+      api.logger.warn(`${TAG} delegated identity withheld: ${identity.reason}. ` +
+        "Use authenticated owner metadata or an explicitly isolated, scope-bound CLI mapping; " +
+        "provider HMAC authentication does not establish sender identity.");
+    }
+    return identity.userId;
   };
   const scopedKey = (value: string, ctx: OpenClawHookCtx): string =>
     `${agentIdFor(ctx)}:${value}`;
@@ -584,11 +609,13 @@ function register(api: OpenClawPluginApi): void {
   ): Promise<void> => {
     if (!cfg.controlPlane.blackboxEnabled) return;
     try {
-      await blackboxClient.callTool(
-        "control_record_blackbox_event",
-        {
+      await executionSpool.enqueue({
           event_type: eventType,
           run_id: flightRunId(eventRunId, ctx),
+          execution_id: ctx.executionId,
+          parent_execution_id: ctx.parentExecutionId,
+          attempt_id: ctx.attemptId,
+          retry_of_attempt_id: ctx.retryOfAttemptId,
           agent_id: agentIdFor(ctx),
           workspace_id: workspaceIdFor(ctx),
           subject_id: Object.keys(cfg.agentSubjects).length ? subjectFor(ctx) : undefined,
@@ -600,9 +627,10 @@ function register(api: OpenClawPluginApi): void {
           context_receipt_id: correlation.contextReceiptId,
           outcome_id: correlation.outcomeId,
           payload,
-        },
-        cfg.recall.timeoutMs,
-      );
+      });
+      await executionSpool.flush((event) => blackboxClient.callTool(
+        "control_record_blackbox_event", event, cfg.recall.timeoutMs,
+      ));
     } catch (error) {
       api.logger.warn(
         `${TAG} blackbox event ${eventType} was not recorded: ${
@@ -675,6 +703,9 @@ function register(api: OpenClawPluginApi): void {
         prompt_sha256: promptSha256,
         prompt_chars: prompt.length,
         images_count: imagesCount,
+        _atmem_evidence: {
+          parts: [{ type: "text", text: prompt }],
+        },
       });
       try {
         await stageInbound(prompt, ctx);
@@ -698,6 +729,7 @@ function register(api: OpenClawPluginApi): void {
     keys: string[],
     paths: string[],
     types: string[],
+    ctx: OpenClawHookCtx,
   ): Promise<void> => {
     const generation = ++nextAttachmentGeneration;
     for (const key of keys) {
@@ -713,6 +745,20 @@ function register(api: OpenClawPluginApi): void {
         hashInboundAttachment(filePath, types[index] ?? types[0] ?? "application/octet-stream"),
       ),
     );
+    for (const item of items) {
+      await recordBlackbox("turn.attachment", undefined, ctx, {
+        result_sha256: item.mediaSha256,
+        response_stream_bytes: item.bytes,
+        _atmem_evidence: {
+          parts: [{
+            type: item.modality,
+            mime_type: item.mimeType,
+            data_base64: item.dataBase64,
+            host_reference: item.hostReference,
+          }],
+        },
+      });
+    }
     for (const key of keys) {
       if (inboundAttachmentGeneration.get(key) === generation) {
         inboundAttachments.set(key, { items, ts: Date.now() });
@@ -781,7 +827,7 @@ function register(api: OpenClawPluginApi): void {
       ...contextIds(ctx),
     ].filter((value): value is string => Boolean(value)))];
     try {
-      await bindInboundAttachments(keys, paths, types);
+      await bindInboundAttachments(keys, paths, types, ctx);
     } catch (error) {
       api.logger.warn(
         `${TAG} inbound attachment provenance unavailable: ${
@@ -842,6 +888,10 @@ function register(api: OpenClawPluginApi): void {
           context_location: deliveredLocation,
           success: delivered,
           reason: delivered ? undefined : `expected one exact delegated segment; observed ${occurrences}`,
+          _atmem_evidence: {
+            context: exact,
+            delivered_location: deliveredLocation,
+          },
         },
         undefined,
         { contextReceiptId: pending.contextReceiptId },
@@ -867,6 +917,12 @@ function register(api: OpenClawPluginApi): void {
       history_count: Array.isArray(event.historyMessages) ? event.historyMessages.length : 0,
       images_count: event.imagesCount ?? 0,
       tools_count: Array.isArray(event.tools) ? event.tools.length : 0,
+      _atmem_evidence: {
+        prompt: event.prompt ?? "",
+        system_prompt: event.systemPrompt ?? "",
+        history_messages: event.historyMessages ?? [],
+        tools: event.tools ?? [],
+      },
     });
   });
 
@@ -898,6 +954,10 @@ function register(api: OpenClawPluginApi): void {
       usage: event.usage ?? {},
       reasoning_effort: event.reasoningEffort,
       fast_mode: event.fastMode,
+      _atmem_evidence: {
+        assistant_texts: responses,
+        usage: event.usage ?? {},
+      },
     });
   });
 
@@ -1319,6 +1379,8 @@ function register(api: OpenClawPluginApi): void {
             max_records: cfg.recall.maxRecords,
             max_chars: cfg.recall.maxChars,
             min_score: cfg.recall.minScore,
+            require_direct_support: cfg.recall.requireDirectSupport,
+            exclude_record_ids: personaRecordIds,
             reference_mode: cfg.cacheAware.enabled && cfg.cacheAware.compactReferences
               ? "compact"
               : "full",
@@ -1410,8 +1472,15 @@ function register(api: OpenClawPluginApi): void {
         context_chars: memoryContext.length,
         candidate_ids: candidateIds,
         context_component_event_ids: componentEventIds,
+        persona_record_count: personaRecordIds.length,
+        recall_record_count: (current?.injectedRecordIds ?? []).length,
+        context_selection_profile: cfg.recall.requireDirectSupport ? "direct-support-v1" : "rank-threshold-v1",
         mode: "direct",
         context_location: contextLocation,
+        _atmem_evidence: {
+          context: memoryContext,
+          envelope: result,
+        },
       },
       undefined,
       {
@@ -1423,8 +1492,27 @@ function register(api: OpenClawPluginApi): void {
     if (Object.keys(result).length) return result;
   });
 
+  // Latest CLI harnesses emit terminal results on the agent-event stream.
+  // Feature-detect both API generations; never infer completion from a request.
+  const runContext = api.runContext ?? (api.setRunContext && api.getRunContext ? {
+    setRunContext: api.setRunContext.bind(api), getRunContext: api.getRunContext.bind(api),
+  } : undefined);
+  const subscribe = api.agent?.events?.registerAgentEventSubscription?.bind(api.agent.events)
+    ?? api.registerAgentEventSubscription?.bind(api);
+  const toolObservations = cfg.controlPlane.blackboxEnabled && subscribe
+    ? new ToolObservations(observationContext(runContext, digestJson({
+        command: cfg.command, args: cfg.commandArgs, state: cfg.controlPlane.statePath,
+        subjects: cfg.agentSubjects, workspaces: cfg.agentWorkspaces,
+      })), digestJson) : undefined;
+  if (toolObservations && subscribe) subscribe({
+    id: "atmem-terminal-tool-observations", streams: ["tool"],
+    handle: event => toolObservations.observe(event),
+  });
+
   // ---- flight recorder + takeover enforcement --------------------------
   api.on("before_tool_call", async (event: BeforeToolCallEvent, ctx) => {
+    toolObservations?.request(event.toolName, event.toolCallId ?? ctx.toolCallId,
+      { ...ctx, runId: event.runId ?? ctx.runId, agentId: agentIdFor(ctx) });
     await recordBlackbox(
       "tool.requested",
       event.runId,
@@ -1438,8 +1526,12 @@ function register(api: OpenClawPluginApi): void {
         derived_path_sha256: Array.isArray(event.derivedPaths)
           ? event.derivedPaths.map((value) => digestText(String(value)))
           : [],
+        _atmem_evidence: {
+          params: event.params ?? {},
+          derived_paths: event.derivedPaths ?? [],
+        },
       },
-      event.toolCallId,
+      event.toolCallId ?? ctx.toolCallId,
     );
     if (!cfg.takeoverActive || !cfg.nativeWorkspaces.some(
       (workspace) => touchesNativeMemory(event, workspace),
@@ -1460,13 +1552,15 @@ function register(api: OpenClawPluginApi): void {
         result_sha256: digestText(reason),
         duration_ms: 0,
       },
-      event.toolCallId,
+      event.toolCallId ?? ctx.toolCallId,
     );
     api.logger.warn(`${TAG} ${reason} Tool: ${event.toolName}`);
     return { block: true, blockReason: reason };
   });
 
   api.on("after_tool_call", async (event: AfterToolCallEvent, ctx) => {
+    toolObservations?.completed(event.toolCallId ?? ctx.toolCallId,
+      { ...ctx, runId: event.runId ?? ctx.runId, agentId: agentIdFor(ctx) });
     await recordBlackbox(
       "tool.completed",
       event.runId,
@@ -1475,16 +1569,35 @@ function register(api: OpenClawPluginApi): void {
         tool_name: event.toolName,
         tool_canonical_name: canonicalToolName(event.toolName),
         result_sha256: digestJson(event.result ?? null),
+        ...(!event.error ? progressCardComparison(event.toolName, event.result, digestJson) : {}),
         outcome: event.error ? "error" : "completed",
         error_category: event.error ? "tool_error" : undefined,
+        error_reason: event.error ? toolErrorReason(event.error) : undefined,
+        error_sha256: event.error ? digestText(event.error) : undefined,
+        result_present: event.result !== undefined,
         duration_ms: event.durationMs ?? 0,
+        _atmem_evidence: {
+          params: event.params ?? {},
+          result: event.result ?? null,
+          error: event.error ?? null,
+        },
       },
-      event.toolCallId,
+      event.toolCallId ?? ctx.toolCallId,
     );
   });
 
   // ---- auto-capture: user turn through the pipeline, assistant as digest -
   api.on("agent_end", async (event: AgentEndEvent, ctx) => {
+    await toolObservations?.flush({ ...ctx, runId: event.runId ?? ctx.runId, agentId: agentIdFor(ctx) }, async saved => {
+      await recordBlackbox("tool.completed", saved.ctx.runId, saved.ctx, {
+        tool_name: saved.name, tool_canonical_name: canonicalToolName(saved.name),
+        result_sha256: saved.result!.digest, outcome: saved.result!.error ? "error" : "completed",
+        error_category: saved.result!.error ? "tool_error" : undefined,
+        error_reason: saved.result!.reason,
+        error_sha256: saved.result!.errorDigest,
+        reason: "observed_terminal_host_tool_event",
+      }, saved.callId);
+    });
     const sessionKey = sessionKeyFor(ctx);
     const observedTurnInputKey = turnInputKey(ctx);
 
@@ -1616,6 +1729,10 @@ function register(api: OpenClawPluginApi): void {
         turn_messages_sha256: turnMessagesSha256,
         digest_profile: "atmem-turn-messages-canonical-json-v1",
         messages_count: Array.isArray(event.messages) ? event.messages.length : 0,
+        _atmem_evidence: {
+          messages: event.messages ?? [],
+          error: event.error ?? null,
+        },
       }, undefined, {
         retrievalId: cached?.retrievalId,
         contextEventId: cached?.contextEventId,
@@ -1642,6 +1759,7 @@ function register(api: OpenClawPluginApi): void {
         attachmentKeys,
         attachmentFields.paths,
         attachmentFields.types,
+        ctx,
       ).catch((error) => {
         api.logger.warn(
           `${TAG} persisted attachment provenance unavailable: ${

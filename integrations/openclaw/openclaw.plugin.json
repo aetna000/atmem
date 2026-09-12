@@ -2,7 +2,7 @@
   "id": "memory-atmem",
   "name": "Memory (atmem)",
   "description": "OpenClaw bridge installed and managed by the AtMem memory control plane.",
-  "version": "2.2.6",
+  "version": "2.3.0-beta.1",
   "commandAliases": ["memory-atmem"],
   "activation": {
     "onStartup": true,
@@ -81,15 +81,16 @@
           "enabled": { "type": "boolean", "default": true },
           "maxRecords": { "type": "number", "default": 3, "description": "Max memories injected per turn" },
           "maxChars": { "type": "number", "default": 1200, "description": "Total character budget for the injected block" },
+          "requireDirectSupport": { "type": "boolean", "default": true, "description": "Require direct query relevance for automatic recall; rank score alone is insufficient" },
           "minScore": { "type": "number", "default": 0.3, "description": "Minimum relevance score; 0.3 requires a lexical match (priors alone never inject)" },
           "timeoutMs": { "type": "number", "default": 4000, "description": "Recall timeout; on timeout the turn proceeds without injection" }
         }
       },
       "persona": {
         "type": "object",
-        "description": "L3 persona snapshot injected alongside recall",
+        "description": "Optional always-on persona snapshot; disabled by default to avoid unrelated context",
         "properties": {
-          "enabled": { "type": "boolean", "default": true },
+          "enabled": { "type": "boolean", "default": false },
           "maxChars": { "type": "number", "default": 600, "description": "Character budget for the <user_persona> block" },
           "ttlSeconds": { "type": "number", "default": 300, "description": "Persona cache lifetime; also invalidated whenever new memory is captured" }
         }
@@ -133,8 +134,8 @@
           },
           "blackboxEnabled": {
             "type": "boolean",
-            "default": false,
-            "description": "Record content-minimizing agent flights through the private control protocol. Managed automatically by the AtMem installer."
+            "default": true,
+            "description": "Record encrypted full-fidelity text, link/page, file, image, audio and video evidence plus metadata through the private control protocol. Set false to disable the recorder."
           }
         }
       },
@@ -150,7 +151,21 @@
           "requireOwner": {
             "type": "boolean",
             "default": true,
-            "description": "Send the mapped user ID only when OpenClaw marks the sender as owner."
+            "description": "Require authenticated owner metadata (default). False requires the explicit isolated localOperator mapping; it is not an ownership bypass."
+          },
+          "localOperator": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["isolated", "agentId", "workspaceDir", "sessionKey", "sessionId"],
+            "description": "Only for a dedicated local CLI process with channels disabled by the operator. Requires host messageProvider=cli, workspace and exact session generation; channel-originated turns are refused.",
+            "properties": {
+              "isolated": { "type": "boolean", "const": true, "description": "Operator assertion that this process is isolated from shared channels and other users." },
+              "stateDir": { "type": "string", "minLength": 1, "description": "Optional dedicated owner-only OPENCLAW_STATE_DIR. Required when a direct agent --local process omits CLI origin metadata; channels and delivery flags must be absent." },
+              "agentId": { "type": "string", "minLength": 1 },
+              "workspaceDir": { "type": "string", "minLength": 1 },
+              "sessionKey": { "type": "string", "minLength": 1 },
+              "sessionId": { "type": "string", "minLength": 1 }
+            }
           }
         }
       }

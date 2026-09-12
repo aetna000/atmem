@@ -206,3 +206,16 @@ Phase 8 remains separate future integration work.
 Verification: [latest-release Mem0 evidence](../../docs/implementation-evidence/003/20260909T052000Z-740c5c89d63c-mem0-latest-hosts.md)
 and [attributed Storizon 2.2.6 report](../../docs/implementation-evidence/003/20260910-storizon-published-2.2.6.md). The [earlier source-only entry](../../docs/implementation-evidence/003/20260909T043658Z-740c5c89d63c-host-compatibility.md)
 remains historical; this new entry supersedes its local-host/toolful limitations.
+
+## Phase 10: Standalone full-fidelity delegated evidence
+
+These tasks implement FR-038–FR-042 and SC-017–SC-018. They supersede the
+content-erasure intent of completed T009, T011, T015, T023, T040, and T044
+without reopening their transport, replay, exact-delivery, or host-compatibility
+results.
+
+- [ ] [T054] Add failing delegated text/link/file/image/audio/video fixtures and exact byte/order oracles across OpenClaw, Pydantic AI, and LangChain/LangGraph; assert generic/count/ID/hash-only evidence fails (FR-038, FR-039, SC-018).
+- [ ] [T055] Append exact delegated request, decision, context, delivery, model-boundary, tool/result/error, and original artifact evidence through the Spec 020 service while leaving v1/HMAC/Ed25519 contracts unchanged (FR-038–FR-041); depend on Spec 020 T042–T047 and T054.
+- [ ] [T056] Reference canonical evidence envelopes from content-free replay/security rows and remove any UI/API claim that those rows alone are a complete Black Box (FR-040); depend on T055.
+- [ ] [T057] Implement and test explicit `full` default plus `metadata`/`off` capture selection and persistent `not_reconstructable` status, including audited exact-content access/export/replay (FR-041, FR-042); depend on T055.
+- [ ] [T058] Run the destructive delegated disaster gate from a copied AtMem store with agent/logs/workspace/provider/model/cache removed and network denied; verify exact multimodal reconstruction and all transport security regressions, then record append-only evidence (SC-017, SC-018); depend on T056, T057 and Spec 020 T049–T053.

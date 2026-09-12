@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a published-version fixture, then prove 2.2.6 upgrades it safely."""
+"""Create a published-version fixture, then prove 2.3.0b1 upgrades it safely."""
 
 from __future__ import annotations
 
@@ -66,7 +66,9 @@ def create_fixture(root: Path) -> None:
         "candidate_ids": sorted(str(row["id"]) for row in candidates),
         "capture_candidate_ids": sorted(capture.get("candidate_ids") or []),
     }
-    assert manifest["source_version"] in {"2.1.0", "2.2.3", "2.2.4", "2.2.5"}
+    assert manifest["source_version"] in {
+        "2.1.0", "2.2.3", "2.2.4", "2.2.5", "2.2.6"
+    }
     assert manifest["mode"] == "shadow"
     assert manifest["candidate_ids"]
     (root / "fixture.json").write_text(
@@ -76,7 +78,7 @@ def create_fixture(root: Path) -> None:
 
 def verify_upgrade(root: Path) -> None:
     manifest = json.loads((root / "fixture.json").read_text(encoding="utf-8"))
-    assert importlib.metadata.version("atmem") == "2.2.6"
+    assert importlib.metadata.version("atmem") == "2.3.0b1"
     assert importlib.metadata.version("atmem-atbot") == "0.1.0a6"
 
     database = root / "memory.db"
@@ -115,8 +117,8 @@ def verify_upgrade(root: Path) -> None:
         schema_version = connection.execute(
             "SELECT value FROM schema_meta WHERE key = 'schema_version'"
         ).fetchone()[0]
-    assert int(schema_version) == 5
-    print("AtMem persisted-state -> 2.2.6 upgrade smoke test passed")
+    assert int(schema_version) == 6
+    print("AtMem persisted-state -> 2.3.0b1 upgrade smoke test passed")
 
 
 def main() -> None:

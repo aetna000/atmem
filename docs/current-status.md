@@ -5,14 +5,59 @@ This page is a maintained capability summary; new test runs create immutable
 journal entries, and summary changes link to the relevant evidence. Dated
 reviews under `specs/` remain historical snapshots.
 
-Updated: 9 September 2026
+Updated: 13 September 2026
 
-Repository metadata is **2.2.6** and the matched OpenClaw bridge is
-**2.2.6**. This repository state is the release candidate; package and
-tag availability must be checked independently until the release workflow has
-published them. Native AtMem authority remains the default after installation
+Repository metadata is **2.3.0b1** and the matched OpenClaw bridge is
+**2.3.0-beta.1**. Those values identify the current source build, not a
+release-ready candidate: the standalone full-fidelity M0 profile is reopened
+and its gates remain incomplete. Package and tag availability must be checked
+independently. Native AtMem authority remains the default after installation
 or upgrade. The required `atmem-atbot==0.1.0a6` companion is packaged
 separately and installed automatically with AtMem.
+
+## 2.3.0b1 investigation preview — reopened, not release-ready
+
+The earlier M0 source slice implements producer-sequenced, content-minimizing
+execution capture with a bounded persistent OpenClaw spool, durable
+acknowledgement, idempotent replay, conflict retention, explicit capacity and
+retention gaps, event/receive timestamps, indexed scope-filtered reads, and
+deterministic evidence-linked findings in the existing Activity/Evidence UI.
+That slice is a legacy foundation, not the revised Agent Black Box: it cannot
+reconstruct exact prompts, context, model exchanges, calls/results or original
+multimodal artifacts after the agent and logs are gone. The implementation
+preserves 2.2.x Black Box chains and does not activate task
+state, change canonical memory, or require AtBot for investigation.
+
+The revised source now contains the first Spec 028 vertical slice: AES-256-GCM
+exact evidence objects with encrypted semantic metadata and access audit,
+default full/data-plus-metadata capture, encrypted metadata-only and recorder-off
+modes, Viewer/Investigator/Evidence Collector enforcement, Collector-only
+confirmed plaintext export, optional ML-KEM-768/ML-DSA-65 recipient bundles,
+three explicit development test identities, encrypted OpenClaw spool content,
+exact prompt/context/model/tool capture and bounded exact inbound media bytes.
+The compatible legacy evidence projection remains content-minimizing and its entire
+control database is now stored as an application-encrypted container. Other memory,
+mirror, backup or historical plaintext sources still require inventory and verified
+cleanup before an installation can make a product-wide encrypted-store claim.
+
+This is not yet the complete encrypted evidence-box release gate. Spec 020
+T042–T053, Spec 021 T025–T028, Spec 022 T026–T029 and the remaining Spec 028
+rotation/recovery, migration and verified legacy cleanup, capacity, secure production key-source,
+cross-platform installed-artifact, complete rendering and destructive
+stolen-store/dead-agent gates remain open. Until those pass, no source, wheel,
+tag or dashboard should claim complete full-fidelity Black Box readiness.
+
+Core identity, replay/restart, scope, loss, late-recovery, 40-minute virtual
+trace, retention and 100,000-event lookup gates are recorded in the
+[Spec 020 M0 evidence](implementation-evidence/020/20260912-m0-investigation-preview.md).
+The tag-blocking timestamp, identity, replay, receipt, paging, coverage and
+presentation corrections are recorded in the
+[Spec 020 correctness-hardening evidence](implementation-evidence/020/20260912-release-candidate-correctness-hardening.md).
+The technical findings/UI results are recorded separately in
+[Spec 021 M0 evidence](implementation-evidence/021/20260912-m0-findings-ui.md).
+The installed-host record names the exact local OpenClaw and bridge artifacts;
+other hosts remain unverified. Independent two-cohort human usability is not
+claimed and remains tracked by 021 T024.
 
 Spec 003's 2.2.6 local identity and tool-observation fixes pass real Mem0/Claude
 CLI acceptance on latest OpenClaw 2026.9.2 and 2026.9.3. Inject/withhold, exact
@@ -32,7 +77,7 @@ The release has four runtime boundaries:
 4. the separately packaged, headless AtBot intelligence companion, reached only
    through a versioned loopback protocol.
 
-## 2.2 capabilities
+## 2.2 baseline capabilities
 
 | Capability | Generic/framework runtimes | OpenClaw |
 | --- | --- | --- |
@@ -60,7 +105,7 @@ The release has four runtime boundaries:
 | AtBot provider/model/lifecycle configuration | Collapsed dashboard settings and CLI | Same dashboard and CLI |
 | Optional signed delegated context authority | Provider-neutral control contract; host must prove exact delivery | Implemented for compatible local providers; disabled by default |
 | Optional provider-side Mem0, LangGraph, and Pydantic AI adapters | Independent extras; shared signed loopback runtime; disabled until separately trusted | Available to any host using the delegated contract |
-| Raw prompt/response/tool evidence | Not stored by default | Not stored by Black Box |
+| Raw prompt/response/tool evidence | Protected-vault producer contract implemented; automatic boundary coverage remains adapter-specific | OpenClaw source captures exact prompt/context/model/tool values into the encrypted vault; installed-host release gate remains open |
 | Semantic answer validation | Not implemented | Not implemented |
 | Independent external outcome proof | Accepts linked receipts; external verifier required | Same |
 | Hosted multi-tenant authentication and isolation | Not provided | Not provided |
@@ -73,7 +118,7 @@ The release has four runtime boundaries:
   distribution and process and does not own canonical storage.
 - AtBot's built-in Ollama and OpenAI-compatible provider uses the standard
   library and adds no model-SDK dependency to a default AtMem install.
-- A clean 2.2 installation resolves the published companion automatically.
+- A clean supported installation resolves the published companion automatically.
   Repository development installs both packages explicitly with editable
   installs.
 - Publishing uses the dedicated trusted-publisher workflow documented in
@@ -109,10 +154,13 @@ The release has four runtime boundaries:
 
 ## Upgrade and support status
 
-- The release workflow creates persisted data with public AtMem 2.1.0, 2.2.3,
-  2.2.4, and 2.2.5, upgrades each environment to 2.2.6, and verifies record identity, recall, audit
+- The 2.2.6 release workflow created persisted data with public AtMem 2.1.0, 2.2.3,
+  2.2.4, and 2.2.5, upgraded each environment to 2.2.6, and verified record identity, recall, audit
   integrity, control migration identity, candidate retention, schema migration,
   and automatic vector-sidecar creation as a protected publication gate.
+- The 2.3.0b1 candidate additionally migrates control evidence schema v5 to v6
+  without rewriting signed events and verifies a clean installed candidate
+  artifact against a published 2.2.6 starting point.
 - Existing OpenClaw installations upgrade the bridge with
   `atmem openclaw upgrade`; the command preserves shadow or active mode, restarts
   a running dashboard under the upgraded isolated Python runtime, restarts the

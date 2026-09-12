@@ -129,3 +129,24 @@ def test_record_admission_binds_lifecycle_metadata() -> None:
     assert payload["trust_tier"] == record["trust_tier"]
     assert payload["confidence"] == record["confidence"]
     assert payload["scope"] == record["scope"]
+
+
+def test_automatic_context_requires_direct_support_not_relative_rank() -> None:
+    memory = Memory(':memory:')
+    # A single shared word can rank highly when FTS normalizes against weak matches.
+    procedural = memory.remember('u1', 'I prefer bullet lists instead of markdown tables.')['records'][0]
+    query = 'list all the chinese shops in botany road that sell roasted duck'
+    legacy = memory.build_recall_block('u1', query, min_score=0.3)
+    assert procedural['id'] in legacy['record_ids']
+    selective = memory.build_recall_block('u1', query, require_direct_support=True)
+    assert selective['record_ids'] == []
+    assert selective['block'] == ''
+    assert selective['context_event_id'] is None
+    # Explicit recall remains available; automatic filtering does not delete memory.
+    assert memory.recall('u1', 'bullet lists')
+    relevant = memory.remember('u1', 'My favorite color is teal.')['records'][0]
+    block = memory.build_recall_block('u1', 'favorite color', require_direct_support=True)
+    assert relevant['id'] in block['record_ids']
+    assert memory.build_recall_block('u1', 'favorite color', require_direct_support=True,
+        exclude_record_ids={relevant['id']})['record_ids'] == []
+    memory.close()

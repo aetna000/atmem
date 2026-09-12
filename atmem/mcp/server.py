@@ -27,7 +27,7 @@ try:
 
     SERVER_VERSION = _pkg_version("atmem")
 except Exception:  # not installed (e.g. run from a checkout)
-    SERVER_VERSION = "2.2.6"
+    SERVER_VERSION = "2.3.0b1"
 
 _SUBJECT_PROPERTY = {
     "subject_id": {
@@ -425,6 +425,8 @@ class MCPServer:
             max_chars=int(arguments.get("max_chars", 2000)),
             min_score=float(arguments.get("min_score", 0.3)),
             use_graph=arguments.get("use_graph"),
+            require_direct_support=bool(arguments.get("require_direct_support", False)),
+            exclude_record_ids=set(arguments.get("exclude_record_ids") or []),
             reference_mode=str(arguments.get("reference_mode", "full")),
         )
 
@@ -718,6 +720,8 @@ class MCPServer:
                 {
                     **_SUBJECT_PROPERTY,
                     "query": {"type": "string"},
+                    "require_direct_support": {"type": "boolean", "default": False, "description": "Require calibrated direct original-query support for automatic injection."},
+                    "exclude_record_ids": {"type": "array", "items": {"type": "string"}, "description": "Records already present in another context component."},
                     "max_records": {"type": "integer", "default": 5},
                     "max_chars": {"type": "integer", "default": 2000},
                     "min_score": {"type": "number", "default": 0.3},

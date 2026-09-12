@@ -9,6 +9,7 @@ installation and native-state restore drills remain local maintenance commands.
 
 from __future__ import annotations
 
+import base64
 import json
 from pathlib import Path
 import sys
@@ -200,6 +201,15 @@ class ControlMCPServer:
                 agent_id=arguments.get("agent_id"),
                 workspace_id=arguments.get("workspace_id"),
                 subject_id=arguments.get("subject_id"),
+                event_id=arguments.get("event_id"),
+                producer_instance_id=arguments.get("producer_instance_id"),
+                producer_epoch=arguments.get("producer_epoch"),
+                producer_sequence=arguments.get("producer_sequence"),
+                event_time=arguments.get("event_time"),
+                execution_id=arguments.get("execution_id"),
+                parent_execution_id=arguments.get("parent_execution_id"),
+                attempt_id=arguments.get("attempt_id"),
+                retry_of_attempt_id=arguments.get("retry_of_attempt_id"),
                 payload=arguments.get("payload") or {},
             )
         elif name == "control_status":
@@ -291,6 +301,42 @@ class ControlMCPServer:
                 str(arguments["attention_code"]),
                 actor=str(arguments.get("actor") or "mcp-operator"),
             )
+        elif name in {
+            "control_evidence_status",
+            "control_evidence_show",
+            "control_evidence_reconstruct",
+            "control_evidence_export_plaintext",
+            "control_evidence_set_capture_mode",
+        }:
+            service = self.manager.evidence_service()
+            if name == "control_evidence_status":
+                value = service.protection_status()
+            else:
+                principal = service.authenticate(str(arguments.get("token") or ""))
+                if principal is None:
+                    raise PermissionError("a valid evidence account token is required")
+                run_id = str(arguments.get("run_id") or "")
+                if name == "control_evidence_show":
+                    value = {"run_id": run_id, "events": service.events(principal, run_id)}
+                elif name == "control_evidence_reconstruct":
+                    value = service.reconstruct(principal, run_id)
+                elif name == "control_evidence_export_plaintext":
+                    content = service.plaintext_export(
+                        principal,
+                        run_id,
+                        confirmation=str(arguments.get("confirmation") or ""),
+                    )
+                    value = {
+                        "format": "atmem-plaintext-evidence-export-v1",
+                        "content_base64": base64.b64encode(content).decode(),
+                        "warning": "AtMem encryption does not protect the decoded copy.",
+                    }
+                else:
+                    from atmem.evidence import CaptureMode
+
+                    value = service.set_capture_mode(
+                        principal, CaptureMode(str(arguments.get("capture_mode") or ""))
+                    )
         elif name == "control_list_agents":
             value = self.manager.agent_topology()
         elif name == "control_configure_agents":
@@ -340,6 +386,15 @@ def _tools(*, operator: bool = False, host: str = "generic") -> list[dict[str, A
                     "session_id": {"type": "string"},
                     "authenticated_user": {"type": "boolean"},
                     "subject_id": {"type": "string"},
+                    "event_id": {"type": "string"},
+                    "producer_instance_id": {"type": "string"},
+                    "producer_epoch": {"type": "string"},
+                    "producer_sequence": {"type": "integer", "minimum": 1},
+                    "event_time": {"type": "string"},
+                    "execution_id": {"type": "string"},
+                    "parent_execution_id": {"type": "string"},
+                    "attempt_id": {"type": "string"},
+                    "retry_of_attempt_id": {"type": "string"},
                     "agent_id": {"type": "string"},
                 },
                 "required": ["message", "authenticated_user"],
@@ -531,9 +586,35 @@ def _tools(*, operator: bool = False, host: str = "generic") -> list[dict[str, A
                     "agent_id": {"type": "string"},
                     "workspace_id": {"type": "string"},
                     "subject_id": {"type": "string"},
+                    "event_id": {"type": "string"},
+                    "producer_instance_id": {"type": "string"},
+                    "producer_epoch": {"type": "string"},
+                    "producer_sequence": {"type": "integer", "minimum": 1},
+                    "event_time": {"type": "string"},
+                    "execution_id": {"type": "string"},
+                    "parent_execution_id": {"type": "string"},
+                    "attempt_id": {"type": "string"},
+                    "retry_of_attempt_id": {"type": "string"},
                     "payload": {"type": "object"},
                 },
                 "required": ["event_type", "run_id"],
+                "allOf": [
+                    {
+                        "if": {
+                            "anyOf": [
+                                {"required": ["producer_instance_id"]},
+                                {"required": ["producer_epoch"]},
+                                {"required": ["producer_sequence"]},
+                            ]
+                        },
+                        "then": {
+                            "required": [
+                                "event_id", "producer_instance_id", "producer_epoch",
+                                "producer_sequence", "event_time"
+                            ]
+                        },
+                    }
+                ],
                 "additionalProperties": False,
             },
         },
@@ -726,6 +807,47 @@ def _tools(*, operator: bool = False, host: str = "generic") -> list[dict[str, A
             "inputSchema": {
                 "type": "object", "properties": {"actor": {"type": "string"}},
                 "additionalProperties": False,
+            },
+        },
+        {
+            "name": "control_evidence_status",
+            "description": "Show the concise encrypted evidence protection state.",
+            "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+        },
+        {
+            "name": "control_evidence_show",
+            "description": "View exact encrypted evidence inside AtMem with an evidence account.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"token": {"type": "string"}, "run_id": {"type": "string"}},
+                "required": ["token", "run_id"], "additionalProperties": False,
+            },
+        },
+        {
+            "name": "control_evidence_reconstruct",
+            "description": "Reconstruct a run as an Investigator or Evidence Collector.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"token": {"type": "string"}, "run_id": {"type": "string"}},
+                "required": ["token", "run_id"], "additionalProperties": False,
+            },
+        },
+        {
+            "name": "control_evidence_export_plaintext",
+            "description": "Export plaintext as Evidence Collector after exact confirmation.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"token": {"type": "string"}, "run_id": {"type": "string"}, "confirmation": {"type": "string"}},
+                "required": ["token", "run_id", "confirmation"], "additionalProperties": False,
+            },
+        },
+        {
+            "name": "control_evidence_set_capture_mode",
+            "description": "Set full, metadata-only or recorder-off capture as Evidence Collector.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {"token": {"type": "string"}, "capture_mode": {"type": "string", "enum": ["full", "metadata", "off"]}},
+                "required": ["token", "capture_mode"], "additionalProperties": False,
             },
         },
     ]

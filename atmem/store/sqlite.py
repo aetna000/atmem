@@ -4727,7 +4727,7 @@ def _session_binding_from_row(row: Any) -> dict[str, Any]:
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(timezone.utc).isoformat(timespec="microseconds")
 
 
 def _new_id(prefix: str) -> str:

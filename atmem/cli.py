@@ -1232,6 +1232,48 @@ or input errors.""",
                 "--envelope", required=True, help="JSON object file, or - for stdin"
             )
 
+    evidence_parser = subparsers.add_parser(
+        "evidence", help="Inspect the encrypted evidence vault with an explicit privilege"
+    )
+    evidence_commands = evidence_parser.add_subparsers(dest="evidence_command")
+    for name, help_text in (
+        ("status", "Show concise Evidence protection status"),
+        ("create-test-accounts", "Create the three local development evidence accounts"),
+        ("show", "View one protected run inside AtMem"),
+        ("search", "Search exact evidence within the account scope"),
+        ("reconstruct", "Reconstruct one protected run as an Investigator or Collector"),
+        ("replay-manifest", "Create an inert replay manifest as Investigator or Collector"),
+        ("grant", "Grant a scoped evidence role as Evidence Collector"),
+        ("revoke", "Revoke an evidence account as Evidence Collector"),
+        ("delete-run", "Delete one run as Evidence Collector"),
+        ("rotate-key", "Rotate the external evidence key as Evidence Collector"),
+        ("lock", "Lock evidence decryption as Evidence Collector"),
+        ("unlock", "Unlock application-locked evidence as Evidence Collector"),
+        ("set-mode", "Set full, metadata-only, or recorder-off capture as Collector"),
+        ("export-plaintext", "Export plaintext as Evidence Collector only"),
+    ):
+        command_parser = evidence_commands.add_parser(name, help=help_text)
+        command_parser.add_argument("--state", default=None)
+        if name not in {"status", "create-test-accounts"}:
+            command_parser.add_argument("--token", required=True)
+        if name in {"show", "reconstruct", "replay-manifest", "delete-run", "export-plaintext"}:
+            command_parser.add_argument("run_id")
+        if name == "search":
+            command_parser.add_argument("query")
+        if name == "grant":
+            command_parser.add_argument("principal_id")
+            command_parser.add_argument("role", choices=("viewer", "investigator", "evidence_collector"))
+            command_parser.add_argument("--run-id")
+        if name == "revoke":
+            command_parser.add_argument("principal_id")
+        if name in {"delete-run", "rotate-key", "lock", "unlock"}:
+            command_parser.add_argument("--confirm", required=True)
+        if name == "set-mode":
+            command_parser.add_argument("mode", choices=("full", "metadata", "off"))
+        if name == "export-plaintext":
+            command_parser.add_argument("--confirm", required=True)
+            command_parser.add_argument("--output", required=True)
+
     verify_run_parser = subparsers.add_parser(
         "verify-run",
         help="Verify one agent run and print its unified coverage report",
@@ -1315,6 +1357,13 @@ or input errors.""",
             blackbox_parser.print_help()
             return
         _run_blackbox(args)
+        return
+
+    if args.command == "evidence":
+        if args.evidence_command is None:
+            evidence_parser.print_help()
+            return
+        _run_evidence(args)
         return
 
     if args.command == "verify-run":
@@ -4118,6 +4167,15 @@ def _run_blackbox(args: argparse.Namespace) -> None:
             agent_id=envelope.get("agent_id"),
             workspace_id=envelope.get("workspace_id"),
             subject_id=envelope.get("subject_id"),
+            event_id=envelope.get("event_id"),
+            producer_instance_id=envelope.get("producer_instance_id"),
+            producer_epoch=envelope.get("producer_epoch"),
+            producer_sequence=envelope.get("producer_sequence"),
+            event_time=envelope.get("event_time"),
+            execution_id=envelope.get("execution_id"),
+            parent_execution_id=envelope.get("parent_execution_id"),
+            attempt_id=envelope.get("attempt_id"),
+            retry_of_attempt_id=envelope.get("retry_of_attempt_id"),
             payload=envelope.get("payload") or {},
         )
         _print(value)
@@ -4161,6 +4219,102 @@ def _run_blackbox(args: argparse.Namespace) -> None:
         _print(report)
     else:
         print(format_flight_report(report), end="")
+
+
+def _run_evidence(args: argparse.Namespace) -> None:
+    from atmem.control.manager import ControlPlaneManager, DEFAULT_STATE_PATH
+    from atmem.evidence import CaptureMode, EvidenceRole, EvidenceScope
+
+    manager = ControlPlaneManager(args.state or str(DEFAULT_STATE_PATH))
+    service = manager.evidence_service()
+    command = args.evidence_command
+    if command == "status":
+        _print(service.protection_status())
+        return
+    if command == "create-test-accounts":
+        credentials = service.create_demo_accounts(subject_id=manager.state().subject_id)
+        _print(
+            {
+                "format": "atmem-evidence-test-credentials-v1",
+                "development_only": True,
+                "accounts": credentials,
+                "warning": "Tokens are shown once. Store them outside the evidence vault.",
+            }
+        )
+        return
+    principal = service.authenticate(args.token)
+    if principal is None:
+        raise ValueError("invalid evidence account token")
+    if command == "show":
+        _print({"run_id": args.run_id, "events": service.events(principal, args.run_id)})
+        return
+    if command == "search":
+        _print({"query": args.query, "events": service.search(principal, args.query)})
+        return
+    if command == "reconstruct":
+        _print(service.reconstruct(principal, args.run_id))
+        return
+    if command == "replay-manifest":
+        _print(service.replay_manifest(principal, args.run_id))
+        return
+    if command == "grant":
+        _print(
+            service.grant(
+                principal,
+                principal_id=args.principal_id,
+                role=EvidenceRole(args.role),
+                scope=EvidenceScope(
+                    principal.scope.tenant_id,
+                    principal.scope.subject_id,
+                    principal.scope.workspace_id,
+                    args.run_id,
+                ),
+            )
+        )
+        return
+    if command == "revoke":
+        _print({"principal_id": args.principal_id, "revoked": service.revoke(principal, principal_id=args.principal_id)})
+        return
+    if command == "delete-run":
+        _print(service.delete_run(principal, args.run_id, confirmation=args.confirm))
+        return
+    if command == "rotate-key":
+        _print(service.rotate_key(principal, confirmation=args.confirm))
+        return
+    if command == "lock":
+        _print(service.lock(principal, confirmation=args.confirm))
+        return
+    if command == "unlock":
+        _print(service.unlock(principal, confirmation=args.confirm))
+        return
+    if command == "set-mode":
+        _print(service.set_capture_mode(principal, CaptureMode(args.mode)))
+        return
+    if command == "export-plaintext":
+        output = Path(args.output).expanduser().resolve(strict=False)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        descriptor = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        try:
+            with os.fdopen(descriptor, "wb") as handle:
+                for chunk in service.iter_plaintext_export(
+                    principal, args.run_id, confirmation=args.confirm
+                ):
+                    handle.write(chunk)
+                handle.flush()
+                os.fsync(handle.fileno())
+        except Exception:
+            output.unlink(missing_ok=True)
+            raise
+        _print(
+            {
+                "exported": True,
+                "run_id": args.run_id,
+                "output": str(output),
+                "warning": "AtMem encryption no longer protects this plaintext file.",
+            }
+        )
+        return
+    raise ValueError(f"unknown evidence command: {command}")
 
 
 def _run_benchmark_cli(args: argparse.Namespace) -> None:

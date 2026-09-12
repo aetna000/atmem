@@ -33,6 +33,7 @@ class APIPrincipal:
     agent_id: str | None = None
     workspace_id: str | None = None
     tenant_id: str = "local"
+    evidence_role: str | None = None
 
     @property
     def operations(self) -> frozenset[str]:
@@ -105,6 +106,125 @@ class AtMemApplication:
     def audit(self, principal: APIPrincipal, *, limit: int = 100, cursor: int | None = None) -> dict[str, Any]:
         principal.require("audit:read")
         return {**self.manager.memory_audit(limit=max(1, min(limit, 100)), cursor=cursor), "request_id": _request_id()}
+
+    def executions(self, principal: APIPrincipal, *, limit: int = 50) -> dict[str, Any]:
+        from atmem.service.executions import ExecutionService
+
+        return {**ExecutionService(self.manager).list(principal, limit=limit), "request_id": _request_id()}
+
+    def execution(self, principal: APIPrincipal, execution_id: str) -> dict[str, Any]:
+        from atmem.service.executions import ExecutionService
+
+        return {**ExecutionService(self.manager).get(principal, execution_id), "request_id": _request_id()}
+
+    def evidence_status(self, principal: APIPrincipal) -> dict[str, Any]:
+        self._evidence_principal(principal)
+        return {**self.manager.evidence_service().protection_status(), "request_id": _request_id()}
+
+    def evidence_run(self, principal: APIPrincipal, run_id: str) -> dict[str, Any]:
+        evidence_principal = self._evidence_principal(principal)
+        events = self.manager.evidence_service().events(evidence_principal, run_id)
+        return {
+            "format": "atmem-protected-evidence-run-v1",
+            "run_id": run_id,
+            "events": events,
+            "request_id": _request_id(),
+        }
+
+    def evidence_reconstruct(self, principal: APIPrincipal, run_id: str) -> dict[str, Any]:
+        evidence_principal = self._evidence_principal(principal)
+        return {
+            **self.manager.evidence_service().reconstruct(evidence_principal, run_id),
+            "request_id": _request_id(),
+        }
+
+    def evidence_search(self, principal: APIPrincipal, query: str) -> dict[str, Any]:
+        evidence_principal = self._evidence_principal(principal)
+        return {
+            "format": "atmem-protected-evidence-search-v1",
+            "query": query,
+            "events": self.manager.evidence_service().search(evidence_principal, query),
+            "request_id": _request_id(),
+        }
+
+    def evidence_replay_manifest(self, principal: APIPrincipal, run_id: str) -> dict[str, Any]:
+        evidence_principal = self._evidence_principal(principal)
+        return {**self.manager.evidence_service().replay_manifest(evidence_principal, run_id), "request_id": _request_id()}
+
+    def evidence_delete(self, principal: APIPrincipal, run_id: str, *, confirmation: str) -> dict[str, Any]:
+        evidence_principal = self._evidence_principal(principal)
+        return {**self.manager.evidence_service().delete_run(evidence_principal, run_id, confirmation=confirmation), "request_id": _request_id()}
+
+    def evidence_rotate(self, principal: APIPrincipal, *, confirmation: str) -> dict[str, Any]:
+        evidence_principal = self._evidence_principal(principal)
+        return {**self.manager.evidence_service().rotate_key(evidence_principal, confirmation=confirmation), "request_id": _request_id()}
+
+    def evidence_lock(self, principal: APIPrincipal, *, confirmation: str) -> dict[str, Any]:
+        evidence_principal = self._evidence_principal(principal)
+        return {**self.manager.evidence_service().lock(evidence_principal, confirmation=confirmation), "request_id": _request_id()}
+
+    def evidence_unlock(self, principal: APIPrincipal, *, confirmation: str) -> dict[str, Any]:
+        evidence_principal = self._evidence_principal(principal)
+        return {**self.manager.evidence_service().unlock(evidence_principal, confirmation=confirmation), "request_id": _request_id()}
+
+    def evidence_grant(self, principal: APIPrincipal, body: dict[str, Any]) -> dict[str, Any]:
+        from atmem.evidence import EvidenceRole, EvidenceScope
+
+        evidence_principal = self._evidence_principal(principal)
+        scope = EvidenceScope(
+            evidence_principal.scope.tenant_id,
+            evidence_principal.scope.subject_id,
+            body.get("workspace_id") or evidence_principal.scope.workspace_id,
+            body.get("run_id"),
+        )
+        return {
+            **self.manager.evidence_service().grant(
+                evidence_principal,
+                principal_id=str(body.get("principal_id") or ""),
+                role=EvidenceRole(str(body.get("role") or "")),
+                scope=scope,
+            ),
+            "request_id": _request_id(),
+        }
+
+    def evidence_revoke(self, principal: APIPrincipal, principal_id: str) -> dict[str, Any]:
+        evidence_principal = self._evidence_principal(principal)
+        return {
+            "principal_id": principal_id,
+            "revoked": self.manager.evidence_service().revoke(
+                evidence_principal, principal_id=principal_id
+            ),
+            "request_id": _request_id(),
+        }
+
+    def evidence_plaintext_export(
+        self, principal: APIPrincipal, run_id: str, *, confirmation: str
+    ) -> dict[str, Any]:
+        evidence_principal = self._evidence_principal(principal)
+        content = self.manager.evidence_service().plaintext_export(
+            evidence_principal, run_id, confirmation=confirmation
+        )
+        return {
+            "format": "atmem-plaintext-evidence-export-v1",
+            "run_id": run_id,
+            "content_base64": base64.b64encode(content).decode(),
+            "warning": "AtMem encryption no longer protects the decoded plaintext copy.",
+            "streaming": False,
+            "request_id": _request_id(),
+        }
+
+    def evidence_capture_mode(
+        self, principal: APIPrincipal, mode: str
+    ) -> dict[str, Any]:
+        from atmem.evidence import CaptureMode
+
+        evidence_principal = self._evidence_principal(principal)
+        return {
+            **self.manager.evidence_service().set_capture_mode(
+                evidence_principal, CaptureMode(mode)
+            ),
+            "request_id": _request_id(),
+        }
 
     def configuration(self, principal: APIPrincipal) -> dict[str, Any]:
         principal.require("config:read")
@@ -186,6 +306,26 @@ class AtMemApplication:
             return response
         finally:
             memory.close()
+
+    @staticmethod
+    def _evidence_principal(principal: APIPrincipal):
+        from atmem.evidence import EvidencePrincipal, EvidenceRole, EvidenceScope
+
+        if principal.evidence_role is None:
+            raise APIError(
+                "forbidden",
+                "an explicit evidence privilege is required",
+                status=403,
+            )
+        return EvidencePrincipal(
+            principal_id=principal.principal_id,
+            role=EvidenceRole(principal.evidence_role),
+            scope=EvidenceScope(
+                principal.tenant_id,
+                principal.subject_id,
+                principal.workspace_id,
+            ),
+        )
 
 
 def _request_id() -> str:

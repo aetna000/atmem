@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: "Taghia"
     given-names: "Javad"
-version: 2.2.6
+version: 2.3.0b1
 date-released: 2026-09-09
 url: "https://atmem.ai"
 repository-code: "https://github.com/aetna000/atmem"

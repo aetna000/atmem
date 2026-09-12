@@ -1,0 +1,504 @@
+{
+  "mem0ai": "2.0.20",
+  "qdrant-client": "1.18.0",
+  "ollama-python": "0.6.2",
+  "claude-cli": "2.1.236",
+  "results": [
+    {
+      "scenario": "default",
+      "started_at": "2026-09-09T05:23:01.411519+00:00",
+      "ended_at": "2026-09-09T05:23:14.051575+00:00",
+      "host": "OpenClaw 2026.9.2 (3928bad)",
+      "run_id": "729061dd-c170-469c-9f48-d69c4f9c53cb",
+      "verdict": "completed_successfully",
+      "accepted": [],
+      "deliveries": [],
+      "tools": {
+        "requested": 0,
+        "completed": 0,
+        "request_observations": 0,
+        "completion_observations": 0,
+        "errors": [],
+        "missing_completions": [],
+        "orphan_completions": [],
+        "uncorrelated_requests": 0,
+        "uncorrelated_completions": 0,
+        "duplicate_requests": [],
+        "duplicate_completions": [],
+        "conflicting_requests": [],
+        "conflicting_completions": [],
+        "coalesced_wrapper_calls": []
+      },
+      "assertions_passed": true,
+      "evidence_directory": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-mem0-live-o_3zuo8a/final-2026.9.2-default",
+      "flight_sha256": "44be56e999edd7983e1b43b36fa82d35f99b5ef15acd51c35b1d0f5cb5a8a170"
+    },
+    {
+      "scenario": "inject",
+      "started_at": "2026-09-09T05:23:16.686923+00:00",
+      "ended_at": "2026-09-09T05:23:27.770508+00:00",
+      "host": "OpenClaw 2026.9.2 (3928bad)",
+      "run_id": "769ae5c2-7b09-4a9c-99a1-dcf7fbde487c",
+      "verdict": "completed_successfully",
+      "accepted": [
+        {
+          "run_id": "769ae5c2-7b09-4a9c-99a1-dcf7fbde487c",
+          "decision": "inject",
+          "receipt_id": "receipt-75376ab709eee6d4b0542a3e8ef2c5d6a1165f5617cfc771037dce721755b073",
+          "receipt_sha256": "75376ab709eee6d4b0542a3e8ef2c5d6a1165f5617cfc771037dce721755b073",
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "context_byte_length": 58
+        }
+      ],
+      "deliveries": [
+        {
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "shown": 1
+        }
+      ],
+      "tools": {
+        "requested": 0,
+        "completed": 0,
+        "request_observations": 0,
+        "completion_observations": 0,
+        "errors": [],
+        "missing_completions": [],
+        "orphan_completions": [],
+        "uncorrelated_requests": 0,
+        "uncorrelated_completions": 0,
+        "duplicate_requests": [],
+        "duplicate_completions": [],
+        "conflicting_requests": [],
+        "conflicting_completions": [],
+        "coalesced_wrapper_calls": []
+      },
+      "assertions_passed": true,
+      "evidence_directory": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-mem0-live-o_3zuo8a/final-2026.9.2-inject",
+      "flight_sha256": "9d9dfbb856cfb6c6eb13fbf8fa296a752eaad4de62cac8864352d5db0952c571"
+    },
+    {
+      "scenario": "withhold",
+      "started_at": "2026-09-09T05:23:19.473615+00:00",
+      "ended_at": "2026-09-09T05:23:29.134554+00:00",
+      "host": "OpenClaw 2026.9.2 (3928bad)",
+      "run_id": "732d9a90-996b-4bde-9548-449c59c75ca7",
+      "verdict": "completed_successfully",
+      "accepted": [
+        {
+          "run_id": "732d9a90-996b-4bde-9548-449c59c75ca7",
+          "decision": "withhold",
+          "receipt_id": "receipt-429d7b60fd6fb8d939dd4d3e5ada7a0eb332c18f62d1a0f7ee6b1865d38d0959",
+          "receipt_sha256": "429d7b60fd6fb8d939dd4d3e5ada7a0eb332c18f62d1a0f7ee6b1865d38d0959",
+          "context_sha256": null,
+          "context_byte_length": 0
+        }
+      ],
+      "deliveries": [],
+      "tools": {
+        "requested": 0,
+        "completed": 0,
+        "request_observations": 0,
+        "completion_observations": 0,
+        "errors": [],
+        "missing_completions": [],
+        "orphan_completions": [],
+        "uncorrelated_requests": 0,
+        "uncorrelated_completions": 0,
+        "duplicate_requests": [],
+        "duplicate_completions": [],
+        "conflicting_requests": [],
+        "conflicting_completions": [],
+        "coalesced_wrapper_calls": []
+      },
+      "assertions_passed": true,
+      "evidence_directory": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-mem0-live-o_3zuo8a/final-2026.9.2-withhold",
+      "flight_sha256": "2b6d9523e8084314bf2a4b0d51c0434f81a85f09b1cce8153fba5387bd16442d"
+    },
+    {
+      "scenario": "tools",
+      "started_at": "2026-09-09T05:23:30.495922+00:00",
+      "ended_at": "2026-09-09T05:23:46.111830+00:00",
+      "host": "OpenClaw 2026.9.2 (3928bad)",
+      "run_id": "8bab4d65-d152-4529-9ee3-a944d3f48ae3",
+      "verdict": "completed_successfully",
+      "accepted": [
+        {
+          "run_id": "8bab4d65-d152-4529-9ee3-a944d3f48ae3",
+          "decision": "inject",
+          "receipt_id": "receipt-c68220dae923c025575e6917678d6a0286ba5ddfda088d960b610b1c4ced4dfc",
+          "receipt_sha256": "c68220dae923c025575e6917678d6a0286ba5ddfda088d960b610b1c4ced4dfc",
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "context_byte_length": 58
+        }
+      ],
+      "deliveries": [
+        {
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "shown": 1
+        }
+      ],
+      "tools": {
+        "requested": 2,
+        "completed": 2,
+        "request_observations": 2,
+        "completion_observations": 2,
+        "errors": [],
+        "missing_completions": [],
+        "orphan_completions": [],
+        "uncorrelated_requests": 0,
+        "uncorrelated_completions": 0,
+        "duplicate_requests": [],
+        "duplicate_completions": [],
+        "conflicting_requests": [],
+        "conflicting_completions": [],
+        "coalesced_wrapper_calls": []
+      },
+      "assertions_passed": true,
+      "evidence_directory": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-mem0-live-o_3zuo8a/final-2026.9.2-tools",
+      "flight_sha256": "3ed83bd2143a11263c824b7ca015da8f470d5303b980f41e58e04f79396c284d"
+    },
+    {
+      "scenario": "tool-error",
+      "started_at": "2026-09-09T05:23:31.454915+00:00",
+      "ended_at": "2026-09-09T05:23:46.100306+00:00",
+      "host": "OpenClaw 2026.9.2 (3928bad)",
+      "run_id": "0dee684d-7975-4387-a8b8-1bbfd689d527",
+      "verdict": "completed_with_tool_errors",
+      "accepted": [
+        {
+          "run_id": "0dee684d-7975-4387-a8b8-1bbfd689d527",
+          "decision": "inject",
+          "receipt_id": "receipt-1c4c2b3b63d1ae7d3cfeb43bd87920453a0e18800f4794ff65b68741aba9e313",
+          "receipt_sha256": "1c4c2b3b63d1ae7d3cfeb43bd87920453a0e18800f4794ff65b68741aba9e313",
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "context_byte_length": 58
+        }
+      ],
+      "deliveries": [
+        {
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "shown": 1
+        }
+      ],
+      "tools": {
+        "requested": 1,
+        "completed": 1,
+        "request_observations": 1,
+        "completion_observations": 1,
+        "errors": [
+          {
+            "tool_call_id": "toolu_0111wxfsRPSM3B9SqDLMFTH7",
+            "tool_name": "read",
+            "error_category": "tool_error"
+          }
+        ],
+        "missing_completions": [],
+        "orphan_completions": [],
+        "uncorrelated_requests": 0,
+        "uncorrelated_completions": 0,
+        "duplicate_requests": [],
+        "duplicate_completions": [],
+        "conflicting_requests": [],
+        "conflicting_completions": [],
+        "coalesced_wrapper_calls": []
+      },
+      "assertions_passed": true,
+      "evidence_directory": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-mem0-live-o_3zuo8a/final-2026.9.2-tool-error",
+      "flight_sha256": "ec72d447cbe7dd3fcdad8bcf15f3da68775d6c0b65cc24b62c52dbc0f99454d4"
+    },
+    {
+      "scenario": "tools-missing",
+      "started_at": "2026-09-09T05:31:05.213375+00:00",
+      "ended_at": "2026-09-09T05:31:19.883641+00:00",
+      "host": "OpenClaw 2026.9.2 (3928bad)",
+      "run_id": "eb34e1b7-6c7a-4430-87d8-f8e8f5d12ac3",
+      "verdict": "incomplete_evidence",
+      "accepted": [
+        {
+          "run_id": "eb34e1b7-6c7a-4430-87d8-f8e8f5d12ac3",
+          "decision": "inject",
+          "receipt_id": "receipt-6449b47748782e4e37d27964ab5b2e5d31bee5bf23bdb00104cdd3a6aa023b50",
+          "receipt_sha256": "6449b47748782e4e37d27964ab5b2e5d31bee5bf23bdb00104cdd3a6aa023b50",
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "context_byte_length": 58
+        }
+      ],
+      "deliveries": [
+        {
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "shown": 1
+        }
+      ],
+      "tools": {
+        "requested": 2,
+        "completed": 0,
+        "request_observations": 2,
+        "completion_observations": 0,
+        "errors": [],
+        "missing_completions": [
+          "toolu_01EZFWPFg76ZszWQ5ELBWbj6",
+          "toolu_01FVfMU5Uwxd3akgDcGah8Bq"
+        ],
+        "orphan_completions": [],
+        "uncorrelated_requests": 0,
+        "uncorrelated_completions": 0,
+        "duplicate_requests": [],
+        "duplicate_completions": [],
+        "conflicting_requests": [],
+        "conflicting_completions": [],
+        "coalesced_wrapper_calls": []
+      },
+      "assertions_passed": true,
+      "evidence_directory": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-mem0-live-o_3zuo8a/final-2026.9.2-tools-missing-retry2",
+      "flight_sha256": "cdfcb28594975a81bf533af98af75f3c45b05925b6d68b9dd1b21f72d3781c23"
+    },
+    {
+      "scenario": "default",
+      "started_at": "2026-09-09T05:22:13.078258+00:00",
+      "ended_at": "2026-09-09T05:22:26.219765+00:00",
+      "host": "OpenClaw 2026.9.3 (1391f7c)",
+      "run_id": "3523913b-9b02-4231-ad6f-537eda3c49dc",
+      "verdict": "completed_successfully",
+      "accepted": [],
+      "deliveries": [],
+      "tools": {
+        "requested": 0,
+        "completed": 0,
+        "request_observations": 0,
+        "completion_observations": 0,
+        "errors": [],
+        "missing_completions": [],
+        "orphan_completions": [],
+        "uncorrelated_requests": 0,
+        "uncorrelated_completions": 0,
+        "duplicate_requests": [],
+        "duplicate_completions": [],
+        "conflicting_requests": [],
+        "conflicting_completions": [],
+        "coalesced_wrapper_calls": []
+      },
+      "assertions_passed": true,
+      "evidence_directory": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-mem0-live-o_3zuo8a/final-2026.9.3-default",
+      "flight_sha256": "4bbc14356a8fd46ca75dd9868d81fef5b459012a7766e1ec2d88223c48ea4937"
+    },
+    {
+      "scenario": "inject",
+      "started_at": "2026-09-09T05:22:13.123744+00:00",
+      "ended_at": "2026-09-09T05:22:28.180880+00:00",
+      "host": "OpenClaw 2026.9.3 (1391f7c)",
+      "run_id": "47182937-18d2-4dc3-bb38-4bbae161a3e8",
+      "verdict": "completed_successfully",
+      "accepted": [
+        {
+          "run_id": "47182937-18d2-4dc3-bb38-4bbae161a3e8",
+          "decision": "inject",
+          "receipt_id": "receipt-942c7d7842b513082e541100d6e3e46c907d0719496f4c31c9335d2c5a46b02f",
+          "receipt_sha256": "942c7d7842b513082e541100d6e3e46c907d0719496f4c31c9335d2c5a46b02f",
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "context_byte_length": 58
+        }
+      ],
+      "deliveries": [
+        {
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "shown": 1
+        }
+      ],
+      "tools": {
+        "requested": 0,
+        "completed": 0,
+        "request_observations": 0,
+        "completion_observations": 0,
+        "errors": [],
+        "missing_completions": [],
+        "orphan_completions": [],
+        "uncorrelated_requests": 0,
+        "uncorrelated_completions": 0,
+        "duplicate_requests": [],
+        "duplicate_completions": [],
+        "conflicting_requests": [],
+        "conflicting_completions": [],
+        "coalesced_wrapper_calls": []
+      },
+      "assertions_passed": true,
+      "evidence_directory": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-mem0-live-o_3zuo8a/final-2026.9.3-inject",
+      "flight_sha256": "118e2ecd4a1da28634709b2adaa16e2d3891080a7340599bc9cdf1a7becc515d"
+    },
+    {
+      "scenario": "withhold",
+      "started_at": "2026-09-09T05:22:29.146006+00:00",
+      "ended_at": "2026-09-09T05:22:42.034455+00:00",
+      "host": "OpenClaw 2026.9.3 (1391f7c)",
+      "run_id": "50f20b00-1489-4d3e-874d-7e5aba1281f2",
+      "verdict": "completed_successfully",
+      "accepted": [
+        {
+          "run_id": "50f20b00-1489-4d3e-874d-7e5aba1281f2",
+          "decision": "withhold",
+          "receipt_id": "receipt-0cd770024278ec209ac59931426ef2c4b3112636c4ad36b6a938fd2248a649e0",
+          "receipt_sha256": "0cd770024278ec209ac59931426ef2c4b3112636c4ad36b6a938fd2248a649e0",
+          "context_sha256": null,
+          "context_byte_length": 0
+        }
+      ],
+      "deliveries": [],
+      "tools": {
+        "requested": 0,
+        "completed": 0,
+        "request_observations": 0,
+        "completion_observations": 0,
+        "errors": [],
+        "missing_completions": [],
+        "orphan_completions": [],
+        "uncorrelated_requests": 0,
+        "uncorrelated_completions": 0,
+        "duplicate_requests": [],
+        "duplicate_completions": [],
+        "conflicting_requests": [],
+        "conflicting_completions": [],
+        "coalesced_wrapper_calls": []
+      },
+      "assertions_passed": true,
+      "evidence_directory": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-mem0-live-o_3zuo8a/final-2026.9.3-withhold",
+      "flight_sha256": "49f2f445840eb1cdeb79397b3be376062516d9903f099b0b80a0da4423f94c58"
+    },
+    {
+      "scenario": "tools",
+      "started_at": "2026-09-09T05:22:32.454367+00:00",
+      "ended_at": "2026-09-09T05:22:58.674972+00:00",
+      "host": "OpenClaw 2026.9.3 (1391f7c)",
+      "run_id": "7376629b-3769-4f4a-b5ac-d17bfeb6866e",
+      "verdict": "completed_successfully",
+      "accepted": [
+        {
+          "run_id": "7376629b-3769-4f4a-b5ac-d17bfeb6866e",
+          "decision": "inject",
+          "receipt_id": "receipt-9b7a1f1341b8c8b50ce7da096a9494e816b1b722d00902d967c70cc54107f00d",
+          "receipt_sha256": "9b7a1f1341b8c8b50ce7da096a9494e816b1b722d00902d967c70cc54107f00d",
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "context_byte_length": 58
+        }
+      ],
+      "deliveries": [
+        {
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "shown": 1
+        }
+      ],
+      "tools": {
+        "requested": 3,
+        "completed": 3,
+        "request_observations": 3,
+        "completion_observations": 3,
+        "errors": [],
+        "missing_completions": [],
+        "orphan_completions": [],
+        "uncorrelated_requests": 0,
+        "uncorrelated_completions": 0,
+        "duplicate_requests": [],
+        "duplicate_completions": [],
+        "conflicting_requests": [],
+        "conflicting_completions": [],
+        "coalesced_wrapper_calls": []
+      },
+      "assertions_passed": true,
+      "evidence_directory": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-mem0-live-o_3zuo8a/final-2026.9.3-tools",
+      "flight_sha256": "91a1e579ccdc316c038f5b56c64ace7b6845e74a6c5ef548dfde72e2977ef5ae"
+    },
+    {
+      "scenario": "tool-error",
+      "started_at": "2026-09-09T05:22:45.138064+00:00",
+      "ended_at": "2026-09-09T05:22:58.700499+00:00",
+      "host": "OpenClaw 2026.9.3 (1391f7c)",
+      "run_id": "c05d6a92-4e68-4c5e-85e7-bbbe817c2aa7",
+      "verdict": "completed_with_tool_errors",
+      "accepted": [
+        {
+          "run_id": "c05d6a92-4e68-4c5e-85e7-bbbe817c2aa7",
+          "decision": "inject",
+          "receipt_id": "receipt-ac55fe0c5c9eed2a8c79dd571577bc0097841d1dde0d4a9a2f76e25c091aa46f",
+          "receipt_sha256": "ac55fe0c5c9eed2a8c79dd571577bc0097841d1dde0d4a9a2f76e25c091aa46f",
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "context_byte_length": 58
+        }
+      ],
+      "deliveries": [
+        {
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "shown": 1
+        }
+      ],
+      "tools": {
+        "requested": 1,
+        "completed": 1,
+        "request_observations": 1,
+        "completion_observations": 1,
+        "errors": [
+          {
+            "tool_call_id": "toolu_01YVkyRAGKD82FCC3Ydnywwb",
+            "tool_name": "read",
+            "error_category": "tool_error"
+          }
+        ],
+        "missing_completions": [],
+        "orphan_completions": [],
+        "uncorrelated_requests": 0,
+        "uncorrelated_completions": 0,
+        "duplicate_requests": [],
+        "duplicate_completions": [],
+        "conflicting_requests": [],
+        "conflicting_completions": [],
+        "coalesced_wrapper_calls": []
+      },
+      "assertions_passed": true,
+      "evidence_directory": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-mem0-live-o_3zuo8a/final-2026.9.3-tool-error",
+      "flight_sha256": "0439674e402785896d70486910ec01fed6199f767e6995f17b6798273a9a5a48"
+    },
+    {
+      "scenario": "tools-missing",
+      "started_at": "2026-09-09T05:23:01.394825+00:00",
+      "ended_at": "2026-09-09T05:23:17.122462+00:00",
+      "host": "OpenClaw 2026.9.3 (1391f7c)",
+      "run_id": "b739585c-767a-4b83-b1a5-6f6bc30de952",
+      "verdict": "incomplete_evidence",
+      "accepted": [
+        {
+          "run_id": "b739585c-767a-4b83-b1a5-6f6bc30de952",
+          "decision": "inject",
+          "receipt_id": "receipt-c46420398b08c490c0e59e8e6eb828ee27917855d9130e5567326dbb91be07c7",
+          "receipt_sha256": "c46420398b08c490c0e59e8e6eb828ee27917855d9130e5567326dbb91be07c7",
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "context_byte_length": 58
+        }
+      ],
+      "deliveries": [
+        {
+          "context_sha256": "0e29bde0e9abebb77696a963fd53f76fa8f8ed511fda5a4639059b60e1aab3f1",
+          "shown": 1
+        }
+      ],
+      "tools": {
+        "requested": 2,
+        "completed": 0,
+        "request_observations": 2,
+        "completion_observations": 0,
+        "errors": [],
+        "missing_completions": [
+          "toolu_0146sNu1CCFhoE693SF3JSEX",
+          "toolu_015PeTZh7YQGgSeVBZr85L2u"
+        ],
+        "orphan_completions": [],
+        "uncorrelated_requests": 0,
+        "uncorrelated_completions": 0,
+        "duplicate_requests": [],
+        "duplicate_completions": [],
+        "conflicting_requests": [],
+        "conflicting_completions": [],
+        "coalesced_wrapper_calls": []
+      },
+      "assertions_passed": true,
+      "evidence_directory": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-mem0-live-o_3zuo8a/final-2026.9.3-tools-missing",
+      "flight_sha256": "737584665d57afa1e90cf494c13725a0d8acf1bc626179887c0dd383f084a714"
+    }
+  ]
+}

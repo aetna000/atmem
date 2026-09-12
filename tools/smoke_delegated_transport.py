@@ -33,7 +33,7 @@ EXACT = "Memory: Reviewed trip 🧠\r\nKeep these bytes.\n"
 
 
 @contextmanager
-def fixture(root: Path):
+def fixture(root: Path, *, provider_factory=None):
     root = root.resolve()
     os.environ["ATMEM_DELEGATED_CONFIG"] = str(root / "delegated.json")
     os.environ["ATMEM_CONTROL_STATE"] = str(root / "control.json")
@@ -50,7 +50,8 @@ def fixture(root: Path):
             if "withhold" in request.query:
                 return ProviderProposal.withhold()
             return ProviderProposal.inject([ContextItem("Reviewed trip 🧠\r\nKeep these bytes.", "fixture:trip")])
-    runtime = ProviderRuntime(provider=Provider(), identity=ProviderRuntimeIdentity("fixture-provider", "test", "local", "primary"),
+    provider = provider_factory(root, topology) if provider_factory else Provider()
+    runtime = ProviderRuntime(provider=provider, identity=ProviderRuntimeIdentity("fixture-provider", "test", "local", "primary"),
         private_key=load_private_key(root / "private.key"), adapter_kind="fixture")
     runtime.request_authenticator = RequestAuthenticator(root / "request-auth.json", root / "request-nonces.db")
     server = create_server(runtime, "127.0.0.1", 0)

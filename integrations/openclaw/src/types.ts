@@ -1,3 +1,4 @@
+import type { RunContextAccess, ToolEventSubscription } from "./tool-observations.js";
 /**
  * Minimal structural types for the OpenClaw plugin API surface this plugin
  * uses. Kept local (instead of importing "openclaw/plugin-sdk/core") so the
@@ -28,6 +29,21 @@ export interface OpenClawHookCtx {
    */
   sessionId?: string;
   senderIsOwner?: boolean;
+  /** Host-supplied origin/scope; required for isolated delegated CLI mapping. */
+  workspaceDir?: string;
+  messageProvider?: string;
+  channel?: string;
+  channelId?: string;
+  accountId?: string;
+  chatId?: string;
+  senderId?: string;
+  /** Some hosts expose the invocation ID on tool context only. */
+  toolCallId?: string;
+  /** Optional explicit host execution graph identities; never inferred. */
+  executionId?: string;
+  parentExecutionId?: string;
+  attemptId?: string;
+  retryOfAttemptId?: string;
   /** Exact governed task selected by the host. Never inferred by AtMem. */
   taskId?: string;
 }
@@ -175,6 +191,13 @@ export interface CliCommand {
 }
 
 export interface OpenClawPluginApi {
+  runContext?: RunContextAccess;
+  setRunContext?: RunContextAccess["setRunContext"];
+  getRunContext?: RunContextAccess["getRunContext"];
+  agent?: { events?: { registerAgentEventSubscription(subscription: ToolEventSubscription): void } };
+  registerAgentEventSubscription?: (subscription: ToolEventSubscription) => void;
+  /** Effective host configuration; only used to reject channels in isolated CLI mode. */
+  config?: Record<string, unknown>;
   pluginConfig?: Record<string, unknown>;
   logger: OpenClawLogger;
   registerCli?: (

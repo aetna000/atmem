@@ -1,6 +1,6 @@
 {
   "product": "memory_control_plane",
-  "version": "2.2.6",
+  "version": "2.3.0b1",
   "development_target": null,
   "release_status": "beta",
   "engine": "model_agnostic",
@@ -77,9 +77,20 @@
     "langgraph_langchain"
   ],
   "audit_search_and_export": "implemented",
-  "multimodal_bytes_stored": false,
+  "multimodal_bytes_stored": "encrypted_in_protected_evidence_vault_for_supported_capture_boundaries",
   "multimodal_text_observations": "implemented_quarantined_by_default",
   "agent_blackbox": "implemented_generic_contract_and_openclaw_hooks",
+  "durable_execution_evidence": {
+    "status": "beta",
+    "profile": "m0-investigation-v1",
+    "installed_adapter": "openclaw",
+    "default_enabled": false,
+    "bounded_spool": true,
+    "idempotent_replay": true,
+    "deterministic_findings": true,
+    "external_outcome_proof": false,
+    "measured_usability": false
+  },
   "multi_agent_scopes": [
     "shared",
     "isolated",
@@ -93,7 +104,24 @@
   "dashboard_memory_query": true,
   "dashboard_intelligence_settings": "collapsed",
   "dashboard_csrf_session_retry": 1,
-  "blackbox_raw_content_stored": false,
+  "blackbox_raw_content_stored": "encrypted_full_fidelity_by_default_when_recorder_is_configured",
+  "blackbox_capture_modes": [
+    "full",
+    "metadata",
+    "off"
+  ],
+  "blackbox_max_artifact_bytes": 104857600,
+  "evidence_access_levels": [
+    "viewer",
+    "investigator",
+    "evidence_collector"
+  ],
+  "plaintext_export_role": "evidence_collector",
+  "plaintext_export_streaming": {
+    "cli": true,
+    "http": false,
+    "mcp": false
+  },
   "blackbox_verifies": "timeline_integrity_and_observed_hook_closure",
   "blackbox_external_outcome_proof": false,
   "governed_task_state": {

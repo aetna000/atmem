@@ -23,7 +23,7 @@ For M0, 007 T110 delivers the non-task ExecutionIdentity subset of T088; use exi
 - **FR-007** → `atmem/execution/projection.py`: Build bounded scope-filtered execution projections across attempts/children, with cycle rejection, orphan references, cancellation, late completion and partial children explicit. Late evidence produces revised projections with provenance, not rewritten events.
 - **FR-008** → `atmem/adapters/base.py`: Keep investigation-only mode usable without native memory, embeddings, AtBot, task activation or context changes. Link optional context packages and task revisions when supplied by authenticated hosts.
 - **FR-009** → `atmem/service/executions.py`: Expose execution/timeline/coverage resources through the existing application service; authorize joins, counts, cursors and export as well as row content. Old flights remain inspectable and unlinked unless actual provenance establishes a job relationship.
-- **FR-010** → `atmem/execution/retention.py`: Use allocated persisted migrations and verified retention/deletion for spool and projections. Preserve content-minimizing Black Box payloads and existing verified-flight semantics; no new default transcript or chain-of-thought retention.
+- **FR-010** → `atmem/execution/retention.py`: Use allocated persisted migrations and verified retention/deletion for spool, full-fidelity evidence/artifacts and projections. New capture defaults to the standalone evidence profile; historical hash-only rows remain immutable and explicitly non-reconstructable.
 
 Shared router edits go through Spec 012; shared shell edits through Spec 022; canonical schema allocations through Spec 010; existing flight-store schema evolution through its current registry coordinated by Spec 020. Preserve existing task authority and reuse Spec 007 identities. Do not allocate duplicate public resource schemas in two feature packages.
 
@@ -37,7 +37,7 @@ Persist only state requiring durable authority/evidence or rebuildable projectio
 
 1. Freeze contracts and failure vectors; resolve ownership with prerequisite specs.
 2. Implement FR-001–FR-010 in requirement order, sharing baseline services. Commit contract/persistence primitives before adapter or UI consumers.
-3. Exercise SC-001–SC-004 through public boundaries, then applicable migration/privacy and installed-host gates.
+3. Exercise SC-001–SC-004 through public boundaries, then applicable migration, Spec 028 encryption/privilege and installed-host gates.
 4. Record exact versions, commands, measurements, gaps and activation/rollback guidance; enable only supported capabilities.
 
 ## Verification strategy
@@ -54,9 +54,9 @@ Primary boundary suite: `tests/test_execution_capture.py`. Add fixture-level gol
 | Principle | Planned enforcement |
 | --- | --- |
 | I — Authority before intelligence | Existing canonical admission remains exclusive; external proposals are checked; trusted delegation stays explicitly named. |
-| II — Provenance and exact evidence | Stable scoped references and digests; observed, inferred and independently verified are distinct. |
+| II — Provenance, full-fidelity evidence and replay | Persist exact ordered multimodal boundary content plus integrity digests; reconstruct from AtMem alone; distinguish reconstruction from re-execution. |
 | III — Safe defaults and reversibility | Non-influencing initial state, explicit activation, bounded failure and no silent replay. |
-| IV — Scope, privacy and deletion | Authorize joins/actions/exports; retain minimum evidence and verify controlled derivative deletion. |
+| IV — Scoped transparency and deletion | Full-fidelity capture is default; authorize disclosure/replay/export and audit access; verify deletion. |
 | V — Host neutrality | Extend shared contracts and service; preserve host checkpoints, tools and histories. |
 | VI — Executable claims | Boundary and installed-artifact evidence required; planned tests are not proofs. |
 | VII — Local operation and explicit egress | No required hosted model, no unapproved provider query, optional extras and deterministic explanation. |
@@ -69,7 +69,7 @@ Ship contracts and non-influencing inspection first. Negotiate capability per de
 
 ## M0 release profile
 
-[The M0 release slice](../m0-investigation-preview.md) defines independent OpenClaw investigation-only delivery and exact prerequisite tasks. It overrides full-feature sequencing for that profile only: shared non-task identity, capture and minimal findings in the existing dashboard can ship before task links, providers, other hosts or the new shell. Completing the slice does not complete broader requirements. Usability claims follow [the declared protocol](../usability-protocol.md).
+[The M0 release slice](../m0-investigation-preview.md) defines independent OpenClaw investigation-only delivery and exact prerequisite tasks. It overrides full-feature sequencing for that profile only: shared non-task identity and the evidence-specific Spec 022 destinations can ship before task links, providers, other hosts or the broader application shell. Completing the slice does not complete broader requirements. Usability claims follow [the declared protocol](../usability-protocol.md).
 
 Terminology and legacy projections follow the canonical mapping table in `specs/integration-ownership.md`; add one shared fixture set for unlinked flights, multi-flight executions, attention-to-finding reconciliation and receipt/package distinctions. Each owning boundary suite validates its projection; no UI-only verdict mapping is permitted.
 
@@ -78,3 +78,104 @@ Terminology and legacy projections follow the canonical mapping table in `specs/
 Implement FR-011 through `atmem/execution/projection.py`, consuming Spec 012 space/membership and feedback contracts, 019 context authorization, 020 time/identity evidence and the owner mappings in `specs/product-requirements.md`. Allocate persisted changes through Spec 010; retain legacy scope behavior and keep new private/shared space behavior explicit. Domain code owns facts and permissions; UI and transports project the same result.
 
 Add boundary fixtures in `tests/test_execution_capture.py` for SC-005, including positive/negative scope access, concurrent membership changes and real-versus-unknown verification time. Report unsupported host/provider coverage rather than infer it. Existing OpenClaw APIs are adapter compatibility surfaces, not required core fields. The relevant tasks below gate this requirement; broader future features do not block M0's scoped profile.
+
+## Standalone evidence-box architecture (FR-024–FR-031)
+
+This plan supersedes the earlier content-minimizing storage design for new
+captures. Keep legacy hash events immutable and classify them as incomplete.
+
+- Add a host-neutral ordered multimodal content-part contract under
+  `atmem/contracts/` for text, link/fetched resource, file, image, audio and
+  video. Use the same envelope shape at user, memory/context, decision, model,
+  tool and outcome boundaries.
+- Add a canonical evidence-envelope and artifact repository under
+  `atmem/evidence/`. Store bytes locally by default, link them transactionally
+  to immutable envelopes, and include them in backup/restore/export/import and
+  verified deletion. Hashes provide integrity and deduplication only.
+- Extend capture adapters so acknowledgement means both the event envelope and
+  referenced artifact bytes are durable. Spool unacknowledged content across
+  crashes; publish boundary-by-boundary completeness rather than one global
+  “recording enabled” flag.
+- Snapshot exact memory records/context and decision inputs/rules/results used
+  for each model call. Do not depend on a later query against mutable canonical
+  memory or an external provider to explain historical context.
+- Build reconstruction and replay-manifest services that read only the AtMem
+  evidence store. Reconstruction never calls the original host/provider. Replay
+  manifests are inert data; any real tool execution uses a separate authorized
+  service and creates a new linked execution.
+- Keep full-fidelity capture as the default profile. Metadata-only/off are
+  explicit degraded modes with durable operator decisions and visible
+  `not_reconstructable` capability state.
+- Add owner-visible artifact/envelope quotas, retention policy, capacity
+  reservation and backpressure. A controlled boundary does not proceed when its
+  required evidence cannot be made durable; post-boundary capture failure is an
+  explicit coverage failure. Never silently downgrade or prune.
+
+### Required verification
+
+`tests/test_standalone_evidence.py` owns the destructive dead-agent and bounded
+capacity/backpressure gates and
+exact content assertions. `tests/test_multimodal_evidence.py` owns byte-for-byte
+text/HTML/file/image/audio/video round trips. Adapter suites prove the exact
+boundaries they capture. Installed-artifact tests copy only the AtMem store into
+a clean environment after destroying fixture host state. UI/API/CLI/MCP tests
+assert the readable story and exact downloadable evidence, and reject generic
+counts, IDs or hashes as substitutes. Record storage growth and capture latency,
+but performance cannot waive evidence completeness.
+
+### Constitution alignment
+
+Principle II now requires standalone full-fidelity multimodal evidence and
+reconstruction; Principle IV makes scoped transparency the default and treats
+reduced capture as an explicit non-reconstructable mode. The earlier plan's
+“retain minimum evidence” and “no default transcript” statements are superseded.
+
+
+## Existing Black Box diagnostic fix (FR-012–FR-014)
+
+Extend the current OpenClaw completion hooks and correlated terminal-event cache
+with bounded redacted reasons and separate error digests. Permit the additional
+metadata in Black Box normalization and carry reasons into report error rows.
+Display reasons, honest legacy fallbacks and recovery guidance in both diagnosis
+rows and expanded timeline events. No event rewrite, storage migration, version
+bump, broader execution service implementation or automatic retry is required.
+
+Validate with Black Box persistence tests, the bridge hook integration suite,
+terminal-observation tests, dashboard diagnostic function tests, existing dashboard
+copy tests, and TypeScript build/typecheck. This is local source verification; a
+fresh real-host deployment is not established by these tests.
+
+### Progress-card equivalence implementation
+
+Add a narrow bridge result-comparison helper for the two inspected OpenClaw
+2026.9.1 progress-card shapes. Persist profile, shape and comparison digest beside
+the unchanged raw digest; project proven equivalence through the existing
+coalesced-call report. Reject unknown shapes and preserve historical conflicts.
+Use incident-hash reproduction, bridge-to-RPC integration and persisted negative
+fixtures; clarify successful duplicate wording in the dashboard. No migration,
+version bump, host package patch or historical evidence mutation is required.
+
+### Selective context and timing slice
+
+Reuse the calibrated `decide_retrieval` direct-support gate at automatic block
+selection, with an additive MCP flag and persona exclusion list. Default bridge
+persona and setup persona to disabled; preserve explicit opt-in and leave manual
+search available. Apply the user's local config to this selective policy. Retain
+current UTC microsecond storage; expose milliseconds locally without a storage
+migration. Extract only the recognized wrapped HTTP prefix and distinguish
+successful run completion from individual tool errors in Spec 022 presentation.
+
+### Release-candidate correctness hardening
+
+Validate producer timestamps and execution relationship dependencies in the
+shared normalization boundary before persistence. Keep legacy unsequenced event
+behavior readable. Treat accepted, replayed and durably classified conflicts as
+separate receipt outcomes; the OpenClaw spool may retire all three terminal
+outcomes without describing a conflict as accepted evidence. Keep host-specific
+run and result-equivalence conventions in an adapter profile.
+
+Publish the complete recording input schema, expose producer and ingest time in
+event detail, choose the legacy execution lookup only when no exact modern
+identity exists, index capture-gap events transactionally and use SQL aggregates
+for dashboard delivery counters. Verify these boundaries in the Python, MCP,
+dashboard and OpenClaw spool suites before refreshing installed artifacts.

@@ -29,7 +29,7 @@ from atmem.retrieve import (
     rank_records,
     token_overlap_components,
 )
-from atmem.retrieve.rank import RECENCY_WEIGHT, TEXT_WEIGHT, TRUST_WEIGHT
+from atmem.retrieve.rank import RECENCY_WEIGHT, TEXT_WEIGHT, TRUST_WEIGHT, decide_retrieval
 from atmem.store import SQLiteStore
 from atmem.store.sqlite import utc_now
 
@@ -2479,6 +2479,7 @@ class Memory:
         use_graph: bool | None = None,
         reference_mode: str = "full",
         exclude_record_ids: set[str] | None = None,
+        require_direct_support: bool = False,
     ) -> dict[str, Any]:
         """Deterministic, bounded <relevant_memories> block for prompt injection.
 
@@ -2501,13 +2502,15 @@ class Memory:
             use_graph=use_graph,
             _evidence=recall_evidence,
         )
+        decision = decide_retrieval(query, records) if require_direct_support else None
+        supported = set(decision.ranked_record_ids) if decision else None
         lines: list[str] = []
         included: list[str] = []
         used = 0
         for record in records:
             if len(included) >= max_records:
                 break
-            if record["id"] in excluded:
+            if record["id"] in excluded or (supported is not None and record["id"] not in supported):
                 continue
             reference = _prompt_reference(str(record["id"]), reference_mode)
             line = f"- {reference}{record['content']}"
@@ -2533,6 +2536,7 @@ class Memory:
             actor="system",
             session_id=session_id,
             payload={
+                "selection_profile": "direct-support-v1" if require_direct_support else "rank-threshold-v1",
                 "record_ids": included,
                 "reference_mode": reference_mode,
                 "block_sha256": _sha256(block),

@@ -1,0 +1,12 @@
+{
+  "format": "atmem-execution-identity-v1",
+  "scope": {
+    "format": "atmem-authority-scope-v1",
+    "subject_id": "subject-1",
+    "agent_id": "agent-1",
+    "workspace_id": "workspace-1"
+  },
+  "host": "generic",
+  "session_generation": "generation-without-session",
+  "task_id": "caller-invented-task"
+}

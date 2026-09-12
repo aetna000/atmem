@@ -1,18 +1,18 @@
 # Cross-Spec Integration Ownership
 
-This file resolves shared-surface ownership for Specs 001–025. The 2026-09-09 amendment below governs the unified product; see `specs/product-roadmap.md` for contract-first delivery order.
+This file resolves shared-surface ownership for Specs 001–028. The unified product roadmap governs contract-first delivery order.
 
 ## Invariant registry
 
 Invariant-bearing specs are governed by 018 FR-012 regardless of feature number; ranges in historical reviews are not an exclusion list. Ongoing verification belongs to per-feature append-only entries under `docs/implementation-evidence/NNN/`, following that journal's README. `docs/current-status.md` links to supported capability evidence; the dated implementation review is frozen history.
 
-The binding product-wide requirements are [PR-001–PR-006](product-requirements.md): agent neutrality, multiple agents, private/shared memory, governed providers, explanatory feedback and time provenance. They apply to every feature and advertised profile; M0 has an explicit narrower delivery scope, not an exception allowing host-specific core authority.
+The binding product-wide requirements are [PR-001–PR-008](product-requirements.md): agent neutrality, multiple agents, private/shared memory, governed providers, explanatory feedback, time provenance, standalone full-fidelity evidence, and encrypted privileged plaintext. They apply to every feature and advertised profile; M0 has an explicit narrower delivery scope, not an exception allowing host-specific core authority, hash-only evidence or plaintext storage.
 
 Spec 018 owns `atmem/invariants/`, the `INV-001`–`INV-011` registry, verdict semantics, the attestation loader, and the release gate. Feature specs own the assertions proving their own surfaces and declare an `## Invariant Attestation` section naming the invariant IDs they touch; they do not add, retitle, or narrow an invariant without the Spec 018 amendment record.
 
 ## Dashboard shell
 
-Spec 022 owns the target seven-section information architecture (Overview, Executions, Context, Connections, Policies, Tasks, Settings), route migration, accessibility and shared shell integration in `atmem/control/assets/`. `docs/dashboard-design-language.md` remains the visual reference. This explicitly supersedes Spec 007 FR-041's four-workspace constraint and future execution of T102; completed four-workspace tasks remain historical evidence. Spec 007 retains canonical task/focus semantics and scoped task view models. Feature views consume one authority projection: global attention, execution outcome, remediation and verification are separate labelled dimensions, not competing or conflated verdicts. Shell edits are serialized through Spec 022.
+Spec 022 owns the target information architecture (Runs, Memory, Decisions, Tools and media, Audit, Policies, Tasks, Connections, Settings), route migration, accessibility and shared shell integration in `atmem/control/assets/`. `docs/dashboard-design-language.md` remains the visual reference where it does not conflict with Spec 022's independent evidence-box amendment. This explicitly supersedes Spec 007 FR-041's four-workspace constraint, the earlier seven-section target, and future execution of T102; completed shell tasks remain historical evidence. Spec 007 retains canonical task/focus semantics and scoped task view models. Feature views consume one authority projection: global attention, execution outcome, remediation and verification are separate labelled dimensions, not competing or conflated verdicts. Shell edits are serialized through Spec 022.
 
 ## CLI shell
 
@@ -52,9 +52,24 @@ Spec 019 owns `atmem/context/` package/decision/provider/grant contracts and nat
 
 ## Execution and investigation (007, 020, 021)
 
-Spec 007 Amendment B owns `atmem/contracts/execution.py` baseline identity, task focus/links and `atmem/investigation/` locator. Spec 020 extends that same identity with job/attempt/parent/producer fields and owns `atmem/execution/` durable capture, coverage and execution projections. Existing `atmem/control/blackbox.py` remains the flight-verification foundation; event-contract additions are serialized through 020. Its control-store migrations use the existing control-store version sequence, coordinated with Spec 010 for any canonical references. Do not put execution authority in task memory or fabricate old associations.
+Spec 007 Amendment B owns `atmem/contracts/execution.py` baseline identity, task focus/links and `atmem/investigation/` locator. Spec 020 extends that same identity with job/attempt/parent/producer fields and exclusively owns the canonical standalone evidence envelope, original multimodal artifact store, durable capture, coverage, reconstruction input, and execution projections under `atmem/execution/` and `atmem/evidence/`. Hashes authenticate retained evidence but never replace the exact prompt, memory/context, decision, model, tool, result, error, URL, file, image, audio, or video evidence. Existing `atmem/control/blackbox.py` remains the flight-verification foundation; event-contract additions are serialized through 020. Its control-store migrations use the existing control-store version sequence, coordinated with Spec 010 for any canonical references. Do not put execution authority in task memory or fabricate old associations.
 
-Spec 021 owns `atmem/incidents/` findings, dependency-impact projections, explanation claims and resolution revisions. It consumes the existing locator and 020 evidence, with optional 019 context links. It never creates another task, flight or memory authority. Checkpoint ownership and external-effect verification stay with registered hosts/verifiers.
+Spec 021 owns `atmem/incidents/` findings, dependency-impact projections, explanation claims, store-only reconstruction, replay manifests, and resolution revisions. It consumes the existing locator and the exact retained evidence owned by 020, with optional 019 context links; it MUST remain usable from a copied AtMem store after the originating agent, host logs, workspace, provider, and model are unavailable. It never creates another task, flight, evidence, or memory authority. Checkpoint ownership and external-effect verification stay with registered hosts/verifiers.
+
+## Evidence encryption and privileged plaintext (028)
+
+Spec 028 owns the encrypted evidence-object/container format, data/key-encryption
+hierarchy, quantum-safe portable wrapping and manifests, lock/unlock, rotation,
+recovery, cryptographic deletion, Viewer/Investigator/Evidence Collector privileges and application-only
+decryption policy. Spec 020 owns the logical evidence envelope/artifact and calls
+028 persistence; 021 consumes authorized decrypted projections without receiving
+keys; 022 owns the shell while rendering 028's compact Evidence protection view
+model; 012 transports already-authorized application results without creating a
+second decrypt API. Evidence producers and host adapters submit observations but
+never obtain data keys. Spec 013 may integrate OS keychains/KMS/HSMs through 028's
+key-source interface and cannot redefine evidence privileges. Existing Spec 003
+HMAC/Ed25519 messages remain unchanged and are encrypted as evidence, not
+relabeled post-quantum.
 
 ## Application projections (012)
 
@@ -70,9 +85,17 @@ Spec 024 owns optional `atmem/fleet/` policy distribution and evidence anchoring
 
 Spec 025 owns the guided provider connection lifecycle, authentication experience, effective-access preview, conditional approval and first-delivery monitoring requirements. It extends existing registration authority through 019/003 and connectors through 004, uses 012 public services and 013 authenticated administration, and reuses 017 onboarding. Spec 022 integrates its top-level Connections destination; the prior six-section target is superseded by seven sections. Context retains source/package evidence, Policies retains governing rules, and Settings retains broader identity/deployment administration. Spec 024 adds optional federation/fleet distribution; no second credential authority or fleet prerequisite is introduced for local setup.
 
+## Temporal memory consolidation (026)
+
+Spec 026 owns `atmem/temporal/` assertion/derivation contracts and `atmem/consolidation/` cycle, health-finding and proposal orchestration. Spec 006 retains canonical admission/correction authority; 015 retains lifecycle transitions and invalidation; 008 retains retrieval-signal registration; 012 retains public service/feedback shapes; 022 owns the shared shell and places Memory Health inside Context. Spec 007 retains the common maintenance scheduler, through which 026 registers bounded jobs. AtBot implements replaceable semantic proposal capabilities only and cannot inspect an unrestricted scope or commit any change. Spec 023 supplies external propagation evidence required by the complete scheduled-consolidation claim.
+
+## Model influence revocation and unlearning (027)
+
+Spec 027 owns `atmem/unlearning/` assurance, forget-manifest, model/data-lineage, privileged-worker orchestration, evaluation, approval and deployment-binding semantics. It consumes 015/023 revocation and impact rather than redefining deletion; consumes 024 model/deployment inventory rather than creating a fleet registry; and consumes 020/021 evidence/findings without treating exposure as training causation. Spec 013 owns authenticated production administration and worker credentials. AtBot may propose bounded semantic expansions or evaluation attacks, but cannot authorize target scope, run training, score final assurance, approve or deploy a model. Heavy training frameworks remain outside the base installation in registered workers.
+
 ## Cross-product acceptance (001, 018)
 
-Spec 001 owns the reproducible cross-domain fixture campaign, including successful runs and 40-minute investigations and separated measurements. Specs 019–025 own their boundary tests; Spec 018 owns invariant registry and verdict semantics, including future assertion registration. No new invariant ID is allocated by this documentation amendment. Dependencies on 018 mean its existing registry, not completion of every future consumer test. New contracts can land before old features' integration amendments consume them; the roadmap must not be interpreted as a cyclic all-features prerequisite.
+Spec 001 owns the reproducible cross-domain fixture campaign, including successful runs and 40-minute investigations and separated measurements. Specs 019–027 own their boundary tests; Spec 018 owns invariant registry and verdict semantics, including future assertion registration. No new invariant ID is allocated by this documentation amendment. Dependencies on 018 mean its existing registry, not completion of every future consumer test. New contracts can land before old features' integration amendments consume them; the roadmap must not be interpreted as a cyclic all-features prerequisite.
 
 ## Canonical terminology and compatibility projections
 
@@ -94,7 +117,7 @@ Planning decomposes 012 FR-015 into T016–T032 and 013 FR-010 into T012–T025.
 
 Spec 012 owns the transport-neutral MemorySpace/SpaceMembership contract and persisted authenticated service, reusing the current scope authority with Spec 010 migration allocation. Spec 006 owns canonical admission/contributor provenance, 015 invalidation and 019 provider use/delivery authorization. Spec 022 renders private/shared membership and permission controls; 017/025 consume them in onboarding and connection access previews. Memory access, execution visibility and credential administration are independent grants. Existing scopes keep their behavior on upgrade.
 
-Spec 012 owns feedback serialization; each domain owns its state/reason/verification facts. Spec 020 owns event/receive time and ordering; Spec 021 owns finding effects and next-action advice; Spec 022 owns shared timestamp/timezone/freshness rendering. Spec 025 shows actual authentication checks and expiry. No client replaces missing timestamps with now, renews checks on refresh, infers authority from color or independently computes a conflicting verdict.
+Spec 012 owns feedback serialization; each domain owns its state/reason/verification facts. Spec 020 owns event/receive time and ordering; Spec 021 owns finding effects and next-action advice; Spec 022 owns shared timestamp/timezone/freshness rendering. Spec 025 shows actual authentication checks and expiry. Spec 026 owns world-validity/derivation evaluation time while preserving source/receive time; Spec 027 owns unlearning job, evaluation, approval and deployment-check times. No client replaces missing timestamps with now, renews checks on refresh, infers authority from color or independently computes a conflicting verdict.
 
 ## Public host conformance
 

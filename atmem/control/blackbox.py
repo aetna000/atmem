@@ -18,6 +18,7 @@ import re
 from typing import Any, Mapping
 
 from atmem.core.canonical import canonical_json, sha256_hex
+from atmem.adapters.evidence_profiles import equivalent_result_profile, run_kind
 from atmem.control.evidence import validate_task_evidence_payload
 from atmem.store.sqlite import utc_now
 
@@ -28,6 +29,9 @@ EVIDENCE_KIND = "agent_blackbox"
 OPEN_FLIGHT_GRACE_SECONDS = 15 * 60
 
 _EVENT_TYPE = re.compile(r"^[a-z][a-z0-9_.-]{1,63}$")
+_UTC_EVENT_TIME = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,}(?:Z)$"
+)
 _DIGEST_KEYS = {
     "prompt_sha256",
     "system_sha256",
@@ -35,6 +39,8 @@ _DIGEST_KEYS = {
     "context_sha256",
     "params_sha256",
     "result_sha256",
+    "result_comparison_sha256",
+    "error_sha256",
     "response_sha256",
     "messages_sha256",
     "assistant_visible_text_sha256",
@@ -50,6 +56,9 @@ _DIGEST_KEYS = {
     "task_decision_sha256",
 }
 _TEXT_KEYS = {
+    "context_selection_profile",
+    "result_comparison_profile",
+    "result_observation_shape",
     "provider",
     "model",
     "resolved_ref",
@@ -61,6 +70,7 @@ _TEXT_KEYS = {
     "tool_kind",
     "outcome",
     "error_category",
+    "error_reason",
     "failure_kind",
     "reason",
     "disposition",
@@ -79,6 +89,8 @@ _TEXT_KEYS = {
     "retrieval_calibration_version",
 }
 _COUNT_KEYS = {
+    "persona_record_count",
+    "recall_record_count",
     "prompt_chars",
     "system_chars",
     "history_count",
@@ -97,8 +109,11 @@ _COUNT_KEYS = {
     "task_base_revision",
     "task_resulting_revision",
     "candidates_considered",
+    "dropped_count",
+    "first_sequence",
+    "last_sequence",
 }
-_BOOL_KEYS = {"fast_mode", "cancelled", "success", "task_guard_enforced"}
+_BOOL_KEYS = {"fast_mode", "cancelled", "success", "task_guard_enforced", "result_present"}
 _LIST_KEYS = {
     "candidate_ids",
     "param_keys",
@@ -136,6 +151,15 @@ def normalize_event(
     agent_id: str | None = None,
     workspace_id: str | None = None,
     subject_id: str | None = None,
+    event_id: str | None = None,
+    producer_instance_id: str | None = None,
+    producer_epoch: str | None = None,
+    producer_sequence: int | None = None,
+    event_time: str | None = None,
+    execution_id: str | None = None,
+    parent_execution_id: str | None = None,
+    attempt_id: str | None = None,
+    retry_of_attempt_id: str | None = None,
 ) -> dict[str, Any]:
     """Validate a host event and return the canonical stored envelope."""
 
@@ -145,6 +169,37 @@ def normalize_event(
     run = run_id.strip()
     if not run or len(run) > 512:
         raise ValueError("blackbox run_id is required and must be at most 512 characters")
+    received_at = utc_now()
+    if producer_sequence is not None and (
+        isinstance(producer_sequence, bool) or int(producer_sequence) < 1
+    ):
+        raise ValueError("producer_sequence must be a positive integer")
+    if any(value is not None for value in (producer_instance_id, producer_epoch, producer_sequence)):
+        if not all(value is not None for value in (producer_instance_id, producer_epoch, producer_sequence)):
+            raise ValueError("producer instance, epoch and sequence must be supplied together")
+        if not str(event_id or "").strip():
+            raise ValueError("event_id is required for producer-sequenced delivery")
+        if event_time is None:
+            raise ValueError("event_time is required for producer-sequenced delivery")
+    if event_time is not None:
+        timestamp = str(event_time).strip()
+        if not _UTC_EVENT_TIME.fullmatch(timestamp):
+            raise ValueError(
+                "event_time must be ISO 8601 UTC with at least millisecond precision"
+            )
+        try:
+            parsed_time = datetime.fromisoformat(timestamp[:-1] + "+00:00")
+        except ValueError as exc:
+            raise ValueError(
+                "event_time must be ISO 8601 UTC with at least millisecond precision"
+            ) from exc
+        if parsed_time.utcoffset() != timezone.utc.utcoffset(parsed_time):
+            raise ValueError("event_time must use UTC")
+        event_time = timestamp
+    if parent_execution_id is not None and execution_id is None:
+        raise ValueError("parent_execution_id requires execution_id")
+    if retry_of_attempt_id is not None and attempt_id is None:
+        raise ValueError("retry_of_attempt_id requires attempt_id")
     return {
         "format": EVENT_FORMAT,
         "migration_id": migration_id,
@@ -154,6 +209,14 @@ def normalize_event(
         "agent_id": _bounded_optional(agent_id, 256),
         "workspace_id": _bounded_optional(workspace_id, 256),
         "subject_id": _bounded_optional(subject_id, 512),
+        "event_id": _bounded_optional(event_id, 512),
+        "producer_instance_id": _bounded_optional(producer_instance_id, 512),
+        "producer_epoch": _bounded_optional(producer_epoch, 512),
+        "producer_sequence": int(producer_sequence) if producer_sequence is not None else None,
+        "execution_id": _bounded_optional(execution_id, 512),
+        "parent_execution_id": _bounded_optional(parent_execution_id, 512),
+        "attempt_id": _bounded_optional(attempt_id, 512),
+        "retry_of_attempt_id": _bounded_optional(retry_of_attempt_id, 512),
         "session_id": _bounded_optional(session_id, 512),
         "tool_call_id": _bounded_optional(tool_call_id, 512),
         "turn_id": _bounded_optional(turn_id, 512),
@@ -161,7 +224,8 @@ def normalize_event(
         "context_event_id": _bounded_optional(context_event_id, 512),
         "context_receipt_id": _bounded_optional(context_receipt_id, 512),
         "outcome_id": _bounded_optional(outcome_id, 512),
-        "recorded_at": utc_now(),
+        "recorded_at": _bounded_optional(event_time, 64) or received_at,
+        "received_at": received_at,
         "payload": _normalize_payload(payload or {}),
         "content_storage": "digests-and-bounded-metadata-only",
     }
@@ -274,10 +338,32 @@ def verify_flight(
                 tool_errors.append(
                     {
                         "tool_call_id": call_id or None,
-                        "tool_name": payload.get("tool_name"),
+                        "tool_name": payload.get("tool_canonical_name")
+                        or payload.get("tool_name"),
                         "error_category": payload.get("error_category"),
+                        "error_reason": payload.get("error_reason"),
+                        "duration_ms": payload.get("duration_ms"),
+                        "completion_sequence": entry.get("sequence"),
                     }
                 )
+
+    # Join each failure to its request so the report can identify the attempted
+    # call without retaining raw parameter values.
+    for error in tool_errors:
+        call_id = str(error.get("tool_call_id") or "")
+        request_entry = (requested.get(call_id) or [None])[0]
+        if not request_entry:
+            continue
+        request_body = request_entry.get("body") or {}
+        request_payload = request_body.get("payload") or {}
+        error["tool_name"] = (
+            request_payload.get("tool_canonical_name")
+            or request_payload.get("tool_name")
+            or error.get("tool_name")
+        )
+        error["request_sequence"] = request_entry.get("sequence")
+        error["param_keys"] = list(request_payload.get("param_keys") or [])
+        error["params_sha256"] = request_payload.get("params_sha256")
 
     missing_completions = sorted(set(requested) - set(completed))
     orphan_completions = sorted(set(completed) - set(requested))
@@ -303,6 +389,30 @@ def verify_flight(
         for call_id in conflicting_completions
         if call_id not in coalesced_call_ids
     ]
+    # A repeated invocation ID is not sufficient proof of closure. Host scope,
+    # turn, tool and observation ordering must also agree. Apply this after
+    # wrapper coalescing so wrappers cannot erase a cross-scope conflict.
+    def same_invocation(request: dict[str, Any], completion: dict[str, Any]) -> bool:
+        before, after = request["body"], completion["body"]
+        before_payload, after_payload = before.get("payload") or {}, after.get("payload") or {}
+        return bool(
+            all(before.get(field) == after.get(field) for field in (
+                "turn_id", "session_id", "agent_id", "workspace_id", "subject_id",
+            ))
+            and (before_payload.get("tool_canonical_name") or before_payload.get("tool_name"))
+            == (after_payload.get("tool_canonical_name") or after_payload.get("tool_name"))
+            and int(request.get("sequence") or 0) < int(completion.get("sequence") or 0)
+        )
+
+    for call_id in set(requested) & set(completed):
+        if (
+            any(not any(same_invocation(request, completion) for request in requested[call_id])
+                for completion in completed[call_id])
+            or any(not any(same_invocation(request, completion) for completion in completed[call_id])
+                   for request in requested[call_id])
+        ):
+            conflicting_completions.append(call_id)
+    conflicting_completions = sorted(set(conflicting_completions))
     event_types = [str(entry["body"].get("event_type") or "") for entry in selected]
     turn_input = "turn.input" in event_types
     terminal = "turn.ended" in event_types
@@ -628,6 +738,11 @@ def verify_flight(
         ),
         "raw_content_stored": False,
     }
+    report_body["run_kind"] = run_kind(
+        host=str(selected[0]["body"].get("host") or ""),
+        run_id=run_id,
+        session_id=report_body["session_id"],
+    )
     report_body["attention_points"] = flight_attention(report_body)
     return {
         **report_body,
@@ -704,6 +819,21 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
             "Inspect the evidence store before trusting this run.",
         )
 
+    capture_gaps = [
+        event for event in report.get("timeline") or []
+        if event.get("event_type") == "capture.gap"
+    ]
+    if capture_gaps:
+        payload = capture_gaps[-1].get("payload") or {}
+        add(
+            "completion",
+            "high",
+            "capture_loss",
+            "Execution evidence was lost before delivery",
+            f"The adapter reported {payload.get('dropped_count') or 'some'} dropped event(s) because {str(payload.get('reason') or 'capture was interrupted').replace('_', ' ')}.",
+            "Inspect host logs and the producer sequence range; missing historical events cannot be reconstructed by an upgrade.",
+        )
+
     legacy_flight = bool((report.get("compatibility") or {}).get("legacy_flight"))
     if legacy_flight:
         add(
@@ -753,8 +883,9 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
             "completion",
             "medium",
             "recording_stopped",
-            "Run has not reported a final result",
+            "Background review completion not recorded" if report.get("run_kind") == "background_skill_review" else "Run completion not recorded",
             observed
+            + (" This is a separate OpenClaw background review, not the foreground conversation." if report.get("run_kind") == "background_skill_review" else " Model output and run completion are separate observations.")
             + " The run may still be active; no tool failure, ending, or external change is proven.",
             "Check whether the host run is still active, then review this recording gap if it has stopped.",
         )
@@ -815,9 +946,9 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
     ):
         add(
             "tools",
-            "high",
+            "medium",
             "tool_lifecycle_mismatch",
-            "AtMem could not prove one or more tool calls closed correctly",
+            "Run completed · tool evidence needs review" if (report.get("lifecycle") or {}).get("success") else "Tool completion evidence needs review",
             _tool_lifecycle_detail(report),
             "Open the named call below and compare its request with its completion. Acknowledge it only after deciding whether this was an agent failure or an observation gap.",
         )
@@ -830,13 +961,21 @@ def flight_attention(report: Mapping[str, Any]) -> list[dict[str, str]]:
                 if isinstance(item, Mapping)
             }
         )
+        summaries = []
+        for item in tool_errors[:3]:
+            name = str(item.get("tool_name") or "unknown tool")
+            call_id = str(item.get("tool_call_id") or "unidentified call")
+            keys = [str(key) for key in item.get("param_keys") or []]
+            inputs = ", ".join(keys) if keys else "no input field names recorded"
+            reason = str(item.get("error_reason") or item.get("error_category") or "unknown reason")
+            summaries.append(f"{name} · call {call_id} · inputs: {inputs} · {reason}")
         add(
             "tools",
             "medium",
             "tool_errors",
-            "A tool returned an error",
-            f"{len(tool_errors)} error(s): " + ", ".join(names[:3]),
-            "Inspect the tool error category, credentials, and input assumptions.",
+            f"{names[0]} failed" if len(names) == 1 else f"{len(tool_errors)} tool calls failed",
+            "\n".join(summaries),
+            "Inspect the named call, its safe input-field summary, and the redacted error before deciding whether to retry.",
         )
 
     context = report.get("context") or {}
@@ -1009,6 +1148,29 @@ def _coalesced_wrapper_calls(
             str(payload.get("tool_name") or canonical_name)
             for payload in completion_payloads
         }
+        hosts = {
+            str(entry["body"].get("host") or "")
+            for entry in [*request_entries, *completion_entries]
+        }
+        comparison_profile = (
+            equivalent_result_profile(
+                host=next(iter(hosts)),
+                canonical_name=canonical_name,
+                request_payloads=request_payloads,
+                completion_payloads=completion_payloads,
+            )
+            if len(hosts) == 1
+            else None
+        )
+        if comparison_profile:
+            coalesced.append({
+                "tool_call_id": call_id, "tool_name": canonical_name,
+                "observed_names": [canonical_name],
+                "request_observations": len(request_entries),
+                "completion_observations": 2, "outcome": "completed",
+                "comparison_profile": comparison_profile,
+            })
+            continue
         if (
             len(request_names) < 2
             or len(completion_names) < 2
