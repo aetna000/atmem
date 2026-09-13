@@ -250,6 +250,42 @@ def test_plaintext_control_store_migrates_atomically_to_application_encrypted_co
         inferred.close()
 
 
+def test_cross_runtime_sql_dump_round_trips_inside_encrypted_container(
+    tmp_path: Path,
+) -> None:
+    key = bytes(range(32))
+    path = tmp_path / "evidence.db"
+    store = ControlStore(path, encryption_key=key)
+    try:
+        store.create_migration("fallback", "generic", "SECRET-SUBJECT")
+        store.append_evidence(
+            "fallback",
+            kind="agent_blackbox",
+            body={
+                "format": "fixture-v1",
+                "run_id": "SECRET-RUN",
+                "tool": "SECRET-TOOL",
+            },
+        )
+    finally:
+        store.close()
+
+    raw = path.read_bytes()
+    assert raw.startswith(ENCRYPTED_CONTROL_MAGIC)
+    assert b"SECRET-SUBJECT" not in raw
+    assert b"SECRET-RUN" not in raw
+    restored = ControlStore(path, encryption_key=key)
+    try:
+        evidence = restored.list_evidence("fallback", kind="agent_blackbox")
+        assert evidence[0]["body"] == {
+            "format": "fixture-v1",
+            "run_id": "SECRET-RUN",
+            "tool": "SECRET-TOOL",
+        }
+    finally:
+        restored.close()
+
+
 def test_data_off_retains_encrypted_metadata_and_recorder_off_stores_nothing(tmp_path: Path) -> None:
     manager = _manager(tmp_path)
     service = manager.evidence_service()

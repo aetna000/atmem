@@ -1,9 +1,9 @@
 # Current status
 
-**Release line:** AtMem `2.3.1`, OpenClaw bridge `2.3.1`, AtBot
+**Release line:** AtMem `2.3.2`, OpenClaw bridge `2.3.2`, AtBot
 `0.1.0`.
 
-AtMem 2.3.1 is the stable local encrypted Agent Black Box and governed-memory
+AtMem 2.3.2 is the stable local encrypted Agent Black Box and governed-memory
 release. The package records exact host-observed text, URLs, tool arguments and
 results plus supported image, audio, video and document bytes when capture mode is
 `full`. New installations use full capture by default. Operators may deliberately
@@ -42,13 +42,13 @@ receipt is attached. Missing host hooks remain evidence gaps, not inferred succe
 or failure. Existing historical hash-only or metadata-only records cannot be made
 full fidelity retroactively.
 
-The 2.3.1 home is a local, single-writer design. It does not implement cloud sync,
+The 2.3.2 home is a local, single-writer design. It does not implement cloud sync,
 concurrent multi-primary replication or automatic conflict merging. The artifact
 vault streams and deduplicates content, but release tests use bounded fixtures rather
 than physically allocating a 10 GiB sample. Post-quantum recipient export is
 available only when its optional cryptographic backend is installed; local
 at-rest payload encryption remains the documented authenticated symmetric profile.
 
-See the [2.3.1 release notes](releases/v2.3.1.md) for upgrade and migration commands,
+See the [2.3.2 release notes](releases/v2.3.2.md) for upgrade and migration commands,
 and the [implementation evidence index](implementation-evidence/README.md) for the
 recorded gates.

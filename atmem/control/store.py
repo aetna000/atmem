@@ -20,6 +20,7 @@ from atmem.store.sqlite import utc_now
 
 SCHEMA_VERSION = 6
 ENCRYPTED_CONTROL_MAGIC = b"ATMEM-CONTROL-DB-V1\n"
+ENCRYPTED_SQL_DUMP_MAGIC = b"ATMEM-SQL-DUMP-V1\n"
 
 
 def _portable_sqlite_image(value: bytes) -> bytes:
@@ -31,6 +32,40 @@ def _portable_sqlite_image(value: bytes) -> bytes:
         mutable[19] = 1
         return bytes(mutable)
     return value
+
+
+def _serialize_connection(connection: sqlite3.Connection) -> bytes:
+    """Serialize to the cross-runtime format without plaintext on disk.
+
+    Python 3.10 does not expose sqlite3_serialize/sqlite3_deserialize, so all
+    supported runtimes persist the deterministic SQL form.  This prevents a
+    newer Python process from silently rewriting a shared home into a format
+    that an older supported process cannot reopen.
+    """
+
+    return _serialize_connection_as_sql_dump(connection)
+
+
+def _serialize_connection_as_sql_dump(connection: sqlite3.Connection) -> bytes:
+    """Python 3.10-compatible in-memory representation for encrypted storage."""
+
+    dump = "\n".join(connection.iterdump()).encode("utf-8")
+    return ENCRYPTED_SQL_DUMP_MAGIC + dump
+
+
+def _restore_connection(connection: sqlite3.Connection, serialized: bytes) -> None:
+    if serialized.startswith(ENCRYPTED_SQL_DUMP_MAGIC):
+        connection.executescript(
+            serialized[len(ENCRYPTED_SQL_DUMP_MAGIC):].decode("utf-8")
+        )
+        return
+    deserialize = getattr(connection, "deserialize", None)
+    if not callable(deserialize):
+        raise RuntimeError(
+            "this Python runtime cannot restore the encrypted SQLite image; "
+            "open and migrate it with Python 3.11 or newer"
+        )
+    deserialize(_portable_sqlite_image(serialized))
 
 
 def reencrypt_control_container(path: str | Path, old_key: bytes, new_key: bytes) -> bool:
@@ -110,7 +145,7 @@ class ControlStore:
                     serialized = AESGCM(self._encryption_key).decrypt(
                         nonce, ciphertext, ENCRYPTED_CONTROL_MAGIC
                     )
-                    self._conn.deserialize(_portable_sqlite_image(serialized))
+                    _restore_connection(self._conn, serialized)
                 elif raw:
                     source = connect(self.path, policy=self.policy)
                     try:
@@ -134,7 +169,7 @@ class ControlStore:
     def _persist_encrypted(self) -> None:
         if self._encryption_key is None:
             return
-        serialized = _portable_sqlite_image(self._conn.serialize())
+        serialized = _serialize_connection(self._conn)
         nonce = os.urandom(12)
         ciphertext = AESGCM(self._encryption_key).encrypt(
             nonce, serialized, ENCRYPTED_CONTROL_MAGIC
