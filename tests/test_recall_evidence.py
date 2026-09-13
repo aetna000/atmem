@@ -150,3 +150,32 @@ def test_automatic_context_requires_direct_support_not_relative_rank() -> None:
     assert memory.build_recall_block('u1', 'favorite color', require_direct_support=True,
         exclude_record_ids={relevant['id']})['record_ids'] == []
     memory.close()
+
+
+def test_broad_request_can_recall_an_explicitly_named_profile_fact() -> None:
+    memory = Memory(':memory:', recall_candidate_limit=4)
+    age = memory.remember(
+        'u1',
+        'I am 45 years old.',
+        interpreted_fact='JT is 45 years old.',
+        interpreted_fact_key='user_age',
+    )['records'][0]
+    # Fill the bounded recent window and add words that produce unrelated FTS
+    # matches. The structured profile key must remain a candidate.
+    for index, content in enumerate((
+        'Find ingredients for a recipe.',
+        'A good response is concise.',
+        'Shopping lists can be useful.',
+        'The city center is busy.',
+    )):
+        memory.remember('u1', content, interpreted_fact=content,
+                        interpreted_fact_key=f'noise_{index}')
+
+    result = memory.build_recall_block(
+        'u1', 'for my age find a good shoping center',
+        min_score=0.3, require_direct_support=True,
+    )
+
+    assert result['record_ids'] == [age['id']]
+    assert '45 years old' in result['block']
+    memory.close()

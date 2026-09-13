@@ -1,7 +1,9 @@
 # AtMem release roadmap
 
-**Status**: Proposed release sequence; versions below are planning targets, not published releases or delivery-date commitments.
-**Working baseline**: AtMem `2.3.0b1`, OpenClaw bridge `2.3.0-beta.1`, companion pin `atmem-atbot==0.1.0a6`. This identifies the current source candidate, not verified package or tag availability; the exact release commit is recorded only after review and clean release gates.
+**Status**: 2.3.0 baseline plus proposed future sequence; future versions are
+planning targets, not delivery-date commitments.
+**Working baseline**: AtMem `2.3.0`, OpenClaw bridge `2.3.0`, companion pin
+`atmem-atbot==0.1.0a6`.
 
 AtMem is an agent-neutral, standalone encrypted evidence authority for memory, context governance and execution investigation. Every release follows [PR-001–PR-008](../specs/product-requirements.md), including default full-fidelity multimodal capture, application-only privileged plaintext and store-only reconstruction after the agent and its logs are gone. Advertise only the host, provider, capture-boundary, cryptographic and deployment profiles actually verified for that release.
 
@@ -10,8 +12,7 @@ AtMem is an agent-neutral, standalone encrypted evidence authority for memory, c
 | Proposed AtMem version | Work group | Customer value and included scope | Primary specs | Readiness boundary |
 | --- | --- | --- | --- | --- |
 | **2.2.6** — optional maintenance | Baseline maintenance | Stabilize already implemented 2.2 capabilities, including delegated host identity/lifecycle fixes and compatibility checks; publish accurate installation/upgrade guidance | Existing runtime; 003 T049–T053; applicable regression gates | Spec 003 host compatibility work is assigned to 2.2.6; unresolved host profiles remain explicitly blocked/unverified. No claim that the new roadmap capabilities are delivered. This maintenance release is optional and does not block 2.3 development. |
-| **2.3.0b1** — standalone encrypted evidence-box preview | M0 | Reconstruct an exact multimodal agent run from encrypted AtMem storage alone through authorized application access; stolen storage reveals no session data | 007 identity subset; 020 FR-024–FR-031; 021 FR-012–FR-015; 022 FR-019–FR-022; 028 FR-001–FR-017 | Default encrypted full-fidelity capture, Viewer/Investigator/Evidence Collector hierarchy, Collector-only plaintext export, application-only plaintext, quantum-safe portable protection, bounded capacity/backpressure and destructive stolen-store/dead-agent gates pass on installed artifacts. |
-| **2.3.0** — evidence-box stabilization and host extensibility | M0 stabilization + M2 extensibility | Stabilize encrypted standalone reconstruction, verify additional multimodal host profiles and publish the runnable Host Conformance Kit with exact capture-boundary manifests | Scoped 011, 020, 021, 022 and 028 | At least two distinct real host profiles for cross-framework claims; byte-exact multimodal artifact round trips; stolen-store secrecy and privilege gates; independently installable kit; explicit full/partial/missing boundary coverage. |
+| **2.3.0** — stable standalone encrypted evidence box | M0 | Reconstruct exact host-observed text and supported multimodal agent evidence from one portable encrypted AtMem Home; govern memory/context exposure with four local roles | 020, 021, 022, 028, 029, 030; scoped 003/007 | OpenClaw is the verified installed full-fidelity host profile. Pydantic AI and LangChain/LangGraph have governed native/delegated context delivery, not the full OpenClaw multimodal capture claim. Viewer is content-free; Investigator reconstructs; Evidence Collector exports; Administrator manages the installation. |
 | **2.4.0** — multi-agent memory and access foundations | M1 | Agents use private and explicitly shared spaces with separate read/write/admin permissions, ownership, membership changes and provenance. Establish durable authenticated administration for supported production profiles | 006, 010, 012, 013, 015, applicable 017/019/022 consumers | Membership and credential subsystems pass their decomposed gates; no cross-space leaks, stale-grant delivery or revoked-key resurrection. Local use remains lightweight; broader enterprise/federation claims remain scoped. |
 | **2.5.0** — governed provider connections | M1 | Native memory and external memory/knowledge share inspection and policy services; provider setup supports access preview, conditional approval, explicit activation and first-delivery monitoring. Complete the nine-destination workspace: Runs, Memory, Decisions, Tools and media, Audit, Policies, Tasks, Connections and Settings | 019, 022, 025, relevant 003/004/017 | Native plus one real external provider and declared authentication profiles pass. Preserve all three authority modes, exact delegated bytes and actual credential/delivery assurance. No claim of every authentication method or connector working. |
 | **2.6.0** — investigation and resolution | M1 | Evidence-backed affected-work views, richer task/execution links, incident assignment and separate acknowledgment, remediation and outcome verification | Remaining applicable 007, 020, 021 and 022 | Impact follows declared dependencies; unknown outcomes stay unknown. Any executable action requires its host checkpoint, authorization, idempotency and verification prerequisites; otherwise offer inspection/manual guidance. |
@@ -45,18 +46,13 @@ host boundary must be documented as blocked/unverified with the exact limitation
 not counted as a passing fix. Apply the normal regression/artifact release gates
 to the final implemented changes before publication.
 
-## Immediate next release: 2.3.0b1
+## Immediate next release: 2.4.0
 
-Implement [M0](../specs/m0-investigation-preview.md) before publishing the next feature version:
-
-1. **020 T042–T048 + T051 plus Spec 028 planning/tasks** — versioned full-fidelity multimodal envelopes, encrypted canonical artifact storage, exact memory/decision/model/tool capture, reconstruction, replay manifests, explicit degraded modes, privilege/key contracts and bounded local capacity/backpressure.
-2. **021 T025–T027 + 022 T026–T028** — standalone exact diagnosis and UI rendering that names and shows the prompt, call, arguments/target, result/error and original media instead of counts or hashes.
-3. **020 T049–T053 + 021 T028 + 022 T029 + Spec 028 acceptance** — stolen-store secrecy, privilege matrix, rotation/recovery, destructive dead-agent/store-only reconstruction, byte-exact multimodal, quota/backpressure, API/CLI/MCP/browser, installed-artifact and release-documentation gates.
-4. Publish only after the copied AtMem store independently answers the complete run story with the agent, logs, workspace, provider/memory sources and network absent.
-
-OpenClaw is the initial installed capture profile; core contracts and store-only reconstruction tests run without it. Record every uncaptured or metadata-only boundary as non-reconstructable. Private/shared-memory administration, external-provider setup and fleet remain outside this preview, but exact memory/context evidence used by a captured run is inside it.
-
-**021 T024** owns the independent [two-cohort usability protocol](../specs/usability-protocol.md). It gates advertised measured usability, not the engineering preview. Later beta candidates (`2.3.0b2`, etc.) address observed failures and stabilize the chosen scope before `2.3.0`; they do not automatically accumulate the 2.4–2.8 backlog.
+Build the authenticated shared/private multi-agent space and membership foundation
+described in Specs 006, 010, 012, 013 and 015. Preserve 2.3.0 evidence encryption,
+portable-home recovery, local roles and exact capture contracts. Do not broaden
+cross-host multimodal claims until an additional real host passes the published
+capture conformance profile.
 
 ## Critical prerequisites for the subsequent releases
 
@@ -70,7 +66,10 @@ OpenClaw is the initial installed capture profile; core contracts and store-only
 
 These are proposed additive 2.x releases. Preserve public contracts, native behavior, existing scopes, signed delegated payloads and historical evidence through declared supported upgrades. If implementation requires a genuinely incompatible public or persisted-state change, resolve migration/deprecation and reconsider a major version before committing to these numbers.
 
-Use prerelease candidates as needed for each scope. Python `2.3.0b1` maps to an aligned bridge version such as `2.3.0-beta.1`; stable `2.3.0` maps to `2.3.0`. AtBot has an independent version and changes only when its implementation/compatibility requires it; do not invent a companion version to mirror AtMem. Every release must align the actual installer constants and compatibility pins.
+Use prerelease candidates as needed for future scope. Stable AtMem `2.3.0` maps
+exactly to bridge `2.3.0`. AtBot has an independent version and changes only when
+its implementation/compatibility requires it; do not invent a companion version
+to mirror AtMem. Every release must align actual installer constants and pins.
 
 Merging reviewed source/specs to `main` and publishing a package are separate decisions. For each actual release: inspect the full candidate diff, run applicable Python/companion/OpenClaw/build/installed-artifact gates, write version-specific release notes with exact upgrade instructions, and tag only the reviewed clean commit. Follow repository release rules for companion-first publication when needed, package workflows and verification of GitHub/PyPI/npm outputs. A pushed tag is not proof of publication.
 

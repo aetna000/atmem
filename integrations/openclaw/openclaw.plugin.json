@@ -2,7 +2,7 @@
   "id": "memory-atmem",
   "name": "Memory (atmem)",
   "description": "OpenClaw bridge installed and managed by the AtMem memory control plane.",
-  "version": "2.3.0-beta.1",
+  "version": "2.3.0",
   "commandAliases": ["memory-atmem"],
   "activation": {
     "onStartup": true,
@@ -37,7 +37,7 @@
       },
       "dbPath": {
         "type": "string",
-        "default": "~/.atmem/memories.db",
+        "default": "~/.atmem/memory/memories.db",
         "description": "SQLite database path (also auditable from outside OpenClaw via `atmem verify`)"
       },
       "subject": {
@@ -129,7 +129,7 @@
           },
           "statePath": {
             "type": "string",
-            "default": "~/.atmem/control-plane.json",
+            "default": "~/.atmem/config/control-plane.json",
             "description": "Digest-bound control file written by `atmem control`."
           },
           "blackboxEnabled": {

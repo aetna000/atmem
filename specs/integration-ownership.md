@@ -71,6 +71,16 @@ key-source interface and cannot redefine evidence privileges. Existing Spec 003
 HMAC/Ed25519 messages remain unchanged and are encrypted as evidence, not
 relabeled post-quantum.
 
+## Local human identity (029)
+
+Spec 029 owns the encrypted local username/password account store, one-time
+Administrator bootstrap/recovery, server-side dashboard sessions, self-password
+change and local user lifecycle. It consumes Spec 028 evidence roles and adds the
+explicit local Administrator above them; it does not turn an API `admin` header,
+host owner, OS user, producer or key custodian into that role. Spec 012 continues to
+own machine/API principals and transport contracts. Spec 022 owns the shared shell
+while rendering 029's sign-in, identity and Users projections.
+
 ## Application projections (012)
 
 Spec 012 owns shared operation authorization, public schemas, HTTP/MCP/SDK/CLI mappings and `atmem/service/`. New feature service modules (context, executions, incidents, fleet) live inside that package and invoke their domain owners. Runtime submissions and operator actions have distinct authenticated capabilities. Spec 011 owns actual framework bindings; 020 adds coverage contracts through the existing `capabilities()` authority rather than a parallel registry.

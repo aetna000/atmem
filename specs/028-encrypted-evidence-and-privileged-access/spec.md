@@ -4,7 +4,7 @@
 
 **Feature directory**: `specs/028-encrypted-evidence-and-privileged-access`
 **Created**: 2026-09-13
-**Status**: Partial source implementation; release gates remain open
+**Status**: Implemented and verified for AtMem 2.3.0
 **Input**: Protect all AtMem evidence and metadata with application-mediated, quantum-resistant encryption and a concise privilege hierarchy.
 
 ## Overview
@@ -106,9 +106,14 @@ they never widen scope implicitly.
 
 | Level | Name | Permitted evidence operations |
 | --- | --- | --- |
-| **Level 1** | Viewer | View exact authorized evidence inside AtMem, render original media, and search within the authorized scope. No file export, replay manifest, privilege change, retention change or deletion. |
-| **Level 2** | Investigator | All Level 1 operations plus store-only reconstruction, inert replay-manifest creation and recipient-encrypted bundle export. No plaintext file, artifact or bundle export. |
+| **Level 1** | Viewer | View content-free event metadata, hashes, timing, integrity, coverage and outcomes. Cannot decrypt, search exact content, render media, reconstruct, export, change privileges, change retention or delete. |
+| **Level 2** | Investigator | All Level 1 operations plus decrypt and view exact authorized evidence inside AtMem, render/play original media, search exact content, store-only reconstruction, inert replay-manifest creation and recipient-encrypted bundle export. No plaintext file, artifact or bundle export. |
 | **Level 3** | Evidence Collector | All Level 2 operations plus plaintext artifact/bundle export, grant/revoke evidence privileges, configure retention, authorize verified deletion and initiate rotation/recovery for the authorized scope. “Collector” is the human evidence-control role; it is distinct from an append-only evidence submitter. |
+
+Spec 029 adds a separately named local **Administrator** role above this evidence
+ladder. It includes Level 3 within its explicit scope and alone manages local human
+accounts. This does not make an API `admin` header, host owner, OS account, evidence
+submitter or key custodian an evidence Administrator.
 
 Two capabilities are deliberately outside the hierarchy:
 
@@ -167,8 +172,9 @@ Two capabilities are deliberately outside the hierarchy:
   Investigator and Level 3 Evidence Collector exactly as specified above.
   Privilege assignment is explicit, revisioned, scoped, expiring when configured,
   revocable and deny-by-default. Parent/child agents, task links, provider trust,
-  host ownership, administrator status and key custody MUST NOT imply evidence
-  privilege.
+  host ownership, generic API administrator status and key custody MUST NOT imply
+  evidence privilege. Only Spec 029's authenticated local `administrator` role
+  explicitly includes Level 3 authority.
 - **FR-009 — Export controls**: Plaintext export MUST be denied to Level 1 and
   Level 2 and is available only to a Level 3 Evidence Collector after explicit
   confirmation and reauthorization. Every plaintext export states content scope,

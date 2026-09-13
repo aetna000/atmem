@@ -293,4 +293,3 @@ X:
 1) Tried running by the new Qwen on my Mac, you need a custom harness for low context models otherwise they can’t do tool loops.
 
 2) before: agent ran for 40 minutes, something broke, no idea where
-3) Tried running by the new Qwen on my Mac, you need a custom harness for low context models otherwise they can’t do tool loops.

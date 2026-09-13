@@ -17,6 +17,7 @@ from atmem.core.storage import HouseholdPolicy
 from atmem.extract.rules import extract_facts
 from atmem.retrieve.rank import rank_records
 from atmem.store.sqlite import utc_now
+from atmem.home.layout import compatible_home_path, resolve_home
 from atmem.control.models import (
     ControlMode,
     ControlState,
@@ -26,8 +27,8 @@ from atmem.control.state import load_effective_state, load_state, state_lock, wr
 from atmem.control.store import ControlStore
 
 
-DEFAULT_CONTROL_ROOT = Path.home() / ".atmem" / "migrations"
-DEFAULT_STATE_PATH = Path.home() / ".atmem" / "control-plane.json"
+DEFAULT_CONTROL_ROOT = resolve_home() / "migrations"
+DEFAULT_STATE_PATH = compatible_home_path("config/control-plane.json", "control-plane.json")
 DEFAULT_SUBJECT = "local-user"
 GENERIC_CONFIG_NAME = "generic-adapter.json"
 
@@ -4212,6 +4213,18 @@ class ControlPlaneManager:
         state = self.state()
         return EvidenceService(state.control_dir, vault_id=state.migration_id)
 
+    def identity_service(self):
+        """Return the encrypted local human-account authority."""
+
+        from atmem.identity import LocalIdentityService
+
+        state = self.state()
+        return LocalIdentityService(
+            state.control_dir,
+            vault_id=state.migration_id,
+            subject_id=state.subject_id,
+        )
+
     def blackbox_events(self, *, run_id: str | None = None) -> list[dict[str, Any]]:
         from atmem.control.blackbox import EVIDENCE_KIND
 
@@ -4975,6 +4988,15 @@ class ControlPlaneManager:
             policy=HouseholdPolicy.load(control_dir / "openclaw-mirror.db"),
             encryption_key=evidence_service.storage_key(),
         )
+
+    def control_schema_version(self) -> int:
+        """Inspect protected control storage through AtMem's decryption boundary."""
+
+        store = self._store(self.state())
+        try:
+            return store.schema_version()
+        finally:
+            store.close()
 
     @staticmethod
     def _no_context(state: ControlState, reason: str | None) -> dict[str, Any]:

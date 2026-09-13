@@ -1,6 +1,6 @@
 # Tasks: Encrypted Evidence and Privileged Access
 
-**Status**: Source implementation complete through T020; final installed-upgrade gate remains
+**Status**: Complete for AtMem 2.3.0
 **Input**: [spec.md](spec.md), [plan.md](plan.md)
 **Evidence policy**: Record verification under `docs/implementation-evidence/028/`.
 
@@ -38,4 +38,4 @@
 - [x] [T018] Add a fresh-process dead-agent disaster test that copies only the supported encrypted backup and authorized recovery material, destroys agent/log/workspace state, reconstructs the oracle, and returns only locked state without keys (FR-017; SC-009).
 - [x] [T019] Measure capture/decrypt latency, encrypted expansion and peak memory for text, 1 MiB, 100 MiB and declared maximum fixtures on the documented local profile; enforce configured limits without plaintext fallback (SC-010).
 - [x] [T020] Update capability/status/release documentation and `docs/implementation-evidence/028/` with exact commands, versions, limitations and measured results (FR-015; SC-010).
-- [ ] [T021] Run focused Python, HTTP, CLI, upgrade, documentation and complete OpenClaw build/typecheck/test gates; keep every failed or unavailable profile explicitly unimplemented and do not claim the prerelease is published (SC-001–SC-010).
+- [x] [T021] Run focused Python, HTTP, CLI, upgrade, documentation and complete OpenClaw build/typecheck/test gates; keep every failed or unavailable profile explicitly unimplemented and do not claim the prerelease is published (SC-001–SC-010).

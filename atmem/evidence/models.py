@@ -16,6 +16,7 @@ class EvidenceRole(str, Enum):
     VIEWER = "viewer"
     INVESTIGATOR = "investigator"
     EVIDENCE_COLLECTOR = "evidence_collector"
+    ADMINISTRATOR = "administrator"
 
 
 class EvidenceOperation(str, Enum):
@@ -34,9 +35,10 @@ class EvidenceOperation(str, Enum):
 
 
 _ROLE_OPERATIONS = {
-    EvidenceRole.VIEWER: frozenset(
-        {EvidenceOperation.VIEW, EvidenceOperation.SEARCH}
-    ),
+    # Viewer is deliberately metadata-only. The unprotected flight projection
+    # exposes hashes, timing, integrity and outcomes; protected evidence APIs
+    # begin at Investigator so Viewer never triggers decryption.
+    EvidenceRole.VIEWER: frozenset(),
     EvidenceRole.INVESTIGATOR: frozenset(
         {
             EvidenceOperation.VIEW,
@@ -47,6 +49,7 @@ _ROLE_OPERATIONS = {
         }
     ),
     EvidenceRole.EVIDENCE_COLLECTOR: frozenset(EvidenceOperation),
+    EvidenceRole.ADMINISTRATOR: frozenset(EvidenceOperation),
 }
 
 

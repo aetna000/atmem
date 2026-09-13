@@ -34,6 +34,7 @@ class APIPrincipal:
     workspace_id: str | None = None
     tenant_id: str = "local"
     evidence_role: str | None = None
+    credential_kind: str = "api_bearer"
 
     @property
     def operations(self) -> frozenset[str]:
@@ -128,7 +129,31 @@ class AtMemApplication:
             "format": "atmem-protected-evidence-run-v1",
             "run_id": run_id,
             "events": events,
+            "access": {
+                "principal_id": evidence_principal.principal_id,
+                "role": evidence_principal.role.value,
+                "operations": sorted(
+                    operation.value for operation in evidence_principal.operations
+                ),
+                "scope": evidence_principal.scope.to_dict(),
+            },
+            "authentication": {
+                "kind": principal.credential_kind,
+                "deprecated": principal.credential_kind == "legacy_evidence_bearer",
+            },
             "request_id": _request_id(),
+        }
+
+    def local_auth_status(self, session_token: str) -> dict[str, Any]:
+        service = self.manager.identity_service()
+        session = service.authenticate_session(session_token) if session_token else None
+        return {
+            "format": "atmem-local-auth-status-v1",
+            "initialized": service.initialized,
+            "authenticated": session is not None,
+            "account": session.get("account") if session else None,
+            "csrf_token": session.get("csrf_token") if session else None,
+            "expires_at": session.get("expires_at") if session else None,
         }
 
     def evidence_reconstruct(self, principal: APIPrincipal, run_id: str) -> dict[str, Any]:

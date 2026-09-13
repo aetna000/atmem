@@ -28,15 +28,18 @@ an explicit capability boundary. Exact data is never copied into the legacy
    content, multimodal parts and access audit are serialized canonically and
    encrypted together with AES-256-GCM. Associated data contains only the
    container version and opaque object ID.
-3. **Privileges**: `viewer`, `investigator` and `evidence_collector` are exact,
-   ordered evidence roles. Viewer can inspect in AtMem. Investigator can inspect,
+3. **Privileges**: `viewer`, `investigator` and `evidence_collector` are closed,
+   ordered evidence roles. Viewer is content-free and sees metadata, hashes and
+   integrity without decryption. Investigator can decrypt and inspect inside AtMem,
    reconstruct and produce recipient-encrypted bundles. Only Evidence Collector
    can produce plaintext export, after an explicit confirmation token. Evidence
    submission is a separate capability and never grants read access.
-4. **Test identities**: An explicit development-only command creates random-token
+4. **Legacy test identities**: An explicit development-only command creates random-token
    `atmem-viewer`, `atmem-investigator` and `atmem-evidence-collector` credentials.
    It is never created automatically, is labelled non-production and stores only
-   encrypted account records and one-way token verifiers.
+   encrypted account records and one-way token verifiers. Spec 029 supersedes this
+   as the normal dashboard journey with local username/password accounts and an
+   explicit Administrator; beta bearer tokens remain compatibility-only.
 5. **Post-quantum export**: Recipient-encrypted bundles use ML-KEM-768 to derive
    an AES wrapping key and ML-DSA-65 for the canonical manifest. If the optional
    provider is unavailable, encrypted export fails closed and does not advertise

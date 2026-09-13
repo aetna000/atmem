@@ -21,10 +21,18 @@ from atmem.evidence.models import (
     EvidenceScope,
 )
 from atmem.evidence.store import EncryptedEvidenceStore
+from atmem.home.artifacts import ArtifactVault
+from atmem.home.layout import resolve_home
 
 
 class EvidenceService:
-    def __init__(self, root: str | Path, *, vault_id: str) -> None:
+    def __init__(
+        self,
+        root: str | Path,
+        *,
+        vault_id: str,
+        home_root: str | Path | None = None,
+    ) -> None:
         self.root = Path(root).expanduser().resolve(strict=False)
         self.vault_id = str(vault_id)
         self.key_path = self.root.parent / ".evidence-keys" / f"{self.vault_id}.key"
@@ -41,6 +49,21 @@ class EvidenceService:
             )
         except FileNotFoundError:
             self._key = None
+        if home_root is not None or os.environ.get("ATMEM_HOME"):
+            self.home_root = resolve_home(home_root)
+        elif self.root.parent.name == "migrations":
+            self.home_root = self.root.parent.parent
+        else:
+            # Explicit test/embedded roots remain self-contained instead of
+            # unexpectedly writing into the user's default home.
+            self.home_root = self.root.parent
+        self.artifact_root = self.home_root / "artifacts" / "sha256"
+        self.artifact_key_path = self.home_root / "identity" / "artifact.key"
+        self._artifact_key = (
+            load_existing_key(self.artifact_key_path)
+            if any(self.artifact_root.glob("*/*.blob"))
+            else load_or_create_key(self.artifact_key_path)
+        )
         self.accounts_path = self.root.parent / ".evidence-accounts" / f"{self.vault_id}.json"
         self.rotation_path = self.key_path.with_suffix(".rotation")
         if self._key is not None and self.rotation_path.exists():
@@ -177,8 +200,13 @@ class EvidenceService:
     def capture(self, envelope: dict[str, Any]) -> dict[str, Any]:
         scope = self._scope_from_envelope(envelope)
         with self._store() as store:
-            result = store.capture(envelope)
             mode = store.capture_mode()
+            stored_envelope = (
+                self._externalize_artifacts(envelope)
+                if mode is CaptureMode.FULL
+                else envelope
+            )
+            result = store.capture(stored_envelope)
         return {
             "format": "atmem-protected-capture-receipt-v1",
             "captured": result is not None,
@@ -211,7 +239,7 @@ class EvidenceService:
                     principal.scope.permits(item_scope)
                     and str(envelope.get("run_id") or "") == run_id
                 ):
-                    values.append(item)
+                    values.append(self._materialize_artifacts(item))
             store.access_event(self._audit(principal, "view", target, True, count=len(values)))
         return values
 
@@ -464,7 +492,8 @@ class EvidenceService:
                                 or not principal.scope.permits(self._scope_from_envelope(envelope))
                             ):
                                 continue
-                            chunk = (("" if first else ",\n") + json.dumps(item, sort_keys=True)).encode()
+                            materialized = self._materialize_artifacts(item)
+                            chunk = (("" if first else ",\n") + json.dumps(materialized, sort_keys=True)).encode()
                             first = False
                             digest.update(chunk)
                             yield chunk
@@ -523,6 +552,64 @@ class EvidenceService:
 
     def authenticate(self, token: str) -> EvidencePrincipal | None:
         return self.accounts.authenticate(token)
+
+    def _artifact_vault(self) -> ArtifactVault:
+        if self._key is None:
+            raise PermissionError("encrypted evidence is locked")
+        return ArtifactVault(self.artifact_root, self._artifact_key)
+
+    def _externalize_artifacts(self, value: Any) -> Any:
+        """Replace exact inline binary parts with durable encrypted references."""
+
+        if isinstance(value, list):
+            return [self._externalize_artifacts(item) for item in value]
+        if not isinstance(value, dict):
+            return value
+        # Keep the inline value inside the already encrypted evidence document as
+        # the disaster-recovery authority. The separate artifact vault supplies
+        # content addressing/deduplication and can be rebuilt from this copy.
+        result = {
+            str(key): self._externalize_artifacts(item)
+            for key, item in value.items()
+        }
+        encoded = value.get("data_base64")
+        if isinstance(encoded, str):
+            try:
+                plaintext = base64.b64decode(encoded, validate=True)
+            except Exception as exc:
+                raise ValueError("exact artifact data_base64 is invalid") from exc
+            reference = self._artifact_vault().put_bytes(plaintext)
+            result["artifact"] = reference
+            result["artifact_capture"] = "encrypted_exact"
+        elif "data_base64" in value:
+            raise ValueError("exact artifact data_base64 must be a base64 string")
+        return result
+
+    def _materialize_artifacts(self, value: Any) -> Any:
+        """Return exact bytes only after the caller passed evidence authorization."""
+
+        if isinstance(value, list):
+            return [self._materialize_artifacts(item) for item in value]
+        if not isinstance(value, dict):
+            return value
+        result = {str(key): self._materialize_artifacts(item) for key, item in value.items()}
+        reference = value.get("artifact")
+        if isinstance(reference, dict) and reference.get("format") == "atmem-artifact-reference-v1":
+            digest = str(reference.get("plaintext_sha256") or "")
+            try:
+                plaintext = self._artifact_vault().read(digest)
+            except FileNotFoundError:
+                encoded = value.get("data_base64")
+                if not isinstance(encoded, str):
+                    raise
+                plaintext = base64.b64decode(encoded, validate=True)
+                result["artifact_recovery"] = "inline_encrypted_evidence"
+            if len(plaintext) != int(reference.get("plaintext_bytes") or -1):
+                raise ValueError("artifact byte count does not match its evidence reference")
+            if sha256(plaintext).hexdigest() != digest:
+                raise ValueError("artifact digest does not match its evidence reference")
+            result["data_base64"] = base64.b64encode(plaintext).decode("ascii")
+        return result
 
     def _record_access(
         self,

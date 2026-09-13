@@ -5,16 +5,18 @@ import json
 import os
 from pathlib import Path
 import signal
+import socket
 import subprocess
 import sys
 import time
 from typing import Any
 
 from atmem.store.sqlite import utc_now
+from atmem.home.layout import compatible_home_path
 
 
-DEFAULT_DAEMON_STATE = Path.home() / ".atmem" / "dashboard-daemon.json"
-DEFAULT_DAEMON_LOG = Path.home() / ".atmem" / "dashboard-daemon.log"
+DEFAULT_DAEMON_STATE = compatible_home_path("runtime/dashboard-daemon.json", "dashboard-daemon.json")
+DEFAULT_DAEMON_LOG = compatible_home_path("runtime/dashboard-daemon.log", "dashboard-daemon.log")
 
 
 def manage_dashboard_daemon(
@@ -129,6 +131,7 @@ def _start(
     value = {
         "format": "atmem-dashboard-daemon-v1",
         "pid": process.pid,
+        "hostname": socket.gethostname(),
         "port": int(port),
         "url": f"http://127.0.0.1:{int(port)}/",
         "control_state_path": (

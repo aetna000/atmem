@@ -79,6 +79,7 @@ const dataDir = mkdtempSync(path.join(tmpdir(), "atmem-hooks-"));
 const dbPath = path.join(dataDir, "memory.db");
 const mediaRoot = path.join(dataDir, "openclaw-media");
 mkdirSync(mediaRoot);
+mkdirSync(path.join(mediaRoot, "inbound"));
 process.env.ATMEM_OPENCLAW_MEDIA_ROOT = mediaRoot;
 const base = {
   command: "atmem",
@@ -142,16 +143,22 @@ try {
     {
       content: "Analyze this upload",
       sessionKey: "takeover-1",
-      metadata: {
-        mediaPath: attachmentPath,
-        mediaPaths: [attachmentPath],
-        mediaType: "image/png",
-        mediaTypes: ["image/png"],
-      },
+      runId: "current-media-run-1",
+      media: [{ path: attachmentPath, contentType: "image/png", kind: "image" }],
     },
-    { sessionKey: "takeover-1" },
+    { sessionKey: "takeover-1", runId: "current-media-run-1" },
   );
-  const autoObserved = await observe.execute("observe-auto-1", {
+  // Current OpenClaw may subsequently emit a sparse transcript write. Before
+  // this regression fix that second hook erased the valid media binding.
+  beforeWrite({
+    message: {
+      role: "user",
+      content: "Analyze this upload",
+      idempotencyKey: "current-media-run-1:user",
+    },
+  }, { sessionKey: "takeover-1" });
+  const currentMediaRuntime = fakeApi(base, { runId: "current-media-run-1" });
+  const autoObserved = await currentMediaRuntime.tools.get("atmem_observe").execute("observe-auto-1", {
     text: "The upload contains a geometric logo.",
     modality: "image",
     segment: { region: "whole image", dimensions: { width: 640, height: 480 } },
@@ -162,6 +169,37 @@ try {
     autoObserved.details.mediaSha256,
     createHash("sha256").update(attachmentBytes).digest("hex"),
   );
+  for (const service of currentMediaRuntime.services) await service.stop?.();
+
+  // A staging event can expose a safe host-managed original path before the
+  // normalized media list is ready. Capture it immediately rather than
+  // replacing it with the caption placeholder or waiting for a later process.
+  const originalBytes = Buffer.from("exact original staged image bytes");
+  const originalPath = path.join(mediaRoot, "original-staged.png");
+  writeFileSync(originalPath, originalBytes);
+  await messageReceived(
+    {
+      content: "[User sent media without caption]",
+      sessionKey: "original-media-session",
+      runId: "original-media-run-1",
+      originalMedia: [{ path: originalPath, contentType: "image/png", kind: "image" }],
+      mediaStagingPending: true,
+    },
+    { sessionKey: "original-media-session", runId: "original-media-run-1" },
+  );
+  const originalRuntime = fakeApi(base, { runId: "original-media-run-1" });
+  try {
+    const observed = await originalRuntime.tools.get("atmem_observe").execute(
+      "observe-original-media-1",
+      { text: "The staged image has a visible outline.", modality: "image" },
+    );
+    assert.equal(
+      observed.details.mediaSha256,
+      createHash("sha256").update(originalBytes).digest("hex"),
+    );
+  } finally {
+    for (const service of originalRuntime.services) await service.stop?.();
+  }
 
   // OpenClaw can execute the inbound hook and the later agent tool in
   // separate plugin runtimes. The trusted upload binding must survive that
@@ -693,6 +731,10 @@ for line in sys.stdin:
   const beforeTool = takeover.hooks.get("before_tool_call");
   assert.equal(typeof beforeTool, "function");
   const workspace = path.join(dataDir, "openclaw-workspace");
+  assert.equal(await beforeTool({
+    toolName: "openclawmemory_search",
+    params: { query: "my age", corpus: "memory", maxResults: 5 },
+  }, {}), undefined);
   const blockedShell = await beforeTool({
     toolName: "Bash",
     params: { command: "sed -n '1,200p' MEMORY.md", cwd: workspace },
@@ -771,6 +813,10 @@ for line in sys.stdin:
     runId: "run-blackbox-1",
   };
   const protectedAttachment = Buffer.from("PROTECTED-IMAGE-BYTES");
+  const protectedModelImage = Buffer.from("MODEL-DELIVERED-IMAGE-BYTES");
+  const persistedWebchatImage = Buffer.from("PERSISTED-WEBCHAT-IMAGE-BYTES");
+  const persistedWebchatName = "9c8cc55d-af35-49ce-9bc2-530573d50c5f.png";
+  writeFileSync(path.join(mediaRoot, "inbound", persistedWebchatName), persistedWebchatImage);
   const protectedAttachmentPath = path.join(mediaRoot, "protected-run.png");
   writeFileSync(protectedAttachmentPath, protectedAttachment);
   await controlPlane.hooks.get("message_received")(
@@ -787,7 +833,7 @@ for line in sys.stdin:
       runId: "run-blackbox-1",
       prompt: "Remember my terminal preference.",
       historyMessages: [],
-      imagesCount: 0,
+      imagesCount: 1,
       tools: [{ name: "memory_remember" }],
     },
     blackboxCtx,
@@ -801,7 +847,14 @@ for line in sys.stdin:
       systemPrompt: "private system prompt",
       prompt: "Remember my terminal preference.",
       historyMessages: [],
-      imagesCount: 0,
+      imagesCount: 1,
+      messages: [{
+        role: "user",
+        content: [{
+          type: "input_image",
+          image_url: `data:image/png;base64,${protectedModelImage.toString("base64")}`,
+        }],
+      }],
       tools: [{ name: "memory_remember" }],
     },
     blackboxCtx,
@@ -842,7 +895,23 @@ for line in sys.stdin:
     },
     blackboxCtx,
   );
-  await safeEnd({ runId: "run-blackbox-1", success: true, messages: [] }, blackboxCtx);
+  await safeEnd({
+    runId: "run-blackbox-1",
+    success: true,
+    messages: [{
+      role: "user",
+      content: "what is this",
+      idempotencyKey: "run-blackbox-1:user",
+      __openclaw: {
+        media: [{
+          url: `media://inbound/${persistedWebchatName}`,
+          contentType: "image/png",
+          kind: "image",
+          sizeBytes: persistedWebchatImage.length,
+        }],
+      },
+    }],
+  }, blackboxCtx);
   const migrationStatus = controlCli("status", "--state", migrationState);
   assert.equal(migrationStatus.mode, "shadow");
   assert.equal(migrationStatus.changes_model_context, false);
@@ -861,9 +930,11 @@ for line in sys.stdin:
   const evidenceCredentials = evidenceCli(
     "create-test-accounts", "--state", migrationState,
   );
-  const viewerToken = evidenceCredentials.accounts.find(row => row.role === "viewer").token;
+  const investigatorToken = evidenceCredentials.accounts.find(
+    row => row.role === "investigator",
+  ).token;
   const protectedRun = evidenceCli(
-    "show", "--state", migrationState, "--token", viewerToken, "run-blackbox-1",
+    "show", "--state", migrationState, "--token", investigatorToken, "run-blackbox-1",
   );
   const protectedSerialized = JSON.stringify(protectedRun);
   assert.match(protectedSerialized, /private system prompt/);
@@ -871,6 +942,10 @@ for line in sys.stdin:
   assert.match(protectedSerialized, /"query":"terminal"/);
   assert.match(protectedSerialized, /"found":true/);
   assert.match(protectedSerialized, new RegExp(protectedAttachment.toString("base64")));
+  assert.match(protectedSerialized, new RegExp(protectedModelImage.toString("base64")));
+  assert.match(protectedSerialized, new RegExp(persistedWebchatImage.toString("base64")));
+  assert.match(protectedSerialized, /"artifact_capture":"encrypted_exact"/);
+  assert.match(protectedSerialized, /"representation":"model_input"/);
 
   // External CLI harnesses such as OpenClaw's claude-cli path can skip
   // before_model_resolve while still invoking the prompt, model, and terminal

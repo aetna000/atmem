@@ -114,8 +114,7 @@ def test_missing_service_reports_exact_setup_actions(tmp_path: Path, monkeypatch
     assert status["running"] is False
     assert status["compatible"] is False
     assert status["setup_actions"] == [
-        "Run `atmem atbot install`.",
-        "Run `atmem atbot configure`.",
+        "Safe fallback is selected. Run `atmem atbot setup` whenever you want model-assisted intelligence.",
     ]
     assert manager.doctor()["degraded_safe"] is True
 

@@ -1,8 +1,8 @@
 {
   "product": "memory_control_plane",
-  "version": "2.3.0b1",
+  "version": "2.3.0",
   "development_target": null,
-  "release_status": "beta",
+  "release_status": "stable",
   "engine": "model_agnostic",
   "canonical_authority": "atmem_only",
   "intelligence_companion": {
@@ -34,7 +34,7 @@
     "openclaw"
   ],
   "delegated_context_provider": {
-    "status": "beta",
+    "status": "stable",
     "default_enabled": false,
     "provider_contract": "provider-neutral",
     "contract": "atmem.delegated-context-provider.v1",
@@ -81,10 +81,10 @@
   "multimodal_text_observations": "implemented_quarantined_by_default",
   "agent_blackbox": "implemented_generic_contract_and_openclaw_hooks",
   "durable_execution_evidence": {
-    "status": "beta",
+    "status": "stable",
     "profile": "m0-investigation-v1",
     "installed_adapter": "openclaw",
-    "default_enabled": false,
+    "default_enabled": true,
     "bounded_spool": true,
     "idempotent_replay": true,
     "deterministic_findings": true,
@@ -114,9 +114,10 @@
   "evidence_access_levels": [
     "viewer",
     "investigator",
-    "evidence_collector"
+    "evidence_collector",
+    "administrator"
   ],
-  "plaintext_export_role": "evidence_collector",
+  "plaintext_export_role": "evidence_collector_or_administrator",
   "plaintext_export_streaming": {
     "cli": true,
     "http": false,
@@ -125,7 +126,7 @@
   "blackbox_verifies": "timeline_integrity_and_observed_hook_closure",
   "blackbox_external_outcome_proof": false,
   "governed_task_state": {
-    "status": "beta",
+    "status": "stable",
     "default_enabled": false,
     "authority": "atmem_only",
     "proposers": [

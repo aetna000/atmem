@@ -96,7 +96,7 @@ def _record(manager: ControlPlaneManager, run_id: str = "run-secret") -> dict:
 def test_role_matrix_is_closed_and_plaintext_export_is_collector_only() -> None:
     target = EvidenceScope("local", "test-subject", run_id="run-1")
     expected = {
-        EvidenceRole.VIEWER: {EvidenceOperation.VIEW, EvidenceOperation.SEARCH},
+        EvidenceRole.VIEWER: set(),
         EvidenceRole.INVESTIGATOR: {
             EvidenceOperation.VIEW,
             EvidenceOperation.SEARCH,
@@ -105,6 +105,7 @@ def test_role_matrix_is_closed_and_plaintext_export_is_collector_only() -> None:
             EvidenceOperation.ENCRYPTED_EXPORT,
         },
         EvidenceRole.EVIDENCE_COLLECTOR: set(EvidenceOperation),
+        EvidenceRole.ADMINISTRATOR: set(EvidenceOperation),
     }
     for role in EvidenceRole:
         principal = _principal(role)
@@ -189,7 +190,7 @@ def test_default_full_capture_is_encrypted_and_byte_exact_inside_atmem(tmp_path:
     receipt = _record(manager)
     assert receipt["protected_evidence"]["capture_mode"] == "full"
     service = manager.evidence_service()
-    events = service.events(_principal(EvidenceRole.VIEWER), "run-secret")
+    events = service.events(_principal(EvidenceRole.INVESTIGATOR), "run-secret")
     exact = events[0]["envelope"]["evidence"]
     assert exact["parts"][0]["text"] == "PLANTED-PROMPT-ALPHA"
     assert exact["params"]["url"] == "https://secret.example/private?q=alpha"
@@ -302,6 +303,7 @@ def test_collector_can_lock_and_unlock_while_viewer_cannot(tmp_path: Path) -> No
     service = manager.evidence_service()
     credentials = service.create_demo_accounts(subject_id="test-subject")
     viewer = service.authenticate(credentials[0]["token"])
+    investigator = service.authenticate(credentials[1]["token"])
     collector = service.authenticate(credentials[2]["token"])
     with pytest.raises(PermissionError):
         service.lock(viewer, confirmation="LOCK EVIDENCE")
@@ -311,7 +313,9 @@ def test_collector_can_lock_and_unlock_while_viewer_cannot(tmp_path: Path) -> No
     with pytest.raises(PermissionError, match="locked"):
         locked.events(viewer, "run-secret")
     assert locked.unlock(collector_while_locked, confirmation="UNLOCK EVIDENCE")["locked"] is False
-    assert manager.evidence_service().events(viewer, "run-secret")
+    assert manager.evidence_service().events(investigator, "run-secret")
+    with pytest.raises(PermissionError):
+        manager.evidence_service().events(viewer, "run-secret")
 
 
 def test_three_demo_accounts_and_plaintext_export_boundary(tmp_path: Path) -> None:
@@ -326,7 +330,8 @@ def test_three_demo_accounts_and_plaintext_export_boundary(tmp_path: Path) -> No
     ]
     principals = {row["role"]: service.authenticate(row["token"]) for row in credentials}
     assert all(principals.values())
-    assert service.events(principals["viewer"], "run-secret")
+    with pytest.raises(PermissionError):
+        service.events(principals["viewer"], "run-secret")
     with pytest.raises(PermissionError):
         service.reconstruct(principals["viewer"], "run-secret")
     assert service.reconstruct(principals["investigator"], "run-secret")["reconstructable"]
@@ -360,7 +365,9 @@ def test_role_services_search_replay_grant_revoke_and_delete(tmp_path: Path) -> 
     viewer = principals["viewer"]
     investigator = principals["investigator"]
     collector = principals["evidence_collector"]
-    assert service.search(viewer, "secret.example")
+    with pytest.raises(PermissionError):
+        service.search(viewer, "secret.example")
+    assert service.search(investigator, "secret.example")
     with pytest.raises(PermissionError):
         service.replay_manifest(viewer, "run-secret")
     assert service.replay_manifest(investigator, "run-secret")["executable"] is False
@@ -371,7 +378,8 @@ def test_role_services_search_replay_grant_revoke_and_delete(tmp_path: Path) -> 
         scope=EvidenceScope("local", "test-subject", run_id="run-secret"),
     )
     new_viewer = service.authenticate(granted["token"])
-    assert service.events(new_viewer, "run-secret")
+    with pytest.raises(PermissionError):
+        service.events(new_viewer, "run-secret")
     assert service.revoke(collector, principal_id="case-reviewer") is True
     assert service.authenticate(granted["token"]) is None
     with pytest.raises(PermissionError):
@@ -485,8 +493,14 @@ def test_evidence_cli_creates_accounts_and_enforces_plaintext_export(tmp_path: P
 
     credentials = cli("create-test-accounts", "--state", state)
     tokens = {row["role"]: row["token"] for row in credentials["accounts"]}
+    viewer_denied = subprocess.run(
+        [sys.executable, "-m", "atmem.cli", "evidence", "show", "--state", state,
+         "--token", tokens["viewer"], "run-secret"],
+        cwd=Path(__file__).parents[1], text=True, capture_output=True,
+    )
+    assert viewer_denied.returncode != 0
     viewed = cli(
-        "show", "--state", state, "--token", tokens["viewer"], "run-secret"
+        "show", "--state", state, "--token", tokens["investigator"], "run-secret"
     )
     assert viewed["events"][0]["envelope"]["evidence"]["parts"][0]["text"] == "PLANTED-PROMPT-ALPHA"
     denied = subprocess.run(

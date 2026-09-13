@@ -51,6 +51,16 @@ AMENDMENT_A_TOOLS = {
     "control_request_task_lifecycle": "T073",
 }
 
+# Later operator-only additions have their own reviewed authority boundary in
+# Spec 028. They never belong on the host surface and do not mutate task state.
+REVIEWED_OPERATOR_ONLY_TOOLS = {
+    "control_evidence_status": "Spec 028 T006",
+    "control_evidence_show": "Spec 028 T006",
+    "control_evidence_reconstruct": "Spec 028 T006",
+    "control_evidence_export_plaintext": "Spec 028 T006",
+    "control_evidence_set_capture_mode": "Spec 028 T006",
+}
+
 # Inputs that would let a caller move task state rather than read it. A tool
 # accepting any of these is a write path regardless of what it is called.
 TASK_MUTATING_INPUTS = frozenset(
@@ -123,7 +133,7 @@ def test_the_recorded_pre_amendment_surface_had_no_task_write_path() -> None:
         )
 
 
-def test_the_live_surface_adds_only_tools_amendment_a_authorizes() -> None:
+def test_the_live_surface_adds_only_tools_reviewed_specs_authorize() -> None:
     """The live surface may grow, but only by tools this amendment named.
 
     Written before T069 and T073 exist, so it passes now with none of them
@@ -137,11 +147,14 @@ def test_the_live_surface_adds_only_tools_amendment_a_authorizes() -> None:
         assert not removed, f"{label} surface dropped pre-amendment tools {sorted(removed)}"
 
         added = live - set(recorded[label])
-        unauthorized = added - set(AMENDMENT_A_TOOLS)
+        authorized = set(AMENDMENT_A_TOOLS)
+        if operator:
+            authorized |= set(REVIEWED_OPERATOR_ONLY_TOOLS)
+        unauthorized = added - authorized
         assert not unauthorized, (
             f"{label} surface gained unreviewed tools {sorted(unauthorized)}. "
-            "Amendment A authorizes only "
-            f"{sorted(AMENDMENT_A_TOOLS)}; add a tool here only with the task that "
+            "Reviewed specifications authorize only "
+            f"{sorted(authorized)}; add a tool here only with the task that "
             "specifies its authority boundary."
         )
 

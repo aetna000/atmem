@@ -103,7 +103,8 @@ def test_capture_rejects_non_user_and_does_not_store_raw_prompt(tmp_path: Path) 
     state = manager.state()
     database_bytes = (Path(state.control_dir) / "evidence.db").read_bytes()
     assert raw.encode() not in database_bytes
-    assert b"ultraviolet" in database_bytes
+    assert b"ultraviolet" not in database_bytes
+    assert database_bytes.startswith(b"ATMEM-CONTROL-DB-V1\n")
 
 
 def test_corrupt_state_fails_closed(tmp_path: Path) -> None:
@@ -709,7 +710,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         ]
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.3.0-beta.1"
+        assert product["atmem_npm_version"] == "2.3.0"
         assert product["x_url"] == "https://x.com/AtMemX"
         profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
         assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])
@@ -1079,7 +1080,19 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
     from atmem.control.web import dashboard_html
 
     known = {
-        "/api/session",
+            "/api/session",
+            "/api/auth/status",
+            "/api/auth/login",
+            "/api/auth/logout",
+            "/api/auth/change-password",
+            "/api/users",
+            "/api/users/audit",
+            "/api/users/create",
+            "/api/users/update",
+            "/api/users/reset-password",
+            "/api/home",
+            "/api/home/verify",
+            "/api/home/adopt",
         "/api/product",
         "/api/status",
         "/api/semantic/health",
@@ -1131,6 +1144,10 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/blackbox/flight",
         "/api/blackbox/export",
         "/api/blackbox/acknowledge",
+        "/api/evidence/",
+        "/api/evidence/capture-mode",
+        "/api/evidence/protection",
+        "/api/evidence/rotate",
     }
     referenced = set(re.findall(r"/api/[a-z0-9/_-]+", dashboard_html()))
     unknown = referenced - known

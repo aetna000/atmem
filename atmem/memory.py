@@ -2493,11 +2493,20 @@ class Memory:
             raise ValueError("reference_mode must be full, compact, or none")
         excluded = exclude_record_ids or set()
         recall_evidence: dict[str, Any] = {}
+        # Direct-support filtering must inspect the bounded candidate window,
+        # not merely the first ``max_records`` by prior score. Otherwise a few
+        # strong but irrelevant FTS matches can hide an explicitly requested
+        # profile fact before the support classifier ever sees it.
+        recall_limit = (
+            self.recall_candidate_limit
+            if require_direct_support
+            else max_records + len(excluded)
+        )
         records = self.recall(
             subject_id,
             query,
             session_id=session_id,
-            limit=max_records + len(excluded),
+            limit=recall_limit,
             min_score=min_score,
             use_graph=use_graph,
             _evidence=recall_evidence,

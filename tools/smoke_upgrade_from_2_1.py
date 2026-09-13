@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a published-version fixture, then prove 2.3.0b1 upgrades it safely."""
+"""Create a published-version fixture, then prove 2.3.0 upgrades it safely."""
 
 from __future__ import annotations
 
@@ -77,8 +77,10 @@ def create_fixture(root: Path) -> None:
 
 
 def verify_upgrade(root: Path) -> None:
+    from atmem.control.store import ENCRYPTED_CONTROL_MAGIC
+
     manifest = json.loads((root / "fixture.json").read_text(encoding="utf-8"))
-    assert importlib.metadata.version("atmem") == "2.3.0b1"
+    assert importlib.metadata.version("atmem") == "2.3.0"
     assert importlib.metadata.version("atmem-atbot") == "0.1.0a6"
 
     database = root / "memory.db"
@@ -113,12 +115,16 @@ def verify_upgrade(root: Path) -> None:
     candidate_ids = {str(row["id"]) for row in manager.candidates()}
     assert set(manifest["candidate_ids"]) <= candidate_ids
     evidence_db = Path(state.control_dir) / "evidence.db"
-    with sqlite3.connect(evidence_db) as connection:
-        schema_version = connection.execute(
-            "SELECT value FROM schema_meta WHERE key = 'schema_version'"
-        ).fetchone()[0]
-    assert int(schema_version) == 6
-    print("AtMem persisted-state -> 2.3.0b1 upgrade smoke test passed")
+    assert evidence_db.read_bytes().startswith(ENCRYPTED_CONTROL_MAGIC)
+    try:
+        with sqlite3.connect(evidence_db) as connection:
+            connection.execute("SELECT value FROM schema_meta").fetchone()
+    except sqlite3.DatabaseError:
+        pass
+    else:
+        raise AssertionError("protected control evidence remained readable as plaintext SQLite")
+    assert manager.control_schema_version() == 6
+    print("AtMem persisted-state -> 2.3.0 upgrade smoke test passed")
 
 
 def main() -> None:

@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+
+from atmem.home.layout import compatible_home_path
 import signal
 import shlex
 import subprocess
@@ -26,7 +28,7 @@ from .signing import generate_keypair, load_private_key
 
 
 def provider_root() -> Path:
-    return Path(os.environ.get("ATMEM_PROVIDER_ROOT", str(Path.home() / ".atmem" / "providers"))).expanduser()
+    return Path(os.environ.get("ATMEM_PROVIDER_ROOT", str(compatible_home_path("config/providers", "providers")))).expanduser()
 
 
 def instance_dir(instance: str) -> Path:

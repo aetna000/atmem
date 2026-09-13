@@ -140,7 +140,9 @@ class ControlStore:
             nonce, serialized, ENCRYPTED_CONTROL_MAGIC
         )
         target = Path(self.path)
-        temporary = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+        temporary = target.with_name(
+            f".{target.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp"
+        )
         descriptor = os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         try:
             with os.fdopen(descriptor, "wb") as handle:
@@ -160,6 +162,16 @@ class ControlStore:
             self._conn.close()
         finally:
             self._household_lock.close()
+
+    def schema_version(self) -> int:
+        """Return the authorized logical schema version of the protected store."""
+
+        row = self._conn.execute(
+            "SELECT value FROM schema_meta WHERE key = 'schema_version'"
+        ).fetchone()
+        if row is None:
+            raise RuntimeError("control schema version is unavailable")
+        return int(row["value"])
 
     @contextmanager
     def transaction(self) -> Iterator[None]:

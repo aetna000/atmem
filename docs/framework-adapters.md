@@ -4,7 +4,7 @@
 > LangChain/LangGraph as well as OpenClaw. Delegation remains opt-in and requires
 > an enabled registration matching the authenticated scope.
 
-> The 2.3.0b1 M0 durable execution spool and installed-host investigation
+> The 2.3.0 durable execution spool and installed-host investigation
 > profile are verified for OpenClaw only. Generic/Pydantic AI/LangGraph Black
 > Box hooks remain readable through the existing flight view, but durable
 > producer replay and M0 conformance are not claimed for those adapters yet.

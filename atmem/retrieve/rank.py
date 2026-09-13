@@ -92,9 +92,19 @@ def decide_retrieval(
         content = str(candidate.get("content") or "")
         content_concepts = _concept_tokens(content)
         lexical = _concept_overlap(query_concepts, content_concepts)
-        fact_support = _concept_overlap(
-            query_concepts, _concept_tokens(fact_key.replace("_", " "))
-        )
+        fact_concepts = _concept_tokens(fact_key.replace("_", " "))
+        fact_support = _concept_overlap(query_concepts, fact_concepts)
+        if re.search(r"\b(?:i|me|my|mine|our|ours|we)\b", query, re.IGNORECASE):
+            # A fact key is a compact profile label. In an explicitly personal
+            # request, measure whether that label is covered by the query so a
+            # short phrase such as "my age" is not diluted by the rest of the
+            # task. Without a personal reference, retain the conservative
+            # original-query denominator to avoid injecting profile facts for
+            # generic phrases such as "family restaurants".
+            fact_support = max(
+                fact_support,
+                _concept_overlap(fact_concepts, query_concepts),
+            )
         semantic = float(
             signals.get("semantic_similarity")
             or ((signals.get("semantic_evidence") or {}).get("similarity") or 0.0)

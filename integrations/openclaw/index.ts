@@ -107,7 +107,10 @@ interface PluginConfig {
 
 function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
   const cfg = (raw ?? {}) as Record<string, any>;
-  const dbPath = expandHome(String(cfg.dbPath ?? "~/.atmem/memories.db"));
+  const selectedHome = process.env.ATMEM_HOME
+    ? expandHome(process.env.ATMEM_HOME)
+    : path.join(os.homedir(), ".atmem");
+  const dbPath = expandHome(String(cfg.dbPath ?? path.join(selectedHome, "memory", "memories.db")));
   const subject = String(cfg.subject ?? "default");
   const stringMap = (value: unknown): Record<string, string> =>
     value && typeof value === "object" && !Array.isArray(value)
@@ -128,7 +131,7 @@ function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
   const controlPlane = {
     enabled: cfg.controlPlane?.enabled === true,
     statePath: expandHome(
-      String(cfg.controlPlane?.statePath ?? "~/.atmem/control-plane.json"),
+      String(cfg.controlPlane?.statePath ?? path.join(selectedHome, "config", "control-plane.json")),
     ),
     blackboxEnabled:
       Boolean(cfg.controlPlane) && cfg.controlPlane?.blackboxEnabled !== false,
@@ -357,13 +360,55 @@ async function readAttachmentBinding(
 
 function modalityFromMime(mimeType: string): InboundAttachmentEvidence["modality"] | null {
   const mime = mimeType.toLowerCase();
-  if (mime.startsWith("image/")) return "image";
-  if (mime.startsWith("audio/")) return "audio";
-  if (mime.startsWith("video/")) return "video";
-  if (mime === "application/pdf" || mime.startsWith("text/") || mime.includes("document")) {
+  if (mime === "image" || mime.startsWith("image/")) return "image";
+  if (mime === "audio" || mime.startsWith("audio/")) return "audio";
+  if (mime === "video" || mime.startsWith("video/")) return "video";
+  if (mime === "document" || mime === "application/pdf" || mime.startsWith("text/") || mime.includes("document")) {
     return "document";
   }
   return null;
+}
+
+type InlineEvidencePart = {
+  type: "image" | "audio" | "video" | "document";
+  mime_type: string;
+  data_base64: string;
+  representation: "model_input";
+};
+
+function inlineMediaParts(value: unknown): InlineEvidencePart[] {
+  const parts: InlineEvidencePart[] = [];
+  const seen = new Set<string>();
+  const visit = (item: unknown): void => {
+    if (typeof item === "string") {
+      const match = /^data:([^;,]+);base64,([A-Za-z0-9+/]+={0,2})$/.exec(item);
+      if (!match) return;
+      const mimeType = match[1].toLowerCase();
+      const modality = modalityFromMime(mimeType);
+      if (!modality) return;
+      const bytes = Buffer.from(match[2], "base64");
+      if (bytes.length > 100 * 1024 * 1024 || bytes.toString("base64") !== match[2]) return;
+      const digest = createHash("sha256").update(bytes).digest("hex");
+      if (seen.has(digest)) return;
+      seen.add(digest);
+      parts.push({
+        type: modality,
+        mime_type: mimeType,
+        data_base64: match[2],
+        representation: "model_input",
+      });
+      return;
+    }
+    if (Array.isArray(item)) {
+      for (const child of item) visit(child);
+      return;
+    }
+    if (item && typeof item === "object") {
+      for (const child of Object.values(item as Record<string, unknown>)) visit(child);
+    }
+  };
+  visit(value);
+  return parts;
 }
 
 function withinPath(candidate: string, root: string): boolean {
@@ -408,6 +453,49 @@ async function hashInboundAttachment(
   };
 }
 
+function managedMediaPath(reference: string): string | null {
+  const match = /^media:\/\/inbound\/([A-Za-z0-9][A-Za-z0-9._-]{0,255})$/.exec(reference);
+  if (!match || match[1] === "." || match[1] === "..") return null;
+  const root = process.env.ATMEM_OPENCLAW_MEDIA_ROOT
+    ? expandHome(process.env.ATMEM_OPENCLAW_MEDIA_ROOT)
+    : path.join(os.homedir(), ".openclaw", "media");
+  return path.join(root, "inbound", match[1]);
+}
+
+function attachmentFields(value: unknown): { paths: string[]; types: string[] } {
+  const selected: Array<{ path: string; type: string }> = [];
+  const seen = new Set<string>();
+  const add = (reference: unknown, mimeType: unknown): void => {
+    if (typeof reference !== "string" || !reference) return;
+    const resolved = reference.startsWith("media://") ? managedMediaPath(reference) : reference;
+    if (!resolved || seen.has(resolved)) return;
+    seen.add(resolved);
+    selected.push({
+      path: resolved,
+      type: typeof mimeType === "string" && mimeType
+        ? mimeType
+        : "application/octet-stream",
+    });
+  };
+  const visit = (item: unknown): void => {
+    if (Array.isArray(item)) {
+      for (const child of item) visit(child);
+      return;
+    }
+    if (!item || typeof item !== "object") return;
+    const row = item as Record<string, unknown>;
+    add(row.path ?? row.url, row.contentType ?? row.mimeType ?? row.kind);
+    if (row.__openclaw && typeof row.__openclaw === "object") {
+      visit((row.__openclaw as Record<string, unknown>).media);
+    }
+  };
+  visit(value);
+  return {
+    paths: selected.map((item) => item.path),
+    types: selected.map((item) => item.type),
+  };
+}
+
 
 function recordIdFromPath(value: string): string | null {
   const prefix = "atmem://record/";
@@ -418,8 +506,17 @@ function recordIdFromPath(value: string): string | null {
 
 function register(api: OpenClawPluginApi): void {
   const cfg = parseConfig(api.pluginConfig);
+  const stateDirectory = path.dirname(cfg.controlPlane.statePath);
+  const selectedHome = process.env.ATMEM_HOME
+    ? expandHome(process.env.ATMEM_HOME)
+    : path.basename(stateDirectory) === "config"
+      ? path.dirname(stateDirectory)
+      : stateDirectory;
+  const runtimeRoot = path.basename(stateDirectory) === "config" || process.env.ATMEM_HOME
+    ? path.join(selectedHome, "runtime")
+    : selectedHome;
   const attachmentBindingRoot = path.join(
-    path.dirname(cfg.controlPlane.enabled ? cfg.controlPlane.statePath : cfg.dbPath),
+    runtimeRoot,
     "openclaw-attachment-bindings",
   );
   const client = new AtmemClient({
@@ -437,7 +534,7 @@ function register(api: OpenClawPluginApi): void {
         logError: (message) => api.logger.warn(`${TAG} ${message}`),
       });
   const executionSpool = new ExecutionSpool(
-    path.join(path.dirname(cfg.controlPlane.statePath), "openclaw-execution-spool.json"),
+    path.join(runtimeRoot, "openclaw-execution-spool.json"),
   );
   // Let long-lived hosts close the stdio child during lifecycle shutdown.
   // The client's bounded idle shutdown also covers one-shot local runners.
@@ -593,6 +690,16 @@ function register(api: OpenClawPluginApi): void {
       ? normalized.slice("openclaw".length)
       : normalized;
   };
+  const governedMemoryTools = new Set([
+    "memory_search",
+    "memory_get",
+    "memory_remember",
+    "atmem_observe",
+    "atmem_forget_artifact",
+    "atmem_trace",
+    "atmem_tasks",
+    "atmem_task_progress",
+  ]);
   const recordBlackbox = async (
     eventType: string,
     eventRunId: string | undefined,
@@ -789,7 +896,8 @@ function register(api: OpenClawPluginApi): void {
       : typeof rawType === "string"
         ? [rawType]
         : [];
-    return { paths, types };
+    const current = attachmentFields(message);
+    return current.paths.length ? current : { paths, types };
   };
 
   const writtenMessageBindingKeys = (
@@ -811,22 +919,55 @@ function register(api: OpenClawPluginApi): void {
 
   api.on("message_received", async (event: MessageReceivedEvent, ctx) => {
     const metadata = event.metadata ?? {};
-    const paths = Array.isArray(metadata.mediaPaths)
+    // OpenClaw 2026.9 exposes stable media facts on the event. The metadata
+    // aliases are deprecated and can be absent even though the model receives
+    // the attachment, so use them only as a compatibility fallback.
+    const media = Array.isArray(event.media) ? event.media : [];
+    const currentFields = attachmentFields(media);
+    const current = currentFields.paths.map((path, index) => ({
+      path,
+      type: currentFields.types[index] ?? "application/octet-stream",
+    }));
+    const originalMedia = Array.isArray(event.originalMedia) ? event.originalMedia : [];
+    const originalFields = attachmentFields(originalMedia);
+    const original = originalFields.paths.map((path, index) => ({
+      path,
+      type: originalFields.types[index] ?? "application/octet-stream",
+    }));
+    const legacyPaths = Array.isArray(metadata.mediaPaths)
       ? metadata.mediaPaths.filter((value): value is string => typeof value === "string")
-      : typeof metadata.mediaPath === "string"
-        ? [metadata.mediaPath]
-        : [];
-    const types = Array.isArray(metadata.mediaTypes)
+      : typeof metadata.mediaPath === "string" ? [metadata.mediaPath] : [];
+    const legacyTypes = Array.isArray(metadata.mediaTypes)
       ? metadata.mediaTypes.filter((value): value is string => typeof value === "string")
-      : typeof metadata.mediaType === "string"
-        ? [metadata.mediaType]
-        : [];
+      : typeof metadata.mediaType === "string" ? [metadata.mediaType] : [];
+    const legacyOriginalPaths = Array.isArray(metadata.originalMediaPaths)
+      ? metadata.originalMediaPaths.filter((value): value is string => typeof value === "string")
+      : typeof metadata.originalMediaPath === "string" ? [metadata.originalMediaPath] : [];
+    const legacyOriginalTypes = Array.isArray(metadata.originalMediaTypes)
+      ? metadata.originalMediaTypes.filter((value): value is string => typeof value === "string")
+      : typeof metadata.originalMediaType === "string" ? [metadata.originalMediaType] : [];
+    const selected = current.length
+      ? current
+      : original.length
+        ? original
+        : legacyPaths.map((path, index) => ({
+            path,
+            type: legacyTypes[index] ?? legacyTypes[0] ?? "application/octet-stream",
+          })).concat(legacyOriginalPaths.map((path, index) => ({
+            path,
+            type: legacyOriginalTypes[index] ?? legacyOriginalTypes[0] ?? "application/octet-stream",
+          })));
+    const paths = selected.map((fact) => fact.path);
+    const types = selected.map((fact) => fact.type);
     const keys = [...new Set([
       event.sessionKey,
       event.runId,
       ...contextIds(ctx),
     ].filter((value): value is string => Boolean(value)))];
     try {
+      // A staging-pending event has not supplied a safe local path yet. Do not
+      // erase an earlier binding for the same turn while OpenClaw is staging it.
+      if (!paths.length && (event.mediaStagingPending || metadata.mediaStagingPending === true)) return;
       await bindInboundAttachments(keys, paths, types, ctx);
     } catch (error) {
       api.logger.warn(
@@ -906,6 +1047,11 @@ function register(api: OpenClawPluginApi): void {
       }
       cachePendingPrompt(sessionKey, { ...pending, delegatedContext: undefined });
     }
+    const modelMediaParts = inlineMediaParts([
+      event.historyMessages,
+      event.messages,
+      event.images,
+    ]);
     await recordBlackbox("model.input", event.runId, ctx, {
       provider: event.provider,
       model: event.model,
@@ -922,6 +1068,7 @@ function register(api: OpenClawPluginApi): void {
         system_prompt: event.systemPrompt ?? "",
         history_messages: event.historyMessages ?? [],
         tools: event.tools ?? [],
+        parts: modelMediaParts,
       },
     });
   });
@@ -1533,6 +1680,10 @@ function register(api: OpenClawPluginApi): void {
       },
       event.toolCallId ?? ctx.toolCallId,
     );
+    // These virtual tools operate through AtMem. Their arguments legitimately
+    // contain values such as `corpus: "memory"`; they are not filesystem
+    // access to OpenClaw's frozen MEMORY.md or memory/* tree.
+    if (governedMemoryTools.has(canonicalToolName(event.toolName))) return;
     if (!cfg.takeoverActive || !cfg.nativeWorkspaces.some(
       (workspace) => touchesNativeMemory(event, workspace),
     )) return;
@@ -1600,6 +1751,29 @@ function register(api: OpenClawPluginApi): void {
     });
     const sessionKey = sessionKeyFor(ctx);
     const observedTurnInputKey = turnInputKey(ctx);
+
+    // Current OpenClaw WebChat persists exact attachment provenance on the
+    // user transcript as __openclaw.media[].url = media://inbound/<id>. Some
+    // earlier hooks omit it, so agent_end is the durable late-capture boundary.
+    const completedTurnMedia = attachmentFields(event.messages);
+    if (completedTurnMedia.paths.length) {
+      try {
+        await bindInboundAttachments(
+          [...new Set([sessionKey, event.runId, ...contextIds(ctx)].filter(
+            (value): value is string => Boolean(value),
+          ))],
+          completedTurnMedia.paths,
+          completedTurnMedia.types,
+          ctx,
+        );
+      } catch (error) {
+        api.logger.warn(
+          `${TAG} completed-turn attachment capture unavailable: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
 
     const cached = pendingPrompts.get(sessionKey);
     deletePendingPrompt(sessionKey);
@@ -1754,7 +1928,9 @@ function register(api: OpenClawPluginApi): void {
     // by scanning the media directory or scraping its name from user text.
     const attachmentFields = writtenMessageAttachmentFields(message);
     const attachmentKeys = writtenMessageBindingKeys(message, ctx);
-    if (attachmentKeys.length) {
+    // A sparse transcript message is normal in current OpenClaw. It must not
+    // erase the binding already established by message_received.
+    if (attachmentKeys.length && attachmentFields.paths.length) {
       void bindInboundAttachments(
         attachmentKeys,
         attachmentFields.paths,
