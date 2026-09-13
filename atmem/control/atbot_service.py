@@ -18,7 +18,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 
-PINNED_ATBOT_VERSION = "0.1.0a6"
+PINNED_ATBOT_VERSION = "0.1.0"
 ATBOT_DISTRIBUTION = "atmem-atbot"
 ATBOT_PROTOCOL_VERSION = "1"
 DEFAULT_ROOT = compatible_home_path("config/atbot", "atbot")

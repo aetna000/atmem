@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a published-version fixture, then prove 2.3.0 upgrades it safely."""
+"""Create a published-version fixture, then prove 2.3.1 upgrades it safely."""
 
 from __future__ import annotations
 
@@ -80,8 +80,8 @@ def verify_upgrade(root: Path) -> None:
     from atmem.control.store import ENCRYPTED_CONTROL_MAGIC
 
     manifest = json.loads((root / "fixture.json").read_text(encoding="utf-8"))
-    assert importlib.metadata.version("atmem") == "2.3.0"
-    assert importlib.metadata.version("atmem-atbot") == "0.1.0a6"
+    assert importlib.metadata.version("atmem") == "2.3.1"
+    assert importlib.metadata.version("atmem-atbot") == "0.1.0"
 
     database = root / "memory.db"
     memory = Memory(database)
@@ -124,7 +124,7 @@ def verify_upgrade(root: Path) -> None:
     else:
         raise AssertionError("protected control evidence remained readable as plaintext SQLite")
     assert manager.control_schema_version() == 6
-    print("AtMem persisted-state -> 2.3.0 upgrade smoke test passed")
+    print("AtMem persisted-state -> 2.3.1 upgrade smoke test passed")
 
 
 def main() -> None:
