@@ -502,4 +502,4 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 
 ## M0 identity extraction
 
-- [ ] [T110] Extract the non-task identity subset of T088 into `atmem/contracts/execution.py` and independent vectors in `tests/test_execution_identity.py`: authenticated scope and supplied session/run/turn/tool/attempt/parent references, absent task fields and no inferred relationships. This is the prerequisite for 020 T018; leave T088's full task/focus/locator contract scope unchecked until complete (FR-055–FR-056; specs/m0-investigation-preview.md).
+- [x] [T110] Extract the non-task identity subset of T088 into `atmem/contracts/execution.py` and independent vectors in `tests/test_execution_identity.py`: authenticated scope and supplied session/run/turn/tool/attempt/parent references, absent task fields and no inferred relationships. This is the prerequisite for 020 T018; leave T088's full task/focus/locator contract scope unchecked until complete (FR-055–FR-056; specs/m0-investigation-preview.md).

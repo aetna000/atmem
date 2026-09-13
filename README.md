@@ -1,9 +1,16 @@
 # AtMem
 
-[![Version 2.2.6](https://img.shields.io/badge/version-2.2.6-blue)](./docs/releases/v2.2.6.md)
+[![Version 2.3.0](https://img.shields.io/badge/version-2.3.0-blue)](./docs/releases/v2.3.0.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
+
+> **Release status:** AtMem 2.3.0 is the stable encrypted Agent Black Box release.
+> It records exact host-observed text and supported multimodal boundaries by default,
+> while keeping every claim limited to what the connected agent actually supplied.
+
+Created and maintained by [Javad Taghia](https://github.com/javadtaghia)
+([@JavadTaghia](https://x.com/JavadTaghia)).
 
 Install AtMem once and give OpenClaw, Pydantic AI, LangChain/LangGraph, or a
 custom agent governed long-term memory. **AtBot is installed automatically** as
@@ -15,9 +22,10 @@ authorizes, stores, scopes, injects, corrects, and deletes memory.
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --upgrade atmem==2.2.6
+python -m pip install --upgrade atmem==2.3.0
 atmem atbot setup
 atmem atbot doctor
+atmem init
 atmem dashboard
 ```
 
@@ -47,7 +55,7 @@ package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.2.6
+python -m pip install --upgrade atmem==2.3.0
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -70,7 +78,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.2.6'
+python -m pip install 'atmem[pydantic-ai]==2.3.0'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -95,7 +103,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.2.6'
+python -m pip install 'atmem[langgraph]==2.3.0'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -159,7 +167,7 @@ open tasks. AtBot may propose a change, but AtMem revalidates and commits it.
 
 See the [Governed Task State guide](docs/governed-task-state.md) for lifecycle,
 correction, provenance, expiry, benchmark, and automation examples, and read
-the [2.2.6 release notes](docs/releases/v2.2.6.md) before upgrading.
+the [2.3.0 release notes](docs/releases/v2.3.0.md) before upgrading.
 
 ### Prove memory quality locally
 
@@ -191,19 +199,19 @@ If AtBot or its selected model is unavailable, AtMem continues with safe local
 capture and hybrid ranking. Memory authority and agent operation do not depend
 on a hosted model.
 
-> **Release status:** this repository describes the **AtMem 2.2.6 release candidate**, not verified publication. AtBot is a
-> separately packaged, headless component installed and managed by AtMem; it is
-> not an independent agent or a second memory authority.
+> **Companion boundary:** AtBot is a separately packaged, headless component
+> installed and managed by AtMem. It is not an independent agent or a second
+> memory authority.
 
 ### Optional: delegate context authority
 
-Beta 10 requires per-instance HMAC request credentials for delegated context and
+Delegated HTTP transport requires per-instance HMAC request credentials for context and
 health. See the
 [shared profile and beta migration](docs/contracts/delegated-request-auth-v1.md)
 before enabling an older delegated registration.
 
-AtMem uses its own governed retrieval by default. The 2.2.6 beta adds an
-explicit, provider-neutral delegated mode for deployments where another
+AtMem uses its own governed retrieval by default. Introduced in 2.2.6, its
+explicit, provider-neutral delegated mode supports deployments where another
 compatible provider must make the context decision while AtMem owns
 host integration and flight evidence.
 
@@ -257,7 +265,7 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install atmem==2.2.6
+python -m pip install atmem==2.3.0
 atmem --version
 ```
 
@@ -267,7 +275,7 @@ embedding model, while the semantic extra adds local sentence-transformer
 choices:
 
 ```bash
-python -m pip install 'atmem[semantic]==2.2.6'
+python -m pip install 'atmem[semantic]==2.3.0'
 ```
 
 For repository development, install both workspace packages:
@@ -350,6 +358,13 @@ atmem blackbox verify RUN_ID
 atmem blackbox export RUN_ID --format json --output flight.json
 atmem blackbox ack RUN_ID ATTENTION_CODE
 
+# Initialize local sign-in and manage encrypted evidence privileges.
+atmem init
+atmem users create audit.viewer viewer
+atmem users create incident.team investigator
+atmem users create evidence.team evidence_collector
+atmem evidence status
+
 # Explicit influence control.
 atmem control activate
 atmem control restore
@@ -396,8 +411,9 @@ verification, activation, and return-to-shadow use the same operations as the
 CLI. The canonical dashboard API is `/api/memory/*`; legacy `/api/mirror/*`
 paths remain aliases for older local clients.
 
-The dashboard binds only to loopback, has no login, checks origin and CSRF on
-mutations, and should not be placed behind a public reverse proxy.
+The dashboard binds only to loopback and requires a local AtMem account. It uses
+HttpOnly sessions, checks origin and CSRF on mutations, and should not be placed
+behind a public reverse proxy.
 
 ## Multiple agents and workspaces
 
@@ -447,7 +463,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --upgrade atmem==2.2.6
+python -m pip install --upgrade atmem==2.3.0
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -466,7 +482,77 @@ See [OpenClaw setup](docs/openclaw-setup.md), the
 [OpenClaw control-plane guarantees](docs/control-plane.md), and the
 [OpenClaw bridge package](integrations/openclaw/README.md).
 
-## Agent Black Box evidence
+## Encrypted Agent Black Box evidence
+
+When the recorder is configured, new capture defaults to encrypted full fidelity:
+exact text, context, model exchange, tool arguments/results and ordered file,
+image, audio and video parts are sealed in the protected evidence vault. The
+legacy evidence table retains compatible digests and bounded operational
+projections; it never receives the exact reserved payload. New and migrated control
+stores are application-encrypted as a whole, so those projections and their metadata
+are not readable by opening the file as SQLite. Other historical or external
+plaintext sources must still pass the inventory and verified-cleanup gate before an
+installation claims complete metadata-at-rest protection.
+
+The Settings page presents this as one compact **Evidence protection** row.
+Turning **Data** off retains encrypted metadata and labels new runs not
+reconstructable. Turning the **Recorder** off stores no new evidence. Neither
+control creates plaintext storage.
+
+Evidence privileges are deliberately separate from agent/API admin headers:
+
+- **Viewer** sees content-free metadata, hashes, integrity and coverage only.
+- **Investigator** can decrypt, view, play and reconstruct exact evidence inside AtMem.
+- **Evidence Collector** can additionally export plaintext after exact
+  confirmation and manage evidence settings. Viewer and Investigator plaintext
+  export always fails.
+- **Administrator** has ultimate local evidence access and manages local users,
+  roles and password resets.
+
+`atmem init` prints the first Administrator's temporary password once. The
+dashboard uses username/password sign-in and forces that password to change.
+`create-test-accounts` remains a compatibility command for automated tests;
+its bearer tokens are not the normal dashboard experience.
+
+### Portable AtMem Home
+
+All new durable state resolves from one AtMem Home (`ATMEM_HOME`, otherwise
+`~/.atmem`). New installations use `config/`, `identity/`, `memory/`, `evidence/`,
+`artifacts/`, `migrations/` and disposable `runtime/`/`indexes/` directories under
+that root. Exact media is retained twice inside AtMem's encrypted boundary: in the
+protected evidence document as the disaster-recovery authority and in the
+content-addressed artifact vault for verification and deduplication.
+
+```bash
+atmem home status
+atmem home verify
+atmem restore /path/to/copied-atmem-home
+```
+
+On another computer, `atmem restore` opens the copied home against a disposable
+runtime binding. Sign in with an Administrator account contained in that copy; the
+source agent, OpenClaw media directory and host logs are not required. Restore/open
+does not silently migrate evidence. Existing 2.3 prerelease layouts use an explicit,
+copy-first conversion:
+
+```bash
+atmem home migrate --home ~/.atmem /path/to/new-portable-home
+atmem home verify --home /path/to/new-portable-home
+atmem home migrate --home ~/.atmem /path/to/new-portable-home --commit
+atmem home adopt --home /path/to/new-portable-home
+```
+
+Stop AtMem and connected agent writers before copying or migrating. Migration
+streams an inventory, copies and verifies each known durable store, journals its
+phase and never deletes the source. Adoption requires the copied Administrator,
+rotates sessions and changes only machine-local bindings; historical evidence IDs,
+hashes and artifact bytes are not rewritten.
+
+### Legacy evidence projection
+
+The table below describes the compatible content-minimizing projection. By
+itself it is not sufficient to replay or reconstruct a run after the originating
+agent/logs are lost; authorized reconstruction reads the encrypted vault.
 
 The runtime can record these content-minimizing event types:
 
@@ -484,8 +570,10 @@ the runtime reported. It does not prove that a hook was truthful, semantically
 validate an answer, or prove email delivery, payment settlement, or a database
 change without independent system-of-record evidence.
 
-Raw prompts, replies, tool parameters, and tool results are not stored in the
-Black Box. SHA-256 digests are fingerprints, not encryption or anonymization.
+Raw prompts, replies, tool parameters and tool results are not stored in this
+legacy projection. SHA-256 digests are fingerprints, not encryption or
+anonymization. Exact values are available only through authorized AtMem evidence
+operations when the protected full-fidelity boundary captured them.
 See the [Agent Black Box guide](docs/agent-blackbox.md).
 
 ## Use the memory engine directly
@@ -526,7 +614,10 @@ and [multimodal observations](docs/multimodal-observations.md).
   vector match is checked against canonical scope, status, digest, exclusions,
   sensitivity, and generation before use. Higher-quality embedding libraries
   and model downloads remain optional.
-- External media bytes remain host-controlled; AtMem stores a typed text observation, byte digest, model identity, and host reference.
+- In full capture mode, available external media bytes are copied into encrypted
+  AtMem evidence and its content-addressed artifact vault before capture is claimed;
+  the host reference is provenance, not a recovery dependency. Metadata/off modes
+  are visibly non-reconstructable.
 - External observations remain quarantined until an operator approves them.
 - Rejected, superseded, or tombstoned memory is excluded from ordinary search and recall.
 - Forget cascades through canonical, graph, media, and vector-derived state and returns a receipt.
@@ -600,8 +691,8 @@ npm test
 npm run smoke
 ```
 
-Current repository metadata is version **2.2.6**, with the matched OpenClaw
-bridge **2.2.6**. Release validation requires exact Python/bridge alignment;
+Current repository metadata is version **2.3.0**, with the matched OpenClaw
+bridge **2.3.0**. Release validation requires exact Python/bridge alignment;
 AtBot retains its independent compatible version **0.1.0a6**.
 
 ## License

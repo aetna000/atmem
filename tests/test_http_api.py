@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import threading
+from http.cookiejar import CookieJar
 from urllib.error import HTTPError
-from urllib.request import Request, build_opener
+from urllib.request import HTTPCookieProcessor, Request, build_opener
 
 from atmem.control.manager import ControlPlaneManager
 from atmem.control.web import ControlDashboardServer
+from atmem.home import HomeService
 
 
 def _server(tmp_path):
@@ -46,5 +48,289 @@ def test_authenticated_v1_idempotency_pagination_and_authority(tmp_path) -> None
         assert admin["format"] == "atmem-api-configuration-v1"
         feature = json.loads(opener.open(_request(base, token, "/v1/features/adapters")).read())
         assert feature["available"] and feature["framework_adapters"]["mcp"]["exact_injection"] is False
+        server.manager.record_blackbox_event(
+            event_type="model.input",
+            run_id="http-execution",
+            execution_id="http-execution",
+            event_id="http-event-1",
+            producer_instance_id="http-fixture",
+            producer_epoch="epoch-1",
+            producer_sequence=1,
+            event_time="2026-09-12T00:00:00.000Z",
+            subject_id="local-user",
+            payload={"provider": "fixture", "model": "fixture"},
+        )
+        executions = json.loads(opener.open(_request(base, token, "/v1/executions", role="admin")).read())
+        assert executions["count"] == 1
+        execution = json.loads(opener.open(_request(base, token, "/v1/executions/http-execution", role="admin")).read())
+        assert execution["event_count"] == 1
+        server.manager.record_blackbox_event(
+            event_type="model.input",
+            run_id="encoded-execution",
+            execution_id="encoded/execution",
+            event_id="http-event-encoded",
+            producer_instance_id="http-fixture-encoded",
+            producer_epoch="epoch-1",
+            producer_sequence=1,
+            event_time="2026-09-12T00:00:01.000Z",
+            subject_id="local-user",
+            payload={"provider": "fixture", "model": "fixture"},
+        )
+        encoded = json.loads(
+            opener.open(
+                _request(base, token, "/v1/executions/encoded%2Fexecution", role="admin")
+            ).read()
+        )
+        assert encoded["execution_id"] == "encoded/execution"
+        with __import__("pytest").raises(HTTPError) as hidden:
+            opener.open(_request(base, token, "/v1/executions/http-execution", role="admin", subject="other-user"))
+        assert hidden.value.code == 404
+    finally:
+        server.shutdown(); server.server_close(); thread.join(2)
+
+
+def test_evidence_accounts_enforce_view_reconstruct_and_plaintext_export(tmp_path) -> None:
+    server, thread = _server(tmp_path)
+    base = f"http://127.0.0.1:{server.server_port}"
+    opener = build_opener()
+    try:
+        server.manager.record_blackbox_event(
+            event_type="turn.input",
+            run_id="protected-http-run",
+            execution_id="protected-http-run",
+            event_id="protected-http-event",
+            producer_instance_id="http-protected-fixture",
+            producer_epoch="epoch-1",
+            producer_sequence=1,
+            event_time="2026-09-13T00:00:00.000Z",
+            subject_id="local-user",
+            payload={
+                "prompt_sha256": "2" * 64,
+                "prompt_chars": 22,
+                "_atmem_evidence": {"prompt": "HTTP-PLAINTEXT-SECRET"},
+            },
+        )
+        rows = server.manager.evidence_service().create_demo_accounts(
+            subject_id="local-user"
+        )
+        tokens = {row["role"]: row["token"] for row in rows}
+
+        def evidence_request(path, role, *, method="GET", body=None):
+            return Request(
+                base + path,
+                method=method,
+                data=json.dumps(body).encode() if body is not None else None,
+                headers={
+                    "Authorization": f"Bearer {tokens[role]}",
+                    "Content-Type": "application/json",
+                    # This untrusted compatibility header must not elevate the account.
+                    "X-AtMem-Role": "admin",
+                },
+            )
+
+        with __import__("pytest").raises(HTTPError) as viewer_view:
+            opener.open(evidence_request("/v1/evidence/runs/protected-http-run", "viewer"))
+        assert viewer_view.value.code == 403
+        viewed = json.loads(opener.open(
+            evidence_request("/v1/evidence/runs/protected-http-run", "investigator")
+        ).read())
+        assert viewed["events"][0]["envelope"]["evidence"]["prompt"] == "HTTP-PLAINTEXT-SECRET"
+        with __import__("pytest").raises(HTTPError) as viewer_search:
+            opener.open(evidence_request(
+                "/v1/evidence/search?query=HTTP-PLAINTEXT-SECRET", "viewer"
+            ))
+        assert viewer_search.value.code == 403
+        searched = json.loads(opener.open(evidence_request(
+            "/v1/evidence/search?query=HTTP-PLAINTEXT-SECRET", "investigator"
+        )).read())
+        assert len(searched["events"]) == 1
+        with __import__("pytest").raises(HTTPError) as viewer_reconstruct:
+            opener.open(
+                evidence_request(
+                    "/v1/evidence/reconstruct",
+                    "viewer",
+                    method="POST",
+                    body={"run_id": "protected-http-run"},
+                )
+            )
+        assert viewer_reconstruct.value.code == 403
+        reconstruction = json.loads(
+            opener.open(
+                evidence_request(
+                    "/v1/evidence/reconstruct",
+                    "investigator",
+                    method="POST",
+                    body={"run_id": "protected-http-run"},
+                )
+            ).read()
+        )
+        assert reconstruction["reconstructable"] is True
+        replay = json.loads(
+            opener.open(
+                evidence_request(
+                    "/v1/evidence/replay-manifest",
+                    "investigator",
+                    method="POST",
+                    body={"run_id": "protected-http-run"},
+                )
+            ).read()
+        )
+        assert replay["executable"] is False
+        with __import__("pytest").raises(HTTPError) as investigator_export:
+            opener.open(
+                evidence_request(
+                    "/v1/evidence/export/plaintext",
+                    "investigator",
+                    method="POST",
+                    body={
+                        "run_id": "protected-http-run",
+                        "confirmation": "EXPORT protected-http-run",
+                    },
+                )
+            )
+        assert investigator_export.value.code == 403
+        exported = json.loads(
+            opener.open(
+                evidence_request(
+                    "/v1/evidence/export/plaintext",
+                    "evidence_collector",
+                    method="POST",
+                    body={
+                        "run_id": "protected-http-run",
+                        "confirmation": "EXPORT protected-http-run",
+                    },
+                )
+            ).read()
+        )
+        assert "content_base64" in exported
+        rotated = json.loads(
+            opener.open(
+                evidence_request(
+                    "/v1/evidence/settings/rotate",
+                    "evidence_collector",
+                    method="POST",
+                    body={"confirmation": "ROTATE EVIDENCE KEY"},
+                )
+            ).read()
+        )
+        assert rotated["rotated"] is True
+    finally:
+        server.shutdown(); server.server_close(); thread.join(2)
+
+
+def test_local_login_forced_change_user_management_and_cookie_evidence(tmp_path) -> None:
+    server, thread = _server(tmp_path)
+    base = f"http://127.0.0.1:{server.server_port}"
+    opener = build_opener(HTTPCookieProcessor(CookieJar()))
+
+    def post(path, body, csrf=None, selected=opener):
+        headers = {"Content-Type": "application/json"}
+        if csrf:
+            headers["X-CSRF-Token"] = csrf
+        return json.loads(
+            selected.open(
+                Request(base + path, method="POST", data=json.dumps(body).encode(), headers=headers)
+            ).read()
+        )
+
+    try:
+        bootstrap = server.manager.identity_service().bootstrap()
+        login = post("/api/auth/login", {"username": "administrator", "password": bootstrap["password"]})
+        assert login["account"]["password_change_required"] is True
+        with __import__("pytest").raises(HTTPError) as forced:
+            opener.open(base + "/v1/evidence/runs/anything")
+        assert forced.value.code == 403
+
+        changed = post(
+            "/api/auth/change-password",
+            {"new_password": "A much better local password 42!"},
+            login["csrf_token"],
+        )
+        assert changed["account"]["role"] == "administrator"
+        created = post(
+            "/api/users/create",
+            {"username": "audit.viewer", "display_name": "Audit Viewer", "role": "viewer"},
+            changed["csrf_token"],
+        )
+        assert created["temporary_password"]
+        users = json.loads(opener.open(base + "/api/users").read())
+        assert {row["username"] for row in users["users"]} == {"administrator", "audit.viewer"}
+
+        server.manager.record_blackbox_event(
+            event_type="turn.input",
+            run_id="local-cookie-run",
+            execution_id="local-cookie-run",
+            event_id="local-cookie-event",
+            producer_instance_id="cookie-fixture",
+            producer_epoch="epoch-1",
+            producer_sequence=1,
+            event_time="2026-09-13T00:00:00.000Z",
+            subject_id="local-user",
+            payload={"_atmem_evidence": {"prompt": "COOKIE-EXACT-EVIDENCE"}},
+        )
+        evidence = json.loads(opener.open(base + "/v1/evidence/runs/local-cookie-run").read())
+        assert evidence["access"]["role"] == "administrator"
+        assert evidence["events"][0]["envelope"]["evidence"]["prompt"] == "COOKIE-EXACT-EVIDENCE"
+        with __import__("pytest").raises(HTTPError) as csrf_denied:
+            post(
+                "/v1/evidence/reconstruct",
+                {"run_id": "local-cookie-run"},
+            )
+        assert csrf_denied.value.code == 403
+        reconstructed = post(
+            "/v1/evidence/reconstruct",
+            {"run_id": "local-cookie-run"},
+            changed["csrf_token"],
+        )
+        assert reconstructed["run_id"] == "local-cookie-run"
+    finally:
+        server.shutdown(); server.server_close(); thread.join(2)
+
+
+def test_authenticated_home_health_verify_and_admin_adoption(tmp_path, monkeypatch) -> None:
+    home = tmp_path / "portable-home"
+    monkeypatch.setenv("ATMEM_HOME", str(home))
+    service = HomeService()
+    service.initialize()
+    service.layout.path("runtime/home-mode.json").write_text(
+        json.dumps({"format": "atmem-home-runtime-mode-v1", "mode": "restore_read_only"}),
+        encoding="utf-8",
+    )
+    server, thread = _server(tmp_path / "server")
+    base = f"http://127.0.0.1:{server.server_port}"
+    opener = build_opener(HTTPCookieProcessor(CookieJar()))
+
+    def post(path, body, csrf=None):
+        headers = {"Content-Type": "application/json"}
+        if csrf:
+            headers["X-CSRF-Token"] = csrf
+        return json.loads(opener.open(Request(
+            base + path, method="POST", data=json.dumps(body).encode(), headers=headers
+        )).read())
+
+    try:
+        with __import__("pytest").raises(HTTPError) as anonymous:
+            opener.open(base + "/api/home")
+        assert anonymous.value.code == 403
+        bootstrap = server.manager.identity_service().bootstrap()
+        login = post("/api/auth/login", {
+            "username": bootstrap["username"], "password": bootstrap["password"]
+        })
+        changed = post(
+            "/api/auth/change-password", {"new_password": "portable"}, login["csrf_token"]
+        )
+        status = json.loads(opener.open(base + "/api/home").read())
+        assert status["home"] == str(home)
+        assert status["mode"] == "restore_read_only"
+        verified = post("/api/home/verify", {}, changed["csrf_token"])
+        assert verified["verified"] is True
+        adopted = post(
+            "/api/home/adopt", {"confirm_home": str(home)}, changed["csrf_token"]
+        )
+        assert adopted["historical_evidence_rewritten"] is False
+        assert adopted["revoked_sessions"] >= 1
+        with __import__("pytest").raises(HTTPError) as expired:
+            opener.open(base + "/api/home")
+        assert expired.value.code == 403
     finally:
         server.shutdown(); server.server_close(); thread.join(2)

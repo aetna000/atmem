@@ -57,7 +57,7 @@ export function setupWrites(options: SetupOptions): Array<[string, string, boole
       minScore: 0.3,
       timeoutMs: 3000,
     },
-    persona: { enabled: true, maxChars: 600, ttlSeconds: 300 },
+    persona: { enabled: false, maxChars: 600, ttlSeconds: 300 },
     capture: { enabled: true, captureAssistant: true },
     cacheAware: { enabled: true, compactReferences: true },
     tools: { enabled: true },

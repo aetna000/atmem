@@ -129,3 +129,53 @@ def test_record_admission_binds_lifecycle_metadata() -> None:
     assert payload["trust_tier"] == record["trust_tier"]
     assert payload["confidence"] == record["confidence"]
     assert payload["scope"] == record["scope"]
+
+
+def test_automatic_context_requires_direct_support_not_relative_rank() -> None:
+    memory = Memory(':memory:')
+    # A single shared word can rank highly when FTS normalizes against weak matches.
+    procedural = memory.remember('u1', 'I prefer bullet lists instead of markdown tables.')['records'][0]
+    query = 'list all the chinese shops in botany road that sell roasted duck'
+    legacy = memory.build_recall_block('u1', query, min_score=0.3)
+    assert procedural['id'] in legacy['record_ids']
+    selective = memory.build_recall_block('u1', query, require_direct_support=True)
+    assert selective['record_ids'] == []
+    assert selective['block'] == ''
+    assert selective['context_event_id'] is None
+    # Explicit recall remains available; automatic filtering does not delete memory.
+    assert memory.recall('u1', 'bullet lists')
+    relevant = memory.remember('u1', 'My favorite color is teal.')['records'][0]
+    block = memory.build_recall_block('u1', 'favorite color', require_direct_support=True)
+    assert relevant['id'] in block['record_ids']
+    assert memory.build_recall_block('u1', 'favorite color', require_direct_support=True,
+        exclude_record_ids={relevant['id']})['record_ids'] == []
+    memory.close()
+
+
+def test_broad_request_can_recall_an_explicitly_named_profile_fact() -> None:
+    memory = Memory(':memory:', recall_candidate_limit=4)
+    age = memory.remember(
+        'u1',
+        'I am 45 years old.',
+        interpreted_fact='JT is 45 years old.',
+        interpreted_fact_key='user_age',
+    )['records'][0]
+    # Fill the bounded recent window and add words that produce unrelated FTS
+    # matches. The structured profile key must remain a candidate.
+    for index, content in enumerate((
+        'Find ingredients for a recipe.',
+        'A good response is concise.',
+        'Shopping lists can be useful.',
+        'The city center is busy.',
+    )):
+        memory.remember('u1', content, interpreted_fact=content,
+                        interpreted_fact_key=f'noise_{index}')
+
+    result = memory.build_recall_block(
+        'u1', 'for my age find a good shoping center',
+        min_score=0.3, require_direct_support=True,
+    )
+
+    assert result['record_ids'] == [age['id']]
+    assert '45 years old' in result['block']
+    memory.close()

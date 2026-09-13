@@ -2,7 +2,7 @@
   "id": "memory-atmem",
   "name": "Memory (atmem)",
   "description": "OpenClaw bridge installed and managed by the AtMem memory control plane.",
-  "version": "2.2.6",
+  "version": "2.3.0",
   "commandAliases": ["memory-atmem"],
   "activation": {
     "onStartup": true,
@@ -37,7 +37,7 @@
       },
       "dbPath": {
         "type": "string",
-        "default": "~/.atmem/memories.db",
+        "default": "~/.atmem/memory/memories.db",
         "description": "SQLite database path (also auditable from outside OpenClaw via `atmem verify`)"
       },
       "subject": {
@@ -81,15 +81,16 @@
           "enabled": { "type": "boolean", "default": true },
           "maxRecords": { "type": "number", "default": 3, "description": "Max memories injected per turn" },
           "maxChars": { "type": "number", "default": 1200, "description": "Total character budget for the injected block" },
+          "requireDirectSupport": { "type": "boolean", "default": true, "description": "Require direct query relevance for automatic recall; rank score alone is insufficient" },
           "minScore": { "type": "number", "default": 0.3, "description": "Minimum relevance score; 0.3 requires a lexical match (priors alone never inject)" },
           "timeoutMs": { "type": "number", "default": 4000, "description": "Recall timeout; on timeout the turn proceeds without injection" }
         }
       },
       "persona": {
         "type": "object",
-        "description": "L3 persona snapshot injected alongside recall",
+        "description": "Optional always-on persona snapshot; disabled by default to avoid unrelated context",
         "properties": {
-          "enabled": { "type": "boolean", "default": true },
+          "enabled": { "type": "boolean", "default": false },
           "maxChars": { "type": "number", "default": 600, "description": "Character budget for the <user_persona> block" },
           "ttlSeconds": { "type": "number", "default": 300, "description": "Persona cache lifetime; also invalidated whenever new memory is captured" }
         }
@@ -128,13 +129,13 @@
           },
           "statePath": {
             "type": "string",
-            "default": "~/.atmem/control-plane.json",
+            "default": "~/.atmem/config/control-plane.json",
             "description": "Digest-bound control file written by `atmem control`."
           },
           "blackboxEnabled": {
             "type": "boolean",
-            "default": false,
-            "description": "Record content-minimizing agent flights through the private control protocol. Managed automatically by the AtMem installer."
+            "default": true,
+            "description": "Record encrypted full-fidelity text, link/page, file, image, audio and video evidence plus metadata through the private control protocol. Set false to disable the recorder."
           }
         }
       },

@@ -103,7 +103,8 @@ def test_capture_rejects_non_user_and_does_not_store_raw_prompt(tmp_path: Path) 
     state = manager.state()
     database_bytes = (Path(state.control_dir) / "evidence.db").read_bytes()
     assert raw.encode() not in database_bytes
-    assert b"ultraviolet" in database_bytes
+    assert b"ultraviolet" not in database_bytes
+    assert database_bytes.startswith(b"ATMEM-CONTROL-DB-V1\n")
 
 
 def test_corrupt_state_fails_closed(tmp_path: Path) -> None:
@@ -318,6 +319,30 @@ def test_private_mcp_exposes_no_approval_or_mode_change_tools(
         for name in names
         for forbidden in ("correct", "cancel", "override", "delete", "forget")
     )
+    record_tool = next(
+        item
+        for item in response["result"]["tools"]  # type: ignore[index]
+        if item["name"] == "control_record_blackbox_event"
+    )
+    schema = record_tool["inputSchema"]
+    assert {
+        "event_id",
+        "producer_instance_id",
+        "producer_epoch",
+        "producer_sequence",
+        "event_time",
+        "execution_id",
+        "parent_execution_id",
+        "attempt_id",
+        "retry_of_attempt_id",
+    } <= set(schema["properties"])
+    assert schema["allOf"][0]["then"]["required"] == [
+        "event_id",
+        "producer_instance_id",
+        "producer_epoch",
+        "producer_sequence",
+        "event_time",
+    ]
 
 
 def test_private_mcp_refreshes_openclaw_native_memory_without_chat_capture(
@@ -685,7 +710,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         ]
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.2.6"
+        assert product["atmem_npm_version"] == "2.3.0"
         assert product["x_url"] == "https://x.com/AtMemX"
         profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
         assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])
@@ -987,7 +1012,8 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     required_sections = {
         "viewStatus",
         "viewDecisions",
-        "viewEvidence",
+        "viewMemory",
+        "viewAudit",
         "statusBanner",
         "stateChip",
         "storageOverview",
@@ -1054,7 +1080,19 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
     from atmem.control.web import dashboard_html
 
     known = {
-        "/api/session",
+            "/api/session",
+            "/api/auth/status",
+            "/api/auth/login",
+            "/api/auth/logout",
+            "/api/auth/change-password",
+            "/api/users",
+            "/api/users/audit",
+            "/api/users/create",
+            "/api/users/update",
+            "/api/users/reset-password",
+            "/api/home",
+            "/api/home/verify",
+            "/api/home/adopt",
         "/api/product",
         "/api/status",
         "/api/semantic/health",
@@ -1101,10 +1139,15 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/memory/audit-export",
         "/api/memory/media-preview",
         "/api/blackbox/runs",
+        "/api/blackbox/revision",
         "/api/blackbox/story",
         "/api/blackbox/flight",
         "/api/blackbox/export",
         "/api/blackbox/acknowledge",
+        "/api/evidence/",
+        "/api/evidence/capture-mode",
+        "/api/evidence/protection",
+        "/api/evidence/rotate",
     }
     referenced = set(re.findall(r"/api/[a-z0-9/_-]+", dashboard_html()))
     unknown = referenced - known
@@ -1160,8 +1203,11 @@ def test_dashboard_copy_keeps_product_safety_invariants() -> None:
     assert 'return "Acknowledge tool failure"' in html
     assert 'element("section","card reviewresolution")' in html
     assert "it never repairs, retries, or deletes evidence" in html
-    assert 'item=element("article","flight "+tone)' in html
-    assert 'element("time","flighttimestamp",displayTime(row.ended_at||row.started_at))' in html
+    assert 'item=element("article","flight "+tone+(selected?" selected":""))' in html
+    assert 'time=activityTimestamp(row.ended_at||row.started_at)' in html
+    assert "Event time (producer UTC): " in html
+    assert "Received by AtMem (UTC): " in html
+    assert "clock skew or delayed delivery" in html
     assert ".flight.review{border-left-color:var(--warn)" in html
     assert ".flight.failed{border-left-color:var(--bad)" in html
     # The public namespace is atmem only.

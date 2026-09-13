@@ -1,19 +1,29 @@
 # AtMem unified product roadmap
 
-**Updated**: 2026-09-09
+**Updated**: 2026-09-13
 **Status**: Implementation backlog; product capabilities below require their acceptance gates.
 
-**Numbered releases**: [Release roadmap — proposed 2.3 investigation preview through 2.8 enterprise fleet](../docs/release-roadmap.md). It maps the work groups below to independently scoped releases; version numbers are planning targets, not publication claims.
+**Numbered releases**: [Release roadmap — proposed 2.3 investigation preview through 2.10 model-unlearning research preview](../docs/release-roadmap.md). Its Work group column maps the non-chronological M0–M4 dependency/scope groupings to independently sequenced releases; version numbers are planning targets, not publication claims.
 
-> Agent memory is just a start. Governance gives us control. Investigation turns that control and evidence into something people can use every day.
+> AtMem is the independent evidence box for agent work: memory, prompts, decisions, models, tools, media and outcomes remain inspectable after the agent and its logs are gone.
 
-AtMem helps agents remember, controls the context they receive, and makes their work understandable when things go wrong.
+AtMem helps agents remember, controls the context they receive, and independently preserves what happened. The AtMem evidence store—not the agent, host logs or an external provider—is the investigation system of record.
 
 ## Product requirements that govern every feature
 
-**Agent- and framework-neutral. Multiple agents. Private or explicitly shared memory. Replaceable, governed context providers. Clear explanations and timestamps.**
+**Agent- and framework-neutral. Multiple agents. Replaceable, governed context providers. Standalone full-fidelity multimodal evidence. Clear explanations and deterministic reconstruction.**
 
-These are binding [product-wide requirements PR-001–PR-006](product-requirements.md), with acceptance cases and named owners. Core operation must not require OpenClaw. New memory spaces default private; authorized sharing retains ownership, independent permissions and provenance. Every status explains its evidence, effect/uncertainty and next action, with absolute time, timezone and actual check age. Color and page refresh cannot substitute for an explanation or new verification.
+These are binding [product-wide requirements PR-001–PR-008](product-requirements.md), with acceptance cases and named owners. Core operation must not require OpenClaw. Every status explains the actual prompt, memory/context, decision, model exchange, tool call, target, result/error, effect/uncertainty and next action, with exact multimodal artifacts and time provenance available. Counts, colors, hashes, opaque IDs and links back to disposable host logs cannot substitute for retained evidence. Every stored evidence and semantic-metadata object is encrypted; plaintext is available only through an authorized AtMem operation.
+
+### Standalone trust boundary
+
+The mandatory product test starts with only a copied AtMem evidence store on a fresh machine/process. The fixture agent is dead; its logs, workspace and caches are deleted; its original memory/provider stores and model are unavailable. From AtMem alone, an authorized user must see and export the ordered run story:
+
+**user multimodal input → memory state and exact context → governance decisions → model input/output → exact tool requests and targets → exact results/errors and media → observed outcome evidence**.
+
+Text, images, screenshots, audio, video, files, URLs and fetched resources are first-class evidence parts. Derived text may aid search, but never replaces the original bytes. A legacy run containing only hashes is explicitly incomplete and non-reconstructable.
+
+Full-fidelity encrypted capture is on by default. An explicit user choice may disable capture or select encrypted metadata-only capture, but the dashboard and exports must then say `not reconstructable`; reduced capture is not a successful Black Box profile. There is no supported setting that writes plaintext evidence.
 
 OpenClaw is the first M0 host profile, not the product's identity. M0 implements neutral contracts and applicable feedback/time guarantees; shared-memory and broader host support are advertised only after their specific acceptance evidence passes.
 
@@ -22,8 +32,8 @@ OpenClaw is the first M0 host profile, not the product's identity. M0 implements
 | Moment | Behavior | Primary owners |
 | --- | --- | --- |
 | Before the model call | Retrieve context, authorize query egress and content, check permissions/freshness, prepare an authorized package | 003/004/006/008/015 + 019 |
-| During execution | Record context delivery, model/tools, task progress, retries, child executions and missing coverage | 007/011 + 020 |
-| After a problem | Identify observed failures/gaps, show affected work and recommend a justified next action | 021 + 022; later 023 |
+| During execution | Durably encrypt and capture exact ordered multimodal prompts, context, decisions, model exchanges, tool arguments/targets/results, progress, retries and child executions before disposable host evidence can disappear | 007/011 + 020 + 028 |
+| After a problem | Authorize plaintext through AtMem, reconstruct the complete run from encrypted evidence alone, identify observed failures/gaps, render original artifacts and recommend a justified next action or replay manifest | 020 + 021 + 022 + 028; later 023 |
 
 Native memory implements the same provider/package interface as external sources while retaining canonical admission and lifecycle. Switching to Mem0 or a document provider changes neither historic evidence nor investigation semantics and performs no implicit import. Three authority modes are explicit: native, governed external retrieval, and trusted delegation.
 
@@ -43,13 +53,13 @@ These are authority modes, not separate products or the three onboarding paths. 
 | --- | --- | --- |
 | My agent needs memory | Native capture and recall; no external provider required | Governance and full execution evidence |
 | We already have memory/retrieval | Register provider and policy; no memory migration | Source impact and investigation |
-| My agent broke and I cannot explain why | Observe execution hooks; no memory/embedding/AtBot prerequisite | Context governance and tasks |
+| My agent broke and I cannot explain why | Preserve full-fidelity multimodal execution evidence independently of the agent; no memory/embedding/AtBot prerequisite | Reconstruction, controlled replay, context governance and tasks |
 
 Spec 017 owns onboarding mechanics; 022 owns path selection and the common experience. Observation is never labeled enforcement. Task state remains optional and never inferred from prompts.
 
 ## M0: investigation-only release, followed by product expansion
 
-Release an opt-in OpenClaw investigation preview through the existing Activity/Evidence dashboard. Correlate supplied execution identities, durably capture tool events and gaps, and show minimal deterministic findings with exact evidence links. See the [M0 scope, task mapping and release gates](m0-investigation-preview.md). No provider unification, task activation, embeddings, AtBot or shell rewrite is required.
+The previous hash-and-metadata M0 investigation slice is not sufficient for the Agent Black Box claim. M0 must be re-gated as a standalone encrypted evidence-box preview: capture exact ordered multimodal input, memory/context, decisions, model exchange and tool calls/results; copy only the encrypted AtMem store; prove direct inspection reveals no planted content; destroy the fixture host state; then authorize a fresh AtMem process and complete the investigation without the agent or logs. See the [M0 scope, task mapping and release gates](m0-investigation-preview.md). No provider unification, task activation, embeddings or AtBot is required, but full-fidelity encrypted capture, privilege enforcement and standalone reconstruction are required.
 
 ### Domain-neutral acceptance matrix
 
@@ -59,11 +69,11 @@ The M1 unified-product expansion MUST pass this cross-domain matrix. M0 exercise
 
 | Fixture family | Representative work | What must be demonstrated |
 | --- | --- | --- |
-| Software engineering | Agent edits code and runs a build/test tool | Exact failed step and declared dependent work; distinguish test failure, recovered retry and missing completion |
-| Research and analysis | Agent searches sources and assembles a report | Read-only tool failure, missing evidence and provider unavailability; no invented source truth or context causation |
-| Enterprise knowledge | Agent retrieves scoped documents for an answer | Native/external package parity, permission and freshness decisions, visible actual authorizer and delivery coverage |
-| Business operations | Agent updates a record, sends a message or requests an external action | Unknown side effects after dispatch, verification prerequisites and no unsafe replay |
-| Successful everyday work | Native recall, governed retrieval and a completed multi-step job | Useful memory and context evidence without manufacturing an incident or requiring a failure |
+| Software engineering | Agent edits code and runs a build/test tool | Exact prompt, files/diffs, command arguments, stdout/stderr, failed step and declared dependent work survive host deletion |
+| Research and analysis | Agent searches sources and assembles a report | Exact queries, URLs, fetched pages/files/images and tool failure survive source/agent unavailability; no invented source truth |
+| Enterprise knowledge | Agent retrieves scoped documents for an answer | Exact authorized records and context bytes, decision inputs/results, model exchange and original document/media artifacts remain independently inspectable |
+| Business operations | Agent updates a record, sends a message or requests an external action | Exact request arguments/target and returned receipt/error are retained; unknown side effects remain explicit; replay is reconstructed separately from re-execution |
+| Successful everyday work | Native recall, governed retrieval and a completed multimodal job | Complete readable story and original text/image/audio/video/file/link evidence without manufacturing an incident |
 
 Exercise native, governed-external and trusted-delegation modes across the campaign, plus investigation with no context provider. Use a declared coverage map rather than imply every mode/framework/scenario combination was tested. Include failure unrelated to memory. A denied context request must never be converted into delegation or silently broadened access.
 
@@ -76,11 +86,15 @@ The refund timeout remains **one optional illustration** of the unknown-side-eff
 ### Delivery order and independent release points
 
 1. Preserve baseline 018 invariants and land 007 T110, the isolated non-task identity foundation from T088. Keep broad Amendment B work open.
-2. Implement 020 T018–T021 capture/projection and the minimal 021 T018–T019 findings in the existing OpenClaw dashboard. Freeze only contracts needed by this slice.
-3. **Release M0** after completed 020 T022 and 021 T020 technical gates. Ship investigation-only to users with explicit coverage and preview limitations. Independent 021 T024 validates the two-cohort protocol before advertising measured usability; it does not block completion of the technical tasks or preview availability.
-4. **M1 expansion:** 012 explicit private/shared spaces and membership, 006/015 admission and invalidation, 019 shared native/external governance, broader 021 resolution, 022/025 workspace and connection journeys, all three 017 adoption paths and the 001 cross-domain campaign. These do not block M0; shared-memory claims require the PR-002–PR-004 gates.
-5. **M2 extensibility:** publish the 011 Host Conformance Kit and versioned coverage manifests, third-party submission/listing rules and additional tested Pydantic AI/LangGraph configurations. Work may proceed alongside M0/M1; their completion does not block the single-host preview.
-6. **M3 enterprise expansion:** 023 revocation/impact/simulation and optional 024 fleet administration on hardened 013 deployment services.
+2. Freeze Spec 020 evidence-envelope/artifact contracts together with Spec 028 encrypted-object, quantum-safe key, privilege and application-only plaintext contracts.
+3. Implement the transactional encrypted evidence store across user, memory/context, decision, model and tool boundaries, including explicit local quotas, retention and backpressure suitable for consumer hardware. Hash-only or plaintext storage remains legacy evidence, not completion.
+4. Implement Spec 021 reconstruction and Spec 022 rendering so an authorized user sees what was asked and attempted before technical identifiers, including original multimodal artifacts and exact calls/results. Settings shows one concise Evidence protection row and a focused action drawer.
+5. Run the destructive standalone encryption, privilege, disaster and capacity gates: steal/copy AtMem storage and prove no planted plaintext; remove the fixture agent/logs/workspace/provider/memory sources; authorize a fresh AtMem process and reproduce the complete run story plus deterministic replay manifest; exhaust a small configured quota and prove zero silent evidence loss or downgrade.
+6. **Release M0** only after the encrypted standalone disaster gate and cross-domain full-fidelity tests pass. Independent usability validation remains a separate claim gate.
+7. **M1 expansion:** 012 explicit shared spaces and membership, 006/015 admission and invalidation, 019 shared native/external governance, broader 021 resolution, 022/025 workspace and connection journeys, all three 017 adoption paths and the 001 cross-domain campaign.
+8. **M2 extensibility:** publish the 011 Host Conformance Kit and versioned capture-coverage manifests, including exact multimodal boundaries, plus tested Pydantic AI/LangGraph configurations.
+9. **M3 enterprise expansion:** 023 revocation/impact/simulation and optional 024 fleet administration on hardened 013 deployment services.
+10. **M4 memory intelligence and unlearning research:** 026 temporal memory and 027 model-unlearning work follow the standalone encrypted evidence foundation.
 
 Old specs' new integration amendments depend on new contracts only; new contracts depend on old baseline services. Do not interpret these as cycles requiring all revised old specs to finish before a new contract can land.
 
@@ -90,15 +104,17 @@ M1 planning must estimate the actual authority work: **012 T016–T032** for per
 
 | Section | User job |
 | --- | --- |
-| Overview | Active work, executions needing attention and unresolved incidents |
-| Executions | Whole job across turns, attempts and child agents |
-| Context | Native memory, providers, sources, provenance and delivery |
+| Runs | Complete prompt-to-outcome stories that remain readable without the agent or its logs |
+| Memory | Exact retained memory state, records and multimodal context used by each run |
+| Decisions | Exact governance inputs, rules, authorizer, decision and effect |
+| Tools and media | Exact calls, arguments, URLs/paths/commands, results/errors and original images/audio/video/files/pages |
+| Audit | Evidence access, exports, replay/re-execution decisions, deletion and integrity history |
 | Policies | Access, destination, freshness and review requirements |
 | Tasks | Goals, progress, blockers and completion evidence |
 | Connections | Provider authentication, credential health, access preview, approval and activation |
-| Settings | General integrations, identity, deployment and retention |
+| Settings | Concise Evidence protection status/actions plus general integrations, identity, deployment and retention |
 
-Execution detail: **Outcome → important events → affected work → next actions → supporting evidence**. Technical IDs are expandable, timestamps visible and pivots require no manual ID correlation. Spec 022 explicitly replaces the historical four-workspace mandate; runtime navigation changes only through implementation and migration tests.
+Run detail: **User asked → memory/context supplied → decisions made → model exchange → tools/media used → exact result/error → observed outcome → reconstruction/replay options**. Technical IDs and hashes are expandable supporting proof, never the headline or sole retained evidence.
 
 ## Shared domain and ownership
 
@@ -115,16 +131,27 @@ See [integration ownership](integration-ownership.md), [implementation review](i
 - [023 — Context Revocation, Exposure Impact and Policy Simulation](023-context-revocation-impact-and-simulation/spec.md): Before delivery and after source/policy changes.
 - [024 — Enterprise Fleet and Evidence Operations](024-enterprise-fleet-and-evidence-operations/spec.md): Operate the same product across deployments.
 - [025 — Enterprise Provider Connections and Activation](025-enterprise-provider-connections/spec.md): Ten-stage connection wizard, authentication, effective-access preview, conditional approval and first-delivery monitoring. Spec, plan and tasks are defined; implementation is pending.
+- [026 — Temporal Memory Consolidation and Health Review](026-temporal-memory-consolidation/spec.md): Time-valid memory, deterministic derivation and opt-in AtBot-assisted health proposals with AtMem-only authority. Contract/UI foundations are staged across 2.4–2.6; scheduled consolidation is proposed for 2.8.0.
+- [027 — Model Influence Revocation and Unlearning Orchestration](027-model-unlearning-orchestration/spec.md): Immediate controlled revocation plus a post-2.9 research preview for lineage-bound open-weight forget jobs, adversarial evaluation, independent approval and exact-artifact deployment. It never equates behavioral suppression with proven weight erasure.
+- [028 — Encrypted Evidence and Privileged Access](028-encrypted-evidence-and-privileged-access/spec.md): At every persisted evidence, plaintext access, backup and export boundary.
 
 Spec 025 adds Connections to the earlier six-section target and brings provider authentication out of general Settings. Deliver basic connection setup alongside 019/022 once 012/013 authenticated administration contracts are ready; delivery monitoring consumes available 019/020 evidence. Required enterprise identity and credential checks precede activation claims, while optional fleet operation remains later work.
+
+Spec 026 adds Memory Health inside Context rather than another top-level destination. Specs 006 and 015 retain canonical admission/lifecycle authority, 022 owns the shared presentation, and AtBot remains replaceable proposal intelligence. Deterministic expiry and temporal derivation must work locally; uncertain correction, merge or supersession is review-only in the first supported profile.
+
+Spec 027 consumes rather than broadens 023 revocation and 024 inventory authority. It defines explicit assurance levels: `memory_revoked`, `behaviorally_suppressed`, `provider_deletion_acknowledged` and `weight_unlearning_evaluated`; `weight_erasure_proven` is reserved and unclaimable by the preview. Optional training runs in a separately privileged worker, not AtBot or an ordinary agent process.
 
 ## Acceptance and claim boundaries
 
 - Zero unauthorized egress/delivery, invented external outcomes or unsafe automatic retries in the deterministic campaign.
-- Exact known failure/event and affected declared dependencies shown; recovered errors and unknown relationships stay distinct.
-- Evidence survives acknowledged capture and restart; missing hooks, spool loss and disconnected coverage are explicit.
+- Exact prompts, memory/context, decisions, model exchanges, tool arguments/targets/results/errors and multimodal artifacts are shown; recovered errors and unknown relationships stay distinct.
+- Evidence survives capture, crash, backup/restore and destruction of the agent, logs, workspace and original providers. Missing bytes or hooks are explicit and block full-fidelity claims.
+- A copied AtMem store alone reconstructs every planted cross-domain run and produces byte-identical artifact downloads plus a deterministic replay manifest.
+- Direct inspection of the copied store, artifacts, indexes, spool, backup and export reveals no planted session content or semantic metadata; only authorized AtMem operations release plaintext under the three-level privilege model.
+- No acceptance test may substitute a count, digest, opaque identifier or generic phrase such as “a tool failed” for available execution evidence.
 - At least 9 of 10 operators complete the declared two-minute investigation protocol, replicated on a second independent cohort of ten before advertising that usability capability; publish both cohorts separately. See [measurement protocol](usability-protocol.md).
-- Initial 019 policy-only overhead target <=25 ms p95; 020 first-page timeline target <=200 ms p95 at 100,000 events, on documented hardware. Provider/model cost and latency are separate.
+- Initial 019 policy-only overhead target <=25 ms p95; 026 deterministic temporal filtering target <=10 ms p95. With both enabled on one recall path, directly measured added pre-model control overhead must be <=35 ms p95 on the declared profile rather than inferred by summing independent percentiles. Provider, network, retrieval-model and AtBot latency are measured separately. The 020 first-page timeline target remains <=200 ms p95 at 100,000 events on documented hardware.
+- Temporal review cannot silently delete or semantically rewrite memory; inaccessible records contribute neither content nor hidden aggregate influence. A model-unlearning result names the exact artifact and evaluation profile and never upgrades missing/adversarially weak evidence into an erasure claim.
 - Legacy receipt/flight/task/native/delegated behavior remains compatible; no implicit memory migration or task activation.
 - An observation-only integration cannot guarantee it blocked anything. Signed context proves attributed bytes/decisions, not truth or model use. Exposure lineage is not causation. Timeout after dispatch is not proof of no external effect.
 

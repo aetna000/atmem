@@ -6,6 +6,8 @@ from dataclasses import asdict, dataclass
 import json
 import os
 from pathlib import Path
+
+from atmem.home.layout import compatible_home_path
 import stat
 import tempfile
 from typing import Any
@@ -15,7 +17,7 @@ from atmem.delegated.canonical import public_key_fingerprint, strict_base64
 from atmem.delegated.contracts import MAX_CONTEXT_BYTES
 
 
-DEFAULT_CONFIG_PATH = Path.home() / ".atmem" / "delegated-context.json"
+DEFAULT_CONFIG_PATH = compatible_home_path("config/delegated-context.json", "delegated-context.json")
 
 
 @dataclass(frozen=True, slots=True)

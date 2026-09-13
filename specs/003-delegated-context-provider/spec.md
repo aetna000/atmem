@@ -1,6 +1,6 @@
 # Feature Specification: Delegated Context Provider
 
-**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers and clear time-aware feedback](../product-requirements.md) (PR-001–PR-006). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
+**Product-wide requirements**: [Agent neutrality, multiple agents, private/shared memory, governed providers, clear time-aware feedback, standalone full-fidelity evidence and encrypted privileged plaintext](../product-requirements.md) (PR-001–PR-008). Applies to this feature's advertised capabilities; implementation status below remains authoritative.
 
 **Feature directory**: `specs/003-delegated-context-provider`
 **Created**: 2026-09-03
@@ -121,16 +121,18 @@ As an evaluator, I can install or upgrade to the beta, configure a test provider
 - **FR-009**: A valid `inject` result MUST suppress native AtMem retrieval/preparation and deliver exactly one unchanged context contribution through the host's AtMem-owned memory slot.
 - **FR-010**: A valid `withhold` result MUST suppress native retrieval/preparation and inject nothing.
 - **FR-011**: Invalid, unavailable, or timed-out delegation MUST fail closed by default. Native fallback MUST require explicit per-registration configuration and MUST create separately labeled AtMem-authorized evidence.
-- **FR-012**: Evidence MUST separately represent provider authorization and AtMem delivery/exposure, minimize content, remain hash-chain bound, and correlate receipt/result/context digests with the bound flight.
-- **FR-012a**: Delegated query and context bytes MUST NOT be persisted in control previews, acceptance rows, delivery rows, configuration, or flight evidence. The adapter MAY retain the exact accepted context only in bounded process memory until `llm_input` confirmation or expiry.
+- **FR-012**: Evidence MUST separately represent provider authorization and AtMem delivery/exposure, remain hash-chain bound, correlate receipt/result/context digests with the bound flight, and preserve the exact reconstructable content required by FR-038–FR-041.
+- **FR-012a**: Delegated query and context bytes MUST NOT be duplicated into configuration or content-free replay/security indexes. They MUST be persisted once in the canonical Spec 020 evidence store and referenced by acceptance, delivery, audit, preview, and flight projections. Bounded adapter memory is a delivery cache, not the durable evidence authority.
 - **FR-012b**: For `context.disposition`, `context_sha256` and
   `context_block_sha256` MUST hash the same placement-neutral delivered-context
   aggregate: non-empty `prependContext` and `appendContext` values in that
   order, joined with exactly two LF bytes. This aggregate is not a claim that
   the values were adjacent in the rendered prompt. `context_envelope_sha256`
   MUST separately hash the canonical exact host-return object and remains the
-  structural authority for field placement. Equivalent delivered content on
-  delegated and native paths MUST therefore have the same aggregate digest.
+  structural integrity authority for field placement. These digests supplement
+  rather than replace the exact retained aggregate and envelope. Equivalent
+  delivered content on delegated and native paths MUST therefore have the same
+  aggregate digest.
 - **FR-013**: The OpenClaw adapter MUST never perform both delegated and native injection for one turn and MUST confirm actual delegated context bytes at `llm_input` where the host exposes that boundary.
 - **FR-014**: CLI and dashboard MUST support register, inspect, enable, disable, status, doctor, self-test, and remove actions with clear authority and fallback language.
 - **FR-015**: The implementation MUST expose provider-neutral Python/control contracts so later Pydantic AI, LangGraph, Hermes, and other adapters can integrate without provider-specific core logic.
@@ -355,35 +357,40 @@ Integration contracts: Specs 019. This feature owns its existing component adapt
 
 ## Host compatibility acceptance amendment — 2026-09-09
 
-**Status**: Implemented and verified for the latest-release Mem0 acceptance scope below; live shared-channel identity and independent Storizon verification are not claimed.
+**Status**: Implemented and verified locally for the latest-release Mem0 scope,
+with attributed Storizon acceptance against the published 2.2.6 artifacts; live
+shared-channel identity remains unverified.
 This amendment refines FR-006, FR-013 and evidence/readiness claims without
 changing the shared HMAC profile or the closed delegated v1 response contract.
 Historical verification entries above retain their original scope and date.
 
 ### Reported verification and limits
 
-The operator reports verification of actual Storizon inject/withhold decisions
-through the real AtMem MCP/OpenClaw bridge, matching Storizon v2 receipts, exact
-context digests, one/zero deliveries respectively, and complete verified flights.
-Two real OpenClaw 2026.8.1 + Claude CLI text-only turns passed with an explicit
-isolated local-operator mapping. No remaining shared HMAC profile mismatch was
-found in those checks. These are operator-reported results supplied for this
-amendment, not tests rerun during the specification update; reproducible commands,
-artifact references and exact remaining package versions still need an evidence
-journal entry before independently verified readiness is claimed.
+The Storizon operator subsequently reported a complete rerun against published
+`atmem==2.2.6` and `openclaw-memory-atmem@2.2.6` at release commit
+`04a063ce1e7bd2c95bf7d0c04bf9098f5f30c08e`. Actual Storizon, authenticated
+HTTP, real AtMem MCP, OpenClaw 2026.9.2/2026.9.3, Claude CLI 2.1.251, Haiku 4.5,
+Node 26.5.0 and Linux exercised eight scenarios per host. All 16 assertions
+reportedly passed: three identity refusals before provider access; inject and
+withhold with matching Storizon v2 receipts, exact context digests and one/zero
+deliveries; successful read/exec closure; observed tool-error closure; and
+deliberately suppressed result observations retaining `incomplete_evidence`.
+The existing HMAC implementation required no change.
 
-The default owner gate blocks this CLI path because its hook context omits
-`senderIsOwner`. An action-oriented trial observed read/exec requests without
-completion observations and correctly returned `incomplete_evidence`. Neither
-observation establishes a protocol mismatch or proves that the requested tools
-did or did not execute. The successful local text-only fixture establishes
-neither shared-channel identity nor toolful lifecycle closure.
+These results close the previously reported Storizon-specific v2 receipt and
+local toolful lifecycle gaps for those exact versions and the isolated scoped
+configuration. They are attributed partner results, not tests rerun by the AtMem
+maintainer during this specification update. The release tag and published AtMem
+and bridge versions were independently checked; the partner harness, CI run and
+private fixture state were not independently reproduced here. Live shared-channel
+identity, other hosts/backends and independent external task outcomes remain
+unverified or outside scope.
 
 ### Authorized acceptance scope
 
-The operator subsequently authorized real Mem0 with generated dummy data and
-identity role-play because Storizon access is unavailable, and limited host
-compatibility to the latest releases. The current matrix targets OpenClaw
+The operator authorized real Mem0 with generated dummy data and identity
+role-play for local maintainer acceptance, and limited host compatibility to the
+latest releases. The Mem0 matrix targets OpenClaw
 2026.9.2 and 2026.9.3 with Claude CLI 2.1.236; historical and future versions
 are not a universal compatibility promise. Real Mem0 retrieval, authenticated
 HTTP, real AtMem MCP and actual CLI turns establish local delivery and tool
@@ -446,10 +453,58 @@ host identities, not authenticated identity on a live shared channel.
 - **SC-016**: A separate real toolful check correlates read/exec requests with
   observed terminal results and verifies flight closure with truthful tool
   outcomes. A missing-completion case returns `incomplete_evidence`; unmatched
-  or cross-turn observations cannot close it. Until positive closure evidence
-  exists, toolful lifecycle readiness remains unverified. Text-only completion
-  does not satisfy this criterion.
+  or cross-turn observations cannot close it. Toolful lifecycle readiness for a
+  host/provider profile remains unverified until that profile has positive
+  closure evidence. Text-only completion does not satisfy this criterion.
 
 Shared-channel identity and toolful lifecycle closure are independent acceptance
-gates before broader readiness claims. Host lifecycle evidence contracts remain
-owned by Specs 011 and 020; this feature verifies their use on delegated turns.
+gates before broader readiness claims. Toolful closure now passes for the scoped
+Mem0 and attributed Storizon configurations above; shared-channel identity does
+not. Host lifecycle evidence contracts remain owned by Specs 011 and 020; this
+feature verifies their use on delegated turns.
+
+## Standalone evidence amendment — 2026-09-13
+
+This amendment supersedes the content-minimizing portions of FR-012, FR-012a,
+FR-012b, FR-036, SC-003, SC-007, and every earlier statement in this feature that requires delegated query,
+context, tool-result, or model-boundary content to be erased or represented
+only by identifiers, counts, or digests. The closed delegated request/result
+JSON contracts, HMAC request authentication, Ed25519 response verification,
+scope binding, expiry, replay rejection, result correlation, truthful incomplete
+states, and exact one-segment delivery remain unchanged.
+
+- **FR-038**: For the default full-fidelity profile, AtMem MUST append the exact
+  delegated query, signed provider decision, accepted or withheld context,
+  delivery envelope, final model input placement, and delivery outcome to the
+  canonical standalone evidence store owned by Spec 020. Provider-private
+  internal memory that was neither returned nor observed remains outside the
+  evidence boundary.
+- **FR-039**: Delegated evidence MUST preserve the original ordered text and
+  every observed link, fetched page, file, image, screenshot, audio item, and
+  video item with media type, source, timing, and boundary metadata. A caption,
+  transcript, thumbnail, count, identifier, or digest MUST NOT replace an
+  observed original artifact.
+- **FR-040**: Existing acceptance, delivery, replay, and process caches MAY
+  remain content-free security indexes, but they MUST reference the durable
+  Spec 020 evidence envelope. Content-free operational rows are not the Black
+  Box record and MUST NOT be presented as sufficient reconstruction evidence.
+  Exact delegated evidence and its semantic metadata MUST be persisted through
+  Spec 028 encryption; provider HMAC/Ed25519 bytes remain unchanged inside the
+  encrypted envelope and do not themselves satisfy the at-rest protection claim.
+- **FR-041**: Authorized evidence access MUST disclose the exact retained
+  content. Credential material MAY use reversible protected fields or credential
+  references. Authorization MUST govern disclosure and every view/export/replay
+  MUST be audited; irreversible redaction or digest substitution is not an
+  access-control mechanism.
+- **FR-042**: An operator MAY explicitly select `metadata` or `off` capture for
+  a declared scope. The selection and every affected run MUST be visibly marked
+  `not_reconstructable`; neither mode is the default or a complete Black Box.
+- **SC-017**: A delegated multimodal fixture survives deletion of the agent,
+  host logs, workspace, original provider, model access, and transient caches.
+  A fresh process with only a copied AtMem store reconstructs the exact query,
+  provider decision, delivered context, model-boundary placement, tools,
+  results/errors, original artifacts, and outcome.
+- **SC-018**: Negative tests fail any default-profile view or export whose only
+  account of an observed delegated event is a generic sentence, count, ID, or
+  hash. HMAC/signature/digest verification MUST still pass for the retained
+  exact evidence.

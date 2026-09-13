@@ -39,6 +39,11 @@ export interface OpenClawHookCtx {
   senderId?: string;
   /** Some hosts expose the invocation ID on tool context only. */
   toolCallId?: string;
+  /** Optional explicit host execution graph identities; never inferred. */
+  executionId?: string;
+  parentExecutionId?: string;
+  attemptId?: string;
+  retryOfAttemptId?: string;
   /** Exact governed task selected by the host. Never inferred by AtMem. */
   taskId?: string;
 }
@@ -81,13 +86,30 @@ export interface MessageReceivedEvent {
   content: string;
   sessionKey?: string;
   runId?: string;
+  /** Current OpenClaw attachment contract: staged, locally usable media. */
+  media?: OpenClawMediaFact[];
+  /** Original facts while local staging is still pending. */
+  originalMedia?: OpenClawMediaFact[];
+  mediaStagingPending?: boolean;
   metadata?: {
     mediaPath?: string;
     mediaPaths?: string[];
     mediaType?: string;
     mediaTypes?: string[];
+    originalMediaPath?: string;
+    originalMediaPaths?: string[];
+    originalMediaType?: string;
+    originalMediaTypes?: string[];
+    mediaStagingPending?: boolean;
     [key: string]: unknown;
   };
+}
+
+export interface OpenClawMediaFact {
+  path?: string;
+  url?: string;
+  contentType?: string;
+  kind?: "image" | "video" | "audio" | "document" | "other";
 }
 
 export interface OpenClawPluginToolContext {
@@ -113,6 +135,11 @@ export interface BeforeMessageWriteEvent {
     mediaPaths?: string[];
     mediaType?: string;
     mediaTypes?: string[];
+    /** Current OpenClaw transcript representation for host-managed media. */
+    __openclaw?: {
+      media?: OpenClawMediaFact[];
+      [key: string]: unknown;
+    };
   };
 }
 
@@ -144,6 +171,9 @@ export interface LlmInputEvent {
   prompt: string;
   historyMessages: unknown[];
   imagesCount: number;
+  /** Additive host facts used when the runtime exposes exact multimodal input. */
+  messages?: unknown[];
+  images?: unknown[];
   tools?: unknown[];
 }
 

@@ -66,7 +66,7 @@ def main() -> None:
         assert "public_key_base64" not in json.dumps(saved)
         store = ControlStore(root / "control.db")
         try:
-            assert SCHEMA_VERSION == 5
+            assert SCHEMA_VERSION == 6
         finally:
             store.close()
 

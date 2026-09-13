@@ -93,6 +93,32 @@
         "additionalProperties": false
       },
       "description": "Authoritative per-framework proof capability matrix."
+    },
+    "execution_evidence_adapters": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "profile",
+          "durable_spool",
+          "producer_sequence",
+          "explicit_parent_retry_links",
+          "default_enabled",
+          "data_capture_default",
+          "protected_storage"
+        ],
+        "properties": {
+          "profile": {"type": "string"},
+          "durable_spool": {"type": "boolean"},
+          "producer_sequence": {"type": "boolean"},
+          "explicit_parent_retry_links": {"type": "boolean"},
+          "default_enabled": {"type": "boolean"}
+          ,"data_capture_default": {"type": "string", "enum": ["full", "metadata", "off"]}
+          ,"protected_storage": {"type": "string"}
+        },
+        "additionalProperties": false
+      },
+      "description": "Per-adapter M0 execution-evidence coverage. A declared adapter profile is not proof of a real-host run."
     }
   },
   "additionalProperties": false,

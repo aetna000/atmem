@@ -586,10 +586,10 @@ def test_untrusted_user_scope_failure_is_reserved_and_evidenced(tmp_path: Path) 
         store.close()
 
 
-def test_control_store_schema_five_has_no_raw_context_columns(tmp_path: Path) -> None:
+def test_control_store_schema_six_has_no_raw_context_columns(tmp_path: Path) -> None:
     store = ControlStore(tmp_path / "control.db")
     try:
-        assert SCHEMA_VERSION == 5
+        assert SCHEMA_VERSION == 6
         columns = {row["name"] for row in store._conn.execute("PRAGMA table_info(delegated_context_acceptances)")}
         assert "context_text" not in columns
         assert "query" not in columns
@@ -624,12 +624,15 @@ def test_schema_four_upgrades_additively_and_preserves_existing_turn(tmp_path: P
     try:
         assert upgraded._conn.execute(
             "SELECT value FROM schema_meta WHERE key = 'schema_version'"
-        ).fetchone()["value"] == "5"
+        ).fetchone()["value"] == "6"
         assert upgraded._conn.execute(
             "SELECT id FROM turns WHERE id = ?", (turn["id"],)
         ).fetchone() is not None
         assert upgraded._conn.execute(
             "SELECT name FROM sqlite_master WHERE name = 'delegated_context_acceptances'"
+        ).fetchone() is not None
+        assert upgraded._conn.execute(
+            "SELECT name FROM sqlite_master WHERE name = 'execution_deliveries'"
         ).fetchone() is not None
     finally:
         upgraded.close()

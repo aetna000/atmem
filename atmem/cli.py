@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 from importlib.metadata import PackageNotFoundError, version
 import json
 import os
@@ -9,11 +10,30 @@ import shutil
 import subprocess
 import sys
 from typing import Any
+from urllib.parse import urlencode
+
+
+def _selected_home_from_argv(argv: list[str]) -> str | None:
+    """Resolve the global CLI override before durable-path modules are imported."""
+
+    for index, value in enumerate(argv):
+        if value == "--home" and index + 1 < len(argv):
+            return argv[index + 1]
+        if value.startswith("--home="):
+            return value.split("=", 1)[1]
+    return None
+
+
+_CLI_HOME = _selected_home_from_argv(sys.argv[1:])
+if _CLI_HOME:
+    os.environ["ATMEM_HOME"] = _CLI_HOME
 
 from atmem.memory import Memory
+from atmem.home import HomeService
+from atmem.home.layout import compatible_home_path
 
 DEFAULT_MCP_DB = os.environ.get(
-    "ATMEM_DB", str(Path.home() / ".atmem" / "memories.db")
+    "ATMEM_DB", str(compatible_home_path("memory/memories.db", "memories.db"))
 )
 
 
@@ -74,7 +94,75 @@ Run `atmem COMMAND --help` for command-specific examples.""",
         action="version",
         version=f"%(prog)s {_installed_version()}",
     )
+    parser.add_argument(
+        "--home",
+        help="Use this AtMem Home (overrides ATMEM_HOME and ~/.atmem)",
+    )
     subparsers = parser.add_subparsers(dest="command")
+
+    home_parser = subparsers.add_parser(
+        "home", help="Inspect, verify, migrate or adopt the portable AtMem Home"
+    )
+    home_commands = home_parser.add_subparsers(dest="home_command")
+    for name, help_text in (
+        ("status", "Show the selected AtMem Home and portability state"),
+        ("verify", "Perform content-free structural verification"),
+        ("init", "Create a new canonical portable AtMem Home"),
+        ("migrate", "Copy a legacy home into a verified canonical generation"),
+        ("snapshot", "Create a verified portable copy while AtMem is stopped"),
+        ("adopt", "Make a verified restored home writable on this machine"),
+    ):
+        command_parser = home_commands.add_parser(name, help=help_text)
+        command_parser.add_argument("--home", default=None)
+        command_parser.add_argument("--json", action="store_true")
+        if name in {"migrate", "snapshot"}:
+            command_parser.add_argument("destination")
+        if name == "migrate":
+            command_parser.add_argument(
+                "--commit", action="store_true",
+                help="Mark the verified destination generation committed",
+            )
+            command_parser.add_argument(
+                "--rollback", action="store_true",
+                help="Remove only this uncommitted destination generation",
+            )
+
+    restore_parser = subparsers.add_parser(
+        "restore", help="Open a copied AtMem Home for standalone recovery"
+    )
+    restore_parser.add_argument("home")
+    restore_parser.add_argument("--json", action="store_true")
+    restore_parser.add_argument("--port", type=int, default=8766)
+    restore_parser.add_argument("--no-open", action="store_true")
+
+    init_parser = subparsers.add_parser(
+        "init", help="Initialize local AtMem and create the first Administrator"
+    )
+    init_parser.add_argument("--state", default=None)
+    init_parser.add_argument("--json", action="store_true")
+    init_parser.add_argument("--port", type=int, default=8766)
+    init_parser.add_argument(
+        "--no-open",
+        action="store_true",
+        help="Create the Administrator without starting or opening the dashboard",
+    )
+
+    users_parser = subparsers.add_parser(
+        "users", help="Manage local dashboard users and evidence roles"
+    )
+    users_parser.add_argument("--state", default=None)
+    users_parser.add_argument("--port", type=int, default=8766)
+    users_parser.add_argument("--no-open", action="store_true")
+    users_commands = users_parser.add_subparsers(dest="users_command")
+    for name in ("list", "create", "enable", "disable", "set-role", "reset-password", "change-password", "recover-administrator"):
+        command_parser = users_commands.add_parser(name)
+        if name not in {"list", "change-password", "recover-administrator"}:
+            command_parser.add_argument("username")
+        if name == "create":
+            command_parser.add_argument("role", choices=("viewer", "investigator", "evidence_collector", "administrator"))
+            command_parser.add_argument("--display-name", default="")
+        if name == "set-role":
+            command_parser.add_argument("role", choices=("viewer", "investigator", "evidence_collector", "administrator"))
 
     openclaw_parser = subparsers.add_parser(
         "openclaw",
@@ -1232,6 +1320,48 @@ or input errors.""",
                 "--envelope", required=True, help="JSON object file, or - for stdin"
             )
 
+    evidence_parser = subparsers.add_parser(
+        "evidence", help="Inspect the encrypted evidence vault with an explicit privilege"
+    )
+    evidence_commands = evidence_parser.add_subparsers(dest="evidence_command")
+    for name, help_text in (
+        ("status", "Show concise Evidence protection status"),
+        ("create-test-accounts", "Create the three local development evidence accounts"),
+        ("show", "View one protected run inside AtMem"),
+        ("search", "Search exact evidence within the account scope"),
+        ("reconstruct", "Reconstruct one protected run as an Investigator or Collector"),
+        ("replay-manifest", "Create an inert replay manifest as Investigator or Collector"),
+        ("grant", "Grant a scoped evidence role as Evidence Collector"),
+        ("revoke", "Revoke an evidence account as Evidence Collector"),
+        ("delete-run", "Delete one run as Evidence Collector"),
+        ("rotate-key", "Rotate the external evidence key as Evidence Collector"),
+        ("lock", "Lock evidence decryption as Evidence Collector"),
+        ("unlock", "Unlock application-locked evidence as Evidence Collector"),
+        ("set-mode", "Set full, metadata-only, or recorder-off capture as Collector"),
+        ("export-plaintext", "Export plaintext as Evidence Collector only"),
+    ):
+        command_parser = evidence_commands.add_parser(name, help=help_text)
+        command_parser.add_argument("--state", default=None)
+        if name not in {"status", "create-test-accounts"}:
+            command_parser.add_argument("--token", required=True)
+        if name in {"show", "reconstruct", "replay-manifest", "delete-run", "export-plaintext"}:
+            command_parser.add_argument("run_id")
+        if name == "search":
+            command_parser.add_argument("query")
+        if name == "grant":
+            command_parser.add_argument("principal_id")
+            command_parser.add_argument("role", choices=("viewer", "investigator", "evidence_collector"))
+            command_parser.add_argument("--run-id")
+        if name == "revoke":
+            command_parser.add_argument("principal_id")
+        if name in {"delete-run", "rotate-key", "lock", "unlock"}:
+            command_parser.add_argument("--confirm", required=True)
+        if name == "set-mode":
+            command_parser.add_argument("mode", choices=("full", "metadata", "off"))
+        if name == "export-plaintext":
+            command_parser.add_argument("--confirm", required=True)
+            command_parser.add_argument("--output", required=True)
+
     verify_run_parser = subparsers.add_parser(
         "verify-run",
         help="Verify one agent run and print its unified coverage report",
@@ -1248,7 +1378,7 @@ or input errors.""",
 
     onboarding_parser = subparsers.add_parser("onboarding", help="Discover, plan, resume, or roll back guided setup")
     onboarding_parser.add_argument("onboarding_command", choices=("discover","plan","status","apply","rollback"))
-    onboarding_parser.add_argument("--state", default=str(Path.home()/".atmem"/"onboarding.json"))
+    onboarding_parser.add_argument("--state", default=str(compatible_home_path("config/onboarding.json", "onboarding.json")))
     onboarding_parser.add_argument("--consent", action="store_true", help="Consent to the exact planned local changes")
     onboarding_parser.add_argument("--json", action="store_true")
 
@@ -1256,6 +1386,28 @@ or input errors.""",
 
     if args.command is None:
         _print_cli_welcome(parser)
+        return
+
+    if args.command == "init":
+        _run_identity_init(args)
+        return
+
+    if args.command == "home":
+        if args.home_command is None:
+            home_parser.print_help()
+            return
+        _run_home(args)
+        return
+
+    if args.command == "restore":
+        _run_restore_home(args)
+        return
+
+    if args.command == "users":
+        if args.users_command is None:
+            users_parser.print_help()
+            return
+        _run_users(args)
         return
 
     if args.command == "openclaw":
@@ -1315,6 +1467,13 @@ or input errors.""",
             blackbox_parser.print_help()
             return
         _run_blackbox(args)
+        return
+
+    if args.command == "evidence":
+        if args.evidence_command is None:
+            evidence_parser.print_help()
+            return
+        _run_evidence(args)
         return
 
     if args.command == "verify-run":
@@ -1623,6 +1782,108 @@ or input errors.""",
 
 def _print(value: object) -> None:
     print(json.dumps(value, indent=2, sort_keys=True))
+
+
+def _run_home(args: argparse.Namespace) -> None:
+    service = HomeService(args.home)
+    if args.home_command == "status":
+        value = service.status()
+    elif args.home_command == "verify":
+        value = service.verify()
+    elif args.home_command == "init":
+        value = service.initialize()
+    elif args.home_command == "migrate":
+        value = service.migrate_legacy(
+            args.destination, commit=args.commit, rollback=args.rollback
+        )
+    elif args.home_command == "snapshot":
+        value = service.snapshot(args.destination)
+    elif args.home_command == "adopt":
+        preflight = service.prepare_restore()
+        from atmem.control import ControlPlaneManager
+
+        identity = ControlPlaneManager(preflight["runtime_state"]).identity_service()
+        token = _admin_session(identity)
+        answer = input("Use this verified copy as the writable AtMem Home? [y/N] ").strip().lower()
+        if answer not in {"y", "yes"}:
+            print("AtMem Home adoption cancelled; the copy remains in restore mode.")
+            return
+        session_result = identity.revoke_all_sessions(token, reason="home-adoption")
+        value = service.adopt(administrator_confirmed=True)
+        value.update(session_result)
+    else:  # pragma: no cover - argparse owns the closed command set
+        raise ValueError(f"unknown home command: {args.home_command}")
+    if args.json:
+        _print(value)
+        return
+    if args.home_command == "migrate":
+        if value.get("phase") == "rolled_back":
+            print("AtMem migration destination rolled back")
+            print(f"  Destination  {value['destination']}")
+            print("  Source       preserved and unchanged")
+            return
+        print("AtMem portable migration generation prepared")
+        print(f"  Source       {value['source']}")
+        print(f"  Destination  {value['destination']}")
+        print(f"  Phase        {value['phase']}")
+        print("  Source       preserved; AtMem never deletes it automatically")
+        if not args.commit:
+            print("Next: verify the destination, then rerun with --commit when ready.")
+        return
+    if args.home_command == "snapshot":
+        print("AtMem Home snapshot complete")
+        print(f"  Source       {value['source']}")
+        print(f"  Destination  {value['destination']}")
+        print(f"  Files        {value['files']}")
+        print(f"  Bytes        {value['bytes']}")
+        print("  Verified     yes")
+        return
+    if args.home_command == "adopt":
+        print("AtMem Home adopted")
+        print(f"  Instance     {value['instance_id']}")
+        print(f"  Binding      {value['binding_id']}")
+        print(f"  Sessions     {value['revoked_sessions']} revoked; sign in again")
+        print("  Evidence     historical events and artifact bytes were not rewritten")
+        return
+    print("AtMem Home")
+    print(f"  Location     {service.layout.root}")
+    print(f"  Portable     {'yes' if value.get('portable', True) else 'no'}")
+    if value.get("instance_id"):
+        print(f"  Instance     {value['instance_id']}")
+    if value.get("verified") is not None:
+        print(f"  Verified     {'yes' if value['verified'] else 'no'}")
+    if value.get("warning"):
+        print(f"  Action       {value['warning']}")
+
+
+def _run_restore_home(args: argparse.Namespace) -> None:
+    service = HomeService(args.home)
+    preflight = service.prepare_restore()
+    if args.json:
+        _print(preflight)
+        return
+    os.environ["ATMEM_HOME"] = str(service.layout.root)
+    os.environ["ATMEM_RESTORE_MODE"] = "read-only"
+    print("AtMem copied home is structurally ready")
+    print(f"  Home         {preflight['home']}")
+    print("  Mode         read-only restore")
+    print("  Access       sign in with an Administrator from this copied home")
+    if preflight["legacy_discovered"]:
+        print("  Layout       legacy layout discovered; evidence is not silently migrated")
+    if args.no_open:
+        print(f"  State        {preflight['runtime_state']}")
+        return
+    from atmem.dashboard_daemon import _open_default_browser, manage_dashboard_daemon
+
+    daemon = manage_dashboard_daemon(
+        "start",
+        port=args.port,
+        control_state_path=preflight["runtime_state"],
+        daemon_state_path=service.layout.path("runtime/dashboard-daemon.json"),
+    )
+    print(f"  Dashboard    {daemon['url']}")
+    if not args.no_open and not _open_default_browser(str(daemon["url"])):
+        print("Open the dashboard URL above in your browser.")
 
 
 def _restart_running_dashboard_after_upgrade() -> dict[str, object]:
@@ -3731,6 +3992,141 @@ def _interactive_atbot_setup(manager: Any) -> dict[str, Any]:
     )
 
 
+def _identity_manager(state_path: str | None):
+    from atmem.control import ControlPlaneManager
+    from atmem.control.manager import DEFAULT_CONTROL_ROOT, DEFAULT_STATE_PATH
+
+    selected_home = HomeService()
+    if not selected_home.layout.root.exists() or not any(selected_home.layout.root.iterdir()):
+        selected_home.initialize()
+    selected = Path(state_path or DEFAULT_STATE_PATH).expanduser().resolve(strict=False)
+    manager = ControlPlaneManager(selected)
+    if not selected.exists():
+        manager = ControlPlaneManager.start(
+            host="generic",
+            state_path=selected,
+            control_root=DEFAULT_CONTROL_ROOT,
+            memory_db=DEFAULT_MCP_DB,
+        )
+    else:
+        manager.state()
+    return manager
+
+
+def _print_bootstrap(value: dict[str, Any], *, as_json: bool = False) -> None:
+    if as_json:
+        _print(value)
+        return
+    if not value.get("created"):
+        print("AtMem is already initialized. Existing credentials were not changed or disclosed.")
+        print("Dashboard: http://127.0.0.1:8766/")
+        return
+    print("AtMem local Administrator created")
+    print(f"  Username           {value['username']}")
+    print(f"  Temporary password {value['password']}")
+    print("  Dashboard          http://127.0.0.1:8766/")
+    print("Sign in and change this temporary password. It will not be shown again.")
+
+
+def _run_identity_init(args: argparse.Namespace) -> None:
+    manager = _identity_manager(args.state)
+    bootstrap = manager.identity_service().bootstrap()
+    _print_bootstrap(bootstrap, as_json=args.json)
+    if args.json or args.no_open or not bootstrap.get("created"):
+        return
+    from atmem.dashboard_daemon import _open_default_browser, manage_dashboard_daemon
+
+    daemon = manage_dashboard_daemon(
+        "start", port=args.port, control_state_path=args.state
+    )
+    url = _bootstrap_dashboard_url(str(daemon["url"]), bootstrap)
+    if _open_default_browser(url):
+        print("Opened the dashboard with the one-time Administrator password pre-filled.")
+    else:
+        print("The dashboard is running, but the browser could not be opened automatically.")
+        print("Run `atmem dashboard daemon open`, then enter the password shown above.")
+
+
+def _bootstrap_dashboard_url(base: str, bootstrap: dict[str, Any]) -> str:
+    """Carry a newly generated credential to local UI without an HTTP request."""
+    fragment = urlencode(
+        {
+            "bootstrap": "1",
+            "username": str(bootstrap["username"]),
+            "password": str(bootstrap["password"]),
+        }
+    )
+    return base.rstrip("/") + "/#" + fragment
+
+
+def _admin_session(identity) -> str:
+    username = input("Administrator username [administrator]: ").strip() or "administrator"
+    password = getpass.getpass("Administrator password: ")
+    session = identity.login(username, password, source="local-cli")
+    if session["account"].get("password_change_required"):
+        raise PermissionError("change the temporary password before administering users")
+    if session["account"].get("role") != "administrator":
+        raise PermissionError("Administrator access required")
+    return str(session["session_token"])
+
+
+def _run_users(args: argparse.Namespace) -> None:
+    identity = _identity_manager(args.state).identity_service()
+    command = args.users_command
+    if command == "recover-administrator":
+        confirmation = input(
+            "Reset the local Administrator password and sign out existing sessions? [y/N] "
+        ).strip().lower()
+        if confirmation not in {"y", "yes"}:
+            print("Administrator recovery cancelled.")
+            return
+        recovered = identity.recover_administrator("RECOVER LOCAL ADMINISTRATOR")
+        _print(recovered)
+        if not args.no_open:
+            from atmem.dashboard_daemon import _open_default_browser, manage_dashboard_daemon
+
+            daemon = manage_dashboard_daemon("status")
+            if not daemon.get("running"):
+                daemon = manage_dashboard_daemon(
+                    "start", port=args.port, control_state_path=args.state
+                )
+            bootstrap = {
+                "username": recovered["username"],
+                "password": recovered["temporary_password"],
+            }
+            if _open_default_browser(_bootstrap_dashboard_url(str(daemon["url"]), bootstrap)):
+                print("Opened the dashboard with the new temporary password pre-filled.")
+            else:
+                print("Open the dashboard and enter the new temporary password shown above.")
+        return
+    if command == "change-password":
+        username = input("Username: ").strip()
+        current = getpass.getpass("Current password: ")
+        new = getpass.getpass("New password: ")
+        repeated = getpass.getpass("Repeat new password: ")
+        if new != repeated:
+            raise ValueError("new passwords do not match")
+        session = identity.login(username, current, source="local-cli")
+        changed = identity.change_password(session["session_token"], current, new)
+        _print({"changed": True, "account": changed["account"]})
+        return
+    token = _admin_session(identity)
+    if command == "list":
+        _print({"users": identity.list_users(token)})
+    elif command == "create":
+        _print(identity.create_user(token, args.username, args.role, display_name=args.display_name))
+    elif command == "enable":
+        _print(identity.update_user(token, args.username, enabled=True))
+    elif command == "disable":
+        _print(identity.update_user(token, args.username, enabled=False))
+    elif command == "set-role":
+        _print(identity.update_user(token, args.username, role=args.role))
+    elif command == "reset-password":
+        _print(identity.reset_password(token, args.username))
+    else:
+        raise ValueError(f"unknown users command: {command}")
+
+
 def _run_dashboard(args: argparse.Namespace) -> None:
     if args.dashboard_command == "daemon":
         from atmem.dashboard_daemon import manage_dashboard_daemon
@@ -3788,6 +4184,13 @@ def _serve_dashboard(
     manager = ControlPlaneManager(state_path or DEFAULT_STATE_PATH)
     # Fail before opening a port if no valid migration exists.
     manager.state()
+    identity = manager.identity_service()
+    bootstrap: dict[str, Any] | None = None
+    if not identity.initialized:
+        if not sys.stdin.isatty():
+            raise ValueError("local identity is not initialized; run `atmem init` before starting the dashboard daemon")
+        bootstrap = identity.bootstrap()
+        _print_bootstrap(bootstrap)
     from atmem.control.atbot_service import AtBotServiceManager
 
     atbot_manager = AtBotServiceManager()
@@ -3807,9 +4210,11 @@ def _serve_dashboard(
         + ("ready" if companion.get("available") else "safe AtMem fallback"),
         flush=True,
     )
-    print("No login is required. The dashboard is loopback-only. Press Ctrl-C to stop.", flush=True)
+    print("Sign in with an AtMem local account. The dashboard is loopback-only. Press Ctrl-C to stop.", flush=True)
     if open_browser:
-        webbrowser.open(base)
+        webbrowser.open(
+            _bootstrap_dashboard_url(base, bootstrap) if bootstrap else base
+        )
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -4118,6 +4523,15 @@ def _run_blackbox(args: argparse.Namespace) -> None:
             agent_id=envelope.get("agent_id"),
             workspace_id=envelope.get("workspace_id"),
             subject_id=envelope.get("subject_id"),
+            event_id=envelope.get("event_id"),
+            producer_instance_id=envelope.get("producer_instance_id"),
+            producer_epoch=envelope.get("producer_epoch"),
+            producer_sequence=envelope.get("producer_sequence"),
+            event_time=envelope.get("event_time"),
+            execution_id=envelope.get("execution_id"),
+            parent_execution_id=envelope.get("parent_execution_id"),
+            attempt_id=envelope.get("attempt_id"),
+            retry_of_attempt_id=envelope.get("retry_of_attempt_id"),
             payload=envelope.get("payload") or {},
         )
         _print(value)
@@ -4161,6 +4575,102 @@ def _run_blackbox(args: argparse.Namespace) -> None:
         _print(report)
     else:
         print(format_flight_report(report), end="")
+
+
+def _run_evidence(args: argparse.Namespace) -> None:
+    from atmem.control.manager import ControlPlaneManager, DEFAULT_STATE_PATH
+    from atmem.evidence import CaptureMode, EvidenceRole, EvidenceScope
+
+    manager = ControlPlaneManager(args.state or str(DEFAULT_STATE_PATH))
+    service = manager.evidence_service()
+    command = args.evidence_command
+    if command == "status":
+        _print(service.protection_status())
+        return
+    if command == "create-test-accounts":
+        credentials = service.create_demo_accounts(subject_id=manager.state().subject_id)
+        _print(
+            {
+                "format": "atmem-evidence-test-credentials-v1",
+                "development_only": True,
+                "accounts": credentials,
+                "warning": "Tokens are shown once. Store them outside the evidence vault.",
+            }
+        )
+        return
+    principal = service.authenticate(args.token)
+    if principal is None:
+        raise ValueError("invalid evidence account token")
+    if command == "show":
+        _print({"run_id": args.run_id, "events": service.events(principal, args.run_id)})
+        return
+    if command == "search":
+        _print({"query": args.query, "events": service.search(principal, args.query)})
+        return
+    if command == "reconstruct":
+        _print(service.reconstruct(principal, args.run_id))
+        return
+    if command == "replay-manifest":
+        _print(service.replay_manifest(principal, args.run_id))
+        return
+    if command == "grant":
+        _print(
+            service.grant(
+                principal,
+                principal_id=args.principal_id,
+                role=EvidenceRole(args.role),
+                scope=EvidenceScope(
+                    principal.scope.tenant_id,
+                    principal.scope.subject_id,
+                    principal.scope.workspace_id,
+                    args.run_id,
+                ),
+            )
+        )
+        return
+    if command == "revoke":
+        _print({"principal_id": args.principal_id, "revoked": service.revoke(principal, principal_id=args.principal_id)})
+        return
+    if command == "delete-run":
+        _print(service.delete_run(principal, args.run_id, confirmation=args.confirm))
+        return
+    if command == "rotate-key":
+        _print(service.rotate_key(principal, confirmation=args.confirm))
+        return
+    if command == "lock":
+        _print(service.lock(principal, confirmation=args.confirm))
+        return
+    if command == "unlock":
+        _print(service.unlock(principal, confirmation=args.confirm))
+        return
+    if command == "set-mode":
+        _print(service.set_capture_mode(principal, CaptureMode(args.mode)))
+        return
+    if command == "export-plaintext":
+        output = Path(args.output).expanduser().resolve(strict=False)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        descriptor = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        try:
+            with os.fdopen(descriptor, "wb") as handle:
+                for chunk in service.iter_plaintext_export(
+                    principal, args.run_id, confirmation=args.confirm
+                ):
+                    handle.write(chunk)
+                handle.flush()
+                os.fsync(handle.fileno())
+        except Exception:
+            output.unlink(missing_ok=True)
+            raise
+        _print(
+            {
+                "exported": True,
+                "run_id": args.run_id,
+                "output": str(output),
+                "warning": "AtMem encryption no longer protects this plaintext file.",
+            }
+        )
+        return
+    raise ValueError(f"unknown evidence command: {command}")
 
 
 def _run_benchmark_cli(args: argparse.Namespace) -> None:

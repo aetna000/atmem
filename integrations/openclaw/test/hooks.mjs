@@ -64,11 +64,22 @@ function blackboxCli(...args) {
   return result.stdout.trim() ? JSON.parse(result.stdout) : null;
 }
 
+function evidenceCli(...args) {
+  const result = spawnSync("python", ["-m", "atmem.cli", "evidence", ...args], {
+    encoding: "utf8",
+    cwd: repoRoot,
+    env: { ...process.env, PYTHONPATH: repoRoot },
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return result.stdout.trim() ? JSON.parse(result.stdout) : null;
+}
+
 
 const dataDir = mkdtempSync(path.join(tmpdir(), "atmem-hooks-"));
 const dbPath = path.join(dataDir, "memory.db");
 const mediaRoot = path.join(dataDir, "openclaw-media");
 mkdirSync(mediaRoot);
+mkdirSync(path.join(mediaRoot, "inbound"));
 process.env.ATMEM_OPENCLAW_MEDIA_ROOT = mediaRoot;
 const base = {
   command: "atmem",
@@ -132,16 +143,22 @@ try {
     {
       content: "Analyze this upload",
       sessionKey: "takeover-1",
-      metadata: {
-        mediaPath: attachmentPath,
-        mediaPaths: [attachmentPath],
-        mediaType: "image/png",
-        mediaTypes: ["image/png"],
-      },
+      runId: "current-media-run-1",
+      media: [{ path: attachmentPath, contentType: "image/png", kind: "image" }],
     },
-    { sessionKey: "takeover-1" },
+    { sessionKey: "takeover-1", runId: "current-media-run-1" },
   );
-  const autoObserved = await observe.execute("observe-auto-1", {
+  // Current OpenClaw may subsequently emit a sparse transcript write. Before
+  // this regression fix that second hook erased the valid media binding.
+  beforeWrite({
+    message: {
+      role: "user",
+      content: "Analyze this upload",
+      idempotencyKey: "current-media-run-1:user",
+    },
+  }, { sessionKey: "takeover-1" });
+  const currentMediaRuntime = fakeApi(base, { runId: "current-media-run-1" });
+  const autoObserved = await currentMediaRuntime.tools.get("atmem_observe").execute("observe-auto-1", {
     text: "The upload contains a geometric logo.",
     modality: "image",
     segment: { region: "whole image", dimensions: { width: 640, height: 480 } },
@@ -152,6 +169,37 @@ try {
     autoObserved.details.mediaSha256,
     createHash("sha256").update(attachmentBytes).digest("hex"),
   );
+  for (const service of currentMediaRuntime.services) await service.stop?.();
+
+  // A staging event can expose a safe host-managed original path before the
+  // normalized media list is ready. Capture it immediately rather than
+  // replacing it with the caption placeholder or waiting for a later process.
+  const originalBytes = Buffer.from("exact original staged image bytes");
+  const originalPath = path.join(mediaRoot, "original-staged.png");
+  writeFileSync(originalPath, originalBytes);
+  await messageReceived(
+    {
+      content: "[User sent media without caption]",
+      sessionKey: "original-media-session",
+      runId: "original-media-run-1",
+      originalMedia: [{ path: originalPath, contentType: "image/png", kind: "image" }],
+      mediaStagingPending: true,
+    },
+    { sessionKey: "original-media-session", runId: "original-media-run-1" },
+  );
+  const originalRuntime = fakeApi(base, { runId: "original-media-run-1" });
+  try {
+    const observed = await originalRuntime.tools.get("atmem_observe").execute(
+      "observe-original-media-1",
+      { text: "The staged image has a visible outline.", modality: "image" },
+    );
+    assert.equal(
+      observed.details.mediaSha256,
+      createHash("sha256").update(originalBytes).digest("hex"),
+    );
+  } finally {
+    for (const service of originalRuntime.services) await service.stop?.();
+  }
 
   // OpenClaw can execute the inbound hook and the later agent tool in
   // separate plugin runtimes. The trusted upload binding must survive that
@@ -237,10 +285,23 @@ try {
   );
   assert.equal(injected.prependContext, undefined);
   assert.ok(injected.appendSystemContext.includes("<user_persona>"));
-  assert.ok(injected.appendContext.includes("<relevant_memories>"));
-  assert.ok(injected.appendContext.includes("teal"));
-  assert.match(injected.appendContext, /\[m:[a-f0-9]{8}\]/);
-  assert.doesNotMatch(injected.appendContext, /\[rec_[a-f0-9]+\]/);
+  assert.equal(injected.appendContext, undefined, "persona records must not repeat in recall");
+  assert.ok(injected.appendSystemContext.includes("teal"));
+  assert.match(injected.appendSystemContext, /\[m:[a-f0-9]{8}\]/);
+  assert.doesNotMatch(injected.appendSystemContext, /\[rec_[a-f0-9]+\]/);
+  const selectiveRuntime = fakeApi({ ...base, persona: undefined });
+  try {
+    const selective = await selectiveRuntime.hooks.get("before_prompt_build")(
+      { prompt: "favorite color" }, { sessionKey: "selective-recall" });
+    assert.ok(selective.appendContext.includes("teal"));
+    assert.ok(!selective.appendSystemContext?.includes("<user_persona>"));
+    const unrelated = await selectiveRuntime.hooks.get("before_prompt_build")(
+      { prompt: "list all chinese shops in botany road selling roasted duck" },
+      { sessionKey: "selective-unrelated" });
+    assert.ok(!JSON.stringify(unrelated || {}).includes("teal"));
+  } finally {
+    for (const service of selectiveRuntime.services) await service.stop?.();
+  }
 
   const compatibleSearch = runtime.tools.get("memory_search");
   const searchResult = await compatibleSearch.execute("compat-search-1", {
@@ -370,6 +431,8 @@ for line in sys.stdin:
                 value = {"inject":True,"context":"native fallback context","authority":"atmem_fallback","decision":"native_context","native_fallback":True,"mode":"active","candidate_ids":["native-1"]}
             else:
                 value = {"inject":True,"context":EXACT,"context_sha256":"${createHash("sha256").update(exactDelegated).digest("hex")}","authority":"delegated","decision":"inject","result_sha256":"${"c".repeat(64)}","exposure_id":"delivery-1","context_receipt_id":"receipt-1","receipt":{"id":"receipt-1","sha256":"${"d".repeat(64)}"},"provider":{"id":"fixture-provider","version":"test","instance_id":"local"},"mode":"active","candidate_ids":[]}
+        elif name == "control_record_blackbox_event":
+            value = {"durably_accepted": True, "decision": "accepted"}
         else:
             value = {"ok": True}
         result = {"content":[{"type":"text","text":json.dumps(value, separators=(",", ":"))}],"isError":False}
@@ -668,6 +731,10 @@ for line in sys.stdin:
   const beforeTool = takeover.hooks.get("before_tool_call");
   assert.equal(typeof beforeTool, "function");
   const workspace = path.join(dataDir, "openclaw-workspace");
+  assert.equal(await beforeTool({
+    toolName: "openclawmemory_search",
+    params: { query: "my age", corpus: "memory", maxResults: 5 },
+  }, {}), undefined);
   const blockedShell = await beforeTool({
     toolName: "Bash",
     params: { command: "sed -n '1,200p' MEMORY.md", cwd: workspace },
@@ -708,6 +775,29 @@ for line in sys.stdin:
     migrationRoot,
     "--no-configure",
   );
+  const disabledRecorder = fakeApi({
+    ...base,
+    controlPlane: {
+      enabled: true,
+      statePath: migrationState,
+      blackboxEnabled: false,
+    },
+  });
+  await disabledRecorder.hooks.get("before_model_resolve")(
+    { runId: "run-blackbox-disabled", prompt: "Recorder is explicitly disabled." },
+    { sessionId: "disabled-session", runId: "run-blackbox-disabled" },
+  );
+  await disabledRecorder.hooks.get("agent_end")(
+    { runId: "run-blackbox-disabled", success: true, messages: [] },
+    { sessionId: "disabled-session", runId: "run-blackbox-disabled" },
+  );
+  assert.equal(
+    blackboxCli("runs", "--state", migrationState).runs.some(
+      (run) => run.run_id === "run-blackbox-disabled",
+    ),
+    false,
+  );
+  for (const service of disabledRecorder.services) await service.stop?.();
   const controlPlane = fakeApi({
     ...base,
     commandArgs: ["mcp", "--db", path.join(dataDir, "must-not-be-used.db")],
@@ -722,12 +812,28 @@ for line in sys.stdin:
     sessionId: "migration-session-1",
     runId: "run-blackbox-1",
   };
+  const protectedAttachment = Buffer.from("PROTECTED-IMAGE-BYTES");
+  const protectedModelImage = Buffer.from("MODEL-DELIVERED-IMAGE-BYTES");
+  const persistedWebchatImage = Buffer.from("PERSISTED-WEBCHAT-IMAGE-BYTES");
+  const persistedWebchatName = "9c8cc55d-af35-49ce-9bc2-530573d50c5f.png";
+  writeFileSync(path.join(mediaRoot, "inbound", persistedWebchatName), persistedWebchatImage);
+  const protectedAttachmentPath = path.join(mediaRoot, "protected-run.png");
+  writeFileSync(protectedAttachmentPath, protectedAttachment);
+  await controlPlane.hooks.get("message_received")(
+    {
+      content: "image evidence",
+      sessionKey: blackboxCtx.sessionKey,
+      runId: blackboxCtx.runId,
+      metadata: { mediaPath: protectedAttachmentPath, mediaType: "image/png" },
+    },
+    blackboxCtx,
+  );
   await controlPlane.hooks.get("before_model_resolve")(
     {
       runId: "run-blackbox-1",
       prompt: "Remember my terminal preference.",
       historyMessages: [],
-      imagesCount: 0,
+      imagesCount: 1,
       tools: [{ name: "memory_remember" }],
     },
     blackboxCtx,
@@ -741,7 +847,14 @@ for line in sys.stdin:
       systemPrompt: "private system prompt",
       prompt: "Remember my terminal preference.",
       historyMessages: [],
-      imagesCount: 0,
+      imagesCount: 1,
+      messages: [{
+        role: "user",
+        content: [{
+          type: "input_image",
+          image_url: `data:image/png;base64,${protectedModelImage.toString("base64")}`,
+        }],
+      }],
       tools: [{ name: "memory_remember" }],
     },
     blackboxCtx,
@@ -782,7 +895,23 @@ for line in sys.stdin:
     },
     blackboxCtx,
   );
-  await safeEnd({ runId: "run-blackbox-1", success: true, messages: [] }, blackboxCtx);
+  await safeEnd({
+    runId: "run-blackbox-1",
+    success: true,
+    messages: [{
+      role: "user",
+      content: "what is this",
+      idempotencyKey: "run-blackbox-1:user",
+      __openclaw: {
+        media: [{
+          url: `media://inbound/${persistedWebchatName}`,
+          contentType: "image/png",
+          kind: "image",
+          sizeBytes: persistedWebchatImage.length,
+        }],
+      },
+    }],
+  }, blackboxCtx);
   const migrationStatus = controlCli("status", "--state", migrationState);
   assert.equal(migrationStatus.mode, "shadow");
   assert.equal(migrationStatus.changes_model_context, false);
@@ -798,6 +927,25 @@ for line in sys.stdin:
   const serializedFlight = JSON.stringify(flight);
   assert.doesNotMatch(serializedFlight, /private system prompt/);
   assert.doesNotMatch(serializedFlight, /I remembered your terminal preference/);
+  const evidenceCredentials = evidenceCli(
+    "create-test-accounts", "--state", migrationState,
+  );
+  const investigatorToken = evidenceCredentials.accounts.find(
+    row => row.role === "investigator",
+  ).token;
+  const protectedRun = evidenceCli(
+    "show", "--state", migrationState, "--token", investigatorToken, "run-blackbox-1",
+  );
+  const protectedSerialized = JSON.stringify(protectedRun);
+  assert.match(protectedSerialized, /private system prompt/);
+  assert.match(protectedSerialized, /I remembered your terminal preference/);
+  assert.match(protectedSerialized, /"query":"terminal"/);
+  assert.match(protectedSerialized, /"found":true/);
+  assert.match(protectedSerialized, new RegExp(protectedAttachment.toString("base64")));
+  assert.match(protectedSerialized, new RegExp(protectedModelImage.toString("base64")));
+  assert.match(protectedSerialized, new RegExp(persistedWebchatImage.toString("base64")));
+  assert.match(protectedSerialized, /"artifact_capture":"encrypted_exact"/);
+  assert.match(protectedSerialized, /"representation":"model_input"/);
 
   // External CLI harnesses such as OpenClaw's claude-cli path can skip
   // before_model_resolve while still invoking the prompt, model, and terminal
@@ -857,6 +1005,35 @@ for line in sys.stdin:
     claudeCliFlight.timeline.filter((entry) => entry.event_type === "turn.input").length,
     1,
   );
+  // Real bridge hooks → RPC persistence → projection: equivalent host envelopes.
+  const progressDetails = { revision: 3, steps: { completed: 3, total: 3 } };
+  const progressResult = { content: [
+    { type: "text", text: "Progress card updated (rev 3, 3/3 done)" },
+    { type: "text", text: JSON.stringify(progressDetails, null, 2) },
+  ], details: progressDetails };
+  for (const result of [progressResult, progressResult.content.map(v => ({ ...v, type: "input_text" }))]) {
+    const event = { toolName: "progress_card", toolCallId: "progress-dual", runId: "run-progress-dual", params: { plan: [] } };
+    const ctx = { ...blackboxCtx, runId: event.runId };
+    await controlPlane.hooks.get("before_tool_call")(event, ctx);
+    await controlPlane.hooks.get("after_tool_call")({ ...event, result }, ctx);
+  }
+  const progressFlight = blackboxCli("verify", "run-progress-dual", "--state", migrationState);
+  assert.deepEqual(progressFlight.tools.conflicting_completions, []);
+  assert.equal(progressFlight.tools.coalesced_wrapper_calls[0].comparison_profile, "openclaw-progress-card-v1");
+  assert.equal(new Set(progressFlight.timeline.filter(e => e.event_type === "tool.completed").map(e => e.payload.result_sha256)).size, 2);
+  // A host exception without a result must retain its diagnostic separately.
+  await controlPlane.hooks.get("after_tool_call")({
+    toolName: "web_fetch", toolCallId: "fetch-error", runId: "run-fetch-error",
+    params: {}, error: "Fetch failed (403): https://private.example/?token=secret\nprivate stack", durationMs: 305,
+  }, { ...blackboxCtx, runId: "run-fetch-error" });
+  const errorFlight = blackboxCli("verify", "run-fetch-error", "--state", migrationState);
+  const failure = errorFlight.timeline.find(entry => entry.event_type === "tool.completed").payload;
+  assert.equal(failure.outcome, "error");
+  assert.equal(failure.error_reason, "Fetch failed (403): [redacted-url]");
+  assert.equal(failure.result_present, false);
+  assert.match(failure.error_sha256, /^[0-9a-f]{64}$/);
+  assert.equal(errorFlight.tools.errors[0].error_reason, failure.error_reason);
+  assert.doesNotMatch(JSON.stringify(errorFlight), /private.example|private stack|token=secret/);
   for (const service of controlPlane.services) await service.stop?.();
 
   // Managed active mode uses the normal memory engine and a separate private

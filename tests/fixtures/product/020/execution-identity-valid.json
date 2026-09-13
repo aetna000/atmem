@@ -1,0 +1,23 @@
+{
+  "format": "atmem-execution-identity-v1",
+  "scope": {
+    "format": "atmem-authority-scope-v1",
+    "subject_id": "subject-1",
+    "agent_id": "agent-1",
+    "workspace_id": "workspace-1"
+  },
+  "host": "generic",
+  "framework": null,
+  "session_id": "session-1",
+  "session_generation": "generation-1",
+  "job_id": null,
+  "execution_id": "execution-1",
+  "parent_execution_id": null,
+  "attempt_id": "attempt-1",
+  "retry_of_attempt_id": null,
+  "run_id": "run-1",
+  "turn_id": "turn-1",
+  "tool_call_id": null,
+  "step_id": null,
+  "task_id": null
+}

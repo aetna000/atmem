@@ -64,6 +64,16 @@ def capabilities() -> dict[str, Any]:
             "governed_task_session_binding": bool(session_binding_adapters()),
             "governed_task_host_proposal": bool(host_proposal_adapters()),
             "governed_task_agent_delta_tool": bool(agent_delta_tool_adapters()),
+            # M0 investigation preview. Core reads are deterministic and do
+            # not require memory injection, task activation, or AtBot.
+            "durable_execution_evidence": True,
+            "deterministic_incident_findings": True,
+            "encrypted_full_fidelity_evidence": True,
+            "evidence_privilege_hierarchy": True,
+            "evidence_collector_plaintext_export": True,
+            "evidence_plaintext_streaming_cli": True,
+            "evidence_plaintext_streaming_http": False,
+            "evidence_plaintext_streaming_mcp": False,
         },
         "default_vector_provider": "hashing-local-v1",
         "context_serializer": "atmem-context-utf8-v1",
@@ -77,4 +87,24 @@ def capabilities() -> dict[str, Any]:
         "governed_task_host_proposal_adapters": list(host_proposal_adapters()),
         "governed_task_agent_delta_tool_adapters": list(agent_delta_tool_adapters()),
         "framework_adapters": FRAMEWORK_ADAPTERS,
+        "execution_evidence_adapters": {
+            "openclaw": {
+                "profile": "m0-investigation-v1",
+                "durable_spool": True,
+                "producer_sequence": True,
+                "explicit_parent_retry_links": True,
+                "default_enabled": False,
+                "data_capture_default": "full",
+                "protected_storage": "AES-256-GCM",
+            },
+            "mcp": {
+                "profile": "tool-only-fixture",
+                "durable_spool": False,
+                "producer_sequence": False,
+                "explicit_parent_retry_links": False,
+                "default_enabled": False,
+                "data_capture_default": "off",
+                "protected_storage": "none",
+            },
+        },
     }

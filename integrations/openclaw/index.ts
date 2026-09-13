@@ -21,10 +21,12 @@
 import os from "node:os";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import { createReadStream } from "node:fs";
 import { lstat, mkdir, readFile, realpath, rename, unlink, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { ToolObservations, observationContext } from "./src/tool-observations.js";
+import { progressCardComparison } from "./src/tool-result-comparison.js";
+import { toolErrorReason } from "./src/tool-errors.js";
+import { ExecutionSpool } from "./src/execution-spool.js";
 import { delegatedIdentity, isolatedCliProcess, type DelegatedIdentityConfig } from "./src/delegated-identity.js";
 import { AtmemClient } from "./src/rpc-client.js";
 import type {
@@ -88,6 +90,7 @@ interface PluginConfig {
     maxRecords: number;
     maxChars: number;
     minScore: number;
+    requireDirectSupport: boolean;
     timeoutMs: number;
   };
   persona: { enabled: boolean; maxChars: number; ttlSeconds: number };
@@ -104,7 +107,10 @@ interface PluginConfig {
 
 function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
   const cfg = (raw ?? {}) as Record<string, any>;
-  const dbPath = expandHome(String(cfg.dbPath ?? "~/.atmem/memories.db"));
+  const selectedHome = process.env.ATMEM_HOME
+    ? expandHome(process.env.ATMEM_HOME)
+    : path.join(os.homedir(), ".atmem");
+  const dbPath = expandHome(String(cfg.dbPath ?? path.join(selectedHome, "memory", "memories.db")));
   const subject = String(cfg.subject ?? "default");
   const stringMap = (value: unknown): Record<string, string> =>
     value && typeof value === "object" && !Array.isArray(value)
@@ -125,10 +131,10 @@ function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
   const controlPlane = {
     enabled: cfg.controlPlane?.enabled === true,
     statePath: expandHome(
-      String(cfg.controlPlane?.statePath ?? "~/.atmem/control-plane.json"),
+      String(cfg.controlPlane?.statePath ?? path.join(selectedHome, "config", "control-plane.json")),
     ),
     blackboxEnabled:
-      cfg.controlPlane?.enabled === true || cfg.controlPlane?.blackboxEnabled === true,
+      Boolean(cfg.controlPlane) && cfg.controlPlane?.blackboxEnabled !== false,
   };
   const delegatedContext = {
     userId: String(cfg.delegatedContext?.userId ?? "").trim(),
@@ -162,10 +168,11 @@ function parseConfig(raw: Record<string, unknown> | undefined): PluginConfig {
       maxRecords: Number(cfg.recall?.maxRecords ?? 3),
       maxChars: Number(cfg.recall?.maxChars ?? 1200),
       minScore: Number(cfg.recall?.minScore ?? 0.3),
+      requireDirectSupport: cfg.recall?.requireDirectSupport !== false,
       timeoutMs: Number(cfg.recall?.timeoutMs ?? 4000),
     },
     persona: {
-      enabled: cfg.persona?.enabled !== false,
+      enabled: cfg.persona?.enabled === true,
       maxChars: Number(cfg.persona?.maxChars ?? 600),
       ttlSeconds: Number(cfg.persona?.ttlSeconds ?? 300),
     },
@@ -279,6 +286,8 @@ type InboundAttachmentEvidence = {
   mimeType: string;
   bytes: number;
   capturedAt: number;
+  /** Exact bytes live only in memory until the encrypted AtMem capture is acknowledged. */
+  dataBase64?: string;
 };
 
 type DurableAttachmentBinding = {
@@ -316,7 +325,7 @@ async function writeAttachmentBinding(
   const payload: DurableAttachmentBinding = {
     format: "atmem-openclaw-attachment-binding-v1",
     keySha256: createHash("sha256").update(key).digest("hex"),
-    items,
+    items: items.map(({ dataBase64: _discarded, ...item }) => item),
     updatedAt: Date.now(),
   };
   await writeFile(temporary, JSON.stringify(payload), { encoding: "utf8", mode: 0o600 });
@@ -351,13 +360,55 @@ async function readAttachmentBinding(
 
 function modalityFromMime(mimeType: string): InboundAttachmentEvidence["modality"] | null {
   const mime = mimeType.toLowerCase();
-  if (mime.startsWith("image/")) return "image";
-  if (mime.startsWith("audio/")) return "audio";
-  if (mime.startsWith("video/")) return "video";
-  if (mime === "application/pdf" || mime.startsWith("text/") || mime.includes("document")) {
+  if (mime === "image" || mime.startsWith("image/")) return "image";
+  if (mime === "audio" || mime.startsWith("audio/")) return "audio";
+  if (mime === "video" || mime.startsWith("video/")) return "video";
+  if (mime === "document" || mime === "application/pdf" || mime.startsWith("text/") || mime.includes("document")) {
     return "document";
   }
   return null;
+}
+
+type InlineEvidencePart = {
+  type: "image" | "audio" | "video" | "document";
+  mime_type: string;
+  data_base64: string;
+  representation: "model_input";
+};
+
+function inlineMediaParts(value: unknown): InlineEvidencePart[] {
+  const parts: InlineEvidencePart[] = [];
+  const seen = new Set<string>();
+  const visit = (item: unknown): void => {
+    if (typeof item === "string") {
+      const match = /^data:([^;,]+);base64,([A-Za-z0-9+/]+={0,2})$/.exec(item);
+      if (!match) return;
+      const mimeType = match[1].toLowerCase();
+      const modality = modalityFromMime(mimeType);
+      if (!modality) return;
+      const bytes = Buffer.from(match[2], "base64");
+      if (bytes.length > 100 * 1024 * 1024 || bytes.toString("base64") !== match[2]) return;
+      const digest = createHash("sha256").update(bytes).digest("hex");
+      if (seen.has(digest)) return;
+      seen.add(digest);
+      parts.push({
+        type: modality,
+        mime_type: mimeType,
+        data_base64: match[2],
+        representation: "model_input",
+      });
+      return;
+    }
+    if (Array.isArray(item)) {
+      for (const child of item) visit(child);
+      return;
+    }
+    if (item && typeof item === "object") {
+      for (const child of Object.values(item as Record<string, unknown>)) visit(child);
+    }
+  };
+  visit(value);
+  return parts;
 }
 
 function withinPath(candidate: string, root: string): boolean {
@@ -378,11 +429,12 @@ async function hashInboundAttachment(
     throw new Error("OpenClaw attachment path is outside the managed media directory");
   }
   const before = await lstat(resolved);
-  if (!before.isFile() || before.size > 512 * 1024 * 1024) {
+  // The 2.3 consumer-hardware profile is measured and bounded at 100 MiB per artifact.
+  if (!before.isFile() || before.size > 100 * 1024 * 1024) {
     throw new Error("OpenClaw attachment is not a bounded regular file");
   }
-  const hash = createHash("sha256");
-  for await (const chunk of createReadStream(resolved)) hash.update(chunk as Buffer);
+  const exactBytes = await readFile(resolved);
+  const hash = createHash("sha256").update(exactBytes);
   const after = await lstat(resolved);
   if (before.size !== after.size || before.mtimeMs !== after.mtimeMs) {
     throw new Error("OpenClaw attachment changed while its digest was computed");
@@ -397,6 +449,50 @@ async function hashInboundAttachment(
     mimeType,
     bytes: before.size,
     capturedAt: Date.now(),
+    dataBase64: exactBytes.toString("base64"),
+  };
+}
+
+function managedMediaPath(reference: string): string | null {
+  const match = /^media:\/\/inbound\/([A-Za-z0-9][A-Za-z0-9._-]{0,255})$/.exec(reference);
+  if (!match || match[1] === "." || match[1] === "..") return null;
+  const root = process.env.ATMEM_OPENCLAW_MEDIA_ROOT
+    ? expandHome(process.env.ATMEM_OPENCLAW_MEDIA_ROOT)
+    : path.join(os.homedir(), ".openclaw", "media");
+  return path.join(root, "inbound", match[1]);
+}
+
+function attachmentFields(value: unknown): { paths: string[]; types: string[] } {
+  const selected: Array<{ path: string; type: string }> = [];
+  const seen = new Set<string>();
+  const add = (reference: unknown, mimeType: unknown): void => {
+    if (typeof reference !== "string" || !reference) return;
+    const resolved = reference.startsWith("media://") ? managedMediaPath(reference) : reference;
+    if (!resolved || seen.has(resolved)) return;
+    seen.add(resolved);
+    selected.push({
+      path: resolved,
+      type: typeof mimeType === "string" && mimeType
+        ? mimeType
+        : "application/octet-stream",
+    });
+  };
+  const visit = (item: unknown): void => {
+    if (Array.isArray(item)) {
+      for (const child of item) visit(child);
+      return;
+    }
+    if (!item || typeof item !== "object") return;
+    const row = item as Record<string, unknown>;
+    add(row.path ?? row.url, row.contentType ?? row.mimeType ?? row.kind);
+    if (row.__openclaw && typeof row.__openclaw === "object") {
+      visit((row.__openclaw as Record<string, unknown>).media);
+    }
+  };
+  visit(value);
+  return {
+    paths: selected.map((item) => item.path),
+    types: selected.map((item) => item.type),
   };
 }
 
@@ -410,8 +506,17 @@ function recordIdFromPath(value: string): string | null {
 
 function register(api: OpenClawPluginApi): void {
   const cfg = parseConfig(api.pluginConfig);
+  const stateDirectory = path.dirname(cfg.controlPlane.statePath);
+  const selectedHome = process.env.ATMEM_HOME
+    ? expandHome(process.env.ATMEM_HOME)
+    : path.basename(stateDirectory) === "config"
+      ? path.dirname(stateDirectory)
+      : stateDirectory;
+  const runtimeRoot = path.basename(stateDirectory) === "config" || process.env.ATMEM_HOME
+    ? path.join(selectedHome, "runtime")
+    : selectedHome;
   const attachmentBindingRoot = path.join(
-    path.dirname(cfg.controlPlane.enabled ? cfg.controlPlane.statePath : cfg.dbPath),
+    runtimeRoot,
     "openclaw-attachment-bindings",
   );
   const client = new AtmemClient({
@@ -428,6 +533,9 @@ function register(api: OpenClawPluginApi): void {
         log: (message) => api.logger.debug?.(`${TAG} ${message}`),
         logError: (message) => api.logger.warn(`${TAG} ${message}`),
       });
+  const executionSpool = new ExecutionSpool(
+    path.join(runtimeRoot, "openclaw-execution-spool.json"),
+  );
   // Let long-lived hosts close the stdio child during lifecycle shutdown.
   // The client's bounded idle shutdown also covers one-shot local runners.
   api.registerService?.({
@@ -582,6 +690,16 @@ function register(api: OpenClawPluginApi): void {
       ? normalized.slice("openclaw".length)
       : normalized;
   };
+  const governedMemoryTools = new Set([
+    "memory_search",
+    "memory_get",
+    "memory_remember",
+    "atmem_observe",
+    "atmem_forget_artifact",
+    "atmem_trace",
+    "atmem_tasks",
+    "atmem_task_progress",
+  ]);
   const recordBlackbox = async (
     eventType: string,
     eventRunId: string | undefined,
@@ -598,11 +716,13 @@ function register(api: OpenClawPluginApi): void {
   ): Promise<void> => {
     if (!cfg.controlPlane.blackboxEnabled) return;
     try {
-      await blackboxClient.callTool(
-        "control_record_blackbox_event",
-        {
+      await executionSpool.enqueue({
           event_type: eventType,
           run_id: flightRunId(eventRunId, ctx),
+          execution_id: ctx.executionId,
+          parent_execution_id: ctx.parentExecutionId,
+          attempt_id: ctx.attemptId,
+          retry_of_attempt_id: ctx.retryOfAttemptId,
           agent_id: agentIdFor(ctx),
           workspace_id: workspaceIdFor(ctx),
           subject_id: Object.keys(cfg.agentSubjects).length ? subjectFor(ctx) : undefined,
@@ -614,9 +734,10 @@ function register(api: OpenClawPluginApi): void {
           context_receipt_id: correlation.contextReceiptId,
           outcome_id: correlation.outcomeId,
           payload,
-        },
-        cfg.recall.timeoutMs,
-      );
+      });
+      await executionSpool.flush((event) => blackboxClient.callTool(
+        "control_record_blackbox_event", event, cfg.recall.timeoutMs,
+      ));
     } catch (error) {
       api.logger.warn(
         `${TAG} blackbox event ${eventType} was not recorded: ${
@@ -689,6 +810,9 @@ function register(api: OpenClawPluginApi): void {
         prompt_sha256: promptSha256,
         prompt_chars: prompt.length,
         images_count: imagesCount,
+        _atmem_evidence: {
+          parts: [{ type: "text", text: prompt }],
+        },
       });
       try {
         await stageInbound(prompt, ctx);
@@ -712,6 +836,7 @@ function register(api: OpenClawPluginApi): void {
     keys: string[],
     paths: string[],
     types: string[],
+    ctx: OpenClawHookCtx,
   ): Promise<void> => {
     const generation = ++nextAttachmentGeneration;
     for (const key of keys) {
@@ -727,6 +852,20 @@ function register(api: OpenClawPluginApi): void {
         hashInboundAttachment(filePath, types[index] ?? types[0] ?? "application/octet-stream"),
       ),
     );
+    for (const item of items) {
+      await recordBlackbox("turn.attachment", undefined, ctx, {
+        result_sha256: item.mediaSha256,
+        response_stream_bytes: item.bytes,
+        _atmem_evidence: {
+          parts: [{
+            type: item.modality,
+            mime_type: item.mimeType,
+            data_base64: item.dataBase64,
+            host_reference: item.hostReference,
+          }],
+        },
+      });
+    }
     for (const key of keys) {
       if (inboundAttachmentGeneration.get(key) === generation) {
         inboundAttachments.set(key, { items, ts: Date.now() });
@@ -757,7 +896,8 @@ function register(api: OpenClawPluginApi): void {
       : typeof rawType === "string"
         ? [rawType]
         : [];
-    return { paths, types };
+    const current = attachmentFields(message);
+    return current.paths.length ? current : { paths, types };
   };
 
   const writtenMessageBindingKeys = (
@@ -779,23 +919,56 @@ function register(api: OpenClawPluginApi): void {
 
   api.on("message_received", async (event: MessageReceivedEvent, ctx) => {
     const metadata = event.metadata ?? {};
-    const paths = Array.isArray(metadata.mediaPaths)
+    // OpenClaw 2026.9 exposes stable media facts on the event. The metadata
+    // aliases are deprecated and can be absent even though the model receives
+    // the attachment, so use them only as a compatibility fallback.
+    const media = Array.isArray(event.media) ? event.media : [];
+    const currentFields = attachmentFields(media);
+    const current = currentFields.paths.map((path, index) => ({
+      path,
+      type: currentFields.types[index] ?? "application/octet-stream",
+    }));
+    const originalMedia = Array.isArray(event.originalMedia) ? event.originalMedia : [];
+    const originalFields = attachmentFields(originalMedia);
+    const original = originalFields.paths.map((path, index) => ({
+      path,
+      type: originalFields.types[index] ?? "application/octet-stream",
+    }));
+    const legacyPaths = Array.isArray(metadata.mediaPaths)
       ? metadata.mediaPaths.filter((value): value is string => typeof value === "string")
-      : typeof metadata.mediaPath === "string"
-        ? [metadata.mediaPath]
-        : [];
-    const types = Array.isArray(metadata.mediaTypes)
+      : typeof metadata.mediaPath === "string" ? [metadata.mediaPath] : [];
+    const legacyTypes = Array.isArray(metadata.mediaTypes)
       ? metadata.mediaTypes.filter((value): value is string => typeof value === "string")
-      : typeof metadata.mediaType === "string"
-        ? [metadata.mediaType]
-        : [];
+      : typeof metadata.mediaType === "string" ? [metadata.mediaType] : [];
+    const legacyOriginalPaths = Array.isArray(metadata.originalMediaPaths)
+      ? metadata.originalMediaPaths.filter((value): value is string => typeof value === "string")
+      : typeof metadata.originalMediaPath === "string" ? [metadata.originalMediaPath] : [];
+    const legacyOriginalTypes = Array.isArray(metadata.originalMediaTypes)
+      ? metadata.originalMediaTypes.filter((value): value is string => typeof value === "string")
+      : typeof metadata.originalMediaType === "string" ? [metadata.originalMediaType] : [];
+    const selected = current.length
+      ? current
+      : original.length
+        ? original
+        : legacyPaths.map((path, index) => ({
+            path,
+            type: legacyTypes[index] ?? legacyTypes[0] ?? "application/octet-stream",
+          })).concat(legacyOriginalPaths.map((path, index) => ({
+            path,
+            type: legacyOriginalTypes[index] ?? legacyOriginalTypes[0] ?? "application/octet-stream",
+          })));
+    const paths = selected.map((fact) => fact.path);
+    const types = selected.map((fact) => fact.type);
     const keys = [...new Set([
       event.sessionKey,
       event.runId,
       ...contextIds(ctx),
     ].filter((value): value is string => Boolean(value)))];
     try {
-      await bindInboundAttachments(keys, paths, types);
+      // A staging-pending event has not supplied a safe local path yet. Do not
+      // erase an earlier binding for the same turn while OpenClaw is staging it.
+      if (!paths.length && (event.mediaStagingPending || metadata.mediaStagingPending === true)) return;
+      await bindInboundAttachments(keys, paths, types, ctx);
     } catch (error) {
       api.logger.warn(
         `${TAG} inbound attachment provenance unavailable: ${
@@ -856,6 +1029,10 @@ function register(api: OpenClawPluginApi): void {
           context_location: deliveredLocation,
           success: delivered,
           reason: delivered ? undefined : `expected one exact delegated segment; observed ${occurrences}`,
+          _atmem_evidence: {
+            context: exact,
+            delivered_location: deliveredLocation,
+          },
         },
         undefined,
         { contextReceiptId: pending.contextReceiptId },
@@ -870,6 +1047,11 @@ function register(api: OpenClawPluginApi): void {
       }
       cachePendingPrompt(sessionKey, { ...pending, delegatedContext: undefined });
     }
+    const modelMediaParts = inlineMediaParts([
+      event.historyMessages,
+      event.messages,
+      event.images,
+    ]);
     await recordBlackbox("model.input", event.runId, ctx, {
       provider: event.provider,
       model: event.model,
@@ -881,6 +1063,13 @@ function register(api: OpenClawPluginApi): void {
       history_count: Array.isArray(event.historyMessages) ? event.historyMessages.length : 0,
       images_count: event.imagesCount ?? 0,
       tools_count: Array.isArray(event.tools) ? event.tools.length : 0,
+      _atmem_evidence: {
+        prompt: event.prompt ?? "",
+        system_prompt: event.systemPrompt ?? "",
+        history_messages: event.historyMessages ?? [],
+        tools: event.tools ?? [],
+        parts: modelMediaParts,
+      },
     });
   });
 
@@ -912,6 +1101,10 @@ function register(api: OpenClawPluginApi): void {
       usage: event.usage ?? {},
       reasoning_effort: event.reasoningEffort,
       fast_mode: event.fastMode,
+      _atmem_evidence: {
+        assistant_texts: responses,
+        usage: event.usage ?? {},
+      },
     });
   });
 
@@ -1333,6 +1526,8 @@ function register(api: OpenClawPluginApi): void {
             max_records: cfg.recall.maxRecords,
             max_chars: cfg.recall.maxChars,
             min_score: cfg.recall.minScore,
+            require_direct_support: cfg.recall.requireDirectSupport,
+            exclude_record_ids: personaRecordIds,
             reference_mode: cfg.cacheAware.enabled && cfg.cacheAware.compactReferences
               ? "compact"
               : "full",
@@ -1424,8 +1619,15 @@ function register(api: OpenClawPluginApi): void {
         context_chars: memoryContext.length,
         candidate_ids: candidateIds,
         context_component_event_ids: componentEventIds,
+        persona_record_count: personaRecordIds.length,
+        recall_record_count: (current?.injectedRecordIds ?? []).length,
+        context_selection_profile: cfg.recall.requireDirectSupport ? "direct-support-v1" : "rank-threshold-v1",
         mode: "direct",
         context_location: contextLocation,
+        _atmem_evidence: {
+          context: memoryContext,
+          envelope: result,
+        },
       },
       undefined,
       {
@@ -1471,9 +1673,17 @@ function register(api: OpenClawPluginApi): void {
         derived_path_sha256: Array.isArray(event.derivedPaths)
           ? event.derivedPaths.map((value) => digestText(String(value)))
           : [],
+        _atmem_evidence: {
+          params: event.params ?? {},
+          derived_paths: event.derivedPaths ?? [],
+        },
       },
       event.toolCallId ?? ctx.toolCallId,
     );
+    // These virtual tools operate through AtMem. Their arguments legitimately
+    // contain values such as `corpus: "memory"`; they are not filesystem
+    // access to OpenClaw's frozen MEMORY.md or memory/* tree.
+    if (governedMemoryTools.has(canonicalToolName(event.toolName))) return;
     if (!cfg.takeoverActive || !cfg.nativeWorkspaces.some(
       (workspace) => touchesNativeMemory(event, workspace),
     )) return;
@@ -1510,9 +1720,18 @@ function register(api: OpenClawPluginApi): void {
         tool_name: event.toolName,
         tool_canonical_name: canonicalToolName(event.toolName),
         result_sha256: digestJson(event.result ?? null),
+        ...(!event.error ? progressCardComparison(event.toolName, event.result, digestJson) : {}),
         outcome: event.error ? "error" : "completed",
         error_category: event.error ? "tool_error" : undefined,
+        error_reason: event.error ? toolErrorReason(event.error) : undefined,
+        error_sha256: event.error ? digestText(event.error) : undefined,
+        result_present: event.result !== undefined,
         duration_ms: event.durationMs ?? 0,
+        _atmem_evidence: {
+          params: event.params ?? {},
+          result: event.result ?? null,
+          error: event.error ?? null,
+        },
       },
       event.toolCallId ?? ctx.toolCallId,
     );
@@ -1525,11 +1744,36 @@ function register(api: OpenClawPluginApi): void {
         tool_name: saved.name, tool_canonical_name: canonicalToolName(saved.name),
         result_sha256: saved.result!.digest, outcome: saved.result!.error ? "error" : "completed",
         error_category: saved.result!.error ? "tool_error" : undefined,
+        error_reason: saved.result!.reason,
+        error_sha256: saved.result!.errorDigest,
         reason: "observed_terminal_host_tool_event",
       }, saved.callId);
     });
     const sessionKey = sessionKeyFor(ctx);
     const observedTurnInputKey = turnInputKey(ctx);
+
+    // Current OpenClaw WebChat persists exact attachment provenance on the
+    // user transcript as __openclaw.media[].url = media://inbound/<id>. Some
+    // earlier hooks omit it, so agent_end is the durable late-capture boundary.
+    const completedTurnMedia = attachmentFields(event.messages);
+    if (completedTurnMedia.paths.length) {
+      try {
+        await bindInboundAttachments(
+          [...new Set([sessionKey, event.runId, ...contextIds(ctx)].filter(
+            (value): value is string => Boolean(value),
+          ))],
+          completedTurnMedia.paths,
+          completedTurnMedia.types,
+          ctx,
+        );
+      } catch (error) {
+        api.logger.warn(
+          `${TAG} completed-turn attachment capture unavailable: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
 
     const cached = pendingPrompts.get(sessionKey);
     deletePendingPrompt(sessionKey);
@@ -1659,6 +1903,10 @@ function register(api: OpenClawPluginApi): void {
         turn_messages_sha256: turnMessagesSha256,
         digest_profile: "atmem-turn-messages-canonical-json-v1",
         messages_count: Array.isArray(event.messages) ? event.messages.length : 0,
+        _atmem_evidence: {
+          messages: event.messages ?? [],
+          error: event.error ?? null,
+        },
       }, undefined, {
         retrievalId: cached?.retrievalId,
         contextEventId: cached?.contextEventId,
@@ -1680,11 +1928,14 @@ function register(api: OpenClawPluginApi): void {
     // by scanning the media directory or scraping its name from user text.
     const attachmentFields = writtenMessageAttachmentFields(message);
     const attachmentKeys = writtenMessageBindingKeys(message, ctx);
-    if (attachmentKeys.length) {
+    // A sparse transcript message is normal in current OpenClaw. It must not
+    // erase the binding already established by message_received.
+    if (attachmentKeys.length && attachmentFields.paths.length) {
       void bindInboundAttachments(
         attachmentKeys,
         attachmentFields.paths,
         attachmentFields.types,
+        ctx,
       ).catch((error) => {
         api.logger.warn(
           `${TAG} persisted attachment provenance unavailable: ${

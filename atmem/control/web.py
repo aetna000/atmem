@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.metadata import PackageNotFoundError, version
 from importlib.resources import files
 import json
+import os
 import secrets
 import sys
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from atmem.control import ControlPlaneManager, ControlMode
 
@@ -67,6 +69,59 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         if path == "/api/session":
             self._json(HTTPStatus.OK, {"csrf_token": self.server.csrf_token})
             return
+        if path == "/api/auth/status":
+            self._json(HTTPStatus.OK, self.server.application.local_auth_status(self._session_token()))
+            return
+        if path == "/api/home":
+            try:
+                self._require_identity_session()
+                from atmem.home import HomeService
+
+                service = HomeService()
+                status = service.status()
+                verification: dict[str, Any] = {"verified": False}
+                if status["portable"]:
+                    try:
+                        verification = service.verify()
+                    except (OSError, ValueError, json.JSONDecodeError) as exc:
+                        verification = {"verified": False, "error": str(exc)}
+                mode = "writable"
+                mode_path = service.layout.path("runtime/home-mode.json")
+                try:
+                    mode = str(json.loads(mode_path.read_text(encoding="utf-8")).get("mode") or mode)
+                except (FileNotFoundError, OSError, ValueError, json.JSONDecodeError):
+                    pass
+                self._json(
+                    HTTPStatus.OK,
+                    {
+                        **status,
+                        "verified": bool(verification.get("verified")),
+                        "verification_error": verification.get("error"),
+                        "mode": mode,
+                        "active_writer": service.active_writer(),
+                        "migration_command": f"atmem --home {service.layout.root} home migrate DESTINATION",
+                    },
+                )
+            except PermissionError as exc:
+                self._json(HTTPStatus.FORBIDDEN, {"error": str(exc)})
+            return
+        if path in {"/api/users", "/api/users/audit"}:
+            try:
+                session = self._require_identity_session(administrator=True)
+                self._json(
+                    HTTPStatus.OK,
+                    {
+                        "format": "atmem-local-users-v1",
+                        **(
+                            {"events": self.server.manager.identity_service().security_audit(session["session_token"])}
+                            if path.endswith("/audit")
+                            else {"users": self.server.manager.identity_service().list_users(session["session_token"])}
+                        ),
+                    },
+                )
+            except PermissionError as exc:
+                self._json(HTTPStatus.FORBIDDEN, {"error": str(exc)})
+            return
         if path == "/api/product":
             from atmem.contracts import capabilities
             from atmem.openclaw_install import (
@@ -93,6 +148,12 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/status":
             self._json(HTTPStatus.OK, self.server.manager.status())
+            return
+        if path == "/api/evidence/protection":
+            self._json(
+                HTTPStatus.OK,
+                self.server.manager.evidence_service().protection_status(),
+            )
             return
         if path == "/api/semantic/health":
             subject_id = (parse_qs(parsed.query).get("subject") or [None])[0]
@@ -168,6 +229,9 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 self._json(HTTPStatus.CONFLICT, {"error": str(exc)})
             return
+        if path == "/api/blackbox/revision":
+            self._json(HTTPStatus.OK, self.server.manager.blackbox_revision())
+            return
         if path == "/api/blackbox/runs":
             params = parse_qs(parsed.query)
             try:
@@ -192,6 +256,12 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             if not run_id:
                 self._json(HTTPStatus.BAD_REQUEST, {"error": "run_id is required"})
                 return
+            if path == "/api/blackbox/story":
+                try:
+                    self._json(HTTPStatus.OK, self.server.manager.blackbox_flight_story(run_id))
+                except ValueError as exc:
+                    self._json(HTTPStatus.NOT_FOUND, {"error": str(exc)})
+                return
             try:
                 report = self.server.manager.verify_blackbox_flight(run_id)
             except ValueError as exc:
@@ -199,12 +269,6 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 return
             if path == "/api/blackbox/flight":
                 self._json(HTTPStatus.OK, report)
-                return
-            if path == "/api/blackbox/story":
-                self._json(
-                    HTTPStatus.OK,
-                    self.server.manager.blackbox_flight_story(run_id),
-                )
                 return
             output_format = (params.get("format") or ["json"])[0]
             if output_format == "text":
@@ -475,6 +539,36 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
+        if path == "/api/auth/login":
+            if not self._same_origin():
+                self._json(HTTPStatus.FORBIDDEN, {"error": "origin check failed"})
+                return
+            try:
+                body = self._body()
+                result = self.server.manager.identity_service().login(
+                    str(body.get("username") or ""),
+                    str(body.get("password") or ""),
+                    source=str(self.client_address[0]),
+                )
+                token = result.pop("session_token")
+                self._json_with_session(HTTPStatus.OK, result, token)
+            except PermissionError as exc:
+                self._json(HTTPStatus.UNAUTHORIZED, {"error": str(exc)})
+            except ValueError as exc:
+                self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+            return
+        if path in {
+            "/api/auth/logout",
+            "/api/auth/change-password",
+            "/api/users/create",
+            "/api/users/update",
+            "/api/users/reset-password",
+        }:
+            self._identity_post(path)
+            return
+        if path in {"/api/home/verify", "/api/home/adopt"}:
+            self._identity_home_post(path)
+            return
         if path.startswith("/v1/"):
             if not self._valid_host():
                 self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid Host header"})
@@ -489,6 +583,17 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         try:
             body = self._body()
             path = _canonical_api_path(urlparse(self.path).path)
+            if path == "/api/evidence/capture-mode":
+                from atmem.evidence import CaptureMode
+
+                principal = self._dashboard_evidence_principal(body)
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.evidence_service().set_capture_mode(
+                        principal, CaptureMode(str(body.get("capture_mode") or ""))
+                    ),
+                )
+                return
             if path == "/api/blackbox/acknowledge":
                 run_id = str(body.get("run_id") or "").strip()
                 attention_code = str(body.get("attention_code") or "").strip()
@@ -600,6 +705,25 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     result = service.skip_setup()
                 else:
                     raise ValueError("action must be start, stop, restart, or skip")
+                self._json(HTTPStatus.OK, result)
+                return
+            if path == "/api/evidence/rotate":
+                principal = self._dashboard_evidence_principal(body)
+                self.server.manager.evidence_service().rotate_key(
+                    principal, confirmation=str(body.get("confirmation") or "")
+                )
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.evidence_service().protection_status(),
+                )
+                return
+            if path in {"/api/evidence/lock", "/api/evidence/unlock"}:
+                service = self.server.manager.evidence_service()
+                principal = self._dashboard_evidence_principal(body)
+                if path.endswith("/lock"):
+                    result = service.lock(principal, confirmation=str(body.get("confirmation") or ""))
+                else:
+                    result = service.unlock(principal, confirmation=str(body.get("confirmation") or ""))
                 self._json(HTTPStatus.OK, result)
                 return
             if path == "/api/delegated/action":
@@ -824,17 +948,46 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 )
                 return
             self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+        except PermissionError as exc:
+            self._json(HTTPStatus.FORBIDDEN, {"error": str(exc)})
         except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
             self._json(HTTPStatus.CONFLICT, {"error": str(exc)})
 
     def _v1_principal(self):
         from atmem.service import APIError, APIPrincipal
 
+        identity_session = self._identity_session()
+        if identity_session is not None:
+            account = identity_session["account"]
+            if account.get("password_change_required"):
+                raise APIError("password_change_required", "change the temporary password before opening evidence", status=403)
+            scope = account["scope"]
+            return APIPrincipal(
+                principal_id=account["username"],
+                role="admin" if account["role"] == "administrator" else "agent",
+                subject_id=scope["subject_id"],
+                workspace_id=scope.get("workspace_id"),
+                tenant_id=scope["tenant_id"],
+                evidence_role=account["role"],
+                credential_kind="local_session",
+            )
         authorization = self.headers.get("Authorization", "")
         prefix = "Bearer "
-        if not authorization.startswith(prefix) or not secrets.compare_digest(
-            authorization[len(prefix) :], self.server.csrf_token
-        ):
+        if not authorization.startswith(prefix):
+            raise APIError("unauthenticated", "a valid local bearer credential is required", status=401)
+        token = authorization[len(prefix) :]
+        evidence_principal = self.server.manager.evidence_service().authenticate(token)
+        if evidence_principal is not None:
+            return APIPrincipal(
+                principal_id=evidence_principal.principal_id,
+                role="agent",
+                subject_id=evidence_principal.scope.subject_id,
+                workspace_id=evidence_principal.scope.workspace_id,
+                tenant_id=evidence_principal.scope.tenant_id,
+                evidence_role=evidence_principal.role.value,
+                credential_kind="legacy_evidence_bearer",
+            )
+        if not secrets.compare_digest(token, self.server.csrf_token):
             raise APIError("unauthenticated", "a valid local bearer credential is required", status=401)
         role = self.headers.get("X-AtMem-Role", "agent").strip().lower()
         if role not in {"agent", "admin"}:
@@ -872,6 +1025,24 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     limit=int((query.get("limit") or ["100"])[0]),
                     cursor=int((query.get("cursor") or ["0"])[0]) or None,
                 )
+            elif path == "/v1/executions":
+                value = self.server.application.executions(
+                    principal, limit=int((query.get("limit") or ["50"])[0])
+                )
+            elif path.startswith("/v1/executions/"):
+                value = self.server.application.execution(
+                    principal, unquote(path.rsplit("/", 1)[-1])
+                )
+            elif path == "/v1/evidence/status":
+                value = self.server.application.evidence_status(principal)
+            elif path.startswith("/v1/evidence/runs/"):
+                value = self.server.application.evidence_run(
+                    principal, unquote(path.rsplit("/", 1)[-1])
+                )
+            elif path == "/v1/evidence/search":
+                value = self.server.application.evidence_search(
+                    principal, (query.get("query") or [""])[0]
+                )
             elif path == "/v1/configuration":
                 value = self.server.application.configuration(principal)
             elif path.startswith("/v1/features/"):
@@ -883,6 +1054,8 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, value)
         except APIError as exc:
             self._json(exc.status, exc.to_dict())
+        except PermissionError as exc:
+            self._json(HTTPStatus.FORBIDDEN, APIError("forbidden", str(exc), status=403).to_dict())
         except (TypeError, ValueError) as exc:
             self._json(HTTPStatus.BAD_REQUEST, APIError("invalid_request", str(exc), status=400).to_dict())
 
@@ -890,6 +1063,12 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         from atmem.service import APIError
 
         try:
+            identity_session = self._identity_session()
+            if identity_session is not None and not secrets.compare_digest(
+                self.headers.get("X-CSRF-Token", ""),
+                str(identity_session.get("csrf_token") or ""),
+            ):
+                raise APIError("csrf_failed", "CSRF check failed", status=403)
             principal = self._v1_principal()
             body = self._body()
             if path == "/v1/memories":
@@ -907,16 +1086,215 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 value = self.server.application.interchange_plan(principal, body)
             elif path == "/v1/media/revoke":
                 value = self.server.application.revoke_media(principal, str(body.get("artifact_id") or ""))
+            elif path == "/v1/evidence/reconstruct":
+                value = self.server.application.evidence_reconstruct(
+                    principal, str(body.get("run_id") or "")
+                )
+            elif path == "/v1/evidence/replay-manifest":
+                value = self.server.application.evidence_replay_manifest(
+                    principal, str(body.get("run_id") or "")
+                )
+            elif path == "/v1/evidence/delete":
+                value = self.server.application.evidence_delete(
+                    principal,
+                    str(body.get("run_id") or ""),
+                    confirmation=str(body.get("confirmation") or ""),
+                )
+            elif path == "/v1/evidence/settings/rotate":
+                value = self.server.application.evidence_rotate(
+                    principal, confirmation=str(body.get("confirmation") or "")
+                )
+            elif path == "/v1/evidence/settings/lock":
+                value = self.server.application.evidence_lock(
+                    principal, confirmation=str(body.get("confirmation") or "")
+                )
+            elif path == "/v1/evidence/settings/unlock":
+                value = self.server.application.evidence_unlock(
+                    principal, confirmation=str(body.get("confirmation") or "")
+                )
+            elif path == "/v1/evidence/grants":
+                value = self.server.application.evidence_grant(principal, body)
+            elif path == "/v1/evidence/revoke":
+                value = self.server.application.evidence_revoke(
+                    principal, str(body.get("principal_id") or "")
+                )
+            elif path == "/v1/evidence/export/plaintext":
+                value = self.server.application.evidence_plaintext_export(
+                    principal,
+                    str(body.get("run_id") or ""),
+                    confirmation=str(body.get("confirmation") or ""),
+                )
+            elif path == "/v1/evidence/settings/capture-mode":
+                value = self.server.application.evidence_capture_mode(
+                    principal, str(body.get("capture_mode") or "")
+                )
             else:
                 raise APIError("not_found", "resource not found", status=404)
             self._json(HTTPStatus.OK, value)
         except APIError as exc:
             self._json(exc.status, exc.to_dict())
+        except PermissionError as exc:
+            self._json(HTTPStatus.FORBIDDEN, APIError("forbidden", str(exc), status=403).to_dict())
         except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
             self._json(HTTPStatus.CONFLICT, APIError("conflict", str(exc), status=409).to_dict())
 
     def log_message(self, format: str, *args: Any) -> None:
         del format, args
+
+    def _session_token(self) -> str:
+        cookie = SimpleCookie()
+        try:
+            cookie.load(self.headers.get("Cookie", ""))
+        except Exception:
+            return ""
+        morsel = cookie.get("atmem_session")
+        return morsel.value if morsel is not None else ""
+
+    def _identity_session(self) -> dict[str, Any] | None:
+        token = self._session_token()
+        if not token:
+            return None
+        session = self.server.manager.identity_service().authenticate_session(token)
+        if session is not None:
+            session["session_token"] = token
+        return session
+
+    def _require_identity_session(self, *, administrator: bool = False) -> dict[str, Any]:
+        session = self._identity_session()
+        if session is None:
+            raise PermissionError("sign-in required")
+        if session["account"].get("password_change_required"):
+            raise PermissionError("password change required")
+        if administrator and session["account"].get("role") != "administrator":
+            raise PermissionError("Administrator access required")
+        return session
+
+    def _dashboard_evidence_principal(self, body: dict[str, Any]):
+        session = self._identity_session()
+        if session is not None:
+            if session["account"].get("password_change_required"):
+                raise PermissionError("password change required")
+            return self.server.manager.identity_service().evidence_principal(session)
+        principal = self.server.manager.evidence_service().authenticate(
+            str(body.get("token") or "")
+        )
+        if principal is None:
+            raise PermissionError("sign in with an Evidence Collector or Administrator account")
+        return principal
+
+    def _identity_post(self, path: str) -> None:
+        if not self._same_origin():
+            self._json(HTTPStatus.FORBIDDEN, {"error": "origin check failed"})
+            return
+        service = self.server.manager.identity_service()
+        session = self._identity_session()
+        if session is None:
+            self._json(HTTPStatus.UNAUTHORIZED, {"error": "sign-in required"})
+            return
+        if not secrets.compare_digest(
+            self.headers.get("X-CSRF-Token", ""), str(session.get("csrf_token") or "")
+        ):
+            self._json(HTTPStatus.FORBIDDEN, {"error": "CSRF check failed"})
+            return
+        try:
+            body = self._body()
+            token = session["session_token"]
+            if path == "/api/auth/logout":
+                service.logout(token)
+                self._json_clear_session(HTTPStatus.OK, {"logged_out": True})
+                return
+            if path == "/api/auth/change-password":
+                result = service.change_password(
+                    token,
+                    str(body.get("current_password") or ""),
+                    str(body.get("new_password") or ""),
+                )
+                new_token = result.pop("session_token")
+                self._json_with_session(HTTPStatus.OK, result, new_token)
+                return
+            self._require_identity_session(administrator=True)
+            if path == "/api/users/create":
+                value = service.create_user(
+                    token,
+                    str(body.get("username") or ""),
+                    str(body.get("role") or ""),
+                    display_name=str(body.get("display_name") or ""),
+                )
+            elif path == "/api/users/update":
+                value = service.update_user(
+                    token,
+                    str(body.get("username") or ""),
+                    enabled=body.get("enabled"),
+                    role=body.get("role"),
+                )
+            else:
+                value = service.reset_password(token, str(body.get("username") or ""))
+            self._json(HTTPStatus.OK, value)
+        except PermissionError as exc:
+            self._json(HTTPStatus.FORBIDDEN, {"error": str(exc)})
+        except (TypeError, ValueError) as exc:
+            self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
+
+    def _identity_home_post(self, path: str) -> None:
+        if not self._same_origin():
+            self._json(HTTPStatus.FORBIDDEN, {"error": "origin check failed"})
+            return
+        session = self._identity_session()
+        if session is None:
+            self._json(HTTPStatus.UNAUTHORIZED, {"error": "sign-in required"})
+            return
+        if not secrets.compare_digest(
+            self.headers.get("X-CSRF-Token", ""), str(session.get("csrf_token") or "")
+        ):
+            self._json(HTTPStatus.FORBIDDEN, {"error": "CSRF check failed"})
+            return
+        try:
+            from atmem.home import HomeService
+
+            service = HomeService()
+            if path == "/api/home/verify":
+                self._json(HTTPStatus.OK, service.verify())
+                return
+            self._require_identity_session(administrator=True)
+            body = self._body()
+            expected = str(service.layout.root)
+            if not secrets.compare_digest(str(body.get("confirm_home") or ""), expected):
+                raise ValueError("confirm the displayed AtMem Home path before adoption")
+            receipt = service.adopt(
+                administrator_confirmed=True,
+                allowed_writer_pid=os.getpid(),
+            )
+            rotation = self.server.manager.identity_service().revoke_all_sessions(
+                session["session_token"], reason="portable home adopted"
+            )
+            self._json_clear_session(HTTPStatus.OK, {**receipt, **rotation})
+        except PermissionError as exc:
+            self._json(HTTPStatus.FORBIDDEN, {"error": str(exc)})
+        except (OSError, TypeError, ValueError) as exc:
+            self._json(HTTPStatus.CONFLICT, {"error": str(exc)})
+
+    def _json_with_session(self, status: HTTPStatus, value: Any, token: str) -> None:
+        body = json.dumps(value, indent=2, sort_keys=True).encode("utf-8")
+        self.send_response(status)
+        self._security_headers()
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        cookie = f"atmem_session={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200"
+        if self.headers.get("X-Forwarded-Proto", "").lower() == "https":
+            cookie += "; Secure"
+        self.send_header("Set-Cookie", cookie)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _json_clear_session(self, status: HTTPStatus, value: Any) -> None:
+        body = json.dumps(value, indent=2, sort_keys=True).encode("utf-8")
+        self.send_response(status)
+        self._security_headers()
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Set-Cookie", "atmem_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def _same_origin(self) -> bool:
         host = self.headers.get("Host", "")
@@ -970,7 +1348,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header(
             "Content-Security-Policy",
-            "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+            "default-src 'self'; img-src 'self' data:; media-src 'self' data:; style-src 'self' 'unsafe-inline'; "
             "script-src 'self' 'unsafe-inline'; connect-src 'self'; "
             "object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
         )

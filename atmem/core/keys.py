@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+
+from atmem.home.layout import compatible_home_path
 import secrets
 import stat
 import uuid
@@ -11,7 +13,7 @@ from atmem.core.storage import HouseholdPolicy
 
 
 KEY_ENV = "ATMEM_DB_KEY"
-DEFAULT_KEY_PATH = Path.home() / ".atmem" / "keys" / "db.key"
+DEFAULT_KEY_PATH = compatible_home_path("identity/keys/db.key", "keys/db.key")
 KEYRING_SERVICE = "atmem"
 
 

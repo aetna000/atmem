@@ -2,9 +2,10 @@
 
 **Evidence policy**: Append verification to a new entry under `docs/implementation-evidence/021/` following `docs/implementation-evidence/README.md`. `docs/current-status.md` is a linked summary, not a raw test log; dated reviews are frozen. Task-ID suffixes are significant (see `specs/task-conventions.md`).
 
-**Status**: All work below is planned and unchecked.
+**Status**: Earlier M0 findings tasks T018–T020 are complete; standalone
+reconstruction/diagnosis T025–T028 and the broader resolution scope remain open.
 **Input**: [spec.md](spec.md), [plan.md](plan.md), [ownership](../integration-ownership.md).
-**Prerequisites**: 020 execution evidence and baseline 007 task/locator contracts, 012 services and 018 invariants. Optional 019 context packages enrich investigation; missing context must not block tool-failure diagnosis.
+**Prerequisites**: 020 execution evidence and baseline 007 task/locator contracts, 012 services and 018 invariants. Exact reconstruction T025–T028 also requires Spec 028's authorized AtMem plaintext projection and future implementation tasks; consumers never receive storage keys. Optional 019 context packages enrich investigation; missing context must not block tool-failure diagnosis.
 
 ## Phase 1: Setup and contracts
 
@@ -21,7 +22,7 @@
 - [ ] [T008] [US2] Implement FR-006 in `atmem/incidents/reconcile.py`: Acknowledgment records review only; it cannot change execution outcomes, hide underlying evidence, claim a fix or trigger a retry. Late evidence can supersede a finding and reopen an investigation with a recorded reason. Verify its boundary assertions in `tests/test_incident_resolution.py` (depends on T007).
 - [ ] [T009] [US2] Implement FR-007 in `atmem/incidents/actions.py`: Offer scope-authorized actions to inspect, assign, request correction, disable an applicable provider, revoke supported grants or record verification. Action availability comes from service authority/capabilities; unsupported remediation provides manual guidance. Verify its boundary assertions in `tests/test_incident_resolution.py` (depends on T008).
 - [ ] [T010] [US2] Implement FR-008 in `atmem/incidents/recovery.py`: Before recommending executable retry/resume, require a host checkpoint reference, declared idempotency behavior and available evidence about prior external effects. Timeout after dispatch means unknown outcome until checked; absent prerequisites permit inspection advice but no automatic replay. Verify its boundary assertions in `tests/test_incident_resolution.py` (depends on T009).
-- [ ] [T011] [US3] Implement FR-009 in `atmem/incidents/privacy.py`: Keep explanations, assignment, exports and actionable commands tenant/scope filtered and content-minimizing; do not store incident narratives as durable personal memory automatically. Verify its boundary assertions in `tests/test_incident_resolution.py` (depends on T010).
+- [ ] [T011] [US3] Implement FR-009 in `atmem/incidents/access.py`: Scope and audit explanations, assignment, exports and actionable commands while preserving full-fidelity evidence for authorized investigation; keep incident evidence distinct from automatically recalled personal memory. Verify its boundary assertions in `tests/test_incident_resolution.py` (depends on T010).
 - [ ] [T012] [US3] Implement FR-010 in `atmem/service/incidents.py`: Expose one incident/resolution service to HTTP, SDKs, MCP and dashboard. Core schemas, classifications, APIs and default UI MUST be domain-neutral: no mandatory customer, order, refund or payment fields and no tool-name-based outcome inference. Domain-specific labels and verifier integrations are optional, registered and scoped; the same evidence and action rules apply to read-only, compute and side-effecting tools. Operator permissions are distinct from agent evidence submission. External verification requires a registered verifier and receipt rather than a model's success claim. Verify its boundary assertions in `tests/test_incident_resolution.py` (depends on T011).
 
 ## Phase 3: Acceptance, compatibility and handoff
@@ -42,9 +43,9 @@ A task is complete only when its named boundary and evidence exist. Fake-host, m
 
 These tasks independently deliver the profile in `specs/m0-investigation-preview.md`; they do not require completion of T001–T017 or Spec 022. Broader incident actions and dependency-impact requirements stay open.
 
-- [ ] [T018] Reuse `verify_flight` through `atmem/incidents/detect.py` for observed error, missing completion and recovered-error findings linked to scoped events; support late-evidence revisions, deterministic text and unknown external outcomes without models or context providers in `tests/test_incident_resolution.py` (FR-001–FR-002, FR-006, FR-009; depends on 020 T020).
-- [ ] [T019] Render these findings in existing Activity/Evidence views in `atmem/control/assets/app.{html,js,css}` through shared scoped service projections, following `specs/integration-ownership.md` terminology. Show timestamps, exact event and inspection guidance; no new navigation or executable remediation. Verify privacy, keyboard access and event pivots in `tests/test_dashboard.py` (FR-004, FR-009; depends on T018).
-- [ ] [T020] Run M0 success/error/gap/recovery, privacy, keyboard, timestamp and evidence-pivot UI gates in `tests/test_dashboard.py` and `tests/test_incident_resolution.py`; append technical results under `docs/implementation-evidence/021/` and link preview readiness in `docs/current-status.md`. Complete this task when technical gates pass; usability validation is independently tracked by T024 and does not block the engineering preview (SC-001, SC-003; depends on T019).
+- [x] [T018] Reuse `verify_flight` through `atmem/incidents/detect.py` for observed error, missing completion and recovered-error findings linked to scoped events; support late-evidence revisions, deterministic text and unknown external outcomes without models or context providers in `tests/test_incident_resolution.py` (FR-001–FR-002, FR-006, FR-009; depends on 020 T020).
+- [x] [T019] Render these findings in existing Activity/Evidence views in `atmem/control/assets/app.{html,js,css}` through shared scoped service projections, following `specs/integration-ownership.md` terminology. Show timestamps, exact event and inspection guidance; no new navigation or executable remediation. Verify privacy, keyboard access and event pivots in `tests/test_dashboard.py` (FR-004, FR-009; depends on T018).
+- [x] [T020] Run M0 success/error/gap/recovery, privacy, keyboard, timestamp and evidence-pivot UI gates in `tests/test_dashboard.py` and `tests/test_incident_resolution.py`; append technical results under `docs/implementation-evidence/021/` and link preview readiness in `docs/current-status.md`. Complete this task when technical gates pass; usability validation is independently tracked by T024 and does not block the engineering preview (SC-001, SC-003; depends on T019).
 
 ## Product-wide integration
 
@@ -55,3 +56,21 @@ These tasks independently deliver the profile in `specs/m0-investigation-preview
 ## Independent usability claim gate
 
 - [ ] [T024] Register and execute `specs/usability-protocol.md` on the applicable M0 interface; retain protocol/build identity and both independent cohorts under `docs/implementation-evidence/021/`, then update `docs/current-status.md` with supported claims. Complete only when at least nine of ten operators pass in each cohort. This gates advertised measured usability, not completion of T020 or availability of the engineering preview (SC-004; depends on T019; a material interface change requires new protocol evidence).
+
+## Standalone transparent diagnosis — 2026-09-13
+
+- [ ] [T025] Add failing incident fixtures that consume only the copied Spec 020
+  store and require exact prompt, memory/context, decision, model, call
+  arguments/target, result/error and original multimodal artifacts; explicitly
+  reject “a tool failed”, counts, hashes and ID-only explanations (FR-012–FR-015,
+  SC-006–SC-007; depends on 020 T043).
+- [ ] [T026] Implement store-only reconstruction-backed finding projections and
+  exact multimodal render/export models in `atmem/incidents/`; do not query the
+  original agent, logs, provider or memory store (depends on T025 and 020 T047).
+- [ ] [T027] Implement deterministic inert replay-manifest inspection and clear
+  reconstruction/simulation/new-execution states; no investigation action may
+  cause an external effect (depends on T026).
+- [ ] [T028] Execute SC-006–SC-007 through API/CLI/MCP/browser and the destructive
+  installed-artifact dead-agent gate. Publish limitations and do not claim
+  standalone investigation before every exact-content assertion passes
+  (depends on T027 and 020 T050).

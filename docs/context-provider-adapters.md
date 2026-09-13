@@ -151,12 +151,17 @@ not configure an external Storizon service. Public demo keys remain test-only.
 
 ## 2.2.6 delegated host compatibility
 
-The latest-release acceptance scope is OpenClaw **2026.9.2 and 2026.9.3** with
-Claude CLI **2.1.236**, real local Mem0, Qdrant and Ollama, and dummy data.
+The maintainer-run acceptance scope is OpenClaw **2026.9.2 and 2026.9.3** with
+Claude CLI **2.1.236**, real local Mem0, Qdrant and Ollama, and dummy data. A
+separate attributed Storizon rerun used the same OpenClaw versions with Claude
+CLI **2.1.251**, Haiku 4.5, Node 26.5.0 and Linux against the published AtMem and
+bridge 2.2.6 artifacts.
 
 | Boundary | Evidence | Result |
 | --- | --- | --- |
-| Storizon HMAC/v2 receipts | Supplied operator report against beta 10 | Reported pass; no private Storizon access here |
+| Storizon HMAC/v2 receipts | Partner rerun against published 2.2.6 artifacts | Reported pass on both hosts; exact receipt/context digests and one/zero deliveries |
+| Storizon identity refusal | Three scenarios per host | Missing ownership, legacy owner bypass without mapping, and wrong session generation refused before callback |
+| Storizon tool lifecycle | Actual read/exec, missing-file error and suppressed-observation scenarios | Reported complete success, completed_with_tool_errors and incomplete_evidence respectively |
 | Default owner gate | Actual CLI turns on both latest releases | Missing owner metadata refused; zero provider acceptance |
 | Isolated local inject/withhold | Actual CLI, real Mem0, authenticated HTTP and real MCP | Exact receipt/context digests, one/zero deliveries, complete flights |
 | Read/exec and terminal errors | Actual tool execution on both latest releases | Complete success or completed_with_tool_errors, with observed terminal results |
@@ -170,5 +175,6 @@ result digests; requests or model text never create completion evidence. Missing
 conflicting or mismatched observations still fail closed. This matrix does not
 promise every historical/future OpenClaw version or every channel/backend.
 
-See [identity configuration](delegated-context-provider.md#isolated-local-cli-identity-226)
-and [reproducible evidence](implementation-evidence/003/20260909T052000Z-740c5c89d63c-mem0-latest-hosts.md).
+See [identity configuration](delegated-context-provider.md#isolated-local-cli-identity-226),
+[maintainer-run Mem0 evidence](implementation-evidence/003/20260909T052000Z-740c5c89d63c-mem0-latest-hosts.md),
+and the [attributed Storizon 2.2.6 report](implementation-evidence/003/20260910-storizon-published-2.2.6.md).

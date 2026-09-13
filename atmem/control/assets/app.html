@@ -29,18 +29,40 @@
 <header><div class="wrap head">
   <div class="logo"><img class="brandmark" src="/assets/atmem.jpg" alt="AtMem logo"><strong>AtMem</strong></div>
   <div class="tabnav" role="tablist" aria-label="Dashboard sections">
-    <button class="tabbtn active" id="navStatus" type="button" role="tab" aria-selected="true">Activity</button>
+    <button class="tabbtn active" id="navStatus" type="button" role="tab" aria-selected="true">Sessions</button>
     <button class="tabbtn" id="navDecisions" type="button" role="tab" aria-selected="false">Decisions<span class="navbadge" id="decisionsBadge" hidden>0</span></button>
-    <button class="tabbtn" id="navEvidence" type="button" role="tab" aria-selected="false">Evidence</button>
+    <button class="tabbtn" id="navMemory" type="button" role="tab" aria-selected="false">Memory</button>
+    <button class="tabbtn" id="navAudit" type="button" role="tab" aria-selected="false">Audit</button>
     <button class="tabbtn" id="navSettings" type="button" role="tab" aria-selected="false">Settings</button>
   </div>
   <div class="grow"></div>
   <span class="small adapterlabel" id="adapterLabel">Memory &amp; agent oversight</span>
+  <button class="identitychip" id="identityChip" type="button" hidden><span id="identityName">Account</span><small id="identityRole"></small></button>
+  <button class="themebtn" id="logoutButton" type="button" hidden>Sign out</button>
   <button class="themebtn" id="themeToggle" type="button"><svg class="icon themebtnicon-sun" aria-hidden="true"><use href="#i-sun"/></svg><svg class="icon themebtnicon-moon" aria-hidden="true"><use href="#i-moon"/></svg><span class="themebtnlabel" id="themeToggleLabel">Light mode</span></button>
   <div class="state" id="stateChip"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></div>
 </div></header>
 <main class="wrap">
   <div class="notice" id="error" role="alert"></div>
+  <section class="authgate" id="authGate" hidden>
+    <div class="authcard">
+      <div class="eyebrow">Independent evidence authority</div>
+      <h1 id="authTitle">Sign in to AtMem</h1>
+      <p class="sub" id="authCopy">Use the local Administrator or an account created for you. No bearer token is required.</p>
+      <form id="loginForm" class="authform">
+        <label><span>Username</span><input id="loginUsername" autocomplete="username" value="administrator" required></label>
+        <label><span>Password</span><input id="loginPassword" type="password" autocomplete="current-password" required></label>
+        <button class="primary" type="submit">Sign in</button>
+      </form>
+      <form id="passwordForm" class="authform" hidden>
+        <label><span>New password</span><input id="newPassword" type="password" autocomplete="new-password" required></label>
+        <label><span>Repeat new password</span><input id="repeatPassword" type="password" autocomplete="new-password" required></label>
+        <button class="primary" type="submit">Change password</button>
+      </form>
+      <p class="authhelp">First install? Run <code>atmem init</code>. It opens this form with the one-time Administrator password pre-filled.</p>
+      <p class="authhelp">Missed or lost it? Run <code>atmem users recover-administrator</code> in the local terminal. AtMem creates a new temporary password; it cannot reveal the old one.</p>
+    </div>
+  </section>
   <div class="progressbox" id="progress" role="status" aria-live="polite">
     <div class="progresshead">
       <b id="progressTitle">Working…</b>
@@ -50,15 +72,15 @@
     <div class="progressbar" aria-hidden="true"><span></span></div>
   </div>
 
-  <section class="statusbanner" id="statusBanner">
+  <section class="statusbanner" id="statusBanner" aria-live="polite">
     <div class="statusicon" id="statusIcon">…</div>
-    <div><span class="statuslabel">Current condition</span><b id="statusHeadline"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></b><p id="statusDetail">Loading verified evidence…</p></div>
+    <div><span class="statuslabel">Latest agent run</span><b id="statusHeadline"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></b><p id="statusDetail">Loading verified evidence…</p><small id="backgroundStatus"></small><small id="liveStatus" aria-live="off">Connecting to run updates…</small></div>
     <button class="primary statusaction" id="statusAction" type="button" style="display:none">Open issue</button>
   </section>
 
-  <section class="memorychat" id="memoryChat" aria-labelledby="memoryChatTitle">
+  <section class="memorychat collapsed" id="memoryChat" aria-labelledby="memoryChatTitle">
     <h1 class="visuallyhidden" id="memoryChatTitle">Ask governed memory</h1>
-    <button class="memorychattoggle" id="memoryChatToggle" type="button" aria-expanded="true" aria-label="Hide memory assistant" aria-controls="memoryChatResult memoryChatForm memoryChatDockMeta"><span><svg class="icon icon-sm" aria-hidden="true"><use href="#i-node"/></svg>Memory assistant</span><i aria-hidden="true"></i></button>
+    <button class="memorychattoggle" id="memoryChatToggle" type="button" aria-expanded="false" aria-label="Open memory assistant" aria-controls="memoryChatResult memoryChatForm memoryChatDockMeta"><span><svg class="icon icon-sm" aria-hidden="true"><use href="#i-node"/></svg>Memory assistant</span><i aria-hidden="true"></i></button>
     <div class="chatresult" id="memoryChatResult" hidden>
       <div class="chatresulthead">Governed memory conversation</div>
       <div class="chatmessages" id="memoryChatMessages" aria-live="polite"></div>
@@ -81,11 +103,53 @@
   <div class="tabpanel" id="viewSettings">
   <div class="pageheading"><div><div class="eyebrow">Configuration</div><h1>Settings</h1><p>Control memory intelligence, governed task state, and optional context providers.</p></div></div>
 
-  <section class="card semanticcard" id="featureCapabilityCard">
+  <details class="protectionrow" id="myAccountCard">
+    <summary><div class="protectioncopy"><span class="protectionicon" aria-hidden="true">●</span><span><b>My account</b><small id="myAccountSummary">Signed-in identity and password</small></span></div><div class="protectionstate"><span aria-hidden="true">⌄</span></div></summary>
+    <div class="protectiondrawer"><form class="usercreate" id="selfPasswordForm"><label><span>Current password</span><input id="selfCurrentPassword" type="password" autocomplete="current-password" required></label><label><span>New password</span><input id="selfNewPassword" type="password" autocomplete="new-password" required></label><label><span>Repeat new password</span><input id="selfRepeatPassword" type="password" autocomplete="new-password" required></label><button class="primary" type="submit">Change my password</button></form></div>
+  </details>
+
+  <details class="protectionrow" id="homeCard">
+    <summary><div class="protectioncopy"><span class="protectionicon" aria-hidden="true">⌂</span><span><b>AtMem Home</b><small id="homeSummary">Checking portable storage…</small></span></div><div class="protectionstate"><span class="statuspill" id="homeStatus">Checking…</span><span aria-hidden="true">⌄</span></div></summary>
+    <div class="protectiondrawer">
+      <div class="protectionfacts"><span><small>Mode</small><b id="homeMode">Checking…</b></span><span><small>Integrity</small><b id="homeIntegrity">Checking…</b></span><span><small>Writer</small><b id="homeWriter">Checking…</b></span></div>
+      <p id="homeGuidance">One folder contains encrypted memory, identity, evidence and multimodal artifacts.</p>
+      <div class="protectionactions"><button class="primary" id="homeVerify" type="button">Verify home</button><button class="secondary" id="homeAdopt" type="button" hidden>Use as my home</button><button class="secondary" id="homeMigration" type="button" hidden>Copy migration command</button></div>
+    </div>
+  </details>
+
+  <details class="protectionrow" id="evidenceProtection">
+    <summary>
+      <div class="protectioncopy"><span class="protectionicon" aria-hidden="true">◆</span><span><b>Evidence protection</b><small id="evidenceProtectionSummary">Encrypted · checking capture</small></span></div>
+      <div class="protectionstate"><span class="statuspill active" id="evidenceProtectionStatus">Encrypted</span><span aria-hidden="true">⌄</span></div>
+    </summary>
+    <div class="protectiondrawer">
+      <div class="protectionfacts"><span><small>Data</small><b id="evidenceDataState">Checking…</b></span><span><small>Recorder</small><b id="evidenceRecorderState">Checking…</b></span><span><small>Key</small><b id="evidenceKeyState">Checking…</b></span></div>
+      <p id="evidenceProtectionNote">Data on stores encrypted text, links, files, images, audio and video. Data off keeps encrypted metadata only.</p>
+      <p id="evidenceRoleSummary">Sign in to see your effective evidence role. Viewer sees hashes and metadata; Investigator opens exact evidence; Evidence Collector exports; Administrator also manages users.</p>
+      <div class="protectionactions"><button class="primary" id="evidenceDataToggle" type="button">Turn data off</button><button class="secondary" id="evidenceRecorderToggle" type="button">Turn recorder off</button><button class="secondary" id="evidenceLockToggle" type="button">Lock</button><button class="secondary" id="evidenceRotateKey" type="button">Rotate key</button></div>
+    </div>
+  </details>
+
+  <details class="card settingsgroup" id="usersCard" hidden><summary><b>Users &amp; access</b><span>Administrator-managed local accounts and evidence roles</span></summary>
+    <div class="usersbody">
+      <div class="roleladder" id="settingsRoleLadder"></div>
+      <form class="usercreate" id="userCreateForm">
+        <label><span>Username</span><input id="newUserName" pattern="[a-z0-9][a-z0-9._-]{2,63}" placeholder="auditor-1" required></label>
+        <label><span>Display name</span><input id="newUserDisplay" placeholder="Audit team"></label>
+        <label><span>Role</span><select id="newUserRole"><option value="viewer">Viewer</option><option value="investigator">Investigator</option><option value="evidence_collector">Evidence Collector</option><option value="administrator">Administrator</option></select></label>
+        <button class="primary" type="submit">Create user</button>
+      </form>
+      <div class="userslist" id="usersList"></div>
+      <div class="onetimecredential" id="oneTimeCredential" hidden></div>
+      <details class="securityaudit"><summary>Account security audit</summary><div id="securityAudit"></div></details>
+    </div>
+  </details>
+
+  <details class="card settingsgroup" id="featureCapabilityCard"><summary><b>Advanced capabilities</b><span>Optional adapters and feature readiness</span></summary>
     <div class="semantichead"><div><div class="eyebrow">Extensibility</div><h2>Feature and adapter readiness</h2><p class="sub">Runtime-derived capability status for graph, storage, framework adapters, interchange, lifecycle, media, onboarding, and production operation.</p></div><span class="statuspill" id="featureCapabilityStatus">Checking…</span></div>
     <div class="evidencegrid" id="featureCapabilityRows"></div>
     <div class="actions"><button class="secondary" id="featureCapabilityRefresh" type="button">Refresh capabilities</button></div>
-  </section>
+  </details>
 
   <section class="card semanticcard" id="taskModeSettingsCard" hidden>
     <div class="semantichead">
@@ -99,7 +163,7 @@
     <div class="actions"><button class="primary" id="taskModeAction" type="button" disabled>Enable task state</button></div>
   </section>
 
-  <section class="card semanticcard" id="semanticSettingsCard">
+  <details class="card settingsgroup" id="semanticSettingsCard"><summary><b>Embedding model</b><span>Configure local semantic search</span></summary>
     <div class="semantichead">
       <div><div class="eyebrow">Semantic retrieval</div><h2>Embedding model</h2><p class="sub" id="semanticSettingsNote">Choose a local production embedding model. AtMem downloads only after confirmation, then builds and verifies the disposable vector index automatically.</p></div>
       <span class="statuspill" id="semanticSettingsStatus">Checking…</span>
@@ -110,7 +174,7 @@
     <div class="evidencegrid" id="semanticSettingsEvidence"></div>
     <div class="actions"><button class="primary" id="semanticSetupAction" type="button" disabled>Install and activate</button></div>
     <p class="foot">The canonical memory database remains authoritative. Changing models creates and verifies a new vector epoch before activation.</p>
-  </section>
+  </details>
 
   <details class="intelligenceconfig" id="intelligenceConfig">
     <summary class="intelligencesummary">
@@ -172,12 +236,7 @@
     </div>
   </details>
 
-  </div>
-
-  <div class="tabpanel active" id="viewStatus">
-  <div class="pageheading"><div><h1>Activity</h1><p>Every recorded agent session, memory change, and governed decision.</p></div></div>
-
-  <div class="metrics">
+  <details class="card systemhealth" id="systemHealth"><summary>System health &amp; agent coverage</summary><p class="sub">Memory indexes, registered agents, and verification details.</p>  <div class="metrics">
     <div class="metric"><b class="mono" id="sourceCount">—</b><span id="sourceCountLabel">memory sources</span></div>
     <div class="metric"><b class="mono" id="recordCount">—</b><span id="recordCountLabel">searchable records</span></div>
     <div class="metric"><b class="mono" id="sourceBytes">—</b><span id="sourceBytesLabel">source bytes preserved</span></div>
@@ -199,8 +258,33 @@
     <div class="agentmap" id="agentMap"><div class="activityempty">Loading agents…</div></div>
   </section>
 
+</details>
+  </div>
+
+  <div class="tabpanel active" id="viewStatus">
+  <div class="pageheading"><div><div class="eyebrow">Conversation investigation</div><h1>Agent sessions</h1><p>Understand what happened in a conversation and which retained memories could help now.</p></div></div>
+  <nav class="sectionnav" aria-label="Session sections"><a href="#sessionInsights"><span>01</span> Overview</a><a href="#blackboxCard"><span>02</span> Recent sessions</a><a href="#memorySearchCard"><span>03</span> Memory search</a><a href="#blackboxArchiveCard"><span>04</span> Session archive</a></nav>
+  <div class="detailcontext" id="sessionDetailContext" hidden><button class="secondary" id="sessionDetailBack" type="button">← All sessions</button><div><span>Inspecting session</span><b id="sessionDetailTitle">Selected run</b></div></div>
+
+  <section class="card sessioninsights" id="sessionInsights" aria-labelledby="sessionInsightsTitle">
+    <div class="insightshead"><div><div class="eyebrow">Agent operations</div><h2 id="sessionInsightsTitle">Session health at a glance</h2><p class="sub" id="sessionInsightsSummary">Calculating recorded outcomes and evidence quality…</p></div><span class="statuspill" id="sessionInsightsWindow">Latest 50</span></div>
+    <div class="insightmetrics" id="sessionInsightMetrics" aria-label="Session health metrics"></div>
+    <div class="healthchartcard"><div class="healthcharthead"><div><b>Seven-day run health</b><span>Recorded sessions by day; red marks host-reported run failures.</span></div><div class="chartlegend"><span><i class="healthy"></i>Other recorded runs</span><span><i class="failed"></i>Failed runs</span></div></div><div class="healthchart" id="sessionHealthChart" role="group" aria-label="No session health data loaded"></div></div>
+  </section>
+
   <section class="card" id="blackboxCard">
     <div class="activityhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-pulse"/></svg><span>Recent agent activity</span></h2><div class="activitytools"><input id="activityQuery" aria-label="Search recent agent activity" placeholder="Search actions…"><select id="activityTopic" aria-label="Filter by topic"><option value="all">All topics</option><option value="agents">Agents</option><option value="memory">Memory</option><option value="tools">Tools</option><option value="web">Web</option><option value="email">Email</option><option value="conversation">Conversation</option></select><select id="activityWhen" aria-label="Filter by time"><option value="all">All time</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select><button class="secondary" id="blackboxRefresh" type="button">Refresh</button></div></div>
+    <div class="activityscope"><button class="secondary" id="activityBackground" type="button" aria-pressed="false">Show background reviews</button><span>Updates automatically</span></div>
+    <aside class="activitylegend" aria-label="Status colour legend">
+     <span class="legendlabel">Colour guide</span>
+     <ul>
+      <li><span class="legenddot complete" aria-hidden="true"></span><span><b>Green</b> · Run completed</span></li>
+      <li><span class="legenddot review" aria-hidden="true"></span><span><b>Amber</b> · Review needed or evidence uncertain</span></li>
+      <li><span class="legenddot failed" aria-hidden="true"></span><span><b>Red</b> · Run or tool reported a failure</span></li>
+      <li><span class="legenddot running" aria-hidden="true"></span><span><b>Purple</b> · In progress</span></li>
+     </ul>
+     <p>Colours describe each item separately. A completed run can contain failed tool calls; completion does not verify the answer.</p>
+    </aside>
     <div class="activitytimeline" id="activityTimeline"><div class="activityempty">Loading…</div></div>
     <div class="activitymore"><button class="secondary" id="activityLoadMore" type="button">Load more</button><span id="activityCount"></span></div>
     <p class="foot">Each row is one agent session; open it for the audit events behind it.</p>
@@ -246,7 +330,7 @@
     </div>
 
     <aside>
-      <section class="card">
+      <details class="card decisionchecks"><summary>Verification &amp; recovery</summary>
         <div class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-shield-check"/></svg><h2 id="switchTitle">Ready to switch?</h2></div>
         <p class="sub" id="switchCopy">AtMem checks the active adapter before allowing context injection.</p>
         <div id="checks"></div>
@@ -254,7 +338,7 @@
         <button class="secondary" id="drillBtn" type="button">Test file restoration</button>
         <div class="small" id="verifyStatus" style="margin-top:12px;line-height:1.7"></div>
         <div class="small" id="drillStatus" style="margin-top:12px;line-height:1.7"></div>
-      </section>
+      </details>
       <details class="card">
         <summary><svg class="icon" aria-hidden="true"><use href="#i-shield-check"/></svg><span class="summarytitle"><b>What changes</b></span></summary>
         <div class="detailsbody">
@@ -268,13 +352,14 @@
   </div>
   </div>
 
-  <div class="tabpanel" id="viewEvidence">
-  <div class="pageheading"><div><div class="eyebrow">For investigation</div><h1>Evidence workspace</h1><p>Search memory first, then open sessions and exact audit events only when the question requires it.</p></div></div>
-  <nav class="sectionnav" aria-label="Investigation sections"><a href="#memorySearchCard"><span>01</span> Memory search</a><a href="#blackboxArchiveCard"><span>02</span> Agent sessions</a><a href="#mirrorCard"><span>03</span> Memory sources</a><a href="#storageOverview"><span>04</span> Storage</a><a href="#auditExplorer"><span>05</span> Event evidence</a></nav>
+  <div class="tabpanel" id="viewMemory">
+  <div class="pageheading"><div><div class="eyebrow">Retained knowledge</div><h1>Memory archive</h1><p>Browse what AtMem retains, where it came from, and how the canonical memory stores are organised.</p></div></div>
+  <nav class="sectionnav" aria-label="Memory archive sections"><a href="#mirrorCard"><span>01</span> Memory sources</a><a href="#recordBreakdownCard"><span>02</span> Searchable records</a><a href="#storageOverview"><span>03</span> Storage</a></nav>
 
   <section class="card" id="memorySearchCard">
+    <div class="eyebrow">What does AtMem know that could help?</div>
     <h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><span>Search memory</span></h2>
-    <p class="sub">Search the canonical AtMem view using ordinary words. This works in shadow and active mode.</p>
+    <p class="sub">Search retained memory while investigating a session. This works in shadow and active mode.</p>
     <div class="search">
       <input id="query" placeholder="For example: TypeScript preference" autocomplete="off">
       <button class="primary" id="searchBtn">Search</button>
@@ -290,8 +375,8 @@
 
   <section class="card" id="blackboxArchiveCard">
     <div class="blackboxhead">
-      <div><div class="eyebrow">Black Box archive</div><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-archive"/></svg><span>All recorded agent sessions</span></h2>
-      <p class="sub">The technical archive behind Recent agent activity. AtMem stores digests and bounded metadata, not raw prompts, responses, tool parameters or results.</p>
+      <div><div class="eyebrow">Session archive</div><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-archive"/></svg><span>All recorded agent sessions</span></h2>
+      <p class="sub">The independent evidence archive behind Recent agent activity. Full capture stores prompts, responses, tool calls, results, links and media encrypted; authorized roles open them inside AtMem.</p>
       <p class="sub" id="blackboxCount">Loading recent agent runs…</p></div>
       <div class="blackboxsummary"><span id="blackboxIntegrity" class="integritychip"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></span></div>
     </div>
@@ -311,7 +396,7 @@
         <aside class="drawer" role="region" aria-labelledby="auditorTitle">
           <div class="drawerhead">
             <div><div class="eyebrow" id="auditorEyebrow">Evidence investigation</div><h2 id="auditorTitle"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></h2>
-            <div class="auditoridentifiers" id="auditorId"></div></div>
+            <details class="runidentifiers"><summary>Run IDs and technical evidence</summary><div class="auditoridentifiers" id="auditorId"></div></details></div>
             <button class="close" id="auditorClose" aria-label="Close evidence details">×</button>
           </div>
           <div class="auditorbody" id="auditorBody"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading the verified audit chain…</span></div></div>
@@ -357,26 +442,26 @@
 
   <section class="card auditcard" id="auditExplorer">
     <div class="audithead">
-      <div><div class="eyebrow">Global evidence investigation</div><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-link"/></svg><span>Audit events</span></h2>
-      <p class="sub">Audit Explorer — the complete evidence chain. Narrow the evidence, then drill into records, sessions and exact events.</p></div>
+      <div><div class="eyebrow">Memory governance history</div><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-link"/></svg><span>Who did what with memory</span></h2>
+      <p class="sub">A chronological record of memory creation, access, delivery, review and deletion. Open an item for a plain-language explanation.</p></div>
       <div class="audittoolbar">
         <select class="secondary savedview" id="auditSaved"><option value="">Saved views…</option></select>
         <button class="secondary" id="auditSave" type="button">Save view</button>
         <button class="secondary" id="auditReset" type="button">Reset</button>
       </div>
     </div>
-    <div class="quickrange"><span class="small">Time range</span>
+    <div class="quickrange"><span class="small">Show</span>
       <button type="button" data-range="15">15 minutes</button><button type="button" data-range="60">1 hour</button>
       <button type="button" data-range="1440">24 hours</button><button type="button" data-range="10080">7 days</button>
       <button type="button" data-range="0">All time</button>
-      <span class="small" style="margin-left:10px">Evidence stage</span>
+      <span class="small" style="margin-left:10px">Memory activity</span>
       <button type="button" data-event-pattern="memory.record*">Admission</button>
       <button type="button" data-event-pattern="memory.recall">Recall</button>
       <button type="button" data-event-pattern="memory.context_injected">Injection</button>
       <button type="button" data-event-pattern="agent.response_after_memory">Response</button>
       <button type="button" data-event-pattern="memory.forget">Deletion</button>
     </div>
-    <div class="auditfilters">
+    <details class="auditadvanced"><summary>Advanced filters</summary><div class="auditfilters">
       <div class="field"><label for="auditQuery">Search event IDs, payloads and evidence</label><input id="auditQuery" placeholder="memory, model, digest, ID…"></div>
       <div class="field"><label for="auditType">Event type</label><select id="auditType"><option value="">All event types</option></select></div>
       <div class="field"><label for="auditActor">Actor</label><select id="auditActor"><option value="">All actors</option></select></div>
@@ -385,20 +470,24 @@
       <div class="field"><label for="auditSince">From</label><input id="auditSince" type="datetime-local"></div>
       <div class="field"><label for="auditUntil">To</label><input id="auditUntil" type="datetime-local"></div>
       <div class="filteractions"><button class="primary" id="auditRun" type="button">Run search</button></div>
-    </div>
-    <div class="histogram" id="auditHistogram" aria-label="Audit events over time"></div>
+    </div></details>
+    <details class="auditvolume"><summary>Activity volume over time</summary><div class="histogram" id="auditHistogram" aria-label="Audit events over time"></div></details>
     <div class="auditmeta"><span id="auditIntegrity" class="integritychip"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></span>
       <span id="auditCount">—</span><span class="mono" id="auditDigest"></span><span class="grow"></span>
       <select id="auditDirection" class="secondary"><option value="desc">Newest first</option><option value="asc">Oldest first</option></select>
-      <select id="auditLimit" class="secondary"><option>50</option><option selected>100</option><option>250</option><option>500</option></select>
+      <select id="auditLimit" class="secondary"><option selected>50</option><option>100</option><option>250</option><option>500</option></select>
     </div>
-    <div class="auditviewport"><table class="audittable"><thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Record</th><th>Session / turn</th><th>Evidence ID</th><th>Integrity</th></tr></thead>
-      <tbody id="auditRows"><tr><td colspan="7" class="empty"><div class="zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading audit evidence…</span></div></td></tr></tbody></table></div>
+    <div class="auditrows" id="auditRows"><div class="empty"><div class="zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading audit history…</span></div></div></div>
     <div class="auditpager"><button class="secondary" id="auditBack" type="button" disabled>Previous</button>
       <button class="secondary" id="auditNext" type="button" disabled>Next</button><span class="small" id="auditPage">Page 1</span>
-      <span class="grow"></span><a class="secondary auditexport" data-format="csv">CSV</a><a class="secondary auditexport" data-format="json">JSON</a>
-      <a class="secondary auditexport" data-format="ndjson">NDJSON</a><a class="secondary auditexport" data-format="text">Text</a></div>
+      <span class="grow"></span><details class="auditexports"><summary>Export technical audit</summary><div><a class="secondary auditexport" data-format="csv">CSV</a><a class="secondary auditexport" data-format="json">JSON</a>
+      <a class="secondary auditexport" data-format="ndjson">NDJSON</a><a class="secondary auditexport" data-format="text">Text</a></div></details></div>
   </section>
+  </div>
+
+  <div class="tabpanel" id="viewAudit">
+    <div class="pageheading"><div><div class="eyebrow">Governance evidence</div><h1>Audit trail</h1><p>Inspect the append-only record of who or what accessed or changed memory, and whether the action was authorised.</p></div></div>
+    <div id="auditViewMount"></div>
   </div>
 
   <footer class="appfoot">

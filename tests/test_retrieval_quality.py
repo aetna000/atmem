@@ -98,6 +98,15 @@ def test_unrelated_personal_memory_is_withheld() -> None:
     assert "no_relevance_signal" in decision.reason_codes
 
 
+def test_generic_fact_key_word_does_not_become_personal_support() -> None:
+    decision = decide_retrieval(
+        "find family restaurants in Sydney",
+        [_candidate("family", "JT has a daughter.", fact_key="family")],
+    )
+    assert decision.support_class is SupportClass.BACKGROUND
+    assert decision.ranked_record_ids == ()
+
+
 def test_diagnostic_hash_similarity_cannot_create_support() -> None:
     decision = decide_retrieval(
         "what cars are available in Australia?",

@@ -188,10 +188,11 @@ New work is unchecked. Existing task IDs and completion history remain intact. C
 [2.2.6 maintenance scope](../../docs/release-roadmap.md#226-maintenance-scope--delegated-host-compatibility);
 assignment does not mean implemented, verified or published.
 
-The operator authorized real Mem0 with dummy data and identity role-play because
-Storizon is inaccessible, and limited acceptance to latest OpenClaw releases
-(2026.9.2 and 2026.9.3). This scope revision preserves the original Storizon report
-as attributed evidence and does not claim live shared-channel authentication.
+The operator authorized real Mem0 with dummy data and identity role-play for
+maintainer-run acceptance and limited that acceptance to latest OpenClaw releases
+(2026.9.2 and 2026.9.3). A subsequent attributed Storizon rerun covers the same
+hosts against the published 2.2.6 artifacts. Neither result claims live
+shared-channel authentication.
 Phase 8 remains separate future integration work.
 
 - [x] [T049] Preserve the reported Storizon results with attribution; independently verify real Mem0 inject/withhold through authenticated HTTP, real MCP and latest OpenClaw/Claude CLI turns, matching receipts, exact digests, one/zero deliveries and verified flights (SC-013, FR-037).
@@ -202,5 +203,19 @@ Phase 8 remains separate future integration work.
 - [x] [T050a] Implement scoped isolated local identity, reject legacy unrestricted requireOwner:false, and cover missing/non-owner/channel/cross-scope identities with diagnostics and migration guidance.
 - [x] [T052a] Consume context invocation IDs, reject false pairing in Black Box, and test terminal-result correlation, cache reload, duplicate/conflicting/missing and cross-turn evidence.
 
-Verification: [latest-release Mem0 evidence](../../docs/implementation-evidence/003/20260909T052000Z-740c5c89d63c-mem0-latest-hosts.md). The [earlier source-only entry](../../docs/implementation-evidence/003/20260909T043658Z-740c5c89d63c-host-compatibility.md)
+Verification: [latest-release Mem0 evidence](../../docs/implementation-evidence/003/20260909T052000Z-740c5c89d63c-mem0-latest-hosts.md)
+and [attributed Storizon 2.2.6 report](../../docs/implementation-evidence/003/20260910-storizon-published-2.2.6.md). The [earlier source-only entry](../../docs/implementation-evidence/003/20260909T043658Z-740c5c89d63c-host-compatibility.md)
 remains historical; this new entry supersedes its local-host/toolful limitations.
+
+## Phase 10: Standalone full-fidelity delegated evidence
+
+These tasks implement FR-038–FR-042 and SC-017–SC-018. They supersede the
+content-erasure intent of completed T009, T011, T015, T023, T040, and T044
+without reopening their transport, replay, exact-delivery, or host-compatibility
+results.
+
+- [ ] [T054] Add failing delegated text/link/file/image/audio/video fixtures and exact byte/order oracles across OpenClaw, Pydantic AI, and LangChain/LangGraph; assert generic/count/ID/hash-only evidence fails (FR-038, FR-039, SC-018).
+- [ ] [T055] Append exact delegated request, decision, context, delivery, model-boundary, tool/result/error, and original artifact evidence through the Spec 020 service while leaving v1/HMAC/Ed25519 contracts unchanged (FR-038–FR-041); depend on Spec 020 T042–T047 and T054.
+- [ ] [T056] Reference canonical evidence envelopes from content-free replay/security rows and remove any UI/API claim that those rows alone are a complete Black Box (FR-040); depend on T055.
+- [ ] [T057] Implement and test explicit `full` default plus `metadata`/`off` capture selection and persistent `not_reconstructable` status, including audited exact-content access/export/replay (FR-041, FR-042); depend on T055.
+- [ ] [T058] Run the destructive delegated disaster gate from a copied AtMem store with agent/logs/workspace/provider/model/cache removed and network denied; verify exact multimodal reconstruction and all transport security regressions, then record append-only evidence (SC-017, SC-018); depend on T056, T057 and Spec 020 T049–T053.

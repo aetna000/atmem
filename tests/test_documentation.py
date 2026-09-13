@@ -70,9 +70,9 @@ def test_readme_puts_supported_quick_starts_front_and_center() -> None:
     assert "atmem atbot setup" in opening
     assert "atmem openclaw install" in opening
     assert "atmem openclaw upgrade" in opening
-    assert "atmem[pydantic-ai]==2.2.6" in opening
+    assert "atmem[pydantic-ai]==2.3.0" in opening
     assert "PydanticAIAtMemAdapter" in opening
-    assert "atmem[langgraph]==2.2.6" in opening
+    assert "atmem[langgraph]==2.3.0" in opening
     assert "atmem delegated register --help" in opening
     assert "create_langgraph_middleware" in opening
     assert "atmem control activate" in opening
@@ -131,7 +131,7 @@ def test_development_docs_match_companion_packaging() -> None:
     assert companion["required_distribution_dependency"] is True
     assert companion["separate_process"] is True
     assert companion["canonical_storage"] is False
-    assert capabilities["release_status"] == "beta"
+    assert capabilities["release_status"] == "stable"
 
     active_guides = (
         ROOT / "README.md",

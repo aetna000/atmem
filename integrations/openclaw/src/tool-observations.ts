@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { OpenClawHookCtx } from "./types.js";
+import { toolErrorReason } from "./tool-errors.js";
 
 export interface HostToolEvent {
   runId: string;
@@ -24,7 +25,7 @@ const sharedCache = globalThis as unknown as Record<symbol, Map<string, CacheEnt
 const cache = sharedCache[CACHE_KEY] ??= new Map();
 
 /** Some hosts deny run-context writes from tool hooks after registry reload.
- * Keep a bounded content-free process fallback, isolated by installation config.
+ * Keep a bounded content-minimized process fallback, isolated by installation config.
  */
 export function observationContext(host: RunContextAccess | undefined, scope: string): RunContextAccess {
   const keyFor = (runId: string, namespace: string) => JSON.stringify([scope, runId, namespace]);
@@ -53,7 +54,7 @@ interface RequestObservation {
   name: string;
   callId: string;
   hookCompleted?: boolean;
-  result?: { digest: string; error: boolean };
+  result?: { digest: string; error: boolean; reason?: string; errorDigest?: string };
   conflict?: boolean;
 }
 const INDEX = "atmem-tool-observations-v1";
@@ -64,7 +65,7 @@ function canonical(name: string): string {
   return ({ Read: "read", Bash: "exec" } as Record<string, string>)[unwrapped] ?? unwrapped;
 }
 
-/** Stores only scope, names and digests in bounded ephemeral observation context. */
+/** Stores scope, names, digests and redacted error diagnostics in bounded ephemeral context. */
 export class ToolObservations {
   constructor(private readonly access: RunContextAccess, private readonly digest: (value: unknown) => string) {}
 
@@ -100,9 +101,12 @@ export class ToolObservations {
         (event.sessionId !== undefined && event.sessionId !== saved.ctx.sessionId) ||
         (event.agentId !== undefined && event.agentId !== saved.ctx.agentId) ||
         canonical(d.name) !== canonical(saved.name)) return;
-    const result = { digest: this.digest(d.result), error: d.isError };
+    const result = { digest: this.digest(d.result), error: d.isError,
+      reason: d.isError ? toolErrorReason(d.error ?? d.result) : undefined,
+      errorDigest: d.isError && d.error !== undefined ? this.digest(d.error) : undefined };
     const conflict = saved.conflict || (saved.result !== undefined &&
-      (saved.result.digest !== result.digest || saved.result.error !== result.error));
+      (saved.result.digest !== result.digest || saved.result.error !== result.error ||
+        saved.result.errorDigest !== result.errorDigest));
     this.access.setRunContext({ ...key, value: { ...saved, result, conflict } });
   }
 

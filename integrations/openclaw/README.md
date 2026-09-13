@@ -5,7 +5,7 @@ This npm package is the host bridge for AtMem. It is not a standalone memory eng
 Use the Python-owned installer:
 
 ```bash
-python -m pip install --upgrade atmem==2.2.6
+python -m pip install --upgrade atmem==2.3.0
 atmem openclaw install
 ```
 
@@ -22,7 +22,7 @@ Existing AtMem 2.1 users run `atmem openclaw upgrade` after upgrading the Python
 package. This preserves the current memory mode and migration, verifies the new
 bridge with a self-test flight, and rolls back the bridge on failure.
 
-Bridge `2.2.6` includes exact task-context delivery, the shared
+Bridge `2.3.0` includes durable execution-event spooling in addition to exact task-context delivery and the shared
 calibrated retrieval decision, and delegated context correlation. When the host
 supplies `taskId` in hook context, the bridge requests only that governed task,
 checks its byte digest, contributes it separately from recalled memory, and
@@ -32,7 +32,11 @@ bridge does not claim it can block OpenClaw execution.
 
 In shadow mode the bridge observes native-memory changes without injecting AtMem context. In active mode it exposes compatible memory search/get tools, model-semantic capture, bounded recall and native-path protection. `atmem control restore` restores the saved OpenClaw configuration and native memory.
 
-The bridge also supplies Agent Black Box hooks. It records model/tool lifecycle digests and bounded metadata—not raw prompts, responses, parameters or results—so `atmem blackbox verify RUN_ID` can check timeline integrity and observed tool-hook closure. See the [Agent Black Box guide](../../docs/agent-blackbox.md) for the exact boundary.
+The bridge also supplies Agent Black Box hooks. With default full capture it sends
+exact host-observed prompts, model boundaries, tool arguments/results and supported
+multimodal parts into AtMem's encrypted evidence vault, alongside digest-bound
+lifecycle metadata. Metadata-only and recorder-off modes remain explicit operator
+choices. See the [Agent Black Box guide](../../docs/agent-blackbox.md) for the exact boundary.
 
 See the repository [OpenClaw setup](../../docs/openclaw-setup.md) and [control-plane guarantees](../../docs/control-plane.md).
 
@@ -54,3 +58,12 @@ actual terminal host tool-event results supply fallback observations when typed
 completion hooks are absent. Only matched requests close, with content-free
 bounded caching and duplicate suppression. Fully observed
 terminal tool errors close evidence as `completed_with_tool_errors`, not success.
+
+Local development follow-up: automatic recall now requires calibrated direct
+query support by default (`recall.requireDirectSupport: true`). Persona is an
+explicit opt-in (`persona.enabled: true`); setup defaults it off to avoid adding
+unrelated personal facts to every request. When enabled, persona records are
+excluded from recall so each appears once. Existing explicit persona settings
+are respected; set `persona.enabled: false` to adopt selective recall. Explicit
+memory search remains available. The legacy rank-only mode is available with
+`recall.requireDirectSupport: false`; it can admit weak matches.

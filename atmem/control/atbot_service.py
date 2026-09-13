@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
+
+from atmem.home.layout import compatible_home_path
 import re
 import shutil
 import signal
@@ -19,7 +21,7 @@ from urllib.parse import urlparse
 PINNED_ATBOT_VERSION = "0.1.0a6"
 ATBOT_DISTRIBUTION = "atmem-atbot"
 ATBOT_PROTOCOL_VERSION = "1"
-DEFAULT_ROOT = Path.home() / ".atmem" / "atbot"
+DEFAULT_ROOT = compatible_home_path("config/atbot", "atbot")
 
 PROVIDER_PROFILES: dict[str, dict[str, Any]] = {
     "local-ollama": {
@@ -218,7 +220,10 @@ class AtBotServiceManager:
             value = json.loads(self.preference_path.read_text(encoding="utf-8"))
             return value.get("choice") == "safe-fallback"
         except (OSError, json.JSONDecodeError):
-            return False
+            # A loopback listener on AtBot's conventional port is not proof
+            # that this selected AtMem Home authorized it. Intelligence is an
+            # explicit per-home choice; an unconfigured home uses safe fallback.
+            return not self.config_path.is_file()
 
     def install(self, *, force: bool = False) -> dict[str, Any]:
         if self.private_executable.is_file() and not force:

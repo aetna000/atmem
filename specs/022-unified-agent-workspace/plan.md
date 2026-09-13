@@ -54,9 +54,9 @@ Primary boundary suite: `tests/test_unified_workspace.py`. Add fixture-level gol
 | Principle | Planned enforcement |
 | --- | --- |
 | I — Authority before intelligence | Existing canonical admission remains exclusive; external proposals are checked; trusted delegation stays explicitly named. |
-| II — Provenance and exact evidence | Stable scoped references and digests; observed, inferred and independently verified are distinct. |
+| II — Provenance, full-fidelity evidence and replay | Render the exact standalone prompt-to-outcome story and original multimodal artifacts; hashes remain supporting proof. |
 | III — Safe defaults and reversibility | Non-influencing initial state, explicit activation, bounded failure and no silent replay. |
-| IV — Scope, privacy and deletion | Authorize joins/actions/exports; retain minimum evidence and verify controlled derivative deletion. |
+| IV — Scoped transparency and deletion | Full evidence is default for authorized users; access/export/replay is audited and deletion is verified. |
 | V — Host neutrality | Extend shared contracts and service; preserve host checkpoints, tools and histories. |
 | VI — Executable claims | Boundary and installed-artifact evidence required; planned tests are not proofs. |
 | VII — Local operation and explicit egress | No required hosted model, no unapproved provider query, optional extras and deterministic explanation. |
@@ -74,3 +74,49 @@ Terminology and legacy projections follow the canonical mapping table in `specs/
 Implement FR-011 through `atmem/control/assets/app.js`, consuming Spec 012 space/membership and feedback contracts, 019 context authorization, 020 time/identity evidence and the owner mappings in `specs/product-requirements.md`. Allocate persisted changes through Spec 010; retain legacy scope behavior and keep new private/shared space behavior explicit. Domain code owns facts and permissions; UI and transports project the same result.
 
 Add boundary fixtures in `tests/test_unified_workspace.py` for SC-005, including positive/negative scope access, concurrent membership changes and real-versus-unknown verification time. Report unsupported host/provider coverage rather than infer it. Existing OpenClaw APIs are adapter compatibility surfaces, not required core fields. The relevant tasks below gate this requirement; broader future features do not block M0's scoped profile.
+
+
+## Current dashboard usability slice (FR-012–FR-016)
+
+Use existing four-tab navigation and domain verdicts. Add observed lifecycle and
+tool-summary fields to run projections; retain full evidence verdicts unchanged.
+A lightweight revision read drives non-overlapping, visibility-aware refresh.
+Avoid eager full-story fanout, preserve open details on updates, and retry failed
+revision reads with visible connection status. No host completion is fabricated.
+
+Activity prioritizes a compact foreground outcome, short row summaries, a
+background-review toggle, and grouped findings linked to all affected events.
+Technical identifiers, system diagnostics, embedding configuration and recovery
+checks use progressive disclosure. The memory assistant starts collapsed.
+
+Validate backend projections/revisions, diagnostic classification, browser live
+transitions and reconnect, keyboard-accessible native disclosure controls, and
+all four routes at desktop/mobile widths. This is an improvement to the current
+UI, not completion of the then-planned seven-route workspace or human usability
+study. The independent evidence-box amendment supersedes that navigation target.
+
+For the 2026-09-09 follow-up, separate run completion from failed tool steps in
+status, list and detail views. Expose precise local timestamps and original UTC
+without modifying historical records. Keep confirmed step failures visible and
+provide explicit source-dependency guidance rather than blanket retry advice.
+
+## Independent evidence-box workspace (FR-019–FR-022)
+
+Replace generic session/finding presentation with Spec 020/021 store-only
+reconstruction projections. Use Runs, Memory, Decisions, Tools and media, and
+Audit as the user model; preserve redirects from existing routes. Render ordered
+multimodal parts with exact download fallbacks. Lead with captured content and
+human-readable actions; keep IDs, hashes, raw envelope JSON and integrity data
+as supporting technical evidence.
+
+Browser fixtures run against a copied standalone AtMem store after the host
+fixture is removed and network is denied. Assertions inspect visible exact
+prompt/call/result values and downloaded artifact bytes. Include explicit
+full-fidelity, metadata-only, capture-off, partial-boundary and legacy hash-only
+states. No view may manufacture content or suggest consulting unavailable logs.
+
+For the protected-store profile, every evidence projection is authorized and
+decrypted by the AtMem application service under Spec 028. The shell receives no
+keys. Settings renders one collapsed `Evidence protection` row and a focused
+drawer from the Spec 028 view model; it does not duplicate encryption, key,
+privilege or export-policy authority in client code.

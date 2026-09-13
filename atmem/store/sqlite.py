@@ -2513,7 +2513,13 @@ class SQLiteStore:
         *,
         limit: int = 200,
     ) -> tuple[list[dict[str, Any]], dict[str, float]]:
-        """Bound recall work to FTS matches plus the most recent actives."""
+        """Bound recall work to FTS, keyed-fact, and recent active candidates.
+
+        ``records_fts`` indexes human-readable content, while ``fact_key`` is
+        deliberately kept as structured metadata.  A query such as "use my
+        age to ..." must still nominate ``user_age`` even when the content is
+        phrased as "45 years old" and other query words produce FTS matches.
+        """
         limit = max(1, min(int(limit), 2000))
         scores = self.fts_match_scores(subject_id, terms, limit=limit)
         matched_ids = list(scores)
@@ -2528,6 +2534,47 @@ class SQLiteStore:
                 ).fetchall()
             )
         seen = {str(row["id"]) for row in rows}
+        normalized_terms = {
+            term.strip().lower() for term in terms if term.strip()
+        }
+        if normalized_terms:
+            keyed = self._conn.execute(
+                """
+                SELECT * FROM records
+                WHERE subject_id = ? AND status = 'active'
+                  AND fact_key IS NOT NULL AND fact_key != ''
+                ORDER BY created_at DESC, id DESC
+                """,
+                (subject_id,),
+            ).fetchall()
+            keyed_ids: set[str] = set()
+            for row in keyed:
+                key_terms = {
+                    token for token in re.findall(r"[a-z0-9]+", str(row["fact_key"]).lower())
+                }
+                if not (normalized_terms & key_terms) or str(row["id"]) in seen:
+                    continue
+                if len(rows) >= limit:
+                    evict_at = next(
+                        (
+                            index for index in range(len(rows) - 1, -1, -1)
+                            if str(rows[index]["id"]) not in keyed_ids
+                        ),
+                        None,
+                    )
+                    if evict_at is None:
+                        break
+                    evicted = rows.pop(evict_at)
+                    evicted_id = str(evicted["id"])
+                    seen.discard(evicted_id)
+                    scores.pop(evicted_id, None)
+                rows.append(row)
+                row_id = str(row["id"])
+                seen.add(row_id)
+                keyed_ids.add(row_id)
+                if scores:
+                    key_overlap = len(normalized_terms & key_terms) / len(normalized_terms)
+                    scores[row_id] = max(scores.values()) * key_overlap
         if len(rows) < limit:
             recent = self._conn.execute(
                 """
@@ -4727,7 +4774,7 @@ def _session_binding_from_row(row: Any) -> dict[str, Any]:
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(timezone.utc).isoformat(timespec="microseconds")
 
 
 def _new_id(prefix: str) -> str:
