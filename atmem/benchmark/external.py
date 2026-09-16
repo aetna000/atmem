@@ -25,6 +25,8 @@ _METRIC_DIRECTIONS = {
     "fallback_completion": "higher",
     "latency_p50_ms": "lower",
     "latency_p95_ms": "lower",
+    "warm_latency_p50_ms": "lower",
+    "warm_latency_p95_ms": "lower",
     "token_usage": "lower",
     "model_cost_usd": "lower",
 }

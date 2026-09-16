@@ -6,6 +6,7 @@ import pytest
 
 from atmem import Memory
 from atmem.semantic import SemanticIndex
+from atmem.semantic.index import SemanticIndexIntegrityError
 
 
 class CountingEmbedder:
@@ -76,6 +77,57 @@ def test_interrupted_epoch_resumes_without_reembedding_checkpointed_records(
         memory.close()
 
 
+def test_new_epoch_reuses_unchanged_vectors_after_one_record_addition(
+    tmp_path: Path,
+) -> None:
+    memory = _memory(tmp_path / "memory.db")
+    index = SemanticIndex(tmp_path / "vectors.db")
+    first_embedder = CountingEmbedder()
+    try:
+        first = index.build(memory, "u1", first_embedder)
+        assert first["entry_count"] == 2
+        memory.remember(
+            "u1", "Third durable preference.",
+            interpreted_fact="Third durable preference.",
+            interpreted_fact_key="test.third",
+        )
+        second_embedder = CountingEmbedder()
+        second = index.build(memory, "u1", second_embedder)
+
+        assert second["entry_count"] == 3
+        assert second["reused_entries"] == 2
+        assert second_embedder.documents == ["Third durable preference."]
+        assert index.verify(memory, "u1")["valid"] is True
+    finally:
+        index.close()
+        memory.close()
+
+
+def test_rebuild_rejects_corrupt_prior_vector_instead_of_reusing_it(
+    tmp_path: Path,
+) -> None:
+    memory = _memory(tmp_path / "memory.db")
+    index = SemanticIndex(tmp_path / "vectors.db")
+    try:
+        first = index.build(memory, "u1", CountingEmbedder())
+        index._conn.execute(
+            "UPDATE vector_entries SET vector = ? WHERE epoch_id = ? AND object_id = "
+            "(SELECT object_id FROM vector_entries WHERE epoch_id = ? LIMIT 1)",
+            (b"bad", first["epoch_id"], first["epoch_id"]),
+        )
+        memory.remember(
+            "u1", "Third durable preference.",
+            interpreted_fact="Third durable preference.",
+            interpreted_fact_key="test.third",
+        )
+        with pytest.raises(SemanticIndexIntegrityError, match="refusing to reuse"):
+            index.build(memory, "u1", CountingEmbedder())
+        assert index.active_epoch("u1")["epoch_id"] == first["epoch_id"]
+    finally:
+        index.close()
+        memory.close()
+
+
 @pytest.mark.parametrize("mutation", ["add", "delete"])
 def test_concurrent_canonical_change_never_activates_partial_epoch(
     tmp_path: Path, mutation: str
@@ -117,6 +169,10 @@ def test_dimension_and_disk_failures_preserve_prior_active_epoch(tmp_path: Path)
         first = index.build(memory, "u1", good)
 
         class ChangingDimensions(CountingEmbedder):
+            @property
+            def identity(self) -> dict[str, str]:
+                return {**super().identity, "version": "dimension-change-test"}
+
             def embed_documents(self, texts):
                 self.documents.extend(texts)
                 size = 2 if len(self.documents) == 1 else 3

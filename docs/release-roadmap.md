@@ -13,6 +13,7 @@ AtMem is an agent-neutral, standalone encrypted evidence authority for memory, c
 | --- | --- | --- | --- | --- |
 | **2.2.6** — optional maintenance | Baseline maintenance | Stabilize already implemented 2.2 capabilities, including delegated host identity/lifecycle fixes and compatibility checks; publish accurate installation/upgrade guidance | Existing runtime; 003 T049–T053; applicable regression gates | Spec 003 host compatibility work is assigned to 2.2.6; unresolved host profiles remain explicitly blocked/unverified. No claim that the new roadmap capabilities are delivered. This maintenance release is optional and does not block 2.3 development. |
 | **2.3.2** — stable standalone encrypted evidence box | M0 | Reconstruct exact host-observed text and supported multimodal agent evidence from one portable encrypted AtMem Home; govern memory/context exposure with four local roles | 020, 021, 022, 028, 029, 030; scoped 003/007 | OpenClaw is the verified installed full-fidelity host profile. Pydantic AI and LangChain/LangGraph have governed native/delegated context delivery, not the full OpenClaw multimodal capture claim. Viewer is content-free; Investigator reconstructs; Evidence Collector exports; Administrator manages the installation. |
+| **2.3.3b1** — proposed retrieval beta | M0 quality | Improve relevant-memory nomination, support gating and optional local vector speed; publish a reproducible Mem0 OSS comparison and a compact authenticated retrieval-health view | 031; applicable 001/003/019 contracts | Pre-change baseline and frozen held-out cases precede tuning. A 2× or 10× claim requires a matched, adequately sampled measurement with noninferior quality; no tag if the 2× beta gate fails. Existing evidence encryption, scope, delegated authority and adapter delivery cannot regress. |
 | **2.4.0** — multi-agent memory and access foundations | M1 | Agents use private and explicitly shared spaces with separate read/write/admin permissions, ownership, membership changes and provenance. Establish durable authenticated administration for supported production profiles | 006, 010, 012, 013, 015, applicable 017/019/022 consumers | Membership and credential subsystems pass their decomposed gates; no cross-space leaks, stale-grant delivery or revoked-key resurrection. Local use remains lightweight; broader enterprise/federation claims remain scoped. |
 | **2.5.0** — governed provider connections | M1 | Native memory and external memory/knowledge share inspection and policy services; provider setup supports access preview, conditional approval, explicit activation and first-delivery monitoring. Complete the nine-destination workspace: Runs, Memory, Decisions, Tools and media, Audit, Policies, Tasks, Connections and Settings | 019, 022, 025, relevant 003/004/017 | Native plus one real external provider and declared authentication profiles pass. Preserve all three authority modes, exact delegated bytes and actual credential/delivery assurance. No claim of every authentication method or connector working. |
 | **2.6.0** — investigation and resolution | M1 | Evidence-backed affected-work views, richer task/execution links, incident assignment and separate acknowledgment, remediation and outcome verification | Remaining applicable 007, 020, 021 and 022 | Impact follows declared dependencies; unknown outcomes stay unknown. Any executable action requires its host checkpoint, authorization, idempotency and verification prerequisites; otherwise offer inspection/manual guidance. |
@@ -46,7 +47,19 @@ host boundary must be documented as blocked/unverified with the exact limitation
 not counted as a passing fix. Apply the normal regression/artifact release gates
 to the final implemented changes before publication.
 
-## Immediate next release: 2.4.0
+## Proposed intervening beta: 2.3.3b1
+
+[Spec 031](../specs/031-mem0-head-to-head-retrieval/spec.md) and its
+[plan](../specs/031-mem0-head-to-head-retrieval/plan.md) define the retrieval
+work between stable 2.3.2 and the previously planned 2.4 foundation. The
+2.3.3 beta is **not published**. The initial 12-case Mem0 2.0.20 baseline
+had an unmatched `limit`/`top_k` call and is preserved only as historical
+evidence. The [corrected same-corpus calibration run](implementation-evidence/031/matched-v2.md)
+is still too small and narrow for a general win. Native preparation,
+held-out quality, UI and release gates
+remain required before a candidate can be tagged.
+
+## Next planned foundation: 2.4.0
 
 Build the authenticated shared/private multi-agent space and membership foundation
 described in Specs 006, 010, 012, 013 and 015. Preserve 2.3.2 evidence encryption,

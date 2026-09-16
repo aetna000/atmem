@@ -15,7 +15,7 @@ import uuid
 from atmem.core.canonical import canonical_json, sha256_hex
 from atmem.core.storage import BackendCapabilities, DerivedGeneration, HouseholdLock, HouseholdPolicy, connect, row_factory_for
 from atmem.memory import Memory
-from atmem.semantic.providers import Embedder
+from atmem.semantic.providers import Embedder, OllamaEmbedder
 from atmem.store.sqlite import utc_now
 
 
@@ -179,6 +179,7 @@ class SemanticIndex:
         snapshot = _record_snapshot(records)
         source_sha256 = sha256_hex(canonical_json(sorted(snapshot)))
         canonical_generation = memory.store.record_generation(subject_id)
+        previous_epoch = self.active_epoch(subject_id)
         checkpoint = self._resumable_checkpoint(
             subject_id, identity_sha256, source_sha256, canonical_generation
         )
@@ -206,6 +207,87 @@ class SemanticIndex:
         size = max(1, int(batch_size))
         dimensions = int(checkpoint.get("dimensions") or declared_dimensions)
         checkpointed_batches = 0
+        reused_entries = 0
+        if (
+            previous_epoch is not None
+            and previous_epoch["epoch_id"] != epoch_id
+            and previous_epoch.get("status") == "active"
+            and previous_epoch.get("identity_sha256") == identity_sha256
+            and int(previous_epoch.get("dimensions") or 0) > 0
+        ):
+            # The old active epoch is a compatible derivative, even if a
+            # canonical mutation has marked it dirty. Copy only entries whose
+            # exact content and lifecycle state still match the new snapshot.
+            # The new epoch remains staged until its full coverage and current
+            # canonical generation have been checked at activation.
+            previous_id = str(previous_epoch["epoch_id"])
+            previous_dimensions = int(previous_epoch["dimensions"])
+            for start in range(0, len(remaining), 256):
+                batch = remaining[start : start + 256]
+                ids = [str(row["id"]) for row in batch]
+                placeholders = ",".join("?" for _ in ids)
+                old = {
+                    str(row["object_id"]): row
+                    for row in self._conn.execute(
+                        f"SELECT * FROM vector_entries WHERE epoch_id = ? "
+                        f"AND subject_id = ? AND object_id IN ({placeholders})",
+                        (previous_id, subject_id, *ids),
+                    ).fetchall()
+                }
+                reusable = [
+                    (row, old[str(row["id"])])
+                    for row in batch
+                    if str(row["id"]) in old
+                    and str(old[str(row["id"])]["content_sha256"])
+                    == sha256_hex(str(row["content"]))
+                    and str(old[str(row["id"])]["status_at_index"]) == str(row["status"])
+                    and int(old[str(row["id"])]["dimensions"]) == previous_dimensions
+                ]
+                if not reusable:
+                    continue
+                for _, old_entry in reusable:
+                    try:
+                        _unpack(old_entry["vector"], previous_dimensions)
+                    except ValueError as exc:
+                        raise SemanticIndexIntegrityError(
+                            "prior vector payload is invalid; refusing to reuse it"
+                        ) from exc
+                now = utc_now()
+                with self.transaction():
+                    for record, old_entry in reusable:
+                        self._conn.execute(
+                            """INSERT INTO vector_entries(
+                              epoch_id, subject_id, object_type, object_id,
+                              content_sha256, status_at_index, dimensions, vector,
+                              created_at
+                            ) VALUES (?, ?, 'memory', ?, ?, ?, ?, ?, ?)""",
+                            (
+                                epoch_id, subject_id, record["id"],
+                                old_entry["content_sha256"], record["status"],
+                                previous_dimensions, old_entry["vector"], now,
+                            ),
+                        )
+                    count = int(self._conn.execute(
+                        "SELECT COUNT(*) AS count FROM vector_entries WHERE epoch_id = ?",
+                        (epoch_id,),
+                    ).fetchone()["count"])
+                    self._conn.execute(
+                        "UPDATE vector_epochs SET dimensions = ?, entry_count = ? WHERE epoch_id = ?",
+                        (previous_dimensions, count, epoch_id),
+                    )
+                    self._conn.execute(
+                        "UPDATE semantic_rebuilds SET completed_records = ?, "
+                        "dimensions = ?, updated_at = ? WHERE epoch_id = ?",
+                        (count, previous_dimensions, now, epoch_id),
+                    )
+                reused_entries += len(reusable)
+                completed.update(str(record["id"]) for record, _ in reusable)
+                dimensions = previous_dimensions
+                _call_fault(
+                    fault_hook, "reuse_checkpointed",
+                    {"epoch_id": epoch_id, "completed_records": count},
+                )
+            remaining = [row for row in records if str(row["id"]) not in completed]
         for start in range(0, len(remaining), size):
             batch = remaining[start : start + size]
             vectors = embedder.embed_documents(
@@ -328,17 +410,19 @@ class SemanticIndex:
             "subject_id": subject_id,
             "index_path": self.path,
             "epoch_id": epoch_id,
-            "entry_count": len(prepared),
+            "entry_count": len(records),
             "dimensions": dimensions,
             "embedder": identity,
             "identity_sha256": identity_sha256,
             "source_sha256": f"sha256:{source_sha256}",
             "canonical_generation": canonical_generation,
             "resumed": resumed,
+            "reused_entries": reused_entries,
             "rebuild_receipt": {
                 "format": "atmem-semantic-rebuild-receipt-v1",
                 "checkpointed_batches": checkpointed_batches,
                 "completed_records": len(records),
+                "reused_entries": reused_entries,
                 "coverage_valid": True,
                 "dimensions_valid": True,
                 "canonical_generation": canonical_generation,
@@ -352,7 +436,7 @@ class SemanticIndex:
             "semantic.index_built",
             {
                 "epoch_id": epoch_id,
-                "entry_count": len(prepared),
+                "entry_count": len(records),
                 "dimensions": dimensions,
                 "identity_sha256": identity_sha256,
                 "index_path_sha256": sha256_hex(self.path),
@@ -505,7 +589,20 @@ class SemanticIndex:
         if callable(verify_identity):
             verify_identity()
         self._assert_embedder(epoch, embedder)
-        query_vector = _normalize(embedder.embed_query(query))
+        cache_scope = sha256_hex(canonical_json({
+            "index_instance": id(self),
+            "memory_instance": id(memory),
+            "subject_id": subject_id,
+            "epoch_id": epoch["epoch_id"],
+            "policy_sha256": self.policy_fingerprint(),
+            "canonical_generation": memory.store.record_generation(subject_id),
+            "index_generation": self._index_generation(subject_id),
+        }))
+        query_vector = _normalize(
+            embedder._embed_query_verified(query, cache_scope=cache_scope)
+            if isinstance(embedder, OllamaEmbedder)
+            else embedder.embed_query(query)
+        )
         if len(query_vector) != int(epoch["dimensions"]):
             raise ValueError(
                 f"query embedding has {len(query_vector)} dimensions; "
@@ -513,18 +610,14 @@ class SemanticIndex:
             )
         rows = self._conn.execute(
             """
-            SELECT * FROM vector_entries
+            SELECT object_id, subject_id, status_at_index, content_sha256,
+                   dimensions, vector FROM vector_entries
             WHERE epoch_id = ? AND subject_id = ?
             ORDER BY object_id
             """,
             (epoch["epoch_id"], subject_id),
         ).fetchall()
         epoch_dimensions = int(epoch["dimensions"])
-        records = memory.store.get_records(
-            subject_id, [str(row["object_id"]) for row in rows]
-        )
-        status_filter = set(statuses or INDEXABLE_STATUSES)
-        eligible: list[tuple[sqlite3.Row, dict[str, Any]]] = []
         for row in rows:
             record_id = str(row["object_id"])
             row_dimensions = int(row["dimensions"])
@@ -534,34 +627,53 @@ class SemanticIndex:
                     f"record={record_id!r}, stored={row_dimensions}, "
                     f"epoch={epoch_dimensions}"
                 )
-            record = records.get(record_id)
-            validation = _canonical_validation(row, record, subject_id, status_filter)
-            if not validation["eligible"]:
-                continue
-            eligible.append((row, validation))
-
         similarities = _exact_similarities(
             query_vector,
-            [row["vector"] for row, _ in eligible],
+            [row["vector"] for row in rows],
             epoch_dimensions,
         )
+        # Vector similarity is a nomination only. Reload canonical records in
+        # score order and validate them before returning any candidate. This
+        # avoids decrypting the entire epoch when only a small top-k is needed.
+        scored = sorted(
+            zip(rows, similarities),
+            key=lambda item: (-item[1], str(item[0]["object_id"])),
+        )
+        status_filter = set(statuses or INDEXABLE_STATUSES)
+        requested = max(1, int(limit))
+        batch_size = max(32, min(requested * 2, 256))
         candidates: list[dict[str, Any]] = []
-        for (row, validation), similarity in zip(eligible, similarities):
-            if similarity < float(min_similarity):
-                continue
-            candidates.append(
-                {
-                    "record_id": row["object_id"],
-                    "similarity": float(similarity),
-                    "epoch_id": epoch["epoch_id"],
-                    "content_sha256": row["content_sha256"],
-                    "canonical_validation": validation,
-                }
+        for start in range(0, len(scored), batch_size):
+            batch = scored[start : start + batch_size]
+            if batch[0][1] < float(min_similarity):
+                break
+            records = memory.store.get_record_validation(
+                subject_id, [str(row["object_id"]) for row, _ in batch]
             )
-        candidates.sort(key=lambda item: (-item["similarity"], str(item["record_id"])))
+            for row, similarity in batch:
+                if similarity < float(min_similarity):
+                    break
+                validation = _canonical_validation(
+                    row, records.get(str(row["object_id"])), subject_id, status_filter
+                )
+                if not validation["eligible"]:
+                    continue
+                candidates.append(
+                    {
+                        "record_id": row["object_id"],
+                        "similarity": float(similarity),
+                        "epoch_id": epoch["epoch_id"],
+                        "content_sha256": row["content_sha256"],
+                        "canonical_validation": validation,
+                    }
+                )
+                if len(candidates) >= requested:
+                    break
+            if len(candidates) >= requested:
+                break
         return [
             {**item, "semantic_rank": rank}
-            for rank, item in enumerate(candidates[: max(1, int(limit))], start=1)
+            for rank, item in enumerate(candidates, start=1)
         ]
 
     def active_epoch(self, subject_id: str) -> dict[str, Any] | None:
@@ -1055,6 +1167,11 @@ def _exact_similarities(
     dimensions: int,
 ) -> list[float]:
     """Compute exact dot products, using an optional vectorized block at scale."""
+    expected_bytes = dimensions * 4
+    if any(len(blob) != expected_bytes for blob in blobs):
+        raise SemanticIndexIntegrityError(
+            "stored vector payload length does not match the active epoch"
+        )
     if len(blobs) >= 256:
         try:
             import numpy as np
@@ -1062,11 +1179,6 @@ def _exact_similarities(
             pass
         else:
             matrix = np.frombuffer(b"".join(blobs), dtype="<f4")
-            expected = len(blobs) * dimensions
-            if int(matrix.size) != expected:
-                raise SemanticIndexIntegrityError(
-                    "stored vector payload length does not match the active epoch"
-                )
             matrix = matrix.reshape((len(blobs), dimensions))
             if not bool(np.isfinite(matrix).all()):
                 raise SemanticIndexIntegrityError(
@@ -1074,10 +1186,13 @@ def _exact_similarities(
                 )
             query = np.asarray(query_vector, dtype=np.float64)
             return [float(value) for value in matrix.dot(query)]
+    sumprod = getattr(math, "sumprod", None)
+    if sumprod is not None:
+        return [
+            float(sumprod(query_vector, _unpack(blob, dimensions)))
+            for blob in blobs
+        ]
     return [
-        sum(
-            left * right
-            for left, right in zip(query_vector, _unpack(blob, dimensions))
-        )
+        sum(left * right for left, right in zip(query_vector, _unpack(blob, dimensions)))
         for blob in blobs
     ]

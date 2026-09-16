@@ -39,6 +39,9 @@ dev = [
 semantic = [
   "sentence-transformers>=5.0.0,<6.0.0",
 ]
+semantic-accelerated = [
+  "numpy>=1.26,<3",
+]
 mem0 = [
   "mem0ai>=2.0.20,<3",
 ]

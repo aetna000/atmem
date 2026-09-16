@@ -25,7 +25,22 @@ _TRUST_SCORES = {
     "user_confirmed": 0.9,
 }
 
-_TOKEN_RE = re.compile(r"[a-z0-9]+")
+# Preserve letters and digits from non-Latin scripts. Underscores remain
+# separators so structured fact keys and ordinary prose tokenize alike.
+_TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
+_AGE_QUERY_RE = re.compile(r"\b(?:age|aged|old|birthday|birthdate|born)\b|سن", re.I)
+_AGE_EVIDENCE_RE = re.compile(
+    r"\b(?:age|aged|old|years?|born|birthday|birthdate|dob)\b|سن|سال|\b\d+\b",
+    re.I,
+)
+_RESIDENCE_QUERY_RE = re.compile(
+    r"\bwhere\b.*\b(?:live|reside|home|address)\b|\b(?:home|address|residence)\b.*\bwhere\b",
+    re.I,
+)
+_RESIDENCE_EVIDENCE_RE = re.compile(
+    r"\b(?:live|lives|living|reside|resides|residence|home|address|based|located|city)\b",
+    re.I,
+)
 
 _STOPWORDS = frozenset(
     """
@@ -56,6 +71,14 @@ _CONCEPT_ALIASES = {
     "vehicle": "car",
     "vehicles": "car",
     "cars": "car",
+    "live": "residence",
+    "lives": "residence",
+    "living": "residence",
+    "reside": "residence",
+    "resides": "residence",
+    "home": "residence",
+    "residence": "residence",
+    "address": "residence",
 }
 
 
@@ -127,6 +150,13 @@ def decide_retrieval(
             else 0.0
         )
         relevance = max(lexical, fact_support, semantic_support)
+        requested_relation_missing = not _requested_relation_supported(
+            query, content, fact_key
+        )
+        if requested_relation_missing:
+            # A topic match, even with a strong embedding, does not establish
+            # that the record answers the user's requested attribute.
+            relevance = min(relevance, background)
         if relevance >= direct:
             support = SupportClass.DIRECT
             reasons = ["original_query_supported"]
@@ -138,6 +168,8 @@ def decide_retrieval(
             reasons = ["no_relevance_signal"]
         if diagnostic:
             reasons.append("diagnostic_semantic_ignored")
+        if requested_relation_missing:
+            reasons.append("requested_relation_not_supported")
         prior_signal = contribution("candidate_prior", candidate.get("score") or 0.0)
         prior = prior_signal.normalized_score
         lexical_signal = contribution("lexical_support", lexical)
@@ -229,6 +261,20 @@ def _concept_tokens(value: str) -> set[str]:
         result.add(stemmed)
         result.add(_CONCEPT_ALIASES.get(token, _CONCEPT_ALIASES.get(stemmed, stemmed)))
     return result
+
+
+def _requested_relation_supported(query: str, content: str, fact_key: str) -> bool:
+    """Reject strong topical matches that lack the requested answer type.
+
+    This is a conservative local gate for explicit age and residence questions,
+    not a semantic entailment claim. Other questions retain normal calibration.
+    """
+    evidence = f"{content} {fact_key.replace('_', ' ')}"
+    if _AGE_QUERY_RE.search(query) and not _AGE_EVIDENCE_RE.search(evidence):
+        return False
+    if _RESIDENCE_QUERY_RE.search(query) and not _RESIDENCE_EVIDENCE_RE.search(evidence):
+        return False
+    return True
 
 
 def _concept_overlap(query_concepts: set[str], content_concepts: set[str]) -> float:

@@ -2,15 +2,47 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from hashlib import sha256
 import json
 import math
 import os
 import re
+from threading import RLock
+import time
 from typing import Any, Protocol, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
+
+
+# Process-only derivative cache: keys contain digests, never query text. Model
+# digest/endpoint/profile bind the vector to the exact embedding contract.
+_OLLAMA_QUERY_CACHE: OrderedDict[str, tuple[float, tuple[float, ...]]] = OrderedDict()
+_OLLAMA_QUERY_CACHE_LOCK = RLock()
+_OLLAMA_QUERY_CACHE_MAX = 128
+_OLLAMA_QUERY_CACHE_TTL_SECONDS = 60.0
+
+
+def _ollama_query_cache_get(key: str) -> list[float] | None:
+    with _OLLAMA_QUERY_CACHE_LOCK:
+        cached = _OLLAMA_QUERY_CACHE.get(key)
+        if cached is None:
+            return None
+        created, vector = cached
+        if time.monotonic() - created > _OLLAMA_QUERY_CACHE_TTL_SECONDS:
+            del _OLLAMA_QUERY_CACHE[key]
+            return None
+        _OLLAMA_QUERY_CACHE.move_to_end(key)
+        return list(vector)
+
+
+def _ollama_query_cache_put(key: str, vector: list[float]) -> None:
+    with _OLLAMA_QUERY_CACHE_LOCK:
+        _OLLAMA_QUERY_CACHE[key] = (time.monotonic(), tuple(vector))
+        _OLLAMA_QUERY_CACHE.move_to_end(key)
+        while len(_OLLAMA_QUERY_CACHE) > _OLLAMA_QUERY_CACHE_MAX:
+            _OLLAMA_QUERY_CACHE.popitem(last=False)
 
 
 class Embedder(Protocol):
@@ -72,7 +104,36 @@ class OllamaEmbedder:
         return self._embed([_embedding_text(text, self.profile, "document") for text in texts])
 
     def embed_query(self, text: str) -> list[float]:
+        # An unscoped direct call has no principal or canonical generation to
+        # bind a cache entry to. Keep it live; governed index search supplies
+        # the scope needed for the bounded process-only fast path.
         return self._embed([_embedding_text(text, self.profile, "query")])[0]
+
+    def _embed_query_verified(self, text: str, *, cache_scope: str) -> list[float]:
+        """Use after a caller has checked this exact embedder identity."""
+        return self._embed_query(text, cache_scope=cache_scope)
+
+    def _embed_query(self, text: str, *, cache_scope: str) -> list[float]:
+        query_text = _embedding_text(text, self.profile, "query")
+        cache_key = sha256(
+            json.dumps(
+                {
+                    "endpoint": self.endpoint,
+                    "model_digest": self.model_digest,
+                    "profile": self.profile,
+                    "scope": cache_scope,
+                    "query_sha256": sha256(query_text.encode("utf-8")).hexdigest(),
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+        cached = _ollama_query_cache_get(cache_key)
+        if cached is not None:
+            return cached
+        vector = self._embed([query_text])[0]
+        _ollama_query_cache_put(cache_key, vector)
+        return vector
 
     def verify_identity(self) -> None:
         current = _ollama_model_digest(

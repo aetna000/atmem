@@ -181,6 +181,8 @@ perfect; other quality metrics cannot fall below checked-in baselines. Optional
 local/hosted profiles, LongMemEval import and fair Mem0 OSS comparison are also
 available without adding Mem0 or model SDKs to the base install. See the
 [memory benchmark guide](docs/benchmarks.md) for commands and honest limits.
+The proposed [2.3.3b1 retrieval beta](specs/031-mem0-head-to-head-retrieval/spec.md)
+is under development; its Mem0 speed/quality targets are not release claims.
 
 ### 3. Review, then activate
 

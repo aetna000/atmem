@@ -8,6 +8,28 @@ from atmem.control import ControlMode, ControlPlaneManager
 from atmem.semantic import SemanticIndex, default_index_path
 
 
+def test_local_expansion_matches_atbot_without_a_network_call(monkeypatch) -> None:
+    from atbot.companion import CompanionRuntime
+    from atbot.config import AtBotConfig
+    from atmem.control.atbot_companion import AtBotCompanionClient
+
+    monkeypatch.setattr(
+        "atmem.control.atbot_service.AtBotServiceManager.fallback_selected",
+        lambda self: False,
+    )
+    monkeypatch.setattr(
+        AtBotCompanionClient, "health", lambda self: (_ for _ in ()).throw(
+            AssertionError("query expansion must not contact the companion")
+        ),
+    )
+    client = AtBotCompanionClient()
+    companion = CompanionRuntime(AtBotConfig(providers=[]))
+    for query in ("what is my fav food", "favourite car", "best book", "regular query"):
+        assert client.expand_query(query)["expanded_queries"] == (
+            companion.expand_query(query)["expanded_queries"]
+        )
+
+
 class _ConceptEmbedder:
     @property
     def identity(self) -> dict[str, str]:

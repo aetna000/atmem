@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import struct
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import subprocess
@@ -18,9 +19,18 @@ from atmem.semantic import (
     OpenAICompatibleEmbedder,
     SemanticIndex,
 )
+from atmem.semantic.index import SemanticIndexIntegrityError, _exact_similarities
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_vector_score_rejects_compensating_corrupt_blob_lengths() -> None:
+    blobs = [struct.pack("<ff", 1.0, 0.0) for _ in range(256)]
+    blobs[0] = struct.pack("<f", 1.0)
+    blobs[1] = struct.pack("<fff", 0.0, 1.0, 0.0)
+    with pytest.raises(SemanticIndexIntegrityError, match="payload length"):
+        _exact_similarities([1.0, 0.0], blobs, 2)
 
 
 def test_default_local_vector_store_is_created_and_synced_automatically(
@@ -198,6 +208,52 @@ def test_http_embedding_adapters_use_batch_contracts_and_normalize() -> None:
         thread.join(timeout=2)
 
 
+def test_ollama_query_cache_is_bounded_to_scope_and_model_digest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from atmem.semantic import providers
+
+    monkeypatch.setattr(providers, "_OLLAMA_QUERY_CACHE_MAX", 2)
+    EmbeddingHandler.requests = []
+    EmbeddingHandler.digest = "sha256:" + ("c" * 64)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), EmbeddingHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    endpoint = f"http://127.0.0.1:{server.server_port}"
+    try:
+        first = OllamaEmbedder("embed-model", endpoint=endpoint)
+        first.verify_identity()
+        assert first._embed_query_verified("my exact question", cache_scope="user-a") == pytest.approx([0.6, 0.8])
+        assert first._embed_query_verified("my exact question", cache_scope="user-a") == pytest.approx([0.6, 0.8])
+        assert len([row for row in EmbeddingHandler.requests if row[0] == "/api/embed"]) == 1
+
+        second = OllamaEmbedder("embed-model", endpoint=endpoint)
+        second.verify_identity()
+        assert second._embed_query_verified("my exact question", cache_scope="user-b") == pytest.approx([0.6, 0.8])
+        assert len([row for row in EmbeddingHandler.requests if row[0] == "/api/embed"]) == 2
+        assert second._embed_query_verified("my exact question", cache_scope="user-b") == pytest.approx([0.6, 0.8])
+        assert len([row for row in EmbeddingHandler.requests if row[0] == "/api/embed"]) == 2
+        second.embed_query("my exact question")
+        second.embed_query("my exact question")
+        assert len([row for row in EmbeddingHandler.requests if row[0] == "/api/embed"]) == 4
+
+        EmbeddingHandler.digest = "sha256:" + ("d" * 64)
+        with pytest.raises(ValueError, match="digest changed"):
+            first.verify_identity()
+        changed = OllamaEmbedder("embed-model", endpoint=endpoint)
+        changed.verify_identity()
+        changed._embed_query_verified("my exact question", cache_scope="user-a")
+        assert len([row for row in EmbeddingHandler.requests if row[0] == "/api/embed"]) == 5
+        changed._embed_query_verified("another question", cache_scope="user-a")
+        changed._embed_query_verified("one more question", cache_scope="user-a")
+        assert len(providers._OLLAMA_QUERY_CACHE) <= 2
+        assert "my exact question" not in repr(providers._OLLAMA_QUERY_CACHE)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
 def test_semantic_search_finds_paraphrase_and_explains_canonical_result(
     tmp_path: Path,
 ) -> None:
@@ -309,6 +365,39 @@ def test_stale_or_cross_subject_vectors_fail_closed(tmp_path: Path) -> None:
         report = index.verify(memory, "u1")
         assert report["valid"] is False
         assert report["cross_subject_vectors"] == [record["id"]]
+    finally:
+        index.close()
+        memory.close()
+
+
+def test_top_k_search_reloads_only_nominated_canonical_records(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    memory = Memory(tmp_path / "mem.db", auto_vectors=False)
+    index = SemanticIndex(tmp_path / "vectors.db")
+    embedder = ConceptEmbedder()
+    try:
+        for number in range(80):
+            memory.remember(
+                "u1",
+                f"Travel preference number {number}.",
+                interpreted_fact=f"Travel preference number {number}.",
+                interpreted_fact_key=f"travel.preference.{number}",
+            )
+        index.build(memory, "u1", embedder)
+        original = memory.store.get_record_validation
+        fetched: list[str] = []
+
+        def counted(subject_id: str, record_ids: list[str]) -> dict:
+            fetched.extend(record_ids)
+            return original(subject_id, record_ids)
+
+        monkeypatch.setattr(memory.store, "get_record_validation", counted)
+        found = index.search(memory, "u1", "travel preference", embedder, limit=3)
+
+        assert len(found) == 3
+        assert len(fetched) <= 32
+        assert all(row["canonical_validation"]["eligible"] for row in found)
     finally:
         index.close()
         memory.close()

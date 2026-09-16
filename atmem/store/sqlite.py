@@ -779,6 +779,28 @@ class SQLiteStore:
             records.update((str(row["id"]), _record_from_row(row)) for row in rows)
         return records
 
+    def get_record_validation(
+        self, subject_id: str, record_ids: list[str]
+    ) -> dict[str, dict[str, Any]]:
+        """Reload only canonical fields needed to validate index nominations.
+
+        This is not a delivery read: callers must still fetch full authorized
+        records before constructing context. The content is loaded to verify
+        exact digest equality with the derived vector entry.
+        """
+        ids = list(dict.fromkeys(str(value) for value in record_ids))
+        records: dict[str, dict[str, Any]] = {}
+        for start in range(0, len(ids), 900):
+            batch = ids[start : start + 900]
+            placeholders = ",".join("?" for _ in batch)
+            rows = self._conn.execute(
+                f"SELECT id, subject_id, status, content FROM records "
+                f"WHERE subject_id = ? AND id IN ({placeholders})",
+                (subject_id, *batch),
+            ).fetchall()
+            records.update((str(row["id"]), dict(row)) for row in rows)
+        return records
+
     def record_generation(self, subject_id: str) -> int:
         row = self._conn.execute(
             "SELECT generation FROM record_generations WHERE subject_id = ?",

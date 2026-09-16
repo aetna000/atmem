@@ -87,52 +87,21 @@ class AtBotCompanionClient:
             return _fallback(query, candidates, {**health, "reason": str(exc)})
 
     def expand_query(self, query: str) -> dict[str, Any]:
-        """Send query text only; candidate content is prohibited on this call."""
+        """Expand locally; AtBot v1 uses these same deterministic rules."""
         clean = " ".join(query.split())
         from atmem.control.atbot_service import AtBotServiceManager
+        from atmem.control.query_expansion import expand_query_v1
 
-        health = (
-            {"available": False, "reason": "safe fallback was selected"}
-            if AtBotServiceManager().fallback_selected()
-            else self.health()
-        )
-        fallback = {
+        fallback_selected = AtBotServiceManager().fallback_selected()
+        return {
             "format": "atbot-query-expansion-v1",
             "query": clean,
-            "expanded_queries": [clean],
+            "expanded_queries": [clean] if fallback_selected and clean else expand_query_v1(clean),
             "content_received": False,
-            "companion": {"available": False, "fallback": True},
+            "provider": "atbot-policy",
+            "model": "query-concepts-v1",
+            "companion": {"available": False, "fallback": True, "local_rules": not fallback_selected},
         }
-        if not health.get("available"):
-            return fallback
-        request = Request(
-            f"{self.endpoint}/api/companion/expand-query",
-            data=json.dumps({"query": clean}).encode("utf-8"),
-            headers={
-                "Content-Type": "application/json",
-                "X-AtBot-CSRF": str(health["csrf_token"]),
-            },
-            method="POST",
-        )
-        try:
-            with urlopen(request, timeout=min(self.timeout, 10.0)) as response:
-                value = json.loads(response.read())
-            queries: list[str] = []
-            for raw in value.get("expanded_queries") or []:
-                item = " ".join(str(raw).split())[:200]
-                if item and item.casefold() not in {row.casefold() for row in queries}:
-                    queries.append(item)
-                if len(queries) >= 6:
-                    break
-            if not queries or value.get("content_received") is not False:
-                raise ValueError("invalid content-free expansion result")
-            return {
-                **value,
-                "expanded_queries": queries,
-                "companion": {"available": True, "fallback": False},
-            }
-        except (OSError, ValueError, HTTPError, URLError, json.JSONDecodeError):
-            return fallback
 
     def propose(self, message: str) -> dict[str, Any]:
         """Request interpretation only; AtMem remains responsible for admission."""

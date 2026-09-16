@@ -3,6 +3,9 @@
 **Release line:** AtMem `2.3.2`, OpenClaw bridge `2.3.2`, AtBot
 `0.1.0`.
 
+**In development, not released:** [2.3.3b1 retrieval beta](../specs/031-mem0-head-to-head-retrieval/spec.md).
+Its Mem0 comparison and 2× target remain validation gates, not shipped claims.
+
 AtMem 2.3.2 is the stable local encrypted Agent Black Box and governed-memory
 release. The package records exact host-observed text, URLs, tool arguments and
 results plus supported image, audio, video and document bytes when capture mode is

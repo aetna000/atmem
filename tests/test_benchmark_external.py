@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import importlib.util
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -59,6 +60,62 @@ def test_campaign_focused_case_selection_is_exact_and_validated(tmp_path) -> Non
     with pytest.raises(ValueError, match="unavailable or ineligible"):
         campaign._load_cases(dataset, 2, ["missing"])
 
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "format": "atmem-mem0-head-to-head-manifest-v1",
+                "dataset": {"source_sha256": sha256(dataset.read_bytes()).hexdigest()},
+                "selection": {"calibration_case_ids": ["case-b", "case-a"]},
+            }
+        ),
+        encoding="utf-8",
+    )
+    frozen, digest = campaign._load_manifest_cases(dataset, manifest, "calibration")
+    assert [row["question_id"] for row in frozen] == ["case-b", "case-a"]
+    assert digest.startswith("sha256:")
+    dataset.write_text(dataset.read_text() + " ", encoding="utf-8")
+    with pytest.raises(ValueError, match="digest does not match"):
+        campaign._load_manifest_cases(dataset, manifest, "calibration")
+
+
+def test_matched_campaign_uses_atmem_canonical_bytes_and_dedupes_both_sides() -> None:
+    from atmem.memory import _explicit_note
+
+    campaign = _campaign_module()
+    case = {
+        "haystack_session_ids": ["first", "second"],
+        "haystack_sessions": [
+            [{"role": "user", "content": "  likes   tea"}],
+            [{"role": "user", "content": "likes tea"}],
+        ],
+    }
+    matched = campaign._corpus(case, 1600, matched_inputs=True)
+    assert matched == [("first", "User: likes tea.")]
+    assert matched[0][1] == _explicit_note("user: likes tea")
+    assert len(campaign._corpus(case, 1600)) == 2
+
+
+def test_campaign_uses_mem0_top_k_instead_of_ignored_limit() -> None:
+    campaign = _campaign_module()
+
+    class SearchSpy:
+        def __init__(self) -> None:
+            self.kwargs = None
+
+        def search(self, query, **kwargs):
+            assert query == "Which airport?"
+            self.kwargs = kwargs
+            return {"results": []}
+
+    spy = SearchSpy()
+    campaign._mem0_search(spy, "Which airport?", "u1", 5, matched_inputs=True)
+    assert spy.kwargs == {
+        "filters": {"user_id": "u1"},
+        "top_k": 100,
+        "threshold": 0.0,
+    }
+
 
 def test_campaign_atmem_chunk_aggregation_retains_per_case_signals() -> None:
     campaign = _campaign_module()
@@ -86,6 +143,15 @@ def test_compatible_external_results_compare_side_by_side() -> None:
     assert result["metrics"]["answerable_recall"]["winner"] == "atmem"
     assert result["overall"]["outcome"] == "atmem_better"
     assert result["overall"]["statement"] == "AtMem performed better than Mem0 on this benchmark."
+
+
+def test_warm_latency_is_reported_but_cannot_override_quality() -> None:
+    left = load_external(FIXTURES / "external-result-small.json")
+    left["metrics"] = {"session_mrr_at_5": 1.0, "warm_latency_p95_ms": 10.0}
+    right = {**left, "system": "mem0-oss", "metrics": {"session_mrr_at_5": 1.0, "warm_latency_p95_ms": 40.0}}
+    result = compare_results(left, right)
+    assert result["metrics"]["warm_latency_p95_ms"]["winner"] == left["system"]
+    assert result["overall"]["outcome"] == "equal"
 
 
 @pytest.mark.parametrize(

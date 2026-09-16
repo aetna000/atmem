@@ -92,6 +92,49 @@ with reasons. Normalization alone is not an AtMem or competitor score.
 
 ## Mem0 OSS comparison
 
+The 2.0.19 manifest and result below are **historical**. A separate 2.3.3b1
+candidate campaign pins Mem0 OSS 2.0.20 and records its exploratory
+[pre-change 12-case baseline](implementation-evidence/031/baseline.md).
+The [corrected matched-input calibration comparison](implementation-evidence/031/matched-v2.md)
+separates semantic-only Mem0 from an enabled-hybrid run, and first versus
+repeated search from corpus ingestion/index time. Neither 12-case result establishes a
+general Mem0 win or the proposed 2× full-preparation beta gate.
+
+For the 2.3.3 development comparison, use the checked-in
+[frozen manifest](../atmem/benchmark/data/mem0-head-to-head-2.3.3b1-v1.json)
+and a separate environment for Mem0 2.0.20. AtMem's optional
+`semantic-accelerated` extra adds compiled NumPy vector math without changing
+the base install. Report it as an **accelerated AtMem profile**, never silently
+as base-install performance. The runner records first-search, repeated-warm
+and corpus-admission/index durations separately:
+
+```bash
+python -m pip install -e '.[semantic-accelerated]'
+python tools/run_longmemeval_retrieval.py \
+  --backend atmem --dataset /path/to/longmemeval_s_cleaned.json \
+  --manifest atmem/benchmark/data/mem0-head-to-head-2.3.3b1-v1.json \
+  --partition calibration --matched-inputs --warm-repeats 10 \
+  --work-dir /tmp/atmem-calibration \
+  --output /tmp/atmem-calibration.json
+
+python -m venv /tmp/mem0-2.0.20
+/tmp/mem0-2.0.20/bin/python -m pip install mem0ai==2.0.20 ollama==0.6.2
+/tmp/mem0-2.0.20/bin/python tools/run_longmemeval_retrieval.py \
+  --backend mem0 --dataset /path/to/longmemeval_s_cleaned.json \
+  --manifest atmem/benchmark/data/mem0-head-to-head-2.3.3b1-v1.json \
+  --partition calibration --matched-inputs --warm-repeats 10 \
+  --work-dir /tmp/mem0-calibration \
+  --output /tmp/mem0-calibration.json
+```
+
+For a separate prebuilt-index repeated-query profile after those index builds, rerun each
+backend against its **own** work directory with `--reuse-existing
+--warm-repeats 10` and different output files. Do not compare a prebuilt run
+with a fresh-build run, or semantic-only Mem0 with its separately installed
+spaCy/fastembed hybrid profile without naming the difference. The reused
+AtMem index check is a guarded convenience check, not independent proof of
+the original raw corpus; the fresh-build report supplies the dataset digest.
+
 The reproducibility manifest pins `mem0ai==2.0.19`, its wheel digest and source
 revision. Create a separate environment so Mem0's dependencies cannot change
 AtMem's base installation:
@@ -150,8 +193,11 @@ question category—against Mem0 OSS 2.0.19. Both systems receive the same raw
 found every required evidence session in the top five; Mem0 placed the first
 relevant session slightly higher and returned results faster.
 
-Reproduce it after obtaining the pinned `longmemeval_s_cleaned.json` file and
-starting Ollama with `nomic-embed-text:latest`:
+To rerun the historical method, check out the source commit recorded in the
+historical report in a separate worktree, obtain its pinned
+`longmemeval_s_cleaned.json` file, and start Ollama with the recorded
+`nomic-embed-text:latest` model digest. Running current development source is a
+**new** experiment, not an exact reproduction of the old result:
 
 ```bash
 python -m venv /tmp/atmem-mem0-bench

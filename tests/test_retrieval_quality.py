@@ -157,6 +157,50 @@ def test_topical_non_answer_is_background_and_withheld_by_default() -> None:
     assert permitted.reason_codes == ("background_context_permitted",)
 
 
+def test_family_topic_does_not_answer_requested_age() -> None:
+    decision = decide_retrieval(
+        "How old is my daughter?",
+        [_candidate("drawing", "My daughter likes drawing.")],
+    )
+
+    assert decision.support_class is not SupportClass.DIRECT
+    assert decision.ranked_record_ids == ()
+
+
+def test_persian_lexical_age_fact_is_retrievable() -> None:
+    decision = decide_retrieval(
+        "سن من چیست",
+        [_candidate("age-fa", "سن من ۴۰ سال است")],
+    )
+
+    assert decision.support_class is SupportClass.DIRECT
+    assert decision.ranked_record_ids == ("age-fa",)
+
+
+def test_location_topic_without_residence_does_not_answer_where_i_live() -> None:
+    decision = decide_retrieval(
+        "Where do I live?",
+        [_candidate("trip", "I flew to Paris and visited a museum.", semantic_similarity=0.9,
+                    semantic_provider="sentence-transformers")],
+    )
+
+    assert decision.ranked_record_ids == ()
+
+
+def test_relation_filter_keeps_actual_age_and_residence_answers() -> None:
+    age = decide_retrieval(
+        "How old is my daughter?",
+        [_candidate("daughter-age", "My daughter is 7 years old.")],
+    )
+    residence = decide_retrieval(
+        "Where do I live?",
+        [_candidate("home", "My home is in Paris.", fact_key="home location")],
+    )
+
+    assert age.ranked_record_ids == ("daughter-age",)
+    assert residence.ranked_record_ids == ("home",)
+
+
 def test_retrieval_decision_matches_the_published_contract() -> None:
     decision = decide_retrieval(
         "what is my favourite lunch?",
