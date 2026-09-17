@@ -1,12 +1,21 @@
 # Current status
 
-**Release line:** AtMem `2.3.2`, OpenClaw bridge `2.3.2`, AtBot
+**Release line:** AtMem `2.3.3`, OpenClaw bridge `2.3.3`, AtBot
 `0.1.0`.
 
-**In development, not released:** [2.3.3b1 retrieval beta](../specs/031-mem0-head-to-head-retrieval/spec.md).
-Its Mem0 comparison and 2× target remain validation gates, not shipped claims.
+**2.3.3 scope:** local query expansion, exact-search/index reuse improvements,
+bounded answer-support corrections and responsive session-archive layout.
+The [continuing retrieval research](../specs/031-mem0-head-to-head-retrieval/spec.md)
+retains the 2× target as future work, not a release claim or tagging gate.
+The opt-in `core-rrf-v1` candidate strategy is available for developer evaluation;
+existing retrieval defaults remain unchanged pending broader quality validation. See the
+[core hybrid experiment](implementation-evidence/031/core-hybrid-benchmark.md).
+The release also includes opt-in scoped graph nominations with bounded
+paths and canonical revalidation. Graph safety fixtures pass, but broad graph
+fusion worsened calibration ranking versus no-graph fusion; it is not promoted.
+See [graph implementation and four-profile results](implementation-evidence/031/graph-nomination.md).
 
-AtMem 2.3.2 is the stable local encrypted Agent Black Box and governed-memory
+AtMem 2.3.3 is the stable local encrypted Agent Black Box and governed-memory
 release. The package records exact host-observed text, URLs, tool arguments and
 results plus supported image, audio, video and document bytes when capture mode is
 `full`. New installations use full capture by default. Operators may deliberately
@@ -45,13 +54,13 @@ receipt is attached. Missing host hooks remain evidence gaps, not inferred succe
 or failure. Existing historical hash-only or metadata-only records cannot be made
 full fidelity retroactively.
 
-The 2.3.2 home is a local, single-writer design. It does not implement cloud sync,
+The AtMem home is a local, single-writer design. It does not implement cloud sync,
 concurrent multi-primary replication or automatic conflict merging. The artifact
 vault streams and deduplicates content, but release tests use bounded fixtures rather
 than physically allocating a 10 GiB sample. Post-quantum recipient export is
 available only when its optional cryptographic backend is installed; local
 at-rest payload encryption remains the documented authenticated symmetric profile.
 
-See the [2.3.2 release notes](releases/v2.3.2.md) for upgrade and migration commands,
+See the [2.3.3 release notes](releases/v2.3.3.md) for upgrade and migration commands,
 and the [implementation evidence index](implementation-evidence/README.md) for the
 recorded gates.

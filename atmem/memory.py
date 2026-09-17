@@ -734,6 +734,13 @@ class Memory:
 
         if not isinstance(request, RecallRequest):
             raise TypeError("request must be RecallRequest")
+        if request.retrieval_strategy == 'core-rrf-v1':
+            from dataclasses import replace
+            from atmem.retrieve.hybrid import collect
+            rows, metadata = collect(self, request)
+            # Channel quotas are independent; bound the ranked publication prefix.
+            publication = replace(request, candidate_limit=max(request.candidate_limit, request.limit))
+            return self.create_candidate_set_v1(publication, rows, retrieval_metadata=metadata)
         scope = request.scope
         recalled = self.recall(
             scope.subject_id,
@@ -884,7 +891,7 @@ class Memory:
 
     @_atomic
     def create_candidate_set_v1(
-        self, request: Any, candidates: list[dict[str, Any]]
+        self, request: Any, candidates: list[dict[str, Any]], *, retrieval_metadata: dict[str, Any] | None = None
     ) -> Any:
         """Persist one revalidated union of already-governed retrieval signals.
 
@@ -969,7 +976,7 @@ class Memory:
             aggregation_signal_digest,
         )
 
-        aggregated = aggregate_supporting_evidence(
+        aggregated = eligible_rows if retrieval_metadata is not None else aggregate_supporting_evidence(
             eligible_rows,
             subject_id=scope.subject_id,
             workspace_id=scope.workspace_id,
@@ -1024,7 +1031,14 @@ class Memory:
                         for query in row.get("matched_queries") or ()
                     }
                 ),
-                "support_aggregation_version": SUPPORT_AGGREGATION_VERSION,
+                "support_aggregation_version": None if retrieval_metadata is not None else SUPPORT_AGGREGATION_VERSION,
+                **({'retrieval_fusion': {**retrieval_metadata, 'candidate_ranks': {
+                    row.record_id: row.signals.get('fusion', {}).get('channel_ranks', {})
+                    for row in durable
+                }, 'graph_support_record_ids': {
+                    row.record_id: [step['record_id'] for step in row.signals.get('fusion', {}).get('graph_path', ())]
+                    for row in durable if row.signals.get('fusion', {}).get('graph_path')
+                }}} if retrieval_metadata is not None else {}),
                 "aggregation_signal_digest": aggregation_digest,
                 "grouped_candidate_count": len(grouped_candidates),
                 "supported_group_count": len(

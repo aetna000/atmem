@@ -1,9 +1,26 @@
-# Feature Specification: 2.3.3 Beta Retrieval and Mem0 Comparison
+# Feature Specification: 2.3.3 Retrieval Improvements and Continuing Research
 
 **Feature directory:** `specs/031-mem0-head-to-head-retrieval`
 **Created:** 2026-09-16
-**Status:** Specified; implementation and release evidence pending
-**Target:** AtMem `2.3.3b1`; matching OpenClaw bridge `2.3.3-beta.1` if released. AtBot retains its independent version unless changed.
+**Status:** Stable release scope approved on 2026-09-17; broader research remains open.
+**Target:** Stable AtMem `2.3.3`, OpenClaw bridge `2.3.3`, unchanged AtBot `0.1.0`.
+
+## Approved stable scope amendment — 2026-09-17
+
+The owner explicitly approved moving the 2× full-preparation target to future
+work and publishing stable 2.3.3. This amendment supersedes the original beta
+tagging condition below, not the measured results or safety requirements.
+The release includes validated local expansion, exact-search/index reuse,
+bounded support corrections, responsive archive layout, and developer opt-in
+fusion, scoped graph nominations and matrix reuse. Existing retrieval defaults
+remain unchanged and matrix reuse remains off by default. No general speed or
+quality superiority is claimed. Broader native/held-out comparative research,
+benchmark dashboard integration and default promotion remain future work.
+Python, companion, host/framework, security, UI, build, metadata and installed
+upgrade gates remain mandatory for the released scope. Historical beta names
+and experiment identities below describe the original research campaign, not
+the published package version. This amendment does not mark all Spec 031 tasks
+complete or weaken the quality gate for future default promotion.
 
 ## Overview
 
@@ -53,9 +70,35 @@ The dashboard and CLI explain whether strong semantic search is configured, whet
 
 ## Success criteria
 
+### NumPy acceleration amendment (2026-09-17)
+
+- **FR-018:** Optionally reuse an immutable float64 process-memory vector matrix and immutable source blobs within one open semantic-index instance, bounded to one entry and 32 MiB of retained matrix data, blob objects and blob-tuple storage (not peak working memory). Never persist this cache or share it across instances. Replace the immutable entry atomically and bind it locally before reading. Close releases references before releasing the household lock; oversized matrices use the existing uncached path. Both representations extend decrypted process-memory residency until replacement/close and must never appear in status or logs. No new base dependency, schema, model call or native wheel build is required.
+- **FR-019:** Matrix reuse must verify exact ordered vector bytes and dimensions on every search, in addition to the existing subject, epoch, model, policy and canonical/index generation identities. Canonical validation remains per-query. Cached computation must return identical scores and ordered results to the existing NumPy path, including thresholds and ties. Missing NumPy retains the existing fallback. Invalid payloads must fail equally on cold and reused paths.
+- **FR-020:** Measure matrix preparation separately from complete search on different queries, including first use, reuse, invalidation and oversized bypass. Report memory and limitations. Do not claim a full-path or Mem0 speedup from a kernel benchmark. Partial top-k selection is deferred until separate evidence justifies its numerical/tie and rejected-candidate complexity.
+
+Validate finite values before publishing a cache entry. Benchmark repeated distinct
+queries and alternating subjects with median/p95 and sample counts; report any
+single-entry thrashing cost. Distinguish plaintext and encrypted backend evidence;
+an unmeasured backend is explicitly unmeasured, never covered by another result.
+
+Measured amendment revision: retain the ordered immutable source-blob tuple for
+exact byte comparison instead of hashing on reuse. The 32 MiB ceiling includes
+float64 matrix bytes, blob objects and tuple overhead. No digest substitution is
+needed for identity: equal ordered bytes are a stronger equality check.
+
+Enable reuse only with explicit `SemanticIndex(cache_vectors=True)` for long-lived
+callers. Default one-shot/native retrieval remains unchanged. Local purge,
+generation discard and policy invalidation clear retained references immediately;
+external mutations are detected on the next search, not by a background watcher.
+Dropping references is not guaranteed memory zeroization.
+
+This amendment is an independently executable slice (T024–T028); it does not
+complete the broader beta tasks or authorize release. Re-reading vector bytes
+is deliberately retained so cache reuse cannot mask direct sidecar corruption.
+
 - **SC-001:** Pre-change and post-change benchmark reports are reproducible from immutable manifests and contain no silent skips or mismatched configurations.
 - **SC-002:** On the declared held-out native-path workload, zero unauthorized injections, stale deliveries, wrong-scope hits or changed exact context bytes occur; existing deterministic and adapter conformance gates pass.
-- **SC-003:** On a matched, statistically adequate warm workload, p95 reaches the FR-006 2× target with noninferior quality. If it fails, a 2.3.3b1 release candidate is not cleared for tagging; the measured result and blocker are reported. A 10× result may be reported only if measured under the same rules.
+- **SC-003 (future research):** On a matched, statistically adequate warm workload, p95 reaches the FR-006 2× target with noninferior quality. This remains unachieved and is not a 2.3.3 tagging gate under the approved scope amendment. A 10× result may be reported only if measured under the same rules.
 - **SC-004:** Independent nonanswer, multilingual, correction and ambiguous-relation fixtures improve or retain quality; topical overlap alone no longer produces direct support in the specified nonanswer fixture.
 - **SC-005:** Counting-embedder and failpoint tests prove unchanged records are not redundantly embedded on a one-record update, and no partial index result becomes canonical success.
 - **SC-006:** Dashboard and CLI present the same authenticated benchmark summary and case evidence on desktop and mobile; a viewer never sees protected plaintext.
@@ -63,6 +106,47 @@ The dashboard and CLI explain whether strong semantic search is configured, whet
 
 ## Scope limits and compatibility
 
+### Core hybrid retrieval amendment (2026-09-17)
+
+- **FR-021:** The host-neutral `eligible_candidates` path must rank independent authorized lexical and semantic nominations using a versioned deterministic fusion rule, rather than mixing raw lexical and cosine scores. A lexical-only result must be able to enter even when absent from semantic nominations, and vice versa. `Memory.recall` remains the legacy lexical/graph API; this amendment must not silently market it as semantic retrieval.
+- **FR-022:** Authorization and lifecycle filtering must precede channel limits and fusion. Excluded, inactive, other-subject, other-workspace or remote-egress-denied records must not affect returned ranks or scores. Scoped lexical corpus statistics must not include denied records. Revalidate canonical content before candidate publication and retain the existing final context validation. Diagnostic hashing never establishes semantic answer support.
+- **FR-023:** Rank evidence must name the fusion version, channel ranks and raw channel signals separately. Rank fusion is a nomination prior, never an answer-support probability. Existing `min_score` must not be applied to tiny raw RRF values as though they were cosine similarity. Missing or incompatible semantic indexes must preserve useful lexical retrieval without fabricating semantic evidence.
+- **FR-024:** Test exact identifiers, semantic paraphrases, complementary matches, duplicate candidates, empty results, contradictory/stale facts, denied scopes and media-derived text. Compare pre-change ordering and core hybrid ordering on frozen fixtures; report quality and latency separately. Mem0 parity/superiority remains an empirical target; historical semantic-only timing results are not transferable to this new path.
+
+The independently executable core-hybrid slice is T029–T033. Existing NumPy
+matrix caching remains off by default. No schema, package dependency, external
+egress or release change is authorized. New fusion must not change delegated
+provider-owned context or pretend to understand raw multimodal bytes.
+
+Compatibility: add validated `RecallRequest.retrieval_strategy="core-rrf-v1"`.
+Default `legacy` preserves existing graph and adapter behavior. Opted-in mixed
+requests use new lexical/fact/semantic fusion;
+requested graph was initially deferred; the graph amendment below replaces that
+deferral. Legacy graph-only and `Memory.recall` retain their
+existing behavior, outside FR-022's new fusion guarantees. This changes candidate
+ordering and may reduce graph-only coverage on mixed requests; it must be tested
+and disclosed rather than called complete feature parity. `min_score` gates native
+lexical/fact 0–1 composite priors; semantic nomination uses a versioned 0.0 floor
+and the existing calibrated production threshold still governs answer support.
+Cap the authorized corpus at 10,000 records / 8 MiB content-plus-fact-key bytes;
+overflow is an explicit error, never silent truncation or success. Streaming
+authorization precedes this cap, and the ephemeral index closes after each call.
+
+An explicit self-age query must not become directly supported solely by a
+relative's age. A bounded original-query subject guard is covered by the core
+fixtures; it is not a general semantic entailment or negation guarantee.
+
 Base install stays local-first and Python 3.10–3.13 compatible. Optional models and Mem0 stay out of default dependencies. No new automatic admission, hidden egress, semantic deletion, causal inference or migration of live memory is authorized by this feature. Existing SQLite Home, evidence and delegated contracts must remain readable. Any new persisted derivative needs versioned migration and verified deletion; prefer a no-schema beta slice if equivalent quality/speed can be obtained safely.
 
-**Benchmark interpretation:** A 2× quality improvement cannot be claimed for a bounded metric already near 1.0; the numerical multiplier is a speed target. Quality is a noninferiority and per-category improvement gate. If the speed or quality gate is unmet, the beta release is blocked pending more work or an explicit scope revision. No “beats Mem0” claim is permitted without the specific comparable profile result.
+**Benchmark interpretation:** A 2× quality improvement cannot be claimed for a bounded metric already near 1.0; the numerical multiplier is a future speed target. Quality remains a noninferiority and per-category improvement gate for default promotion. The approved stable scope does not claim the outstanding comparative gates passed. No “beats Mem0” claim is permitted without the specific comparable profile result.
+
+### Scoped graph nomination amendment (2026-09-17)
+
+- **FR-025:** Opted-in core fusion must accept graph-only and mixed graph requests. Derive an ephemeral associative graph exclusively from the authorized canonical corpus using the existing conservative fact extractor. Hidden edges, aliases, entity merges and global graph statistics must not affect nominations, scores or paths. Persisted alias/merge support is explicitly not included in this slice; legacy graph remains unchanged.
+- **FR-026:** Graph nomination must independently discover connected records within two edges, with deterministic seeds, stable ties, cycle prevention and no traversal back through the user-root supernode. Bound seeds to 16, edge visits to 256 and output to min(candidate_limit, 256). Report budget truncation rather than imply exhaustive traversal. Path evidence must identify canonical supporting records, normalized entities and relations. Revalidate all supporting records before publication; path connectivity is not answer support or causal proof.
+- **FR-027:** Prove independent two-edge discovery, denied-bridge/alias noninterference, scope/egress/lifecycle isolation, cycles/root-fanout bounds, deterministic truncation and stale-path rejection. Compare legacy, fusion without graph and fusion with graph on frozen calibration plus explicit graph fixtures. Report extraction coverage and latency; no graph-quality claim from a corpus with no extracted edges. Keep defaults and matrix caching unchanged until broader quality/release gates pass.
+
+T036–T039 execute this bounded amendment independently. T035 remains open for
+reuse/scaling and adapter activation. Graph-only core requests now become valid;
+non-graph core requests retain their existing ordering. No persisted schema,
+dependency, egress, delegated-provider or release-version changes are included.

@@ -1,4 +1,17 @@
-# Tasks: 2.3.3 Beta Retrieval and Mem0 Comparison
+# Tasks: 2.3.3 Retrieval Improvements and Continuing Research
+
+## Approved stable release scope — 2026-09-17
+
+The owner approved moving the 2× target to future work. T001–T039 retain their
+honest research status; unchecked broad research tasks are not silently completed.
+The original beta release sequence T018–T023 is superseded for stable 2.3.3 by
+T040–T044. Default-promotion and comparative-claim gates remain in force.
+
+- [x] [T040] Record approved stable scope, retaining default retrieval and disabling matrix reuse by default; preserve historical benchmark results.
+- [x] [T041] Align AtMem/bridge 2.3.3 and unchanged AtBot 0.1.0; audit current docs and write `docs/releases/v2.3.3.md` with exact upgrade, compatibility and opt-in boundaries.
+- [ ] [T042] Run Python, companion, host/framework, UI, deterministic benchmark, build, metadata and installed/upgrade checks on the reviewed candidate.
+- [ ] [T043] Review the exact release diff, commit/push, and pass release workflow preflight from a clean candidate before tagging.
+- [ ] [T044] Publish annotated `v2.3.3`, await publish workflow, verify stable GitHub release and PyPI/npm artifacts, and report exact identities. AtBot is unchanged and requires no new tag.
 
 **Evidence:** append observed commands, exact identities, results and limitations under `docs/implementation-evidence/031/`; historical measurements remain unchanged. A checked task means implementation and its named independent validation passed, not merely that code exists.
 
@@ -44,5 +57,30 @@
 - [ ] [T023] Review the final diff, task/evidence coverage, benchmark claims and unresolved limits. A beta tag/push/publish happens only under the repository release procedure when expressly requested as a release, and only after all required gates pass (FR-017, SC-001–SC-007).
 
 ## Dependencies and checkpoints
+
+## Core hybrid amendment: independently scoped execution
+
+- [x] [T029] Review FR-021–FR-024 design with Claude CLI read-only until substantive concerns are resolved; record analysis and review history in `docs/implementation-evidence/031/core-hybrid-review.md`.
+- [x] [T030] Add failing fusion, independent nomination, scope isolation, support and fallback fixtures in `tests/test_retrieval_candidate_union.py` (FR-021–FR-024).
+- [x] [T031] Implement scoped lexical/fact/semantic nomination and deterministic fusion in `atmem/retrieve/fusion.py`, `atmem/retrieve/hybrid.py`, `atmem/memory.py`, request contracts/schema, store streaming and `atmem/semantic/index.py`, preserving canonical revalidation (FR-021–FR-023).
+- [x] [T032] Measure frozen quality fixtures and latency, run relevant native/control/semantic/delegated contracts, and document actual results and comparison limits in `docs/implementation-evidence/031/core-hybrid-benchmark.md` (FR-024). Measurement completed, not quality clearance; interrupted delegated-control check remains disclosed.
+- [x] [T033] Obtain read-only Claude implementation review, fix substantive defects and re-review; reconcile tasks/docs without claiming full Spec 031 or release completion (FR-021–FR-024).
+- [ ] [T034] Resolve measured core-fusion MRR regression through separately reviewed calibration in `atmem/retrieve/fusion.py` and validate on frozen unseen cases before adapter/default activation; rerun a genuinely matched Mem0 comparison (FR-007, FR-024).
+- [ ] [T035] Integrate independently scope-safe graph nominations and measure corpus reuse/scaling before replacing legacy mixed graph requests in `atmem/memory.py`/`atmem/control/manager.py`; retain graph coverage and authority (FR-008, FR-021–FR-022).
+
+## Scoped graph amendment: independently scoped execution
+
+- [x] [T036] Review FR-025–FR-027 design and consistency; incorporate initial Claude feedback. Further Claude review waived by user on 2026-09-17 after session limit; locally check revised safeguards before code. Evidence: `docs/implementation-evidence/031/graph-nomination.md`.
+- [x] [T037] Add graph-only/mixed nomination, hidden-bridge, lifecycle/egress, root/cycle/budget and stale-path tests in `tests/test_retrieval_graph_fusion.py`; implement `atmem/retrieve/graph.py` and integrate contracts, `hybrid.py` and protected audit path evidence (FR-025–FR-026).
+- [x] [T038] Run graph/core/semantic/contract regressions and calibration with `tools/benchmark_core_hybrid.py`, including a fourth no-graph legacy control; retain quality, graph coverage and latency in `docs/implementation-evidence/031/graph-nomination.md` (FR-027). Measurement complete, quality/default-promotion gate not passed.
+- [x] [T039] Review implementation locally (further Claude review waived by user), resolve substantive findings, rerun affected gates and recommend the next release default in evidence/status docs without claiming release completion (FR-025–FR-027).
+
+## NumPy amendment: independently scoped execution
+
+- [x] [T024] Specify FR-018–FR-020, obtain iterative read-only Claude review and resolve substantive findings before implementation; record feedback in `docs/implementation-evidence/031/numpy-review.md`.
+- [x] [T025] Add cached/uncached equivalence, malformed vector, identity invalidation, optional dependency and bounded cleanup fixtures in `tests/test_semantic_matrix_cache.py` (FR-018–FR-019).
+- [x] [T026] Implement bounded instance-local matrix reuse in `atmem/semantic/index.py`, without changing candidate selection or final validation; pass T025 (FR-018–FR-019).
+- [x] [T027] Measure cold/reused/distinct-query and alternating-subject matrix preparation and search, run semantic/search/rebuild regression tests, and record commands/results/backend coverage/limits in `docs/implementation-evidence/031/numpy-benchmark.md` (FR-020).
+- [x] [T028] Review implementation and spec consistency; mark only this slice complete when verified. No release/version changes; broader tasks remain open (FR-018–FR-020).
 
 T001–T004 establish a frozen baseline. T005–T007 precede production edits. T008–T010 establish quality. T011–T015 optimize and measure one change at a time. T016–T019 expose measured facts. T020–T023 are final verification. T008/T009 and T011/T013 may be developed independently after fixtures, but their final benchmark is sequential on one immutable candidate. If T015 does not meet 2× on a comparable boundary, the report must say so and T019 cannot claim the target.

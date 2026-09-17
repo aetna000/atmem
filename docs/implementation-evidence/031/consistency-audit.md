@@ -1,5 +1,9 @@
 # 2.3.3b1 documentation and Spec Kit consistency audit
 
+> Historical planning audit. The stable scope amendment and current release
+> audit are recorded in [release-2.3.3.md](release-2.3.3.md). The original
+> observations below remain unchanged and are not current tagging requirements.
+
 **Status:** in progress; this is not release acceptance.
 
 On 2026-09-17, a read-only local-link scan of all 211 tracked Markdown files

@@ -473,6 +473,31 @@ body:has(.memorychat.collapsed){padding-bottom:70px}
 @media(max-width:760px){.activityrow .activitytime{display:flex}.activityclock{font-size:11px}}
 @media(max-width:780px){.insightmetrics{grid-template-columns:1fr 1fr}.healthcharthead{display:block}.chartlegend{margin-top:8px}}
 
+/* The archive can be narrow on a wide screen when evidence is open. Size its
+   contents against the pane, not the viewport or the drawer's former parent. */
+#blackboxArchiveCard{container-type:inline-size;min-width:0;align-self:start}
+.flightfilters>.field{min-width:0}
+.flightfilters input,.flightfilters select{min-width:0;max-width:100%;width:100%}
+.flightidentity>.mono{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.flightstat{min-width:0;overflow-wrap:anywhere}
+@container (max-width:850px){
+  .flightfilters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .flightfilters>.field:first-child{grid-column:1/-1}
+  .flightfilters>button{align-self:end;white-space:normal}
+  .blackboxhead{flex-direction:column;gap:8px}
+  .flight,.blackboxworkspace.detail-open .flight{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:start;padding:12px}
+  .flight>.flightidentity{grid-column:1/-1}
+  .flight>.flightstat,.blackboxworkspace.detail-open .flight>.flightstat{display:block}
+  .flight>.secondary,.blackboxworkspace.detail-open .flight>.secondary{grid-column:1/-1;grid-row:auto;justify-self:start;max-width:100%;white-space:normal}
+  .flighttimestamp{white-space:normal}
+}
+@container (max-width:380px){
+  .flightfilters{grid-template-columns:minmax(0,1fr)}
+  .flight,.blackboxworkspace.detail-open .flight{grid-template-columns:minmax(0,1fr)}
+  .flightstat{display:flex;gap:8px;justify-content:space-between}
+  .flightstat small{flex-shrink:0}
+}
+
 .activitylegend{margin:12px 0 18px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-size:12px;line-height:1.5}
 .activitylegend .legendlabel{font-weight:600;color:var(--ink)}
 .activitylegend ul{display:flex;flex-wrap:wrap;gap:6px 16px;list-style:none;margin:7px 0;padding:0}

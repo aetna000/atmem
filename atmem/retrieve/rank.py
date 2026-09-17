@@ -270,6 +270,18 @@ def _requested_relation_supported(query: str, content: str, fact_key: str) -> bo
     not a semantic entailment claim. Other questions retain normal calibration.
     """
     evidence = f"{content} {fact_key.replace('_', ' ')}"
+    # An explicit self-age question is not answered by a relative's age.
+    # Keep this bounded: it is a local subject guard, not general entailment.
+    if re.search(r"\b(?:my age|how old am i)\b", query, re.IGNORECASE):
+        other_person = re.search(
+            r"\b(?:daughter|son|child|mother|father|wife|husband|sister|brother|friend|boss)\b",
+            evidence, re.IGNORECASE,
+        )
+        self_age = re.search(
+            r"\b(?:i am|i'm|my age is)\s+\d{1,3}\b", content, re.IGNORECASE
+        )
+        if other_person and not self_age:
+            return False
     if _AGE_QUERY_RE.search(query) and not _AGE_EVIDENCE_RE.search(evidence):
         return False
     if _RESIDENCE_QUERY_RE.search(query) and not _RESIDENCE_EVIDENCE_RE.search(evidence):

@@ -3,7 +3,7 @@
 **Spec:** [spec.md](spec.md)
 **Constitution:** [AtMem Constitution](../../.specify/memory/constitution.md)
 **Research input:** [pinned Mem0 2.0.20 source](https://github.com/mem0ai/mem0/tree/0df3e4b87df20785f0741370c75e44428796193e) and [benchmark baseline](../../docs/implementation-evidence/031/baseline.md)
-**Target:** beta source candidate `2.3.3b1`; publication only after all release gates and an explicit release request.
+**Target:** stable `2.3.3`, matching bridge `2.3.3`, unchanged AtBot `0.1.0`, under the approved stable scope amendment in spec.md. Original beta research planning below remains future work where not completed; it is not the stable release completion checklist.
 
 ## Technical context and baseline
 
@@ -63,9 +63,160 @@ Audit all tracked Markdown for live version and status claims, stale beta pins, 
 6. Run full Python, AtBot, OpenClaw build/typecheck/hooks, framework/MCP contracts, dashboard, docs, build metadata and installed-artifact gates. Audit persisted upgrade if a schema changed.
 7. Prepare aligned beta version constants and release note only for a reviewed passing candidate. Under the repository release rule, no tag/push/publication occurs merely because a plan or candidate is complete.
 
-Quality gate: zero unauthorized, stale or cross-scope exposures; existing floors do not regress; held-out relation nonanswer is withheld; beneficial recall remains. Speed gate: calculate the FR-006 ratio only when timed boundaries and configurations match; 2× is required for release-candidate clearance and 10× is stretch. If unmet, report the actual metric and keep the beta untagged until the implementation improves or the user explicitly revises the scope. Never tune on the held-out questions after looking at the results.
+Quality gate: zero unauthorized, stale or cross-scope exposures; existing deterministic and adapter floors do not regress. Keep retrieval defaults unchanged. The owner approved moving the FR-006 2× target to future work on 2026-09-17; it is not a stable 2.3.3 tagging gate. Held-out comparative quality and native full-preparation performance remain required before general superiority claims or default promotion. Never tune on held-out questions after looking at the results. Stable publication uses T040–T044 below in tasks.md, including all ordinary regression and artifact gates.
 
 ## Consistency decisions
+
+### Core lexical–semantic fusion amendment
+
+Implement a deterministic normalized RRF helper in `atmem/retrieve/fusion.py`:
+one contribution per channel per ID, reciprocal rank constant 60, stable ID ties,
+and explicit versioned evidence. Normalize by the maximum possible contribution
+for participating channels, yielding a bounded nomination prior, not confidence.
+Preserve raw semantic similarity as a separate signal for original-query support.
+
+Integrate through `Memory.eligible_candidates`, the native adapter/control path.
+Before ranking, load active records for the subject and filter existing workspace,
+exclusion and egress rules. Build an ephemeral in-memory FTS5 corpus from only
+authorized content so BM25 statistics cannot be changed by hidden records. This
+prioritizes correctness; measure the corpus preparation cost and do not claim a
+speed win. No persistent plaintext index is introduced. FTS unavailable falls back
+to deterministic lexical overlap on the same authorized corpus. Fact-key matches
+nominate independently. Semantic search gains an optional allowed-ID restriction
+applied before the top-k quota, with normal epoch/model/canonical validation.
+
+Fusion runs for explicit `RecallRequest.retrieval_strategy="core-rrf-v1"`
+requests with lexical, semantic or (under the amendment below) graph enabled. Default `legacy` and all adapters
+remain unchanged pending graph integration and comparative quality clearance.
+The new validated additive request field exposes a core engine, not just a
+benchmark adapter. Never call legacy `recall_candidates` to construct lexical ranks: it
+backfills nonmatching recent rows and synthesizes fact scores. Lexical nominations
+require actual content matches; fact-key nominations require separate key matches.
+Initial fused channels are lexical, fact-key and semantic; the amendment below
+adds an independently scoped graph channel without reusing global graph ranks.
+Legacy graph-only requests and `Memory.recall`
+keep legacy behavior. This is a declared opt-in candidate ordering/graph-coverage
+change, not full graph feature parity. Broad T006/T009 remain open for independent
+authorized graph integration. Retain trust/recency only on the authorized corpus.
+
+Apply `min_score` to the existing `rank_records` 0–1 composite on authorized
+content-only lexical matches or fact-only matches (never raw BM25). Semantic
+nominations use a separately versioned 0.0 cosine floor; the existing 0.72
+production support gate remains downstream and is not a nomination threshold.
+Diagnostic hashing never
+nominates via the semantic channel. Record both thresholds and channel status
+(active/no_epoch/incompatible/unavailable/diagnostic/disabled). Never threshold
+raw RRF. Allowed semantic IDs mean all authorized active records, not lexical
+nominees. Preserve legacy unscoped-record visibility explicitly in tests.
+Across expanded queries in the manager, retain the earliest query's candidate
+and append matched_queries instead of comparing incomparable RRF scores.
+This merge change belongs to future adapter activation (T035); existing legacy
+expansion behavior is not changed by this opt-in slice.
+After fusion, batch
+reload canonical rows, reject changed/deleted/denied content, attach channel
+evidence to candidate signals and publish through the existing receipt contract.
+Use no new model calls, dependencies or matrix-cache activation. First run a
+read-only Claude design loop and Spec Kit coverage analysis, then fixtures,
+implementation, latency/quality checks and a second read-only Claude code review.
+Stream active subject records and authorize before collecting the scoped corpus.
+Cap authorized corpus at 10,000 records and 8 MiB UTF-8 content plus fact keys;
+above either cap, fail explicitly with a corpus-limit error rather than truncate
+or claim a complete result. This bounds retained corpus, not the time needed to
+scan denied records. Build FTS once per opted-in call, close it in finally. No
+adapter expansion loop is enabled on this strategy in this slice; cross-call
+corpus reuse remains separate work with its own invalidation requirements.
+Record fusion version, thresholds and actual channel ranks in both candidate
+signals and audit payload. This scoped slice does not claim legacy graph-only
+ranking has the new noninterference property. Tests use file-backed semantic
+indexes and assert participation rather than silently exercising lexical only.
+
+Publish pure RRF scores without the separate session-support aggregation bonus;
+record `support_aggregation_version: null` for this path. The graph amendment makes
+explicit graph-only core requests valid. Distinguish semantic integrity failures, egress denials and model
+incompatibility. Extend the bounded age support guard for explicit self-versus-
+relative questions; regression tests include a valid self-age statement too.
+
+### Scoped graph nomination implementation
+
+Execute T036–T039 with the revised design. On 2026-09-17 the user waived further
+Claude reviews after its session limit; retain its first-review findings and
+perform local implementation review and tests instead. Add
+`atmem/retrieve/graph.py`, consuming only the already-authorized record list.
+Reuse `extract_graph_fact`; normalize entity text locally, create one edge per
+extractable record and adjacency lists. Do not read global entities, aliases,
+merges or graph FTS. Seed from query/entity token matches and query/relationship
+matches (including relation aliases such as my boss); root `you` is never a seed
+or intermediate fanout. Relationship matches nominate their edge directly and
+seed its non-root endpoints. Two-edge breadth-first traversal records the full
+support path, with depth decay, stable record-ID ties and no repeated edge/node
+within a path. Bound seeds to 16 and unique visited edges to 256; output quota is
+min(request.candidate_limit, 256). Expose disabled/empty/active status plus a separate truncation flag, extracted
+edge count and paths. Counts use only authorized records. No raw query logging.
+
+Integrate as the fourth independent RRF channel in `hybrid.collect`; preserve
+non-graph results and lexical min_score/semantic floor semantics. Graph scores
+are deterministic nomination priors, not support confidence; no min_score reuse.
+Batch revalidate all path supporting records for content, scope, lifecycle and
+generation before publishing. Existing final preparation authorization remains.
+Paths with canonical entity/relation text are in authorized candidate signals;
+audit graph metadata contains only counts, bounds, status and supporting record
+IDs, never query text or matched seed tokens. Graph extraction/traversal creates
+no persistent derivative.
+
+Claude design clarifications: explicitly update graph-only contract validation;
+populate `raw_scores['graph']` for every nominated ID. Reload the union of fused
+IDs and all path-support IDs, rejecting any missing/changed/denied record rather
+than silently dropping a path. Nodes use existing `_normalize(surface)` only,
+not kind-keyed identity. The two-edge fixture joins at Sarah, not the user-root.
+Record graph status disabled/empty/active separately from `graph_truncated`,
+`graph_extracted_edges`, `graph_seeds_used`, `graph_visited_edges` and
+`graph_min_score_applied: false`. Count adjacency examinations as well as unique
+visited edges under the 256-work budget to bound repeated traversals. Prefix
+edges from relation seeds count toward two-edge path length. Truncation includes
+seed, work and output caps. Return one deterministic best path per record.
+
+Extend `tools/benchmark_core_hybrid.py` to three named profiles, rotate profile
+order by case/repetition, report graph edge/candidate coverage and retain raw
+results separately from earlier reports. Test graph-specific recovery outside
+lexical quota, invisible bridge removal, bounds and mutations. Frozen calibration
+is diagnostic; held-out and matched end-to-end remain future default-promotion and comparative-claim gates, not stable 2.3.3 tagging gates.
+Review implementation locally after tests; record review, measurements
+and recommendation in `docs/implementation-evidence/031/graph-nomination.md`.
+
+### NumPy amendment implementation
+
+Execute T024–T028 independently of unfinished broader beta work. Keep the
+current full-sort selection algorithm. Add a private one-entry matrix cache to
+`SemanticIndex`, passed into `_exact_similarities`. Cache immutable float64
+matrix storage, removing the implicit per-query float32-to-float64 conversion;
+use the same float64 query and matrix.dot operation as today and test equality.
+The cache is opt-in via `cache_vectors=True`; default native one-shot instances
+pass no cache and incur no key comparison/publication cost. Explicit purge,
+policy invalidation and generation discard clear the local cache immediately.
+Key by existing search identity, dimensions and exact ordered immutable vector blobs;
+check every blob length before lookup. Compare tuples of bytes directly, avoiding
+the measured SHA-256 bottleneck and repeated finite-value scanning on reuse. All SQLite reads,
+model identity checks and final canonical validation remain unchanged. Use the
+existing 256-row threshold and a 32 MiB cache ceiling; clear old entries on misses,
+oversized inputs and close. No process-global cache or changes to service lifetime.
+Publish a tuple containing identity, source-blob tuple and read-only matrix only after finite-value
+validation, by a single assignment; bind locally on read. This does not make the
+SQLite-backed index thread-safe or introduce a new concurrent-use contract.
+Keep the one-entry design for minimal retention and explicitly measure alternating
+subjects. Count matrix bytes, retained blob objects and tuple overhead against the
+ceiling before allocating the float64 matrix; transient query and score storage
+are excluded. Blob equality checks every byte even if generation counters lie.
+
+Tests compare cached and uncached NumPy results exactly, force absent NumPy,
+exercise malformed/nonfinite data after a hit, subject/generation isolation,
+close cleanup and size bypass. Benchmark fixed deterministic vectors with distinct
+queries; report first-call import separately and no new external model expenditure.
+Keep review history in `numpy-review.md` and measurements in `numpy-benchmark.md`.
+Report fetch/decrypt contribution for full-search profiles where measured, and
+label unavailable backend evidence rather than implying coverage.
+If reuse is slower, report it and do not claim acceleration; broader matrix lifetime
+and top-k changes remain deferred. Native preparation creates short-lived index
+instances, so this slice must not promise cross-turn cache hits there.
 
 - Spec 001 owns benchmark contracts and intentionally forbids production retrieval changes **within that spec**; Spec 031 owns the new production changes and consumes Spec 001 result formats.
 - Spec 008's checked tasks document its earlier implementation; new regression cases and calibration revisions belong here without rewriting completed history. Spec 002 supporting evidence remains a ranking signal, not causal proof.

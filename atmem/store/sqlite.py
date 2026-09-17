@@ -2528,6 +2528,18 @@ class SQLiteStore:
         ).fetchall()
         return [_record_from_row(row) for row in rows]
 
+    def iter_records(self, subject_id: str):
+        """Stream active records for scope-filtered bounded retrieval."""
+        cursor = self._conn.execute(
+            "SELECT * FROM records WHERE subject_id = ? AND status = 'active' ORDER BY id",
+            (subject_id,),
+        )
+        try:
+            for row in cursor:
+                yield _record_from_row(row)
+        finally:
+            cursor.close()
+
     def recall_candidates(
         self,
         subject_id: str,

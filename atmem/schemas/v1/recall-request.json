@@ -16,7 +16,8 @@
     "reranker_provider": {"type": "string"},
     "reranker_model": {"type": "string"},
     "egress_class": {"enum": ["local", "remote", "none"]},
-    "min_score": {"type": "number"}
+    "min_score": {"type": "number"},
+    "retrieval_strategy": {"enum": ["legacy", "core-rrf-v1"]}
   },
   "additionalProperties": false
 }

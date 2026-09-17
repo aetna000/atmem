@@ -24,6 +24,17 @@ INDEX_FORMAT = "atmem-semantic-index-v1"
 INDEXABLE_STATUSES = ("active", "quarantined", "superseded")
 
 
+class _MatrixCache:
+    """One instance-local immutable entry; no authorization or query results."""
+
+    def __init__(self, max_bytes: int = 32 * 1024 * 1024) -> None:
+        self.max_bytes = max_bytes
+        self.entry: tuple[tuple[Any, ...], Any] | None = None
+
+    def clear(self) -> None:
+        self.entry = None
+
+
 class SemanticIndexIntegrityError(ValueError):
     """The derived index is inconsistent with its declared epoch."""
 
@@ -37,9 +48,12 @@ def default_index_path(memory_path: str | Path) -> Path:
 
 class SemanticIndex:
     def __init__(
-        self, path: str | Path, *, policy: HouseholdPolicy | None = None
+        self, path: str | Path, *, policy: HouseholdPolicy | None = None,
+        cache_vectors: bool = False,
     ) -> None:
         self.path = str(Path(path).expanduser().resolve())
+        self._matrix_cache = _MatrixCache()
+        self._cache_vectors = cache_vectors
         self.policy = policy or HouseholdPolicy.load(path)
         self._household_lock = HouseholdLock(self.policy).acquire()
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
@@ -58,6 +72,7 @@ class SemanticIndex:
         self._migrate()
 
     def close(self) -> None:
+        self._matrix_cache.clear()
         try:
             self._conn.close()
         finally:
@@ -80,6 +95,7 @@ class SemanticIndex:
         )
 
     def discard_generation(self, subject_id: str, generation_id: str) -> None:
+        self._matrix_cache.clear()
         with self.transaction():
             row = self._conn.execute(
                 "SELECT status FROM vector_epochs WHERE subject_id=? AND epoch_id=?",
@@ -112,7 +128,7 @@ class SemanticIndex:
 
     def invalidate_for_policy_change(self, subject_id: str) -> dict[str, Any]:
         """Mark epochs built under a different household policy as dirty."""
-
+        self._matrix_cache.clear()
         current = self.policy_fingerprint()
         invalidated: list[str] = []
         rows = self._conn.execute(
@@ -581,6 +597,7 @@ class SemanticIndex:
         statuses: Sequence[str] | None = None,
         limit: int = 100,
         min_similarity: float = 0.2,
+        allowed_ids: set[str] | None = None,
     ) -> list[dict[str, Any]]:
         epoch = self.active_epoch(subject_id)
         if epoch is None:
@@ -618,6 +635,8 @@ class SemanticIndex:
             (epoch["epoch_id"], subject_id),
         ).fetchall()
         epoch_dimensions = int(epoch["dimensions"])
+        if allowed_ids is not None:
+            rows = [row for row in rows if str(row['object_id']) in allowed_ids]
         for row in rows:
             record_id = str(row["object_id"])
             row_dimensions = int(row["dimensions"])
@@ -631,6 +650,8 @@ class SemanticIndex:
             query_vector,
             [row["vector"] for row in rows],
             epoch_dimensions,
+            cache=self._matrix_cache if self._cache_vectors else None,
+            identity=cache_scope,
         )
         # Vector similarity is a nomination only. Reload canonical records in
         # score order and validate them before returning any candidate. This
@@ -845,6 +866,7 @@ class SemanticIndex:
         return body
 
     def purge(self, subject_id: str, record_ids: Sequence[str]) -> dict[str, Any]:
+        self._matrix_cache.clear()
         ids = sorted({str(value) for value in record_ids})
         if not ids:
             return {
@@ -1165,10 +1187,15 @@ def _exact_similarities(
     query_vector: Sequence[float],
     blobs: Sequence[bytes],
     dimensions: int,
+    *,
+    cache: _MatrixCache | None = None,
+    identity: str = "",
 ) -> list[float]:
     """Compute exact dot products, using an optional vectorized block at scale."""
     expected_bytes = dimensions * 4
     if any(len(blob) != expected_bytes for blob in blobs):
+        if cache is not None:
+            cache.clear()
         raise SemanticIndexIntegrityError(
             "stored vector payload length does not match the active epoch"
         )
@@ -1178,14 +1205,32 @@ def _exact_similarities(
         except ImportError:
             pass
         else:
+            key = None
+            source_blobs = tuple(bytes(blob) for blob in blobs) if cache is not None else ()
+            retained_bytes = (len(blobs) * dimensions * 8 + sys.getsizeof(source_blobs)
+                              + (len(blobs) * sys.getsizeof(source_blobs[0]) if source_blobs else 0))
+            if cache is not None and retained_bytes <= cache.max_bytes:
+                key = (identity, dimensions, len(blobs), source_blobs)
+                entry = cache.entry
+                if entry is not None and entry[0] == key:
+                    query = np.asarray(query_vector, dtype=np.float64)
+                    return [float(value) for value in entry[1].dot(query)]
+            if cache is not None:
+                cache.clear()
             matrix = np.frombuffer(b"".join(blobs), dtype="<f4")
             matrix = matrix.reshape((len(blobs), dimensions))
             if not bool(np.isfinite(matrix).all()):
                 raise SemanticIndexIntegrityError(
                     "stored vector contains a non-finite value"
                 )
+            if key is not None:
+                matrix = matrix.astype(np.float64, order="C")
+                matrix.flags.writeable = False
+                cache.entry = (key, matrix)
             query = np.asarray(query_vector, dtype=np.float64)
             return [float(value) for value in matrix.dot(query)]
+    if cache is not None:
+        cache.clear()
     sumprod = getattr(math, "sumprod", None)
     if sumprod is not None:
         return [

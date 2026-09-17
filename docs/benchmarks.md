@@ -7,6 +7,15 @@ databases. It does not read your real memory database.
 
 ## Run the release gate
 
+For the unreleased Spec 031 core-fusion experiment, see the
+[profile, raw evidence and limitations](implementation-evidence/031/core-hybrid-benchmark.md).
+It is opt-in and has not passed comparative accuracy clearance. The historical
+semantic-only retrieval speed ratio does not apply to that candidate pipeline.
+The subsequent [scoped graph ablation](implementation-evidence/031/graph-nomination.md)
+compares legacy and new fusion both with and without graph. It records passing
+safety fixtures but a ranking regression from broad graph contributions; no
+Mem0 superiority or default-rollout claim follows.
+
 ```bash
 atmem benchmark run --output benchmark.json
 ```
@@ -98,7 +107,10 @@ candidate campaign pins Mem0 OSS 2.0.20 and records its exploratory
 The [corrected matched-input calibration comparison](implementation-evidence/031/matched-v2.md)
 separates semantic-only Mem0 from an enabled-hybrid run, and first versus
 repeated search from corpus ingestion/index time. Neither 12-case result establishes a
-general Mem0 win or the proposed 2× full-preparation beta gate.
+general comparative win or the 2× full-preparation target. On 2026-09-17 the
+owner moved that target to future work and approved stable 2.3.3 with unchanged
+retrieval defaults. Historical beta manifest filenames remain immutable experiment
+identities, not package versions. See [the release scope](releases/v2.3.3.md).
 
 For the 2.3.3 development comparison, use the checked-in
 [frozen manifest](../atmem/benchmark/data/mem0-head-to-head-2.3.3b1-v1.json)

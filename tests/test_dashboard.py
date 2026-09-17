@@ -108,6 +108,15 @@ def test_blackbox_opens_exact_protected_evidence_without_persisting_credentials(
     assert "Encrypted request retained. Authenticate above" in script
 
 
+def test_archive_layout_responds_to_pane_width_not_only_viewport() -> None:
+    css = files("atmem.control").joinpath("assets/app.css").read_text(encoding="utf-8")
+    assert "#blackboxArchiveCard{container-type:inline-size;min-width:0;align-self:start}" in css
+    assert "@container (max-width:850px)" in css
+    assert "@container (max-width:380px)" in css
+    assert ".flight>.flightidentity{grid-column:1/-1}" in css
+    assert ".flightfilters>.field:first-child{grid-column:1/-1}" in css
+
+
 def test_dashboard_has_local_sign_in_user_management_and_stable_evidence_layout() -> None:
     html = files("atmem.control").joinpath("assets/app.html").read_text(encoding="utf-8")
     script = files("atmem.control").joinpath("assets/app.js").read_text(encoding="utf-8")

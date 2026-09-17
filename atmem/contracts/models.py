@@ -212,9 +212,22 @@ class RecallRequest(Contract):
     reranker_model: str = "none"
     egress_class: Literal["local", "remote", "none"] = "local"
     min_score: float = 0.0
+    retrieval_strategy: Literal['legacy', 'core-rrf-v1'] = 'legacy'
+
+    def to_dict(self) -> dict[str, Any]:
+        value = Contract.to_dict(self)
+        if self.retrieval_strategy == 'legacy':
+            value.pop('retrieval_strategy')
+        return value
 
     def __post_init__(self) -> None:
         _required_id("request_id", self.request_id)
+        if self.retrieval_strategy not in {'legacy', 'core-rrf-v1'}:
+            raise ValueError('unknown retrieval strategy')
+        if self.retrieval_strategy == 'core-rrf-v1' and not 1 <= int(self.candidate_limit) <= 2000:
+            raise ValueError('candidate_limit must be between 1 and 2000')
+        if self.retrieval_strategy == 'core-rrf-v1' and not {'lexical', 'semantic', 'graph'}.intersection(self.signals):
+            raise ValueError('core-rrf-v1 requires lexical, semantic or graph signals')
         if not str(self.query).strip():
             raise ValueError("query is required")
         if not 1 <= int(self.limit) <= 100:
