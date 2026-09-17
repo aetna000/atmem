@@ -7,5 +7,5 @@
 - [x] T006 Implement responsive documentation UI/search/copy (FR-006).
 - [x] T007 Add CI, release gate and owner-only publishing runbook (FR-005,008–009).
 - [x] T008 Run content, security, build and browser checks; record evidence (FR-010).
-- [ ] T009 Commit scoped changes using each repo identity; submit for owner merge (FR-009).
+- [x] T009 Commit scoped changes using each repo identity; submit public PR #3 for owner merge (FR-009). Private branch is pushed; its PR creation awaits owner API access.
 - [ ] T010 After owner merges, deploy main through approved Firebase workflow and verify (FR-005,010).

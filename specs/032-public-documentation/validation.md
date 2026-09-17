@@ -26,7 +26,10 @@ operations are fully described by it. No live API requests originate from docs.
 External citation liveness is not a blocking CI test.
 
 Production publication is NOT complete. Owner must merge the public PR, then refresh
-the private source pin/lock to the merged revision and merge that PR. Remote main
+the private source pin/lock. Public PR: https://github.com/aetna000/atmem/pull/3.
+The website-docs GitHub workflow passed on the pushed public branch. Private review:
+https://github.com/javadtaghia/atmemai-platform/compare/main...004-public-documentation.
+Owner must then merge the private PR. Remote main
 protections and the production environment/WIF need verified setup. Public main
 currently reported protected:false; current GitHub CLI account cannot inspect the
 private repository (404), although Git SSH read access works. No self-merge, Firebase
