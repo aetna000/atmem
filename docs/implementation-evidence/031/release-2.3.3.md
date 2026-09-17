@@ -60,3 +60,45 @@ The workspace's unrelated research and MemoryBench adapter files are excluded
 from this release. Candidate creation and publication use a clean worktree, not
 a wheel built from those unrelated untracked files. Ordinary safety/artifact gates
 are unchanged by the approved performance-target deferral.
+
+## Completed publication — 2026-09-17
+
+- Branch: `benchmark`; released commit:
+  `b5729b1a839fab7a74b722dc01ae59db8929e11e`.
+- Annotated tag: `v2.3.3`, created from the clean reviewed worktree. It was not moved.
+- Final-commit [preflight 35186482696](https://github.com/aetna000/atmem/actions/runs/35186482696)
+  and [branch CI 35186480612](https://github.com/aetna000/atmem/actions/runs/35186480612)
+  passed before tagging.
+- [Publication workflow 35187496436](https://github.com/aetna000/atmem/actions/runs/35187496436)
+  completed successfully, including PyPI, npm and GitHub publication.
+- [GitHub release](https://github.com/aetna000/atmem/releases/tag/v2.3.3):
+  `isPrerelease=false`, `isDraft=false`.
+- PyPI: `atmem==2.3.3`, wheel and source distribution both present and not yanked.
+  Their hashes match the tested workflow artifacts downloaded for verification:
+  wheel `059658c4f03c633b9c9e938ca209e882234c583cece679bceb419fa2c9501c58`;
+  sdist `3a241acc8b4d682223d183bd9fda7ae5416f8383a0c1766a9c72a9515b5bf73f`.
+- npm: `openclaw-memory-atmem@2.3.3`, `latest=2.3.3`; public tarball downloaded
+  successfully, SHA-1 `8f2961d0320ca3e209a8d64b6dafb739277644f0`.
+- Published companion `atmem-atbot==0.1.0` verified; no companion source change
+  or new companion tag.
+- Fresh installation of the published PyPI wheel from the public index passed
+  dependency validation, memory smoke and HMAC/replay/health/delivery smoke.
+  Initial package-client queries briefly lacked the newly published versions;
+  public-registry rechecks and downloads subsequently succeeded.
+
+### Retained CI timing observations
+
+One duplicate branch-CI Python 3.13 attempt was cancelled while investigating its
+long runtime. Its completed test output was 1,575 passed / 23 skipped; cancellation
+arrived during completion. Its fresh-runner rerun passed and restored green CI.
+
+The first tagged Python 3.10 attempt reported one timing-budget failure:
+`transition_commit` p95 60.628 ms against an unchanged 25 ms budget, with
+1,574 other tests passed and 23 skipped. Its automatic retry was progressing
+when the slow worker was cancelled for inspection. The unchanged full suite was
+rerun on a fresh runner: 1,575 passed / 23 skipped, transition p95 3.214 ms.
+No test was removed and no latency threshold was relaxed. The prior timing miss
+remains recorded; passing reruns do not establish universal latency guarantees.
+
+This completion record is a post-publication documentation update. The release
+tag remains on the exact preflight-reviewed commit above.

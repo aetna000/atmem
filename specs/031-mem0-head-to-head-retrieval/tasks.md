@@ -10,8 +10,8 @@ T040–T044. Default-promotion and comparative-claim gates remain in force.
 - [x] [T040] Record approved stable scope, retaining default retrieval and disabling matrix reuse by default; preserve historical benchmark results.
 - [x] [T041] Align AtMem/bridge 2.3.3 and unchanged AtBot 0.1.0; audit current docs and write `docs/releases/v2.3.3.md` with exact upgrade, compatibility and opt-in boundaries.
 - [x] [T042] Run Python, companion, host/framework, UI, deterministic benchmark, build, metadata and installed/upgrade checks on the reviewed candidate. Evidence: `release-2.3.3.md`; preflight 35186097845 passed.
-- [x] [T043] Review the exact release diff, commit/push, and pass release workflow preflight from a clean candidate before tagging. Candidate `6431296` passed; the evidence-only follow-up must also pass before tagging.
-- [ ] [T044] Publish annotated `v2.3.3`, await publish workflow, verify stable GitHub release and PyPI/npm artifacts, and report exact identities. AtBot is unchanged and requires no new tag.
+- [x] [T043] Review the exact release diff, commit/push, and pass release workflow preflight from a clean candidate before tagging. Candidate `6431296` passed; final `b5729b1` passed preflight 35186482696 and branch CI 35186480612 before tagging.
+- [x] [T044] Publish annotated `v2.3.3`, await publish workflow, verify stable GitHub release and PyPI/npm artifacts, and report exact identities. Workflow 35187496436 succeeded; both public packages resolve as stable 2.3.3. AtBot is unchanged at 0.1.0 and requires no new tag. Full verification and retry history: `release-2.3.3.md`.
 
 **Evidence:** append observed commands, exact identities, results and limitations under `docs/implementation-evidence/031/`; historical measurements remain unchanged. A checked task means implementation and its named independent validation passed, not merely that code exists.
 
