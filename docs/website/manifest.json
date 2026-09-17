@@ -1,0 +1,245 @@
+{
+  "schema": 1,
+  "version": "2.3.3",
+  "sections": {
+    "": "Documentation",
+    "getting-started": "Getting started",
+    "integrations": "Integrations",
+    "reference": "Reference",
+    "examples": "Examples",
+    "releases": "Releases"
+  },
+  "pages": [
+    {
+      "slug": "",
+      "title": "Introduction",
+      "source": "docs/website/index.md"
+    },
+    {
+      "slug": "getting-started",
+      "title": "Your first memory",
+      "source": "docs/website/getting-started.md"
+    },
+    {
+      "slug": "getting-started/atbot",
+      "title": "AtBot companion",
+      "source": "docs/website/atbot.md"
+    },
+    {
+      "slug": "getting-started/troubleshooting",
+      "title": "Troubleshooting",
+      "source": "docs/website/troubleshooting.md"
+    },
+    {
+      "slug": "integrations",
+      "title": "Choose an integration",
+      "source": "docs/website/integrations.md"
+    },
+    {
+      "slug": "integrations/openclaw",
+      "title": "OpenClaw",
+      "source": "docs/openclaw-setup.md"
+    },
+    {
+      "slug": "integrations/frameworks",
+      "title": "Pydantic AI & LangGraph",
+      "source": "docs/framework-adapters.md"
+    },
+    {
+      "slug": "integrations/generic",
+      "title": "Custom host adapter",
+      "source": "docs/generic-adapter.md"
+    },
+    {
+      "slug": "integrations/delegated-providers",
+      "title": "Delegated context",
+      "source": "docs/delegated-context-provider.md"
+    },
+    {
+      "slug": "integrations/providers",
+      "title": "Provider adapters",
+      "source": "docs/context-provider-adapters.md"
+    },
+    {
+      "slug": "integrations/guide",
+      "title": "Integration architecture",
+      "source": "docs/integration-guide.md"
+    },
+    {
+      "slug": "reference",
+      "title": "Reference overview",
+      "source": "docs/website/reference.md"
+    },
+    {
+      "slug": "reference/cli",
+      "title": "CLI",
+      "source": "docs/website/cli.md"
+    },
+    {
+      "slug": "reference/python",
+      "title": "Python API",
+      "source": "docs/website/python.md"
+    },
+    {
+      "slug": "reference/mcp",
+      "title": "MCP profiles",
+      "source": "docs/website/mcp.md"
+    },
+    {
+      "slug": "reference/http",
+      "title": "HTTP API",
+      "source": "docs/http-api.md"
+    },
+    {
+      "slug": "reference/control-plane",
+      "title": "Control plane",
+      "source": "docs/control-plane.md"
+    },
+    {
+      "slug": "reference/retrieval",
+      "title": "Retrieval quality",
+      "source": "docs/retrieval-quality.md"
+    },
+    {
+      "slug": "reference/semantic-search",
+      "title": "Semantic search",
+      "source": "docs/semantic-search.md"
+    },
+    {
+      "slug": "reference/graph",
+      "title": "Entity graph",
+      "source": "docs/entity-relationship-memory.md"
+    },
+    {
+      "slug": "reference/extraction",
+      "title": "Extraction & lifecycle",
+      "source": "docs/memory-extraction.md"
+    },
+    {
+      "slug": "reference/tasks",
+      "title": "Governed tasks",
+      "source": "docs/governed-task-state.md"
+    },
+    {
+      "slug": "reference/multimodal",
+      "title": "Multimodal observations",
+      "source": "docs/multimodal-observations.md"
+    },
+    {
+      "slug": "reference/evidence",
+      "title": "Evidence & access",
+      "source": "docs/website/evidence.md"
+    },
+    {
+      "slug": "reference/blackbox",
+      "title": "Agent Black Box",
+      "source": "docs/agent-blackbox.md"
+    },
+    {
+      "slug": "reference/dashboard",
+      "title": "Dashboard",
+      "source": "docs/website/dashboard.md"
+    },
+    {
+      "slug": "reference/storage",
+      "title": "Storage & recovery",
+      "source": "docs/data-storage-and-backup.md"
+    },
+    {
+      "slug": "reference/auditing",
+      "title": "Audit interpretation",
+      "source": "docs/auditing-guide.md"
+    },
+    {
+      "slug": "reference/audit-search",
+      "title": "Audit search",
+      "source": "docs/audit-search.md"
+    },
+    {
+      "slug": "reference/production",
+      "title": "Production profile",
+      "source": "docs/production-service.md"
+    },
+    {
+      "slug": "reference/interchange",
+      "title": "Memory migration",
+      "source": "docs/memory-interchange.md"
+    },
+    {
+      "slug": "reference/benchmarks",
+      "title": "Benchmarks",
+      "source": "docs/benchmarks.md"
+    },
+    {
+      "slug": "reference/delegated-auth",
+      "title": "Delegated HMAC",
+      "source": "docs/contracts/delegated-request-auth-v1.md"
+    },
+    {
+      "slug": "reference/delegated-contract",
+      "title": "Delegated contract",
+      "source": "docs/contracts/delegated-context-provider-v1.md"
+    },
+    {
+      "slug": "examples",
+      "title": "Examples",
+      "source": "docs/website/examples.md"
+    },
+    {
+      "slug": "examples/openclaw",
+      "title": "OpenClaw walkthrough",
+      "source": "docs/examples/onboarding/openclaw.md"
+    },
+    {
+      "slug": "examples/pydantic-ai",
+      "title": "Pydantic AI walkthrough",
+      "source": "docs/examples/onboarding/pydantic-ai.md"
+    },
+    {
+      "slug": "examples/langgraph",
+      "title": "LangGraph walkthrough",
+      "source": "docs/examples/onboarding/langgraph.md"
+    },
+    {
+      "slug": "examples/http",
+      "title": "HTTP walkthrough",
+      "source": "docs/examples/onboarding/http.md"
+    },
+    {
+      "slug": "releases",
+      "title": "Release overview",
+      "source": "docs/website/releases.md"
+    },
+    {
+      "slug": "releases/2.3.3",
+      "title": "AtMem 2.3.3",
+      "source": "docs/releases/v2.3.3.md"
+    },
+    {
+      "slug": "releases/2.3.2",
+      "title": "AtMem 2.3.2",
+      "source": "docs/releases/v2.3.2.md"
+    },
+    {
+      "slug": "releases/2.3.1",
+      "title": "AtMem 2.3.1",
+      "source": "docs/releases/v2.3.1.md"
+    },
+    {
+      "slug": "releases/2.3.0",
+      "title": "AtMem 2.3.0",
+      "source": "docs/releases/v2.3.0.md"
+    },
+    {
+      "slug": "releases/2.2.6",
+      "title": "AtMem 2.2.6",
+      "source": "docs/releases/v2.2.6.md"
+    }
+  ],
+  "assets": [
+    "docs/contracts/atmem-api-v1.openapi.yaml",
+    "docs/contracts/delegated-context-provider-v1.schema.json",
+    "docs/contracts/delegated-context-request-v1.schema.json"
+  ],
+  "redirects": {}
+}

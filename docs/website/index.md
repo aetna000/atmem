@@ -1,0 +1,26 @@
+# Memory and evidence, under your control
+
+AtMem is a host-neutral Agent Black Box and reversible memory control plane.
+Keep scoped memories useful across sessions, control which context reaches an agent,
+and investigate the evidence a supported host captured.
+
+## Start with a working example
+[Install and run your first memory](getting-started.md). The Python example runs
+without an API key or a model download. Then [connect an agent](integrations.md)
+and review shadow mode before enabling context injection.
+
+## Explore the documentation
+- [Getting started](getting-started.md): installation, first memory and troubleshooting.
+- [Integrations](integrations.md): OpenClaw, frameworks, MCP and delegated providers.
+- [Reference](reference.md): commands, HTTP, retrieval, evidence and storage.
+- [Examples](examples.md): small runnable workflows and expected results.
+- [Releases](releases.md): changes, compatibility and upgrade instructions.
+
+## Know what the evidence proves
+AtMem retains what supported host boundaries supply. A tool returning successfully
+is not independent proof that a purchase or message succeeded externally.
+Missing historical content cannot be reconstructed from a hash.
+Read [evidence and roles](evidence.md) before choosing a capture profile.
+
+These are latest-stable guides. For older installations, read that version's release
+notes and upgrade instructions; full historic guide sets are not published here.

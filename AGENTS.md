@@ -16,6 +16,12 @@ For every release created by an agent:
    behavior, compatibility, and honest limitations.
 3. Run the applicable Python, companion, OpenClaw, build, metadata, and
    installed-artifact gates. Do not tag a failing or dirty commit.
+   Update `docs/website/manifest.json` to the release version, review affected
+   public guides and examples, and run `python scripts/check_website_docs.py`.
+   Official website documentation is a release deliverable: prepare a separate
+   owner-reviewed source-pin refresh in the private website repository. Only its
+   `main` may publish to Firebase; do not self-merge or claim docs are live before
+   production verification. Record pending website publication explicitly.
 4. Commit and push the release changes before creating tags.
 5. When AtBot changes, create and push the annotated
    `atbot-v<ATBOT_VERSION>` tag first. Wait for `publish-atmem-atbot` to succeed

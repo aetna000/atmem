@@ -1,0 +1,11 @@
+# Tasks
+- [x] T001 Inspect constitutions, existing docs and Git identities (FR-009).
+- [x] T002 Record read-only Claude design/security review in research.md (FR-004–006).
+- [x] T003 Add public docs/website manifest and complete section guides (FR-001–003).
+- [x] T004 Add public validation and offline quickstart test (FR-007–008).
+- [x] T005 Implement private source importer and safe renderer (FR-003–005).
+- [x] T006 Implement responsive documentation UI/search/copy (FR-006).
+- [x] T007 Add CI, release gate and owner-only publishing runbook (FR-005,008–009).
+- [x] T008 Run content, security, build and browser checks; record evidence (FR-010).
+- [ ] T009 Commit scoped changes using each repo identity; submit for owner merge (FR-009).
+- [ ] T010 After owner merges, deploy main through approved Firebase workflow and verify (FR-005,010).

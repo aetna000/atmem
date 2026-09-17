@@ -8,14 +8,14 @@ servers:
 security:
   - bearerAuth: []
 paths:
-  /v1/lifecycle:
+  /lifecycle:
     get: {summary: Inspect point-in-time memory lifecycle, responses: {'200': {description: Lifecycle timeline}}}
     post: {summary: Apply a generation-checked lifecycle transition, responses: {'200': {description: Transition receipt}, '403': {description: Admin required}}}
-  /v1/interchange/plan:
+  /interchange/plan:
     post: {summary: Dry-run a scoped neutral import, responses: {'200': {description: Deterministic import plan}, '403': {description: Admin required}}}
-  /v1/media/revoke:
+  /media/revoke:
     post: {summary: Revoke a media reference and derived observations, responses: {'200': {description: Revocation receipt}, '403': {description: Admin required}}}
-  /v1/features/{feature}:
+  /features/{feature}:
     get:
       summary: Read a runtime-derived feature capability
       parameters:

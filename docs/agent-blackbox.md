@@ -1,6 +1,6 @@
 # Agent Black Box
 
-AtMem Agent Black Box records a content-minimizing, tamper-evident flight
+AtMem Agent Black Box records a tamper-evident flight
 timeline from lifecycle hooks exposed by a runtime adapter. OpenClaw installs
 those hooks automatically; custom runtimes emit the same events through
 `atmem control mcp`.
@@ -9,7 +9,21 @@ It answers a narrow operational question:
 
 > What did the host observe the agent and its tools doing during this run?
 
-## What is recorded
+## Exact evidence and the compatible projection
+
+In 2.3.3, configured recording defaults to encrypted full-fidelity capture:
+available prompt, context, model exchange, tool arguments/results and ordered
+multimodal originals are retained in the protected vault. Supported OpenClaw
+capture includes original media bytes. Other adapters have their own coverage;
+do not infer full multimodal capture from delivery support alone.
+
+Investigators can view/play retained evidence inside AtMem; Evidence Collectors
+and Administrators can additionally export plaintext. Viewers see only metadata
+and hashes. Data-off capture is explicitly not reconstructable; recorder-off
+captures no new evidence. See [roles and settings](website/evidence.md).
+
+The following table describes the compatible content-minimizing projection,
+not the exact encrypted evidence document.
 
 Depending on which hooks the runtime emits, a flight can contain:
 
@@ -23,9 +37,9 @@ Depending on which hooks the runtime emits, a flight can contain:
 | `model.output` | assistant-visible-text digest, model-output-bundle digest, provider/model, size and token usage |
 | `turn.ended` | message-bundle digest, success/cancel state and reason |
 
-Raw prompts, responses, tool parameters and tool results are not stored in the
-Black Box. Adapters must hash derived local paths before recording an event.
-The OpenClaw bridge does this before data leaves the plugin. The timeline is
+Raw prompts, responses, tool parameters and tool results are not stored in this
+legacy projection. Available exact values are stored separately inside the
+protected evidence boundary when capture is enabled. The timeline is
 appended to the control evidence store and protected by a migration- and
 kind-scoped hash chain.
 
