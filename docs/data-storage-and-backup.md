@@ -1,6 +1,41 @@
 # Data storage and backup
 
-Default locations:
+## Portable Home (2.3.3)
+
+New durable state resolves from `ATMEM_HOME`, otherwise `~/.atmem`. The Home
+contains `config/`, `identity/`, `memory/`, `evidence/`, `artifacts/`,
+`migrations/` and disposable `runtime/`/`indexes/` directories.
+Original media is retained within the encrypted evidence boundary and artifact
+vault; a host path is provenance, not a substitute for retained bytes.
+
+```bash
+atmem home status
+atmem home verify
+atmem restore /path/to/copied-atmem-home
+```
+
+Stop all writers before copying a Home. Keep the complete Home, including its
+identity and protected key material, not just one SQLite file. On the target
+computer, sign in with an Administrator from the copy. Restore opens a disposable
+runtime binding; it does not silently migrate or overwrite your original Home.
+
+For older layouts, use copy-first migration and verify before commitment:
+
+```bash
+atmem home migrate --home ~/.atmem /path/to/new-portable-home
+atmem home verify --home /path/to/new-portable-home
+atmem home migrate --home ~/.atmem /path/to/new-portable-home --commit
+atmem home adopt --home /path/to/new-portable-home
+```
+
+Migration keeps the source. Adoption rotates sessions and changes machine-local
+bindings, not historical evidence bytes. Backups retain data deleted later from
+the live store; manage their retention separately. Key loss cannot be repaired
+by inventing captured content.
+
+## Legacy standalone database layouts
+
+Older installations and explicitly selected standalone databases may use:
 
 ```text
 ~/.atmem/memories.db

@@ -1,9 +1,13 @@
 # Governed multimodal observations
 
 AtMem stores scoped artifact references and derived observations for images,
-audio, video, files and tool artifacts. Original bytes remain in host custody
-by default. A controlled copy, thumbnail or transcode requires an explicit
-storage policy and a receipt naming the copied-byte digest.
+audio, video, files and tool artifacts. In the 2.3.3 configured full-fidelity
+Black Box profile, available original bytes are copied into protected AtMem
+evidence and its artifact vault. The host reference remains provenance, not
+a recovery dependency. Metadata-only/off capture cannot claim original-byte
+reconstruction. Derived observations and exact evidence are distinct: a caption
+does not replace the image, audio or video. A thumbnail or transcode must name
+its source and copied-byte digest.
 
 Supported locators are secret-free `host`, `openclaw`, `file` and `tool`
 references resolved through a bounded host callback. Credentials, query

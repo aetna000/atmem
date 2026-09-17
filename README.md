@@ -638,6 +638,11 @@ system-of-record verification.
 
 ## Documentation map
 
+Official website documentation is maintained through the public
+[documentation inventory](docs/website/manifest.json). See
+[how to contribute and update release docs](docs/website-contributing.md).
+Website publication follows a separate owner-reviewed, main-only deployment.
+
 - [Current implementation status](docs/current-status.md)
 - [Generic runtime adapter](docs/generic-adapter.md)
 - [Delegated context-provider contract](docs/contracts/delegated-context-provider-v1.md)

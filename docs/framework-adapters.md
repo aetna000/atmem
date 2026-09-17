@@ -15,7 +15,8 @@ AtBot. AtBot remains AtMem's private inference and ranking component.
 
 Both adapters preserve the framework's own conversation history, checkpoints,
 workflow state, tools, and model selection. AtMem supplies only governed
-cross-session memory and content-minimizing evidence.
+cross-session memory and lifecycle evidence. Exact capture coverage depends on
+the adapter; the OpenClaw full-fidelity profile is not implied for frameworks.
 
 ## Install
 
