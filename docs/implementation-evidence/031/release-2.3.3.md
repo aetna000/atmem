@@ -32,6 +32,23 @@ AtBot source is unchanged from the 2.3.2 release and remains published 0.1.0.
 
 ## Publication gates
 
+The complete [pre-tag workflow](https://github.com/aetna000/atmem/actions/runs/35186097845)
+passed for source commit `64312964ba4065c8f2c3dd8f59d717e460792649`.
+All Python 3.10–3.13, companion, optional framework/provider, bridge, build,
+installed-wheel and six persisted-upgrade profiles succeeded. Publication jobs
+were intentionally skipped for this workflow-dispatch run. A separate local
+installed-wheel dependency check, HMAC/delegated smoke and authentic 2.3.2-to-2.3.3
+upgrade also passed. The wheel rebuilt from the source distribution successfully.
+NumPy cache tests ran locally with NumPy installed: 10 passed.
+
+Local clean-build artifacts (not the registry artifact identities):
+
+- Wheel SHA-256: `b66dcf475658776b83ea0500f8b204ac86552024d7359f20603bbaaeff6780c6`.
+- Sdist SHA-256: `c04887add984a2c86f041eb54c6205d29cba01f47d6561320235d6ee019b5d56`.
+
+This evidence-only update does not change runtime code. The final documentation
+commit must pass preflight as well before the tag is created.
+
 The `publish` workflow must pass on the clean candidate before tagging, covering
 Python 3.10–3.13, optional framework/provider dependencies, companion/bridge,
 build/sdist/metadata, installed wheels and persisted upgrades including 2.3.2.
