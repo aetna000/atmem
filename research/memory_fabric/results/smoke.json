@@ -1,0 +1,441 @@
+{
+  "accounting": {
+    "horizon_s": 0.6284697079788893,
+    "lanes": {
+      "bulk": {
+        "admitted_completed_latency": {
+          "max_s": null,
+          "n": 0,
+          "p50_s": null,
+          "p95_s": null,
+          "p99_s": null
+        },
+        "all_offered_verified_completion_bound": {
+          "p50": {
+            "seconds": null,
+            "status": "empty"
+          },
+          "p95": {
+            "seconds": null,
+            "status": "empty"
+          },
+          "p99": {
+            "seconds": null,
+            "status": "empty"
+          }
+        },
+        "authorized_ontime_goodput_per_s": 0.0,
+        "completed_bytes_per_s": 0.0,
+        "completed_latency": {
+          "max_s": null,
+          "n": 0,
+          "p50_s": null,
+          "p95_s": null,
+          "p99_s": null
+        },
+        "completed_per_s": 0.0,
+        "failed_verification_count": 0,
+        "generator_lag": {
+          "max_s": null,
+          "n": 0,
+          "p50_s": null,
+          "p95_s": null,
+          "p99_s": null
+        },
+        "interactive_deadline_offered": 0,
+        "interactive_deadline_success_lower_bound": null,
+        "known_deadline_miss_count": 0,
+        "known_goodput_lower_bound_per_s": 0.0,
+        "known_verified_ontime_count": 0,
+        "late_completion_count": 0,
+        "offered": 0,
+        "oldest_censored_age_s": null,
+        "outcome_counts": {
+          "cancelled": 0,
+          "censored": 0,
+          "completed": 0,
+          "error": 0,
+          "expired": 0,
+          "refused": 0
+        },
+        "outcome_rates": {
+          "cancelled": null,
+          "censored": null,
+          "completed": null,
+          "error": null,
+          "expired": null,
+          "refused": null
+        },
+        "queue_wait": {
+          "max_s": null,
+          "n": 0,
+          "p50_s": null,
+          "p95_s": null,
+          "p99_s": null
+        },
+        "service_until_terminal": {
+          "max_s": null,
+          "n": 0,
+          "p50_s": null,
+          "p95_s": null,
+          "p99_s": null
+        },
+        "unknown_verification_count": 0,
+        "verification_counts": {
+          "failed": 0,
+          "unknown": 0,
+          "verified_late": 0,
+          "verified_ontime": 0
+        }
+      },
+      "fast": {
+        "admitted_completed_latency": {
+          "max_s": 0.022197165992110968,
+          "n": 4,
+          "p50_s": 0.011541750049218535,
+          "p95_s": 0.022197165992110968,
+          "p99_s": 0.022197165992110968
+        },
+        "all_offered_verified_completion_bound": {
+          "p50": {
+            "seconds": null,
+            "status": "unknown_verification"
+          },
+          "p95": {
+            "seconds": null,
+            "status": "unknown_verification"
+          },
+          "p99": {
+            "seconds": null,
+            "status": "unknown_verification"
+          }
+        },
+        "authorized_ontime_goodput_per_s": null,
+        "completed_bytes_per_s": 1362.0385980938217,
+        "completed_latency": {
+          "max_s": 0.02726904102601113,
+          "n": 4,
+          "p50_s": 0.014649582980200637,
+          "p95_s": 0.02726904102601113,
+          "p99_s": 0.02726904102601113
+        },
+        "completed_per_s": 6.364666346232812,
+        "failed_verification_count": 0,
+        "generator_lag": {
+          "max_s": 0.005071875033900164,
+          "n": 4,
+          "p50_s": 0.005027749994769681,
+          "p95_s": 0.005071875033900164,
+          "p99_s": 0.005071875033900164
+        },
+        "interactive_deadline_offered": 4,
+        "interactive_deadline_success_lower_bound": 0.0,
+        "known_deadline_miss_count": 0,
+        "known_goodput_lower_bound_per_s": 0.0,
+        "known_verified_ontime_count": 0,
+        "late_completion_count": 0,
+        "offered": 4,
+        "oldest_censored_age_s": null,
+        "outcome_counts": {
+          "cancelled": 0,
+          "censored": 0,
+          "completed": 4,
+          "error": 0,
+          "expired": 0,
+          "refused": 0
+        },
+        "outcome_rates": {
+          "cancelled": 0.0,
+          "censored": 0.0,
+          "completed": 1.0,
+          "error": 0.0,
+          "expired": 0.0,
+          "refused": 0.0
+        },
+        "queue_wait": {
+          "max_s": 0.0003090829122811556,
+          "n": 4,
+          "p50_s": 0.00013270799536257982,
+          "p95_s": 0.0003090829122811556,
+          "p99_s": 0.0003090829122811556
+        },
+        "service_until_terminal": {
+          "max_s": 0.021888083079829812,
+          "n": 4,
+          "p50_s": 0.011442249990068376,
+          "p95_s": 0.021888083079829812,
+          "p99_s": 0.021888083079829812
+        },
+        "unknown_verification_count": 4,
+        "verification_counts": {
+          "failed": 0,
+          "unknown": 4,
+          "verified_late": 0,
+          "verified_ontime": 0
+        }
+      }
+    },
+    "record_sha256": "5c84996157fec42b4eb2df0dcf7811d4234bfd802d310a01a269a92281a0a86d",
+    "summary": {
+      "admitted_completed_latency": {
+        "max_s": 0.022197165992110968,
+        "n": 4,
+        "p50_s": 0.011541750049218535,
+        "p95_s": 0.022197165992110968,
+        "p99_s": 0.022197165992110968
+      },
+      "all_offered_verified_completion_bound": {
+        "p50": {
+          "seconds": null,
+          "status": "unknown_verification"
+        },
+        "p95": {
+          "seconds": null,
+          "status": "unknown_verification"
+        },
+        "p99": {
+          "seconds": null,
+          "status": "unknown_verification"
+        }
+      },
+      "authorized_ontime_goodput_per_s": null,
+      "completed_bytes_per_s": 1362.0385980938217,
+      "completed_latency": {
+        "max_s": 0.02726904102601113,
+        "n": 4,
+        "p50_s": 0.014649582980200637,
+        "p95_s": 0.02726904102601113,
+        "p99_s": 0.02726904102601113
+      },
+      "completed_per_s": 6.364666346232812,
+      "failed_verification_count": 0,
+      "generator_lag": {
+        "max_s": 0.005071875033900164,
+        "n": 4,
+        "p50_s": 0.005027749994769681,
+        "p95_s": 0.005071875033900164,
+        "p99_s": 0.005071875033900164
+      },
+      "interactive_deadline_offered": 4,
+      "interactive_deadline_success_lower_bound": 0.0,
+      "known_deadline_miss_count": 0,
+      "known_goodput_lower_bound_per_s": 0.0,
+      "known_verified_ontime_count": 0,
+      "late_completion_count": 0,
+      "offered": 4,
+      "oldest_censored_age_s": null,
+      "outcome_counts": {
+        "cancelled": 0,
+        "censored": 0,
+        "completed": 4,
+        "error": 0,
+        "expired": 0,
+        "refused": 0
+      },
+      "outcome_rates": {
+        "cancelled": 0.0,
+        "censored": 0.0,
+        "completed": 1.0,
+        "error": 0.0,
+        "expired": 0.0,
+        "refused": 0.0
+      },
+      "queue_wait": {
+        "max_s": 0.0003090829122811556,
+        "n": 4,
+        "p50_s": 0.00013270799536257982,
+        "p95_s": 0.0003090829122811556,
+        "p99_s": 0.0003090829122811556
+      },
+      "service_until_terminal": {
+        "max_s": 0.021888083079829812,
+        "n": 4,
+        "p50_s": 0.011442249990068376,
+        "p95_s": 0.021888083079829812,
+        "p99_s": 0.021888083079829812
+      },
+      "unknown_verification_count": 4,
+      "verification_counts": {
+        "failed": 0,
+        "unknown": 4,
+        "verified_late": 0,
+        "verified_ontime": 0
+      }
+    },
+    "workload_sha256": "a47991ccc8792d2c0d5d2922b3b3cdeabc1e2ba58fdeb5fe2078291d5c777b60"
+  },
+  "authority_race_verified": false,
+  "capture": {
+    "encrypted": true,
+    "media_exact": {
+      "audio": false,
+      "image": false,
+      "video": false
+    },
+    "mode": "full",
+    "reconstructed_count": 4
+  },
+  "environment": {
+    "machine": "x86_64",
+    "max_outstanding": 4,
+    "offered": 4,
+    "python": "3.12.2",
+    "rate_per_s": 5.0,
+    "seed": 17,
+    "seed_records": 8,
+    "system": "Darwin",
+    "workers": 1
+  },
+  "fixture": {
+    "media_sha256": {
+      "audio": "67ea1ac0b35e2724aafed6a912a92ad6aad9b9c99c0b7497c1345751ec1586e0",
+      "image": "9057b9b3c82756376a7a083b72ab9e43a92296fefdcb1b34b56d1f0a71d4d09e",
+      "video": "2e4bfe1409406ceae9e21d6e2e4a04593406b175dc1cf19ec0c576ec4876b585"
+    },
+    "memory": {
+      "active_records": 8
+    }
+  },
+  "format": "atmem-memory-fabric-local-baseline-v1",
+  "host_delivery_measured": false,
+  "measurement_kind": "real_local_composed_component_measurement",
+  "observations": [
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 3.424996975809336e-05,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r1",
+        "revocation_ack_s": null,
+        "started_s": 0.00020283297635614872,
+        "terminal_s": 0.012629332952201366
+      },
+      "request": {
+        "arrival_s": 0.0,
+        "deadline_s": 1.0,
+        "lane": "fast",
+        "request_id": "r1"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.2050277499947697,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r2",
+        "revocation_ack_s": null,
+        "started_s": 0.20516045799013227,
+        "terminal_s": 0.21464958298020065
+      },
+      "request": {
+        "arrival_s": 0.2,
+        "deadline_s": 1.2,
+        "lane": "fast",
+        "request_id": "r2"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.4050504999468103,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r3",
+        "revocation_ack_s": null,
+        "started_s": 0.40515000000596046,
+        "terminal_s": 0.41659224999602884
+      },
+      "request": {
+        "arrival_s": 0.4,
+        "deadline_s": 1.4,
+        "lane": "fast",
+        "request_id": "r3"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.6050718750339001,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r4",
+        "revocation_ack_s": null,
+        "started_s": 0.6053809579461813,
+        "terminal_s": 0.6272690410260111
+      },
+      "request": {
+        "arrival_s": 0.6,
+        "deadline_s": 1.6,
+        "lane": "fast",
+        "request_id": "r4"
+      }
+    }
+  ],
+  "provenance": {
+    "cpu_count": 8,
+    "dependency_sha256": null,
+    "source_dirty": true,
+    "source_revision": "8a17f440e56e79cbaa39d0f39ef86bb05e2684ea"
+  },
+  "scheduling_policy": "bounded_thread_pool_fifo_submission",
+  "scope": "Memory build_recall_block/remember plus encrypted EvidenceService.capture",
+  "stage_samples": [
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 3.297,
+      "memory_ms": 9.111,
+      "operation": "recall",
+      "request_id": "r1"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 1.638,
+      "memory_ms": 7.835,
+      "operation": "recall",
+      "request_id": "r2"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 1.994,
+      "memory_ms": 9.429,
+      "operation": "recall",
+      "request_id": "r3"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 2.594,
+      "memory_ms": 19.27,
+      "operation": "recall",
+      "request_id": "r4"
+    }
+  ],
+  "unknown_stages": [
+    "database_lock_wait",
+    "index_lookup",
+    "ranking",
+    "encryption_within_evidence",
+    "host_hook_delivery"
+  ]
+}

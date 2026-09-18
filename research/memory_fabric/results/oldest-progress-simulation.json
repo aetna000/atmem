@@ -1,0 +1,31 @@
+{
+  "measurement": "deterministic_simulation_not_product_performance",
+  "scenario": "oldest_write_under_continuous_small_bulk_arrivals",
+  "tasks": 501,
+  "results": {
+    "fifo": {
+      "oldest_write_start_s": 0.0,
+      "oldest_write_end_s": 0.05,
+      "completed": 501,
+      "makespan_s": 0.5500000000000004
+    },
+    "legacy": {
+      "oldest_write_start_s": 0.5000000000000003,
+      "oldest_write_end_s": 0.5500000000000004,
+      "completed": 501,
+      "makespan_s": 0.5500000000000004
+    },
+    "homa": {
+      "oldest_write_start_s": 0.001,
+      "oldest_write_end_s": 0.051000000000000004,
+      "completed": 501,
+      "makespan_s": 0.5500000000000004
+    },
+    "fair": {
+      "oldest_write_start_s": 0.001,
+      "oldest_write_end_s": 0.051000000000000004,
+      "completed": 501,
+      "makespan_s": 0.5500000000000004
+    }
+  }
+}

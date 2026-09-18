@@ -1,0 +1,684 @@
+{
+  "acceptance": {
+    "all_scenarios_must_pass": true,
+    "bulk_mean_ratio_upper_ci": 1.05,
+    "bulk_throughput_ratio_lower_ci": 0.95,
+    "no_extra_refusals_errors_or_quality_failures": true,
+    "recall_p95_ratio_upper_ci": 0.9
+  },
+  "bulk_guardrail_scope": "aggregate bulk AND writes AND artifacts individually",
+  "calibration_seed": 7,
+  "estimates": {
+    "artifact": 0.02114558347966522,
+    "artifact:large": 0.05270325002493337,
+    "artifact:small": 0.018161312502343208,
+    "recall": 0.03135931253200397,
+    "recall:small": 0.03135931253200397,
+    "write": 0.04022627096856013,
+    "write:small": 0.04022627096856013
+  },
+  "format": "fabric-fairness-manifest-v1",
+  "held_out_seeds": [
+    101,
+    103,
+    107,
+    109,
+    113
+  ],
+  "limitations": [
+    "warm, independent read/write subjects",
+    "single non-preemptible worker",
+    "input payload cap excludes preloaded fixture memory",
+    "no release authorization proof",
+    "bulk p95 per-trial sample sizes are small; bulk mean is guardrail"
+  ],
+  "manifest_sha256": "b3c1ec6b4cc2c1cfd0eedf78c11e820405cac638afdfe022cefe157930c36ef5",
+  "order_seed": 73021,
+  "policy_parameters": {
+    "bulk_fraction": 0.4,
+    "credit_cap_s": 0.005,
+    "fifo_fraction": 0.05
+  },
+  "primary": "homa vs fifo, paired recall p95 ratio at mixed-high",
+  "secondary": "fair fixed-40%-bulk ablation; all other scenarios",
+  "source_digest": {
+    "analyze_fairness.py": "a8fb9bc7f6c6d89cab5d046293bd6e2dd68308cacf22a1a985f01c0267f18dbd",
+    "homa_experiment.py": "b007104527d0fe58a2616cff3d10b74a22f80d0b9a8f029748ad4017038fec72",
+    "local_baseline.py": "70e2bc21b5c9ad384469bf4f2ec637630028cfaa25d3b5834c55704459bedc93",
+    "run_fairness_suite.py": "709f058c0b38e92f8f218ed79ec42b6e1b261d74a5ac279b0bfa9753e470262a",
+    "scheduling.py": "008543583328c78ca82714c4634c036f1abb421828cae9762e153c500b899410"
+  },
+  "trials": [
+    {
+      "count": 160,
+      "group": "aa",
+      "name": "aa-a-101",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 101
+    },
+    {
+      "count": 160,
+      "group": "aa",
+      "name": "aa-b-101",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 101
+    },
+    {
+      "count": 160,
+      "group": "aa",
+      "name": "aa-a-103",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "aa",
+      "name": "aa-b-103",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "aa",
+      "name": "aa-a-107",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "aa",
+      "name": "aa-b-107",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "aa",
+      "name": "aa-a-109",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "aa",
+      "name": "aa-b-109",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "aa",
+      "name": "aa-a-113",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "aa",
+      "name": "aa-b-113",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-101-fair",
+      "policy": "fair",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 101
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-101-fifo",
+      "policy": "fifo",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 101
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-101-homa",
+      "policy": "homa",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 101
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-107-fair",
+      "policy": "fair",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-107-homa",
+      "policy": "homa",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-107-fifo",
+      "policy": "fifo",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-103-homa",
+      "policy": "homa",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-103-fair",
+      "policy": "fair",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-103-fifo",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-107-fifo",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-107-homa",
+      "policy": "homa",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-107-fair",
+      "policy": "fair",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-113-fifo",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-113-homa",
+      "policy": "homa",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-113-fair",
+      "policy": "fair",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-109-homa",
+      "policy": "homa",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-109-fifo",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-109-fair",
+      "policy": "fair",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-113-homa",
+      "policy": "homa",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-113-fifo",
+      "policy": "fifo",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-113-fair",
+      "policy": "fair",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-109-fifo",
+      "policy": "fifo",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-109-homa",
+      "policy": "homa",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-109-fair",
+      "policy": "fair",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-101-homa",
+      "policy": "homa",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 101
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-101-fifo",
+      "policy": "fifo",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 101
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-101-fair",
+      "policy": "fair",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 101
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-103-fifo",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-103-fair",
+      "policy": "fair",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-103-homa",
+      "policy": "homa",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-113-fifo",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-113-fair",
+      "policy": "fair",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-113-homa",
+      "policy": "homa",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-101-fifo",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 101
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-101-fair",
+      "policy": "fair",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 101
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-101-homa",
+      "policy": "homa",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 101
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-103-fair",
+      "policy": "fair",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-103-homa",
+      "policy": "homa",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-103-fifo",
+      "policy": "fifo",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-103-fair",
+      "policy": "fair",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-103-fifo",
+      "policy": "fifo",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-103-homa",
+      "policy": "homa",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 103
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-109-fifo",
+      "policy": "fifo",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-109-fair",
+      "policy": "fair",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-109-homa",
+      "policy": "homa",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-107-fair",
+      "policy": "fair",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-107-homa",
+      "policy": "homa",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-107-fifo",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-109-fair",
+      "policy": "fair",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-109-fifo",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "mixed-low",
+      "name": "mixed-low-109-homa",
+      "policy": "homa",
+      "profile": "mixed",
+      "rate": 18.240970014113827,
+      "seed": 109
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-113-fifo",
+      "policy": "fifo",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-113-fair",
+      "policy": "fair",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "write-heavy",
+      "name": "write-heavy-113-homa",
+      "policy": "homa",
+      "profile": "write-heavy",
+      "rate": 26.877736108538173,
+      "seed": 113
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-107-homa",
+      "policy": "homa",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-107-fair",
+      "policy": "fair",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "interactive",
+      "name": "interactive-107-fifo",
+      "policy": "fifo",
+      "profile": "interactive",
+      "rate": 29.788977452422117,
+      "seed": 107
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-101-homa",
+      "policy": "homa",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 101
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-101-fifo",
+      "policy": "fifo",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 101
+    },
+    {
+      "count": 160,
+      "group": "mixed-high",
+      "name": "mixed-high-101-fair",
+      "policy": "fair",
+      "profile": "mixed",
+      "rate": 28.88153585568023,
+      "seed": 101
+    }
+  ],
+  "uncertainty": "10000 paired bootstrap draws across five seeds; descriptive pilot intervals"
+}

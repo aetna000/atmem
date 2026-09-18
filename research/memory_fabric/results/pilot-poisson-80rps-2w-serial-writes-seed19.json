@@ -1,0 +1,2143 @@
+{
+  "accounting": {
+    "horizon_s": 1.0544019999904557,
+    "lanes": {
+      "bulk": {
+        "admitted_completed_latency": {
+          "max_s": 0.3791315839625895,
+          "n": 3,
+          "p50_s": 0.21711270802188665,
+          "p95_s": 0.3791315839625895,
+          "p99_s": 0.3791315839625895
+        },
+        "all_offered_verified_completion_bound": {
+          "p50": {
+            "seconds": null,
+            "status": "unknown_verification"
+          },
+          "p95": {
+            "seconds": null,
+            "status": "unknown_verification"
+          },
+          "p99": {
+            "seconds": null,
+            "status": "unknown_verification"
+          }
+        },
+        "authorized_ontime_goodput_per_s": null,
+        "completed_bytes_per_s": 161959.10098951423,
+        "completed_latency": {
+          "max_s": 0.3801253901029379,
+          "n": 3,
+          "p50_s": 0.21743804700958486,
+          "p95_s": 0.3801253901029379,
+          "p99_s": 0.3801253901029379
+        },
+        "completed_per_s": 2.8452146335336574,
+        "failed_verification_count": 0,
+        "generator_lag": {
+          "max_s": 0.0022667367968107477,
+          "n": 3,
+          "p50_s": 0.0009938061403483855,
+          "p95_s": 0.0022667367968107477,
+          "p99_s": 0.0022667367968107477
+        },
+        "interactive_deadline_offered": 0,
+        "interactive_deadline_success_lower_bound": null,
+        "known_deadline_miss_count": 0,
+        "known_goodput_lower_bound_per_s": 0.0,
+        "known_verified_ontime_count": 0,
+        "late_completion_count": 0,
+        "offered": 3,
+        "oldest_censored_age_s": null,
+        "outcome_counts": {
+          "cancelled": 0,
+          "censored": 0,
+          "completed": 3,
+          "error": 0,
+          "expired": 0,
+          "refused": 0
+        },
+        "outcome_rates": {
+          "cancelled": 0.0,
+          "censored": 0.0,
+          "completed": 1.0,
+          "error": 0.0,
+          "expired": 0.0,
+          "refused": 0.0
+        },
+        "queue_wait": {
+          "max_s": 0.3588476669974625,
+          "n": 3,
+          "p50_s": 0.19990645803045481,
+          "p95_s": 0.3588476669974625,
+          "p99_s": 0.3588476669974625
+        },
+        "service_until_terminal": {
+          "max_s": 0.02028391696512699,
+          "n": 3,
+          "p50_s": 0.02001645800191909,
+          "p95_s": 0.02028391696512699,
+          "p99_s": 0.02028391696512699
+        },
+        "unknown_verification_count": 3,
+        "verification_counts": {
+          "failed": 0,
+          "unknown": 3,
+          "verified_late": 0,
+          "verified_ontime": 0
+        }
+      },
+      "fast": {
+        "admitted_completed_latency": {
+          "max_s": 0.40434120898135006,
+          "n": 57,
+          "p50_s": 0.20023191708605736,
+          "p95_s": 0.3490909170359373,
+          "p99_s": 0.40434120898135006
+        },
+        "all_offered_verified_completion_bound": {
+          "p50": {
+            "seconds": null,
+            "status": "unknown_verification"
+          },
+          "p95": {
+            "seconds": null,
+            "status": "unknown_verification"
+          },
+          "p99": {
+            "seconds": null,
+            "status": "unknown_verification"
+          }
+        },
+        "authorized_ontime_goodput_per_s": null,
+        "completed_bytes_per_s": 10279.760470957104,
+        "completed_latency": {
+          "max_s": 0.40438895865643876,
+          "n": 57,
+          "p50_s": 0.2052419509473144,
+          "p95_s": 0.3491741154017901,
+          "p99_s": 0.40438895865643876
+        },
+        "completed_per_s": 54.05907803713949,
+        "failed_verification_count": 0,
+        "generator_lag": {
+          "max_s": 0.005025712932929527,
+          "n": 57,
+          "p50_s": 0.0015325495353903928,
+          "p95_s": 0.005010033861257035,
+          "p99_s": 0.005025712932929527
+        },
+        "interactive_deadline_offered": 48,
+        "interactive_deadline_success_lower_bound": 0.0,
+        "known_deadline_miss_count": 0,
+        "known_goodput_lower_bound_per_s": 0.0,
+        "known_verified_ontime_count": 0,
+        "late_completion_count": 0,
+        "offered": 57,
+        "oldest_censored_age_s": null,
+        "outcome_counts": {
+          "cancelled": 0,
+          "censored": 0,
+          "completed": 57,
+          "error": 0,
+          "expired": 0,
+          "refused": 0
+        },
+        "outcome_rates": {
+          "cancelled": 0.0,
+          "censored": 0.0,
+          "completed": 1.0,
+          "error": 0.0,
+          "expired": 0.0,
+          "refused": 0.0
+        },
+        "queue_wait": {
+          "max_s": 0.33009712502826005,
+          "n": 57,
+          "p50_s": 0.16390133299864829,
+          "p95_s": 0.2938456250121817,
+          "p99_s": 0.33009712502826005
+        },
+        "service_until_terminal": {
+          "max_s": 0.07604658300988376,
+          "n": 57,
+          "p50_s": 0.028683208976872265,
+          "p95_s": 0.07424408395309001,
+          "p99_s": 0.07604658300988376
+        },
+        "unknown_verification_count": 57,
+        "verification_counts": {
+          "failed": 0,
+          "unknown": 57,
+          "verified_late": 0,
+          "verified_ontime": 0
+        }
+      }
+    },
+    "record_sha256": "0a5ebe1da1d9e5128e970f3bb0284d8203a97120b79107b7e413f77afe9dda6b",
+    "summary": {
+      "admitted_completed_latency": {
+        "max_s": 0.40434120898135006,
+        "n": 60,
+        "p50_s": 0.20023191708605736,
+        "p95_s": 0.3490909170359373,
+        "p99_s": 0.40434120898135006
+      },
+      "all_offered_verified_completion_bound": {
+        "p50": {
+          "seconds": null,
+          "status": "unknown_verification"
+        },
+        "p95": {
+          "seconds": null,
+          "status": "unknown_verification"
+        },
+        "p99": {
+          "seconds": null,
+          "status": "unknown_verification"
+        }
+      },
+      "authorized_ontime_goodput_per_s": null,
+      "completed_bytes_per_s": 172238.86146047135,
+      "completed_latency": {
+        "max_s": 0.40438895865643876,
+        "n": 60,
+        "p50_s": 0.2052419509473144,
+        "p95_s": 0.3491741154017901,
+        "p99_s": 0.40438895865643876
+      },
+      "completed_per_s": 56.90429267067315,
+      "failed_verification_count": 0,
+      "generator_lag": {
+        "max_s": 0.005025712932929527,
+        "n": 60,
+        "p50_s": 0.0012155095381812808,
+        "p95_s": 0.0040767139976964906,
+        "p99_s": 0.005025712932929527
+      },
+      "interactive_deadline_offered": 48,
+      "interactive_deadline_success_lower_bound": 0.0,
+      "known_deadline_miss_count": 0,
+      "known_goodput_lower_bound_per_s": 0.0,
+      "known_verified_ontime_count": 0,
+      "late_completion_count": 0,
+      "offered": 60,
+      "oldest_censored_age_s": null,
+      "outcome_counts": {
+        "cancelled": 0,
+        "censored": 0,
+        "completed": 60,
+        "error": 0,
+        "expired": 0,
+        "refused": 0
+      },
+      "outcome_rates": {
+        "cancelled": 0.0,
+        "censored": 0.0,
+        "completed": 1.0,
+        "error": 0.0,
+        "expired": 0.0,
+        "refused": 0.0
+      },
+      "queue_wait": {
+        "max_s": 0.3588476669974625,
+        "n": 60,
+        "p50_s": 0.16390133299864829,
+        "p95_s": 0.2938456250121817,
+        "p99_s": 0.3588476669974625
+      },
+      "service_until_terminal": {
+        "max_s": 0.07604658300988376,
+        "n": 60,
+        "p50_s": 0.028412082931026816,
+        "p95_s": 0.06763016700278968,
+        "p99_s": 0.07604658300988376
+      },
+      "unknown_verification_count": 60,
+      "verification_counts": {
+        "failed": 0,
+        "unknown": 60,
+        "verified_late": 0,
+        "verified_ontime": 0
+      }
+    },
+    "workload_sha256": "c031c0e02c7eac4ac8c9b9034d196b2e511ffee63bd29a5af267a1dfe68110a6"
+  },
+  "authority_race_verified": false,
+  "capture": {
+    "encrypted": true,
+    "media_exact": {
+      "audio": true,
+      "image": true,
+      "video": true
+    },
+    "mode": "full",
+    "reconstructed_count": 60
+  },
+  "comparison_ready": false,
+  "environment": {
+    "arrival_distribution": "poisson",
+    "machine": "x86_64",
+    "max_outstanding": 24,
+    "offered": 60,
+    "python": "3.12.2",
+    "rate_per_s": 80.0,
+    "seed": 19,
+    "seed_records": 40,
+    "seed_used_for_arrivals": true,
+    "system": "Darwin",
+    "workers": 2
+  },
+  "fixture": {
+    "media_sha256": {
+      "audio": "67ea1ac0b35e2724aafed6a912a92ad6aad9b9c99c0b7497c1345751ec1586e0",
+      "image": "9057b9b3c82756376a7a083b72ab9e43a92296fefdcb1b34b56d1f0a71d4d09e",
+      "video": "2e4bfe1409406ceae9e21d6e2e4a04593406b175dc1cf19ec0c576ec4876b585"
+    },
+    "memory": {
+      "active_records": 40
+    }
+  },
+  "format": "atmem-memory-fabric-local-baseline-v1",
+  "generator_lag_budget_ms": 25,
+  "generator_timing_valid": true,
+  "host_delivery_measured": false,
+  "measurement_kind": "real_local_composed_component_measurement",
+  "observations": [
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.017667042091488838,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r1",
+        "revocation_ack_s": null,
+        "started_s": 0.01791870908346027,
+        "terminal_s": 0.0425898750545457
+      },
+      "request": {
+        "arrival_s": 0.014131157353919626,
+        "deadline_s": 1.0141311573539196,
+        "lane": "fast",
+        "request_id": "r1"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.14415012509562075,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r10",
+        "revocation_ack_s": null,
+        "started_s": 0.17536020907573402,
+        "terminal_s": 0.19720366701949388
+      },
+      "request": {
+        "arrival_s": 0.14343607594221086,
+        "deadline_s": 1.1434360759422109,
+        "lane": "fast",
+        "request_id": "r10"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.14895795902702957,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r11",
+        "revocation_ack_s": null,
+        "started_s": 0.18872758408542722,
+        "terminal_s": 0.21076041704509407
+      },
+      "request": {
+        "arrival_s": 0.14839301893922716,
+        "deadline_s": 1.148393018939227,
+        "lane": "fast",
+        "request_id": "r11"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.15312754199840128,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r12",
+        "revocation_ack_s": null,
+        "started_s": 0.19724329200107604,
+        "terminal_s": 0.2209538749884814
+      },
+      "request": {
+        "arrival_s": 0.15229118112790505,
+        "deadline_s": 1.152291181127905,
+        "lane": "fast",
+        "request_id": "r12"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.15386316704098135,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r13",
+        "revocation_ack_s": null,
+        "started_s": 0.2107999169966206,
+        "terminal_s": 0.2333268750226125
+      },
+      "request": {
+        "arrival_s": 0.15371480679358046,
+        "deadline_s": 1.1537148067935805,
+        "lane": "fast",
+        "request_id": "r13"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.16076970903668553,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r14",
+        "revocation_ack_s": null,
+        "started_s": 0.22099612501915544,
+        "terminal_s": 0.24814558401703835
+      },
+      "request": {
+        "arrival_s": 0.1586370970624154,
+        "deadline_s": 1.1586370970624154,
+        "lane": "fast",
+        "request_id": "r14"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.1639363340800628,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r15",
+        "revocation_ack_s": null,
+        "started_s": 0.2333686250494793,
+        "terminal_s": 0.26205183402635157
+      },
+      "request": {
+        "arrival_s": 0.1632947027421068,
+        "deadline_s": 1.1632947027421068,
+        "lane": "fast",
+        "request_id": "r15"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.17636233405210078,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r16",
+        "revocation_ack_s": null,
+        "started_s": 0.2481827090959996,
+        "terminal_s": 0.2798444170039147
+      },
+      "request": {
+        "arrival_s": 0.17382225555933167,
+        "deadline_s": 1.1738222555593316,
+        "lane": "fast",
+        "request_id": "r16"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.17670825007371604,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 63,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r17",
+        "revocation_ack_s": null,
+        "started_s": 0.26211287500336766,
+        "terminal_s": 0.3111779170576483
+      },
+      "request": {
+        "arrival_s": 0.17663705930860027,
+        "deadline_s": null,
+        "lane": "fast",
+        "request_id": "r17"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.1777692090254277,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 63,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r18",
+        "revocation_ack_s": null,
+        "started_s": 0.27991500007919967,
+        "terminal_s": 0.3378717500017956
+      },
+      "request": {
+        "arrival_s": 0.17755478508706157,
+        "deadline_s": null,
+        "lane": "fast",
+        "request_id": "r18"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.1812257090350613,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 63,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r19",
+        "revocation_ack_s": null,
+        "started_s": 0.3112280420027673,
+        "terminal_s": 0.3872746250126511
+      },
+      "request": {
+        "arrival_s": 0.18038401866690276,
+        "deadline_s": null,
+        "lane": "fast",
+        "request_id": "r19"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.03597454202827066,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r2",
+        "revocation_ack_s": null,
+        "started_s": 0.036105250008404255,
+        "terminal_s": 0.05467175005469471
+      },
+      "request": {
+        "arrival_s": 0.03333997033587446,
+        "deadline_s": 1.0333399703358745,
+        "lane": "fast",
+        "request_id": "r2"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.19242391700390726,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 147906,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r20",
+        "revocation_ack_s": null,
+        "started_s": 0.3379190420964733,
+        "terminal_s": 0.35793550009839237
+      },
+      "request": {
+        "arrival_s": 0.19015718020709652,
+        "deadline_s": null,
+        "lane": "bulk",
+        "request_id": "r20"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.1973520420724526,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r21",
+        "revocation_ack_s": null,
+        "started_s": 0.3583168750628829,
+        "terminal_s": 0.3804366250988096
+      },
+      "request": {
+        "arrival_s": 0.196306447892859,
+        "deadline_s": 1.1963064478928591,
+        "lane": "fast",
+        "request_id": "r21"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.21671033406164497,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r22",
+        "revocation_ack_s": null,
+        "started_s": 0.3804956250824034,
+        "terminal_s": 0.40453179203905165
+      },
+      "request": {
+        "arrival_s": 0.2128348307316302,
+        "deadline_s": 1.2128348307316301,
+        "lane": "fast",
+        "request_id": "r22"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.23704191704746336,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r23",
+        "revocation_ack_s": null,
+        "started_s": 0.38732016703579575,
+        "terminal_s": 0.4153960000257939
+      },
+      "request": {
+        "arrival_s": 0.23314550321689728,
+        "deadline_s": 1.2331455032168972,
+        "lane": "fast",
+        "request_id": "r23"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.24067916709464043,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r24",
+        "revocation_ack_s": null,
+        "started_s": 0.4045805000932887,
+        "terminal_s": 0.43748883402440697
+      },
+      "request": {
+        "arrival_s": 0.2398352846250088,
+        "deadline_s": 1.2398352846250087,
+        "lane": "fast",
+        "request_id": "r24"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.24211170908529311,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r25",
+        "revocation_ack_s": null,
+        "started_s": 0.4154440420679748,
+        "terminal_s": 0.4491314170882106
+      },
+      "request": {
+        "arrival_s": 0.24114338332814783,
+        "deadline_s": 1.2411433833281478,
+        "lane": "fast",
+        "request_id": "r25"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.2612538340035826,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r26",
+        "revocation_ack_s": null,
+        "started_s": 0.4375517499865964,
+        "terminal_s": 0.4646138340467587
+      },
+      "request": {
+        "arrival_s": 0.2574175634118796,
+        "deadline_s": 1.2574175634118796,
+        "lane": "fast",
+        "request_id": "r26"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.2766843750141561,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r27",
+        "revocation_ack_s": null,
+        "started_s": 0.4491821670671925,
+        "terminal_s": 0.48153720900882035
+      },
+      "request": {
+        "arrival_s": 0.27503265633847424,
+        "deadline_s": 1.2750326563384742,
+        "lane": "fast",
+        "request_id": "r27"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.28251316701062024,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r28",
+        "revocation_ack_s": null,
+        "started_s": 0.4646661670412868,
+        "terminal_s": 0.4924191670725122
+      },
+      "request": {
+        "arrival_s": 0.281336230579841,
+        "deadline_s": 1.281336230579841,
+        "lane": "fast",
+        "request_id": "r28"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.29782525007613003,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r29",
+        "revocation_ack_s": null,
+        "started_s": 0.4815890419995412,
+        "terminal_s": 0.5087160840630531
+      },
+      "request": {
+        "arrival_s": 0.2947586155980899,
+        "deadline_s": 1.29475861559809,
+        "lane": "fast",
+        "request_id": "r29"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.043336083996109664,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r3",
+        "revocation_ack_s": null,
+        "started_s": 0.04341312509495765,
+        "terminal_s": 0.06970366707537323
+      },
+      "request": {
+        "arrival_s": 0.04252673043340174,
+        "deadline_s": 1.0425267304334018,
+        "lane": "fast",
+        "request_id": "r3"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.29954545910004526,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r30",
+        "revocation_ack_s": null,
+        "started_s": 0.4924620420206338,
+        "terminal_s": 0.5211692500161007
+      },
+      "request": {
+        "arrival_s": 0.29920011356523696,
+        "deadline_s": 1.299200113565237,
+        "lane": "fast",
+        "request_id": "r30"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.3350082919932902,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r31",
+        "revocation_ack_s": null,
+        "started_s": 0.5087692920351401,
+        "terminal_s": 0.5352402090793476
+      },
+      "request": {
+        "arrival_s": 0.32999825813203315,
+        "deadline_s": 1.329998258132033,
+        "lane": "fast",
+        "request_id": "r31"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.35624375008046627,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r32",
+        "revocation_ack_s": null,
+        "started_s": 0.5212227090960369,
+        "terminal_s": 0.5529609590303153
+      },
+      "request": {
+        "arrival_s": 0.3524308170030149,
+        "deadline_s": 1.3524308170030148,
+        "lane": "fast",
+        "request_id": "r32"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.37601062504108995,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r33",
+        "revocation_ack_s": null,
+        "started_s": 0.5352904590545222,
+        "terminal_s": 0.5652345840353519
+      },
+      "request": {
+        "arrival_s": 0.3720563100294741,
+        "deadline_s": 1.372056310029474,
+        "lane": "fast",
+        "request_id": "r33"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.41337329207453877,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r34",
+        "revocation_ack_s": null,
+        "started_s": 0.553013417054899,
+        "terminal_s": 0.5861326250014827
+      },
+      "request": {
+        "arrival_s": 0.41052216190136626,
+        "deadline_s": 1.4105221619013664,
+        "lane": "fast",
+        "request_id": "r34"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.4145173340803012,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r35",
+        "revocation_ack_s": null,
+        "started_s": 0.5652937920531258,
+        "terminal_s": 0.5953776669921353
+      },
+      "request": {
+        "arrival_s": 0.4138354317034014,
+        "deadline_s": 1.4138354317034014,
+        "lane": "fast",
+        "request_id": "r35"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.42776229209266603,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r36",
+        "revocation_ack_s": null,
+        "started_s": 0.5861836250405759,
+        "terminal_s": 0.6091790000209585
+      },
+      "request": {
+        "arrival_s": 0.42368557809496954,
+        "deadline_s": 1.4236855780949695,
+        "lane": "fast",
+        "request_id": "r36"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.4430051250383258,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 63,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r37",
+        "revocation_ack_s": null,
+        "started_s": 0.5954295420087874,
+        "terminal_s": 0.6406956251012161
+      },
+      "request": {
+        "arrival_s": 0.44011616875675136,
+        "deadline_s": null,
+        "lane": "fast",
+        "request_id": "r37"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.4642408340005204,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 63,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r38",
+        "revocation_ack_s": null,
+        "started_s": 0.6092252500820905,
+        "terminal_s": 0.6685502090258524
+      },
+      "request": {
+        "arrival_s": 0.4603266237738143,
+        "deadline_s": null,
+        "lane": "fast",
+        "request_id": "r38"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.4670814590062946,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 63,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r39",
+        "revocation_ack_s": null,
+        "started_s": 0.640754459076561,
+        "terminal_s": 0.7165603340836242
+      },
+      "request": {
+        "arrival_s": 0.46651106900410977,
+        "deadline_s": null,
+        "lane": "fast",
+        "request_id": "r39"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.05352783401031047,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r4",
+        "revocation_ack_s": null,
+        "started_s": 0.054720250074751675,
+        "terminal_s": 0.08326520898845047
+      },
+      "request": {
+        "arrival_s": 0.05148171570789346,
+        "deadline_s": 1.0514817157078935,
+        "lane": "fast",
+        "request_id": "r4"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.4687005419982597,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 21454,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r40",
+        "revocation_ack_s": null,
+        "started_s": 0.6686070000287145,
+        "terminal_s": 0.6858132500201464
+      },
+      "request": {
+        "arrival_s": 0.4683752030105615,
+        "deadline_s": null,
+        "lane": "bulk",
+        "request_id": "r40"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.48397691699210554,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r41",
+        "revocation_ack_s": null,
+        "started_s": 0.6859049591002986,
+        "terminal_s": 0.7082997499965131
+      },
+      "request": {
+        "arrival_s": 0.48067955634673193,
+        "deadline_s": 1.4806795563467319,
+        "lane": "fast",
+        "request_id": "r41"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.48400108399800956,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r42",
+        "revocation_ack_s": null,
+        "started_s": 0.7083489591022953,
+        "terminal_s": 0.7332401250023395
+      },
+      "request": {
+        "arrival_s": 0.4820611998845879,
+        "deadline_s": 1.4820611998845878,
+        "lane": "fast",
+        "request_id": "r42"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.5007049170089886,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r43",
+        "revocation_ack_s": null,
+        "started_s": 0.7166076670400798,
+        "terminal_s": 0.7444647500524297
+      },
+      "request": {
+        "arrival_s": 0.4973362064126364,
+        "deadline_s": 1.4973362064126363,
+        "lane": "fast",
+        "request_id": "r43"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.5007656670641154,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r44",
+        "revocation_ack_s": null,
+        "started_s": 0.733288542018272,
+        "terminal_s": 0.7612661670427769
+      },
+      "request": {
+        "arrival_s": 0.49742344639572217,
+        "deadline_s": 1.4974234463957221,
+        "lane": "fast",
+        "request_id": "r44"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.506180917029269,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r45",
+        "revocation_ack_s": null,
+        "started_s": 0.7445097090676427,
+        "terminal_s": 0.7729217919986695
+      },
+      "request": {
+        "arrival_s": 0.5049990991637191,
+        "deadline_s": 1.5049990991637192,
+        "lane": "fast",
+        "request_id": "r45"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.5149187920615077,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r46",
+        "revocation_ack_s": null,
+        "started_s": 0.761311584035866,
+        "terminal_s": 0.790396667085588
+      },
+      "request": {
+        "arrival_s": 0.513167279170105,
+        "deadline_s": 1.513167279170105,
+        "lane": "fast",
+        "request_id": "r46"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.5149438340449706,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r47",
+        "revocation_ack_s": null,
+        "started_s": 0.7729648340027779,
+        "terminal_s": 0.803242834052071
+      },
+      "request": {
+        "arrival_s": 0.514762337814988,
+        "deadline_s": 1.5147623378149881,
+        "lane": "fast",
+        "request_id": "r47"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.5249565000412986,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r48",
+        "revocation_ack_s": null,
+        "started_s": 0.7904441250720993,
+        "terminal_s": 0.8180638750782236
+      },
+      "request": {
+        "arrival_s": 0.5229410690402395,
+        "deadline_s": 1.5229410690402396,
+        "lane": "fast",
+        "request_id": "r48"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.5342595420079306,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r49",
+        "revocation_ack_s": null,
+        "started_s": 0.8032864590641111,
+        "terminal_s": 0.8357999590225518
+      },
+      "request": {
+        "arrival_s": 0.5316070671259631,
+        "deadline_s": 1.5316070671259632,
+        "lane": "fast",
+        "request_id": "r49"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.0587886250577867,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r5",
+        "revocation_ack_s": null,
+        "started_s": 0.06974687508773059,
+        "terminal_s": 0.09515649999957532
+      },
+      "request": {
+        "arrival_s": 0.05773306201568909,
+        "deadline_s": 1.057733062015689,
+        "lane": "fast",
+        "request_id": "r5"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.5381470000138506,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r50",
+        "revocation_ack_s": null,
+        "started_s": 0.8181091250153258,
+        "terminal_s": 0.8488078340888023
+      },
+      "request": {
+        "arrival_s": 0.5373641017908644,
+        "deadline_s": 1.5373641017908644,
+        "lane": "fast",
+        "request_id": "r50"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.5665192090673372,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r51",
+        "revocation_ack_s": null,
+        "started_s": 0.8358446670463309,
+        "terminal_s": 0.8669106250163168
+      },
+      "request": {
+        "arrival_s": 0.5656890290733472,
+        "deadline_s": 1.5656890290733472,
+        "lane": "fast",
+        "request_id": "r51"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.5943518340354785,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r52",
+        "revocation_ack_s": null,
+        "started_s": 0.8488508340669796,
+        "terminal_s": 0.8804927500896156
+      },
+      "request": {
+        "arrival_s": 0.590819519760401,
+        "deadline_s": 1.5908195197604011,
+        "lane": "fast",
+        "request_id": "r52"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.6234827090520412,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r53",
+        "revocation_ack_s": null,
+        "started_s": 0.8669560000998899,
+        "terminal_s": 0.894730250001885
+      },
+      "request": {
+        "arrival_s": 0.6184713681333774,
+        "deadline_s": 1.6184713681333776,
+        "lane": "fast",
+        "request_id": "r53"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.6235149590065703,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r54",
+        "revocation_ack_s": null,
+        "started_s": 0.8805377919925377,
+        "terminal_s": 0.9133321250556037
+      },
+      "request": {
+        "arrival_s": 0.6219824094711799,
+        "deadline_s": 1.6219824094711799,
+        "lane": "fast",
+        "request_id": "r54"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.6235257090302184,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r55",
+        "revocation_ack_s": null,
+        "started_s": 0.8947768340585753,
+        "terminal_s": 0.9257942090043798
+      },
+      "request": {
+        "arrival_s": 0.6223101994920371,
+        "deadline_s": 1.6223101994920373,
+        "lane": "fast",
+        "request_id": "r55"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.6293987920507789,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r56",
+        "revocation_ack_s": null,
+        "started_s": 0.9133800000417978,
+        "terminal_s": 0.9426286250818521
+      },
+      "request": {
+        "arrival_s": 0.6282175192563472,
+        "deadline_s": 1.628217519256347,
+        "lane": "fast",
+        "request_id": "r56"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.6298088750336319,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 63,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r57",
+        "revocation_ack_s": null,
+        "started_s": 0.92583783401642,
+        "terminal_s": 0.9788997920695692
+      },
+      "request": {
+        "arrival_s": 0.6297256766677791,
+        "deadline_s": null,
+        "lane": "fast",
+        "request_id": "r57"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.6488305000821128,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 63,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r58",
+        "revocation_ack_s": null,
+        "started_s": 0.9426761250942945,
+        "terminal_s": 1.0103062920970842
+      },
+      "request": {
+        "arrival_s": 0.6449952142323074,
+        "deadline_s": null,
+        "lane": "fast",
+        "request_id": "r58"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.648856500047259,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 63,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r59",
+        "revocation_ack_s": null,
+        "started_s": 0.9789536250755191,
+        "terminal_s": 1.053197709028609
+      },
+      "request": {
+        "arrival_s": 0.6488087503721703,
+        "deadline_s": null,
+        "lane": "fast",
+        "request_id": "r59"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.13463266706094146,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r6",
+        "revocation_ack_s": null,
+        "started_s": 0.13470525003504008,
+        "terminal_s": 0.1541573340073228
+      },
+      "request": {
+        "arrival_s": 0.12960695412801193,
+        "deadline_s": 1.129606954128012,
+        "lane": "fast",
+        "request_id": "r6"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.6515201251022518,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 1410,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r60",
+        "revocation_ack_s": null,
+        "started_s": 1.0103677920997143,
+        "terminal_s": 1.0306517090648413
+      },
+      "request": {
+        "arrival_s": 0.6505263189619034,
+        "deadline_s": null,
+        "lane": "bulk",
+        "request_id": "r60"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.1346837090095505,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r7",
+        "revocation_ack_s": null,
+        "started_s": 0.1347711670678109,
+        "terminal_s": 0.16651108406949788
+      },
+      "request": {
+        "arrival_s": 0.13387690745490116,
+        "deadline_s": 1.133876907454901,
+        "lane": "fast",
+        "request_id": "r7"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.1361894590081647,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r8",
+        "revocation_ack_s": null,
+        "started_s": 0.15419891709461808,
+        "terminal_s": 0.17531966709066182
+      },
+      "request": {
+        "arrival_s": 0.13588282895776538,
+        "deadline_s": 1.1358828289577654,
+        "lane": "fast",
+        "request_id": "r8"
+      }
+    },
+    {
+      "censored_deadline_missed": false,
+      "observation": {
+        "admitted_s": 0.14061016705818474,
+        "authority_generation": null,
+        "authorized_at_release": null,
+        "completed_bytes": 214,
+        "evidence_complete": true,
+        "outcome": "completed",
+        "output_parity_verified": true,
+        "reason": "finished",
+        "request_id": "r9",
+        "revocation_ack_s": null,
+        "started_s": 0.16655270906630903,
+        "terminal_s": 0.18868683406617492
+      },
+      "request": {
+        "arrival_s": 0.13966487507295777,
+        "deadline_s": 1.1396648750729579,
+        "lane": "fast",
+        "request_id": "r9"
+      }
+    }
+  ],
+  "provenance": {
+    "cpu_count": 8,
+    "dependency_sha256": null,
+    "source_dirty": true,
+    "source_revision": "8a17f440e56e79cbaa39d0f39ef86bb05e2684ea"
+  },
+  "scheduling_policy": "bounded_thread_pool_fifo_submission_serialized_writes",
+  "scope": "Memory build_recall_block/remember plus encrypted EvidenceService.capture",
+  "source_digest": {
+    "protocol_sha256": "024760a0474999b6c61a1a3d00529ef02d2b012190115ba8e2d707b49bddea0e",
+    "runner_sha256": "04a6edc2233d5ad520bd0d39005ac97cab92f6f309396879365253850b468b9f"
+  },
+  "stage_samples": [
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 6.265,
+      "memory_ms": 18.384,
+      "operation": "recall",
+      "request_id": "r1"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 2.075,
+      "memory_ms": 16.477,
+      "operation": "recall",
+      "request_id": "r2"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 2.004,
+      "memory_ms": 24.275,
+      "operation": "recall",
+      "request_id": "r3"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 1.976,
+      "memory_ms": 26.559,
+      "operation": "recall",
+      "request_id": "r4"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 2.158,
+      "memory_ms": 23.24,
+      "operation": "recall",
+      "request_id": "r5"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 2.648,
+      "memory_ms": 16.793,
+      "operation": "recall",
+      "request_id": "r6"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 2.311,
+      "memory_ms": 29.417,
+      "operation": "recall",
+      "request_id": "r7"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 2.466,
+      "memory_ms": 18.645,
+      "operation": "recall",
+      "request_id": "r8"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 2.689,
+      "memory_ms": 19.435,
+      "operation": "recall",
+      "request_id": "r9"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 2.492,
+      "memory_ms": 19.342,
+      "operation": "recall",
+      "request_id": "r10"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 2.692,
+      "memory_ms": 19.331,
+      "operation": "recall",
+      "request_id": "r11"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 3.209,
+      "memory_ms": 20.49,
+      "operation": "recall",
+      "request_id": "r12"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 2.773,
+      "memory_ms": 19.743,
+      "operation": "recall",
+      "request_id": "r13"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 2.8,
+      "memory_ms": 24.341,
+      "operation": "recall",
+      "request_id": "r14"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 4.602,
+      "memory_ms": 24.064,
+      "operation": "recall",
+      "request_id": "r15"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 4.915,
+      "memory_ms": 26.734,
+      "operation": "recall",
+      "request_id": "r16"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 3.659,
+      "memory_ms": 45.393,
+      "operation": "write",
+      "request_id": "r17",
+      "write_gate_wait_ms": 0.001
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 3.42,
+      "memory_ms": 54.525,
+      "operation": "write",
+      "request_id": "r18",
+      "write_gate_wait_ms": 27.653
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 4.74,
+      "memory_ms": 71.295,
+      "operation": "write",
+      "request_id": "r19",
+      "write_gate_wait_ms": 23.266
+    },
+    {
+      "capture_bytes": 110883,
+      "evidence_ms": 12.951,
+      "memory_ms": 7.052,
+      "operation": "artifact",
+      "request_id": "r20"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 4.621,
+      "memory_ms": 17.486,
+      "operation": "recall",
+      "request_id": "r21"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 4.665,
+      "memory_ms": 19.361,
+      "operation": "recall",
+      "request_id": "r22"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 4.379,
+      "memory_ms": 23.684,
+      "operation": "recall",
+      "request_id": "r23"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.119,
+      "memory_ms": 27.767,
+      "operation": "recall",
+      "request_id": "r24"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.396,
+      "memory_ms": 28.278,
+      "operation": "recall",
+      "request_id": "r25"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.419,
+      "memory_ms": 21.631,
+      "operation": "recall",
+      "request_id": "r26"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 4.889,
+      "memory_ms": 27.453,
+      "operation": "recall",
+      "request_id": "r27"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 4.397,
+      "memory_ms": 23.346,
+      "operation": "recall",
+      "request_id": "r28"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 4.83,
+      "memory_ms": 22.284,
+      "operation": "recall",
+      "request_id": "r29"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.95,
+      "memory_ms": 22.746,
+      "operation": "recall",
+      "request_id": "r30"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 4.762,
+      "memory_ms": 21.692,
+      "operation": "recall",
+      "request_id": "r31"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.062,
+      "memory_ms": 26.664,
+      "operation": "recall",
+      "request_id": "r32"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.699,
+      "memory_ms": 24.232,
+      "operation": "recall",
+      "request_id": "r33"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 7.988,
+      "memory_ms": 25.117,
+      "operation": "recall",
+      "request_id": "r34"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 6.116,
+      "memory_ms": 23.954,
+      "operation": "recall",
+      "request_id": "r35"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 4.869,
+      "memory_ms": 18.116,
+      "operation": "recall",
+      "request_id": "r36"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 6.524,
+      "memory_ms": 38.728,
+      "operation": "write",
+      "request_id": "r37",
+      "write_gate_wait_ms": 0.001
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.757,
+      "memory_ms": 53.554,
+      "operation": "write",
+      "request_id": "r38",
+      "write_gate_wait_ms": 25.069
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.177,
+      "memory_ms": 70.619,
+      "operation": "write",
+      "request_id": "r39",
+      "write_gate_wait_ms": 22.096
+    },
+    {
+      "capture_bytes": 16044,
+      "evidence_ms": 9.682,
+      "memory_ms": 7.512,
+      "operation": "artifact",
+      "request_id": "r40"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.667,
+      "memory_ms": 16.717,
+      "operation": "recall",
+      "request_id": "r41"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.493,
+      "memory_ms": 19.387,
+      "operation": "recall",
+      "request_id": "r42"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.574,
+      "memory_ms": 22.274,
+      "operation": "recall",
+      "request_id": "r43"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.692,
+      "memory_ms": 22.276,
+      "operation": "recall",
+      "request_id": "r44"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.72,
+      "memory_ms": 22.683,
+      "operation": "recall",
+      "request_id": "r45"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.912,
+      "memory_ms": 23.163,
+      "operation": "recall",
+      "request_id": "r46"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 6.124,
+      "memory_ms": 24.145,
+      "operation": "recall",
+      "request_id": "r47"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.644,
+      "memory_ms": 21.966,
+      "operation": "recall",
+      "request_id": "r48"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 6.14,
+      "memory_ms": 26.364,
+      "operation": "recall",
+      "request_id": "r49"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 6.388,
+      "memory_ms": 24.302,
+      "operation": "recall",
+      "request_id": "r50"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 6.273,
+      "memory_ms": 24.784,
+      "operation": "recall",
+      "request_id": "r51"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 7.13,
+      "memory_ms": 24.502,
+      "operation": "recall",
+      "request_id": "r52"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 5.977,
+      "memory_ms": 21.787,
+      "operation": "recall",
+      "request_id": "r53"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 6.404,
+      "memory_ms": 26.38,
+      "operation": "recall",
+      "request_id": "r54"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 6.863,
+      "memory_ms": 24.145,
+      "operation": "recall",
+      "request_id": "r55"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 6.824,
+      "memory_ms": 22.413,
+      "operation": "recall",
+      "request_id": "r56"
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 7.041,
+      "memory_ms": 46.01,
+      "operation": "write",
+      "request_id": "r57",
+      "write_gate_wait_ms": 0.001
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 7.671,
+      "memory_ms": 59.945,
+      "operation": "write",
+      "request_id": "r58",
+      "write_gate_wait_ms": 29.231
+    },
+    {
+      "capture_bytes": 0,
+      "evidence_ms": 6.648,
+      "memory_ms": 67.581,
+      "operation": "write",
+      "request_id": "r59",
+      "write_gate_wait_ms": 23.734
+    },
+    {
+      "capture_bytes": 1011,
+      "evidence_ms": 12.187,
+      "memory_ms": 8.083,
+      "operation": "artifact",
+      "request_id": "r60"
+    }
+  ],
+  "unknown_stages": [
+    "database_lock_wait",
+    "index_lookup",
+    "ranking",
+    "encryption_within_evidence",
+    "host_hook_delivery"
+  ],
+  "write_serialization": {
+    "enabled": true,
+    "scope": "in_process_same_runner_only"
+  }
+}

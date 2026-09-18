@@ -1,0 +1,22 @@
+{
+  "format": "postrun-source-supplement-v1",
+  "note": "Full source snapshot captured after measurement; extra files including protocol.py were not in original source seal.",
+  "originally_sealed": [
+    "analyze_fairness.py",
+    "homa_experiment.py",
+    "local_baseline.py",
+    "run_fairness_suite.py",
+    "scheduling.py"
+  ],
+  "source_sha256": {
+    "analyze_fairness.py": "a8fb9bc7f6c6d89cab5d046293bd6e2dd68308cacf22a1a985f01c0267f18dbd",
+    "archive_experiment.py": "fe1b479573dab9989ff5d5db87be54696f69e65937452ecbcc69cbcc9cb515fd",
+    "diagnose_recall_drift.py": "7a5e745593b8cf0d41ad3ae2dad927ac7619a131b811065363a360560ed5d896",
+    "homa_experiment.py": "b007104527d0fe58a2616cff3d10b74a22f80d0b9a8f029748ad4017038fec72",
+    "local_baseline.py": "70e2bc21b5c9ad384469bf4f2ec637630028cfaa25d3b5834c55704459bedc93",
+    "protocol.py": "024760a0474999b6c61a1a3d00529ef02d2b012190115ba8e2d707b49bddea0e",
+    "run_fairness_suite.py": "709f058c0b38e92f8f218ed79ec42b6e1b261d74a5ac279b0bfa9753e470262a",
+    "scheduling.py": "008543583328c78ca82714c4634c036f1abb421828cae9762e153c500b899410",
+    "simulation.py": "9a16c0e227ab881044b1f0f4c51a5c0d06eec0394cae2f044260cbc368a36c32"
+  }
+}

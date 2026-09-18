@@ -1,0 +1,18 @@
+{
+  "after": {
+    "block": "<relevant_memories>\n- [rec_c160dda03bba405283d743be824ef42b] My synthetic catalog item 0000 is marker 0000.\n- [rec_533aa7a614a14674a5ff7a983bb41d4a] My synthetic catalog item 0039 is marker 0039.\n- [rec_0c6dc59991cd43709e55506d41c590fb] My synthetic catalog item 0038 is marker 0038.\n</relevant_memories>",
+    "fts_max": 6.14582744294626,
+    "fts_min": 0.9309043653073321,
+    "read_generation": 40
+  },
+  "before": {
+    "block": "<relevant_memories>\n- [rec_c160dda03bba405283d743be824ef42b] My synthetic catalog item 0000 is marker 0000.\n</relevant_memories>",
+    "fts_max": 4.497401900223505,
+    "fts_min": 3e-06,
+    "read_generation": 40
+  },
+  "context_bytes_changed": true,
+  "format": "synthetic-cross-subject-ranking-diagnostic-v1",
+  "note": "Different FTS corpus snapshot despite unchanged read-subject records; does not establish unauthorized disclosure.",
+  "read_generation_unchanged": true
+}
