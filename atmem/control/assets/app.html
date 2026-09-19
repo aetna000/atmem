@@ -202,6 +202,7 @@
         <p id="intelligenceGuidance">Loading provider guidance…</p>
         <code id="intelligenceCommand">atmem atbot setup</code><button class="secondary compact" id="intelligenceCopy" type="button">Copy CLI command</button>
       </div>
+      <div class="intelligenceguide envsetup"><p><b>Credential</b> <span class="sub">(terminal only)</span></p><code id="intelligenceKeyCommand">read -s API_KEY; export API_KEY</code><button class="secondary compact" id="intelligenceKeyCopy" type="button">Copy key command</button></div>
     </div>
   </details>
 
@@ -222,6 +223,7 @@
       </div>
       <div class="intelligenceactions"><button class="primary" id="jevSave" type="button">Save disabled configuration</button><button class="secondary" id="jevEnable" type="button">Enable Jev</button><button class="secondary" id="jevDisable" type="button" disabled>Disable Jev</button></div>
       <div class="intelligenceguide"><p id="jevGuidance">Jev is disabled. AtMem native retrieval is active.</p><code id="jevEvidence">Jev decisions appear in retrieval evidence when used.</code></div>
+      <div class="intelligenceguide envsetup"><p><b>Credential</b> <span class="sub">(terminal only)</span></p><p class="sub">Run this in the same terminal that starts AtMem, enter the key when prompted, then restart the dashboard. The key is never shown or stored.</p><code id="jevKeyCommand">read -s JEV_API; export JEV_API</code><button class="secondary compact" id="jevKeyCopy" type="button">Copy key command</button></div>
     </div>
   </details>
 
