@@ -530,3 +530,17 @@ body:has(.memorychat.collapsed){padding-bottom:70px}
 .auditexplanation h2{margin:8px 0 5px}.auditverdict{color:var(--good);font-size:11px;font-weight:800}.auditlead{margin:0;font-size:15px;line-height:1.55}.auditfacts{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:14px}.auditfacts .evidence{padding:9px}.audittechnical>.eventpayload{margin:0 14px 14px}.auditexports{position:relative}.auditexports>summary{cursor:pointer;list-style:none;color:var(--muted);font-size:11px;font-weight:750}.auditexports>summary::-webkit-details-marker{display:none}.auditexports>div{display:flex;gap:6px;margin-top:8px;justify-content:flex-end}
 @media(max-width:1050px){#viewAudit.active.auditor-open{grid-template-columns:1fr}#viewAudit.auditor-open>.auditorpane{grid-column:1;grid-row:auto}.auditrowmain{grid-template-columns:minmax(0,1fr) auto}.auditrowmeta{grid-column:1}.auditrowopen{grid-column:2;grid-row:1 / span 2}}
 @media(max-width:620px){.auditrowmain{grid-template-columns:1fr;gap:8px;padding:13px 15px}.auditrowmeta,.auditrowopen{grid-column:1;grid-row:auto}.auditfacts{grid-template-columns:1fr}.auditmeta{flex-wrap:wrap}.auditmeta .grow{display:none}.auditpager{flex-wrap:wrap}}
+
+/* One focused workspace across the product, with the same navigation as Settings. */
+#viewStatus.active,#viewDecisions.active,#viewMemory.active,#viewAudit.active{display:block}
+#viewStatus>.sectionnav,#viewMemory>.sectionnav,#viewDecisions>.grid,#viewAudit>#auditViewMount{display:none}
+.pageworkspace{min-height:540px}.pageworkspace .settingsstage{padding:20px 24px 30px}.pageworkspace .settingsstage>.workspacepanel:not(.settingsselected){display:none!important}.pageworkspace .settingsstage>.workspacepanel.settingsselected:not([hidden]){display:block!important}.pageworkspace .settingsstage>.workspacepanel.settingsselected{margin:0;min-width:0}
+.pageworkspace .settingsstage>section.card.settingsselected,.pageworkspace .settingsstage>details.card.settingsselected{border:0;box-shadow:none;background:transparent;padding:0}.pageworkspace .settingsstage>details.card.settingsselected>summary{display:none}.pageworkspace .settingsstage>details.card.settingsselected .detailsbody{padding:0}.pageworkspace .settingsstage .activityhead,.pageworkspace .settingsstage .blackboxhead,.pageworkspace .settingsstage .audithead{gap:12px}.pageworkspace .settingsstage .activitytools{gap:6px}
+.pageworkspace .settingsstage>#hero.settingsselected{display:grid!important;grid-template-columns:minmax(0,1fr) auto;border-radius:7px;margin:0;padding:18px}
+#viewStatus.active.auditor-open{display:grid;grid-template-columns:minmax(320px,.8fr) minmax(0,1.2fr);gap:16px}
+#viewStatus.active.auditor-open>.pageworkspace{display:grid!important;grid-column:1;grid-row:2;min-width:0}
+#viewStatus.active.auditor-open>#auditorBackdrop{grid-column:2;grid-row:2}
+#viewAudit.active.auditor-open{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(380px,.85fr);gap:16px}
+#viewAudit.auditor-open>.pageworkspace{grid-column:1;grid-row:2;min-width:0}
+#viewAudit.auditor-open>.auditorpane{grid-column:2;grid-row:2}
+@media(max-width:1050px){#viewStatus.active.auditor-open,#viewAudit.active.auditor-open{display:block}#viewStatus.active.auditor-open>.pageworkspace,#viewAudit.auditor-open>.pageworkspace{margin-bottom:16px}}

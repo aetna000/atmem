@@ -286,6 +286,7 @@
 
   <div class="tabpanel active" id="viewStatus">
   <div class="pageheading"><div><div class="eyebrow">Conversation investigation</div><h1>Agent sessions</h1><p>Understand what happened in a conversation and which retained memories could help now.</p></div></div>
+  <div class="settingsworkspace pageworkspace" id="sessionsWorkspace"><nav class="settingsrail" id="sessionsRail" aria-label="Session sections"><div class="settingsrailtitle">Sessions</div></nav><main class="settingsstage" id="sessionsStage"></main></div>
   <nav class="sectionnav" aria-label="Session sections"><a href="#sessionInsights"><span>01</span> Overview</a><a href="#blackboxCard"><span>02</span> Recent sessions</a><a href="#memorySearchCard"><span>03</span> Memory search</a><a href="#blackboxArchiveCard"><span>04</span> Session archive</a></nav>
   <div class="detailcontext" id="sessionDetailContext" hidden><button class="secondary" id="sessionDetailBack" type="button">← All sessions</button><div><span>Inspecting session</span><b id="sessionDetailTitle">Selected run</b></div></div>
 
@@ -317,6 +318,7 @@
 
   <div class="tabpanel" id="viewDecisions">
   <div class="pageheading"><div><div class="eyebrow">Memory governance</div><h1>Decisions</h1></div></div>
+  <div class="settingsworkspace pageworkspace" id="decisionsWorkspace"><nav class="settingsrail" id="decisionsRail" aria-label="Decision sections"><div class="settingsrailtitle">Decisions</div></nav><main class="settingsstage" id="decisionsStage"></main></div>
 
   <section class="hero providerhero" id="hero">
     <div>
@@ -353,7 +355,7 @@
     </div>
 
     <aside>
-      <details class="card decisionchecks"><summary>Verification &amp; recovery</summary>
+      <details class="card decisionchecks" id="decisionChecks"><summary>Verification &amp; recovery</summary>
         <div class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-shield-check"/></svg><h2 id="switchTitle">Ready to switch?</h2></div>
         <p class="sub" id="switchCopy">AtMem checks the active adapter before allowing context injection.</p>
         <div id="checks"></div>
@@ -362,7 +364,7 @@
         <div class="small" id="verifyStatus" style="margin-top:12px;line-height:1.7"></div>
         <div class="small" id="drillStatus" style="margin-top:12px;line-height:1.7"></div>
       </details>
-      <details class="card">
+      <details class="card" id="decisionChangesCard">
         <summary><svg class="icon" aria-hidden="true"><use href="#i-shield-check"/></svg><span class="summarytitle"><b>What changes</b></span></summary>
         <div class="detailsbody">
         <div class="check"><i>✓</i><div>Shadow mode observes without adding memory to model context.</div></div>
@@ -377,6 +379,7 @@
 
   <div class="tabpanel" id="viewMemory">
   <div class="pageheading"><div><div class="eyebrow">Retained knowledge</div><h1>Memory archive</h1><p>Browse what AtMem retains, where it came from, and how the canonical memory stores are organised.</p></div></div>
+  <div class="settingsworkspace pageworkspace" id="memoryWorkspace"><nav class="settingsrail" id="memoryRail" aria-label="Memory sections"><div class="settingsrailtitle">Memory</div></nav><main class="settingsstage" id="memoryStage"></main></div>
   <nav class="sectionnav" aria-label="Memory archive sections"><a href="#mirrorCard"><span>01</span> Memory sources</a><a href="#recordBreakdownCard"><span>02</span> Searchable records</a><a href="#storageOverview"><span>03</span> Storage</a></nav>
 
   <section class="card" id="memorySearchCard">
@@ -510,6 +513,7 @@
 
   <div class="tabpanel" id="viewAudit">
     <div class="pageheading"><div><div class="eyebrow">Governance evidence</div><h1>Audit trail</h1><p>Inspect the append-only record of who or what accessed or changed memory, and whether the action was authorised.</p></div></div>
+    <div class="settingsworkspace pageworkspace" id="auditWorkspace"><nav class="settingsrail" id="auditRail" aria-label="Audit sections"><div class="settingsrailtitle">Audit</div></nav><main class="settingsstage" id="auditStage"></main></div>
     <div id="auditViewMount"></div>
   </div>
 
