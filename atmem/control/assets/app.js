@@ -5,6 +5,23 @@ var blackboxLoaded=false,blackboxLoadPromise=null,showBackgroundRuns=false,inspe
 var applicationStarted=false;
 var auditCursors=[null],auditPageIndex=0,auditLast=null,auditFacetsLoaded=false;
 var $=function(id){return document.getElementById(id)};
+var settingsSections=[
+  ["myAccountCard","My account","Password and sign-in","◉"],
+  ["usersCard","Users & access","Accounts and roles","♙"],
+  ["evidenceProtection","Evidence protection","Capture and encryption","◆"],
+  ["homeCard","AtMem Home","Storage and migration","⌂"],
+  ["semanticSettingsCard","Embedding model","Local semantic search","◇"],
+  ["intelligenceConfig","AtBot","Memory intelligence","✦"],
+  ["jevConfig","Jev","Advisory reranking","↕"],
+  ["contextAuthorityConfig","Context authority","Delegated providers","⇄"],
+  ["taskModeSettingsCard","Task state","Governed agent context","▣"],
+  ["systemHealth","System health","Indexes and agent coverage","◷"],
+  ["featureCapabilityCard","Capabilities","Adapters and features","⊞"]
+];
+var activeSettingsSection="myAccountCard";
+function selectSettingsSection(id){var panel=$(id);if(!panel||panel.hidden)return;activeSettingsSection=id;settingsSections.forEach(function(row){var item=$(row[0]),button=$("settingsNav_"+row[0]);if(!item||!button)return;var selected=row[0]===id;item.classList.toggle("settingsselected",selected);button.classList.toggle("active",selected);button.setAttribute("aria-current",selected?"page":"false");button.hidden=item.hidden});if(panel.tagName==="DETAILS")panel.open=true;var row=settingsSections.find(function(item){return item[0]===id}),source=panel.querySelector(".statuspill"),badge=$("settingsStageStatus");text("settingsStageTitle",row?row[1]:"Settings");text("settingsStageSubtitle",row?row[2]:"");badge.hidden=!source;if(source){badge.textContent=source.textContent;badge.className=source.className}}
+function setupSettingsWorkspace(){var rail=$("settingsRail"),stage=$("settingsStage"),heading=document.createElement("div");heading.className="settingsstagehead";heading.innerHTML='<div><span class="eyebrow">Configuration</span><h2 id="settingsStageTitle"></h2><p id="settingsStageSubtitle"></p></div><span class="statuspill" id="settingsStageStatus" hidden></span>';stage.appendChild(heading);settingsSections.forEach(function(row){var panel=$(row[0]);if(!panel)return;var button=document.createElement("button");button.type="button";button.id="settingsNav_"+row[0];button.className="settingsrailitem";button.innerHTML='<span class="settingsrailicon" aria-hidden="true"></span><span class="settingsrailcopy"><b></b><small></small></span>';button.querySelector(".settingsrailicon").textContent=row[3];button.querySelector("b").textContent=row[1];button.querySelector("small").textContent=row[2];button.onclick=function(){selectSettingsSection(row[0])};rail.appendChild(button);stage.appendChild(panel);new MutationObserver(function(){button.hidden=panel.hidden;if(panel.hidden&&activeSettingsSection===row[0])selectSettingsSection("myAccountCard")}).observe(panel,{attributes:true,attributeFilter:["hidden"]});var source=panel.querySelector(".statuspill");if(source)new MutationObserver(function(){if(activeSettingsSection===row[0])selectSettingsSection(row[0])}).observe(source,{attributes:true,childList:true,characterData:true,subtree:true})});selectSettingsSection(activeSettingsSection)}
+setupSettingsWorkspace();
 // Compose the dashboard by user question while keeping stable deep-link IDs.
 $("viewStatus").appendChild($("memorySearchCard"));
 $("viewStatus").appendChild($("blackboxArchiveCard"));
@@ -765,7 +782,7 @@ $("auditReset").onclick=function(){applyAuditFilters({});auditSearch(true)};
 $("auditSave").onclick=function(){var name=prompt("Name this audit view:");if(!name||!name.trim())return;var views=savedViews();views.push({name:name.trim(),filters:auditFilters()});localStorage.setItem("atmem-audit-views",JSON.stringify(views));renderSavedViews();$("auditSaved").value=String(views.length-1)};
 $("auditSaved").onchange=function(){var view=savedViews()[Number($("auditSaved").value)];if(!view)return;applyAuditFilters(view.filters||{});auditSearch(true)};
 $("auditorClose").onclick=closeAuditor;$("sessionDetailBack").onclick=closeAuditor;document.addEventListener("keydown",function(event){if(event.key==="Escape"&&$("auditorBackdrop").classList.contains("show")&&!event.target.matches("input,textarea,select"))closeAuditor()});
-$("loginForm").onsubmit=login;$("passwordForm").onsubmit=changeOwnPassword;$("selfPasswordForm").onsubmit=changeSignedInPassword;$("identityChip").onclick=function(){showView("settings");$("myAccountCard").open=true};$("logoutButton").onclick=logout;$("userCreateForm").onsubmit=createUser;$("usersCard").addEventListener("toggle",function(){if(this.open)loadUsers()});
+$("loginForm").onsubmit=login;$("passwordForm").onsubmit=changeOwnPassword;$("selfPasswordForm").onsubmit=changeSignedInPassword;$("identityChip").onclick=function(){showView("settings");selectSettingsSection("myAccountCard")};$("logoutButton").onclick=logout;$("userCreateForm").onsubmit=createUser;$("usersCard").addEventListener("toggle",function(){if(this.open)loadUsers()});
 applyTheme(preferredTheme(),false);$("themeToggle").onclick=function(){applyTheme(document.documentElement.dataset.theme==="dark"?"light":"dark",true)};
 async function loadFeatureCapabilities(){var names=["graph","storage","adapters","interchange","lifecycle","media","onboarding","production"],box=$("featureCapabilityRows");box.replaceChildren();try{var values=await Promise.all(names.map(function(name){return get("/v1/features/"+name)}));values.forEach(function(value){var row=element("div","evidence");row.append(element("span","",value.feature),element("b","",value.available?"Available":"Unavailable"));box.append(row)});text("featureCapabilityStatus","Ready");$("featureCapabilityStatus").className="statuspill active"}catch(error){text("featureCapabilityStatus","Unavailable");$("featureCapabilityStatus").className="statuspill quarantined"}}
 $("featureCapabilityRefresh").onclick=loadFeatureCapabilities;

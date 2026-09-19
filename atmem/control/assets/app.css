@@ -453,6 +453,16 @@ main{padding:0 0 46px}
 body:has(.memorychat.collapsed){padding-bottom:70px}
 
 .settingsgroup>summary{display:flex;flex-direction:column;gap:4px;cursor:pointer;font-size:15px}
+.settingsworkspace{display:grid;grid-template-columns:210px minmax(0,1fr);min-height:480px;border:1px solid var(--line);border-radius:8px;background:var(--card);overflow:hidden;box-shadow:var(--shadow)}
+.settingsrail{display:flex;flex-direction:column;gap:1px;padding:11px 7px;background:color-mix(in srgb,var(--bg) 62%,var(--card));border-right:1px solid var(--line)}
+.settingsrailtitle{padding:7px 10px 9px;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.settingsrailitem{display:flex;align-items:center;gap:9px;width:100%;min-height:36px;padding:6px 9px;border:1px solid transparent;border-radius:5px;background:transparent;color:var(--muted);text-align:left;cursor:pointer}
+.settingsrailitem:hover{background:var(--card);color:var(--ink)}.settingsrailitem.active{background:var(--card);border-color:var(--line);color:var(--ink);box-shadow:var(--shadow)}
+.settingsrailicon{display:grid;place-items:center;width:19px;flex:0 0 19px;color:var(--signal);font-size:15px}.settingsrailcopy{display:flex;flex-direction:column;gap:2px;min-width:0}.settingsrailcopy b{font-size:12px}.settingsrailcopy small{display:none}
+.settingsstage{min-width:0;padding:20px 25px 28px}.settingsstagehead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:17px}.settingsstagehead h2{margin:4px 0 2px;font-size:21px}.settingsstagehead p{margin:0;color:var(--muted);font-size:11px}
+.settingsstage>[id]:not(.settingsstagehead){display:none!important}.settingsstage>[id].settingsselected:not([hidden]){display:block!important}.settingsstage>details.settingsselected>summary{display:none!important}.settingsstage>details.settingsselected{margin:0;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible}.settingsstage>details.settingsselected>.intelligencebody,.settingsstage>details.settingsselected>.protectiondrawer{padding:0;border:0}.settingsstage>details.settingsselected>.usersbody{padding:0}.settingsstage>section.settingsselected{margin:0;border:0;box-shadow:none;background:transparent;padding:0}
+.settingsstage .intelligencehead h2,.settingsstage .semantichead h2{font-size:15px}.settingsstage .intelligencefields{gap:9px;margin-top:12px;max-width:840px}.settingsstage .intelligencefields input,.settingsstage .intelligencefields select{min-height:36px;padding:7px 9px;border-radius:5px}.settingsstage .intelligencesecurity{max-width:840px;padding:9px 11px}.settingsstage .intelligenceactions{margin-top:13px}.settingsstage .intelligenceguide{max-width:840px;margin-top:10px;padding-top:10px}.settingsstage .envsetup{padding:6px 0}
+@media(max-width:760px){.settingsworkspace{display:block}.settingsrail{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:9px}.settingsrailtitle{display:none}.settingsrailitem{flex:0 0 auto;width:auto;min-height:42px}.settingsrailcopy small{display:none}.settingsstage{padding:18px 16px 28px}}
 .settingsgroup>summary span{font-size:12px;color:var(--muted)}
 .settingsgroup[open]>.semantichead{margin-top:20px}
 .decisionchecks>summary{cursor:pointer;font-weight:600}
