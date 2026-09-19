@@ -1600,6 +1600,7 @@ class ControlPlaneManager:
             )
             candidates.append(row)
         from atmem.control.atbot_companion import AtBotCompanionClient
+        from atmem.control.jev_service import JevServiceManager
 
         from atmem.retrieve import SupportClass, decide_retrieval
 
@@ -1613,7 +1614,20 @@ class ControlPlaneManager:
         elif candidates:
             retrieval_decision = None
 
-        result = AtBotCompanionClient().query(clean, list(candidates))
+        # Jev is an optional advisory reranker.  It receives only the already
+        # eligible candidate set and can never widen it; disabled or failed Jev
+        # keeps the existing AtBot path unchanged.
+        jev_result = JevServiceManager().rerank(clean, list(candidates))
+        if jev_result.get("enabled") and (jev_result.get("used") or jev_result.get("fallback")):
+            result = {
+                "ranked_record_ids": jev_result.get("ranked_record_ids") or [],
+                "provider": "jev",
+                "model": jev_result.get("model"),
+                "advisory": True,
+                "fallback": bool(jev_result.get("fallback")),
+            }
+        else:
+            result = AtBotCompanionClient().query(clean, list(candidates))
         allowed = {
             str(row.get("record_id") or row.get("id")): row for row in candidates
         }
@@ -1676,6 +1690,15 @@ class ControlPlaneManager:
                 "candidate_digest": candidate_set.candidate_digest,
                 "preparation_id": package.preparation_id,
                 "decision": decision_payload,
+                "advisory_reranker": {
+                    "provider": jev_result.get("provider"),
+                    "model": jev_result.get("model"),
+                    "enabled": jev_result.get("enabled"),
+                    "used": jev_result.get("used"),
+                    "fallback": jev_result.get("fallback"),
+                    "reason": jev_result.get("reason"),
+                    "latency_ms": jev_result.get("latency_ms"),
+                },
             },
         }
 

@@ -190,6 +190,11 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 },
             )
             return
+        if path == "/api/jev/status":
+            from atmem.control.jev_service import JevServiceManager
+
+            self._json(HTTPStatus.OK, JevServiceManager().status())
+            return
         if path in {"/api/delegated/status", "/api/delegated/doctor", "/api/delegated/self-test"}:
             from atmem.delegated import DelegatedContextService
 
@@ -685,6 +690,32 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     HTTPStatus.OK,
                     {"configured": configured, "status": service.status()},
                 )
+                return
+            if path == "/api/jev/configure":
+                from atmem.control.jev_service import JevServiceManager
+
+                allowed = {"enabled", "model", "endpoint", "api_key_env", "timeout_seconds", "fallback"}
+                if set(body) - allowed:
+                    raise ValueError("unsupported Jev configuration fields")
+                result = JevServiceManager().configure(
+                    enabled=body.get("enabled") is True,
+                    model=str(body.get("model") or "jev-1.13.0"),
+                    endpoint=str(body.get("endpoint") or "https://api.typesafe.ai/v1/systemone"),
+                    api_key_env=str(body.get("api_key_env") or "JEV_API"),
+                    timeout_seconds=float(body.get("timeout_seconds") or 8.0),
+                    fallback=str(body.get("fallback") or "native"),
+                )
+                self._json(HTTPStatus.OK, result)
+                return
+            if path == "/api/jev/action":
+                from atmem.control.jev_service import JevServiceManager
+
+                if set(body) - {"action"}:
+                    raise ValueError("Jev action accepts action only")
+                action = str(body.get("action") or "")
+                if action not in {"enable", "disable"}:
+                    raise ValueError("Jev action must be enable or disable")
+                self._json(HTTPStatus.OK, JevServiceManager().set_enabled(action == "enable"))
                 return
             if path == "/api/companion/action":
                 from atmem.control.atbot_service import AtBotServiceManager

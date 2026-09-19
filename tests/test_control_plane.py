@@ -1101,7 +1101,10 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/companion/status",
         "/api/companion/profiles",
         "/api/companion/configure",
-            "/api/companion/action",
+        "/api/companion/action",
+        "/api/jev/status",
+        "/api/jev/configure",
+        "/api/jev/action",
             "/api/delegated/status",
             "/api/delegated/doctor",
             "/api/delegated/self-test",
@@ -1162,6 +1165,7 @@ def test_dashboard_external_links_are_allowlisted() -> None:
     allowed_prefixes = (
         "https://github.com/aetna000/atmem",
         "https://x.com/AtMemX",
+        "https://api.typesafe.ai/",
     )
     pattern = r"https://[^\s\"'<>]+"
     for url in re.findall(pattern, dashboard_html()):

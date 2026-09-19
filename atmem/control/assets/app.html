@@ -205,6 +205,26 @@
     </div>
   </details>
 
+  <details class="intelligenceconfig" id="jevConfig">
+    <summary class="intelligencesummary">
+      <div class="intelligencesummarycopy"><b>Jev advisory reranking</b><span>Optional relevance assistant; AtMem remains authoritative</span></div>
+      <div class="intelligencesummarymeta"><span class="statuspill" id="jevStatus">Disabled</span><span class="settingshint">Settings <span aria-hidden="true">⌄</span></span></div>
+    </summary>
+    <div class="intelligencebody">
+      <div class="intelligencehead"><div><h2>Use Jev to improve candidate ordering</h2><p class="sub">AtMem retrieves and authorizes memories first. Jev may reorder only those candidates; it cannot add, delete, or authorize memory.</p></div></div>
+      <div class="intelligencesecurity"><b>Remote processing is opt-in.</b> When enabled, eligible query and candidate text is sent to the configured Jev endpoint. The API key stays in the named environment variable and is never stored by AtMem.</div>
+      <div class="intelligencefields">
+        <label class="field"><span>Model</span><input id="jevModel" autocomplete="off" value="jev-1.13.0"></label>
+        <label class="field"><span>API-key environment variable</span><input id="jevKeyEnv" autocomplete="off" spellcheck="false" value="JEV_API"></label>
+        <label class="field wide"><span>Endpoint</span><input id="jevEndpoint" autocomplete="url" spellcheck="false" value="https://api.typesafe.ai/v1/systemone"></label>
+        <label class="field"><span>Timeout (seconds)</span><input id="jevTimeout" type="number" min="1" max="30" step="1" value="8"></label>
+        <label class="field"><span>Failure behavior</span><select id="jevFallback"><option value="native">Use native AtMem ordering</option><option value="withhold">Withhold context</option></select></label>
+      </div>
+      <div class="intelligenceactions"><button class="primary" id="jevSave" type="button">Save disabled configuration</button><button class="secondary" id="jevEnable" type="button">Enable Jev</button><button class="secondary" id="jevDisable" type="button" disabled>Disable Jev</button></div>
+      <div class="intelligenceguide"><p id="jevGuidance">Jev is disabled. AtMem native retrieval is active.</p><code id="jevEvidence">Jev decisions appear in retrieval evidence when used.</code></div>
+    </div>
+  </details>
+
   <details class="intelligenceconfig" id="contextAuthorityConfig">
     <summary class="intelligencesummary">
       <div class="intelligencesummarycopy"><b>Context authority</b><span>Native AtMem by default; optional delegated provider</span></div>
