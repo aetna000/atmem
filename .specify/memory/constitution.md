@@ -113,6 +113,34 @@ MUST be registered, scoped, attributable, and unable to bypass final AtMem
 contract enforcement unless a separately named delegated-authority mode makes
 that boundary explicit to users and auditors.
 
+### VIII. Production-Level Benchmark Evidence
+
+AtMem experiments MUST distinguish plumbing tests, synthetic demonstrations,
+research prototypes, and production-level benchmark evidence. Synthetic or
+small hand-authored data MAY validate control flow, safety boundaries, and
+visualization, but MUST NOT support a customer-facing claim about production
+quality, retrieval accuracy, scale, latency, throughput, or model advantage.
+
+Any experiment described as production-level MUST use a legitimate, documented
+evaluation corpus or an approved production-like corpus at a representative
+scale. The initial memory-retrieval track MUST include LoCoMo for realistic
+conversation memory, LongMemEval for long-history behavior, and BEAM for large
+workload and scheduling behavior where applicable. Each benchmark MUST publish
+its dataset/license reference, immutable version or commit, split and leakage
+controls, task definition, baseline configuration, resource limits, seed,
+hardware/software environment, metrics, uncertainty or repeated-trial policy,
+raw machine-readable results, and known limitations.
+
+Production-level claims MUST be based on held-out evaluation and an apples-to-
+apples baseline. They MUST report both quality and systems behavior, including
+at least ranking/answer quality, p50/p95 latency, throughput, error or refusal
+rate, and resource usage at the tested scale. A hosted model or reranker MUST
+not receive private or restricted benchmark content unless the dataset license,
+user authorization, and AtMem egress policy explicitly permit it; otherwise the
+experiment MUST use a local or approved redacted evaluator. Results from a
+synthetic fallback, partial corpus, or failed external dependency MUST be
+labeled as such and MUST NOT be silently promoted to production evidence.
+
 ## Product and Engineering Constraints
 
 - Python 3.10 through 3.13 remain supported unless a separately approved
@@ -127,6 +155,9 @@ that boundary explicit to users and auditors.
   dashboard is never a second source of truth.
 - The default install MUST avoid forcing unrelated model SDK upgrades into a
   user's shared environment.
+- Benchmark harnesses MUST keep synthetic smoke results separate from
+  production-level reports and MUST fail or visibly downgrade the claim when a
+  required corpus, split, baseline, or measurement gate is missing.
 - Apache-2.0 licensing and enterprise-safe dependency licensing are release
   requirements.
 
@@ -223,4 +254,29 @@ migration checkpoint; and repeat the dead-agent reconstruction with encrypted
 storage. Claims name the exact crypto module and validation status and MUST NOT
 imply FIPS certification without evidence.
 
-**Version**: 2.1.0 | **Ratified**: 2026-09-01 | **Last Amended**: 2026-09-13
+### Amendment 2.2 — Production-level benchmark evidence
+
+**Reason**: Small synthetic demos are useful for wiring and safety checks, but
+they cannot support claims about production retrieval quality, scale, latency,
+or model advantage. AtMem needs a durable rule that separates demonstrations
+from evidence customers and maintainers can rely on.
+
+**Compatibility impact**: Existing synthetic experiments remain valid as
+plumbing or research demonstrations when visibly labelled. Existing benchmark
+results are not retroactively upgraded to production-level evidence. New
+reports and release notes must use the production-level label only when the
+corpus, held-out, baseline, quality, systems, and reproducibility gates pass.
+
+**Migration impact**: Benchmark harnesses must add dataset manifests and result
+schemas without changing canonical memory or persisted user data. The first
+approved corpus track is LoCoMo, followed by LongMemEval and BEAM where their
+tasks match the claim. Dataset licenses and external-egress decisions must be
+recorded before live model evaluation.
+
+**Required gates**: Tests and CI MUST reject or visibly downgrade reports that
+are missing an immutable corpus reference, held-out split, leakage check,
+apples-to-apples baseline, raw machine-readable results, or p50/p95 latency,
+throughput, error/refusal, and resource measurements. A synthetic-only result
+MUST never be rendered as production quality evidence.
+
+**Version**: 2.2.0 | **Ratified**: 2026-09-01 | **Last Amended**: 2026-09-19

@@ -1,7 +1,7 @@
 # Releases and upgrades
 
 ## Current stable release
-[AtMem 2.3.3](../releases/v2.3.3.md) improves retrieval efficiency and session
+[AtMem 2.3.4b1](../releases/v2.3.4b1.md) improves retrieval efficiency and session
 navigation while preserving authority and evidence boundaries. Existing defaults
 remain unchanged; fusion and vector matrix caching are opt-in evaluation options.
 

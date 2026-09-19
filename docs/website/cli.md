@@ -40,6 +40,6 @@ Replace RUN_ID with a recorded run. Exact evidence inspection/export requires th
 corresponding evidence privilege; a legacy hash projection is not the plaintext vault.
 
 ## Upgrade and recovery
-Follow [release commands](../releases/v2.3.3.md) and
+Follow [release commands](../releases/v2.3.4b1.md) and
 [portable Home recovery](../data-storage-and-backup.md).
 Run `atmem users --help` for account administration and local recovery commands.

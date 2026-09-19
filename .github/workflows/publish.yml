@@ -223,7 +223,7 @@ jobs:
           python "$GITHUB_WORKSPACE/tools/smoke_delegated_transport.py"
 
   upgrade-existing:
-    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.3.3
+    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.3.4b1
     needs: build
     runs-on: ubuntu-latest
     strategy:

@@ -1,6 +1,6 @@
 # Data storage and backup
 
-## Portable Home (2.3.3)
+## Portable Home (2.3.4b1)
 
 New durable state resolves from `ATMEM_HOME`, otherwise `~/.atmem`. The Home
 contains `config/`, `identity/`, `memory/`, `evidence/`, `artifacts/`,

@@ -107,11 +107,11 @@ candidate campaign pins Mem0 OSS 2.0.20 and records its exploratory
 The [corrected matched-input calibration comparison](implementation-evidence/031/matched-v2.md)
 separates semantic-only Mem0 from an enabled-hybrid run, and first versus
 repeated search from corpus ingestion/index time. Neither 12-case result establishes a
-general comparative win. Stable 2.3.3 ships unchanged retrieval defaults.
+general comparative win. Beta 2.3.4b1 ships unchanged retrieval defaults.
 Historical beta manifest filenames remain immutable experiment
-identities, not package versions. See [the release scope](releases/v2.3.3.md).
+identities, not package versions. See [the release scope](releases/v2.3.4b1.md).
 
-For the 2.3.3 development comparison, use the checked-in
+For the 2.3.3b1 development comparison, use the checked-in
 [frozen manifest](../atmem/benchmark/data/mem0-head-to-head-2.3.3b1-v1.json)
 and a separate environment for Mem0 2.0.20. AtMem's optional
 `semantic-accelerated` extra adds compiled NumPy vector math without changing

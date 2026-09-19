@@ -7,7 +7,7 @@ does not contact a model, and does not enable agent injection.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install atmem==2.3.3
+python -m pip install atmem==2.3.4b1
 ```
 
 On Windows, activate with `.venv\Scripts\activate` instead.

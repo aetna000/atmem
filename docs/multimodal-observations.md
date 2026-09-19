@@ -1,7 +1,7 @@
 # Governed multimodal observations
 
 AtMem stores scoped artifact references and derived observations for images,
-audio, video, files and tool artifacts. In the 2.3.3 configured full-fidelity
+audio, video, files and tool artifacts. In the 2.3.4b1 configured full-fidelity
 Black Box profile, available original bytes are copied into protected AtMem
 evidence and its artifact vault. The host reference remains provenance, not
 a recovery dependency. Metadata-only/off capture cannot claim original-byte

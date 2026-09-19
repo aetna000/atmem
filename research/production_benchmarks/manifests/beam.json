@@ -1,0 +1,10 @@
+{
+  "name": "BEAM",
+  "version": "upstream-scale-variants",
+  "source_url": "https://github.com/mohammadtavakoli78/BEAM",
+  "license": "see upstream repository",
+  "source_ref": "main",
+  "expected_sha256": "pending-adapter",
+  "task": "large-context memory and scheduling workload",
+  "status": "staged"
+}
