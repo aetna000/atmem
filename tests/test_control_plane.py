@@ -1163,6 +1163,7 @@ def test_dashboard_external_links_are_allowlisted() -> None:
     from atmem.control.web import dashboard_html
 
     allowed_prefixes = (
+        "https://atmem.ai/",
         "https://github.com/aetna000/atmem",
         "https://x.com/AtMemX",
         "https://api.typesafe.ai/",

@@ -30,7 +30,7 @@ button,input{font:inherit}button{cursor:pointer}.mono{font-family:ui-monospace,"
 Consolas,monospace;font-variant-numeric:tabular-nums}.wrap{max-width:1240px;margin:0 auto;padding:0 30px}
 header{height:68px;position:sticky;top:0;z-index:15;background:color-mix(in srgb,var(--bg) 78%,transparent);
 backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid color-mix(in srgb,var(--line) 78%,transparent);display:flex;align-items:center}
-.head{display:flex;align-items:center;gap:12px;width:100%}.logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:850;letter-spacing:-.03em}
+.head{display:flex;align-items:center;gap:12px;width:100%}.logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:850;letter-spacing:-.03em;text-decoration:none;color:var(--ink)}.logo:hover strong{color:var(--brand)}
 .brandmark{width:40px;height:40px;object-fit:cover;border-radius:10px;display:block;border:1px solid #ffffff24;box-shadow:0 7px 20px #0004;filter:invert(1)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .brandmark{filter:none}}
 :root[data-theme="dark"] .brandmark{filter:none}
