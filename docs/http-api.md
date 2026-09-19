@@ -77,7 +77,7 @@ governed retrieval, not proof of model-input delivery.
 
 ## Operation inventory
 
-Paths below are complete, including `/v1`. This inventory describes the 2.3.3
+Paths below are complete, including `/v1`. This inventory describes the 2.3.4b1
 loopback handler; the linked baseline OpenAPI covers a smaller subset. Consult
 capabilities before use. Session/evidence authority is enforced by the service.
 

@@ -1,0 +1,10 @@
+{
+  "name": "LongMemEval",
+  "version": "cleaned-v2",
+  "source_url": "https://github.com/xiaowu0162/LongMemEval",
+  "license": "see upstream repository and dataset card",
+  "source_ref": "huggingface:xiaowu0162/longmemeval-cleaned",
+  "expected_sha256": "pending-adapter",
+  "task": "long-history memory evaluation",
+  "status": "staged"
+}

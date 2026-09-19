@@ -28,6 +28,9 @@ venv/
 # Local project ideation notes
 idea.md
 
+# JEV-Lab generated reports are local experiment outputs.
+research/jev_lab/results/
+
 # Node (OpenClaw plugin)
 node_modules/
 integrations/openclaw/dist/

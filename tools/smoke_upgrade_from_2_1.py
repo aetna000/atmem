@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a published-version fixture, then prove 2.3.3 upgrades it safely."""
+"""Create a published-version fixture, then prove 2.3.4b1 upgrades it safely."""
 
 from __future__ import annotations
 

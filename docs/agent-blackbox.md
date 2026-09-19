@@ -11,7 +11,7 @@ It answers a narrow operational question:
 
 ## Exact evidence and the compatible projection
 
-In 2.3.3, configured recording defaults to encrypted full-fidelity capture:
+In 2.3.4b1, configured recording defaults to encrypted full-fidelity capture:
 available prompt, context, model exchange, tool arguments/results and ordered
 multimodal originals are retained in the protected vault. Supported OpenClaw
 capture includes original media bytes. Other adapters have their own coverage;
