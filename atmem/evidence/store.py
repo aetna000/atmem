@@ -75,6 +75,8 @@ class EncryptedEvidenceStore:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=FULL")
+        # Concurrent writers wait for the lock instead of failing immediately.
+        self._conn.execute("PRAGMA busy_timeout = 5000")
         self._conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS vault_meta(
@@ -146,7 +148,12 @@ class EncryptedEvidenceStore:
 
     def append(self, document: dict[str, Any], *, partition_id: str = "vault") -> dict[str, Any]:
         object_id = f"obj_{uuid.uuid4().hex}"
-        with self._conn:
+        # BEGIN IMMEDIATE serializes the MAX(sequence) head read with the append
+        # that follows, so two connections cannot derive the same next sequence.
+        # Sealing happens inside the transaction, which widens the window enough
+        # for a deferred read to lose the race under concurrency.
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
             row = self._conn.execute("SELECT COALESCE(MAX(sequence), 0) AS value FROM sealed_objects").fetchone()
             sequence = int(row["value"]) + 1
             sealed = {
@@ -162,6 +169,10 @@ class EncryptedEvidenceStore:
                 "INSERT INTO sealed_objects(object_id,sequence,nonce,ciphertext,slot_id) VALUES(?,?,?,?,?)",
                 (object_id, sequence, nonce, ciphertext, slot_id),
             )
+            self._conn.commit()
+        except Exception:
+            self._conn.rollback()
+            raise
         return {"object_id": object_id, "sequence": sequence}
 
     def documents(self) -> Iterable[dict[str, Any]]:
