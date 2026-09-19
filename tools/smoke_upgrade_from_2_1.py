@@ -80,7 +80,7 @@ def verify_upgrade(root: Path) -> None:
     from atmem.control.store import ENCRYPTED_CONTROL_MAGIC
 
     manifest = json.loads((root / "fixture.json").read_text(encoding="utf-8"))
-    assert importlib.metadata.version("atmem") == "2.3.3"
+    assert importlib.metadata.version("atmem") == "2.3.4b1"
     assert importlib.metadata.version("atmem-atbot") == "0.1.0"
 
     database = root / "memory.db"
@@ -124,7 +124,7 @@ def verify_upgrade(root: Path) -> None:
     else:
         raise AssertionError("protected control evidence remained readable as plaintext SQLite")
     assert manager.control_schema_version() == 6
-    print("AtMem persisted-state -> 2.3.3 upgrade smoke test passed")
+    print("AtMem persisted-state -> 2.3.4b1 upgrade smoke test passed")
 
 
 def main() -> None:
