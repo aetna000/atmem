@@ -1,17 +1,15 @@
 :root{
   color-scheme:light dark;
-  --bg:light-dark(#f7f7f9,#0e0f13);--card:light-dark(#fff,#16181f);--card-raised:light-dark(#f1f2f6,#1c1f28);
-  --ink:light-dark(#14161c,#e8eaf0);--muted:light-dark(#565e70,#a2a9bc);--line:light-dark(#dee0e8,#232733);
+  --bg:light-dark(#fff,#0d1011);--card:light-dark(#fff,#0d1011);--card-raised:light-dark(#f5f8f8,#151a1c);
+  --ink:light-dark(#101314,#f3f7f7);--muted:light-dark(#4b5659,#a9babc);--line:light-dark(#101314,#a9babc);
   --brand:light-dark(#1f777c,#5fd0d6);--brand-soft:light-dark(#5fd0d620,#5fd0d626);--on-brand:light-dark(#fff,#082729);
   --blue:light-dark(#1f777c,#8ce2e5);--blue-soft:light-dark(#5fd0d620,#5fd0d626);
   --good:light-dark(#1e8a5c,#3fb27f);--good-soft:light-dark(#1e8a5c1a,#3fb27f1f);
   --warn:light-dark(#9a6a0e,#e0a33e);--warn-soft:light-dark(#c48c1e24,#e0a33e21);
   --bad:light-dark(#c13a2e,#e0574a);--bad-soft:light-dark(#c13a2e1a,#e0574a21);--danger-action:light-dark(#c13a2e,#e0574a);
   --signal:light-dark(#1f777c,#5fd0d6);--signal-soft:light-dark(#5fd0d620,#5fd0d626);
-  --shadow:0 1px 0 light-dark(#10121a08,#ffffff05) inset;
-  --shadow-md:0 1px 2px light-dark(#10121a0d,#0004);
-  --shadow-lg:0 4px 18px light-dark(#10121a12,#0007);
-  --radius:8px;--radius-sm:4px;
+  --shadow:none;--shadow-md:none;--shadow-lg:none;
+  --radius:0;--radius-sm:0;
   --icon-check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4,13 9,18 20,6'/%3E%3C/svg%3E");
   --icon-alert:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3L22 20H2Z'/%3E%3Cline x1='12' y1='9' x2='12' y2='14'/%3E%3Ccircle cx='12' cy='17' r='0.6' fill='%23000' stroke='none'/%3E%3C/svg%3E");
   --icon-chevron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9,4 16,12 9,20'/%3E%3C/svg%3E")
@@ -22,14 +20,11 @@
 .icon{width:16px;height:16px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
 .icon-sm{width:13px;height:13px}.icon-lg{width:20px;height:20px}.icon-xl{width:26px;height:26px}
 h2.withicon,.eyebrow.withicon{display:flex;align-items:center;gap:9px}
-*{box-sizing:border-box}[hidden]{display:none!important}html{scroll-behavior:smooth}body{margin:0;background:
-radial-gradient(circle at 8% -10%,color-mix(in srgb,var(--brand) 11%,transparent),transparent 34rem),
-radial-gradient(circle at 92% 8%,color-mix(in srgb,var(--blue) 9%,transparent),transparent 30rem),var(--bg);color:var(--ink);
+*{box-sizing:border-box}[hidden]{display:none!important}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);
 font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
 button,input{font:inherit}button{cursor:pointer}.mono{font-family:ui-monospace,"SFMono-Regular",
 Consolas,monospace;font-variant-numeric:tabular-nums}.wrap{max-width:1240px;margin:0 auto;padding:0 30px}
-header{height:68px;position:sticky;top:0;z-index:15;background:color-mix(in srgb,var(--bg) 78%,transparent);
-backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid color-mix(in srgb,var(--line) 78%,transparent);display:flex;align-items:center}
+header{height:68px;position:sticky;top:0;z-index:15;background:var(--bg);border-bottom:1px solid var(--line);display:flex;align-items:center}
 .head{display:flex;align-items:center;gap:12px;width:100%}.logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:850;letter-spacing:-.03em;text-decoration:none;color:var(--ink)}.logo:hover strong{color:var(--brand)}
 .brandmark{display:block;flex:none;width:30px;height:30px;color:var(--brand)}
 .logo strong{color:var(--ink)}.grow{flex:1}.small{font-size:12px;color:var(--muted)}
@@ -545,3 +540,13 @@ body:has(.memorychat.collapsed){padding-bottom:70px}
 #viewAudit.auditor-open>.auditorpane{grid-column:2;grid-row:2}
 @media(max-width:1050px){#viewStatus.active.auditor-open,#viewAudit.active.auditor-open{display:block}#viewStatus.active.auditor-open>.pageworkspace,#viewAudit.auditor-open>.pageworkspace{margin-bottom:16px}}
 .chatresult .chatmessage.user,.memorydeliverycount{color:var(--on-brand)}
+
+/* Flat AtMem identity: strong rules, quiet surfaces, and functional teal. */
+:is(h1,h2,h3,.logo,.tabbtn,.settingsrailtitle,.settingsstagehead,.pageheading,.primary,.secondary){font-family:ui-monospace,"SFMono-Regular",Consolas,monospace;letter-spacing:0}
+:is(.card,.hero,.settingsworkspace,.tabnav,.statusbanner,.appfoot,.authcard,.identitychip,.themebtn,.primary,.secondary,.settingsrailitem,.settingsrailtoggle,.statuspill,.eyebrow,.intelligenceconfig,.protectionrow,.memoryline,.flight,.activityrow,.auditrow,.search input,.field input,.field select,.intelligencefields input,.intelligencefields select,.authform input,.usercreate input,.usercreate select){border-radius:0!important;box-shadow:none!important}
+.tabnav{margin-bottom:18px;padding:0;border:0;border-bottom:1px solid var(--line);background:transparent}.tabbtn{border:0;border-bottom:2px solid transparent;padding:10px 13px}.tabbtn.active{border-color:var(--brand);background:transparent}
+.eyebrow{padding:0;background:transparent}.eyebrow:before{border-radius:0}.hero:before{display:none}.providerhero,.statusbanner{background:var(--card)}.statusbanner.bad{background:var(--card);border-color:var(--bad)}
+.primary{background:var(--ink);border-color:var(--ink);color:var(--bg)}.primary:hover{background:var(--brand);border-color:var(--brand);color:var(--on-brand);filter:none}.primary.danger{background:var(--danger-action);border-color:var(--danger-action)}
+.settingsrail{background:var(--bg)}.settingsrailitem.active{border-color:var(--line);border-left:3px solid var(--brand);background:var(--card)}.settingsstagehead{border-color:var(--line)}
+.statuspill{border:1px solid currentColor;background:transparent}.statuspill.active,.statuspill.quarantined{background:transparent}
+.card,.hero,.settingsworkspace,.appfoot{background:var(--card)}.card:after,.providerhero:after{display:none}

@@ -85,7 +85,7 @@ function protectedAccessCard(runId,protectedRun,error){var card=element("section
 function zeroSequence(compact){var zeros=element("span","zeros"+(compact?" compact":""));zeros.setAttribute("aria-hidden","true");for(var i=0;i<4;i++)zeros.appendChild(element("span","","0"));return zeros}
 function loadingNode(label,className){var node=element("div",(className?className+" ":"")+"zeroloading");node.setAttribute("role","status");node.append(zeroSequence(true),element("span","",label));return node}
 function tableLoading(label){var row=element("tr"),cell=element("td","empty");cell.colSpan=7;cell.appendChild(loadingNode(label));row.appendChild(cell);return row}
-function preferredTheme(){try{var saved=localStorage.getItem("atmem-theme");if(saved==="light"||saved==="dark")return saved}catch(_){}return "dark"}
+function preferredTheme(){try{var saved=localStorage.getItem("atmem-theme");if(saved==="light"||saved==="dark")return saved}catch(_){}return "light"}
 function applyTheme(theme,persist){document.documentElement.dataset.theme=theme;var button=$("themeToggle"),next=theme==="dark"?"Light":"Dark";text("themeToggleLabel",next+" mode");button.setAttribute("aria-label","Switch to "+next.toLowerCase()+" mode");button.setAttribute("aria-pressed",theme==="light"?"true":"false");if(persist){try{localStorage.setItem("atmem-theme",theme)}catch(_){}}}
 async function copyToClipboard(value,button,label){
  var copied=false;
