@@ -48,6 +48,6 @@ Use `--json` where offered for automation. Human-readable output is the default.
 
 The restore drill makes exactly three claims: file restoration was tested, saved configuration was readable, and live rollback was not performed. It never changes live host files or configuration.
 
-## Honest boundary
+## Host coverage
 
 The engine and MCP protocol are model-agnostic. The filesystem discovery, native-memory snapshot, OpenClaw plugin configuration, gateway checks, path guard, and restore adapter are OpenClaw-specific. Other agent hosts need an adapter with equivalent capture, injection, proof, and restore hooks before AtMem can claim a complete switch for them.

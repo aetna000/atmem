@@ -107,9 +107,8 @@ candidate campaign pins Mem0 OSS 2.0.20 and records its exploratory
 The [corrected matched-input calibration comparison](implementation-evidence/031/matched-v2.md)
 separates semantic-only Mem0 from an enabled-hybrid run, and first versus
 repeated search from corpus ingestion/index time. Neither 12-case result establishes a
-general comparative win or the 2× full-preparation target. On 2026-09-17 the
-owner moved that target to future work and approved stable 2.3.3 with unchanged
-retrieval defaults. Historical beta manifest filenames remain immutable experiment
+general comparative win. Stable 2.3.3 ships unchanged retrieval defaults.
+Historical beta manifest filenames remain immutable experiment
 identities, not package versions. See [the release scope](releases/v2.3.3.md).
 
 For the 2.3.3 development comparison, use the checked-in

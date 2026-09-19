@@ -51,9 +51,8 @@ to the final implemented changes before publication.
 
 [Spec 031](../specs/031-mem0-head-to-head-retrieval/spec.md) and its
 [plan](../specs/031-mem0-head-to-head-retrieval/plan.md) define the retrieval
-work between stable 2.3.2 and the previously planned 2.4 foundation. On
-2026-09-17 the owner approved stable 2.3.3 with unchanged retrieval defaults
-and the 2× performance target moved to future work. See the
+work between stable 2.3.2 and the planned 2.4 foundation. Stable 2.3.3 ships
+unchanged retrieval defaults. See the
 [release notes](releases/v2.3.3.md) for the precise shipped subset. The initial 12-case Mem0 2.0.20 baseline
 had an unmatched `limit`/`top_k` call and is preserved only as historical
 evidence. The [corrected same-corpus calibration run](implementation-evidence/031/matched-v2.md)
