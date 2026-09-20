@@ -1,12 +1,11 @@
 # AtMem
 
-[![Version 2.3.4b2 candidate](https://img.shields.io/badge/version-2.3.4b2-blue)](./docs/releases/v2.3.4b2.md)
+[![Version 2.3.4](https://img.shields.io/badge/version-2.3.4-blue)](./docs/releases/v2.3.4.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-> **Release status:** AtMem 2.3.4b1 is a beta encrypted Agent Black Box release.
-> The source tree is preparing [2.3.4b2](docs/releases/v2.3.4b2.md), which installs AtFlows alongside AtMem by default while keeping its read-only review handoff opt-in; the published installation examples below remain on 2.3.4b1 until publication is verified.
+> **Release status:** AtMem 2.3.4 is the stable Agent Black Box and governed-memory release. It installs AtFlows 0.1.1 by default, with optional AtMem-owned login and read-only review leads.
 > It records exact host-observed text and supported multimodal boundaries by default,
 > while keeping every claim limited to what the connected agent actually supplied.
 
@@ -23,7 +22,7 @@ authorizes, stores, scopes, injects, corrects, and deletes memory.
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --upgrade atmem==2.3.4b1
+python -m pip install --upgrade atmem==2.3.4
 atmem atbot setup
 atmem atbot doctor
 atmem init
@@ -56,7 +55,7 @@ package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.4b1
+python -m pip install --upgrade atmem==2.3.4
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -79,7 +78,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.3.4b1'
+python -m pip install 'atmem[pydantic-ai]==2.3.4'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -104,7 +103,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.3.4b1'
+python -m pip install 'atmem[langgraph]==2.3.4'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -168,7 +167,7 @@ open tasks. AtBot may propose a change, but AtMem revalidates and commits it.
 
 See the [Governed Task State guide](docs/governed-task-state.md) for lifecycle,
 correction, provenance, expiry, benchmark, and automation examples, and read
-the [2.3.4b1 release notes](docs/releases/v2.3.4b1.md) before upgrading.
+the [2.3.4 release notes](docs/releases/v2.3.4.md) before upgrading.
 
 ### Prove memory quality locally
 
@@ -182,7 +181,7 @@ perfect; other quality metrics cannot fall below checked-in baselines. Optional
 local/hosted profiles, LongMemEval import and fair Mem0 OSS comparison are also
 available without adding Mem0 or model SDKs to the base install. See the
 [memory benchmark guide](docs/benchmarks.md) for commands and honest limits.
-The [2.3.4b1 release](docs/releases/v2.3.4b1.md) improves local retrieval work and
+The [2.3.4 release](docs/releases/v2.3.4.md) improves local retrieval work and
 archive layout while retaining existing retrieval defaults. Developer opt-in
 fusion, scoped graph nomination and matrix reuse are available for evaluation;
 broader performance targets remain research, not release claims.
@@ -270,7 +269,7 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install atmem==2.3.4b1
+python -m pip install atmem==2.3.4
 atmem --version
 ```
 
@@ -280,7 +279,7 @@ embedding model, while the semantic extra adds local sentence-transformer
 choices:
 
 ```bash
-python -m pip install 'atmem[semantic]==2.3.4b1'
+python -m pip install 'atmem[semantic]==2.3.4'
 ```
 
 For repository development, install both workspace packages:
@@ -468,7 +467,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.4b1
+python -m pip install --upgrade atmem==2.3.4
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -701,9 +700,8 @@ npm test
 npm run smoke
 ```
 
-Current source metadata is the **2.3.4b2 candidate**, with matched OpenClaw
-bridge source **2.3.4-beta.2**. Published installation guidance above remains on
-2.3.4b1 until the new artifacts are verified. Release validation requires exact Python/bridge alignment;
+Current source metadata is the **2.3.4 stable target**, with matched OpenClaw
+bridge source **2.3.4**. Release validation requires exact Python/bridge alignment;
 AtBot retains its independent stable compatible version **0.1.0**.
 
 ## License

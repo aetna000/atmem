@@ -1,13 +1,13 @@
 # Releases and upgrades
 
-## Source candidate
-[AtMem 2.3.4b2](../releases/v2.3.4b2.md) installs AtFlows by default and adds
-an opt-in, read-only review-lead handoff. Publication has not been verified.
+## Stable release
+[AtMem 2.3.4](../releases/v2.3.4.md) installs AtFlows 0.1.1 by default,
+offers optional AtMem-owned login for both dashboards, and adds an opt-in,
+read-only review-lead handoff. AtBot remains 0.1.0.
 
-## Current published beta
-[AtMem 2.3.4b1](../releases/v2.3.4b1.md) improves retrieval efficiency and session
-navigation while preserving authority and evidence boundaries. Existing defaults
-remain unchanged; fusion and vector matrix caching are opt-in evaluation options.
+## Previous beta
+[AtMem 2.3.4b1](https://github.com/aetna000/atmem/blob/main/docs/releases/v2.3.4b1.md) improved retrieval efficiency and
+session navigation while preserving authority and evidence boundaries.
 
 ## Upgrade checklist
 1. Stop writers or create a verified Home snapshot.

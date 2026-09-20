@@ -4781,7 +4781,7 @@ def _read_evidence_token(args: argparse.Namespace) -> str:
 def _run_atflows(args: argparse.Namespace) -> None:
     from atmem.control.manager import ControlPlaneManager, DEFAULT_STATE_PATH
     from atmem.evidence.models import EvidenceOperation, EvidenceScope
-    from atmem.integrations.atflows import fetch_traces, review_leads
+    from atmem.integrations.atflows import auth_mode, fetch_traces, review_leads
 
     manager = ControlPlaneManager(args.state or str(DEFAULT_STATE_PATH))
     service = manager.evidence_service()
@@ -4797,14 +4797,31 @@ def _run_atflows(args: argparse.Namespace) -> None:
             args.run_id,
         ),
     )
-    password = os.environ.get(args.password_env) or getpass.getpass("AtFlows Administrator password: ")
-    traces = fetch_traces(
-        base_url=args.base_url,
-        password=password,
-        session_id=args.session_id,
-        since_ms=args.since_ms,
-        until_ms=args.until_ms,
-    )
+    if auth_mode(args.base_url) == "atmem":
+        username = os.environ.get("ATMEM_USERNAME") or input("AtMem username: ")
+        password = os.environ.get("ATMEM_PASSWORD") or getpass.getpass("AtMem password: ")
+        identity = manager.identity_service()
+        session = identity.login(username, password)
+        token = session["session_token"]
+        try:
+            traces = fetch_traces(
+                base_url=args.base_url,
+                atmem_session=token,
+                session_id=args.session_id,
+                since_ms=args.since_ms,
+                until_ms=args.until_ms,
+            )
+        finally:
+            identity.logout(token)
+    else:
+        password = os.environ.get(args.password_env) or getpass.getpass("AtFlows Administrator password: ")
+        traces = fetch_traces(
+            base_url=args.base_url,
+            password=password,
+            session_id=args.session_id,
+            since_ms=args.since_ms,
+            until_ms=args.until_ms,
+        )
     report = review_leads(
         service,
         principal,

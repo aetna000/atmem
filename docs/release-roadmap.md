@@ -1,6 +1,6 @@
 # AtMem release roadmap
 
-**Status**: 2.3.4b1 published beta plus 2.3.4b2 source candidate and proposed future sequence; future versions are
+**Status**: 2.3.4 stable source target plus proposed future sequence; future versions are
 planning targets, not delivery-date commitments.
 **Published baseline**: AtMem `2.3.4b1`, OpenClaw bridge `2.3.4-beta.1`, companion pin
 `atmem-atbot==0.1.0`.
@@ -14,8 +14,8 @@ AtMem is an agent-neutral, standalone encrypted evidence authority for memory, c
 | **2.2.6** — optional maintenance | Baseline maintenance | Stabilize already implemented 2.2 capabilities, including delegated host identity/lifecycle fixes and compatibility checks; publish accurate installation/upgrade guidance | Existing runtime; 003 T049–T053; applicable regression gates | Spec 003 host compatibility work is assigned to 2.2.6; unresolved host profiles remain explicitly blocked/unverified. No claim that the new roadmap capabilities are delivered. This maintenance release is optional and does not block 2.3 development. |
 | **2.3.2** — stable standalone encrypted evidence box | M0 | Reconstruct exact host-observed text and supported multimodal agent evidence from one portable encrypted AtMem Home; govern memory/context exposure with four local roles | 020, 021, 022, 028, 029, 030; scoped 003/007 | OpenClaw is the verified installed full-fidelity host profile. Pydantic AI and LangChain/LangGraph have governed native/delegated context delivery, not the full OpenClaw multimodal capture claim. Viewer is content-free; Investigator reconstructs; Evidence Collector exports; Administrator manages the installation. |
 | **2.3.4b1** — Jev benchmark lab beta | Production benchmark evidence | LoCoMo adapter, Jev reranking comparison, explicit egress and claim gates; LongMemEval/BEAM staged | New 035 benchmark track; applicable 001/003/019 contracts | Existing defaults, evidence encryption, scope, delegated authority and exact delivery remain intact. Results remain exploratory until corpus anomalies and all production gates are resolved. |
-| **2.3.4b2** — AtFlows-installed review-lead beta | M4 preparation | AtMem installs the pinned AtFlows Python package by default; an explicitly started AtFlows instance can supply exact session-linked trace-error leads for a read-only local evidence review report. The versioned report can feed the 2.4.0 Memory Health queue after that queue exists | 020/028 evidence and access boundaries; future 026 consumer | Source candidate, not published. Installed AtFlows 0.1b6 two-package handoff passes the local smoke gate. No automatic server start, Memory Health queue, automatic admission, raw-trace import, inferred run link or causal claim. AtMem works without a running AtFlows server. |
-| **2.3.4** — stable follow-up | Beta stabilization | Resolve 2.3.4b1/b2 beta findings and publish only the verified retrieval and optional AtFlows scope | 031/035 and applicable 020/028/026 contracts | No promotion of exploratory Jev results or unsupported memory-health behavior. Stable release requires its own reviewed gates and notes. |
+| **2.3.4b2** — AtFlows-installed review-lead beta | M4 preparation | AtMem installs the pinned AtFlows Python package by default; an explicitly started AtFlows instance can supply exact session-linked trace-error leads for a read-only local evidence review report. The versioned report can feed the 2.4.0 Memory Health queue after that queue exists | 020/028 evidence and access boundaries; future 026 consumer | Source candidate, not published. Installed AtFlows 0.1.0 handoff passes the local smoke gate. No automatic server start, shared login, Memory Health queue, automatic admission, raw-trace import, inferred run link or causal claim. AtMem works without a running AtFlows server. |
+| **2.3.4** — stable follow-up | Beta stabilization | Preserve verified retrieval scope, install AtFlows 0.1.1 by default, and offer optional AtMem-owned login plus read-only review leads | 031/035 and applicable 020/028/026 contracts | AtFlows remains separately started; standalone login remains compatible. No promotion of exploratory Jev results, automatic Memory Health, or causal telemetry claims. Stable release requires its own reviewed gates and notes. |
 | **2.4.0** — local memory health | M4 memory intelligence, local profile | Native single-owner memory gets time-valid recall, deterministic expiry and duplicate checks, a review queue, bounded opt-in background cycles and optional AtBot semantic proposals. Review works without a running AtFlows server or model | 001, 006, 008, 015, 026; applicable 020/022/028 local contracts | Ship only after local admission/lifecycle, scope, encrypted evidence, generation, deletion, restart and installed-artifact gates pass. Default disabled; first activation preview-only. No shared-space, external-provider propagation or automatic semantic changes claimed. |
 | **2.5.0** — multi-agent memory and access foundations | M1 | Agents use private and explicitly shared spaces with separate read/write/admin permissions, ownership, membership changes and provenance. Establish durable authenticated administration for supported production profiles; extend memory-health authorization to shared spaces | 006, 010, 012, 013, 015, applicable 017/019/022/026 consumers | Membership and credential subsystems pass their decomposed gates; no cross-space leaks, stale-grant delivery, hidden health-count leakage or revoked-key resurrection. Local 2.4 memory health remains available. |
 | **2.6.0** — governed provider connections | M1 | Native memory and external memory/knowledge share inspection and policy services; provider setup supports access preview, conditional approval, explicit activation and first-delivery monitoring. Complete the nine-destination workspace: Runs, Memory, Decisions, Tools and media, Audit, Policies, Tasks, Connections and Settings | 019, 022, 025, relevant 003/004/017/026 | Native plus one real external provider and declared authentication profiles pass. Preserve all three authority modes, exact delegated bytes and actual credential/delivery assurance. No claim of every authentication method or connector working. |
@@ -66,7 +66,7 @@ for the stable scope; optional fusion/graph is not promoted to the default.
 ## 2.3.4b2 source candidate: default AtFlows install, opt-in review leads
 
 Keep **AtFlows and AtMem as independent pip packages**, but install pinned
-`atflows==0.1b6` with the base AtMem wheel. AtFlows observes local
+`atflows==0.1.0` with the base AtMem wheel. AtFlows observes local
 traces, sessions, costs, latency and outcome signals; AtMem owns encrypted run
 evidence, access decisions, memory admission and memory lifecycle. The optional
 handoff is a versioned, read-only review-lead contract, not a shared database or
@@ -106,6 +106,17 @@ candidate is distinct from the existing 2.3.4b1 beta and does not rewrite its
 shipped scope. The local consolidation cycle and
 review experience are independent 2.4.0 deliverables; 2.5–2.8 add shared-space, provider, investigation and
 propagation coverage.
+
+## 2.3.4 stable scope
+
+Stable 2.3.4 pins AtFlows 0.1.1 and preserves the optional read-only handoff.
+AtFlows 0.1.1 can delegate dashboard authentication to a same-host loopback
+AtMem dashboard: AtMem owns users, passwords and roles, while AtFlows checks
+each protected request against the live AtMem session. Standalone AtFlows
+accounts remain available when delegation is off. The command-line handoff
+uses AtMem credentials in delegated mode and the AtFlows Administrator in
+standalone mode. Neither mode turns observational telemetry into canonical
+memory or automatic Memory Health findings. See the [release note](releases/v2.3.4.md).
 
 ## Next planned capability: 2.4.0 local memory health
 

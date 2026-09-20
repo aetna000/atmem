@@ -20,13 +20,19 @@ Spec 012 owns public transport/error/output-envelope conventions and the integra
 
 ## AtFlows installation and review handoff
 
-The 2.3.4b2 base AtMem package pins and installs the independent AtFlows Python
+The 2.3.4 base AtMem package pins and installs AtFlows 0.1.1 as an independent Python
 package. The former `atmem[atflows]` extra remains a compatible install alias.
 Installing either package does not start AtFlows, configure tracing, migrate
 AtMem Home, or alter AtBot behavior. `atmem status` reports installed versions
 and bounded local service links without reading passwords; `atflows status`
 reports its own local service links without AtMem credentials.
-Spec 029 continues to own AtMem's separate one-time Administrator bootstrap.
+Spec 029 owns AtMem's one-time Administrator bootstrap and account authority.
+AtFlows 0.1.1 retains standalone local accounts as its default. When the
+operator sets `ATFLOWS_ATMEM_AUTH_URL` to a same-host loopback AtMem dashboard,
+AtFlows validates the live AtMem session and role for protected requests,
+disables its local user-management surface, and delegates logout. Removing the
+setting restores the standalone account store without migration. A separately
+started AtFlows server is still optional for ordinary AtMem use.
 
 Spec 020 owns AtMem's exact-run evidence and session identity; Spec 028 owns
 authorization and protected plaintext. The AtFlows adapter may read bounded

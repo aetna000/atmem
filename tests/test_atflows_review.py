@@ -10,11 +10,11 @@ import pytest
 
 from atmem.control.manager import ControlPlaneManager
 from atmem.evidence import EvidencePrincipal, EvidenceRole, EvidenceScope
-from atmem.integrations.atflows import fetch_traces, review_leads
+from atmem.integrations.atflows import auth_mode, fetch_traces, review_leads
 
 
 @contextmanager
-def _atflows_server(rows: list[dict]):
+def _atflows_server(rows: list[dict], *, delegated: bool = False):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):  # noqa: ANN002
             pass
@@ -33,7 +33,11 @@ def _atflows_server(rows: list[dict]):
             self.send_error(404)
 
         def do_GET(self):  # noqa: N802
-            if not self.path.startswith("/api/traces?") or "atflows_session=fixture" not in self.headers.get("Cookie", ""):
+            if self.path == "/api/auth/status":
+                self._json({"mode": "atmem" if delegated else "standalone", "authenticated": False})
+                return
+            expected = "atmem_session=fixture" if delegated else "atflows_session=fixture"
+            if not self.path.startswith("/api/traces?") or expected not in self.headers.get("Cookie", ""):
                 self.send_error(401)
                 return
             self._json(rows)
@@ -135,3 +139,15 @@ def test_atflows_fetch_rejects_non_loopback_and_out_of_window_rows() -> None:
             fetch_traces(base_url=base_url, password="secret-password", session_id="session-1", since_ms=500, until_ms=1500)
         with pytest.raises(RuntimeError, match="authentication"):
             fetch_traces(base_url=base_url, password="wrong", session_id="session-1", since_ms=500, until_ms=1500)
+
+
+def test_atflows_delegated_review_reuses_atmem_session() -> None:
+    rows = [{"trace_id": "trace-1", "session_id": "session-1", "timestamp": 1000, "error": "private"}]
+    with _atflows_server(rows, delegated=True) as base_url:
+        assert auth_mode(base_url) == "atmem"
+        traces = fetch_traces(base_url=base_url, atmem_session="fixture", session_id="session-1", since_ms=500, until_ms=1500)
+        assert traces[0]["has_error"] is True
+        with pytest.raises(RuntimeError, match="authentication"):
+            fetch_traces(base_url=base_url, atmem_session="bad", session_id="session-1", since_ms=500, until_ms=1500)
+    with pytest.raises(ValueError, match="loopback"):
+        auth_mode("https://example.com")

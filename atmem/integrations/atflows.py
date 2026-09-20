@@ -69,34 +69,50 @@ def _request_json(opener: Any, request: Request) -> Any:
         raise ValueError("AtFlows returned invalid JSON") from exc
 
 
+def auth_mode(base_url: str) -> str:
+    """Discover which local account authority the AtFlows dashboard uses."""
+    origin = _loopback_origin(base_url)
+    status = _request_json(
+        build_opener(ProxyHandler({}), _NoRedirect()),
+        Request(f"{origin}/api/auth/status"),
+    )
+    return "atmem" if isinstance(status, dict) and status.get("mode") == "atmem" else "standalone"
+
+
 def fetch_traces(
-    *, base_url: str, password: str, session_id: str, since_ms: int, until_ms: int
+    *, base_url: str, password: str | None = None, atmem_session: str | None = None,
+    session_id: str, since_ms: int, until_ms: int
 ) -> list[dict[str, Any]]:
     """Read one bounded AtFlows session window; never return trace bodies."""
     origin = _loopback_origin(base_url)
     session_id = _identifier(session_id, "session_id")
-    if not password:
-        raise ValueError("AtFlows administrator password is required")
+    if bool(password) == bool(atmem_session):
+        raise ValueError("one AtFlows administrator password or AtMem session is required")
+    if atmem_session and (len(atmem_session) > 512 or not re.fullmatch(r"[A-Za-z0-9_-]+", atmem_session)):
+        raise ValueError("invalid AtMem session")
     if since_ms < 0 or until_ms <= since_ms or until_ms - since_ms > _MAX_WINDOW_MS:
         raise ValueError("review window must be positive and at most seven days")
     opener = build_opener(ProxyHandler({}), HTTPCookieProcessor(CookieJar()), _NoRedirect())
-    login = Request(
-        f"{origin}/api/auth/login",
-        data=json.dumps({"username": "administrator", "password": password}).encode(),
-        headers={"Content-Type": "application/json", "Origin": origin},
-        method="POST",
-    )
-    auth = _request_json(opener, login)
-    if not isinstance(auth, dict) or auth.get("authenticated") is not True or auth.get("password_change_required"):
-        raise RuntimeError("AtFlows administrator sign-in is incomplete")
+    if password:
+        login = Request(
+            f"{origin}/api/auth/login",
+            data=json.dumps({"username": "administrator", "password": password}).encode(),
+            headers={"Content-Type": "application/json", "Origin": origin},
+            method="POST",
+        )
+        auth = _request_json(opener, login)
+        if not isinstance(auth, dict) or auth.get("authenticated") is not True or auth.get("password_change_required"):
+            raise RuntimeError("AtFlows administrator sign-in is incomplete")
     query = urlencode({"session_id": session_id, "date_from": since_ms, "date_to": until_ms, "limit": _MAX_ROWS, "offset": 0})
     try:
-        rows = _request_json(opener, Request(f"{origin}/api/traces?{query}"))
+        headers = {"Cookie": f"atmem_session={atmem_session}"} if atmem_session else {}
+        rows = _request_json(opener, Request(f"{origin}/api/traces?{query}", headers=headers))
     finally:
-        try:
-            _request_json(opener, Request(f"{origin}/api/auth/logout", data=b"{}", headers={"Content-Type": "application/json", "Origin": origin}, method="POST"))
-        except (RuntimeError, ValueError):
-            pass
+        if password:
+            try:
+                _request_json(opener, Request(f"{origin}/api/auth/logout", data=b"{}", headers={"Content-Type": "application/json", "Origin": origin}, method="POST"))
+            except (RuntimeError, ValueError):
+                pass
     if not isinstance(rows, list) or len(rows) > _MAX_ROWS:
         raise ValueError("AtFlows returned an invalid bounded trace list")
     result: list[dict[str, Any]] = []
