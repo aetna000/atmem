@@ -2,6 +2,10 @@
 
 This npm package is the host bridge for AtMem. It is not a standalone memory engine and should not be installed directly.
 
+The source tree is preparing bridge `2.3.4-beta.2` for AtMem `2.3.4b2`.
+The published install example below remains on the verified beta.1 pair until
+the new artifacts are released.
+
 Use the Python-owned installer:
 
 ```bash
@@ -22,7 +26,7 @@ Existing AtMem 2.1 users run `atmem openclaw upgrade` after upgrading the Python
 package. This preserves the current memory mode and migration, verifies the new
 bridge with a self-test flight, and rolls back the bridge on failure.
 
-Bridge `2.3.4-beta.1` includes the reviewed bridge compatibility updates in addition to exact task-context delivery and the shared
+Published bridge `2.3.4-beta.1` includes the reviewed bridge compatibility updates in addition to exact task-context delivery and the shared
 calibrated retrieval decision, and delegated context correlation. When the host
 supplies `taskId` in hook context, the bridge requests only that governed task,
 checks its byte digest, contributes it separately from recalled memory, and

@@ -1,6 +1,10 @@
 # Releases and upgrades
 
-## Current stable release
+## Source candidate
+[AtMem 2.3.4b2](../releases/v2.3.4b2.md) installs AtFlows by default and adds
+an opt-in, read-only review-lead handoff. Publication has not been verified.
+
+## Current published beta
 [AtMem 2.3.4b1](../releases/v2.3.4b1.md) improves retrieval efficiency and session
 navigation while preserving authority and evidence boundaries. Existing defaults
 remain unchanged; fusion and vector matrix caching are opt-in evaluation options.

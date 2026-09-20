@@ -1,9 +1,9 @@
 # AtMem unified product roadmap
 
-**Updated**: 2026-09-13
+**Updated**: 2026-09-20
 **Status**: Implementation backlog; product capabilities below require their acceptance gates.
 
-**Numbered releases**: [Release roadmap — proposed 2.3 investigation preview through 2.10 model-unlearning research preview](../docs/release-roadmap.md). Its Work group column maps the non-chronological M0–M4 dependency/scope groupings to independently sequenced releases; version numbers are planning targets, not publication claims.
+**Numbered releases**: [Release roadmap — proposed 2.3 beta through 2.10 model-unlearning research preview](../docs/release-roadmap.md). Its Work group column maps the non-chronological M0–M4 dependency/scope groupings to independently sequenced releases; version numbers are planning targets, not publication claims.
 
 > AtMem is the independent evidence box for agent work: memory, prompts, decisions, models, tools, media and outcomes remain inspectable after the agent and its logs are gone.
 
@@ -131,13 +131,15 @@ See [integration ownership](integration-ownership.md), [implementation review](i
 - [023 — Context Revocation, Exposure Impact and Policy Simulation](023-context-revocation-impact-and-simulation/spec.md): Before delivery and after source/policy changes.
 - [024 — Enterprise Fleet and Evidence Operations](024-enterprise-fleet-and-evidence-operations/spec.md): Operate the same product across deployments.
 - [025 — Enterprise Provider Connections and Activation](025-enterprise-provider-connections/spec.md): Ten-stage connection wizard, authentication, effective-access preview, conditional approval and first-delivery monitoring. Spec, plan and tasks are defined; implementation is pending.
-- [026 — Temporal Memory Consolidation and Health Review](026-temporal-memory-consolidation/spec.md): Time-valid memory, deterministic derivation and opt-in AtBot-assisted health proposals with AtMem-only authority. Contract/UI foundations are staged across 2.4–2.6; scheduled consolidation is proposed for 2.8.0.
+- [026 — Temporal Memory Consolidation and Health Review](026-temporal-memory-consolidation/spec.md): The native single-owner profile, including time-valid recall, deterministic derivation, a review queue and opt-in bounded cycles, is proposed for 2.4.0. AtBot is optional and AtMem-only authority remains. Shared-space, provider, investigation and propagation profiles follow the 2.5–2.8 foundations.
 - [027 — Model Influence Revocation and Unlearning Orchestration](027-model-unlearning-orchestration/spec.md): Immediate controlled revocation plus a post-2.9 research preview for lineage-bound open-weight forget jobs, adversarial evaluation, independent approval and exact-artifact deployment. It never equates behavioral suppression with proven weight erasure.
 - [028 — Encrypted Evidence and Privileged Access](028-encrypted-evidence-and-privileged-access/spec.md): At every persisted evidence, plaintext access, backup and export boundary.
 
 Spec 025 adds Connections to the earlier six-section target and brings provider authentication out of general Settings. Deliver basic connection setup alongside 019/022 once 012/013 authenticated administration contracts are ready; delivery monitoring consumes available 019/020 evidence. Required enterprise identity and credential checks precede activation claims, while optional fleet operation remains later work.
 
 Spec 026 adds Memory Health inside Context rather than another top-level destination. Specs 006 and 015 retain canonical admission/lifecycle authority, 022 owns the shared presentation, and AtBot remains replaceable proposal intelligence. Deterministic expiry and temporal derivation must work locally; uncertain correction, merge or supersession is review-only in the first supported profile.
+
+The proposed [2.3.4b2 AtFlows candidate](../docs/release-roadmap.md#234b2-source-candidate-default-atflows-install-opt-in-review-leads) installs the pinned AtFlows Python package with AtMem by default, while producing an opt-in read-only local evidence review report before the 2.4.0 Memory Health queue exists. AtFlows remains an independent observability package and supplies exact session-linked trace-error reasons only when configured and running; AtMem independently authorizes and resolves exact evidence and reports gaps. The versioned handoff may feed the 2.4.0 queue later. No automatic AtFlows start, raw-trace import, inferred link, automatic admission or causal conclusion from observational telemetry is implied. Ship the handoff only after its 020/028 evidence gates pass on installed artifacts; otherwise retain it as a roadmap candidate.
 
 Spec 027 consumes rather than broadens 023 revocation and 024 inventory authority. It defines explicit assurance levels: `memory_revoked`, `behaviorally_suppressed`, `provider_deletion_acknowledged` and `weight_unlearning_evaluated`; `weight_erasure_proven` is reserved and unclaimable by the preview. Optional training runs in a separately privileged worker, not AtBot or an ordinary agent process.
 

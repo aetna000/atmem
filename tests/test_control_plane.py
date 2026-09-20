@@ -710,7 +710,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         ]
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.3.4-beta.1"
+        assert product["atmem_npm_version"] == "2.3.4-beta.2"
         assert product["x_url"] == "https://x.com/AtMemX"
         profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
         assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])
@@ -1051,7 +1051,7 @@ def test_dashboard_ships_the_visual_control_ui_not_the_json_fallback() -> None:
     # One self-contained document: exactly one inline stylesheet and script.
     assert document["styles"] == 1
     assert document["scripts"] == 1
-    assert 'src="/assets/atmem.jpg"' in html
+    assert 'class="brandmark"' in html
 
 
 def test_dashboard_evidence_uses_an_inline_responsive_master_detail_view() -> None:

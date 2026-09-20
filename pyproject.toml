@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atmem"
-version = "2.3.4b1"
+version = "2.3.4b2"
 description = "Host-neutral Agent Black Box and reversible memory control plane."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,10 +28,14 @@ classifiers = [
 ]
 dependencies = [
   "atmem-atbot==0.1.0",
+  "atflows==0.1b6",
   "cryptography>=42,<49",
 ]
 
 [project.optional-dependencies]
+atflows = [
+  # Compatibility extra for existing atmem[atflows] install commands.
+]
 dev = [
   "pytest>=8.0.0",
   "tomli>=2.0; python_version < '3.11'",

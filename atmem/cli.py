@@ -6,9 +6,12 @@ from importlib.metadata import PackageNotFoundError, version
 import json
 import os
 from pathlib import Path
+import re
 import shutil
+import site
 import subprocess
 import sys
+import sysconfig
 from typing import Any
 from urllib.parse import urlencode
 
@@ -44,6 +47,122 @@ def _installed_version() -> str:
         return "unknown"
 
 
+def _companion_version(package: str) -> str:
+    try:
+        return version(package)
+    except PackageNotFoundError:
+        return "not installed"
+
+
+def _safe_atflows_status(output: str) -> str:
+    """Retain only bounded loopback links from the companion status output."""
+    rows: list[str] = []
+    pattern = re.compile(
+        r"Dashboard:\s*http://(localhost|127\.0\.0\.1):(\d{1,5})\s+"
+        r"Proxy:\s*http://(localhost|127\.0\.0\.1):(\d{1,5})"
+    )
+    for match in pattern.finditer(output[:4096]):
+        dashboard_host, dashboard_port, proxy_host, proxy_port = match.groups()
+        if not 1 <= int(dashboard_port) <= 65535 or not 1 <= int(proxy_port) <= 65535:
+            continue
+        # Review accepts numeric loopback only; display copyable compatible URLs.
+        dashboard_host = "127.0.0.1" if dashboard_host == "localhost" else dashboard_host
+        proxy_host = "127.0.0.1" if proxy_host == "localhost" else proxy_host
+        rows.append(
+            f"Dashboard: http://{dashboard_host}:{dashboard_port}  "
+            f"Proxy: http://{proxy_host}:{proxy_port}"
+        )
+        if len(rows) == 8:
+            break
+    return "\n".join(rows) if rows else "No running AtFlows server reported."
+
+
+def _atflows_executable(expected_version: str) -> Path | None:
+    name = "atflows.exe" if os.name == "nt" else "atflows"
+    paths = [
+        Path(sys.executable).with_name(name),
+        Path(sysconfig.get_path("scripts")) / name,
+        Path(site.getuserbase()) / ("Scripts" if os.name == "nt" else "bin") / name,
+    ]
+    found = shutil.which("atflows")
+    if found:
+        paths.append(Path(found))
+    for path in dict.fromkeys(paths):
+        if not path.is_file():
+            continue
+        try:
+            result = subprocess.run(
+                [str(path), "--version"], capture_output=True, text=True,
+                timeout=5, check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if result.returncode == 0 and result.stdout.strip() == f"atflows {expected_version}":
+            return path
+    return None
+
+
+def _run_install_status(args: argparse.Namespace) -> None:
+    """Report installed packages and local service links without starting them."""
+    from atmem.dashboard_daemon import manage_dashboard_daemon
+    from atmem.home.layout import resolve_home
+
+    dashboard = manage_dashboard_daemon("status")
+    atflows_version = _companion_version("atflows")
+    atflows_bin = (
+        _atflows_executable(atflows_version)
+        if atflows_version != "not installed" else None
+    )
+    atflows_status = (
+        "AtFlows CLI unavailable in this Python environment."
+        if atflows_version != "not installed" else
+        "AtFlows is not installed in this Python environment."
+    )
+    if atflows_bin is not None:
+        try:
+            result = subprocess.run(
+                [str(atflows_bin), "status"], capture_output=True, text=True,
+                timeout=5, check=False,
+            )
+            atflows_status = (
+                _safe_atflows_status(result.stdout)
+                if result.returncode == 0 else
+                "Status unavailable; run `atflows status` to retry."
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            atflows_status = "Status unavailable; run `atflows status` to retry."
+    report = {
+        "format": "atmem-install-status-v1",
+        "packages": {
+            "atmem": _installed_version(),
+            "atmem-atbot": _companion_version("atmem-atbot"),
+            "atflows": atflows_version,
+        },
+        "home": str(resolve_home()),
+        "dashboard": {
+            "running": bool(dashboard.get("running")),
+            "url": dashboard.get("url") if dashboard.get("running") else None,
+        },
+        "atflows_status": atflows_status,
+    }
+    if args.json:
+        _print(report)
+        return
+    print("AtMem installation\n")
+    for label, package in (("AtMem", "atmem"), ("AtBot", "atmem-atbot"), ("AtFlows", "atflows")):
+        print(f"  {label:<18}{report['packages'][package]}")
+    print(f"  {'AtMem Home':<18}{report['home']}")
+    print("\nLocal dashboards")
+    print("  AtMem              " + (str(report["dashboard"]["url"]) if report["dashboard"]["running"] else "No managed service record (manual start may still be running)"))
+    for line in atflows_status.splitlines():
+        print("  " + line)
+    print("\nNext steps")
+    print("  atmem init         Create the local Administrator; copy its one-time password")
+    print("  atflows init       Set up AtFlows when you want tracing and review")
+    print("  atflows status     Show its running dashboard and proxy URLs")
+    print("  AtBot setup and behaviour are unchanged.")
+
+
 def _run_features(args: argparse.Namespace) -> None:
     from atmem.contracts.versions import capabilities
     manifest = capabilities()
@@ -75,6 +194,9 @@ def main() -> None:
         description="Governed memory and agent oversight, with optional AtBot intelligence.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Start here:
+  atmem status
+      Show installed package versions and running local dashboard links.
+
   atmem atbot setup
       Choose local AI, a hosted API, or the safe deterministic fallback.
 
@@ -99,6 +221,11 @@ Run `atmem COMMAND --help` for command-specific examples.""",
         help="Use this AtMem Home (overrides ATMEM_HOME and ~/.atmem)",
     )
     subparsers = parser.add_subparsers(dest="command")
+
+    status_parser = subparsers.add_parser(
+        "status", help="Show installed companions, local dashboards and setup steps"
+    )
+    status_parser.add_argument("--json", action="store_true")
 
     home_parser = subparsers.add_parser(
         "home", help="Inspect, verify, migrate or adopt the portable AtMem Home"
@@ -1343,7 +1470,8 @@ or input errors.""",
         command_parser = evidence_commands.add_parser(name, help=help_text)
         command_parser.add_argument("--state", default=None)
         if name not in {"status", "create-test-accounts"}:
-            command_parser.add_argument("--token", required=True)
+            command_parser.add_argument("--token", help="Legacy evidence token argument (visible in process listings)")
+            command_parser.add_argument("--token-env", default="ATMEM_EVIDENCE_TOKEN", help="Environment variable containing the evidence token")
         if name in {"show", "reconstruct", "replay-manifest", "delete-run", "export-plaintext"}:
             command_parser.add_argument("run_id")
         if name == "search":
@@ -1361,6 +1489,26 @@ or input errors.""",
         if name == "export-plaintext":
             command_parser.add_argument("--confirm", required=True)
             command_parser.add_argument("--output", required=True)
+
+    atflows_parser = subparsers.add_parser(
+        "atflows", help="Inspect optional AtFlows telemetry against protected AtMem evidence"
+    )
+    atflows_commands = atflows_parser.add_subparsers(dest="atflows_command")
+    atflows_review = atflows_commands.add_parser(
+        "review", help="Produce read-only exact-session review leads"
+    )
+    atflows_review.add_argument("run_id")
+    atflows_review.add_argument("--session-id", required=True)
+    atflows_review.add_argument("--since-ms", type=int, required=True)
+    atflows_review.add_argument("--until-ms", type=int, required=True)
+    atflows_review.add_argument("--token", help="AtMem evidence token (legacy argument; visible in process listings)")
+    atflows_review.add_argument("--token-env", default="ATMEM_EVIDENCE_TOKEN", help="Environment variable containing the AtMem evidence token")
+    atflows_review.add_argument("--state", default=None)
+    atflows_review.add_argument("--base-url", default="http://127.0.0.1:1337")
+    atflows_review.add_argument("--password-env", default="ATFLOWS_ADMIN_PASSWORD")
+    atflows_output = atflows_review.add_mutually_exclusive_group()
+    atflows_output.add_argument("--json", action="store_true", help="Print the versioned JSON report (default)")
+    atflows_output.add_argument("--human", action="store_true", help="Print a concise human-readable report")
 
     verify_run_parser = subparsers.add_parser(
         "verify-run",
@@ -1386,6 +1534,10 @@ or input errors.""",
 
     if args.command is None:
         _print_cli_welcome(parser)
+        return
+
+    if args.command == "status":
+        _run_install_status(args)
         return
 
     if args.command == "init":
@@ -1474,6 +1626,13 @@ or input errors.""",
             evidence_parser.print_help()
             return
         _run_evidence(args)
+        return
+
+    if args.command == "atflows":
+        if args.atflows_command is None:
+            atflows_parser.print_help()
+            return
+        _run_atflows(args)
         return
 
     if args.command == "verify-run":
@@ -3722,6 +3881,8 @@ def _print_cli_welcome(parser: argparse.ArgumentParser) -> None:
     print("     atmem dashboard\n")
     print("  5. Check AtBot and its configured model")
     print("     atmem atbot doctor\n")
+    print("  6. Check installed packages and local dashboard links")
+    print("     atmem status\n")
     print("AtMem starts safely: no memory injection is enabled until you explicitly activate it.")
     print("Run `atmem --help` for every command or `atmem atbot` for provider examples.")
 
@@ -4013,25 +4174,31 @@ def _identity_manager(state_path: str | None):
     return manager
 
 
-def _print_bootstrap(value: dict[str, Any], *, as_json: bool = False) -> None:
+def _print_bootstrap(value: dict[str, Any], *, as_json: bool = False, port: int = 8766) -> None:
     if as_json:
         _print(value)
         return
     if not value.get("created"):
         print("AtMem is already initialized. Existing credentials were not changed or disclosed.")
-        print("Dashboard: http://127.0.0.1:8766/")
+        print(f"Dashboard: http://127.0.0.1:{port}/")
         return
-    print("AtMem local Administrator created")
+    print("AtMem local setup\n")
+    print(f"  AtMem              {_installed_version()}")
+    print(f"  AtBot              {_companion_version('atmem-atbot')}")
+    print(f"  AtFlows            {_companion_version('atflows')}")
+    print(f"  Dashboard          http://127.0.0.1:{port}/")
     print(f"  Username           {value['username']}")
-    print(f"  Temporary password {value['password']}")
-    print("  Dashboard          http://127.0.0.1:8766/")
-    print("Sign in and change this temporary password. It will not be shown again.")
+    print("\n  Temporary password (copy now):")
+    print(f"    {value['password']}")
+    print("\nSign in and change this password; it will not be shown again.")
+    print("Run `atflows init` when you want to set up tracing and its own Administrator.")
+    print("Run `atmem status` or `atflows status` for local dashboard links.")
 
 
 def _run_identity_init(args: argparse.Namespace) -> None:
     manager = _identity_manager(args.state)
     bootstrap = manager.identity_service().bootstrap()
-    _print_bootstrap(bootstrap, as_json=args.json)
+    _print_bootstrap(bootstrap, as_json=args.json, port=args.port)
     if args.json or args.no_open or not bootstrap.get("created"):
         return
     from atmem.dashboard_daemon import _open_default_browser, manage_dashboard_daemon
@@ -4190,7 +4357,7 @@ def _serve_dashboard(
         if not sys.stdin.isatty():
             raise ValueError("local identity is not initialized; run `atmem init` before starting the dashboard daemon")
         bootstrap = identity.bootstrap()
-        _print_bootstrap(bootstrap)
+        _print_bootstrap(bootstrap, port=port)
     from atmem.control.atbot_service import AtBotServiceManager
 
     atbot_manager = AtBotServiceManager()
@@ -4577,6 +4744,82 @@ def _run_blackbox(args: argparse.Namespace) -> None:
         print(format_flight_report(report), end="")
 
 
+def _format_atflows_review(report: dict[str, Any]) -> str:
+    coverage = report["coverage"]
+    lines = [
+        "AtMem + AtFlows review",
+        f"  Run             {report['run_id']}",
+        f"  Session         {report['session_id']}",
+        f"  Correlation     {report['correlation']}",
+    ]
+    if report.get("reason"):
+        lines.append(f"  Reason          {report['reason']}")
+    if coverage["reported"]:
+        lines.append(
+            f"  Coverage        {coverage['atflows_rows']} rows, "
+            f"{coverage['unique_traces']} traces"
+            + (" (truncated)" if coverage["truncated"] else "")
+        )
+    else:
+        lines.append("  Coverage        not reported without an authorized exact-session link")
+    lines.append(f"  Review leads    {len(report['leads'])}")
+    for lead in report["leads"]:
+        lines.append(f"    {lead['reason_code']}: {lead['trace_id']}")
+    lines.append(f"  Limit           {report['limitation']}")
+    return "\n".join(lines) + "\n"
+
+
+def _read_evidence_token(args: argparse.Namespace) -> str:
+    token = args.token or os.environ.get(args.token_env)
+    if not token and sys.stdin.isatty():
+        token = getpass.getpass("AtMem evidence token: ")
+    if not token:
+        raise ValueError("AtMem evidence token is required; set the selected token environment variable or use --token")
+    return token
+
+
+def _run_atflows(args: argparse.Namespace) -> None:
+    from atmem.control.manager import ControlPlaneManager, DEFAULT_STATE_PATH
+    from atmem.evidence.models import EvidenceOperation, EvidenceScope
+    from atmem.integrations.atflows import fetch_traces, review_leads
+
+    manager = ControlPlaneManager(args.state or str(DEFAULT_STATE_PATH))
+    service = manager.evidence_service()
+    principal = service.authenticate(_read_evidence_token(args))
+    if principal is None:
+        raise ValueError("invalid evidence account token")
+    principal.authorize(
+        EvidenceOperation.VIEW,
+        EvidenceScope(
+            principal.scope.tenant_id,
+            principal.scope.subject_id,
+            principal.scope.workspace_id,
+            args.run_id,
+        ),
+    )
+    password = os.environ.get(args.password_env) or getpass.getpass("AtFlows Administrator password: ")
+    traces = fetch_traces(
+        base_url=args.base_url,
+        password=password,
+        session_id=args.session_id,
+        since_ms=args.since_ms,
+        until_ms=args.until_ms,
+    )
+    report = review_leads(
+        service,
+        principal,
+        run_id=args.run_id,
+        session_id=args.session_id,
+        traces=traces,
+        since_ms=args.since_ms,
+        until_ms=args.until_ms,
+    )
+    if args.human:
+        print(_format_atflows_review(report), end="")
+    else:
+        _print(report)
+
+
 def _run_evidence(args: argparse.Namespace) -> None:
     from atmem.control.manager import ControlPlaneManager, DEFAULT_STATE_PATH
     from atmem.evidence import CaptureMode, EvidenceRole, EvidenceScope
@@ -4598,7 +4841,7 @@ def _run_evidence(args: argparse.Namespace) -> None:
             }
         )
         return
-    principal = service.authenticate(args.token)
+    principal = service.authenticate(_read_evidence_token(args))
     if principal is None:
         raise ValueError("invalid evidence account token")
     if command == "show":

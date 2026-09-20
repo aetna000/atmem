@@ -51,12 +51,12 @@
       <p class="sub" id="authCopy">Use the local Administrator or an account created for you. No bearer token is required.</p>
       <form id="loginForm" class="authform">
         <label><span>Username</span><input id="loginUsername" autocomplete="username" value="administrator" required></label>
-        <label><span>Password</span><input id="loginPassword" type="password" autocomplete="current-password" required></label>
+        <label><span>Password</span><span class="passwordinput"><input id="loginPassword" type="password" autocomplete="current-password" required><button type="button" data-password-toggle="loginPassword" aria-label="Show password" aria-pressed="false">Show</button></span></label>
         <button class="primary" type="submit">Sign in</button>
       </form>
       <form id="passwordForm" class="authform" hidden>
-        <label><span>New password</span><input id="newPassword" type="password" autocomplete="new-password" required></label>
-        <label><span>Repeat new password</span><input id="repeatPassword" type="password" autocomplete="new-password" required></label>
+        <label><span>New password</span><span class="passwordinput"><input id="newPassword" type="password" autocomplete="new-password" required><button type="button" data-password-toggle="newPassword" aria-label="Show new password" aria-pressed="false">Show</button></span></label>
+        <label><span>Repeat new password</span><span class="passwordinput"><input id="repeatPassword" type="password" autocomplete="new-password" required><button type="button" data-password-toggle="repeatPassword" aria-label="Show repeated password" aria-pressed="false">Show</button></span></label>
         <button class="primary" type="submit">Change password</button>
       </form>
       <p class="authhelp">First install? Run <code>atmem init</code>. It opens this form with the one-time Administrator password pre-filled.</p>
@@ -106,7 +106,7 @@
 
   <details class="protectionrow" id="myAccountCard">
     <summary><div class="protectioncopy"><span class="protectionicon" aria-hidden="true">●</span><span><b>My account</b><small id="myAccountSummary">Signed-in identity and password</small></span></div><div class="protectionstate"><span aria-hidden="true">⌄</span></div></summary>
-    <div class="protectiondrawer"><form class="usercreate" id="selfPasswordForm"><label><span>Current password</span><input id="selfCurrentPassword" type="password" autocomplete="current-password" required></label><label><span>New password</span><input id="selfNewPassword" type="password" autocomplete="new-password" required></label><label><span>Repeat new password</span><input id="selfRepeatPassword" type="password" autocomplete="new-password" required></label><button class="primary" type="submit">Change my password</button></form></div>
+    <div class="protectiondrawer"><form class="usercreate" id="selfPasswordForm"><label><span>Current password</span><span class="passwordinput"><input id="selfCurrentPassword" type="password" autocomplete="current-password" required><button type="button" data-password-toggle="selfCurrentPassword" aria-label="Show current password" aria-pressed="false">Show</button></span></label><label><span>New password</span><span class="passwordinput"><input id="selfNewPassword" type="password" autocomplete="new-password" required><button type="button" data-password-toggle="selfNewPassword" aria-label="Show new password" aria-pressed="false">Show</button></span></label><label><span>Repeat new password</span><span class="passwordinput"><input id="selfRepeatPassword" type="password" autocomplete="new-password" required><button type="button" data-password-toggle="selfRepeatPassword" aria-label="Show repeated password" aria-pressed="false">Show</button></span></label><button class="primary" type="submit">Change my password</button></form></div>
   </details>
 
   <details class="protectionrow" id="homeCard">

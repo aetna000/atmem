@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.4b1",
+  "version": "2.3.4b2",
   "sections": {
     "": "Documentation",
     "getting-started": "Getting started",
@@ -209,6 +209,11 @@
       "slug": "releases",
       "title": "Release overview",
       "source": "docs/website/releases.md"
+    },
+    {
+      "slug": "releases/2.3.4b2",
+      "title": "AtMem 2.3.4b2 candidate",
+      "source": "docs/releases/v2.3.4b2.md"
     },
     {
       "slug": "releases/2.3.4b1",

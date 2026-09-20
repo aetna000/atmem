@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from argparse import Namespace
 import sys
 
 import pytest
@@ -22,6 +23,52 @@ def test_bare_cli_is_a_guided_start_screen(
     assert "atmem openclaw install" in output
     assert "atmem dashboard" in output
     assert "no memory injection is enabled" in output
+
+
+def test_install_status_is_read_only_and_does_not_disclose_passwords(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import atmem.dashboard_daemon
+
+    monkeypatch.setenv("ATMEM_HOME", str(tmp_path))
+    monkeypatch.setattr(
+        atmem.dashboard_daemon, "manage_dashboard_daemon",
+        lambda action: {"running": False},
+    )
+    monkeypatch.setattr(cli, "_atflows_executable", lambda _version: None)
+    monkeypatch.setattr(sys, "argv", ["atmem", "status", "--json"])
+
+    cli.main()
+
+    result = json.loads(capsys.readouterr().out)
+    assert result["format"] == "atmem-install-status-v1"
+    assert result["dashboard"]["running"] is False
+    assert "atmem-atbot" in result["packages"]
+    assert "atflows" in result["packages"]
+    assert "password" not in json.dumps(result).lower()
+    assert not list(tmp_path.iterdir())
+
+
+def test_companion_status_keeps_only_loopback_links() -> None:
+    output = (
+        "PASSWORD=private-value\n"
+        "PID 1  Dashboard: http://localhost:1337  Proxy: http://127.0.0.1:8080\n"
+        "PID 2  Dashboard: http://evil.example:4444  Proxy: http://localhost:8081\n"
+    )
+    status = cli._safe_atflows_status(output)
+    assert "http://127.0.0.1:1337" in status
+    assert "http://127.0.0.1:8080" in status
+    assert "private-value" not in status
+    assert "evil.example" not in status
+
+
+def test_evidence_token_can_come_from_environment_without_argv(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ATMEM_EVIDENCE_TOKEN", "fixture-token")
+    assert cli._read_evidence_token(
+        Namespace(token=None, token_env="ATMEM_EVIDENCE_TOKEN")
+    ) == "fixture-token"
 
 
 def test_openclaw_upgrade_preserves_mode_and_reports_verified_bridge(
@@ -93,6 +140,7 @@ def test_openclaw_install_help_exposes_automatic_embedding_setup(
         (["blackbox"], "Show recorder coverage and evidence-chain integrity"),
         (["index"], "Build and activate a verified versioned index epoch"),
         (["semantic"], "Set up, diagnose, and safely rebuild semantic retrieval"),
+        (["atflows"], "Produce read-only exact-session review leads"),
         (["proposals"], "Inspect and decide governed memory proposals awaiting review"),
         (["dashboard", "daemon"], "{start,open,stop,restart,status,remove}"),
     ],

@@ -11,7 +11,7 @@ import sys
 import tempfile
 
 
-EXPECTED_ATMEM_VERSION = "2.3.4b1"
+EXPECTED_ATMEM_VERSION = "2.3.4b2"
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:

@@ -1,11 +1,12 @@
 # AtMem
 
-[![Version 2.3.4b1](https://img.shields.io/badge/version-2.3.4b1-blue)](./docs/releases/v2.3.4b1.md)
+[![Version 2.3.4b2 candidate](https://img.shields.io/badge/version-2.3.4b2-blue)](./docs/releases/v2.3.4b2.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
 > **Release status:** AtMem 2.3.4b1 is a beta encrypted Agent Black Box release.
+> The source tree is preparing [2.3.4b2](docs/releases/v2.3.4b2.md), which installs AtFlows alongside AtMem by default while keeping its read-only review handoff opt-in; the published installation examples below remain on 2.3.4b1 until publication is verified.
 > It records exact host-observed text and supported multimodal boundaries by default,
 > while keeping every claim limited to what the connected agent actually supplied.
 
@@ -700,8 +701,9 @@ npm test
 npm run smoke
 ```
 
-Current repository metadata is version **2.3.4b1**, with the matched OpenClaw
-bridge **2.3.4-beta.1**. Release validation requires exact Python/bridge alignment;
+Current source metadata is the **2.3.4b2 candidate**, with matched OpenClaw
+bridge source **2.3.4-beta.2**. Published installation guidance above remains on
+2.3.4b1 until the new artifacts are verified. Release validation requires exact Python/bridge alignment;
 AtBot retains its independent stable compatible version **0.1.0**.
 
 ## License

@@ -3,6 +3,13 @@
 **Release line:** AtMem `2.3.4b1`, OpenClaw bridge `2.3.4-beta.1`, AtBot
 `0.1.0`.
 
+**Source candidate:** AtMem `2.3.4b2` installs AtFlows `0.1b6` by default;
+OpenClaw bridge `2.3.4-beta.2` accompanies an opt-in, read-only AtFlows
+review-lead handoff. No AtFlows server starts automatically, and existing AtMem
+flows still work without one. This candidate has not been published; see
+[draft release notes](releases/v2.3.4b2.md) and
+[local installed-artifact evidence](implementation-evidence/026/20260920T094307Z-85c2ae2-atflows-b2.md).
+
 **2.3.4b1 scope:** local query expansion, exact-search/index reuse improvements,
 bounded answer-support corrections and responsive session-archive layout.
 The `core-rrf-v1` candidate strategy and scoped graph nominations, with bounded

@@ -18,6 +18,23 @@ Spec 022 owns the target information architecture (Runs, Memory, Decisions, Tool
 
 Spec 012 owns public transport/error/output-envelope conventions and the integration router in `atmem/cli.py`. Feature specs own handlers in their feature packages. Shared-router edits are serialized through Spec 012 and MUST preserve human/JSON parity, stable exit behavior, and authority-safe errors.
 
+## AtFlows installation and review handoff
+
+The 2.3.4b2 base AtMem package pins and installs the independent AtFlows Python
+package. The former `atmem[atflows]` extra remains a compatible install alias.
+Installing either package does not start AtFlows, configure tracing, migrate
+AtMem Home, or alter AtBot behavior. `atmem status` reports installed versions
+and bounded local service links without reading passwords; `atflows status`
+reports its own local service links without AtMem credentials.
+Spec 029 continues to own AtMem's separate one-time Administrator bootstrap.
+
+Spec 020 owns AtMem's exact-run evidence and session identity; Spec 028 owns
+authorization and protected plaintext. The AtFlows adapter may read bounded
+local telemetry only for an explicitly authorized review, and emits untrusted
+trace-error leads, not canonical evidence or memory mutations. Spec 012 owns
+the CLI presentation. Spec 026 may later consume those leads in Memory Health,
+but its deterministic cycle must work without a running AtFlows server.
+
 ## Retrieval signals
 
 Spec 008 owns `atmem/retrieve/signals.py`, the base ranker, calibration, explanations, and extension registry. Spec 009 owns `atmem/retrieve/graph_signal.py` and registers entity/graph behavior through that extension point without modifying base ownership.
@@ -97,7 +114,7 @@ Spec 025 owns the guided provider connection lifecycle, authentication experienc
 
 ## Temporal memory consolidation (026)
 
-Spec 026 owns `atmem/temporal/` assertion/derivation contracts and `atmem/consolidation/` cycle, health-finding and proposal orchestration. Spec 006 retains canonical admission/correction authority; 015 retains lifecycle transitions and invalidation; 008 retains retrieval-signal registration; 012 retains public service/feedback shapes; 022 owns the shared shell and places Memory Health inside Context. Spec 007 retains the common maintenance scheduler, through which 026 registers bounded jobs. AtBot implements replaceable semantic proposal capabilities only and cannot inspect an unrestricted scope or commit any change. Spec 023 supplies external propagation evidence required by the complete scheduled-consolidation claim.
+Spec 026 owns `atmem/temporal/` assertion/derivation contracts and `atmem/consolidation/` cycle, health-finding and proposal orchestration. Spec 006 retains canonical admission/correction authority; 015 retains lifecycle transitions and invalidation; 008 retains retrieval-signal registration; 012 retains public service/feedback shapes; 022 owns the shared shell and places Memory Health inside Context. Spec 007 retains the common maintenance scheduler, through which 026 registers bounded jobs. AtBot implements replaceable semantic proposal capabilities only and cannot inspect an unrestricted scope or commit any change. The native single-owner consolidation cycle can ship after local authority and invalidation gates; Spec 023 supplies the external propagation evidence required by the expanded shared/provider profile.
 
 ## Model influence revocation and unlearning (027)
 

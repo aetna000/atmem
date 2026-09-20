@@ -550,3 +550,19 @@ body:has(.memorychat.collapsed){padding-bottom:70px}
 .settingsrail{background:var(--bg)}.settingsrailitem.active{border-color:var(--line);border-left:3px solid var(--brand);background:var(--card)}.settingsstagehead{border-color:var(--line)}
 .statuspill{border:1px solid currentColor;background:transparent}.statuspill.active,.statuspill.quarantined{background:transparent}
 .card,.hero,.settingsworkspace,.appfoot{background:var(--card)}.card:after,.providerhero:after{display:none}
+
+/* Session metrics respond to the workspace width, including when its rail is open. */
+#sessionInsights{container-type:inline-size}
+@container (max-width: 740px){.insightmetrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width: 390px){.insightmetrics{grid-template-columns:1fr}.insightshead{flex-wrap:wrap}}
+.insightmetric>span,.insightmetric>small{overflow-wrap:anywhere}
+
+/* Keep password reveal controls inside the input, in every account form. */
+.passwordinput{display:grid;grid-template-columns:minmax(0,1fr) auto;min-width:0}
+.authform .passwordinput input,.usercreate .passwordinput input{min-width:0;border-right:0;border-radius:0}
+.passwordinput button{min-width:58px;padding:8px 12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-weight:650;cursor:pointer}
+.passwordinput button:hover,.passwordinput button:focus-visible{border-color:var(--brand);color:var(--brand)}
+
+/* Readable JSON evidence and logs, with the same palette in either theme. */
+pre.jsonlog{max-width:100%;box-sizing:border-box;margin:8px 0;padding:16px;overflow:auto;white-space:pre;overflow-wrap:normal;word-break:normal;border:1px solid #46555b;border-radius:0;background:#192124;color:#e8edf0;font:12px/1.55 ui-monospace,"SFMono-Regular",Consolas,monospace;tab-size:2}
+.jsonlog .json-key{color:#a0e5ed}.jsonlog .json-string{color:#ffd099}.jsonlog .json-number{color:#c9b9fa}.jsonlog .json-boolean{color:#bdc8ff}.jsonlog .json-null{color:#89979e;font-style:italic}
