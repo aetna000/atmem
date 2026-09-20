@@ -14,7 +14,7 @@ Extend canonical memory with explicit temporal assertion semantics and determini
 
 **Language/version**: Python 3.10–3.13; browser UI in existing HTML/CSS/JavaScript; AtBot companion Python package.
 
-**Primary dependencies**: Standard library and existing AtMem/AtBot contracts; AtFlows is a pinned base-install Python package from the 2.3.4 line onward, but its server and review handoff remain optional. No Bun runtime or AtFlows service is required for native health evaluation. AtBot model providers remain optionally configured.
+**Primary dependencies**: Standard library and existing AtMem/AtBot contracts; AtFlows is a pinned base-install Python package introduced in the unpublished 2.3.4b2 candidate and pinned to 0.1.1 in stable 2.3.4, but its server and review handoff remain optional. No Bun runtime or AtFlows service is required for native health evaluation. AtBot model providers remain optionally configured.
 
 **Storage**: Canonical SQLite through the existing migration registry; vector/graph/cache remain derived and registered for invalidation. Production backends consume the same public contracts through Spec 010.
 

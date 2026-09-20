@@ -8,7 +8,7 @@ handoff remains opt-in, and AtMem works without a running AtFlows server. See
 the [2.3.4 release notes](releases/v2.3.4.md) and
 [installed-artifact evidence](implementation-evidence/026/20260920T105859Z-atmem-234-stable.md).
 
-**Retrieval scope carried forward from 2.3.4b1:** local query expansion, exact-search/index reuse improvements,
+**Retrieval baseline inherited from 2.3.3:** local query expansion, exact-search/index reuse improvements,
 bounded answer-support corrections and responsive session-archive layout.
 The `core-rrf-v1` candidate strategy and scoped graph nominations, with bounded
 paths and canonical revalidation, ship as opt-in developer evaluation options.

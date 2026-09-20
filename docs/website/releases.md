@@ -6,8 +6,7 @@ offers optional AtMem-owned login for both dashboards, and adds an opt-in,
 read-only review-lead handoff. AtBot remains 0.1.0.
 
 ## Previous beta
-[AtMem 2.3.4b1](https://github.com/aetna000/atmem/blob/main/docs/releases/v2.3.4b1.md) improved retrieval efficiency and
-session navigation while preserving authority and evidence boundaries.
+[AtMem 2.3.4b1](https://github.com/aetna000/atmem/blob/main/docs/releases/v2.3.4b1.md) added the experimental Jev/LoCoMo benchmark lab while keeping retrieval defaults unchanged.
 
 ## Upgrade checklist
 1. Stop writers or create a verified Home snapshot.
@@ -17,6 +16,7 @@ session navigation while preserving authority and evidence boundaries.
 5. Keep the backup until validation finishes.
 
 ## Previous releases
+- [2.3.3](../releases/v2.3.3.md)
 - [2.3.2](../releases/v2.3.2.md)
 - [2.3.1](../releases/v2.3.1.md)
 - [2.3.0](../releases/v2.3.0.md)

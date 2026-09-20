@@ -226,6 +226,11 @@
       "source": "docs/releases/v2.3.4.md"
     },
     {
+      "slug": "releases/2.3.3",
+      "title": "AtMem 2.3.3",
+      "source": "docs/releases/v2.3.3.md"
+    },
+    {
       "slug": "releases/2.3.2",
       "title": "AtMem 2.3.2",
       "source": "docs/releases/v2.3.2.md"

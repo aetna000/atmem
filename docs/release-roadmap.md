@@ -2,7 +2,7 @@
 
 **Status**: 2.3.4 stable release plus proposed future sequence; future versions are
 planning targets, not delivery-date commitments.
-**Published baseline**: AtMem `2.3.4`, OpenClaw bridge `2.3.4`, companion pins
+**Stable release baseline**: AtMem `2.3.4`, OpenClaw bridge `2.3.4`, companion pins
 `atmem-atbot==0.1.0` and `atflows==0.1.1`.
 
 AtMem is an agent-neutral, standalone encrypted evidence authority for memory, context governance and execution investigation. Every release follows [PR-001–PR-008](../specs/product-requirements.md), including default full-fidelity multimodal capture, application-only privileged plaintext and store-only reconstruction after the agent and its logs are gone. Advertise only the host, provider, capture-boundary, cryptographic and deployment profiles actually verified for that release.
