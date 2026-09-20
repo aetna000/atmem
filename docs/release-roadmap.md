@@ -1,9 +1,9 @@
 # AtMem release roadmap
 
-**Status**: 2.3.4b1 beta scope plus proposed future sequence; future versions are
+**Status**: 2.3.4 stable release plus proposed future sequence; future versions are
 planning targets, not delivery-date commitments.
-**Working baseline**: AtMem `2.3.4b1`, OpenClaw bridge `2.3.4-beta.1`, companion pin
-`atmem-atbot==0.1.0`.
+**Stable release baseline**: AtMem `2.3.4`, OpenClaw bridge `2.3.4`, companion pins
+`atmem-atbot==0.1.0` and `atflows==0.1.1`.
 
 AtMem is an agent-neutral, standalone encrypted evidence authority for memory, context governance and execution investigation. Every release follows [PR-001–PR-008](../specs/product-requirements.md), including default full-fidelity multimodal capture, application-only privileged plaintext and store-only reconstruction after the agent and its logs are gone. Advertise only the host, provider, capture-boundary, cryptographic and deployment profiles actually verified for that release.
 
@@ -14,15 +14,17 @@ AtMem is an agent-neutral, standalone encrypted evidence authority for memory, c
 | **2.2.6** — optional maintenance | Baseline maintenance | Stabilize already implemented 2.2 capabilities, including delegated host identity/lifecycle fixes and compatibility checks; publish accurate installation/upgrade guidance | Existing runtime; 003 T049–T053; applicable regression gates | Spec 003 host compatibility work is assigned to 2.2.6; unresolved host profiles remain explicitly blocked/unverified. No claim that the new roadmap capabilities are delivered. This maintenance release is optional and does not block 2.3 development. |
 | **2.3.2** — stable standalone encrypted evidence box | M0 | Reconstruct exact host-observed text and supported multimodal agent evidence from one portable encrypted AtMem Home; govern memory/context exposure with four local roles | 020, 021, 022, 028, 029, 030; scoped 003/007 | OpenClaw is the verified installed full-fidelity host profile. Pydantic AI and LangChain/LangGraph have governed native/delegated context delivery, not the full OpenClaw multimodal capture claim. Viewer is content-free; Investigator reconstructs; Evidence Collector exports; Administrator manages the installation. |
 | **2.3.4b1** — Jev benchmark lab beta | Production benchmark evidence | LoCoMo adapter, Jev reranking comparison, explicit egress and claim gates; LongMemEval/BEAM staged | New 035 benchmark track; applicable 001/003/019 contracts | Existing defaults, evidence encryption, scope, delegated authority and exact delivery remain intact. Results remain exploratory until corpus anomalies and all production gates are resolved. |
-| **2.4.0** — multi-agent memory and access foundations | M1 | Agents use private and explicitly shared spaces with separate read/write/admin permissions, ownership, membership changes and provenance. Establish durable authenticated administration for supported production profiles | 006, 010, 012, 013, 015, applicable 017/019/022 consumers | Membership and credential subsystems pass their decomposed gates; no cross-space leaks, stale-grant delivery or revoked-key resurrection. Local use remains lightweight; broader enterprise/federation claims remain scoped. |
-| **2.5.0** — governed provider connections | M1 | Native memory and external memory/knowledge share inspection and policy services; provider setup supports access preview, conditional approval, explicit activation and first-delivery monitoring. Complete the nine-destination workspace: Runs, Memory, Decisions, Tools and media, Audit, Policies, Tasks, Connections and Settings | 019, 022, 025, relevant 003/004/017 | Native plus one real external provider and declared authentication profiles pass. Preserve all three authority modes, exact delegated bytes and actual credential/delivery assurance. No claim of every authentication method or connector working. |
-| **2.6.0** — investigation and resolution | M1 | Evidence-backed affected-work views, richer task/execution links, incident assignment and separate acknowledgment, remediation and outcome verification | Remaining applicable 007, 020, 021 and 022 | Impact follows declared dependencies; unknown outcomes stay unknown. Any executable action requires its host checkpoint, authorization, idempotency and verification prerequisites; otherwise offer inspection/manual guidance. |
-| **2.7.0** — context lifecycle governance | M3 | Revocable context grants, source-exposure impact and policy simulation with explicit evidence and uncertainty | 015, 019, 023 | Revocation races and actual propagation bounds pass; simulations disclose unevaluable cases and cannot mutate live policy. Past disclosure is never described as retracted. |
-| **2.8.0** — temporal memory consolidation | M4 memory intelligence | Opt-in background review identifies stale, conflicting, duplicate, expired and time-dependent memories; deterministic derivations and lifecycle boundaries are explainable, while uncertain semantic changes require review | 001, 006, 008, 015, 022, 026; applicable 019/021/023 integration | AtBot remains proposal-only and sees only authorized bounded packages. No semantic deletion or silent correction; every accepted effect has evidence, generation checks, lineage and derivative invalidation. The base path works without a model. |
+| **2.3.4b2** — AtFlows-installed review-lead beta | M4 preparation | AtMem installs the pinned AtFlows Python package by default; an explicitly started AtFlows instance can supply exact session-linked trace-error leads for a read-only local evidence review report. The versioned report can feed the 2.4.0 Memory Health queue after that queue exists | 020/028 evidence and access boundaries; future 026 consumer | Source candidate, not published. Installed AtFlows 0.1b6 handoff passes the local smoke gate. No automatic server start, shared login, Memory Health queue, automatic admission, raw-trace import, inferred run link or causal claim. AtMem works without a running AtFlows server. |
+| **2.3.4** — stable follow-up | Beta stabilization | Preserve verified retrieval scope, install AtFlows 0.1.1 by default, and offer optional AtMem-owned login plus read-only review leads | 031/035 and applicable 020/028/026 contracts | AtFlows remains separately started; standalone login remains compatible. No promotion of exploratory Jev results, automatic Memory Health, or causal telemetry claims. Stable release requires its own reviewed gates and notes. |
+| **2.4.0** — local memory health | M4 memory intelligence, local profile | Native single-owner memory gets time-valid recall, deterministic expiry and duplicate checks, a review queue, bounded opt-in background cycles and optional AtBot semantic proposals. Review works without a running AtFlows server or model | 001, 006, 008, 015, 026; applicable 020/022/028 local contracts | Ship only after local admission/lifecycle, scope, encrypted evidence, generation, deletion, restart and installed-artifact gates pass. Default disabled; first activation preview-only. No shared-space, external-provider propagation or automatic semantic changes claimed. |
+| **2.5.0** — multi-agent memory and access foundations | M1 | Agents use private and explicitly shared spaces with separate read/write/admin permissions, ownership, membership changes and provenance. Establish durable authenticated administration for supported production profiles; extend memory-health authorization to shared spaces | 006, 010, 012, 013, 015, applicable 017/019/022/026 consumers | Membership and credential subsystems pass their decomposed gates; no cross-space leaks, stale-grant delivery, hidden health-count leakage or revoked-key resurrection. Local 2.4 memory health remains available. |
+| **2.6.0** — governed provider connections | M1 | Native memory and external memory/knowledge share inspection and policy services; provider setup supports access preview, conditional approval, explicit activation and first-delivery monitoring. Complete the nine-destination workspace: Runs, Memory, Decisions, Tools and media, Audit, Policies, Tasks, Connections and Settings | 019, 022, 025, relevant 003/004/017/026 | Native plus one real external provider and declared authentication profiles pass. Preserve all three authority modes, exact delegated bytes and actual credential/delivery assurance. No claim of every authentication method or connector working. |
+| **2.7.0** — investigation and resolution | M1 | Evidence-backed affected-work views, richer task/execution links, memory-health finding links, incident assignment and separate acknowledgment, remediation and outcome verification | Remaining applicable 007, 020, 021, 022 and 026 | Impact follows declared dependencies; unknown outcomes stay unknown. Any executable action requires its host checkpoint, authorization, idempotency and verification prerequisites; otherwise offer inspection/manual guidance. |
+| **2.8.0** — context lifecycle and health propagation | M3 and M4 expansion | Revocable context grants, source-exposure impact and policy simulation; extend memory-health invalidation and review across declared shared/provider profiles | 015, 019, 023, 026 | Revocation races and actual propagation bounds pass for each claimed profile; simulations disclose unevaluable cases and cannot mutate live policy. Past disclosure is never described as retracted. Local memory health has already shipped in 2.4.0. |
 | **2.9.0** — enterprise fleet operations | M3 enterprise expansion | Customer-hosted fleet policy distribution, scoped administration, supported federation/workload identity, independent evidence anchoring and verified recovery profiles | Hardened 013, 024, applicable 025 integration | Real deployment, replica, partition, credential, recovery and evidence-verification gates pass. Managed hosting remains optional. |
 | **2.10.0b1** — model unlearning research preview | M4 unlearning research | Coordinate external-memory revocation, scoped behavioral suppression and evaluated post-training forget jobs for registered open-weight models with exact lineage | 015, 020, 021, 023, 024, 027 | The intended single-consumer-GPU profile uses Apache-2.0 `Qwen/Qwen2.5-0.5B-Instruct` at pinned revision `c89bee90d9f811437d9735454613c35b4a3c4dc8` and completes end to end. Results are `weight_unlearning_evaluated`, never proof of erasure; closed-source and lineage-unknown models receive only the provider/runtime assurances actually verified. No broad model-efficacy claim. |
 
-The sequence scopes deliverables rather than requiring every task in each named spec to finish. Carry deferred work explicitly; never mark an entire spec complete from a passing release profile. The Work group column maps each release explicitly: M0–M4 are dependency/scope groupings, not a second chronological sequence. M1 is intentionally split across 2.4–2.6, the capture conformance subset of M2 lands in 2.3, and M3/M4 deliverables interleave only where the table states.
+The sequence scopes deliverables rather than requiring every task in each named spec to finish. Carry deferred work explicitly; never mark an entire spec complete from a passing release profile. The Work group column maps each release explicitly: M0–M4 are dependency/scope groupings, not a second chronological sequence. M1 is intentionally split across 2.5–2.7, the capture conformance subset of M2 lands in 2.3, and M3/M4 deliverables interleave only where the table states. Bringing the entire shared/provider Spec 026 profile into 2.4.0 would depend on 012/013/019/023 work assigned to later releases; 2.4.0 therefore completes a useful native single-owner profile first rather than claiming unsupported shared or external effects.
 
 ## 2.2.6 maintenance scope — delegated host compatibility
 
@@ -51,7 +53,7 @@ to the final implemented changes before publication.
 
 [Spec 031](../specs/031-mem0-head-to-head-retrieval/spec.md) and its
 [plan](../specs/031-mem0-head-to-head-retrieval/plan.md) define the retrieval
-work between stable 2.3.3 and the planned 2.4 foundation. Beta 2.3.4b1 ships
+work between stable 2.3.3 and the planned 2.4 capability. Beta 2.3.4b1 ships
 unchanged retrieval defaults. See the
 [release notes](releases/v2.3.4b1.md) for the precise shipped subset. The initial 12-case Mem0 2.0.20 baseline
 had an unmatched `limit`/`top_k` call and is preserved only as historical
@@ -61,28 +63,99 @@ held-out comparative quality and benchmark dashboard integration remain future
 work. Correctness, security, UI regression and artifact gates remain mandatory
 for the stable scope; optional fusion/graph is not promoted to the default.
 
-## Next planned foundation: 2.4.0
+## 2.3.4b2 source candidate: default AtFlows install, opt-in review leads
 
-Build the authenticated shared/private multi-agent space and membership foundation
-described in Specs 006, 010, 012, 013 and 015. Preserve 2.3.2 evidence encryption,
-portable-home recovery, local roles and exact capture contracts. Do not broaden
-cross-host multimodal claims until an additional real host passes the published
-capture conformance profile.
+Keep **AtFlows and AtMem as independent pip packages**, but install pinned
+`atflows==0.1b6` with the base AtMem wheel. AtFlows observes local
+traces, sessions, costs, latency and outcome signals; AtMem owns encrypted run
+evidence, access decisions, memory admission and memory lifecycle. The optional
+handoff is a versioned, read-only review-lead contract, not a shared database or
+an automatic log-to-memory pipeline. Initial compatibility must name the exact
+AtFlows and AtMem package versions tested when implementation lands. The old
+`atmem[atflows]` extra remains valid. AtMem's ordinary memory retrieval must
+work without an AtFlows server or Bun runtime; installation must not start
+AtFlows, change existing Home data, or alter AtBot behavior.
+
+For the 2.3.4b2 preview, an operator explicitly selects an AtMem run, AtFlows
+session ID and bounded time window. AtFlows provides stable trace IDs and
+trace-error signals for that session. AtMem treats these as untrusted leads,
+resolves only exact authorized
+run/evidence links, checks current scope and deletion state, and produces a
+read-only local review report with source references, coverage gaps and uncertainty. A
+missing exact link remains uncorrelated; matching names or timestamps cannot
+manufacture one. The handoff does not copy raw prompts, logs, memory content or
+trace payloads by default, and makes no non-loopback network request.
+
+The 2.3.4b2 candidate deliverable is a local Python/CLI review report and a versioned
+handoff contract, subject to applicable 020 execution-evidence and 028
+encryption/access gates. It does not create the Spec 026 Memory Health queue or
+offer memory review actions before 2.4.0. When the 2.4.0 queue exists, it may
+consume the same authorized leads; canonical admission, correction and deletion
+remain under Specs 006/015 and the Spec 026 review workflow.
+Comparing outcomes with and without a supplied memory can prioritize review,
+but an observational trace does not establish that the memory caused an outcome;
+causal claims require a separately controlled evaluation.
+
+Acceptance must exercise an installed two-package profile with authorized and
+out-of-scope runs, missing/duplicate links, revoked access, deleted evidence,
+incomplete traces and AtFlows unavailable. The preview must disclose gaps,
+avoid unauthorized content/count leakage and produce zero automatic canonical
+memory changes. If these gates or the prerequisite contracts are not ready,
+2.3.4b2 cannot claim the handoff. This source
+candidate is distinct from the existing 2.3.4b1 beta and does not rewrite its
+shipped scope. The local consolidation cycle and
+review experience are independent 2.4.0 deliverables; 2.5–2.8 add shared-space, provider, investigation and
+propagation coverage.
+
+## 2.3.4 stable scope
+
+Stable 2.3.4 pins AtFlows 0.1.1 and preserves the optional read-only handoff.
+AtFlows 0.1.1 can delegate dashboard authentication to a same-host loopback
+AtMem dashboard: AtMem owns users, passwords and roles, while AtFlows checks
+each protected request against the live AtMem session. Standalone AtFlows
+accounts remain available when delegation is off. The command-line handoff
+uses AtMem credentials in delegated mode and the AtFlows Administrator in
+standalone mode. Neither mode turns observational telemetry into canonical
+memory or automatic Memory Health findings. See the [release note](releases/v2.3.4.md).
+
+## Next planned capability: 2.4.0 local memory health
+
+Bring the useful native single-owner Spec 026 cycle forward from 2.8.0. Deliver
+temporal assertions, time-valid retrieval, deterministic derivations, exact
+duplicate/expiry and overlap-conflict findings, an authorized review queue,
+bounded resumable preview cycles, and optional AtBot semantic proposals. The
+common service must expose the local Memory Health journey through supported
+API/CLI/MCP/dashboard paths. AtMem alone selects review evidence and decides
+whether an approved proposal changes canonical memory. The base capability
+works locally with no running AtFlows server, AtBot model or network service.
+
+This is a release-profile boundary, not a dependency waiver. Finish the local
+Spec 006/015 admission and lifecycle work, encryption/access checks, generation
+revalidation, derivative deletion, migration and installed-artifact evidence
+needed for this profile before shipping. Background review defaults off; first
+enablement is preview-only. Automatic eligibility changes require separate
+explicit deterministic policy; semantic correction, merge, supersession and
+deletion always require authorized review. Shared-space scheduling and counts,
+external-provider propagation and fleet policy remain later gated profiles.
+Preserve 2.3.2 portable-home recovery and exact capture contracts; do not
+broaden cross-host multimodal claims without another verified host.
 
 ## Critical prerequisites for the subsequent releases
 
-- **2.4:** estimate and implement **012 T016–T032** membership/feedback and **013 T012–T025** durable credentials/production enforcement. Their roll-up rows are not implementation estimates. Consumer admission, retrieval, invalidation and UI tasks must pass as well. Core/shared-space tests can develop against frozen contracts; production use requires the real authenticated boundary.
-- **2.5:** consume 2.4 authority contracts. The wizard cannot activate an enterprise connection on configuration-only authentication. Native/shared-memory retrieval in 2.4 may use the existing native path with compatible 019 contracts; full external provider unification and composition arrive here. Complete 003 T054–T058 so delegated providers feed the same standalone exact-evidence store across OpenClaw, Pydantic AI and LangChain/LangGraph.
-- **2.6:** preserve M0's useful investigation experience while extending it. Task-state participation remains optional; lack of memory or task activation cannot block tool-failure investigation.
-- **2.7–2.9:** basic membership/key revocation is already required in 2.4. These releases extend source/grant lifecycle, temporal consolidation and fleet administration; they do not postpone foundational access enforcement. Spec 026 ships temporal contracts and UI foundations earlier where listed, but scheduled consolidation is not claimed before the 2.8.0 gates.
-- **2.10 preview:** consume verified revocation/impact, authenticated administration, execution evidence and model/deployment inventory from 2.7–2.9. Keep heavyweight training dependencies in separately registered workers. A memory deletion, refusal, provider acknowledgment or small-model benchmark cannot be promoted into a weight-erasure claim.
+- **2.4:** deliver the complete native single-owner Memory Health profile against existing local authority, or keep the release unshipped. No shared-space, external-provider or remote-model claim may stand in for missing 012/013/019/023 contracts. AtBot remains optional and remote egress requires an implemented policy gate.
+- **2.5:** estimate and implement **012 T016–T032** membership/feedback and **013 T012–T025** durable credentials/production enforcement. Their roll-up rows are not implementation estimates. Shared-space health counts, review and scheduling require the real authenticated boundary; preserve the 2.4 local behavior.
+- **2.6:** consume 2.5 authority contracts. The wizard cannot activate an enterprise connection on configuration-only authentication. Complete 003 T054–T058 so delegated providers feed the same standalone exact-evidence store across OpenClaw, Pydantic AI and LangChain/LangGraph.
+- **2.7:** preserve M0's useful investigation experience while extending it. Task-state participation remains optional; lack of memory or task activation cannot block tool-failure investigation.
+- **2.8–2.9:** extend source/grant lifecycle, memory-health invalidation/propagation and fleet administration. Do not treat local expiry as verified external cleanup or shared-space access enforcement as optional.
+- **2.10 preview:** consume verified revocation/impact, authenticated administration, execution evidence and model/deployment inventory from 2.8–2.9. Keep heavyweight training dependencies in separately registered workers. A memory deletion, refusal, provider acknowledgment or small-model benchmark cannot be promoted into a weight-erasure claim.
 
 ## Versioning, compatibility and publication
 
 These are proposed additive 2.x releases. Preserve public contracts, native behavior, existing scopes, signed delegated payloads and historical evidence through declared supported upgrades. If implementation requires a genuinely incompatible public or persisted-state change, resolve migration/deprecation and reconsider a major version before committing to these numbers.
 
-Use prerelease candidates as needed for future scope. Beta AtMem `2.3.4b1` maps
-exactly to bridge `2.3.4-beta.1`. AtBot has an independent version and changes only when
+Use prerelease candidates as needed for future scope. Published beta AtMem `2.3.4b1` maps
+exactly to bridge `2.3.4-beta.1`; source candidate `2.3.4b2` maps to bridge
+`2.3.4-beta.2`. AtBot has an independent version and changes only when
 its implementation/compatibility requires it; do not invent a companion version
 to mirror AtMem. Every release must align actual installer constants and pins.
 

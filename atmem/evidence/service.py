@@ -243,6 +243,36 @@ class EvidenceService:
             store.access_event(self._audit(principal, "view", target, True, count=len(values)))
         return values
 
+    def has_run_session(
+        self, principal: EvidencePrincipal, run_id: str, session_id: str
+    ) -> bool:
+        """Check one authorized run/session link without loading artifact bytes."""
+        target = EvidenceScope(
+            principal.scope.tenant_id,
+            principal.scope.subject_id,
+            principal.scope.workspace_id,
+            run_id,
+        )
+        try:
+            principal.authorize(EvidenceOperation.VIEW, target)
+        except PermissionError:
+            self._record_access(principal, "view", target, False)
+            raise
+        with self._store() as store:
+            matched = any(
+                item.get("record_type") == "evidence"
+                and str((item.get("envelope") or {}).get("run_id") or "") == run_id
+                and str((item.get("envelope") or {}).get("session_id") or "") == session_id
+                and principal.scope.permits(
+                    self._scope_from_envelope(item.get("envelope") or {})
+                )
+                for item in store.documents()
+            )
+            store.access_event(
+                self._audit(principal, "view", target, True, metadata_only=True)
+            )
+        return matched
+
     def reconstruct(self, principal: EvidencePrincipal, run_id: str) -> dict[str, Any]:
         target = EvidenceScope(
             principal.scope.tenant_id,

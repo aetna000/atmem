@@ -27,7 +27,7 @@
 <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4 7 7 0 0 0 20 14.5z"/></symbol>
 </defs></svg>
 <header><div class="wrap head">
-  <div class="logo"><img class="brandmark" src="/assets/atmem.jpg" alt="AtMem logo"><strong>AtMem</strong></div>
+  <a class="logo" href="https://atmem.ai/" target="_blank" rel="noopener noreferrer" aria-label="Visit AtMem.ai (opens in a new tab)"><svg class="brandmark" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 6.5 L5.5 17.5 M12 6.5 L18.5 17.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="12" cy="5" r="2.6" fill="currentColor"/><circle cx="5" cy="18.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="19" cy="18.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg><strong>AtMem.ai</strong></a>
   <div class="tabnav" role="tablist" aria-label="Dashboard sections">
     <button class="tabbtn active" id="navStatus" type="button" role="tab" aria-selected="true">Sessions</button>
     <button class="tabbtn" id="navDecisions" type="button" role="tab" aria-selected="false">Decisions<span class="navbadge" id="decisionsBadge" hidden>0</span></button>
@@ -51,12 +51,12 @@
       <p class="sub" id="authCopy">Use the local Administrator or an account created for you. No bearer token is required.</p>
       <form id="loginForm" class="authform">
         <label><span>Username</span><input id="loginUsername" autocomplete="username" value="administrator" required></label>
-        <label><span>Password</span><input id="loginPassword" type="password" autocomplete="current-password" required></label>
+        <label><span>Password</span><span class="passwordinput"><input id="loginPassword" type="password" autocomplete="current-password" required><button type="button" data-password-toggle="loginPassword" aria-label="Show password" aria-pressed="false">Show</button></span></label>
         <button class="primary" type="submit">Sign in</button>
       </form>
       <form id="passwordForm" class="authform" hidden>
-        <label><span>New password</span><input id="newPassword" type="password" autocomplete="new-password" required></label>
-        <label><span>Repeat new password</span><input id="repeatPassword" type="password" autocomplete="new-password" required></label>
+        <label><span>New password</span><span class="passwordinput"><input id="newPassword" type="password" autocomplete="new-password" required><button type="button" data-password-toggle="newPassword" aria-label="Show new password" aria-pressed="false">Show</button></span></label>
+        <label><span>Repeat new password</span><span class="passwordinput"><input id="repeatPassword" type="password" autocomplete="new-password" required><button type="button" data-password-toggle="repeatPassword" aria-label="Show repeated password" aria-pressed="false">Show</button></span></label>
         <button class="primary" type="submit">Change password</button>
       </form>
       <p class="authhelp">First install? Run <code>atmem init</code>. It opens this form with the one-time Administrator password pre-filled.</p>
@@ -102,10 +102,11 @@
 
   <div class="tabpanel" id="viewSettings">
   <div class="pageheading"><div><div class="eyebrow">Configuration</div><h1>Settings</h1><p>Control memory intelligence, governed task state, and optional context providers.</p></div></div>
+  <div class="settingsworkspace" id="settingsWorkspace"><nav class="settingsrail" id="settingsRail" aria-label="Settings sections"><div class="settingsrailtitle">Settings</div></nav><main class="settingsstage" id="settingsStage" aria-live="polite"></main></div>
 
   <details class="protectionrow" id="myAccountCard">
     <summary><div class="protectioncopy"><span class="protectionicon" aria-hidden="true">●</span><span><b>My account</b><small id="myAccountSummary">Signed-in identity and password</small></span></div><div class="protectionstate"><span aria-hidden="true">⌄</span></div></summary>
-    <div class="protectiondrawer"><form class="usercreate" id="selfPasswordForm"><label><span>Current password</span><input id="selfCurrentPassword" type="password" autocomplete="current-password" required></label><label><span>New password</span><input id="selfNewPassword" type="password" autocomplete="new-password" required></label><label><span>Repeat new password</span><input id="selfRepeatPassword" type="password" autocomplete="new-password" required></label><button class="primary" type="submit">Change my password</button></form></div>
+    <div class="protectiondrawer"><form class="usercreate" id="selfPasswordForm"><label><span>Current password</span><span class="passwordinput"><input id="selfCurrentPassword" type="password" autocomplete="current-password" required><button type="button" data-password-toggle="selfCurrentPassword" aria-label="Show current password" aria-pressed="false">Show</button></span></label><label><span>New password</span><span class="passwordinput"><input id="selfNewPassword" type="password" autocomplete="new-password" required><button type="button" data-password-toggle="selfNewPassword" aria-label="Show new password" aria-pressed="false">Show</button></span></label><label><span>Repeat new password</span><span class="passwordinput"><input id="selfRepeatPassword" type="password" autocomplete="new-password" required><button type="button" data-password-toggle="selfRepeatPassword" aria-label="Show repeated password" aria-pressed="false">Show</button></span></label><button class="primary" type="submit">Change my password</button></form></div>
   </details>
 
   <details class="protectionrow" id="homeCard">
@@ -202,6 +203,28 @@
         <p id="intelligenceGuidance">Loading provider guidance…</p>
         <code id="intelligenceCommand">atmem atbot setup</code><button class="secondary compact" id="intelligenceCopy" type="button">Copy CLI command</button>
       </div>
+      <div class="intelligenceguide envsetup"><p><b>Credential</b> <span class="sub">(terminal only)</span></p><code id="intelligenceKeyCommand">read -s API_KEY; export API_KEY</code><button class="secondary compact" id="intelligenceKeyCopy" type="button">Copy key command</button></div>
+    </div>
+  </details>
+
+  <details class="intelligenceconfig" id="jevConfig">
+    <summary class="intelligencesummary">
+      <div class="intelligencesummarycopy"><b>Jev advisory reranking</b><span>Optional relevance assistant; AtMem remains authoritative</span></div>
+      <div class="intelligencesummarymeta"><span class="statuspill" id="jevStatus">Disabled</span><span class="settingshint">Settings <span aria-hidden="true">⌄</span></span></div>
+    </summary>
+    <div class="intelligencebody">
+      <div class="intelligencehead"><div><h2>Use Jev to improve candidate ordering</h2><p class="sub">AtMem retrieves and authorizes memories first. Jev may reorder only those candidates; it cannot add, delete, or authorize memory.</p></div></div>
+      <div class="intelligencesecurity"><b>Remote processing is opt-in.</b> When enabled, eligible query and candidate text is sent to the configured Jev endpoint. The API key stays in the named environment variable and is never stored by AtMem.</div>
+      <div class="intelligencefields">
+        <label class="field"><span>Model</span><input id="jevModel" autocomplete="off" value="jev-1.13.0"></label>
+        <label class="field"><span>API-key environment variable</span><input id="jevKeyEnv" autocomplete="off" spellcheck="false" value="JEV_API"></label>
+        <label class="field wide"><span>Endpoint</span><input id="jevEndpoint" autocomplete="url" spellcheck="false" value="https://api.typesafe.ai/v1/systemone"></label>
+        <label class="field"><span>Timeout (seconds)</span><input id="jevTimeout" type="number" min="1" max="30" step="1" value="8"></label>
+        <label class="field"><span>Failure behavior</span><select id="jevFallback"><option value="native">Use native AtMem ordering</option><option value="withhold">Withhold context</option></select></label>
+      </div>
+      <div class="intelligenceactions"><button class="primary" id="jevSave" type="button">Save disabled configuration</button><button class="secondary" id="jevEnable" type="button">Enable Jev</button><button class="secondary" id="jevDisable" type="button" disabled>Disable Jev</button></div>
+      <div class="intelligenceguide"><p id="jevGuidance">Jev is disabled. AtMem native retrieval is active.</p><code id="jevEvidence">Jev decisions appear in retrieval evidence when used.</code></div>
+      <div class="intelligenceguide envsetup"><p><b>Credential</b> <span class="sub">(terminal only)</span></p><p class="sub">Run this in the same terminal that starts AtMem, enter the key when prompted, then restart the dashboard. The key is never shown or stored.</p><code id="jevKeyCommand">read -s JEV_API; export JEV_API</code><button class="secondary compact" id="jevKeyCopy" type="button">Copy key command</button></div>
     </div>
   </details>
 
@@ -263,6 +286,7 @@
 
   <div class="tabpanel active" id="viewStatus">
   <div class="pageheading"><div><div class="eyebrow">Conversation investigation</div><h1>Agent sessions</h1><p>Understand what happened in a conversation and which retained memories could help now.</p></div></div>
+  <div class="settingsworkspace pageworkspace" id="sessionsWorkspace"><nav class="settingsrail" id="sessionsRail" aria-label="Session sections"><div class="settingsrailtitle">Sessions</div></nav><main class="settingsstage" id="sessionsStage"></main></div>
   <nav class="sectionnav" aria-label="Session sections"><a href="#sessionInsights"><span>01</span> Overview</a><a href="#blackboxCard"><span>02</span> Recent sessions</a><a href="#memorySearchCard"><span>03</span> Memory search</a><a href="#blackboxArchiveCard"><span>04</span> Session archive</a></nav>
   <div class="detailcontext" id="sessionDetailContext" hidden><button class="secondary" id="sessionDetailBack" type="button">← All sessions</button><div><span>Inspecting session</span><b id="sessionDetailTitle">Selected run</b></div></div>
 
@@ -281,7 +305,7 @@
       <li><span class="legenddot complete" aria-hidden="true"></span><span><b>Green</b> · Run completed</span></li>
       <li><span class="legenddot review" aria-hidden="true"></span><span><b>Amber</b> · Review needed or evidence uncertain</span></li>
       <li><span class="legenddot failed" aria-hidden="true"></span><span><b>Red</b> · Run or tool reported a failure</span></li>
-      <li><span class="legenddot running" aria-hidden="true"></span><span><b>Purple</b> · In progress</span></li>
+      <li><span class="legenddot running" aria-hidden="true"></span><span><b>Teal</b> · In progress</span></li>
      </ul>
      <p>Colours describe each item separately. A completed run can contain failed tool calls; completion does not verify the answer.</p>
     </aside>
@@ -294,6 +318,7 @@
 
   <div class="tabpanel" id="viewDecisions">
   <div class="pageheading"><div><div class="eyebrow">Memory governance</div><h1>Decisions</h1></div></div>
+  <div class="settingsworkspace pageworkspace" id="decisionsWorkspace"><nav class="settingsrail" id="decisionsRail" aria-label="Decision sections"><div class="settingsrailtitle">Decisions</div></nav><main class="settingsstage" id="decisionsStage"></main></div>
 
   <section class="hero providerhero" id="hero">
     <div>
@@ -330,7 +355,7 @@
     </div>
 
     <aside>
-      <details class="card decisionchecks"><summary>Verification &amp; recovery</summary>
+      <details class="card decisionchecks" id="decisionChecks"><summary>Verification &amp; recovery</summary>
         <div class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-shield-check"/></svg><h2 id="switchTitle">Ready to switch?</h2></div>
         <p class="sub" id="switchCopy">AtMem checks the active adapter before allowing context injection.</p>
         <div id="checks"></div>
@@ -339,7 +364,7 @@
         <div class="small" id="verifyStatus" style="margin-top:12px;line-height:1.7"></div>
         <div class="small" id="drillStatus" style="margin-top:12px;line-height:1.7"></div>
       </details>
-      <details class="card">
+      <details class="card" id="decisionChangesCard">
         <summary><svg class="icon" aria-hidden="true"><use href="#i-shield-check"/></svg><span class="summarytitle"><b>What changes</b></span></summary>
         <div class="detailsbody">
         <div class="check"><i>✓</i><div>Shadow mode observes without adding memory to model context.</div></div>
@@ -354,6 +379,7 @@
 
   <div class="tabpanel" id="viewMemory">
   <div class="pageheading"><div><div class="eyebrow">Retained knowledge</div><h1>Memory archive</h1><p>Browse what AtMem retains, where it came from, and how the canonical memory stores are organised.</p></div></div>
+  <div class="settingsworkspace pageworkspace" id="memoryWorkspace"><nav class="settingsrail" id="memoryRail" aria-label="Memory sections"><div class="settingsrailtitle">Memory</div></nav><main class="settingsstage" id="memoryStage"></main></div>
   <nav class="sectionnav" aria-label="Memory archive sections"><a href="#mirrorCard"><span>01</span> Memory sources</a><a href="#recordBreakdownCard"><span>02</span> Searchable records</a><a href="#storageOverview"><span>03</span> Storage</a></nav>
 
   <section class="card" id="memorySearchCard">
@@ -487,6 +513,7 @@
 
   <div class="tabpanel" id="viewAudit">
     <div class="pageheading"><div><div class="eyebrow">Governance evidence</div><h1>Audit trail</h1><p>Inspect the append-only record of who or what accessed or changed memory, and whether the action was authorised.</p></div></div>
+    <div class="settingsworkspace pageworkspace" id="auditWorkspace"><nav class="settingsrail" id="auditRail" aria-label="Audit sections"><div class="settingsrailtitle">Audit</div></nav><main class="settingsstage" id="auditStage"></main></div>
     <div id="auditViewMount"></div>
   </div>
 
@@ -497,7 +524,9 @@
       <span class="versionchip" id="versionOpenClawChip">OpenClaw <b id="versionOpenClaw"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></b></span>
       <span class="versionchip">AtMem pip <b id="versionPip"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></b></span>
       <span class="versionchip" id="versionNpmChip">AtMem npm bridge <b id="versionNpm"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span></b></span>
-      <a class="appfootlink" href="https://github.com/aetna000/atmem" target="_blank" rel="noopener noreferrer">About AtMem</a>
+      <a class="appfootlink" href="https://atmem.ai/" target="_blank" rel="noopener noreferrer">AtMem.ai ↗</a>
+      <a class="appfootlink" href="mailto:hello@atmem.ai">hello@atmem.ai</a>
+      <a class="appfootlink" href="https://atmem.ai/about" target="_blank" rel="noopener noreferrer">About AtMem</a>
     </div>
   </footer>
 </main>

@@ -2,6 +2,10 @@ from pathlib import Path
 import json
 import re
 import runpy
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10
+    import tomli as tomllib
 
 import pytest
 
@@ -51,6 +55,9 @@ def test_repository_release_constants_and_notes_are_aligned():
     companion = re.search(r'^version = "([^"]+)"', (root / 'packages/atbot/pyproject.toml').read_text(), re.M).group(1)
     assert f'atmem-atbot=={companion}' in project
     assert f'PINNED_ATBOT_VERSION = "{companion}"' in (root / 'atmem/control/atbot_service.py').read_text()
+    metadata = tomllib.loads(project)['project']
+    assert 'atflows==0.1.1' in metadata['dependencies']
+    assert metadata['optional-dependencies']['atflows'] == []  # legacy extra
     note = root / f'docs/releases/v{version}.md'
     assert note.is_file()
     assert f'atmem=={version}' in note.read_text()

@@ -1,8 +1,9 @@
 {
   "schema": 1,
-  "version": "2.3.4b1",
+  "version": "2.3.4",
   "sections": {
     "": "Documentation",
+    "portfolio": "Product portfolio",
     "getting-started": "Getting started",
     "integrations": "Integrations",
     "reference": "Reference",
@@ -16,6 +17,11 @@
       "source": "docs/website/index.md"
     },
     {
+      "slug": "portfolio",
+      "title": "Product portfolio",
+      "source": "docs/website/portfolio.md"
+    },
+    {
       "slug": "getting-started",
       "title": "Your first memory",
       "source": "docs/website/getting-started.md"
@@ -24,6 +30,11 @@
       "slug": "getting-started/atbot",
       "title": "AtBot companion",
       "source": "docs/website/atbot.md"
+    },
+    {
+      "slug": "getting-started/atflows",
+      "title": "AtFlows observability",
+      "source": "docs/website/atflows.md"
     },
     {
       "slug": "getting-started/troubleshooting",
@@ -211,9 +222,14 @@
       "source": "docs/website/releases.md"
     },
     {
-      "slug": "releases/2.3.4b1",
-      "title": "AtMem 2.3.4b1",
-      "source": "docs/releases/v2.3.4b1.md"
+      "slug": "releases/2.3.4",
+      "title": "AtMem 2.3.4",
+      "source": "docs/releases/v2.3.4.md"
+    },
+    {
+      "slug": "releases/2.3.3",
+      "title": "AtMem 2.3.3",
+      "source": "docs/releases/v2.3.3.md"
     },
     {
       "slug": "releases/2.3.2",

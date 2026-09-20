@@ -194,11 +194,16 @@ jobs:
   installed-wheel:
     name: Python ${{ matrix.python-version }} installed wheel
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          - {os: ubuntu-latest, python-version: "3.10"}
+          - {os: ubuntu-latest, python-version: "3.11"}
+          - {os: ubuntu-latest, python-version: "3.12"}
+          - {os: ubuntu-latest, python-version: "3.13"}
+          - {os: macos-latest, python-version: "3.12"}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -215,21 +220,49 @@ jobs:
       - name: Install and exercise wheel
         run: |
           python -m pip install atbot-dist/*.whl dist/*.whl
+          wheel=(dist/atmem-*.whl)
+          python -m pip install "${wheel[0]}[atflows]"
           python -m pip check
           cd "$RUNNER_TEMP"
-          python -c "import importlib.util; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None"
+          python -c "import importlib.util; from importlib.metadata import version; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None; assert version('atflows') == '0.1.1'"
           python "$GITHUB_WORKSPACE/tools/smoke_installed_package.py"
           python "$GITHUB_WORKSPACE/tools/smoke_delegated_package.py"
           python "$GITHUB_WORKSPACE/tools/smoke_delegated_transport.py"
 
+  installed-atflows-wheel:
+    name: Opt-in AtFlows handoff from default installation
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-distributions
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: atbot-release-distributions
+          path: atbot-dist
+      - name: Exercise opt-in AtFlows handoff from installed wheels
+        run: |
+          python -m pip install atbot-dist/*.whl dist/*.whl
+          python -m pip check
+          cd "$RUNNER_TEMP"
+          python "$GITHUB_WORKSPACE/tools/smoke_atflows_handoff.py"
+          python "$GITHUB_WORKSPACE/tools/smoke_atflows_delegated.py"
+
   upgrade-existing:
-    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.3.4b1
+    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.3.4
     needs: build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        source-version: ["2.1.0", "2.2.3", "2.2.4", "2.2.5", "2.2.6", "2.3.2"]
+        source-version: ["2.1.0", "2.2.3", "2.2.4", "2.2.5", "2.2.6", "2.3.2", "2.3.4b1"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -258,7 +291,7 @@ jobs:
   pypi:
     name: Publish tested artifacts to PyPI
     if: github.ref_type == 'tag'
-    needs: [installed-wheel, installed-atbot-wheel, upgrade-existing]
+    needs: [installed-wheel, installed-atbot-wheel, installed-atflows-wheel, upgrade-existing]
     runs-on: ubuntu-latest
     environment:
       name: pypi

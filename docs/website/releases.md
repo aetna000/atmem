@@ -1,9 +1,12 @@
 # Releases and upgrades
 
-## Current stable release
-[AtMem 2.3.4b1](../releases/v2.3.4b1.md) improves retrieval efficiency and session
-navigation while preserving authority and evidence boundaries. Existing defaults
-remain unchanged; fusion and vector matrix caching are opt-in evaluation options.
+## Stable release
+[AtMem 2.3.4](../releases/v2.3.4.md) installs AtFlows 0.1.1 by default,
+offers optional AtMem-owned login for both dashboards, and adds an opt-in,
+read-only review-lead handoff. AtBot remains 0.1.0.
+
+## Previous beta
+[AtMem 2.3.4b1](https://github.com/aetna000/atmem/blob/main/docs/releases/v2.3.4b1.md) added the experimental Jev/LoCoMo benchmark lab while keeping retrieval defaults unchanged.
 
 ## Upgrade checklist
 1. Stop writers or create a verified Home snapshot.
@@ -13,6 +16,7 @@ remain unchanged; fusion and vector matrix caching are opt-in evaluation options
 5. Keep the backup until validation finishes.
 
 ## Previous releases
+- [2.3.3](../releases/v2.3.3.md)
 - [2.3.2](../releases/v2.3.2.md)
 - [2.3.1](../releases/v2.3.1.md)
 - [2.3.0](../releases/v2.3.0.md)

@@ -8,13 +8,13 @@
 
 ## Summary
 
-Extend canonical memory with explicit temporal assertion semantics and deterministic derived values, then add an opt-in, bounded consolidation service that produces reviewable health findings. Reuse Spec 006 proposal validation and Spec 015 lifecycle transitions; do not give AtBot mutation authority. Ship the data/contract foundation with the 2.4 work, the common Memory Health projection with 2.5, investigation links with 2.6, and scheduled consolidation as a separately gated 2.8.0 capability.
+Extend canonical memory with explicit temporal assertion semantics and deterministic derived values, then add an opt-in, bounded consolidation service that produces reviewable health findings. Reuse Spec 006 proposal validation and Spec 015 lifecycle transitions; do not give AtBot mutation authority. Target the complete native single-owner Memory Health profile for 2.4.0, including the common review projection and scheduled preview cycles. The 2.3.4 AtFlows stable handoff may contribute optional read-only evidence leads before that queue exists; 2.4.0 may consume the same versioned leads. Gate shared-space, provider, investigation and cross-provider propagation extensions separately across 2.5–2.8.
 
 ## Technical context
 
 **Language/version**: Python 3.10–3.13; browser UI in existing HTML/CSS/JavaScript; AtBot companion Python package.
 
-**Primary dependencies**: Standard library and existing AtMem/AtBot contracts by default; optional configured AtBot model providers.
+**Primary dependencies**: Standard library and existing AtMem/AtBot contracts; AtFlows is a pinned base-install Python package introduced in the unpublished 2.3.4b2 candidate and pinned to 0.1.1 in stable 2.3.4, but its server and review handoff remain optional. No Bun runtime or AtFlows service is required for native health evaluation. AtBot model providers remain optionally configured.
 
 **Storage**: Canonical SQLite through the existing migration registry; vector/graph/cache remain derived and registered for invalidation. Production backends consume the same public contracts through Spec 010.
 
@@ -106,7 +106,7 @@ Automatic processing is limited to an explicitly configured deterministic expiry
 
 Integrate explicit evaluation time and bounded temporal signals after canonical authorization in `atmem/memory.py`, `atmem/retrieve/` and the Spec 019 native provider. Final preparation reloads lifecycle/temporal generations. Unresolved overlapping conflicts cause a reasoned withholding decision rather than selecting the newest or highest-confidence text automatically.
 
-Expose common service operations through `atmem/service/application.py`, then adapt CLI/MCP and dashboard without creating interface-specific authority. Add Context → Memory Health to the Spec 022 shared shell in `atmem/control/assets/`; do not introduce another top-level destination. Investigation findings in 2.6 reference cycle/finding/proposal IDs through typed links owned by Spec 021.
+Expose common service operations through `atmem/service/application.py`, then adapt CLI/MCP and dashboard without creating interface-specific authority. Add Context → Memory Health to the applicable Spec 022 shell in `atmem/control/assets/`; do not introduce another top-level destination. Investigation findings in 2.7 reference cycle/finding/proposal IDs through typed links owned by Spec 021.
 
 ### 7. Privacy, retention and deletion
 
@@ -150,10 +150,10 @@ Append results under `docs/implementation-evidence/026/`; update `docs/current-s
 
 ## Delivery and rollback
 
-1. **2.4 foundation**: temporal contracts/storage, deterministic eligibility/derivation and manual review contracts; no scheduler activation.
-2. **2.5 projection**: Memory Health read/review experience in the unified workspace.
-3. **2.6 investigation integration**: typed links from memory-health evidence to affected executions without causal overclaim.
-4. **2.8.0 complete capability**: opt-in preview scheduler, AtBot health capabilities and separately activated deterministic expiry automation after 2.7 invalidation/propagation gates.
+1. **2.3.4 installed companion, opt-in assist**: The base AtMem wheel pins and installs AtFlows; the existing `atmem[atflows]` spelling remains valid. Neither `pip install` nor AtMem starts its server, changes Home, or alters AtBot behavior. `atmem status` reports installed packages and bounded numeric-loopback links compatible with review; `atflows status` reports its running local servers. Neither command reveals AtMem credentials. An explicitly configured AtFlows server may add authorized exact-run leads to a read-only local evidence report with one stable JSON shape for correlated and unverified cases and a human CLI view. In delegated mode AtMem owns accounts and roles; the CLI authenticates with AtMem credentials and revokes its short-lived review session. Standalone AtFlows login remains available. This does not provide the Memory Health queue or canonical changes.
+2. **2.4.0 native single-owner profile**: temporal contracts/storage, deterministic eligibility/derivation, Memory Health read/review experience, opt-in bounded preview cycles and optional AtBot health proposals. The queue may consume the earlier AtFlows handoff, but must work without a running AtFlows server. Separately activated deterministic expiry automation requires its local invalidation gates; no external propagation is claimed.
+3. **2.5–2.6 expansion**: add shared-space authorization after Spec 012/013, then provider-aware policy and packaging after Spec 019/025.
+4. **2.7–2.8 expansion**: add typed investigation links without causal overclaim, then verified cross-provider invalidation/propagation after Spec 023.
 
 Rollback disables new cycles and temporal-derived injection, preserves audit/history, and serves compatible legacy memory behavior. It cannot undo an already approved correction or prior model exposure; those are reported explicitly.
 
@@ -180,10 +180,10 @@ docs/implementation-evidence/026/       # append-only results
 ## Dependencies and sequencing
 
 - Contract foundation depends on existing Spec 006 proposal and Spec 015 lifecycle services.
-- Private/shared scheduling and review require the stable Spec 012 memory-space/membership authority planned for 2.4.
-- Provider review packages consume Spec 019 policy/egress contracts; native local-only behavior remains independently testable.
+- Shared-space scheduling and review require the stable Spec 012 memory-space/membership authority planned for 2.5; native single-owner scheduling and review can ship first.
+- Remote provider review packages consume Spec 019 policy/egress contracts; native local-only behavior and no-egress AtBot fallback remain independently testable.
 - Unified UI consumes Spec 022; investigation links consume Spec 020/021 evidence contracts.
-- Propagation assurance consumes Spec 023 and is required before the full 2.8.0 claim.
+- Cross-provider propagation assurance consumes Spec 023 and is required before the expanded 2.8.0 profile claim, not for the native single-owner 2.4.0 profile.
 - Spec 001 owns cross-domain benchmark reporting; Spec 018 registers proven invariants after implementation evidence exists.
 
 No part of this feature is a prerequisite for the scoped 2.3 investigation releases.
