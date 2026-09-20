@@ -3,6 +3,7 @@
   "version": "2.3.4",
   "sections": {
     "": "Documentation",
+    "portfolio": "Product portfolio",
     "getting-started": "Getting started",
     "integrations": "Integrations",
     "reference": "Reference",

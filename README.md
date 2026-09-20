@@ -181,8 +181,9 @@ perfect; other quality metrics cannot fall below checked-in baselines. Optional
 local/hosted profiles, LongMemEval import and fair Mem0 OSS comparison are also
 available without adding Mem0 or model SDKs to the base install. See the
 [memory benchmark guide](docs/benchmarks.md) for commands and honest limits.
-The [2.3.4 release](docs/releases/v2.3.4.md) improves local retrieval work and
-archive layout while retaining existing retrieval defaults. Developer opt-in
+The retrieval and archive improvements from [2.3.3](docs/releases/v2.3.3.md)
+remain in [2.3.4](docs/releases/v2.3.4.md), which adds the optional AtFlows
+observability and shared-login scope. Developer opt-in
 fusion, scoped graph nomination and matrix reuse are available for evaluation;
 broader performance targets remain research, not release claims.
 
