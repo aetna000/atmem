@@ -10,7 +10,10 @@ without an API key or a model download. Then [connect an agent](integrations.md)
 and review shadow mode before enabling context injection.
 
 ## Explore the documentation
+- [Product portfolio](portfolio.md): AtMem, AtBots and AtFlows roles, source repositories and integration boundaries.
 - [Getting started](getting-started.md): installation, first memory and troubleshooting.
+- [AtBot](atbot.md): optional model-assisted memory proposals governed by AtMem.
+- [AtFlows](atflows.md): local observability, optional shared login and evidence-review leads.
 - [Integrations](integrations.md): OpenClaw, frameworks, MCP and delegated providers.
 - [Reference](reference.md): commands, HTTP, retrieval, evidence and storage.
 - [Examples](examples.md): small runnable workflows and expected results.
