@@ -34,7 +34,7 @@ def test_init_repairs_old_dashboard_and_starts_shared_flows(monkeypatch, capsys)
         actions.append(action)
         if action == "status":
             return {"running": True, "restart_required": True, "port": 8768, "url": "http://127.0.0.1:8768/"}
-        return {"running": True, "restart_required": False, "port": 8768, "url": "http://127.0.0.1:8768/", "atmem_version": "2.3.4"}
+        return {"running": True, "restart_required": False, "port": 8768, "url": "http://127.0.0.1:8768/", "atmem_version": "2.3.5"}
 
     monkeypatch.setattr(dashboard_daemon, "manage_dashboard_daemon", daemon)
     passed_urls: list[str] = []
@@ -45,7 +45,7 @@ def test_init_repairs_old_dashboard_and_starts_shared_flows(monkeypatch, capsys)
     report = json.loads(capsys.readouterr().out)
     assert actions == ["status", "restart"]
     assert passed_urls == ["http://127.0.0.1:8768/"]
-    assert report["dashboard"]["atmem_version"] == "2.3.4"
+    assert report["dashboard"]["atmem_version"] == "2.3.5"
     assert report["atflows"]["dashboard_url"] == "http://127.0.0.1:1337/"
 
 
