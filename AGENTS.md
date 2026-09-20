@@ -2,6 +2,12 @@
 
 ## Release completion rule
 
+For a coordinated AtFlows + AtMem + AtMem.ai release, follow
+`docs/release-coordination.md` as well as the package-specific rules below.
+Treat the three publication states separately: package release, website PR
+merged, and live website deployed. The release lead owns the checks and
+handoffs, but must not merge the private website PR on the owner's behalf.
+
 A request to **prepare** a release authorizes version and documentation changes
 only. A request to **create**, **publish**, or **make** a release is not complete
 after pushing a branch or changing `pyproject.toml`.
@@ -28,7 +34,8 @@ For every release created by an agent:
    and verify the companion version exists on PyPI.
 6. Create the annotated `v<VERSION>` tag on the exact reviewed commit and push
    it. Never move or overwrite a published tag.
-7. Wait for the `publish` workflow to finish. Verify the GitHub prerelease,
+7. Wait for the `publish` workflow to finish. Verify the GitHub release
+   (stable or prerelease as applicable),
    AtMem PyPI version, and matching OpenClaw npm bridge rather than assuming a
    pushed tag produced them.
 8. Report the branch, commit, tags, workflow result, release URL, and package
