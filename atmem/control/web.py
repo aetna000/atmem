@@ -146,6 +146,16 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 },
             )
             return
+        if path == "/api/companions":
+            try:
+                self._require_identity_session()
+                from atmem.atflows_service import status as atflows_status, validated_dashboard_url
+
+                safe_url = validated_dashboard_url(atflows_status().get("dashboard_url"))
+                self._json(HTTPStatus.OK, {"atflows_dashboard_url": safe_url})
+            except PermissionError as exc:
+                self._json(HTTPStatus.FORBIDDEN, {"error": str(exc)})
+            return
         if path == "/api/status":
             self._json(HTTPStatus.OK, self.server.manager.status())
             return

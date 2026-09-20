@@ -1094,6 +1094,7 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
             "/api/home/verify",
             "/api/home/adopt",
         "/api/product",
+        "/api/companions",
         "/api/status",
         "/api/semantic/health",
         "/api/semantic/profiles",

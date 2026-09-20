@@ -12,7 +12,9 @@ atflows init
 atflows status
 ```
 
-By default AtFlows keeps its own local accounts. The dashboard and proxy URLs are printed at startup. Connect a supported client explicitly to its OTLP endpoint or model proxy; installing AtMem alone does not forward traces.
+For the published 2.3.4 package, the first `atflows init` creates its local account and starts the service in that terminal. If AtFlows was initialized earlier, `atflows init` exits without starting it; run `atflows start` instead. Keep that terminal open and use the actual dashboard URL printed by `atflows status`. The next AtMem onboarding change will start it from `atmem init` with shared sign-in; it is not part of the published 2.3.4 wheel.
+
+By default in 2.3.4 AtFlows keeps its own local accounts. The dashboard and proxy URLs are printed at startup. Connect a supported client explicitly to its OTLP endpoint or model proxy; installing AtMem alone does not forward traces.
 
 ## One account for both dashboards
 

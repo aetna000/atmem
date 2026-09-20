@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import shutil
 import site
+import socket
 import subprocess
 import sys
 import sysconfig
@@ -102,12 +103,78 @@ def _atflows_executable(expected_version: str) -> Path | None:
     return None
 
 
+def _openclaw_install_status() -> dict[str, Any]:
+    """Bounded, read-only adapter check; never equate a loaded bridge with delivery."""
+    from atmem.openclaw_install import OPENCLAW_PLUGIN_VERSION
+
+    executable = shutil.which("openclaw")
+    result: dict[str, Any] = {
+        "detected": bool(executable), "host_version": None,
+        "bridge_version": None, "bridge_enabled": False,
+        "expected_bridge_version": OPENCLAW_PLUGIN_VERSION,
+        "bridge_compatible": False, "verified": False,
+    }
+    if not executable:
+        result["next_action"] = "Install OpenClaw, then run `atmem openclaw install` if you want this adapter."
+        return result
+    try:
+        host = subprocess.run([executable, "--version"], capture_output=True, text=True, timeout=5, check=False)
+        if host.returncode == 0:
+            result["host_version"] = host.stdout.strip()[:120]
+        plugins = subprocess.run([executable, "plugins", "list", "--json"], capture_output=True, text=True, timeout=8, check=False)
+        if plugins.returncode == 0:
+            rows = json.loads(plugins.stdout).get("plugins", [])
+            bridge = next((row for row in rows if isinstance(row, dict) and row.get("id") == "memory-atmem"), None)
+            if bridge:
+                result["bridge_version"] = str(bridge.get("version") or "unknown")
+                result["bridge_enabled"] = bool(bridge.get("enabled"))
+                result["bridge_compatible"] = bool(
+                    result["bridge_enabled"] and result["bridge_version"] == OPENCLAW_PLUGIN_VERSION
+                )
+    except (OSError, ValueError, subprocess.TimeoutExpired, TypeError):
+        result["next_action"] = "OpenClaw inspection failed; run `openclaw plugins list` and `atmem openclaw memory status`."
+        return result
+    if not result["bridge_version"]:
+        result["next_action"] = "AtMem's OpenClaw bridge was not found; run `atmem openclaw install`."
+    elif not result["bridge_compatible"]:
+        result["next_action"] = (
+            f"OpenClaw bridge {result['bridge_version']} is not the expected {OPENCLAW_PLUGIN_VERSION} "
+            "or is disabled; run `atmem openclaw upgrade`."
+        )
+    else:
+        result["next_action"] = "Bridge version matches; run `atmem openclaw memory status` to check the live memory mirror."
+    return result
+
+
 def _run_install_status(args: argparse.Namespace) -> None:
     """Report installed packages and local service links without starting them."""
+    from atmem.atflows_service import status as atflows_service_status
+    from atmem.control.atbot_service import AtBotServiceManager
     from atmem.dashboard_daemon import manage_dashboard_daemon
     from atmem.home.layout import resolve_home
 
     dashboard = manage_dashboard_daemon("status")
+    flows = atflows_service_status()
+    openclaw = _openclaw_install_status()
+    shell_python = shutil.which("python")
+    launcher = {
+        "atmem_command": shutil.which("atmem"),
+        "atmem_python": sys.executable,
+        "shell_python": shell_python,
+        "same_python_as_shell": bool(
+            shell_python and Path(sys.executable).resolve() == Path(shell_python).resolve()
+        ),
+    }
+    bot_state = AtBotServiceManager().status()
+    bot = {
+        "installed": bool(bot_state.get("installed")),
+        "running": bool(bot_state.get("running")),
+        "available": bool(bot_state.get("available")),
+        "configured": bool(bot_state.get("configured")),
+        "fallback_selected": bool(bot_state.get("fallback_selected")),
+        "compatible": bool(bot_state.get("compatible")),
+        "actions": bot_state.get("setup_actions") or [],
+    }
     atflows_version = _companion_version("atflows")
     atflows_bin = (
         _atflows_executable(atflows_version)
@@ -139,9 +206,22 @@ def _run_install_status(args: argparse.Namespace) -> None:
             "atflows": atflows_version,
         },
         "home": str(resolve_home()),
+        "launcher": launcher,
         "dashboard": {
             "running": bool(dashboard.get("running")),
             "url": dashboard.get("url") if dashboard.get("running") else None,
+            "running_version": dashboard.get("atmem_version") if dashboard.get("running") else None,
+            "restart_required": bool(dashboard.get("restart_required")),
+            "python_executable": dashboard.get("python_executable") if dashboard.get("running") else None,
+        },
+        "atflows": flows,
+        "atbot": bot,
+        "adapters": {
+            "openclaw": openclaw,
+            "other_hosts": {
+                "verified": False,
+                "next_action": "Verify capture/delivery in the host application; package installation alone cannot prove an adapter is connected.",
+            },
         },
         "atflows_status": atflows_status,
     }
@@ -152,14 +232,42 @@ def _run_install_status(args: argparse.Namespace) -> None:
     for label, package in (("AtMem", "atmem"), ("AtBot", "atmem-atbot"), ("AtFlows", "atflows")):
         print(f"  {label:<18}{report['packages'][package]}")
     print(f"  {'AtMem Home':<18}{report['home']}")
+    if shell_python and not launcher["same_python_as_shell"]:
+        print(f"  ACTION             `atmem` uses {sys.executable}, but `python` uses {shell_python}. Upgrade through the intended Python environment or remove a stale launcher from PATH.")
+    print("\nIntelligence")
+    print("  AtBot              " + ("safe fallback (model assistance off)" if bot["fallback_selected"] else "ready" if bot["available"] else "not configured; memory uses safe fallback"))
+    for action in bot["actions"][:2]:
+        print(f"  ACTION             {action}")
     print("\nLocal dashboards")
-    print("  AtMem              " + (str(report["dashboard"]["url"]) if report["dashboard"]["running"] else "No managed service record (manual start may still be running)"))
-    for line in atflows_status.splitlines():
-        print("  " + line)
+    if dashboard.get("running"):
+        print(f"  AtMem              {dashboard.get('url')} (running {dashboard.get('atmem_version', 'unknown')})")
+        if dashboard.get("restart_required"):
+            if dashboard.get("atmem_version") != _installed_version():
+                print(f"  ACTION             Dashboard {dashboard.get('atmem_version')} is older than installed AtMem {_installed_version()}; run `atmem init` to refresh it.")
+            else:
+                print("  ACTION             Dashboard uses a different Python installation; run `atmem init` to restart it from the current one.")
+    else:
+        print("  AtMem              stopped; run `atmem init`")
+    if flows["running"]:
+        print(f"  AtFlows dashboard  {flows['dashboard_url'] or 'unavailable'}")
+        print(f"  AtFlows proxy      {flows['proxy_url'] or 'unavailable'}")
+        print(f"  AtFlows sign-in    {flows['auth_mode']}")
+        if flows.get("warning"):
+            print(f"  ACTION             {flows['warning']}")
+    else:
+        print("  AtFlows            stopped; run `atmem init` to start it with AtMem sign-in")
+        if flows.get("warning"):
+            print(f"  ACTION             {flows['warning']}")
+    print("\nAdapters")
+    if openclaw["detected"]:
+        print(f"  OpenClaw           {openclaw['host_version'] or 'version unavailable'}")
+        print(f"  AtMem bridge       {openclaw['bridge_version'] or 'not found'} (expected {openclaw['expected_bridge_version']})")
+        print(f"  ACTION             {openclaw['next_action']}")
+    else:
+        print("  OpenClaw           not detected (optional)")
+    print("  Other adapters     configured adapters require their own host/runtime health check")
     print("\nNext steps")
-    print("  atmem init         Create the local Administrator; copy its one-time password")
-    print("  atflows init       Set up AtFlows when you want tracing and review")
-    print("  atflows status     Show its running dashboard and proxy URLs")
+    print("  atmem init         Start/repair both local dashboards; show actual URLs")
     print("  AtBot setup and behaviour are unchanged.")
 
 
@@ -271,7 +379,7 @@ Run `atmem COMMAND --help` for command-specific examples.""",
     init_parser.add_argument(
         "--no-open",
         action="store_true",
-        help="Create the Administrator without starting or opening the dashboard",
+        help="Start the dashboards without opening a browser",
     )
 
     users_parser = subparsers.add_parser(
@@ -4174,44 +4282,93 @@ def _identity_manager(state_path: str | None):
     return manager
 
 
-def _print_bootstrap(value: dict[str, Any], *, as_json: bool = False, port: int = 8766) -> None:
-    if as_json:
-        _print(value)
-        return
+def _print_bootstrap(value: dict[str, Any]) -> None:
     if not value.get("created"):
         print("AtMem is already initialized. Existing credentials were not changed or disclosed.")
-        print(f"Dashboard: http://127.0.0.1:{port}/")
         return
     print("AtMem local setup\n")
     print(f"  AtMem              {_installed_version()}")
     print(f"  AtBot              {_companion_version('atmem-atbot')}")
     print(f"  AtFlows            {_companion_version('atflows')}")
-    print(f"  Dashboard          http://127.0.0.1:{port}/")
     print(f"  Username           {value['username']}")
     print("\n  Temporary password (copy now):")
     print(f"    {value['password']}")
     print("\nSign in and change this password; it will not be shown again.")
-    print("Run `atflows init` when you want to set up tracing and its own Administrator.")
-    print("Run `atmem status` or `atflows status` for local dashboard links.")
+
+
+def _available_loopback_port(preferred: int) -> int:
+    """Pick a local fallback if a previous or unrelated process owns the port."""
+    if not 1 <= preferred <= 65535:
+        raise ValueError("dashboard port must be between 1 and 65535")
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            probe.bind(("127.0.0.1", preferred))
+            return preferred
+        except OSError:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as fallback:
+                fallback.bind(("127.0.0.1", 0))
+                return int(fallback.getsockname()[1])
 
 
 def _run_identity_init(args: argparse.Namespace) -> None:
-    manager = _identity_manager(args.state)
-    bootstrap = manager.identity_service().bootstrap()
-    _print_bootstrap(bootstrap, as_json=args.json, port=args.port)
-    if args.json or args.no_open or not bootstrap.get("created"):
-        return
+    from atmem.atflows_service import ensure_started as start_flows
+    from atmem.control.atbot_service import AtBotServiceManager
     from atmem.dashboard_daemon import _open_default_browser, manage_dashboard_daemon
 
-    daemon = manage_dashboard_daemon(
-        "start", port=args.port, control_state_path=args.state
-    )
-    url = _bootstrap_dashboard_url(str(daemon["url"]), bootstrap)
-    if _open_default_browser(url):
-        print("Opened the dashboard with the one-time Administrator password pre-filled.")
+    manager = _identity_manager(args.state)
+    bootstrap = manager.identity_service().bootstrap()
+    if not args.json:
+        _print_bootstrap(bootstrap)
+    service_errors: list[str] = []
+    daemon = manage_dashboard_daemon("status")
+    try:
+        if daemon.get("running") and daemon.get("restart_required"):
+            daemon = manage_dashboard_daemon("restart")
+        elif not daemon.get("running"):
+            selected_port = _available_loopback_port(int(args.port))
+            daemon = manage_dashboard_daemon("start", port=selected_port, control_state_path=args.state)
+    except (OSError, ValueError) as exc:
+        service_errors.append(f"AtMem dashboard: {exc}")
+        daemon = {"running": False}
+    flows: dict[str, Any] = {"running": False}
+    if daemon.get("running"):
+        try:
+            flows = start_flows(str(daemon["url"]))
+        except (OSError, RuntimeError, ValueError) as exc:
+            service_errors.append(f"AtFlows: {exc}")
     else:
-        print("The dashboard is running, but the browser could not be opened automatically.")
-        print("Run `atmem dashboard daemon open`, then enter the password shown above.")
+        service_errors.append("AtFlows was not started because AtMem sign-in is unavailable.")
+    try:
+        bot = AtBotServiceManager().ensure_running()
+    except (OSError, RuntimeError, ValueError) as exc:
+        bot = {"running": False, "fallback_selected": True}
+        service_errors.append(f"AtBot: {exc}; memory continues with safe fallback.")
+    report = {"format": "atmem-init-services-v1", "bootstrap": bootstrap,
+              "dashboard": daemon, "atflows": flows,
+              "atbot": {"running": bool(bot.get("running")), "available": bool(bot.get("available")), "fallback_selected": bool(bot.get("fallback_selected"))},
+              "errors": service_errors}
+    if args.json:
+        _print(report)
+        return
+    print("\nLocal dashboards")
+    print(f"  AtMem              {daemon.get('url') if daemon.get('running') else 'not running'}")
+    print(f"  AtFlows            {flows.get('dashboard_url') if flows.get('running') else 'not running'}")
+    print(f"  AtFlows proxy      {flows.get('proxy_url') if flows.get('running') else 'not running'}")
+    print(f"  AtBot              {'safe fallback (model assistance off)' if bot.get('fallback_selected') else 'ready' if bot.get('available') else 'safe fallback (model-assisted features not configured)'}")
+    if int(args.port) != int(daemon.get("port") or args.port):
+        print(f"  Port note          {args.port} was unavailable; AtMem selected {daemon['port']}.")
+    for error in service_errors:
+        print(f"  ACTION             {error}")
+    if flows.get("warning"):
+        print(f"  ACTION             {flows['warning']}")
+    if daemon.get("running") and not args.no_open:
+        url = str(daemon["url"])
+        if bootstrap.get("created"):
+            url = _bootstrap_dashboard_url(url, bootstrap)
+        if not _open_default_browser(url):
+            print("  ACTION             Browser did not open; use the AtMem URL above.")
+    print("Run `atmem status` any time to check installed and running versions, URLs and next steps.")
 
 
 def _bootstrap_dashboard_url(base: str, bootstrap: dict[str, Any]) -> str:
