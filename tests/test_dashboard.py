@@ -5,6 +5,18 @@ from importlib.resources import files
 from atmem.control.web import ControlDashboardHandler
 
 
+def test_dashboard_tab_identity_and_companion_link_contract() -> None:
+    html = files("atmem.control").joinpath("assets/app.html").read_text(encoding="utf-8")
+    script = files("atmem.control").joinpath("assets/app.js").read_text(encoding="utf-8")
+    css = files("atmem.control").joinpath("assets/app.css").read_text(encoding="utf-8")
+    assert "<title>AtMem.ai | Insight</title>" in html
+    assert 'rel="icon" type="image/svg+xml"' in html
+    assert 'id="atflowsDashboardLink" hidden' in html
+    assert 'get("/api/companions")' in script
+    assert 'url.hostname!=="127.0.0.1"' in script
+    assert ".logo .brandmark{display:block;width:20px;height:20px" in css
+
+
 def test_m0_findings_are_keyboard_buttons_with_evidence_pivots() -> None:
     source = files("atmem.control").joinpath("assets/app.js").read_text(encoding="utf-8")
     assert "Evidence-linked findings" in source

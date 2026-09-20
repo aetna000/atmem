@@ -24,6 +24,35 @@ def _request(base, token, path, *, method="GET", body=None, role="agent", subjec
     return Request(base + path, method=method, data=json.dumps(body).encode() if body is not None else None, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "X-AtMem-Role": role, "X-AtMem-Subject": subject, "X-AtMem-Agent": "main"})
 
 
+def test_companion_navigation_requires_login_and_sanitizes_target(tmp_path, monkeypatch) -> None:
+    from atmem import atflows_service
+
+    server, thread = _server(tmp_path)
+    base = f"http://127.0.0.1:{server.server_port}"
+    opener = build_opener(HTTPCookieProcessor(CookieJar()))
+    try:
+        with __import__("pytest").raises(HTTPError) as unsigned:
+            opener.open(base + "/api/companions")
+        assert unsigned.value.code == 403
+
+        bootstrap = server.manager.identity_service().bootstrap()
+        def post(path, body, csrf=None):
+            headers = {"Content-Type": "application/json"}
+            if csrf:
+                headers["X-CSRF-Token"] = csrf
+            return json.loads(opener.open(Request(base + path, method="POST", data=json.dumps(body).encode(), headers=headers)).read())
+
+        login = post("/api/auth/login", {"username": "administrator", "password": bootstrap["password"]})
+        changed = post("/api/auth/change-password", {"new_password": "A much better local password 42!"}, login["csrf_token"])
+        assert changed["account"]["role"] == "administrator"
+        monkeypatch.setattr(atflows_service, "status", lambda: {"dashboard_url": "http://127.0.0.1:54001/"})
+        assert json.loads(opener.open(base + "/api/companions").read())["atflows_dashboard_url"] == "http://127.0.0.1:54001/"
+        monkeypatch.setattr(atflows_service, "status", lambda: {"dashboard_url": "http://attacker.example:54001/"})
+        assert json.loads(opener.open(base + "/api/companions").read())["atflows_dashboard_url"] is None
+    finally:
+        server.shutdown(); server.server_close(); thread.join(2)
+
+
 def test_authenticated_v1_idempotency_pagination_and_authority(tmp_path) -> None:
     server, thread = _server(tmp_path)
     base = f"http://127.0.0.1:{server.server_port}"
