@@ -19,10 +19,11 @@ By default AtFlows keeps its own local accounts. The dashboard and proxy URLs ar
 AtMem can be the account authority. Start its dashboard first, then use its actual numeric-loopback URL:
 
 ```bash
-ATFLOWS_ATMEM_AUTH_URL=http://127.0.0.1:ATMEM_PORT atflows init
+export ATFLOWS_ATMEM_AUTH_URL=http://127.0.0.1:ATMEM_PORT
+atflows init
 ```
 
-Open both dashboards with `127.0.0.1`. Sign in at AtMem. AtFlows verifies the live AtMem session and role on protected requests, so revocation and account disablement take effect without a second user database. AtMem manages users and passwords; AtFlows' local user controls are hidden. Removing the setting and restarting AtFlows restores its standalone accounts. See [AtFlows access documentation](https://github.com/aetna000/atflows/blob/main/docs/users-and-access.md).
+Keep the variable set for every AtFlows start; delegated mode is read at startup. Open both dashboards with `127.0.0.1`. Sign in at AtMem. AtFlows verifies the live AtMem session and role on protected requests, so revocation and account disablement take effect without a second user database. AtMem manages users and passwords; AtFlows' local user controls are hidden. Removing the setting and restarting AtFlows restores its standalone accounts. See [AtFlows access documentation](https://github.com/aetna000/atflows/blob/main/docs/users-and-access.md).
 
 ## Review a linked session
 

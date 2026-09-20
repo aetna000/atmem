@@ -14,7 +14,7 @@ Extend canonical memory with explicit temporal assertion semantics and determini
 
 **Language/version**: Python 3.10–3.13; browser UI in existing HTML/CSS/JavaScript; AtBot companion Python package.
 
-**Primary dependencies**: Standard library and existing AtMem/AtBot contracts; AtFlows is a pinned base-install Python package from 2.3.4 onward, but its server and review handoff remain optional. No Bun runtime or AtFlows service is required for native health evaluation. AtBot model providers remain optionally configured.
+**Primary dependencies**: Standard library and existing AtMem/AtBot contracts; AtFlows is a pinned base-install Python package from the 2.3.4 line onward, but its server and review handoff remain optional. No Bun runtime or AtFlows service is required for native health evaluation. AtBot model providers remain optionally configured.
 
 **Storage**: Canonical SQLite through the existing migration registry; vector/graph/cache remain derived and registered for invalidation. Production backends consume the same public contracts through Spec 010.
 
@@ -150,7 +150,7 @@ Append results under `docs/implementation-evidence/026/`; update `docs/current-s
 
 ## Delivery and rollback
 
-1. **2.3.4 installed companion, opt-in assist**: The base AtMem wheel pins and installs AtFlows; the existing `atmem[atflows]` spelling remains valid. Neither `pip install` nor AtMem starts its server, changes Home, or alters AtBot behavior. `atmem status` reports installed packages and bounded numeric-loopback links compatible with review; `atflows status` reports its running local servers. Neither command reveals AtMem credentials. An explicitly configured AtFlows server may add authorized exact-run leads to a read-only local evidence report with one stable JSON shape for correlated and unverified cases and a human CLI view. This does not provide the Memory Health queue or canonical changes.
+1. **2.3.4 installed companion, opt-in assist**: The base AtMem wheel pins and installs AtFlows; the existing `atmem[atflows]` spelling remains valid. Neither `pip install` nor AtMem starts its server, changes Home, or alters AtBot behavior. `atmem status` reports installed packages and bounded numeric-loopback links compatible with review; `atflows status` reports its running local servers. Neither command reveals AtMem credentials. An explicitly configured AtFlows server may add authorized exact-run leads to a read-only local evidence report with one stable JSON shape for correlated and unverified cases and a human CLI view. In delegated mode AtMem owns accounts and roles; the CLI authenticates with AtMem credentials and revokes its short-lived review session. Standalone AtFlows login remains available. This does not provide the Memory Health queue or canonical changes.
 2. **2.4.0 native single-owner profile**: temporal contracts/storage, deterministic eligibility/derivation, Memory Health read/review experience, opt-in bounded preview cycles and optional AtBot health proposals. The queue may consume the earlier AtFlows handoff, but must work without a running AtFlows server. Separately activated deterministic expiry automation requires its local invalidation gates; no external propagation is claimed.
 3. **2.5–2.6 expansion**: add shared-space authorization after Spec 012/013, then provider-aware policy and packaging after Spec 019/025.
 4. **2.7–2.8 expansion**: add typed investigation links without causal overclaim, then verified cross-provider invalidation/propagation after Spec 023.

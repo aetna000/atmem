@@ -1,14 +1,14 @@
 # Current status
 
-**Stable source target:** AtMem `2.3.4`, OpenClaw bridge `2.3.4`, AtBot
+**Stable release line:** AtMem `2.3.4`, OpenClaw bridge `2.3.4`, AtBot
 `0.1.0`, and pinned AtFlows `0.1.1`. AtFlows installs by default but starts
 only when requested. Its delegated dashboard login can use AtMem as the sole
 account authority; standalone login remains available. The read-only review
 handoff remains opt-in, and AtMem works without a running AtFlows server. See
-the [2.3.4 release notes](releases/v2.3.4.md). Publication remains pending
-until the package and bridge registries confirm the stable artifacts.
+the [2.3.4 release notes](releases/v2.3.4.md) and
+[installed-artifact evidence](implementation-evidence/026/20260920T105859Z-atmem-234-stable.md).
 
-**2.3.4b1 scope:** local query expansion, exact-search/index reuse improvements,
+**Retrieval scope carried forward from 2.3.4b1:** local query expansion, exact-search/index reuse improvements,
 bounded answer-support corrections and responsive session-archive layout.
 The `core-rrf-v1` candidate strategy and scoped graph nominations, with bounded
 paths and canonical revalidation, ship as opt-in developer evaluation options.
@@ -18,7 +18,7 @@ and [graph implementation and four-profile results](implementation-evidence/031/
 for the measured results behind both, and the
 [continuing retrieval research](../specs/031-mem0-head-to-head-retrieval/spec.md).
 
-AtMem 2.3.4b1 is the beta local encrypted Agent Black Box and governed-memory
+AtMem 2.3.4 is the stable local encrypted Agent Black Box and governed-memory
 release. The package records exact host-observed text, URLs, tool arguments and
 results plus supported image, audio, video and document bytes when capture mode is
 `full`. New installations use full capture by default. Operators may deliberately
@@ -65,6 +65,6 @@ streams and deduplicates content. Post-quantum recipient export activates when
 its optional cryptographic backend is installed; local at-rest payload encryption
 uses the documented authenticated symmetric profile.
 
-See the [2.3.4b1 release notes](releases/v2.3.4b1.md) for upgrade and migration commands,
+See the [2.3.4 release notes](releases/v2.3.4.md) for upgrade and migration commands,
 and the [implementation evidence index](implementation-evidence/README.md) for the
 recorded gates.
