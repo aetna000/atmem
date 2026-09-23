@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import base64
 from contextlib import contextmanager
-import fcntl
 import hashlib
 import hmac
 import json
@@ -20,6 +19,8 @@ import stat
 import tempfile
 import time
 from typing import Any, Iterator, Mapping
+
+from atmem.locking import ProcessFileLock, portable_open_flags
 
 PROFILE = "atmem-hmac-sha256-v1"
 MAX_LIFETIME = 30
@@ -35,16 +36,23 @@ class AuthenticationError(ValueError):
     """Safe, content-free transport failure."""
 
 
+def _private_owner(info: os.stat_result) -> bool:
+    """Apply POSIX owner/mode checks where those concepts are available."""
+
+    if os.name == "nt":
+        return True
+    return not info.st_mode & 0o077 and info.st_uid == os.getuid()
+
+
 def private_read(path: str | Path, limit: int = 65536) -> bytes:
     try:
         path = Path(path).expanduser()
         if not path.is_absolute() or path.parent.is_symlink():
             raise ValueError()
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        fd = os.open(path, portable_open_flags(os.O_RDONLY, nonblocking=True))
         with os.fdopen(fd, "rb") as stream:
             info = os.fstat(stream.fileno())
-            if (not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077
-                    or info.st_uid != os.getuid() or info.st_nlink != 1):
+            if not stat.S_ISREG(info.st_mode) or not _private_owner(info) or info.st_nlink != 1:
                 raise ValueError()
             raw = stream.read(limit + 1)
             if len(raw) > limit:
@@ -67,7 +75,7 @@ def load_secret(path: str | Path) -> bytes:
 
 def _private_directory(path: Path) -> None:
     info = path.lstat()
-    if not stat.S_ISDIR(info.st_mode) or info.st_mode & 0o077 or info.st_uid != os.getuid():
+    if not stat.S_ISDIR(info.st_mode) or not _private_owner(info):
         raise AuthenticationError("request authentication directory must be owner-only")
 
 
@@ -91,21 +99,22 @@ def _atomic_json(path: Path, value: Any) -> None:
 @contextmanager
 def _keyring_lock(path: Path) -> Iterator[None]:
     _private_directory(path.parent)
-    fd = os.open(str(path) + ".lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
-    try:
+    def validate(fd: int) -> None:
         info = os.fstat(fd)
-        if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077 or info.st_uid != os.getuid():
+        if not stat.S_ISREG(info.st_mode) or not _private_owner(info):
             raise AuthenticationError("unsafe authentication lock")
-        fcntl.flock(fd, fcntl.LOCK_EX)
+
+    lock = ProcessFileLock(str(path) + ".lock", blocking=True, validate=validate).acquire()
+    try:
         yield
     finally:
-        os.close(fd)
+        lock.close()
 
 
 def _new_key(root: Path) -> dict[str, Any]:
     key_id = "request-" + secrets.token_hex(12)
     path = root / (key_id + ".key")
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    fd = os.open(path, portable_open_flags(os.O_WRONLY | os.O_CREAT | os.O_EXCL), 0o600)
     with os.fdopen(fd, "wb") as stream:
         stream.write(base64.b64encode(secrets.token_bytes(32)) + b"\n")
         stream.flush()
@@ -214,13 +223,13 @@ class ReplayLedger:
             raise AuthenticationError("request replay storage missing; refusing to reset")
         created = False
         try:
-            fd = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+            fd = os.open(self.path, portable_open_flags(os.O_CREAT | os.O_EXCL | os.O_RDWR), 0o600)
             created = True
         except FileExistsError:
-            fd = os.open(self.path, os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK)
+            fd = os.open(self.path, portable_open_flags(os.O_RDWR, nonblocking=True))
         try:
             info = os.fstat(fd)
-            if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077 or info.st_uid != os.getuid() or info.st_nlink != 1:
+            if not stat.S_ISREG(info.st_mode) or not _private_owner(info) or info.st_nlink != 1:
                 raise AuthenticationError("unsafe request replay storage")
         finally:
             os.close(fd)
@@ -242,7 +251,7 @@ class ReplayLedger:
                             or db.execute("PRAGMA quick_check").fetchall() != [("ok",)]):
                         raise AuthenticationError("request replay storage invalid; refusing to reset")
             if not initialized:
-                fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                fd = os.open(marker, portable_open_flags(os.O_WRONLY | os.O_CREAT | os.O_EXCL), 0o600)
                 with os.fdopen(fd, "wb") as stream:
                     stream.write(b"atmem-replay-v1\n")
                     stream.flush()
