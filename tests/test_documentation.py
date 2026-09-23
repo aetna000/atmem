@@ -19,7 +19,7 @@ MARKDOWN_FILES = (
 def test_documentation_structure_and_local_links() -> None:
     markdown_link = re.compile(r"\[[^]]*\]\(([^)]+)\)")
     for path in MARKDOWN_FILES:
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
         assert text.count("```") % 2 == 0, f"unbalanced code fence in {path}"
         for target in markdown_link.findall(text):
             target = target.split("#", 1)[0]

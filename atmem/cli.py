@@ -83,6 +83,11 @@ def _atflows_executable(expected_version: str) -> Path | None:
     paths = [
         Path(sys.executable).with_name(name),
         Path(sysconfig.get_path("scripts")) / name,
+        Path(
+            sysconfig.get_path(
+                "scripts", scheme="nt_user" if os.name == "nt" else "posix_user"
+            )
+        ) / name,
         Path(site.getuserbase()) / ("Scripts" if os.name == "nt" else "bin") / name,
     ]
     found = shutil.which("atflows")
@@ -232,6 +237,11 @@ def _run_install_status(args: argparse.Namespace) -> None:
     for label, package in (("AtMem", "atmem"), ("AtBot", "atmem-atbot"), ("AtFlows", "atflows")):
         print(f"  {label:<18}{report['packages'][package]}")
     print(f"  {'AtMem Home':<18}{report['home']}")
+    if flows.get("bun_available"):
+        ownership = "AtMem-managed" if flows.get("bun_managed_by_atmem") else "system"
+        print(f"  {'Bun runtime':<18}{flows.get('bun_version')} ({ownership}: {flows.get('bun_path')})")
+    else:
+        print(f"  {'Bun runtime':<18}not installed; `atmem init` downloads and SHA-256-verifies AtMem's private copy")
     if shell_python and not launcher["same_python_as_shell"]:
         print(f"  ACTION             `atmem` uses {sys.executable}, but `python` uses {shell_python}. Upgrade through the intended Python environment or remove a stale launcher from PATH.")
     print("\nIntelligence")
@@ -4528,7 +4538,11 @@ def _serve_dashboard(
 
     atbot_manager = AtBotServiceManager()
     companion_status = atbot_manager.status()
-    if companion_status.get("setup_pending") and sys.stdin.isatty():
+    if (
+        companion_status.get("setup_pending")
+        and sys.stdin.isatty()
+        and os.environ.get("ATMEM_NONINTERACTIVE") != "1"
+    ):
         _interactive_atbot_setup(atbot_manager)
     companion = atbot_manager.ensure_running()
     server = ControlDashboardServer(

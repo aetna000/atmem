@@ -5,13 +5,14 @@ from __future__ import annotations
 
 import importlib.metadata
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 
 
-EXPECTED_ATMEM_VERSION = "2.3.6"
+EXPECTED_ATMEM_VERSION = "2.3.7b1"
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -32,7 +33,9 @@ def main() -> None:
     }
     assert scripts == {"atmem": "atmem.cli:main"}, scripts
 
-    executable = Path(sys.executable).with_name("atmem")
+    executable = Path(sys.executable).with_name(
+        "atmem.exe" if os.name == "nt" else "atmem"
+    )
     assert executable.is_file()
     assert EXPECTED_ATMEM_VERSION in run(str(executable), "--version").stdout
 

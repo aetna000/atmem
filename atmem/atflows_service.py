@@ -11,7 +11,6 @@ from importlib.metadata import PackageNotFoundError, version
 import json
 import os
 from pathlib import Path
-import shutil
 import signal
 import subprocess
 import sys
@@ -19,6 +18,7 @@ import time
 from typing import Any
 from urllib.parse import urlparse
 
+from atmem.bun_runtime import ensure_bun, find_bun
 from atmem.home.layout import compatible_home_path
 
 
@@ -54,9 +54,13 @@ def status() -> dict[str, Any]:
         None,
     ) if record.get("instance_id") else None
     selected = owned or (servers[0] if len(servers) == 1 else None)
+    bun = find_bun()
     result: dict[str, Any] = {
         "installed_version": installed_version,
-        "bun_available": bool(shutil.which("bun")),
+        "bun_available": bool(bun),
+        "bun_version": bun.get("version") if bun else None,
+        "bun_path": bun.get("path") if bun else None,
+        "bun_managed_by_atmem": bool(bun and bun.get("managed")),
         "running": bool(servers),
         "managed_by_atmem": bool(owned),
         "pid": selected.get("pid") if selected else None,
@@ -88,7 +92,7 @@ def status() -> dict[str, Any]:
     elif result["restart_required"]:
         result["warning"] = "AtFlows is running an older version than the installed package."
     elif installed_version and not result["running"] and not result["bun_available"]:
-        result["warning"] = "Bun 1.1+ is missing. Install it from https://bun.sh, then run `atmem init`."
+        result["warning"] = "Bun 1.1+ is missing. Run `atmem init`; AtMem will download and verify its private Bun runtime automatically."
     return result
 
 
@@ -147,16 +151,7 @@ def ensure_started(atmem_url: str, *, timeout: float = 60.0) -> dict[str, Any]:
             current = status()
     if current["running"]:
         return current
-    bun = shutil.which("bun")
-    if not bun:
-        raise RuntimeError("Bun is required to start AtFlows. Install Bun 1.1+ from https://bun.sh, then run `atmem init` again.")
-    try:
-        bun_version = subprocess.run([bun, "--version"], capture_output=True, text=True, timeout=5, check=False)
-        pieces = [int(part) for part in bun_version.stdout.strip().split(".")[:2]]
-        if bun_version.returncode != 0 or pieces < [1, 1]:
-            raise ValueError("Bun 1.1+ is required")
-    except (OSError, ValueError, subprocess.TimeoutExpired):
-        raise RuntimeError("Bun 1.1+ is required to start AtFlows; upgrade Bun, then run `atmem init` again.") from None
+    bun = ensure_bun()
     from atmem.cli import _atflows_executable
 
     executable = _atflows_executable(current["installed_version"])
@@ -169,6 +164,7 @@ def ensure_started(atmem_url: str, *, timeout: float = 60.0) -> dict[str, Any]:
     log_path.chmod(0o600)
     previous_ids = {row.get("instance_id") for row in _running()}
     environment = os.environ.copy()
+    environment["PATH"] = str(Path(bun["path"]).parent) + os.pathsep + environment.get("PATH", "")
     environment["ATFLOWS_ATMEM_AUTH_URL"] = atmem_url.rstrip("/")
     environment["DASHBOARD_HOST"] = "127.0.0.1"
     environment["PROXY_HOST"] = "127.0.0.1"
@@ -206,7 +202,10 @@ def ensure_started(atmem_url: str, *, timeout: float = 60.0) -> dict[str, Any]:
         time.sleep(0.25)
     if process.poll() is None:
         # Only terminate the process group started above, never another server.
-        os.killpg(process.pid, signal.SIGTERM)
+        if os.name == "nt":
+            process.terminate()
+        else:
+            os.killpg(process.pid, signal.SIGTERM)
     raise RuntimeError(
         "AtFlows did not become ready. Check Bun >=1.1, network access for its first runtime preparation, "
         f"and the private startup log at {log_path}. Run `atmem init` to retry."

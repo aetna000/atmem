@@ -2,10 +2,46 @@ from __future__ import annotations
 
 import os
 import platform
-import resource
 import statistics
 import sys
 from typing import Any, Iterable
+
+
+def _max_rss_kb() -> int:
+    """Return peak resident memory in KiB on POSIX and Windows."""
+
+    if os.name != "nt":
+        import resource
+
+        return int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class ProcessMemoryCounters(ctypes.Structure):
+            _fields_ = [
+                ("cb", wintypes.DWORD),
+                ("PageFaultCount", wintypes.DWORD),
+                ("PeakWorkingSetSize", ctypes.c_size_t),
+                ("WorkingSetSize", ctypes.c_size_t),
+                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                ("PagefileUsage", ctypes.c_size_t),
+                ("PeakPagefileUsage", ctypes.c_size_t),
+            ]
+
+        counters = ProcessMemoryCounters()
+        counters.cb = ctypes.sizeof(counters)
+        process = ctypes.windll.kernel32.GetCurrentProcess()
+        if ctypes.windll.psapi.GetProcessMemoryInfo(
+            process, ctypes.byref(counters), counters.cb
+        ):
+            return int(counters.PeakWorkingSetSize // 1024)
+    except (AttributeError, OSError):
+        pass
+    return 0
 
 
 def percentile(values: Iterable[float], p: float) -> float:
@@ -45,7 +81,7 @@ def ranking_metrics(rows: list[dict[str, Any]], *, full_corpus: bool, manifest: 
         "errors": errors,
         "full_corpus": full_corpus,
         "baseline": baseline,
-        "environment": {"python": sys.version.split()[0], "platform": platform.platform(), "pid": os.getpid(), "max_rss_kb": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss},
+        "environment": {"python": sys.version.split()[0], "platform": platform.platform(), "pid": os.getpid(), "max_rss_kb": _max_rss_kb()},
         "manifest": manifest,
         "dataset_sha256": digest,
     }

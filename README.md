@@ -1,11 +1,11 @@
 # AtMem
 
-[![Version 2.3.6](https://img.shields.io/badge/version-2.3.6-blue)](./docs/releases/v2.3.6.md)
+[![Version 2.3.7b1](https://img.shields.io/badge/version-2.3.7b1-blue)](./docs/releases/v2.3.7b1.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-> **Release status:** AtMem 2.3.6 is the stable memory-integrity and Windows-portability release; see its [release note](./docs/releases/v2.3.6.md) and [benchmark report](./docs/benchmarks/memory-integrity.md). The published stable wheel passed 400/400 representable Memory Integrity Benchmark trials with zero failures or errors. [Upstream PR #1](https://github.com/iluxu/memory-integrity-benchmark/pull/1) is under review, so its provisional second-place category coverage is not yet an official placement. AtFlows telemetry and read-only review leads remain separate and explicit.
+> **Release status:** AtMem 2.3.6 remains the stable release. AtMem 2.3.7b1 is a Windows onboarding and durability prerelease; see its [release note](./docs/releases/v2.3.7b1.md). The stable [memory-integrity benchmark](./docs/benchmarks/memory-integrity.md) remains unchanged. AtFlows telemetry and read-only review leads remain separate and explicit.
 > It records exact host-observed text and supported multimodal boundaries by default,
 > while keeping every claim limited to what the connected agent actually supplied.
 
@@ -34,6 +34,15 @@ always-present local vector index. Do **not** install AtBot separately. During
 `atmem atbot setup`, choose local Ollama, a local OpenAI-compatible model, a
 hosted provider, or the safe deterministic fallback. API keys stay in
 environment variables; AtMem does not save them.
+
+In 2.3.7b1, `pip install atmem` installs the Python packages only; pip does not
+run a post-install downloader. On the first `atmem init`, if compatible Bun is not
+already installed, AtMem clearly announces and downloads its pinned official
+Bun runtime for AtFlows, verifies the archive against a release-pinned SHA-256,
+and stores it under `~/.atmem/runtime/bun`. It does not require administrator
+rights or change the global `PATH`. A compatible system Bun is reused instead.
+AtFlows may then use network access once to prepare its separately packaged
+web runtime. Ordinary AtMem memory operations do not require Bun or AtFlows.
 
 ### 2. Connect your agent
 
