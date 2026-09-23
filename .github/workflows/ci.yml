@@ -39,7 +39,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "atmem remember failed" }
           $recalled = atmem recall $database subject "desk plant"
           if ($LASTEXITCODE -ne 0) { throw "atmem recall failed" }
-          if ($recalled -notmatch "fern") { throw "atmem recall did not return the fern record" }
+          if (-not ($recalled -match "fern")) { throw "atmem recall did not return the fern record" }
 
   atbot-tests:
     runs-on: ubuntu-latest
