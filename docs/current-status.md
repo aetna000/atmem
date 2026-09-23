@@ -2,7 +2,8 @@
 
 **Stable release line:** AtMem `2.3.5`, OpenClaw bridge `2.3.5`, AtBot
 `0.1.0`, and pinned AtFlows `0.1.2`. AtMem `2.3.6b1` is a prerelease
-memory-integrity qualification candidate, not the stable recommendation. See
+memory-integrity qualification and Windows-locking portability candidate, not
+the stable recommendation. See
 the [2.3.5 release notes](releases/v2.3.5.md), the
 [2.3.6b1 prerelease note](releases/v2.3.6b1.md), and the
 [Memory Integrity Benchmark report](benchmarks/memory-integrity.md).
