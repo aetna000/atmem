@@ -5,6 +5,10 @@
 [2.3.6 release notes](releases/v2.3.6.md), the historical
 [2.3.6b1 prerelease note](releases/v2.3.6b1.md), and the
 [Memory Integrity Benchmark report](benchmarks/memory-integrity.md).
+The stable 2.3.6 wheel has a checksum-verified 700-trial evidence package in
+[upstream PR #1](https://github.com/iluxu/memory-integrity-benchmark/pull/1):
+400 `PASS`, 300 `NOT_REPRESENTABLE`, and no failures or errors. Placement
+remains provisional until upstream review completes.
 
 **Retrieval baseline inherited from 2.3.3:** local query expansion, exact-search/index reuse improvements,
 bounded answer-support corrections and responsive session-archive layout.

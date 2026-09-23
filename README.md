@@ -5,7 +5,7 @@
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-> **Release status:** AtMem 2.3.6 is the stable memory-integrity and Windows-portability release; see its [release note](./docs/releases/v2.3.6.md) and [benchmark report](./docs/benchmarks/memory-integrity.md). The release candidate passed 400/400 representable Memory Integrity Benchmark trials with zero failures or errors; its provisional second-place category coverage is not an official upstream placement until the submission is accepted. AtFlows telemetry and read-only review leads remain separate and explicit.
+> **Release status:** AtMem 2.3.6 is the stable memory-integrity and Windows-portability release; see its [release note](./docs/releases/v2.3.6.md) and [benchmark report](./docs/benchmarks/memory-integrity.md). The published stable wheel passed 400/400 representable Memory Integrity Benchmark trials with zero failures or errors. [Upstream PR #1](https://github.com/iluxu/memory-integrity-benchmark/pull/1) is under review, so its provisional second-place category coverage is not yet an official placement. AtFlows telemetry and read-only review leads remain separate and explicit.
 > It records exact host-observed text and supported multimodal boundaries by default,
 > while keeping every claim limited to what the connected agent actually supplied.
 
