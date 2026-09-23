@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
+import sys
 
 
 def pid_is_running(pid: int) -> bool:
@@ -19,6 +21,11 @@ def pid_is_running(pid: int) -> bool:
         if pid > 0xFFFFFFFF:
             return False
         return _windows_pid_is_running(pid)
+    if sys.platform.startswith("linux") and _linux_pid_state(pid) == "Z":
+        # Minimal containers do not always run an init process that promptly
+        # reaps orphaned children. A zombie still answers kill(pid, 0), but it
+        # is no longer running and must not keep daemon shutdown waiting.
+        return False
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -29,6 +36,22 @@ def pid_is_running(pid: int) -> bool:
     except (OSError, OverflowError):
         return False
     return True
+
+
+def _linux_pid_state(pid: int) -> str | None:
+    """Return the Linux procfs process state, when it can be inspected."""
+
+    try:
+        value = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+    except (OSError, UnicodeError):
+        return None
+    # The comm field is parenthesized and may itself contain spaces or closing
+    # parentheses. The state is the first field after its final closing paren.
+    closing = value.rfind(")")
+    if closing < 0:
+        return None
+    remainder = value[closing + 1 :].strip()
+    return remainder[:1] or None
 
 
 def _windows_pid_is_running(pid: int) -> bool:
