@@ -127,7 +127,7 @@ capability gaps; no result has been optimized away.
 - [x] T030 [US4] If and only if a genuine AtMem defect is confirmed, add the
   failing boundary regression to `tests/test_benchmark_memory_integrity_contracts.py`
   before changing product code and preserve the 2.3.5 evidence package.
-- [ ] T031 [US4] Conditional on T030, implement the smallest constitutional
+- [x] T031 [US4] Conditional on T030, implement the smallest constitutional
   product correction, set the next available beta version consistently across
   AtMem/AtBot/OpenClaw compatibility metadata, add release notes and run all
   required release gates without publishing stable.
@@ -137,7 +137,7 @@ capability gaps; no result has been optimized away.
 
 ## Phase 8: Product verification and publication
 
-- [ ] T033 [US3] Run AtMem's installed-artifact, invariant, authority,
+- [x] T033 [US3] Run AtMem's installed-artifact, invariant, authority,
   extraction, retrieval, lifecycle, deletion, evidence, encryption, framework
   adapter, metadata and Python 3.10–3.13 gates appropriate to the actual diff;
   assert the external benchmark is not added to AtMem's base runtime dependencies.
