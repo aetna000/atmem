@@ -14,22 +14,22 @@ derived records did not persist/inherit parent taint; and typed procedure review
 recorded an actor but did not enforce issued principal authority. AtMem 2.3.6
 addresses those boundaries.
 
-The published 2.3.6b1 release candidate completed the same 700 trials from its
-SHA-256-pinned PyPI wheel: 400 `PASS`, 300 `NOT_REPRESENTABLE`, zero `FAIL`, and
-zero `ERROR`. Every representable trial passed. A clean-clone reproduction
-matched every metric, status, assertion, and trial count. Stable 2.3.6 is
-submitted upstream only after its own released wheel repeats that result.
+The published stable 2.3.6 wheel completed the same 700 trials from its
+SHA-256-pinned PyPI artifact: 400 `PASS`, 300 `NOT_REPRESENTABLE`, zero `FAIL`,
+and zero `ERROR`. Every representable trial passed. Publication validation and
+SHA-256 verification succeeded. The stable adapter and evidence are submitted
+in [upstream PR #1](https://github.com/iluxu/memory-integrity-benchmark/pull/1).
 
 ## Position relative to the published systems
 
 The upstream project currently presents categorical results rather than a
 numeric ranking. If systems are ordered by the number of natively represented
-categories that pass, the release candidate is provisionally second:
+categories that pass, the stable submission is provisionally second:
 
 | System | Passing categories | Not representable | Error or fail |
 |---|---:|---:|---:|
 | LLMBASEDOS v0.4-rc1 | 7 | 0 | 0 |
-| **AtMem 2.3.6b1 candidate** | **4** | **3** | **0** |
+| **AtMem 2.3.6 submission** | **4** | **3** | **0** |
 | Mem0 | 3 | 4 | 0 |
 | Letta | 3 | 4 | 0 |
 | Zep | 1 | 4 | 2 errors |
@@ -45,7 +45,7 @@ AtMem therefore reports them honestly as `NOT_REPRESENTABLE`.
 
 ### Category D target-matching disclosure
 
-The candidate adapter exposes native record identifiers. The benchmark fork
+The stable adapter exposes native record identifiers. The benchmark fork
 therefore changed shared target matching to use those identifiers as the
 authority when available instead of also treating any recalled record that
 shares a trial nonce as the poisoned target. This change is outcome-
@@ -72,12 +72,14 @@ is rejected, AtMem has three passing categories and ties Mem0 and Letta.
 - Frozen upstream commit: `ca8b430736f08c5dc66938b6e3b5319cea53ec8b`
 - AtMem baseline branch:
   [`adapters/atmem-2.3.5`](https://github.com/aetna000/memory-integrity-benchmark/tree/adapters/atmem-2.3.5)
-- AtMem candidate evidence branch:
-  [`adapters/atmem-2.3.6b1`](https://github.com/aetna000/memory-integrity-benchmark/tree/adapters/atmem-2.3.6b1)
+- AtMem stable submission branch:
+  [`submission/atmem-2.3.6`](https://github.com/aetna000/memory-integrity-benchmark/tree/submission/atmem-2.3.6)
+- Upstream submission:
+  [iluxu/memory-integrity-benchmark#1](https://github.com/iluxu/memory-integrity-benchmark/pull/1)
 - AtMem 2.3.5 wheel SHA-256:
   `16e6fc5cf7a7f6964ce40ceffb124c7b386c08472ae5b027b8635a378ec62269`
-- AtMem 2.3.6b1 wheel SHA-256:
-  `0d68baba36f2ae301cfa9fb407963e650d814c97958ebc618dd390208b25d063`
+- AtMem 2.3.6 wheel SHA-256:
+  `eed43276abb6e230bf5f6f5912c45c577c3136e150c77a707d428bcbe0e57394`
 - Seed: `20260922`
 - Trials: 100 each for A, C, D, F, H, I, and L; 700 total
 - Runtime: CPython 3.11.16 on macOS 26.5.2 arm64
@@ -106,9 +108,9 @@ trials were non-representable. The 400 non-representable trials were excluded
 from rate denominators, not counted as passes or failures. There were zero
 trial errors.
 
-## AtMem 2.3.6b1 candidate result
+## AtMem 2.3.6 stable result
 
-| Category | What it tests | Trials | Candidate status | Evidence-based interpretation |
+| Category | What it tests | Trials | Stable status | Evidence-based interpretation |
 |---|---|---:|---|---|
 | A | direct procedural poisoning | 100 | `NOT_REPRESENTABLE` | The harness cannot supply the issued review authority required by AtMem. |
 | C | recursive agent hallucination | 100 | `PASS` | 100/100 untrusted recursive claims stayed out of authoritative recall. |
@@ -171,13 +173,13 @@ continues to reject replayed decisions and stale preconditions.
 Harness Specification v1 supplies only caller-asserted principal labels, not
 an authenticated authority credential. The conservative adapter therefore does
 not translate those labels into AtMem authorization: A, H, and I remain
-`NOT_REPRESENTABLE` in the 2.3.6b1 run. The product correction is exercised by
+`NOT_REPRESENTABLE` in the stable 2.3.6 run. The product correction is exercised by
 AtMem's own authority regression suite, while the benchmark reports only what
 its public contract can honestly express.
 
 ## Controlled before/after protocol
 
-The candidate comparison used the same seven attack YAML files, 100 trials per
+The stable comparison used the same seven attack YAML files, 100 trials per
 category, seed, Python 3.11 line, and local provider-free configuration as the
 immutable 2.3.5 baseline. The benchmark fork's runner, reporter, and publication
 validator were revised for the AtMem adapter, including the native-ID target-
@@ -189,10 +191,9 @@ package identity, plaintext synthetic secrets, absolute local paths, and
 checksum drift.
 
 The run installed the released wheel directly from PyPI using its exact URL and
-SHA-256. It did not import the AtMem source checkout. A second fresh clone and
-virtual environment reproduced all metrics, statuses, assertions, and trial
-counts. Stable 2.3.6 receives a distinct immutable run identity and evidence
-package; the candidate evidence is never renamed.
+SHA-256. It did not import the AtMem source checkout. The stable run has the
+distinct immutable identity `atmem-v2.3.6-seed-20260922`; prerelease evidence
+was not renamed or used as the stable result.
 
 ## Scope and limitations
 
@@ -204,7 +205,7 @@ non-retention, and a hash does not replace retained evidence.
 
 AtMem 2.3.6 does not retroactively delete records created by 2.3.5. Taint
 propagation covers explicit direct parents rather than inferred graph-wide data
-flow. Purpose-scoped recall remains unsupported and undeclared. Any stable
-2.3.6 conclusion depends on the stable tagged-artifact rerun and upstream
-review. Until the upstream maintainers accept the submission, the #2 coverage
+flow. Purpose-scoped recall remains unsupported and undeclared. The stable
+tagged-artifact rerun is complete and valid. Until the upstream maintainers
+accept the submission, the #2 coverage
 position remains provisional rather than an official leaderboard result.
