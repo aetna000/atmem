@@ -1,11 +1,11 @@
 # AtMem
 
-[![Version 2.3.6b1](https://img.shields.io/badge/version-2.3.6b1-blue)](./docs/releases/v2.3.6b1.md)
+[![Version 2.3.6](https://img.shields.io/badge/version-2.3.6-blue)](./docs/releases/v2.3.6.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-> **Release status:** AtMem 2.3.5 remains the stable Agent Black Box and governed-memory release. AtMem 2.3.6b1 is the prerelease memory-integrity qualification and Windows-portability candidate; see its [release note](./docs/releases/v2.3.6b1.md) and [benchmark report](./docs/benchmarks/memory-integrity.md). AtFlows telemetry and read-only review leads remain separate and explicit.
+> **Release status:** AtMem 2.3.6 is the stable memory-integrity and Windows-portability release; see its [release note](./docs/releases/v2.3.6.md) and [benchmark report](./docs/benchmarks/memory-integrity.md). The release candidate passed 400/400 representable Memory Integrity Benchmark trials with zero failures or errors; its provisional second-place category coverage is not an official upstream placement until the submission is accepted. AtFlows telemetry and read-only review leads remain separate and explicit.
 > It records exact host-observed text and supported multimodal boundaries by default,
 > while keeping every claim limited to what the connected agent actually supplied.
 
@@ -22,7 +22,7 @@ authorizes, stores, scopes, injects, corrects, and deletes memory.
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --upgrade atmem==2.3.5
+python -m pip install --upgrade atmem==2.3.6
 atmem atbot setup
 atmem atbot doctor
 atmem init
@@ -55,7 +55,7 @@ package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.5
+python -m pip install --upgrade atmem==2.3.6
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -78,7 +78,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.3.5'
+python -m pip install 'atmem[pydantic-ai]==2.3.6'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -103,7 +103,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.3.5'
+python -m pip install 'atmem[langgraph]==2.3.6'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -167,7 +167,7 @@ open tasks. AtBot may propose a change, but AtMem revalidates and commits it.
 
 See the [Governed Task State guide](docs/governed-task-state.md) for lifecycle,
 correction, provenance, expiry, benchmark, and automation examples, and read
-the [2.3.5 release notes](docs/releases/v2.3.5.md) before upgrading.
+the [2.3.6 release notes](docs/releases/v2.3.6.md) before upgrading.
 
 ### Prove memory quality locally
 
@@ -182,7 +182,8 @@ local/hosted profiles, LongMemEval import and fair Mem0 OSS comparison are also
 available without adding Mem0 or model SDKs to the base install. See the
 [memory benchmark guide](docs/benchmarks.md) for commands and honest limits.
 The retrieval and archive improvements from [2.3.3](docs/releases/v2.3.3.md)
-remain in [2.3.5](docs/releases/v2.3.5.md), which streamlines local startup
+remain in [2.3.6](docs/releases/v2.3.6.md), which also strengthens canonical
+memory-integrity boundaries while preserving streamlined local startup
 and shared-login navigation. Developer opt-in
 fusion, scoped graph nomination and matrix reuse are available for evaluation;
 broader performance targets remain research, not release claims.
@@ -270,7 +271,7 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install atmem==2.3.5
+python -m pip install atmem==2.3.6
 atmem --version
 ```
 
@@ -280,7 +281,7 @@ embedding model, while the semantic extra adds local sentence-transformer
 choices:
 
 ```bash
-python -m pip install 'atmem[semantic]==2.3.5'
+python -m pip install 'atmem[semantic]==2.3.6'
 ```
 
 For repository development, install both workspace packages:
@@ -468,7 +469,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.5
+python -m pip install --upgrade atmem==2.3.6
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -701,10 +702,10 @@ npm test
 npm run smoke
 ```
 
-The latest stable release is **2.3.5**. This branch prepares the **2.3.6b1**
-prerelease with matched OpenClaw bridge source **2.3.6-beta.1**. Release
-validation requires exact Python/bridge alignment; AtBot retains its
-independent stable compatible version **0.1.0**.
+The latest stable release is **2.3.6** with matching OpenClaw bridge source
+**2.3.6**. Release validation requires exact Python/bridge alignment; AtBot
+retains its independent stable compatible version **0.1.0** and AtFlows remains
+**0.1.2**.
 
 ## License
 

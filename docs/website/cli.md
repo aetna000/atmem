@@ -51,16 +51,16 @@ atmem atflows review RUN_ID --session-id SESSION_ID \
   --base-url http://127.0.0.1:1337
 ```
 
-AtFlows is installed with AtMem 2.3.5. `atmem init` starts its local server, while trace collection and review are opt-in.
+AtFlows is installed with AtMem 2.3.6. `atmem init` starts its local server, while trace collection and review are opt-in.
 Confirm AtFlows is running before reviewing a run. The command
 requires an authorized AtMem evidence token from `ATMEM_EVIDENCE_TOKEN` or an
 interactive prompt. Standalone AtFlows asks for its Administrator password;
 delegated AtFlows asks for an AtMem username and password. It prints a versioned JSON report by
 default; add `--human` for a concise terminal view. The report contains
 read-only, exact-session trace-error leads, not causal conclusions. See the
-[2.3.5 release note](../releases/v2.3.5.md) for limits and setup.
+[2.3.6 release note](../releases/v2.3.6.md) for limits and setup.
 
 ## Upgrade and recovery
-Follow the [2.3.5 release commands](../releases/v2.3.5.md) and
+Follow the [2.3.6 release commands](../releases/v2.3.6.md) and
 [portable Home recovery](../data-storage-and-backup.md).
 Run `atmem users --help` for account administration and local recovery commands.

@@ -121,7 +121,7 @@ capability gaps; no result has been optimized away.
 - [x] T028 [US4] Classify every non-pass/error as product, adapter, harness,
   environment or capability gap in the immutable run's `failures.jsonl` and
   `LIMITATIONS.md`, with exact raw-trial references.
-- [ ] T029 [US4] For adapter/harness defects only, add a failing benchmark-fork
+- [x] T029 [US4] For adapter/harness defects only, add a failing benchmark-fork
   regression, correct the integration, assign a new run identity and rerun the
   affected category plus all 700 publication trials without changing AtMem.
 - [x] T030 [US4] If and only if a genuine AtMem defect is confirmed, add the
@@ -131,7 +131,7 @@ capability gaps; no result has been optimized away.
   product correction, set the next available beta version consistently across
   AtMem/AtBot/OpenClaw compatibility metadata, add release notes and run all
   required release gates without publishing stable.
-- [ ] T032 [US4] Conditional on T031, publish/install the beta only under the
+- [x] T032 [US4] Conditional on T031, publish/install the beta only under the
   repository release-completion rule, rerun all 700 trials against the actual
   artifact and compare it with 2.3.5 without rewriting either run.
 
@@ -141,26 +141,25 @@ capability gaps; no result has been optimized away.
   extraction, retrieval, lifecycle, deletion, evidence, encryption, framework
   adapter, metadata and Python 3.10–3.13 gates appropriate to the actual diff;
   assert the external benchmark is not added to AtMem's base runtime dependencies.
-- [ ] T034 [US5] Publish an honest qualification summary with exact categories,
+- [x] T034 [US5] Publish an honest qualification summary with exact categories,
   denominators, statuses, errors, configuration and limitations in
   `docs/benchmarks/memory-integrity.md`; link it from the existing benchmark
   documentation index and link to the public fork rather than duplicating raw
   evidence.
-- [ ] T035 [US5] Validate the clean reproduction path from a fresh clone without
+- [x] T035 [US5] Validate the clean reproduction path from a fresh clone without
   local AtMem source, private services, developer environment files or existing
   user state.
 - [ ] T036 [US5] Commit and push the benchmark fork branch and evidence package,
   then open a narrow upstream proposal/PR that distinguishes fork publication,
   submission and merge status.
-- [ ] T037 [US5] Assert that every qualification reference remains `2.3.5` and
-  no package/installer version changed when triage found no product defect; then
-  commit and push this branch with the completed qualification record and
-  regressions; do not merge, tag or claim upstream acceptance unless
-  those external states are verified.
+- [x] T037 [US5] Conditional no-product-defect path is not applicable: T030
+  confirmed product defects and the prerelease correction path was used.
+  Qualification records remain version-specific; do not claim upstream
+  acceptance unless that external state is verified.
 
 ## Phase 9: Read-only implementation review and final consistency
 
-- [ ] T038 Run Claude CLI read-only implementation review of both repository
+- [x] T038 Run Claude CLI read-only implementation review of both repository
   diffs, tests, smoke/full evidence and claims; apply reasonable findings and
   rerun affected tests/trials.
 - [ ] T039 Recheck constitution, all Markdown consistency, version references,

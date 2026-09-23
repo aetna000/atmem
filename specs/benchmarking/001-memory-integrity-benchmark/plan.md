@@ -203,7 +203,7 @@ narrow.
 6. **Product gates**: installed-artifact, invariant, authority, extraction,
    retrieval, lifecycle, deletion, evidence, encryption, integration and
    metadata suites remain passing.
-7. **Independent reproduction**: clean clone/venv regenerates report and verifies
+7. **Clean-clone reproduction**: a second clone/venv regenerates the report and verifies
    checksums without this source checkout.
 
 ## Claude Read-only Review Protocol

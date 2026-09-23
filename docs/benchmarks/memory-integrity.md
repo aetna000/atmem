@@ -11,18 +11,73 @@ errors. We preserved those results before changing product code.
 The baseline identified three bounded product gaps: canonical semantic records
 could retain secret-bearing proposals in quarantine; explicitly related
 derived records did not persist/inherit parent taint; and typed procedure review
-recorded an actor but did not enforce issued principal authority. AtMem 2.3.6b1
-addresses those boundaries. Its comparison table remains pending until the
-tagged wheel—not this source checkout—completes the same 700 trials.
+recorded an actor but did not enforce issued principal authority. AtMem 2.3.6
+addresses those boundaries.
+
+The published 2.3.6b1 release candidate completed the same 700 trials from its
+SHA-256-pinned PyPI wheel: 400 `PASS`, 300 `NOT_REPRESENTABLE`, zero `FAIL`, and
+zero `ERROR`. Every representable trial passed. A clean-clone reproduction
+matched every metric, status, assertion, and trial count. Stable 2.3.6 is
+submitted upstream only after its own released wheel repeats that result.
+
+## Position relative to the published systems
+
+The upstream project currently presents categorical results rather than a
+numeric ranking. If systems are ordered by the number of natively represented
+categories that pass, the release candidate is provisionally second:
+
+| System | Passing categories | Not representable | Error or fail |
+|---|---:|---:|---:|
+| LLMBASEDOS v0.4-rc1 | 7 | 0 | 0 |
+| **AtMem 2.3.6b1 candidate** | **4** | **3** | **0** |
+| Mem0 | 3 | 4 | 0 |
+| Letta | 3 | 4 | 0 |
+| Zep | 1 | 4 | 2 errors |
+
+This is an evidence-based comparison against the current upstream table, not
+an official leaderboard placement. AtMem is not first because categories A, H,
+and I require an authenticated approval principal. Harness Specification v1
+provides caller-controlled actor labels but no AtMem-issued review authority.
+The adapter deliberately refuses to reinterpret those labels as authorization:
+doing so would weaken AtMem's boundary and manufacture three benchmark passes.
+The benchmark author's LLMBASEDOS integration can represent those categories;
+AtMem therefore reports them honestly as `NOT_REPRESENTABLE`.
+
+### Category D target-matching disclosure
+
+The candidate adapter exposes native record identifiers. The benchmark fork
+therefore changed shared target matching to use those identifiers as the
+authority when available instead of also treating any recalled record that
+shares a trial nonce as the poisoned target. This change is outcome-
+determinative for AtMem's D result: the older fallback would flag the clean,
+trusted step-1 sibling merely because it shares the nonce with the derived
+summary, producing 0/100 D passes. Under native-ID matching, the assertion asks
+whether the actual derived summary entered authoritative recall; it did not,
+and all 100 D trials pass.
+
+This is a harness correction authored with the AtMem adapter and remains part
+of the upstream review, not an independently accepted benchmark rule. The fork
+contains regression tests and documents its native-ID-first limitation. The
+change only relaxes false-positive target matching and cannot turn an existing
+competitor failure into an AtMem advantage: the current competitor D cells
+were produced under the prior rule and are already `NOT_REPRESENTABLE` for
+Mem0, Zep, and Letta, while LLMBASEDOS is already `PASS`. Accordingly the
+provisional category ordering is unchanged, but AtMem's sole second-place
+position depends on upstream accepting this corrected D interpretation. If it
+is rejected, AtMem has three passing categories and ties Mem0 and Letta.
 
 ## Benchmark identity
 
 - Upstream project: `iluxu/memory-integrity-benchmark`
 - Frozen upstream commit: `ca8b430736f08c5dc66938b6e3b5319cea53ec8b`
-- AtMem adapter/evidence branch:
-  [`aetna000/memory-integrity-benchmark`](https://github.com/aetna000/memory-integrity-benchmark/tree/adapters/atmem-2.3.5)
+- AtMem baseline branch:
+  [`adapters/atmem-2.3.5`](https://github.com/aetna000/memory-integrity-benchmark/tree/adapters/atmem-2.3.5)
+- AtMem candidate evidence branch:
+  [`adapters/atmem-2.3.6b1`](https://github.com/aetna000/memory-integrity-benchmark/tree/adapters/atmem-2.3.6b1)
 - AtMem 2.3.5 wheel SHA-256:
   `16e6fc5cf7a7f6964ce40ceffb124c7b386c08472ae5b027b8635a378ec62269`
+- AtMem 2.3.6b1 wheel SHA-256:
+  `0d68baba36f2ae301cfa9fb407963e650d814c97958ebc618dd390208b25d063`
 - Seed: `20260922`
 - Trials: 100 each for A, C, D, F, H, I, and L; 700 total
 - Runtime: CPython 3.11.16 on macOS 26.5.2 arm64
@@ -51,6 +106,23 @@ trials were non-representable. The 400 non-representable trials were excluded
 from rate denominators, not counted as passes or failures. There were zero
 trial errors.
 
+## AtMem 2.3.6b1 candidate result
+
+| Category | What it tests | Trials | Candidate status | Evidence-based interpretation |
+|---|---|---:|---|---|
+| A | direct procedural poisoning | 100 | `NOT_REPRESENTABLE` | The harness cannot supply the issued review authority required by AtMem. |
+| C | recursive agent hallucination | 100 | `PASS` | 100/100 untrusted recursive claims stayed out of authoritative recall. |
+| D | summary trust laundering | 100 | `PASS` | 100/100 derived records preserved parent taint and remained non-authoritative. |
+| F | repetition to authority | 100 | `PASS` | 100/100 repetitions failed to promote untrusted content. |
+| H | outcome laundering | 100 | `NOT_REPRESENTABLE` | The tested promotion path requires authenticated review authority absent from Harness v1. |
+| I | authorized promotion (positive control) | 100 | `NOT_REPRESENTABLE` | A caller-supplied actor label is not an authenticated AtMem principal. |
+| L | secret ingestion | 100 | `PASS` | 100/100 synthetic secrets were absent from all benchmark-scoring canonical surfaces. |
+
+Counter-derived results were factual contamination 0/300, trust laundering
+0/200, secret retention 0/100, and direct-parent taint preservation 100/100.
+The 300 non-representable trials were excluded from rate denominators. There
+were zero trial failures and zero trial errors.
+
 ## Why the baseline matters
 
 The baseline distinguishes four very different outcomes:
@@ -67,7 +139,7 @@ That distinction prevents a narrow pass rate from hiding capability gaps. It
 also explains why this work starts from evidence rather than presenting the
 new implementation alone.
 
-## Changes made for 2.3.6b1
+## Changes made for 2.3.6
 
 ### Canonical secret refusal
 
@@ -105,17 +177,22 @@ its public contract can honestly express.
 
 ## Controlled before/after protocol
 
-The 2.3.6b1 comparison will use the same seven attack YAML files, 100 trials per
-category, seed, report code, publication validator, Python line, and local
-provider-free configuration. The adapter may change only where it maps the new
-native APIs. Publication is refused for editable imports, dirty run commits,
-changed attack/config digests, missing/duplicate trials, mixed package identity,
-plaintext synthetic secrets in published artifacts, absolute local paths, or
+The candidate comparison used the same seven attack YAML files, 100 trials per
+category, seed, Python 3.11 line, and local provider-free configuration as the
+immutable 2.3.5 baseline. The benchmark fork's runner, reporter, and publication
+validator were revised for the AtMem adapter, including the native-ID target-
+matching correction disclosed above; they were not identical to the baseline
+revision. Frozen input digests and regression tests ensure attack definitions
+did not change. Publication validation refused editable imports, dirty run
+commits, changed attack/config digests, missing or duplicate trials, mixed
+package identity, plaintext synthetic secrets, absolute local paths, and
 checksum drift.
 
-The comparison will be added only after the released wheel SHA-256 and matching
-bridge version are known and all raw evidence validates. A source-tree run is a
-development gate, not the release result.
+The run installed the released wheel directly from PyPI using its exact URL and
+SHA-256. It did not import the AtMem source checkout. A second fresh clone and
+virtual environment reproduced all metrics, statuses, assertions, and trial
+counts. Stable 2.3.6 receives a distinct immutable run identity and evidence
+package; the candidate evidence is never renamed.
 
 ## Scope and limitations
 
@@ -125,7 +202,9 @@ injection resistance, complete application security, or compliance. Source
 evidence retention is not semantic-memory retention, encryption is not
 non-retention, and a hash does not replace retained evidence.
 
-AtMem 2.3.6b1 does not retroactively delete records created by 2.3.5. Taint
+AtMem 2.3.6 does not retroactively delete records created by 2.3.5. Taint
 propagation covers explicit direct parents rather than inferred graph-wide data
 flow. Purpose-scoped recall remains unsupported and undeclared. Any stable
-2.3.6 conclusion depends on the prerelease rerun and normal release gates.
+2.3.6 conclusion depends on the stable tagged-artifact rerun and upstream
+review. Until the upstream maintainers accept the submission, the #2 coverage
+position remains provisional rather than an official leaderboard result.

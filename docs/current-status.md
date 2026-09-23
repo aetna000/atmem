@@ -1,10 +1,8 @@
 # Current status
 
-**Stable release line:** AtMem `2.3.5`, OpenClaw bridge `2.3.5`, AtBot
-`0.1.0`, and pinned AtFlows `0.1.2`. AtMem `2.3.6b1` is a prerelease
-memory-integrity qualification and Windows-locking portability candidate, not
-the stable recommendation. See
-the [2.3.5 release notes](releases/v2.3.5.md), the
+**Stable release line:** AtMem `2.3.6`, OpenClaw bridge `2.3.6`, AtBot
+`0.1.0`, and pinned AtFlows `0.1.2`. See the
+[2.3.6 release notes](releases/v2.3.6.md), the historical
 [2.3.6b1 prerelease note](releases/v2.3.6b1.md), and the
 [Memory Integrity Benchmark report](benchmarks/memory-integrity.md).
 
@@ -18,8 +16,10 @@ and [graph implementation and four-profile results](implementation-evidence/031/
 for the measured results behind both, and the
 [continuing retrieval research](../specs/031-mem0-head-to-head-retrieval/spec.md).
 
-AtMem 2.3.5 is the stable local encrypted Agent Black Box and governed-memory
-release. The package records exact host-observed text, URLs, tool arguments and
+AtMem 2.3.6 is the stable local encrypted Agent Black Box and governed-memory
+release. It adds canonical secret refusal, direct-parent taint propagation,
+issued procedure-review authority, and portable Windows-safe locking. The
+package records exact host-observed text, URLs, tool arguments and
 results plus supported image, audio, video and document bytes when capture mode is
 `full`. New installations use full capture by default. Operators may deliberately
 select encrypted metadata-only capture or turn the recorder off.
@@ -65,6 +65,6 @@ streams and deduplicates content. Post-quantum recipient export activates when
 its optional cryptographic backend is installed; local at-rest payload encryption
 uses the documented authenticated symmetric profile.
 
-See the [2.3.5 release notes](releases/v2.3.5.md) for upgrade and migration commands,
+See the [2.3.6 release notes](releases/v2.3.6.md) for upgrade and migration commands,
 and the [implementation evidence index](implementation-evidence/README.md) for the
 recorded gates.

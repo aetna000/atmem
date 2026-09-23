@@ -12,7 +12,7 @@ The embedded engine is useful without a hosted model. Run the complete
 | `verify(subject_id)` | Check retained integrity |
 | `close()` | Flush/close owned resources |
 
-## Procedure review authority (2.3.6b1)
+## Procedure review authority (2.3.6)
 
 An embedded application that can approve typed procedures must configure its
 review principals when it opens `Memory`. A plain `actor` string is audit text,
