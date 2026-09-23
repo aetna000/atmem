@@ -1,10 +1,10 @@
 # Current status
 
 **Stable release line:** AtMem `2.3.6`, OpenClaw bridge `2.3.6`, AtBot
-`0.1.0`, and pinned AtFlows `0.1.2`. AtMem `2.3.7b1` and OpenClaw bridge
-`2.3.7-beta.1` are the Windows onboarding and durability prerelease line; AtBot
+`0.1.0`, and pinned AtFlows `0.1.2`. AtMem `2.3.7b2` and OpenClaw bridge
+`2.3.7-beta.2` are the Windows concurrency and durability prerelease line; AtBot
 and AtFlows remain unchanged. See the
-[2.3.7b1 prerelease note](releases/v2.3.7b1.md), the
+[2.3.7b2 prerelease note](releases/v2.3.7b2.md), the
 [2.3.6 release notes](releases/v2.3.6.md), the historical
 [2.3.6b1 prerelease note](releases/v2.3.6b1.md), and the
 [Memory Integrity Benchmark report](benchmarks/memory-integrity.md).

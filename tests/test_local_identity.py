@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import os
 from pathlib import Path
 
 import pytest
 
 from atmem.identity import LocalIdentityService, normalize_username, validate_password
+from atmem.identity.store import EncryptedIdentityDocument
 
 
 def test_bootstrap_dashboard_url_keeps_secret_out_of_http_request() -> None:
@@ -109,3 +111,29 @@ def test_login_throttles_and_recovery_revokes_sessions(tmp_path: Path) -> None:
     recovered = identity.recover_administrator("RECOVER LOCAL ADMINISTRATOR")
     assert identity.authenticate_session(session["session_token"]) is None
     assert identity.login(recovered["username"], recovered["temporary_password"])["account"]["password_change_required"] is True
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows replace semantics")
+def test_identity_document_retries_transient_windows_replace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document = EncryptedIdentityDocument(
+        tmp_path / "identity.json", bytes(range(32)), "identity", {"users": []}
+    )
+    real_replace = os.replace
+    attempts = 0
+
+    def transient_replace(source: str | Path, destination: str | Path) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise PermissionError("file is temporarily busy")
+        real_replace(source, destination)
+
+    monkeypatch.setattr("atmem.identity.store.os.replace", transient_replace)
+    monkeypatch.setattr("atmem.identity.store.time.sleep", lambda _seconds: None)
+
+    document.write({"users": [{"id": "owner"}]})
+
+    assert attempts == 3
+    assert document.load() == {"users": [{"id": "owner"}]}

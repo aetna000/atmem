@@ -1,11 +1,11 @@
 # AtMem
 
-[![Version 2.3.7b1](https://img.shields.io/badge/version-2.3.7b1-blue)](./docs/releases/v2.3.7b1.md)
+[![Version 2.3.7b2](https://img.shields.io/badge/version-2.3.7b2-blue)](./docs/releases/v2.3.7b2.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-> **Release status:** AtMem 2.3.6 remains the stable release. AtMem 2.3.7b1 is a Windows onboarding and durability prerelease; see its [release note](./docs/releases/v2.3.7b1.md). The stable [memory-integrity benchmark](./docs/benchmarks/memory-integrity.md) remains unchanged. AtFlows telemetry and read-only review leads remain separate and explicit.
+> **Release status:** AtMem 2.3.6 remains the stable release. AtMem 2.3.7b2 is a Windows concurrency and durability prerelease; see its [release note](./docs/releases/v2.3.7b2.md). The stable [memory-integrity benchmark](./docs/benchmarks/memory-integrity.md) remains unchanged. AtFlows telemetry and read-only review leads remain separate and explicit.
 > It records exact host-observed text and supported multimodal boundaries by default,
 > while keeping every claim limited to what the connected agent actually supplied.
 
@@ -35,7 +35,7 @@ always-present local vector index. Do **not** install AtBot separately. During
 hosted provider, or the safe deterministic fallback. API keys stay in
 environment variables; AtMem does not save them.
 
-In 2.3.7b1, `pip install atmem` installs the Python packages only; pip does not
+In 2.3.7b2, `pip install atmem` installs the Python packages only; pip does not
 run a post-install downloader. On the first `atmem init`, if compatible Bun is not
 already installed, AtMem clearly announces and downloads its pinned official
 Bun runtime for AtFlows, verifies the archive against a release-pinned SHA-256,

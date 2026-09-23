@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.7b1",
+  "version": "2.3.7b2",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -220,6 +220,11 @@
       "slug": "releases",
       "title": "Release overview",
       "source": "docs/website/releases.md"
+    },
+    {
+      "slug": "releases/2.3.7b2",
+      "title": "AtMem 2.3.7 beta 2",
+      "source": "docs/releases/v2.3.7b2.md"
     },
     {
       "slug": "releases/2.3.7b1",

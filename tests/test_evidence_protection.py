@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import os
 import shutil
 import subprocess
 import sys
+import threading
 
 import pytest
 
@@ -284,6 +286,100 @@ def test_cross_runtime_sql_dump_round_trips_inside_encrypted_container(
         }
     finally:
         restored.close()
+
+
+def test_encrypted_control_store_serializes_same_process_access(tmp_path: Path) -> None:
+    key = bytes(range(32))
+    path = tmp_path / "evidence.db"
+    first = ControlStore(path, encryption_key=key)
+    started = threading.Event()
+    opened = threading.Event()
+    errors: list[BaseException] = []
+
+    def open_second() -> None:
+        started.set()
+        try:
+            second = ControlStore(path, encryption_key=key)
+            opened.set()
+            second.close()
+        except BaseException as exc:
+            errors.append(exc)
+
+    thread = threading.Thread(target=open_second, daemon=True)
+    thread.start()
+    try:
+        assert started.wait(timeout=2)
+        assert not opened.wait(timeout=0.1)
+    finally:
+        first.close()
+    thread.join(timeout=2)
+
+    assert not thread.is_alive()
+    assert opened.is_set()
+    assert errors == []
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows replace semantics")
+def test_encrypted_control_store_retries_transient_windows_replace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from atmem.control import store as store_module
+
+    real_replace = os.replace
+    attempts = 0
+
+    def transient_replace(source: str | Path, destination: str | Path) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise PermissionError("file is temporarily busy")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(store_module.os, "replace", transient_replace)
+    monkeypatch.setattr(store_module.time, "sleep", lambda _seconds: None)
+
+    store = ControlStore(tmp_path / "evidence.db", encryption_key=bytes(range(32)))
+    store.close()
+
+    assert attempts >= 3
+
+
+def test_control_store_initialization_failure_releases_process_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original = ControlStore._init_schema
+    first_finished = threading.Event()
+    second_opened = threading.Event()
+
+    def fail_schema(_store: ControlStore) -> None:
+        raise RuntimeError("fixture initialization failure")
+
+    monkeypatch.setattr(ControlStore, "_init_schema", fail_schema)
+
+    def fail_first() -> None:
+        try:
+            ControlStore(tmp_path / "first.db", encryption_key=bytes(range(32)))
+        except RuntimeError:
+            first_finished.set()
+
+    first = threading.Thread(target=fail_first, daemon=True)
+    first.start()
+    first.join(timeout=2)
+    assert first_finished.is_set()
+
+    monkeypatch.setattr(ControlStore, "_init_schema", original)
+
+    def open_second() -> None:
+        store = ControlStore(tmp_path / "second.db", encryption_key=bytes(range(32)))
+        store.close()
+        second_opened.set()
+
+    second = threading.Thread(target=open_second, daemon=True)
+    second.start()
+    second.join(timeout=2)
+
+    assert not second.is_alive()
+    assert second_opened.is_set()
 
 
 def test_data_off_retains_encrypted_metadata_and_recorder_off_stores_nothing(tmp_path: Path) -> None:
