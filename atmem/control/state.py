@@ -9,6 +9,7 @@ import tempfile
 from typing import Iterator
 
 from atmem.control.models import ControlState, fail_closed_state
+from atmem.durability import fsync_directory
 from atmem.locking import ProcessFileLock
 
 
@@ -46,11 +47,7 @@ def write_state(path: str | Path, state: ControlState) -> ControlState:
             os.fsync(handle.fileno())
         os.replace(temporary_path, target)
         os.chmod(target, 0o600)
-        directory_fd = os.open(target.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory_fd)
-        finally:
-            os.close(directory_fd)
+        fsync_directory(target.parent)
     finally:
         if temporary_path.exists():
             temporary_path.unlink()

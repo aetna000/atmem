@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,16 @@ import pytest
 from atmem import Memory
 from atmem.core.keys import initialize_keys, key_status, resolve_database_key
 from atmem.core.storage import HouseholdLock, HouseholdPolicy
+from atmem.evidence.crypto import load_or_create_key
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows permission semantics")
+def test_evidence_key_can_be_reopened_on_windows(tmp_path: Path) -> None:
+    key_path = tmp_path / "evidence.key"
+
+    created = load_or_create_key(key_path)
+
+    assert load_or_create_key(key_path) == created
 
 
 def test_keys_init_is_inert_for_existing_plaintext_database(
@@ -29,7 +40,8 @@ def test_keys_init_is_inert_for_existing_plaintext_database(
     assert status["backend"] == "file"
     assert status["key_exposed"] is False
     assert database.read_bytes() == before
-    assert key_path.stat().st_mode & 0o777 == 0o600
+    if os.name != "nt":
+        assert key_path.stat().st_mode & 0o777 == 0o600
     state = json.loads(Path(f"{database}.encryption.json").read_text(encoding="utf-8"))
     assert state["state"] == "plaintext"
     assert state["key_id"]

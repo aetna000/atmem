@@ -12,7 +12,9 @@ import tempfile
 import uuid
 from typing import Any
 
+from atmem.durability import fsync_directory
 from atmem.home.layout import DIRECTORIES, HomeLayout
+from atmem.processes import pid_is_running
 from atmem.store.sqlite import utc_now
 
 
@@ -42,13 +44,7 @@ def _digest_path(path: Path) -> tuple[str, int, int]:
 
 
 def _pid_alive(pid: int) -> bool:
-    if pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-    except (OSError, PermissionError):
-        return False
-    return True
+    return pid_is_running(pid)
 
 
 def _atomic_json(path: Path, value: dict[str, Any]) -> None:
@@ -63,11 +59,7 @@ def _atomic_json(path: Path, value: dict[str, Any]) -> None:
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, path)
-        directory_fd = os.open(path.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory_fd)
-        finally:
-            os.close(directory_fd)
+        fsync_directory(path.parent)
     finally:
         temporary.unlink(missing_ok=True)
 

@@ -20,6 +20,14 @@ Supported OpenClaw capture does not imply every host exposes the same media byte
 Review [AtBot setup](atbot.md), endpoint and selected model. Retrieval fallback must
 not grant additional access. Do not paste provider secrets into issue reports.
 
+## AtFlows says Bun is missing
+In AtMem 2.3.7b1, rerun `atmem init`. If compatible Bun is absent, AtMem
+announces the official pinned download, verifies its SHA-256, and keeps the
+runtime private under `~/.atmem/runtime/bun` without changing global `PATH`.
+Pip installation alone does not download Bun. If initialization reports a
+network error, allow HTTPS access to the pinned GitHub release or install Bun
+1.1+ independently, then rerun `atmem init`.
+
 ## Upgrade did not change the running version
 Restart dashboard and host processes after installing into the correct environment.
 Use the [2.3.6 upgrade checklist](../releases/v2.3.6.md).

@@ -255,14 +255,44 @@ jobs:
           python "$GITHUB_WORKSPACE/tools/smoke_atflows_handoff.py"
           python "$GITHUB_WORKSPACE/tools/smoke_atflows_delegated.py"
 
+  installed-windows-bun-bootstrap:
+    name: Installed Windows wheel and managed Bun bootstrap
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-distributions
+          path: dist
+      - name: Install wheel and initialize without system Bun
+        shell: pwsh
+        run: |
+          $wheel = Get-ChildItem dist\atmem-*.whl | Select-Object -First 1
+          python -m pip install $wheel.FullName
+          python -m pip check
+          $env:ATMEM_HOME = Join-Path $env:RUNNER_TEMP "atmem-windows-home"
+          $env:Path = (($env:Path -split ';') | Where-Object { $_ -and -not (Test-Path (Join-Path $_ 'bun.exe')) }) -join ';'
+          atmem init --no-open
+          if ($LASTEXITCODE -ne 0) { throw "atmem init failed" }
+          $status = atmem status --json | ConvertFrom-Json
+          if (-not $status.dashboard.running) { throw "AtMem dashboard did not start" }
+          if (-not $status.atflows.running) { throw "AtFlows did not start" }
+          if (-not $status.atflows.bun_managed_by_atmem) { throw "AtMem-managed Bun was not selected" }
+          if ($status.atflows.bun_version -ne "1.4.2") { throw "unexpected Bun version" }
+          atmem dashboard daemon stop
+
   upgrade-existing:
-    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.3.6
+    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.3.7b1
     needs: build
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        source-version: ["2.1.0", "2.2.3", "2.2.4", "2.2.5", "2.2.6", "2.3.2", "2.3.4b1", "2.3.4", "2.3.5"]
+        source-version: ["2.1.0", "2.2.3", "2.2.4", "2.2.5", "2.2.6", "2.3.2", "2.3.4b1", "2.3.4", "2.3.5", "2.3.6"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -291,7 +321,7 @@ jobs:
   pypi:
     name: Publish tested artifacts to PyPI
     if: github.ref_type == 'tag'
-    needs: [installed-wheel, installed-atbot-wheel, installed-atflows-wheel, upgrade-existing]
+    needs: [installed-wheel, installed-atbot-wheel, installed-atflows-wheel, installed-windows-bun-bootstrap, upgrade-existing]
     runs-on: ubuntu-latest
     environment:
       name: pypi

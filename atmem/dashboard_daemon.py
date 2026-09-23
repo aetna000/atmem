@@ -13,6 +13,7 @@ from typing import Any
 
 from atmem.store.sqlite import utc_now
 from atmem.home.layout import compatible_home_path
+from atmem.processes import pid_is_running
 
 
 DEFAULT_DAEMON_STATE = compatible_home_path("runtime/dashboard-daemon.json", "dashboard-daemon.json")
@@ -108,7 +109,6 @@ def _start(
     log_offset = log_path.stat().st_size if log_path.exists() else 0
     command = [
         sys.executable,
-        "-I",
         "-m",
         "atmem.cli",
         "dashboard",
@@ -118,6 +118,14 @@ def _start(
     ]
     if control_state_path is not None:
         command.extend(["--state", str(Path(control_state_path).expanduser())])
+    environment = os.environ.copy()
+    # Keep user-site packages visible: Windows Store Python commonly installs
+    # AtMem there, and ``-I`` would make the daemon unable to import it.  Avoid
+    # caller-controlled module injection and launch from AtMem's private runtime
+    # directory instead.
+    environment.pop("PYTHONPATH", None)
+    environment.pop("PYTHONHOME", None)
+    environment["ATMEM_NONINTERACTIVE"] = "1"
     with log_path.open("a", encoding="utf-8") as log:
         process = subprocess.Popen(
             command,
@@ -126,7 +134,8 @@ def _start(
             stderr=subprocess.STDOUT,
             start_new_session=True,
             close_fds=True,
-            env=os.environ.copy(),
+            env=environment,
+            cwd=state_path.parent,
         )
     value = {
         "format": "atmem-dashboard-daemon-v1",
@@ -145,7 +154,10 @@ def _start(
         "atmem_version": _installed_atmem_version(),
     }
     _write(state_path, value)
-    deadline = time.monotonic() + 5.0
+    # A cold installed-wheel start on Windows Store Python can spend several
+    # seconds importing cryptography and opening the encrypted control state.
+    # Keep startup bounded while allowing that first-run cost to complete.
+    deadline = time.monotonic() + 30.0
     ready = False
     while time.monotonic() < deadline:
         if process.poll() is not None:
@@ -232,11 +244,7 @@ def _installed_atmem_version() -> str:
 
 
 def _alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except (ProcessLookupError, PermissionError):
-        return False
-    return True
+    return pid_is_running(pid)
 
 
 def _open_default_browser(url: str) -> bool:

@@ -22,13 +22,19 @@ EXPORT_SUITE = "ML-KEM-768+AES-256-GCM+ML-DSA-65"
 KEY_WRAP_FORMAT = "atmem-evidence-data-key-wrap-v1"
 
 
+def _has_private_posix_mode(path: Path) -> bool:
+    """Return whether POSIX permission bits are private where meaningful."""
+
+    return os.name == "nt" or not stat.S_IMODE(path.stat().st_mode) & 0o077
+
+
 def load_or_create_key(path: str | Path) -> bytes:
     target = Path(path).expanduser().resolve(strict=False)
     if target.is_symlink():
         raise ValueError("evidence key path must not be a symlink")
     target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     if target.exists():
-        if not target.is_file() or stat.S_IMODE(target.stat().st_mode) & 0o077:
+        if not target.is_file() or not _has_private_posix_mode(target):
             raise RuntimeError("evidence key must be a regular mode-0600 file")
         value = base64.b64decode(target.read_text(encoding="ascii").strip(), validate=True)
         if len(value) != 32:
@@ -51,7 +57,7 @@ def load_existing_key(path: str | Path) -> bytes:
         raise ValueError("evidence key path must not be a symlink")
     if not target.is_file():
         raise FileNotFoundError("evidence key is unavailable")
-    if stat.S_IMODE(target.stat().st_mode) & 0o077:
+    if not _has_private_posix_mode(target):
         raise RuntimeError("evidence key must be a regular mode-0600 file")
     value = base64.b64decode(target.read_text(encoding="ascii").strip(), validate=True)
     if len(value) != 32:

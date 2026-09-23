@@ -13,6 +13,8 @@ import subprocess
 import sys
 import time
 from typing import Any
+
+from atmem.processes import pid_is_running
 from urllib.request import Request, build_opener
 from atmem.delegated.client import _NoRedirect
 from atmem.delegated.transport import (PROFILE, RequestAuthenticator, configure_keyring,
@@ -273,6 +275,8 @@ def _live_pid(root: Path) -> int | None:
 def _pid_exists(pid: int) -> bool:
     if pid <= 1:
         return False
+    if os.name == "nt":
+        return pid_is_running(pid)
     try:
         waited, _ = os.waitpid(pid, os.WNOHANG)
         if waited == pid:
@@ -285,11 +289,7 @@ def _pid_exists(pid: int) -> bool:
             return False
     except (OSError, IndexError):
         pass
-    try:
-        os.kill(pid, 0)
-    except OSError:
-        return False
-    return True
+    return pid_is_running(pid)
 
 
 def _pid_command(pid: int) -> str:

@@ -2,7 +2,7 @@
 
 [AtFlows](https://github.com/aetna000/atflows) records local LLM traces, logs, metrics and cost information in its own database. AtMem stores governed memories and encrypted host evidence. Their roles stay distinct: telemetry can suggest what to inspect, while AtMem authorizes evidence and memory decisions.
 
-AtMem 2.3.6 installs `atflows==0.1.2` alongside `atmem-atbot==0.1.0`. Installing the package alone does not run a server or start collecting telemetry. Bun 1.1+ is needed to run AtFlows.
+AtMem 2.3.6 installs `atflows==0.1.2` alongside `atmem-atbot==0.1.0`. Installing the package alone does not run a server or start collecting telemetry. Bun 1.1+ is needed to run AtFlows. In the 2.3.7b1 prerelease, if compatible Bun is absent, `atmem init` clearly announces and automatically downloads AtMem's pinned official Bun runtime, verifies its release-pinned SHA-256, and stores it privately under `~/.atmem/runtime/bun` without changing global `PATH`. Pip installation itself does not download or execute Bun.
 
 ## Start local dashboards
 
@@ -34,4 +34,4 @@ atmem atflows review RUN_ID --session-id SESSION_ID \
   --base-url http://127.0.0.1:1337
 ```
 
-This is an explicit read-only investigation. AtMem requires authorized evidence access and checks an exact session link in the selected run. A delegated AtFlows dashboard uses the same AtMem account credentials; standalone AtFlows uses its Administrator password. The report contains bounded trace-error leads, not raw trace bodies or a causal claim. The [2.3.6 release note](../releases/v2.3.6.md) describes setup, compatibility and limits.
+This is an explicit read-only investigation. AtMem requires authorized evidence access and checks an exact session link in the selected run. A delegated AtFlows dashboard uses the same AtMem account credentials; standalone AtFlows uses its Administrator password. The report contains bounded trace-error leads, not raw trace bodies or a causal claim. The [2.3.7b1 prerelease note](../releases/v2.3.7b1.md) describes automatic Bun setup, compatibility and limits; [2.3.6](../releases/v2.3.6.md) remains stable.

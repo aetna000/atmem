@@ -15,6 +15,8 @@ import subprocess
 import sys
 import time
 from typing import Any
+
+from atmem.processes import pid_is_running
 from urllib.parse import urlparse
 
 
@@ -285,13 +287,7 @@ class AtBotServiceManager:
 
     @staticmethod
     def _pid_alive(pid: int) -> bool:
-        if pid <= 0:
-            return False
-        try:
-            os.kill(pid, 0)
-            return True
-        except OSError:
-            return False
+        return pid_is_running(pid)
 
     def _owned_process(self, state: dict[str, Any]) -> bool:
         pid = int(state.get("pid") or 0)

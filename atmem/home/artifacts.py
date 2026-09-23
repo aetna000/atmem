@@ -16,6 +16,7 @@ import uuid
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from atmem.core.canonical import canonical_json
+from atmem.durability import fsync_directory
 
 
 MAGIC = b"ATMEMART1"
@@ -94,11 +95,7 @@ class ArtifactVault:
                     encrypted.flush()
                     os.fsync(encrypted.fileno())
                 os.replace(temporary, target)
-                directory_fd = os.open(target.parent, os.O_RDONLY)
-                try:
-                    os.fsync(directory_fd)
-                finally:
-                    os.close(directory_fd)
+                fsync_directory(target.parent)
             finally:
                 temporary.unlink(missing_ok=True)
             return self._descriptor(target, digest_hex, byte_count, replayed=False)

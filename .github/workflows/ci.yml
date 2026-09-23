@@ -33,7 +33,7 @@ jobs:
         shell: pwsh
         run: |
           atmem --help | Out-Null
-          python -m pytest -q tests/test_locking.py
+          python -m pytest -q tests/test_locking.py tests/test_durability.py tests/test_processes.py tests/test_bun_runtime.py tests/test_dashboard_daemon.py tests/test_onboarding_services.py
           $database = Join-Path $env:RUNNER_TEMP "atmem-windows-smoke.db"
           atmem remember $database subject "remember that the desk plant is a fern"
           if ($LASTEXITCODE -ne 0) { throw "atmem remember failed" }
@@ -274,6 +274,36 @@ jobs:
           cd "$RUNNER_TEMP"
           python "$GITHUB_WORKSPACE/tools/smoke_atflows_handoff.py"
           python "$GITHUB_WORKSPACE/tools/smoke_atflows_delegated.py"
+
+  installed-windows-bun-bootstrap:
+    name: Installed Windows wheel and managed Bun bootstrap
+    runs-on: windows-latest
+    needs: distribution
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: dist
+      - name: Install wheel and initialize without system Bun
+        shell: pwsh
+        run: |
+          $wheel = Get-ChildItem dist\atmem-*.whl | Select-Object -First 1
+          python -m pip install $wheel.FullName
+          python -m pip check
+          $env:ATMEM_HOME = Join-Path $env:RUNNER_TEMP "atmem-windows-home"
+          $env:Path = (($env:Path -split ';') | Where-Object { $_ -and -not (Test-Path (Join-Path $_ 'bun.exe')) }) -join ';'
+          atmem init --no-open
+          if ($LASTEXITCODE -ne 0) { throw "atmem init failed" }
+          $status = atmem status --json | ConvertFrom-Json
+          if (-not $status.dashboard.running) { throw "AtMem dashboard did not start" }
+          if (-not $status.atflows.running) { throw "AtFlows did not start" }
+          if (-not $status.atflows.bun_managed_by_atmem) { throw "AtMem-managed Bun was not selected" }
+          if ($status.atflows.bun_version -ne "1.4.2") { throw "unexpected Bun version" }
+          atmem dashboard daemon stop
 
   installed-atbot-wheel:
     runs-on: ubuntu-latest

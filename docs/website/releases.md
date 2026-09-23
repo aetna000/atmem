@@ -1,5 +1,12 @@
 # Releases and upgrades
 
+## Prerelease
+
+[AtMem 2.3.7b1](../releases/v2.3.7b1.md) makes Windows Store Python
+installations launch reliably and lets `atmem init` provision a private,
+checksum-verified Bun runtime when AtFlows needs one. AtMem 2.3.6 remains the
+stable recommendation.
+
 ## Stable release
 [AtMem 2.3.6](../releases/v2.3.6.md) adds canonical secret refusal,
 direct-parent taint propagation, issued procedure-review authority, and

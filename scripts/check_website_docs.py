@@ -23,11 +23,11 @@ def validate():
         assert source.suffix == '.md' and (ROOT / source).is_file()
         assert not (ROOT / source).is_symlink()
         assert (ROOT / source).stat().st_size < 512 * 1024
-        sources.add(str(source))
+        sources.add(source.as_posix())
     assert {'', 'getting-started', 'integrations', 'reference', 'examples', 'releases'} <= seen
     assert f'docs/releases/v{version}.md' in sources
     for source in (ROOT / 'docs/website').glob('*.md'):
-        assert str(source.relative_to(ROOT)) in sources, f'orphan guide: {source}'
+        assert source.relative_to(ROOT).as_posix() in sources, f'orphan guide: {source}'
     print(f'Website docs: {len(seen)} pages; version {version}; inventory valid')
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -19,9 +20,11 @@ def test_dashboard_daemon_start_records_direct_loopback_url(
 ) -> None:
     state_path = tmp_path / "dashboard.json"
     launched: list[list[str]] = []
+    launch_options: list[dict[str, object]] = []
 
     def fake_popen(command, *args, **kwargs):
         launched.append(command)
+        launch_options.append(kwargs)
         return _FakeProcess()
 
     monkeypatch.setattr(
@@ -43,11 +46,15 @@ def test_dashboard_daemon_start_records_direct_loopback_url(
     assert result["running"] is True
     assert result["url"] == "http://127.0.0.1:9123/"
     assert result["atmem_version"]
-    assert launched[0][1:3] == ["-I", "-m"]
+    assert launched[0][1:3] == ["-m", "atmem.cli"]
+    assert launch_options[0]["cwd"] == tmp_path
+    assert launch_options[0]["env"]["ATMEM_NONINTERACTIVE"] == "1"
+    assert "PYTHONPATH" not in launch_options[0]["env"]
     assert "login_url" not in result
     assert "access_code" not in result
-    assert state_path.stat().st_mode & 0o777 == 0o600
-    assert (tmp_path / "dashboard-daemon.log").stat().st_mode & 0o777 == 0o600
+    if os.name != "nt":
+        assert state_path.stat().st_mode & 0o777 == 0o600
+        assert (tmp_path / "dashboard-daemon.log").stat().st_mode & 0o777 == 0o600
 
 
 def test_dashboard_daemon_remove_preserves_memory_data(tmp_path: Path) -> None:
@@ -100,7 +107,7 @@ def test_dashboard_daemon_start_fails_closed_without_ready_url(
         "atmem.dashboard_daemon._dashboard_url",
         lambda _path, **_kwargs: None,
     )
-    ticks = iter((0.0, 6.0))
+    ticks = iter((0.0, 31.0))
     monkeypatch.setattr(
         "atmem.dashboard_daemon.time.monotonic", lambda: next(ticks)
     )
