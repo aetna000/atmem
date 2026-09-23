@@ -2604,22 +2604,63 @@ class ControlPlaneManager:
         actor: str,
         reason: str = "",
         edited_fact: str | None = None,
+        review_principal: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Record one dashboard review decision through the shared service."""
         from atmem.extract.review import ReviewService
         from atmem.memory import Memory
 
         state = self.state()
+        authorities: tuple[dict[str, Any], ...] = ()
+        if review_principal is not None:
+            probe = Memory(
+                self._proposal_memory_db(state),
+                retain_query_text=False,
+                auto_vectors=False,
+            )
+            try:
+                stored = probe.store.get_memory_proposal(proposal_id)
+            finally:
+                probe.close()
+            if stored is None:
+                raise ValueError(f"unknown proposal: {proposal_id}")
+            if str(review_principal.get("subject_id") or "") != str(
+                stored["subject_id"]
+            ) or str(review_principal.get("workspace_id") or "") != str(
+                stored.get("workspace_id") or ""
+            ):
+                raise PermissionError("review identity is outside the proposal scope")
+            # Only procedure settlement needs the issued authority token. Keep
+            # ordinary semantic review compatible with legacy proposals that
+            # predate complete agent/workspace identity fields.
+            if str(stored.get("memory_class") or "") == "procedure":
+                authority = {
+                    **review_principal,
+                    "agent_id": str(stored.get("agent_id") or ""),
+                    "workspace_id": str(stored.get("workspace_id") or ""),
+                }
+                authorities = (authority,)
         memory = Memory(
-            self._proposal_memory_db(state), retain_query_text=False, auto_vectors=False
+            self._proposal_memory_db(state),
+            retain_query_text=False,
+            auto_vectors=False,
+            review_authorities=authorities,
         )
         try:
+            authorization = (
+                memory.issue_review_authorization(
+                    str(authorities[0]["principal_id"]), scopes=("procedure",)
+                )
+                if authorities
+                else None
+            )
             return ReviewService(memory).decide(
                 proposal_id,
                 decision,
                 actor=actor,
                 reason=reason,
                 edited_fact=edited_fact,
+                authorization=authorization,
             )
         finally:
             memory.close()

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from functools import wraps
+import hashlib
+import hmac
 import json
+import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, TypeVar
@@ -126,6 +129,7 @@ class Memory:
         recall_candidate_limit: int = 200,
         policy: HouseholdPolicy | None = None,
         auto_vectors: bool = True,
+        review_authorities: tuple[dict[str, Any], ...] = (),
     ) -> None:
         self.policy = policy or HouseholdPolicy.load(path)
         self.store = SQLiteStore(path, policy=self.policy)
@@ -135,6 +139,27 @@ class Memory:
         self.recall_candidate_limit = max(1, int(recall_candidate_limit))
         self._vector_dirty_subjects: set[str] = set()
         self._auto_vectors = bool(auto_vectors)
+        self._review_authority_secret = secrets.token_bytes(32)
+        self._issued_review_authorizations: set[str] = set()
+        self._review_authorities: dict[str, dict[str, Any]] = {}
+        for authority in review_authorities:
+            principal_id = str(authority.get("principal_id") or "").strip()
+            subject_id = str(authority.get("subject_id") or "").strip()
+            scopes = tuple(sorted({str(value) for value in authority.get("scopes") or ()}))
+            agent_id = str(authority.get("agent_id") or "").strip()
+            workspace_id = str(authority.get("workspace_id") or "").strip()
+            if not principal_id or not subject_id or not agent_id or not workspace_id or not scopes:
+                raise ValueError(
+                    "review authorities require principal_id, subject_id, agent_id, workspace_id, and scopes"
+                )
+            self._review_authorities[principal_id] = {
+                "principal_id": principal_id,
+                "subject_id": subject_id,
+                "agent_id": agent_id,
+                "workspace_id": workspace_id,
+                "scopes": scopes,
+                "assurance": str(authority.get("assurance") or "configured_authority"),
+            }
         if self.store.path != ":memory:" and self._auto_vectors:
             # The dependency-free local vector store is a normal AtMem storage
             # plane. Better embedding providers can replace its active epoch,
@@ -153,6 +178,69 @@ class Memory:
                     self.sync_default_vectors(subject_id)
         finally:
             self.store.close()
+
+    def issue_review_authorization(
+        self, principal_id: str, *, scopes: tuple[str, ...]
+    ) -> Any:
+        """Issue an instance-bound authorization from trusted configuration."""
+        from atmem.extract.review import ReviewAuthorization
+
+        configured = self._review_authorities.get(principal_id)
+        if configured is None:
+            raise PermissionError("review principal is not configured")
+        requested = tuple(sorted(set(scopes)))
+        if not requested or not set(requested).issubset(configured["scopes"]):
+            raise PermissionError("review principal does not have the requested scope")
+        nonce = secrets.token_hex(32)
+        payload = {**configured, "scopes": requested, "nonce": nonce}
+        token = hmac.new(
+            self._review_authority_secret,
+            canonical_json(payload).encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        self._issued_review_authorizations.add(token)
+        return ReviewAuthorization(**payload, token=token)
+
+    def verify_review_authorization(
+        self, authorization: Any, stored: dict[str, Any]
+    ) -> str:
+        """Verify issuance, configured permission, and proposal scope."""
+        from atmem.extract.review import ReviewAuthorization
+
+        if not isinstance(authorization, ReviewAuthorization):
+            raise PermissionError("procedure review authorization is invalid")
+        configured = self._review_authorities.get(authorization.principal_id)
+        if configured is None:
+            raise PermissionError("review principal is not configured")
+        payload = {
+            **configured,
+            "scopes": tuple(sorted(set(authorization.scopes))),
+            "nonce": authorization.nonce,
+        }
+        expected = hmac.new(
+            self._review_authority_secret,
+            canonical_json(payload).encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(expected, authorization.token):
+            raise PermissionError("procedure review authorization was not issued by AtMem")
+        if authorization.token not in self._issued_review_authorizations:
+            raise PermissionError("procedure review authorization is unknown or already used")
+        for field in ("subject_id", "agent_id", "workspace_id", "assurance"):
+            if getattr(authorization, field) != configured[field]:
+                raise PermissionError(
+                    "procedure review authorization does not match configured authority"
+                )
+        if "procedure" not in authorization.scopes and "procedure:review" not in authorization.scopes:
+            raise PermissionError("procedure review requires the procedure scope")
+        if authorization.subject_id != stored["subject_id"]:
+            raise PermissionError("procedure review authority is outside the subject scope")
+        if authorization.agent_id != stored.get("agent_id"):
+            raise PermissionError("procedure review authority is outside the agent scope")
+        if authorization.workspace_id != stored.get("workspace_id"):
+            raise PermissionError("procedure review authority is outside the workspace scope")
+        self._issued_review_authorizations.remove(authorization.token)
+        return authorization.principal_id
 
     def sync_default_vectors(self, subject_id: str) -> dict[str, Any]:
         """Synchronize the active local vector projection without downgrading it."""
@@ -318,18 +406,43 @@ class Memory:
             str(source["source_sha256"]) for source in sources if source is not None
         }:
             raise ValueError("proposal source binding does not match a captured source")
+        related_records: list[dict[str, Any]] = []
         for record_id in proposal.related_record_ids:
             related = self.store.get_record(scope.subject_id, record_id)
             if related is None:
                 raise ValueError("proposal references an unknown related record")
             related_scope = (related.get("raw") or {}).get("authority_scope") or {}
-            if related_scope and related_scope.get("workspace_id") != scope.workspace_id:
+            if not related_scope or (
+                related_scope.get("workspace_id") != scope.workspace_id
+                or related_scope.get("agent_id") != scope.agent_id
+                or related_scope.get("subject_id") != scope.subject_id
+            ):
                 raise ValueError("related record is outside the authority scope")
+            related_records.append(related)
 
-        canonical_key = canonicalize_fact_key(proposal.fact_key)
+        # Semantic memory must never become a second secret store. The source
+        # episode remains available under the evidence policy, but a secret or
+        # an explicit do-not-remember instruction creates no canonical record.
+        semantic_payload = canonical_json(
+            {
+                "fact": proposal.fact,
+                "fact_key": proposal.fact_key,
+                "entities": proposal.entities,
+            }
+        )
+        screening = screen_content(semantic_payload, trusted=True)
+        refusal_reasons = tuple(
+            reason
+            for reason in screening.reason_codes
+            if reason in {"secret_material_detected", "explicit_exclusion_signal"}
+        )
+
+        canonical_key = (
+            None if refusal_reasons else canonicalize_fact_key(proposal.fact_key)
+        )
         duplicate = self.store.find_duplicate_record(
             scope.subject_id, proposal.fact, statuses=("active", "quarantined")
-        )
+        ) if not refusal_reasons else None
         conflicts = (
             self.store.active_records_for_fact_key(scope.subject_id, canonical_key)
             if canonical_key
@@ -337,24 +450,49 @@ class Memory:
         )
         record_ids: tuple[str, ...] = ()
         candidate_ids: tuple[str, ...] = ()
-        if duplicate is not None:
+        if refusal_reasons:
+            decision = "rejected"
+            reason_codes = refusal_reasons
+            review_required = False
+        elif duplicate is not None:
             decision = "duplicate"
             reason_codes = ("semantic_record_already_exists",)
             record_ids = (str(duplicate["id"]),)
             review_required = False
         else:
             source_types = {str(source["request"].get("source_type")) for source in sources if source}
-            trusted_source = source_types == {"user_message"} and all(
+            trusted_source = bool(source_types) and source_types <= {
+                "user_message",
+                "agent_message",
+            } and all(
                 str(source["request"].get("binding_assurance"))
                 in {"host_authenticated", "verified_by_atmem"}
                 for source in sources
                 if source
             )
+            parent_taint_labels = {
+                str(label)
+                for record in related_records
+                for label in ((record.get("raw") or {}).get("taint_labels") or ())
+            }
+            parent_tainted = bool(parent_taint_labels) or any(
+                str(record.get("trust_tier")) == TRUST_TIER_UNTRUSTED
+                or str(record.get("status")) != "active"
+                for record in related_records
+            )
+            taint_labels = set(parent_taint_labels)
+            if not trusted_source:
+                # Persist the native origin risk marker on the record itself so
+                # derivation checks do not have to infer taint in an adapter.
+                taint_labels.add("UNTRUSTED_CONTENT")
+            if parent_tainted:
+                taint_labels.update({"UNTRUSTED_CONTENT", "DERIVED_FROM_TAINTED"})
             safe_add = (
                 proposal.suggested_action in {"add", "supports", "extends"}
                 and proposal.sensitivity not in {"sensitive", "restricted"}
                 and not conflicts
                 and trusted_source
+                and not parent_tainted
             )
             decision = "active" if safe_add else ("conflict" if conflicts else "quarantined")
             reason_codes = (
@@ -362,6 +500,8 @@ class Memory:
                 if safe_add
                 else ("conflicts_with_active_record",)
                 if conflicts
+                else ("derived_from_tainted_memory",)
+                if parent_tainted
                 else ("model_proposal_requires_review",)
             )
             status = "active" if safe_add else "quarantined"
@@ -370,8 +510,14 @@ class Memory:
             record_id = self.store.insert_record(
                 subject_id=scope.subject_id,
                 content=proposal.fact,
-                source_type="user_message" if trusted_source else "external_content",
-                trust_tier="trusted_user" if trusted_source else "untrusted_content",
+                source_type=(
+                    str(first_source["request"].get("source_type"))
+                    if trusted_source and not parent_tainted
+                    else "external_content"
+                ),
+                trust_tier=(
+                    "trusted_user" if trusted_source and not parent_tainted else "untrusted_content"
+                ),
                 source_session_id=proposal.session_id,
                 source_turn_id=proposal.turn_id,
                 episode_id=str(first_source["episode_id"]),
@@ -390,6 +536,8 @@ class Memory:
                     "suggested_action": proposal.suggested_action,
                     "proposed_fact_key": proposal.fact_key,
                     "fact_key_version": FACT_KEY_VERSION,
+                    "related_record_ids": list(proposal.related_record_ids),
+                    "taint_labels": sorted(taint_labels),
                 },
             )
             stored = self.store.get_record(scope.subject_id, record_id)
@@ -425,9 +573,14 @@ class Memory:
                 "related_record_ids": list(proposal.related_record_ids),
                 "workspace_id": scope.workspace_id,
                 "agent_id": scope.agent_id,
-                "proposed_fact_key": proposal.fact_key,
+                "proposed_fact_key": None if refusal_reasons else proposal.fact_key,
                 "canonical_fact_key": canonical_key,
                 "fact_key_version": FACT_KEY_VERSION,
+                "rejected_semantic_payload_sha256": (
+                    f"sha256:{sha256_hex(semantic_payload)}"
+                    if refusal_reasons
+                    else None
+                ),
             },
         )
         admission = MemoryAdmission(
@@ -440,6 +593,18 @@ class Memory:
             review_required=review_required,
             audit_event_id=event_id,
         )
+        stored_proposal = proposal.to_dict()
+        if refusal_reasons:
+            stored_proposal = {
+                "format": proposal.format,
+                "proposal_id": proposal.proposal_id,
+                "scope": proposal.scope.to_dict(),
+                "source_ids": list(proposal.source_ids),
+                "fact": "[rejected sensitive semantic proposal]",
+                "fact_sha256": f"sha256:{sha256_hex(proposal.fact)}",
+                "semantic_payload_sha256": f"sha256:{sha256_hex(semantic_payload)}",
+                "reason_codes": list(refusal_reasons),
+            }
         self.store.insert_protocol_proposal(
             proposal_id=proposal.proposal_id,
             idempotency_key=proposal.idempotency_key,
@@ -448,7 +613,7 @@ class Memory:
             agent_id=scope.agent_id,
             workspace_id=scope.workspace_id,
             decision=decision,
-            proposal=proposal.to_dict(),
+            proposal=stored_proposal,
             admission=admission.to_dict(),
         )
         return admission
@@ -479,7 +644,7 @@ class Memory:
         from atmem.extract.context import build_resolution_context
         from atmem.extract.models import ExtractionProposal, ProposalAction
         from atmem.extract.review import ReviewPolicy
-        from atmem.extract.validation import validate_proposal
+        from atmem.extract.validation import screen_content, validate_proposal
 
         if not isinstance(proposal, ExtractionProposal):
             raise TypeError("proposal must be ExtractionProposal")
@@ -507,6 +672,15 @@ class Memory:
             scope=scope,
             review_confidence=review_confidence,
         )
+        semantic_payload = canonical_json(
+            {"fact": proposal.fact, "fact_key": proposal.fact_key}
+        )
+        semantic_screening = screen_content(semantic_payload, trusted=True)
+        semantic_refusals = tuple(
+            reason
+            for reason in semantic_screening.reason_codes
+            if reason in {"secret_material_detected", "explicit_exclusion_signal"}
+        )
         mutations = {
             ProposalAction.ADD,
             ProposalAction.UPDATE,
@@ -514,8 +688,11 @@ class Memory:
         }
         policy = review_policy or ReviewPolicy(min_confidence=review_confidence)
         quarantine = policy.requires_review(proposal)
-        if not validation.valid:
-            state, reason_codes = "rejected", validation.reason_codes
+        if not validation.valid or semantic_refusals:
+            state = "rejected"
+            reason_codes = tuple(
+                dict.fromkeys(validation.reason_codes + semantic_refusals)
+            )
         elif proposal.action is ProposalAction.REJECT:
             state, reason_codes = "rejected", proposal.reason_codes
         elif proposal.action is ProposalAction.NOOP:
@@ -558,7 +735,7 @@ class Memory:
                 "action": proposal.action.value,
                 "memory_class": proposal.memory_class.value,
                 "confidence": proposal.confidence,
-                "fact_key": proposal.fact_key,
+                "fact_key": None if state == "rejected" else proposal.fact_key,
                 "reason_codes": outcome["reason_codes"],
                 "record_ids": record_ids,
                 "superseded_record_ids": superseded_ids,
@@ -579,6 +756,19 @@ class Memory:
             },
         )
         outcome["audit_event_id"] = event_id
+        stored_proposal = proposal.to_dict()
+        if state == "rejected":
+            stored_proposal = {
+                "format": proposal.format,
+                "proposal_id": proposal.proposal_id,
+                "scope": proposal.scope.to_dict(),
+                "action": proposal.action.value,
+                "memory_class": proposal.memory_class.value,
+                "fact": "[rejected sensitive extraction proposal]",
+                "fact_sha256": f"sha256:{sha256_hex(str(proposal.fact or ''))}",
+                "semantic_payload_sha256": f"sha256:{sha256_hex(semantic_payload)}",
+                "reason_codes": list(outcome["reason_codes"]),
+            }
         stored = self.store.insert_memory_proposal(
             proposal_id=proposal.proposal_id,
             subject_id=subject_id,
@@ -589,10 +779,10 @@ class Memory:
             action=proposal.action.value,
             memory_class=proposal.memory_class.value,
             confidence=proposal.confidence,
-            fact_key=proposal.fact_key,
+            fact_key=None if state == "rejected" else proposal.fact_key,
             review_state=state,
             reason_codes=outcome["reason_codes"],
-            proposal=proposal.to_dict(),
+            proposal=stored_proposal,
             outcome=outcome,
             decided_at=None if state == "pending_review" else utc_now(),
         )
@@ -642,17 +832,31 @@ class Memory:
             for row in context.records
             if str(row["id"]) in set(proposal.affected_record_ids)
         ]
+        parent_taint_labels = {
+            str(label)
+            for row in targets
+            for label in ((row.get("raw") or {}).get("taint_labels") or ())
+        }
+        parent_tainted = bool(parent_taint_labels) or any(
+            str(row.get("trust_tier")) == TRUST_TIER_UNTRUSTED
+            or str(row.get("status")) != "active"
+            for row in targets
+        )
+        if parent_tainted:
+            parent_taint_labels.update(
+                {"UNTRUSTED_CONTENT", "DERIVED_FROM_TAINTED"}
+            )
         record_id = self.store.insert_record(
             subject_id=proposal.scope.subject_id,
             content=content,
-            source_type="user_message",
-            trust_tier="trusted_user",
+            source_type="external_content" if parent_tainted else "user_message",
+            trust_tier=TRUST_TIER_UNTRUSTED if parent_tainted else "trusted_user",
             source_session_id=session_id,
             source_turn_id=turn,
             episode_id=episode_id,
             confidence=float(proposal.confidence),
             scope="user_private",
-            status="active",
+            status="quarantined" if parent_tainted else "active",
             supersedes_id=str(targets[0]["id"]) if targets else None,
             fact_key=proposal.fact_key,
             raw={
@@ -660,6 +864,7 @@ class Memory:
                 "proposal_id": proposal.proposal_id,
                 "memory_class": proposal.memory_class.value,
                 "reason_codes": list(proposal.reason_codes),
+                "taint_labels": sorted(parent_taint_labels),
             },
         )
         relation = (

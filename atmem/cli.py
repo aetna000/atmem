@@ -1135,7 +1135,7 @@ or input errors.""",
     )
 
     proposals_decide = proposals_commands.add_parser(
-        "decide", help="Approve, edit and approve, or reject one proposal"
+        "decide", help="Decide a non-procedural proposal (procedures require authenticated dashboard or embedded authority)"
     )
     proposals_decide.add_argument("path")
     proposals_decide.add_argument("proposal_id")
@@ -3848,6 +3848,15 @@ def _run_proposals(args: argparse.Namespace) -> None:
                 )
             return
         if args.proposals_command == "decide":
+            proposal = service.inspect(args.proposal_id)
+            if proposal.get("memory_class") == "procedure":
+                print(
+                    "Procedure decisions require authenticated scoped authority. "
+                    "Use the Administrator dashboard, or configure review_authorities "
+                    "and issue a ReviewAuthorization through the embedded API.",
+                    file=sys.stderr,
+                )
+                raise SystemExit(2)
             result = service.decide(
                 args.proposal_id,
                 args.decision,

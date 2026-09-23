@@ -1,11 +1,11 @@
 # AtMem
 
-[![Version 2.3.5](https://img.shields.io/badge/version-2.3.5-blue)](./docs/releases/v2.3.5.md)
+[![Version 2.3.6b1](https://img.shields.io/badge/version-2.3.6b1-blue)](./docs/releases/v2.3.6b1.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-> **Release status:** AtMem 2.3.5 is the stable Agent Black Box and governed-memory release. It installs AtFlows 0.1.2 and starts the local dashboards and AtBot companion through `atmem init`. AtFlows telemetry and read-only review leads remain separate and explicit.
+> **Release status:** AtMem 2.3.5 remains the stable Agent Black Box and governed-memory release. AtMem 2.3.6b1 is the prerelease memory-integrity qualification candidate; see its [release note](./docs/releases/v2.3.6b1.md) and [benchmark report](./docs/benchmarks/memory-integrity.md). AtFlows telemetry and read-only review leads remain separate and explicit.
 > It records exact host-observed text and supported multimodal boundaries by default,
 > while keeping every claim limited to what the connected agent actually supplied.
 
@@ -701,9 +701,10 @@ npm test
 npm run smoke
 ```
 
-Current source metadata is the **2.3.5 stable target**, with matched OpenClaw
-bridge source **2.3.5**. Release validation requires exact Python/bridge alignment;
-AtBot retains its independent stable compatible version **0.1.0**.
+The latest stable release is **2.3.5**. This branch prepares the **2.3.6b1**
+prerelease with matched OpenClaw bridge source **2.3.6-beta.1**. Release
+validation requires exact Python/bridge alignment; AtBot retains its
+independent stable compatible version **0.1.0**.
 
 ## License
 

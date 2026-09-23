@@ -1,5 +1,10 @@
 # Memory quality benchmarks
 
+The [Memory Integrity Benchmark qualification](benchmarks/memory-integrity.md)
+preserves the complete 2.3.5 baseline and documents the prerelease-first 2.3.6
+correction/rerun protocol. It is a memory-security control evaluation, not a
+retrieval-quality or speed leaderboard.
+
 AtMem ships an offline deterministic release gate for memory extraction,
 contradiction handling, retrieval, withholding, injection safety, privacy,
 poisoning resistance and fallback. It uses synthetic data and isolated temporary

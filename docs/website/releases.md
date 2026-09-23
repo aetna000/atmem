@@ -1,5 +1,12 @@
 # Releases and upgrades
 
+## Prerelease qualification
+
+[AtMem 2.3.6 beta 1](../releases/v2.3.6b1.md) is the memory-integrity
+qualification candidate. It adds canonical secret refusal, direct-parent taint
+propagation, and issued procedure-review authority. Stable 2.3.5 remains the
+recommended release until the beta's tagged artifact and full rerun complete.
+
 ## Stable release
 [AtMem 2.3.5](../releases/v2.3.5.md) installs AtFlows 0.1.2, starts and checks
 the local dashboards and AtBot through `atmem init`, and reports actual URLs

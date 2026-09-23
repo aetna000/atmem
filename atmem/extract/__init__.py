@@ -21,7 +21,12 @@ from atmem.extract.models import (
     ProposalPrecondition,
     from_legacy_proposal,
 )
-from atmem.extract.review import DECISIONS, ReviewPolicy, ReviewService
+from atmem.extract.review import (
+    DECISIONS,
+    ReviewAuthorization,
+    ReviewPolicy,
+    ReviewService,
+)
 from atmem.extract.validation import (
     Screening,
     Validation,
@@ -44,6 +49,7 @@ __all__ = [
     "Resolution",
     "ResolutionContext",
     "ReviewPolicy",
+    "ReviewAuthorization",
     "ReviewService",
     "Screening",
     "Validation",

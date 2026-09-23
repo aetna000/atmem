@@ -23,6 +23,36 @@ from atmem.store.sqlite import utc_now
 
 DECISIONS = ("approve", "edit_and_approve", "reject")
 
+
+@dataclass(frozen=True, slots=True)
+class ReviewAuthorization:
+    """Authenticated authority for one scoped review decision.
+
+    ``actor`` remains useful audit text for older, non-procedural proposals,
+    but it is not proof that somebody may activate agent behavior. Procedure
+    reviews therefore require this independently authenticated, scope-bound
+    value and record its principal as the deciding actor.
+    """
+
+    principal_id: str
+    subject_id: str
+    agent_id: str | None
+    workspace_id: str | None
+    scopes: tuple[str, ...]
+    assurance: str
+    nonce: str
+    token: str
+
+    def __post_init__(self) -> None:
+        if not self.principal_id.strip():
+            raise ValueError("review authorization principal_id is required")
+        if not self.subject_id.strip():
+            raise ValueError("review authorization subject_id is required")
+        if not self.scopes:
+            raise ValueError("review authorization requires at least one scope")
+        if not self.nonce.strip():
+            raise ValueError("review authorization nonce is required")
+
 _SENSITIVE_RE = re.compile(
     r"\b(?:diagnos\w+|medication|therapy|hiv|pregnan\w+|salary|income|debt|"
     r"immigration|visa status|criminal|arrest|religio\w+|orientation|"
@@ -108,6 +138,7 @@ class ReviewService:
         reason: str = "",
         edited_fact: str | None = None,
         session_id: str | None = None,
+        authorization: ReviewAuthorization | None = None,
     ) -> dict[str, Any]:
         """Approve, edit-and-approve, or reject exactly once.
 
@@ -127,6 +158,12 @@ class ReviewService:
             raise ValueError(
                 f"proposal {proposal_id} was already decided: {stored['review_state']}"
             )
+        if stored["memory_class"] == "procedure":
+            if authorization is None:
+                raise PermissionError(
+                    "procedure review requires authenticated scoped authorization"
+                )
+            actor = self.memory.verify_review_authorization(authorization, stored)
         return self._settle(
             stored,
             decision,
@@ -146,7 +183,9 @@ class ReviewService:
         edited_fact: str | None,
         session_id: str | None,
     ) -> dict[str, Any]:
+        from atmem.core.canonical import canonical_json
         from atmem.extract.context import build_resolution_context
+        from atmem.extract.validation import screen_content
 
         proposal = _rehydrate(stored["proposal"])
         subject_id = stored["subject_id"]
@@ -168,11 +207,20 @@ class ReviewService:
                 )
                 if decision == "edit_and_approve":
                     edited_digest = f"sha256:{sha256_hex(str(fact))}"
+                screening = screen_content(
+                    canonical_json(
+                        {"fact": fact, "fact_key": proposal.fact_key}
+                    ),
+                    trusted=True,
+                )
                 context = build_resolution_context(
                     self.memory.store, subject_id, scope=proposal.scope
                 )
                 drift = _precondition_drift(self.memory.store, subject_id, proposal)
-                if drift:
+                if not screening.admissible:
+                    state = "rejected"
+                    reason_codes.extend(screening.reason_codes)
+                elif drift:
                     # The world moved under the reviewer. Fail closed and keep
                     # the reason so the queue can explain why nothing changed.
                     state = "stale"
