@@ -42,7 +42,8 @@ _INSTRUCTION_RE = re.compile(
     re.I | re.M,
 )
 _SECRET_RE = re.compile(
-    r"(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b|\bsk-[A-Za-z0-9]{16,}\b"
+    r"(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b"
+    r"|\bsk-(?:[A-Za-z0-9]+-)*[A-Za-z0-9]{16,}\b"
     r"|\b(?:password|passphrase|api[ _-]?key|secret|access token|bearer token)\b\s*"
     r"(?:is|=|:)\s*\S+)",
     re.I,

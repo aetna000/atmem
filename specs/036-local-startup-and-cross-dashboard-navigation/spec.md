@@ -1,6 +1,6 @@
 # Local startup and cross-dashboard navigation
 
-**Status:** In development; not a claim about published AtMem 2.3.4.
+**Status:** Implemented for AtMem 2.3.6.
 **Companion contracts:** AtFlows `specs/009-cross-dashboard-navigation`; website `specs/005-cross-dashboard-consistency`.
 
 ## Overview
@@ -20,7 +20,7 @@ Make `pip install atmem`, `atmem init`, and `atmem status` the short local path 
 - **FR-002:** If installed and prerequisites are met, init MUST start AtFlows with AtMem delegated local login, select available loopback ports, and report both dashboard and proxy URLs. It MUST NOT adopt, stop, or silently relabel independent AtFlows processes.
 - **FR-003:** Init MUST start configured AtBot when safe, show fallback/failure state, and never claim optional companion success when it failed.
 - **FR-004:** Status MUST distinguish package version from running version and show actionable repair guidance for stale AtMem/AtFlows/OpenClaw bridge, unavailable Bun, port conflict, and unsupported host state.
-- **FR-005:** AtMem MUST show an AtFlows link only when a running local dashboard URL has been validated. The UI MUST use the reported port, not a fixed default, and MUST never turn untrusted input into a navigation target.
+- **FR-005:** AtMem MUST show an AtFlows link in the persistent top navigation only when a running local dashboard URL has been validated. The UI MUST use the reported port, not a fixed default, and MUST never turn untrusted input into a navigation target.
 - **FR-006:** AtMem header MUST use the AtMem.ai mark and compact 20 px/approximately 16 px lockup; links MUST remain keyboard-operable and visible in light/dark modes.
 - **FR-007:** No startup or navigation endpoint may disclose a secret or bypass AtMem/AtFlows authorization. Canonical memory and telemetry stores remain separate.
 - **FR-008:** Documentation and release notes MUST distinguish published 2.3.4 manual AtFlows startup from this unreleased automatic workflow, then update at release.

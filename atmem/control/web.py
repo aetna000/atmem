@@ -892,6 +892,21 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     str(body.get("confirm_proposal_id") or ""), proposal_id
                 ):
                     raise ValueError("proposal confirmation does not match")
+                review_principal = None
+                session = self._identity_session()
+                if session is not None:
+                    session = self._require_identity_session()
+                    account = session["account"]
+                    account_scope = account["scope"]
+                    if account.get("role") == "administrator":
+                        review_principal = {
+                            "principal_id": account["username"],
+                            "subject_id": account_scope["subject_id"],
+                            "agent_id": None,
+                            "workspace_id": account_scope.get("workspace_id"),
+                            "scopes": ("procedure",),
+                            "assurance": "local_identity_session",
+                        }
                 self._json(
                     HTTPStatus.OK,
                     self.server.manager.decide_extraction_proposal(
@@ -900,6 +915,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                         actor=str(body.get("actor") or "dashboard-reviewer"),
                         reason=str(body.get("reason") or ""),
                         edited_fact=body.get("edited_fact"),
+                        review_principal=review_principal,
                     ),
                 )
                 return

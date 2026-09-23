@@ -2,7 +2,7 @@
 
 [AtFlows](https://github.com/aetna000/atflows) records local LLM traces, logs, metrics and cost information in its own database. AtMem stores governed memories and encrypted host evidence. Their roles stay distinct: telemetry can suggest what to inspect, while AtMem authorizes evidence and memory decisions.
 
-AtMem 2.3.5 installs `atflows==0.1.2` alongside `atmem-atbot==0.1.0`. Installing the package alone does not run a server or start collecting telemetry. Bun 1.1+ is needed to run AtFlows.
+AtMem 2.3.6 installs `atflows==0.1.2` alongside `atmem-atbot==0.1.0`. Installing the package alone does not run a server or start collecting telemetry. Bun 1.1+ is needed to run AtFlows.
 
 ## Start local dashboards
 
@@ -11,7 +11,7 @@ atmem init
 atmem status
 ```
 
-`atmem init` starts the AtMem dashboard and an AtFlows instance using AtMem-owned sign-in. `atmem status` reports the actual dashboard and proxy URLs and clear errors if a companion is unavailable. It also reports an independently started AtFlows instance rather than taking it over. Initializing again keeps existing data and credentials. AtFlows 0.1.2 shows a link back to AtMem in delegated mode; AtMem links to a healthy local AtFlows dashboard.
+`atmem init` starts the AtMem dashboard and an AtFlows instance using AtMem-owned sign-in. `atmem status` reports the actual dashboard and proxy URLs and clear errors if a companion is unavailable. It also reports an independently started AtFlows instance rather than taking it over. Initializing again keeps existing data and credentials. AtFlows 0.1.2 shows a link back to AtMem in delegated mode; AtMem shows the validated healthy local AtFlows link in its persistent top navigation.
 
 Connect a supported client explicitly to AtFlows' OTLP endpoint or model proxy; installing or initializing AtMem alone does not forward traces.
 
@@ -34,4 +34,4 @@ atmem atflows review RUN_ID --session-id SESSION_ID \
   --base-url http://127.0.0.1:1337
 ```
 
-This is an explicit read-only investigation. AtMem requires authorized evidence access and checks an exact session link in the selected run. A delegated AtFlows dashboard uses the same AtMem account credentials; standalone AtFlows uses its Administrator password. The report contains bounded trace-error leads, not raw trace bodies or a causal claim. The [2.3.5 release note](../releases/v2.3.5.md) describes setup, compatibility and limits.
+This is an explicit read-only investigation. AtMem requires authorized evidence access and checks an exact session link in the selected run. A delegated AtFlows dashboard uses the same AtMem account credentials; standalone AtFlows uses its Administrator password. The report contains bounded trace-error leads, not raw trace bodies or a causal claim. The [2.3.6 release note](../releases/v2.3.6.md) describes setup, compatibility and limits.

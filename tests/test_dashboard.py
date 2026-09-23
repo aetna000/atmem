@@ -12,6 +12,8 @@ def test_dashboard_tab_identity_and_companion_link_contract() -> None:
     assert "<title>AtMem.ai | Insight</title>" in html
     assert 'rel="icon" type="image/svg+xml"' in html
     assert 'id="atflowsDashboardLink" hidden' in html
+    assert html.index('id="atflowsDashboardLink"') < html.index("</header>")
+    assert "AtFlows dashboard ↗" not in html
     assert 'get("/api/companions")' in script
     assert 'url.hostname!=="127.0.0.1"' in script
     assert ".logo .brandmark{display:block;width:20px;height:20px" in css

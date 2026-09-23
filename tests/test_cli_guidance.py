@@ -278,6 +278,69 @@ def test_proposal_review_is_drivable_from_the_terminal(
     assert decided["reviews"][0]["actor"] == "ops@example.com"
 
 
+def test_terminal_refuses_procedure_decision_without_raw_traceback(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path
+) -> None:
+    from atmem.contracts import AuthorityScope, SourceCaptureRequest
+    from atmem.extract.models import (
+        ExtractionProposal, MemoryClass, ProposalAction, ProposalEvidence,
+    )
+    from atmem.core.canonical import sha256_hex
+
+    path = tmp_path / "memories.db"
+    scope = AuthorityScope("user-1", "agent-1", "workspace-1")
+    message = "Always require owner approval before publishing."
+    memory = Memory(path, auto_vectors=False)
+    try:
+        source = memory.capture_source(
+            SourceCaptureRequest(
+                source_id="source-procedure-cli",
+                idempotency_key="source-procedure-cli",
+                scope=scope,
+                message=message,
+                source_type="user_message",
+                binding_method="host_authenticated_turn",
+                binding_assurance="host_authenticated",
+            )
+        )
+        proposal = ExtractionProposal(
+            proposal_id="procedure-cli",
+            idempotency_key="procedure-cli",
+            scope=scope,
+            action=ProposalAction.ADD,
+            memory_class=MemoryClass.PROCEDURE,
+            confidence=1.0,
+            reason_codes=("explicit_instruction",),
+            evidence=(ProposalEvidence(
+                source_id=source.source_id,
+                source_sha256=source.source_sha256,
+                start_offset=0,
+                end_offset=len(message),
+                excerpt_sha256=f"sha256:{sha256_hex(message)}",
+            ),),
+            fact=message,
+            fact_key="procedure::publishing",
+        )
+        memory.submit_extraction_proposal(proposal, source_text=message)
+    finally:
+        memory.close()
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "atmem", "proposals", "decide", str(path), proposal.proposal_id,
+            "approve", "--actor", "ops@example.com",
+        ],
+    )
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+    assert error.value.code == 2
+    captured = capsys.readouterr()
+    assert "authenticated scoped authority" in captured.err
+    assert "Traceback" not in captured.err
+
+
 def test_terminal_and_dashboard_report_the_same_proposal_state(tmp_path) -> None:
     """One review service backs both surfaces, so their views cannot drift."""
     from atmem.contracts import AuthorityScope

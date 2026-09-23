@@ -22,7 +22,7 @@ not grant additional access. Do not paste provider secrets into issue reports.
 
 ## Upgrade did not change the running version
 Restart dashboard and host processes after installing into the correct environment.
-Use the [2.3.5 upgrade checklist](../releases/v2.3.5.md).
+Use the [2.3.6 upgrade checklist](../releases/v2.3.6.md).
 
 ## Report a bug
 Include package/bridge versions, host, failing command, expected/actual behavior and
