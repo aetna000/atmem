@@ -11,7 +11,7 @@ atmem init
 atmem status
 ```
 
-`atmem init` starts the AtMem dashboard and an AtFlows instance using AtMem-owned sign-in. `atmem status` reports the actual dashboard and proxy URLs and clear errors if a companion is unavailable. It also reports an independently started AtFlows instance rather than taking it over. Initializing again keeps existing data and credentials. AtFlows 0.1.2 shows a link back to AtMem in delegated mode; AtMem links to a healthy local AtFlows dashboard.
+`atmem init` starts the AtMem dashboard and an AtFlows instance using AtMem-owned sign-in. `atmem status` reports the actual dashboard and proxy URLs and clear errors if a companion is unavailable. It also reports an independently started AtFlows instance rather than taking it over. Initializing again keeps existing data and credentials. AtFlows 0.1.2 shows a link back to AtMem in delegated mode; AtMem shows the validated healthy local AtFlows link in its persistent top navigation.
 
 Connect a supported client explicitly to AtFlows' OTLP endpoint or model proxy; installing or initializing AtMem alone does not forward traces.
 
