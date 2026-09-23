@@ -125,14 +125,13 @@ class ControlStore:
         encryption_key: bytes | None = None,
     ) -> None:
         self._process_lock = _CONTROL_STORE_LOCK
-        self._process_lock.acquire()
+        self._process_lock_acquired = False
         self._closed = False
         self._household_lock: HouseholdLock | None = None
         self._conn: sqlite3.Connection
         try:
             self.path = str(Path(path).expanduser().resolve())
             self.policy = policy or HouseholdPolicy.load(path)
-            self._household_lock = HouseholdLock(self.policy).acquire()
             Path(self.path).parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             raw = Path(self.path).read_bytes() if Path(self.path).is_file() else b""
             if encryption_key is None and raw.startswith(ENCRYPTED_CONTROL_MAGIC):
@@ -144,6 +143,11 @@ class ControlStore:
                 from atmem.evidence.crypto import load_existing_key
 
                 encryption_key = load_existing_key(inferred)
+            if encryption_key is not None:
+                self._process_lock.acquire()
+                self._process_lock_acquired = True
+            self._household_lock = HouseholdLock(self.policy).acquire()
+            raw = Path(self.path).read_bytes() if Path(self.path).is_file() else b""
             self._encryption_key = encryption_key
             if self._encryption_key is None:
                 self._conn = connect(self.path, policy=self.policy)
@@ -181,7 +185,8 @@ class ControlStore:
                 connection.close()
             if self._household_lock is not None:
                 self._household_lock.close()
-            self._process_lock.release()
+            if self._process_lock_acquired:
+                self._process_lock.release()
             raise
 
     def _persist_encrypted(self) -> None:
@@ -230,7 +235,8 @@ class ControlStore:
                 if self._household_lock is not None:
                     self._household_lock.close()
             finally:
-                self._process_lock.release()
+                if self._process_lock_acquired:
+                    self._process_lock.release()
 
     def schema_version(self) -> int:
         """Return the authorized logical schema version of the protected store."""
