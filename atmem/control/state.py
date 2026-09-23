@@ -9,6 +9,7 @@ import tempfile
 from typing import Iterator
 
 from atmem.control.models import ControlState, fail_closed_state
+from atmem.locking import ProcessFileLock
 
 
 def load_state(path: str | Path) -> ControlState:
@@ -61,23 +62,11 @@ def state_lock(path: str | Path) -> Iterator[None]:
     target = Path(path).expanduser().resolve(strict=False)
     target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     lock_path = target.with_suffix(target.suffix + ".lock")
-    descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    lock = ProcessFileLock(lock_path, blocking=True).acquire()
     try:
-        try:
-            import fcntl
-
-            fcntl.flock(descriptor, fcntl.LOCK_EX)
-        except ImportError:  # pragma: no cover - supported targets provide fcntl
-            pass
         yield
     finally:
-        try:
-            import fcntl
-
-            fcntl.flock(descriptor, fcntl.LOCK_UN)
-        except ImportError:  # pragma: no cover
-            pass
-        os.close(descriptor)
+        lock.close()
 
 
 def _safe_path(path: str | Path, *, must_exist: bool) -> Path:

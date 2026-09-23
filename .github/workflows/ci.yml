@@ -19,6 +19,28 @@ jobs:
       - run: pip install -e "./packages/atbot" -e ".[dev]"
       - run: pytest -q
 
+  windows-core-smoke:
+    name: Windows core smoke (Python 3.14, no Bun or OpenClaw)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Install AtMem and its deterministic companion
+        run: python -m pip install -e "./packages/atbot" -e ".[dev]"
+      - name: Exercise imports, process-reentrant locks, remember, and recall
+        shell: pwsh
+        run: |
+          atmem --help | Out-Null
+          python -m pytest -q tests/test_locking.py
+          $database = Join-Path $env:RUNNER_TEMP "atmem-windows-smoke.db"
+          atmem remember $database subject "remember that the desk plant is a fern"
+          if ($LASTEXITCODE -ne 0) { throw "atmem remember failed" }
+          $recalled = atmem recall $database subject "desk plant"
+          if ($LASTEXITCODE -ne 0) { throw "atmem recall failed" }
+          if ($recalled -notmatch "fern") { throw "atmem recall did not return the fern record" }
+
   atbot-tests:
     runs-on: ubuntu-latest
     strategy:

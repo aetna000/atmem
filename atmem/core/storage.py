@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import fcntl
 import json
 import os
 from pathlib import Path
 import sqlite3
 from typing import Any, Literal, Mapping, Protocol, runtime_checkable
+
+from atmem.locking import ProcessFileLock
 
 
 SQLITE_HEADER = b"SQLite format 3\x00"
@@ -103,33 +104,27 @@ class HouseholdLock:
     def __init__(self, policy: HouseholdPolicy, *, exclusive: bool = False) -> None:
         self.policy = policy
         self.exclusive = exclusive
-        self._descriptor: int | None = None
+        self._lock: ProcessFileLock | None = None
 
     def acquire(self) -> "HouseholdLock":
         if self.policy.lock_path is None:
             return self
-        self.policy.lock_path.parent.mkdir(parents=True, exist_ok=True)
-        descriptor = os.open(self.policy.lock_path, os.O_CREAT | os.O_RDWR, 0o600)
-        operation = (fcntl.LOCK_EX if self.exclusive else fcntl.LOCK_SH) | fcntl.LOCK_NB
+        lock = ProcessFileLock(self.policy.lock_path, exclusive=self.exclusive)
         try:
-            fcntl.flock(descriptor, operation)
+            lock.acquire()
         except BlockingIOError as exc:
-            os.close(descriptor)
             action = "migrate" if self.exclusive else "open"
             raise RuntimeError(
                 f"cannot {action} AtMem household while another process holds {self.policy.lock_path}"
             ) from exc
-        self._descriptor = descriptor
+        self._lock = lock
         return self
 
     def close(self) -> None:
-        if self._descriptor is None:
+        if self._lock is None:
             return
-        try:
-            fcntl.flock(self._descriptor, fcntl.LOCK_UN)
-        finally:
-            os.close(self._descriptor)
-            self._descriptor = None
+        self._lock.close()
+        self._lock = None
 
     def __enter__(self) -> "HouseholdLock":
         return self.acquire()
