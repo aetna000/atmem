@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+from threading import RLock
+import time
 from typing import Any, Iterator
 import uuid
 
@@ -21,6 +23,7 @@ from atmem.store.sqlite import utc_now
 SCHEMA_VERSION = 6
 ENCRYPTED_CONTROL_MAGIC = b"ATMEM-CONTROL-DB-V1\n"
 ENCRYPTED_SQL_DUMP_MAGIC = b"ATMEM-SQL-DUMP-V1\n"
+_CONTROL_STORE_LOCK = RLock()
 
 
 def _portable_sqlite_image(value: bytes) -> bytes:
@@ -121,18 +124,27 @@ class ControlStore:
         self, path: str | Path, *, policy: HouseholdPolicy | None = None,
         encryption_key: bytes | None = None,
     ) -> None:
-        self.path = str(Path(path).expanduser().resolve())
-        self.policy = policy or HouseholdPolicy.load(path)
-        self._household_lock = HouseholdLock(self.policy).acquire()
-        Path(self.path).parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        raw = Path(self.path).read_bytes() if Path(self.path).is_file() else b""
-        if encryption_key is None and raw.startswith(ENCRYPTED_CONTROL_MAGIC):
-            inferred = Path(self.path).parent.parent / ".evidence-keys" / f"{Path(self.path).parent.name}.key"
-            from atmem.evidence.crypto import load_existing_key
-
-            encryption_key = load_existing_key(inferred)
-        self._encryption_key = encryption_key
+        self._process_lock = _CONTROL_STORE_LOCK
+        self._process_lock.acquire()
+        self._closed = False
+        self._household_lock: HouseholdLock | None = None
+        self._conn: sqlite3.Connection
         try:
+            self.path = str(Path(path).expanduser().resolve())
+            self.policy = policy or HouseholdPolicy.load(path)
+            self._household_lock = HouseholdLock(self.policy).acquire()
+            Path(self.path).parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            raw = Path(self.path).read_bytes() if Path(self.path).is_file() else b""
+            if encryption_key is None and raw.startswith(ENCRYPTED_CONTROL_MAGIC):
+                inferred = (
+                    Path(self.path).parent.parent
+                    / ".evidence-keys"
+                    / f"{Path(self.path).parent.name}.key"
+                )
+                from atmem.evidence.crypto import load_existing_key
+
+                encryption_key = load_existing_key(inferred)
+            self._encryption_key = encryption_key
             if self._encryption_key is None:
                 self._conn = connect(self.path, policy=self.policy)
             else:
@@ -152,19 +164,25 @@ class ControlStore:
                         source.backup(self._conn)
                     finally:
                         source.close()
-        except Exception:
-            self._household_lock.close()
+            self._conn.row_factory = row_factory_for(self.policy)
+            self._conn.execute("PRAGMA foreign_keys = ON")
+            if self._encryption_key is None:
+                self._conn.execute("PRAGMA journal_mode = WAL")
+            else:
+                self._conn.execute("PRAGMA journal_mode = MEMORY")
+            self._init_schema()
+            if self._encryption_key is not None:
+                self._conn.persist_callback = self._persist_encrypted
+                self._persist_encrypted()
+        except BaseException:
+            self._closed = True
+            connection = getattr(self, "_conn", None)
+            if connection is not None:
+                connection.close()
+            if self._household_lock is not None:
+                self._household_lock.close()
+            self._process_lock.release()
             raise
-        self._conn.row_factory = row_factory_for(self.policy)
-        self._conn.execute("PRAGMA foreign_keys = ON")
-        if self._encryption_key is None:
-            self._conn.execute("PRAGMA journal_mode = WAL")
-        else:
-            self._conn.execute("PRAGMA journal_mode = MEMORY")
-        self._init_schema()
-        if self._encryption_key is not None:
-            self._conn.persist_callback = self._persist_encrypted
-            self._persist_encrypted()
 
     def _persist_encrypted(self) -> None:
         if self._encryption_key is None:
@@ -184,19 +202,35 @@ class ControlStore:
                 handle.write(ENCRYPTED_CONTROL_MAGIC + nonce + ciphertext)
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.replace(temporary, target)
+            for attempt in range(40):
+                try:
+                    os.replace(temporary, target)
+                    break
+                except PermissionError:
+                    if os.name != "nt" or attempt == 39:
+                        raise
+                    time.sleep(0.05)
             for suffix in ("-wal", "-shm", "-journal"):
                 Path(self.path + suffix).unlink(missing_ok=True)
         finally:
             temporary.unlink(missing_ok=True)
 
     def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
         try:
-            if self._encryption_key is not None:
-                self._persist_encrypted()
-            self._conn.close()
+            try:
+                if self._encryption_key is not None:
+                    self._persist_encrypted()
+            finally:
+                self._conn.close()
         finally:
-            self._household_lock.close()
+            try:
+                if self._household_lock is not None:
+                    self._household_lock.close()
+            finally:
+                self._process_lock.release()
 
     def schema_version(self) -> int:
         """Return the authorized logical schema version of the protected store."""

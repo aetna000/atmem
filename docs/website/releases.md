@@ -2,10 +2,11 @@
 
 ## Prerelease
 
-[AtMem 2.3.7b1](../releases/v2.3.7b1.md) makes Windows Store Python
-installations launch reliably and lets `atmem init` provision a private,
-checksum-verified Bun runtime when AtFlows needs one. AtMem 2.3.6 remains the
-stable recommendation.
+[AtMem 2.3.7b2](../releases/v2.3.7b2.md) serializes same-process encrypted
+control-store access and retries transient Windows atomic-replacement failures
+for control and identity data. It includes the 2.3.7b1 Windows Store Python and
+private Bun onboarding corrections. AtMem 2.3.6 remains the stable
+recommendation.
 
 ## Stable release
 [AtMem 2.3.6](../releases/v2.3.6.md) adds canonical secret refusal,
@@ -31,6 +32,7 @@ collection and the read-only AtFlows review-lead handoff remain explicit.
 5. Keep the backup until validation finishes.
 
 ## Previous releases
+- [2.3.7 beta 1](../releases/v2.3.7b1.md)
 - [2.3.6 beta history](https://github.com/aetna000/atmem/blob/main/docs/releases/v2.3.6b1.md)
 - [2.3.4 beta history](https://github.com/aetna000/atmem/blob/main/docs/releases/v2.3.4b1.md)
 - [2.3.3](../releases/v2.3.3.md)

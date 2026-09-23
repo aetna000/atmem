@@ -4,10 +4,15 @@ import base64
 import json
 import os
 from pathlib import Path
+from threading import RLock
+import time
 from typing import Any
 from uuid import uuid4
 
 from atmem.evidence.crypto import open_json, seal_json
+
+
+_IDENTITY_DOCUMENT_LOCK = RLock()
 
 
 class EncryptedIdentityDocument:
@@ -18,19 +23,21 @@ class EncryptedIdentityDocument:
         self.key = key
         self.object_id = object_id
         self.empty = empty
+        self._lock = _IDENTITY_DOCUMENT_LOCK
 
     def load(self) -> dict[str, Any]:
-        if not self.path.exists():
-            return json.loads(json.dumps(self.empty))
-        wrapper = json.loads(self.path.read_text(encoding="utf-8"))
-        if wrapper.get("format") != "atmem-encrypted-identity-document-v1":
-            raise ValueError("unsupported encrypted identity document")
-        return open_json(
-            self.key,
-            self.object_id,
-            base64.b64decode(wrapper["nonce"], validate=True),
-            base64.b64decode(wrapper["ciphertext"], validate=True),
-        )
+        with self._lock:
+            if not self.path.exists():
+                return json.loads(json.dumps(self.empty))
+            wrapper = json.loads(self.path.read_text(encoding="utf-8"))
+            if wrapper.get("format") != "atmem-encrypted-identity-document-v1":
+                raise ValueError("unsupported encrypted identity document")
+            return open_json(
+                self.key,
+                self.object_id,
+                base64.b64decode(wrapper["nonce"], validate=True),
+                base64.b64decode(wrapper["ciphertext"], validate=True),
+            )
 
     def write(self, value: dict[str, Any]) -> None:
         nonce, ciphertext = seal_json(self.key, self.object_id, value)
@@ -54,7 +61,15 @@ class EncryptedIdentityDocument:
                 handle.write("\n")
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.replace(temporary, self.path)
+            for attempt in range(40):
+                try:
+                    with self._lock:
+                        os.replace(temporary, self.path)
+                    break
+                except PermissionError:
+                    if os.name != "nt" or attempt == 39:
+                        raise
+                    time.sleep(0.05)
             self.path.chmod(0o600)
         finally:
             if temporary.exists():

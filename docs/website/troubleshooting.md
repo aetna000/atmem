@@ -21,7 +21,7 @@ Review [AtBot setup](atbot.md), endpoint and selected model. Retrieval fallback 
 not grant additional access. Do not paste provider secrets into issue reports.
 
 ## AtFlows says Bun is missing
-In AtMem 2.3.7b1, rerun `atmem init`. If compatible Bun is absent, AtMem
+In AtMem 2.3.7b2, rerun `atmem init`. If compatible Bun is absent, AtMem
 announces the official pinned download, verifies its SHA-256, and keeps the
 runtime private under `~/.atmem/runtime/bun` without changing global `PATH`.
 Pip installation alone does not download Bun. If initialization reports a
