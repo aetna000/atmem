@@ -24,7 +24,7 @@ collection and the read-only AtFlows review-lead handoff remain explicit.
 5. Keep the backup until validation finishes.
 
 ## Previous releases
-- [2.3.6 beta history](../releases/v2.3.6b1.md)
+- [2.3.6 beta history](https://github.com/aetna000/atmem/blob/main/docs/releases/v2.3.6b1.md)
 - [2.3.4 beta history](https://github.com/aetna000/atmem/blob/main/docs/releases/v2.3.4b1.md)
 - [2.3.3](../releases/v2.3.3.md)
 - [2.3.2](../releases/v2.3.2.md)
