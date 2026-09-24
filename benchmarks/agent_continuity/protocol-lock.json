@@ -1,0 +1,429 @@
+{
+  "contract_sha256": "8bda41a97ac69d678db3cfb6e827be463c83e7b9d19a5dbbe82d23ca49f41034",
+  "current_products": {
+    "atflows": {
+      "commit": "be131c9633e732ec39ef2f9b55422e4e042518eb",
+      "version": "0.1.2"
+    },
+    "atmem": {
+      "commit": "3ca2733a4d5b641b8eb887aacf5cd9c6277e0c59",
+      "version": "2.3.7b2"
+    }
+  },
+  "equivalence": {
+    "native_wrapped_pass_rate_margin_absolute": 0.02,
+    "recorded_outcome_agreement": 1.0
+  },
+  "evidence_level": "protocol-only",
+  "limitations": [
+    "No paid evaluation or production evidence yet",
+    "Upstream native equivalence and live adapter remain required",
+    "Source commits pinned; installed wheel hashes still required before G2"
+  ],
+  "live_model_protocol": {
+    "agent_model": "gpt-4.1-2025-04-14",
+    "egress": "public workload only; explicit live opt-in required",
+    "prompts": "upstream pinned prompts; digest at live adapter freeze",
+    "status": "not_executed",
+    "temperature": 0,
+    "user_model": "gpt-4.1-2025-04-14"
+  },
+  "runtime": {
+    "name": "langgraph",
+    "packages": {
+      "langgraph": {
+        "files": [
+          {
+            "filename": "langgraph-1.2.12-py3-none-any.whl",
+            "sha256": "95403af7b510de8d79164742f71daaf866c69ca804a8cb72bef2cc1fa1ab9813",
+            "url": "https://files.pythonhosted.org/packages/52/27/5a02054c535ed6fcfb2ab1e5c33c51c810cf1e773194ad28c928f0473509/langgraph-1.2.12-py3-none-any.whl"
+          },
+          {
+            "filename": "langgraph-1.2.12.tar.gz",
+            "sha256": "5fae9fa4ce771e90f10ff19ce0d5aaef4b41d7632c713d769e89cbce1241a4b9",
+            "url": "https://files.pythonhosted.org/packages/99/7e/c9e4431adb5eb78d15f0035aae162a113c80d037ceb433ddd78835217848/langgraph-1.2.12.tar.gz"
+          }
+        ],
+        "license": "MIT",
+        "version": "1.2.12"
+      },
+      "langgraph-checkpoint-sqlite": {
+        "files": [
+          {
+            "filename": "langgraph_checkpoint_sqlite-3.1.1-py3-none-any.whl",
+            "sha256": "8505c54c94a658080525d7e6780fdd4e0c078ff2566b30d399c02cc9f9af1c63",
+            "url": "https://files.pythonhosted.org/packages/f5/b9/e458601a1718337839bcfeec9d1b27b8b16ce135be2bd50ed0395d33a878/langgraph_checkpoint_sqlite-3.1.1-py3-none-any.whl"
+          },
+          {
+            "filename": "langgraph_checkpoint_sqlite-3.1.1.tar.gz",
+            "sha256": "6fcb20db4c37ef7aad52f29b539eb98c38e2dad6fab7c2446a2a9db24f37a70e",
+            "url": "https://files.pythonhosted.org/packages/54/b1/26fef7572c4fce0322740ef3fcee471510028355d4d4c1d800f0fd432d73/langgraph_checkpoint_sqlite-3.1.1.tar.gz"
+          }
+        ],
+        "license": "MIT",
+        "version": "3.1.1"
+      }
+    }
+  },
+  "schema_version": 1,
+  "split": {
+    "design_exposed_ids": [
+      "0"
+    ],
+    "excluded_zero_write_ids": [
+      "10",
+      "12",
+      "24",
+      "25",
+      "50",
+      "57",
+      "62",
+      "65",
+      "67",
+      "68"
+    ],
+    "heldout_clusters": [
+      [
+        "76"
+      ],
+      [
+        "80"
+      ],
+      [
+        "15",
+        "16",
+        "17"
+      ],
+      [
+        "33",
+        "34"
+      ],
+      [
+        "88"
+      ],
+      [
+        "45",
+        "46",
+        "47",
+        "48"
+      ],
+      [
+        "39"
+      ],
+      [
+        "113",
+        "78"
+      ],
+      [
+        "20",
+        "21",
+        "22"
+      ],
+      [
+        "93",
+        "94",
+        "95"
+      ],
+      [
+        "73"
+      ],
+      [
+        "108"
+      ],
+      [
+        "105",
+        "44",
+        "49"
+      ],
+      [
+        "91",
+        "92"
+      ],
+      [
+        "79",
+        "90"
+      ],
+      [
+        "23",
+        "70"
+      ],
+      [
+        "60",
+        "61",
+        "63"
+      ],
+      [
+        "41",
+        "42"
+      ],
+      [
+        "82",
+        "83",
+        "84"
+      ],
+      [
+        "59"
+      ],
+      [
+        "36",
+        "37",
+        "38"
+      ],
+      [
+        "89"
+      ],
+      [
+        "96",
+        "97"
+      ],
+      [
+        "71",
+        "72"
+      ],
+      [
+        "35"
+      ],
+      [
+        "100"
+      ],
+      [
+        "30",
+        "31",
+        "32"
+      ],
+      [
+        "69"
+      ],
+      [
+        "107"
+      ],
+      [
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      [
+        "64"
+      ],
+      [
+        "85",
+        "86",
+        "87"
+      ],
+      [
+        "26",
+        "27",
+        "28",
+        "29"
+      ],
+      [
+        "77"
+      ],
+      [
+        "81"
+      ],
+      [
+        "74"
+      ],
+      [
+        "54",
+        "55"
+      ],
+      [
+        "109",
+        "110"
+      ],
+      [
+        "66"
+      ],
+      [
+        "11",
+        "13",
+        "14"
+      ],
+      [
+        "40"
+      ]
+    ],
+    "heldout_digest": "2612f2c5022f1c1366ce2621add4fa056b316d76a360b1ac644d4289d3daf386",
+    "heldout_ids": [
+      "100",
+      "105",
+      "107",
+      "108",
+      "109",
+      "11",
+      "110",
+      "113",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "20",
+      "21",
+      "22",
+      "23",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "44",
+      "45",
+      "46",
+      "47",
+      "48",
+      "49",
+      "5",
+      "54",
+      "55",
+      "59",
+      "6",
+      "60",
+      "61",
+      "63",
+      "64",
+      "66",
+      "69",
+      "7",
+      "70",
+      "71",
+      "72",
+      "73",
+      "74",
+      "76",
+      "77",
+      "78",
+      "79",
+      "8",
+      "80",
+      "81",
+      "82",
+      "83",
+      "84",
+      "85",
+      "86",
+      "87",
+      "88",
+      "89",
+      "9",
+      "90",
+      "91",
+      "92",
+      "93",
+      "94",
+      "95",
+      "96",
+      "97"
+    ],
+    "method": "canonical customer aliases from pinned DB; read-only bridges retained; 20% pilot clusters",
+    "pilot_clusters": [
+      [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      [
+        "106"
+      ],
+      [
+        "101",
+        "102"
+      ],
+      [
+        "75"
+      ],
+      [
+        "18",
+        "19"
+      ],
+      [
+        "103",
+        "104"
+      ],
+      [
+        "56",
+        "58"
+      ],
+      [
+        "43"
+      ],
+      [
+        "51",
+        "52",
+        "53",
+        "98",
+        "99"
+      ],
+      [
+        "111",
+        "112"
+      ]
+    ],
+    "pilot_digest": "81f557d231dd9859d0ae8b9979a5f928741f55553b97593e16c8e5295bb0e40c",
+    "pilot_ids": [
+      "0",
+      "1",
+      "101",
+      "102",
+      "103",
+      "104",
+      "106",
+      "111",
+      "112",
+      "18",
+      "19",
+      "2",
+      "3",
+      "4",
+      "43",
+      "51",
+      "52",
+      "53",
+      "56",
+      "58",
+      "75",
+      "98",
+      "99"
+    ],
+    "seed": 20260925
+  },
+  "upstream": {
+    "commit": "b7ea9074c1cba482b30687fecdb5c8425fd6f619",
+    "database_sha256": "413a65160adbdb5fde0ffc0015c49b6d70250b10c18128de169b597af7766765",
+    "domain": "retail",
+    "license": "MIT",
+    "license_sha256": "e67c5aa0074dfcaefd3c3a1aedb94cb539234aecd15d5a972574e3200e6252fe",
+    "package_version": "1.0.1",
+    "repository": "https://github.com/sierra-research/tau2-bench",
+    "split_sha256": "ed0580ec52575b63fbf76568af42490da6ee7783ecb4aa81af46961291358f20",
+    "suite": "base",
+    "tasks_sha256": "8e03ebce7901bd6218e7a7dc3105faa9324091a68058f7fe61c65262868812e8"
+  },
+  "write_tools": [
+    "cancel_pending_order",
+    "exchange_delivered_order_items",
+    "modify_pending_order_address",
+    "modify_pending_order_items",
+    "modify_pending_order_payment",
+    "modify_user_address",
+    "return_delivered_order_items"
+  ]
+}

@@ -1,0 +1,1234 @@
+{
+  "evidence_level": "smoke",
+  "production_claims_allowed": false,
+  "cells": {
+    "runtime+atmem/Q/after_intent/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "blocked": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 0,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 1,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": null,
+      "elapsed_p95_ms": null,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": 7093.049166025594,
+      "blocked_elapsed_p95_ms": 7093.049166025594,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/Q/None/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 0,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 2551.023749867454,
+      "elapsed_p95_ms": 2551.023749867454,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/I/None/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 0,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 2490.089583210647,
+      "elapsed_p95_ms": 2490.089583210647,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/I/after_response/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 4647.242208011448,
+      "elapsed_p95_ms": 4647.242208011448,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/N/in_flight/False/drop=True": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "blocked": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 0,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 1,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": null,
+      "elapsed_p95_ms": null,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": 4003.739000065252,
+      "blocked_elapsed_p95_ms": 4003.739000065252,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/I/before_dispatch/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 4518.901208182797,
+      "elapsed_p95_ms": 4518.901208182797,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/N/after_checkpoint/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 6087.925792206079,
+      "elapsed_p95_ms": 6087.925792206079,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/N/after_commit/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "blocked": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 0,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": null,
+      "elapsed_p95_ms": null,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": 4654.027791926637,
+      "blocked_elapsed_p95_ms": 4654.027791926637,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/N/after_commit/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "blocked": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 0,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": null,
+      "elapsed_p95_ms": null,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": 5334.765458945185,
+      "blocked_elapsed_p95_ms": 5334.765458945185,
+      "incomplete_denominator": false
+    },
+    "runtime/Q/after_commit/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3177.6971251238137,
+      "elapsed_p95_ms": 3177.6971251238137,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/Q/after_receipt_journaled/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3478.8516249973327,
+      "elapsed_p95_ms": 3478.8516249973327,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/I/in_flight/False/drop=True": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3415.2731250505894,
+      "elapsed_p95_ms": 3415.2731250505894,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/N/after_checkpoint/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3659.97195802629,
+      "elapsed_p95_ms": 3659.97195802629,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/I/after_intent/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3303.5439159721136,
+      "elapsed_p95_ms": 3303.5439159721136,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/I/after_checkpoint/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3697.300667176023,
+      "elapsed_p95_ms": 3697.300667176023,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/Q/before_dispatch/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3186.1303749028593,
+      "elapsed_p95_ms": 3186.1303749028593,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/I/after_commit/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3354.0523750707507,
+      "elapsed_p95_ms": 3354.0523750707507,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/N/after_receipt_journaled/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3139.787749852985,
+      "elapsed_p95_ms": 3139.787749852985,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/I/before_dispatch/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3238.1995001342148,
+      "elapsed_p95_ms": 3238.1995001342148,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/Q/after_checkpoint/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3694.7195830289274,
+      "elapsed_p95_ms": 3694.7195830289274,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/N/None/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 0,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1832.2794591076672,
+      "elapsed_p95_ms": 1832.2794591076672,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/N/before_dispatch/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3394.563749898225,
+      "elapsed_p95_ms": 3394.563749898225,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/Q/after_response/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3286.2423330079764,
+      "elapsed_p95_ms": 3286.2423330079764,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/Q/after_intent/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "blocked": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 0,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 1,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": null,
+      "elapsed_p95_ms": null,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": 3031.4634579699486,
+      "blocked_elapsed_p95_ms": 3031.4634579699486,
+      "incomplete_denominator": false
+    },
+    "runtime/N/after_response/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "blocked": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 0,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": null,
+      "elapsed_p95_ms": null,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": 2852.664874866605,
+      "blocked_elapsed_p95_ms": 2852.664874866605,
+      "incomplete_denominator": false
+    },
+    "runtime/Q/after_checkpoint/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 2784.0479579754174,
+      "elapsed_p95_ms": 2784.0479579754174,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/I/in_flight/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 3169.289416866377,
+      "elapsed_p95_ms": 3169.289416866377,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/I/after_response/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1291.239625075832,
+      "elapsed_p95_ms": 1291.239625075832,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/I/after_receipt_journaled/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1569.7182498406619,
+      "elapsed_p95_ms": 1569.7182498406619,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/N/after_intent/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "blocked": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 0,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 1,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": null,
+      "elapsed_p95_ms": null,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": 1961.1320418771356,
+      "blocked_elapsed_p95_ms": 1961.1320418771356,
+      "incomplete_denominator": false
+    },
+    "runtime/Q/in_flight/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1543.0770420935005,
+      "elapsed_p95_ms": 1543.0770420935005,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/N/in_flight/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "blocked": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 0,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": null,
+      "elapsed_p95_ms": null,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": 1630.1382910460234,
+      "blocked_elapsed_p95_ms": 1630.1382910460234,
+      "incomplete_denominator": false
+    },
+    "runtime/Q/in_flight/False/drop=True": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1480.045499978587,
+      "elapsed_p95_ms": 1480.045499978587,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/I/after_receipt_journaled/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1435.0291669834405,
+      "elapsed_p95_ms": 1435.0291669834405,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/I/in_flight/False/drop=True": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1392.9612499196082,
+      "elapsed_p95_ms": 1392.9612499196082,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/N/after_intent/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "blocked": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 0,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 1,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": null,
+      "elapsed_p95_ms": null,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": 1228.432167088613,
+      "blocked_elapsed_p95_ms": 1228.432167088613,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/Q/after_response/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1673.2390420511365,
+      "elapsed_p95_ms": 1673.2390420511365,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/I/after_task_committed/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1275.5122079979628,
+      "elapsed_p95_ms": 1275.5122079979628,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/Q/in_flight/False/drop=True": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1470.6371671054512,
+      "elapsed_p95_ms": 1470.6371671054512,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/N/in_flight/False/drop=True": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "blocked": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 0,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 1,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": null,
+      "elapsed_p95_ms": null,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": 1322.7522501256317,
+      "blocked_elapsed_p95_ms": 1322.7522501256317,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/N/after_task_committed/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1437.0065839029849,
+      "elapsed_p95_ms": 1437.0065839029849,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/Q/None/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 0,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 617.4643749836832,
+      "elapsed_p95_ms": 617.4643749836832,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/I/None/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 0,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 662.2077089268714,
+      "elapsed_p95_ms": 662.2077089268714,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/I/after_checkpoint/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1240.2278748340905,
+      "elapsed_p95_ms": 1240.2278748340905,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/Q/after_task_committed/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1372.3428749945015,
+      "elapsed_p95_ms": 1372.3428749945015,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/I/after_intent/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1386.5054161287844,
+      "elapsed_p95_ms": 1386.5054161287844,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/Q/in_flight/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1440.7023328822106,
+      "elapsed_p95_ms": 1440.7023328822106,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/Q/after_receipt_journaled/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1405.2830839063972,
+      "elapsed_p95_ms": 1405.2830839063972,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/N/after_commit/True/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "invalid_effects": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 0,
+      "duplicate_effects": 1,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": null,
+      "elapsed_p95_ms": null,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/I/after_task_committed/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1469.9482501018792,
+      "elapsed_p95_ms": 1469.9482501018792,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/N/before_dispatch/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1384.961374802515,
+      "elapsed_p95_ms": 1384.961374802515,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/N/in_flight/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "blocked": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 0,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": null,
+      "elapsed_p95_ms": null,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": 1403.0293331015855,
+      "blocked_elapsed_p95_ms": 1403.0293331015855,
+      "incomplete_denominator": false
+    },
+    "runtime/N/after_task_committed/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1269.8076248634607,
+      "elapsed_p95_ms": 1269.8076248634607,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/N/after_response/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "blocked": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 0,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": null,
+      "elapsed_p95_ms": null,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": 1621.7661248520017,
+      "blocked_elapsed_p95_ms": 1621.7661248520017,
+      "incomplete_denominator": false
+    },
+    "runtime/N/None/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 0,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 664.8565421346575,
+      "elapsed_p95_ms": 664.8565421346575,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/Q/after_commit/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1373.1385830324143,
+      "elapsed_p95_ms": 1373.1385830324143,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/I/in_flight/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1460.3749169036746,
+      "elapsed_p95_ms": 1460.3749169036746,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/Q/after_task_committed/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1243.6711250338703,
+      "elapsed_p95_ms": 1243.6711250338703,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/N/after_receipt_journaled/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1395.2218340709805,
+      "elapsed_p95_ms": 1395.2218340709805,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime/I/after_commit/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1326.4378749299794,
+      "elapsed_p95_ms": 1326.4378749299794,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    },
+    "runtime+atmem/Q/before_dispatch/False/drop=False": {
+      "scheduled_trials": 1,
+      "scored_trials": 1,
+      "dispositions": {
+        "completed": 1
+      },
+      "fault_reached": 1,
+      "valid_completion_count": 1,
+      "duplicate_effects": 0,
+      "wrong_effects": 0,
+      "forgotten_operations": 0,
+      "pending_blocked_operations": 0,
+      "intended_operations_scored": 1,
+      "elapsed_p50_ms": 1344.131875084713,
+      "elapsed_p95_ms": 1344.131875084713,
+      "latency_population": "completed scored trials only; excludes fixture setup and teardown",
+      "blocked_elapsed_p50_ms": null,
+      "blocked_elapsed_p95_ms": null,
+      "incomplete_denominator": false
+    }
+  },
+  "unavailable_metrics": [
+    "live model cost/tokens",
+    "context integrity in agent execution",
+    "full-fidelity evidence continuity",
+    "CPU and peak RSS",
+    "held-out significance and multiplicity-controlled comparison"
+  ],
+  "warning": "Generic one-operation crash fixtures; not a public-corpus agent evaluation."
+}
