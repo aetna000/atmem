@@ -1,7 +1,7 @@
 # Resume work with AtMem and AtFlows
 
-Included in the AtMem 2.3.7 / AtFlows 0.1.3 release candidate. Verify matching
-registry artifacts before following the exact versioned installation command.
+Available in AtMem 2.3.7 with AtFlows 0.1.3. Continuity requires the explicit
+setup below; installing the packages alone does not enable recovery.
 
 AtMem saves what your connected agent is doing before it calls a tool. When the
 agent restarts, a saved success receipt lets it reuse the result. If an action

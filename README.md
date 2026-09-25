@@ -5,7 +5,7 @@
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-> **2.3.7 release candidate:** Product-owned continuity helps connected workflows reuse completed results, reconcile supported destinations, and stop uncertain work safely. AtFlows 0.1.3 adds attempt visibility and grouped event charts. See the [release note](./docs/releases/v2.3.7.md), [setup guide](./docs/continuity.md), and [recorded evidence](./benchmarks/agent_continuity/reports/product-continuity-20260925.md). Publication is confirmed by matching GitHub and registry artifacts; previous benchmarks retain their tested-version provenance.
+> **AtMem 2.3.7:** Product-owned continuity helps connected workflows reuse completed results, reconcile supported destinations, and stop uncertain work safely. AtFlows 0.1.3 adds attempt visibility and grouped event charts. See the [release note](./docs/releases/v2.3.7.md), [setup guide](./docs/continuity.md), and [recorded evidence](./benchmarks/agent_continuity/reports/product-continuity-20260925.md). Previous benchmarks retain their tested-version provenance.
 > It records exact host-observed text and supported multimodal boundaries by default,
 > while keeping every claim limited to what the connected agent actually supplied.
 

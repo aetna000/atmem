@@ -1,9 +1,10 @@
 # AtMem release roadmap
 
-**Status**: 2.3.7 stable release candidate in preparation; future versions are
+**Status**: 2.3.7 stable release line; future versions are
 planning targets, not delivery-date commitments.
-**Stable release baseline**: AtMem `2.3.6`, OpenClaw bridge `2.3.6`, companion pins
-`atmem-atbot==0.1.0` and `atflows==0.1.2`.
+**Release baseline**: AtMem `2.3.7`, OpenClaw bridge `2.3.7`, companion pins
+`atmem-atbot==0.1.0` and `atflows==0.1.3`. Publication status is recorded by
+the matching GitHub release and registry artifacts, not this roadmap alone.
 
 **Approved next release:** AtMem/bridge `2.3.7`, AtFlows `0.1.3`, AtBot `0.1.0`.
 Lead with opt-in product continuity, observable attempts, grouped event charts
@@ -19,7 +20,7 @@ AtMem is an agent-neutral, standalone encrypted evidence authority for memory, c
 Priority updated 2026-09-25: [Benchmarking 002](../specs/benchmarking/002-agent-continuity/spec.md)
 and AtFlows Spec 010 take precedence over starting new 2.4.0 Memory Health
 features. The experimental baseline is AtMem 2.3.7b2 and AtFlows 0.1.2;
-this does not change the stable publication baseline above.
+these historical artifact versions are retained for reproducibility.
 
 Corrected delivery order: product contracts; AtMem progress/receipt authority and
 shipped host recovery integration; user setup/status; AtFlows recovery/cost views;
