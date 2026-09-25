@@ -104,6 +104,26 @@ def _live_config(executable: str, keys: list[str]) -> dict[str, Any]:
     }
 
 
+_OPENCLAW_EFFECTIVE_OBJECT_DEFAULTS: dict[str, dict[str, Any]] = {
+    "plugins.entries.memory-atmem.config.recall": {
+        "requireDirectSupport": True,
+    },
+}
+
+
+def _config_values_match(key: str, expected: Any, observed: Any) -> bool:
+    """Compare authored config with OpenClaw's materialized effective value."""
+    if observed == expected:
+        return True
+    defaults = _OPENCLAW_EFFECTIVE_OBJECT_DEFAULTS.get(key)
+    if not defaults or not isinstance(expected, dict) or not isinstance(observed, dict):
+        return False
+    effective_expected = dict(expected)
+    for field, value in defaults.items():
+        effective_expected.setdefault(field, value)
+    return observed == effective_expected
+
+
 def _config_check(
     state: ControlState, executable: str, cutover: dict[str, Any] | None
 ) -> dict[str, Any]:
@@ -111,7 +131,11 @@ def _config_check(
         applied = cutover.get("applied_configuration")
         if isinstance(applied, dict):
             observed = _live_config(executable, sorted(applied))
-            mismatches = [key for key in sorted(applied) if observed.get(key) != applied[key]]
+            mismatches = [
+                key
+                for key in sorted(applied)
+                if not _config_values_match(key, applied[key], observed.get(key))
+            ]
             return _check(
                 "config_consistency",
                 "fail" if mismatches else "pass",
