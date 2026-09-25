@@ -11,7 +11,7 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler, ProxyHand
 from urllib.request import HTTPCookieProcessor
 from http.cookiejar import CookieJar
 from contextvars import ContextVar
-from concurrent.futures import Future
+from concurrent.futures import Future, TimeoutError as FutureTimeoutError
 from threading import BoundedSemaphore, Thread
 
 
@@ -227,7 +227,12 @@ class AtFlowsObserver:
         except BaseException:
             self._slots.release()
             raise
-        return future.result(timeout=2)
+        try:
+            return future.result(timeout=2)
+        except FutureTimeoutError as exc:
+            # Python 3.10 uses a distinct futures exception; expose the same
+            # public timeout type on every supported Python version.
+            raise TimeoutError("observer delivery timed out") from exc
 
     def _send(self, event):
         request = Request(self.url + "/v1/continuity/events", data=json.dumps(event, allow_nan=False).encode(),
