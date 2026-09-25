@@ -38,6 +38,8 @@ atflows = [
 ]
 dev = [
   "pytest>=8.0.0",
+  "certifi>=2024.2.2",
+  "loguru>=0.7,<1",
   "tomli>=2.0; python_version < '3.11'",
 ]
 semantic = [

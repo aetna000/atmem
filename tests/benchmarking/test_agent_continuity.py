@@ -5,6 +5,8 @@ import json
 import multiprocessing as mp
 from pathlib import Path
 import secrets
+import importlib.metadata
+from functools import partial
 
 import pytest
 
@@ -13,6 +15,18 @@ from benchmarks.agent_continuity.faults import BARRIERS, trial
 from benchmarks.agent_continuity.manifest import digest, partition
 from benchmarks.agent_continuity.oracle import score_context, score_effects
 from benchmarks.agent_continuity.report import charge_totals, paired_cluster_interval, summarize
+
+
+@pytest.fixture(autouse=True)
+def unit_test_protocol(tmp_path, monkeypatch):
+    """Exercise harness mechanics against this build without relabelling history."""
+    from benchmarks.agent_continuity import faults, manifest
+    lock = json.loads((Path(manifest.__file__).parent / 'protocol-lock.json').read_text())
+    lock['current_products']['atmem']['version'] = importlib.metadata.version('atmem')
+    lock['evidence_level'] = 'unit-test-only-not-a-published-benchmark'
+    path = tmp_path / 'unit-test-protocol.json'
+    path.write_text(json.dumps(lock))
+    monkeypatch.setattr(faults, 'environment_stamp', partial(manifest.environment_stamp, lock_path=path))
 
 
 def test_partition_is_clustered_reproducible_and_disjoint():

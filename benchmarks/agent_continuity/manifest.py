@@ -123,9 +123,9 @@ def source_version(root: Path) -> str:
     return tomllib.loads((root / "pyproject.toml").read_text())["project"]["version"]
 
 
-def environment_stamp() -> dict:
+def environment_stamp(*, lock_path: Path | None = None) -> dict:
     root = Path(__file__).resolve().parent
-    lock_path = root / "protocol-lock.json"
+    lock_path = lock_path or root / "protocol-lock.json"
     lock = json.loads(lock_path.read_text())
     versions = {}
     for name, metadata in lock["runtime"]["packages"].items():
