@@ -65,6 +65,9 @@ def test_repository_release_constants_and_notes_are_aligned():
     for workflow in ('ci.yml', 'publish.yml'):
         workflow_text = (root / '.github/workflows' / workflow).read_text()
         assert f"assert version('atflows') == '{atflows_version}'" in workflow_text
+    handoff = (root / 'tools/smoke_atflows_handoff.py').read_text()
+    assert f'version("atflows") != "{atflows_version}"' in handoff
+    assert f'atflows_version != "atflows {atflows_version}"' in handoff
     assert metadata['optional-dependencies']['atflows'] == []  # legacy extra
     note = root / f'docs/releases/v{version}.md'
     assert note.is_file()
