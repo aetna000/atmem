@@ -1,0 +1,47 @@
+{
+  "attempt_id": "280438c7-09b2-4437-9860-2fa743046af9",
+  "latency_ms": 2846.6765829361975,
+  "response": {
+    "id": "chatcmpl-ERlveIqtBQfZTi6FGln3ZAjdviKBc",
+    "object": "chat.completion",
+    "created": 1790287802,
+    "model": "gpt-4.1-2025-04-14",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Hi! I just received my order, and I\u2019d like to exchange a couple of items. I want to swap the mechanical keyboard for the same model but with clicky switches, and I also need to exchange the smart thermostat for one that works with Google Home instead of Apple HomeKit. Can you help me with both of these at once?",
+          "refusal": null,
+          "annotations": []
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 417,
+      "completion_tokens": 69,
+      "total_tokens": 486,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "audio_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": 0,
+        "accepted_prediction_tokens": 0,
+        "rejected_prediction_tokens": 0
+      }
+    },
+    "service_tier": "default",
+    "system_fingerprint": "fp_d050158039",
+    "_benchmark_http": {
+      "http_status": 200,
+      "request_id": "req_548db4f00f184f19b2a8120fc20673c5",
+      "received_bytes": 1119,
+      "body_sha256": "eac487e6c617ee932c07c5472f7ee2f5d3ff296d85cf850652afb2feebf993ff"
+    },
+    "_benchmark_raw_response": "{\n  \"id\": \"chatcmpl-ERlveIqtBQfZTi6FGln3ZAjdviKBc\",\n  \"object\": \"chat.completion\",\n  \"created\": 1790287802,\n  \"model\": \"gpt-4.1-2025-04-14\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"Hi! I just received my order, and I\u2019d like to exchange a couple of items. I want to swap the mechanical keyboard for the same model but with clicky switches, and I also need to exchange the smart thermostat for one that works with Google Home instead of Apple HomeKit. Can you help me with both of these at once?\",\n        \"refusal\": null,\n        \"annotations\": []\n      },\n      \"logprobs\": null,\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 417,\n    \"completion_tokens\": 69,\n    \"total_tokens\": 486,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\": 0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\": 0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\": \"default\",\n  \"system_fingerprint\": \"fp_d050158039\"\n}\n"
+  }
+}

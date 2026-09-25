@@ -35,6 +35,7 @@ class APIPrincipal:
     tenant_id: str = "local"
     evidence_role: str | None = None
     credential_kind: str = "api_bearer"
+    evidence_run_id: str | None = None
 
     @property
     def operations(self) -> frozenset[str]:
@@ -349,6 +350,7 @@ class AtMemApplication:
                 principal.tenant_id,
                 principal.subject_id,
                 principal.workspace_id,
+                principal.evidence_run_id,
             ),
         )
 

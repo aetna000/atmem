@@ -1,0 +1,20 @@
+{
+  "evidence_level": "smoke",
+  "date": "2026-09-25",
+  "installation": "separate temporary environment; wheels installed with --no-deps and existing dependency access",
+  "atmem": {
+    "wheel": "atmem-2.3.7b2-py3-none-any.whl",
+    "sha256": "97a01735b2cb481862a0694cf2848ad6659fb817c6f905ad47e529729b58bf37",
+    "command": "atmem --version",
+    "stdout": "atmem 2.3.7b2",
+    "exit_code": 0
+  },
+  "atflows": {
+    "wheel": "atflows-0.1.2-py3-none-any.whl",
+    "sha256": "30757ba0ebc3c3e07fb2162f67add961528c9766284bf19843688589dea908ca",
+    "command": "atflows --version",
+    "stdout": "atflows 0.1.2",
+    "exit_code": 0
+  },
+  "limitations": ["Not a clean-dependency installation test", "Not a complete installed-runtime gate", "No user installation changed"]
+}

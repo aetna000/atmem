@@ -1,6 +1,6 @@
 # AtMem unified product roadmap
 
-**Updated**: 2026-09-20
+**Updated**: 2026-09-25
 **Status**: Implementation backlog; product capabilities below require their acceptance gates.
 
 **Numbered releases**: [Release roadmap — proposed 2.3 beta through 2.10 model-unlearning research preview](../docs/release-roadmap.md). Its Work group column maps the non-chronological M0–M4 dependency/scope groupings to independently sequenced releases; version numbers are planning targets, not publication claims.
@@ -10,6 +10,20 @@
 AtMem helps agents remember, controls the context they receive, and independently preserves what happened. The AtMem evidence store—not the agent, host logs or an external provider—is the investigation system of record.
 
 ## Product requirements that govern every feature
+
+### Agent continuity: immediate product-first priority
+
+[Benchmarking 002's correction](benchmarking/002-agent-continuity/product-first-correction.md)
+requires product-owned progress/receipt authority, shipped host recovery support
+and AtFlows recovery/cost views before evaluation. The benchmark only injects
+faults and measures; no recovery or feature compensation is permitted in it.
+Preserve existing raw baseline/design evidence. Host execution, AtMem authority
+and AtFlows observation remain distinct; no universal exactly-once claim.
+
+As of 2026-09-25 this is the next engineering priority, ahead of new Spec 026
+Memory Health work. Preserve existing release and security gates. First qualify
+installed features without benchmark code, then compare them; no new version is assigned.
+See the [release priority](../docs/release-roadmap.md#immediate-priority-agent-continuity-qualification).
 
 **Agent- and framework-neutral. Multiple agents. Replaceable, governed context providers. Standalone full-fidelity multimodal evidence. Clear explanations and deterministic reconstruction.**
 

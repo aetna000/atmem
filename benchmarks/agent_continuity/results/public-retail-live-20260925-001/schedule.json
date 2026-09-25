@@ -1,0 +1,18 @@
+[
+  {
+    "arm": "baseline",
+    "initial_disposition": "planned"
+  },
+  {
+    "arm": "atmem",
+    "initial_disposition": "planned"
+  },
+  {
+    "arm": "atflows",
+    "initial_disposition": "planned"
+  },
+  {
+    "arm": "both",
+    "initial_disposition": "planned"
+  }
+]

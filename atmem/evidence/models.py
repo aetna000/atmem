@@ -13,6 +13,8 @@ class CaptureMode(str, Enum):
 
 
 class EvidenceRole(str, Enum):
+    CONTINUITY_HOST = "continuity_host"
+    CONTINUITY_COORDINATOR = "continuity_coordinator"
     VIEWER = "viewer"
     INVESTIGATOR = "investigator"
     EVIDENCE_COLLECTOR = "evidence_collector"
@@ -20,6 +22,7 @@ class EvidenceRole(str, Enum):
 
 
 class EvidenceOperation(str, Enum):
+    CONTINUITY = "continuity"
     VIEW = "view"
     SEARCH = "search"
     RECONSTRUCT = "reconstruct"
@@ -35,6 +38,8 @@ class EvidenceOperation(str, Enum):
 
 
 _ROLE_OPERATIONS = {
+    EvidenceRole.CONTINUITY_HOST: frozenset({EvidenceOperation.CONTINUITY}),
+    EvidenceRole.CONTINUITY_COORDINATOR: frozenset({EvidenceOperation.CONTINUITY}),
     # Viewer is deliberately metadata-only. The unprotected flight projection
     # exposes hashes, timing, integrity and outcomes; protected evidence APIs
     # begin at Investigator so Viewer never triggers decryption.

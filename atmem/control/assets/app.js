@@ -28,7 +28,7 @@ $("viewStatus").appendChild($("blackboxArchiveCard"));
 $("auditViewMount").appendChild($("auditExplorer"));
 var pageWorkspaces={
  status:{rail:"sessionsRail",stage:"sessionsStage",items:[["sessionInsights","Overview","Run health and trends","◫"],["blackboxCard","Recent sessions","Latest agent activity","◷"],["memorySearchCard","Memory search","Find retained context","⌕"],["blackboxArchiveCard","Session archive","All recorded runs","▤"]]},
- decisions:{rail:"decisionsRail",stage:"decisionsStage",items:[["hero","Provider","Activation and mode","◉"],["reviewCard","Memory reviews","Approve or reject","◇"],["taskCard","Governed tasks","Task progress","▣"],["proposalCard","Proposals","Suggested changes","✦"],["decisionChecks","Verification","Readiness and recovery","◆"],["decisionChangesCard","What changes","Mode behavior","↔"]]},
+ decisions:{rail:"decisionsRail",stage:"decisionsStage",items:[["hero","Provider","Activation and mode","◉"],["reviewCard","Memory reviews","Approve or reject","◇"],["continuityCard","Resume work","Progress and safe recovery","↻"],["taskCard","Governed tasks","Task progress","▣"],["proposalCard","Proposals","Suggested changes","✦"],["decisionChecks","Verification","Readiness and recovery","◆"],["decisionChangesCard","What changes","Mode behavior","↔"]]},
  memory:{rail:"memoryRail",stage:"memoryStage",items:[["mirrorCard","Sources","Origin and provenance","◫"],["recordBreakdownCard","Records","Searchable content","▤"],["storageOverview","Storage","Files and indexes","⌂"]]},
  audit:{rail:"auditRail",stage:"auditStage",items:[["auditExplorer","Event history","Governance timeline","◷"],["auditExplorer","Advanced filters","Search exact events","⌕","auditadvanced"],["auditExplorer","Activity volume","Events over time","▥","auditvolume"]]}
 };
@@ -445,6 +445,37 @@ async function decideProposal(row,decision){
 async function refreshProposals(silent){
  try{proposalQueue=await get("/api/memory/proposals");renderProposals()}catch(error){if(!silent)showError(error)}
 }
+async function refreshContinuity(){
+ var box=$("continuityWorkflows");if(!box)return;
+ try{
+  var value=await get("/v1/continuity"),rows=value.workflows||[];box.replaceChildren();
+  if(!rows.length){box.appendChild(element("p","empty","No saved workflows yet. Connect an agent using the AtMem continuity client, create its workflow, then enable it here."));return}
+  rows.forEach(function(workflow){
+   var card=element("section","continuity-workflow"),ops=workflow.operations||[],done=ops.filter(function(o){return o.status==="completed"}).length,uncertain=ops.filter(function(o){return o.status==="uncertain"&&!(o.lease_until>Date.now()/1000)}).length;
+   card.appendChild(element("h3","",workflow.workflow_key.indexOf("call_")===0&&ops.length?ops[0].tool.replace(/_/g," "):workflow.workflow_key));
+   card.appendChild(element("code","mono",workflow.workflow_id));
+   card.appendChild(element("p","sub",done+" done · "+(ops.length-done)+" unfinished · "+uncertain+" need confirmation · "+(workflow.enabled?"Enabled":"Paused")));
+   var role=localAuth.account&&localAuth.account.role;
+   if(role==="administrator"||role==="evidence_collector"){
+    var toggle=element("button","secondary",workflow.enabled?"Pause new attempts":"Enable recovery");toggle.onclick=async function(){try{await post("/v1/continuity/"+workflow.workflow_id+"/configure",{enabled:!workflow.enabled});await refreshContinuity()}catch(e){showError(e)}};card.appendChild(toggle);
+   }
+   ops.forEach(function(op){
+    var details=element("details","continuity-operation"),labels={completed:"Done",pending:"Remaining",uncertain:"Needs confirmation",abandoned:"Stopped by operator"};
+    var running=op.status==="uncertain"&&op.lease_until>Date.now()/1000;
+    if(running)labels.uncertain="Attempt in progress";
+    details.appendChild(element("summary","",op.name+" — "+(labels[op.status]||op.status)));
+    details.appendChild(element("p","sub",running?"An attempt holds this operation until "+new Date(op.lease_until*1000).toLocaleString()+". Another worker cannot start it meanwhile.":op.status==="uncertain"?(op.capability==="none"?"The action may have happened, and this tool has no safe way to check or repeat it. Inspect the destination. AtMem will not automatically repeat it.":op.capability==="query"?"The action may have happened. Restart your connected agent: AtMem will ask the tool to check its existing receipt, not execute the action again.":"The action may have happened. The connected agent may retry with the same destination idempotency key only while its retention window is valid."):op.status==="completed"?"A saved receipt is available. The connected agent can reuse this result.":op.status==="abandoned"?"This work was stopped, not completed. Dependent steps cannot proceed.":"Your connected agent will run this after earlier steps finish."));
+    if(op.attempts&&op.attempts.length){var last=op.attempts[op.attempts.length-1];details.appendChild(element("p","sub","Last attempt: "+new Date(last.started*1000).toLocaleString()+" · "+op.attempts.length+" attempt(s)"))}
+    if(op.receipt){details.appendChild(element("p","sub","Receipt: host-reported outcome, not independent destination verification."));details.appendChild(jsonPre(op.receipt,"exactjson mono"))}
+    if(op.has_receipt){var receiptLoaded=false;details.addEventListener("toggle",async function(){if(!details.open||receiptLoaded)return;receiptLoaded=true;try{var exact=await get("/v1/continuity/"+workflow.workflow_id),selected=(exact.operations||[]).find(function(row){return row.operation_id===op.operation_id});if(selected&&selected.receipt){details.appendChild(element("p","sub","Receipt: host-reported outcome, not independent destination verification."));details.appendChild(jsonPre(selected.receipt,"exactjson mono"))}}catch(e){receiptLoaded=false;showError(e)}})}
+    if(!running&&op.status!=="completed"&&op.status!=="abandoned"&&(role==="administrator"||role==="evidence_collector")){
+     var abandon=element("button","secondary","Stop this work");abandon.onclick=async function(){var reason=window.prompt("Why should this work stop? This does not mark it completed and dependent steps will remain blocked.");if(!reason||!reason.trim())return;try{await post("/v1/continuity/"+workflow.workflow_id+"/abandon",{name:op.name,reason:reason});await refreshContinuity()}catch(e){showError(e)}};details.appendChild(abandon);
+    }
+    card.appendChild(details);
+   });box.appendChild(card);
+  });
+ }catch(error){box.replaceChildren(element("p","empty","Saved work unavailable. Sign in with Investigator access or higher, and make sure evidence is unlocked."))}
+}
 function taskCapabilityAvailable(){var features=(productInfo&&productInfo.capabilities&&productInfo.capabilities.features)||{};return features.governed_task_state===true}
 function currentTaskScope(){var existing=(taskMode&&taskMode.scope)||null;if(existing&&existing.subject_id&&existing.agent_id&&existing.workspace_id)return existing;var topology=(state&&state.agent_topology)||{},agents=Array.isArray(topology.agents)?topology.agents:[],agentId=topology.default_agent_id||"default-agent",agent=agents.find(function(row){return row.agent_id===agentId})||agents[0]||{};return{subject_id:agent.subject_id||(state&&state.subject_id)||"local-user",agent_id:agent.agent_id||agentId,workspace_id:agent.workspace_id||topology.primary_workspace_id||"default-workspace"}}
 function taskScopeQuery(extra){var scope=currentTaskScope(),params=new URLSearchParams();params.set("subject",scope.subject_id);params.set("agent",scope.agent_id);params.set("workspace",scope.workspace_id);Object.keys(extra||{}).forEach(function(key){if(extra[key]!=null)params.set(key,extra[key])});return params.toString()}
@@ -554,6 +585,7 @@ async function taskLifecycle(action){
  }catch(error){showError(error)}
 }
 async function refreshTasks(silent){
+ await refreshContinuity();
  if(!taskCapabilityAvailable()){$("taskCard").hidden=true;$("taskModeSettingsCard").hidden=true;return}
  try{
   var query=taskScopeQuery(),values=await Promise.all([get("/api/tasks/mode?"+query),get("/api/tasks?"+query),get("/api/tasks/health?"+query)]);
@@ -758,7 +790,8 @@ $("refreshBtn").onclick=refresh;$("switchBtn").onclick=switchProvider;
 $("drillBtn").onclick=restoreDrill;
 $("verifyBtn").onclick=verifyNow;
 $("bridgeRefresh").onclick=refreshBridgeAndTest;
-$("reviewRefresh").onclick=refreshReviews;$("proposalRefresh").onclick=function(){refreshProposals()};$("taskRefresh").onclick=function(){refreshTasks()};
+$("reviewRefresh").onclick=refreshReviews;$("proposalRefresh").onclick=function(){refreshProposals()};$("taskRefresh").onclick=function(){refreshTasks()};$("continuityRefresh").onclick=refreshContinuity;
+document.addEventListener("click",function(event){var target=event.target.closest&&event.target.closest("button");if(target&&target.textContent.indexOf("Resume work")>=0)refreshContinuity()});
 $("taskModeAction").onclick=setTaskStateMode;
 $("semanticModelSelect").onchange=renderSemanticSettings;
 $("semanticSetupAction").onclick=setupSemanticProfile;

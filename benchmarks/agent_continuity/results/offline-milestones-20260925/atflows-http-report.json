@@ -1,0 +1,144 @@
+{
+  "evidence_level": "engineering-http-fixture",
+  "production_claims_allowed": false,
+  "four_arm_evaluation": false,
+  "source": {
+    "baseline_commit": "be131c9633e732ec39ef2f9b55422e4e042518eb",
+    "version": "0.1.2",
+    "tracked_source_sha256": "86c5fa72065716fe2f7dfc00ac710bb35a38db9b3767c46862c39327674da836",
+    "dependency_limit": "bun.lock pinned; installed node_modules bytes not hashed",
+    "probe_sha256": "4c375ed8f3dd36cd0e7e9e018a8b71a85a9c0b85eed2ec01169658a28ed54fed",
+    "guard_sha256": "ace1ab3c11a5a1300c6dc1695d6dc7f6f113469afe3282bf3ffd74f11b08cac1"
+  },
+  "harness_sha256": "399deeecd8b174828aec5e9db6180fad10a60bc6a29422363ebbae59d90cddcc",
+  "bun_version": "1.4.2",
+  "assessment": {
+    "expected_unique_spans": 3,
+    "retained_expected_spans": 2,
+    "coverage": 0.6666666666666666,
+    "missing_span_ids": [
+      "19ccb17342ade4eb"
+    ],
+    "unexpected_span_ids": [],
+    "attribute_mismatches": [],
+    "rejected_spans": 1,
+    "fixture_usage": "unknown; no model was invoked",
+    "missing_usage_stored_as_zero": 2,
+    "missing_cost_stored_as_zero": 2,
+    "cost_accuracy": null,
+    "cost_accuracy_unavailable_reason": "no priced independent charges in this fixture",
+    "coverage_owner": "independent harness, not an AtFlows product feature"
+  },
+  "observation": {
+    "evidence_level": "engineering-http-fixture",
+    "boundary": "unmodified server /v1/traces on isolated loopback",
+    "authentication": "no producer credential or Origin header sent; characterize this route path only",
+    "pricing": "network refresh target disabled; retained values are current-product outputs",
+    "guarded_egress_attempts_detected": 0,
+    "guard_vectors": [
+      "global fetch",
+      "http/https get/request",
+      "net.Socket.connect",
+      "dns.lookup",
+      "os.homedir"
+    ],
+    "limitations": [
+      "Test tripwires, not a hostile-code sandbox; native/Bun-specific paths not all intercepted",
+      "Explicit fixture storage paths; home fallback forbidden; temporary artifacts retained for inspection"
+    ],
+    "responses": [
+      {
+        "status": 200,
+        "body": {}
+      },
+      {
+        "status": 200,
+        "body": {
+          "partialSuccess": {
+            "rejectedSpans": 1,
+            "errorMessage": "UNIQUE constraint failed: traces.id"
+          }
+        }
+      },
+      {
+        "disposition": "intentionally_not_sent"
+      },
+      {
+        "status": 200,
+        "body": {}
+      }
+    ],
+    "rows": [
+      {
+        "id": "1751cea2da69ba5f",
+        "timestamp": 1700000000000,
+        "duration_ms": 100,
+        "provider": null,
+        "model": null,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "estimated_cost": 0,
+        "status": 200,
+        "error": null,
+        "request_method": null,
+        "request_path": null,
+        "request_headers": "{}",
+        "request_body": "{}",
+        "response_status": 200,
+        "response_headers": "{}",
+        "response_body": "{}",
+        "tags": "[]",
+        "trace_id": "2a0fe46a6df969a3fd55abee40707685",
+        "parent_id": null,
+        "span_type": "tool",
+        "span_name": "continuity.tool.attempt",
+        "input": "null",
+        "output": "null",
+        "attributes": "{\"session.id\":\"fixture-workflow\",\"continuity.schema_version\":1,\"continuity.scope_id\":\"fixture-scope\",\"continuity.task_id\":\"fixture-task\",\"continuity.logical_operation_id\":\"fixture-operation\",\"continuity.run_id\":\"fixture-run\",\"continuity.attempt_id\":\"late\",\"continuity.charge_id\":\"charge-late\",\"continuity.retry\":true,\"continuity.recovery\":true,\"_spanName\":\"continuity.tool.attempt\"}",
+        "service_name": "atmem.continuity",
+        "session_id": "fixture-workflow",
+        "conversation_id": null,
+        "agent_name": null
+      },
+      {
+        "id": "f26ee5d29aaf2784",
+        "timestamp": 1700000000000,
+        "duration_ms": 100,
+        "provider": null,
+        "model": null,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "estimated_cost": 0,
+        "status": 200,
+        "error": null,
+        "request_method": null,
+        "request_path": null,
+        "request_headers": "{}",
+        "request_body": "{}",
+        "response_status": 200,
+        "response_headers": "{}",
+        "response_body": "{}",
+        "tags": "[]",
+        "trace_id": "2a0fe46a6df969a3fd55abee40707685",
+        "parent_id": null,
+        "span_type": "tool",
+        "span_name": "continuity.tool.attempt",
+        "input": "null",
+        "output": "null",
+        "attributes": "{\"session.id\":\"fixture-workflow\",\"continuity.schema_version\":1,\"continuity.scope_id\":\"fixture-scope\",\"continuity.task_id\":\"fixture-task\",\"continuity.logical_operation_id\":\"fixture-operation\",\"continuity.run_id\":\"fixture-run\",\"continuity.attempt_id\":\"first\",\"continuity.charge_id\":\"charge-first\",\"continuity.retry\":false,\"continuity.recovery\":false,\"_spanName\":\"continuity.tool.attempt\"}",
+        "service_name": "atmem.continuity",
+        "session_id": "fixture-workflow",
+        "conversation_id": null,
+        "agent_name": null
+      }
+    ]
+  },
+  "limitations": [
+    "Fixture telemetry, not real agent/model execution",
+    "No authenticated producer binding tested",
+    "No product source changes",
+    "Network guards are test tripwires, not a hostile-code sandbox"
+  ]
+}

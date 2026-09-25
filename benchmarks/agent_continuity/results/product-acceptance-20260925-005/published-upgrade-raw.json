@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "old_distribution": "atmem-2.3.6.dist-info",
+  "old_record_sha256": "a424b7751c52c2bdda2ec162ded067a386395eae396d8d9fefe8cdefcf280107",
+  "old_evidence_preserved": true,
+  "normal_open_preserves_schema_2": true,
+  "continuity_opt_in_schema": 3,
+  "downgrade_refused": true,
+  "new_workflow_disabled": true
+}

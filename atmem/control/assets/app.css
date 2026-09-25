@@ -567,3 +567,11 @@ body:has(.memorychat.collapsed){padding-bottom:70px}
 /* Readable JSON evidence and logs, with the same palette in either theme. */
 pre.jsonlog{max-width:100%;box-sizing:border-box;margin:8px 0;padding:16px;overflow:auto;white-space:pre;overflow-wrap:normal;word-break:normal;border:1px solid #46555b;border-radius:0;background:#192124;color:#e8edf0;font:12px/1.55 ui-monospace,"SFMono-Regular",Consolas,monospace;tab-size:2}
 .jsonlog .json-key{color:#a0e5ed}.jsonlog .json-string{color:#ffd099}.jsonlog .json-number{color:#c9b9fa}.jsonlog .json-boolean{color:#bdc8ff}.jsonlog .json-null{color:#89979e;font-style:italic}
+/* Recovery uses the same flat, compact layout as the rest of the workspace. */
+.continuity-workflow { border-bottom: 1px solid var(--line, #526465); padding: 14px 0; }
+.continuity-workflow h3 { margin: 0 0 8px; }
+.continuity-workflow > code { overflow-wrap: anywhere; }
+#continuityCard .reviewhead h2 { display: none; }
+.pageheading > div { gap: 10px; }
+.continuity-operation { margin: 10px 0; }
+.continuity-operation summary { cursor: pointer; padding: 8px 0; font-weight: 600; }

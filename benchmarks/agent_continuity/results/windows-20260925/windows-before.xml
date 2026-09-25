@@ -1,0 +1,469 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="9" failures="0" skipped="0" tests="41" time="9.251" timestamp="2026-09-25T18:09:07.281950+10:00" hostname="DESKTOP-3FO00QL"><testcase classname="test_continuity_product" name="test_requires_explicit_enablement" time="0.120" /><testcase classname="test_continuity_product" name="test_coordinator_capacity_counts_current_open_work_per_creator" time="0.159" /><testcase classname="test_continuity_product" name="test_retained_history_limit_blocks_new_dispatch_but_keeps_reads" time="0.086" /><testcase classname="test_continuity_product" name="test_late_reports_do_not_copy_completed_workflow_snapshots" time="0.233" /><testcase classname="test_continuity_product" name="test_revision_limit_applies_to_configuration_too" time="0.064" /><testcase classname="test_continuity_product" name="test_receipt_and_operator_pause_keep_revision_headroom" time="0.101" /><testcase classname="test_continuity_product" name="test_coordinator_key_namespace_quota_host_and_deletion" time="0.114" /><testcase classname="test_continuity_product" name="test_byte_headroom_reserves_maximum_receipt_against_other_work" time="0.098" /><testcase classname="test_continuity_product" name="test_two_processes_cannot_both_dispatch" time="1.709" /><testcase classname="test_continuity_product" name="test_expired_unsuperseded_receipt_is_still_usable" time="0.076" /><testcase classname="test_continuity_product" name="test_receipt_survives_restart_and_skips_repeat" time="0.079" /><testcase classname="test_continuity_product" name="test_crash_uncertainty_uses_declared_capabilities[none-blocked]" time="0.073" /><testcase classname="test_continuity_product" name="test_crash_uncertainty_uses_declared_capabilities[query-query]" time="0.071" /><testcase classname="test_continuity_product" name="test_crash_uncertainty_uses_declared_capabilities[idempotent-execute]" time="0.072" /><testcase classname="test_continuity_product" name="test_expired_key_and_clock_rollback_do_not_license_retry" time="0.065" /><testcase classname="test_continuity_product" name="test_scope_and_host_role_are_enforced" time="0.068" /><testcase classname="test_continuity_product" name="test_saved_content_is_encrypted_and_deleted_work_cannot_restart" time="0.052" /><testcase classname="test_continuity_product" name="test_missing_key_blocks_existing_service" time="0.061" /><testcase classname="test_continuity_product" name="test_capture_cannot_forge_product_authority" time="0.060" /><testcase classname="test_continuity_product" name="test_readers_cannot_steal_lease_and_repeated_begin_does_not_dispatch" time="0.083" /><testcase classname="test_continuity_product" name="test_blocked_polls_do_not_grow_vault_and_large_receipts_rejected" time="0.228" /><testcase classname="test_continuity_product" name="test_disabling_stops_dispatch_but_preserves_inflight_receipt" time="0.090" /><testcase classname="test_continuity_product" name="test_cannot_abandon_live_attempt_or_reduce_capture" time="0.084" /><testcase classname="test_continuity_tools" name="test_published_file_is_real_receipt_and_conflicts_not_overwritten" time="0.018" /><testcase classname="test_continuity_tools" name="test_json_response_adapter_preserves_actual_result_and_never_infers_errors" time="0.038" /><testcase classname="test_continuity_http" name="test_user_sdk_skips_completed_work_without_benchmark" time="0.049"><error message="failed on setup with &quot;PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_user_sdk_skips_completed_0\\.state.json.ri223aw8.tmp'&quot;">path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_user_sdk_skips_completed_0/state.json')
+state = ControlState(migration_id='control_93a94120ac2b40828e4bc944030ed5bd', host='generic', subject_id='local-user', control...1.718027+00:00', updated_at='2026-09-25T08:09:11.718027+00:00', format='atmem-control-plane-state-v1', state_sha256='')
+
+    def write_state(path: str | Path, state: ControlState) -&gt; ControlState:
+        target = _safe_path(path, must_exist=False)
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if target.parent.is_symlink():
+            raise ValueError("migration state parent must not be a symlink")
+        normalized = state.with_digest()
+        serialized = json.dumps(normalized.to_dict(), indent=2, sort_keys=True) + "\n"
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
+        )
+        temporary_path = Path(temporary)
+        try:
+&gt;           os.fchmod(descriptor, 0o600)
+            ^^^^^^^^^
+E           AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+
+venv\Lib\site-packages\atmem\control\state.py:43: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_user_sdk_skips_completed_0')
+
+    @pytest.fixture
+    def running(tmp_path):
+&gt;       manager = ControlPlaneManager.start(host="generic", state_path=tmp_path / "state.json",
+            control_root=tmp_path / "control", memory_db=tmp_path / "memory.db")
+
+test_continuity_http.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\atmem\control\manager.py:209: in start
+    manager, _resumed = cls._start(
+venv\Lib\site-packages\atmem\control\manager.py:303: in _start
+    write_state(manager.state_path, state)
+venv\Lib\site-packages\atmem\control\state.py:53: in write_state
+    temporary_path.unlink()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_user_sdk_skips_completed_0/.state.json.ri223aw8.tmp')
+missing_ok = False
+
+    def unlink(self, missing_ok=False):
+        """
+        Remove this file or link.
+        If the path is a directory, use rmdir() instead.
+        """
+        try:
+&gt;           os.unlink(self)
+E           PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_user_sdk_skips_completed_0\\.state.json.ri223aw8.tmp'
+
+C:\Python312\Lib\pathlib.py:1342: PermissionError</error></testcase><testcase classname="test_continuity_http" name="test_observer_outage_does_not_change_tool_result" time="0.034"><error message="failed on setup with &quot;PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_observer_outage_does_not_0\\.state.json.rjqhihh6.tmp'&quot;">path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_observer_outage_does_not_0/state.json')
+state = ControlState(migration_id='control_e6b13583ae1f4b9ea7942442e3364da4', host='generic', subject_id='local-user', control...2.134304+00:00', updated_at='2026-09-25T08:09:12.134304+00:00', format='atmem-control-plane-state-v1', state_sha256='')
+
+    def write_state(path: str | Path, state: ControlState) -&gt; ControlState:
+        target = _safe_path(path, must_exist=False)
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if target.parent.is_symlink():
+            raise ValueError("migration state parent must not be a symlink")
+        normalized = state.with_digest()
+        serialized = json.dumps(normalized.to_dict(), indent=2, sort_keys=True) + "\n"
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
+        )
+        temporary_path = Path(temporary)
+        try:
+&gt;           os.fchmod(descriptor, 0o600)
+            ^^^^^^^^^
+E           AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+
+venv\Lib\site-packages\atmem\control\state.py:43: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_observer_outage_does_not_0')
+
+    @pytest.fixture
+    def running(tmp_path):
+&gt;       manager = ControlPlaneManager.start(host="generic", state_path=tmp_path / "state.json",
+            control_root=tmp_path / "control", memory_db=tmp_path / "memory.db")
+
+test_continuity_http.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\atmem\control\manager.py:209: in start
+    manager, _resumed = cls._start(
+venv\Lib\site-packages\atmem\control\manager.py:303: in _start
+    write_state(manager.state_path, state)
+venv\Lib\site-packages\atmem\control\state.py:53: in write_state
+    temporary_path.unlink()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_observer_outage_does_not_0/.state.json.rjqhihh6.tmp')
+missing_ok = False
+
+    def unlink(self, missing_ok=False):
+        """
+        Remove this file or link.
+        If the path is a directory, use rmdir() instead.
+        """
+        try:
+&gt;           os.unlink(self)
+E           PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_observer_outage_does_not_0\\.state.json.rjqhihh6.tmp'
+
+C:\Python312\Lib\pathlib.py:1342: PermissionError</error></testcase><testcase classname="test_continuity_http" name="test_operator_onboarding_uses_real_login_not_demo_accounts" time="0.037"><error message="failed on setup with &quot;PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_operator_onboarding_uses_0\\.state.json.at4q6jgv.tmp'&quot;">path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_operator_onboarding_uses_0/state.json')
+state = ControlState(migration_id='control_0c458af26fdb45c9b724fb97338c86e3', host='generic', subject_id='local-user', control...2.384651+00:00', updated_at='2026-09-25T08:09:12.384651+00:00', format='atmem-control-plane-state-v1', state_sha256='')
+
+    def write_state(path: str | Path, state: ControlState) -&gt; ControlState:
+        target = _safe_path(path, must_exist=False)
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if target.parent.is_symlink():
+            raise ValueError("migration state parent must not be a symlink")
+        normalized = state.with_digest()
+        serialized = json.dumps(normalized.to_dict(), indent=2, sort_keys=True) + "\n"
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
+        )
+        temporary_path = Path(temporary)
+        try:
+&gt;           os.fchmod(descriptor, 0o600)
+            ^^^^^^^^^
+E           AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+
+venv\Lib\site-packages\atmem\control\state.py:43: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_operator_onboarding_uses_0')
+
+    @pytest.fixture
+    def running(tmp_path):
+&gt;       manager = ControlPlaneManager.start(host="generic", state_path=tmp_path / "state.json",
+            control_root=tmp_path / "control", memory_db=tmp_path / "memory.db")
+
+test_continuity_http.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\atmem\control\manager.py:209: in start
+    manager, _resumed = cls._start(
+venv\Lib\site-packages\atmem\control\manager.py:303: in _start
+    write_state(manager.state_path, state)
+venv\Lib\site-packages\atmem\control\state.py:53: in write_state
+    temporary_path.unlink()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_operator_onboarding_uses_0/.state.json.at4q6jgv.tmp')
+missing_ok = False
+
+    def unlink(self, missing_ok=False):
+        """
+        Remove this file or link.
+        If the path is a directory, use rmdir() instead.
+        """
+        try:
+&gt;           os.unlink(self)
+E           PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_operator_onboarding_uses_0\\.state.json.at4q6jgv.tmp'
+
+C:\Python312\Lib\pathlib.py:1342: PermissionError</error></testcase><testcase classname="test_continuity_http" name="test_usage_is_emitted_by_product_callback_and_bound_to_real_attempt" time="0.041"><error message="failed on setup with &quot;PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_usage_is_emitted_by_produ0\\.state.json.r5fooosd.tmp'&quot;">path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_usage_is_emitted_by_produ0/state.json')
+state = ControlState(migration_id='control_b76ee8dcb7a74bd89b87cbd397d6f206', host='generic', subject_id='local-user', control...2.623260+00:00', updated_at='2026-09-25T08:09:12.623260+00:00', format='atmem-control-plane-state-v1', state_sha256='')
+
+    def write_state(path: str | Path, state: ControlState) -&gt; ControlState:
+        target = _safe_path(path, must_exist=False)
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if target.parent.is_symlink():
+            raise ValueError("migration state parent must not be a symlink")
+        normalized = state.with_digest()
+        serialized = json.dumps(normalized.to_dict(), indent=2, sort_keys=True) + "\n"
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
+        )
+        temporary_path = Path(temporary)
+        try:
+&gt;           os.fchmod(descriptor, 0o600)
+            ^^^^^^^^^
+E           AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+
+venv\Lib\site-packages\atmem\control\state.py:43: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_usage_is_emitted_by_produ0')
+
+    @pytest.fixture
+    def running(tmp_path):
+&gt;       manager = ControlPlaneManager.start(host="generic", state_path=tmp_path / "state.json",
+            control_root=tmp_path / "control", memory_db=tmp_path / "memory.db")
+
+test_continuity_http.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\atmem\control\manager.py:209: in start
+    manager, _resumed = cls._start(
+venv\Lib\site-packages\atmem\control\manager.py:303: in _start
+    write_state(manager.state_path, state)
+venv\Lib\site-packages\atmem\control\state.py:53: in write_state
+    temporary_path.unlink()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_usage_is_emitted_by_produ0/.state.json.r5fooosd.tmp')
+missing_ok = False
+
+    def unlink(self, missing_ok=False):
+        """
+        Remove this file or link.
+        If the path is a directory, use rmdir() instead.
+        """
+        try:
+&gt;           os.unlink(self)
+E           PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_usage_is_emitted_by_produ0\\.state.json.r5fooosd.tmp'
+
+C:\Python312\Lib\pathlib.py:1342: PermissionError</error></testcase><testcase classname="test_continuity_http" name="test_builtin_observer_has_wall_clock_bound_even_if_transport_stalls" time="2.059" /><testcase classname="test_continuity_integration" name="test_dynamic_resume_reuses_receipt_but_distinct_messages_are_distinct_work" time="0.047"><error message="failed on setup with &quot;PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_dynamic_resume_reuses_rec0\\.state.json.nk4ndenl.tmp'&quot;">path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_dynamic_resume_reuses_rec0/state.json')
+state = ControlState(migration_id='control_e4078c24898c47f29baa2875fdc427c4', host='generic', subject_id='local-user', control...4.930259+00:00', updated_at='2026-09-25T08:09:14.930259+00:00', format='atmem-control-plane-state-v1', state_sha256='')
+
+    def write_state(path: str | Path, state: ControlState) -&gt; ControlState:
+        target = _safe_path(path, must_exist=False)
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if target.parent.is_symlink():
+            raise ValueError("migration state parent must not be a symlink")
+        normalized = state.with_digest()
+        serialized = json.dumps(normalized.to_dict(), indent=2, sort_keys=True) + "\n"
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
+        )
+        temporary_path = Path(temporary)
+        try:
+&gt;           os.fchmod(descriptor, 0o600)
+            ^^^^^^^^^
+E           AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+
+venv\Lib\site-packages\atmem\control\state.py:43: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_dynamic_resume_reuses_rec0')
+
+    @pytest.fixture
+    def running(tmp_path):
+&gt;       manager = ControlPlaneManager.start(host="generic", state_path=tmp_path / "state.json",
+            control_root=tmp_path / "control", memory_db=tmp_path / "memory.db")
+
+test_continuity_http.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\atmem\control\manager.py:209: in start
+    manager, _resumed = cls._start(
+venv\Lib\site-packages\atmem\control\manager.py:303: in _start
+    write_state(manager.state_path, state)
+venv\Lib\site-packages\atmem\control\state.py:53: in write_state
+    temporary_path.unlink()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_dynamic_resume_reuses_rec0/.state.json.nk4ndenl.tmp')
+missing_ok = False
+
+    def unlink(self, missing_ok=False):
+        """
+        Remove this file or link.
+        If the path is a directory, use rmdir() instead.
+        """
+        try:
+&gt;           os.unlink(self)
+E           PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_dynamic_resume_reuses_rec0\\.state.json.nk4ndenl.tmp'
+
+C:\Python312\Lib\pathlib.py:1342: PermissionError</error></testcase><testcase classname="test_continuity_integration" name="test_coordinator_cannot_override_operator_or_use_other_workflows" time="0.037"><error message="failed on setup with &quot;PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_coordinator_cannot_overri0\\.state.json.z6fp56_e.tmp'&quot;">path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_coordinator_cannot_overri0/state.json')
+state = ControlState(migration_id='control_a60e0fc52b1644f0b592365b40c9d4b4', host='generic', subject_id='local-user', control...5.230045+00:00', updated_at='2026-09-25T08:09:15.230045+00:00', format='atmem-control-plane-state-v1', state_sha256='')
+
+    def write_state(path: str | Path, state: ControlState) -&gt; ControlState:
+        target = _safe_path(path, must_exist=False)
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if target.parent.is_symlink():
+            raise ValueError("migration state parent must not be a symlink")
+        normalized = state.with_digest()
+        serialized = json.dumps(normalized.to_dict(), indent=2, sort_keys=True) + "\n"
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
+        )
+        temporary_path = Path(temporary)
+        try:
+&gt;           os.fchmod(descriptor, 0o600)
+            ^^^^^^^^^
+E           AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+
+venv\Lib\site-packages\atmem\control\state.py:43: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_coordinator_cannot_overri0')
+
+    @pytest.fixture
+    def running(tmp_path):
+&gt;       manager = ControlPlaneManager.start(host="generic", state_path=tmp_path / "state.json",
+            control_root=tmp_path / "control", memory_db=tmp_path / "memory.db")
+
+test_continuity_http.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\atmem\control\manager.py:209: in start
+    manager, _resumed = cls._start(
+venv\Lib\site-packages\atmem\control\manager.py:303: in _start
+    write_state(manager.state_path, state)
+venv\Lib\site-packages\atmem\control\state.py:53: in write_state
+    temporary_path.unlink()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_coordinator_cannot_overri0/.state.json.z6fp56_e.tmp')
+missing_ok = False
+
+    def unlink(self, missing_ok=False):
+        """
+        Remove this file or link.
+        If the path is a directory, use rmdir() instead.
+        """
+        try:
+&gt;           os.unlink(self)
+E           PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_coordinator_cannot_overri0\\.state.json.z6fp56_e.tmp'
+
+C:\Python312\Lib\pathlib.py:1342: PermissionError</error></testcase><testcase classname="test_continuity_integration" name="test_disabled_retired_duplicate_and_unknown_actions_stop_the_host" time="0.043"><error message="failed on setup with &quot;PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_disabled_retired_duplicat0\\.state.json.8_shqh49.tmp'&quot;">path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_disabled_retired_duplicat0/state.json')
+state = ControlState(migration_id='control_0e6b2a5224ff40959aa556a7bd3382b7', host='generic', subject_id='local-user', control...5.490425+00:00', updated_at='2026-09-25T08:09:15.490425+00:00', format='atmem-control-plane-state-v1', state_sha256='')
+
+    def write_state(path: str | Path, state: ControlState) -&gt; ControlState:
+        target = _safe_path(path, must_exist=False)
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if target.parent.is_symlink():
+            raise ValueError("migration state parent must not be a symlink")
+        normalized = state.with_digest()
+        serialized = json.dumps(normalized.to_dict(), indent=2, sort_keys=True) + "\n"
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
+        )
+        temporary_path = Path(temporary)
+        try:
+&gt;           os.fchmod(descriptor, 0o600)
+            ^^^^^^^^^
+E           AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+
+venv\Lib\site-packages\atmem\control\state.py:43: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_disabled_retired_duplicat0')
+
+    @pytest.fixture
+    def running(tmp_path):
+&gt;       manager = ControlPlaneManager.start(host="generic", state_path=tmp_path / "state.json",
+            control_root=tmp_path / "control", memory_db=tmp_path / "memory.db")
+
+test_continuity_http.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\atmem\control\manager.py:209: in start
+    manager, _resumed = cls._start(
+venv\Lib\site-packages\atmem\control\manager.py:303: in _start
+    write_state(manager.state_path, state)
+venv\Lib\site-packages\atmem\control\state.py:53: in write_state
+    temporary_path.unlink()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_disabled_retired_duplicat0/.state.json.8_shqh49.tmp')
+missing_ok = False
+
+    def unlink(self, missing_ok=False):
+        """
+        Remove this file or link.
+        If the path is a directory, use rmdir() instead.
+        """
+        try:
+&gt;           os.unlink(self)
+E           PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_disabled_retired_duplicat0\\.state.json.8_shqh49.tmp'
+
+C:\Python312\Lib\pathlib.py:1342: PermissionError</error></testcase><testcase classname="test_continuity_integration" name="test_actual_langgraph_requires_sync_and_preserves_completed_result" time="0.044"><error message="failed on setup with &quot;PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_actual_langgraph_requires0\\.state.json.px_7jk1f.tmp'&quot;">path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_actual_langgraph_requires0/state.json')
+state = ControlState(migration_id='control_60f7d0e48b01448b8ef09b23498b6239', host='generic', subject_id='local-user', control...5.755379+00:00', updated_at='2026-09-25T08:09:15.755379+00:00', format='atmem-control-plane-state-v1', state_sha256='')
+
+    def write_state(path: str | Path, state: ControlState) -&gt; ControlState:
+        target = _safe_path(path, must_exist=False)
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if target.parent.is_symlink():
+            raise ValueError("migration state parent must not be a symlink")
+        normalized = state.with_digest()
+        serialized = json.dumps(normalized.to_dict(), indent=2, sort_keys=True) + "\n"
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
+        )
+        temporary_path = Path(temporary)
+        try:
+&gt;           os.fchmod(descriptor, 0o600)
+            ^^^^^^^^^
+E           AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+
+venv\Lib\site-packages\atmem\control\state.py:43: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_actual_langgraph_requires0')
+
+    @pytest.fixture
+    def running(tmp_path):
+&gt;       manager = ControlPlaneManager.start(host="generic", state_path=tmp_path / "state.json",
+            control_root=tmp_path / "control", memory_db=tmp_path / "memory.db")
+
+test_continuity_http.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\atmem\control\manager.py:209: in start
+    manager, _resumed = cls._start(
+venv\Lib\site-packages\atmem\control\manager.py:303: in _start
+    write_state(manager.state_path, state)
+venv\Lib\site-packages\atmem\control\state.py:53: in write_state
+    temporary_path.unlink()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_actual_langgraph_requires0/.state.json.px_7jk1f.tmp')
+missing_ok = False
+
+    def unlink(self, missing_ok=False):
+        """
+        Remove this file or link.
+        If the path is a directory, use rmdir() instead.
+        """
+        try:
+&gt;           os.unlink(self)
+E           PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_actual_langgraph_requires0\\.state.json.px_7jk1f.tmp'
+
+C:\Python312\Lib\pathlib.py:1342: PermissionError</error></testcase><testcase classname="test_continuity_integration" name="test_partial_batch_resume_does_not_repeat_completed_first_call" time="0.042"><error message="failed on setup with &quot;PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_partial_batch_resume_does0\\.state.json.unlajm3b.tmp'&quot;">path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_partial_batch_resume_does0/state.json')
+state = ControlState(migration_id='control_c86734f2f7784a4f8291ec4af7f02f47', host='generic', subject_id='local-user', control...6.031504+00:00', updated_at='2026-09-25T08:09:16.031504+00:00', format='atmem-control-plane-state-v1', state_sha256='')
+
+    def write_state(path: str | Path, state: ControlState) -&gt; ControlState:
+        target = _safe_path(path, must_exist=False)
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if target.parent.is_symlink():
+            raise ValueError("migration state parent must not be a symlink")
+        normalized = state.with_digest()
+        serialized = json.dumps(normalized.to_dict(), indent=2, sort_keys=True) + "\n"
+        descriptor, temporary = tempfile.mkstemp(
+            prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
+        )
+        temporary_path = Path(temporary)
+        try:
+&gt;           os.fchmod(descriptor, 0o600)
+            ^^^^^^^^^
+E           AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+
+venv\Lib\site-packages\atmem\control\state.py:43: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_partial_batch_resume_does0')
+
+    @pytest.fixture
+    def running(tmp_path):
+&gt;       manager = ControlPlaneManager.start(host="generic", state_path=tmp_path / "state.json",
+            control_root=tmp_path / "control", memory_db=tmp_path / "memory.db")
+
+test_continuity_http.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\atmem\control\manager.py:209: in start
+    manager, _resumed = cls._start(
+venv\Lib\site-packages\atmem\control\manager.py:303: in _start
+    write_state(manager.state_path, state)
+venv\Lib\site-packages\atmem\control\state.py:53: in write_state
+    temporary_path.unlink()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-0/test_partial_batch_resume_does0/.state.json.unlajm3b.tmp')
+missing_ok = False
+
+    def unlink(self, missing_ok=False):
+        """
+        Remove this file or link.
+        If the path is a directory, use rmdir() instead.
+        """
+        try:
+&gt;           os.unlink(self)
+E           PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\user\\AppData\\Local\\Temp\\pytest-of-user\\pytest-0\\test_partial_batch_resume_does0\\.state.json.unlajm3b.tmp'
+
+C:\Python312\Lib\pathlib.py:1342: PermissionError</error></testcase><testcase classname="test_locking" name="test_nested_compatible_locks_share_one_os_lock" time="0.005" /><testcase classname="test_locking" name="test_nested_lock_cannot_change_mode" time="0.006" /><testcase classname="test_locking" name="test_exclusive_lock_blocks_another_process" time="0.239" /><testcase classname="test_locking" name="test_windows_denied_lock_is_reported_as_contention" time="0.006" /><testcase classname="test_durability" name="test_directory_fsync_is_skipped_on_windows" time="0.004" /><testcase classname="test_durability" name="test_directory_fsync_is_applied_on_posix" time="0.004" /></testsuite></testsuites>

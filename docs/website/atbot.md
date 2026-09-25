@@ -9,7 +9,7 @@ atmem atbot setup
 atmem atbot --help
 ```
 
-AtMem 2.3.6 depends on the separately packaged AtBot 0.1.0.
+AtMem 2.3.7 depends on the separately packaged AtBot 0.1.0.
 Choose the model provider deliberately. A remote provider can receive authorized
 content needed for its work and may charge for requests; local models have their own
 hardware and download requirements. The base memory exercise needs neither.

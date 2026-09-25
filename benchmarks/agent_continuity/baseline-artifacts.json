@@ -1,0 +1,25 @@
+{
+  "contract_sha256": "8bda41a97ac69d678db3cfb6e827be463c83e7b9d19a5dbbe82d23ca49f41034",
+  "installed_artifact_tests": "not_yet_run",
+  "protocol_sha256": "2b181a15bf2032e69a7e98a9b2118c789cf276b18f9cb7020b80b3a3ba0e820d",
+  "purpose": "current-product artifacts before fixes",
+  "schema_version": 1,
+  "source_commits": {
+    "atflows": "be131c9633e732ec39ef2f9b55422e4e042518eb",
+    "atmem": "3ca2733a4d5b641b8eb887aacf5cd9c6277e0c59"
+  },
+  "wheels": [
+    {
+      "filename": "atmem-2.3.7b2-py3-none-any.whl",
+      "name": "atmem",
+      "sha256": "97a01735b2cb481862a0694cf2848ad6659fb817c6f905ad47e529729b58bf37",
+      "version": "2.3.7b2"
+    },
+    {
+      "filename": "atflows-0.1.2-py3-none-any.whl",
+      "name": "atflows",
+      "sha256": "30757ba0ebc3c3e07fb2162f67add961528c9766284bf19843688589dea908ca",
+      "version": "0.1.2"
+    }
+  ]
+}

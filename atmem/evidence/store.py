@@ -11,6 +11,7 @@ from pathlib import Path
 import sqlite3
 from typing import Any, Iterable
 import uuid
+from contextlib import contextmanager
 
 from atmem.core.canonical import canonical_json
 from atmem.evidence.crypto import open_json, seal_json, unwrap_data_key, wrap_data_key
@@ -18,7 +19,7 @@ from atmem.evidence.models import CaptureMode
 from atmem.store.sqlite import utc_now
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def _content_descriptor(value: Any) -> dict[str, Any]:
@@ -101,13 +102,13 @@ class EncryptedEvidenceStore:
         )
         row = self._conn.execute("SELECT format_version FROM vault_meta").fetchone()
         if row is None:
-            self._conn.execute("INSERT INTO vault_meta VALUES(?)", (SCHEMA_VERSION,))
+            self._conn.execute("INSERT INTO vault_meta VALUES(?)", (2,))
         elif int(row["format_version"]) == 1:
             columns = {str(value[1]) for value in self._conn.execute("PRAGMA table_info(sealed_objects)")}
             if "slot_id" not in columns:
                 self._conn.execute("ALTER TABLE sealed_objects ADD COLUMN slot_id TEXT")
-            self._conn.execute("UPDATE vault_meta SET format_version = ?", (SCHEMA_VERSION,))
-        elif int(row["format_version"]) != SCHEMA_VERSION:
+            self._conn.execute("UPDATE vault_meta SET format_version = ?", (2,))
+        elif int(row["format_version"]) not in {2, SCHEMA_VERSION}:
             raise RuntimeError("unsupported encrypted evidence vault version")
         self._conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS sealed_object_nonce_per_slot ON sealed_objects(slot_id, nonce)"
@@ -152,8 +153,10 @@ class EncryptedEvidenceStore:
         # that follows, so two connections cannot derive the same next sequence.
         # Sealing happens inside the transaction, which widens the window enough
         # for a deferred read to lose the race under concurrency.
+        nested = self._conn.in_transaction
         try:
-            self._conn.execute("BEGIN IMMEDIATE")
+            if not nested:
+                self._conn.execute("BEGIN IMMEDIATE")
             row = self._conn.execute("SELECT COALESCE(MAX(sequence), 0) AS value FROM sealed_objects").fetchone()
             sequence = int(row["value"]) + 1
             sealed = {
@@ -169,11 +172,30 @@ class EncryptedEvidenceStore:
                 "INSERT INTO sealed_objects(object_id,sequence,nonce,ciphertext,slot_id) VALUES(?,?,?,?,?)",
                 (object_id, sequence, nonce, ciphertext, slot_id),
             )
-            self._conn.commit()
+            if not nested:
+                self._conn.commit()
         except Exception:
-            self._conn.rollback()
+            if not nested:
+                self._conn.rollback()
             raise
         return {"object_id": object_id, "sequence": sequence}
+
+    @contextmanager
+    def atomic(self):
+        """Serialize authority reads and encrypted appends on one connection."""
+        if self._conn.in_transaction:
+            raise RuntimeError("nested authority transaction")
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield self
+            self._conn.commit()
+        except BaseException:
+            self._conn.rollback()
+            raise
+
+    def enable_continuity_format(self) -> None:
+        # Opt-in creation, not ordinary vault open, establishes downgrade refusal.
+        self._conn.execute("UPDATE vault_meta SET format_version = 3")
 
     def documents(self) -> Iterable[dict[str, Any]]:
         rows = self._conn.execute(
@@ -256,19 +278,36 @@ class EncryptedEvidenceStore:
         return [bytes(row[0]) for row in self._conn.execute("SELECT ciphertext FROM sealed_objects")]
 
     def delete_run(self, run_id: str) -> dict[str, int]:
+        with self.atomic():
+            return self._delete_run(run_id)
+
+    def _delete_run(self, run_id: str) -> dict[str, int]:
         object_ids: list[str] = []
+        tombstone = None
         for document in self.documents():
+            if document.get("record_type") == "continuity_event" and document.get("workflow_id") == run_id:
+                object_ids.append(str(document["object_id"]))
+                continue
+            if document.get("record_type") == "continuity":
+                workflow = document.get("workflow") or {}
+                if workflow.get("workflow_id") == run_id:
+                    object_ids.append(str(document["object_id"]))
+                    tombstone = {"record_type": "continuity_tombstone", "workflow_id": run_id,
+                                 "workflow_key": workflow["workflow_key"], "scope": workflow["scope"],
+                                 "creator_id": workflow.get("creator_id"), "creator_role": workflow.get("creator_role")}
+                continue
             if document.get("record_type") != "evidence":
                 continue
             envelope = document.get("envelope") or {}
             if str(envelope.get("run_id") or "") == run_id:
                 object_ids.append(str(document["object_id"]))
-        with self._conn:
-            for object_id in object_ids:
-                self._conn.execute("DELETE FROM sealed_objects WHERE object_id = ?", (object_id,))
-            removed_slots = self._conn.execute(
-                "DELETE FROM key_slots WHERE slot_id NOT IN (SELECT slot_id FROM sealed_objects WHERE slot_id IS NOT NULL)"
-            ).rowcount
+        if tombstone:
+            self.append(tombstone, partition_id="continuity-tombstones")
+        for object_id in object_ids:
+            self._conn.execute("DELETE FROM sealed_objects WHERE object_id = ?", (object_id,))
+        removed_slots = self._conn.execute(
+            "DELETE FROM key_slots WHERE slot_id NOT IN (SELECT slot_id FROM sealed_objects WHERE slot_id IS NOT NULL)"
+        ).rowcount
         return {"objects": len(object_ids), "key_slots": int(removed_slots)}
 
     @staticmethod

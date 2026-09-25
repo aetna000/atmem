@@ -1,0 +1,37 @@
+{
+  "format": "continuity-product-acceptance-summary-v1",
+  "evidence_class": "installed-product-functional-acceptance",
+  "not_claimed": [
+    "autonomous retail score",
+    "held-out performance gain",
+    "production-wide failure rate"
+  ],
+  "cases": [
+    {
+      "fault": "after_receipt",
+      "effects_after_resume": 1,
+      "attempt_modes": [
+        "execute"
+      ],
+      "final_status": "completed",
+      "lease_wait_seconds": 0,
+      "document_sha256": "ed39688aa5d40bd73007355df65f4e41a6c250960642e56764c3ad44da1df8d2"
+    },
+    {
+      "fault": "before_receipt",
+      "effects_after_resume": 1,
+      "attempt_modes": [
+        "execute",
+        "query"
+      ],
+      "final_status": "completed",
+      "lease_wait_seconds": 119.94788107872009,
+      "document_sha256": "ed39688aa5d40bd73007355df65f4e41a6c250960642e56764c3ad44da1df8d2"
+    }
+  ],
+  "atflows_http_passed": true,
+  "wheels": {
+    "atmem-2.3.7b2-py3-none-any.whl": "563f18b5878a5139420b6caabc9c7577c3a7da6a758528c6dc125f606ff5b817",
+    "atflows-0.1.2-py3-none-any.whl": "b394026a79a6579c87bf169f0d72c535da3d7da99100e074de80625c0b6c0838"
+  }
+}

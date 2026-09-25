@@ -1,0 +1,5 @@
+# Optional benchmark environment only; not an AtMem runtime dependency.
+-r requirements.txt
+tau2 @ git+https://github.com/sierra-research/tau2-bench.git@b7ea9074c1cba482b30687fecdb5c8425fd6f619
+litellm==1.82.6
+psutil==7.2.2

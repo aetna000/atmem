@@ -180,6 +180,56 @@ def test_active_config_drift_isolated_to_config_check(tmp_path: Path, monkeypatc
     assert failures == ["config_consistency"]
 
 
+def test_active_config_accepts_materialized_safe_recall_default(
+    tmp_path: Path, monkeypatch
+) -> None:
+    manager, _workspace, _archive, config = _active_setup(tmp_path, monkeypatch)
+    key = "plugins.entries.memory-atmem.config.recall"
+    recorded = {
+        "enabled": True,
+        "maxRecords": 3,
+        "maxChars": 1200,
+        "minScore": 0.3,
+        "timeoutMs": 4000,
+    }
+    cutover_path = Path(manager.state().control_dir) / CUTOVER_NAME
+    cutover = json.loads(cutover_path.read_text(encoding="utf-8"))
+    cutover["applied_configuration"][key] = recorded
+    cutover_path.write_text(json.dumps(cutover), encoding="utf-8")
+    config[key] = {**recorded, "requireDirectSupport": True}
+
+    report = run_verification(manager.state())
+
+    assert report["valid"] is True
+    assert _by_name(report)["config_consistency"]["status"] == "pass"
+
+
+def test_active_config_rejects_changed_materialized_recall_default(
+    tmp_path: Path, monkeypatch
+) -> None:
+    manager, _workspace, _archive, config = _active_setup(tmp_path, monkeypatch)
+    key = "plugins.entries.memory-atmem.config.recall"
+    recorded = {
+        "enabled": True,
+        "maxRecords": 3,
+        "maxChars": 1200,
+        "minScore": 0.3,
+        "timeoutMs": 4000,
+    }
+    cutover_path = Path(manager.state().control_dir) / CUTOVER_NAME
+    cutover = json.loads(cutover_path.read_text(encoding="utf-8"))
+    cutover["applied_configuration"][key] = recorded
+    cutover_path.write_text(json.dumps(cutover), encoding="utf-8")
+    config[key] = {**recorded, "requireDirectSupport": False}
+
+    report = run_verification(manager.state())
+
+    assert report["valid"] is False
+    check = _by_name(report)["config_consistency"]
+    assert check["status"] == "fail"
+    assert check["evidence"]["mismatches"] == [key]
+
+
 def test_frozen_archive_tamper_is_named_without_duplicate_failure(
     tmp_path: Path, monkeypatch
 ) -> None:

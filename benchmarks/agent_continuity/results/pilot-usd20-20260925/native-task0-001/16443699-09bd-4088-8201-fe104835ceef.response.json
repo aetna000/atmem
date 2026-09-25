@@ -1,0 +1,47 @@
+{
+  "attempt_id": "16443699-09bd-4088-8201-fe104835ceef",
+  "latency_ms": 1826.4082081150264,
+  "response": {
+    "id": "chatcmpl-ERlvfC2XHB4HtUMMzz1bQTMwVxCVD",
+    "object": "chat.completion",
+    "created": 1790287803,
+    "model": "gpt-4.1-2025-04-14",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "I\u2019d be happy to help you with your exchanges! First, I need to verify your identity for security purposes. Could you please provide the email address associated with your account?",
+          "refusal": null,
+          "annotations": []
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 3621,
+      "completion_tokens": 36,
+      "total_tokens": 3657,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "audio_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": 0,
+        "accepted_prediction_tokens": 0,
+        "rejected_prediction_tokens": 0
+      }
+    },
+    "service_tier": "default",
+    "system_fingerprint": "fp_a7f19062b9",
+    "_benchmark_http": {
+      "http_status": 200,
+      "request_id": "req_9e0098e591eb4addb6badbe985d284c8",
+      "received_bytes": 988,
+      "body_sha256": "9188b907cec9d213f22d282828b3e61a2d49f716a1f21a59959342ecf1fc7633"
+    },
+    "_benchmark_raw_response": "{\n  \"id\": \"chatcmpl-ERlvfC2XHB4HtUMMzz1bQTMwVxCVD\",\n  \"object\": \"chat.completion\",\n  \"created\": 1790287803,\n  \"model\": \"gpt-4.1-2025-04-14\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"I\u2019d be happy to help you with your exchanges! First, I need to verify your identity for security purposes. Could you please provide the email address associated with your account?\",\n        \"refusal\": null,\n        \"annotations\": []\n      },\n      \"logprobs\": null,\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 3621,\n    \"completion_tokens\": 36,\n    \"total_tokens\": 3657,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\": 0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\": 0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\": \"default\",\n  \"system_fingerprint\": \"fp_a7f19062b9\"\n}\n"
+  }
+}

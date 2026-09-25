@@ -1,0 +1,47 @@
+{
+  "attempt_id": "9c53d3d4-8efd-43c9-8ba0-d3a1c8369aee",
+  "latency_ms": 1731.5633748658001,
+  "response": {
+    "id": "chatcmpl-ERlvrsjg7eexXDD8e4VD7IZXa4cO8",
+    "object": "chat.completion",
+    "created": 1790287815,
+    "model": "gpt-4.1-2025-04-14",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Thank you, Yusuf. I\u2019ve verified your identity. To help you exchange your items, could you please provide the order number for the recent delivery you\u2019d like to exchange the mechanical keyboard and smart thermostat from? If you\u2019re not sure, I can list your recent orders for you.",
+          "refusal": null,
+          "annotations": []
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 4018,
+      "completion_tokens": 58,
+      "total_tokens": 4076,
+      "prompt_tokens_details": {
+        "cached_tokens": 3712,
+        "audio_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": 0,
+        "accepted_prediction_tokens": 0,
+        "rejected_prediction_tokens": 0
+      }
+    },
+    "service_tier": "default",
+    "system_fingerprint": "fp_a7f19062b9",
+    "_benchmark_http": {
+      "http_status": 200,
+      "request_id": "req_680c38069b8e41b78904bcc272eebd5b",
+      "received_bytes": 1094,
+      "body_sha256": "7c830e68f6942725ebd3346341567e5df39e1961154fc545d95f1b88b6993ffe"
+    },
+    "_benchmark_raw_response": "{\n  \"id\": \"chatcmpl-ERlvrsjg7eexXDD8e4VD7IZXa4cO8\",\n  \"object\": \"chat.completion\",\n  \"created\": 1790287815,\n  \"model\": \"gpt-4.1-2025-04-14\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"Thank you, Yusuf. I\u2019ve verified your identity. To help you exchange your items, could you please provide the order number for the recent delivery you\u2019d like to exchange the mechanical keyboard and smart thermostat from? If you\u2019re not sure, I can list your recent orders for you.\",\n        \"refusal\": null,\n        \"annotations\": []\n      },\n      \"logprobs\": null,\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 4018,\n    \"completion_tokens\": 58,\n    \"total_tokens\": 4076,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\": 3712,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\": 0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\": \"default\",\n  \"system_fingerprint\": \"fp_a7f19062b9\"\n}\n"
+  }
+}

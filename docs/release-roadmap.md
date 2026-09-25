@@ -1,13 +1,40 @@
 # AtMem release roadmap
 
-**Status**: 2.3.6 stable memory-integrity release; future versions are
+**Status**: 2.3.7 stable release line; future versions are
 planning targets, not delivery-date commitments.
-**Stable release baseline**: AtMem `2.3.6`, OpenClaw bridge `2.3.6`, companion pins
-`atmem-atbot==0.1.0` and `atflows==0.1.2`.
+**Release baseline**: AtMem `2.3.7`, OpenClaw bridge `2.3.7`, companion pins
+`atmem-atbot==0.1.0` and `atflows==0.1.3`. Publication status is recorded by
+the matching GitHub release and registry artifacts, not this roadmap alone.
+
+**Approved next release:** AtMem/bridge `2.3.7`, AtFlows `0.1.3`, AtBot `0.1.0`.
+Lead with opt-in product continuity, observable attempts, grouped event charts
+and Windows reliability. Update the publication baseline after registry
+verification. Preserve benchmark provenance; held-out qualification stays open.
 
 AtMem is an agent-neutral, standalone encrypted evidence authority for memory, context governance and execution investigation. Every release follows [PR-001–PR-008](../specs/product-requirements.md), including default full-fidelity multimodal capture, application-only privileged plaintext and store-only reconstruction after the agent and its logs are gone. Advertise only the host, provider, capture-boundary, cryptographic and deployment profiles actually verified for that release.
 
 ## Release overview
+
+### Immediate priority: agent continuity qualification
+
+Priority updated 2026-09-25: [Benchmarking 002](../specs/benchmarking/002-agent-continuity/spec.md)
+and AtFlows Spec 010 take precedence over starting new 2.4.0 Memory Health
+features. The experimental baseline is AtMem 2.3.7b2 and AtFlows 0.1.2;
+these historical artifact versions are retained for reproducibility.
+
+Corrected delivery order: product contracts; AtMem progress/receipt authority and
+shipped host recovery integration; user setup/status; AtFlows recovery/cost views;
+installed acceptance without benchmark code; inert test rig; four-arm qualification
+and held-out evaluation. The rig must not supply recovery or feature compensation.
+See [the correction](../specs/benchmarking/002-agent-continuity/product-first-correction.md).
+Keep historical artifacts/results unchanged. Product work is approved; every
+milestone requires read-only Claude review, corrective tests and compatibility
+gates. No more paid comparisons before installed product acceptance.
+
+No release is authorized by this track. Select a beta version for approved product
+work only after product/artifact gates; stable promotion requires paired reruns and
+existing compatibility, security, documentation and installed-artifact gates.
+The numbered capability targets below remain proposals, not execution priority.
 
 | Proposed AtMem version | Work group | Customer value and included scope | Primary specs | Readiness boundary |
 | --- | --- | --- | --- | --- |
@@ -119,7 +146,10 @@ uses AtMem credentials in delegated mode and the AtFlows Administrator in
 standalone mode. Neither mode turns observational telemetry into canonical
 memory or automatic Memory Health findings. See the [release note](releases/v2.3.4.md).
 
-## Next planned capability: 2.4.0 local memory health
+## Deferred next capability: 2.4.0 local memory health
+
+Continuity qualification above now takes engineering priority. This scope is
+retained, not cancelled or implicitly shipped.
 
 Bring the useful native single-owner Spec 026 cycle forward from 2.8.0. Deliver
 temporal assertions, time-valid retrieval, deterministic derivations, exact

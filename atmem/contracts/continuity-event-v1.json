@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AtMem continuity observation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "event_id", "workflow_id", "operation_id", "run_id", "attempt_id", "event", "time"],
+  "properties": {
+    "format": {"const": "atmem.continuity.v1"},
+    "event_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,128}$"},
+    "workflow_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,128}$"},
+    "operation_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,128}$"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,128}$"},
+    "attempt_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,128}$"},
+    "event": {"enum": ["execute", "query", "completed", "unknown", "blocked", "abandoned", "usage"]},
+    "time": {"type": "number", "minimum": 0, "maximum": 253402300799, "description": "Unix seconds, not milliseconds"},
+    "retry": {"type": "boolean"},
+    "recovery": {"type": "boolean"},
+    "charge_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "charge_source": {"type": "string", "minLength": 1, "maxLength": 128},
+    "cost_microusd": {"type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991},
+    "input_tokens": {"type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991},
+    "output_tokens": {"type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991},
+    "price_source": {"type": "string", "minLength": 1, "maxLength": 256}
+  },
+  "dependentRequired": {"charge_id": ["charge_source"], "charge_source": ["charge_id"]},
+  "allOf": [{"if": {"required": ["cost_microusd"], "properties": {"cost_microusd": {"type": "integer"}}},
+             "then": {"required": ["charge_id", "charge_source", "price_source"]}}]
+}

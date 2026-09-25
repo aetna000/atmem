@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "old_runtime": "/private/tmp/atmem-continuity.PaU9SG/published-atflows-0.1.2/atflows/_runtime",
+  "installed_runtime": "/private/tmp/atmem-continuity.PaU9SG/product-venv/lib/python3.12/site-packages/atflows/_runtime",
+  "old_trace_count": 1,
+  "old_login_preserved": true,
+  "new_continuity_workflows": 1
+}
