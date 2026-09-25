@@ -1,0 +1,48 @@
+{
+  "passed": true,
+  "runtime": "/private/tmp/atmem-continuity.PaU9SG/product-venv/lib/python3.12/site-packages/atflows/_runtime",
+  "evidence": {
+    "format": "atflows-continuity-view-v1",
+    "workflows": [
+      {
+        "workflow_id": "w1",
+        "runs": 1,
+        "attempts": 1,
+        "retries": 0,
+        "recovery_attempts": 0,
+        "known_cost_microusd": 10,
+        "unknown_cost_attempts": 0,
+        "unpriced_charges": 0,
+        "cost_coverage": "reported_charges_only_not_a_complete_invoice",
+        "coverage": "received_events_only",
+        "events": [
+          {
+            "attempt_id": "a1",
+            "event": "execute",
+            "event_id": "e1",
+            "format": "atmem.continuity.v1",
+            "operation_id": "o1",
+            "run_id": "r1",
+            "time": 1790295447.654,
+            "workflow_id": "w1"
+          },
+          {
+            "attempt_id": "a1",
+            "charge_id": "c1",
+            "charge_source": "provider",
+            "cost_microusd": 10,
+            "event": "execute",
+            "event_id": "e5",
+            "format": "atmem.continuity.v1",
+            "operation_id": "o1",
+            "price_source": "rate-v1",
+            "run_id": "r1",
+            "time": 1790295447.654,
+            "workflow_id": "w1"
+          }
+        ]
+      }
+    ]
+  },
+  "assertions": "producer auth, replay/conflicts, scope rejection, session password gate, viewer deny, investigator allow"
+}

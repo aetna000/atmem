@@ -34,6 +34,28 @@ multi-tenant authentication service: do not expose it beyond loopback. Exact
 evidence operations require an authenticated evidence principal; merely sending
 `X-AtMem-Role: admin` does not grant plaintext evidence access.
 
+## Governed continuity (development branch)
+
+See [continuity setup](continuity.md). These routes require an evidence-role
+credential or authorized dashboard session, not the compatibility session token.
+
+| Route | Purpose |
+| --- | --- |
+| `GET /v1/continuity` | Authorized workflow summaries |
+| `GET /v1/continuity/{id}` | Exact scoped progress, receipts and history |
+| `POST /v1/continuity` | Create immutable operation definitions; disabled by default |
+| `POST /v1/continuity/{id}/configure` | Operator enables or pauses new attempts |
+| `POST /v1/continuity/{id}/begin` | Controller decides execute, query, completed or blocked |
+| `POST /v1/continuity/{id}/outcome` | Submit a receipt bound to lease, run and attempt |
+| `POST /v1/continuity/{id}/renew` | Bounded renewal of a live lease |
+| `POST /v1/continuity/{id}/abandon` | Stop work with operator reason, not a success claim |
+
+The shipped `ContinuityClient` handles the request format. `continuity_host`
+credentials are bound to one workflow. `continuity_coordinator` credentials are
+bound to one workspace and may atomically create/activate their own dynamic
+workflows, never unpause existing work or grant themselves broader access.
+Unavailable authority blocks dispatch; these endpoints do not execute tools.
+
 ## Read health
 
 With a local credential held in your shell, replacing the port with your server's:

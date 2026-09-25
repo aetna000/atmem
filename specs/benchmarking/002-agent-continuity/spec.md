@@ -1,13 +1,31 @@
 # Agent Continuity Benchmark
 
-Created: 2026-09-25. Status: offline foundation implemented; full benchmark in
-progress. No public-corpus measurements or product gains claimed.
+## Owner correction: feature first, inert benchmark
+
+The binding [product-first correction](product-first-correction.md) adds product
+requirements PC-001–PC-006 and replaces the earlier benchmark-first sequence.
+Recovery must be available through installed AtMem and supported host integration;
+AtFlows must provide its observation/accounting through shipped interfaces.
+The benchmark injects faults and measures only: no recovery, state repair or
+missing feature compensation in its helpers/adapters. Original FR-010/SC-002
+require preserving old artifacts/gap evidence, not completing unsupported arms
+before implementing the feature. Recovery-specific user status is now in scope;
+general UI redesign and release remain out of scope. Product acceptance requires
+the documented example to work with benchmark code unavailable.
+
+Created: 2026-09-25. Status: product-owned operation/receipt service, installed
+LangGraph recovery, user status/dashboard and AtFlows observation implemented.
+Installed crash acceptance and recorded-response four-arm retail qualification
+are separate from fresh autonomous and held-out evaluation, which remain open.
+No general production-gain claim. The original native pilot terminated normally
+but received task reward zero; later qualification does not alter that result.
 
 ## Purpose and boundaries
 
 Test whether an interrupted agent resumes correct work, avoids duplicate external
 effects, uses currently authorized context, and leaves inspectable evidence at
-acceptable overhead. Measure the current products before proposing fixes.
+acceptable overhead. Build the product capability and test it independently;
+retain current artifact/gap evidence without attributing fixture logic to products.
 
 The host runtime owns checkpoints, execution, retries and scheduling. AtMem owns
 governed task-state decisions, memory eligibility and evidence. AtFlows owns

@@ -1,0 +1,48 @@
+{
+  "attempt_id": "e0a3afe6-0933-45c4-9539-0be06e93bde2",
+  "trial_id": "native-e252e285-db3c-4394-82b2-61f38db4c69c",
+  "role": "simulator",
+  "request": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "# User Simulation Guidelines\nYou are playing the role of a customer contacting a customer service representative. \nYour goal is to simulate realistic customer interactions while following specific scenario instructions.\n\n## Core Principles\n- Generate one message at a time, maintaining natural conversation flow.\n- Strictly follow the scenario instructions you have received.\n- Never make up or hallucinate information not provided in the scenario instructions. Information that is not provided in the scenario instructions should be considered unknown or unavailable.\n- Avoid repeating the exact instructions verbatim. Use paraphrasing and natural language to convey the same information\n- Disclose information progressively. Wait for the agent to ask for specific information before providing it.\n\n## Task Completion\n- The goal is to continue the conversation until the task is complete.\n- If the instruction goal is satisified, generate the '###STOP###' token to end the conversation.\n- If you are transferred to another agent, generate the '###TRANSFER###' token to indicate the transfer.\n- If you find yourself in a situation in which the scenario does not provide enough information for you to continue the conversation, generate the '###OUT-OF-SCOPE###' token to end the conversation.\nRemember: The goal is to create realistic, natural conversations while strictly adhering to the provided instructions and maintaining character consistency.\n\n\n<scenario>\nInstructions:\n\tDomain: retail\n\tReason for call:\n\t\tYou received your order #W2378156 and wish to exchange the mechanical keyboard for the same one but with clicky switches and the smart thermostat for one compatible with Google Home instead of Apple HomeKit. If there is no keyboard that is clicky, RGB backlight, full size, you'd go for no backlight.\n\tKnown info:\n\t\tYou are Yusuf Rossi in zip code 19122.\n\tUnknown info:\n\t\tYou do not remember your email address.\n\tTask instructions:\n\t\tYou are detail-oriented and want to make sure everything is addressed in one go.\n</scenario>"
+      },
+      {
+        "role": "user",
+        "content": "Hi! How can I help you today?"
+      },
+      {
+        "role": "assistant",
+        "content": "Hi! I just received my order, and I\u2019d like to exchange a couple of items. I want to swap the mechanical keyboard for the same model but with clicky switches, and I also need to exchange the smart thermostat for one that works with Google Home instead of Apple HomeKit. Can you help me with both of these at once?",
+        "tool_calls": null
+      },
+      {
+        "role": "user",
+        "content": "I\u2019d be happy to help you with your exchanges! First, I need to verify your identity for security purposes. Could you please provide the email address associated with your account?"
+      }
+    ],
+    "seed": 20260925,
+    "model": "gpt-4.1-2025-04-14",
+    "temperature": 0,
+    "max_completion_tokens": 2048,
+    "n": 1,
+    "stream": false,
+    "service_tier": "default",
+    "store": false
+  },
+  "price": {
+    "model": "gpt-4.1-2025-04-14",
+    "currency": "USD",
+    "input_per_million": "2.00",
+    "cached_input_per_million": "0.50",
+    "output_per_million": "8.00",
+    "source": "https://developers.openai.com/api/docs/models/gpt-4.1",
+    "verified_date": "2026-09-25",
+    "context_window": 1047576,
+    "max_completion_tokens": 2048,
+    "service_tier": "default",
+    "upper_reserve_micro_usd": 2200000,
+    "assumption": "standard text token billing; no hosted tools; full context upper bound plus margin"
+  }
+}

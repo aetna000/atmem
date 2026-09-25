@@ -1,0 +1,380 @@
+{
+  "requests": [
+    {
+      "action": "deliver",
+      "payload": {
+        "resourceSpans": [
+          {
+            "resource": {
+              "attributes": []
+            },
+            "scopeSpans": [
+              {
+                "scope": {
+                  "name": "atmem.continuity",
+                  "version": "1"
+                },
+                "spans": [
+                  {
+                    "traceId": "2a0fe46a6df969a3fd55abee40707685",
+                    "spanId": "f26ee5d29aaf2784",
+                    "name": "continuity.tool.attempt",
+                    "attributes": [
+                      {
+                        "key": "session.id",
+                        "value": {
+                          "stringValue": "fixture-workflow"
+                        }
+                      },
+                      {
+                        "key": "continuity.schema_version",
+                        "value": {
+                          "intValue": "1"
+                        }
+                      },
+                      {
+                        "key": "continuity.scope_id",
+                        "value": {
+                          "stringValue": "fixture-scope"
+                        }
+                      },
+                      {
+                        "key": "continuity.task_id",
+                        "value": {
+                          "stringValue": "fixture-task"
+                        }
+                      },
+                      {
+                        "key": "continuity.logical_operation_id",
+                        "value": {
+                          "stringValue": "fixture-operation"
+                        }
+                      },
+                      {
+                        "key": "continuity.run_id",
+                        "value": {
+                          "stringValue": "fixture-run"
+                        }
+                      },
+                      {
+                        "key": "continuity.attempt_id",
+                        "value": {
+                          "stringValue": "first"
+                        }
+                      },
+                      {
+                        "key": "continuity.charge_id",
+                        "value": {
+                          "stringValue": "charge-first"
+                        }
+                      },
+                      {
+                        "key": "continuity.retry",
+                        "value": {
+                          "boolValue": false
+                        }
+                      },
+                      {
+                        "key": "continuity.recovery",
+                        "value": {
+                          "boolValue": false
+                        }
+                      }
+                    ],
+                    "startTimeUnixNano": "1700000000000000000",
+                    "endTimeUnixNano": "1700000000100000000",
+                    "status": {
+                      "code": 0
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "action": "deliver",
+      "payload": {
+        "resourceSpans": [
+          {
+            "resource": {
+              "attributes": []
+            },
+            "scopeSpans": [
+              {
+                "scope": {
+                  "name": "atmem.continuity",
+                  "version": "1"
+                },
+                "spans": [
+                  {
+                    "traceId": "2a0fe46a6df969a3fd55abee40707685",
+                    "spanId": "f26ee5d29aaf2784",
+                    "name": "continuity.tool.attempt",
+                    "attributes": [
+                      {
+                        "key": "session.id",
+                        "value": {
+                          "stringValue": "fixture-workflow"
+                        }
+                      },
+                      {
+                        "key": "continuity.schema_version",
+                        "value": {
+                          "intValue": "1"
+                        }
+                      },
+                      {
+                        "key": "continuity.scope_id",
+                        "value": {
+                          "stringValue": "fixture-scope"
+                        }
+                      },
+                      {
+                        "key": "continuity.task_id",
+                        "value": {
+                          "stringValue": "fixture-task"
+                        }
+                      },
+                      {
+                        "key": "continuity.logical_operation_id",
+                        "value": {
+                          "stringValue": "fixture-operation"
+                        }
+                      },
+                      {
+                        "key": "continuity.run_id",
+                        "value": {
+                          "stringValue": "fixture-run"
+                        }
+                      },
+                      {
+                        "key": "continuity.attempt_id",
+                        "value": {
+                          "stringValue": "first"
+                        }
+                      },
+                      {
+                        "key": "continuity.charge_id",
+                        "value": {
+                          "stringValue": "charge-first"
+                        }
+                      },
+                      {
+                        "key": "continuity.retry",
+                        "value": {
+                          "boolValue": false
+                        }
+                      },
+                      {
+                        "key": "continuity.recovery",
+                        "value": {
+                          "boolValue": false
+                        }
+                      }
+                    ],
+                    "startTimeUnixNano": "1700000000000000000",
+                    "endTimeUnixNano": "1700000000100000000",
+                    "status": {
+                      "code": 0
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "action": "drop",
+      "payload": {
+        "resourceSpans": [
+          {
+            "resource": {
+              "attributes": []
+            },
+            "scopeSpans": [
+              {
+                "scope": {
+                  "name": "atmem.continuity",
+                  "version": "1"
+                },
+                "spans": [
+                  {
+                    "traceId": "2a0fe46a6df969a3fd55abee40707685",
+                    "spanId": "19ccb17342ade4eb",
+                    "name": "continuity.tool.attempt",
+                    "attributes": [
+                      {
+                        "key": "session.id",
+                        "value": {
+                          "stringValue": "fixture-workflow"
+                        }
+                      },
+                      {
+                        "key": "continuity.schema_version",
+                        "value": {
+                          "intValue": "1"
+                        }
+                      },
+                      {
+                        "key": "continuity.scope_id",
+                        "value": {
+                          "stringValue": "fixture-scope"
+                        }
+                      },
+                      {
+                        "key": "continuity.task_id",
+                        "value": {
+                          "stringValue": "fixture-task"
+                        }
+                      },
+                      {
+                        "key": "continuity.logical_operation_id",
+                        "value": {
+                          "stringValue": "fixture-operation"
+                        }
+                      },
+                      {
+                        "key": "continuity.run_id",
+                        "value": {
+                          "stringValue": "fixture-run"
+                        }
+                      },
+                      {
+                        "key": "continuity.attempt_id",
+                        "value": {
+                          "stringValue": "lost"
+                        }
+                      },
+                      {
+                        "key": "continuity.charge_id",
+                        "value": {
+                          "stringValue": "charge-lost"
+                        }
+                      },
+                      {
+                        "key": "continuity.retry",
+                        "value": {
+                          "boolValue": true
+                        }
+                      },
+                      {
+                        "key": "continuity.recovery",
+                        "value": {
+                          "boolValue": true
+                        }
+                      }
+                    ],
+                    "startTimeUnixNano": "1700000000000000000",
+                    "endTimeUnixNano": "1700000000100000000",
+                    "status": {
+                      "code": 0
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "action": "deliver",
+      "payload": {
+        "resourceSpans": [
+          {
+            "resource": {
+              "attributes": []
+            },
+            "scopeSpans": [
+              {
+                "scope": {
+                  "name": "atmem.continuity",
+                  "version": "1"
+                },
+                "spans": [
+                  {
+                    "traceId": "2a0fe46a6df969a3fd55abee40707685",
+                    "spanId": "1751cea2da69ba5f",
+                    "name": "continuity.tool.attempt",
+                    "attributes": [
+                      {
+                        "key": "session.id",
+                        "value": {
+                          "stringValue": "fixture-workflow"
+                        }
+                      },
+                      {
+                        "key": "continuity.schema_version",
+                        "value": {
+                          "intValue": "1"
+                        }
+                      },
+                      {
+                        "key": "continuity.scope_id",
+                        "value": {
+                          "stringValue": "fixture-scope"
+                        }
+                      },
+                      {
+                        "key": "continuity.task_id",
+                        "value": {
+                          "stringValue": "fixture-task"
+                        }
+                      },
+                      {
+                        "key": "continuity.logical_operation_id",
+                        "value": {
+                          "stringValue": "fixture-operation"
+                        }
+                      },
+                      {
+                        "key": "continuity.run_id",
+                        "value": {
+                          "stringValue": "fixture-run"
+                        }
+                      },
+                      {
+                        "key": "continuity.attempt_id",
+                        "value": {
+                          "stringValue": "late"
+                        }
+                      },
+                      {
+                        "key": "continuity.charge_id",
+                        "value": {
+                          "stringValue": "charge-late"
+                        }
+                      },
+                      {
+                        "key": "continuity.retry",
+                        "value": {
+                          "boolValue": true
+                        }
+                      },
+                      {
+                        "key": "continuity.recovery",
+                        "value": {
+                          "boolValue": true
+                        }
+                      }
+                    ],
+                    "startTimeUnixNano": "1700000000000000000",
+                    "endTimeUnixNano": "1700000000100000000",
+                    "status": {
+                      "code": 0
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

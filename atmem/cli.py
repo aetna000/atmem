@@ -1565,6 +1565,20 @@ or input errors.""",
                 "--envelope", required=True, help="JSON object file, or - for stdin"
             )
 
+    continuity_parser = subparsers.add_parser("continuity", help="Save work and inspect safe recovery")
+    continuity_parser.add_argument("action", choices=("credential", "create", "list", "show", "enable", "disable", "abandon"))
+    continuity_parser.add_argument("workflow", nargs="?")
+    continuity_parser.add_argument("--file", help="JSON workflow definition for create")
+    continuity_parser.add_argument("--operation")
+    continuity_parser.add_argument("--reason")
+    continuity_parser.add_argument("--url", default="http://127.0.0.1:8768")
+    continuity_parser.add_argument("--token-env", default="ATMEM_EVIDENCE_TOKEN")
+    continuity_parser.add_argument("--principal", help="Unique credential name for credential creation")
+    continuity_parser.add_argument("--username", default="administrator")
+    continuity_parser.add_argument("--coordinator", action="store_true", help="Create a narrow dynamic-tool coordinator credential")
+    continuity_parser.add_argument("--workspace", help="Required fixed workspace for a coordinator credential")
+    continuity_parser.add_argument("--token-only", action="store_true", help="Print only the new secret, suitable for assigning an environment variable")
+
     evidence_parser = subparsers.add_parser(
         "evidence", help="Inspect the encrypted evidence vault with an explicit privilege"
     )
@@ -1596,7 +1610,7 @@ or input errors.""",
             command_parser.add_argument("query")
         if name == "grant":
             command_parser.add_argument("principal_id")
-            command_parser.add_argument("role", choices=("viewer", "investigator", "evidence_collector"))
+            command_parser.add_argument("role", choices=("viewer", "investigator", "evidence_collector", "continuity_host", "continuity_coordinator"))
             command_parser.add_argument("--run-id")
         if name == "revoke":
             command_parser.add_argument("principal_id")
@@ -1737,6 +1751,34 @@ or input errors.""",
             blackbox_parser.print_help()
             return
         _run_blackbox(args)
+        return
+
+    if args.command == "continuity":
+        from atmem.continuity.client import ContinuityClient
+        if args.action == "credential":
+            from atmem.continuity.client import operator_credential
+            if not args.principal:
+                raise ValueError("credential requires --principal; provide a workflow ID to restrict a worker credential")
+            if args.coordinator and (not args.workspace or args.workflow):
+                raise ValueError("coordinator requires --workspace and no workflow ID")
+            credential = operator_credential(args.url, args.username, getpass.getpass("AtMem password: "), args.principal,
+                workflow_id=args.workflow, coordinator=args.coordinator, workspace_id=args.workspace)
+            print(credential["token"]) if args.token_only else _print(credential)
+            return
+        client = ContinuityClient(args.url, os.environ.get(args.token_env, ""))
+        if args.action == "create":
+            if not args.file or not args.workflow:
+                raise ValueError("create requires a workflow key and --file definition.json")
+            value = client.create(args.workflow, json.loads(Path(args.file).read_text())["operations"])
+        elif args.action == "list":
+            value = client.request("GET", "/v1/continuity")
+        elif args.action == "show":
+            value = client.get(args.workflow)
+        elif args.action in {"enable", "disable"}:
+            value = client.configure(args.workflow, args.action == "enable")
+        else:
+            value = client.request("POST", f"/v1/continuity/{args.workflow}/abandon", {"name": args.operation, "reason": args.reason})
+        _print(value)
         return
 
     if args.command == "evidence":

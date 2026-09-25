@@ -3,7 +3,7 @@ on:
   pull_request:
     paths:
       - 'benchmarks/agent_continuity/**'
-      - 'tests/benchmarking/test_agent_continuity.py'
+      - 'tests/benchmarking/**'
       - 'atmem/**'
       - 'pyproject.toml'
       - '.github/workflows/agent-continuity-smoke.yml'
@@ -20,7 +20,26 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -e '.[dev]' -r benchmarks/agent_continuity/requirements.txt
-      - run: python -m pytest tests/benchmarking/test_agent_continuity.py -q
+      - run: python -m pytest tests/benchmarking/test_agent_continuity.py tests/benchmarking/test_continuity_spend.py -q
         env:
           LANGSMITH_TRACING: 'false'
           LANGCHAIN_TRACING_V2: 'false'
+  retail-tool-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: sierra-research/tau2-bench
+          ref: b7ea9074c1cba482b30687fecdb5c8425fd6f619
+          path: .continuity-tau
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e '.[dev]' -r benchmarks/agent_continuity/requirements-retail.txt
+      - run: python -m pytest tests/benchmarking/test_continuity_retail.py tests/benchmarking/test_continuity_observation.py tests/benchmarking/test_continuity_live_transport.py tests/benchmarking/test_continuity_native_pilot.py -q
+        env:
+          CONTINUITY_TAU_ROOT: ${{ github.workspace }}/.continuity-tau
+          PYTHON_DOTENV_DISABLED: '1'

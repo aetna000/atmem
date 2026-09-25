@@ -11,14 +11,19 @@ AtMem helps agents remember, controls the context they receive, and independentl
 
 ## Product requirements that govern every feature
 
-### Agent continuity: benchmark-first track (planned)
+### Agent continuity: immediate product-first priority
 
-[Benchmarking 002](benchmarking/002-agent-continuity/spec.md) measures current
-AtMem and optional AtFlows against a competent durable runtime under verified
-crashes, uncertain external effects and changing permissions. Freeze baseline
-evidence before product changes. Runtime execution, AtMem authority and AtFlows
-observation remain distinct. This track promises no measured gains, release date
-or exactly-once external effects; improvements depend on reproducible results.
+[Benchmarking 002's correction](benchmarking/002-agent-continuity/product-first-correction.md)
+requires product-owned progress/receipt authority, shipped host recovery support
+and AtFlows recovery/cost views before evaluation. The benchmark only injects
+faults and measures; no recovery or feature compensation is permitted in it.
+Preserve existing raw baseline/design evidence. Host execution, AtMem authority
+and AtFlows observation remain distinct; no universal exactly-once claim.
+
+As of 2026-09-25 this is the next engineering priority, ahead of new Spec 026
+Memory Health work. Preserve existing release and security gates. First qualify
+installed features without benchmark code, then compare them; no new version is assigned.
+See the [release priority](../docs/release-roadmap.md#immediate-priority-agent-continuity-qualification).
 
 **Agent- and framework-neutral. Multiple agents. Replaceable, governed context providers. Standalone full-fidelity multimodal evidence. Clear explanations and deterministic reconstruction.**
 

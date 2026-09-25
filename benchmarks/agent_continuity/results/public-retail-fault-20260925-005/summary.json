@@ -1,0 +1,101 @@
+{
+  "evidence_class": "public-retail-recorded-response-fault-qualification",
+  "source": {
+    "commit": "b7ea9074c1cba482b30687fecdb5c8425fd6f619",
+    "tree_sha256": "73f7611d046b24dd3c1f9784d18be234d7f7b1b8b1124a3165c9efc372c80eb4",
+    "policy_sha256": "2c9652afbce57d6e087768d37cda64d31c53d50b3e3225cfdb791bac66466467",
+    "tools_sha256": "34f4fe9702d36f0dd4697700fbcd63d0cf5386e6eb8e7499aaa336243bad8750"
+  },
+  "paid_calls": 0,
+  "arms": [
+    {
+      "arm": "baseline",
+      "fault": "sixth_tool_committed_before_http_response",
+      "kill_signal": "SIGKILL",
+      "single_call_superstep": true,
+      "native_store_changed_before_kill": true,
+      "actual_restart_delay_seconds": 125.0016750828363,
+      "new_invocations_after_restart": 1,
+      "new_state_changes_after_restart": 0,
+      "native_error_replies_after_restart": 1,
+      "worker_status": {
+        "status": "cassette_miss",
+        "reason": "changed request has no recorded model response",
+        "native_request_matches": 0,
+        "packages": {
+          "atmem": "2.3.7b2",
+          "atflows": "0.1.2",
+          "langgraph": "1.2.12"
+        }
+      }
+    },
+    {
+      "arm": "atmem",
+      "fault": "sixth_tool_committed_before_http_response",
+      "kill_signal": "SIGKILL",
+      "single_call_superstep": true,
+      "native_store_changed_before_kill": true,
+      "actual_restart_delay_seconds": 125.00091666704975,
+      "new_invocations_after_restart": 0,
+      "new_state_changes_after_restart": 0,
+      "native_error_replies_after_restart": 0,
+      "worker_status": {
+        "status": "product_refused_before_dispatch",
+        "reason": "needs_confirmation",
+        "native_request_matches": 0,
+        "packages": {
+          "atmem": "2.3.7b2",
+          "atflows": "0.1.2",
+          "langgraph": "1.2.12"
+        }
+      }
+    },
+    {
+      "arm": "atflows",
+      "fault": "sixth_tool_committed_before_http_response",
+      "kill_signal": "SIGKILL",
+      "single_call_superstep": true,
+      "native_store_changed_before_kill": true,
+      "actual_restart_delay_seconds": 125.00512524996884,
+      "new_invocations_after_restart": 1,
+      "new_state_changes_after_restart": 0,
+      "native_error_replies_after_restart": 1,
+      "worker_status": {
+        "status": "cassette_miss",
+        "reason": "changed request has no recorded model response",
+        "native_request_matches": 0,
+        "packages": {
+          "atmem": "2.3.7b2",
+          "atflows": "0.1.2",
+          "langgraph": "1.2.12"
+        }
+      }
+    },
+    {
+      "arm": "both",
+      "fault": "sixth_tool_committed_before_http_response",
+      "kill_signal": "SIGKILL",
+      "single_call_superstep": true,
+      "native_store_changed_before_kill": true,
+      "actual_restart_delay_seconds": 125.00509229092859,
+      "new_invocations_after_restart": 0,
+      "new_state_changes_after_restart": 0,
+      "native_error_replies_after_restart": 0,
+      "worker_status": {
+        "status": "product_refused_before_dispatch",
+        "reason": "needs_confirmation",
+        "native_request_matches": 0,
+        "packages": {
+          "atmem": "2.3.7b2",
+          "atflows": "0.1.2",
+          "langgraph": "1.2.12"
+        }
+      }
+    }
+  ],
+  "graph_topology_equal": true,
+  "primary_measure": "public HTTP tool invocations after restart",
+  "completion_comparison_allowed": false,
+  "production_gains_claimed": false,
+  "limitations": "One exposed public task, recorded native model replies. Native store may reject repeats. Not fresh autonomous or held-out performance."
+}

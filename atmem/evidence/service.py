@@ -9,6 +9,21 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Iterator
 import os
+from functools import wraps
+from atmem.locking import ProcessFileLock
+
+
+def _key_transition(method):
+    @wraps(method)
+    def guarded(self, *args, **kwargs):
+        with self.key_transition_lock():
+            # Re-read under the shared lock, not from a pre-lock instance.
+            try:
+                self._key = load_existing_key(self.key_path)
+            except FileNotFoundError:
+                self._key = None
+            return method(self, *args, **kwargs)
+    return guarded
 
 from atmem.core.canonical import canonical_json
 from atmem.evidence.accounts import EvidenceAccountStore
@@ -139,6 +154,10 @@ class EvidenceService:
             )
         return EncryptedEvidenceStore(self.vault_path, self._key)
 
+    def key_transition_lock(self):
+        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        return ProcessFileLock(self.root / ".key-transition.lock", blocking=True)
+
     def storage_key(self) -> bytes:
         if self._key is None:
             raise PermissionError("encrypted evidence is locked")
@@ -192,7 +211,16 @@ class EvidenceService:
     def set_capture_mode(self, principal: EvidencePrincipal, mode: CaptureMode) -> dict[str, Any]:
         target = EvidenceScope(principal.scope.tenant_id, principal.scope.subject_id)
         principal.authorize(EvidenceOperation.RETENTION, target)
-        with self._store() as store:
+        with self._store() as store, store.atomic():
+            if mode is not CaptureMode.FULL:
+                workflows = {}
+                for doc in store.documents():
+                    if doc.get("record_type") == "continuity":
+                        workflows[doc["workflow"]["workflow_id"]] = doc["workflow"]
+                    elif doc.get("record_type") == "continuity_tombstone":
+                        workflows.pop(doc["workflow_id"], None)
+                if any(w["enabled"] or any(op["status"] == "uncertain" for op in w["operations"]) for w in workflows.values()):
+                    raise ValueError("disable continuity workflows and resolve or abandon uncertain work before reducing capture")
             store.set_capture_mode(mode, actor=principal.principal_id)
             store.access_event(self._audit(principal, "capture_mode", target, True, mode=mode.value))
         return self.protection_status()
@@ -358,6 +386,10 @@ class EvidenceService:
         role: EvidenceRole, scope: EvidenceScope,
     ) -> dict[str, str]:
         principal.authorize(EvidenceOperation.GRANT, scope)
+        if role is EvidenceRole.CONTINUITY_HOST and not scope.run_id:
+            raise ValueError("continuity host grants require an explicit workflow run_id")
+        if role is EvidenceRole.CONTINUITY_COORDINATOR and (not scope.workspace_id or scope.run_id):
+            raise ValueError("continuity coordinator requires an explicit workspace and no workflow binding")
         if not principal.scope.permits(scope):
             raise PermissionError("cannot grant evidence access outside the collector scope")
         credential = self.accounts.grant(principal_id, role, scope)
@@ -381,6 +413,10 @@ class EvidenceService:
             if confirmation != f"DELETE {run_id}":
                 raise PermissionError("evidence deletion requires exact confirmation")
             with self._store() as store:
+                for document in store.documents():
+                    if document.get("record_type") == "continuity" and document["workflow"]["workflow_id"] == run_id:
+                        actual = EvidenceScope(**document["workflow"]["scope"])
+                        principal.authorize(EvidenceOperation.DELETE, EvidenceScope(actual.tenant_id, actual.subject_id, actual.workspace_id, run_id))
                 result = store.delete_run(run_id)
                 store.access_event(self._audit(principal, "delete", target, True, **result))
             return {"run_id": run_id, "deleted": result}
@@ -388,6 +424,7 @@ class EvidenceService:
             self._record_access(principal, "delete", target, False)
             raise
 
+    @_key_transition
     def rotate_key(self, principal: EvidencePrincipal, *, confirmation: str) -> dict[str, Any]:
         target = principal.scope
         try:
@@ -422,6 +459,7 @@ class EvidenceService:
             self._record_access(principal, "rotate", target, False)
             raise
 
+    @_key_transition
     def lock(self, principal: EvidencePrincipal, *, confirmation: str) -> dict[str, Any]:
         target = principal.scope
         principal.authorize(EvidenceOperation.LOCK, target)
@@ -449,6 +487,7 @@ class EvidenceService:
         self._key = None
         return self.protection_status()
 
+    @_key_transition
     def unlock(self, principal: EvidencePrincipal, *, confirmation: str) -> dict[str, Any]:
         target = principal.scope
         principal.authorize(EvidenceOperation.UNLOCK, target)

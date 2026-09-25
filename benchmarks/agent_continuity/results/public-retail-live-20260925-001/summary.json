@@ -1,0 +1,219 @@
+{
+  "evidence_class": "fresh-public-retail-engineering-pilot",
+  "manifest_sha256": "e69fb0d3c24b4e41595151948c9b6bdbf69b451ab5c08c2a8d13b49d55229efd",
+  "arms": [
+    {
+      "arm": "baseline",
+      "trial_id": "fresh-baseline-eba04a16986a4455803e0401dfb5e493",
+      "disposition": "completed",
+      "termination": "user_stop",
+      "db_score": {
+        "reward": 1.0,
+        "db_check": {
+          "db_match": true,
+          "db_reward": 1.0
+        },
+        "env_assertions": [],
+        "action_checks": null,
+        "nl_assertions": null,
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB",
+          "NL_ASSERTION"
+        ],
+        "reward_breakdown": {
+          "DB": 1.0
+        },
+        "info": null
+      },
+      "nl_score": {
+        "reward": 1.0,
+        "db_check": null,
+        "env_assertions": null,
+        "action_checks": null,
+        "nl_assertions": [],
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB"
+        ],
+        "reward_breakdown": {
+          "NL_ASSERTION": 1.0
+        },
+        "info": {
+          "note": "No nl_assertions to evaluate"
+        }
+      },
+      "local_task_reward": 1.0,
+      "observer_errors": [],
+      "elapsed_seconds": 44.338885667035356,
+      "paid_calls": 14,
+      "transport_halted": null
+    },
+    {
+      "arm": "atmem",
+      "trial_id": "fresh-atmem-c0fe51c893f743778817296262f8c67d",
+      "disposition": "completed",
+      "termination": "user_stop",
+      "db_score": {
+        "reward": 0.0,
+        "db_check": {
+          "db_match": false,
+          "db_reward": 0.0
+        },
+        "env_assertions": [],
+        "action_checks": null,
+        "nl_assertions": null,
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB",
+          "NL_ASSERTION"
+        ],
+        "reward_breakdown": {
+          "DB": 0.0
+        },
+        "info": null
+      },
+      "nl_score": {
+        "reward": 1.0,
+        "db_check": null,
+        "env_assertions": null,
+        "action_checks": null,
+        "nl_assertions": [],
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB"
+        ],
+        "reward_breakdown": {
+          "NL_ASSERTION": 1.0
+        },
+        "info": {
+          "note": "No nl_assertions to evaluate"
+        }
+      },
+      "local_task_reward": 0.0,
+      "observer_errors": [],
+      "elapsed_seconds": 44.59465558291413,
+      "paid_calls": 18,
+      "transport_halted": null
+    },
+    {
+      "arm": "atflows",
+      "trial_id": "fresh-atflows-f86365abd3ef45958209c4728cd24b74",
+      "disposition": "completed",
+      "termination": "user_stop",
+      "db_score": {
+        "reward": 0.0,
+        "db_check": {
+          "db_match": false,
+          "db_reward": 0.0
+        },
+        "env_assertions": [],
+        "action_checks": null,
+        "nl_assertions": null,
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB",
+          "NL_ASSERTION"
+        ],
+        "reward_breakdown": {
+          "DB": 0.0
+        },
+        "info": null
+      },
+      "nl_score": {
+        "reward": 1.0,
+        "db_check": null,
+        "env_assertions": null,
+        "action_checks": null,
+        "nl_assertions": [],
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB"
+        ],
+        "reward_breakdown": {
+          "NL_ASSERTION": 1.0
+        },
+        "info": {
+          "note": "No nl_assertions to evaluate"
+        }
+      },
+      "local_task_reward": 0.0,
+      "observer_errors": [],
+      "elapsed_seconds": 41.8911635838449,
+      "paid_calls": 18,
+      "transport_halted": null
+    },
+    {
+      "arm": "both",
+      "trial_id": "fresh-both-3cc6ffadb1d743489ff30db0b70c100c",
+      "disposition": "completed",
+      "termination": "user_stop",
+      "db_score": {
+        "reward": 0.0,
+        "db_check": {
+          "db_match": false,
+          "db_reward": 0.0
+        },
+        "env_assertions": [],
+        "action_checks": null,
+        "nl_assertions": null,
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB",
+          "NL_ASSERTION"
+        ],
+        "reward_breakdown": {
+          "DB": 0.0
+        },
+        "info": null
+      },
+      "nl_score": {
+        "reward": 1.0,
+        "db_check": null,
+        "env_assertions": null,
+        "action_checks": null,
+        "nl_assertions": [],
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB"
+        ],
+        "reward_breakdown": {
+          "NL_ASSERTION": 1.0
+        },
+        "info": {
+          "note": "No nl_assertions to evaluate"
+        }
+      },
+      "local_task_reward": 0.0,
+      "observer_errors": [],
+      "elapsed_seconds": 52.310523374937475,
+      "paid_calls": 18,
+      "transport_halted": null
+    }
+  ],
+  "source_integrity": true,
+  "production_gains_claimed": false,
+  "budget_summary": {
+    "estimated_micro_usd": 283932,
+    "unresolved_reserve_micro_usd": 0,
+    "budget_exposure_micro_usd": 283932,
+    "unknown_attempts": 0,
+    "attempts": 86,
+    "reservation_breached": false,
+    "usage_estimate_complete": true,
+    "provider_invoice_verified": false,
+    "by_role": {
+      "simulator": {
+        "estimated_micro_usd": 61200,
+        "unresolved_reserve_micro_usd": 0,
+        "unknown_attempts": 0
+      },
+      "agent": {
+        "estimated_micro_usd": 222732,
+        "unresolved_reserve_micro_usd": 0,
+        "unknown_attempts": 0
+      }
+    }
+  },
+  "comparison_eligible": true
+}

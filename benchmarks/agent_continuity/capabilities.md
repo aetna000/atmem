@@ -1,5 +1,10 @@
 # Current AtMem capabilities and arm ownership
 
+> Historical fixture ownership, not a product capability matrix. The journal and
+> reconciliation below live in benchmark code and must not supply the new product
+> evaluation. See [product-first correction](../../specs/benchmarking/002-agent-continuity/product-first-correction.md).
+> Installed product acceptance and revised arm ownership remain open.
+
 Audit: 2026-09-25, source `3ca2733a4d5b641b8eb887aacf5cd9c6277e0c59`,
 AtMem 2.3.7b2. Public runtime candidate: LangGraph 1.2.12 with
 langgraph-checkpoint-sqlite 3.1.1; dependencies are benchmark-only.

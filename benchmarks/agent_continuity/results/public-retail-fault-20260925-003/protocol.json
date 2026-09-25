@@ -1,0 +1,47 @@
+{
+  "source": {
+    "commit": "b7ea9074c1cba482b30687fecdb5c8425fd6f619",
+    "tree_sha256": "73f7611d046b24dd3c1f9784d18be234d7f7b1b8b1124a3165c9efc372c80eb4",
+    "policy_sha256": "2c9652afbce57d6e087768d37cda64d31c53d50b3e3225cfdb791bac66466467",
+    "tools_sha256": "34f4fe9702d36f0dd4697700fbcd63d0cf5386e6eb8e7499aaa336243bad8750"
+  },
+  "code": {
+    "retail_fault_qualification.py": "8199aac6261f77e698abd6b86a143c8ed0452dcf934dbb5f300dfb0d6861158a",
+    "retail_worker.py": "662493c4bcabd535eeba4957315ef65cd849cea7ee21ab9f0a1f1feea799b7c9",
+    "retail_graph.py": "06f75c1ab590fffe3f6b4ec3004310c31046632dbbcaa8818e36d627a43088f5",
+    "retail_graph_qualification.py": "d7942a765270683b7c93c6ace25ece72e522a6e6d601bb9de2c8d15dc20d03c6",
+    "retail.py": "a88e2f324ea02a8988827ae6d1fa59a9f448c997b15b415a7d8fe9bbc4462be7",
+    "manifest.py": "5b28f248e732c7aeab1d276be99322c5bac56d2ded425c09ffb5cc02a15af7ad"
+  },
+  "task_id": "0",
+  "tool_ordinal": 6,
+  "restart_delay_seconds": 125,
+  "paid_calls": 0,
+  "arms": [
+    "baseline",
+    "atmem",
+    "atflows",
+    "both"
+  ],
+  "primary_measure": "new_invocations_after_restart",
+  "cassette_manifest_sha256": "566b8e70f212d3be417e54a72071e4fc496d34e00b8d555a382c6366433d4e90",
+  "trajectory_sha256": "9aff9c8da45f7791f95a3a93530e5981a9ddef1b03288db6fccf842e2e6e66d3",
+  "packages": {
+    "atmem": {
+      "version": "2.3.7b2",
+      "record_sha256": "853ed6aa55f51b4348be47f07190170d5839908d3326bb502768ebdccea15a4e"
+    },
+    "atflows": {
+      "version": "0.1.2",
+      "record_sha256": "0b54d2cf9d916482efcdecf0ec5f55d7c5f6bd0f0d95dc904f01c61193cc70d1"
+    },
+    "langgraph": {
+      "version": "1.2.12",
+      "record_sha256": "0c68b9795d81d3872efef3dba7f23eb13184ccc124dd87fdcc38dd29a313b501"
+    },
+    "langgraph-checkpoint-sqlite": {
+      "version": "3.1.1",
+      "record_sha256": "5ac214f27170fa9e870cd07d3049aea279c3eea5e64d2bf7ab58a17d5b311fff"
+    }
+  }
+}

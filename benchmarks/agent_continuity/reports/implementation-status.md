@@ -1,7 +1,17 @@
 # Continuity implementation status — 2026-09-25
 
+> **Attribution correction:** recovery in this historical smoke run was supplied
+> by `benchmarks/agent_continuity/runtime.py`, not a complete shipped AtMem
+> feature. The 24/6 outcomes demonstrate that fixture design only. Raw evidence
+> remains unchanged. The active product-first work is tracked in
+> [the corrected plan](../../../specs/benchmarking/002-agent-continuity/product-first-correction.md).
+
 **Implemented: offline foundation. Not completed: public-corpus benchmark or
 product continuity improvements.** Nothing was released or deployed.
+
+This is the preserved first-foundation validation record. Later retail-tool and
+AtFlows HTTP milestones are tracked separately in [milestones-20260925.md](milestones-20260925.md);
+they do not modify the original raw smoke bundle or its claim level.
 
 ## Branches
 

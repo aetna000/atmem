@@ -1,0 +1,47 @@
+{
+  "attempt_id": "17e5e513-a8ab-46f9-b452-cddfca9f7a1e",
+  "latency_ms": 1763.6578329838812,
+  "response": {
+    "id": "chatcmpl-ERlvzmwc0535PjgjMZVixGKOSiwXR",
+    "object": "chat.completion",
+    "created": 1790287823,
+    "model": "gpt-4.1-2025-04-14",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Here\u2019s a summary of your requested exchange for order #W2378156:\n\n1. Mechanical Keyboard:\n   - Exchange from: Linear, RGB, full size (item id: 1151293680)\n   - Exchange to: Clicky, white backlight, full size (item id: 6342039236)\n\n2. Smart Thermostat:\n   - Exchange from: Apple HomeKit, black (item id: 4983901480)\n   - Exchange to: Google Assistant, black (item id: 7747408585)\n\nThe price difference will be calculated and processed using your original payment method (Mastercard ending in 2478). You will receive an email with instructions on how to return the original items.\n\nPlease confirm that all the details above are correct and that you\u2019d like to proceed with the exchange. (Reply \u201cyes\u201d to continue or let me know if you need any changes.)",
+          "refusal": null,
+          "annotations": []
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 6512,
+      "completion_tokens": 186,
+      "total_tokens": 6698,
+      "prompt_tokens_details": {
+        "cached_tokens": 6272,
+        "audio_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": 0,
+        "accepted_prediction_tokens": 0,
+        "rejected_prediction_tokens": 0
+      }
+    },
+    "service_tier": "default",
+    "system_fingerprint": "fp_a7f19062b9",
+    "_benchmark_http": {
+      "http_status": 200,
+      "request_id": "req_7415e2e91daf41a6b82ffca16e77947e",
+      "received_bytes": 1580,
+      "body_sha256": "5c692e979bcc895f11fce5ead7b6540e08f0f5b643bbfcafe3f64c64d40db0a3"
+    },
+    "_benchmark_raw_response": "{\n  \"id\": \"chatcmpl-ERlvzmwc0535PjgjMZVixGKOSiwXR\",\n  \"object\": \"chat.completion\",\n  \"created\": 1790287823,\n  \"model\": \"gpt-4.1-2025-04-14\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"Here\u2019s a summary of your requested exchange for order #W2378156:\\n\\n1. Mechanical Keyboard:\\n   - Exchange from: Linear, RGB, full size (item id: 1151293680)\\n   - Exchange to: Clicky, white backlight, full size (item id: 6342039236)\\n\\n2. Smart Thermostat:\\n   - Exchange from: Apple HomeKit, black (item id: 4983901480)\\n   - Exchange to: Google Assistant, black (item id: 7747408585)\\n\\nThe price difference will be calculated and processed using your original payment method (Mastercard ending in 2478). You will receive an email with instructions on how to return the original items.\\n\\nPlease confirm that all the details above are correct and that you\u2019d like to proceed with the exchange. (Reply \u201cyes\u201d to continue or let me know if you need any changes.)\",\n        \"refusal\": null,\n        \"annotations\": []\n      },\n      \"logprobs\": null,\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 6512,\n    \"completion_tokens\": 186,\n    \"total_tokens\": 6698,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\": 6272,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\": 0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\": \"default\",\n  \"system_fingerprint\": \"fp_a7f19062b9\"\n}\n"
+  }
+}

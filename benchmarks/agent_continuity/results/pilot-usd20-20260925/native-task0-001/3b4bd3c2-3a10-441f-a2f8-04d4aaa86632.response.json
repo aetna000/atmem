@@ -1,0 +1,47 @@
+{
+  "attempt_id": "3b4bd3c2-3a10-441f-a2f8-04d4aaa86632",
+  "latency_ms": 2120.5931659787893,
+  "response": {
+    "id": "chatcmpl-ERlvw9TDuyDR1IsOnhFTFeh0MXQv1",
+    "object": "chat.completion",
+    "created": 1790287820,
+    "model": "gpt-4.1-2025-04-14",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Here\u2019s what I found for your exchange request:\n\n1. Mechanical Keyboard: You currently have the \u201clinear, RGB, full size\u201d model. For a \u201cclicky, full size\u201d keyboard, the available options are:\n   - Clicky, no backlight (item id: 7706410293)\n   - Clicky, white backlight (item id: 6342039236)\n\n2. Smart Thermostat: You currently have the \u201cApple HomeKit, black\u201d model. For a thermostat compatible with Google Assistant, the available option is:\n   - Google Assistant, black (item id: 7747408585)\n\nPlease confirm:\n- Which \u201cclicky, full size\u201d keyboard you\u2019d like: no backlight or white backlight?\n- Do you want the \u201cGoogle Assistant, black\u201d thermostat?\n\nOnce you confirm your choices, I\u2019ll summarize the exchange details and ask for your final approval before proceeding.",
+          "refusal": null,
+          "annotations": []
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 6261,
+      "completion_tokens": 189,
+      "total_tokens": 6450,
+      "prompt_tokens_details": {
+        "cached_tokens": 4608,
+        "audio_tokens": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 0,
+        "audio_tokens": 0,
+        "accepted_prediction_tokens": 0,
+        "rejected_prediction_tokens": 0
+      }
+    },
+    "service_tier": "default",
+    "system_fingerprint": "fp_a7f19062b9",
+    "_benchmark_http": {
+      "http_status": 200,
+      "request_id": "req_42158723a83c4d49aa84e0f190f37c82",
+      "received_bytes": 1614,
+      "body_sha256": "f12bed5e170c40b0e918fb02451beca15fe4cc354884d2ecafd5ac33b8fb91a5"
+    },
+    "_benchmark_raw_response": "{\n  \"id\": \"chatcmpl-ERlvw9TDuyDR1IsOnhFTFeh0MXQv1\",\n  \"object\": \"chat.completion\",\n  \"created\": 1790287820,\n  \"model\": \"gpt-4.1-2025-04-14\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"Here\u2019s what I found for your exchange request:\\n\\n1. Mechanical Keyboard: You currently have the \u201clinear, RGB, full size\u201d model. For a \u201cclicky, full size\u201d keyboard, the available options are:\\n   - Clicky, no backlight (item id: 7706410293)\\n   - Clicky, white backlight (item id: 6342039236)\\n\\n2. Smart Thermostat: You currently have the \u201cApple HomeKit, black\u201d model. For a thermostat compatible with Google Assistant, the available option is:\\n   - Google Assistant, black (item id: 7747408585)\\n\\nPlease confirm:\\n- Which \u201cclicky, full size\u201d keyboard you\u2019d like: no backlight or white backlight?\\n- Do you want the \u201cGoogle Assistant, black\u201d thermostat?\\n\\nOnce you confirm your choices, I\u2019ll summarize the exchange details and ask for your final approval before proceeding.\",\n        \"refusal\": null,\n        \"annotations\": []\n      },\n      \"logprobs\": null,\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 6261,\n    \"completion_tokens\": 189,\n    \"total_tokens\": 6450,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\": 4608,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\": 0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\": \"default\",\n  \"system_fingerprint\": \"fp_a7f19062b9\"\n}\n"
+  }
+}

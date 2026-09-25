@@ -42,11 +42,15 @@ def passes_smoke_cell(row: dict) -> bool:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--historical-fixture", action="store_true",
+                        help="explicitly run the old benchmark-owned recovery design, not a product evaluation")
     parser.add_argument("--repetitions", type=int, default=1)
     parser.add_argument("--include-atmem", action="store_true")
     parser.add_argument("--capabilities", nargs="+", choices=["I", "Q", "N"], default=["I", "Q", "N"])
     parser.add_argument("--seed", type=int, default=20260925)
     args = parser.parse_args()
+    if not args.historical_fixture:
+        parser.error("This is the historical recovery fixture. Use --historical-fixture only to reproduce design tests; see retail_graph_qualification and installed product acceptance for current evidence.")
     if not 1 <= args.repetitions <= 100:
         parser.error("repetitions must be 1..100")
     args.output.mkdir(parents=True, exist_ok=False)
@@ -63,7 +67,7 @@ def main() -> None:
     random.Random(args.seed).shuffle(schedule)
     source_root = Path(__file__).resolve().parents[2]
     frozen_environment = environment_stamp()
-    manifest = {"evidence_level": "smoke", "seed": args.seed, "schedule": schedule,
+    manifest = {"evidence_level": "historical-recovery-design-fixture", "product_recovery_claims_allowed": False, "seed": args.seed, "schedule": schedule,
                 "frozen_environment": frozen_environment,
                 "python": platform.python_version(), "platform": platform.platform(),
                 "packages": {name: importlib.metadata.version(name) for name in ("langgraph", "langgraph-checkpoint-sqlite", "atmem")},

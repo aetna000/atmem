@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "authorization_id": "continuity-pilot-usd20-20260925",
+  "currency": "USD",
+  "maximum_total_usd": "20.00",
+  "agent_model": "gpt-4.1-2025-04-14",
+  "simulator_model": "gpt-4.1-2025-04-14",
+  "includes": ["agent", "simulator", "retries", "recovery", "any_model_grading"],
+  "egress": "pinned public pilot workload only; no private Home data",
+  "status": "authorized_not_executed",
+  "publication": "retain all trial dispositions and sanitized raw records, versioned manifests and checksums; no automatic external publication",
+  "remaining_gates": ["provider-bound reservation enforcement", "exact prompts and limits", "full agent orchestration", "no-fault validation", "milestone read-only review"]
+}

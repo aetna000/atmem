@@ -1043,6 +1043,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 tenant_id=evidence_principal.scope.tenant_id,
                 evidence_role=evidence_principal.role.value,
                 credential_kind="legacy_evidence_bearer",
+                evidence_run_id=evidence_principal.scope.run_id,
             )
         if not secrets.compare_digest(token, self.server.csrf_token):
             raise APIError("unauthenticated", "a valid local bearer credential is required", status=401)
@@ -1065,6 +1066,12 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             principal = self._v1_principal()
             if path == "/v1/health":
                 value = self.server.application.health(principal)
+            elif path == "/v1/continuity":
+                service, actor = self._continuity(principal)
+                value = {"workflows": service.list(actor)}
+            elif path.startswith("/v1/continuity/"):
+                service, actor = self._continuity(principal)
+                value = service.get(actor, path.rsplit("/", 1)[-1])
             elif path == "/v1/capabilities":
                 value = self.server.application.capability_manifest(principal)
             elif path == "/v1/memories":
@@ -1116,6 +1123,9 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         except (TypeError, ValueError) as exc:
             self._json(HTTPStatus.BAD_REQUEST, APIError("invalid_request", str(exc), status=400).to_dict())
 
+        except (OSError, RuntimeError) as exc:
+            self._json(HTTPStatus.SERVICE_UNAVAILABLE, APIError("unavailable", str(exc), status=503).to_dict())
+
     def _v1_post(self, path: str) -> None:
         from atmem.service import APIError
 
@@ -1135,6 +1145,29 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     idempotency_key=str(body.get("idempotency_key") or ""),
                     session_id=body.get("session_id"),
                 )
+            elif path == "/v1/continuity":
+                service, actor = self._continuity(principal)
+                if set(body) - {"workflow_key", "operations", "activate"}:
+                    raise ValueError("unexpected workflow field; scope comes from the credential")
+                value = service.create(actor, body["workflow_key"], body["operations"], activate=body.get("activate", False))
+            elif path.startswith("/v1/continuity/"):
+                service, actor = self._continuity(principal)
+                parts = path.split("/")
+                if len(parts) != 5:
+                    raise ValueError("invalid continuity action")
+                workflow_id, action = parts[3:]
+                if action == "configure":
+                    value = service.configure(actor, workflow_id, enabled=body["enabled"])
+                elif action == "begin":
+                    value = service.begin(actor, workflow_id, body["name"], body["run_id"], body["attempt_id"])
+                elif action == "outcome":
+                    value = service.outcome(actor, workflow_id, body["name"], body["lease_token"], body["receipt"], run_id=body["run_id"], attempt_id=body["attempt_id"])
+                elif action == "renew":
+                    value = service.renew(actor, workflow_id, body["name"], body["lease_token"], run_id=body["run_id"], attempt_id=body["attempt_id"])
+                elif action == "abandon":
+                    value = service.abandon(actor, workflow_id, body["name"], body["reason"])
+                else:
+                    raise ValueError("unknown continuity action")
             elif path == "/v1/query":
                 value = self.server.application.query(principal, str(body.get("query") or ""))
             elif path == "/v1/lifecycle":
@@ -1194,6 +1227,11 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.FORBIDDEN, APIError("forbidden", str(exc), status=403).to_dict())
         except (KeyError, OSError, RuntimeError, TypeError, ValueError) as exc:
             self._json(HTTPStatus.CONFLICT, APIError("conflict", str(exc), status=409).to_dict())
+
+    def _continuity(self, principal):
+        from atmem.continuity import ContinuityService
+        return (ContinuityService(self.server.manager.evidence_service()),
+                self.server.application._evidence_principal(principal))
 
     def log_message(self, format: str, *args: Any) -> None:
         del format, args

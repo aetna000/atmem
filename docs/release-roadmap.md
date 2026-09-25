@@ -9,6 +9,27 @@ AtMem is an agent-neutral, standalone encrypted evidence authority for memory, c
 
 ## Release overview
 
+### Immediate priority: agent continuity qualification
+
+Priority updated 2026-09-25: [Benchmarking 002](../specs/benchmarking/002-agent-continuity/spec.md)
+and AtFlows Spec 010 take precedence over starting new 2.4.0 Memory Health
+features. The experimental baseline is AtMem 2.3.7b2 and AtFlows 0.1.2;
+this does not change the stable publication baseline above.
+
+Corrected delivery order: product contracts; AtMem progress/receipt authority and
+shipped host recovery integration; user setup/status; AtFlows recovery/cost views;
+installed acceptance without benchmark code; inert test rig; four-arm qualification
+and held-out evaluation. The rig must not supply recovery or feature compensation.
+See [the correction](../specs/benchmarking/002-agent-continuity/product-first-correction.md).
+Keep historical artifacts/results unchanged. Product work is approved; every
+milestone requires read-only Claude review, corrective tests and compatibility
+gates. No more paid comparisons before installed product acceptance.
+
+No release is authorized by this track. Select a beta version for approved product
+work only after product/artifact gates; stable promotion requires paired reruns and
+existing compatibility, security, documentation and installed-artifact gates.
+The numbered capability targets below remain proposals, not execution priority.
+
 | Proposed AtMem version | Work group | Customer value and included scope | Primary specs | Readiness boundary |
 | --- | --- | --- | --- | --- |
 | **2.2.6** — optional maintenance | Baseline maintenance | Stabilize already implemented 2.2 capabilities, including delegated host identity/lifecycle fixes and compatibility checks; publish accurate installation/upgrade guidance | Existing runtime; 003 T049–T053; applicable regression gates | Spec 003 host compatibility work is assigned to 2.2.6; unresolved host profiles remain explicitly blocked/unverified. No claim that the new roadmap capabilities are delivered. This maintenance release is optional and does not block 2.3 development. |
@@ -119,7 +140,10 @@ uses AtMem credentials in delegated mode and the AtFlows Administrator in
 standalone mode. Neither mode turns observational telemetry into canonical
 memory or automatic Memory Health findings. See the [release note](releases/v2.3.4.md).
 
-## Next planned capability: 2.4.0 local memory health
+## Deferred next capability: 2.4.0 local memory health
+
+Continuity qualification above now takes engineering priority. This scope is
+retained, not cancelled or implicitly shipped.
 
 Bring the useful native single-owner Spec 026 cycle forward from 2.8.0. Deliver
 temporal assertions, time-valid retrieval, deterministic derivations, exact

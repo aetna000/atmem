@@ -1,0 +1,44 @@
+{
+  "authorization_id": "continuity-pilot-usd20-20260925",
+  "protocol_sha256": "add335041a3d1e508cc5785e28f15b5a81a5679150e4494336726531c543ca8e",
+  "cap_micro_usd": 20000000,
+  "authorization": {
+    "schema_version": 1,
+    "authorization_id": "continuity-pilot-usd20-20260925",
+    "currency": "USD",
+    "maximum_total_usd": "20.00",
+    "agent_model": "gpt-4.1-2025-04-14",
+    "simulator_model": "gpt-4.1-2025-04-14",
+    "includes": [
+      "agent",
+      "simulator",
+      "retries",
+      "recovery",
+      "any_model_grading"
+    ],
+    "egress": "pinned public pilot workload only; no private Home data",
+    "status": "authorized_not_executed",
+    "publication": "retain all trial dispositions and sanitized raw records, versioned manifests and checksums; no automatic external publication",
+    "remaining_gates": [
+      "provider-bound reservation enforcement",
+      "exact prompts and limits",
+      "full agent orchestration",
+      "no-fault validation",
+      "milestone read-only review"
+    ]
+  },
+  "price": {
+    "model": "gpt-4.1-2025-04-14",
+    "currency": "USD",
+    "input_per_million": "2.00",
+    "cached_input_per_million": "0.50",
+    "output_per_million": "8.00",
+    "source": "https://developers.openai.com/api/docs/models/gpt-4.1",
+    "verified_date": "2026-09-25",
+    "context_window": 1047576,
+    "max_completion_tokens": 2048,
+    "service_tier": "default",
+    "upper_reserve_micro_usd": 2200000,
+    "assumption": "standard text token billing; no hosted tools; full context upper bound plus margin"
+  }
+}
