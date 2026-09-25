@@ -86,10 +86,18 @@ export function readOpenClawVersion(packageDir) {
  * terminate the block early, and depth-tracked so a nested type's fields are
  * never mistaken for this type's own.
  */
-function extractTypeFields(source, typeName) {
+export function extractTypeFields(source, typeName) {
   const header = `type ${typeName} = {`;
   const start = source.indexOf(header);
-  if (start === -1) return null;
+  if (start === -1) {
+    // OpenClaw 2026.9.6 makes this context versioned. AtMem registers the
+    // direct-turn (default v1) factory, whose declared branch is the base type.
+    // Match that exact declaration; do not infer safety for an unknown alias.
+    if (typeName === "OpenClawPluginToolContext" && /type OpenClawPluginToolContext<Version extends 1 \| 2 = 1> = Version extends 2 \? OpenClawPluginToolContextBase & \{\s*assertInvocationCurrent: \(\) => void;\s*\} : OpenClawPluginToolContextBase;/.test(source)) {
+      return extractTypeFields(source, "OpenClawPluginToolContextBase");
+    }
+    return null;
+  }
   const open = start + header.length - 1;
   let depth = 0;
   let end = -1;

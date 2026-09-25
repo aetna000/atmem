@@ -1,6 +1,7 @@
 # Resume work with AtMem and AtFlows
 
-Development feature on the continuity branch; not part of a new published release.
+Included in the AtMem 2.3.7 / AtFlows 0.1.3 release candidate. Verify matching
+registry artifacts before following the exact versioned installation command.
 
 AtMem saves what your connected agent is doing before it calls a tool. When the
 agent restarts, a saved success receipt lets it reuse the result. If an action
@@ -13,7 +14,8 @@ AtMem does not run your agent or replace LangGraph's scheduler/checkpointer.
 
 ## Try a real document
 
-Build/install this branch first. Run `atmem init`, then `atmem status` to find your
+Install `python -m pip install "atmem[langgraph-provider]==2.3.7"`.
+Run `atmem init`, then `atmem status` to find your
 dashboard URL. Sign in and replace any temporary administrator password. Commands
 below assume the reported URL is `http://127.0.0.1:8768`; add `--url` otherwise.
 They do not use development/test accounts. Passwords are prompted without echo.
@@ -49,8 +51,9 @@ Keep that directory private. It is not an untrusted multi-user file service.
 
 PowerShell environment assignment uses
 `$env:ATMEM_EVIDENCE_TOKEN = atmem continuity credential --principal document-operator --token-only`.
-The Python module works on supported platforms; the current crash qualification
-was performed on macOS, not independently reproduced on Windows/Linux yet.
+The Python module works on supported platforms. The two installed receipt-window
+crash checks were reproduced on macOS and native Windows; Linux crash
+qualification remains separate. See the release evidence for exact builds.
 
 ## Connect your own agent
 

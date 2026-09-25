@@ -1,11 +1,11 @@
 # AtMem
 
-[![Version 2.3.7b2](https://img.shields.io/badge/version-2.3.7b2-blue)](./docs/releases/v2.3.7b2.md)
+[![Version 2.3.7](https://img.shields.io/badge/version-2.3.7-blue)](./docs/releases/v2.3.7.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-> **Release status:** AtMem 2.3.6 remains the stable release. AtMem 2.3.7b2 is a Windows concurrency and durability prerelease; see its [release note](./docs/releases/v2.3.7b2.md). The stable [memory-integrity benchmark](./docs/benchmarks/memory-integrity.md) remains unchanged. AtFlows telemetry and read-only review leads remain separate and explicit.
+> **2.3.7 release candidate:** Product-owned continuity helps connected workflows reuse completed results, reconcile supported destinations, and stop uncertain work safely. AtFlows 0.1.3 adds attempt visibility and grouped event charts. See the [release note](./docs/releases/v2.3.7.md), [setup guide](./docs/continuity.md), and [recorded evidence](./benchmarks/agent_continuity/reports/product-continuity-20260925.md). Publication is confirmed by matching GitHub and registry artifacts; previous benchmarks retain their tested-version provenance.
 > It records exact host-observed text and supported multimodal boundaries by default,
 > while keeping every claim limited to what the connected agent actually supplied.
 
@@ -35,7 +35,7 @@ always-present local vector index. Do **not** install AtBot separately. During
 hosted provider, or the safe deterministic fallback. API keys stay in
 environment variables; AtMem does not save them.
 
-In 2.3.7b2, `pip install atmem` installs the Python packages only; pip does not
+In 2.3.7, `pip install atmem` installs the Python packages only; pip does not
 run a post-install downloader. On the first `atmem init`, if compatible Bun is not
 already installed, AtMem clearly announces and downloads its pinned official
 Bun runtime for AtFlows, verifies the archive against a release-pinned SHA-256,
@@ -714,7 +714,7 @@ npm run smoke
 The latest stable release is **2.3.6** with matching OpenClaw bridge source
 **2.3.6**. Release validation requires exact Python/bridge alignment; AtBot
 retains its independent stable compatible version **0.1.0** and AtFlows remains
-**0.1.2**.
+**0.1.3**.
 
 ## License
 

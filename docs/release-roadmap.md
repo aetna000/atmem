@@ -1,9 +1,14 @@
 # AtMem release roadmap
 
-**Status**: 2.3.6 stable memory-integrity release; future versions are
+**Status**: 2.3.7 stable release candidate in preparation; future versions are
 planning targets, not delivery-date commitments.
 **Stable release baseline**: AtMem `2.3.6`, OpenClaw bridge `2.3.6`, companion pins
 `atmem-atbot==0.1.0` and `atflows==0.1.2`.
+
+**Approved next release:** AtMem/bridge `2.3.7`, AtFlows `0.1.3`, AtBot `0.1.0`.
+Lead with opt-in product continuity, observable attempts, grouped event charts
+and Windows reliability. Update the publication baseline after registry
+verification. Preserve benchmark provenance; held-out qualification stays open.
 
 AtMem is an agent-neutral, standalone encrypted evidence authority for memory, context governance and execution investigation. Every release follows [PR-001–PR-008](../specs/product-requirements.md), including default full-fidelity multimodal capture, application-only privileged plaintext and store-only reconstruction after the agent and its logs are gone. Advertise only the host, provider, capture-boundary, cryptographic and deployment profiles actually verified for that release.
 

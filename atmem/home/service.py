@@ -52,8 +52,9 @@ def _atomic_json(path: Path, value: dict[str, Any]) -> None:
     descriptor, name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
     temporary = Path(name)
     try:
-        os.fchmod(descriptor, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            if os.name != "nt":
+                os.fchmod(handle.fileno(), 0o600)
             json.dump(value, handle, indent=2, sort_keys=True)
             handle.write("\n")
             handle.flush()

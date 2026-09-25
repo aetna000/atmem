@@ -343,7 +343,7 @@ jobs:
           atmem dashboard daemon stop
 
   upgrade-existing:
-    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.3.7b2
+    name: Upgrade persisted AtMem ${{ matrix.source-version }} data to 2.3.7
     needs: build
     runs-on: ubuntu-latest
     strategy:

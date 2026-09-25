@@ -56,7 +56,7 @@ def test_repository_release_constants_and_notes_are_aligned():
     assert f'atmem-atbot=={companion}' in project
     assert f'PINNED_ATBOT_VERSION = "{companion}"' in (root / 'atmem/control/atbot_service.py').read_text()
     metadata = tomllib.loads(project)['project']
-    assert 'atflows==0.1.2' in metadata['dependencies']
+    assert 'atflows==0.1.3' in metadata['dependencies']
     atflows_version = next(
         dependency.removeprefix('atflows==')
         for dependency in metadata['dependencies']

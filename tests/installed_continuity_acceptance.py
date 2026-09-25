@@ -122,7 +122,7 @@ def main():
             before = client.get(workflow_id)
             effects_before = list(destination.glob('*.md'))
             assert len(effects_before) == 1
-            assert effects_before[0].read_text() == document
+            assert effects_before[0].read_text(encoding='utf-8') == document
             fault['mode'] = None
             # Wait actual persisted lease time; no clock/state mutation by the rig.
             wait_seconds = max(0, before['operations'][0].get('lease_until', 0) - time.time() + .1)

@@ -40,8 +40,9 @@ def write_state(path: str | Path, state: ControlState) -> ControlState:
     )
     temporary_path = Path(temporary)
     try:
-        os.fchmod(descriptor, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            if os.name != "nt":
+                os.fchmod(handle.fileno(), 0o600)
             handle.write(serialized)
             handle.flush()
             os.fsync(handle.fileno())

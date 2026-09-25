@@ -1,14 +1,21 @@
 # Releases and upgrades
 
-## Prerelease
+## Stable release: 2.3.7
+
+[AtMem 2.3.7](../releases/v2.3.7.md) adds opt-in product-owned continuity:
+reuse saved results, reconcile supported destinations after a lost receipt,
+and stop uncertain actions for confirmation. AtFlows 0.1.3 exposes attempts
+and reported costs, plus grouped event charts with AtMem typography. See the
+release note for evidence, setup and migration requirements.
+
+## Earlier prerelease
 
 [AtMem 2.3.7b2](../releases/v2.3.7b2.md) serializes same-process encrypted
 control-store access and retries transient Windows atomic-replacement failures
 for control and identity data. It includes the 2.3.7b1 Windows Store Python and
-private Bun onboarding corrections. AtMem 2.3.6 remains the stable
-recommendation.
+private Bun onboarding corrections. These changes are included in 2.3.7.
 
-## Stable release
+## Previous stable release
 [AtMem 2.3.6](../releases/v2.3.6.md) adds canonical secret refusal,
 direct-parent taint propagation, issued procedure-review authority, and
 portable Windows-safe locking. Its candidate passed 400/400 representable
