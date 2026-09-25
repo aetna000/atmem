@@ -246,7 +246,7 @@ jobs:
           python -m pip install "${wheel[0]}[atflows]"
           python -m pip check
           cd "$RUNNER_TEMP"
-          python -c "import importlib.util; from importlib.metadata import version; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None; assert version('atflows') == '0.1.2'"
+          python -c "import importlib.util; from importlib.metadata import version; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None; assert version('atflows') == '0.1.3'"
           python "$GITHUB_WORKSPACE/tools/smoke_installed_package.py"
           python "$GITHUB_WORKSPACE/tools/smoke_delegated_package.py"
           python "$GITHUB_WORKSPACE/tools/smoke_delegated_transport.py"

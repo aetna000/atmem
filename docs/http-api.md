@@ -1,5 +1,32 @@
 # HTTP API and clients
 
+## Continuity extension (2.3.7)
+
+Continuity uses the authenticated `/v1` server and evidence-role authorization.
+Scope comes from the credential, never a client-supplied tenant/workspace field.
+Use the shipped `atmem.continuity.client.ContinuityClient` and the
+[continuity guide](continuity.md) for credential creation and runnable examples.
+
+| Method and route | Purpose |
+| --- | --- |
+| GET `/v1/continuity` | List workflows visible to the caller |
+| POST `/v1/continuity` | Create an explicitly defined workflow; fields are `workflow_key`, `operations`, optional `activate` (false by default) |
+| GET `/v1/continuity/{workflow_id}` | Inspect state, attempts and receipts |
+| POST `/v1/continuity/{workflow_id}/configure` | Operator enables or pauses work |
+| POST `/v1/continuity/{workflow_id}/begin` | Request a governed attempt decision; not an unconditional execution grant |
+| POST `/v1/continuity/{workflow_id}/report` | Submit a receipt bound to name, lease token, run and attempt |
+| POST `/v1/continuity/{workflow_id}/renew` | Renew the authenticated attempt within its bounded lease policy |
+| POST `/v1/continuity/{workflow_id}/abandon` | Record operator abandonment with a reason; not external cancellation |
+
+The workflow and host/coordinator credential restrictions still apply to each
+route. A generic memory credential does not automatically confer operator
+authority. Creation requires full capture and opts the evidence vault into
+schema 3; preserve a pre-opt-in backup. AtFlows observation is a separate API.
+The OpenAPI document below describes the baseline contract; this table and the
+shipped continuity client document the additive continuity extension.
+
+## Baseline contract
+
 AtMem exposes an additive `/v1` contract on the existing loopback control
 server. Obtain the local session credential from `/api/session`, then send it
 as `Authorization: Bearer …`. Agent and administrator principals receive
