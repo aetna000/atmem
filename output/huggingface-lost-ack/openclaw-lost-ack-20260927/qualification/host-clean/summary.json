@@ -1,0 +1,233 @@
+{
+  "host_exit": 0,
+  "model_requests": 4,
+  "records": [
+    {
+      "id": "rec_acbe1cba23bf44baaf24b46cbc8bb7e8",
+      "memory_id": "rec_acbe1cba23bf44baaf24b46cbc8bb7e8",
+      "framework": "atmem",
+      "subject_id": "lost-ack-test",
+      "subject_id_hash": "plain:lost-ack-test",
+      "tenant_id_hash": null,
+      "content": "User prefers cobalt blue notebooks.",
+      "source_type": "user_message",
+      "trust_tier": "trusted_user",
+      "source_session_id": "main:agent:main:lost-ack-probe",
+      "source_turn_id": "write-001",
+      "episode_id": "ep_6594647251344e0ebfc4c94d2e464492",
+      "created_at": "2026-09-26T14:57:53.611675+00:00",
+      "updated_at": null,
+      "deleted_at": null,
+      "confidence": 1.0,
+      "scope": "host_agent_interpreted",
+      "status": "active",
+      "supersedes_id": null,
+      "fact_key": "notebook_preference",
+      "generation": 0,
+      "raw": {}
+    }
+  ],
+  "verification": {
+    "valid": true,
+    "subjects": {
+      "lost-ack-test": {
+        "chain_valid": true,
+        "verification_mode": "full",
+        "incremental": null,
+        "checkpoints_checked": 0,
+        "failures": []
+      }
+    }
+  },
+  "audit": {
+    "audit_log": [
+      {
+        "sequence": 1,
+        "event_id": "aud_30c7cfb3d17f40c1a040594d9e25caac",
+        "subject_id": "lost-ack-test",
+        "event_type": "episode.ingested",
+        "created_at": "2026-09-26T14:57:53.610814+00:00",
+        "actor": "host-agent-semantic",
+        "session_id": "main:agent:main:lost-ack-probe",
+        "turn_id": "write-001",
+        "record_id": null,
+        "payload": {
+          "episode_id": "ep_6594647251344e0ebfc4c94d2e464492",
+          "message_sha256": "f86d0bc7235d70fce5a393ebfd74f5125ba09d356b6dedb6f1b09c6db9cdcb9d",
+          "source_type": "user_message"
+        },
+        "prev_hash": null,
+        "event_hash": "a69795d20b6eef55b2572e7243a39575e94af03d6a48792c6427509446ed44a9"
+      },
+      {
+        "sequence": 2,
+        "event_id": "aud_ec63b7078a844ed5abdcf229e36d7530",
+        "subject_id": "lost-ack-test",
+        "event_type": "memory.semantic_interpretation_received",
+        "created_at": "2026-09-26T14:57:53.611283+00:00",
+        "actor": "host-agent-semantic",
+        "session_id": "main:agent:main:lost-ack-probe",
+        "turn_id": "write-001",
+        "record_id": null,
+        "payload": {
+          "episode_id": "ep_6594647251344e0ebfc4c94d2e464492",
+          "fact_key": "notebook_preference",
+          "interpretation_assurance": "host_asserted",
+          "interpreted_fact_sha256": "2db899e6922fcf266bbd8f01c5524c8008daed19f6979486dbf0b4922f98f5a3",
+          "interpreter": "local-probe/fault-probe",
+          "source_binding": "typed_session_handoff",
+          "source_message_sha256": "f86d0bc7235d70fce5a393ebfd74f5125ba09d356b6dedb6f1b09c6db9cdcb9d"
+        },
+        "prev_hash": "a69795d20b6eef55b2572e7243a39575e94af03d6a48792c6427509446ed44a9",
+        "event_hash": "68cd940b31ee35334dbc8496438837c714cb74ce3a6c8ec4ef616b7bc213ad37"
+      },
+      {
+        "sequence": 3,
+        "event_id": "aud_a49661a316384742aaccdf3e8eb44869",
+        "subject_id": "lost-ack-test",
+        "event_type": "memory.record_created",
+        "created_at": "2026-09-26T14:57:53.612093+00:00",
+        "actor": "system",
+        "session_id": "main:agent:main:lost-ack-probe",
+        "turn_id": "write-001",
+        "record_id": "rec_acbe1cba23bf44baaf24b46cbc8bb7e8",
+        "payload": {
+          "confidence": 1.0,
+          "content_sha256": "2db899e6922fcf266bbd8f01c5524c8008daed19f6979486dbf0b4922f98f5a3",
+          "episode_id": "ep_6594647251344e0ebfc4c94d2e464492",
+          "fact_key": "notebook_preference",
+          "scope": "host_agent_interpreted",
+          "source_type": "user_message",
+          "status": "active",
+          "supersedes": [],
+          "trust_tier": "trusted_user"
+        },
+        "prev_hash": "68cd940b31ee35334dbc8496438837c714cb74ce3a6c8ec4ef616b7bc213ad37",
+        "event_hash": "d9a40b7f7293eca652d512a13d54a9fc5d04ab28dfe6ca614b7db929cb91921d"
+      },
+      {
+        "sequence": 4,
+        "event_id": "aud_af88985f51434f0d96cb8121cc08b65d",
+        "subject_id": "lost-ack-test",
+        "event_type": "entity.created",
+        "created_at": "2026-09-26T14:57:53.613239+00:00",
+        "actor": "graph-indexer",
+        "session_id": "main:agent:main:lost-ack-probe",
+        "turn_id": "write-001",
+        "record_id": "rec_acbe1cba23bf44baaf24b46cbc8bb7e8",
+        "payload": {
+          "canonical_sha256": "b512d97e7cbf97c273e4db073bbb547aa65a84589227f8f3d9e4a72b9372a24d",
+          "kind": "person",
+          "object_id": "ent_e9f62d957c4870330d6c0d70",
+          "status": "active"
+        },
+        "prev_hash": "d9a40b7f7293eca652d512a13d54a9fc5d04ab28dfe6ca614b7db929cb91921d",
+        "event_hash": "39d1c32ec6f892a2aa714349ea8c56b3fa2d532e12150e06c5dba1e52589cf41"
+      },
+      {
+        "sequence": 5,
+        "event_id": "aud_735a0b18adec41bbb9e41911e4ae6934",
+        "subject_id": "lost-ack-test",
+        "event_type": "entity.created",
+        "created_at": "2026-09-26T14:57:53.613412+00:00",
+        "actor": "graph-indexer",
+        "session_id": "main:agent:main:lost-ack-probe",
+        "turn_id": "write-001",
+        "record_id": "rec_acbe1cba23bf44baaf24b46cbc8bb7e8",
+        "payload": {
+          "canonical_sha256": "f28d6e78767ce3e99d36835b37fd9aaf26f5f1d4df9dfa82c7f67217a3c989ec",
+          "kind": "other",
+          "object_id": "ent_095e232aa47f09d45e27725b",
+          "status": "active"
+        },
+        "prev_hash": "39d1c32ec6f892a2aa714349ea8c56b3fa2d532e12150e06c5dba1e52589cf41",
+        "event_hash": "3b803c940681bb12ef3dd9b0b2161d6cf95070412cb7bcaf587e76ab7a4741b9"
+      },
+      {
+        "sequence": 6,
+        "event_id": "aud_68afc5ad34ee4a1cac5683743fe7dda0",
+        "subject_id": "lost-ack-test",
+        "event_type": "edge.asserted",
+        "created_at": "2026-09-26T14:57:53.613521+00:00",
+        "actor": "graph-indexer",
+        "session_id": "main:agent:main:lost-ack-probe",
+        "turn_id": "write-001",
+        "record_id": "rec_acbe1cba23bf44baaf24b46cbc8bb7e8",
+        "payload": {
+          "dst_entity": "ent_095e232aa47f09d45e27725b",
+          "object_id": "edg_69287601a273fed21bc2d513",
+          "record_id": "rec_acbe1cba23bf44baaf24b46cbc8bb7e8",
+          "relation": "prefers",
+          "src_entity": "ent_e9f62d957c4870330d6c0d70",
+          "status": "active"
+        },
+        "prev_hash": "3b803c940681bb12ef3dd9b0b2161d6cf95070412cb7bcaf587e76ab7a4741b9",
+        "event_hash": "15d18c9afdee478b6c3e54859920e22a117c0231d9bc1f273f5ad1d1cf048aea"
+      },
+      {
+        "sequence": 7,
+        "event_id": "aud_074a9b41c5514f5c87da11040cbe91e5",
+        "subject_id": "lost-ack-test",
+        "event_type": "memory.semantic_interpretation_duplicate",
+        "created_at": "2026-09-26T14:57:54.698132+00:00",
+        "actor": "host-agent-semantic",
+        "session_id": "main:agent:main:lost-ack-probe",
+        "turn_id": "write-002",
+        "record_id": "rec_acbe1cba23bf44baaf24b46cbc8bb7e8",
+        "payload": {
+          "fact_key": "notebook_preference",
+          "interpretation_assurance": "host_asserted",
+          "interpreted_fact_sha256": "2db899e6922fcf266bbd8f01c5524c8008daed19f6979486dbf0b4922f98f5a3",
+          "interpreter": "local-probe/fault-probe",
+          "source_binding": "typed_session_handoff",
+          "source_message_sha256": "f86d0bc7235d70fce5a393ebfd74f5125ba09d356b6dedb6f1b09c6db9cdcb9d"
+        },
+        "prev_hash": "15d18c9afdee478b6c3e54859920e22a117c0231d9bc1f273f5ad1d1cf048aea",
+        "event_hash": "32bd5f97daecaa490bcf36fa367799774a123fa82b3d68438d8484d2e7a83a37"
+      },
+      {
+        "sequence": 8,
+        "event_id": "aud_4d8b304d728f4f16b4fed8849f9c74ab",
+        "subject_id": "lost-ack-test",
+        "event_type": "memory.record_read",
+        "created_at": "2026-09-26T14:57:55.765561+00:00",
+        "actor": "mcp-caller",
+        "session_id": "openclaw-memory-get:read-001",
+        "turn_id": null,
+        "record_id": "rec_acbe1cba23bf44baaf24b46cbc8bb7e8",
+        "payload": {
+          "content_sha256": "2db899e6922fcf266bbd8f01c5524c8008daed19f6979486dbf0b4922f98f5a3",
+          "episode_id": "ep_6594647251344e0ebfc4c94d2e464492",
+          "record_id": "rec_acbe1cba23bf44baaf24b46cbc8bb7e8"
+        },
+        "prev_hash": "32bd5f97daecaa490bcf36fa367799774a123fa82b3d68438d8484d2e7a83a37",
+        "event_hash": "70b407cd398e54b9f0c2886ae3c345b0de5c3564e4b4f00a762118997e7a5cd6"
+      }
+    ],
+    "retrieval_events": [],
+    "audit_chain_valid": true
+  },
+  "sqlite_integrity": "ok",
+  "foreign_key_errors": [],
+  "tool_results": [
+    {
+      "role": "tool",
+      "content": "{\"stored\":true,\"record_id\":\"rec_acbe1cba23bf44baaf24b46cbc8bb7e8\",\"fact\":\"User prefers cobalt blue notebooks.\",\"status\":\"active\",\"provider\":\"atmem\",\"receipt\":\"audit-bound\"}",
+      "tool_call_id": "write001"
+    },
+    {
+      "role": "tool",
+      "content": "{\"stored\":true,\"record_id\":\"rec_acbe1cba23bf44baaf24b46cbc8bb7e8\",\"fact\":\"User prefers cobalt blue notebooks.\",\"status\":\"already_stored\",\"provider\":\"atmem\",\"receipt\":\"audit-bound\"}",
+      "tool_call_id": "write002"
+    },
+    {
+      "role": "tool",
+      "content": "{\"path\":\"atmem://record/rec_acbe1cba23bf44baaf24b46cbc8bb7e8\",\"text\":\"User prefers cobalt blue notebooks.\",\"from\":1,\"lines\":1,\"totalLines\":1,\"truncated\":false,\"source\":\"atmem\",\"provenance\":{\"format\":\"atmem-host-semantic-memory-v1\",\"interpretation_assurance\":\"host_asserted\",\"interpreter\":\"local-probe/fault-probe\",\"source_binding\":\"typed_session_handoff\"}}",
+      "tool_call_id": "read001"
+    }
+  ],
+  "no_fault_control": true,
+  "fault_injected": false,
+  "driver": "deterministic local OpenAI-compatible endpoint; no paid inference",
+  "assertions_passed": true
+}

@@ -1,0 +1,19 @@
+{
+  "host_exit": 0,
+  "model_requests": 3,
+  "records": [],
+  "verification": {
+    "valid": true,
+    "subjects": {
+      "lost-ack-test": {
+        "chain_valid": true,
+        "verification_mode": "full",
+        "incremental": null,
+        "checkpoints_checked": 0,
+        "failures": []
+      }
+    }
+  },
+  "fault_injected": false,
+  "driver": "deterministic local OpenAI-compatible endpoint; no paid inference"
+}

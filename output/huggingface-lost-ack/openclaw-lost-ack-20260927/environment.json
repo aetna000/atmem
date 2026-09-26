@@ -1,0 +1,245 @@
+{
+  "python": "3.12.2 | packaged by conda-forge | (main, Feb 16 2024, 21:00:12) [Clang 16.0.6 ]",
+  "platform": "macOS-26.5.2-x86_64-i386-64bit",
+  "packages": [
+    {
+      "name": "aiosqlite",
+      "version": "0.22.1"
+    },
+    {
+      "name": "annotated-types",
+      "version": "0.8.0"
+    },
+    {
+      "name": "anyio",
+      "version": "4.15.1"
+    },
+    {
+      "name": "atbot",
+      "version": "0.1.0a1"
+    },
+    {
+      "name": "atmem",
+      "version": "2.3.7"
+    },
+    {
+      "name": "atmem",
+      "version": "2.3.2"
+    },
+    {
+      "name": "atmem-atbot",
+      "version": "0.1.0"
+    },
+    {
+      "name": "atmem-atbot",
+      "version": "0.1.0"
+    },
+    {
+      "name": "certifi",
+      "version": "2026.7.22"
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1"
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.5.1"
+    },
+    {
+      "name": "cryptography",
+      "version": "48.0.1"
+    },
+    {
+      "name": "distro",
+      "version": "1.9.0"
+    },
+    {
+      "name": "en_core_web_sm",
+      "version": "3.8.0"
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0"
+    },
+    {
+      "name": "httpcore",
+      "version": "1.0.9"
+    },
+    {
+      "name": "httpcore2",
+      "version": "2.13.1"
+    },
+    {
+      "name": "httpx",
+      "version": "0.28.1"
+    },
+    {
+      "name": "httpx2",
+      "version": "2.13.1"
+    },
+    {
+      "name": "idna",
+      "version": "3.20"
+    },
+    {
+      "name": "iniconfig",
+      "version": "2.3.0"
+    },
+    {
+      "name": "jsonpatch",
+      "version": "1.33"
+    },
+    {
+      "name": "jsonpointer",
+      "version": "3.1.1"
+    },
+    {
+      "name": "langchain-core",
+      "version": "1.6.5"
+    },
+    {
+      "name": "langchain-protocol",
+      "version": "0.0.19"
+    },
+    {
+      "name": "langgraph",
+      "version": "1.1.5"
+    },
+    {
+      "name": "langgraph-checkpoint",
+      "version": "4.2.0"
+    },
+    {
+      "name": "langgraph-checkpoint-sqlite",
+      "version": "3.0.3"
+    },
+    {
+      "name": "langgraph-prebuilt",
+      "version": "1.0.13"
+    },
+    {
+      "name": "langgraph-sdk",
+      "version": "0.3.15"
+    },
+    {
+      "name": "langsmith",
+      "version": "0.14.0"
+    },
+    {
+      "name": "numpy",
+      "version": "2.5.3"
+    },
+    {
+      "name": "orjson",
+      "version": "3.12.0"
+    },
+    {
+      "name": "ormsgpack",
+      "version": "1.12.2"
+    },
+    {
+      "name": "packaging",
+      "version": "26.3"
+    },
+    {
+      "name": "pluggy",
+      "version": "1.6.0"
+    },
+    {
+      "name": "pqcrypto",
+      "version": "1.0.0"
+    },
+    {
+      "name": "pycparser",
+      "version": "3.0"
+    },
+    {
+      "name": "pydantic",
+      "version": "2.13.5"
+    },
+    {
+      "name": "pydantic_core",
+      "version": "2.46.5"
+    },
+    {
+      "name": "Pygments",
+      "version": "2.21.0"
+    },
+    {
+      "name": "pytest",
+      "version": "9.1.1"
+    },
+    {
+      "name": "PyYAML",
+      "version": "6.0.3"
+    },
+    {
+      "name": "requests",
+      "version": "2.34.2"
+    },
+    {
+      "name": "requests-toolbelt",
+      "version": "1.0.0"
+    },
+    {
+      "name": "sniffio",
+      "version": "1.3.1"
+    },
+    {
+      "name": "sqlite-vec",
+      "version": "0.1.9"
+    },
+    {
+      "name": "tenacity",
+      "version": "9.1.4"
+    },
+    {
+      "name": "truststore",
+      "version": "0.10.4"
+    },
+    {
+      "name": "typing-inspection",
+      "version": "0.4.4"
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0"
+    },
+    {
+      "name": "urllib3",
+      "version": "2.8.0"
+    },
+    {
+      "name": "uuid_utils",
+      "version": "0.17.1"
+    },
+    {
+      "name": "websockets",
+      "version": "17.1"
+    },
+    {
+      "name": "xxhash",
+      "version": "4.0.1"
+    },
+    {
+      "name": "zstandard",
+      "version": "0.25.0"
+    }
+  ],
+  "node": "v26.5.0",
+  "openclaw": "OpenClaw 2026.9.1 (ad6fe23)",
+  "source_commit": "da046dc59fd41fdd77ed407d8f196cfc434b478c",
+  "bridge_sha256": {
+    "index.js": "03a65e21c5af3ea0e7ef058db06a308c237ce2b56c60c051f752f2d56504b708",
+    "src/tool-errors.js": "b8d37c74b3e951c969e6d9dccaf702f3e0d4760a1c1bcd7f4d8df02ad6a6090f",
+    "src/types.js": "8e609bb71c20b858c77f0e9f90bb1319db8477b13f9f965f1a1e18524bf50881",
+    "src/tool-result-comparison.js": "11ab0c228ef8292366713ac5e17dce46c906db09c8661260790bb283a48bed15",
+    "src/task-tools.js": "19281235ae5917886c2d6325c66568312221dafa67507930263b73cd5964026c",
+    "src/delegated-identity.js": "846dedef3b1dc82eba436f3ba90beb98274fd38cc78d5ab3282bb5ffccd68e0c",
+    "src/setup.js": "bde8ecb9f02c580d9d677273838e0674393837430f2588f0ff6e6b51931911ca",
+    "src/tool-observations.js": "0e7a036a7300775ee8563cd21fe68fe1d22b277219329ff98305a2f18bdd5e96",
+    "src/rpc-client.js": "1c819dfb62107b522800d8231e70d272f3cbeeaf5b3962b4c5babef53ca8d955",
+    "src/execution-spool.js": "0cfa21b8ba0df9db82b29af73232bde891476d5463fd9c8e29c9677743899002"
+  }
+}

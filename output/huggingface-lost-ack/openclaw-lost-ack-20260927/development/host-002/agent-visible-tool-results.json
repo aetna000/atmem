@@ -1,0 +1,12 @@
+[
+  {
+    "role": "tool",
+    "content": "{\n  \"status\": \"error\",\n  \"tool\": \"memory_remember\",\n  \"error\": \"atmem tool memory_remember failed: error: no current typed user message matches this OpenClaw session; memory was not stored\"\n}",
+    "tool_call_id": "write001"
+  },
+  {
+    "role": "tool",
+    "content": "{\n  \"status\": \"error\",\n  \"tool\": \"memory_remember\",\n  \"error\": \"atmem tool memory_remember failed: error: no current typed user message matches this OpenClaw session; memory was not stored\"\n}",
+    "tool_call_id": "write002"
+  }
+]

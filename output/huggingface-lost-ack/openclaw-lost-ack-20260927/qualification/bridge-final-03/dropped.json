@@ -1,0 +1,37 @@
+{
+  "request": {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/call",
+    "params": {
+      "name": "memory_remember",
+      "arguments": {
+        "source_aliases": [
+          "main:lost-ack-turn",
+          "main:lost-ack-session"
+        ],
+        "interpreted_fact": "User prefers cobalt blue notebooks.",
+        "interpreted_fact_key": "notebook_preference",
+        "interpreter": "test:deterministic-driver",
+        "session_id": "main:lost-ack-session",
+        "turn_id": "write-001",
+        "source_type": "user_message",
+        "subject_id": "lost-ack-test"
+      }
+    }
+  },
+  "reply": {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"duplicate_ids\": [],\n  \"episode_id\": \"ep_067455a74a244343bf6ad36a2eae0c02\",\n  \"records\": [\n    {\n      \"confidence\": 1.0,\n      \"content\": \"User prefers cobalt blue notebooks.\",\n      \"created_at\": \"2026-09-26T14:58:48.444024+00:00\",\n      \"deleted_at\": null,\n      \"episode_id\": \"ep_067455a74a244343bf6ad36a2eae0c02\",\n      \"fact_key\": \"notebook_preference\",\n      \"framework\": \"atmem\",\n      \"generation\": 0,\n      \"id\": \"rec_b0fe522f257647c8b1b11ed43a607b0c\",\n      \"memory_id\": \"rec_b0fe522f257647c8b1b11ed43a607b0c\",\n      \"raw\": {},\n      \"scope\": \"host_agent_interpreted\",\n      \"source_session_id\": \"main:lost-ack-session\",\n      \"source_turn_id\": \"write-001\",\n      \"source_type\": \"user_message\",\n      \"status\": \"active\",\n      \"subject_id\": \"lost-ack-test\",\n      \"subject_id_hash\": \"plain:lost-ack-test\",\n      \"supersedes_id\": null,\n      \"tenant_id_hash\": null,\n      \"trust_tier\": \"trusted_user\",\n      \"updated_at\": null\n    }\n  ]\n}"
+        }
+      ],
+      "isError": false
+    }
+  },
+  "backend_pid": 12041
+}

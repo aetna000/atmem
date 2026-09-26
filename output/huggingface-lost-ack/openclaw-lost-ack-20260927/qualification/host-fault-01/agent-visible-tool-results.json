@@ -1,0 +1,17 @@
+[
+  {
+    "role": "tool",
+    "content": "{\n  \"status\": \"error\",\n  \"tool\": \"memory_remember\",\n  \"error\": \"atmem tools/call timed out after 2000ms\"\n}",
+    "tool_call_id": "write001"
+  },
+  {
+    "role": "tool",
+    "content": "{\"stored\":true,\"record_id\":\"rec_48e966f443864899802ac75b6df64c3d\",\"fact\":\"User prefers cobalt blue notebooks.\",\"status\":\"already_stored\",\"provider\":\"atmem\",\"receipt\":\"audit-bound\"}",
+    "tool_call_id": "write002"
+  },
+  {
+    "role": "tool",
+    "content": "{\"path\":\"atmem://record/rec_48e966f443864899802ac75b6df64c3d\",\"text\":\"User prefers cobalt blue notebooks.\",\"from\":1,\"lines\":1,\"totalLines\":1,\"truncated\":false,\"source\":\"atmem\",\"provenance\":{\"format\":\"atmem-host-semantic-memory-v1\",\"interpretation_assurance\":\"host_asserted\",\"interpreter\":\"local-probe/fault-probe\",\"source_binding\":\"typed_session_handoff\"}}",
+    "tool_call_id": "read001"
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "repo_id": "atmem/memory-integrity-continuity",
+  "commit": "c6b7a3a9cf7be3a318726fab70fa611b3b8f11bc",
+  "commit_url": "https://huggingface.co/datasets/atmem/memory-integrity-continuity/commit/c6b7a3a9cf7be3a318726fab70fa611b3b8f11bc",
+  "parent": "deb1f9717d76ad076cacdc324e01e9543c2ada43",
+  "files": 51,
+  "publicly_verified_files": 49,
+  "original_paper_unchanged": true,
+  "article_publication": {
+    "commit": "842804432310d7274fc9f745a8d3eb0a3d75b65f",
+    "path": "paper/openclaw-lost-ack/article.md",
+    "public_bytes_verified": true
+  }
+}

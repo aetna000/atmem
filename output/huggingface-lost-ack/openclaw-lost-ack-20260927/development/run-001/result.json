@@ -1,0 +1,334 @@
+{
+  "scope": "registered OpenClaw bridge tool + real MCP backend; deterministic driver",
+  "fact": "User prefers cobalt blue notebooks.",
+  "first_call_error": "atmem tools/call timed out after 2000ms",
+  "before_retry": [
+    {
+      "confidence": 1,
+      "content": "User prefers cobalt blue notebooks.",
+      "created_at": "2026-09-26T14:52:44.845762+00:00",
+      "deleted_at": null,
+      "episode_id": "ep_520709f7997941248bfb0b3bde24e7af",
+      "fact_key": "notebook_preference",
+      "framework": "atmem",
+      "generation": 0,
+      "id": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+      "memory_id": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+      "raw": {},
+      "scope": "host_agent_interpreted",
+      "source_session_id": "main:lost-ack-session",
+      "source_turn_id": "write-001",
+      "source_type": "user_message",
+      "status": "active",
+      "subject_id": "lost-ack-test",
+      "subject_id_hash": "plain:lost-ack-test",
+      "supersedes_id": null,
+      "tenant_id_hash": null,
+      "trust_tier": "trusted_user",
+      "updated_at": null
+    }
+  ],
+  "dropped": {
+    "request": {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "method": "tools/call",
+      "params": {
+        "name": "memory_remember",
+        "arguments": {
+          "source_aliases": [
+            "main:lost-ack-turn",
+            "main:lost-ack-session"
+          ],
+          "interpreted_fact": "User prefers cobalt blue notebooks.",
+          "interpreted_fact_key": "notebook_preference",
+          "interpreter": "test:deterministic-driver",
+          "session_id": "main:lost-ack-session",
+          "turn_id": "write-001",
+          "source_type": "user_message",
+          "subject_id": "lost-ack-test"
+        }
+      }
+    },
+    "reply": {
+      "jsonrpc": "2.0",
+      "id": 2,
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\n  \"duplicate_ids\": [],\n  \"episode_id\": \"ep_520709f7997941248bfb0b3bde24e7af\",\n  \"records\": [\n    {\n      \"confidence\": 1.0,\n      \"content\": \"User prefers cobalt blue notebooks.\",\n      \"created_at\": \"2026-09-26T14:52:44.845762+00:00\",\n      \"deleted_at\": null,\n      \"episode_id\": \"ep_520709f7997941248bfb0b3bde24e7af\",\n      \"fact_key\": \"notebook_preference\",\n      \"framework\": \"atmem\",\n      \"generation\": 0,\n      \"id\": \"rec_7bde1f897a9a4ffc84fda12f5c08ac7d\",\n      \"memory_id\": \"rec_7bde1f897a9a4ffc84fda12f5c08ac7d\",\n      \"raw\": {},\n      \"scope\": \"host_agent_interpreted\",\n      \"source_session_id\": \"main:lost-ack-session\",\n      \"source_turn_id\": \"write-001\",\n      \"source_type\": \"user_message\",\n      \"status\": \"active\",\n      \"subject_id\": \"lost-ack-test\",\n      \"subject_id_hash\": \"plain:lost-ack-test\",\n      \"supersedes_id\": null,\n      \"tenant_id_hash\": null,\n      \"trust_tier\": \"trusted_user\",\n      \"updated_at\": null\n    }\n  ]\n}"
+          }
+        ],
+        "isError": false
+      }
+    },
+    "backend_pid": 3513
+  },
+  "same_id_retry": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"stored\":true,\"record_id\":\"rec_7bde1f897a9a4ffc84fda12f5c08ac7d\",\"fact\":\"User prefers cobalt blue notebooks.\",\"status\":\"already_stored\",\"provider\":\"atmem\",\"receipt\":\"audit-bound\"}"
+      }
+    ],
+    "details": {
+      "stored": true,
+      "recordId": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+      "sessionKey": "main:lost-ack-session"
+    }
+  },
+  "new_id_retry": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"stored\":true,\"record_id\":\"rec_7bde1f897a9a4ffc84fda12f5c08ac7d\",\"fact\":\"User prefers cobalt blue notebooks.\",\"status\":\"already_stored\",\"provider\":\"atmem\",\"receipt\":\"audit-bound\"}"
+      }
+    ],
+    "details": {
+      "stored": true,
+      "recordId": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+      "sessionKey": "main:lost-ack-session"
+    }
+  },
+  "read_back": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"path\":\"atmem://record/rec_7bde1f897a9a4ffc84fda12f5c08ac7d\",\"text\":\"User prefers cobalt blue notebooks.\",\"from\":1,\"lines\":1,\"totalLines\":1,\"truncated\":false,\"source\":\"atmem\",\"provenance\":{\"format\":\"atmem-host-semantic-memory-v1\",\"interpretation_assurance\":\"host_asserted\",\"interpreter\":\"test:deterministic-driver\",\"source_binding\":\"typed_session_handoff\"}}"
+      }
+    ],
+    "details": {
+      "found": true,
+      "sessionId": "openclaw-memory-get:read-001"
+    }
+  },
+  "after_retry": [
+    {
+      "confidence": 1,
+      "content": "User prefers cobalt blue notebooks.",
+      "created_at": "2026-09-26T14:52:44.845762+00:00",
+      "deleted_at": null,
+      "episode_id": "ep_520709f7997941248bfb0b3bde24e7af",
+      "fact_key": "notebook_preference",
+      "framework": "atmem",
+      "generation": 0,
+      "id": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+      "memory_id": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+      "raw": {},
+      "scope": "host_agent_interpreted",
+      "source_session_id": "main:lost-ack-session",
+      "source_turn_id": "write-001",
+      "source_type": "user_message",
+      "status": "active",
+      "subject_id": "lost-ack-test",
+      "subject_id_hash": "plain:lost-ack-test",
+      "supersedes_id": null,
+      "tenant_id_hash": null,
+      "trust_tier": "trusted_user",
+      "updated_at": null
+    }
+  ],
+  "verify": {
+    "subjects": {
+      "lost-ack-test": {
+        "chain_valid": true,
+        "checkpoints_checked": 0,
+        "failures": [],
+        "incremental": null,
+        "verification_mode": "full"
+      }
+    },
+    "valid": true
+  },
+  "audit": {
+    "audit_chain_valid": true,
+    "audit_log": [
+      {
+        "actor": "host-agent-semantic",
+        "created_at": "2026-09-26T14:52:44.843864+00:00",
+        "event_hash": "747ff69a94de802bf2c9936456b1a7fb74afaf446a1211442078d10735465156",
+        "event_id": "aud_5d559fbd43984576befa4a50e8487f71",
+        "event_type": "episode.ingested",
+        "payload": {
+          "episode_id": "ep_520709f7997941248bfb0b3bde24e7af",
+          "message_sha256": "56dc12f0e712de454af95fb2b15df41dae62f002bf87231ea62b0f4b9dc3316d",
+          "source_type": "user_message"
+        },
+        "prev_hash": null,
+        "record_id": null,
+        "sequence": 1,
+        "session_id": "main:lost-ack-session",
+        "subject_id": "lost-ack-test",
+        "turn_id": "write-001"
+      },
+      {
+        "actor": "host-agent-semantic",
+        "created_at": "2026-09-26T14:52:44.844917+00:00",
+        "event_hash": "3b93a340787d1c41ea736b5792800ba83d5c21d092bc4b78d6bfbc1567316fc6",
+        "event_id": "aud_a75f326c13694be195b6ce8cc7226fc1",
+        "event_type": "memory.semantic_interpretation_received",
+        "payload": {
+          "episode_id": "ep_520709f7997941248bfb0b3bde24e7af",
+          "fact_key": "notebook_preference",
+          "interpretation_assurance": "host_asserted",
+          "interpreted_fact_sha256": "2db899e6922fcf266bbd8f01c5524c8008daed19f6979486dbf0b4922f98f5a3",
+          "interpreter": "test:deterministic-driver",
+          "source_binding": "typed_session_handoff",
+          "source_message_sha256": "56dc12f0e712de454af95fb2b15df41dae62f002bf87231ea62b0f4b9dc3316d"
+        },
+        "prev_hash": "747ff69a94de802bf2c9936456b1a7fb74afaf446a1211442078d10735465156",
+        "record_id": null,
+        "sequence": 2,
+        "session_id": "main:lost-ack-session",
+        "subject_id": "lost-ack-test",
+        "turn_id": "write-001"
+      },
+      {
+        "actor": "system",
+        "created_at": "2026-09-26T14:52:44.846555+00:00",
+        "event_hash": "feac11480f43daac3d4a12867e8ffb81a03d3f334fe24a7ddc84e869f9840ab3",
+        "event_id": "aud_8ad81bfdd85443a89f8574c485759deb",
+        "event_type": "memory.record_created",
+        "payload": {
+          "confidence": 1,
+          "content_sha256": "2db899e6922fcf266bbd8f01c5524c8008daed19f6979486dbf0b4922f98f5a3",
+          "episode_id": "ep_520709f7997941248bfb0b3bde24e7af",
+          "fact_key": "notebook_preference",
+          "scope": "host_agent_interpreted",
+          "source_type": "user_message",
+          "status": "active",
+          "supersedes": [],
+          "trust_tier": "trusted_user"
+        },
+        "prev_hash": "3b93a340787d1c41ea736b5792800ba83d5c21d092bc4b78d6bfbc1567316fc6",
+        "record_id": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+        "sequence": 3,
+        "session_id": "main:lost-ack-session",
+        "subject_id": "lost-ack-test",
+        "turn_id": "write-001"
+      },
+      {
+        "actor": "graph-indexer",
+        "created_at": "2026-09-26T14:52:44.847932+00:00",
+        "event_hash": "5184a4f0a4bd0631eae33d905a6316a14d7290e4304b01aadca34ef8996d10e7",
+        "event_id": "aud_1b9f2ff768be4f979f8b057ffc3d613c",
+        "event_type": "entity.created",
+        "payload": {
+          "canonical_sha256": "b512d97e7cbf97c273e4db073bbb547aa65a84589227f8f3d9e4a72b9372a24d",
+          "kind": "person",
+          "object_id": "ent_e9f62d957c4870330d6c0d70",
+          "status": "active"
+        },
+        "prev_hash": "feac11480f43daac3d4a12867e8ffb81a03d3f334fe24a7ddc84e869f9840ab3",
+        "record_id": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+        "sequence": 4,
+        "session_id": "main:lost-ack-session",
+        "subject_id": "lost-ack-test",
+        "turn_id": "write-001"
+      },
+      {
+        "actor": "graph-indexer",
+        "created_at": "2026-09-26T14:52:44.848122+00:00",
+        "event_hash": "7df4c67cbecefc3fad9782882edbf92861b09b8cabb0d74fd570327c18323168",
+        "event_id": "aud_406382b8ab0a42c6a21139a7da9c3057",
+        "event_type": "entity.created",
+        "payload": {
+          "canonical_sha256": "f28d6e78767ce3e99d36835b37fd9aaf26f5f1d4df9dfa82c7f67217a3c989ec",
+          "kind": "other",
+          "object_id": "ent_095e232aa47f09d45e27725b",
+          "status": "active"
+        },
+        "prev_hash": "5184a4f0a4bd0631eae33d905a6316a14d7290e4304b01aadca34ef8996d10e7",
+        "record_id": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+        "sequence": 5,
+        "session_id": "main:lost-ack-session",
+        "subject_id": "lost-ack-test",
+        "turn_id": "write-001"
+      },
+      {
+        "actor": "graph-indexer",
+        "created_at": "2026-09-26T14:52:44.848233+00:00",
+        "event_hash": "2e46ade38b6bf767e41db01d9195bb1f3eb7e40f1d65962d83b0c912522c30b6",
+        "event_id": "aud_bad0c185fea9408c9c6e868ed87ac8ed",
+        "event_type": "edge.asserted",
+        "payload": {
+          "dst_entity": "ent_095e232aa47f09d45e27725b",
+          "object_id": "edg_8d78641a992ca25d72f469d1",
+          "record_id": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+          "relation": "prefers",
+          "src_entity": "ent_e9f62d957c4870330d6c0d70",
+          "status": "active"
+        },
+        "prev_hash": "7df4c67cbecefc3fad9782882edbf92861b09b8cabb0d74fd570327c18323168",
+        "record_id": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+        "sequence": 6,
+        "session_id": "main:lost-ack-session",
+        "subject_id": "lost-ack-test",
+        "turn_id": "write-001"
+      },
+      {
+        "actor": "host-agent-semantic",
+        "created_at": "2026-09-26T14:52:47.274154+00:00",
+        "event_hash": "80bf3b9d47814ba9c2fc8375d91cb272361833fda46f3540eaeb10431ffdd9d3",
+        "event_id": "aud_51dfc5d1a3314d349d67a80547923638",
+        "event_type": "memory.semantic_interpretation_duplicate",
+        "payload": {
+          "fact_key": "notebook_preference",
+          "interpretation_assurance": "host_asserted",
+          "interpreted_fact_sha256": "2db899e6922fcf266bbd8f01c5524c8008daed19f6979486dbf0b4922f98f5a3",
+          "interpreter": "test:deterministic-driver",
+          "source_binding": "typed_session_handoff",
+          "source_message_sha256": "56dc12f0e712de454af95fb2b15df41dae62f002bf87231ea62b0f4b9dc3316d"
+        },
+        "prev_hash": "2e46ade38b6bf767e41db01d9195bb1f3eb7e40f1d65962d83b0c912522c30b6",
+        "record_id": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+        "sequence": 7,
+        "session_id": "main:lost-ack-session",
+        "subject_id": "lost-ack-test",
+        "turn_id": "write-001"
+      },
+      {
+        "actor": "host-agent-semantic",
+        "created_at": "2026-09-26T14:52:47.276174+00:00",
+        "event_hash": "35b35b17bca6fa3b6ff20e7f9bd8d8b40b9dae5aac3850328bb3f7925364da1a",
+        "event_id": "aud_aa07c2eedd1f42778120e22f006daa56",
+        "event_type": "memory.semantic_interpretation_duplicate",
+        "payload": {
+          "fact_key": "notebook_preference",
+          "interpretation_assurance": "host_asserted",
+          "interpreted_fact_sha256": "2db899e6922fcf266bbd8f01c5524c8008daed19f6979486dbf0b4922f98f5a3",
+          "interpreter": "test:deterministic-driver",
+          "source_binding": "typed_session_handoff",
+          "source_message_sha256": "56dc12f0e712de454af95fb2b15df41dae62f002bf87231ea62b0f4b9dc3316d"
+        },
+        "prev_hash": "80bf3b9d47814ba9c2fc8375d91cb272361833fda46f3540eaeb10431ffdd9d3",
+        "record_id": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+        "sequence": 8,
+        "session_id": "main:lost-ack-session",
+        "subject_id": "lost-ack-test",
+        "turn_id": "write-002"
+      },
+      {
+        "actor": "mcp-caller",
+        "created_at": "2026-09-26T14:52:47.277475+00:00",
+        "event_hash": "87c677576b3bc8ac283ce0fc9ebacad8fa05c739050d5c9c0954d4c0abe97f6a",
+        "event_id": "aud_e5de4e523b8b4cf999928b22ea130547",
+        "event_type": "memory.record_read",
+        "payload": {
+          "content_sha256": "2db899e6922fcf266bbd8f01c5524c8008daed19f6979486dbf0b4922f98f5a3",
+          "episode_id": "ep_520709f7997941248bfb0b3bde24e7af",
+          "record_id": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d"
+        },
+        "prev_hash": "35b35b17bca6fa3b6ff20e7f9bd8d8b40b9dae5aac3850328bb3f7925364da1a",
+        "record_id": "rec_7bde1f897a9a4ffc84fda12f5c08ac7d",
+        "sequence": 9,
+        "session_id": "openclaw-memory-get:read-001",
+        "subject_id": "lost-ack-test",
+        "turn_id": null
+      }
+    ],
+    "retrieval_events": []
+  },
+  "assertions_passed": true
+}

@@ -1,0 +1,155 @@
+{
+  "protocol": "openclaw-memory-lost-ack-v1",
+  "final": [
+    {
+      "run": "bridge-final-01",
+      "evidence_class": "qualification",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "qualification/bridge-final-01/result.json"
+    },
+    {
+      "run": "bridge-final-02",
+      "evidence_class": "qualification",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "qualification/bridge-final-02/result.json"
+    },
+    {
+      "run": "bridge-final-03",
+      "evidence_class": "qualification",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "qualification/bridge-final-03/result.json"
+    },
+    {
+      "run": "bridge-final-04",
+      "evidence_class": "qualification",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "qualification/bridge-final-04/result.json"
+    },
+    {
+      "run": "bridge-final-05",
+      "evidence_class": "qualification",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "qualification/bridge-final-05/result.json"
+    },
+    {
+      "run": "host-clean",
+      "evidence_class": "qualification",
+      "fault_injected": false,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "qualification/host-clean/summary.json"
+    },
+    {
+      "run": "host-fault-01",
+      "evidence_class": "qualification",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "qualification/host-fault-01/summary.json"
+    },
+    {
+      "run": "host-fault-02",
+      "evidence_class": "qualification",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "qualification/host-fault-02/summary.json"
+    },
+    {
+      "run": "host-fault-03",
+      "evidence_class": "qualification",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "qualification/host-fault-03/summary.json"
+    }
+  ],
+  "development": [
+    {
+      "run": "host-001",
+      "evidence_class": "development",
+      "fault_injected": false,
+      "assertions_passed": null,
+      "records": 0,
+      "result": "development/host-001/summary.json",
+      "outcome": "setup_failed_before_write_no_staged_source"
+    },
+    {
+      "run": "host-002",
+      "evidence_class": "development",
+      "fault_injected": false,
+      "assertions_passed": null,
+      "records": 0,
+      "result": "development/host-002/summary.json",
+      "outcome": "setup_failed_before_write_no_staged_source"
+    },
+    {
+      "run": "host-003",
+      "evidence_class": "development",
+      "fault_injected": true,
+      "assertions_passed": null,
+      "records": 1,
+      "result": "development/host-003/summary.json"
+    },
+    {
+      "run": "run-001",
+      "evidence_class": "development",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "development/run-001/result.json"
+    },
+    {
+      "run": "run-002",
+      "evidence_class": "development",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "development/run-002/result.json"
+    },
+    {
+      "run": "run-003",
+      "evidence_class": "development",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "development/run-003/result.json"
+    },
+    {
+      "run": "run-004",
+      "evidence_class": "development",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "development/run-004/result.json"
+    },
+    {
+      "run": "run-005",
+      "evidence_class": "development",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "development/run-005/result.json"
+    },
+    {
+      "run": "run-006",
+      "evidence_class": "development",
+      "fault_injected": true,
+      "assertions_passed": true,
+      "records": 1,
+      "result": "development/run-006/result.json"
+    }
+  ],
+  "fact": "User prefers cobalt blue notebooks.",
+  "source_commit": "da046dc59fd41fdd77ed407d8f196cfc434b478c"
+}
