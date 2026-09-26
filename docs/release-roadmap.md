@@ -7,7 +7,9 @@ planning targets, not delivery-date commitments.
 the matching GitHub release and registry artifacts, not this roadmap alone.
 
 **Next planned maintenance release:** AtMem/bridge `2.3.8`, including official
-MCP Registry registration ([issue #8](https://github.com/aetna000/atmem/issues/8)).
+MCP Registry registration ([issue #8](https://github.com/aetna000/atmem/issues/8))
+and coordinated AtFlows **0.1.4** secret redaction
+([AtFlows #6](https://github.com/aetna000/atflows/issues/6)).
 AtMem `2.3.7` and AtFlows `0.1.3` are published. Preserve their opt-in continuity
 behavior and benchmark provenance; held-out qualification stays open. Companion
 versions change only when their implementation or compatibility requires it.
@@ -16,6 +18,22 @@ This roadmap update schedules work; it does not authorize publication.
 AtMem is an agent-neutral, standalone encrypted evidence authority for memory, context governance and execution investigation. Every release follows [PR-001–PR-008](../specs/product-requirements.md), including default full-fidelity multimodal capture, application-only privileged plaintext and store-only reconstruction after the agent and its logs are gone. Advertise only the host, provider, capture-boundary, cryptographic and deployment profiles actually verified for that release.
 
 ## Release overview
+
+### 2.3.8 companion security scope: AtFlows 0.1.4
+
+Scheduled 2026-09-26: fix secret retention in AtFlows telemetry before storage,
+logging and export. AtFlows owns the implementation and its bounded Spec Kit
+feature; [AtFlows #6](https://github.com/aetna000/atflows/issues/6) records the
+reproduction, coverage and acceptance gates. Preserve original provider requests
+and responses, continuity accounting and existing authentication behavior.
+
+Require fake-secret regression tests, installed fresh/upgrade checks, explicit
+legacy-data handling and honest detection limits. Publish and verify AtFlows
+0.1.4 on PyPI before merging AtMem's exact companion pin. Then verify the paired
+AtMem installation/upgrade, update both release notes and the website guides.
+Do not silently clean historical databases or claim an upgrade removes secrets
+already present in backups/exports. Current runtime pins stay unchanged until
+the new artifact passes its release gates.
 
 ### 2.3.8 maintenance scope: official MCP Registry registration
 

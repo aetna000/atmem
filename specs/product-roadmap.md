@@ -21,6 +21,12 @@ testing and verified post-PyPI registry publication. This is a discovery change,
 not new host observation or automatic restart safety. It does not displace
 continuity qualification or authorize a release by itself.
 
+The same maintenance release will coordinate **AtFlows 0.1.4** for default-on
+telemetry secret redaction ([AtFlows #6](https://github.com/aetna000/atflows/issues/6)).
+AtFlows owns redaction and legacy-record handling; AtMem verifies the published
+companion pin and paired upgrade. Preserve forwarding and continuity behavior.
+See the [companion security scope](../docs/release-roadmap.md#238-companion-security-scope-atflows-014).
+
 ### Agent continuity: immediate product-first priority
 
 [Benchmarking 002's correction](benchmarking/002-agent-continuity/product-first-correction.md)
