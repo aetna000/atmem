@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,9 @@ from threading import RLock
 import time
 from typing import Any, Iterator
 import uuid
+from functools import wraps
+
+from atmem.locking import ProcessFileLock
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -71,6 +75,30 @@ def _restore_connection(connection: sqlite3.Connection, serialized: bytes) -> No
     deserialize(_portable_sqlite_image(serialized))
 
 
+def _container_writer_lock(path: str | Path) -> ProcessFileLock:
+    lock = ProcessFileLock(str(Path(path).expanduser().resolve()) + ".writer.lock")
+    deadline = time.monotonic() + 2.0
+    while True:
+        try:
+            return lock.acquire()
+        except BlockingIOError:
+            if time.monotonic() >= deadline:
+                raise BlockingIOError("encrypted control storage busy; retry after the active operation") from None
+            time.sleep(0.01)
+
+
+def _exclusive_container(method):
+    @wraps(method)
+    def guarded(path, *args, **kwargs):
+        lock = _container_writer_lock(path)
+        try:
+            return method(path, *args, **kwargs)
+        finally:
+            lock.close()
+    return guarded
+
+
+@_exclusive_container
 def reencrypt_control_container(path: str | Path, old_key: bytes, new_key: bytes) -> bool:
     """Atomically re-encrypt an application control container without plaintext disk."""
 
@@ -128,6 +156,9 @@ class ControlStore:
         self._process_lock_acquired = False
         self._closed = False
         self._household_lock: HouseholdLock | None = None
+        self._container_lock: ProcessFileLock | None = None
+        self._persisted_image: bytes | None = None
+        self._disk_digest: bytes | None = None
         self._conn: sqlite3.Connection
         try:
             self.path = str(Path(path).expanduser().resolve())
@@ -146,8 +177,12 @@ class ControlStore:
             if encryption_key is not None:
                 self._process_lock.acquire()
                 self._process_lock_acquired = True
+                # In-memory encrypted SQLite snapshots cannot share a writer
+                # across processes: the last close would undo the first commit.
+                self._container_lock = _container_writer_lock(self.path)
             self._household_lock = HouseholdLock(self.policy).acquire()
             raw = Path(self.path).read_bytes() if Path(self.path).is_file() else b""
+            self._disk_digest = hashlib.sha256(raw).digest()
             self._encryption_key = encryption_key
             if self._encryption_key is None:
                 self._conn = connect(self.path, policy=self.policy)
@@ -162,6 +197,7 @@ class ControlStore:
                         nonce, ciphertext, ENCRYPTED_CONTROL_MAGIC
                     )
                     _restore_connection(self._conn, serialized)
+                    self._persisted_image = _serialize_connection(self._conn)
                 elif raw:
                     source = connect(self.path, policy=self.policy)
                     try:
@@ -185,6 +221,8 @@ class ControlStore:
                 connection.close()
             if self._household_lock is not None:
                 self._household_lock.close()
+            if self._container_lock is not None:
+                self._container_lock.close()
             if self._process_lock_acquired:
                 self._process_lock.release()
             raise
@@ -193,11 +231,16 @@ class ControlStore:
         if self._encryption_key is None:
             return
         serialized = _serialize_connection(self._conn)
+        if serialized == self._persisted_image:
+            return
         nonce = os.urandom(12)
         ciphertext = AESGCM(self._encryption_key).encrypt(
             nonce, serialized, ENCRYPTED_CONTROL_MAGIC
         )
         target = Path(self.path)
+        raw = target.read_bytes() if target.exists() else b""
+        if hashlib.sha256(raw).digest() != self._disk_digest:
+            raise RuntimeError("encrypted control storage changed; reopen before writing")
         temporary = target.with_name(
             f".{target.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp"
         )
@@ -217,6 +260,8 @@ class ControlStore:
                     time.sleep(0.05)
             for suffix in ("-wal", "-shm", "-journal"):
                 Path(self.path + suffix).unlink(missing_ok=True)
+            self._persisted_image = serialized
+            self._disk_digest = hashlib.sha256(ENCRYPTED_CONTROL_MAGIC + nonce + ciphertext).digest()
         finally:
             temporary.unlink(missing_ok=True)
 
@@ -235,6 +280,8 @@ class ControlStore:
                 if self._household_lock is not None:
                     self._household_lock.close()
             finally:
+                if self._container_lock is not None:
+                    self._container_lock.close()
                 if self._process_lock_acquired:
                     self._process_lock.release()
 

@@ -9,6 +9,7 @@ import json
 import os
 import secrets
 import sys
+from threading import BoundedSemaphore
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
@@ -33,6 +34,7 @@ class ControlDashboardServer(ThreadingHTTPServer):
         self.application = AtMemApplication(manager)
         self.html = html
         self.csrf_token = secrets.token_urlsafe(32)
+        self.hermes_requests = BoundedSemaphore(4)
 
 
 class ControlDashboardHandler(BaseHTTPRequestHandler):
@@ -588,7 +590,10 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             if not self._valid_host():
                 self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid Host header"})
                 return
-            self._v1_post(path)
+            if path.startswith("/v1/hermes/"):
+                self._hermes_post(path)
+            else:
+                self._v1_post(path)
             return
         if not self._same_origin() or not secrets.compare_digest(
             self.headers.get("X-CSRF-Token", ""), self.server.csrf_token
@@ -1125,6 +1130,43 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
 
         except (OSError, RuntimeError) as exc:
             self._json(HTTPStatus.SERVICE_UNAVAILABLE, APIError("unavailable", str(exc), status=503).to_dict())
+
+    def _hermes_post(self, path: str) -> None:
+        from atmem.adapters.hermes.service import HermesService
+        from atmem.service import APIError
+
+        if not self.server.hermes_requests.acquire(blocking=False):
+            self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "Hermes service busy; retry later"})
+            return
+        previous_timeout = self.connection.gettimeout()
+        try:
+            self.connection.settimeout(5.0)
+            # Browser-origin requests cannot use an agent credential as an
+            # alternative to the dashboard's session/CSRF authority.
+            if self.headers.get("Origin") or self.headers.get("Transfer-Encoding"):
+                raise PermissionError("Hermes RPC requires a direct local client")
+            if int(self.headers.get("Content-Length", "0")) > 300_000:
+                raise ValueError("Hermes payload exceeds its limit")
+            authorization = self.headers.get("Authorization", "")
+            if not authorization.startswith("Bearer hermes_"):
+                raise APIError("unauthenticated", "a scoped Hermes credential is required", status=401)
+            value = HermesService(self.server.manager).dispatch(
+                authorization[len("Bearer "):], path.removeprefix("/v1/hermes/"), self._body(),
+            )
+            self._json(HTTPStatus.OK, value)
+        except APIError as exc:
+            self._json(HTTPStatus(exc.status), {"error": exc.code})
+        except PermissionError:
+            self._json(HTTPStatus.FORBIDDEN, {"error": "Hermes operation denied"})
+        except (ValueError, TypeError, KeyError):
+            self._json(HTTPStatus.BAD_REQUEST, {"error": "invalid Hermes request"})
+        except (OSError, RuntimeError):
+            self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "Hermes service unavailable; run atmem status"})
+        except Exception:
+            self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "Hermes protected storage unavailable"})
+        finally:
+            self.connection.settimeout(previous_timeout)
+            self.server.hermes_requests.release()
 
     def _v1_post(self, path: str) -> None:
         from atmem.service import APIError

@@ -28,7 +28,7 @@ def _free_port() -> int:
 def main() -> None:
     atflows_bin = os.environ.get("ATFLOWS_BIN", "atflows")
     atflows_version = subprocess.check_output([atflows_bin, "--version"], text=True).strip()
-    if version("atflows") != "0.1.3" or atflows_version != "atflows 0.1.3":
+    if version("atflows") != "0.1.4b2" or atflows_version != "atflows 0.1.4b2":
         raise RuntimeError("AtFlows installed version does not match the pinned handoff")
     with tempfile.TemporaryDirectory(prefix="atmem-atflows-smoke-") as root:
         root_path = Path(root)

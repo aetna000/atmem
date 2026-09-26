@@ -1,7 +1,7 @@
 # AtMem release roadmap
 
-**Status**: 2.3.7 stable release line; future versions are
-planning targets, not delivery-date commitments.
+**Status**: 2.3.7 stable release line; 2.3.8b2/0.1.4b2 is the current beta
+release candidate. Future versions remain planning targets.
 **Release baseline**: AtMem `2.3.7`, OpenClaw bridge `2.3.7`, companion pins
 `atmem-atbot==0.1.0` and `atflows==0.1.3`. Publication status is recorded by
 the matching GitHub release and registry artifacts, not this roadmap alone.
@@ -10,7 +10,7 @@ the matching GitHub release and registry artifacts, not this roadmap alone.
 MCP Registry registration ([issue #8](https://github.com/aetna000/atmem/issues/8))
 and coordinated AtFlows **0.1.4** secret redaction
 ([AtFlows #6](https://github.com/aetna000/atflows/issues/6)).
-AtMem `2.3.7` and AtFlows `0.1.3` are published. Preserve their opt-in continuity
+AtMem `2.3.7` and AtFlows `0.1.3` are the stable baseline. Preserve their opt-in continuity
 behavior and benchmark provenance; held-out qualification stays open. Companion
 versions change only when their implementation or compatibility requires it.
 This roadmap update schedules work; it does not authorize publication.
@@ -18,6 +18,32 @@ This roadmap update schedules work; it does not authorize publication.
 AtMem is an agent-neutral, standalone encrypted evidence authority for memory, context governance and execution investigation. Every release follows [PR-001–PR-008](../specs/product-requirements.md), including default full-fidelity multimodal capture, application-only privileged plaintext and store-only reconstruction after the agent and its logs are gone. Advertise only the host, provider, capture-boundary, cryptographic and deployment profiles actually verified for that release.
 
 ## Release overview
+
+### Planned host integration: Hermes and DolphinBench qualification
+
+Planned 2026-09-26 under [Spec 037](../specs/037-hermes-integration/spec.md).
+Deliver a reusable Hermes memory provider, explicit setup/activation/restore,
+scoped governed recall and truthful dashboard coverage before any benchmark run.
+Then use the installed integration through an inert DolphinBench driver: no-cost
+checks, a separately budget-approved pilot, and complete 600-task qualification
+with matched configurations and retained cost/latency/action evidence.
+
+**Beta target: AtMem `2.3.8b2`**, selected 2026-09-27 for the opt-in Hermes
+integration. The release note is the authority for this beta's shipped subset;
+scoped activation remains a follow-up gate. Finish packaged provider discovery,
+status/help and installed fresh/upgrade tests; pass existing adapter, security,
+build and documentation gates before tagging.
+The core provider alone is not a user-installable beta. Keep AtBot and AtFlows
+pins unchanged unless their separately tested changes are included. Align the
+OpenClaw bridge's matching prerelease metadata during release preparation.
+
+Benchmark accuracy is not a prerequisite for a usable integration beta, and no
+benchmark win or leaderboard placement may be claimed without completed runs.
+No leaderboard result is currently claimed. This beta does
+not displace the 2.3.8 MCP Registry/AtFlows redaction commitments or existing
+continuity qualification gates. Hermes memory support does not imply whole-agent
+capture or restart safety. Website docs and any submission need their normal
+review/publication approvals; planning authorizes no paid calls or deployment.
 
 ### 2.3.8 companion security scope: AtFlows 0.1.4
 
@@ -29,7 +55,7 @@ and responses, continuity accounting and existing authentication behavior.
 
 Require fake-secret regression tests, installed fresh/upgrade checks, explicit
 legacy-data handling and honest detection limits. Publish and verify AtFlows
-0.1.4 on PyPI before merging AtMem's exact companion pin. Then verify the paired
+0.1.4b2 on PyPI before merging AtMem's exact companion pin. Then verify the paired
 AtMem installation/upgrade, update both release notes and the website guides.
 Do not silently clean historical databases or claim an upgrade removes secrets
 already present in backups/exports. Current runtime pins stay unchanged until
@@ -224,6 +250,14 @@ broaden cross-host multimodal claims without another verified host.
 - **2.10 preview:** consume verified revocation/impact, authenticated administration, execution evidence and model/deployment inventory from 2.8–2.9. Keep heavyweight training dependencies in separately registered workers. A memory deletion, refusal, provider acknowledgment or small-model benchmark cannot be promoted into a weight-erasure claim.
 
 ## Versioning, compatibility and publication
+
+Hermes 2.3.8b2 acceptance includes the coordinated first-class setup and AtFlows
+experience in Spec 037 T023–T026 and AtFlows Spec 006 T055–T059. The provider
+binding alone is insufficient: require installed CLI/dashboard setup, explicit
+reversible provider switching, upgrade/restore, actionable status and real-event
+observation checks. Track evidence in `specs/037-hermes-integration/parity.md`;
+do not imply historical-memory import, full capture or continuity from a working
+recall hook. Preserve the stable 2.3.8 maintenance commitments.
 
 These are proposed additive 2.x releases. Preserve public contracts, native behavior, existing scopes, signed delegated payloads and historical evidence through declared supported upgrades. If implementation requires a genuinely incompatible public or persisted-state change, resolve migration/deprecation and reconsider a major version before committing to these numbers.
 

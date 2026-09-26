@@ -11,6 +11,19 @@ AtMem helps agents remember, controls the context they receive, and independentl
 
 ## Product requirements that govern every feature
 
+### Planned Hermes integration and action benchmark
+
+[Spec 037](037-hermes-integration/spec.md) adds Hermes as a supported memory host:
+reversible opt-in setup, profile-scoped AtMem authority, installed acceptance and
+dashboard visibility. Product features must work without benchmark code. A
+separate DolphinBench driver then measures full-history/600-task action accuracy,
+cost and latency with frozen memory and matched agent/model configurations.
+Pilot and full runs require their own budgets; self-submitted results are not
+official verification. The Hermes preview targets **2.3.8b2**;
+packaged setup/restore and installed acceptance precede tagging. Existing 2.3.8 maintenance
+and continuity commitments remain unchanged; Hermes support does not inherit
+OpenClaw capture or LangGraph continuity claims.
+
 ### Next maintenance release: 2.3.8 MCP discovery
 
 Official MCP Registry registration is scheduled for **2.3.8** under

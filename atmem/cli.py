@@ -345,6 +345,12 @@ Run `atmem COMMAND --help` for command-specific examples.""",
     )
     status_parser.add_argument("--json", action="store_true")
 
+    hermes_parser = subparsers.add_parser("hermes", help="Install or inspect the inactive Hermes memory plugin")
+    hermes_parser.add_argument("hermes_command", choices=("install", "status"))
+    hermes_parser.add_argument("--hermes-home", default=os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
+    hermes_parser.add_argument("--apply", action="store_true", help="Apply inactive installation; default is read-only preview")
+    hermes_parser.add_argument("--json", action="store_true")
+
     home_parser = subparsers.add_parser(
         "home", help="Inspect, verify, migrate or adopt the portable AtMem Home"
     )
@@ -1670,6 +1676,24 @@ or input errors.""",
 
     if args.command == "status":
         _run_install_status(args)
+        return
+
+    if args.command == "hermes":
+        from atmem.hermes_install import install
+        if args.apply and args.hermes_command != "install":
+            parser.error("--apply is only supported by hermes install")
+        try:
+            result = install(args.hermes_home, apply=args.apply)
+        except (OSError, ValueError, RuntimeError, PackageNotFoundError) as error:
+            parser.exit(1, f"Hermes setup did not complete: {error}\nRun atmem hermes status with the same --hermes-home to check whether publication occurred.\n")
+        if args.json:
+            print(json.dumps(result, indent=2))
+        else:
+            print(f"Hermes plugin: {result['state']}\nLocation: {result['target']}")
+            print("Installed (inactive)." if result["applied"] else "Read-only check; no files changed.")
+            print(result["next_step"])
+            if args.hermes_command == "install" and not args.apply and result["state"] == "not_installed":
+                print("Repeat this command with --apply to install. No provider selection or credentials will change.")
         return
 
     if args.command == "init":

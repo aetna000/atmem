@@ -13,6 +13,18 @@ from atmem.control.web import ControlDashboardServer
 from atmem.memory import Memory
 
 
+@pytest.fixture(autouse=True)
+def local_companion_fallback(monkeypatch):
+    """Governance tests must not invoke a user's running intelligence service."""
+    monkeypatch.setattr("atmem.control.atbot_companion.AtBotCompanionClient.propose",
+                        lambda self, message: {"proposals": [], "companion": {"available": False}})
+    monkeypatch.setattr("atmem.control.atbot_companion.AtBotCompanionClient.expand_query",
+                        lambda self, query: {"expanded_queries": [query], "content_received": False})
+    monkeypatch.setattr("atmem.control.atbot_companion.AtBotCompanionClient.query",
+                        lambda self, query, candidates: {"ranked_record_ids": [row["record_id"] for row in candidates],
+                                                        "companion": {"available": False}})
+
+
 def _manager(tmp_path: Path) -> ControlPlaneManager:
     return ControlPlaneManager.start(
         host="generic",
