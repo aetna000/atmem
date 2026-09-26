@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.8b4",
+  "version": "2.3.8b5",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -11,7 +11,7 @@
     "releases": "Releases"
   },
   "pages": [
-    {"slug": "releases/2.3.8b4", "title": "AtMem 2.3.8b4 — Hermes preview", "source": "docs/releases/v2.3.8b4.md"},
+    {"slug": "releases/2.3.8b5", "title": "AtMem 2.3.8b5 — Hermes preview", "source": "docs/releases/v2.3.8b5.md"},
     {"slug": "integrations/continuity", "title": "Resume work with AtMem and AtFlows", "source": "docs/continuity.md"},
     {
       "slug": "",

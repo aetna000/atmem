@@ -19,7 +19,7 @@ dashboard visibility. Product features must work without benchmark code. A
 separate DolphinBench driver then measures full-history/600-task action accuracy,
 cost and latency with frozen memory and matched agent/model configurations.
 Pilot and full runs require their own budgets; self-submitted results are not
-official verification. The Hermes preview targets **2.3.8b4**;
+official verification. The Hermes preview targets **2.3.8b5**;
 packaged setup/restore and installed acceptance precede tagging. Existing 2.3.8 maintenance
 and continuity commitments remain unchanged; Hermes support does not inherit
 OpenClaw capture or LangGraph continuity claims.

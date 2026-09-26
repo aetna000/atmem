@@ -27,7 +27,7 @@ try:
 
     SERVER_VERSION = _pkg_version("atmem")
 except Exception:  # not installed (e.g. run from a checkout)
-    SERVER_VERSION = "2.3.8b4"
+    SERVER_VERSION = "2.3.8b5"
 
 _SUBJECT_PROPERTY = {
     "subject_id": {

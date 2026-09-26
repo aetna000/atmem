@@ -1,6 +1,6 @@
 # AtMem
 
-[![Version 2.3.8b4](https://img.shields.io/badge/version-2.3.8b4-blue)](./docs/releases/v2.3.8b4.md)
+[![Version 2.3.8b5](https://img.shields.io/badge/version-2.3.8b5-blue)](./docs/releases/v2.3.8b5.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**

@@ -1,6 +1,6 @@
 # AtMem release roadmap
 
-**Status**: 2.3.7 stable release line; 2.3.8b4/0.1.4b2 is the current beta
+**Status**: 2.3.7 stable release line; 2.3.8b5/0.1.4b2 is the current beta
 release candidate. Future versions remain planning targets.
 **Release baseline**: AtMem `2.3.7`, OpenClaw bridge `2.3.7`, companion pins
 `atmem-atbot==0.1.0` and `atflows==0.1.3`. Publication status is recorded by
@@ -28,7 +28,7 @@ Then use the installed integration through an inert DolphinBench driver: no-cost
 checks, a separately budget-approved pilot, and complete 600-task qualification
 with matched configurations and retained cost/latency/action evidence.
 
-**Beta target: AtMem `2.3.8b4`**, selected 2026-09-27 for the opt-in Hermes
+**Beta target: AtMem `2.3.8b5`**, selected 2026-09-27 for the opt-in Hermes
 integration. The release note is the authority for this beta's shipped subset;
 scoped activation remains a follow-up gate. Finish packaged provider discovery,
 status/help and installed fresh/upgrade tests; pass existing adapter, security,
