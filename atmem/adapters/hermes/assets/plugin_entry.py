@@ -72,7 +72,7 @@ def _configured_provider():
     if Path(config["hermes_home"]).resolve() != home:
         raise PermissionError("AtMem connection belongs to another Hermes profile")
     client = HermesRPCClient(config["endpoint"], _private_read(private / "credential", 256).strip(),
-                             profile_id=config["profile_id"], user_id=config.get("user_id"), timeout=1.0)
+                             profile_id=config["profile_id"], user_id=config.get("user_id"), timeout=3.0)
     return create_provider(client, hermes_home=str(home))
 
 
