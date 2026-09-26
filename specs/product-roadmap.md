@@ -1,6 +1,6 @@
 # AtMem unified product roadmap
 
-**Updated**: 2026-09-25
+**Updated**: 2026-09-26
 **Status**: Implementation backlog; product capabilities below require their acceptance gates.
 
 **Numbered releases**: [Release roadmap — proposed 2.3 beta through 2.10 model-unlearning research preview](../docs/release-roadmap.md). Its Work group column maps the non-chronological M0–M4 dependency/scope groupings to independently sequenced releases; version numbers are planning targets, not publication claims.
@@ -10,6 +10,16 @@
 AtMem helps agents remember, controls the context they receive, and independently preserves what happened. The AtMem evidence store—not the agent, host logs or an external provider—is the investigation system of record.
 
 ## Product requirements that govern every feature
+
+### Next maintenance release: 2.3.8 MCP discovery
+
+Official MCP Registry registration is scheduled for **2.3.8** under
+[issue #8](https://github.com/aetna000/atmem/issues/8). The
+[release scope and acceptance checklist](../docs/release-roadmap.md#238-maintenance-scope-official-mcp-registry-registration)
+cover ownership metadata, versioned stdio configuration, installed-artifact
+testing and verified post-PyPI registry publication. This is a discovery change,
+not new host observation or automatic restart safety. It does not displace
+continuity qualification or authorize a release by itself.
 
 ### Agent continuity: immediate product-first priority
 

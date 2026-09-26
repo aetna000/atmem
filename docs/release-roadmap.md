@@ -6,14 +6,39 @@ planning targets, not delivery-date commitments.
 `atmem-atbot==0.1.0` and `atflows==0.1.3`. Publication status is recorded by
 the matching GitHub release and registry artifacts, not this roadmap alone.
 
-**Approved next release:** AtMem/bridge `2.3.7`, AtFlows `0.1.3`, AtBot `0.1.0`.
-Lead with opt-in product continuity, observable attempts, grouped event charts
-and Windows reliability. Update the publication baseline after registry
-verification. Preserve benchmark provenance; held-out qualification stays open.
+**Next planned maintenance release:** AtMem/bridge `2.3.8`, including official
+MCP Registry registration ([issue #8](https://github.com/aetna000/atmem/issues/8)).
+AtMem `2.3.7` and AtFlows `0.1.3` are published. Preserve their opt-in continuity
+behavior and benchmark provenance; held-out qualification stays open. Companion
+versions change only when their implementation or compatibility requires it.
+This roadmap update schedules work; it does not authorize publication.
 
 AtMem is an agent-neutral, standalone encrypted evidence authority for memory, context governance and execution investigation. Every release follows [PR-001–PR-008](../specs/product-requirements.md), including default full-fidelity multimodal capture, application-only privileged plaintext and store-only reconstruction after the agent and its logs are gone. Advertise only the host, provider, capture-boundary, cryptographic and deployment profiles actually verified for that release.
 
 ## Release overview
+
+### 2.3.8 maintenance scope: official MCP Registry registration
+
+Scheduled 2026-09-26 for [issue #8](https://github.com/aetna000/atmem/issues/8).
+Make the existing local stdio memory server discoverable as
+`io.github.aetna000/atmem`, without changing its authority or runtime defaults.
+This bounded distribution task accompanies, rather than replaces, ongoing
+continuity qualification.
+
+- [ ] Add the `mcp-name` ownership marker to the README included in the PyPI description.
+- [ ] Add `server.json` using the official schema verified during implementation, with exact AtMem `2.3.8` metadata, PyPI identifier `atmem` and stdio transport.
+- [ ] Represent `atmem mcp` and its database/subject configuration; do not expose operator-only MCP to agents.
+- [ ] Check version alignment across registry metadata, package metadata and the built/published artifact. Keep future release checks aligned too.
+- [ ] Test initialization and tool discovery over stdio from a clean installed artifact, and pass `mcp-publisher validate server.json`.
+- [ ] Document installation, discovery and the distinct canonical-memory, control-plane and operator-only MCP boundaries. Verify and describe the registry's current stability status rather than assuming it.
+- [ ] Run the normal compatibility, security, install/upgrade and release gates. Publish PyPI first, then authenticate as `aetna000` and publish matching registry metadata.
+- [ ] Verify the exact server/version and launch configuration through the registry API and search UI; retain validation/publication evidence before closing #8.
+- [ ] Refresh AtMem.ai documentation through its owner-reviewed main-only publication process.
+
+Registry listing is not full Agent Black Box observation, automatic continuity,
+or endorsement by an MCP client. Host observation still requires a supported
+adapter. If registry publication is blocked, report package publication and
+registry registration separately and leave #8 open.
 
 ### Immediate priority: agent continuity qualification
 
