@@ -10,8 +10,10 @@ from atmem.adapters.hermes import HermesMemoryBinding
 class Manager:
     def __init__(self):
         self.calls = []
+        self.events = []
         self.workspaces = [{"workspace_id": "workspace", "subject_id": "owner", "agent_ids": ["agent"]}]
-        self.result = {"inject": True, "context": "authorized memory", "candidate_ids": ["r1"]}
+        self.result = {"inject": True, "context": "authorized memory", "candidate_ids": ["r1"],
+                       "exposure_id": "ctxe_real", "context_receipt_id": "ctxp_real"}
 
     def agent_topology(self):
         return {"workspaces": self.workspaces}
@@ -21,6 +23,10 @@ class Manager:
         if isinstance(self.result, Exception):
             raise self.result
         return self.result
+
+    def record_blackbox_event(self, **kwargs):
+        self.events.append(kwargs)
+        return {"recorded": True}
 
 
 def binding(manager, **kwargs):

@@ -32,7 +32,7 @@ class RecallResult:
     reason: str
     candidate_ids: tuple[str, ...] = ()
     exposure_id: str | None = None
-    receipt_id: str | None = None
+    context_receipt_id: str | None = None
     profile: str = PROFILE
 
 
@@ -79,6 +79,35 @@ class HermesMemoryBinding:
         value = [_identifier(self.profile_id, "profile_id"), _identifier(session_id, "session_id")]
         return "hermes_" + hashlib.sha256(canonical_json(value).encode()).hexdigest()
 
+    def _run_id(self, session_id: str, turn_id: str) -> str:
+        session = self._session(session_id)
+        turn = _identifier(str(turn_id), "turn_id")
+        return "hermes_run_" + hashlib.sha256(
+            canonical_json([self.profile_id, session, turn]).encode()
+        ).hexdigest()
+
+    def record_event(self, event_type: str, *, session_id: str, turn_id: str,
+                     payload: dict[str, Any], context_event_id: str | None = None,
+                     context_receipt_id: str | None = None,
+                     retrieval_id: str | None = None) -> dict[str, Any] | None:
+        """Project a local Hermes turn into AtMem's ordinary session evidence."""
+        recorder = getattr(self.manager, "record_blackbox_event", None)
+        if not callable(recorder):
+            return None
+        session = self._session(session_id)
+        turn = _identifier(str(turn_id), "turn_id")
+        run_id = self._run_id(session_id, turn)
+        return recorder(
+            event_type=event_type, run_id=run_id, session_id=session,
+            turn_id=turn, agent_id=self.identity.agent_id,
+            workspace_id=self.identity.workspace_id,
+            subject_id=self.identity.subject_id,
+            context_event_id=context_event_id,
+            context_receipt_id=context_receipt_id,
+            retrieval_id=retrieval_id,
+            payload={key: value for key, value in payload.items() if value is not None},
+        )
+
     def recall(self, query: str, *, session_id: str, turn_id: str) -> RecallResult:
         if not self.enabled:
             return RecallResult("", "inactive")
@@ -88,9 +117,10 @@ class HermesMemoryBinding:
             self._scope()
             session = self._session(session_id)
             turn = _identifier(turn_id, "turn_id")
+            run_id = self._run_id(session_id, turn)
             prepared = self.manager.prepare(
                 query, allow_delegation=False, session_id=session,
-                host_run_id=session, turn_id=turn,
+                host_run_id=run_id, turn_id=turn,
                 workspace_id=self.identity.workspace_id,
                 subject_id=self.identity.subject_id, agent_id=self.identity.agent_id,
                 max_chars=self.max_context_chars,

@@ -1,5 +1,65 @@
 # Hermes qualification evidence — 2026-09-26
 
+## Live browser-path acceptance — 2026-09-27
+
+This section supersedes older statements below that the user's Hermes plugin
+was not installed or that installed acceptance had not been run. It does not
+supersede platform-portability or benchmark limitations.
+
+The packaged AtMem provider was installed in the user's Hermes 0.21.5 profile,
+selected as the native memory provider, and exercised through the same
+`/api/pty` WebSocket and terminal rendering protocol used by the dashboard Chat
+page. The prompt was `How old am I? Answer with only the age.`. The final
+post-review Hermes session `20260927_104227_0dd071` displayed and persisted the
+exact answer `45` using the
+local Ollama model `qwen3:4b`; no paid endpoint was used.
+
+The persisted model-bound user payload contains the governed AtMem record `JT
+is 45 years old.` inside an explicit `<atmem-subject role="current_user">`
+scope. The stored Hermes transcript remains clean: recalled context is retained
+in Hermes's `api_content` sidecar, not shown as user-authored text. The adapter
+does not rewrite the canonical AtMem record.
+
+AtMem recorded the same turn as
+`hermes_run_7862481eb6b43a02b5a30d78de88877d517fc76cbb9e4b7d3a0565e5e66fe88d`.
+`atmem blackbox verify` reports `completed_successfully`, a valid timeline
+chain, complete turn/model/context coverage, `harness_id=hermes:tui`,
+`context.disposition=injected`, candidate
+`rec_ee1bbae102ae464c8076ee508b7612de`, and the real AtMem context
+receipt `tp_8493a3b02b72426d8ac5961852205b09`. The same receipt and
+context event remain attached to context disposition, model input, model
+output, and turn completion; no adapter-synthesized receipt is used.
+The response is retained only by digest; its two-character length and SHA-256
+match the Hermes answer.
+
+Shadow behavior remains non-influencing. Native-provider tests assert that an
+AtMem `inject=false` decision returns no context, clears recall status, records
+`withheld_by_policy`, and creates no delivery receipt. Active mode was retained
+for the live acceptance because recall cannot honestly be demonstrated in
+shadow mode.
+
+Dashboard projection is adapter-neutral: recent sessions derive the visible
+agent/surface from `harness_id`, so this run renders as `Hermes · TUI`; observed
+adapters are aggregated rather than hard-coding an OpenClaw-only header. Unknown
+future adapter names remain visible instead of being discarded.
+
+Verification run after the change:
+
+```text
+92 passed — focused Hermes/binding/authority/black-box/onboarding tests
+1813 passed, 80 skipped, 1 optional-dependency failure — full suite
+45 passed, 14 skipped — affected continuity/Hermes/black-box rerun after making
+the absent langgraph SQLite extra an explicit skip
+```
+
+One earlier live turn exceeded Hermes's fixed eight-second external-prefetch
+budget and therefore ran without context; a subsequent direct recall completed
+in approximately 3.1–3.4 seconds and the final browser-path acceptance above
+completed with an injected receipt. This proves the final run, not a latency
+SLA. The AtMem evidence currently records the native host model as `unknown`
+because Hermes 0.21.5 does not pass model identity to memory-provider lifecycle
+hooks; AtFlows independently observed the actual `qwen3:4b` request.
+
 Branch: `feat/037-hermes-integration`.
 
 ## Completed work

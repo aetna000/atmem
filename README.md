@@ -399,7 +399,7 @@ evidence, activate AtMem, and return it to shadow.
 ## Dashboard
 
 ```bash
-atmem dashboard daemon start   # http://127.0.0.1:8766/
+atmem dashboard daemon start   # http://127.0.0.1:8768/ on a new install; existing daemon ports are preserved
 atmem dashboard daemon open
 atmem dashboard daemon status
 atmem dashboard daemon restart

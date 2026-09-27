@@ -20,6 +20,10 @@ from atmem.service import APIError, APIPrincipal
 
 from .binding import HermesMemoryBinding, _identifier
 
+_HERMES_EVENT_TYPES = frozenset({
+    "turn.input", "context.disposition", "model.input", "model.output", "turn.ended",
+})
+
 
 class HermesService:
     """Transport never accepts caller-selected scope or a shared dashboard token.
@@ -216,11 +220,18 @@ class HermesService:
 
     def dispatch(self, token: str, operation: str, body: dict[str, Any]) -> dict[str, Any]:
         allowed = {"status": set(), "recall": {"query", "session_id", "turn_id"},
-                   "observe": {"text", "session_id", "observation_id"}}
+                   "observe": {"text", "session_id", "observation_id"},
+                   "event": {"event_type", "session_id", "turn_id", "payload",
+                             "context_event_id", "context_receipt_id", "retrieval_id"}}
         if operation not in allowed:
             raise APIError("not_found", "unknown Hermes operation", status=404)
         if set(body) != allowed[operation]:
             raise ValueError("unexpected or missing fields; scope comes from the credential")
+        if operation == "event":
+            if body["event_type"] not in _HERMES_EVENT_TYPES:
+                raise ValueError("Hermes may record only its supported lifecycle events")
+            if not isinstance(body["payload"], dict):
+                raise ValueError("Hermes event payload must be an object")
         with self._locked():
             row = self._authenticate(token)
             binding = self._binding(row)
@@ -234,8 +245,12 @@ class HermesService:
         # Slow retrieval/extraction cannot lock out an administrator's revoke.
         # A previously accepted write may finish, but no new call is accepted
         # after revocation; recall is rechecked before releasing its result.
-        value = (asdict(binding.recall(**body)) if operation == "recall"
-                 else binding.observe_user(**body))
+        if operation == "recall":
+            value = asdict(binding.recall(**body))
+        elif operation == "observe":
+            value = binding.observe_user(**body)
+        else:
+            value = binding.record_event(**body) or {"recorded": False}
         try:
             with self._locked():
                 current = self._authenticate(token)
@@ -243,7 +258,7 @@ class HermesService:
                     raise APIError("inactive", "Hermes binding changed during the operation", status=403)
                 self._binding(current)._scope()
         except Exception:
-            if operation == "observe":
+            if operation in {"observe", "event"}:
                 raise APIError("observation_uncertain", "an accepted write may have completed before revocation; inspect its receipt", status=409) from None
             raise
         if "error" in value:

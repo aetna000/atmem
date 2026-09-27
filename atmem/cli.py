@@ -383,7 +383,7 @@ Run `atmem COMMAND --help` for command-specific examples.""",
     )
     restore_parser.add_argument("home")
     restore_parser.add_argument("--json", action="store_true")
-    restore_parser.add_argument("--port", type=int, default=8766)
+    restore_parser.add_argument("--port", type=int, default=None)
     restore_parser.add_argument("--no-open", action="store_true")
 
     init_parser = subparsers.add_parser(
@@ -391,7 +391,7 @@ Run `atmem COMMAND --help` for command-specific examples.""",
     )
     init_parser.add_argument("--state", default=None)
     init_parser.add_argument("--json", action="store_true")
-    init_parser.add_argument("--port", type=int, default=8766)
+    init_parser.add_argument("--port", type=int, default=None)
     init_parser.add_argument(
         "--no-open",
         action="store_true",
@@ -402,7 +402,7 @@ Run `atmem COMMAND --help` for command-specific examples.""",
         "users", help="Manage local dashboard users and evidence roles"
     )
     users_parser.add_argument("--state", default=None)
-    users_parser.add_argument("--port", type=int, default=8766)
+    users_parser.add_argument("--port", type=int, default=None)
     users_parser.add_argument("--no-open", action="store_true")
     users_commands = users_parser.add_subparsers(dest="users_command")
     for name in ("list", "create", "enable", "disable", "set-role", "reset-password", "change-password", "recover-administrator"):
@@ -751,7 +751,7 @@ External evaluation:
         help="Run the local host-neutral memory, flight, audit, and switch UI",
     )
     dashboard_parser.add_argument("--state", default=None)
-    dashboard_parser.add_argument("--port", type=int, default=8766)
+    dashboard_parser.add_argument("--port", type=int, default=8768)
     dashboard_parser.add_argument("--no-open", action="store_true")
     dashboard_commands = dashboard_parser.add_subparsers(dest="dashboard_command")
     dashboard_daemon = dashboard_commands.add_parser(
@@ -763,7 +763,7 @@ External evaluation:
     for name in ("start", "open", "stop", "restart", "status", "remove"):
         command_parser = dashboard_daemon_commands.add_parser(name)
         command_parser.add_argument("--state", default=None)
-        command_parser.add_argument("--port", type=int, default=8766)
+        command_parser.add_argument("--port", type=int, default=None)
         command_parser.add_argument(
             "--json", action="store_true", help="Print machine-readable JSON"
         )
@@ -1478,7 +1478,7 @@ or input errors.""",
                 "--json", action="store_true", help="Print machine-readable JSON"
             )
         if name == "dashboard":
-            command_parser.add_argument("--port", type=int, default=8766)
+            command_parser.add_argument("--port", type=int, default=8768)
             command_parser.add_argument("--no-open", action="store_true")
         if name in {"activate", "restore"}:
             command_parser.add_argument(
@@ -4382,18 +4382,19 @@ def _print_bootstrap(value: dict[str, Any]) -> None:
 
 
 def _available_loopback_port(preferred: int) -> int:
-    """Pick a local fallback if a previous or unrelated process owns the port."""
+    """Require the selected local port; never silently drift to another port."""
     if not 1 <= preferred <= 65535:
         raise ValueError("dashboard port must be between 1 and 65535")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             probe.bind(("127.0.0.1", preferred))
             return preferred
-        except OSError:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as fallback:
-                fallback.bind(("127.0.0.1", 0))
-                return int(fallback.getsockname()[1])
+        except OSError as exc:
+            raise ValueError(
+                f"AtMem dashboard port {preferred} is occupied. Review the owning "
+                "process and confirm before stopping it; AtMem will not choose a "
+                "random replacement port."
+            ) from exc
 
 
 def _run_identity_init(args: argparse.Namespace) -> None:
@@ -4411,7 +4412,9 @@ def _run_identity_init(args: argparse.Namespace) -> None:
         if daemon.get("running") and daemon.get("restart_required"):
             daemon = manage_dashboard_daemon("restart")
         elif not daemon.get("running"):
-            selected_port = _available_loopback_port(int(args.port))
+            selected_port = _available_loopback_port(
+                int(args.port if args.port is not None else daemon.get("port") or 8768)
+            )
             daemon = manage_dashboard_daemon("start", port=selected_port, control_state_path=args.state)
     except (OSError, ValueError) as exc:
         service_errors.append(f"AtMem dashboard: {exc}")
@@ -4441,8 +4444,6 @@ def _run_identity_init(args: argparse.Namespace) -> None:
     print(f"  AtFlows            {flows.get('dashboard_url') if flows.get('running') else 'not running'}")
     print(f"  AtFlows proxy      {flows.get('proxy_url') if flows.get('running') else 'not running'}")
     print(f"  AtBot              {'safe fallback (model assistance off)' if bot.get('fallback_selected') else 'ready' if bot.get('available') else 'safe fallback (model-assisted features not configured)'}")
-    if int(args.port) != int(daemon.get("port") or args.port):
-        print(f"  Port note          {args.port} was unavailable; AtMem selected {daemon['port']}.")
     for error in service_errors:
         print(f"  ACTION             {error}")
     if flows.get("warning"):

@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from argparse import Namespace
 import json
+import socket
 import subprocess
 from types import SimpleNamespace
+
+import pytest
 
 from atmem import cli
 from atmem import atflows_service
@@ -49,7 +52,7 @@ def test_init_repairs_old_dashboard_and_starts_shared_flows(monkeypatch, capsys)
     assert report["atflows"]["dashboard_url"] == "http://127.0.0.1:1337/"
 
 
-def test_init_reports_selected_port_and_companion_failure(monkeypatch, capsys) -> None:
+def test_init_refuses_port_drift_and_does_not_start_companion(monkeypatch, capsys) -> None:
     from atmem import dashboard_daemon
     from atmem.control import atbot_service
 
@@ -59,19 +62,32 @@ def test_init_reports_selected_port_and_companion_failure(monkeypatch, capsys) -
         cli, "_identity_manager",
         lambda _state: SimpleNamespace(identity_service=lambda: SimpleNamespace(bootstrap=lambda: {"created": False})),
     )
-    monkeypatch.setattr(cli, "_available_loopback_port", lambda _port: 49152)
+    monkeypatch.setattr(
+        cli,
+        "_available_loopback_port",
+        lambda _port: (_ for _ in ()).throw(
+            ValueError("AtMem dashboard port 8768 is occupied; AtMem will not choose a random replacement port.")
+        ),
+    )
     monkeypatch.setattr(dashboard_daemon, "manage_dashboard_daemon", lambda action, **kwargs: (
         {"running": False} if action == "status" else
         {"running": True, "port": kwargs["port"], "url": "http://127.0.0.1:49152/"}
     ))
-    def fail(_url: str):
-        raise RuntimeError("Bun is missing; install Bun >=1.1")
-    monkeypatch.setattr(atflows_service, "ensure_started", fail)
-    cli._run_identity_init(Namespace(state=None, json=False, no_open=True, port=8766))
+    started: list[str] = []
+    monkeypatch.setattr(atflows_service, "ensure_started", lambda url: started.append(url))
+    cli._run_identity_init(Namespace(state=None, json=False, no_open=True, port=8768))
     output = capsys.readouterr().out
-    assert "8766 was unavailable; AtMem selected 49152" in output
-    assert "AtFlows: Bun is missing" in output
-    assert "http://127.0.0.1:49152/" in output
+    assert "AtMem dashboard port 8768 is occupied" in output
+    assert "AtFlows was not started because AtMem sign-in is unavailable" in output
+    assert started == []
+
+
+def test_dashboard_port_selection_fails_closed_when_occupied() -> None:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", 0))
+        occupied_port = listener.getsockname()[1]
+        with pytest.raises(ValueError, match="will not choose a random replacement port"):
+            cli._available_loopback_port(occupied_port)
 
 
 def test_fresh_init_starts_both_dashboards_without_extra_account(monkeypatch, capsys) -> None:

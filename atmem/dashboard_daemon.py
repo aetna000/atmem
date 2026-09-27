@@ -23,7 +23,7 @@ DEFAULT_DAEMON_LOG = compatible_home_path("runtime/dashboard-daemon.log", "dashb
 def manage_dashboard_daemon(
     action: str,
     *,
-    port: int = 8766,
+    port: int | None = None,
     control_state_path: str | Path | None = None,
     daemon_state_path: str | Path = DEFAULT_DAEMON_STATE,
 ) -> dict[str, Any]:
@@ -49,16 +49,18 @@ def manage_dashboard_daemon(
             )
         return {**current, "opened": True}
     if action == "start":
+        prior = _read(state_path)
+        selected_port = int(port if port is not None else (prior or {}).get("port") or 8768)
         return _start(
             state_path,
-            port=port,
+            port=selected_port,
             control_state_path=control_state_path,
         )
     if action == "stop":
         return _stop(state_path)
     if action == "restart":
         prior = _read(state_path)
-        selected_port = int(prior.get("port") or port) if prior else port
+        selected_port = int(prior.get("port") or port or 8768) if prior else int(port or 8768)
         selected_state = (
             prior.get("control_state_path") if prior else control_state_path
         )

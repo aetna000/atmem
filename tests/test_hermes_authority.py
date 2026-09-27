@@ -56,6 +56,17 @@ def test_scope_cannot_be_overridden_and_agent_cannot_provision(service):
         service.provision(admin, profile_id="p", agent_id="main", workspace_id="w")
 
 
+def test_scoped_credential_cannot_forge_unrelated_evidence_types(service):
+    service, admin, grant = service
+    service.configure(admin, grant["binding"]["binding_id"], enabled=True)
+    with pytest.raises(ValueError, match="supported lifecycle"):
+        service.dispatch(grant["credential"], "event", {
+            "event_type": "tool.completed", "session_id": "s", "turn_id": "t",
+            "payload": {}, "context_event_id": None,
+            "context_receipt_id": None, "retrieval_id": None,
+        })
+
+
 def test_stale_topology_and_expired_token_deny(service):
     service, admin, grant = service
     row = service._load(grant["binding"]["binding_id"])
@@ -79,6 +90,28 @@ def test_duplicate_provision_is_non_destructive(service):
     with pytest.raises(APIError, match="distinct authorized"):
         service.provision(admin, profile_id="other-profile", agent_id="main",
                           workspace_id=grant["binding"]["identity"]["workspace_id"], accept_reduced_capture=True)
+
+
+def test_rpc_client_exposes_the_provider_event_contract(monkeypatch):
+    calls = []
+    client = HermesRPCClient(
+        "http://127.0.0.1:8768", "hermes_test.value", profile_id="profile"
+    )
+    monkeypatch.setattr(
+        client, "_call",
+        lambda operation, payload, **kwargs: calls.append((operation, payload, kwargs)) or {"recorded": True},
+    )
+
+    assert client.record_event(
+        "turn.input", session_id="session", turn_id="turn",
+        payload={"prompt_sha256": "a" * 64, "prompt_chars": 4},
+    ) == {"recorded": True}
+    assert calls == [("event", {
+        "event_type": "turn.input", "session_id": "session", "turn_id": "turn",
+        "payload": {"prompt_sha256": "a" * 64, "prompt_chars": 4},
+        "context_event_id": None, "context_receipt_id": None,
+        "retrieval_id": None,
+    }, {"timeout": 1.5})]
 
 
 def test_revoke_during_slow_recall_succeeds_and_withholds_late_result(service, monkeypatch):
@@ -236,7 +269,9 @@ def test_actual_http_credential_is_not_general_api_authority(service, monkeypatc
     opener = build_opener(ProxyHandler({}))
     try:
         assert client.status()["enabled"] is False
-        assert client.recall("q", session_id="s", turn_id="t").context == ""
+        recalled = client.recall("q", session_id="s", turn_id="t")
+        assert recalled.context == ""
+        assert recalled.reason == "unavailable_or_denied"
         for route in ("/v1/memories", "/v1/configuration", "/v1/evidence/status"):
             request = Request(endpoint + route, headers={"Authorization": "Bearer " + grant["credential"],
                                                         "X-AtMem-Role": "admin"})

@@ -47,6 +47,7 @@ _DIGEST_KEYS = {
     "model_output_bundle_sha256",
     "turn_messages_sha256",
     "context_block_sha256",
+    "delivered_context_sha256",
     "context_envelope_sha256",
     "context_receipt_sha256",
     "query_sha256",
@@ -290,6 +291,14 @@ def flight_runs(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "context_disposition": _context_disposition(context_body),
                 "provider": (model_body or {}).get("payload", {}).get("provider"),
                 "model": (model_body or {}).get("payload", {}).get("model"),
+                "harness_id": next(
+                    (
+                        body.get("payload", {}).get("harness_id")
+                        for body in bodies
+                        if body.get("payload", {}).get("harness_id")
+                    ),
+                    None,
+                ),
                 "last_sequence": int(values[-1].get("sequence") or 0),
             }
         )
