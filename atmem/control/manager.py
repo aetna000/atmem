@@ -32,6 +32,7 @@ DEFAULT_CONTROL_ROOT = resolve_home() / "migrations"
 DEFAULT_STATE_PATH = compatible_home_path("config/control-plane.json", "control-plane.json")
 DEFAULT_SUBJECT = "local-user"
 GENERIC_CONFIG_NAME = "generic-adapter.json"
+_TOPOLOGY_CACHE_TTL_SECONDS = 120.0
 
 _ALLOWED_TRANSITIONS: dict[ControlMode, frozenset[ControlMode]] = {
     ControlMode.OFF: frozenset({ControlMode.SHADOW, ControlMode.ACTIVE}),
@@ -410,7 +411,10 @@ class ControlPlaneManager:
     def agent_topology(self, *, state: ControlState | None = None) -> dict[str, Any]:
         state = state or self.state()
         cached = getattr(self, "_agent_topology_cache", None)
-        if cached is not None and time.monotonic() - cached[0] < 5.0:
+        if (
+            cached is not None
+            and time.monotonic() - cached[0] < _TOPOLOGY_CACHE_TTL_SECONDS
+        ):
             return cached[1]
         if state.host == "openclaw":
             from atmem.control.openclaw_native import mirror_status
@@ -584,37 +588,17 @@ class ControlPlaneManager:
                 mirror_status,
                 takeover_status,
             )
-            from atmem.control.openclaw_topology import discover_agent_topology
 
             mirror = mirror_status(state)
             takeover = takeover_status(state)
             try:
-                live_topology = discover_agent_topology(
-                    base_subject_id=state.subject_id
-                )
-                mirrored_topology = (mirror or {}).get("topology") or {}
-                topology_matches = bool(mirrored_topology) and all(
-                    mirrored_topology.get(key) == live_topology.get(key)
-                    for key in ("agent_subjects", "agent_workspaces")
-                )
-                result["agent_topology"] = {
-                    **live_topology,
-                    "verified": bool((mirror or {}).get("audit_verified"))
-                    and topology_matches,
-                    "topology_matches_mirror": topology_matches,
-                    "status": (
-                        "working"
-                        if bool((mirror or {}).get("audit_verified"))
-                        and topology_matches
-                        else "needs_refresh"
-                    ),
-                    "reason": (
-                        "Every persistent agent is bound to its verified workspace memory scope."
-                        if bool((mirror or {}).get("audit_verified"))
-                        and topology_matches
-                        else "Sync agents and memory so the detected topology is bound to the memory mirror."
-                    ),
-                }
+                # Topology discovery invokes the host CLI and is materially more
+                # expensive than the SQLite status queries. Reuse the same
+                # short-lived, mutation-invalidated cache as every other
+                # topology consumer instead of rediscovering it on each
+                # dashboard poll. This path also includes registered external
+                # agents such as Hermes in the status response.
+                result["agent_topology"] = self.agent_topology(state=state)
             except (OSError, ValueError) as exc:
                 result["agent_topology"] = {
                     "verified": False,

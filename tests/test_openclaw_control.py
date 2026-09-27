@@ -62,6 +62,39 @@ def _workspace(tmp_path: Path) -> Path:
     return workspace
 
 
+def test_status_reuses_cached_openclaw_topology_discovery(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manager = _manager(tmp_path)
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    calls = 0
+
+    def discover() -> list[dict[str, object]]:
+        nonlocal calls
+        calls += 1
+        return [
+            {
+                "agent_id": "main",
+                "name": "main",
+                "workspace": str(workspace),
+                "agent_dir": None,
+                "model": None,
+                "is_default": True,
+            }
+        ]
+
+    monkeypatch.setattr(
+        "atmem.control.openclaw_topology.discover_openclaw_agents", discover
+    )
+
+    first = manager.status()
+    second = manager.status()
+
+    assert calls == 1
+    assert first["agent_topology"] == second["agent_topology"]
+
+
 def test_search_excerpt_returns_only_the_matching_sentence() -> None:
     content = (
         "They like red cars. - JT said they hate blueberries. "

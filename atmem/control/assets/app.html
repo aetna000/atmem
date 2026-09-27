@@ -26,6 +26,7 @@
 <symbol id="i-chevron-right" viewBox="0 0 24 24"><polyline points="9,4 16,12 9,20"/></symbol>
 <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.6"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/><line x1="4.6" y1="4.6" x2="6.7" y2="6.7"/><line x1="17.3" y1="17.3" x2="19.4" y2="19.4"/><line x1="4.6" y1="19.4" x2="6.7" y2="17.3"/><line x1="17.3" y1="6.7" x2="19.4" y2="4.6"/></symbol>
 <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4 7 7 0 0 0 20 14.5z"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 0-2 5"/></symbol>
 </defs></svg>
 <header><div class="wrap head">
   <a class="logo" href="https://atmem.ai/" target="_blank" rel="noopener noreferrer" aria-label="Visit AtMem.ai (opens in a new tab)"><svg class="brandmark" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 6.5 L5.5 17.5 M12 6.5 L18.5 17.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="12" cy="5" r="2.6" fill="currentColor"/><circle cx="5" cy="18.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="19" cy="18.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg><strong>AtMem.ai</strong></a>
@@ -38,7 +39,6 @@
   </div>
   <a class="companionnav" id="atflowsDashboardLink" hidden target="_blank" rel="noopener noreferrer">AtFlows <span aria-hidden="true">↗</span></a>
   <div class="grow"></div>
-  <span class="small adapterlabel" id="adapterLabel">Memory &amp; agent oversight</span>
   <button class="identitychip" id="identityChip" type="button" hidden><span id="identityName">Account</span><small id="identityRole"></small></button>
   <button class="themebtn" id="logoutButton" type="button" hidden>Sign out</button>
   <button class="themebtn" id="themeToggle" type="button"><svg class="icon themebtnicon-sun" aria-hidden="true"><use href="#i-sun"/></svg><svg class="icon themebtnicon-moon" aria-hidden="true"><use href="#i-moon"/></svg><span class="themebtnlabel" id="themeToggleLabel">Light mode</span></button>
@@ -151,7 +151,7 @@
   <details class="card settingsgroup" id="featureCapabilityCard"><summary><b>Advanced capabilities</b><span>Optional adapters and feature readiness</span></summary>
     <div class="semantichead"><div><div class="eyebrow">Extensibility</div><h2>Feature and adapter readiness</h2><p class="sub">Runtime-derived capability status for graph, storage, framework adapters, interchange, lifecycle, media, onboarding, and production operation.</p></div><span class="statuspill" id="featureCapabilityStatus">Checking…</span></div>
     <div class="evidencegrid" id="featureCapabilityRows"></div>
-    <div class="actions"><button class="secondary" id="featureCapabilityRefresh" type="button">Refresh capabilities</button></div>
+    <div class="actions"><button class="secondary iconbutton" id="featureCapabilityRefresh" type="button" aria-label="Refresh capabilities" title="Refresh capabilities"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button></div>
   </details>
 
   <section class="card semanticcard" id="taskModeSettingsCard" hidden>
@@ -299,7 +299,7 @@
   </section>
 
   <section class="card" id="blackboxCard">
-    <div class="activityhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-pulse"/></svg><span>Recent agent activity</span></h2><div class="activitytools"><input id="activityQuery" aria-label="Search recent agent activity" placeholder="Search actions…"><select id="activityTopic" aria-label="Filter by topic"><option value="all">All topics</option><option value="agents">Agents</option><option value="memory">Memory</option><option value="tools">Tools</option><option value="web">Web</option><option value="email">Email</option><option value="conversation">Conversation</option></select><select id="activityWhen" aria-label="Filter by time"><option value="all">All time</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select><button class="secondary" id="blackboxRefresh" type="button">Refresh</button></div></div>
+    <div class="activityhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-pulse"/></svg><span>Recent agent activity</span></h2><div class="activitytools"><input id="activityQuery" aria-label="Search recent agent activity" placeholder="Search actions…"><select id="activityTopic" aria-label="Filter by topic"><option value="all">All topics</option><option value="agents">Agents</option><option value="memory">Memory</option><option value="tools">Tools</option><option value="web">Web</option><option value="email">Email</option><option value="conversation">Conversation</option></select><select id="activityWhen" aria-label="Filter by time"><option value="all">All time</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select><button class="secondary iconbutton" id="blackboxRefresh" type="button" aria-label="Refresh recent activity" title="Refresh recent activity"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button></div></div>
     <div class="activityscope"><button class="secondary" id="activityBackground" type="button" aria-pressed="false">Show background reviews</button><span>Updates automatically</span></div>
     <aside class="activitylegend" aria-label="Status colour legend">
      <span class="legendlabel">Colour guide</span>
@@ -329,7 +329,7 @@
       <p id="summary">AtMem is verifying memory, evidence, and the safe return path.</p>
     </div>
     <div class="actions">
-      <button class="secondary" id="refreshBtn">Refresh memory</button>
+      <button class="secondary iconbutton" id="refreshBtn" aria-label="Refresh memory" title="Refresh memory"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button>
       <button class="primary" id="switchBtn" disabled>Activate AtMem</button>
     </div>
   </section>
@@ -337,26 +337,26 @@
   <div class="grid">
     <div>
       <section class="card" id="reviewCard">
-        <div class="reviewhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Memory decisions</span></h2><span class="reviewcount" id="reviewCount">0</span><button class="secondary" id="reviewRefresh" type="button">Refresh</button></div>
+        <div class="reviewhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Memory decisions</span></h2><span class="reviewcount" id="reviewCount">0</span><button class="secondary iconbutton" id="reviewRefresh" type="button" aria-label="Refresh memory decisions" title="Refresh memory decisions"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button></div>
         <p class="sub">External observations stay out of agent recall until you approve them. Rejection permanently purges the candidate content.</p>
         <div id="reviews"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Checking for quarantined memories…</span></div></div>
       </section>
 
       <section class="card" id="continuityCard">
-        <div class="reviewhead"><h2>Resume work</h2><button class="secondary" id="continuityRefresh" type="button">Refresh</button></div>
+        <div class="reviewhead"><h2>Resume work</h2><button class="secondary iconbutton" id="continuityRefresh" type="button" aria-label="Refresh resumable work" title="Refresh resumable work"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button></div>
         <p class="sub">See what finished, what remains, and what needs confirmation. Your connected agent resumes the work; this page does not execute tools.</p>
         <div id="continuityWorkflows"><div class="empty">Loading saved work…</div></div>
       </section>
 
       <section class="card" id="taskCard" hidden>
-        <div class="reviewhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Governed tasks</span></h2><span class="reviewcount" id="taskCount">0</span><button class="secondary" id="taskRefresh" type="button">Refresh</button></div>
+        <div class="reviewhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Governed tasks</span></h2><span class="reviewcount" id="taskCount">0</span><button class="secondary iconbutton" id="taskRefresh" type="button" aria-label="Refresh governed tasks" title="Refresh governed tasks"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button></div>
         <p class="sub">Inspect active task checklists, lifecycle, progress, context delivery, and linked agent flights. Enable or disable task state from Settings.</p>
         <div id="taskSelected" hidden></div>
         <div id="tasks"><div class="empty">Checking governed task state…</div></div>
       </section>
 
       <section class="card" id="proposalCard">
-        <div class="reviewhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Proposed changes</span></h2><span class="reviewcount" id="proposalCount">0</span><button class="secondary" id="proposalRefresh" type="button">Refresh</button></div>
+        <div class="reviewhead"><h2 class="withicon"><svg class="icon" aria-hidden="true"><use href="#i-flag"/></svg><span>Proposed changes</span></h2><span class="reviewcount" id="proposalCount">0</span><button class="secondary iconbutton" id="proposalRefresh" type="button" aria-label="Refresh proposed changes" title="Refresh proposed changes"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button></div>
         <p class="sub">Extraction proposes; you decide. Each entry shows what would change, why it is waiting, and the exact source span it cites.</p>
         <div id="proposals"><div class="empty">Checking for proposals awaiting review…</div></div>
       </section>
