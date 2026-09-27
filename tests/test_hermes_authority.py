@@ -1,5 +1,6 @@
 from dataclasses import replace
 from pathlib import Path
+import os
 import threading
 from urllib.error import HTTPError
 from urllib.request import Request, ProxyHandler, build_opener
@@ -39,6 +40,27 @@ def test_encrypted_restart_revocation_and_inactive_default(service):
     service.revoke(admin, grant["binding"]["binding_id"])
     with pytest.raises(APIError):
         restarted.dispatch(token, "status", {})
+
+
+def test_binding_shadow_mode_connects_without_influencing_context(service, monkeypatch):
+    service, admin, grant = service
+    row = service.configure_mode(
+        admin, grant["binding"]["binding_id"], mode="shadow"
+    )
+    assert row["enabled"] is True
+    assert row["influence"] is False
+    assert service.dispatch(grant["credential"], "status", {})["mode"] == "shadow"
+    monkeypatch.setattr(service.manager, "prepare", lambda *a, **k: (_ for _ in ()).throw(
+        AssertionError("shadow binding must not prepare model context")
+    ))
+    result = service.dispatch(grant["credential"], "recall", {
+        "query": "private fact", "session_id": "session", "turn_id": "turn",
+    })
+    assert result["context"] == ""
+    assert result["reason"] == "withheld"
+    assert service.configure_mode(
+        admin, grant["binding"]["binding_id"], mode="active"
+    )["influence"] is True
 
 
 def test_scope_cannot_be_overridden_and_agent_cannot_provision(service):
@@ -97,10 +119,13 @@ def test_rpc_client_exposes_the_provider_event_contract(monkeypatch):
     client = HermesRPCClient(
         "http://127.0.0.1:8768", "hermes_test.value", profile_id="profile"
     )
-    monkeypatch.setattr(
-        client, "_call",
-        lambda operation, payload, **kwargs: calls.append((operation, payload, kwargs)) or {"recorded": True},
-    )
+    def fake_call(operation, payload, **kwargs):
+        calls.append((operation, payload, kwargs))
+        if operation == "prepare-turn":
+            return {"context": "age", "candidate_ids": ["memory-age"],
+                    "reason": "authorized", "lifecycle_recorded": True}
+        return {"recorded": True}
+    monkeypatch.setattr(client, "_call", fake_call)
 
     assert client.record_event(
         "turn.input", session_id="session", turn_id="turn",
@@ -112,6 +137,101 @@ def test_rpc_client_exposes_the_provider_event_contract(monkeypatch):
         "context_event_id": None, "context_receipt_id": None,
         "retrieval_id": None,
     }, {"timeout": 1.5})]
+
+    events = [{
+        "event_type": "model.output", "payload": {"response_chars": 2},
+        "context_event_id": None, "context_receipt_id": None, "retrieval_id": None,
+    }, {
+        "event_type": "turn.ended", "payload": {"success": True},
+        "context_event_id": None, "context_receipt_id": None, "retrieval_id": None,
+    }]
+    assert client.record_events(events, session_id="session", turn_id="turn") == {"recorded": True}
+    assert calls[-1] == ("events", {
+        "session_id": "session", "turn_id": "turn", "events": events,
+    }, {"timeout": 5.0})
+
+    prepared = client.prepare_turn(
+        "How old am I?", session_id="session", turn_id="turn",
+        model="gpt-test", platform="cli", prompt_sha256="a" * 64,
+        prompt_chars=13,
+    )
+    assert prepared.lifecycle_recorded is True
+    assert calls[-1][0] == "prepare-turn"
+    assert calls[-1][1]["prompt_sha256"] == "a" * 64
+
+
+def test_prepare_turn_records_input_context_and_model_in_one_operation(service, monkeypatch):
+    service, admin, grant = service
+    service.configure(admin, grant["binding"]["binding_id"], enabled=True)
+    # Simulate a process dying after the durable write but before scheduling.
+    monkeypatch.setattr(service, "_schedule_spool", lambda _path: None)
+    monkeypatch.setattr(service.manager, "prepare", lambda *a, **k: {
+        "inject": True, "context": "I am 45 years old.",
+        "candidate_ids": ["memory-age"], "exposure_id": "exposure-age",
+        "context_receipt_id": "receipt-age",
+    })
+    result = service.dispatch(grant["credential"], "prepare-turn", {
+        "query": "How old am I?", "session_id": "session", "turn_id": "turn",
+        "model": "gpt-test", "platform": "cli",
+        "prompt_sha256": "a" * 64, "prompt_chars": 13,
+    })
+    assert result["context"] == "I am 45 years old."
+    assert result["lifecycle_recorded"] is True
+    spools = list(service._spool_dir().glob("*.json"))
+    assert len(spools) == 1
+    os.utime(spools[0], (0, 0))
+    HermesService(service.manager)  # daemon-restart recovery queues the durable spool
+    service.flush_evidence()
+    report = service.manager.verify_blackbox_flight(
+        service._binding(service._load(grant["binding"]["binding_id"]))._run_id(
+            "session", "turn"
+        )
+    )
+    assert [row["event_type"] for row in report["timeline"]] == [
+        "turn.input", "context.disposition", "model.input",
+    ]
+    assert report["context"]["disposition"] == "injected"
+
+
+def test_event_batch_records_output_then_terminal_event(service):
+    service, admin, grant = service
+    service.configure(admin, grant["binding"]["binding_id"], enabled=True)
+    result = service.dispatch(grant["credential"], "events", {
+        "session_id": "session", "turn_id": "turn", "events": [{
+            "event_type": "model.output", "payload": {"response_chars": 2},
+            "context_event_id": None, "context_receipt_id": None, "retrieval_id": None,
+        }, {
+            "event_type": "turn.ended", "payload": {"success": True},
+            "context_event_id": None, "context_receipt_id": None, "retrieval_id": None,
+        }],
+    })
+    service.flush_evidence()
+    assert result == {"accepted": True, "recorded": False, "pending": True, "count": 2}
+    report = service.manager.verify_blackbox_flight(
+        service._binding(service._load(grant["binding"]["binding_id"]))._run_id("session", "turn")
+    )
+    assert [row["event_type"] for row in report["timeline"]] == ["model.output", "turn.ended"]
+    assert report["lifecycle"]["success"] is True
+    # A durable spool can replay after a crash. Stable producer identities make
+    # that retry a no-op instead of duplicating lifecycle evidence.
+    service.dispatch(grant["credential"], "events", {
+        "session_id": "session", "turn_id": "turn", "events": [{
+            "event_type": "model.output", "payload": {"response_chars": 2},
+            "context_event_id": None, "context_receipt_id": None, "retrieval_id": None,
+        }, {
+            "event_type": "turn.ended", "payload": {"success": True},
+            "context_event_id": None, "context_receipt_id": None, "retrieval_id": None,
+        }],
+    })
+    service.flush_evidence()
+    replayed = service.manager.verify_blackbox_flight(
+        service._binding(service._load(grant["binding"]["binding_id"]))._run_id(
+            "session", "turn"
+        )
+    )
+    assert [row["event_type"] for row in replayed["timeline"]] == [
+        "model.output", "turn.ended",
+    ]
 
 
 def test_revoke_during_slow_recall_succeeds_and_withholds_late_result(service, monkeypatch):
@@ -146,13 +266,12 @@ def test_revoke_does_not_wait_for_real_prepare_control_store(service, monkeypatc
     service.configure(admin, grant["binding"]["binding_id"], enabled=True)
     started, finish = threading.Event(), threading.Event()
     results = []
-    def slow_expansion(self, query):
+    original_candidates = service.manager._hybrid_memory_candidates
+    def slow_candidates(*args, **kwargs):
         started.set()
         assert finish.wait(5)
-        return {"expanded_queries": [query], "content_received": False}
-    monkeypatch.setattr("atmem.control.atbot_companion.AtBotCompanionClient.expand_query", slow_expansion)
-    monkeypatch.setattr("atmem.control.atbot_companion.AtBotCompanionClient.query",
-                        lambda self, query, candidates: {"ranked_record_ids": []})
+        return original_candidates(*args, **kwargs)
+    monkeypatch.setattr(service.manager, "_hybrid_memory_candidates", slow_candidates)
     def recall():
         try:
             results.append(service.dispatch(grant["credential"], "recall",

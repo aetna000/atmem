@@ -149,6 +149,38 @@ capture, whole-agent context governance or Hermes workflow continuation.
   observed; missing usage/cost is unknown, not zero. AtFlows failure cannot
   grant memory access or stop otherwise valid local memory operations. Define
   captured boundaries explicitly; observation does not imply Hermes continuity.
+- **FR-020 — One-command guided installation.** `atmem install hermes` MUST be
+  the primary supported setup journey, with `atmem hermes install` retained as
+  a compatibility alias. One invocation discovers the active Hermes Home and
+  profile, identifies the current AtMem service, chooses an isolated memory
+  scope by default or an explicitly shared existing scope, inventories native
+  Hermes memory, installs or safely upgrades the managed plugin, provisions a
+  scoped credential, writes owner-only connection material, selects the native
+  provider through Hermes's supported configuration interface, restarts Hermes
+  when needed, and verifies the resulting connection. Interactive execution
+  MUST show one consolidated plan and request one explicit confirmation before
+  changing state; automation MUST require `--yes` and all security-relevant
+  choices as flags. It MUST never print credentials.
+- **FR-021 — Migration, shadow, activation, and restore receipt.** The guided
+  installer MUST preserve the previous provider and native memory before any
+  switch. Supported native memory is copied into governed proposals with source
+  provenance and idempotent import identities; it is never silently admitted.
+  The installed provider first runs in binding-scoped shadow mode, where user
+  messages and lifecycle evidence are recorded but recalled context cannot
+  influence the model. Explicit `--activate` (or the single interactive
+  confirmation covering activation) may switch that binding to active only
+  after plugin, service, scope, memory, and evidence checks pass. A durable
+  receipt MUST let `atmem restore hermes` disable the binding, restore the exact
+  prior provider configuration without deleting native memory, and report any
+  user-edited conflict instead of overwriting it.
+- **FR-022 — End-to-end verification.** Setup success requires more than a
+  health response. The command MUST verify native discovery, scoped RPC access,
+  binding mode, selected scope, and one deterministic recall at the provider
+  boundary. When `--verify-turn` is requested, it MUST run one ordinary Hermes
+  turn and require all of: a matching approved memory reaches the model, Hermes
+  returns an answer using it, AtMem records model output and `turn.ended`, and
+  the run is structurally complete. Failure leaves a precise repair command and
+  MUST NOT display Hermes as connected or setup as complete.
 
 ## Acceptance gates
 
@@ -238,6 +270,14 @@ behavior or delete an active provider in this slice.
   matching supported identifiers; a second profile cannot be misattributed.
   Health checks alone never report activity. Exercise AtFlows outage, reconnection,
   alternate ports and secret-redaction cases with no unauthorized disclosure.
+- **SC-009:** From a clean supported Hermes Home and an existing AtMem Home,
+  `atmem install hermes --yes --memory isolated` completes without manual file
+  editing. Repeating it is a no-op. A shared-scope run using
+  `--memory shared --activate --verify-turn` answers an approved age-memory
+  question, produces five ordered lifecycle events including `turn.ended`, and
+  appears complete in AtMem. `atmem restore hermes --yes` restores the prior
+  provider byte-for-byte or refuses on a detected user edit. Injected faults at
+  every receipt checkpoint are resumable and never expose the scoped token.
 
 ## Non-goals and dependencies
 
@@ -252,7 +292,10 @@ does not bypass the pending connection/activation gates or provision credentials
 Report unchanged release metadata alongside the development artifact hash.
 
 No Hermes fork, Mem0 wrapper, replacement agent loop, hidden recovery controller,
-native-memory import, automatic account creation or automatic benchmark upload.
+silent authoritative native-memory import, automatic account creation or
+automatic benchmark upload. The bounded proposal import in FR-021 is allowed
+because it preserves source bytes, requires ordinary review, and grants no
+memory authority by itself.
 No whole-agent secrecy guarantee after legitimate context disclosure. No global
 exactly-once tool execution or new continuity claim. Existing Specs 007/011/019/
 020/028/030 retain identity, conformance, context, evidence, encryption and Home

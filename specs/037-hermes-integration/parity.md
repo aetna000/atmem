@@ -6,12 +6,12 @@ This is an acceptance checklist, not a declaration of shipped parity.
 | User action | Hermes release requirement | Current evidence |
 | --- | --- | --- |
 | Appear in Hermes provider list | Native discovery without replacing current memory | Inactive packaged plugin installed locally; native dashboard metadata lists `atmem`, unavailable |
-| Connect an existing agent | Guided profile discovery and preview; no manual Python/environment surgery | Inactive preview/install/status implemented; connection and activation pending |
-| Switch memory provider | Explicit activation, backed-up settings, preserved native stores; disclose no history import | Pending installer |
-| Remember and recall | Ordinary governed capture, new-session recall, isolated scope | Native directory provider → real scoped RPC capture → product review → new-process recall passed in temporary Homes; live guided activation pending |
+| Connect an existing agent | Guided profile discovery and preview; no manual Python/environment surgery | `atmem install hermes` now installs, scopes, connects and verifies the provider |
+| Switch memory provider | Explicit activation, backed-up settings, preserved native stores | Shadow is default; `--activate` is explicit; prior provider and native files are preserved |
+| Remember and recall | Ordinary governed capture, new-session recall, isolated scope | Isolated-by-default and explicit shared scope pass; live shared recall answered the approved age-memory question |
 | Diagnose a problem | CLI and dashboard agree on versions, provider, endpoints, pending writes and repair | Pending |
-| Upgrade safely | Idempotent installed upgrade preserves configuration and memory | Pending |
-| Undo the switch | Conflict-safe restore of previous provider; no memory deletion | Pending |
+| Upgrade safely | Idempotent installed upgrade preserves configuration and memory | Receipt-authenticated payloads upgrade with a retained rollback directory; modified/unmanaged payloads refuse |
+| Undo the switch | Conflict-safe restore of previous provider; no memory deletion | `atmem restore hermes --yes` disables the binding and restores the receipt's provider without deleting memory/evidence |
 | See activity in AtFlows | Optional guided connection and real session evidence, grouped runs and supported charts | Standalone native observer implemented in AtFlows Spec 006: CLI/dashboard setup, real local Hermes/Ollama call, metadata Timeline and grouping; explicit AtMem session mapping and full parity remain pending |
 | Keep existing tools | Preserve OpenClaw, existing telemetry exporter and model-provider settings | Installed regressions pending |
 | Know capture coverage | Distinguish prepared recall, returned context, observed model/tool events and unknown outcomes | Core profile only; full boundary audit pending |

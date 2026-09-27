@@ -132,5 +132,6 @@ until explicitly captured. This mapping is correlation, never authorization.
 
 AtFlows T060–T064 add required receiver/storage/aggregation work for unknown
 usage, redaction, retry deduplication, bounded export and installed qualification.
-Planned release ordering is AtFlows 0.1.4b2 after redaction/product gates, verified
-before AtMem 2.3.8b2 pins it. This is the coordinated prerelease checkpoint.
+Release ordering is AtFlows 0.1.4b3 first, followed by the exact AtMem 2.3.8b6
+pin. The AtFlows artifact is verified before the AtMem candidate pins it. This
+is the coordinated prerelease checkpoint.

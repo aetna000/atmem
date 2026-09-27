@@ -68,6 +68,26 @@ def create_provider(binding: HermesMemoryBinding, *, hermes_home: str):
                     self._evidence_errors += 1
                 return None
 
+        def _record_events(self, events, *, session_id, turn_id):
+            """Keep output and terminal evidence on one ordered RPC boundary."""
+            try:
+                recorder = getattr(binding, "record_events", None)
+                if callable(recorder):
+                    return recorder(events, session_id=session_id, turn_id=turn_id)
+                for event in events:
+                    self._record_event(
+                        event["event_type"], session_id=session_id, turn_id=turn_id,
+                        payload=event["payload"],
+                        context_event_id=event.get("context_event_id"),
+                        context_receipt_id=event.get("context_receipt_id"),
+                        retrieval_id=event.get("retrieval_id"),
+                    )
+                return {"recorded": True, "count": len(events)}
+            except Exception:
+                with self._lock:
+                    self._evidence_errors += 1
+                return None
+
         def is_available(self):
             return binding.enabled
 
@@ -146,11 +166,15 @@ def create_provider(binding: HermesMemoryBinding, *, hermes_home: str):
                     self._unmatched_turns += 1
                 self._turns.append((self._session, self._turn,
                                     hashlib.sha256(str(message).encode()).hexdigest(), self._can_write))
-            self._record_event(
-                "turn.input", session_id=self._session, turn_id=self._turn,
-                payload={"prompt_sha256": hashlib.sha256(message.encode()).hexdigest(),
-                         "prompt_chars": len(message), "harness_id": f"hermes:{self._platform}"},
-            )
+            # RPC-backed providers persist turn.input together with recall and
+            # model.input. This avoids spending Hermes's prefetch budget on
+            # three serialized authority/evidence round trips.
+            if not callable(getattr(binding, "prepare_turn", None)):
+                self._record_event(
+                    "turn.input", session_id=self._session, turn_id=self._turn,
+                    payload={"prompt_sha256": hashlib.sha256(message.encode()).hexdigest(),
+                             "prompt_chars": len(message), "harness_id": f"hermes:{self._platform}"},
+                )
 
         def prefetch(self, query, *, session_id=""):
             self._last_count = 0
@@ -159,11 +183,25 @@ def create_provider(binding: HermesMemoryBinding, *, hermes_home: str):
             turn = self._turn or str(uuid.uuid4())
             if not self._turn:
                 self._turn = turn
-            result = binding.recall(query, session_id=self._session, turn_id=turn)
+            prepare = getattr(binding, "prepare_turn", None)
+            result = (
+                prepare(
+                    query, session_id=self._session, turn_id=turn,
+                    model=self._model, platform=self._platform,
+                    prompt_sha256=hashlib.sha256(query.encode()).hexdigest(),
+                    prompt_chars=len(query),
+                )
+                if callable(prepare)
+                else binding.recall(query, session_id=self._session, turn_id=turn)
+            )
             context = (
-                "AtMem context: governed memories selected from the current user's scope. "
-                "Use directly relevant selected facts for first-person questions, but do "
-                "not assume every other person mentioned is the user.\n"
+                "AtMem context: governed memories that the authenticated current user has "
+                "authorized for this turn. Facts inside the current_user block refer to "
+                "the user even when they use the user's name or initials. For a direct "
+                "first-person question, answer from a matching fact in this block; do not "
+                "refuse merely because the fact is personal. If useful, say that the answer "
+                "comes from the user's saved memory. Do not treat people mentioned outside "
+                "this block as the user.\n"
                 "<atmem-subject role=\"current_user\">\n"
                 + result.context
                 + "\n</atmem-subject>"
@@ -182,29 +220,30 @@ def create_provider(binding: HermesMemoryBinding, *, hermes_home: str):
                 "recall_failed" if result.reason in {"unavailable_or_denied", "context_limit", "invalid_query"} else
                 "no_relevant_memory"
             )
-            self._record_event(
-                "context.disposition", session_id=self._session, turn_id=turn,
-                context_event_id=context_event_id,
-                context_receipt_id=context_receipt_id,
-                retrieval_id=context_event_id,
-                payload={"disposition": disposition,
-                         "candidate_ids": list(result.candidate_ids),
-                         "context_block_sha256": hashlib.sha256(result.context.encode()).hexdigest(),
-                         "context_chars": len(result.context), "context_location": "hermes-prefetch",
-                         "delivered_context_sha256": hashlib.sha256(context.encode()).hexdigest(),
-                         "mode": "shadow" if result.reason == "withheld" else "active",
-                         "reason": result.reason},
-            )
-            self._record_event(
-                "model.input", session_id=self._session, turn_id=turn,
-                context_event_id=context_event_id,
-                context_receipt_id=context_receipt_id,
-                retrieval_id=context_event_id,
-                payload={"provider": "hermes", "model": self._model,
-                         "prompt_sha256": hashlib.sha256(query.encode()).hexdigest(),
-                         "prompt_chars": len(query), "history_count": 0, "tools_count": 0,
-                         "harness_id": f"hermes:{self._platform}"},
-            )
+            if not getattr(result, "lifecycle_recorded", False):
+                self._record_event(
+                    "context.disposition", session_id=self._session, turn_id=turn,
+                    context_event_id=context_event_id,
+                    context_receipt_id=context_receipt_id,
+                    retrieval_id=context_event_id,
+                    payload={"disposition": disposition,
+                             "candidate_ids": list(result.candidate_ids),
+                             "context_block_sha256": hashlib.sha256(result.context.encode()).hexdigest(),
+                             "context_chars": len(result.context), "context_location": "hermes-prefetch",
+                             "delivered_context_sha256": hashlib.sha256(context.encode()).hexdigest(),
+                             "mode": "shadow" if result.reason == "withheld" else "active",
+                             "reason": result.reason},
+                )
+                self._record_event(
+                    "model.input", session_id=self._session, turn_id=turn,
+                    context_event_id=context_event_id,
+                    context_receipt_id=context_receipt_id,
+                    retrieval_id=context_event_id,
+                    payload={"provider": "hermes", "model": self._model,
+                             "prompt_sha256": hashlib.sha256(query.encode()).hexdigest(),
+                             "prompt_chars": len(query), "history_count": 0, "tools_count": 0,
+                             "harness_id": f"hermes:{self._platform}"},
+                )
             self._model_input_recorded = True
             return context
 
@@ -249,12 +288,7 @@ def create_provider(binding: HermesMemoryBinding, *, hermes_home: str):
                 )
             assistant_text = str(assistant_content or "")
             response_digest = hashlib.sha256(assistant_text.encode()).hexdigest()
-            self._record_event(
-                "model.output", session_id=self._session, turn_id=turn,
-                context_event_id=self._context_event_id,
-                context_receipt_id=self._context_receipt_id,
-                retrieval_id=self._retrieval_id,
-                payload={"provider": "hermes", "model": self._model,
+            model_output = {"provider": "hermes", "model": self._model,
                          "response_sha256": response_digest,
                          "assistant_visible_text_sha256": response_digest,
                          "model_output_bundle_sha256": hashlib.sha256(
@@ -262,20 +296,22 @@ def create_provider(binding: HermesMemoryBinding, *, hermes_home: str):
                          ).hexdigest(),
                          "response_digest_profile": "atmem-assistant-visible-text-utf8-v1",
                          "response_chars": len(assistant_text), "response_count": 1,
-                         "harness_id": f"hermes:{self._platform}"},
-            )
-            self._record_event(
-                "turn.ended", session_id=self._session, turn_id=turn,
-                context_event_id=self._context_event_id,
-                context_receipt_id=self._context_receipt_id,
-                retrieval_id=self._retrieval_id,
-                payload={"success": True, "cancelled": False,
+                         "harness_id": f"hermes:{self._platform}"}
+            turn_ended = {"success": True, "cancelled": False,
                          "messages_sha256": hashlib.sha256(
                              json.dumps({"user": hashlib.sha256(user_content.encode()).hexdigest(),
                                          "assistant": response_digest}, sort_keys=True).encode()
                          ).hexdigest(),
-                         "messages_count": 2, "harness_id": f"hermes:{self._platform}"},
-            )
+                         "messages_count": 2, "harness_id": f"hermes:{self._platform}"}
+            references = {
+                "context_event_id": self._context_event_id,
+                "context_receipt_id": self._context_receipt_id,
+                "retrieval_id": self._retrieval_id,
+            }
+            self._record_events([
+                {"event_type": "model.output", "payload": model_output, **references},
+                {"event_type": "turn.ended", "payload": turn_ended, **references},
+            ], session_id=self._session, turn_id=turn)
             # Snapshot identity and source now, never read mutable session state
             # later on the writer thread. Assistant output is deliberately unused.
             with self._lock:

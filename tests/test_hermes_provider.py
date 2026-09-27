@@ -29,8 +29,10 @@ def test_native_hooks_recall_and_capture_only_user(provider):
     value.on_turn_start(1, "My editor is Neovim")
     recalled = value.prefetch("editor", session_id="session")
     assert "authorized memory" in recalled
-    assert "current user's scope" in recalled
     assert "first-person questions" in recalled
+    assert "authorized for this turn" in recalled
+    assert "user's name or initials" in recalled
+    assert "do not refuse merely because the fact is personal" in recalled
     assert '<atmem-subject role="current_user">' in recalled
     assert recalled.endswith("authorized memory\n</atmem-subject>")
     context_event = next(row for row in manager.events if row["event_type"] == "context.disposition")

@@ -161,6 +161,41 @@ Provider switching is not historical-memory import. Add Hermes discovery to
 repairs using detected Homes and endpoints. Verify with normal installed sessions,
 not benchmark helpers. Extend existing dashboards rather than build a third UI.
 
+### One-command transaction
+
+Make `atmem install hermes` a transaction coordinator over existing product
+services, not a second memory implementation. Its ordered checkpoints are:
+
+1. discover and validate the Hermes Home/profile, AtMem state, dashboard RPC
+   endpoint, current provider, and selected isolated/shared topology scope;
+2. write a secret-free preview containing every intended mutation and the exact
+   restore target, then require one interactive confirmation or `--yes`;
+3. snapshot the relevant Hermes configuration and native memory identities;
+4. install or atomically upgrade only AtMem-owned plugin files;
+5. create/reuse a scoped server-side binding, publish its credential through
+   owner-only connection files, and enable binding-scoped shadow capture;
+6. import supported native memory as idempotent governed proposals, never as
+   active records, and select AtMem through Hermes's supported config command;
+7. optionally activate the binding after deterministic readiness and recall
+   checks, restart one detected Hermes service, and optionally execute a real
+   model turn for lifecycle closure proof; and
+8. commit a durable transaction receipt only after all requested gates pass.
+
+Persist the transaction phase before each externally visible mutation. Resume
+from a verified phase after interruption. Restore uses the receipt and compares
+the current provider configuration with the installer-written digest before
+restoring; a user edit is a conflict, not something to overwrite. Keep the
+legacy `atmem hermes install` entry point as an alias to the same coordinator.
+Additive binding state separates connection (`enabled`) from influence
+(`shadow`/`active`) so shadow mode can capture and evidence turns without
+returning memory. Old bindings without the field retain their prior meaning.
+
+The deterministic verifier calls the installed plugin's scoped RPC and ordinary
+provider boundary. The optional live verifier invokes the installed Hermes CLI,
+then correlates the resulting session/turn/run with AtMem evidence and requires
+model output plus terminal closure. It never fabricates missing events or repairs
+results in a benchmark harness.
+
 ## Phase C — Product acceptance, independent of benchmark
 
 Build wheel/install into clean environments. Verify remember/new-session recall,

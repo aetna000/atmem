@@ -32,6 +32,9 @@ class ControlDashboardServer(ThreadingHTTPServer):
         from atmem.service import AtMemApplication
 
         self.application = AtMemApplication(manager)
+        from atmem.adapters.hermes.service import HermesService
+
+        self.hermes_service = HermesService(manager)
         self.html = html
         self.csrf_token = secrets.token_urlsafe(32)
         self.hermes_requests = BoundedSemaphore(4)
@@ -1132,7 +1135,6 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.SERVICE_UNAVAILABLE, APIError("unavailable", str(exc), status=503).to_dict())
 
     def _hermes_post(self, path: str) -> None:
-        from atmem.adapters.hermes.service import HermesService
         from atmem.service import APIError
 
         if not self.server.hermes_requests.acquire(blocking=False):
@@ -1150,7 +1152,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             authorization = self.headers.get("Authorization", "")
             if not authorization.startswith("Bearer hermes_"):
                 raise APIError("unauthenticated", "a scoped Hermes credential is required", status=401)
-            value = HermesService(self.server.manager).dispatch(
+            value = self.server.hermes_service.dispatch(
                 authorization[len("Bearer "):], path.removeprefix("/v1/hermes/"), self._body(),
             )
             self._json(HTTPStatus.OK, value)

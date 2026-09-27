@@ -116,6 +116,38 @@ class HermesRPCClient:
             return SimpleNamespace(context="", candidate_ids=[], reason="unavailable_or_denied",
                                    exposure_id=None, context_receipt_id=None)
 
+    def prepare_turn(self, query, *, session_id, turn_id, model, platform,
+                     prompt_sha256, prompt_chars):
+        """Recall and persist the pre-model lifecycle in one bounded RPC."""
+        try:
+            value = self._call("prepare-turn", {
+                "query": query, "session_id": session_id, "turn_id": turn_id,
+                "model": model, "platform": platform,
+                "prompt_sha256": prompt_sha256, "prompt_chars": prompt_chars,
+            })
+            context = value.get("context", "")
+            candidates = value.get("candidate_ids", [])
+            reason = value.get("reason", "")
+            exposure_id = value.get("exposure_id")
+            context_receipt_id = value.get("context_receipt_id")
+            if (not isinstance(context, str) or len(context) > 4096 or
+                    not isinstance(reason, str) or len(reason) > 128 or
+                    not isinstance(candidates, list) or len(candidates) > 1024 or
+                    any(not isinstance(candidate, str) or len(candidate) > 512
+                        for candidate in candidates)):
+                raise ValueError("invalid prepared turn")
+            return SimpleNamespace(
+                context=context, candidate_ids=candidates, reason=reason,
+                exposure_id=exposure_id, context_receipt_id=context_receipt_id,
+                lifecycle_recorded=value.get("lifecycle_recorded") is True,
+            )
+        except (RuntimeError, ValueError):
+            return SimpleNamespace(
+                context="", candidate_ids=[], reason="unavailable_or_denied",
+                exposure_id=None, context_receipt_id=None,
+                lifecycle_recorded=False,
+            )
+
     def observe_user(self, text, *, session_id, observation_id):
         return self._call("observe", {"text": text, "session_id": session_id,
                                       "observation_id": observation_id})
@@ -132,3 +164,16 @@ class HermesRPCClient:
             "context_receipt_id": context_receipt_id,
             "retrieval_id": retrieval_id,
         }, timeout=1.5)
+
+    def record_events(self, events, *, session_id, turn_id):
+        """Record one ordered lifecycle boundary in a single RPC.
+
+        Hermes emits model output and turn completion together.  Keeping them in
+        one request prevents the terminal event from losing a race with the
+        preceding evidence write while preserving their explicit ordering.
+        """
+        return self._call("events", {
+            "session_id": session_id,
+            "turn_id": turn_id,
+            "events": events,
+        }, timeout=5.0)

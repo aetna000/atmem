@@ -7,6 +7,7 @@ It deliberately makes no claim about replayed Hermes conversation history.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 import hashlib
 from typing import Any
 
@@ -46,7 +47,8 @@ class HermesMemoryBinding:
     """
 
     def __init__(self, manager: Any, identity: AtMemAdapterIdentity, *,
-                 profile_id: str, enabled: bool = False, max_context_chars: int = 4096):
+                 profile_id: str, enabled: bool = False, influence: bool | None = None,
+                 max_context_chars: int = 4096):
         self.manager = manager
         self.identity = replace(identity, framework="hermes")
         self.profile_id = _identifier(profile_id, "profile_id")
@@ -57,12 +59,14 @@ class HermesMemoryBinding:
         if isinstance(max_context_chars, bool) or not isinstance(max_context_chars, int) or not 1 <= max_context_chars <= 4096:
             raise ValueError("max_context_chars must be between 1 and 4096")
         self.enabled = bool(enabled)
+        self.influence = self.enabled if influence is None else bool(influence)
         self.max_context_chars = max_context_chars
         self.application = AtMemApplication(manager)
 
     def _scope(self) -> None:
         """Topology, not request content, binds agent/subject/workspace."""
-        topology = self.manager.agent_topology()
+        authority = getattr(self.manager, "authority_topology", None)
+        topology = authority() if callable(authority) else self.manager.agent_topology()
         workspaces = topology.get("workspaces", [])
         match = any(
             row.get("workspace_id") == self.identity.workspace_id
@@ -89,7 +93,8 @@ class HermesMemoryBinding:
     def record_event(self, event_type: str, *, session_id: str, turn_id: str,
                      payload: dict[str, Any], context_event_id: str | None = None,
                      context_receipt_id: str | None = None,
-                     retrieval_id: str | None = None) -> dict[str, Any] | None:
+                     retrieval_id: str | None = None,
+                     event_time: str | None = None) -> dict[str, Any] | None:
         """Project a local Hermes turn into AtMem's ordinary session evidence."""
         recorder = getattr(self.manager, "record_blackbox_event", None)
         if not callable(recorder):
@@ -97,6 +102,22 @@ class HermesMemoryBinding:
         session = self._session(session_id)
         turn = _identifier(str(turn_id), "turn_id")
         run_id = self._run_id(session_id, turn)
+        order = {
+            "turn.input": 1,
+            "context.disposition": 2,
+            "model.input": 3,
+            "model.output": 4,
+            "turn.ended": 5,
+        }
+        sequence = order.get(event_type)
+        if sequence is None:
+            raise ValueError("unsupported Hermes lifecycle event")
+        stable_event_id = "hermes_event_" + hashlib.sha256(
+            canonical_json([self.profile_id, session, turn, event_type]).encode()
+        ).hexdigest()
+        observed_at = event_time or datetime.now(timezone.utc).isoformat(
+            timespec="milliseconds"
+        ).replace("+00:00", "Z")
         return recorder(
             event_type=event_type, run_id=run_id, session_id=session,
             turn_id=turn, agent_id=self.identity.agent_id,
@@ -105,12 +126,19 @@ class HermesMemoryBinding:
             context_event_id=context_event_id,
             context_receipt_id=context_receipt_id,
             retrieval_id=retrieval_id,
+            event_id=stable_event_id,
+            producer_instance_id=f"hermes:{self.profile_id}",
+            producer_epoch=run_id,
+            producer_sequence=sequence,
+            event_time=observed_at,
             payload={key: value for key, value in payload.items() if value is not None},
         )
 
     def recall(self, query: str, *, session_id: str, turn_id: str) -> RecallResult:
         if not self.enabled:
             return RecallResult("", "inactive")
+        if not self.influence:
+            return RecallResult("", "withheld")
         if not isinstance(query, str) or not query.strip() or len(query) > 65536:
             return RecallResult("", "invalid_query")
         try:
@@ -124,6 +152,7 @@ class HermesMemoryBinding:
                 workspace_id=self.identity.workspace_id,
                 subject_id=self.identity.subject_id, agent_id=self.identity.agent_id,
                 max_chars=self.max_context_chars,
+                deterministic=True,
             )
             if not prepared.get("inject"):
                 # Shadow previews must never be returned as active context.
@@ -176,6 +205,8 @@ class HermesMemoryBinding:
     def status(self) -> dict[str, Any]:
         return {
             "profile": PROFILE, "enabled": self.enabled,
+            "mode": "active" if self.enabled and self.influence else
+                    "shadow" if self.enabled else "inactive",
             "profile_id": self.profile_id, "agent_id": self.identity.agent_id,
             "workspace_id": self.identity.workspace_id,
             "capture_coverage": "memory_operations_only",

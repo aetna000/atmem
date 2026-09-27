@@ -621,7 +621,7 @@ function render(){
  $("stateChip").className="state"+(isActive?" active":"");
  text("stateChip",stateLabels[pstate]||"Shadow mode");
  text("eyebrow",isActive?"Current memory provider":needsRecovery?"Interrupted switch detected":pstate==="off"?"Capture stopped":pstate==="unavailable"?"State unavailable":"Safe observation only");
- text("title",isActive?"AtMem memory is active for "+hostName:needsRecovery?"Restore "+hostName+" before activating":pstate==="off"?"AtMem capture is off for "+hostName:pstate==="unavailable"?"AtMem state is unavailable":"AtMem is observing "+hostName+" in shadow mode");
+ text("title",isActive?"AtMem memory is active":needsRecovery?"Restore the native provider before activating":pstate==="off"?"AtMem capture is off":pstate==="unavailable"?"AtMem state is unavailable":"AtMem is observing agents in shadow mode");
  text("summary",isActive
   ?"AtMem now serves bounded, governed memory. Flight evidence and review decisions continue to be recorded."
   :needsRecovery
@@ -633,14 +633,14 @@ function render(){
   :(isOpenClaw?"AtMem mirrors and verifies existing memory without changing what OpenClaw uses.":"AtMem records candidate memory and flight evidence without adding anything to model context."));
  text("sourceCount",isOpenClaw?number(mirror.source_count):number(((state.agent_topology||{}).workspaces||[]).length));text("sourceCountLabel",isOpenClaw?"mirrored files":"workspace scopes");text("recordCount",number(mirror.record_count));text("recordCountLabel","searchable records");text("sourceBytes",isOpenClaw?number(mirror.source_bytes):number(mirror.candidate_count));text("sourceBytesLabel",isOpenClaw?"source bytes preserved":"memories to review");text("sourceTitle",isOpenClaw?"Exactly what is mirrored":"How memory enters AtMem");renderRecordCategories(mirror);
  text("verified",mirror.audit_verified?"PASSED":"CHECK");
- text("switchBtn",isActive||needsRecovery?(isOpenClaw?"Restore OpenClaw":"Return to shadow"):"Activate AtMem");
- $("switchBtn").classList.toggle("danger",isActive||needsRecovery);$("switchBtn").setAttribute("aria-label",isActive||needsRecovery?(isOpenClaw?"Restore OpenClaw memory provider":"Return AtMem to shadow mode"):"Activate AtMem memory provider");
+ text("switchBtn",isActive||needsRecovery?(isOpenClaw?"Restore primary host":"Return to shadow"):"Activate AtMem");
+ $("switchBtn").classList.toggle("danger",isActive||needsRecovery);$("switchBtn").setAttribute("aria-label",isActive||needsRecovery?(isOpenClaw?"Restore the primary host's native memory provider":"Return AtMem to shadow mode"):"Activate AtMem memory provider");
  if(needsRecovery)document.querySelector(".decisionchecks").open=true;
  $("refreshBtn").style.display=isActive||needsRecovery?"none":"inline-block";
  $("switchBtn").disabled=isActive||needsRecovery?false:!readiness.ready_for_active;
- text("switchTitle",isActive||needsRecovery?(isOpenClaw?"Restore OpenClaw":"Return to shadow mode"):"Ready to activate?");
+ text("switchTitle",isActive||needsRecovery?(isOpenClaw?"Restore primary host":"Return to shadow mode"):"Ready to activate?");
  text("switchCopy",isActive||needsRecovery
-  ?(isOpenClaw?"Restore the verified native files and make OpenClaw memory authoritative again.":"Stop memory injection while continuing capture, review, and flight evidence.")
+  ?(isOpenClaw?"Restore the verified primary-host native files. Other registered agent connections are unchanged.":"Stop memory injection while continuing capture, review, and flight evidence.")
   :(isOpenClaw?"One switch freezes the current native state, verifies the integration, and restores it automatically if anything fails.":"Activation authorizes the runtime adapter to inject only the exact context AtMem returns with inject=true."));
  text("identity",(state.host||"openclaw")+" · "+(state.subject_id||"local-user")+" · "+(state.migration_id||""));
  var drill=state.restore_drill||{};
@@ -668,7 +668,7 @@ function render(){
   addCheck("Safe return",true,"return to shadow stops future injection");
  }else if(needsRecovery){
   addCheck("Interrupted switch",false,"status: "+(takeover.status||"unknown"));
-  addCheck("Recovery action",false,"Restore OpenClaw verifies the preserved files");
+  addCheck("Recovery action",false,"Restore primary-host memory verifies the preserved files");
  }else if(pstate==="off"||pstate==="unavailable"){
   addCheck("Capture stopped",false,pstate==="unavailable"?(state.warning||"state is missing or invalid"):"no capture or injection is running");
   addCheck("Native memory authoritative",true,hostName+" continues to use its own memory");

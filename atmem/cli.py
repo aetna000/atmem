@@ -345,6 +345,23 @@ Run `atmem COMMAND --help` for command-specific examples.""",
     )
     status_parser.add_argument("--json", action="store_true")
 
+    install_parser = subparsers.add_parser(
+        "install", help="Install and connect a supported agent integration"
+    )
+    install_parser.add_argument("install_target", choices=("hermes",))
+    install_parser.add_argument(
+        "--hermes-home", default=os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))
+    )
+    install_parser.add_argument("--memory", choices=("shared", "isolated"), default="isolated")
+    install_parser.add_argument("--activate", action="store_true")
+    install_parser.add_argument(
+        "--verify-turn", action="store_true",
+        help="Run one ordinary Hermes turn and require completed AtMem evidence",
+    )
+    install_parser.add_argument("--yes", action="store_true", help="Apply the displayed setup transaction")
+    install_parser.add_argument("--endpoint", default=None)
+    install_parser.add_argument("--json", action="store_true")
+
     hermes_parser = subparsers.add_parser("hermes", help="Install or inspect the inactive Hermes memory plugin")
     hermes_parser.add_argument("hermes_command", choices=("install", "status"))
     hermes_parser.add_argument("--hermes-home", default=os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
@@ -385,6 +402,10 @@ Run `atmem COMMAND --help` for command-specific examples.""",
     restore_parser.add_argument("--json", action="store_true")
     restore_parser.add_argument("--port", type=int, default=None)
     restore_parser.add_argument("--no-open", action="store_true")
+    restore_parser.add_argument(
+        "--hermes-home", default=os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))
+    )
+    restore_parser.add_argument("--yes", action="store_true")
 
     init_parser = subparsers.add_parser(
         "init", help="Initialize local AtMem and create the first Administrator"
@@ -1678,6 +1699,35 @@ or input errors.""",
         _run_install_status(args)
         return
 
+    if args.command == "install":
+        from atmem.hermes_install import guided_setup
+        try:
+            result = guided_setup(
+                args.hermes_home, apply=args.yes, activate=args.activate,
+                memory=args.memory, endpoint=args.endpoint,
+                verify_turn=args.verify_turn,
+            )
+        except (OSError, ValueError, RuntimeError, PackageNotFoundError) as error:
+            parser.exit(1, f"Hermes setup did not complete: {error}\n")
+        if args.json:
+            print(json.dumps(result, indent=2))
+        else:
+            print("AtMem + Hermes setup")
+            print(f"  Home          {result['hermes_home']}")
+            print(f"  Memory scope  {result['memory']}")
+            print(f"  Mode          {result.get('mode', result['requested_mode'])}")
+            print(f"  Provider      {result['previous_provider']} -> "
+                  f"{result.get('provider_after', 'atmem (planned)')}")
+            if not result["applied"]:
+                print("Preview only. Repeat with --yes after reviewing this plan.")
+            else:
+                print("Connected. Provider status verified.")
+                if result.get("verification"):
+                    print(f"  Real turn      {result['verification']['status']} and structurally complete")
+                if result.get("restart_required"):
+                    print("  Restart        Close any open Hermes TUI and start it again.")
+        return
+
     if args.command == "hermes":
         from atmem.hermes_install import install
         if args.apply and args.hermes_command != "install":
@@ -1708,6 +1758,20 @@ or input errors.""",
         return
 
     if args.command == "restore":
+        if args.home == "hermes":
+            from atmem.hermes_install import guided_restore
+            try:
+                result = guided_restore(args.hermes_home, apply=args.yes)
+            except (OSError, ValueError, RuntimeError) as error:
+                parser.exit(1, f"Hermes restore did not complete: {error}\n")
+            if args.json:
+                print(json.dumps(result, indent=2))
+            else:
+                print("AtMem + Hermes restore")
+                print(f"  Provider  {result['current_provider']} -> {result['restore_provider']}")
+                print("Restored." if result["applied"] else
+                      "Preview only. Repeat with --yes after reviewing this plan.")
+            return
         _run_restore_home(args)
         return
 

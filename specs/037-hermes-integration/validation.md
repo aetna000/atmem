@@ -444,3 +444,44 @@ AtMem service was unchanged. It does not complete live Hermes connection setup.
 The service now contains Hermes RPC support. The Hermes provider can still show
 **unavailable** until the separate scoped connection and activation work is
 completed; this deployment does not establish end-to-end readiness.
+
+### One-command installed proof — 2026-09-27
+
+- Public command: `atmem install hermes --hermes-home ~/.hermes --memory shared
+  --activate --verify-turn --yes --json`.
+- Result: applied, active, scoped credential stored owner-only, real-turn
+  verification passed. Verification run:
+  `hermes_run_b99a625e5f0401718628a65a8a0c2fa9a09d8933316b91cffca3c5f32930ce33`.
+- An independent ordinary turn, `How old am I?`, answered: `You’re 45 years old,
+  according to your saved memory.` Session: `20260927_134315_fed7ad`.
+- Its AtMem terminal event recorded `success: true` for distinct agent
+  `hermes-b886f05f8a8f`, run
+  `hermes_run_e478bdc0942ed6865f043511f0c71fc841da0a3e0c5fa75570461be0253b13e9`,
+  with a bound context preparation/receipt ID.
+- The real environment uses explicit shared memory. Disposable acceptance proves
+  the default isolated scope and idempotent native `USER.md` proposal import.
+- Regression gate: 61 passed, 33 skipped across Hermes, OpenClaw control and
+  generic control tests. Skips are native host qualification cases, not passes.
+- Local package is an editable development install reporting `2.3.8b6`; this is
+  implementation evidence, not a published release claim.
+
+### Final guided-setup hardening proof — 2026-09-27
+
+- Claude Opus's first final review identified restore, pre-mutation journaling,
+  live verification and lifecycle-spool races as high-severity gaps. The
+  implementation now journals before its first mutation, encrypts and hashes the
+  exact pre-switch Hermes config, restores provider state independently of an
+  expired/revoked binding, enters shadow before active mode, and uses stable
+  producer event identities with a locked durable spool.
+- `--verify-turn` now creates a random temporary governed memory, requires the
+  ordinary Hermes answer to contain that unknown value, correlates the exact
+  prompt digest, requires injected context plus all five lifecycle events, and
+  deletes the temporary memory afterward.
+- Exact rerun command: `atmem install hermes --hermes-home ~/.hermes --memory
+  shared --activate --verify-turn --yes --json` completed in 21.5 seconds.
+  Verified run `hermes_run_723bfd6e9c4c996059ce850b4feeb9cbd0a10c11a9624dc85c9dc63604fe96fd`
+  has five ordered producer-sequenced events, valid timeline chain, injected and
+  receipt-bound context, successful terminal closure, and
+  `structurally_complete: true`.
+- Focused regression gate after hardening: **66 passed, 33 skipped**. Skips are
+  native host qualification cases, not passes.

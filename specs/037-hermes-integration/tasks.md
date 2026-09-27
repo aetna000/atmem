@@ -48,7 +48,7 @@ without a run-specific budget. Paths for new files are proposed.
 ## G. First-class Hermes experience (required for integration beta)
 
 - [ ] T023 Extend T006/T010 in `atmem/hermes_install.py`, `atmem/cli.py` and existing dashboard integration surfaces with the FR-015 command family, `init` discovery, consolidated `status`, shared preview/apply and exact repair actions. Record actual asset paths before editing; test CLI/dashboard agreement in `tests/test_hermes_dashboard.py`.
-- [ ] T024 Extend `tests/test_hermes_install.py` and `tests/installed_hermes_acceptance.py` with provider-switch, custom Home, two profiles, occupied ports, interrupted upgrade, conflict-safe restore and fresh/upgrade journeys. Record receipts and capability comparison in `specs/037-hermes-integration/parity.md`; show that no history import occurred (FR-016, SC-006).
+- [ ] T024 Extend `tests/test_hermes_install.py` and `tests/installed_hermes_acceptance.py` with provider-switch, custom Home, two profiles, occupied ports, interrupted upgrade, conflict-safe restore and fresh/upgrade journeys. Record receipts and capability comparison in `specs/037-hermes-integration/parity.md`; show that no historical item became active without ordinary governed review (FR-016, FR-021, SC-006).
 - [ ] T025 Implement versioned, secret-safe observation/correlation under `atmem/adapters/hermes/` only after AtFlows Spec 006 T055 identifies real host hooks. Test actual-session cross-dashboard evidence, unavailable AtFlows, reconnect and profile isolation in `tests/test_hermes_observability.py` (FR-017, SC-007).
 - [ ] T026 Complete AtFlows Spec 006 T055–T067 and update `docs/website/integrations/hermes.md` with the coordinated installed versions, supported capture matrix and tested commands. Attach raw sanitized acceptance records to `validation.md` before any parity claim (SC-006/007). Depends on T011, T023–T025; these product gates precede T017 paid evaluation.
 
@@ -108,3 +108,19 @@ activation, AtFlows runtime connection or benchmark result exists.
 | SC-003 | T009–T011 |
 | SC-004 | T015–T017, T019 |
 | SC-005 | T016, T018–T020 |
+
+## I. One-command Hermes installation transaction
+
+- [x] T033 Specify and implement binding-scoped `shadow`/`active` influence in `atmem/adapters/hermes/binding.py` and `atmem/adapters/hermes/service.py`, preserving old-binding behavior; test shadow capture, zero shadow delivery, activation, revocation and restart in `tests/test_hermes_authority.py` and `tests/test_hermes_provider.py` (FR-021; SC-002, SC-009).
+- [ ] T034 Implement resumable setup/restore receipts, isolated/shared scope selection, owner-only connection publication, managed plugin upgrade and conflict-safe rollback in `atmem/hermes_install.py`; test every checkpoint interruption, idempotency, secret absence and edited-config refusal in `tests/test_hermes_install.py` (FR-020, FR-021; SC-009).
+- [ ] T035 Add primary `atmem install hermes` and `atmem restore hermes` journeys plus compatibility aliases in `atmem/cli.py`; consolidate preview, one confirmation, `--yes`, `--memory`, `--activate`, `--verify-turn`, Home/profile and exact repair output in CLI tests (FR-020–022; SC-001, SC-006, SC-009). The primary journeys pass; the legacy `atmem hermes install --apply` compatibility alias still retains its inactive-plugin behavior.
+- [ ] T036 Implement deterministic provider-boundary verification and optional ordinary Hermes live-turn correlation in `atmem/hermes_install.py`; require recalled bytes, answer evidence, model output, terminal closure and structurally complete run. Add installed acceptance covering the approved age-memory question in `tests/installed_hermes_acceptance.py` (FR-022; SC-007, SC-009).
+- [x] T037 Add native-memory inventory/import-as-proposals with provenance and stable idempotency keys; preserve native bytes and prove no silent admission or duplicate import in `tests/test_hermes_install.py` (FR-021; SC-009).
+- [ ] T038 Update `docs/website/integrations/hermes.md`, `specs/037-hermes-integration/parity.md` and `validation.md` with the one-command journey, exact restore behavior and real installed evidence; run focused/full regressions and a read-only implementation review before completion (FR-020–022; SC-009).
+
+| Requirement | Tasks |
+| --- | --- |
+| FR-020 | T034, T035, T038 |
+| FR-021 | T033, T034, T037, T038 |
+| FR-022 | T035, T036, T038 |
+| SC-009 | T033–T038 |
