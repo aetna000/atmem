@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/retrieval-budget.json",
+  "type": "object",
+  "required": ["format", "source_bytes", "proposals", "optional_concurrency", "wall_time_ms", "subqueries", "candidates_per_channel", "total_candidates", "graph_visits", "neighbor_depth", "context_bytes", "optional_model_calls", "optional_model_tokens", "optional_cost_microusd", "egress_bytes", "peak_working_bytes", "derived_storage_bytes"],
+  "properties": {
+    "format": {"const": "atmem-retrieval-budget-v1"},
+    "source_bytes": {"type": "integer", "minimum": 1}, "proposals": {"type": "integer", "minimum": 1},
+    "optional_concurrency": {"type": "integer", "minimum": 1}, "wall_time_ms": {"type": "integer", "minimum": 1},
+    "subqueries": {"type": "integer", "minimum": 1}, "candidates_per_channel": {"type": "integer", "minimum": 1},
+    "total_candidates": {"type": "integer", "minimum": 1}, "graph_visits": {"type": "integer", "minimum": 1},
+    "neighbor_depth": {"type": "integer", "minimum": 1}, "context_bytes": {"type": "integer", "minimum": 1},
+    "optional_model_calls": {"type": "integer", "minimum": 0}, "optional_model_tokens": {"type": "integer", "minimum": 0},
+    "optional_cost_microusd": {"type": "integer", "minimum": 0}, "egress_bytes": {"type": "integer", "minimum": 0},
+    "peak_working_bytes": {"type": "integer", "minimum": 1}, "derived_storage_bytes": {"type": "integer", "minimum": 1}
+  },
+  "additionalProperties": true
+}

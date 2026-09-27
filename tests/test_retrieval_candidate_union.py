@@ -3,7 +3,8 @@ from dataclasses import replace
 import pytest
 
 from atmem import Memory
-from atmem.contracts import AuthorityScope, RecallRequest
+from atmem.contracts import AuthorityScope, EpisodeIngestRequest, EpisodePart, RecallRequest
+from atmem.core.canonical import sha256_hex
 from atmem.retrieve.fusion import fuse_rankings
 
 
@@ -85,20 +86,24 @@ def test_semantic_only_nomination_and_quota(tmp_path, monkeypatch):
         memory.close()
 
 
-def test_corpus_overflow_explicit(tmp_path, monkeypatch):
-    import atmem.retrieve.hybrid as hybrid
+def test_persistent_postings_do_not_scan_the_active_corpus(tmp_path, monkeypatch):
     memory = Memory(tmp_path / 'm.db', auto_vectors=False)
     try:
         memory.remember('u', 'My booking reference is ZX93.')
-        monkeypatch.setattr(hybrid, 'MAX_CORPUS_BYTES', 1)
-        with pytest.raises(ValueError, match='corpus limit'):
-            memory.eligible_candidates(request())
+        for index in range(300):
+            seed(memory, f'Unrelated retained note {index}.')
+        monkeypatch.setattr(
+            memory.store,
+            'iter_records',
+            lambda *_args, **_kwargs: pytest.fail('whole-corpus iterator used'),
+        )
+        result = memory.eligible_candidates(request(signals=('lexical',)))
+        assert 'booking reference is ZX93' in result.candidates[0].content
     finally:
         memory.close()
 
 
-def test_fallback_and_diagnostic_status(tmp_path, monkeypatch):
-    import atmem.retrieve.hybrid as hybrid
+def test_persistent_posting_and_diagnostic_status(tmp_path, monkeypatch):
     memory = Memory(tmp_path / 'm.db')
     try:
         memory.remember('u', 'My booking reference is ZX93.')
@@ -106,22 +111,165 @@ def test_fallback_and_diagnostic_status(tmp_path, monkeypatch):
         index = SemanticIndex(f'{memory.store.path}.vectors.db', policy=memory.policy)
         index.build(memory, 'u', HashingEmbedder())
         index.close()
-        original = hybrid.sqlite3.connect
-        class NoFTS:
-            def __init__(self):
-                self.connection = original(':memory:')
-            def execute(self, statement, *args):
-                if statement.startswith('CREATE VIRTUAL'):
-                    raise hybrid.sqlite3.OperationalError('no fts5')
-                return self.connection.execute(statement, *args)
-            def close(self):
-                self.connection.close()
-        monkeypatch.setattr(hybrid.sqlite3, 'connect', lambda *a, **k: NoFTS() if a[0] == ':memory:' else original(*a, **k))
         result = memory.eligible_candidates(request())
         assert result.candidates
         statuses = result.candidates[0].signals['fusion']['channel_status']
-        assert statuses['lexical'] == 'overlap_fallback'
+        assert statuses['lexical'] == 'persistent_postings'
+        assert statuses['fact'] == 'persistent_postings'
         assert statuses['semantic'] == 'diagnostic'
+    finally:
+        memory.close()
+
+
+def test_typed_nomination_uses_information_need_profile(tmp_path):
+    memory = Memory(
+        tmp_path / 'm.db', auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        text = 'I am 45 years old.'
+        memory.form_episode(EpisodeIngestRequest(
+            episode_id='age-episode', idempotency_key='age-episode-key',
+            scope=AuthorityScope('u', 'agent', 'workspace'),
+            parts=(EpisodePart(
+                part_id='age-part', ordinal=0, kind='text', source_type='user_message',
+                content=text, content_sha256=f'sha256:{sha256_hex(text)}',
+            ),),
+        ))
+        seed(memory, 'How old am I is a common example question.')
+        result = memory.eligible_candidates(replace(
+            request(signals=('lexical',)), query='How old am I?', limit=1
+        ))
+        fusion = result.candidates[0].signals['fusion']
+        assert fusion['information_need'] == 'exact_fact'
+        assert fusion['profile_id'] == 'fact-and-state-v1'
+        assert 'typed' in fusion['channel_ranks']
+        assert fusion['channel_status']['typed'] == 'canonical_typed_units'
+        assert fusion['exact_preserved_record_id'] == result.candidates[0].record_id
+        assert '45' in result.candidates[0].content
+    finally:
+        memory.close()
+
+
+def test_unrelated_typed_fact_cannot_self_nominate_by_type_alone(tmp_path):
+    memory = Memory(
+        tmp_path / 'm.db', auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        text = 'My favorite color is blue.'
+        memory.form_episode(EpisodeIngestRequest(
+            episode_id='color-episode', idempotency_key='color-episode-key',
+            scope=AuthorityScope('u', 'agent', 'workspace'),
+            parts=(EpisodePart(
+                part_id='color-part', ordinal=0, kind='text', source_type='user_message',
+                content=text, content_sha256=f'sha256:{sha256_hex(text)}',
+            ),),
+        ))
+        result = memory.eligible_candidates(replace(
+            request(signals=('lexical',)), query='How old am I?', limit=1
+        ))
+        assert result.candidates == ()
+    finally:
+        memory.close()
+
+
+def test_postings_backfill_marker_prevents_reopen_rebuild_for_symbol_only_record(tmp_path):
+    path = tmp_path / 'm.db'
+    memory = Memory(path, auto_vectors=False)
+    try:
+        seed(memory, '!!! 🧠 !!!')
+        generation = memory.store.record_generation('u')
+        state = memory.store._conn.execute(
+            "SELECT value FROM retrieval_index_state WHERE key='postings_version'"
+        ).fetchone()
+        assert state['value'] == 'scoped-postings-v2-tokenizer1'
+    finally:
+        memory.close()
+    reopened = Memory(path, auto_vectors=False)
+    try:
+        assert reopened.store.record_generation('u') == generation
+    finally:
+        reopened.close()
+
+
+def test_semantic_only_can_nominate_a_meaning_match_older_than_graph_tail(tmp_path, monkeypatch):
+    from atmem.semantic import SemanticIndex
+
+    class Embedder:
+        identity = {'provider': 'test', 'model': 'old-meaning', 'version': '1', 'normalization': 'l2'}
+
+        def embed_documents(self, texts):
+            return [[1., 0.] if 'aisle' in text else [0., 1.] for text in texts]
+
+        def embed_query(self, query):
+            return [1., 0.]
+
+    memory = Memory(tmp_path / 'm.db', auto_vectors=False)
+    embedder = Embedder()
+    try:
+        old = seed(memory, 'Ancient preference: always choose an aisle seat.')
+        for index in range(300):
+            seed(memory, f'Recent unrelated retained note {index}.')
+        index = SemanticIndex(f'{memory.store.path}.vectors.db', policy=memory.policy)
+        index.build(memory, 'u', embedder)
+        index.close()
+        monkeypatch.setattr('atmem.memory._embedder_for_epoch', lambda epoch: embedder)
+        result = memory.eligible_candidates(request(signals=('semantic',), candidate_limit=1))
+        assert [candidate.record_id for candidate in result.candidates] == [old]
+    finally:
+        memory.close()
+
+
+def test_authorized_rare_term_beats_many_common_term_ties(tmp_path):
+    memory = Memory(tmp_path / 'm.db', auto_vectors=False)
+    try:
+        rare = seed(memory, 'Seattle weather details.')
+        for index in range(300):
+            seed(memory, f'Common note {index}.')
+        req = replace(
+            request(signals=('lexical',), candidate_limit=1),
+            query='note seattle',
+        )
+        result = memory.eligible_candidates(req)
+        assert [candidate.record_id for candidate in result.candidates] == [rare]
+    finally:
+        memory.close()
+
+
+def test_raw_authority_divergence_is_withheld_without_retrieval_outage(tmp_path):
+    memory = Memory(tmp_path / 'm.db', auto_vectors=False)
+    try:
+        record_id = seed(memory, 'My booking reference is ZX93.')
+        memory.store._conn.execute(
+            "UPDATE records SET raw=? WHERE id=?",
+            ('{"authority_scope":{"subject_id":"u","workspace_id":"hidden"}}', record_id),
+        )
+        result = memory.eligible_candidates(request(signals=('lexical',)))
+        assert not result.candidates
+        event = next(
+            row for row in memory.store.list_audit_events('u')
+            if row['event_id'] == result.audit_event_id
+        )
+        assert event['payload']['retrieval_fusion']['authorization_withheld_active_count'] >= 1
+    finally:
+        memory.close()
+
+
+def test_unmaterialized_mixed_version_row_fails_closed_before_nomination(tmp_path):
+    memory = Memory(tmp_path / 'm.db', auto_vectors=False)
+    try:
+        record_id = seed(memory, 'My booking reference is ZX93.')
+        memory.store._conn.execute(
+            "UPDATE records SET authority_materialized=0 WHERE id=?", (record_id,)
+        )
+        result = memory.eligible_candidates(request(signals=('lexical',)))
+        assert not result.candidates
+        event = next(
+            row for row in memory.store.list_audit_events('u')
+            if row['event_id'] == result.audit_event_id
+        )
+        assert event['payload']['retrieval_fusion']['authorization_withheld_active_count'] == 1
     finally:
         memory.close()
 
@@ -151,16 +299,15 @@ def test_inactive_and_media_derived_text(tmp_path):
 
 
 def test_stale_mutation_fails_before_publication(tmp_path, monkeypatch):
-    import atmem.retrieve.hybrid as hybrid
     memory = Memory(tmp_path / 'm.db', auto_vectors=False)
     try:
         record_id = seed(memory, 'My booking reference is ZX93.')
-        original = hybrid.lexical_scores
-        def mutate(records, query):
-            result = original(records, query)
+        original = memory.store.scoped_search_candidates
+        def mutate(*args, **kwargs):
+            result = original(*args, **kwargs)
             memory.forget_record('u', record_id)
             return result
-        monkeypatch.setattr(hybrid, 'lexical_scores', mutate)
+        monkeypatch.setattr(memory.store, 'scoped_search_candidates', mutate)
         with pytest.raises(ValueError, match='changed during core hybrid'):
             memory.eligible_candidates(request(signals=('lexical',)))
     finally:

@@ -1,6 +1,6 @@
 (function(){
 "use strict";
-var state=null,semanticHealth=null,semanticProfiles={models:[]},taskMode=null,taskHealth=null,taskList={tasks:[]},taskDetail=null,selectedTaskId=null,proposalQueue={proposals:[]},reviewQueue={records:[]},productInfo={},blackboxIndex={runs:[]},blackboxArchiveRows=[],blackboxStories={},protectedBlackbox={},protectedReconstruction={},localAuth={authenticated:false},flightRange="7d",bridgeRefreshStatus={available:false},activityVisible=10,activitySearchTimer=null,csrf="",progressTimer=null,progressStarted=0,companionProfiles={},companionStatus={},companionFormDirty=false,jevStatus={},evidenceProtection={},homeState={};
+var state=null,semanticHealth=null,semanticProfiles={models:[]},taskMode=null,taskHealth=null,taskList={tasks:[]},taskDetail=null,selectedTaskId=null,proposalQueue={proposals:[]},reviewQueue={records:[]},productInfo={},blackboxIndex={runs:[]},blackboxArchiveRows=[],blackboxStories={},protectedBlackbox={},protectedReconstruction={},localAuth={authenticated:false},flightRange="7d",bridgeRefreshStatus={available:false},activityVisible=10,activitySearchTimer=null,csrf="",progressTimer=null,progressStarted=0,companionProfiles={},companionStatus={},companionFormDirty=false,jevStatus={},evidenceProtection={},homeState={},retrievalQuality={};
 var blackboxLoaded=false,blackboxLoadPromise=null,showBackgroundRuns=false,inspectionGeneration=0,inspectedRunId=null,inspectedSource="recent",auditorReturnFocus=null,liveRevision=null,liveBusy=false,liveLastFull=0;
 var applicationStarted=false;
 var auditCursors=[null],auditPageIndex=0,auditLast=null,auditFacetsLoaded=false;
@@ -29,7 +29,7 @@ $("auditViewMount").appendChild($("auditExplorer"));
 var pageWorkspaces={
  status:{rail:"sessionsRail",stage:"sessionsStage",items:[["sessionInsights","Overview","Run health and trends","◫"],["blackboxCard","Recent sessions","Latest agent activity","◷"],["memorySearchCard","Memory search","Find retained context","⌕"],["blackboxArchiveCard","Session archive","All recorded runs","▤"]]},
  decisions:{rail:"decisionsRail",stage:"decisionsStage",items:[["hero","Provider","Activation and mode","◉"],["reviewCard","Memory reviews","Approve or reject","◇"],["continuityCard","Resume work","Progress and safe recovery","↻"],["taskCard","Governed tasks","Task progress","▣"],["proposalCard","Proposals","Suggested changes","✦"],["decisionChecks","Verification","Readiness and recovery","◆"],["decisionChangesCard","What changes","Mode behavior","↔"]]},
- memory:{rail:"memoryRail",stage:"memoryStage",items:[["mirrorCard","Sources","Origin and provenance","◫"],["recordBreakdownCard","Records","Searchable content","▤"],["storageOverview","Storage","Files and indexes","⌂"]]},
+ memory:{rail:"memoryRail",stage:"memoryStage",items:[["mirrorCard","Sources","Origin and provenance","◫"],["retrievalQualityCard","Retrieval quality","Evidence coverage","◎"],["recordBreakdownCard","Records","Searchable content","▤"],["storageOverview","Storage","Files and indexes","⌂"]]},
  audit:{rail:"auditRail",stage:"auditStage",items:[["auditExplorer","Event history","Governance timeline","◷"],["auditExplorer","Advanced filters","Search exact events","⌕","auditadvanced"],["auditExplorer","Activity volume","Events over time","▥","auditvolume"]]}
 };
 var activePageSection={};
@@ -41,6 +41,20 @@ function setupWorkspaceRailControls(){var collapsed=false;try{collapsed=localSto
 setupWorkspaceRailControls();
 function text(id,value){$(id).textContent=value==null?"—":String(value)}
 function number(value){return Number(value||0).toLocaleString()}
+function renderRetrievalQuality(){
+ var value=retrievalQuality||{},formation=value.formations||{},suff=value.recent_sufficiency||{},kinds=value.typed_by_kind||[],stages=value.stage_funnel||[],active=value.injection_active===true;
+ text("retrievalQualitySummary",active?"Evidence-complete V2 context delivery is active.":(value.injection_note||"V2 retrieval has not been initialized."));
+ $("retrievalQualityActivation").lastElementChild.textContent=active?"Active":value.activation==="shadow"?"Shadow comparison":"Explicit V2 requests only";
+ $("retrievalQualityFormation").lastElementChild.textContent=number(formation.complete)+" complete · "+number(formation.with_loss)+" with visible gaps";
+ $("retrievalQualitySufficiency").lastElementChild.textContent=number(suff.sufficient)+" sufficient · "+number(suff.partial)+" partial · "+number((suff.contradictory||0)+(suff.stale||0)+(suff.unsupported||0))+" withheld";
+ var box=$("retrievalQualityKinds");box.replaceChildren();
+ if(!kinds.length)box.appendChild(element("div","empty","No typed memory units have been formed yet."));
+ else kinds.forEach(function(row){var item=element("div","recordcategory");item.append(element("b","mono",number(row.count)),element("span","",String(row.value||"unknown").replaceAll("_"," ")));box.appendChild(item)});
+ var funnel=$("retrievalQualityStages");funnel.replaceChildren();
+ if(!stages.length)funnel.appendChild(element("div","empty","No measured retrieval stages yet."));
+ else stages.forEach(function(row){var item=element("div","recordcategory"),label=String(row.stage||"unknown").replaceAll("_"," ")+" · "+number(row.completed)+" complete"+(row.withheld?" · "+number(row.withheld)+" withheld":"");item.append(element("b","mono",Number(row.duration_ms_average||0).toFixed(1)+" ms"),element("span","",label));funnel.appendChild(item)})
+}
+async function loadRetrievalQuality(){try{retrievalQuality=await get("/api/retrieval/status");renderRetrievalQuality()}catch(error){text("retrievalQualitySummary","Retrieval quality status is unavailable: "+(error.message||String(error)))}}
 function showError(error){text("error",error&&error.message?error.message:error);$("error").classList.add("show")}
 function clearError(){$("error").classList.remove("show")}
 function showProgress(title,detail){
@@ -787,6 +801,7 @@ $("navSettings").onclick=function(){showView("settings")};
 $("searchBtn").onclick=search;$("query").addEventListener("keydown",function(event){if(event.key==="Enter")search()});
 ["memoryStatus","memorySource","memoryMethod","memorySort"].forEach(function(id){$(id).onchange=function(){if($("query").value.trim())search()}});
 $("refreshBtn").onclick=refresh;$("switchBtn").onclick=switchProvider;
+$("retrievalQualityRefresh").onclick=loadRetrievalQuality;
 $("drillBtn").onclick=restoreDrill;
 $("verifyBtn").onclick=verifyNow;
 $("bridgeRefresh").onclick=refreshBridgeAndTest;
@@ -843,7 +858,7 @@ $("loginForm").onsubmit=login;$("passwordForm").onsubmit=changeOwnPassword;$("se
 applyTheme(preferredTheme(),false);$("themeToggle").onclick=function(){applyTheme(document.documentElement.dataset.theme==="dark"?"light":"dark",true)};
 async function loadFeatureCapabilities(){var names=["graph","storage","adapters","interchange","lifecycle","media","onboarding","production"],box=$("featureCapabilityRows");box.replaceChildren();try{var values=await Promise.all(names.map(function(name){return get("/v1/features/"+name)}));values.forEach(function(value){var row=element("div","evidence");row.append(element("span","",value.feature),element("b","",value.available?"Available":"Unavailable"));box.append(row)});text("featureCapabilityStatus","Ready");$("featureCapabilityStatus").className="statuspill active"}catch(error){text("featureCapabilityStatus","Unavailable");$("featureCapabilityStatus").className="statuspill quarantined"}}
 $("featureCapabilityRefresh").onclick=loadFeatureCapabilities;
-async function startApplication(){if(applicationStarted)return;applicationStarted=true;renderSavedViews();setInterval(pollRunEvidence,3000);document.addEventListener("visibilitychange",function(){if(!document.hidden)pollRunEvidence()});await Promise.allSettled([get("/api/product").then(function(value){productInfo=value;renderProductVersions()}),reload().catch(showError),loadAudit(true),loadBlackbox().catch(showError),loadCompanionProfiles().then(loadCompanionStatus),loadJev(),loadContextAuthority(),loadFeatureCapabilities(),loadHome(),loadCompanionLinks()]);get("/api/bridge/status").then(function(value){bridgeRefreshStatus=value;renderProductVersions()}).catch(function(){});pollRunEvidence();var pollTick=0,pollBusy=false;setInterval(async function(){if(document.hidden||progressTimer||pollBusy||!localAuth.authenticated)return;pollBusy=true;pollTick++;try{if(pollTick%6===0){await reload();await loadCompanionStatus();await loadJev();await loadContextAuthority();await loadHome();await loadCompanionLinks()}else{await refreshReviews(true)}}catch(_){}finally{pollBusy=false}},5000)}
+async function startApplication(){if(applicationStarted)return;applicationStarted=true;renderSavedViews();setInterval(pollRunEvidence,3000);document.addEventListener("visibilitychange",function(){if(!document.hidden)pollRunEvidence()});await Promise.allSettled([get("/api/product").then(function(value){productInfo=value;renderProductVersions()}),reload().catch(showError),loadAudit(true),loadBlackbox().catch(showError),loadCompanionProfiles().then(loadCompanionStatus),loadJev(),loadContextAuthority(),loadFeatureCapabilities(),loadHome(),loadCompanionLinks(),loadRetrievalQuality()]);get("/api/bridge/status").then(function(value){bridgeRefreshStatus=value;renderProductVersions()}).catch(function(){});pollRunEvidence();var pollTick=0,pollBusy=false;setInterval(async function(){if(document.hidden||progressTimer||pollBusy||!localAuth.authenticated)return;pollBusy=true;pollTick++;try{if(pollTick%6===0){await reload();await loadCompanionStatus();await loadJev();await loadContextAuthority();await loadHome();await loadCompanionLinks();await loadRetrievalQuality()}else{await refreshReviews(true)}}catch(_){}finally{pollBusy=false}},5000)}
 async function init(){try{csrf=(await get("/api/session")).csrf_token;await refreshAuth();if(localAuth.authenticated&&!localAuth.account.password_change_required)await startApplication()}catch(error){showError(error)}}
 init()
 })();

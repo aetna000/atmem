@@ -265,6 +265,7 @@ def validate_proposal(
     proposal: ExtractionProposal,
     *,
     source_text: str,
+    source_bodies: dict[str, str] | None = None,
     context: ResolutionContext,
     scope: AuthorityScope,
     review_confidence: float = 0.6,
@@ -277,19 +278,51 @@ def validate_proposal(
         reasons.append("scope_mismatch")
     if context.subject_id != scope.subject_id:
         reasons.append("resolution_context_outside_scope")
+    if proposal.unit is not None:
+        if proposal.unit.confidence != proposal.confidence:
+            reasons.append("typed_unit_confidence_mismatch")
+        expected_classes = {
+            "atomic_fact": {MemoryClass.DURABLE_FACT},
+            "durable_rule": {MemoryClass.DURABLE_FACT, MemoryClass.PROCEDURE},
+            "environment_state": {MemoryClass.TEMPORARY_STATE},
+            "state_transition": {MemoryClass.EPISODE, MemoryClass.TEMPORARY_STATE},
+            "procedure": {MemoryClass.PROCEDURE},
+            "failure_gotcha": {MemoryClass.DURABLE_FACT, MemoryClass.PROCEDURE},
+            "premise_constraint": {MemoryClass.DURABLE_FACT},
+        }
+        if proposal.memory_class not in expected_classes[proposal.unit.kind.value]:
+            reasons.append("typed_unit_memory_class_mismatch")
+        unit_screening = screen_content(canonical_json(proposal.unit.to_dict()))
+        if not unit_screening.admissible:
+            reasons.extend(unit_screening.reason_codes)
+        if not set(proposal.unit.evidence).issubset(set(proposal.evidence)):
+            reasons.append("typed_unit_evidence_not_declared_by_proposal")
+        evidence_text = " ".join(
+            _verified_excerpt(item, (source_bodies or {}).get(item.source_id, source_text), reasons)
+            for item in proposal.unit.evidence
+        )
+        if any(not _phrase_grounded(claim, evidence_text) for claim in proposal.unit.grounding_claims()):
+            reasons.append("typed_payload_not_grounded_in_source")
+        payload = proposal.unit.payload
+        subject = getattr(payload, "subject", getattr(payload, "entity", None))
+        relation = getattr(payload, "relation", None)
+        if subject and not _identity_grounded(str(subject), evidence_text, subject=True):
+            reasons.append("typed_subject_not_grounded_in_source")
+        if relation and not _identity_grounded(str(relation), evidence_text, subject=False):
+            reasons.append("typed_relation_not_grounded_in_source")
+        polarity = getattr(payload, "polarity", None)
+        if polarity is not None:
+            negated = bool(_NEGATION_RE.search(evidence_text))
+            if (polarity.value == "negative") != negated:
+                reasons.append("typed_polarity_mismatch")
 
-    source_digest = f"sha256:{sha256_hex(source_text)}"
     for evidence in proposal.evidence:
+        body = (source_bodies or {}).get(evidence.source_id, source_text)
+        source_digest = f"sha256:{sha256_hex(body)}"
         if evidence.source_sha256 != source_digest:
             reasons.append("evidence_source_digest_mismatch")
             continue
-        if evidence.end_offset > max(len(source_text), 1):
-            reasons.append("evidence_span_out_of_range")
-            continue
-        excerpt = source_text[evidence.start_offset : evidence.end_offset]
-        expected = f"sha256:{sha256_hex(excerpt or source_text or ' ')}"
-        if evidence.excerpt_sha256 != expected:
-            reasons.append("evidence_excerpt_digest_mismatch")
+        _verified_excerpt(evidence, body, reasons)
 
     screening = screen_content(source_text)
     if not screening.admissible:
@@ -329,6 +362,48 @@ def validate_proposal(
     if "ambiguous_referent" in proposal.reason_codes:
         review = True
     return Validation(not reasons, review, tuple(dict.fromkeys(reasons)))
+
+
+_NEGATION_RE = re.compile(
+    r"\b(?:no|not|never|without|cannot|can't|do not|don't|does not|doesn't|is not|isn't|are not|aren't)\b",
+    re.I,
+)
+
+
+def _verified_excerpt(
+    evidence: ProposalEvidence, body: str, reasons: list[str]
+) -> str:
+    """Return an exact Unicode-code-point span after digest verification."""
+    if evidence.end_offset > max(len(body), 1):
+        reasons.append("evidence_span_out_of_range")
+        return ""
+    excerpt = body[evidence.start_offset : evidence.end_offset]
+    expected = f"sha256:{sha256_hex(excerpt or body or ' ')}"
+    if evidence.excerpt_sha256 != expected:
+        reasons.append("evidence_excerpt_digest_mismatch")
+        return ""
+    return excerpt
+
+
+def _phrase_grounded(claim: str, evidence_text: str) -> bool:
+    claim_tokens = re.findall(r"[^\W_]+", claim.casefold(), re.UNICODE)
+    evidence_tokens = re.findall(r"[^\W_]+", evidence_text.casefold(), re.UNICODE)
+    if not claim_tokens:
+        return False
+    width = len(claim_tokens)
+    return any(evidence_tokens[index : index + width] == claim_tokens for index in range(len(evidence_tokens) - width + 1))
+
+
+def _identity_grounded(value: str, evidence_text: str, *, subject: bool) -> bool:
+    if _phrase_grounded(value, evidence_text):
+        return True
+    tokens = set(re.findall(r"[^\W_]+", evidence_text.casefold(), re.UNICODE))
+    normalized = value.casefold().replace("_", " ")
+    if subject and normalized in {"user", "self", "speaker"}:
+        return bool(tokens & {"i", "me", "my", "mine"})
+    if not subject and normalized == "age":
+        return bool(tokens & {"age", "old", "born", "years"})
+    return False
 
 
 def _from_candidate(

@@ -88,6 +88,112 @@ class AtMemApplication:
             raise APIError("invalid_request", "query is required")
         return {"format": "atmem-api-query-result-v1", "result": self.manager.memory_query(str(query), subject_id=principal.subject_id, agent_id=principal.agent_id), "request_id": _request_id()}
 
+    def prepare_retrieval_context(
+        self, principal: APIPrincipal, query: str, *, max_context_bytes: int = 8192
+    ) -> dict[str, Any]:
+        """Run the governed V2 path through the same product boundary as adapters."""
+        principal.require("query:run")
+        clean = str(query).strip()
+        if not clean:
+            raise APIError("invalid_request", "query is required")
+        budget = int(max_context_bytes)
+        if budget < 256 or budget > 65_536:
+            raise APIError(
+                "invalid_request",
+                "max_context_bytes must be between 256 and 65536",
+            )
+        result = self.manager.prepare(
+            clean,
+            subject_id=principal.subject_id,
+            agent_id=principal.agent_id,
+            workspace_id=principal.workspace_id,
+            max_chars=budget,
+            deterministic=True,
+            context_version="v2",
+        )
+        return {
+            "format": "atmem-api-retrieval-context-v2",
+            "mode": result.get("mode"),
+            "inject": bool(result.get("inject")),
+            "context": result.get("context") or "",
+            "context_sha256": result.get("context_sha256"),
+            "candidate_ids": result.get("candidate_ids") or [],
+            "candidate_set_id": result.get("candidate_set_id"),
+            "preparation_id": result.get("preparation_id"),
+            "reason": result.get("reason"),
+            "retrieval": result.get("retrieval") or {},
+            "request_id": _request_id(),
+        }
+
+    def form_retrieval_episode(
+        self, principal: APIPrincipal, body: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Form source-linked typed memories inside the principal's scope."""
+        principal.require("memory:create")
+        allowed = {
+            "episode_id", "idempotency_key", "parts", "session_id", "turn_id",
+            "host_message_id", "retain_body",
+        }
+        if set(body) - allowed:
+            raise APIError("invalid_request", "unexpected episode formation field")
+        if not isinstance(body.get("parts"), list) or not body["parts"]:
+            raise APIError("invalid_request", "parts must be a non-empty array")
+        from atmem.contracts import AuthorityScope, EpisodeIngestRequest, EpisodePart
+        from atmem.memory import Memory
+
+        state = self.manager.state()
+        scope, memory_path = self.manager._memory_authority_scope(
+            state, subject_id=principal.subject_id, agent_id=principal.agent_id
+        )
+        if principal.workspace_id and principal.workspace_id != scope.workspace_id:
+            raise APIError(
+                "forbidden", "credential workspace does not match memory authority",
+                status=403,
+            )
+        try:
+            parts = tuple(
+                EpisodePart(
+                    part_id=str(row.get("part_id") or ""),
+                    ordinal=int(row.get("ordinal")),
+                    kind=str(row.get("kind") or "text"),
+                    source_type=str(row.get("source_type") or "user_message"),
+                    content=row.get("content"),
+                    reference_id=row.get("reference_id"),
+                    start_offset=row.get("start_offset"),
+                    end_offset=row.get("end_offset"),
+                    observed_at=row.get("observed_at"),
+                    content_sha256=row.get("content_sha256"),
+                    reference_sha256=row.get("reference_sha256"),
+                )
+                for row in body["parts"]
+            )
+            request = EpisodeIngestRequest(
+                episode_id=str(body.get("episode_id") or ""),
+                idempotency_key=str(body.get("idempotency_key") or ""),
+                scope=AuthorityScope(
+                    scope.subject_id, scope.agent_id, scope.workspace_id
+                ),
+                parts=parts,
+                binding_method="host_asserted",
+                binding_assurance="host_asserted",
+                session_id=body.get("session_id"),
+                turn_id=body.get("turn_id"),
+                host_message_id=body.get("host_message_id"),
+                retain_body=bool(body.get("retain_body", True)),
+            )
+        except (TypeError, ValueError) as exc:
+            raise APIError("invalid_request", str(exc)) from exc
+        memory = Memory(memory_path, retain_query_text=False, auto_vectors=False)
+        try:
+            result = memory.form_episode(request)
+        finally:
+            memory.close()
+        return {
+            "format": "atmem-api-episode-formation-v1",
+            "result": result,
+            "request_id": _request_id(),
+        }
+
     def list_memories(self, principal: APIPrincipal, *, query: str = "", limit: int = 50, cursor: str | None = None) -> CursorPage:
         principal.require("memory:read")
         bounded = max(1, min(int(limit), 100))

@@ -17,6 +17,7 @@ import re
 from typing import Any
 
 from atmem.core.canonical import sha256_hex
+from atmem.core.canonical import canonical_json
 from atmem.extract.models import ProposalAction
 from atmem.store.sqlite import utc_now
 
@@ -61,6 +62,11 @@ _SENSITIVE_RE = re.compile(
 )
 
 
+def typed_content_is_sensitive(proposal: Any) -> bool:
+    unit = getattr(proposal, "unit", None)
+    return bool(unit is not None and _SENSITIVE_RE.search(canonical_json(unit.to_dict())))
+
+
 @dataclass(frozen=True, slots=True)
 class ReviewPolicy:
     """What must wait for a person, expressed as data rather than code paths."""
@@ -82,6 +88,11 @@ class ReviewPolicy:
             reasons.append("low_confidence")
         if self.quarantine_sensitive and _SENSITIVE_RE.search(proposal.fact or ""):
             reasons.append("sensitive_content")
+        unit = getattr(proposal, "unit", None)
+        if self.quarantine_sensitive and unit is not None and _SENSITIVE_RE.search(
+            canonical_json(unit.to_dict())
+        ):
+            reasons.append("sensitive_typed_content")
         if (
             self.quarantine_destructive
             and proposal.action is ProposalAction.SUPERSEDE
@@ -96,6 +107,8 @@ class ReviewPolicy:
             "durable_fact"
         }:
             reasons.append("non_durable_class")
+        if unit is not None and unit.kind.value in {"durable_rule", "failure_gotcha", "procedure"}:
+            reasons.append("typed_action_requires_authorized_review")
         return tuple(dict.fromkeys(reasons))
 
 
@@ -158,7 +171,14 @@ class ReviewService:
             raise ValueError(
                 f"proposal {proposal_id} was already decided: {stored['review_state']}"
             )
-        if stored["memory_class"] == "procedure":
+        if decision == "edit_and_approve" and (stored.get("proposal") or {}).get("unit"):
+            raise ValueError(
+                "typed proposals cannot be text-edited; reject and submit a new source-linked proposal"
+            )
+        stored_unit = (stored.get("proposal") or {}).get("unit") or {}
+        if stored["memory_class"] == "procedure" or stored_unit.get("kind") in {
+            "durable_rule", "failure_gotcha", "procedure"
+        }:
             if authorization is None:
                 raise PermissionError(
                     "procedure review requires authenticated scoped authorization"
@@ -185,7 +205,7 @@ class ReviewService:
     ) -> dict[str, Any]:
         from atmem.core.canonical import canonical_json
         from atmem.extract.context import build_resolution_context
-        from atmem.extract.validation import screen_content
+        from atmem.extract.validation import screen_content, validate_proposal
 
         proposal = _rehydrate(stored["proposal"])
         subject_id = stored["subject_id"]
@@ -217,6 +237,22 @@ class ReviewService:
                     self.memory.store, subject_id, scope=proposal.scope
                 )
                 drift = _precondition_drift(self.memory.store, subject_id, proposal)
+                source_bodies: dict[str, str] = {}
+                if proposal.unit is not None:
+                    try:
+                        source_bodies = self.memory._verified_typed_sources(proposal)
+                    except ValueError:
+                        drift += ("typed_evidence_no_longer_valid",)
+                    if source_bodies:
+                        validation = validate_proposal(
+                            proposal,
+                            source_text=next(iter(source_bodies.values())),
+                            source_bodies=source_bodies,
+                            context=context,
+                            scope=proposal.scope,
+                            review_confidence=0.0,
+                        )
+                        drift += validation.reason_codes
                 if not screening.admissible:
                     state = "rejected"
                     reason_codes.extend(screening.reason_codes)
@@ -230,23 +266,35 @@ class ReviewService:
                     ProposalAction.UPDATE,
                     ProposalAction.SUPERSEDE,
                 }:
-                    state = "committed"
-                    reason_codes.append(
-                        "approved_by_reviewer"
-                        if decision == "approve"
-                        else "edited_and_approved_by_reviewer"
+                    duplicate = (
+                        self.memory.store.find_live_typed_identity(
+                            proposal.scope.subject_id,
+                            proposal.scope.workspace_id,
+                            proposal.unit.semantic_identity(),
+                        )
+                        if proposal.unit is not None else None
                     )
-                    (
-                        record_ids,
-                        superseded_ids,
-                        lineage_ids,
-                    ) = self.memory._commit_extraction(
-                        proposal,
-                        context=context,
-                        session_id=session_id,
-                        turn=None,
-                        fact=fact,
-                    )
+                    if duplicate is not None:
+                        state = "noop"
+                        reason_codes.append("duplicate_semantic_identity")
+                    else:
+                        state = "committed"
+                        reason_codes.append(
+                            "approved_by_reviewer"
+                            if decision == "approve"
+                            else "edited_and_approved_by_reviewer"
+                        )
+                        (
+                            record_ids,
+                            superseded_ids,
+                            lineage_ids,
+                        ) = self.memory._commit_extraction(
+                            proposal,
+                            context=context,
+                            session_id=session_id,
+                            turn=None,
+                            fact=fact,
+                        )
                 else:
                     state = "noop"
                     reason_codes.append("approved_without_mutation")
@@ -262,6 +310,8 @@ class ReviewService:
                 "decision": decision,
                 "decided_at": utc_now(),
             }
+            if proposal.unit is not None:
+                self.memory.store.redact_memory_proposal(stored["proposal_id"])
             settled = self.memory.store.settle_memory_proposal(
                 stored["proposal_id"], review_state=state, outcome=outcome
             )
@@ -312,6 +362,10 @@ class ReviewService:
         # A settled proposal's reasons live on its outcome, which carries the
         # reviewer's codes as well as the ones submission recorded.
         reason_codes = outcome.get("reason_codes") or row.get("reason_codes") or ()
+        unit = payload.get("unit") or None
+        canonical_text = None
+        if unit is not None:
+            canonical_text = _rehydrate(payload).unit.canonical_text()
         return {
             "proposal_id": row["proposal_id"],
             "subject_id": row["subject_id"],
@@ -321,6 +375,8 @@ class ReviewService:
             "memory_class": row["memory_class"],
             "confidence": row["confidence"],
             "fact": payload.get("fact"),
+            "typed_unit": unit,
+            "canonical_text": canonical_text,
             "fact_key": row.get("fact_key"),
             "review_state": row["review_state"],
             "reason_codes": list(reason_codes),
@@ -342,38 +398,9 @@ class ReviewService:
 
 
 def _rehydrate(payload: dict[str, Any]) -> Any:
-    from atmem.contracts import AuthorityScope
-    from atmem.extract.models import (
-        ExtractionProposal,
-        MemoryClass,
-        ProposalEvidence,
-        ProposalPrecondition,
-    )
+    from atmem.extract.models import ExtractionProposal
 
-    scope = payload["scope"]
-    return ExtractionProposal(
-        proposal_id=payload["proposal_id"],
-        idempotency_key=payload["idempotency_key"],
-        scope=AuthorityScope(
-            subject_id=scope["subject_id"],
-            agent_id=scope["agent_id"],
-            workspace_id=scope["workspace_id"],
-        ),
-        action=ProposalAction(payload["action"]),
-        memory_class=MemoryClass(payload["memory_class"]),
-        confidence=float(payload["confidence"]),
-        reason_codes=tuple(payload.get("reason_codes") or ()),
-        evidence=tuple(
-            ProposalEvidence(**item) for item in payload.get("evidence") or ()
-        ),
-        fact=payload.get("fact"),
-        fact_key=payload.get("fact_key"),
-        affected_record_ids=tuple(payload.get("affected_record_ids") or ()),
-        preconditions=tuple(
-            ProposalPrecondition(**item) for item in payload.get("preconditions") or ()
-        ),
-        review_required=bool(payload.get("review_required")),
-    )
+    return ExtractionProposal.from_dict(payload)
 
 
 def _precondition_drift(store: Any, subject_id: str, proposal: Any) -> tuple[str, ...]:

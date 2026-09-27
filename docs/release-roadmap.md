@@ -45,6 +45,35 @@ continuity qualification gates. Hermes memory support does not imply whole-agent
 capture or restart safety. Website docs and any submission need their normal
 review/publication approvals; planning authorizes no paid calls or deployment.
 
+### 2.3.8 final retrieval-quality gate
+
+The integration betas may continue to validate packaging and host setup, but the
+final AtMem 2.3.8 release is now also gated by
+[Spec 038](../specs/038-retrieval-quality-benchmark-gate/spec.md). The quality
+track first fixes the product's memory formation, information-need routing,
+evidence-neighborhood retrieval, sufficiency decision and context construction;
+the LongMemEval-V2 and DolphinBench adapters remain inert consumers of the same
+public APIs used by supported agents.
+
+Final promotion requires all mandatory Spec 038 SC-001–SC-003, SC-005–SC-008
+and SC-012–SC-016 evidence,
+including frozen local fixtures, complete matched LongMemEval-V2 Small and
+LoCoMo no-regression runs, uncertainty, provenance, installed-candidate migration and
+adapter checks, a benchmark-independent CLI/MCP/dashboard product journey,
+bounded CPU/storage/diagnostic behavior, Linux/macOS/Windows installed tests
+(with Hermes using its supported WSL route on Windows),
+reversible shadow activation, and external storage of heavy artifacts. Missing
+or invalid evidence blocks the stable release rather than being counted as a
+skipped test. Leadership targets SC-009–SC-011 are research goals and may not
+be described as achieved without complete validated results.
+The DolphinBench action result (SC-004) is a separately approved research gate,
+not a paid dependency of the stable package. LongMemEval development and
+confirmation use a precommitted question-ID split; Medium is reported as a
+larger-haystack scale test because it reuses the same questions.
+This gate preserves the MCP Registry, Hermes, continuity and coordinated
+AtFlows redaction commitments; it does not authorize a release, paid benchmark
+run or leaderboard submission.
+
 ### 2.3.8 companion security scope: AtFlows 0.1.4
 
 Scheduled 2026-09-26: fix secret retention in AtFlows telemetry before storage,

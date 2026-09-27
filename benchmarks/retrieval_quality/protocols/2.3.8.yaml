@@ -1,0 +1,80 @@
+{
+  "format": "atmem-retrieval-quality-protocol-v1",
+  "release": "2.3.8",
+  "status": "question-split-frozen-model-pins-pending",
+  "external_artifact_root_env": "ATMEM_BENCHMARK_ROOT",
+  "maximum_complete_paid_configurations": 20,
+  "target_complete_paid_configurations": 8,
+  "evaluation_design": {
+    "total_question_ids": 451,
+    "development_question_ids": 134,
+    "confirmation_question_ids": 317,
+    "split_fraction": "approximately 30/70, stratified by domain and official ability",
+    "primary_confirmation_arm": "typed-selected-optional-intelligence, frozen once from development evidence before confirmation access",
+    "primary_estimand": "paired absolute accuracy difference: primary confirmation arm minus matched official rag_query_to_slice_notes",
+    "minimum_effect_percentage_points": 5,
+    "interval": "95% paired bootstrap confidence interval over confirmation question IDs",
+    "bootstrap_strata": "domain by official ability",
+    "secondary_arm_multiplicity": "Holm correction for any additional confirmation-arm superiority claim",
+    "power_note": "The 317-question confirmation partition is the largest available leakage-controlled partition after retaining 134 development questions. Its approximate 95% paired-difference half-width is about 6 percentage points when discordance is 0.30 and about 7.8 points at the worst-case discordance of 0.50. The nominal 5-point threshold therefore does not guarantee adequate power: the observed gain will generally need to be about 6 to 8 points for the lower bound to exceed zero. The interval and discordance are always reported."
+  },
+  "datasets": {
+    "longmemeval_v2": {
+      "repository": "https://github.com/xiaowu0162/LongMemEval-V2",
+      "source_commit": "2cc8c540bdb87fe6761629b585e727e1c4704520",
+      "dataset": "xiaowu0162/longmemeval-v2",
+      "dataset_revision": "f152293e235517d504809563c833d7190b8c713b",
+      "split_file": "longmemeval-v2-question-split-v1.json",
+      "forced_development_ids": ["ff311d07", "f3496ca5", "14a823df", "41a18e5c", "07ffeedf", "15e5efa6", "631667c9", "d3300354", "c738b934", "07ab3723"],
+      "small_role": "development-and-unseen-question-confirmation",
+      "medium_role": "same-question-larger-haystack-scale-test"
+    },
+    "dolphinbench": {
+      "repository": "https://github.com/mem0ai/dolphinbench",
+      "source_commit": null,
+      "status": "research-only-until-pinned-and-approved"
+    },
+    "locomo": {
+      "repository": "https://github.com/snap-research/locomo",
+      "source_ref": "3eb6f2c585f5e1699204e3c3bdf7adc5c28cb376:data/locomo10.json",
+      "manifest": "research/production_benchmarks/manifests/locomo.json",
+      "role": "matched-legacy-candidate-no-regression"
+    },
+    "beam": {
+      "repository": "https://github.com/mohammadtavakoli78/BEAM",
+      "manifest": "research/production_benchmarks/manifests/beam.json",
+      "applicability": "performance-and-scheduling-only-if-the-candidate-claim-is-exercised-at-beam-scale",
+      "accuracy_gate": false,
+      "reason": "This release changes memory formation and bounded retrieval quality, not the BEAM task scheduler or its official answer-quality contract; the 50k/100k product load gates test the applicable resource claim."
+    }
+  },
+  "models": {
+    "longmemeval_reader": {"provider": "huggingface-inference", "model": "Qwen/Qwen3.5-9B", "revision": "must-be-pinned-before-paid-run"},
+    "longmemeval_judge": {"provider": "openai", "model": "gpt-5.2", "reasoning_effort": "medium", "revision": "provider-response-identity-required"}
+  },
+  "paid_run_requirements": {
+    "reader_prompt_sha256": "pending-before-paid-run",
+    "judge_prompt_sha256": "pending-before-paid-run",
+    "provider_route": "pending-before-paid-run",
+    "hardware_profile": "pending-before-paid-run",
+    "comparator_config_sha256": "pending-before-paid-run"
+  },
+  "operating_points": ["legacy", "typed-local", "typed-selected-optional-intelligence"],
+  "uncertainty": "paired-bootstrap-over-precommitted-confirmation-question-ids",
+  "seeds": [23801],
+  "leakage_controls": {
+    "answers_available_to_product": false,
+    "question_metadata_available_to_adapter": false,
+    "benchmark_terms_allowed_in_runtime": false,
+    "inspection_resets_confirmation": true
+  },
+  "visual_input_policy": {
+    "preserve_ordered_media_references": true,
+    "drop_media_only_cases": false,
+    "unsupported_media_result": "formation_not_represented",
+    "official_complete_score_includes_visual_cases": true,
+    "rule": "Adapters preserve native media references and positions. Product formation records represented and unsupported fields; the harness never supplies captions, OCR, answers or replacement prose."
+  },
+  "required_system_metrics": ["latency_p50_ms", "latency_p95_ms", "throughput_per_second", "error_rate", "refusal_rate", "peak_rss_bytes", "storage_bytes", "context_tokens", "model_cost_usd"],
+  "repetition_policy": "one frozen paired run plus paired bootstrap; an independent repetition is required only for a claim that specifies repeated executions"
+}

@@ -445,6 +445,17 @@
     <div id="sources"><div class="empty zeroloading"><span class="zeros compact" aria-hidden="true"><span>0</span><span>0</span><span>0</span><span>0</span></span><span>Loading sources…</span></div></div>
   </section>
 
+  <section class="card" id="retrievalQualityCard">
+    <div class="reviewhead"><div><div class="eyebrow">Retrieval quality</div><h2>Evidence coverage</h2></div><button class="secondary iconbutton" id="retrievalQualityRefresh" type="button" aria-label="Refresh retrieval quality" title="Refresh retrieval quality"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button></div>
+    <p class="sub" id="retrievalQualitySummary">Loading typed memory and context preparation status…</p>
+    <div class="evidence" id="retrievalQualityActivation"><span>Context delivery</span><b>Checking…</b></div>
+    <div class="evidence" id="retrievalQualityFormation"><span>Source formation</span><b>Checking…</b></div>
+    <div class="evidence" id="retrievalQualitySufficiency"><span>Recent context checks</span><b>Checking…</b></div>
+    <div class="recordcategories" id="retrievalQualityKinds"></div>
+    <div class="recordcategories" id="retrievalQualityStages"></div>
+    <p class="foot">These counts contain types and outcomes only. Source text and memory values are not copied into this status view.</p>
+  </section>
+
   <details class="card recordbreakdown" id="recordBreakdownCard">
     <summary><svg class="icon" aria-hidden="true"><use href="#i-grid"/></svg><span class="summarytitle"><b>Searchable records by purpose</b><span>Source fragments are searchable, but agent instructions and templates are not presented as human memories.</span></span></summary>
     <div class="detailsbody">

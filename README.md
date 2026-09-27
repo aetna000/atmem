@@ -610,7 +610,7 @@ atmem mcp --db ~/.atmem/memories.db --subject user-1
 ```
 
 MCP tools: `memory_remember`, `memory_observe`, `memory_recall`,
-`memory_recall_decision`,
+`memory_recall_decision`, `memory_form_episode`,
 `memory_get_record`, `memory_get_source`, `memory_recall_block`,
 `memory_persona`, `memory_context_pack`, `memory_capture`, `memory_list`,
 `memory_forget`, `memory_forget_artifact`, `memory_promote`, `memory_audit`,

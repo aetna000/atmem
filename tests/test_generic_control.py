@@ -10,6 +10,8 @@ import pytest
 from atmem.control.manager import ControlPlaneManager
 from atmem.control.server import ControlMCPServer
 from atmem.control.web import ControlDashboardServer
+from atmem.contracts import AuthorityScope, EpisodeIngestRequest, EpisodePart
+from atmem.core.canonical import sha256_hex
 from atmem.memory import Memory
 
 
@@ -102,6 +104,66 @@ def test_generic_shadow_review_takeover_and_return_to_shadow(tmp_path: Path) -> 
     assert manager.deactivate()["mode"] == "shadow"
     assert manager.status()["provider_state"] == "ready"
     assert manager.prepare("editor", agent_id="main")["inject"] is False
+
+
+def test_generic_explicit_v2_context_is_previewed_then_injected(tmp_path: Path) -> None:
+    manager = _manager(tmp_path)
+    topology = manager.configure_agent_topology([
+        {"agent_id": "main", "workspace": "shared", "is_default": True},
+    ])
+    subject = topology["agent_subjects"]["main"]
+    workspace = topology["agents"][0]["workspace_id"]
+    text = "I am 45 years old."
+    memory = Memory(
+        manager.memory_status()["memory_db"], auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        memory.form_episode(EpisodeIngestRequest(
+            episode_id="generic-v2-age",
+            idempotency_key="generic-v2-age",
+            scope=AuthorityScope(subject, "main", workspace),
+            parts=(EpisodePart(
+                part_id="message-1", ordinal=0, kind="text",
+                source_type="user_message", content=text,
+                content_sha256=f"sha256:{sha256_hex(text)}",
+            ),),
+        ))
+    finally:
+        memory.close()
+
+    configured = manager.configure_retrieval(
+        subject_id=subject, agent_id="main", mode="shadow", actor="test"
+    )
+    assert configured["mode"] == "shadow"
+    compared = manager.prepare(
+        "How old am I?", subject_id=subject, agent_id="main",
+        workspace_id=workspace, deterministic=True,
+    )
+    assert compared["retrieval"]["context_version"] == "v1"
+    assert compared["retrieval"]["shadow_v2"]["status"] == "sufficient"
+
+    shadow = manager.prepare(
+        "How old am I?", subject_id=subject, agent_id="main",
+        workspace_id=workspace, deterministic=True, context_version="v2",
+    )
+    assert shadow["inject"] is False
+    assert "45" in shadow["preview_context"]
+    assert shadow["retrieval"]["sufficiency"]["status"] == "sufficient"
+
+    manager.activate()
+    active = manager.prepare(
+        "How old am I?", subject_id=subject, agent_id="main",
+        workspace_id=workspace, deterministic=True, context_version="v2",
+    )
+    assert active["inject"] is True
+    assert "45" in active["context"]
+    assert active["retrieval"]["context_version"] == "v2"
+    quality = manager.retrieval_quality_status()
+    assert {row["stage"] for row in quality["stage_funnel"]} >= {
+        "formation", "nomination", "expansion", "packing",
+    }
+    assert "I am 45 years old." not in str(quality["stage_events"])
 
 
 def test_generic_topology_rejects_nested_workspace_cycles(tmp_path: Path) -> None:

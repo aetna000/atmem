@@ -55,6 +55,7 @@ def test_initialize_and_tools_list() -> None:
         "memory_remember",
         "memory_observe",
         "memory_recall",
+        "memory_form_episode",
         "memory_get_record",
         "memory_get_source",
         "memory_context_pack",
@@ -65,6 +66,25 @@ def test_initialize_and_tools_list() -> None:
         "memory_verify",
         "memory_log_action",
     } <= names
+
+
+def test_typed_episode_formation_tool_is_digest_bound_and_fail_closed() -> None:
+    server = _server()
+    source = "I am 45 years old."
+    result = _call(server, 3, "memory_form_episode", {
+        "episode_id": "mcp-age-episode",
+        "idempotency_key": "mcp-age-episode-v1",
+        "agent_id": "mcp",
+        "workspace_id": "mcp:user-1",
+        "parts": [{
+            "part_id": "part-0", "ordinal": 0, "kind": "text",
+            "source_type": "user_message", "content": source,
+            "content_sha256": f"sha256:{hashlib.sha256(source.encode()).hexdigest()}",
+        }],
+    })
+    assert result["receipt"]["source_events_observed"] == 1
+    assert result["outcomes"][0]["review_state"] == "rejected"
+    assert "typed_memory_requires_encrypted_household" in result["outcomes"][0]["reason_codes"]
 
 
 def test_tool_roundtrip_with_default_subject() -> None:

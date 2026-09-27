@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import json
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, TypeVar
@@ -130,6 +131,7 @@ class Memory:
         policy: HouseholdPolicy | None = None,
         auto_vectors: bool = True,
         review_authorities: tuple[dict[str, Any], ...] = (),
+        allow_insecure_typed_development: bool = False,
     ) -> None:
         self.policy = policy or HouseholdPolicy.load(path)
         self.store = SQLiteStore(path, policy=self.policy)
@@ -139,6 +141,9 @@ class Memory:
         self.recall_candidate_limit = max(1, int(recall_candidate_limit))
         self._vector_dirty_subjects: set[str] = set()
         self._auto_vectors = bool(auto_vectors)
+        self._allow_insecure_typed_development = bool(
+            allow_insecure_typed_development
+        )
         self._review_authority_secret = secrets.token_bytes(32)
         self._issued_review_authorizations: set[str] = set()
         self._review_authorities: dict[str, dict[str, Any]] = {}
@@ -178,6 +183,49 @@ class Memory:
                     self.sync_default_vectors(subject_id)
         finally:
             self.store.close()
+
+    def _record_retrieval_stage(
+        self,
+        *,
+        scope: Any,
+        request_id: str,
+        profile_id: str,
+        information_need: str | None,
+        stage: str,
+        status: str,
+        started_at: str,
+        started_monotonic: float,
+        input_count: int | None,
+        output_count: int | None,
+        reason_codes: tuple[str, ...] = (),
+        context_bytes: int | None = None,
+    ) -> str:
+        """Persist one content-free, AtFlows-compatible stage measurement."""
+        event_id = f"stage-{uuid.uuid4().hex}"
+        payload = {
+            "format": "atmem-retrieval-stage-event-v1",
+            "event_id": event_id,
+            "request_id": request_id,
+            "scope_digest": f"sha256:{sha256_hex(canonical_json(scope.to_dict()))}",
+            "profile_id": profile_id,
+            "information_need": information_need,
+            "stage": stage,
+            "status": status,
+            "reason_codes": list(reason_codes),
+            "started_at": started_at,
+            "duration_ms": round(max(0.0, (time.monotonic() - started_monotonic) * 1000), 3),
+            "input_count": input_count,
+            "output_count": output_count,
+            "context_bytes": context_bytes,
+            "usage": None,
+        }
+        self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.retrieval_stage_v1",
+            actor=f"protocol:{scope.agent_id}",
+            payload=payload,
+        )
+        return event_id
 
     def issue_review_authorization(
         self, principal_id: str, *, scopes: tuple[str, ...]
@@ -345,6 +393,8 @@ class Memory:
             scope=scope,
             audit_event_id=event_id,
         )
+        stored_request = dict(request_value)
+        stored_request.pop("message", None)
         self.store.insert_protocol_source(
             source_id=request.source_id,
             idempotency_key=request.idempotency_key,
@@ -354,7 +404,7 @@ class Memory:
             workspace_id=scope.workspace_id,
             episode_id=episode_id,
             source_sha256=source_sha256,
-            request=request_value,
+            request=stored_request,
             result=result.to_dict(),
         )
         return result
@@ -648,19 +698,23 @@ class Memory:
 
         if not isinstance(proposal, ExtractionProposal):
             raise TypeError("proposal must be ExtractionProposal")
+        submitted_digest = proposal.digest()
         scope = proposal.scope
-        subject_id = scope.subject_id
-        turn = _turn_id(turn_id)
-
         existing = self.store.find_memory_proposal(
-            subject_id, scope.agent_id, scope.workspace_id, proposal.idempotency_key
+            scope.subject_id, scope.agent_id, scope.workspace_id, proposal.idempotency_key
         )
         if existing is not None:
-            if existing["proposal_sha256"] != proposal.digest():
+            if existing["proposal_sha256"] != submitted_digest:
                 raise ValueError(
                     "proposal idempotency key was reused with a different payload"
                 )
             return {**_extraction_outcome(existing), "replayed": True}
+        proposal = self._reconcile_typed_proposal(proposal)
+        scope = proposal.scope
+        subject_id = scope.subject_id
+        turn = _turn_id(turn_id)
+
+        source_bodies = self._verified_typed_sources(proposal)
 
         context = build_resolution_context(
             self.store, subject_id, scope=scope, window=window
@@ -668,12 +722,17 @@ class Memory:
         validation = validate_proposal(
             proposal,
             source_text=source_text,
+            source_bodies=source_bodies,
             context=context,
             scope=scope,
             review_confidence=review_confidence,
         )
         semantic_payload = canonical_json(
-            {"fact": proposal.fact, "fact_key": proposal.fact_key}
+            {
+                "fact": proposal.fact,
+                "fact_key": proposal.fact_key,
+                "unit": proposal.unit.to_dict() if proposal.unit is not None else None,
+            }
         )
         semantic_screening = screen_content(semantic_payload, trusted=True)
         semantic_refusals = tuple(
@@ -688,10 +747,25 @@ class Memory:
         }
         policy = review_policy or ReviewPolicy(min_confidence=review_confidence)
         quarantine = policy.requires_review(proposal)
+        if proposal.unit is not None and proposal.unit.kind.value in {
+            "durable_rule", "failure_gotcha", "procedure"
+        }:
+            quarantine = tuple(dict.fromkeys(
+                quarantine + ("typed_action_requires_authorized_review",)
+            ))
         if not validation.valid or semantic_refusals:
             state = "rejected"
             reason_codes = tuple(
                 dict.fromkeys(validation.reason_codes + semantic_refusals)
+            )
+        elif (
+            proposal.unit is not None
+            and self.policy.state != "encrypted"
+            and not self._allow_insecure_typed_development
+        ):
+            state = "rejected"
+            reason_codes = proposal.reason_codes + (
+                "typed_memory_requires_encrypted_household",
             )
         elif proposal.action is ProposalAction.REJECT:
             state, reason_codes = "rejected", proposal.reason_codes
@@ -702,6 +776,20 @@ class Memory:
             reason_codes = proposal.reason_codes + quarantine
         else:
             state, reason_codes = "committed", proposal.reason_codes
+            if proposal.unit is not None and self.policy.state != "encrypted":
+                reason_codes += ("insecure_typed_development_override",)
+
+        if proposal.unit is not None and state == "committed":
+            duplicate = self.store.find_live_typed_identity(
+                scope.subject_id,
+                scope.workspace_id,
+                proposal.unit.semantic_identity(),
+            )
+            if duplicate is not None:
+                state = "noop"
+                reason_codes = tuple(
+                    dict.fromkeys(reason_codes + ("duplicate_semantic_identity",))
+                )
 
         record_ids: list[str] = []
         superseded_ids: list[str] = []
@@ -731,7 +819,7 @@ class Memory:
             record_id=(record_ids or [None])[0],
             payload={
                 "proposal_id": proposal.proposal_id,
-                "proposal_sha256": proposal.digest(),
+                "proposal_sha256": submitted_digest,
                 "action": proposal.action.value,
                 "memory_class": proposal.memory_class.value,
                 "confidence": proposal.confidence,
@@ -757,17 +845,20 @@ class Memory:
         )
         outcome["audit_event_id"] = event_id
         stored_proposal = proposal.to_dict()
-        if state == "rejected":
+        if semantic_refusals or (
+            proposal.unit is not None and state != "pending_review"
+        ):
             stored_proposal = {
                 "format": proposal.format,
                 "proposal_id": proposal.proposal_id,
                 "scope": proposal.scope.to_dict(),
                 "action": proposal.action.value,
                 "memory_class": proposal.memory_class.value,
-                "fact": "[rejected sensitive extraction proposal]",
+                "fact": "[non-retained typed extraction proposal]",
                 "fact_sha256": f"sha256:{sha256_hex(str(proposal.fact or ''))}",
                 "semantic_payload_sha256": f"sha256:{sha256_hex(semantic_payload)}",
                 "reason_codes": list(outcome["reason_codes"]),
+                "redacted": True,
             }
         stored = self.store.insert_memory_proposal(
             proposal_id=proposal.proposal_id,
@@ -775,18 +866,115 @@ class Memory:
             agent_id=scope.agent_id,
             workspace_id=scope.workspace_id,
             idempotency_key=proposal.idempotency_key,
-            proposal_sha256=proposal.digest(),
+            proposal_sha256=submitted_digest,
             action=proposal.action.value,
             memory_class=proposal.memory_class.value,
             confidence=proposal.confidence,
-            fact_key=None if state == "rejected" else proposal.fact_key,
+            fact_key=(
+                None
+                if state == "rejected"
+                or (proposal.unit is not None and state != "pending_review")
+                else proposal.fact_key
+            ),
             review_state=state,
             reason_codes=outcome["reason_codes"],
             proposal=stored_proposal,
             outcome=outcome,
             decided_at=None if state == "pending_review" else utc_now(),
         )
+        if proposal.unit is not None:
+            self.store.link_memory_proposal_sources(
+                proposal.proposal_id,
+                scope.subject_id,
+                scope.workspace_id,
+                [item.source_id for item in proposal.evidence],
+            )
         return {**_extraction_outcome(stored), "replayed": False}
+
+    def _reconcile_typed_proposal(self, proposal: Any) -> Any:
+        """Turn a typed fact-slot replacement into an explicit guarded supersession."""
+        from dataclasses import replace
+        from atmem.extract.models import ProposalAction, ProposalPrecondition
+
+        if (
+            proposal.unit is None
+            or proposal.action is not ProposalAction.ADD
+            or not proposal.fact_key
+        ):
+            return proposal
+        if self.store.find_live_typed_identity(
+            proposal.scope.subject_id,
+            proposal.scope.workspace_id,
+            proposal.unit.semantic_identity(),
+        ) is not None:
+            return proposal
+        matches = []
+        for row in self.store.active_records_for_fact_key(
+            proposal.scope.subject_id, proposal.fact_key
+        ):
+            authority = (row.get("raw") or {}).get("authority_scope") or {}
+            if (
+                authority.get("subject_id"), authority.get("agent_id"),
+                authority.get("workspace_id"),
+            ) == (
+                proposal.scope.subject_id, proposal.scope.agent_id,
+                proposal.scope.workspace_id,
+            ):
+                matches.append(row)
+        if not matches:
+            return proposal
+        kinds = {
+            str(((row.get("raw") or {}).get("typed_unit") or {}).get("kind") or "")
+            for row in matches
+        }
+        shape_conflict = bool(kinds - {proposal.unit.kind.value})
+        return replace(
+            proposal,
+            action=ProposalAction.SUPERSEDE,
+            affected_record_ids=tuple(str(row["id"]) for row in matches),
+            preconditions=tuple(
+                ProposalPrecondition(
+                    record_id=str(row["id"]),
+                    generation=int(row.get("generation") or 0),
+                    status=str(row["status"]),
+                    content_sha256=f"sha256:{sha256_hex(str(row.get('content') or ''))}",
+                )
+                for row in matches
+            ),
+            reason_codes=tuple(dict.fromkeys(
+                proposal.reason_codes + (
+                    "typed_shape_conflict" if shape_conflict else "typed_compatible_update",
+                )
+            )),
+            review_required=proposal.review_required or shape_conflict,
+        )
+
+    def _verified_typed_sources(self, proposal: Any) -> dict[str, str]:
+        """Rehydrate and authenticate every typed evidence body from storage."""
+        if proposal.unit is None:
+            return {}
+        scope = proposal.scope
+        bodies: dict[str, str] = {}
+        for evidence in proposal.evidence:
+            source = self.store.get_protocol_source_by_id(evidence.source_id)
+            if source is None or (
+                source["subject_id"], source["agent_id"], source["workspace_id"]
+            ) != (scope.subject_id, scope.agent_id, scope.workspace_id):
+                raise ValueError("typed proposal evidence is not available in this authority scope")
+            if source["source_sha256"] != evidence.source_sha256:
+                raise ValueError("typed proposal evidence digest does not match captured source")
+            episode = self.store.get_episode(scope.subject_id, str(source["episode_id"]))
+            if (
+                episode is None
+                or episode["message"] == "[purged]"
+                or not bool((source.get("result") or {}).get("retained"))
+            ):
+                raise ValueError("typed proposal evidence body is no longer retained")
+            body = str(episode["message"])
+            if f"sha256:{sha256_hex(body)}" != evidence.source_sha256:
+                raise ValueError("typed proposal evidence body failed digest verification")
+            bodies[evidence.source_id] = body
+        return bodies
 
     def _commit_extraction(
         self,
@@ -803,30 +991,54 @@ class Memory:
         against the same read, and ``supersede_records`` only matches rows
         still active, so a lost race leaves the older fact untouched.
         """
+        from dataclasses import replace
         from atmem.extract.models import ProposalAction
+        from atmem.extract.review import typed_content_is_sensitive
 
-        content = fact if fact is not None else str(proposal.fact or "")
-        episode_id = self.store.insert_episode(
-            subject_id=proposal.scope.subject_id,
-            session_id=session_id,
-            turn_id=turn,
-            message=content,
-            source_type="proposal",
-            raw={
-                "format": "atmem-extraction-source-v2",
-                "proposal_id": proposal.proposal_id,
-                "evidence": [
-                    {
-                        "source_id": item.source_id,
-                        "source_sha256": item.source_sha256,
-                        "start_offset": item.start_offset,
-                        "end_offset": item.end_offset,
-                        "excerpt_sha256": item.excerpt_sha256,
-                    }
-                    for item in proposal.evidence
-                ],
-            },
+        if proposal.unit is not None:
+            self._verified_typed_sources(proposal)
+            duplicate = self.store.find_live_typed_identity(
+                proposal.scope.subject_id,
+                proposal.scope.workspace_id,
+                proposal.unit.semantic_identity(),
+            )
+            if duplicate is not None:
+                raise ValueError("typed semantic identity already has a live unit")
+
+        content = (
+            proposal.unit.canonical_text()
+            if proposal.unit is not None
+            else (fact if fact is not None else str(proposal.fact or ""))
         )
+        if proposal.unit is not None:
+            source = self.store.get_protocol_source_by_id(
+                proposal.unit.evidence[0].source_id
+            )
+            if source is None:
+                raise ValueError("typed proposal source was not durably captured")
+            episode_id = str(source["episode_id"])
+        else:
+            episode_id = self.store.insert_episode(
+                subject_id=proposal.scope.subject_id,
+                session_id=session_id,
+                turn_id=turn,
+                message=content,
+                source_type="proposal",
+                raw={
+                    "format": "atmem-extraction-source-v2",
+                    "proposal_id": proposal.proposal_id,
+                    "evidence": [
+                        {
+                            "source_id": item.source_id,
+                            "source_sha256": item.source_sha256,
+                            "start_offset": item.start_offset,
+                            "end_offset": item.end_offset,
+                            "excerpt_sha256": item.excerpt_sha256,
+                        }
+                        for item in proposal.evidence
+                    ],
+                },
+            )
         targets = [
             row
             for row in context.records
@@ -846,6 +1058,11 @@ class Memory:
             parent_taint_labels.update(
                 {"UNTRUSTED_CONTENT", "DERIVED_FROM_TAINTED"}
             )
+        lifecycle = "quarantined" if parent_tainted else "active"
+        active_unit = (
+            replace(proposal.unit, lifecycle=lifecycle)
+            if proposal.unit is not None else None
+        )
         record_id = self.store.insert_record(
             subject_id=proposal.scope.subject_id,
             content=content,
@@ -865,8 +1082,21 @@ class Memory:
                 "memory_class": proposal.memory_class.value,
                 "reason_codes": list(proposal.reason_codes),
                 "taint_labels": sorted(parent_taint_labels),
+                "sensitivity": (
+                    "sensitive" if typed_content_is_sensitive(proposal) else "personal"
+                ),
+                **(
+                    {"typed_unit": active_unit.to_dict()}
+                    if active_unit is not None else {}
+                ),
             },
         )
+        if active_unit is not None:
+            self.store.insert_typed_memory_unit(
+                unit=active_unit.to_dict(),
+                record_id=record_id,
+                semantic_identity=active_unit.semantic_identity(),
+            )
         relation = (
             "refines" if proposal.action is ProposalAction.UPDATE else "supersedes"
         )
@@ -922,6 +1152,170 @@ class Memory:
             )
         ]
 
+    def analyze_information_need(
+        self, query: str, *, budget: Any = None
+    ) -> dict[str, Any]:
+        """Return the deterministic retrieval route used by every host adapter."""
+        from atmem.contracts import RetrievalBudget
+        from atmem.retrieve import decompose_information_need, profile_for_need
+
+        active_budget = budget or RetrievalBudget()
+        if not isinstance(active_budget, RetrievalBudget):
+            raise TypeError("budget must be RetrievalBudget")
+        parent, children = decompose_information_need(query, budget=active_budget)
+        profile = profile_for_need(parent.type)
+        return {
+            "format": "atmem-information-need-analysis-v1",
+            "need": parent.to_dict(),
+            "subneeds": [child.to_dict() for child in children],
+            "profile": profile.to_dict(),
+            "budget": active_budget.to_dict(),
+        }
+
+    def form_episode(self, request: Any, *, budget: Any = None) -> dict[str, Any]:
+        """Losslessly capture an episode, then conservatively form typed units."""
+        from atmem.contracts import (
+            EpisodeIngestRequest,
+            FormationReceipt,
+            RetrievalBudget,
+            SourceCaptureRequest,
+        )
+        from atmem.extract.formation import form_typed_proposals
+
+        if not isinstance(request, EpisodeIngestRequest):
+            raise TypeError("request must be EpisodeIngestRequest")
+        active_budget = budget or RetrievalBudget()
+        if not isinstance(active_budget, RetrievalBudget):
+            raise TypeError("budget must be RetrievalBudget")
+        formation_id = f"formation-{sha256_hex(canonical_json({'request': request.to_dict(), 'budget': active_budget.to_dict(), 'version': 'typed-formation-v1'}))[:24]}"
+        previous = self.store.get_formation_receipt(formation_id)
+        if previous is not None:
+            return {"receipt": previous, "outcomes": [], "replayed": True}
+
+        source_ids: list[str] = []
+        outcomes: list[dict[str, Any]] = []
+        unsupported: list[str] = []
+        unrepresented: list[dict[str, Any]] = []
+        counts: dict[str, int] = {}
+        processed_bytes = 0
+        proposed_count = 0
+        budget_withheld = 0
+        stage_started_at = utc_now()
+        started = time.monotonic()
+        for part in request.parts:
+            if part.content is None:
+                unsupported.append(part.part_id)
+                continue
+            source_id = f"source-{sha256_hex(f'{request.episode_id}:{part.part_id}')[:24]}"
+            source_ids.append(source_id)
+            self.capture_source(SourceCaptureRequest(
+                source_id=source_id,
+                idempotency_key=f"episode-{sha256_hex(f'{request.idempotency_key}:{part.part_id}')[:24]}",
+                scope=request.scope,
+                message=part.content,
+                source_type=part.source_type,
+                session_id=request.session_id,
+                turn_id=request.turn_id,
+                host_message_id=request.host_message_id,
+                binding_method=request.binding_method,
+                binding_assurance=request.binding_assurance,
+                retain_body=request.retain_body,
+            ))
+            part_bytes = len(part.content.encode("utf-8"))
+            deadline_exhausted = (time.monotonic() - started) * 1000 >= active_budget.wall_time_ms
+            source_exhausted = processed_bytes + part_bytes > active_budget.source_bytes
+            if deadline_exhausted or source_exhausted:
+                unrepresented.append({
+                    "part_id": part.part_id,
+                    "start_offset": 0,
+                    "end_offset": len(part.content),
+                    "reason": (
+                        "formation_deadline_exhausted" if deadline_exhausted
+                        else "formation_source_budget_exhausted"
+                    ),
+                })
+                continue
+            processed_bytes += part_bytes
+            proposals = form_typed_proposals(
+                part.content,
+                scope=request.scope,
+                source_id=source_id,
+                formation_id=formation_id,
+                observed_at=part.observed_at,
+            ) if request.retain_body else ()
+            if not proposals:
+                unrepresented.append({
+                    "part_id": part.part_id,
+                    "start_offset": 0,
+                    "end_offset": len(part.content),
+                    "reason": "no_lossless_typed_structure",
+                })
+            for proposal in proposals:
+                counts[proposal.unit.kind.value] = counts.get(proposal.unit.kind.value, 0) + 1
+                if proposed_count >= active_budget.proposals:
+                    budget_withheld += 1
+                    continue
+                proposed_count += 1
+                outcomes.append(self.submit_extraction_proposal(
+                    proposal,
+                    source_text=part.content,
+                    session_id=request.session_id,
+                    turn_id=request.turn_id,
+                    actor=f"formation:{request.scope.agent_id}",
+                ))
+
+        admitted = sum(item["review_state"] == "committed" for item in outcomes)
+        withheld = sum(item["review_state"] in {"pending_review", "noop"} for item in outcomes) + budget_withheld
+        rejected = sum(item["review_state"] in {"rejected", "stale"} for item in outcomes)
+        receipt = FormationReceipt(
+            formation_id=formation_id,
+            episode_id=request.episode_id,
+            source_ids=tuple(source_ids),
+            source_events_observed=len(request.parts),
+            proposals_by_kind=counts,
+            admitted=admitted,
+            withheld=withheld,
+            rejected=rejected,
+            unsupported_parts=tuple(unsupported),
+            unrepresented_ranges=tuple(unrepresented),
+            complete=bool(outcomes) and not unsupported and not unrepresented
+            and rejected == 0 and budget_withheld == 0,
+            reason_codes=tuple(
+                code for code, present in (
+                    ("unsupported_parts", bool(unsupported)),
+                    ("unrepresented_source_ranges", bool(unrepresented)),
+                    ("formation_rejections", rejected > 0),
+                    ("formation_proposal_budget_exhausted", budget_withheld > 0),
+                ) if present
+            ),
+        )
+        stored_receipt = {
+            **receipt.to_dict(),
+            "scope_subject_id": request.scope.subject_id,
+            "scope_workspace_id": request.scope.workspace_id,
+        }
+        with self.store.transaction(immediate=True):
+            self.store.link_source_sequence(
+                subject_id=request.scope.subject_id,
+                workspace_id=request.scope.workspace_id,
+                source_ids=source_ids,
+            )
+            self.store.insert_formation_receipt(stored_receipt)
+        self._record_retrieval_stage(
+            scope=request.scope,
+            request_id=formation_id,
+            profile_id="typed-formation-v1",
+            information_need=None,
+            stage="formation",
+            status=("completed" if receipt.complete else "partial"),
+            started_at=stage_started_at,
+            started_monotonic=started,
+            input_count=len(request.parts),
+            output_count=admitted,
+            reason_codes=receipt.reason_codes,
+        )
+        return {"receipt": stored_receipt, "outcomes": outcomes, "replayed": False}
+
     def memory_lineage(
         self, subject_id: str, record_id: str | None = None
     ) -> list[dict[str, Any]]:
@@ -942,10 +1336,26 @@ class Memory:
         if request.retrieval_strategy == 'core-rrf-v1':
             from dataclasses import replace
             from atmem.retrieve.hybrid import collect
+            stage_started_at = utc_now()
+            stage_started = time.monotonic()
             rows, metadata = collect(self, request)
             # Channel quotas are independent; bound the ranked publication prefix.
             publication = replace(request, candidate_limit=max(request.candidate_limit, request.limit))
-            return self.create_candidate_set_v1(publication, rows, retrieval_metadata=metadata)
+            result = self.create_candidate_set_v1(publication, rows, retrieval_metadata=metadata)
+            self._record_retrieval_stage(
+                scope=request.scope,
+                request_id=request.request_id,
+                profile_id=str(metadata.get("profile_id") or "unknown"),
+                information_need=str(metadata.get("information_need") or "") or None,
+                stage="nomination",
+                status="completed" if result.candidates else "withheld",
+                started_at=stage_started_at,
+                started_monotonic=stage_started,
+                input_count=None,
+                output_count=len(result.candidates),
+                reason_codes=("no_eligible_candidates",) if not result.candidates else (),
+            )
+            return result
         scope = request.scope
         recalled = self.recall(
             scope.subject_id,
@@ -1090,7 +1500,7 @@ class Memory:
             workspace_id=scope.workspace_id,
             generation=generation,
             expires_at=expires_at,
-            value=result.to_dict(),
+            value={**result.to_dict(), "_egress_class": request.egress_class},
         )
         return result
 
@@ -1272,6 +1682,154 @@ class Memory:
             generation=generation,
             expires_at=expires_at,
             value=result.to_dict(),
+        )
+        return result
+
+    @_atomic
+    def prepare_context_v2(self, request: Any) -> Any:
+        """Expand, check and pack an eligible candidate set by evidence coverage."""
+        from atmem.contracts import ContextRequestV2
+        from atmem.retrieve import profile_for_need, route_information_need
+        from atmem.retrieve.assemble import assemble_context_v2
+        from atmem.retrieve.expand import expand_evidence_neighborhood
+
+        if not isinstance(request, ContextRequestV2):
+            raise TypeError("request must be ContextRequestV2")
+        scope = request.scope
+        candidate_set = self.store.get_protocol_candidate_set(request.candidate_set_id)
+        if candidate_set is None:
+            raise ValueError("candidate set was not found")
+        if (
+            candidate_set["subject_id"], candidate_set["agent_id"],
+            candidate_set["workspace_id"],
+        ) != (scope.subject_id, scope.agent_id, scope.workspace_id):
+            raise ValueError("candidate set is outside the authority scope")
+        if str(candidate_set["expires_at"]) < utc_now():
+            raise ValueError("candidate set has expired")
+        generation = self.store.record_generation(scope.subject_id)
+        if int(candidate_set["generation"]) != generation:
+            raise ValueError("candidate set was invalidated by a memory change")
+        value = candidate_set["value"]
+        seeds = tuple(
+            str(row["record_id"]) for row in value.get("candidates") or ()
+        )
+        need = route_information_need(request.query)
+        profile = profile_for_need(need.type)
+        preparation_id = f"prep_{uuid.uuid4().hex}"
+        expansion_started_at = utc_now()
+        expansion_started = time.monotonic()
+        if seeds:
+            neighborhood = expand_evidence_neighborhood(
+                self.store,
+                subject_id=scope.subject_id,
+                workspace_id=scope.workspace_id,
+                need_id=need.need_id,
+                seed_record_ids=seeds,
+                budget=request.budget,
+                remote=value.get("_egress_class") == "remote",
+            )
+            typed_rows = self.store.typed_units_for_records(
+                scope.subject_id,
+                scope.workspace_id,
+                list(neighborhood.selected_record_ids),
+            )
+        else:
+            neighborhood = None
+            typed_rows = []
+        self._record_retrieval_stage(
+            scope=scope,
+            request_id=preparation_id,
+            profile_id=profile.profile_id,
+            information_need=need.type,
+            stage="expansion",
+            status=(
+                "partial" if neighborhood and neighborhood.truncated
+                else "completed" if typed_rows else "withheld"
+            ),
+            started_at=expansion_started_at,
+            started_monotonic=expansion_started,
+            input_count=len(seeds),
+            output_count=len(typed_rows),
+            reason_codes=(
+                neighborhood.reason_codes if neighborhood is not None else
+                ("no_eligible_seed",)
+            ),
+        )
+        packing_started_at = utc_now()
+        packing_started = time.monotonic()
+        result = assemble_context_v2(
+            context_id=request.context_id,
+            scope=scope,
+            need=need,
+            profile_id=profile.profile_id,
+            typed_rows=typed_rows,
+            budget=request.budget,
+            generation=generation,
+            preparation_id=preparation_id,
+        )
+        self._record_retrieval_stage(
+            scope=scope,
+            request_id=preparation_id,
+            profile_id=profile.profile_id,
+            information_need=need.type,
+            stage="packing",
+            status=(
+                "completed" if result.sufficiency.status == "sufficient"
+                else "withheld" if result.sufficiency.status in {"unsupported", "stale", "contradictory"}
+                else "partial"
+            ),
+            started_at=packing_started_at,
+            started_monotonic=packing_started,
+            input_count=len(typed_rows),
+            output_count=len(result.record_ids),
+            reason_codes=result.sufficiency.reason_codes,
+            context_bytes=len(result.context.encode("utf-8")),
+        )
+        # Final eligibility is reloaded after expansion and packing.
+        final_records = self.store.get_records(scope.subject_id, list(result.record_ids))
+        excluded = self.store.excluded_record_ids(scope.subject_id)
+        for record_id in result.record_ids:
+            record = final_records.get(record_id)
+            authority = ((record or {}).get("raw") or {}).get("authority_scope") or {}
+            sensitivity = str(((record or {}).get("raw") or {}).get("sensitivity") or "personal")
+            if (
+                record is None or record.get("status") != "active"
+                or record_id in excluded
+                or authority.get("subject_id") != scope.subject_id
+                or authority.get("workspace_id") != scope.workspace_id
+                or (value.get("_egress_class") == "remote" and sensitivity in {"sensitive", "restricted"})
+            ):
+                raise ValueError("selected evidence changed before context persistence")
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.context_prepared_v2",
+            actor=f"protocol:{scope.agent_id}",
+            payload={
+                "preparation_id": preparation_id,
+                "candidate_set_id": request.candidate_set_id,
+                "context_sha256": result.context_sha256,
+                "record_ids": list(result.record_ids),
+                "generation": generation,
+                "workspace_id": scope.workspace_id,
+                "profile_id": profile.profile_id,
+                "information_need": need.type,
+                "sufficiency": result.sufficiency.status,
+                "missing_slots": list(result.sufficiency.missing_slots),
+                "neighborhood_id": neighborhood.neighborhood_id if neighborhood else None,
+                "neighborhood_visited": neighborhood.visited_count if neighborhood else 0,
+                "neighborhood_truncated": neighborhood.truncated if neighborhood else False,
+                "serializer_version": result.serializer_version,
+            },
+        )
+        self.store.put_protocol_preparation(
+            preparation_id,
+            subject_id=scope.subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            context_sha256=result.context_sha256,
+            generation=generation,
+            expires_at=result.expires_at,
+            value={**result.to_dict(), "audit_event_id": event_id},
         )
         return result
 

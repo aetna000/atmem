@@ -948,6 +948,7 @@ External evaluation:
                 choices=("ollama", "openai-compatible", "sentence-transformers", "hashing"),
                 default=None,
             )
+
             command_parser.add_argument("--model", default=None)
             command_parser.add_argument("--model-version", default="unverified")
             command_parser.add_argument("--dimensions", type=int, default=None)
@@ -970,6 +971,50 @@ External evaluation:
                 default=None,
                 help="Manual paraphrase used to verify the first eligible record",
             )
+
+    retrieval_parser = subparsers.add_parser(
+        "retrieval",
+        help="Inspect typed retrieval routing, evidence coverage, and safe context",
+    )
+    retrieval_commands = retrieval_parser.add_subparsers(dest="retrieval_command")
+    retrieval_status = retrieval_commands.add_parser(
+        "status", help="Show typed-memory and retrieval readiness for one scope"
+    )
+    retrieval_explain = retrieval_commands.add_parser(
+        "explain", help="Explain how one question will be routed and optionally verify it"
+    )
+    retrieval_form = retrieval_commands.add_parser(
+        "form", help="Form governed typed memories from exact source text"
+    )
+    retrieval_setup = retrieval_commands.add_parser(
+        "setup", help="Enable V2 shadow comparison for one exact scope"
+    )
+    retrieval_activate = retrieval_commands.add_parser(
+        "activate", help="Use sufficient V2 context for one exact scope"
+    )
+    retrieval_rollback = retrieval_commands.add_parser(
+        "rollback", help="Return one exact scope to the legacy retrieval path"
+    )
+    for command_parser in (
+        retrieval_status, retrieval_explain, retrieval_setup,
+        retrieval_activate, retrieval_rollback, retrieval_form,
+    ):
+        command_parser.add_argument("path")
+        command_parser.add_argument("--subject", required=True)
+        command_parser.add_argument("--agent", required=True)
+        command_parser.add_argument("--workspace", required=True)
+        command_parser.add_argument("--json", action="store_true")
+    retrieval_explain.add_argument("query")
+    retrieval_explain.add_argument(
+        "--verify", action="store_true",
+        help="Run governed nomination and V2 context packing without exposing it to an agent",
+    )
+    retrieval_form.add_argument(
+        "--text", action="append", required=True,
+        help="Exact source part to retain and form; repeat for ordered parts",
+    )
+    retrieval_form.add_argument("--episode-id", default=None)
+    retrieval_form.add_argument("--idempotency-key", default=None)
 
     task_parser = subparsers.add_parser(
         "task",
@@ -1908,6 +1953,13 @@ or input errors.""",
             semantic_parser.print_help()
             return
         _run_semantic(args)
+        return
+
+    if args.command == "retrieval":
+        if args.retrieval_command is None:
+            retrieval_parser.print_help()
+            return
+        _run_retrieval(args)
         return
 
     if args.command == "task":
@@ -3156,6 +3208,136 @@ def _run_semantic(args: argparse.Namespace) -> None:
     finally:
         if index is not None:
             index.close()
+        memory.close()
+
+
+def _run_retrieval(args: argparse.Namespace) -> None:
+    import uuid
+    from atmem.contracts import (
+        AuthorityScope, ContextRequestV2, EpisodeIngestRequest, EpisodePart,
+        RecallRequest, RetrievalBudget,
+    )
+    from atmem.core.canonical import sha256_hex
+
+    memory = Memory(args.path, auto_vectors=False)
+    scope = AuthorityScope(args.subject, args.agent, args.workspace)
+    try:
+        typed = memory.store._conn.execute(
+            """
+            SELECT kind, lifecycle, COUNT(*) AS count
+            FROM typed_memory_units
+            WHERE subject_id = ? AND agent_id = ? AND workspace_id = ?
+            GROUP BY kind, lifecycle ORDER BY kind, lifecycle
+            """,
+            (scope.subject_id, scope.agent_id, scope.workspace_id),
+        ).fetchall()
+        if args.retrieval_command == "form":
+            episode_id = args.episode_id or f"cli-episode-{uuid.uuid4().hex}"
+            idempotency_key = args.idempotency_key or episode_id
+            parts = tuple(
+                EpisodePart(
+                    part_id=f"part-{index}", ordinal=index, kind="text",
+                    source_type="user_message", content=text,
+                    content_sha256=f"sha256:{sha256_hex(text)}",
+                )
+                for index, text in enumerate(args.text)
+            )
+            value = memory.form_episode(EpisodeIngestRequest(
+                episode_id=episode_id,
+                idempotency_key=idempotency_key,
+                scope=scope,
+                parts=parts,
+                binding_method="caller_asserted",
+                binding_assurance="caller_asserted",
+            ))
+        elif args.retrieval_command in {"setup", "activate", "rollback"}:
+            mode = {
+                "setup": "shadow", "activate": "active", "rollback": "legacy",
+            }[args.retrieval_command]
+            try:
+                value = memory.store.set_retrieval_activation(
+                    scope, mode, actor="cli-operator"
+                )
+            except ValueError as exc:
+                if args.json:
+                    _print({
+                        "format": "atmem-retrieval-activation-error-v1",
+                        "mode": mode,
+                        "error": str(exc),
+                    })
+                else:
+                    print(f"Could not set typed retrieval to {mode}: {exc}", file=sys.stderr)
+                raise SystemExit(2) from exc
+        elif args.retrieval_command == "status":
+            value = {
+                "format": "atmem-retrieval-status-v1",
+                "scope": scope.to_dict(),
+                "household_encryption": memory.policy.state,
+                "typed_formation_available": memory.policy.state == "encrypted",
+                "activation": memory.store.retrieval_activation(scope),
+                "typed_units": [dict(row) for row in typed],
+                "profiles": [
+                    "fact-and-state-v1", "change-and-history-v1",
+                    "procedure-and-rule-v1", "synthesis-v1",
+                ],
+            }
+        else:
+            value = memory.analyze_information_need(args.query)
+            if args.verify:
+                recall = RecallRequest(
+                    request_id=f"cli-{uuid.uuid4().hex}", scope=scope,
+                    query=args.query, retrieval_strategy="core-rrf-v1",
+                    egress_class="none",
+                )
+                candidate_set = memory.eligible_candidates(recall)
+                package = memory.prepare_context_v2(ContextRequestV2(
+                    context_id=f"cli-context-{uuid.uuid4().hex}",
+                    candidate_set_id=candidate_set.candidate_set_id,
+                    scope=scope, query=args.query, budget=RetrievalBudget(),
+                ))
+                value["verification"] = {
+                    "candidate_ids": [row.record_id for row in candidate_set.candidates],
+                    "selected_ids": list(package.record_ids),
+                    "sufficiency": package.sufficiency.to_dict(),
+                    "context_sha256": package.context_sha256,
+                    "context_preview": package.context,
+                }
+        if args.json:
+            _print(value)
+            return
+        if args.retrieval_command == "form":
+            receipt = value["receipt"]
+            print(
+                f"Formation: {receipt['admitted']} admitted, "
+                f"{receipt['withheld']} withheld, {receipt['rejected']} rejected"
+            )
+            if receipt.get("reason_codes"):
+                print(f"Reasons: {', '.join(receipt['reason_codes'])}")
+        elif args.retrieval_command in {"setup", "activate", "rollback"}:
+            print(f"Typed retrieval mode: {value['mode']}")
+            if value["mode"] == "shadow":
+                print("V2 will be measured without changing agent context.")
+            elif value["mode"] == "active":
+                print("Only sufficient V2 evidence may be delivered to this scope.")
+            else:
+                print("The scope now uses the legacy retrieval path.")
+        elif args.retrieval_command == "status":
+            total = sum(int(row["count"]) for row in value["typed_units"])
+            print(f"Typed retrieval: {total} governed unit(s) in this scope")
+            print(f"Household encryption: {value['household_encryption']}")
+            print(f"Mode: {value['activation']['mode']}")
+            print("Use `retrieval explain --verify` to witness routing and evidence sufficiency.")
+        else:
+            print(f"Question type: {value['need']['type']}")
+            print(f"Profile: {value['profile']['profile_id']}")
+            print(f"Required evidence: {', '.join(value['need']['required_slots'])}")
+            if value.get("verification"):
+                check = value["verification"]
+                print(f"Sufficiency: {check['sufficiency']['status']}")
+                print(f"Selected records: {len(check['selected_ids'])}")
+                if check["sufficiency"]["missing_slots"]:
+                    print(f"Missing: {', '.join(check['sufficiency']['missing_slots'])}")
+    finally:
         memory.close()
 
 

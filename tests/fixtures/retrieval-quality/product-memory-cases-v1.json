@@ -1,0 +1,20 @@
+{
+  "format": "atmem-retrieval-quality-fixtures-v1",
+  "frozen": false,
+  "cases": [
+    {"id": "personal-exact-age", "domain": "personal_assistant", "kind": "atomic_fact", "source": "I am 45 years old.", "need": "exact_value", "required": {"subject": "user", "relation": "age", "value": "45", "polarity": "positive"}},
+    {"id": "ops-exact-account", "domain": "customer_operations", "kind": "atomic_fact", "source": "The customer account ID is ACCT-0042.", "need": "exact_value", "required": {"relation": "account_id", "value": "ACCT-0042"}},
+    {"id": "personal-rule-food", "domain": "personal_assistant", "kind": "durable_rule", "source": "When ordering food for me, never include peanuts.", "need": "rule_application", "required": {"condition": "ordering food", "prohibited_action": "include peanuts"}},
+    {"id": "ops-rule-release", "domain": "release_operations", "kind": "durable_rule", "source": "Deployment updates must be posted to #eng-releases, not #eng-all.", "need": "rule_application", "required": {"condition": "deployment update", "required_action": "post to #eng-releases", "prohibited_action": "post to #eng-all"}},
+    {"id": "agent-current-model", "domain": "agent_configuration", "kind": "environment_state", "source": "Hermes currently uses Codex OAuth with model gpt-5.4.", "need": "current_state", "required": {"relation": "model", "value": "gpt-5.4"}},
+    {"id": "ops-crm-state", "domain": "customer_operations", "kind": "environment_state", "source": "Customer C-17 is pending verification.", "need": "current_state", "required": {"relation": "status", "value": "pending verification"}},
+    {"id": "personal-preference-correction", "domain": "personal_assistant", "kind": "state_transition", "source": "I used to prefer tea. I changed my preference to coffee.", "need": "transition", "required": {"before": "tea", "action": "changed preference", "after": "coffee"}},
+    {"id": "ops-upload-transition", "domain": "document_workflow", "kind": "state_transition", "source": "Before upload no document ID existed. Upload returned DOC-91. The document list then showed DOC-91.", "need": "transition", "required": {"before": "no document ID", "action": "upload", "after": "DOC-91"}},
+    {"id": "personal-travel-procedure", "domain": "personal_assistant", "kind": "procedure", "source": "For my travel booking: first check dates, then choose an aisle seat, then request approval before purchase.", "need": "procedure", "required": {"ordered_steps": ["check dates", "choose an aisle seat", "request approval before purchase"]}},
+    {"id": "ops-release-procedure", "domain": "release_operations", "kind": "procedure", "source": "To release: run tests; if green, build artifacts; verify versions; publish only after approval.", "need": "procedure", "required": {"ordered_steps": ["run tests", "build artifacts", "verify versions", "publish after approval"]}},
+    {"id": "agent-port-gotcha", "domain": "agent_configuration", "kind": "failure_gotcha", "source": "If port 8080 is occupied, do not silently choose another port; ask before stopping the existing process.", "need": "gotcha", "required": {"trigger": "port 8080 occupied", "prohibited_action": "silently choose another port"}},
+    {"id": "ops-timeout-gotcha", "domain": "payment_operations", "kind": "failure_gotcha", "source": "A payment timeout may occur after acceptance. Reconcile the idempotency key before retrying.", "need": "gotcha", "required": {"trigger": "payment timeout", "required_action": "reconcile idempotency key"}},
+    {"id": "agent-feature-premise", "domain": "agent_configuration", "kind": "premise_constraint", "source": "This local installation has no GPU provider configured.", "need": "premise", "required": {"proposition": "GPU provider configured", "polarity": "negative"}},
+    {"id": "ops-rule-applicability", "domain": "release_operations", "kind": "premise_constraint", "source": "The production approval rule applies only to production releases, not local previews.", "need": "premise", "required": {"condition": "production release", "excluded_condition": "local preview"}}
+  ]
+}

@@ -70,7 +70,13 @@
         "fact_key": {"type": ["string", "null"]},
         "affected_record_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "preconditions": {"type": "array", "items": {"$ref": "#/$defs/precondition"}},
-        "review_required": {"type": "boolean"}
+        "review_required": {"type": "boolean"},
+        "unit": {
+          "anyOf": [
+            {"type": "null"},
+            {"allOf": [{"$ref": "../v2/memory-unit.json"}, {"properties": {"lifecycle": {"const": "proposed"}}}]}
+          ]
+        }
       },
       "additionalProperties": false
     }

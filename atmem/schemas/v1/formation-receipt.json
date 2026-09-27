@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/formation-receipt.json",
+  "type": "object",
+  "required": ["format", "formation_id", "episode_id", "source_ids", "source_events_observed", "proposals_by_kind", "admitted", "withheld", "rejected", "complete"],
+  "properties": {
+    "format": {"const": "atmem-formation-receipt-v1"},
+    "formation_id": {"type": "string", "minLength": 1},
+    "episode_id": {"type": "string", "minLength": 1},
+    "source_ids": {"type": "array", "items": {"type": "string"}},
+    "source_events_observed": {"type": "integer", "minimum": 0},
+    "proposals_by_kind": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "admitted": {"type": "integer", "minimum": 0},
+    "withheld": {"type": "integer", "minimum": 0},
+    "rejected": {"type": "integer", "minimum": 0},
+    "unsupported_parts": {"type": "array", "items": {"type": "string"}},
+    "unrepresented_ranges": {"type": "array", "items": {"type": "object"}},
+    "complete": {"type": "boolean"},
+    "reason_codes": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

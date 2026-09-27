@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/sufficiency-decision.json",
+  "type": "object",
+  "required": ["format", "decision_id", "need_id", "status", "required_slots", "covered_slots", "missing_slots", "evidence_ids"],
+  "properties": {
+    "format": {"const": "atmem-sufficiency-decision-v1"},
+    "decision_id": {"type": "string", "minLength": 1}, "need_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["sufficient", "partial", "contradictory", "stale", "unsupported"]},
+    "required_slots": {"type": "array", "items": {"type": "string"}}, "covered_slots": {"type": "array", "items": {"type": "string"}},
+    "missing_slots": {"type": "array", "items": {"type": "string"}}, "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "contradiction_ids": {"type": "array", "items": {"type": "string"}}, "reason_codes": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}
