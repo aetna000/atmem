@@ -19,6 +19,17 @@ def test_dashboard_tab_identity_and_companion_link_contract() -> None:
     assert ".logo .brandmark{display:block;width:20px;height:20px" in css
 
 
+def test_provider_summary_is_agent_neutral_with_host_specific_restore_detail() -> None:
+    script = files("atmem.control").joinpath("assets/app.js").read_text(encoding="utf-8")
+    assert 'isActive?"AtMem memory is active"' in script
+    assert '"Restore primary host"' in script
+    assert '"AtMem memory is active for "+hostName' not in script
+    assert 'text("switchBtn",isActive||needsRecovery?(isOpenClaw?"Restore OpenClaw"' not in script
+    # The confirmation remains explicit because this action restores the
+    # primary host's preserved native files, not every registered adapter.
+    assert "Restore the verified OpenClaw memory and stop AtMem memory takeover?" in script
+
+
 def test_m0_findings_are_keyboard_buttons_with_evidence_pivots() -> None:
     source = files("atmem.control").joinpath("assets/app.js").read_text(encoding="utf-8")
     assert "Evidence-linked findings" in source

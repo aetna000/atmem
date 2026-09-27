@@ -33,7 +33,11 @@ def test_blackbox_records_content_minimizing_verified_flight(tmp_path: Path) -> 
         run_id="run-1",
         session_id="session-1",
         turn_id="turn-1",
-        payload={"prompt_sha256": "0" * 64, "prompt_chars": len(prompt)},
+        payload={
+            "prompt_sha256": "0" * 64,
+            "prompt_chars": len(prompt),
+            "harness_id": "hermes:tui",
+        },
     )
     manager.record_blackbox_event(
         event_type="context.disposition",
@@ -139,6 +143,7 @@ def test_blackbox_records_content_minimizing_verified_flight(tmp_path: Path) -> 
         "claim_boundary"
     ]
     assert "email.send" in format_flight_report(report)
+    assert manager.blackbox_runs()["runs"][0]["harness_id"] == "hermes:tui"
 
 
 def test_blackbox_accepts_task_transition_metadata_but_never_raw_task_content() -> None:

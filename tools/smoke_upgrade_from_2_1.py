@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a published-version fixture, then prove 2.3.7 upgrades it safely."""
+"""Create a published-version fixture, then prove the current release upgrades it safely."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import argparse
 import importlib.metadata
 import json
 from pathlib import Path
+import re
 import sqlite3
 
 from atmem import Memory
@@ -89,9 +90,12 @@ def verify_upgrade(root: Path) -> None:
     from atmem.control.store import ENCRYPTED_CONTROL_MAGIC
 
     manifest = json.loads((root / "fixture.json").read_text(encoding="utf-8"))
-    assert importlib.metadata.version("atmem") == "2.3.7"
+    metadata = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()
+    expected_atmem = re.search(r'^version = "([^"]+)"$', metadata, re.MULTILINE).group(1)
+    expected_atflows = re.search(r'"atflows==([^" ]+)"', metadata).group(1)
+    assert importlib.metadata.version("atmem") == expected_atmem
     assert importlib.metadata.version("atmem-atbot") == "0.1.0"
-    assert importlib.metadata.version("atflows") == "0.1.3"
+    assert importlib.metadata.version("atflows") == expected_atflows
 
     database = root / "memory.db"
     memory = Memory(database)
@@ -134,7 +138,7 @@ def verify_upgrade(root: Path) -> None:
     else:
         raise AssertionError("protected control evidence remained readable as plaintext SQLite")
     assert manager.control_schema_version() == 6
-    print("AtMem persisted-state -> 2.3.7 upgrade smoke test passed")
+    print(f"AtMem persisted-state -> {expected_atmem} upgrade smoke test passed")
 
 
 def main() -> None:

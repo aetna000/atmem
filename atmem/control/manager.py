@@ -9,6 +9,7 @@ import re
 import shlex
 import sqlite3
 import sys
+import time
 from typing import Any, Mapping
 import uuid
 
@@ -355,13 +356,9 @@ class ControlPlaneManager:
                 raise ValueError("subject is not part of the current agent topology")
             return chosen
         manifest_path = Path(state.control_dir) / "openclaw-mirror.json"
-        if not manifest_path.is_file():
+        if not manifest_path.is_file() and not self._external_agents(state):
             return subject_id or state.subject_id
-        try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            raise ValueError("OpenClaw agent topology is unavailable") from exc
-        topology = manifest.get("topology") or {}
+        topology = self.authority_topology(state=state)
         agent_subjects = topology.get("agent_subjects") or {}
         known_subjects = {
             str(row.get("subject_id"))
@@ -383,20 +380,59 @@ class ControlPlaneManager:
     # Compatibility for integrations released before the host-neutral resolver.
     _resolve_openclaw_subject = _resolve_subject
 
+    def authority_topology(self, *, state: ControlState | None = None) -> dict[str, Any]:
+        """Return the mirrored host authority plus registered external agents."""
+        state = state or self.state()
+        if state.host != "openclaw":
+            return self.agent_topology(state=state)
+        manifest_path = Path(state.control_dir) / "openclaw-mirror.json"
+        if not manifest_path.is_file():
+            return self.agent_topology(state=state)
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        topology = dict(manifest.get("topology") or {})
+        external = self._external_agents(state)
+        if not external:
+            return topology
+        from atmem.control.openclaw_topology import build_agent_topology
+        agents = [
+            {
+                "agent_id": row.get("agent_id"), "name": row.get("name"),
+                "workspace": row.get("workspace"), "agent_dir": row.get("agent_dir"),
+                "model": row.get("model"), "is_default": row.get("is_default", False),
+            }
+            for row in topology.get("agents") or []
+        ]
+        known = {str(row.get("agent_id")) for row in external}
+        agents = [row for row in agents if str(row.get("agent_id")) not in known]
+        agents.extend(external)
+        return build_agent_topology(agents, base_subject_id=state.subject_id)
+
     def agent_topology(self, *, state: ControlState | None = None) -> dict[str, Any]:
         state = state or self.state()
+        cached = getattr(self, "_agent_topology_cache", None)
+        if cached is not None and time.monotonic() - cached[0] < 5.0:
+            return cached[1]
         if state.host == "openclaw":
             from atmem.control.openclaw_native import mirror_status
-            from atmem.control.openclaw_topology import discover_agent_topology
+            from atmem.control.openclaw_topology import (
+                build_agent_topology,
+                discover_openclaw_agents,
+            )
 
-            live = discover_agent_topology(base_subject_id=state.subject_id)
-            mirrored = (mirror_status(state) or {}).get("topology") or {}
+            native_agents = discover_openclaw_agents()
+            native_live = build_agent_topology(
+                native_agents, base_subject_id=state.subject_id
+            )
+            agents = [*native_agents, *self._external_agents(state)]
+            live = build_agent_topology(agents, base_subject_id=state.subject_id)
+            mirror = mirror_status(state) or {}
+            mirrored = mirror.get("topology") or {}
             matches = bool(mirrored) and all(
-                mirrored.get(key) == live.get(key)
+                mirrored.get(key) == native_live.get(key)
                 for key in ("agent_subjects", "agent_workspaces")
             )
-            verified = bool((mirror_status(state) or {}).get("audit_verified")) and matches
-            return {
+            verified = bool(mirror.get("audit_verified")) and matches
+            result = {
                 **live,
                 "verified": verified,
                 "topology_matches_mirror": matches,
@@ -407,18 +443,83 @@ class ControlPlaneManager:
                     else "Sync agents and memory so the detected topology is bound to the memory mirror."
                 ),
             }
+            self._agent_topology_cache = (time.monotonic(), result)
+            return result
         from atmem.control.topology import load_topology
 
         topology = load_topology(state.control_dir, subject_id=state.subject_id)
-        return {
+        result = {
             **topology,
             "verified": True,
             "status": "working",
             "reason": "Every registered agent is bound to an explicit memory workspace scope.",
         }
+        self._agent_topology_cache = (time.monotonic(), result)
+        return result
+
+    def _external_agents(self, state: ControlState | None = None) -> list[dict[str, Any]]:
+        """Return locally registered non-host agents without trusting file scope claims."""
+        state = state or self.state()
+        path = Path(state.control_dir) / "external-agents.json"
+        if not path.is_file():
+            return []
+        value = json.loads(path.read_text(encoding="utf-8"))
+        if value.get("format") != "atmem-external-agents-v1":
+            raise ValueError("unsupported external agent registry")
+        rows = list(value.get("agents") or [])
+        claimed = str(value.get("sha256") or "")
+        if claimed != sha256_hex(canonical_json(rows)):
+            raise ValueError("external agent registry digest mismatch")
+        return rows
+
+    def register_external_agent(
+        self, *, agent_id: str, name: str, workspace: str
+    ) -> dict[str, Any]:
+        """Idempotently add one adapter identity to the governed topology.
+
+        Reusing a host workspace intentionally shares its subject. A distinct
+        workspace creates a distinct subject, which is the installer default.
+        """
+        state = self.state()
+        self._agent_topology_cache = None
+        clean_id = str(agent_id).strip()
+        clean_workspace = str(workspace).strip()
+        if not clean_id or not clean_workspace:
+            raise ValueError("external agent requires agent_id and workspace")
+        if state.host != "openclaw":
+            topology = self.agent_topology(state=state)
+            agents = [
+                {
+                    "agent_id": row["agent_id"], "name": row.get("name") or row["agent_id"],
+                    "workspace": row["workspace"], "is_default": row.get("is_default", False),
+                    "parent_workspace": row.get("parent_workspace"),
+                }
+                for row in topology.get("agents") or []
+                if row.get("agent_id") != clean_id
+            ]
+            agents.append({"agent_id": clean_id, "name": name,
+                           "workspace": clean_workspace, "is_default": False})
+            return self.configure_agent_topology(agents)
+
+        rows = [row for row in self._external_agents(state)
+                if str(row.get("agent_id")) != clean_id]
+        rows.append({"agent_id": clean_id, "name": str(name),
+                     "workspace": clean_workspace, "is_default": False})
+        body = {"format": "atmem-external-agents-v1", "agents": rows,
+                "sha256": sha256_hex(canonical_json(rows))}
+        target = Path(state.control_dir) / "external-agents.json"
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
+        temporary.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n",
+                             encoding="utf-8")
+        temporary.chmod(0o600)
+        temporary.replace(target)
+        self._agent_topology_cache = None
+        return self.agent_topology(state=state)
 
     def configure_agent_topology(self, agents: list[dict[str, Any]]) -> dict[str, Any]:
         state = self.state()
+        self._agent_topology_cache = None
         if state.host == "openclaw":
             raise ValueError("OpenClaw agent topology is discovered from OpenClaw configuration")
         from atmem.control.topology import build_topology, write_topology
@@ -1825,8 +1926,11 @@ class ControlPlaneManager:
             manifest_path = Path(state.control_dir) / "openclaw-mirror.json"
             if manifest_path.is_file():
                 try:
-                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-                    topology = dict(manifest.get("topology") or {})
+                    json.loads(manifest_path.read_text(encoding="utf-8"))
+                    # The live topology includes separately registered adapter
+                    # identities (for example Hermes) in addition to the host
+                    # snapshot. The mirror remains the canonical database.
+                    topology = self.authority_topology(state=state)
                 except (OSError, json.JSONDecodeError) as exc:
                     raise ValueError("OpenClaw agent topology is unavailable") from exc
             else:
@@ -3836,6 +3940,7 @@ class ControlPlaneManager:
         min_score: float = 0.3,
         subject_id: str | None = None,
         agent_id: str | None = None,
+        deterministic: bool = False,
     ) -> dict[str, Any]:
         state, warning = self.effective_state()
         if warning or not state.mode.captures:
@@ -3843,6 +3948,11 @@ class ControlPlaneManager:
         subject_id = self._resolve_subject(
             state, subject_id=subject_id, agent_id=agent_id
         )
+        if deterministic:
+            return self._prepare_deterministic_context(
+                state, query=query, subject_id=subject_id, agent_id=agent_id,
+                limit=limit, max_chars=max_chars, min_score=min_score,
+            )
         store = self._store(state)
         try:
             from atmem.delegated import DelegatedBinding, DelegatedContextService
@@ -3952,7 +4062,8 @@ class ControlPlaneManager:
             from atmem.memory import Memory
 
             companion = AtBotCompanionClient()
-            expansion = companion.expand_query(query)
+            expansion = ({"expanded_queries": [query], "provider": "deterministic"}
+                         if deterministic else companion.expand_query(query))
             expanded_queries = list(expansion.get("expanded_queries") or [query])
 
             canonical_candidates = self._hybrid_memory_candidates(
@@ -3982,7 +4093,11 @@ class ControlPlaneManager:
                 if str(row["record_id"]) in supported_ids
             ]
             eligible = {str(row["record_id"]): row for row in eligible_rows}
-            ranking = companion.query(query, eligible_rows)
+            ranking = (
+                {"ranked_record_ids": list(retrieval_decision.ranked_record_ids),
+                 "provider": "deterministic", "model": "policy-ranker-v1"}
+                if deterministic else companion.query(query, eligible_rows)
+            )
             ranked_ids = list(
                 dict.fromkeys(
                     str(record_id)
@@ -4095,6 +4210,78 @@ class ControlPlaneManager:
             }
         finally:
             store.close()
+
+    def _prepare_deterministic_context(
+        self, state: ControlState, *, query: str, subject_id: str,
+        agent_id: str | None, limit: int, max_chars: int, min_score: float,
+    ) -> dict[str, Any]:
+        """Prepare governed adapter context without the telemetry control store.
+
+        The canonical memory database owns eligibility, generation validation,
+        lifecycle and serialization. Host lifecycle evidence is recorded by the
+        adapter after delivery, so a large execution ledger cannot delay recall.
+        """
+        from atmem.contracts import ContextRequest
+        from atmem.memory import Memory
+        from atmem.retrieve import decide_retrieval
+
+        candidates = self._hybrid_memory_candidates(
+            [query], subject_id=subject_id, agent_id=agent_id,
+            min_score=min_score, limit=max(50, limit * 10),
+            reranker_model="deterministic-adapter",
+        )
+        candidate_set, scope, memory_path = self._durable_candidate_set(
+            query, candidates, subject_id=subject_id, agent_id=agent_id,
+            limit=max(1, min(100, len(candidates) or 1)),
+            reranker_model="deterministic-adapter", min_score=min_score,
+        )
+        rows = [row.to_dict() for row in candidate_set.candidates]
+        decision = decide_retrieval(query, rows)
+        allowed = set(decision.ranked_record_ids)
+        available = {str(row["record_id"]) for row in rows}
+        ranked_ids = [str(record_id) for record_id in decision.ranked_record_ids
+                      if str(record_id) in available][:max(0, limit)]
+        memory = Memory(memory_path, retain_query_text=False, graph_recall=True)
+        try:
+            package = memory.prepare_context_v1(ContextRequest(
+                context_id=f"adapter_context_{uuid.uuid4().hex}",
+                candidate_set_id=candidate_set.candidate_set_id,
+                scope=scope, record_ids=tuple(ranked_ids), budget_chars=max_chars,
+            ))
+        finally:
+            memory.close()
+        context = package.context if package.record_ids else ""
+        inject = bool(context) and state.mode.influences_agent
+        return {
+            "authority": "atmem", "decision": "governed_context",
+            "native_fallback": False, "delegated": None, "mode": state.mode.value,
+            "turn_id": None, "preview_id": None,
+            "context_receipt_id": package.preparation_id,
+            "manifest_sha256": sha256_hex(canonical_json({
+                "candidate_set_id": candidate_set.candidate_set_id,
+                "preparation_id": package.preparation_id,
+                "context_sha256": package.context_sha256,
+            })),
+            "candidate_ids": list(package.record_ids),
+            "candidate_set_id": candidate_set.candidate_set_id,
+            "preparation_id": package.preparation_id,
+            "context_sha256": package.context_sha256,
+            "context": context if inject else "", "preview_context": context,
+            "inject": inject,
+            "exposure_id": package.preparation_id if inject else None,
+            "reason": None,
+            "retrieval": {
+                "queries": [query], "signals": ["lexical", "semantic", "graph", "trust", "recency"],
+                "eligible_candidate_count": len(rows),
+                "ranked_candidate_ids": ranked_ids,
+                "candidate_set_id": candidate_set.candidate_set_id,
+                "candidate_generation": candidate_set.generation,
+                "candidate_digest": candidate_set.candidate_digest,
+                "preparation_id": package.preparation_id,
+                "companion": {"provider": "deterministic", "used": False},
+                "decision": decision.to_dict(),
+            },
+        }
 
     def confirm_exposure(self, exposure_id: str) -> bool:
         state = self.state()
@@ -4275,6 +4462,9 @@ class ControlPlaneManager:
         from atmem.evidence import EvidenceService
 
         state = self.state()
+        # Re-open the protection boundary on every request. Construction checks
+        # key loss and resumes interrupted rotation before plaintext access;
+        # caching this object would bypass those fail-closed filesystem checks.
         return EvidenceService(state.control_dir, vault_id=state.migration_id)
 
     def identity_service(self):

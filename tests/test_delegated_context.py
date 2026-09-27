@@ -586,7 +586,7 @@ def test_untrusted_user_scope_failure_is_reserved_and_evidenced(tmp_path: Path) 
         store.close()
 
 
-def test_control_store_schema_six_has_no_raw_context_columns(tmp_path: Path) -> None:
+def test_control_store_schema_has_no_raw_delegated_context_columns(tmp_path: Path) -> None:
     store = ControlStore(tmp_path / "control.db")
     try:
         assert SCHEMA_VERSION == 6
@@ -624,7 +624,7 @@ def test_schema_four_upgrades_additively_and_preserves_existing_turn(tmp_path: P
     try:
         assert upgraded._conn.execute(
             "SELECT value FROM schema_meta WHERE key = 'schema_version'"
-        ).fetchone()["value"] == "6"
+        ).fetchone()["value"] == str(SCHEMA_VERSION)
         assert upgraded._conn.execute(
             "SELECT id FROM turns WHERE id = ?", (turn["id"],)
         ).fetchone() is not None

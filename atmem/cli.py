@@ -345,6 +345,29 @@ Run `atmem COMMAND --help` for command-specific examples.""",
     )
     status_parser.add_argument("--json", action="store_true")
 
+    install_parser = subparsers.add_parser(
+        "install", help="Install and connect a supported agent integration"
+    )
+    install_parser.add_argument("install_target", choices=("hermes",))
+    install_parser.add_argument(
+        "--hermes-home", default=os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))
+    )
+    install_parser.add_argument("--memory", choices=("shared", "isolated"), default="isolated")
+    install_parser.add_argument("--activate", action="store_true")
+    install_parser.add_argument(
+        "--verify-turn", action="store_true",
+        help="Run one ordinary Hermes turn and require completed AtMem evidence",
+    )
+    install_parser.add_argument("--yes", action="store_true", help="Apply the displayed setup transaction")
+    install_parser.add_argument("--endpoint", default=None)
+    install_parser.add_argument("--json", action="store_true")
+
+    hermes_parser = subparsers.add_parser("hermes", help="Install or inspect the inactive Hermes memory plugin")
+    hermes_parser.add_argument("hermes_command", choices=("install", "status"))
+    hermes_parser.add_argument("--hermes-home", default=os.environ.get("HERMES_HOME", str(Path.home() / ".hermes")))
+    hermes_parser.add_argument("--apply", action="store_true", help="Apply inactive installation; default is read-only preview")
+    hermes_parser.add_argument("--json", action="store_true")
+
     home_parser = subparsers.add_parser(
         "home", help="Inspect, verify, migrate or adopt the portable AtMem Home"
     )
@@ -377,15 +400,19 @@ Run `atmem COMMAND --help` for command-specific examples.""",
     )
     restore_parser.add_argument("home")
     restore_parser.add_argument("--json", action="store_true")
-    restore_parser.add_argument("--port", type=int, default=8766)
+    restore_parser.add_argument("--port", type=int, default=None)
     restore_parser.add_argument("--no-open", action="store_true")
+    restore_parser.add_argument(
+        "--hermes-home", default=os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))
+    )
+    restore_parser.add_argument("--yes", action="store_true")
 
     init_parser = subparsers.add_parser(
         "init", help="Initialize local AtMem and create the first Administrator"
     )
     init_parser.add_argument("--state", default=None)
     init_parser.add_argument("--json", action="store_true")
-    init_parser.add_argument("--port", type=int, default=8766)
+    init_parser.add_argument("--port", type=int, default=None)
     init_parser.add_argument(
         "--no-open",
         action="store_true",
@@ -396,7 +423,7 @@ Run `atmem COMMAND --help` for command-specific examples.""",
         "users", help="Manage local dashboard users and evidence roles"
     )
     users_parser.add_argument("--state", default=None)
-    users_parser.add_argument("--port", type=int, default=8766)
+    users_parser.add_argument("--port", type=int, default=None)
     users_parser.add_argument("--no-open", action="store_true")
     users_commands = users_parser.add_subparsers(dest="users_command")
     for name in ("list", "create", "enable", "disable", "set-role", "reset-password", "change-password", "recover-administrator"):
@@ -745,7 +772,7 @@ External evaluation:
         help="Run the local host-neutral memory, flight, audit, and switch UI",
     )
     dashboard_parser.add_argument("--state", default=None)
-    dashboard_parser.add_argument("--port", type=int, default=8766)
+    dashboard_parser.add_argument("--port", type=int, default=8768)
     dashboard_parser.add_argument("--no-open", action="store_true")
     dashboard_commands = dashboard_parser.add_subparsers(dest="dashboard_command")
     dashboard_daemon = dashboard_commands.add_parser(
@@ -757,7 +784,7 @@ External evaluation:
     for name in ("start", "open", "stop", "restart", "status", "remove"):
         command_parser = dashboard_daemon_commands.add_parser(name)
         command_parser.add_argument("--state", default=None)
-        command_parser.add_argument("--port", type=int, default=8766)
+        command_parser.add_argument("--port", type=int, default=None)
         command_parser.add_argument(
             "--json", action="store_true", help="Print machine-readable JSON"
         )
@@ -1472,7 +1499,7 @@ or input errors.""",
                 "--json", action="store_true", help="Print machine-readable JSON"
             )
         if name == "dashboard":
-            command_parser.add_argument("--port", type=int, default=8766)
+            command_parser.add_argument("--port", type=int, default=8768)
             command_parser.add_argument("--no-open", action="store_true")
         if name in {"activate", "restore"}:
             command_parser.add_argument(
@@ -1672,6 +1699,53 @@ or input errors.""",
         _run_install_status(args)
         return
 
+    if args.command == "install":
+        from atmem.hermes_install import guided_setup
+        try:
+            result = guided_setup(
+                args.hermes_home, apply=args.yes, activate=args.activate,
+                memory=args.memory, endpoint=args.endpoint,
+                verify_turn=args.verify_turn,
+            )
+        except (OSError, ValueError, RuntimeError, PackageNotFoundError) as error:
+            parser.exit(1, f"Hermes setup did not complete: {error}\n")
+        if args.json:
+            print(json.dumps(result, indent=2))
+        else:
+            print("AtMem + Hermes setup")
+            print(f"  Home          {result['hermes_home']}")
+            print(f"  Memory scope  {result['memory']}")
+            print(f"  Mode          {result.get('mode', result['requested_mode'])}")
+            print(f"  Provider      {result['previous_provider']} -> "
+                  f"{result.get('provider_after', 'atmem (planned)')}")
+            if not result["applied"]:
+                print("Preview only. Repeat with --yes after reviewing this plan.")
+            else:
+                print("Connected. Provider status verified.")
+                if result.get("verification"):
+                    print(f"  Real turn      {result['verification']['status']} and structurally complete")
+                if result.get("restart_required"):
+                    print("  Restart        Close any open Hermes TUI and start it again.")
+        return
+
+    if args.command == "hermes":
+        from atmem.hermes_install import install
+        if args.apply and args.hermes_command != "install":
+            parser.error("--apply is only supported by hermes install")
+        try:
+            result = install(args.hermes_home, apply=args.apply)
+        except (OSError, ValueError, RuntimeError, PackageNotFoundError) as error:
+            parser.exit(1, f"Hermes setup did not complete: {error}\nRun atmem hermes status with the same --hermes-home to check whether publication occurred.\n")
+        if args.json:
+            print(json.dumps(result, indent=2))
+        else:
+            print(f"Hermes plugin: {result['state']}\nLocation: {result['target']}")
+            print("Installed (inactive)." if result["applied"] else "Read-only check; no files changed.")
+            print(result["next_step"])
+            if args.hermes_command == "install" and not args.apply and result["state"] == "not_installed":
+                print("Repeat this command with --apply to install. No provider selection or credentials will change.")
+        return
+
     if args.command == "init":
         _run_identity_init(args)
         return
@@ -1684,6 +1758,20 @@ or input errors.""",
         return
 
     if args.command == "restore":
+        if args.home == "hermes":
+            from atmem.hermes_install import guided_restore
+            try:
+                result = guided_restore(args.hermes_home, apply=args.yes)
+            except (OSError, ValueError, RuntimeError) as error:
+                parser.exit(1, f"Hermes restore did not complete: {error}\n")
+            if args.json:
+                print(json.dumps(result, indent=2))
+            else:
+                print("AtMem + Hermes restore")
+                print(f"  Provider  {result['current_provider']} -> {result['restore_provider']}")
+                print("Restored." if result["applied"] else
+                      "Preview only. Repeat with --yes after reviewing this plan.")
+            return
         _run_restore_home(args)
         return
 
@@ -4358,18 +4446,19 @@ def _print_bootstrap(value: dict[str, Any]) -> None:
 
 
 def _available_loopback_port(preferred: int) -> int:
-    """Pick a local fallback if a previous or unrelated process owns the port."""
+    """Require the selected local port; never silently drift to another port."""
     if not 1 <= preferred <= 65535:
         raise ValueError("dashboard port must be between 1 and 65535")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             probe.bind(("127.0.0.1", preferred))
             return preferred
-        except OSError:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as fallback:
-                fallback.bind(("127.0.0.1", 0))
-                return int(fallback.getsockname()[1])
+        except OSError as exc:
+            raise ValueError(
+                f"AtMem dashboard port {preferred} is occupied. Review the owning "
+                "process and confirm before stopping it; AtMem will not choose a "
+                "random replacement port."
+            ) from exc
 
 
 def _run_identity_init(args: argparse.Namespace) -> None:
@@ -4387,7 +4476,9 @@ def _run_identity_init(args: argparse.Namespace) -> None:
         if daemon.get("running") and daemon.get("restart_required"):
             daemon = manage_dashboard_daemon("restart")
         elif not daemon.get("running"):
-            selected_port = _available_loopback_port(int(args.port))
+            selected_port = _available_loopback_port(
+                int(args.port if args.port is not None else daemon.get("port") or 8768)
+            )
             daemon = manage_dashboard_daemon("start", port=selected_port, control_state_path=args.state)
     except (OSError, ValueError) as exc:
         service_errors.append(f"AtMem dashboard: {exc}")
@@ -4417,8 +4508,6 @@ def _run_identity_init(args: argparse.Namespace) -> None:
     print(f"  AtFlows            {flows.get('dashboard_url') if flows.get('running') else 'not running'}")
     print(f"  AtFlows proxy      {flows.get('proxy_url') if flows.get('running') else 'not running'}")
     print(f"  AtBot              {'safe fallback (model assistance off)' if bot.get('fallback_selected') else 'ready' if bot.get('available') else 'safe fallback (model-assisted features not configured)'}")
-    if int(args.port) != int(daemon.get("port") or args.port):
-        print(f"  Port note          {args.port} was unavailable; AtMem selected {daemon['port']}.")
     for error in service_errors:
         print(f"  ACTION             {error}")
     if flows.get("warning"):

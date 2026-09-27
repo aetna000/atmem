@@ -1517,7 +1517,7 @@ def activate_takeover(
             raise ValueError(
                 "AtMem found an interrupted OpenClaw switch "
                 f"(status: {status_name}). Native memory may already be "
-                "frozen. Choose Restore OpenClaw in the dashboard or run "
+                "frozen. Choose Restore primary host in the dashboard or run "
                 "`atmem control restore`; restoration verifies the saved "
                 "files before another activation is allowed."
             )
@@ -3137,7 +3137,7 @@ def _cutover_public(value: dict[str, Any]) -> dict[str, Any]:
     if public["requires_restore"]:
         public["recovery_message"] = (
             "A previous OpenClaw switch did not reach a verified terminal "
-            "state. Restore OpenClaw before trying activation again."
+            "state. Restore the primary host before trying activation again."
         )
     snapshot = value.get("native_snapshot")
     if isinstance(snapshot, dict):

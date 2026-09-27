@@ -84,7 +84,7 @@ def test_disabled_retired_duplicate_and_unknown_actions_stop_the_host(running):
 def test_actual_langgraph_requires_sync_and_preserves_completed_result(running, tmp_path):
     pytest.importorskip("langgraph")
     from langgraph.graph import StateGraph, START, END
-    from langgraph.checkpoint.sqlite import SqliteSaver
+    SqliteSaver = pytest.importorskip("langgraph.checkpoint.sqlite").SqliteSaver
     class State(TypedDict):
         messages: Annotated[list, operator.add]
     effects = []

@@ -1,6 +1,6 @@
 # AtMem
 
-[![Version 2.3.7](https://img.shields.io/badge/version-2.3.7-blue)](./docs/releases/v2.3.7.md)
+[![Version 2.3.8b6](https://img.shields.io/badge/version-2.3.8b6-blue)](./docs/releases/v2.3.8b6.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
@@ -399,7 +399,7 @@ evidence, activate AtMem, and return it to shadow.
 ## Dashboard
 
 ```bash
-atmem dashboard daemon start   # http://127.0.0.1:8766/
+atmem dashboard daemon start   # http://127.0.0.1:8768/ on a new install; existing daemon ports are preserved
 atmem dashboard daemon open
 atmem dashboard daemon status
 atmem dashboard daemon restart

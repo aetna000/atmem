@@ -168,6 +168,8 @@ def ensure_started(atmem_url: str, *, timeout: float = 60.0) -> dict[str, Any]:
     environment["ATFLOWS_ATMEM_AUTH_URL"] = atmem_url.rstrip("/")
     environment["DASHBOARD_HOST"] = "127.0.0.1"
     environment["PROXY_HOST"] = "127.0.0.1"
+    environment["DASHBOARD_PORT"] = "1337"
+    environment["PROXY_PORT"] = "8080"
     environment.pop("ATFLOWS_ADMIN_PASSWORD", None)
     environment.pop("ATFLOWS_SETUP_TOKEN", None)
     environment.pop("ATFLOWS_SETUP_PREFILL_PASSWORD", None)
