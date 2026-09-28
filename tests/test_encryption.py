@@ -190,7 +190,8 @@ def test_fresh_encrypted_household_bootstrap_is_fail_closed(
     assert database.read_bytes().startswith(b"SQLCIPHER")
     policy = HouseholdPolicy.load(database)
     assert policy.state == "encrypted"
-    assert key_path.stat().st_mode & 0o777 == 0o600
+    if os.name != "nt":
+        assert key_path.stat().st_mode & 0o777 == 0o600
 
 
 def test_encrypted_bootstrap_refuses_existing_plaintext(tmp_path: Path) -> None:
