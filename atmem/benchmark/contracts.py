@@ -14,6 +14,9 @@ EXTERNAL_FORMAT = "atmem-benchmark-external-results-v1"
 SCORING_FORMAT = "atmem-memory-quality-scoring-v1"
 RETRIEVAL_PROTOCOL_FORMAT = "atmem-retrieval-quality-protocol-v1"
 QUESTION_SPLIT_FORMAT = "atmem-longmemeval-v2-question-split-v1"
+LONGMEM_PILOT_FORMAT = "atmem-longmemeval-v2-pilot-v1"
+DOLPHIN_SPLIT_FORMAT = "atmem-dolphinbench-task-split-v1"
+PROVIDER_ROUTE_PROBE_FORMAT = "atmem-provider-route-probe-v1"
 _CATEGORIES = {
     "extraction",
     "contradiction",
@@ -164,6 +167,96 @@ def validate_question_split(
     return split
 
 
+def validate_longmem_pilot(
+    value: Mapping[str, Any], *, split: Mapping[str, Any]
+) -> dict[str, Any]:
+    pilot = dict(value)
+    if pilot.get("format") != LONGMEM_PILOT_FORMAT:
+        raise ValueError(f"pilot format must be {LONGMEM_PILOT_FORMAT}")
+    validated_split = validate_question_split(split)
+    identifiers = _identifier_set(pilot.get("question_ids"), "pilot question_ids")
+    if identifiers - set(validated_split["development_ids"]):
+        raise ValueError("pilot may contain development question IDs only")
+    if int(pilot.get("question_count", -1)) != len(identifiers):
+        raise ValueError("pilot question count does not match its IDs")
+    if pilot.get("confirmation_overlap") != 0:
+        raise ValueError("pilot must not overlap confirmation")
+    if pilot.get("question_split_sha256") != validated_split.get("split_sha256"):
+        raise ValueError("pilot names a different frozen question split")
+    stable = {key: item for key, item in pilot.items() if key != "pilot_sha256"}
+    expected = hashlib.sha256(canonical_json(stable).encode("utf-8")).hexdigest()
+    if pilot.get("pilot_sha256") != expected:
+        raise ValueError("pilot digest does not match its canonical content")
+    _reject_secrets(pilot, "longmem_pilot")
+    return pilot
+
+
+def validate_dolphin_split(value: Mapping[str, Any]) -> dict[str, Any]:
+    split = dict(value)
+    if split.get("format") != DOLPHIN_SPLIT_FORMAT:
+        raise ValueError(f"DolphinBench split format must be {DOLPHIN_SPLIT_FORMAT}")
+    development = _identifier_set(split.get("development_ids"), "development_ids")
+    confirmation = _identifier_set(split.get("confirmation_ids"), "confirmation_ids")
+    if development & confirmation:
+        raise ValueError("DolphinBench development and confirmation tasks overlap")
+    personas = dict(split.get("personas") or {})
+    if set(personas) != {"alex", "morgan", "riley"}:
+        raise ValueError("DolphinBench split must contain all three official personas")
+    combined = development | confirmation
+    for persona, counts in personas.items():
+        prefix = f"{persona}:"
+        dev_count = sum(item.startswith(prefix) for item in development)
+        confirmation_count = sum(item.startswith(prefix) for item in confirmation)
+        if (
+            int(counts.get("development", -1)) != dev_count
+            or int(counts.get("confirmation", -1)) != confirmation_count
+            or int(counts.get("total", -1)) != dev_count + confirmation_count
+        ):
+            raise ValueError(f"DolphinBench counts differ for {persona}")
+    if len(combined) != 600 or any(counts.get("development") != 6 for counts in personas.values()):
+        raise ValueError("DolphinBench split must freeze 6 development tasks per persona and all 600 tasks")
+    stable = {key: item for key, item in split.items() if key != "split_sha256"}
+    expected = hashlib.sha256(canonical_json(stable).encode("utf-8")).hexdigest()
+    if split.get("split_sha256") != expected:
+        raise ValueError("DolphinBench split digest does not match its canonical content")
+    _reject_secrets(split, "dolphin_split")
+    return split
+
+
+def validate_provider_route_probe(value: Mapping[str, Any]) -> dict[str, Any]:
+    probe = dict(value)
+    if probe.get("format") != PROVIDER_ROUTE_PROBE_FORMAT:
+        raise ValueError(f"provider probe format must be {PROVIDER_ROUTE_PROBE_FORMAT}")
+    stable = {key: item for key, item in probe.items() if key != "probe_sha256"}
+    expected = hashlib.sha256(canonical_json(stable).encode("utf-8")).hexdigest()
+    if probe.get("probe_sha256") != expected:
+        raise ValueError("provider route probe digest does not match its canonical content")
+    routes = dict(probe.get("routes") or {})
+    expected_routes = {
+        "reader": ("Qwen/Qwen3.5-9B", "deepinfra"),
+        "embedding": ("Qwen/Qwen3-Embedding-8B", "scaleway"),
+        "judge": ("gpt-5.2-2025-12-11", "openai-direct"),
+    }
+    if set(routes) != set(expected_routes):
+        raise ValueError("provider route probe must contain reader, embedding and judge")
+    for name, (model, provider_route) in expected_routes.items():
+        row = dict(routes[name] or {})
+        if (
+            row.get("outcome") != "succeeded"
+            or row.get("status") != 200
+            or row.get("model") != model
+            or row.get("provider_route") != provider_route
+            or row.get("content_retained") is not False
+            or (
+                name == "embedding"
+                and row.get("transport") != "openai-compatible-v1-embeddings"
+            )
+        ):
+            raise ValueError(f"provider route probe is not valid for {name}")
+    _reject_secrets(probe, "provider_route_probe")
+    return probe
+
+
 def validate_retrieval_quality_protocol(
     value: Mapping[str, Any],
     *,
@@ -173,6 +266,10 @@ def validate_retrieval_quality_protocol(
     paid_configurations: int = 0,
     unregistered_retries: int = 0,
     for_paid_run: bool = False,
+    for_pilot_run: bool = False,
+    pilot: Mapping[str, Any] | None = None,
+    dolphin_split: Mapping[str, Any] | None = None,
+    route_probe: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Fail closed on incomplete or leakage-prone retrieval protocols.
 
@@ -240,6 +337,14 @@ def validate_retrieval_quality_protocol(
     if visual.get("official_complete_score_includes_visual_cases") is not True:
         raise ValueError("official complete score must include visual cases")
     datasets = dict(protocol["datasets"])
+    dolphin = dict(datasets.get("dolphinbench") or {})
+    for key in ("repository", "source_commit", "development_split_file", "grader_provider", "grader_model"):
+        if not str(dolphin.get(key) or "").strip():
+            raise ValueError(f"DolphinBench protocol is missing {key}")
+    if dolphin_split is not None:
+        validated_dolphin = validate_dolphin_split(dolphin_split)
+        if validated_dolphin["source_commit"] != dolphin["source_commit"]:
+            raise ValueError("DolphinBench protocol and split commits differ")
     locomo = dict(datasets.get("locomo") or {})
     if not all(str(locomo.get(key) or "").strip() for key in ("repository", "source_ref", "manifest", "role")):
         raise ValueError("LoCoMo no-regression protocol is incomplete")
@@ -270,6 +375,88 @@ def validate_retrieval_quality_protocol(
             or "must-be-pinned" in reader_revision
         ):
             raise ValueError("paid run protocol still has unpinned model, prompt, route, hardware or comparator settings")
+    if for_pilot_run:
+        if pilot is None or dolphin_split is None or route_probe is None:
+            raise ValueError(
+                "pilot run requires both frozen pilot manifests and provider evidence"
+            )
+        validate_longmem_pilot(pilot, split=validated_split)
+        validate_dolphin_split(dolphin_split)
+        requirements = dict(protocol.get("paid_run_requirements") or {})
+        required = (
+            "official_harness_sha256", "reader_prompt_sha256",
+            "judge_prompt_sha256", "provider_route",
+            "provider_route_probe_sha256", "hardware_profile",
+            "comparator_config_sha256", "official_code_combined_sha256",
+            "embedding_proxy_sha256",
+        )
+        values = [str(requirements.get(key) or "") for key in required]
+        verified_probe = validate_provider_route_probe(route_probe)
+        if verified_probe["probe_sha256"] != requirements.get(
+            "provider_route_probe_sha256"
+        ):
+            raise ValueError("provider evidence differs from the frozen protocol")
+        code_files = dict(requirements.get("official_code_files") or {})
+        combined = hashlib.sha256(canonical_json(code_files).encode("utf-8")).hexdigest()
+        if combined != requirements.get("official_code_combined_sha256"):
+            raise ValueError("official code file pins do not match their combined digest")
+        if requirements.get("reader_prompt_sha256") == requirements.get(
+            "official_harness_sha256"
+        ):
+            raise ValueError("reader prompt and harness pins must identify separate artifacts")
+        models = dict(protocol.get("models") or {})
+        model_revisions = [
+            str(dict(models.get(name) or {}).get("revision") or "")
+            for name in ("longmemeval_reader", "official_rag_controller", "official_rag_embedding")
+        ]
+        expected_models = {
+            "longmemeval_reader": (
+                "Qwen/Qwen3.5-9B:deepinfra", "deepinfra",
+                "https://router.huggingface.co/v1",
+            ),
+            "official_rag_controller": (
+                "Qwen/Qwen3.5-9B:deepinfra", "deepinfra",
+                "https://router.huggingface.co/v1",
+            ),
+            "official_rag_embedding": (
+                "Qwen/Qwen3-Embedding-8B:scaleway", "scaleway",
+                "https://router.huggingface.co/v1",
+            ),
+        }
+        for name, (model, route, base_url) in expected_models.items():
+            row = dict(models.get(name) or {})
+            if row.get("model") != model or row.get("provider_route") != route:
+                raise ValueError(f"pilot model route is not pinned for {name}")
+            if base_url is not None and row.get("base_url") != base_url:
+                raise ValueError(f"pilot base URL is not pinned for {name}")
+        judge = dict(models.get("longmemeval_judge") or {})
+        if (
+            judge.get("revision") != "gpt-5.2-2025-12-11"
+            or judge.get("model") != judge.get("revision")
+        ):
+            raise ValueError("pilot judge must use the probed dated model snapshot")
+        caps = [
+            requirements.get("pilot_hf_cost_cap_usd"),
+            requirements.get("pilot_openai_cost_cap_usd"),
+            requirements.get("pilot_total_cost_cap_usd"),
+        ]
+        case_reservations = [
+            requirements.get("pilot_hf_case_reservation_usd"),
+            requirements.get("pilot_openai_case_reservation_usd"),
+        ]
+        if (
+            protocol.get("status") != "development-pilot-ready"
+            or any(not value or "pending" in value for value in values + model_revisions)
+            or any(not isinstance(cap, (int, float)) or cap <= 0 for cap in caps)
+            or any(
+                not isinstance(value, (int, float)) or value <= 0
+                for value in case_reservations
+            )
+            or float(case_reservations[0]) > float(caps[0])
+            or float(case_reservations[1]) > float(caps[1])
+            or abs(float(caps[0]) + float(caps[1]) - float(caps[2])) > 1e-9
+        ):
+            raise ValueError("pilot run protocol still has an unverified route, pin or cost cap")
     if external_root is not None:
         requested_root = Path(external_root).expanduser()
         if not requested_root.is_absolute():

@@ -199,9 +199,11 @@ _TYPED_KINDS_BY_NEED = {
     'exact_fact': {'atomic_fact'},
     'current_state': {'environment_state', 'atomic_fact'},
     'state_change': {'state_transition', 'environment_state'},
-    'ordered_task': {'procedure'},
-    'exception_risk': {'failure_gotcha', 'durable_rule'},
-    'rule_application': {'durable_rule', 'failure_gotcha'},
+    # Exact structured observations may contain explicit goal/actions/outcome
+    # fields without being promoted into executable procedure/rule memory.
+    'ordered_task': {'procedure', 'environment_state'},
+    'exception_risk': {'failure_gotcha', 'durable_rule', 'environment_state'},
+    'rule_application': {'durable_rule', 'failure_gotcha', 'environment_state'},
     'assumption_check': {'premise_constraint', 'atomic_fact'},
     'relational_synthesis': {
         'atomic_fact', 'durable_rule', 'environment_state', 'state_transition',

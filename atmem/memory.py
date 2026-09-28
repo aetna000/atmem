@@ -1011,12 +1011,42 @@ class Memory:
             else (fact if fact is not None else str(proposal.fact or ""))
         )
         if proposal.unit is not None:
-            source = self.store.get_protocol_source_by_id(
-                proposal.unit.evidence[0].source_id
-            )
-            if source is None:
+            typed_sources = [
+                self.store.get_protocol_source_by_id(item.source_id)
+                for item in proposal.unit.evidence
+            ]
+            if not typed_sources or any(source is None for source in typed_sources):
                 raise ValueError("typed proposal source was not durably captured")
-            episode_id = str(source["episode_id"])
+            source_rows = [source for source in typed_sources if source is not None]
+            episode_id = str(source_rows[0]["episode_id"])
+            source_types = {
+                str(source["request"].get("source_type") or "external_content")
+                for source in source_rows
+            }
+            source_assurances = {
+                str(source["request"].get("binding_assurance") or "")
+                for source in source_rows
+            }
+            native_source_type = (
+                next(iter(source_types)) if len(source_types) == 1
+                else "external_content"
+            )
+            trusted_user_source = source_types <= {"user_message", "agent_message"} and (
+                source_assurances <= {
+                    "caller_asserted", "host_asserted", "host_authenticated",
+                    "verified_by_atmem"
+                }
+            )
+            asserted_observation = source_types == {"tool_output"} and (
+                source_assurances <= {
+                    "host_asserted", "host_authenticated", "verified_by_atmem"
+                }
+            )
+            native_trust_tier = (
+                "trusted_user" if trusted_user_source
+                else "host_asserted_observation" if asserted_observation
+                else TRUST_TIER_UNTRUSTED
+            )
         else:
             episode_id = self.store.insert_episode(
                 subject_id=proposal.scope.subject_id,
@@ -1039,6 +1069,11 @@ class Memory:
                     ],
                 },
             )
+            # Legacy extraction proposals are governed by their existing
+            # validation/review path. This branch has no captured native source
+            # envelope from which to derive a stricter origin tier.
+            native_source_type = "user_message"
+            native_trust_tier = "trusted_user"
         targets = [
             row
             for row in context.records
@@ -1049,7 +1084,8 @@ class Memory:
             for row in targets
             for label in ((row.get("raw") or {}).get("taint_labels") or ())
         }
-        parent_tainted = bool(parent_taint_labels) or any(
+        native_tainted = native_trust_tier == TRUST_TIER_UNTRUSTED
+        parent_tainted = native_tainted or bool(parent_taint_labels) or any(
             str(row.get("trust_tier")) == TRUST_TIER_UNTRUSTED
             or str(row.get("status")) != "active"
             for row in targets
@@ -1066,8 +1102,10 @@ class Memory:
         record_id = self.store.insert_record(
             subject_id=proposal.scope.subject_id,
             content=content,
-            source_type="external_content" if parent_tainted else "user_message",
-            trust_tier=TRUST_TIER_UNTRUSTED if parent_tainted else "trusted_user",
+            source_type=native_source_type,
+            trust_tier=(
+                TRUST_TIER_UNTRUSTED if parent_tainted else native_trust_tier
+            ),
             source_session_id=session_id,
             source_turn_id=turn,
             episode_id=episode_id,
@@ -1172,6 +1210,40 @@ class Memory:
             "budget": active_budget.to_dict(),
         }
 
+    def memory_checkpoint(self, scope: Any) -> dict[str, Any]:
+        """Return a content-free identity for authority-bearing memory state.
+
+        Retrieval telemetry, candidate sets and audit events are deliberately
+        excluded, so a read-only evaluation can prove that canonical memory did
+        not change even though the black box recorded the read.
+        """
+        from atmem.contracts import AuthorityScope
+
+        if not isinstance(scope, AuthorityScope):
+            raise TypeError("scope must be AuthorityScope")
+        records = [
+            row for row in self.store.list_records(scope.subject_id, statuses=None)
+            if str(row.get("authority_workspace_id") or scope.workspace_id)
+            == scope.workspace_id
+        ]
+        identity = [
+            {
+                "record_id": str(row["id"]),
+                "status": str(row["status"]),
+                "generation": int(row.get("generation") or 0),
+                "content_sha256": f"sha256:{sha256_hex(str(row.get('content') or ''))}",
+                "raw_sha256": f"sha256:{sha256_hex(canonical_json(row.get('raw') or {}))}",
+            }
+            for row in records
+        ]
+        return {
+            "format": "atmem-canonical-memory-checkpoint-v1",
+            "scope": scope.to_dict(),
+            "generation": self.store.record_generation(scope.subject_id),
+            "record_count": len(identity),
+            "records_sha256": f"sha256:{sha256_hex(canonical_json(identity))}",
+        }
+
     def form_episode(self, request: Any, *, budget: Any = None) -> dict[str, Any]:
         """Losslessly capture an episode, then conservatively form typed units."""
         from atmem.contracts import (
@@ -1200,11 +1272,21 @@ class Memory:
         processed_bytes = 0
         proposed_count = 0
         budget_withheld = 0
+        media_references: list[dict[str, Any]] = []
         stage_started_at = utc_now()
         started = time.monotonic()
         for part in request.parts:
             if part.content is None:
-                unsupported.append(part.part_id)
+                if part.kind == "media_reference" and source_ids:
+                    media_references.append({
+                        "part_id": part.part_id,
+                        "ordinal": part.ordinal,
+                        "reference_id": part.reference_id,
+                        "reference_sha256": part.reference_sha256,
+                        "adjacent_source_id": source_ids[-1],
+                    })
+                else:
+                    unsupported.append(part.part_id)
                 continue
             source_id = f"source-{sha256_hex(f'{request.episode_id}:{part.part_id}')[:24]}"
             source_ids.append(source_id)
@@ -1242,6 +1324,7 @@ class Memory:
                 source_id=source_id,
                 formation_id=formation_id,
                 observed_at=part.observed_at,
+                part_kind=part.kind,
             ) if request.retain_body else ()
             if not proposals:
                 unrepresented.append({
@@ -1256,12 +1339,20 @@ class Memory:
                     budget_withheld += 1
                     continue
                 proposed_count += 1
+                review_policy = None
+                if (
+                    request.binding_assurance == "host_asserted"
+                    and part.kind in {"state", "tool"}
+                ):
+                    from atmem.extract.review import ReviewPolicy
+                    review_policy = ReviewPolicy(quarantine_non_durable=False)
                 outcomes.append(self.submit_extraction_proposal(
                     proposal,
                     source_text=part.content,
                     session_id=request.session_id,
                     turn_id=request.turn_id,
                     actor=f"formation:{request.scope.agent_id}",
+                    review_policy=review_policy,
                 ))
 
         admitted = sum(item["review_state"] == "committed" for item in outcomes)
@@ -1278,6 +1369,7 @@ class Memory:
             rejected=rejected,
             unsupported_parts=tuple(unsupported),
             unrepresented_ranges=tuple(unrepresented),
+            media_references=tuple(media_references),
             complete=bool(outcomes) and not unsupported and not unrepresented
             and rejected == 0 and budget_withheld == 0,
             reason_codes=tuple(
@@ -1767,6 +1859,18 @@ class Memory:
             generation=generation,
             preparation_id=preparation_id,
         )
+        if result.source_ids:
+            from dataclasses import replace
+            result = replace(
+                result,
+                media_references=tuple(
+                    self.store.media_references_for_sources(
+                        scope.subject_id,
+                        scope.workspace_id,
+                        list(result.source_ids),
+                    )
+                ),
+            )
         self._record_retrieval_stage(
             scope=scope,
             request_id=preparation_id,

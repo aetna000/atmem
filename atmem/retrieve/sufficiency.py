@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import json
 
 from atmem.contracts import InformationNeed, SufficiencyDecision
 from atmem.core.canonical import canonical_json, sha256_hex
@@ -92,15 +93,35 @@ def decide_sufficiency(
 def covered_slots(kind: str, payload: dict, unit: dict) -> set[str]:
     present = lambda name: payload.get(name) not in (None, "", [], {})
     if kind == "atomic_fact":
-        return {name for name in ("subject", "relation", "value") if present(name)}
+        result = {name for name in ("subject", "relation", "value") if present(name)}
+        if present("subject"):
+            result.add("entity")
+        if present("value"):
+            result.update({"current_value", "validity"})
+        return result
     if kind == "environment_state":
         result = {"validity"}
         if present("entity"):
-            result.add("entity")
+            result.update({"entity", "subject"})
         if present("relation"):
             result.add("relation")
         if present("value"):
-            result.add("current_value")
+            result.update({"current_value", "value"})
+            # Structured host observations remain environment evidence, but
+            # their explicit fields can satisfy the matching information need
+            # without promoting them into an executable action constraint.
+            value = payload.get("value")
+            try:
+                structured = json.loads(value) if isinstance(value, str) else value
+            except json.JSONDecodeError:
+                structured = None
+            if isinstance(structured, dict):
+                if structured.get("goal"):
+                    result.add("goal")
+                if isinstance(structured.get("actions"), list) and structured["actions"]:
+                    result.add("ordered_steps")
+                if structured.get("outcome") not in (None, ""):
+                    result.add("completion")
         return result
     if kind == "state_transition":
         result = {name for name in ("entity", "before", "action", "after") if present(name)}

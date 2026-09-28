@@ -251,11 +251,18 @@ customer secrets in audit metadata.
   SQLite file casually.
 - Anchor audit checkpoints outside the AtMem database if you need evidence of
   tail truncation, for example in object-lock storage or a transparency system.
-- This release can open an encrypted household only when SQLCipher, encryption
-  state, and keys have been separately provisioned; it does not ship the
-  migration tooling that converts an existing plaintext database. Use protected
-  volumes and tested key management, and never promise application-level
-  encryption based only on the presence of the runtime support.
+- SQLCipher remains an explicitly provisioned optional runtime. Check it with
+  `atmem household status PATH`. Create a new protected database with
+  `atmem household init PATH --encrypted`, or stop all writers and convert an
+  existing plaintext database with `atmem household migrate PATH`. Migration
+  verifies source/candidate integrity and table counts, performs atomic
+  same-directory replacement, removes its temporary plaintext backup after
+  verification, and fails closed if interrupted. Exercise backup and recovery
+  with the exact SQLCipher build used in production. If interruption leaves a
+  verified plaintext migration backup, `status` reports it and the next
+  `migrate` invocation reconciles and removes it. File deletion is not secure
+  erasure: APFS/NTFS snapshots, Time Machine, volume snapshots and external
+  backups can retain the old plaintext and must follow your retention policy.
 
 See [data storage and backup](data-storage-and-backup.md) and the
 [audit log specification](audit-log-spec.md).

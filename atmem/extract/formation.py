@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import asdict
 from typing import Any
@@ -100,6 +101,7 @@ def form_typed_proposals(
     formation_id: str,
     confidence: float = 1.0,
     observed_at: str | None = None,
+    part_kind: str = "text",
 ) -> tuple[ExtractionProposal, ...]:
     """Form only structures whose complete fields occur in the source.
 
@@ -117,6 +119,36 @@ def form_typed_proposals(
         excerpt_sha256=f"sha256:{sha256_hex(text)}",
     )
     candidates: list[tuple[MemoryUnitKind, Any, MemoryClass, str | None]] = []
+
+    # Hosts may identify a lossless part as structured state or tool output.
+    # Preserve the exact JSON as state without application-specific extraction.
+    if part_kind in {"state", "tool"}:
+        try:
+            structured = json.loads(text)
+        except (TypeError, json.JSONDecodeError):
+            structured = None
+        if isinstance(structured, (dict, list)):
+            entity = "structured event"
+            relation = "structured event"
+            fact_relation = relation
+            if isinstance(structured, dict):
+                if structured:
+                    relation = str(next(iter(structured)))
+                    fact_relation = relation
+                for key in ("id", "name", "title", "url"):
+                    value = structured.get(key)
+                    if isinstance(value, (str, int, float)) and str(value).strip():
+                        entity = str(value).strip()
+                        break
+                state_index = structured.get("state_index")
+                if isinstance(state_index, int) and not isinstance(state_index, bool):
+                    fact_relation = f"{relation}:{state_index}"
+            candidates.append((
+                MemoryUnitKind.ENVIRONMENT_STATE,
+                EnvironmentStatePayload(entity, relation, text),
+                MemoryClass.TEMPORARY_STATE,
+                _fact_key(entity, fact_relation),
+            ))
 
     steps = _NUMBERED_STEP.findall(source)
     goal_match = re.match(r"(?:to|procedure for)\s+(.+?),\s*1[.)]", source, re.I)

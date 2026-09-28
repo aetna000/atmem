@@ -1,7 +1,7 @@
 {
   "format": "atmem-retrieval-quality-protocol-v1",
   "release": "2.3.8",
-  "status": "question-split-frozen-model-pins-pending",
+  "status": "development-pilot-ready",
   "external_artifact_root_env": "ATMEM_BENCHMARK_ROOT",
   "maximum_complete_paid_configurations": 20,
   "target_complete_paid_configurations": 8,
@@ -10,7 +10,7 @@
     "development_question_ids": 134,
     "confirmation_question_ids": 317,
     "split_fraction": "approximately 30/70, stratified by domain and official ability",
-    "primary_confirmation_arm": "typed-selected-optional-intelligence, frozen once from development evidence before confirmation access",
+    "primary_confirmation_arm": "typed-local, frozen once from development evidence before confirmation access",
     "primary_estimand": "paired absolute accuracy difference: primary confirmation arm minus matched official rag_query_to_slice_notes",
     "minimum_effect_percentage_points": 5,
     "interval": "95% paired bootstrap confidence interval over confirmation question IDs",
@@ -31,8 +31,13 @@
     },
     "dolphinbench": {
       "repository": "https://github.com/mem0ai/dolphinbench",
-      "source_commit": null,
-      "status": "research-only-until-pinned-and-approved"
+      "source_commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
+      "development_split_file": "dolphinbench-task-split-v1.json",
+      "pilot_tasks_per_persona": 6,
+      "grader_provider": "azure-openai",
+      "grader_model": "gpt-5.6-sol",
+      "grader_reasoning_effort": "medium",
+      "status": "development-split-frozen-official-grader-credentials-required"
     },
     "locomo": {
       "repository": "https://github.com/snap-research/locomo",
@@ -49,17 +54,88 @@
     }
   },
   "models": {
-    "longmemeval_reader": {"provider": "huggingface-inference", "model": "Qwen/Qwen3.5-9B", "revision": "must-be-pinned-before-paid-run"},
-    "longmemeval_judge": {"provider": "openai", "model": "gpt-5.2", "reasoning_effort": "medium", "revision": "provider-response-identity-required"}
+    "longmemeval_reader": {
+      "provider": "huggingface-inference-providers",
+      "provider_route": "deepinfra",
+      "base_url": "https://router.huggingface.co/v1",
+      "model": "Qwen/Qwen3.5-9B:deepinfra",
+      "repository_model": "Qwen/Qwen3.5-9B",
+      "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+      "enable_thinking": true,
+      "max_completion_tokens": 20000,
+      "memory_context_max_tokens": 200000,
+      "timeout_seconds": 43200,
+      "temperature": 0.6,
+      "top_p": 0.95,
+      "top_k": 20
+    },
+    "official_rag_controller": {
+      "provider": "huggingface-inference-providers",
+      "provider_route": "deepinfra",
+      "base_url": "https://router.huggingface.co/v1",
+      "model": "Qwen/Qwen3.5-9B:deepinfra",
+      "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+      "max_completion_tokens": 8192,
+      "timeout_seconds": 600,
+      "max_retries": 3,
+      "disable_thinking": false,
+      "temperature": 0.6,
+      "top_p": 0.95,
+      "top_k": 20
+    },
+    "official_rag_embedding": {
+      "provider": "huggingface-inference-providers",
+      "provider_route": "scaleway",
+      "base_url": "https://router.huggingface.co/v1",
+      "model": "Qwen/Qwen3-Embedding-8B:scaleway",
+      "repository_model": "Qwen/Qwen3-Embedding-8B",
+      "revision": "1d8ad4ca9b3dd8059ad90a75d4983776a23d44af",
+      "max_input_tokens": 4096
+    },
+    "longmemeval_judge": {
+      "provider": "openai",
+      "model": "gpt-5.2-2025-12-11",
+      "reasoning_effort": "medium",
+      "max_completion_tokens": 4096,
+      "timeout_seconds": 43200,
+      "max_retries": 10,
+      "revision": "gpt-5.2-2025-12-11"
+    }
   },
   "paid_run_requirements": {
-    "reader_prompt_sha256": "pending-before-paid-run",
-    "judge_prompt_sha256": "pending-before-paid-run",
-    "provider_route": "pending-before-paid-run",
-    "hardware_profile": "pending-before-paid-run",
-    "comparator_config_sha256": "pending-before-paid-run"
+    "official_harness_sha256": "93fe5855a74ad46d7e8b489cebac24de38a9b30ba7ec1de2dd8708bd4aeebdb6",
+    "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
+    "judge_prompt_sha256": "f8ba659e237c4282a07a92538090ea500ce8483820b390b1d19af187c01417ac",
+    "provider_route": "huggingface-router/deepinfra-reader+scaleway-embedding; openai-direct-judge",
+    "provider_route_probe_sha256": "778f3bf964b7fb7bf0146b5cbf899b3d56283ed533c2f0252e563d0f19822d76",
+    "hardware_profile": "Apple-M2;arm64;17179869184-bytes;macOS-26.5.2-build-25F84",
+    "comparator_config_sha256": "08b99b870b3c134ccf3daca04cdba4248dda349004dd8d87159f0e8e4b62ec09",
+    "official_code_files": {
+      "evaluation/harness.py": "93fe5855a74ad46d7e8b489cebac24de38a9b30ba7ec1de2dd8708bd4aeebdb6",
+      "evaluation/qa_eval_metrics.py": "f8ba659e237c4282a07a92538090ea500ce8483820b390b1d19af187c01417ac",
+      "evaluation/run_eval.py": "15d13c481f153131c652027db72d111ac4c76ca31a7afae27915a10949b918fa",
+      "evaluation/memory_configs/rag_query_to_slice_notes.json": "08b99b870b3c134ccf3daca04cdba4248dda349004dd8d87159f0e8e4b62ec09",
+      "memory_modules/memory.py": "607ca21320067df2abc3583b80debeb819781e90955776bdea4313a8b93a0586",
+      "memory_modules/trajectory_store.py": "437b825499000f7ae774f948a5e62a2ff9f455367491f97d0382431965ce594c",
+      "memory_modules/rag.py": "f5fed6692cf1b6b1d4baa3896a9cd323df65b31b649ceba1922c1a2b97a402ae",
+      "memory_modules/support.py": "66e1bb68ae42f0467e24cde0444b88f2d08c991ad9fd22ceda9920cf4b9d0f53",
+      "memory_modules/no_retrieval.py": "a5b5fb0baef4314469556aec5cc2ab28ab23b283f544e8130b380d86c7c27307",
+      "memory_modules/__init__.py": "29eb4729405989c468a7a2b3171b620ffa4645098fcc348cadc56fc56cfb8044",
+      "evaluation/__init__.py": "3bb49daf05b8ee42f69333da407f6a987adc81ee23f523839036f700d82ee8a4",
+      "data/public_data.py": "d2b868bfb0b6f8b66489c9445389eb6d0f26975f940a9c2365be154e63649c89",
+      "data/__init__.py": "6fd6e1d6249094d5ec4955ce122784ffbf5de28a44e24615eb9cb1ffb55eda34"
+    },
+    "official_code_combined_sha256": "5e9afe0cb292646da5b65f8ce8f13ca7cdd131ee31b3d0af94b257499dedc8fe",
+    "embedding_proxy_sha256": "415849c07f4da8e67e3c9799aaa6abfdde7c556f310937a3fa88926d6efc440d",
+    "pilot_manifest": "longmemeval-v2-pilot-v1.json",
+    "pilot_hf_cost_cap_usd": 5,
+    "pilot_openai_cost_cap_usd": 5,
+    "pilot_total_cost_cap_usd": 10,
+    "pilot_hf_case_reservation_usd": 0.08,
+    "pilot_openai_case_reservation_usd": 0.05,
+    "egress": "public benchmark prompts may be sent only to the pinned routes after explicit paid-run confirmation"
   },
-  "operating_points": ["legacy", "typed-local", "typed-selected-optional-intelligence"],
+  "operating_points": ["no-retrieval", "official-rag-query-to-slice-notes", "legacy", "typed-local"],
   "uncertainty": "paired-bootstrap-over-precommitted-confirmation-question-ids",
   "seeds": [23801],
   "leakage_controls": {

@@ -16,6 +16,7 @@
     "provenance": {"type": "array", "items": {"type": "object", "required": ["record_id", "source_id"]}},
     "excluded_evidence_ids": {"type": "array", "items": {"type": "string"}},
     "action_constraints": {"type": "array", "items": {"type": "object", "required": ["format", "subject", "applies_when", "source_ids", "validity", "required_action", "prohibited_action", "target", "parameters"]}},
+    "media_references": {"type": "array", "items": {"type": "object", "required": ["reference_id", "adjacent_source_id"]}},
     "reason_codes": {"type": "array", "items": {"type": "string"}}
   },
   "additionalProperties": true

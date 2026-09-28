@@ -48,6 +48,9 @@ semantic = [
 semantic-accelerated = [
   "numpy>=1.26,<3",
 ]
+encrypted = [
+  "sqlcipher3==0.6.2",
+]
 mem0 = [
   "mem0ai>=2.0.20,<3",
 ]

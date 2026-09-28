@@ -440,6 +440,7 @@ class FormationReceipt(Contract):
     rejected: int
     unsupported_parts: tuple[str, ...] = ()
     unrepresented_ranges: tuple[dict[str, Any], ...] = ()
+    media_references: tuple[dict[str, Any], ...] = ()
     complete: bool = False
     reason_codes: tuple[str, ...] = ()
 
@@ -686,6 +687,7 @@ class ContextPackageV2(Contract):
     excluded_evidence_ids: tuple[str, ...]
     action_constraints: tuple[ActionConstraint, ...] = ()
     reason_codes: tuple[str, ...] = ()
+    media_references: tuple[dict[str, Any], ...] = ()
 
     def __post_init__(self) -> None:
         _digest("context_sha256", self.context_sha256)
@@ -713,6 +715,11 @@ class ContextPackageV2(Contract):
                 raise ValueError("action constraint sources must belong to the package")
             if constraint.validity == "current" and self.sufficiency.status != "sufficient":
                 raise ValueError("only sufficient context may claim a current action constraint")
+        for reference in self.media_references:
+            if not str(reference.get("reference_id") or "").strip():
+                raise ValueError("context media reference requires reference_id")
+            if reference.get("adjacent_source_id") not in self.source_ids:
+                raise ValueError("context media reference must be adjacent to a selected source")
         if self.sufficiency.status == "unsupported" and (
             self.record_ids or self.context or self.action_constraints
         ):

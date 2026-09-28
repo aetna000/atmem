@@ -395,6 +395,31 @@ Run `atmem COMMAND --help` for command-specific examples.""",
                 help="Remove only this uncommitted destination generation",
             )
 
+    household_parser = subparsers.add_parser(
+        "household", help="Create or inspect a protected AtMem memory database"
+    )
+    household_commands = household_parser.add_subparsers(dest="household_command")
+    household_status = household_commands.add_parser(
+        "status", help="Check encryption, key-custody and SQLCipher readiness"
+    )
+    household_status.add_argument("path")
+    household_status.add_argument("--json", action="store_true")
+    household_init = household_commands.add_parser(
+        "init", help="Create a fresh encrypted SQLCipher household"
+    )
+    household_init.add_argument("path")
+    household_init.add_argument("--encrypted", action="store_true", required=True)
+    household_init.add_argument("--backend", choices=("file", "keyring"), default="file")
+    household_init.add_argument("--json", action="store_true")
+    household_migrate = household_commands.add_parser(
+        "migrate", help="Atomically migrate an existing plaintext household to SQLCipher"
+    )
+    household_migrate.add_argument("path")
+    household_migrate.add_argument(
+        "--backend", choices=("file", "keyring"), default="file"
+    )
+    household_migrate.add_argument("--json", action="store_true")
+
     restore_parser = subparsers.add_parser(
         "restore", help="Open a copied AtMem Home for standalone recovery"
     )
@@ -1800,6 +1825,13 @@ or input errors.""",
             home_parser.print_help()
             return
         _run_home(args)
+        return
+
+    if args.command == "household":
+        if args.household_command is None:
+            household_parser.print_help()
+            return
+        _run_household(args)
         return
 
     if args.command == "restore":
@@ -4641,6 +4673,31 @@ def _available_loopback_port(preferred: int) -> int:
                 "process and confirm before stopping it; AtMem will not choose a "
                 "random replacement port."
             ) from exc
+
+
+def _run_household(args: argparse.Namespace) -> None:
+    from atmem.service.household import HouseholdApplication
+
+    if args.household_command == "status":
+        result = HouseholdApplication.status(args.path)
+    elif args.household_command == "init":
+        result = HouseholdApplication.initialize(
+            args.path, encrypted=bool(args.encrypted), backend=args.backend
+        )
+    elif args.household_command == "migrate":
+        result = HouseholdApplication.migrate(args.path, backend=args.backend)
+    else:
+        raise ValueError(f"unknown household command: {args.household_command}")
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return
+    status = result.get("status") or result
+    print("AtMem household")
+    print(f"  Database    {status['database_path']}")
+    print(f"  State       {status['state']}")
+    print(f"  SQLCipher   {'available' if status['sqlcipher']['available'] else 'missing'}")
+    print(f"  Key         {'available' if status['key']['available'] else 'missing'}")
+    print(f"  Encrypted   {'yes' if status['encrypted_header'] else 'not verified'}")
 
 
 def _run_identity_init(args: argparse.Namespace) -> None:

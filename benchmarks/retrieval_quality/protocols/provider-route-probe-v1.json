@@ -1,0 +1,36 @@
+{
+  "format": "atmem-provider-route-probe-v1",
+  "probe_sha256": "778f3bf964b7fb7bf0146b5cbf899b3d56283ed533c2f0252e563d0f19822d76",
+  "routes": {
+    "embedding": {
+      "content_retained": false,
+      "duration_ms": 2519.143,
+      "model": "Qwen/Qwen3-Embedding-8B",
+      "outcome": "succeeded",
+      "provider_route": "scaleway",
+      "shape": [1, 4096],
+      "status": 200,
+      "transport": "openai-compatible-v1-embeddings"
+    },
+    "judge": {
+      "content_retained": false,
+      "duration_ms": 3576.813,
+      "model": "gpt-5.2-2025-12-11",
+      "outcome": "succeeded",
+      "provider_route": "openai-direct",
+      "response_id_sha256": "f5d6f961529f7328717d09e23cf1e8f9c5a35a21b0540bedccd8c15ec0e7a2f8",
+      "status": 200,
+      "usage": {"input_tokens": 9, "output_tokens": 5, "total_tokens": 14}
+    },
+    "reader": {
+      "content_retained": false,
+      "duration_ms": 770.053,
+      "model": "Qwen/Qwen3.5-9B",
+      "outcome": "succeeded",
+      "provider_route": "deepinfra",
+      "response_id_sha256": "4c616a270389f126bac784b4c711b1be14e0334452b974dcaef33999ced0057e",
+      "status": 200,
+      "usage": {"completion_tokens": 1, "prompt_tokens": 13, "total_tokens": 14}
+    }
+  }
+}

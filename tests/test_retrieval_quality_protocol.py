@@ -8,6 +8,9 @@ import pytest
 
 from atmem.benchmark.contracts import (
     load_json_compatible_yaml,
+    validate_dolphin_split,
+    validate_longmem_pilot,
+    validate_provider_route_probe,
     validate_question_split,
     validate_retrieval_quality_protocol,
 )
@@ -16,6 +19,9 @@ from atmem.benchmark.contracts import (
 ROOT = Path(__file__).parents[1]
 PROTOCOL = ROOT / "benchmarks/retrieval_quality/protocols/2.3.8.yaml"
 SPLIT = ROOT / "benchmarks/retrieval_quality/protocols/longmemeval-v2-question-split-v1.json"
+PILOT = ROOT / "benchmarks/retrieval_quality/protocols/longmemeval-v2-pilot-v1.json"
+DOLPHIN_SPLIT = ROOT / "benchmarks/retrieval_quality/protocols/dolphinbench-task-split-v1.json"
+ROUTE_PROBE = ROOT / "benchmarks/retrieval_quality/protocols/provider-route-probe-v1.json"
 
 
 def documents():
@@ -31,7 +37,7 @@ def test_frozen_protocol_and_split_validate() -> None:
         external_root=ROOT.parent / "benchmark artifacts",
         paid_configurations=8,
     )
-    assert validated["status"] == "question-split-frozen-model-pins-pending"
+    assert validated["status"] == "development-pilot-ready"
     assert len(split["development_ids"]) + len(split["confirmation_ids"]) == 451
     assert {"07ab3723", "ff311d07"} <= set(split["development_ids"])
     assert validated["evaluation_design"]["confirmation_question_ids"] == 317
@@ -117,3 +123,41 @@ def test_protocol_refuses_paid_run_until_all_provider_settings_are_pinned() -> N
     protocol, split = documents()
     with pytest.raises(ValueError, match="paid run protocol"):
         validate_retrieval_quality_protocol(protocol, split=split, for_paid_run=True)
+
+
+def test_frozen_three_percent_pilots_validate_and_are_development_only() -> None:
+    protocol, split = documents()
+    pilot = json.loads(PILOT.read_text(encoding="utf-8"))
+    dolphin = json.loads(DOLPHIN_SPLIT.read_text(encoding="utf-8"))
+    route_probe = json.loads(ROUTE_PROBE.read_text(encoding="utf-8"))
+
+    assert validate_longmem_pilot(pilot, split=split)["question_count"] == 14
+    assert len(validate_dolphin_split(dolphin)["development_ids"]) == 18
+    validated = validate_retrieval_quality_protocol(
+        protocol,
+        split=split,
+        pilot=pilot,
+        dolphin_split=dolphin,
+        route_probe=route_probe,
+        for_pilot_run=True,
+    )
+    assert validated["paid_run_requirements"]["provider_route_probe_sha256"] == (
+        "778f3bf964b7fb7bf0146b5cbf899b3d56283ed533c2f0252e563d0f19822d76"
+    )
+    assert validate_provider_route_probe(route_probe)["routes"]["judge"]["model"] == (
+        "gpt-5.2-2025-12-11"
+    )
+
+
+def test_pilot_validators_reject_confirmation_leakage_and_persona_loss() -> None:
+    _, split = documents()
+    pilot = json.loads(PILOT.read_text(encoding="utf-8"))
+    leaking = deepcopy(pilot)
+    leaking["question_ids"][0] = split["confirmation_ids"][0]
+    with pytest.raises(ValueError, match="development question IDs"):
+        validate_longmem_pilot(leaking, split=split)
+
+    dolphin = json.loads(DOLPHIN_SPLIT.read_text(encoding="utf-8"))
+    dolphin["personas"].pop("riley")
+    with pytest.raises(ValueError, match="three official personas"):
+        validate_dolphin_split(dolphin)

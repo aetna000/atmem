@@ -1442,6 +1442,25 @@ class SQLiteStore:
                 _json(receipt), utc_now(),
             ),
         )
+        self._conn.execute(
+            "DELETE FROM formation_media_references WHERE formation_id = ?",
+            (receipt["formation_id"],),
+        )
+        for reference in receipt.get("media_references") or ():
+            self._conn.execute(
+                """
+                INSERT INTO formation_media_references(
+                  formation_id, subject_id, workspace_id, adjacent_source_id,
+                  part_id, ordinal, reference_id, reference_sha256
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    receipt["formation_id"], receipt["scope_subject_id"],
+                    receipt["scope_workspace_id"], reference["adjacent_source_id"],
+                    reference["part_id"], int(reference["ordinal"]),
+                    reference["reference_id"], reference["reference_sha256"],
+                ),
+            )
 
     def get_formation_receipt(self, formation_id: str) -> dict[str, Any] | None:
         row = self._conn.execute(
@@ -1449,6 +1468,60 @@ class SQLiteStore:
             (formation_id,),
         ).fetchone()
         return _load_json(row["receipt_json"], {}) if row is not None else None
+
+    def media_references_for_sources(
+        self, subject_id: str, workspace_id: str, source_ids: list[str]
+    ) -> list[dict[str, Any]]:
+        """Return original protected media locators adjacent to selected evidence."""
+        wanted = set(source_ids)
+        if not wanted:
+            return []
+        placeholders = ",".join("?" for _ in wanted)
+        indexed = self._conn.execute(
+            f"""
+            SELECT adjacent_source_id, part_id, ordinal, reference_id,
+                   reference_sha256
+            FROM formation_media_references
+            WHERE subject_id = ? AND workspace_id = ?
+              AND adjacent_source_id IN ({placeholders})
+            ORDER BY formation_id, ordinal
+            """,
+            (subject_id, workspace_id, *sorted(wanted)),
+        ).fetchall()
+        result = [dict(row) for row in indexed]
+        found_sources = {str(row["adjacent_source_id"]) for row in indexed}
+        missing = wanted - found_sources
+        if not missing:
+            return result
+        # Legacy receipts predate the indexed media table. Scan them once for
+        # only the sources that were not found in the index; do not silently
+        # truncate old screenshots by receipt count.
+        rows = self._conn.execute(
+            """
+            SELECT receipt_json FROM formation_receipts
+            WHERE subject_id = ? AND workspace_id = ?
+            ORDER BY created_at DESC, formation_id DESC
+            """,
+            (subject_id, workspace_id),
+        ).fetchall()
+        seen: set[tuple[str, str]] = {
+            (str(row["reference_id"]), str(row["reference_sha256"]))
+            for row in indexed
+        }
+        for row in rows:
+            receipt = _load_json(row["receipt_json"], {})
+            for reference in receipt.get("media_references") or ():
+                if reference.get("adjacent_source_id") not in missing:
+                    continue
+                identity = (
+                    str(reference.get("reference_id") or ""),
+                    str(reference.get("reference_sha256") or ""),
+                )
+                if not identity[0] or identity in seen:
+                    continue
+                seen.add(identity)
+                result.append(dict(reference))
+        return result
 
     def retrieval_quality_summary(self, subject_ids: list[str]) -> dict[str, Any]:
         """Return bounded, content-free formation and retrieval quality totals."""
@@ -5974,6 +6047,28 @@ MIGRATION_REGISTRY: tuple[tuple[str, str], ...] = (
         );
         CREATE INDEX IF NOT EXISTS idx_source_adjacency_reverse
           ON source_adjacency(subject_id, workspace_id, to_source_id, ordinal);
+        """,
+    ),
+    (
+        "0385_formation_media_references",
+        """
+        CREATE TABLE IF NOT EXISTS formation_media_references (
+          formation_id TEXT NOT NULL,
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          adjacent_source_id TEXT NOT NULL,
+          part_id TEXT NOT NULL,
+          ordinal INTEGER NOT NULL,
+          reference_id TEXT NOT NULL,
+          reference_sha256 TEXT NOT NULL,
+          PRIMARY KEY(formation_id, part_id),
+          FOREIGN KEY (formation_id) REFERENCES formation_receipts(formation_id) ON DELETE CASCADE,
+          FOREIGN KEY (adjacent_source_id) REFERENCES protocol_sources(source_id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_formation_media_source
+          ON formation_media_references(
+            subject_id, workspace_id, adjacent_source_id, formation_id, ordinal
+          );
         """,
     ),
 )
