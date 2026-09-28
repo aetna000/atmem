@@ -13,7 +13,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+    sys.path.append(str(ROOT))
 
 from research.production_benchmarks.longmemeval_v2 import (  # noqa: E402
     DatasetPreflight,
@@ -39,6 +39,23 @@ def _canonical_digest(value: Any) -> str:
         value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _installed_product(expected_version: str) -> dict[str, str]:
+    from importlib.metadata import version
+    import atmem
+
+    module = Path(atmem.__file__).resolve()
+    if module.is_relative_to(ROOT) or "site-packages" not in module.parts:
+        raise RuntimeError(
+            "paid pilot requires an installed AtMem wheel outside the checkout"
+        )
+    installed_version = version("atmem")
+    if installed_version != expected_version:
+        raise RuntimeError(
+            f"paid pilot requires AtMem {expected_version}; found {installed_version}"
+        )
+    return {"version": installed_version, "module": str(module)}
 
 
 def _question_domains(data_root: Path) -> dict[str, str]:
@@ -143,6 +160,9 @@ def main() -> None:
         external_root=output_root,
         repository_root=ROOT,
     )
+    installed_product = _installed_product(
+        str(protocol["paid_run_requirements"]["candidate_atmem_version"])
+    )
     preflight_paid_runtime(protocol, methods=METHODS)
     expected_hardware = protocol["paid_run_requirements"]["hardware_profile"]
     hardware_profile = current_hardware_profile()
@@ -180,6 +200,7 @@ def main() -> None:
         "protocol_sha256": _canonical_digest(protocol),
         "pilot_sha256": _canonical_digest(pilot),
         "official_checkout": verification,
+        "installed_product": installed_product,
         "data_preflight": data_preflight.report(),
         "hardware_profile": hardware_profile,
         "methods": list(METHODS),

@@ -385,7 +385,7 @@ def validate_retrieval_quality_protocol(
     if for_paid_run:
         requirements = dict(protocol.get("paid_run_requirements") or {})
         required = (
-            "reader_prompt_sha256",
+            "candidate_atmem_version", "reader_prompt_sha256",
             "judge_prompt_sha256",
             "provider_route",
             "hardware_profile",
@@ -409,7 +409,7 @@ def validate_retrieval_quality_protocol(
         validate_dolphin_split(dolphin_split)
         requirements = dict(protocol.get("paid_run_requirements") or {})
         required = (
-            "official_harness_sha256", "reader_prompt_sha256",
+            "candidate_atmem_version", "official_harness_sha256", "reader_prompt_sha256",
             "judge_prompt_sha256", "provider_route",
             "provider_route_probe_sha256", "hardware_profile",
             "comparator_config_sha256", "official_code_combined_sha256",
