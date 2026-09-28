@@ -10,7 +10,9 @@ import json
 import os
 from pathlib import Path
 import platform
+import signal
 import subprocess
+import threading
 import time
 from typing import Any
 
@@ -42,7 +44,9 @@ CONFIG_MARKER = '''def build_memory_config(args: argparse.Namespace, data_root: 
                 "subject_id": required["ATMEM_LME_SUBJECT_ID"],
                 "agent_id": required["ATMEM_LME_AGENT_ID"],
                 "workspace_id": required["ATMEM_LME_WORKSPACE_ID"],
-                "trajectory_pool_root": str(data_root),
+                "trajectory_pool_root": os.environ.get(
+                    "ATMEM_LME_TRAJECTORY_POOL_ROOT", str(data_root)
+                ),
                 "require_encrypted": True,
             },
         }
@@ -57,6 +61,22 @@ EVALUATOR_FORWARD_MARKER = (
     '    if args.evaluator_base_url:\n'
     '        harness_argv.extend(["--evaluator-base-url", args.evaluator_base_url])\n'
     + EVALUATOR_FORWARD_ORIGINAL
+)
+MEMORY_CACHE_ARG_ORIGINAL = '    parser.add_argument("--prompt-build-max-workers", type=int, default=1)\n'
+MEMORY_CACHE_ARG_MARKER = MEMORY_CACHE_ARG_ORIGINAL + (
+    '    parser.add_argument("--save-memory", action="store_true")\n'
+    '    parser.add_argument("--skip-evaluation", action="store_true")\n'
+    '    parser.add_argument("--load-memory-dir", default=None)\n'
+)
+MEMORY_CACHE_FORWARD_ORIGINAL = '    if args.evaluator_base_url:\n'
+MEMORY_CACHE_FORWARD_MARKER = (
+    '    if args.save_memory:\n'
+    '        harness_argv.append("--save-memory")\n'
+    '    if args.skip_evaluation:\n'
+    '        harness_argv.append("--skip-evaluation")\n'
+    '    if args.load_memory_dir:\n'
+    '        harness_argv.extend(["--load-memory-dir", args.load_memory_dir])\n'
+    + MEMORY_CACHE_FORWARD_ORIGINAL
 )
 RETRY_ORIGINAL = "OPENAI_MAX_RETRIES = 10\n"
 RETRY_MARKER = "OPENAI_MAX_RETRIES = 0  # AtMem paid-pilot egress cap\n"
@@ -83,6 +103,58 @@ def _stop_process(process: subprocess.Popen[bytes] | None) -> None:
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait(timeout=5)
+
+
+def _stop_process_group(process: subprocess.Popen[bytes] | None) -> None:
+    """Stop an isolated official harness and every child it spawned."""
+
+    if process is None or process.poll() is not None:
+        return
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait(timeout=5)
+
+
+def _reserve_with_local_lock_wait(
+    ledger: DurableCostLedger,
+    key: str,
+    *,
+    provider: str,
+    maximum_usd: float,
+) -> dict:
+    """Wait for sibling case bookkeeping without retrying provider egress."""
+    for attempt in range(200):
+        try:
+            return ledger.reserve(
+                key, provider=provider, maximum_usd=maximum_usd
+            )
+        except BlockingIOError:
+            if attempt == 199:
+                raise
+            time.sleep(0.025)
+    raise AssertionError("unreachable")
+
+
+def _complete_with_local_lock_wait(
+    ledger: DurableCostLedger, key: str, *, cost_usd: float
+) -> dict:
+    for attempt in range(200):
+        try:
+            return ledger.complete(key, cost_usd=cost_usd)
+        except BlockingIOError:
+            if attempt == 199:
+                raise
+            time.sleep(0.025)
+    raise AssertionError("unreachable")
 
 
 def _wait_for_proxy(
@@ -115,7 +187,7 @@ def preflight_paid_runtime(
     supplied = dict(environment or {})
     credentials = {
         name: supplied.get(name) or os.environ.get(name, "")
-        for name in ("HF_TOKEN", "OPENAI_API_KEY")
+        for name in ("HF_TOKEN", "OPENAI_API_KEY", "RUNPOD_READER_API_KEY")
     }
     missing = sorted(name for name, value in credentials.items() if not value.strip())
     if missing:
@@ -139,6 +211,7 @@ def preflight_paid_runtime(
                 f"protocol: {distribution}=={actual}, expected {expected}"
             )
     sources = {
+        "reader_proxy_sha256": Path(__file__).with_name("runpod_reader_proxy.py"),
         "embedding_proxy_sha256": Path(__file__).with_name("hf_embedding_proxy.py"),
         "judge_proxy_sha256": Path(__file__).with_name("openai_judge_proxy.py"),
     }
@@ -150,8 +223,8 @@ def preflight_paid_runtime(
         result[field] = digest
     reservations = dict(requirements.get("pilot_method_reservations_usd") or {})
     endpoint_runtime_billing = (
-        dict(requirements.get("huggingface_reader_billing") or {}).get("mode")
-        == "endpoint-runtime"
+        dict(requirements.get("reader_runtime_billing") or {}).get("mode")
+        == "pod-runtime"
     )
     for method in methods:
         amounts = reservations.get(method)
@@ -159,7 +232,7 @@ def preflight_paid_runtime(
             not isinstance(amounts, dict)
             or (
                 not endpoint_runtime_billing
-                and float(amounts.get("huggingface", 0)) <= 0
+                and float(amounts.get("reader", 0)) <= 0
             )
             or float(amounts.get("openai", 0)) < 0
         ):
@@ -186,6 +259,25 @@ def _preflight_official_harness_import(
         detail = (checked.stderr or checked.stdout).strip().splitlines()
         suffix = detail[-1] if detail else f"exit code {checked.returncode}"
         raise RuntimeError(f"official LongMemEval harness import failed: {suffix}")
+
+
+def preflight_reader_processor(protocol: dict[str, Any]) -> dict[str, str]:
+    """Load the exact reader processor before any paid GPU is provisioned."""
+
+    from transformers import AutoProcessor
+
+    model = dict(protocol["models"]["longmemeval_reader"])
+    processor = AutoProcessor.from_pretrained(
+        str(model["repository_model"]),
+        revision=str(model["revision"]),
+        token=True,
+    )
+    return {
+        "processor": type(processor).__name__,
+        "tokenizer": type(processor.tokenizer).__name__,
+        "model": str(model["repository_model"]),
+        "revision": str(model["revision"]),
+    }
 
 
 @dataclass(frozen=True)
@@ -422,6 +514,18 @@ def install_official_adapter(checkout: str | Path) -> dict[str, str]:
         runner_text = runner_text.replace(
             EVALUATOR_FORWARD_ORIGINAL, EVALUATOR_FORWARD_MARKER, 1
         )
+    if MEMORY_CACHE_ARG_MARKER not in runner_text:
+        if runner_text.count(MEMORY_CACHE_ARG_ORIGINAL) != 1:
+            raise RuntimeError("official run_eval memory-cache argument marker changed")
+        runner_text = runner_text.replace(
+            MEMORY_CACHE_ARG_ORIGINAL, MEMORY_CACHE_ARG_MARKER, 1
+        )
+    if MEMORY_CACHE_FORWARD_MARKER not in runner_text:
+        if runner_text.count(MEMORY_CACHE_FORWARD_ORIGINAL) != 1:
+            raise RuntimeError("official run_eval memory-cache forwarding marker changed")
+        runner_text = runner_text.replace(
+            MEMORY_CACHE_FORWARD_ORIGINAL, MEMORY_CACHE_FORWARD_MARKER, 1
+        )
     runner.write_text(runner_text, encoding="utf-8")
     for retry_file in retry_files:
         retry_text = retry_file.read_text(encoding="utf-8")
@@ -559,10 +663,15 @@ def run_official_pilot_case(
     dolphin_split: dict, route_probe: dict, environment: dict[str, str] | None = None,
     confirmed_paid_run: bool = False,
     data_preflight: DatasetPreflight | None = None,
-    shared_hf_runtime_reservation: bool = False,
+    shared_reader_runtime_reservation: bool = False,
     judge_gate_file: str | Path | None = None,
+    load_memory_dir: str | Path | None = None,
+    cancellation_event: threading.Event | None = None,
+    deadline_monotonic: float | None = None,
 ) -> dict[str, Any]:
     """Run one frozen case through the official executable with durable spend guards."""
+    if cancellation_event is not None and cancellation_event.is_set():
+        raise RuntimeError("LongMemEval pilot case cancelled before start")
     root = Path(checkout).expanduser().resolve()
     output = Path(output_root).expanduser().resolve()
     protocol = json.loads(Path(protocol_path).read_text(encoding="utf-8"))
@@ -621,9 +730,9 @@ def run_official_pilot_case(
     if method not in method_map:
         raise ValueError("pilot method is not an executable frozen operating point")
     requirements = protocol["paid_run_requirements"]
-    reader_billing = dict(requirements.get("huggingface_reader_billing") or {})
-    endpoint_runtime_billing = reader_billing.get("mode") == "endpoint-runtime"
-    if endpoint_runtime_billing and not shared_hf_runtime_reservation:
+    reader_billing = dict(requirements.get("reader_runtime_billing") or {})
+    endpoint_runtime_billing = reader_billing.get("mode") == "pod-runtime"
+    if endpoint_runtime_billing and not shared_reader_runtime_reservation:
         raise RuntimeError(
             "dedicated-endpoint pilot cases require the batch runtime reservation"
         )
@@ -644,22 +753,24 @@ def run_official_pilot_case(
         json.dumps(protocol, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
     shared_ledger_root = benchmark_root / "cost-ledgers" / protocol_digest
-    hf_ledger = DurableCostLedger(
-        shared_ledger_root / "longmem-hf-cost-ledger.json",
-        total_cap_usd=float(requirements["pilot_hf_cost_cap_usd"]),
+    reader_ledger = DurableCostLedger(
+        shared_ledger_root / "longmem-reader-cost-ledger.json",
+        total_cap_usd=float(requirements["pilot_reader_cost_cap_usd"]),
     )
     openai_ledger = DurableCostLedger(
         shared_ledger_root / "longmem-openai-cost-ledger.json",
         total_cap_usd=float(requirements["pilot_openai_cost_cap_usd"]),
     )
-    hf_key = f"{case_key}:hf"
+    reader_key = f"{case_key}:reader"
     judge_key = f"{case_key}:openai"
-    hf_max = float(reservations.get("huggingface", 0) or 0)
+    reader_max = float(reservations.get("reader", 0) or 0)
     judge_max = float(reservations["openai"])
     case_output = output / "runs" / question_id / method
     allowed_environment = {
         "PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL",
         "SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "HF_TOKEN", "OPENAI_API_KEY",
+        "RUNPOD_READER_API_KEY", "ATMEM_READER_BASE_URL",
+        "ATMEM_LME_TRAJECTORY_POOL_ROOT",
         "ATMEM_BENCHMARK_ROOT",
     }
     forbidden = sorted(set(supplied) - allowed_environment)
@@ -674,8 +785,19 @@ def run_official_pilot_case(
     }
     run_environment.update(supplied)
     run_environment["PYTHONDONTWRITEBYTECODE"] = "1"
-    if not run_environment.get("HF_TOKEN") or not run_environment.get("OPENAI_API_KEY"):
-        raise RuntimeError("paid pilot requires HF_TOKEN and OPENAI_API_KEY")
+    reader_api_key_env = str(
+        dict(protocol["models"]["longmemeval_reader"]).get("api_key_env") or "HF_TOKEN"
+    )
+    if (
+        not run_environment.get(reader_api_key_env)
+        or not run_environment.get("OPENAI_API_KEY")
+    ):
+        raise RuntimeError(
+            f"paid pilot requires {reader_api_key_env} and OPENAI_API_KEY"
+        )
+    reader_base_url = run_environment.get("ATMEM_READER_BASE_URL") or str(
+        protocol["models"]["longmemeval_reader"]["base_url"]
+    )
     _preflight_official_harness_import(root, run_environment)
     case_output.mkdir(parents=True, exist_ok=False)
     models = protocol["models"]
@@ -691,8 +813,13 @@ def run_official_pilot_case(
             case_output / "atmem.db", encrypted=True, backend="file"
         )
     if not endpoint_runtime_billing:
-        hf_ledger.reserve(hf_key, provider="huggingface", maximum_usd=hf_max)
-    openai_ledger.reserve(judge_key, provider="openai", maximum_usd=judge_max)
+        _reserve_with_local_lock_wait(
+            reader_ledger,
+            reader_key, provider="reader", maximum_usd=reader_max
+        )
+    _reserve_with_local_lock_wait(
+        openai_ledger, judge_key, provider="openai", maximum_usd=judge_max
+    )
     embedding_base_url = models["official_rag_embedding"]["base_url"]
     proxy: subprocess.Popen[bytes] | None = None
     judge_proxy: subprocess.Popen[bytes] | None = None
@@ -731,8 +858,8 @@ def run_official_pilot_case(
             "--domain", domain, "--tier", "small", "--method", method_map[method],
             "--output-dir", os.fspath(case_output), "--question-ids", question_id,
             "--reader-model", models["longmemeval_reader"]["model"],
-            "--reader-base-url", models["longmemeval_reader"]["base_url"],
-            "--reader-api-key-env", "HF_TOKEN",
+            "--reader-base-url", reader_base_url,
+            "--reader-api-key-env", reader_api_key_env,
             "--reader-temperature", str(models["longmemeval_reader"]["temperature"]),
             "--reader-top-p", str(models["longmemeval_reader"]["top_p"]),
             "--reader-top-k", str(models["longmemeval_reader"]["top_k"]),
@@ -764,42 +891,71 @@ def run_official_pilot_case(
             "--evaluator-max-completion-tokens",
             str(models["longmemeval_judge"]["max_completion_tokens"]),
         ]
+        if load_memory_dir is not None:
+            command.extend(
+                ["--load-memory-dir", os.fspath(Path(load_memory_dir).resolve())]
+            )
         harness_environment = dict(run_environment)
         harness_environment.pop("OPENAI_API_KEY", None)
-        completed = subprocess.run(
-            command, cwd=root, env=harness_environment, check=False
+        harness_process = subprocess.Popen(
+            command,
+            cwd=root,
+            env=harness_environment,
+            start_new_session=True,
         )
+        while harness_process.poll() is None:
+            if cancellation_event is not None and cancellation_event.is_set():
+                _stop_process_group(harness_process)
+                raise RuntimeError(
+                    "LongMemEval pilot case cancelled after sibling failure"
+                )
+            if (
+                deadline_monotonic is not None
+                and time.monotonic() >= deadline_monotonic
+            ):
+                if cancellation_event is not None:
+                    cancellation_event.set()
+                _stop_process_group(harness_process)
+                raise RuntimeError(
+                    "LongMemEval pilot reached the frozen paid-runtime deadline"
+                )
+            time.sleep(0.1)
+        completed_returncode = int(harness_process.returncode or 0)
     finally:
         _stop_process(proxy)
         _stop_process(judge_proxy)
-    if completed.returncode != 0:
+    if completed_returncode != 0:
         raise RuntimeError(
-            f"official LongMemEval case failed with exit code {completed.returncode}; "
+            f"official LongMemEval case failed with exit code {completed_returncode}; "
             "reservations remain consumed and retry requires explicit reconciliation"
         )
     case_row = _read_case_row(case_output)
     reader_usage = _reader_usage(case_row)
     if endpoint_runtime_billing:
-        hf_cost = None
+        reader_cost = None
     else:
         reader_rates = requirements["huggingface_reader_price_usd_per_million"]
-        hf_cost = (
+        reader_cost = (
             reader_usage["prompt_tokens"] * float(reader_rates["input"])
             + reader_usage["completion_tokens"] * float(reader_rates["output"])
         ) / 1_000_000
     judge = _judge_usage(case_row, judge_usage, reservation_usd=judge_max)
     if not endpoint_runtime_billing:
-        hf_ledger.complete(hf_key, cost_usd=float(hf_cost))
-    openai_ledger.complete(judge_key, cost_usd=float(judge["cost_usd"]))
+        _complete_with_local_lock_wait(
+            reader_ledger, reader_key, cost_usd=float(reader_cost)
+        )
+    _complete_with_local_lock_wait(
+        openai_ledger, judge_key, cost_usd=float(judge["cost_usd"])
+    )
     return {
         "format": "atmem-longmemeval-pilot-case-v1",
         "question_id": question_id, "domain": domain, "method": method,
         "output_dir": str(case_output),
         "cost_accounting": (
-            "shared-endpoint-runtime" if endpoint_runtime_billing
+            "shared-reader-runtime" if endpoint_runtime_billing
             else "provider-token-usage"
         ),
-        "hf_cost_usd": None if hf_cost is None else round(hf_cost, 9),
+        "reader_cost_usd": None if reader_cost is None else round(reader_cost, 9),
         "openai_cost_usd": float(judge["cost_usd"]),
         "reader_usage": reader_usage,
         "judge_usage": {key: judge[key] for key in (
@@ -814,6 +970,8 @@ def _is_expected_runner_patch(root: Path, path: Path) -> bool:
         CONFIG_ORIGINAL, CONFIG_MARKER, 1
     ).replace(EVALUATOR_ARG_ORIGINAL, EVALUATOR_ARG_MARKER, 1).replace(
         EVALUATOR_FORWARD_ORIGINAL, EVALUATOR_FORWARD_MARKER, 1
+    ).replace(MEMORY_CACHE_ARG_ORIGINAL, MEMORY_CACHE_ARG_MARKER, 1).replace(
+        MEMORY_CACHE_FORWARD_ORIGINAL, MEMORY_CACHE_FORWARD_MARKER, 1
     )
     return path.read_text(encoding="utf-8") == expected
 

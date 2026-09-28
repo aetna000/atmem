@@ -171,6 +171,40 @@ class AtMemMemory(Memory):
                 result.append({"type": "image", "value": str(image)})
         return result
 
+    @classmethod
+    def reconcile_loaded_memory_config(
+        cls,
+        saved_config: dict[str, object],
+        requested_config: dict[str, object] | None,
+    ) -> dict[str, object]:
+        """Allow only the run-local database destination to change on restore."""
+        if requested_config is None:
+            return {
+                "memory_type": str(saved_config["memory_type"]),
+                "memory_params": dict(saved_config["memory_params"]),
+            }
+        if saved_config.get("memory_type") != cls.memory_type:
+            raise RuntimeError("saved AtMem memory type does not match the adapter")
+        if requested_config.get("memory_type") != cls.memory_type:
+            raise RuntimeError("requested AtMem memory type does not match the adapter")
+        saved_params = dict(saved_config["memory_params"])
+        requested_params = dict(requested_config["memory_params"])
+        saved_database = str(saved_params.pop("database_path", "")).strip()
+        requested_database = str(requested_params.pop("database_path", "")).strip()
+        if not saved_database or not requested_database:
+            raise RuntimeError("loaded AtMem memory requires a database path")
+        if saved_params != requested_params:
+            raise RuntimeError(
+                "loaded AtMem memory parameters differ beyond the run-local database path"
+            )
+        return {
+            "memory_type": cls.memory_type,
+            "memory_params": {
+                **requested_params,
+                "database_path": requested_database,
+            },
+        }
+
     def _save_backend(self, output_dir: Path) -> None:
         self._memory.close()
         try:

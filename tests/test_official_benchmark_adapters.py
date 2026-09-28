@@ -109,7 +109,11 @@ def test_paid_runtime_preflight_is_complete_before_output(
     protocol = json.loads(
         (ROOT / "benchmarks/retrieval_quality/protocols/2.3.8.yaml").read_text()
     )
-    environment = {"HF_TOKEN": "fixture-hf", "OPENAI_API_KEY": "fixture-openai"}
+    environment = {
+        "HF_TOKEN": "fixture-hf",
+        "OPENAI_API_KEY": "fixture-openai",
+        "RUNPOD_READER_API_KEY": "fixture-runpod-reader",
+    }
     expected_packages = protocol["paid_run_requirements"]["official_runtime_packages"]
     monkeypatch.setattr(
         longmemeval_v2, "package_version", lambda name: expected_packages[name]
@@ -158,7 +162,106 @@ def test_paid_runtime_preflight_is_complete_before_output(
     ).read_text(encoding="utf-8")
     assert adapter_source.index(
         "_preflight_official_harness_import(root, run_environment)"
-    ) < adapter_source.index("hf_ledger.reserve")
+        ) < adapter_source.rindex("_reserve_with_local_lock_wait(")
+
+
+def test_longmem_case_honours_fail_fast_cancellation_before_writes(
+    tmp_path: Path,
+) -> None:
+    from research.production_benchmarks.longmemeval_v2 import (
+        run_official_pilot_case,
+    )
+
+    cancelled = threading.Event()
+    cancelled.set()
+    with pytest.raises(RuntimeError, match="cancelled before start"):
+        run_official_pilot_case(
+            tmp_path,
+            data_root=tmp_path,
+            output_root=tmp_path / "must-not-exist",
+            question_id="fixture",
+            domain="web",
+            method="typed-local",
+            protocol_path=tmp_path / "missing-protocol.json",
+            question_split={},
+            pilot={},
+            dolphin_split={},
+            route_probe={},
+            cancellation_event=cancelled,
+        )
+    assert not (tmp_path / "must-not-exist").exists()
+
+
+def test_runpod_reader_proxy_reassembles_sse_without_promoting_reasoning(
+    monkeypatch,
+) -> None:
+    import urllib.request
+    from research.production_benchmarks import runpod_reader_proxy
+
+    class Upstream(BaseHTTPRequestHandler):
+        user_agent = ""
+
+        def log_message(self, _format, *_args):
+            return
+
+        def do_POST(self):  # noqa: N802
+            type(self).user_agent = self.headers.get("User-Agent", "")
+            self.rfile.read(int(self.headers["Content-Length"]))
+            chunks = [
+                {"id": "fixture", "model": "fixture-reader", "choices": [{
+                    "delta": {"reasoning_content": "private reasoning"},
+                    "finish_reason": None,
+                }]},
+                {"id": "fixture", "model": "fixture-reader", "choices": [{
+                    "delta": {"content": "final answer"},
+                    "finish_reason": "stop",
+                }]},
+                {"choices": [], "usage": {
+                    "prompt_tokens": 4, "completion_tokens": 2,
+                    "total_tokens": 6,
+                }},
+            ]
+            body = "".join(
+                f"data: {json.dumps(chunk)}\n\n" for chunk in chunks
+            ) + "data: [DONE]\n\n"
+            encoded = body.encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Content-Length", str(len(encoded)))
+            self.end_headers()
+            self.wfile.write(encoded)
+
+    upstream = ThreadingHTTPServer(("127.0.0.1", 0), Upstream)
+    upstream_thread = threading.Thread(target=upstream.serve_forever, daemon=True)
+    upstream_thread.start()
+    proxy = ThreadingHTTPServer(("127.0.0.1", 0), runpod_reader_proxy.Handler)
+    proxy_thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+    proxy_thread.start()
+    monkeypatch.setenv(
+        "ATMEM_RUNPOD_UPSTREAM_URL",
+        f"http://127.0.0.1:{upstream.server_port}/v1",
+    )
+    monkeypatch.setenv("RUNPOD_READER_API_KEY", "fixture-key")
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{proxy.server_port}/v1/chat/completions",
+        data=json.dumps({"model": "fixture-reader", "messages": []}).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request) as response:
+            result = json.load(response)
+    finally:
+        proxy.shutdown()
+        upstream.shutdown()
+        proxy.server_close()
+        upstream.server_close()
+        proxy_thread.join(timeout=2)
+        upstream_thread.join(timeout=2)
+    message = result["choices"][0]["message"]
+    assert message["content"] == "final answer"
+    assert message["reasoning_content"] == "private reasoning"
+    assert result["usage"]["total_tokens"] == 6
+    assert Upstream.user_agent == "OpenAI/Python 3.19.2"
 
 
 def test_judge_proxy_allows_one_egress_and_records_content_free_usage(

@@ -638,7 +638,11 @@ class SQLiteStore:
             record = self.get_record(subject_id, str(row["record_id"]))
             unit = ((record or {}).get("raw") or {}).get("typed_unit")
             if unit:
-                result.append({"record_id": str(row["record_id"]), "unit": unit})
+                result.append({
+                    "record_id": str(row["record_id"]),
+                    "fact_key": str((record or {}).get("fact_key") or ""),
+                    "unit": unit,
+                })
         return result
 
     def adjacent_typed_records(

@@ -30,6 +30,19 @@ def test_routing_is_deterministic_and_has_no_benchmark_vocabulary():
     assert "benchmark" not in str(first.to_dict()).lower()
 
 
+def test_answer_presentation_suffix_does_not_change_information_need():
+    plain = route_information_need(
+        'What is the action between "Delete Customer" and "Back"?'
+    )
+    formatted = route_information_need(
+        'What is the action between "Delete Customer" and "Back"? '
+        'Your final answer should be wrapped in \\boxed{}.'
+    )
+    assert plain.type == "exact_fact"
+    assert formatted.type == plain.type
+    assert formatted.required_slots == plain.required_slots
+
+
 def test_compound_decomposition_is_bounded_and_preserves_parent_identity():
     parent, children = decompose_information_need(
         "What is the current status and what changed and how do I recover and what failed?",

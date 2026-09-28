@@ -34,15 +34,20 @@ def decide_sufficiency(
         })
         if subject and relation:
             entity_relations.add((subject.casefold(), relation.casefold()))
+        relevant = set(need.required_slots) & slots
+        if need.type == "relational_synthesis" and subject and relation:
+            relevant = {"supporting_evidence"}
+        # Contradiction status describes evidence relevant to this need.
+        # Conflicting background rows must not manufacture an evidence-free
+        # contradiction for an unrelated question.
+        is_partition = "_chunk_" in str(row.get("fact_key") or "")
+        if relevant and subject and relation and not is_partition:
             key = (kind, subject.casefold(), relation.casefold())
             prior = identities.get(key)
             if prior is not None and prior[1] != value:
                 contradictions.append(record_id)
             else:
                 identities[key] = (record_id, value)
-        relevant = set(need.required_slots) & slots
-        if need.type == "relational_synthesis" and subject and relation:
-            relevant = {"supporting_evidence"}
         if not relevant:
             continue
         covered.update(relevant)

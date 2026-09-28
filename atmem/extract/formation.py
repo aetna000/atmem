@@ -133,8 +133,11 @@ def form_typed_proposals(
             fact_relation = relation
             if isinstance(structured, dict):
                 if structured:
-                    relation = str(next(iter(structured)))
-                    fact_relation = relation
+                    first_key = str(next(iter(structured))).strip()
+                    if first_key:
+                        relation = first_key
+                        fact_relation = relation
+                        entity = first_key
                 for key in ("id", "name", "title", "url"):
                     value = structured.get(key)
                     if isinstance(value, (str, int, float)) and str(value).strip():
@@ -143,12 +146,39 @@ def form_typed_proposals(
                 state_index = structured.get("state_index")
                 if isinstance(state_index, int) and not isinstance(state_index, bool):
                     fact_relation = f"{relation}:{state_index}"
-            candidates.append((
-                MemoryUnitKind.ENVIRONMENT_STATE,
-                EnvironmentStatePayload(entity, relation, text),
-                MemoryClass.TEMPORARY_STATE,
-                _fact_key(entity, fact_relation),
-            ))
+            if len(text) <= 2_000:
+                candidates.append((
+                    MemoryUnitKind.ENVIRONMENT_STATE,
+                    EnvironmentStatePayload(entity, relation, text),
+                    MemoryClass.TEMPORARY_STATE,
+                    _fact_key(entity, fact_relation),
+                ))
+            else:
+                # Browser and tool states routinely exceed the bounded typed
+                # payload contract. Preserve the immutable source verbatim and
+                # form independently addressable, lossless text slices instead
+                # of rejecting the complete episode or silently truncating it.
+                for chunk_index, chunk in enumerate(_bounded_text_chunks(text)):
+                    candidates.append((
+                        MemoryUnitKind.ENVIRONMENT_STATE,
+                        EnvironmentStatePayload(entity, relation, chunk),
+                        MemoryClass.TEMPORARY_STATE,
+                        _fact_key(entity, f"{fact_relation}:chunk:{chunk_index:04d}"),
+                    ))
+            # Structured host state is already represented losslessly. Do not
+            # run prose regexes over serialized accessibility trees: phrases
+            # such as "status" inside UI text are not top-level state claims.
+            return _materialize_candidates(
+                candidates,
+                text=text,
+                formation_id=formation_id,
+                source_id=source_id,
+                scope=scope,
+                evidence=evidence,
+                confidence=confidence,
+                observed_at=observed_at,
+                use_payload_value_for_fact=len(text) > 2_000,
+            )
 
     steps = _NUMBERED_STEP.findall(source)
     goal_match = re.match(r"(?:to|procedure for)\s+(.+?),\s*1[.)]", source, re.I)
@@ -390,6 +420,30 @@ def form_typed_proposals(
             None,
         ))
 
+    return _materialize_candidates(
+        candidates,
+        text=text,
+        formation_id=formation_id,
+        source_id=source_id,
+        scope=scope,
+        evidence=evidence,
+        confidence=confidence,
+        observed_at=observed_at,
+    )
+
+
+def _materialize_candidates(
+    candidates: list[tuple[MemoryUnitKind, Any, MemoryClass, str | None]],
+    *,
+    text: str,
+    formation_id: str,
+    source_id: str,
+    scope: AuthorityScope,
+    evidence: ProposalEvidence,
+    confidence: float,
+    observed_at: str | None,
+    use_payload_value_for_fact: bool = False,
+) -> tuple[ExtractionProposal, ...]:
     proposals: list[ExtractionProposal] = []
     for ordinal, (kind, payload, memory_class, fact_key) in enumerate(candidates):
         identity = canonical_json({
@@ -421,7 +475,11 @@ def form_typed_proposals(
             confidence=confidence,
             reason_codes=("deterministic_typed_formation",),
             evidence=(evidence,),
-            fact=text,
+            fact=(
+                str(getattr(payload, "value"))
+                if use_payload_value_for_fact
+                else text
+            ),
             fact_key=fact_key,
             unit=unit,
         ))
@@ -431,3 +489,24 @@ def form_typed_proposals(
 def _fact_key(subject: str, relation: str) -> str:
     value = re.sub(r"[^a-z0-9]+", "_", f"{subject}_{relation}".casefold()).strip("_")
     return value[:128]
+
+
+def _bounded_text_chunks(value: str, *, maximum: int = 1_900) -> tuple[str, ...]:
+    """Return exact, ordered, non-empty slices within typed field limits."""
+    if maximum <= 0 or maximum > 2_000:
+        raise ValueError("structured-state chunk size must be between 1 and 2,000")
+    chunks: list[str] = []
+    offset = 0
+    while offset < len(value):
+        end = min(len(value), offset + maximum)
+        if end < len(value):
+            boundary = max(
+                value.rfind(" ", offset, end),
+                value.rfind("\n", offset, end),
+                value.rfind("\t", offset, end),
+            )
+            if boundary > offset:
+                end = boundary + 1
+        chunks.append(value[offset:end])
+        offset = end
+    return tuple(chunks)

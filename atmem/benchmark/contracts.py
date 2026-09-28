@@ -238,7 +238,7 @@ def validate_provider_route_probe(value: Mapping[str, Any]) -> dict[str, Any]:
         raise ValueError("provider route probe digest does not match its canonical content")
     routes = dict(probe.get("routes") or {})
     expected_routes = {
-        "reader": ("Qwen/Qwen3.5-9B", "dedicated-vllm-l40s"),
+        "reader": ("Qwen/Qwen3.5-9B", "runpod-secure-l40s-vllm"),
         "embedding": ("Qwen/Qwen3-Embedding-8B", "scaleway"),
         "judge": ("gpt-5.2-2025-12-11", "openai-direct"),
     }
@@ -413,7 +413,7 @@ def validate_retrieval_quality_protocol(
             "judge_prompt_sha256", "provider_route",
             "provider_route_probe_sha256", "hardware_profile",
             "comparator_config_sha256", "official_code_combined_sha256",
-            "embedding_proxy_sha256", "judge_proxy_sha256",
+            "reader_proxy_sha256", "embedding_proxy_sha256", "judge_proxy_sha256",
         )
         values = [str(requirements.get(key) or "") for key in required]
         verified_probe = validate_provider_route_probe(route_probe)
@@ -436,12 +436,12 @@ def validate_retrieval_quality_protocol(
         ]
         expected_models = {
             "longmemeval_reader": (
-                "Qwen/Qwen3.5-9B", "dedicated-vllm-l40s",
-                "https://6aba25e48392dd29385ed72d.endpoints.huggingface.cloud/v1",
+                "Qwen/Qwen3.5-9B", "runpod-secure-l40s-vllm",
+                "runpod://ephemeral-l40s/v1",
             ),
             "official_rag_controller": (
-                "Qwen/Qwen3.5-9B", "dedicated-vllm-l40s",
-                "https://6aba25e48392dd29385ed72d.endpoints.huggingface.cloud/v1",
+                "Qwen/Qwen3.5-9B", "runpod-secure-l40s-vllm",
+                "runpod://ephemeral-l40s/v1",
             ),
             "official_rag_embedding": (
                 "Qwen/Qwen3-Embedding-8B:scaleway", "scaleway",
@@ -461,7 +461,7 @@ def validate_retrieval_quality_protocol(
         ):
             raise ValueError("pilot judge must use the probed dated model snapshot")
         caps = [
-            requirements.get("pilot_hf_cost_cap_usd"),
+            requirements.get("pilot_reader_cost_cap_usd"),
             requirements.get("pilot_openai_cost_cap_usd"),
             requirements.get("pilot_total_cost_cap_usd"),
         ]
@@ -474,21 +474,21 @@ def validate_retrieval_quality_protocol(
         case_reservations = [
             float(dict(method_reservations[name]).get(provider, 0))
             for name in sorted(allowed_pilot_methods)
-            for provider in ("huggingface", "openai")
+            for provider in ("reader", "openai")
         ]
-        hf_reserved = sum(
-            float(dict(method_reservations[name])["huggingface"])
+        reader_reserved = sum(
+            float(dict(method_reservations[name])["reader"])
             for name in allowed_pilot_methods
         ) * len(pilot["question_ids"])
         openai_reserved = sum(
             float(dict(method_reservations[name])["openai"])
             for name in allowed_pilot_methods
         ) * len(pilot["question_ids"])
-        reader_billing = dict(requirements.get("huggingface_reader_billing") or {})
-        endpoint_runtime_billing = reader_billing.get("mode") == "endpoint-runtime"
+        reader_billing = dict(requirements.get("reader_runtime_billing") or {})
+        endpoint_runtime_billing = reader_billing.get("mode") == "pod-runtime"
         prices = dict(requirements.get("openai_judge_price_usd_per_million") or {})
         reader = dict(models.get("longmemeval_reader") or {})
-        hf_runtime_worst_case = (
+        reader_runtime_worst_case = (
             float(reader_billing.get("usd_per_hour") or 0)
             * float(reader_billing.get("maximum_active_seconds") or 0)
             / 3_600
@@ -512,11 +512,16 @@ def validate_retrieval_quality_protocol(
                 for direction in ("input", "output")
             )
             or not endpoint_runtime_billing
-            or reader_billing.get("endpoint_name") != "qwen3-5-9b-hrt"
-            or reader_billing.get("namespace") != "javadtaghia"
+            or reader_billing.get("provider") != "runpod"
+            or reader_billing.get("cloud_type") != "SECURE"
+            or reader_billing.get("hardware_id") != "NVIDIA L40S"
+            or reader_billing.get("container_image") != "vllm/vllm-openai:v0.29.0"
+            or reader_billing.get("container_image_digest")
+            != "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1"
+            or reader_billing.get("max_num_seqs") != 2
             or float(reader_billing.get("usd_per_hour") or 0) <= 0
             or float(reader_billing.get("maximum_active_seconds") or 0) <= 0
-            or hf_runtime_worst_case > float(caps[0]) + 1e-12
+            or reader_runtime_worst_case > float(caps[0]) + 1e-12
             or requirements.get("paid_request_retries") != 0
             or judge.get("max_retries") != 0
             or judge_request_max_bytes <= 0
@@ -529,7 +534,7 @@ def validate_retrieval_quality_protocol(
                 + 1e-12 < judge_worst_case
                 for name in allowed_pilot_methods
             )
-            or any(float(dict(method_reservations[name]).get("huggingface", 0)) != 0 for name in allowed_pilot_methods)
+            or any(float(dict(method_reservations[name]).get("reader", 0)) != 0 for name in allowed_pilot_methods)
             or openai_reserved > float(caps[1]) + 1e-12
             or abs(float(caps[0]) + float(caps[1]) - float(caps[2])) > 1e-9
         ):

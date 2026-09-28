@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
+import threading
 import time
 from typing import Any
+import urllib.request
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -21,6 +25,7 @@ from research.production_benchmarks.longmemeval_v2 import (  # noqa: E402
     DatasetPreflight,
     current_hardware_profile,
     preflight_paid_runtime,
+    preflight_reader_processor,
     preflight_selected_data,
     run_official_pilot_case,
     verify_installed_adapter,
@@ -99,6 +104,54 @@ def _sound_reader_complete() -> None:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
+
+
+def _probe_reader(base_url: str, api_key: str) -> dict[str, Any]:
+    request = urllib.request.Request(
+        base_url.rstrip("/") + "/models",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "User-Agent": "OpenAI/Python 3.19.2",
+        },
+    )
+    started = time.monotonic()
+    with urllib.request.urlopen(request, timeout=30) as response:
+        payload = json.load(response)
+        status = response.status
+    models = [str(row.get("id")) for row in payload.get("data", [])]
+    return {
+        "status": status,
+        "duration_ms": round((time.monotonic() - started) * 1_000, 3),
+        "models": models,
+    }
+
+
+def _terminate_runpod_pod(pod_id: str) -> bool:
+    binary = os.environ.get("RUNPODCTL_BIN", "runpodctl")
+    environment = dict(os.environ)
+    environment["RUNPOD_API_KEY"] = environment["RUN_POD"]
+    completed = subprocess.run(
+        [binary, "pod", "delete", pod_id],
+        env=environment,
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        timeout=60,
+    )
+    return completed.returncode == 0
+
+
+def _wait_for_reader_proxy(process: subprocess.Popen[bytes], ready: Path) -> str:
+    for _ in range(200):
+        if ready.is_file():
+            value = str(json.loads(ready.read_text(encoding="utf-8"))["base_url"])
+            if value.startswith("http://127.0.0.1:"):
+                return value
+            raise RuntimeError("reader proxy advertised a non-loopback URL")
+        if process.poll() is not None:
+            raise RuntimeError("reader proxy exited before readiness")
+        time.sleep(0.05)
+    raise RuntimeError("reader proxy did not become ready")
 
 
 def _wait_for_judge_gate(
@@ -221,6 +274,7 @@ def main() -> None:
         str(protocol["paid_run_requirements"]["candidate_atmem_version"])
     )
     preflight_paid_runtime(protocol, methods=METHODS)
+    processor_preflight = preflight_reader_processor(protocol)
     expected_hardware = protocol["paid_run_requirements"]["hardware_profile"]
     hardware_profile = current_hardware_profile()
     if hardware_profile != expected_hardware:
@@ -255,6 +309,7 @@ def main() -> None:
             "official_checkout": verification,
             "hardware_profile": hardware_profile,
             "data_preflight": data_preflight.report(),
+            "reader_processor": processor_preflight,
             "paid_egress_started": False,
         }, indent=2, sort_keys=True))
         return
@@ -269,32 +324,69 @@ def main() -> None:
         "official_checkout": verification,
         "installed_product": installed_product,
         "data_preflight": data_preflight.report(),
+        "reader_processor": processor_preflight,
         "hardware_profile": hardware_profile,
         "methods": list(METHODS),
         "cases": cases,
     }
     _write_progress(progress_path, progress)
     requirements = dict(protocol["paid_run_requirements"])
-    billing = dict(requirements["huggingface_reader_billing"])
+    billing = dict(requirements["reader_runtime_billing"])
+    pod_id = os.environ.get("ATMEM_RUNPOD_POD_ID", "").strip()
+    reader_base_url = os.environ.get("ATMEM_READER_BASE_URL", "").strip()
+    reader_api_key = os.environ.get("RUNPOD_READER_API_KEY", "").strip()
+    billed_started_unix = float(os.environ.get("ATMEM_RUNPOD_BILLED_STARTED_UNIX", "0"))
+    attempt = int(os.environ.get("ATMEM_BENCHMARK_ATTEMPT", "0"))
+    if (
+        not pod_id
+        or not reader_base_url
+        or not reader_api_key
+        or billed_started_unix <= 0
+        or attempt <= 0
+    ):
+        raise RuntimeError(
+            "Runpod pilot requires the frozen pod id, URL, key, billing start and attempt"
+        )
+    pod_cleanup = {"required": True}
+
+    def cleanup_runpod() -> None:
+        if pod_cleanup["required"] and _terminate_runpod_pod(pod_id):
+            pod_cleanup["required"] = False
+
+    # This covers preflight/reservation failures that happen before the main
+    # reader try/finally block. The regular finally below performs immediate
+    # cleanup; this is the last-resort process-exit guard.
+    atexit.register(cleanup_runpod)
     protocol_digest = _canonical_digest(protocol)
-    hf_ledger = DurableCostLedger(
-        benchmark_root / "cost-ledgers" / protocol_digest / "longmem-hf-runtime-ledger.json",
-        total_cap_usd=float(requirements["pilot_hf_cost_cap_usd"]),
+    reader_ledger = DurableCostLedger(
+        benchmark_root / "cost-ledgers" / protocol_digest / "longmem-reader-runtime-ledger.json",
+        total_cap_usd=float(requirements["pilot_reader_cost_cap_usd"]),
     )
-    hf_key = f"longmem-pilot:{_canonical_digest(pilot)}:hf-endpoint-runtime"
-    hf_maximum = (
+    reader_key = (
+        f"longmem-pilot:{_canonical_digest(pilot)}:runpod-runtime:attempt-{attempt}"
+    )
+    elapsed_billed_seconds = max(0.0, time.time() - billed_started_unix)
+    remaining_billed_seconds = max(
+        0.0,
+        float(billing["maximum_active_seconds"]) - elapsed_billed_seconds,
+    )
+    reader_maximum = (
         float(billing["usd_per_hour"])
-        * float(billing["maximum_active_seconds"])
+        * remaining_billed_seconds
         / 3_600
     )
-    hf_ledger.reserve(
-        hf_key,
-        provider="huggingface-inference-endpoints",
-        maximum_usd=hf_maximum,
+    if reader_maximum <= 0:
+        raise RuntimeError("Runpod pod exceeded the frozen active-time limit")
+    reader_ledger.reserve(
+        reader_key,
+        provider="runpod-pods",
+        maximum_usd=reader_maximum,
         metadata={
-            "endpoint_name": billing["endpoint_name"],
-            "namespace": billing["namespace"],
+            "pod_id": os.environ.get("ATMEM_RUNPOD_POD_ID"),
+            "hardware_id": billing["hardware_id"],
             "billing_mode": billing["mode"],
+            "attempt": attempt,
+            "elapsed_billed_seconds_before_attempt": round(elapsed_billed_seconds, 3),
         },
     )
     evaluators = _question_evaluators(data_root)
@@ -307,6 +399,28 @@ def main() -> None:
     non_llm_work = [item for item in work if evaluators[item[0]] not in llm_evaluators]
     llm_work = [item for item in work if evaluators[item[0]] in llm_evaluators]
     judge_gate = output_root / "openai-judge.gate"
+    reader_proxy_url = ""
+    prebuilt_root_value = os.environ.get("ATMEM_LME_PREBUILT_ROOT", "").strip()
+    if not prebuilt_root_value:
+        raise RuntimeError("pilot requires ATMEM_LME_PREBUILT_ROOT")
+    prebuilt_root = Path(prebuilt_root_value).expanduser().resolve()
+    prebuilt_memory = {
+        domain: prebuilt_root / domain / "memory_state"
+        for domain in ("web", "enterprise")
+    }
+    no_retrieval_memory = prebuilt_root / "no-retrieval" / "memory_state"
+    cancellation_event = threading.Event()
+    missing_prebuilt = [
+        str(path) for path in prebuilt_memory.values()
+        if not (path / "memory_config.json").is_file()
+        or not (path / "atmem.db").is_file()
+    ]
+    if not (no_retrieval_memory / "memory_config.json").is_file():
+        missing_prebuilt.append(str(no_retrieval_memory))
+    if missing_prebuilt:
+        raise RuntimeError(
+            "pilot prebuilt AtMem memories are missing: " + ", ".join(missing_prebuilt)
+        )
 
     def run_case(item: tuple[str, str], *, gated: bool) -> dict[str, Any]:
         question_id, method = item
@@ -325,82 +439,149 @@ def main() -> None:
             pilot=pilot,
             dolphin_split=dolphin_split,
             route_probe=route_probe,
+            environment={"ATMEM_READER_BASE_URL": reader_proxy_url},
             confirmed_paid_run=True,
             data_preflight=data_preflight,
-            shared_hf_runtime_reservation=True,
+            shared_reader_runtime_reservation=True,
             judge_gate_file=judge_gate if gated else None,
+            load_memory_dir=(
+                prebuilt_memory[domain]
+                if method == "typed-local"
+                else no_retrieval_memory
+            ),
+            cancellation_event=cancellation_event,
+            deadline_monotonic=deadline,
         )
         return {**result, **_case_score(Path(result["output_dir"]))}
 
-    from huggingface_hub import get_inference_endpoint
+    def run_batch(
+        items: list[tuple[str, str]], *, max_workers: int, gated: bool
+    ) -> list[dict[str, Any]]:
+        """Run cases, durably checkpoint each success, and fail fast."""
 
-    endpoint = get_inference_endpoint(
-        str(billing["endpoint_name"]),
-        namespace=str(billing["namespace"]),
-        token=os.environ["HF_TOKEN"],
-    )
-    endpoint.fetch()
-    if str(endpoint.status) != "paused":
-        raise RuntimeError(
-            "dedicated endpoint must be paused before the metered batch starts"
-        )
-    active_started = time.monotonic()
-    paused = False
-    endpoint_receipt = output_root / "hf-endpoint-runtime.json"
-    try:
-        endpoint.resume(running_ok=True).wait(timeout=900, refresh_every=5)
-        deadline = active_started + float(billing["maximum_active_seconds"])
-        with ThreadPoolExecutor(max_workers=6) as executor:
-            for future in as_completed(
-                [executor.submit(run_case, item, gated=False) for item in non_llm_work]
-            ):
-                cases.append(future.result())
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        futures = [executor.submit(run_case, item, gated=gated) for item in items]
+        completed_cases: list[dict[str, Any]] = []
+        try:
+            for future in as_completed(futures):
+                case = future.result()
+                completed_cases.append(case)
+                cases.append(case)
                 _write_progress(progress_path, progress)
-        with ThreadPoolExecutor(max_workers=len(llm_work)) as executor:
-            llm_futures = [
-                executor.submit(run_case, item, gated=True) for item in llm_work
-            ]
+        except BaseException:
+            cancellation_event.set()
+            for future in futures:
+                future.cancel()
+            executor.shutdown(wait=True, cancel_futures=True)
+            raise
+        executor.shutdown(wait=True)
+        return completed_cases
+
+    try:
+        probe = _probe_reader(reader_base_url, reader_api_key)
+    except Exception:
+        _terminate_runpod_pod(pod_id)
+        raise
+    if protocol["models"]["longmemeval_reader"]["model"] not in probe["models"]:
+        raise RuntimeError("Runpod vLLM server does not expose the frozen reader model")
+    terminated = False
+    reader_proxy: subprocess.Popen[bytes] | None = None
+    endpoint_receipt = output_root / "runpod-pod-runtime.json"
+    try:
+        reader_proxy_source = Path(__file__).with_name("runpod_reader_proxy.py")
+        reader_proxy_ready = output_root / "reader-proxy-ready.json"
+        proxy_environment = {
+            "PATH": os.environ.get("PATH", ""),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "ATMEM_RUNPOD_UPSTREAM_URL": reader_base_url,
+            "RUNPOD_READER_API_KEY": reader_api_key,
+        }
+        reader_proxy = subprocess.Popen(
+            [
+                sys.executable,
+                os.fspath(reader_proxy_source),
+                "--ready-file",
+                os.fspath(reader_proxy_ready),
+            ],
+            cwd=output_root,
+            env=proxy_environment,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        reader_proxy_url = _wait_for_reader_proxy(reader_proxy, reader_proxy_ready)
+        deadline = time.monotonic() + remaining_billed_seconds
+        run_batch(non_llm_work, max_workers=2, gated=False)
+        # Every LLM-judged case must reach the local gate before Runpod is
+        # terminated. The remote vLLM server still enforces max_num_seqs=2.
+        executor = ThreadPoolExecutor(max_workers=len(llm_work))
+        llm_futures = [
+            executor.submit(run_case, item, gated=True) for item in llm_work
+        ]
+        try:
             usage_paths = [
                 output_root / "runs" / question_id / method / "judge-usage.json"
                 for question_id, method in llm_work
             ]
             _wait_for_judge_gate(llm_futures, usage_paths, deadline=deadline)
-            endpoint.pause()
-            paused = True
-            active_seconds = time.monotonic() - active_started
-            hf_cost = active_seconds * float(billing["usd_per_hour"]) / 3_600
-            hf_ledger.complete(hf_key, cost_usd=hf_cost)
+            terminated = _terminate_runpod_pod(pod_id)
+            if not terminated:
+                raise RuntimeError("Runpod pod termination failed; manual action required")
+            pod_cleanup["required"] = False
+            active_seconds = time.time() - billed_started_unix
+            reader_cost = active_seconds * float(billing["usd_per_hour"]) / 3_600
+            reader_ledger.complete(reader_key, cost_usd=reader_cost)
             _write_progress(
                 endpoint_receipt,
                 {
-                    "format": "atmem-hf-endpoint-runtime-v1",
-                    "endpoint_name": billing["endpoint_name"],
-                    "namespace": billing["namespace"],
+                    "format": "atmem-runpod-pod-runtime-v1",
+                    "pod_id": pod_id,
+                    "cloud_type": billing["cloud_type"],
+                    "hardware_id": billing["hardware_id"],
+                    "container_image": billing["container_image"],
                     "model": protocol["models"]["longmemeval_reader"]["model"],
                     "model_revision": protocol["models"]["longmemeval_reader"]["revision"],
                     "active_seconds_local_observation": round(active_seconds, 3),
                     "usd_per_hour": float(billing["usd_per_hour"]),
-                    "estimated_cost_usd": round(hf_cost, 9),
+                    "estimated_cost_usd": round(reader_cost, 9),
                     "provider_invoice_reconciled": False,
-                    "endpoint_state_after_reader_phase": "paused",
+                    "pod_state_after_reader_phase": "terminated",
                     "reader_case_count": len(work),
+                    "readiness_probe": probe,
                     "content_retained": False,
                 },
             )
             _sound_reader_complete()
             print(
-                "HF_READER_PHASE_COMPLETE endpoint=paused "
-                f"seconds={active_seconds:.3f} estimated_cost_usd={hf_cost:.6f}",
+                "RUNPOD_READER_PHASE_COMPLETE pod=terminated "
+                f"seconds={active_seconds:.3f} estimated_cost_usd={reader_cost:.6f}",
                 flush=True,
             )
-            judge_gate.write_text("reader phase complete; HF endpoint paused\n", encoding="utf-8")
+            judge_gate.write_text("reader phase complete; Runpod pod terminated\n", encoding="utf-8")
             for future in as_completed(llm_futures):
-                cases.append(future.result())
+                case = future.result()
+                cases.append(case)
                 _write_progress(progress_path, progress)
+        except BaseException:
+            cancellation_event.set()
+            for future in llm_futures:
+                future.cancel()
+            executor.shutdown(wait=True, cancel_futures=True)
+            raise
+        else:
+            executor.shutdown(wait=True)
     finally:
-        if not paused:
+        cancellation_event.set()
+        if reader_proxy is not None and reader_proxy.poll() is None:
+            reader_proxy.terminate()
             try:
-                endpoint.pause()
+                reader_proxy.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                reader_proxy.kill()
+                reader_proxy.wait(timeout=5)
+        if not terminated:
+            try:
+                if _terminate_runpod_pod(pod_id):
+                    pod_cleanup["required"] = False
             except Exception:
                 pass
     progress["summary"] = {
@@ -410,7 +591,7 @@ def main() -> None:
                 if case["method"] == method and case["score_bool"]
             ),
             "total": sum(1 for case in cases if case["method"] == method),
-            "hf_cost_usd": None,
+            "reader_cost_usd": None,
             "openai_cost_usd": round(sum(
                 float(case["openai_cost_usd"])
                 for case in cases if case["method"] == method
@@ -418,7 +599,7 @@ def main() -> None:
         }
         for method in METHODS
     }
-    progress["summary"]["hf_endpoint_runtime"] = _load(endpoint_receipt)
+    progress["summary"]["reader_runtime"] = _load(endpoint_receipt)
     _write_progress(progress_path, progress)
     print(json.dumps(progress["summary"], indent=2, sort_keys=True))
 

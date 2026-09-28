@@ -9,6 +9,19 @@ from pathlib import Path
 SCOPE = AuthorityScope("formation-person", "formation-agent", "formation-workspace")
 
 
+def test_structured_state_with_empty_key_uses_non_empty_fallback_relation():
+    proposals = form_typed_proposals(
+        '{"": "visible but unnamed state"}',
+        scope=SCOPE,
+        source_id="source-empty-key",
+        formation_id="formation-empty-key",
+        part_kind="state",
+    )
+
+    assert len(proposals) == 1
+    assert proposals[0].unit.payload.relation == "structured event"
+
+
 def _words(value: object) -> set[str]:
     import re
 
@@ -51,19 +64,24 @@ def test_product_derived_formation_corpus_preserves_answer_bearing_fields():
             )
 
 
-def episode(episode_id: str, texts: list[str]) -> EpisodeIngestRequest:
+def episode(
+    episode_id: str, texts: list[str], *, part_kind: str = "text",
+    host_asserted: bool = False,
+) -> EpisodeIngestRequest:
     return EpisodeIngestRequest(
         episode_id=episode_id,
         idempotency_key=f"key-{episode_id}",
         scope=SCOPE,
         parts=tuple(
             EpisodePart(
-                part_id=f"part-{index}", ordinal=index, kind="text",
+                part_id=f"part-{index}", ordinal=index, kind=part_kind,
                 source_type="user_message", content=text,
                 content_sha256=f"sha256:{sha256_hex(text)}",
             )
             for index, text in enumerate(texts)
         ),
+        binding_method="host_asserted" if host_asserted else "caller_asserted",
+        binding_assurance="host_asserted" if host_asserted else "caller_asserted",
     )
 
 
@@ -140,6 +158,30 @@ def test_episode_formation_is_idempotent(tmp_path):
         assert memory.store._conn.execute(
             "SELECT COUNT(*) AS count FROM typed_memory_units"
         ).fetchone()["count"] == 1
+    finally:
+        memory.close()
+
+
+def test_long_structured_state_is_losslessly_sliced_with_unique_fact_keys(tmp_path):
+    body = '{"accessibility_tree":"' + ("visible button text " * 180) + '"}'
+    memory = Memory(
+        tmp_path / "formation.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        result = memory.form_episode(episode(
+            "long-state", [body], part_kind="state", host_asserted=True
+        ))
+        units = result["receipt"]["admitted"]
+        assert units >= 2
+        assert result["receipt"]["complete"] is True
+        rows = [
+            memory.store.get_record(SCOPE.subject_id, outcome["record_ids"][0])
+            for outcome in result["outcomes"]
+        ]
+        assert len(rows) == units
+        assert len({row["fact_key"] for row in rows}) == units
+        assert all(0 < len(row["content"]) <= 2_000 for row in rows)
     finally:
         memory.close()
 

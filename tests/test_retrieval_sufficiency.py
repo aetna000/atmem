@@ -2,9 +2,13 @@ from atmem.retrieve.intent import route_information_need
 from atmem.retrieve.sufficiency import decide_sufficiency
 
 
-def row(record_id: str, kind: str, payload: dict, **unit_fields) -> dict:
+def row(
+    record_id: str, kind: str, payload: dict, *, fact_key: str = "",
+    **unit_fields,
+) -> dict:
     return {
         "record_id": record_id,
+        "fact_key": fact_key,
         "unit": {
             "kind": kind,
             "payload": payload,
@@ -81,3 +85,36 @@ def test_expired_evidence_is_stale_and_unrelated_evidence_is_unsupported():
     )
     assert unsupported.status == "unsupported"
     assert unsupported.evidence_ids == ()
+
+
+def test_irrelevant_conflicts_do_not_create_evidence_free_contradiction():
+    need = route_information_need("How should I publish the package?")
+    decision = decide_sufficiency(need, [
+        row("one", "environment_state", {
+            "entity": "service", "relation": "status", "value": "ready",
+            "polarity": "positive",
+        }),
+        row("two", "environment_state", {
+            "entity": "service", "relation": "status", "value": "stopped",
+            "polarity": "positive",
+        }),
+    ])
+    assert decision.status == "unsupported"
+    assert decision.evidence_ids == ()
+    assert decision.contradiction_ids == ()
+
+
+def test_structured_state_partitions_are_complementary_not_contradictory():
+    need = route_information_need("What is the current selected model?")
+    decision = decide_sufficiency(need, [
+        row("one", "environment_state", {
+            "entity": "runtime", "relation": "selected model", "value": "qwen ",
+            "polarity": "positive",
+        }, fact_key="runtime_selected_model_chunk_0000"),
+        row("two", "environment_state", {
+            "entity": "runtime", "relation": "selected model", "value": "3.5",
+            "polarity": "positive",
+        }, fact_key="runtime_selected_model_chunk_0001"),
+    ])
+    assert decision.status == "sufficient"
+    assert decision.contradiction_ids == ()

@@ -47,6 +47,11 @@ same confirmation IDs to measure larger-haystack behavior.
 
 The pilot is a cost and plumbing check, not an accuracy claim.
 
+The first Runpod execution on 2026-09-28 stopped safely after seven paired
+questions because later reader responses did not contain final answer text.
+Its incomplete, development-only findings and reconciled costs are recorded in
+[`reports/longmemeval-v2-development-pilot-20260928.md`](reports/longmemeval-v2-development-pilot-20260928.md).
+
 - `longmemeval-v2-pilot-v1.json` selects 14 development questions: one from
   each frozen domain-by-ability stratum. It contains no confirmation IDs.
 - `dolphinbench-task-split-v1.json` selects 6 of the 200 tasks for each of the
@@ -57,16 +62,16 @@ The pilot is a cost and plumbing check, not an accuracy claim.
   `provider-route-probe-v1.json` is the content-free credentialed evidence for
   the exact dedicated Qwen, Scaleway and dated OpenAI routes. The validator checks
   its canonical digest and every successful route before permitting a pilot.
-- The private Hugging Face endpoint pins `Qwen/Qwen3.5-9B` at the protocol
-  revision on one L40S replica. The endpoint metadata establishes the configured
+- The temporary authenticated Runpod Pod pins `Qwen/Qwen3.5-9B` at the protocol
+  revision on one Secure Cloud L40S. The pod receipt establishes the configured
   repository revision; it is not a cryptographic attestation of loaded weights.
 - Dolphin interactions and the LongMemEval pilot reserve their maximum
   permitted provider cost durably before network egress. A crash leaves the
   reservation in place and blocks a blind paid retry. The reviewed LongMemEval
   pilot disables provider retries, enforces request/token ceilings, accounts
-  dedicated-reader cost from measured endpoint-active time, and pauses the
-  endpoint before releasing gated OpenAI judging. The audible completion signal
-  occurs only after the endpoint reports paused. Provider-invoiced endpoint
+  dedicated-reader cost from measured pod-active time, and terminates the
+  temporary pod before releasing gated OpenAI judging. The audible completion signal
+  occurs only after pod deletion succeeds. Provider-invoiced pod
   cost remains a later reconciliation field rather than a fabricated token fee.
   `no-retrieval` and `typed-local` are currently price-qualified; the official
   RAG comparator stays disabled until its per-trajectory indexing cost has a
@@ -81,8 +86,8 @@ The pilot is a cost and plumbing check, not an accuracy claim.
   from creating a second paid call, and records only token counts and computed
   cost—not benchmark prompts, answers or credentials.
   During the paid pilot it also exposes a content-free waiting state and blocks
-  upstream judging until all Qwen answers are durable and the HF endpoint is
-  paused.
+  upstream judging until all Qwen answers are durable and the Runpod pod is
+  terminated.
 
 After the pinned dataset is prepared on an external volume and the reviewed
 adapter is installed into a clean pinned checkout, run the frozen two-arm pilot
@@ -98,9 +103,10 @@ python research/production_benchmarks/run_longmem_pilot.py \
 
 The command refuses an existing output root, any non-development question ID,
 an unpriced method, a changed adapter/proxy/protocol, or a missing credential.
-It requires the named HF endpoint to start paused, resumes it through the HF
-API, and pauses it in both the success and failure paths. Use `--preflight-only`
-to run every local/package/data/credential check without resuming the endpoint.
+It requires a temporary authenticated Runpod Pod created from the frozen image,
+hardware and model settings, then deletes that exact pod through the Runpod API
+in both success and failure paths. Use `--preflight-only` to run every
+local/package/data/credential check without creating a pod.
 
 ## Official inert adapters
 

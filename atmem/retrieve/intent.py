@@ -34,6 +34,12 @@ _STOP = frozenset(
     "a an am and are can could did do does for from how i in is it me my of on or should the this to was what when where which who why with you your".split()
 )
 _TOKEN = re.compile(r"[^\W_]+", re.UNICODE)
+_PRESENTATION_SUFFIX = re.compile(
+    r"(?:^|(?<=[.!?])\s+)(?:your final answer|mark your final answer|"
+    r"format your (?:final )?answer|answer (?:using|in|with)|respond (?:using|in|with))"
+    r"\b.*$",
+    re.I,
+)
 
 
 def route_information_need(
@@ -46,15 +52,16 @@ def route_information_need(
     normalized = " ".join(query.split())
     if not normalized:
         raise ValueError("information-need routing requires a non-empty query")
+    semantic_query = _PRESENTATION_SUFFIX.sub("", normalized).strip() or normalized
     need_type = next(
-        (name for name, pattern in _ROUTES if pattern.search(normalized)),
+        (name for name, pattern in _ROUTES if pattern.search(semantic_query)),
         "exact_fact",
     )
-    tokens = [token.casefold() for token in _TOKEN.findall(normalized)]
+    tokens = [token.casefold() for token in _TOKEN.findall(semantic_query)]
     entities = tuple(dict.fromkeys(token for token in tokens if token not in _STOP))[:8]
     polarity = "negative" if re.search(
         r"\b(?:no|not|never|without|cannot|can't|don't|doesn't|isn't|aren't)\b",
-        normalized,
+        semantic_query,
         re.I,
     ) else "unknown"
     identity = canonical_json({
