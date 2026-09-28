@@ -238,7 +238,7 @@ def validate_provider_route_probe(value: Mapping[str, Any]) -> dict[str, Any]:
         raise ValueError("provider route probe digest does not match its canonical content")
     routes = dict(probe.get("routes") or {})
     expected_routes = {
-        "reader": ("Qwen/Qwen3.5-9B", "together"),
+        "reader": ("Qwen/Qwen3.5-9B", "dedicated-vllm-l40s"),
         "embedding": ("Qwen/Qwen3-Embedding-8B", "scaleway"),
         "judge": ("gpt-5.2-2025-12-11", "openai-direct"),
     }
@@ -436,12 +436,12 @@ def validate_retrieval_quality_protocol(
         ]
         expected_models = {
             "longmemeval_reader": (
-                "Qwen/Qwen3.5-9B:together", "together",
-                "https://router.huggingface.co/v1",
+                "Qwen/Qwen3.5-9B", "dedicated-vllm-l40s",
+                "https://6aba25e48392dd29385ed72d.endpoints.huggingface.cloud/v1",
             ),
             "official_rag_controller": (
-                "Qwen/Qwen3.5-9B:together", "together",
-                "https://router.huggingface.co/v1",
+                "Qwen/Qwen3.5-9B", "dedicated-vllm-l40s",
+                "https://6aba25e48392dd29385ed72d.endpoints.huggingface.cloud/v1",
             ),
             "official_rag_embedding": (
                 "Qwen/Qwen3-Embedding-8B:scaleway", "scaleway",
@@ -484,40 +484,39 @@ def validate_retrieval_quality_protocol(
             float(dict(method_reservations[name])["openai"])
             for name in allowed_pilot_methods
         ) * len(pilot["question_ids"])
-        prices = (
-            dict(requirements.get("huggingface_reader_price_usd_per_million") or {}),
-            dict(requirements.get("openai_judge_price_usd_per_million") or {}),
-        )
+        reader_billing = dict(requirements.get("huggingface_reader_billing") or {})
+        endpoint_runtime_billing = reader_billing.get("mode") == "endpoint-runtime"
+        prices = dict(requirements.get("openai_judge_price_usd_per_million") or {})
         reader = dict(models.get("longmemeval_reader") or {})
-        hf_worst_case = (
-            (int(reader.get("max_prompt_tokens") or 0)
-             * float(prices[0].get("input") or 0))
-            + (int(reader.get("max_completion_tokens") or 0)
-               * float(prices[0].get("output") or 0))
-        ) / 1_000_000
+        hf_runtime_worst_case = (
+            float(reader_billing.get("usd_per_hour") or 0)
+            * float(reader_billing.get("maximum_active_seconds") or 0)
+            / 3_600
+        )
         judge_request_max_bytes = int(
             requirements.get("judge_request_max_bytes") or 0
         )
         judge_worst_case = (
-            judge_request_max_bytes * float(prices[1].get("input") or 0)
+            judge_request_max_bytes * float(prices.get("input") or 0)
             + int(judge.get("max_completion_tokens") or 0)
-            * float(prices[1].get("output") or 0)
+            * float(prices.get("output") or 0)
         ) / 1_000_000
         if (
             protocol.get("status") != "development-pilot-ready"
             or any(not value or "pending" in value for value in values + model_revisions)
             or any(not isinstance(cap, (int, float)) or cap <= 0 for cap in caps)
+            or any(not isinstance(value, (int, float)) or value < 0 for value in case_reservations)
             or any(
-                not isinstance(value, (int, float)) or value <= 0
-                for value in case_reservations
-            )
-            or float(case_reservations[0]) > float(caps[0])
-            or any(
-                not isinstance(price.get(direction), (int, float))
-                or float(price[direction]) <= 0
-                for price in prices
+                not isinstance(prices.get(direction), (int, float))
+                or float(prices[direction]) <= 0
                 for direction in ("input", "output")
             )
+            or not endpoint_runtime_billing
+            or reader_billing.get("endpoint_name") != "qwen3-5-9b-hrt"
+            or reader_billing.get("namespace") != "javadtaghia"
+            or float(reader_billing.get("usd_per_hour") or 0) <= 0
+            or float(reader_billing.get("maximum_active_seconds") or 0) <= 0
+            or hf_runtime_worst_case > float(caps[0]) + 1e-12
             or requirements.get("paid_request_retries") != 0
             or judge.get("max_retries") != 0
             or judge_request_max_bytes <= 0
@@ -526,17 +525,12 @@ def validate_retrieval_quality_protocol(
             or int(reader.get("memory_context_max_tokens") or 0)
             > int(reader.get("max_prompt_tokens") or 0)
             or any(
-                float(dict(method_reservations[name])["huggingface"])
-                + 1e-12 < hf_worst_case
-                for name in allowed_pilot_methods
-            )
-            or any(
                 float(dict(method_reservations[name])["openai"])
                 + 1e-12 < judge_worst_case
                 for name in allowed_pilot_methods
             )
-                or hf_reserved > float(caps[0]) + 1e-12
-                or openai_reserved > float(caps[1]) + 1e-12
+            or any(float(dict(method_reservations[name]).get("huggingface", 0)) != 0 for name in allowed_pilot_methods)
+            or openai_reserved > float(caps[1]) + 1e-12
             or abs(float(caps[0]) + float(caps[1]) - float(caps[2])) > 1e-9
         ):
             raise ValueError("pilot run protocol still has an unverified route, pin or cost cap")

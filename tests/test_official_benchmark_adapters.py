@@ -305,6 +305,88 @@ def test_judge_proxy_preserves_reserved_cost_when_usage_is_missing(
         upstream.server_close()
 
 
+def test_judge_proxy_waits_for_reader_phase_gate(
+    tmp_path: Path, monkeypatch
+) -> None:
+    import time
+    import urllib.request
+    from research.production_benchmarks import openai_judge_proxy
+
+    class Upstream(BaseHTTPRequestHandler):
+        calls = 0
+
+        def log_message(self, _format, *_args):
+            return
+
+        def do_POST(self):  # noqa: N802
+            type(self).calls += 1
+            self.rfile.read(int(self.headers["Content-Length"]))
+            body = json.dumps({
+                "choices": [{"message": {"content": '{"label": 1}'}}],
+                "usage": {"prompt_tokens": 4, "completion_tokens": 2},
+            }).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    upstream = ThreadingHTTPServer(("127.0.0.1", 0), Upstream)
+    threading.Thread(target=upstream.serve_forever, daemon=True).start()
+    monkeypatch.setattr(
+        openai_judge_proxy,
+        "UPSTREAM",
+        f"http://127.0.0.1:{upstream.server_port}/v1/chat/completions",
+    )
+    usage_path = tmp_path / "usage.json"
+    gate_path = tmp_path / "reader-complete.gate"
+    proxy = ThreadingHTTPServer(("127.0.0.1", 0), openai_judge_proxy.Handler)
+    proxy.state = openai_judge_proxy.State(  # type: ignore[attr-defined]
+        usage_path,
+        "fixture-key",
+        gate_file=gate_path,
+        gate_timeout_seconds=5,
+    )
+    threading.Thread(target=proxy.serve_forever, daemon=True).start()
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{proxy.server_port}/v1/chat/completions",
+        data=json.dumps({
+            "model": openai_judge_proxy.MODEL,
+            "messages": [],
+            "max_completion_tokens": 128,
+        }).encode(),
+        headers={"Authorization": "Bearer local-proxy", "Content-Type": "application/json"},
+    )
+    outcome: dict[str, int] = {}
+
+    def send() -> None:
+        with urllib.request.urlopen(request) as response:
+            outcome["status"] = response.status
+
+    client = threading.Thread(target=send, daemon=True)
+    client.start()
+    try:
+        for _ in range(100):
+            if usage_path.is_file() and json.loads(usage_path.read_text())["state"] == (
+                "waiting_for_reader_phase_gate"
+            ):
+                break
+            time.sleep(0.01)
+        else:
+            pytest.fail("judge proxy did not expose the waiting state")
+        assert Upstream.calls == 0
+        gate_path.write_text("ready\n")
+        client.join(timeout=5)
+        assert outcome == {"status": 200}
+        assert Upstream.calls == 1
+        assert json.loads(usage_path.read_text())["state"] == "completed"
+    finally:
+        proxy.shutdown()
+        proxy.server_close()
+        upstream.shutdown()
+        upstream.server_close()
+
+
 def test_longmem_runner_charges_missing_required_judge_usage_conservatively(
     tmp_path: Path,
 ) -> None:

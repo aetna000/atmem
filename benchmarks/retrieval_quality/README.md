@@ -55,18 +55,19 @@ The pilot is a cost and plumbing check, not an accuracy claim.
 - `2.3.8.yaml` pins upstream commits, model revisions, prompts/scorers,
   provider routes, hardware, retry limits, context/output limits and cost caps.
   `provider-route-probe-v1.json` is the content-free credentialed evidence for
-  the exact DeepInfra, Scaleway and dated OpenAI routes. The validator checks
+  the exact dedicated Qwen, Scaleway and dated OpenAI routes. The validator checks
   its canonical digest and every successful route before permitting a pilot.
-- The Hugging Face router identifies the served model and provider but does
-  not attest the exact weights commit. The repository revisions are frozen
-  reproducibility references, not a claim of cryptographic served-weight
-  identity. A publication requiring that stronger claim must use an endpoint
-  that exposes an attested revision or a locally hashed model artifact.
-- Dolphin interactions and each LongMemEval pilot case reserve their maximum
+- The private Hugging Face endpoint pins `Qwen/Qwen3.5-9B` at the protocol
+  revision on one L40S replica. The endpoint metadata establishes the configured
+  repository revision; it is not a cryptographic attestation of loaded weights.
+- Dolphin interactions and the LongMemEval pilot reserve their maximum
   permitted provider cost durably before network egress. A crash leaves the
   reservation in place and blocks a blind paid retry. The reviewed LongMemEval
-  pilot methods disable provider retries, enforce request/token ceilings and
-  replace the reservation with provider-reported token cost after success.
+  pilot disables provider retries, enforces request/token ceilings, accounts
+  dedicated-reader cost from measured endpoint-active time, and pauses the
+  endpoint before releasing gated OpenAI judging. The audible completion signal
+  occurs only after the endpoint reports paused. Provider-invoiced endpoint
+  cost remains a later reconciliation field rather than a fabricated token fee.
   `no-retrieval` and `typed-local` are currently price-qualified; the official
   RAG comparator stays disabled until its per-trajectory indexing cost has a
   separately measured and frozen upper bound.
@@ -79,6 +80,9 @@ The pilot is a cost and plumbing check, not an accuracy claim.
   the dated judge model, rejects an oversized request, prevents an SDK retry
   from creating a second paid call, and records only token counts and computed
   cost—not benchmark prompts, answers or credentials.
+  During the paid pilot it also exposes a content-free waiting state and blocks
+  upstream judging until all Qwen answers are durable and the HF endpoint is
+  paused.
 
 After the pinned dataset is prepared on an external volume and the reviewed
 adapter is installed into a clean pinned checkout, run the frozen two-arm pilot
@@ -94,6 +98,9 @@ python research/production_benchmarks/run_longmem_pilot.py \
 
 The command refuses an existing output root, any non-development question ID,
 an unpriced method, a changed adapter/proxy/protocol, or a missing credential.
+It requires the named HF endpoint to start paused, resumes it through the HF
+API, and pauses it in both the success and failure paths. Use `--preflight-only`
+to run every local/package/data/credential check without resuming the endpoint.
 
 ## Official inert adapters
 

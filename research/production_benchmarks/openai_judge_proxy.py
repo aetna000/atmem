@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import threading
+import time
 import urllib.error
 import urllib.request
 
@@ -22,9 +23,18 @@ RESERVED_MAXIMUM_USD = 0.29
 
 
 class State:
-    def __init__(self, usage_file: Path, upstream_api_key: str) -> None:
+    def __init__(
+        self,
+        usage_file: Path,
+        upstream_api_key: str,
+        *,
+        gate_file: Path | None = None,
+        gate_timeout_seconds: float = 3_600.0,
+    ) -> None:
         self.usage_file = usage_file
         self.upstream_api_key = upstream_api_key
+        self.gate_file = gate_file
+        self.gate_timeout_seconds = gate_timeout_seconds
         self.lock = threading.Lock()
         self.egress_started = False
 
@@ -118,6 +128,30 @@ class Handler(BaseHTTPRequestHandler):
                 {
                     "format": "atmem-openai-judge-usage-v1",
                     "model": MODEL,
+                    "state": (
+                        "waiting_for_reader_phase_gate"
+                        if state.gate_file is not None
+                        else "egress_started"
+                    ),
+                    "requests": 1,
+                    "prompt_tokens": None,
+                    "completion_tokens": None,
+                    "cost_usd": RESERVED_MAXIMUM_USD,
+                    "content_retained": False,
+                },
+            )
+        if state.gate_file is not None:
+            deadline = time.monotonic() + state.gate_timeout_seconds
+            while not state.gate_file.is_file():
+                if time.monotonic() >= deadline:
+                    self.send_error(504, "judge gate timed out before egress")
+                    return
+                time.sleep(0.1)
+            _write_json_durable(
+                state.usage_file,
+                {
+                    "format": "atmem-openai-judge-usage-v1",
+                    "model": MODEL,
                     "state": "egress_started",
                     "requests": 1,
                     "prompt_tokens": None,
@@ -160,14 +194,24 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ready-file", required=True)
     parser.add_argument("--usage-file", required=True)
+    parser.add_argument("--gate-file")
+    parser.add_argument("--gate-timeout-seconds", type=float, default=3_600.0)
     args = parser.parse_args()
     ready = Path(args.ready_file).expanduser().resolve()
     usage = Path(args.usage_file).expanduser().resolve()
+    gate = Path(args.gate_file).expanduser().resolve() if args.gate_file else None
+    if args.gate_timeout_seconds <= 0:
+        raise SystemExit("--gate-timeout-seconds must be positive")
     upstream_api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not upstream_api_key:
         raise SystemExit("OPENAI_API_KEY is required")
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    server.state = State(usage, upstream_api_key)  # type: ignore[attr-defined]
+    server.state = State(  # type: ignore[attr-defined]
+        usage,
+        upstream_api_key,
+        gate_file=gate,
+        gate_timeout_seconds=args.gate_timeout_seconds,
+    )
     _write_json_durable(
         ready,
         {"base_url": f"http://127.0.0.1:{server.server_port}/v1"},

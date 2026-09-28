@@ -149,11 +149,18 @@ def preflight_paid_runtime(
             raise RuntimeError(f"paid pilot {field} differs from the frozen protocol")
         result[field] = digest
     reservations = dict(requirements.get("pilot_method_reservations_usd") or {})
+    endpoint_runtime_billing = (
+        dict(requirements.get("huggingface_reader_billing") or {}).get("mode")
+        == "endpoint-runtime"
+    )
     for method in methods:
         amounts = reservations.get(method)
         if (
             not isinstance(amounts, dict)
-            or float(amounts.get("huggingface", 0)) <= 0
+            or (
+                not endpoint_runtime_billing
+                and float(amounts.get("huggingface", 0)) <= 0
+            )
             or float(amounts.get("openai", 0)) < 0
         ):
             raise RuntimeError(
@@ -552,6 +559,8 @@ def run_official_pilot_case(
     dolphin_split: dict, route_probe: dict, environment: dict[str, str] | None = None,
     confirmed_paid_run: bool = False,
     data_preflight: DatasetPreflight | None = None,
+    shared_hf_runtime_reservation: bool = False,
+    judge_gate_file: str | Path | None = None,
 ) -> dict[str, Any]:
     """Run one frozen case through the official executable with durable spend guards."""
     root = Path(checkout).expanduser().resolve()
@@ -612,6 +621,12 @@ def run_official_pilot_case(
     if method not in method_map:
         raise ValueError("pilot method is not an executable frozen operating point")
     requirements = protocol["paid_run_requirements"]
+    reader_billing = dict(requirements.get("huggingface_reader_billing") or {})
+    endpoint_runtime_billing = reader_billing.get("mode") == "endpoint-runtime"
+    if endpoint_runtime_billing and not shared_hf_runtime_reservation:
+        raise RuntimeError(
+            "dedicated-endpoint pilot cases require the batch runtime reservation"
+        )
     preflight_paid_runtime(protocol, methods=(method,), environment=supplied)
     actual_hardware = current_hardware_profile()
     if actual_hardware != requirements.get("hardware_profile"):
@@ -639,7 +654,7 @@ def run_official_pilot_case(
     )
     hf_key = f"{case_key}:hf"
     judge_key = f"{case_key}:openai"
-    hf_max = float(reservations["huggingface"])
+    hf_max = float(reservations.get("huggingface", 0) or 0)
     judge_max = float(reservations["openai"])
     case_output = output / "runs" / question_id / method
     allowed_environment = {
@@ -675,7 +690,8 @@ def run_official_pilot_case(
         HouseholdApplication.initialize(
             case_output / "atmem.db", encrypted=True, backend="file"
         )
-    hf_ledger.reserve(hf_key, provider="huggingface", maximum_usd=hf_max)
+    if not endpoint_runtime_billing:
+        hf_ledger.reserve(hf_key, provider="huggingface", maximum_usd=hf_max)
     openai_ledger.reserve(judge_key, provider="openai", maximum_usd=judge_max)
     embedding_base_url = models["official_rag_embedding"]["base_url"]
     proxy: subprocess.Popen[bytes] | None = None
@@ -691,12 +707,17 @@ def run_official_pilot_case(
             )
             embedding_base_url = _wait_for_proxy(proxy, ready_file, label="HF embedding")
         judge_ready = case_output / "judge-proxy-ready.json"
-        judge_proxy = subprocess.Popen(
-            [
+        judge_proxy_command = [
                 os.sys.executable, os.fspath(judge_proxy_source),
                 "--ready-file", os.fspath(judge_ready),
                 "--usage-file", os.fspath(judge_usage),
-            ],
+            ]
+        if judge_gate_file is not None:
+            judge_proxy_command.extend(
+                ["--gate-file", os.fspath(Path(judge_gate_file).resolve())]
+            )
+        judge_proxy = subprocess.Popen(
+            judge_proxy_command,
             cwd=case_output,
             env=_proxy_environment(run_environment, "OPENAI_API_KEY"),
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -758,19 +779,27 @@ def run_official_pilot_case(
         )
     case_row = _read_case_row(case_output)
     reader_usage = _reader_usage(case_row)
-    reader_rates = requirements["huggingface_reader_price_usd_per_million"]
-    hf_cost = (
-        reader_usage["prompt_tokens"] * float(reader_rates["input"])
-        + reader_usage["completion_tokens"] * float(reader_rates["output"])
-    ) / 1_000_000
+    if endpoint_runtime_billing:
+        hf_cost = None
+    else:
+        reader_rates = requirements["huggingface_reader_price_usd_per_million"]
+        hf_cost = (
+            reader_usage["prompt_tokens"] * float(reader_rates["input"])
+            + reader_usage["completion_tokens"] * float(reader_rates["output"])
+        ) / 1_000_000
     judge = _judge_usage(case_row, judge_usage, reservation_usd=judge_max)
-    hf_ledger.complete(hf_key, cost_usd=hf_cost)
+    if not endpoint_runtime_billing:
+        hf_ledger.complete(hf_key, cost_usd=float(hf_cost))
     openai_ledger.complete(judge_key, cost_usd=float(judge["cost_usd"]))
     return {
         "format": "atmem-longmemeval-pilot-case-v1",
         "question_id": question_id, "domain": domain, "method": method,
-        "output_dir": str(case_output), "cost_accounting": "provider-token-usage",
-        "hf_cost_usd": round(hf_cost, 9),
+        "output_dir": str(case_output),
+        "cost_accounting": (
+            "shared-endpoint-runtime" if endpoint_runtime_billing
+            else "provider-token-usage"
+        ),
+        "hf_cost_usd": None if hf_cost is None else round(hf_cost, 9),
         "openai_cost_usd": float(judge["cost_usd"]),
         "reader_usage": reader_usage,
         "judge_usage": {key: judge[key] for key in (
