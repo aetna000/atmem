@@ -238,7 +238,7 @@ def validate_provider_route_probe(value: Mapping[str, Any]) -> dict[str, Any]:
         raise ValueError("provider route probe digest does not match its canonical content")
     routes = dict(probe.get("routes") or {})
     expected_routes = {
-        "reader": ("Qwen/Qwen3.5-9B", "deepinfra"),
+        "reader": ("Qwen/Qwen3.5-9B", "together"),
         "embedding": ("Qwen/Qwen3-Embedding-8B", "scaleway"),
         "judge": ("gpt-5.2-2025-12-11", "openai-direct"),
     }
@@ -436,11 +436,11 @@ def validate_retrieval_quality_protocol(
         ]
         expected_models = {
             "longmemeval_reader": (
-                "Qwen/Qwen3.5-9B:deepinfra", "deepinfra",
+                "Qwen/Qwen3.5-9B:together", "together",
                 "https://router.huggingface.co/v1",
             ),
             "official_rag_controller": (
-                "Qwen/Qwen3.5-9B:deepinfra", "deepinfra",
+                "Qwen/Qwen3.5-9B:together", "together",
                 "https://router.huggingface.co/v1",
             ),
             "official_rag_embedding": (
@@ -535,8 +535,8 @@ def validate_retrieval_quality_protocol(
                 + 1e-12 < judge_worst_case
                 for name in allowed_pilot_methods
             )
-            or hf_reserved > float(caps[0])
-            or openai_reserved > float(caps[1])
+                or hf_reserved > float(caps[0]) + 1e-12
+                or openai_reserved > float(caps[1]) + 1e-12
             or abs(float(caps[0]) + float(caps[1]) - float(caps[2])) > 1e-9
         ):
             raise ValueError("pilot run protocol still has an unverified route, pin or cost cap")

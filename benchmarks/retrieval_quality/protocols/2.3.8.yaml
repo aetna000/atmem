@@ -63,9 +63,9 @@
   "models": {
     "longmemeval_reader": {
       "provider": "huggingface-inference-providers",
-      "provider_route": "deepinfra",
+      "provider_route": "together",
       "base_url": "https://router.huggingface.co/v1",
-      "model": "Qwen/Qwen3.5-9B:deepinfra",
+      "model": "Qwen/Qwen3.5-9B:together",
       "repository_model": "Qwen/Qwen3.5-9B",
       "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
       "enable_thinking": true,
@@ -79,9 +79,9 @@
     },
     "official_rag_controller": {
       "provider": "huggingface-inference-providers",
-      "provider_route": "deepinfra",
+      "provider_route": "together",
       "base_url": "https://router.huggingface.co/v1",
-      "model": "Qwen/Qwen3.5-9B:deepinfra",
+      "model": "Qwen/Qwen3.5-9B:together",
       "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
       "max_completion_tokens": 8192,
       "timeout_seconds": 600,
@@ -124,8 +124,8 @@
     "official_harness_sha256": "93fe5855a74ad46d7e8b489cebac24de38a9b30ba7ec1de2dd8708bd4aeebdb6",
     "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
     "judge_prompt_sha256": "f8ba659e237c4282a07a92538090ea500ce8483820b390b1d19af187c01417ac",
-    "provider_route": "huggingface-router/deepinfra-reader+scaleway-embedding; openai-direct-judge",
-    "provider_route_probe_sha256": "778f3bf964b7fb7bf0146b5cbf899b3d56283ed533c2f0252e563d0f19822d76",
+    "provider_route": "huggingface-router/together-reader+scaleway-embedding; openai-direct-judge",
+    "provider_route_probe_sha256": "b7c7222534bac83f957c4cfca7c5b68362999694f3d66730733bd6910b27dc07",
     "hardware_profile": "Apple-M2;arm64;17179869184-bytes;macOS-26.5.2-build-25F84",
     "comparator_config_sha256": "08b99b870b3c134ccf3daca04cdba4248dda349004dd8d87159f0e8e4b62ec09",
     "official_code_files": {
@@ -147,18 +147,18 @@
     "embedding_proxy_sha256": "415849c07f4da8e67e3c9799aaa6abfdde7c556f310937a3fa88926d6efc440d",
     "judge_proxy_sha256": "1ba15e1b0ff64f32281ac627095b89610c7be306ced1d47002012ed6169c381b",
     "pilot_manifest": "longmemeval-v2-pilot-v1.json",
-    "pilot_hf_cost_cap_usd": 1,
-    "pilot_openai_cost_cap_usd": 9,
-    "pilot_total_cost_cap_usd": 10,
+    "pilot_hf_cost_cap_usd": 1.4,
+    "pilot_openai_cost_cap_usd": 8.5,
+    "pilot_total_cost_cap_usd": 9.9,
     "pilot_method_reservations_usd": {
-      "no-retrieval": {"huggingface": 0.03, "openai": 0.29},
-      "typed-local": {"huggingface": 0.03, "openai": 0.29}
+      "no-retrieval": {"huggingface": 0.05, "openai": 0.29},
+      "typed-local": {"huggingface": 0.05, "openai": 0.29}
     },
     "huggingface_reader_price_usd_per_million": {
-      "input": 0.1,
-      "output": 0.15,
-      "observed_utc": "2026-09-28T03:25:00Z",
-      "source": "https://router.huggingface.co/v1/models/Qwen/Qwen3.5-9B"
+      "input": 0.17,
+      "output": 0.25,
+      "observed_utc": "2026-09-28T08:15:00Z",
+      "source": "https://huggingface.co/inference/models"
     },
     "openai_judge_price_usd_per_million": {
       "input": 1.75,
