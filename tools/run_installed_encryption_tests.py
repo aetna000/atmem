@@ -25,8 +25,6 @@ def main() -> int:
                 "-I",
                 "-m",
                 "pytest",
-                "-c",
-                os.devnull,
                 "--rootdir",
                 str(root),
                 "--import-mode=importlib",
