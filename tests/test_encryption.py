@@ -262,6 +262,41 @@ def test_plaintext_migration_with_real_sqlcipher(tmp_path: Path, monkeypatch) ->
         reopened.close()
 
 
+def test_plaintext_migration_removes_source_sidecars_before_cutover(
+    tmp_path: Path, monkeypatch
+) -> None:
+    if not sqlcipher_runtime_status()["available"]:
+        pytest.skip("sqlcipher3 runtime is not installed")
+    database = tmp_path / "windows-sidecars.db"
+    candidate = database.with_name(f".{database.name}.atmem-encrypted")
+    backup = database.with_name(f".{database.name}.atmem-plaintext-backup")
+    key_path = tmp_path / "keys" / "db.key"
+    monkeypatch.setattr("atmem.core.keys.DEFAULT_KEY_PATH", key_path)
+    memory = Memory(database)
+    memory.close()
+    original_replace = os.replace
+
+    def replace_with_retained_sidecars(source: object, destination: object) -> None:
+        source_path = Path(source)
+        destination_path = Path(destination)
+        if source_path == database and destination_path == backup:
+            original_replace(source, destination)
+            Path(f"{database}-wal").write_bytes(b"retained plaintext WAL")
+            Path(f"{database}-shm").write_bytes(b"retained plaintext SHM")
+            return
+        if source_path == candidate and destination_path == database:
+            assert not Path(f"{database}-wal").exists()
+            assert not Path(f"{database}-shm").exists()
+        original_replace(source, destination)
+
+    monkeypatch.setattr("atmem.core.keys.os.replace", replace_with_retained_sidecars)
+
+    result = migrate_plaintext_household(database)
+
+    assert result["migrated"] is True
+    assert result["state"] == "encrypted"
+
+
 def test_plaintext_migration_resumes_before_first_rename(
     tmp_path: Path, monkeypatch
 ) -> None:

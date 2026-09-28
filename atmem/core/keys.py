@@ -400,6 +400,19 @@ def migrate_plaintext_household(
         ):
             path.unlink(missing_ok=True)
 
+    def remove_checkpointed_source_sidecars() -> None:
+        """Remove plaintext WAL state before an encrypted file takes its name.
+
+        The source has already passed ``wal_checkpoint(TRUNCATE)`` before the
+        candidate is created.  Windows can retain the now-empty WAL/SHM files
+        after the last SQLite connection closes.  If they remain at the target
+        name across the rename, SQLCipher may interpret plaintext WAL metadata
+        as belonging to the encrypted database and report corruption.
+        """
+
+        for suffix in ("-wal", "-shm"):
+            Path(f"{target}{suffix}").unlink(missing_ok=True)
+
     with HouseholdLock(policy, exclusive=True):
         policy = HouseholdPolicy.load(target)
         if policy.state == "encrypted-finalizing":
@@ -448,10 +461,12 @@ def migrate_plaintext_household(
                         "interrupted encrypted candidate differs from the plaintext source"
                     )
                 os.replace(target, backup)
+                remove_checkpointed_source_sidecars()
                 os.replace(candidate, target)
                 sync_directory(target.parent)
             # Interruption between the two renames.
             if not target.exists() and backup.exists() and candidate.exists():
+                remove_checkpointed_source_sidecars()
                 os.replace(candidate, target)
                 sync_directory(target.parent)
             # Interruption after the second rename: the retained plaintext
@@ -561,6 +576,7 @@ def migrate_plaintext_household(
 
         prepared.with_state("encrypting").write()
         os.replace(target, backup)
+        remove_checkpointed_source_sidecars()
         os.replace(candidate, target)
         sync_directory(target.parent)
         sync_file(target)
