@@ -110,12 +110,25 @@ def test_paid_runtime_preflight_is_complete_before_output(
         (ROOT / "benchmarks/retrieval_quality/protocols/2.3.8.yaml").read_text()
     )
     environment = {"HF_TOKEN": "fixture-hf", "OPENAI_API_KEY": "fixture-openai"}
+    expected_packages = protocol["paid_run_requirements"]["official_runtime_packages"]
+    monkeypatch.setattr(
+        longmemeval_v2, "package_version", lambda name: expected_packages[name]
+    )
     result = longmemeval_v2.preflight_paid_runtime(
         protocol, methods=("no-retrieval", "typed-local"), environment=environment
     )
     assert result["judge_proxy_sha256"] == protocol["paid_run_requirements"][
         "judge_proxy_sha256"
     ]
+
+    monkeypatch.setattr(longmemeval_v2, "package_version", lambda _name: "0.0")
+    with pytest.raises(RuntimeError, match="official runtime package differs"):
+        longmemeval_v2.preflight_paid_runtime(
+            protocol, methods=("typed-local",), environment=environment
+        )
+    monkeypatch.setattr(
+        longmemeval_v2, "package_version", lambda name: expected_packages[name]
+    )
 
     broken = json.loads(json.dumps(protocol))
     broken["paid_run_requirements"]["judge_proxy_sha256"] = "0" * 64
@@ -140,6 +153,12 @@ def test_paid_runtime_preflight_is_complete_before_output(
     assert source.index(
         '!= pilot["selected_input_manifest_sha256"]'
     ) < source.index("output_root.mkdir")
+    adapter_source = (
+        ROOT / "research/production_benchmarks/longmemeval_v2.py"
+    ).read_text(encoding="utf-8")
+    assert adapter_source.index(
+        "_preflight_official_harness_import(root, run_environment)"
+    ) < adapter_source.index("hf_ledger.reserve")
 
 
 def test_judge_proxy_allows_one_egress_and_records_content_free_usage(

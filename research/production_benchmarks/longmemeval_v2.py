@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass
 import hashlib
+from importlib.metadata import PackageNotFoundError, version as package_version
 import json
 import os
 from pathlib import Path
@@ -122,6 +123,21 @@ def preflight_paid_runtime(
             "paid pilot requires credentials: " + ", ".join(missing)
         )
     requirements = dict(protocol["paid_run_requirements"])
+    packages = requirements.get("official_runtime_packages")
+    if not isinstance(packages, dict) or not packages:
+        raise RuntimeError("paid pilot requires pinned official runtime packages")
+    for distribution, expected in sorted(packages.items()):
+        try:
+            actual = package_version(str(distribution))
+        except PackageNotFoundError as exc:
+            raise RuntimeError(
+                f"paid pilot requires official runtime package {distribution}=={expected}"
+            ) from exc
+        if actual != str(expected):
+            raise RuntimeError(
+                "paid pilot official runtime package differs from the frozen "
+                f"protocol: {distribution}=={actual}, expected {expected}"
+            )
     sources = {
         "embedding_proxy_sha256": Path(__file__).with_name("hf_embedding_proxy.py"),
         "judge_proxy_sha256": Path(__file__).with_name("openai_judge_proxy.py"),
@@ -144,6 +160,25 @@ def preflight_paid_runtime(
                 f"pilot method has no price-derived reservation: {method}"
             )
     return result
+
+
+def _preflight_official_harness_import(
+    root: Path, environment: dict[str, str]
+) -> None:
+    """Import the complete official harness before reserving paid capacity."""
+
+    checked = subprocess.run(
+        [os.sys.executable, "-c", "import evaluation.harness"],
+        cwd=root,
+        env={**environment, "PYTHONDONTWRITEBYTECODE": "1"},
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if checked.returncode != 0:
+        detail = (checked.stderr or checked.stdout).strip().splitlines()
+        suffix = detail[-1] if detail else f"exit code {checked.returncode}"
+        raise RuntimeError(f"official LongMemEval harness import failed: {suffix}")
 
 
 @dataclass(frozen=True)
@@ -626,6 +661,7 @@ def run_official_pilot_case(
     run_environment["PYTHONDONTWRITEBYTECODE"] = "1"
     if not run_environment.get("HF_TOKEN") or not run_environment.get("OPENAI_API_KEY"):
         raise RuntimeError("paid pilot requires HF_TOKEN and OPENAI_API_KEY")
+    _preflight_official_harness_import(root, run_environment)
     case_output.mkdir(parents=True, exist_ok=False)
     models = protocol["models"]
     run_environment.update({
