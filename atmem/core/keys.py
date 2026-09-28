@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import re
 import sqlite3
 
 from atmem.home.layout import compatible_home_path
@@ -16,6 +17,20 @@ from atmem.core.storage import HouseholdPolicy
 KEY_ENV = "ATMEM_DB_KEY"
 DEFAULT_KEY_PATH = compatible_home_path("identity/keys/db.key", "keys/db.key")
 KEYRING_SERVICE = "atmem"
+MINIMUM_CIPHER_INTEGRITY_VERSION = (4, 2, 0)
+
+
+def _require_cipher_integrity_version(value: object) -> tuple[int, int, int]:
+    match = re.match(r"^(\d+)\.(\d+)\.(\d+)", str(value or "").strip())
+    if match is None:
+        raise RuntimeError("encrypted candidate reported an invalid SQLCipher version")
+    version = tuple(int(part) for part in match.groups())
+    if version < MINIMUM_CIPHER_INTEGRITY_VERSION:
+        required = ".".join(str(part) for part in MINIMUM_CIPHER_INTEGRITY_VERSION)
+        raise RuntimeError(
+            f"SQLCipher {required} or later is required for cipher_integrity_check"
+        )
+    return version
 
 
 def _validate_key(value: str) -> str:
@@ -310,9 +325,9 @@ def migrate_plaintext_household(
     def plaintext_inventory(path: Path) -> dict[str, int]:
         connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
         try:
-            check = connection.execute("PRAGMA quick_check").fetchone()
+            check = connection.execute("PRAGMA integrity_check").fetchone()
             if check is None or check[0] != "ok":
-                raise RuntimeError("plaintext source failed SQLite quick_check")
+                raise RuntimeError("plaintext source failed SQLite integrity_check")
             rows = connection.execute(
                 "SELECT name FROM sqlite_master "
                 "WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
@@ -332,9 +347,20 @@ def migrate_plaintext_household(
         connection = sqlcipher.connect(str(path))
         try:
             connection.execute(f"PRAGMA key = \"x'{key}'\"")
-            check = connection.execute("PRAGMA quick_check").fetchone()
+            version = connection.execute("PRAGMA cipher_version").fetchone()
+            if version is None or not str(version[0] or "").strip():
+                raise RuntimeError("encrypted candidate did not report a SQLCipher runtime")
+            _require_cipher_integrity_version(version[0])
+            check = connection.execute("PRAGMA integrity_check").fetchone()
             if check is None or check[0] != "ok":
-                raise RuntimeError("encrypted candidate failed SQLCipher quick_check")
+                raise RuntimeError("encrypted candidate failed SQLCipher integrity_check")
+            cipher_errors = connection.execute(
+                "PRAGMA cipher_integrity_check"
+            ).fetchall()
+            if any(str(row[0]).strip().casefold() != "ok" for row in cipher_errors):
+                raise RuntimeError(
+                    "encrypted candidate failed SQLCipher cipher_integrity_check"
+                )
             rows = connection.execute(
                 "SELECT name FROM sqlite_master "
                 "WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"

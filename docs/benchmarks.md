@@ -236,6 +236,30 @@ It does not replace the deterministic extraction, contradiction, injection,
 privacy, poisoning, fallback, token, and cost release gate, and it is not the
 complete 500-question answer-generation evaluation.
 
+### LongMemEval-V2 development qualification
+
+The 2026-09-27 qualification uses the real LongMemEval-V2 small-tier
+trajectories through the upstream `Memory` interface and untouched
+deterministic scorers. Ten question IDs were frozen without reading answers:
+two static, two dynamic, and one procedure question per domain, selected by
+`SHA-256(question_id)`.
+
+| Arm | Correct | Accuracy | Tokens |
+|---|---:|---:|---:|
+| No retrieval | 2 / 10 | 20% | 6,948 |
+| AtMem `core-rrf-v1` | 1 / 10 | 10% | 28,969 |
+
+**Outcome: the no-retrieval baseline performed better on this development
+slice.** AtMem retrieved nearby application and trajectory evidence but often
+missed the exact dynamic UI fact. No gain is claimed. Raw per-question evidence
+is retained outside the source tree because it contains licensed benchmark
+questions, answers, prompts and context; only content-free aggregate results
+belong in repository documentation.
+
+This is not an official leaderboard result: it uses local `qwen3:4b`, a
+text-only trajectory view, and deterministic questions only, rather than the
+required full workload and fixed reader/judge configuration.
+
 ### Supporting-evidence ranking validation
 
 The implementation recorded on 2026-09-02 adds deterministic, bounded support

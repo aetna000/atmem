@@ -64,15 +64,36 @@ The pilot is a cost and plumbing check, not an accuracy claim.
   that exposes an attested revision or a locally hashed model artifact.
 - Dolphin interactions and each LongMemEval pilot case reserve their maximum
   permitted provider cost durably before network egress. A crash leaves the
-  reservation in place and blocks a blind paid retry. LongMemEval reports the
-  reserved upper bound because its official reader/judge path does not expose a
-  transactional provider debit; this is conservative budget evidence, not a
-  claim about the provider's final invoice.
+  reservation in place and blocks a blind paid retry. The reviewed LongMemEval
+  pilot methods disable provider retries, enforce request/token ceilings and
+  replace the reservation with provider-reported token cost after success.
+  `no-retrieval` and `typed-local` are currently price-qualified; the official
+  RAG comparator stays disabled until its per-trajectory indexing cost has a
+  separately measured and frozen upper bound.
 - The official RAG comparator reaches the pinned Scaleway embedding provider
   through a loopback-only OpenAI-compatible facade. The facade performs no
   ranking or benchmark compensation, retains no input, and is byte-pinned by
   the protocol. The official process receives a sanitized environment so
   inherited endpoint and Python import overrides cannot redirect the run.
+- LLM-based grading uses a loopback-only single-egress proxy. It admits only
+  the dated judge model, rejects an oversized request, prevents an SDK retry
+  from creating a second paid call, and records only token counts and computed
+  cost—not benchmark prompts, answers or credentials.
+
+After the pinned dataset is prepared on an external volume and the reviewed
+adapter is installed into a clean pinned checkout, run the frozen two-arm pilot
+only with explicit paid confirmation:
+
+```bash
+python research/production_benchmarks/run_longmem_pilot.py \
+  --checkout /path/to/pinned/LongMemEval-V2 \
+  --data-root /external/longmemeval-v2 \
+  --output-root /external/runs/longmem-pilot-001 \
+  --confirm-paid-run
+```
+
+The command refuses an existing output root, any non-development question ID,
+an unpriced method, a changed adapter/proxy/protocol, or a missing credential.
 
 ## Official inert adapters
 
@@ -87,3 +108,19 @@ adapter methods. Each persona has a separate encrypted household; ingestion
 uses ordinary episode formation, the test phase is read-only, checkpoints are
 content-hashed, and model/tool execution remains with the configured agent
 driver. Neither adapter can inspect answers, graders or split metadata.
+
+For the frozen 18-task development slice, configure the official runner with
+`research.production_benchmarks.dolphinbench:create_development`, complete its
+normal prepare and ingestion stages, then run:
+
+```bash
+python research/production_benchmarks/run_dolphin_development.py \
+  --checkout /external/dolphinbench \
+  --config /external/dolphin-run/run.yaml \
+  --confirm-paid-run
+```
+
+The development runner selects the six precommitted IDs per persona before the
+official `_execute` path creates side-effect markers. It uses the official
+executor and grader, writes an explicit `18-of-600` development receipt, and
+cannot create or package an official 600-task score.

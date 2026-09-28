@@ -22,6 +22,19 @@ from atmem.core.storage import HouseholdLock, HouseholdPolicy
 from atmem.evidence.crypto import load_or_create_key
 
 
+def test_installed_encryption_gate_uses_the_installed_artifact() -> None:
+    if os.environ.get("ATMEM_REQUIRE_INSTALLED_ARTIFACT") != "1":
+        return
+    import atmem
+
+    module_path = Path(atmem.__file__).resolve()
+    repository = Path(__file__).resolve().parents[1]
+    assert not module_path.is_relative_to(repository), module_path
+    assert "site-packages" in module_path.parts, module_path
+    status = sqlcipher_runtime_status()
+    assert status["available"] is True, status
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Windows permission semantics")
 def test_evidence_key_can_be_reopened_on_windows(tmp_path: Path) -> None:
     key_path = tmp_path / "evidence.key"
@@ -203,6 +216,25 @@ def test_plaintext_migration_requires_sqlcipher_without_changing_source(
 
     assert database.read_bytes() == before
     assert HouseholdPolicy.load(database).state == "plaintext"
+
+
+def test_migration_uses_full_sqlite_and_sqlcipher_integrity_checks() -> None:
+    import inspect
+
+    source = inspect.getsource(migrate_plaintext_household)
+    assert "PRAGMA integrity_check" in source
+    assert "PRAGMA cipher_integrity_check" in source
+    assert "PRAGMA cipher_version" in source
+
+
+def test_cipher_integrity_check_requires_supported_sqlcipher_version() -> None:
+    from atmem.core.keys import _require_cipher_integrity_version
+
+    assert _require_cipher_integrity_version("4.12.0 community") == (4, 12, 0)
+    with pytest.raises(RuntimeError, match="4.2.0 or later"):
+        _require_cipher_integrity_version("3.4.1")
+    with pytest.raises(RuntimeError, match="invalid SQLCipher version"):
+        _require_cipher_integrity_version("")
 
 
 def test_plaintext_migration_with_real_sqlcipher(tmp_path: Path, monkeypatch) -> None:

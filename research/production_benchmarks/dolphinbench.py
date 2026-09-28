@@ -15,10 +15,12 @@ from importlib import import_module
 import inspect
 import json
 from pathlib import Path
+import subprocess
 import time
 import uuid
 
 from atmem import Memory
+from atmem.benchmark.contracts import validate_dolphin_split
 from atmem.contracts import (
     AuthorityScope,
     ContextRequestV2,
@@ -32,6 +34,8 @@ from research.production_benchmarks.cost_ledger import DurableCostLedger
 
 
 PERSONAS = ("alex", "morgan", "riley")
+PINNED_COMMIT = "81cb6f8405b40a9e76089cef650806a80af06ea2"
+PINNED_SPLIT_SHA256 = "882a9e1cbd70862fa35172b806c0a0a48b39d0056cff89e68d870ca58a48fe34"
 
 
 def _canonical(value: object) -> str:
@@ -51,6 +55,159 @@ def _target(value: str):
     if not separator or not module or not name:
         raise ValueError("agent_driver must be a module:callable import path")
     return getattr(import_module(module), name)
+
+
+def verify_official_checkout(checkout: str | Path, split: dict) -> dict:
+    """Verify the official source pin and re-derive the frozen test partition."""
+    split = validate_dolphin_split(split)
+    root = Path(checkout).expanduser().resolve()
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=root, check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if head != PINNED_COMMIT:
+        raise RuntimeError(
+            f"DolphinBench checkout must be {PINNED_COMMIT}; found {head}"
+        )
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        cwd=root, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if status:
+        raise RuntimeError("DolphinBench checkout has unreviewed working-tree changes")
+    if split.get("source_commit") != PINNED_COMMIT:
+        raise RuntimeError("DolphinBench split source commit differs from the checkout")
+    if split.get("split_sha256") != PINNED_SPLIT_SHA256:
+        raise RuntimeError("DolphinBench development split differs from the frozen pin")
+    salt = str(split.get("salt") or "")
+    if not salt:
+        raise RuntimeError("DolphinBench development split is missing its salt")
+    development = {str(value) for value in split.get("development_ids", [])}
+    held_out = {str(value) for value in split.get("confirmation_ids", [])}
+    available_all: set[str] = set()
+    for persona in PERSONAS:
+        available = {
+            f"{persona}:{path.stem}"
+            for path in (root / "tests" / persona).glob("[0-9][0-9][0-9].yaml")
+        }
+        available_all.update(available)
+        selected = {value for value in development if value.startswith(f"{persona}:")}
+        confirmation = {value for value in held_out if value.startswith(f"{persona}:")}
+        counts = dict(split.get("personas", {}).get(persona) or {})
+        if (
+            len(selected) != int(counts.get("development", -1))
+            or len(confirmation) != int(counts.get("confirmation", -1))
+            or selected & confirmation
+            or selected | confirmation != available
+        ):
+            raise RuntimeError(f"DolphinBench split does not partition {persona}")
+        derived = {
+            f"{persona}:{value}"
+            for value in sorted(
+                (path.stem for path in (root / "tests" / persona).glob("[0-9][0-9][0-9].yaml")),
+                key=lambda value: (
+                    hashlib.sha256(
+                        salt.encode() + b"\0" + f"{persona}:{value}".encode()
+                    ).hexdigest(),
+                    value,
+                ),
+            )[:6]
+        }
+        if selected != derived:
+            raise RuntimeError(
+                f"DolphinBench development IDs do not match the frozen selection rule: {persona}"
+            )
+    if development | held_out != available_all:
+        raise RuntimeError("DolphinBench split contains unknown test identifiers")
+    return {
+        "format": "atmem-dolphinbench-official-preflight-v1",
+        "source_commit": head,
+        "development_count": len(development),
+        "held_out_count": len(held_out),
+        "development_ids": sorted(development),
+        "content_retained": False,
+    }
+
+
+def _frozen_development_split(checkout: str | Path) -> tuple[dict, dict[str, set[str]]]:
+    split_path = (
+        Path(__file__).resolve().parents[2]
+        / "benchmarks/retrieval_quality/protocols/dolphinbench-task-split-v1.json"
+    )
+    split = json.loads(split_path.read_text(encoding="utf-8"))
+    verification = verify_official_checkout(checkout, split)
+    selected = {
+        persona: {
+            value.partition(":")[2]
+            for value in split["development_ids"]
+            if value.startswith(f"{persona}:")
+        }
+        for persona in PERSONAS
+    }
+    return verification, selected
+
+
+def evaluate_development(runner, checkout: str | Path) -> dict:
+    """Run only the frozen 18 tasks through the official execute/grade path.
+
+    This produces development evidence, never an official 600-task package.
+    The official release loader, interaction executor, and grader remain the
+    authorities; this function only selects the precommitted task IDs before
+    `_execute` can create an inflight marker.
+    """
+    from harness.durable_json import save_json
+
+    verification, selected = _frozen_development_split(checkout)
+    if set(runner.release) != set(PERSONAS):
+        raise RuntimeError("official DolphinBench release must contain three personas")
+    if not isinstance(runner.adapter, AtMemDolphinAdapter):
+        raise RuntimeError("development runner requires the AtMem DolphinBench adapter")
+    if runner.adapter.allowed_test_ids != selected:
+        raise RuntimeError("adapter task allowance differs from the frozen development split")
+
+    chosen_specs: dict[str, list[dict]] = {}
+    for persona in PERSONAS:
+        checkpoint = runner.directory / "checkpoints" / f"{persona}.json"
+        if not checkpoint.is_file():
+            raise RuntimeError(f"complete official ingestion first: {persona}")
+        runner.adapter.verify_checkpoint(
+            persona, json.loads(checkpoint.read_text(encoding="utf-8"))
+        )
+        specs = [
+            spec
+            for spec in runner.release[persona]["tests"]
+            if str(spec["id"]).zfill(3) in selected[persona]
+        ]
+        found = {str(spec["id"]).zfill(3) for spec in specs}
+        if found != selected[persona] or len(specs) != 6:
+            raise RuntimeError(f"official release is missing frozen development tasks: {persona}")
+        chosen_specs[persona] = specs
+    runner._saved_cost("ingestion")
+
+    checks = 0
+    for persona in PERSONAS:
+        for spec in chosen_specs[persona]:
+            evidence = runner._execute("tests", persona, spec)
+            item_id = str(spec["id"]).zfill(3)
+            grade_path = runner._path("grades", persona, item_id)
+            if not grade_path.exists():
+                save_json(grade_path, runner._grade(spec, evidence))
+            grade = json.loads(grade_path.read_text(encoding="utf-8"))
+            checks += len(grade["checks"])
+    test_cost = runner._collect_cost("tests")
+    result = {
+        "format": "atmem-dolphinbench-development-evaluation-v1",
+        "claim": "development-18-of-600-not-an-official-score",
+        "source_commit": verification["source_commit"],
+        "split_sha256": PINNED_SPLIT_SHA256,
+        "development_ids": verification["development_ids"],
+        "tests": 18,
+        "checks": checks,
+        "test_cost_usd": test_cost,
+        "content_retained": False,
+    }
+    save_json(runner.directory / "development-evaluation.json", result)
+    return result
 
 
 def prepare_persona_households(work_dir: str | Path, *, backend: str = "file") -> list[dict]:
@@ -79,6 +236,16 @@ class AtMemDolphinAdapter:
         self.max_interaction_cost_usd = float(
             self.options.get("max_interaction_cost_usd") or 0.0
         )
+        allowed = self.options.get("allowed_test_ids")
+        self.allowed_test_ids = (
+            {
+                persona: {str(value).zfill(3) for value in values}
+                for persona, values in dict(allowed).items()
+            }
+            if allowed is not None else None
+        )
+        if self.allowed_test_ids is not None and set(self.allowed_test_ids) != set(PERSONAS):
+            raise ValueError("allowed_test_ids must contain exactly the three personas")
         if (
             self.cost_cap_usd <= 0
             or self.max_interaction_cost_usd <= 0
@@ -119,6 +286,13 @@ class AtMemDolphinAdapter:
         from harness.adapter import InteractionRecord
 
         started = time.monotonic()
+        if (
+            request.phase == "tests"
+            and self.allowed_test_ids is not None
+            and str(request.interaction_id).zfill(3)
+            not in self.allowed_test_ids[request.persona]
+        ):
+            raise ValueError("test interaction is outside the frozen allowed split")
         self._reserve_interaction_cost(
             request.phase, request.persona, request.interaction_id
         )
@@ -311,3 +485,19 @@ class AtMemDolphinAdapter:
 
 def create(options: dict, work_dir: Path) -> AtMemDolphinAdapter:
     return AtMemDolphinAdapter(options, work_dir)
+
+
+def create_development(options: dict, work_dir: Path) -> AtMemDolphinAdapter:
+    """Create the 3% adapter only after re-deriving its official frozen split."""
+    configured = dict(options)
+    if "allowed_test_ids" in configured:
+        raise ValueError("development allowed_test_ids are supplied by the frozen split")
+    checkout = configured.pop("official_checkout", None)
+    if not checkout:
+        raise ValueError("official_checkout is required for the development adapter")
+    _, selected = _frozen_development_split(checkout)
+    configured["allowed_test_ids"] = {
+        persona: sorted(selected[persona])
+        for persona in PERSONAS
+    }
+    return AtMemDolphinAdapter(configured, work_dir)

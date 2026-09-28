@@ -71,6 +71,23 @@ def test_protocol_rejects_missing_longmemeval_pins(missing: str) -> None:
         validate_retrieval_quality_protocol(broken, split=split)
 
 
+def test_protocol_rejects_incomplete_or_invalid_dataset_content_pins() -> None:
+    protocol, split = documents()
+    incomplete = deepcopy(protocol)
+    incomplete["datasets"]["longmemeval_v2"]["content_sha256"].pop(
+        "trajectories.jsonl"
+    )
+    with pytest.raises(ValueError, match="content_sha256 pins are incomplete"):
+        validate_retrieval_quality_protocol(incomplete, split=split)
+
+    invalid = deepcopy(protocol)
+    invalid["datasets"]["longmemeval_v2"]["content_sha256"][
+        "questions.jsonl"
+    ] = "not-a-digest"
+    with pytest.raises(ValueError, match="content_sha256 pins are invalid"):
+        validate_retrieval_quality_protocol(invalid, split=split)
+
+
 def test_protocol_rejects_leakage_retry_budget_and_repository_storage() -> None:
     protocol, split = documents()
     leaking = deepcopy(protocol)
@@ -161,3 +178,31 @@ def test_pilot_validators_reject_confirmation_leakage_and_persona_loss() -> None
     dolphin["personas"].pop("riley")
     with pytest.raises(ValueError, match="three official personas"):
         validate_dolphin_split(dolphin)
+
+    protocol, split = documents()
+    dolphin = json.loads(DOLPHIN_SPLIT.read_text(encoding="utf-8"))
+    protocol["datasets"]["dolphinbench"]["development_split_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="split digests"):
+        validate_retrieval_quality_protocol(
+            protocol, split=split, dolphin_split=dolphin
+        )
+
+
+def test_pilot_protocol_rejects_under_reserved_provider_cost() -> None:
+    protocol, split = documents()
+    pilot = json.loads(PILOT.read_text(encoding="utf-8"))
+    dolphin = json.loads(DOLPHIN_SPLIT.read_text(encoding="utf-8"))
+    route_probe = json.loads(ROUTE_PROBE.read_text(encoding="utf-8"))
+    protocol["paid_run_requirements"]["pilot_method_reservations_usd"][
+        "typed-local"
+    ]["openai"] = 0.01
+
+    with pytest.raises(ValueError, match="cost cap"):
+        validate_retrieval_quality_protocol(
+            protocol,
+            split=split,
+            pilot=pilot,
+            dolphin_split=dolphin,
+            route_probe=route_probe,
+            for_pilot_run=True,
+        )

@@ -274,21 +274,25 @@ jobs:
       - name: Install wheels
         run: |
           python tools/install_local_wheels.py
-      - name: Install SQLCipher binding on Linux
+      - name: Install AtMem encrypted extra on Linux
         if: runner.os == 'Linux'
         shell: bash
         run: |
           CFLAGS="-I/usr/include/sqlcipher" LDFLAGS="-lsqlcipher" \
-            python -m pip install sqlcipher3==0.6.2
+            python -m pip install 'atmem[encrypted]'
           python -m pip check
-      - name: Install SQLCipher binding on macOS and Windows
+      - name: Install AtMem encrypted extra on macOS and Windows
         if: runner.os != 'Linux'
         run: |
-          python -m pip install sqlcipher3==0.6.2
+          python -m pip install "atmem[encrypted]"
           python -m pip check
+      - name: Install encryption test dependency
+        run: python -m pip install "pytest>=8,<9"
       - name: Exercise installed encrypted product path outside checkout
         working-directory: ${{ runner.temp }}
-        run: python "${{ github.workspace }}/tools/smoke_installed_encryption.py"
+        run: |
+          python "${{ github.workspace }}/tools/smoke_installed_encryption.py"
+          python "${{ github.workspace }}/tools/run_installed_encryption_tests.py"
 
   installed-atflows-wheel:
     runs-on: ubuntu-latest

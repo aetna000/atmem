@@ -35,6 +35,25 @@ always-present local vector index. Do **not** install AtBot separately. During
 hosted provider, or the safe deterministic fallback. API keys stay in
 environment variables; AtMem does not save them.
 
+For encrypted local households, install the SQLCipher extra and verify the
+runtime before migration:
+
+```bash
+# Ubuntu/Debian first: sudo apt-get install libsqlcipher-dev build-essential
+# Then install with the system SQLCipher headers and library:
+CFLAGS="-I/usr/include/sqlcipher" LDFLAGS="-lsqlcipher" \
+  python -m pip install --upgrade 'atmem[encrypted]'
+
+# macOS and Windows can install the extra directly:
+python -m pip install --upgrade 'atmem[encrypted]'
+atmem household status ~/.atmem/memories.db
+atmem household migrate ~/.atmem/memories.db
+```
+
+Stop every writer before migration. AtMem validates SQLite integrity,
+SQLCipher page integrity and per-table row counts before the atomic cutover;
+see [SaaS integration and recovery](docs/saas-integration.md#privacy-retention-and-deletion).
+
 In 2.3.7, `pip install atmem` installs the Python packages only; pip does not
 run a post-install downloader. On the first `atmem init`, if compatible Bun is not
 already installed, AtMem clearly announces and downloads its pinned official

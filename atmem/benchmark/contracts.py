@@ -183,6 +183,11 @@ def validate_longmem_pilot(
         raise ValueError("pilot must not overlap confirmation")
     if pilot.get("question_split_sha256") != validated_split.get("split_sha256"):
         raise ValueError("pilot names a different frozen question split")
+    manifest = str(pilot.get("selected_input_manifest_sha256") or "")
+    if len(manifest) != 64 or any(
+        character not in "0123456789abcdef" for character in manifest
+    ):
+        raise ValueError("pilot selected input manifest is required")
     stable = {key: item for key, item in pilot.items() if key != "pilot_sha256"}
     expected = hashlib.sha256(canonical_json(stable).encode("utf-8")).hexdigest()
     if pilot.get("pilot_sha256") != expected:
@@ -292,9 +297,24 @@ def validate_retrieval_quality_protocol(
         if not protocol.get(key):
             raise ValueError(f"retrieval protocol is missing {key}")
     longmem = dict(protocol["datasets"].get("longmemeval_v2") or {})
-    for key in ("repository", "source_commit", "dataset", "dataset_revision", "split_file"):
+    for key in (
+        "repository", "source_commit", "dataset", "dataset_revision", "split_file",
+    ):
         if not str(longmem.get(key) or "").strip():
             raise ValueError(f"LongMemEval-V2 protocol is missing {key}")
+    content_sha256 = longmem.get("content_sha256")
+    required_content = {
+        "checksums.sha256", "haystacks/lme_v2_small.json",
+        "questions.jsonl", "trajectories.jsonl",
+    }
+    if not isinstance(content_sha256, dict) or set(content_sha256) != required_content:
+        raise ValueError("LongMemEval-V2 protocol content_sha256 pins are incomplete")
+    if any(
+        len(str(value)) != 64
+        or any(character not in "0123456789abcdef" for character in str(value))
+        for value in content_sha256.values()
+    ):
+        raise ValueError("LongMemEval-V2 protocol content_sha256 pins are invalid")
     validated_split = validate_question_split(split)
     if longmem["dataset_revision"] != validated_split["dataset_revision"]:
         raise ValueError("protocol and question split dataset revisions differ")
@@ -338,13 +358,18 @@ def validate_retrieval_quality_protocol(
         raise ValueError("official complete score must include visual cases")
     datasets = dict(protocol["datasets"])
     dolphin = dict(datasets.get("dolphinbench") or {})
-    for key in ("repository", "source_commit", "development_split_file", "grader_provider", "grader_model"):
+    for key in (
+        "repository", "source_commit", "development_split_file",
+        "development_split_sha256", "grader_provider", "grader_model",
+    ):
         if not str(dolphin.get(key) or "").strip():
             raise ValueError(f"DolphinBench protocol is missing {key}")
     if dolphin_split is not None:
         validated_dolphin = validate_dolphin_split(dolphin_split)
         if validated_dolphin["source_commit"] != dolphin["source_commit"]:
             raise ValueError("DolphinBench protocol and split commits differ")
+        if validated_dolphin["split_sha256"] != dolphin["development_split_sha256"]:
+            raise ValueError("DolphinBench protocol and split digests differ")
     locomo = dict(datasets.get("locomo") or {})
     if not all(str(locomo.get(key) or "").strip() for key in ("repository", "source_ref", "manifest", "role")):
         raise ValueError("LoCoMo no-regression protocol is incomplete")
@@ -388,7 +413,7 @@ def validate_retrieval_quality_protocol(
             "judge_prompt_sha256", "provider_route",
             "provider_route_probe_sha256", "hardware_profile",
             "comparator_config_sha256", "official_code_combined_sha256",
-            "embedding_proxy_sha256",
+            "embedding_proxy_sha256", "judge_proxy_sha256",
         )
         values = [str(requirements.get(key) or "") for key in required]
         verified_probe = validate_provider_route_probe(route_probe)
@@ -440,10 +465,44 @@ def validate_retrieval_quality_protocol(
             requirements.get("pilot_openai_cost_cap_usd"),
             requirements.get("pilot_total_cost_cap_usd"),
         ]
+        method_reservations = dict(
+            requirements.get("pilot_method_reservations_usd") or {}
+        )
+        allowed_pilot_methods = {"no-retrieval", "typed-local"}
+        if set(method_reservations) != allowed_pilot_methods:
+            raise ValueError("pilot reservations must cover only the reviewed paid methods")
         case_reservations = [
-            requirements.get("pilot_hf_case_reservation_usd"),
-            requirements.get("pilot_openai_case_reservation_usd"),
+            float(dict(method_reservations[name]).get(provider, 0))
+            for name in sorted(allowed_pilot_methods)
+            for provider in ("huggingface", "openai")
         ]
+        hf_reserved = sum(
+            float(dict(method_reservations[name])["huggingface"])
+            for name in allowed_pilot_methods
+        ) * len(pilot["question_ids"])
+        openai_reserved = sum(
+            float(dict(method_reservations[name])["openai"])
+            for name in allowed_pilot_methods
+        ) * len(pilot["question_ids"])
+        prices = (
+            dict(requirements.get("huggingface_reader_price_usd_per_million") or {}),
+            dict(requirements.get("openai_judge_price_usd_per_million") or {}),
+        )
+        reader = dict(models.get("longmemeval_reader") or {})
+        hf_worst_case = (
+            (int(reader.get("max_prompt_tokens") or 0)
+             * float(prices[0].get("input") or 0))
+            + (int(reader.get("max_completion_tokens") or 0)
+               * float(prices[0].get("output") or 0))
+        ) / 1_000_000
+        judge_request_max_bytes = int(
+            requirements.get("judge_request_max_bytes") or 0
+        )
+        judge_worst_case = (
+            judge_request_max_bytes * float(prices[1].get("input") or 0)
+            + int(judge.get("max_completion_tokens") or 0)
+            * float(prices[1].get("output") or 0)
+        ) / 1_000_000
         if (
             protocol.get("status") != "development-pilot-ready"
             or any(not value or "pending" in value for value in values + model_revisions)
@@ -453,7 +512,31 @@ def validate_retrieval_quality_protocol(
                 for value in case_reservations
             )
             or float(case_reservations[0]) > float(caps[0])
-            or float(case_reservations[1]) > float(caps[1])
+            or any(
+                not isinstance(price.get(direction), (int, float))
+                or float(price[direction]) <= 0
+                for price in prices
+                for direction in ("input", "output")
+            )
+            or requirements.get("paid_request_retries") != 0
+            or judge.get("max_retries") != 0
+            or judge_request_max_bytes <= 0
+            or int(reader.get("max_prompt_tokens") or 0)
+            + int(reader.get("max_completion_tokens") or 0) != 262_144
+            or int(reader.get("memory_context_max_tokens") or 0)
+            > int(reader.get("max_prompt_tokens") or 0)
+            or any(
+                float(dict(method_reservations[name])["huggingface"])
+                + 1e-12 < hf_worst_case
+                for name in allowed_pilot_methods
+            )
+            or any(
+                float(dict(method_reservations[name])["openai"])
+                + 1e-12 < judge_worst_case
+                for name in allowed_pilot_methods
+            )
+            or hf_reserved > float(caps[0])
+            or openai_reserved > float(caps[1])
             or abs(float(caps[0]) + float(caps[1]) - float(caps[2])) > 1e-9
         ):
             raise ValueError("pilot run protocol still has an unverified route, pin or cost cap")

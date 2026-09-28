@@ -3,8 +3,9 @@
   "confirmation_overlap": 0,
   "dataset_revision": "f152293e235517d504809563c833d7190b8c713b",
   "format": "atmem-longmemeval-v2-pilot-v1",
-  "pilot_sha256": "6c5eda9f251bb4795437d6860574a7680304da90e3084f39bbbbfe9f695659a8",
+  "pilot_sha256": "758cd999cd1ed71bb690a219cedcababd049ae8c8c3e022a23567e6a0e53a7cf",
   "question_count": 14,
+  "selected_input_manifest_sha256": "dbe1a7fb12a5b3c7bf963fd07f087b7c7ae24d12314f9eb34ebc699e1f7a4b6c",
   "question_ids": [
     "05cce9b3",
     "07ab3723",

@@ -88,7 +88,10 @@ class AtMemMemory(Memory):
         # AtMem merely because upstream added them to the same object.
         metadata = _canonical({
             key: trajectory[key]
-            for key in ("id", "goal", "outcome", "start_url", "actions")
+            for key in (
+                "id", "domain", "environment", "goal", "outcome", "start_url",
+                "actions",
+            )
             if key in trajectory
         })
         parts.append(EpisodePart(
@@ -102,7 +105,8 @@ class AtMemMemory(Memory):
             body = _canonical({
                 key: state[key]
                 for key in (
-                    "state_index", "step", "url", "action", "thoughts", "text"
+                    "state_index", "step", "url", "action", "thought", "thoughts",
+                    "text", "accessibility_tree",
                 )
                 if key in state
             })
@@ -115,7 +119,10 @@ class AtMemMemory(Memory):
             if screenshot:
                 if self.trajectory_pool_root is None:
                     raise ValueError("trajectory_pool_root is required for screenshot references")
-                image = self.trajectory_pool_root / trajectory_id / str(screenshot)
+                source_root = self.trajectory_pool_root.resolve()
+                image = (source_root / str(screenshot)).resolve()
+                if source_root != image and source_root not in image.parents:
+                    raise ValueError("trajectory screenshot escapes its source root")
                 if not image.is_file():
                     raise FileNotFoundError(f"trajectory screenshot is missing: {image}")
                 parts.append(EpisodePart(

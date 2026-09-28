@@ -24,6 +24,12 @@
       "source_commit": "2cc8c540bdb87fe6761629b585e727e1c4704520",
       "dataset": "xiaowu0162/longmemeval-v2",
       "dataset_revision": "f152293e235517d504809563c833d7190b8c713b",
+      "content_sha256": {
+        "checksums.sha256": "b17a18daa52873f915808502217c3c5fab39d20638544f986401155c9e8d67a6",
+        "haystacks/lme_v2_small.json": "9b5301defb23a088a5f06e45ff8d5f35e569d78305a66d492046a9fff9b46593",
+        "questions.jsonl": "0a3ae5ebea938c24d7800e1e0b0828e08ae1646f939a53853b2b8cdc08e292b7",
+        "trajectories.jsonl": "363cec9a8e87aa8d9101ce4e600aadbf7031d674056ebe4f969e8424abc5f3c6"
+      },
       "split_file": "longmemeval-v2-question-split-v1.json",
       "forced_development_ids": ["ff311d07", "f3496ca5", "14a823df", "41a18e5c", "07ffeedf", "15e5efa6", "631667c9", "d3300354", "c738b934", "07ab3723"],
       "small_role": "development-and-unseen-question-confirmation",
@@ -33,6 +39,7 @@
       "repository": "https://github.com/mem0ai/dolphinbench",
       "source_commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
       "development_split_file": "dolphinbench-task-split-v1.json",
+      "development_split_sha256": "882a9e1cbd70862fa35172b806c0a0a48b39d0056cff89e68d870ca58a48fe34",
       "pilot_tasks_per_persona": 6,
       "grader_provider": "azure-openai",
       "grader_model": "gpt-5.6-sol",
@@ -62,6 +69,7 @@
       "repository_model": "Qwen/Qwen3.5-9B",
       "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
       "enable_thinking": true,
+      "max_prompt_tokens": 242144,
       "max_completion_tokens": 20000,
       "memory_context_max_tokens": 200000,
       "timeout_seconds": 43200,
@@ -98,7 +106,7 @@
       "reasoning_effort": "medium",
       "max_completion_tokens": 4096,
       "timeout_seconds": 43200,
-      "max_retries": 10,
+      "max_retries": 0,
       "revision": "gpt-5.2-2025-12-11"
     }
   },
@@ -127,12 +135,29 @@
     },
     "official_code_combined_sha256": "5e9afe0cb292646da5b65f8ce8f13ca7cdd131ee31b3d0af94b257499dedc8fe",
     "embedding_proxy_sha256": "415849c07f4da8e67e3c9799aaa6abfdde7c556f310937a3fa88926d6efc440d",
+    "judge_proxy_sha256": "1ba15e1b0ff64f32281ac627095b89610c7be306ced1d47002012ed6169c381b",
     "pilot_manifest": "longmemeval-v2-pilot-v1.json",
-    "pilot_hf_cost_cap_usd": 5,
-    "pilot_openai_cost_cap_usd": 5,
+    "pilot_hf_cost_cap_usd": 1,
+    "pilot_openai_cost_cap_usd": 9,
     "pilot_total_cost_cap_usd": 10,
-    "pilot_hf_case_reservation_usd": 0.08,
-    "pilot_openai_case_reservation_usd": 0.05,
+    "pilot_method_reservations_usd": {
+      "no-retrieval": {"huggingface": 0.03, "openai": 0.29},
+      "typed-local": {"huggingface": 0.03, "openai": 0.29}
+    },
+    "huggingface_reader_price_usd_per_million": {
+      "input": 0.1,
+      "output": 0.15,
+      "observed_utc": "2026-09-28T03:25:00Z",
+      "source": "https://router.huggingface.co/v1/models/Qwen/Qwen3.5-9B"
+    },
+    "openai_judge_price_usd_per_million": {
+      "input": 1.75,
+      "output": 14.0,
+      "observed_utc": "2026-09-28T03:25:00Z",
+      "source": "https://developers.openai.com/api/docs/models/gpt-5.2"
+    },
+    "judge_request_max_bytes": 131072,
+    "paid_request_retries": 0,
     "egress": "public benchmark prompts may be sent only to the pinned routes after explicit paid-run confirmation"
   },
   "operating_points": ["no-retrieval", "official-rag-query-to-slice-notes", "legacy", "typed-local"],

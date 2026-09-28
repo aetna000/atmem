@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import ast
+from dataclasses import dataclass
 import hashlib
 import json
 import os
 from pathlib import Path
+import platform
 import subprocess
 import time
 from typing import Any
@@ -39,7 +41,7 @@ CONFIG_MARKER = '''def build_memory_config(args: argparse.Namespace, data_root: 
                 "subject_id": required["ATMEM_LME_SUBJECT_ID"],
                 "agent_id": required["ATMEM_LME_AGENT_ID"],
                 "workspace_id": required["ATMEM_LME_WORKSPACE_ID"],
-                "trajectory_pool_root": str(data_root / "trajectories"),
+                "trajectory_pool_root": str(data_root),
                 "require_encrypted": True,
             },
         }
@@ -47,6 +49,294 @@ CONFIG_MARKER = '''def build_memory_config(args: argparse.Namespace, data_root: 
 CONFIG_ORIGINAL = (
     "def build_memory_config(args: argparse.Namespace, data_root: Path) -> dict[str, object]:\n"
 )
+EVALUATOR_ARG_ORIGINAL = '    parser.add_argument("--evaluator-model", default=os.getenv("EVALUATOR_MODEL", "gpt-5.2"))\n'
+EVALUATOR_ARG_MARKER = EVALUATOR_ARG_ORIGINAL + '    parser.add_argument("--evaluator-base-url", default=None)\n'
+EVALUATOR_FORWARD_ORIGINAL = '    if not args.reader_enable_thinking:\n'
+EVALUATOR_FORWARD_MARKER = (
+    '    if args.evaluator_base_url:\n'
+    '        harness_argv.extend(["--evaluator-base-url", args.evaluator_base_url])\n'
+    + EVALUATOR_FORWARD_ORIGINAL
+)
+RETRY_ORIGINAL = "OPENAI_MAX_RETRIES = 10\n"
+RETRY_MARKER = "OPENAI_MAX_RETRIES = 0  # AtMem paid-pilot egress cap\n"
+LLM_EVALUATORS = {"llm_abstention_checker", "llm_gotchas_checker"}
+NONSECRET_CHILD_ENVIRONMENT = {
+    "PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL",
+    "SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "PYTHONDONTWRITEBYTECODE",
+}
+
+
+def _proxy_environment(environment: dict[str, str], credential: str) -> dict[str, str]:
+    return {
+        name: value for name, value in environment.items()
+        if name in NONSECRET_CHILD_ENVIRONMENT or name == credential
+    }
+
+
+def _stop_process(process: subprocess.Popen[bytes] | None) -> None:
+    if process is None or process.poll() is not None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
+
+
+def _wait_for_proxy(
+    process: subprocess.Popen[bytes], ready_file: Path, *, label: str
+) -> str:
+    for _ in range(100):
+        if ready_file.is_file():
+            try:
+                payload = json.loads(ready_file.read_text(encoding="utf-8"))
+                base_url = str(payload["base_url"])
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+                pass
+            else:
+                if base_url.startswith("http://127.0.0.1:"):
+                    return base_url
+                raise RuntimeError(f"{label} proxy advertised a non-loopback endpoint")
+        if process.poll() is not None:
+            raise RuntimeError(f"{label} proxy exited before readiness")
+        time.sleep(0.05)
+    raise RuntimeError(f"{label} proxy did not become ready")
+
+
+def preflight_paid_runtime(
+    protocol: dict[str, Any],
+    *,
+    methods: tuple[str, ...],
+    environment: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Validate credentials, proxy code, and reservations without writing output."""
+    supplied = dict(environment or {})
+    credentials = {
+        name: supplied.get(name) or os.environ.get(name, "")
+        for name in ("HF_TOKEN", "OPENAI_API_KEY")
+    }
+    missing = sorted(name for name, value in credentials.items() if not value.strip())
+    if missing:
+        raise RuntimeError(
+            "paid pilot requires credentials: " + ", ".join(missing)
+        )
+    requirements = dict(protocol["paid_run_requirements"])
+    sources = {
+        "embedding_proxy_sha256": Path(__file__).with_name("hf_embedding_proxy.py"),
+        "judge_proxy_sha256": Path(__file__).with_name("openai_judge_proxy.py"),
+    }
+    result: dict[str, str] = {}
+    for field, source in sources.items():
+        digest = hashlib.sha256(source.read_bytes()).hexdigest()
+        if digest != requirements.get(field):
+            raise RuntimeError(f"paid pilot {field} differs from the frozen protocol")
+        result[field] = digest
+    reservations = dict(requirements.get("pilot_method_reservations_usd") or {})
+    for method in methods:
+        amounts = reservations.get(method)
+        if (
+            not isinstance(amounts, dict)
+            or float(amounts.get("huggingface", 0)) <= 0
+            or float(amounts.get("openai", 0)) < 0
+        ):
+            raise RuntimeError(
+                f"pilot method has no price-derived reservation: {method}"
+            )
+    return result
+
+
+@dataclass(frozen=True)
+class DatasetPreflight:
+    data_root: Path
+    dataset_revision: str
+    question_ids: frozenset[str]
+    trajectory_count: int
+    trajectory_screenshot_count: int
+    question_image_count: int
+    selected_input_manifest_sha256: str
+
+    def report(self) -> dict[str, Any]:
+        return {
+            "format": "atmem-longmemeval-v2-data-preflight-v1",
+            "dataset_revision": self.dataset_revision,
+            "question_count": len(self.question_ids),
+            "trajectory_count": self.trajectory_count,
+            "trajectory_screenshot_count": self.trajectory_screenshot_count,
+            "question_image_count": self.question_image_count,
+            "selected_input_manifest_sha256": self.selected_input_manifest_sha256,
+            "content_retained": False,
+        }
+
+
+def preflight_selected_data(
+    data_root: str | Path,
+    question_ids: list[str],
+    *,
+    dataset_revision: str,
+    expected_sha256: dict[str, str],
+) -> DatasetPreflight:
+    """Prove selected official inputs are complete before output or paid egress."""
+    root = Path(data_root).expanduser().resolve()
+    haystack_path = root / "haystacks" / "lme_v2_small.json"
+    trajectories_path = root / "trajectories.jsonl"
+    questions_path = root / "questions.jsonl"
+    for required in (haystack_path, trajectories_path, questions_path):
+        if not required.is_file():
+            raise RuntimeError(f"official dataset input is missing: {required.name}")
+    required_hashes = {
+        "questions.jsonl": questions_path,
+        "trajectories.jsonl": trajectories_path,
+        "haystacks/lme_v2_small.json": haystack_path,
+        "checksums.sha256": root / "checksums.sha256",
+    }
+    if set(expected_sha256) != set(required_hashes):
+        raise RuntimeError("official dataset content pins are incomplete")
+    for relative, path in required_hashes.items():
+        if not path.is_file() or _sha256(path) != expected_sha256[relative]:
+            raise RuntimeError(
+                f"official dataset content differs from pinned revision: {relative}"
+            )
+
+    haystacks = json.loads(haystack_path.read_text(encoding="utf-8"))
+    selected = frozenset(str(value) for value in question_ids)
+    missing_questions = sorted(selected - set(haystacks))
+    if missing_questions:
+        raise RuntimeError(
+            "pilot questions are missing from the official small haystack: "
+            + ", ".join(missing_questions)
+        )
+    required_trajectories = {
+        str(trajectory_id)
+        for question_id in selected
+        for trajectory_id in haystacks[question_id]
+    }
+    question_rows: dict[str, dict[str, Any]] = {}
+    with questions_path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            question_id = str(row.get("id") or "")
+            if question_id in selected:
+                question_rows[question_id] = row
+    if set(question_rows) != set(selected):
+        raise RuntimeError("pilot questions are missing from questions.jsonl")
+
+    seen: set[str] = set()
+    screenshot_count = 0
+    manifest = hashlib.sha256()
+
+    def add_manifest_part(label: str, value: bytes) -> None:
+        encoded_label = label.encode("utf-8")
+        manifest.update(len(encoded_label).to_bytes(8, "big"))
+        manifest.update(encoded_label)
+        manifest.update(len(value).to_bytes(8, "big"))
+        manifest.update(value)
+
+    for question_id in sorted(question_rows):
+        add_manifest_part(
+            f"question:{question_id}",
+            json.dumps(
+                question_rows[question_id],
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8"),
+        )
+    hashed_media: set[Path] = set()
+    with trajectories_path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            trajectory_id = str(row.get("id") or "")
+            if trajectory_id not in required_trajectories:
+                continue
+            seen.add(trajectory_id)
+            add_manifest_part(
+                f"trajectory:{trajectory_id}",
+                json.dumps(
+                    row, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+                ).encode("utf-8"),
+            )
+            for state in row.get("states") or []:
+                if not isinstance(state, dict):
+                    continue
+                screenshot = state.get("screenshot")
+                if not isinstance(screenshot, str) or not screenshot:
+                    continue
+                resolved = (root / screenshot).resolve()
+                try:
+                    resolved.relative_to(root)
+                except ValueError as exc:
+                    raise RuntimeError(
+                        "official screenshot path escapes the dataset root"
+                    ) from exc
+                if not resolved.is_file():
+                    raise RuntimeError(
+                        "official pilot screenshots are not prepared; run the pinned "
+                        "data/prepare_data.py before any paid pilot"
+                    )
+                screenshot_count += 1
+                if resolved not in hashed_media:
+                    add_manifest_part(f"media:{screenshot}", _sha256(resolved).encode())
+                    hashed_media.add(resolved)
+    missing_trajectories = sorted(required_trajectories - seen)
+    if missing_trajectories:
+        raise RuntimeError(
+            "official pilot trajectories are missing: "
+            + ", ".join(missing_trajectories[:10])
+        )
+
+    question_image_count = 0
+    for row in question_rows.values():
+        image = row.get("image")
+        if not isinstance(image, str) or not image:
+            continue
+        resolved = (root / image).resolve()
+        try:
+            resolved.relative_to(root)
+        except ValueError as exc:
+            raise RuntimeError("official question image escapes the dataset root") from exc
+        if not resolved.is_file():
+            raise RuntimeError("official pilot question images are not prepared")
+        question_image_count += 1
+        if resolved not in hashed_media:
+            add_manifest_part(f"media:{image}", _sha256(resolved).encode())
+            hashed_media.add(resolved)
+
+    return DatasetPreflight(
+        data_root=root,
+        dataset_revision=dataset_revision,
+        question_ids=selected,
+        trajectory_count=len(required_trajectories),
+        trajectory_screenshot_count=screenshot_count,
+        question_image_count=question_image_count,
+        selected_input_manifest_sha256=manifest.hexdigest(),
+    )
+
+
+def current_hardware_profile() -> str:
+    if platform.system() != "Darwin":
+        raise RuntimeError("the frozen paid pilot hardware profile requires macOS")
+    arm64 = subprocess.run(
+        ["sysctl", "-n", "hw.optional.arm64"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    architecture = "arm64" if arm64 == "1" else platform.machine()
+    cpu = subprocess.run(
+        ["sysctl", "-n", "machdep.cpu.brand_string"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip().replace(" ", "-")
+    build = subprocess.run(
+        ["sw_vers", "-buildVersion"], check=True, capture_output=True, text=True
+    ).stdout.strip()
+    memory = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    return (
+        f"{cpu};{architecture};{memory}-bytes;"
+        f"macOS-{platform.mac_ver()[0]}-build-{build}"
+    )
 
 
 def install_official_adapter(checkout: str | Path) -> dict[str, str]:
@@ -59,6 +349,10 @@ def install_official_adapter(checkout: str | Path) -> dict[str, str]:
     destination = root / "memory_modules" / "atmem.py"
     registry = root / "memory_modules" / "memory.py"
     runner = root / "evaluation" / "run_eval.py"
+    retry_files = (
+        root / "evaluation" / "harness.py",
+        root / "evaluation" / "qa_eval_metrics.py",
+    )
     if not registry.is_file():
         raise FileNotFoundError(f"official memory registry missing: {registry}")
     destination.write_bytes(source.read_bytes())
@@ -74,7 +368,30 @@ def install_official_adapter(checkout: str | Path) -> dict[str, str]:
         if CONFIG_ORIGINAL not in runner_text:
             raise RuntimeError("official run_eval memory-config marker changed")
         runner_text = runner_text.replace(CONFIG_ORIGINAL, CONFIG_MARKER, 1)
+    if EVALUATOR_ARG_MARKER not in runner_text:
+        if EVALUATOR_ARG_ORIGINAL not in runner_text:
+            raise RuntimeError("official run_eval evaluator argument marker changed")
+        runner_text = runner_text.replace(
+            EVALUATOR_ARG_ORIGINAL, EVALUATOR_ARG_MARKER, 1
+        )
+    if EVALUATOR_FORWARD_MARKER not in runner_text:
+        if runner_text.count(EVALUATOR_FORWARD_ORIGINAL) != 1:
+            raise RuntimeError("official run_eval evaluator forwarding marker changed")
+        runner_text = runner_text.replace(
+            EVALUATOR_FORWARD_ORIGINAL, EVALUATOR_FORWARD_MARKER, 1
+        )
     runner.write_text(runner_text, encoding="utf-8")
+    for retry_file in retry_files:
+        retry_text = retry_file.read_text(encoding="utf-8")
+        if RETRY_MARKER not in retry_text:
+            if retry_text.count(RETRY_ORIGINAL) != 1:
+                raise RuntimeError(
+                    f"official retry marker changed: {retry_file.relative_to(root)}"
+                )
+            retry_file.write_text(
+                retry_text.replace(RETRY_ORIGINAL, RETRY_MARKER, 1),
+                encoding="utf-8",
+            )
     installed = verify_installed_adapter(root)
     return {
         "format": "atmem-longmemeval-v2-adapter-install-v1",
@@ -122,6 +439,10 @@ def verify_official_checkout(checkout: str | Path) -> dict[str, str]:
         ):
             continue
         if name == "evaluation/run_eval.py" and _is_expected_runner_patch(root, path):
+            continue
+        if name in {"evaluation/harness.py", "evaluation/qa_eval_metrics.py"} and (
+            _is_expected_retry_patch(root, path, name)
+        ):
             continue
         raise RuntimeError(
             f"official LongMemEval-V2 working-tree file differs unexpectedly: {name}"
@@ -176,6 +497,16 @@ def verify_installed_adapter(checkout: str | Path) -> dict[str, Any]:
         raise RuntimeError("official LongMemEval registry has not loaded the AtMem adapter")
     if not _is_expected_runner_patch(root, runner):
         raise RuntimeError("official LongMemEval runner has not enabled the AtMem adapter")
+    if not _is_expected_retry_patch(
+        root, root / "evaluation/harness.py", "evaluation/harness.py"
+    ):
+        raise RuntimeError("official LongMemEval reader retries are not safely bounded")
+    if not _is_expected_retry_patch(
+        root,
+        root / "evaluation/qa_eval_metrics.py",
+        "evaluation/qa_eval_metrics.py",
+    ):
+        raise RuntimeError("official LongMemEval judge retries are not safely bounded")
     return {**verification, "runtime_verified": True}
 
 
@@ -184,6 +515,8 @@ def run_official_pilot_case(
     question_id: str, domain: str, method: str,
     protocol_path: str | Path, question_split: dict, pilot: dict,
     dolphin_split: dict, route_probe: dict, environment: dict[str, str] | None = None,
+    confirmed_paid_run: bool = False,
+    data_preflight: DatasetPreflight | None = None,
 ) -> dict[str, Any]:
     """Run one frozen case through the official executable with durable spend guards."""
     root = Path(checkout).expanduser().resolve()
@@ -195,10 +528,45 @@ def run_official_pilot_case(
         for_pilot_run=True, external_root=output,
         repository_root=Path(__file__).resolve().parents[2],
     )
+    if not confirmed_paid_run:
+        raise RuntimeError("paid pilot requires an explicit confirmed_paid_run flag")
+    supplied = dict(environment or {})
+    benchmark_root_value = (
+        supplied.get("ATMEM_BENCHMARK_ROOT")
+        or os.environ.get("ATMEM_BENCHMARK_ROOT", "")
+    ).strip()
+    if not benchmark_root_value:
+        raise RuntimeError(
+            "paid pilot requires ATMEM_BENCHMARK_ROOT for the shared cost ledger"
+        )
+    benchmark_root = Path(benchmark_root_value).expanduser().resolve()
+    try:
+        output.relative_to(benchmark_root)
+    except ValueError as exc:
+        raise RuntimeError(
+            "paid pilot output must be inside ATMEM_BENCHMARK_ROOT"
+        ) from exc
     verify_installed_adapter(root)
     allowed = set(pilot["question_ids"])
     if question_id not in allowed:
         raise ValueError("question is not in the frozen development pilot")
+    resolved_data_root = Path(data_root).expanduser().resolve()
+    dataset_pin = dict(protocol["datasets"]["longmemeval_v2"])
+    if data_preflight is None:
+        data_preflight = preflight_selected_data(
+            resolved_data_root,
+            [str(value) for value in pilot["question_ids"]],
+            dataset_revision=str(dataset_pin["dataset_revision"]),
+            expected_sha256=dict(dataset_pin["content_sha256"]),
+        )
+    if (
+        data_preflight.data_root != resolved_data_root
+        or data_preflight.question_ids != frozenset(str(value) for value in pilot["question_ids"])
+        or data_preflight.dataset_revision != dataset_pin["dataset_revision"]
+        or data_preflight.selected_input_manifest_sha256
+        != pilot.get("selected_input_manifest_sha256")
+    ):
+        raise RuntimeError("paid pilot case lacks a matching verified data preflight")
     if domain not in {"web", "enterprise"}:
         raise ValueError("domain must be web or enterprise")
     method_map = {
@@ -209,32 +577,41 @@ def run_official_pilot_case(
     if method not in method_map:
         raise ValueError("pilot method is not an executable frozen operating point")
     requirements = protocol["paid_run_requirements"]
+    preflight_paid_runtime(protocol, methods=(method,), environment=supplied)
+    actual_hardware = current_hardware_profile()
+    if actual_hardware != requirements.get("hardware_profile"):
+        raise RuntimeError(
+            "paid pilot hardware differs from the frozen protocol: "
+            f"{actual_hardware}"
+        )
     proxy_source = Path(__file__).with_name("hf_embedding_proxy.py")
-    proxy_digest = hashlib.sha256(proxy_source.read_bytes()).hexdigest()
-    if proxy_digest != requirements.get("embedding_proxy_sha256"):
-        raise RuntimeError("HF embedding proxy differs from the frozen protocol")
+    judge_proxy_source = Path(__file__).with_name("openai_judge_proxy.py")
+    reservations = requirements["pilot_method_reservations_usd"].get(method)
+    if not isinstance(reservations, dict):  # guarded by the no-write preflight
+        raise AssertionError("missing preflighted method reservation")
     case_key = f"longmem:{question_id}:{method}"
+    protocol_digest = hashlib.sha256(
+        json.dumps(protocol, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    shared_ledger_root = benchmark_root / "cost-ledgers" / protocol_digest
     hf_ledger = DurableCostLedger(
-        output / "evidence" / "longmem-hf-cost-ledger.json",
+        shared_ledger_root / "longmem-hf-cost-ledger.json",
         total_cap_usd=float(requirements["pilot_hf_cost_cap_usd"]),
     )
     openai_ledger = DurableCostLedger(
-        output / "evidence" / "longmem-openai-cost-ledger.json",
+        shared_ledger_root / "longmem-openai-cost-ledger.json",
         total_cap_usd=float(requirements["pilot_openai_cost_cap_usd"]),
     )
     hf_key = f"{case_key}:hf"
     judge_key = f"{case_key}:openai"
-    hf_max = float(requirements["pilot_hf_case_reservation_usd"])
-    judge_max = float(requirements["pilot_openai_case_reservation_usd"])
-    hf_ledger.reserve(hf_key, provider="huggingface", maximum_usd=hf_max)
-    openai_ledger.reserve(judge_key, provider="openai", maximum_usd=judge_max)
+    hf_max = float(reservations["huggingface"])
+    judge_max = float(reservations["openai"])
     case_output = output / "runs" / question_id / method
-    case_output.mkdir(parents=True, exist_ok=False)
     allowed_environment = {
         "PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL",
         "SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "HF_TOKEN", "OPENAI_API_KEY",
+        "ATMEM_BENCHMARK_ROOT",
     }
-    supplied = dict(environment or {})
     forbidden = sorted(set(supplied) - allowed_environment)
     if forbidden:
         raise ValueError(
@@ -247,86 +624,122 @@ def run_official_pilot_case(
     }
     run_environment.update(supplied)
     run_environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    if not run_environment.get("HF_TOKEN") or not run_environment.get("OPENAI_API_KEY"):
+        raise RuntimeError("paid pilot requires HF_TOKEN and OPENAI_API_KEY")
+    case_output.mkdir(parents=True, exist_ok=False)
     models = protocol["models"]
     run_environment.update({
         "ATMEM_LME_DATABASE_PATH": str(case_output / "atmem.db"),
         "ATMEM_LME_SUBJECT_ID": "longmemeval-public",
         "ATMEM_LME_AGENT_ID": "longmemeval-v2",
         "ATMEM_LME_WORKSPACE_ID": f"{domain}-small",
+        "ATMEM_JUDGE_PROXY_KEY": "local-proxy",
     })
     if method == "typed-local":
         HouseholdApplication.initialize(
             case_output / "atmem.db", encrypted=True, backend="file"
         )
+    hf_ledger.reserve(hf_key, provider="huggingface", maximum_usd=hf_max)
+    openai_ledger.reserve(judge_key, provider="openai", maximum_usd=judge_max)
     embedding_base_url = models["official_rag_embedding"]["base_url"]
     proxy: subprocess.Popen[bytes] | None = None
-    if method == "official-rag-query-to-slice-notes":
-        ready_file = case_output / "embedding-proxy-ready.json"
-        proxy = subprocess.Popen(
-            [os.sys.executable, os.fspath(proxy_source), "--ready-file", os.fspath(ready_file)],
-            cwd=case_output, env=run_environment,
+    judge_proxy: subprocess.Popen[bytes] | None = None
+    judge_usage = case_output / "judge-usage.json"
+    try:
+        if method == "official-rag-query-to-slice-notes":
+            ready_file = case_output / "embedding-proxy-ready.json"
+            proxy = subprocess.Popen(
+                [os.sys.executable, os.fspath(proxy_source), "--ready-file", os.fspath(ready_file)],
+                cwd=case_output, env=_proxy_environment(run_environment, "HF_TOKEN"),
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            embedding_base_url = _wait_for_proxy(proxy, ready_file, label="HF embedding")
+        judge_ready = case_output / "judge-proxy-ready.json"
+        judge_proxy = subprocess.Popen(
+            [
+                os.sys.executable, os.fspath(judge_proxy_source),
+                "--ready-file", os.fspath(judge_ready),
+                "--usage-file", os.fspath(judge_usage),
+            ],
+            cwd=case_output,
+            env=_proxy_environment(run_environment, "OPENAI_API_KEY"),
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
-        for _ in range(100):
-            if ready_file.is_file():
-                break
-            if proxy.poll() is not None:
-                raise RuntimeError("HF embedding proxy exited before readiness")
-            time.sleep(0.05)
-        else:
-            proxy.terminate()
-            raise RuntimeError("HF embedding proxy did not become ready")
-        embedding_base_url = json.loads(
-            ready_file.read_text(encoding="utf-8")
-        )["base_url"]
-    command = [
-        os.fspath(Path(os.sys.executable)), os.fspath(root / "evaluation/run_eval.py"),
-        "--data-root", os.fspath(Path(data_root).expanduser().resolve()),
-        "--domain", domain, "--tier", "small", "--method", method_map[method],
-        "--output-dir", os.fspath(case_output), "--question-ids", question_id,
-        "--reader-model", models["longmemeval_reader"]["model"],
-        "--reader-base-url", models["longmemeval_reader"]["base_url"],
-        "--reader-api-key-env", "HF_TOKEN",
-        "--reader-temperature", str(models["longmemeval_reader"]["temperature"]),
-        "--reader-top-p", str(models["longmemeval_reader"]["top_p"]),
-        "--reader-top-k", str(models["longmemeval_reader"]["top_k"]),
-        "--controller-model", models["official_rag_controller"]["model"],
-        "--controller-base-url", models["official_rag_controller"]["base_url"],
-        "--controller-api-key-env", "HF_TOKEN",
-        "--controller-temperature", str(models["official_rag_controller"]["temperature"]),
-        "--controller-top-p", str(models["official_rag_controller"]["top_p"]),
-        "--controller-top-k", str(models["official_rag_controller"]["top_k"]),
-        "--embedding-model", models["official_rag_embedding"]["model"],
-        "--embedding-base-url", embedding_base_url,
-        "--embedding-api-key-env", "HF_TOKEN",
-        "--evaluator-model", models["longmemeval_judge"]["model"],
-        "--evaluator-api-key-env", "OPENAI_API_KEY",
-    ]
-    try:
-        completed = subprocess.run(command, cwd=root, env=run_environment, check=False)
+        evaluator_base_url = _wait_for_proxy(
+            judge_proxy, judge_ready, label="OpenAI judge"
+        )
+        command = [
+            os.fspath(Path(os.sys.executable)), os.fspath(root / "evaluation/run_eval.py"),
+            "--data-root", os.fspath(resolved_data_root),
+            "--domain", domain, "--tier", "small", "--method", method_map[method],
+            "--output-dir", os.fspath(case_output), "--question-ids", question_id,
+            "--reader-model", models["longmemeval_reader"]["model"],
+            "--reader-base-url", models["longmemeval_reader"]["base_url"],
+            "--reader-api-key-env", "HF_TOKEN",
+            "--reader-temperature", str(models["longmemeval_reader"]["temperature"]),
+            "--reader-top-p", str(models["longmemeval_reader"]["top_p"]),
+            "--reader-top-k", str(models["longmemeval_reader"]["top_k"]),
+            *(
+                ["--reader-enable-thinking"]
+                if models["longmemeval_reader"]["enable_thinking"]
+                else []
+            ),
+            "--max-completion-tokens", str(
+                models["longmemeval_reader"]["max_completion_tokens"]
+            ),
+            "--memory-context-max-tokens", str(
+                models["longmemeval_reader"]["memory_context_max_tokens"]
+            ),
+            "--controller-model", models["official_rag_controller"]["model"],
+            "--controller-base-url", models["official_rag_controller"]["base_url"],
+            "--controller-api-key-env", "HF_TOKEN",
+            "--controller-temperature", str(models["official_rag_controller"]["temperature"]),
+            "--controller-top-p", str(models["official_rag_controller"]["top_p"]),
+            "--controller-top-k", str(models["official_rag_controller"]["top_k"]),
+            "--embedding-model", models["official_rag_embedding"]["model"],
+            "--embedding-base-url", embedding_base_url,
+            "--embedding-api-key-env", "HF_TOKEN",
+            "--evaluator-model", models["longmemeval_judge"]["model"],
+            "--evaluator-base-url", evaluator_base_url,
+            "--evaluator-api-key-env", "ATMEM_JUDGE_PROXY_KEY",
+            "--evaluator-reasoning-effort",
+            models["longmemeval_judge"]["reasoning_effort"],
+            "--evaluator-max-completion-tokens",
+            str(models["longmemeval_judge"]["max_completion_tokens"]),
+        ]
+        harness_environment = dict(run_environment)
+        harness_environment.pop("OPENAI_API_KEY", None)
+        completed = subprocess.run(
+            command, cwd=root, env=harness_environment, check=False
+        )
     finally:
-        if proxy is not None:
-            proxy.terminate()
-            try:
-                proxy.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proxy.kill()
-                proxy.wait(timeout=5)
+        _stop_process(proxy)
+        _stop_process(judge_proxy)
     if completed.returncode != 0:
         raise RuntimeError(
             f"official LongMemEval case failed with exit code {completed.returncode}; "
             "reservations remain consumed and retry requires explicit reconciliation"
         )
-    # Providers do not expose a transactional debit API.  Charge the complete
-    # reserved upper bound in evidence; this is conservative and keeps a crash
-    # or missing usage field from silently reopening budget.
-    hf_ledger.complete(hf_key, cost_usd=hf_max)
-    openai_ledger.complete(judge_key, cost_usd=judge_max)
+    case_row = _read_case_row(case_output)
+    reader_usage = _reader_usage(case_row)
+    reader_rates = requirements["huggingface_reader_price_usd_per_million"]
+    hf_cost = (
+        reader_usage["prompt_tokens"] * float(reader_rates["input"])
+        + reader_usage["completion_tokens"] * float(reader_rates["output"])
+    ) / 1_000_000
+    judge = _judge_usage(case_row, judge_usage, reservation_usd=judge_max)
+    hf_ledger.complete(hf_key, cost_usd=hf_cost)
+    openai_ledger.complete(judge_key, cost_usd=float(judge["cost_usd"]))
     return {
         "format": "atmem-longmemeval-pilot-case-v1",
         "question_id": question_id, "domain": domain, "method": method,
-        "output_dir": str(case_output), "cost_accounting": "reserved-upper-bound",
-        "hf_cost_usd": hf_max, "openai_cost_usd": judge_max,
+        "output_dir": str(case_output), "cost_accounting": "provider-token-usage",
+        "hf_cost_usd": round(hf_cost, 9),
+        "openai_cost_usd": float(judge["cost_usd"]),
+        "reader_usage": reader_usage,
+        "judge_usage": {key: judge[key] for key in (
+            "requests", "prompt_tokens", "completion_tokens"
+        )},
     }
 
 
@@ -334,8 +747,57 @@ def _is_expected_runner_patch(root: Path, path: Path) -> bool:
     original = _git_blob(root, "evaluation/run_eval.py").decode("utf-8")
     expected = original.replace(METHOD_ORIGINAL, METHOD_MARKER, 1).replace(
         CONFIG_ORIGINAL, CONFIG_MARKER, 1
+    ).replace(EVALUATOR_ARG_ORIGINAL, EVALUATOR_ARG_MARKER, 1).replace(
+        EVALUATOR_FORWARD_ORIGINAL, EVALUATOR_FORWARD_MARKER, 1
     )
     return path.read_text(encoding="utf-8") == expected
+
+
+def _is_expected_retry_patch(root: Path, path: Path, git_name: str) -> bool:
+    original = _git_blob(root, git_name).decode("utf-8")
+    expected = original.replace(RETRY_ORIGINAL, RETRY_MARKER, 1)
+    return path.read_text(encoding="utf-8") == expected
+
+
+def _read_case_row(case_output: Path) -> dict[str, Any]:
+    path = case_output / "per_question.jsonl"
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+    if len(rows) != 1:
+        raise RuntimeError("official pilot case must produce exactly one result row")
+    return rows[0]
+
+
+def _reader_usage(row: dict[str, Any]) -> dict[str, int]:
+    usage = row.get("usage") or {}
+    result = {
+        "prompt_tokens": int(usage.get("prompt_tokens", 0) or 0),
+        "completion_tokens": int(usage.get("completion_tokens", 0) or 0),
+    }
+    if result["prompt_tokens"] <= 0 or result["completion_tokens"] < 0:
+        raise RuntimeError("official reader did not report valid token usage")
+    return result
+
+
+def _judge_usage(
+    case_row: dict[str, Any], usage_path: Path, *, reservation_usd: float
+) -> dict[str, Any]:
+    if usage_path.is_file():
+        return json.loads(usage_path.read_text(encoding="utf-8"))
+    if case_row.get("eval_function") in LLM_EVALUATORS:
+        return {
+            "requests": 1,
+            "prompt_tokens": None,
+            "completion_tokens": None,
+            "cost_usd": reservation_usd,
+            "state": "usage_missing_after_required_judge",
+        }
+    return {
+        "requests": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "cost_usd": 0.0,
+        "state": "not_required",
+    }
 
 
 def _is_expected_registry_patch(root: Path, path: Path) -> bool:
@@ -355,6 +817,8 @@ def _verify_worktree_shape(root: Path) -> None:
     ).stdout.splitlines()
     allowed = {
         " M evaluation/run_eval.py",
+        " M evaluation/harness.py",
+        " M evaluation/qa_eval_metrics.py",
         " M memory_modules/memory.py",
         "?? memory_modules/atmem.py",
     }
