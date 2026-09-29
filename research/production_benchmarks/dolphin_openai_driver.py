@@ -100,7 +100,13 @@ async def run(*, request, tools, call_app, memory_context: str, model: str,
         if len(choices) != 1:
             raise RuntimeError("Dolphin agent returned an invalid choice count")
         choice = choices[0]
-        message = dict(choice.get("message") or {})
+        provider_message = dict(choice.get("message") or {})
+        message = {
+            "role": str(provider_message.get("role") or "assistant"),
+            "content": provider_message.get("content"),
+        }
+        if provider_message.get("tool_calls"):
+            message["tool_calls"] = provider_message["tool_calls"]
         usage = dict(response.get("usage") or {})
         if int(usage.get("prompt_tokens") or 0) <= 0 or int(
             usage.get("completion_tokens") or 0
@@ -130,7 +136,6 @@ async def run(*, request, tools, call_app, memory_context: str, model: str,
             tool_message = {
                 "role": "tool",
                 "tool_call_id": str(call.get("id") or ""),
-                "name": name,
                 "content": content,
             }
             messages.append(tool_message)
