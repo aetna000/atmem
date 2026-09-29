@@ -804,9 +804,9 @@ def test_dolphin_adapter_ingests_then_reads_without_changing_checkpoint(
             settings={"model": kwargs["model"]},
             messages=[
                 {"role": "user", "content": kwargs["request"].dated_message},
-                {"role": "assistant", "content": "done", "finish_reason": "stop"},
+                {"role": "assistant", "content": "done"},
             ],
-            attempts=[{"cost_usd": 0.001}],
+            attempts=[{"cost_usd": 0.001, "driver_ok": True}],
         )
 
     driver_module = ModuleType("fixture_dolphin_driver")

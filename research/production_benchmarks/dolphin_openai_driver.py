@@ -113,7 +113,6 @@ async def run(*, request, tools, call_app, memory_context: str, model: str,
             "output_tokens": int(usage["completion_tokens"]),
         }
         finish_reason = str(choice.get("finish_reason") or "")
-        message["finish_reason"] = finish_reason
         recorded.append(message)
         messages.append({key: value for key, value in message.items() if key != "usage"})
         calls = list(message.get("tool_calls") or ())
