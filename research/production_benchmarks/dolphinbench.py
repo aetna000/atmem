@@ -362,9 +362,6 @@ class AtMemDolphinAdapter:
                 result = InteractionRecord(
                     settings={
                         "model": "atmem-local-history-ingestion",
-                        "temperature": 0,
-                        "max_tokens": 0,
-                        "cost_usd": 0.0,
                     },
                     messages=[
                         {"role": "user", "content": request.dated_message},

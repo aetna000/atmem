@@ -801,11 +801,12 @@ def test_dolphin_adapter_ingests_then_reads_without_changing_checkpoint(
         assert kwargs["max_cost_usd"] == 0.1
         captured.append(kwargs["memory_context"])
         return InteractionRecord(
-            settings={"model": kwargs["model"], "cost_usd": 0.001},
+            settings={"model": kwargs["model"]},
             messages=[
                 {"role": "user", "content": kwargs["request"].dated_message},
                 {"role": "assistant", "content": "done", "finish_reason": "stop"},
             ],
+            attempts=[{"cost_usd": 0.001}],
         )
 
     driver_module = ModuleType("fixture_dolphin_driver")
