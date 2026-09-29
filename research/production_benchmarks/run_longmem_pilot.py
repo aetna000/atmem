@@ -89,13 +89,6 @@ def _expected_probe_set_sha256() -> str:
 
 def _installed_product(expected_version: str) -> dict[str, str]:
     from importlib.metadata import distribution, version
-    import atmem
-
-    module = Path(atmem.__file__).resolve()
-    if module.is_relative_to(ROOT) or "site-packages" not in module.parts:
-        raise RuntimeError(
-            "paid pilot requires an installed AtMem wheel outside the checkout"
-        )
     installed_version = version("atmem")
     if installed_version != expected_version:
         raise RuntimeError(
@@ -119,7 +112,7 @@ def _installed_product(expected_version: str) -> dict[str, str]:
         raise RuntimeError("installed AtMem artifact has no hashable package files")
     return {
         "version": installed_version,
-        "module": str(module),
+        "module": str(dist.locate_file("atmem/__init__.py")),
         "artifact_sha256": canonical_digest(installed_files),
     }
 

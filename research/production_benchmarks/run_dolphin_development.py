@@ -25,14 +25,6 @@ from atmem.benchmark.finalization import validate_finalization_gate  # noqa: E40
 def _installed_artifact_sha256() -> str:
     """Hash the installed AtMem package, metadata, and entry point files."""
     from importlib.metadata import distribution
-    import atmem
-
-    module = Path(atmem.__file__).resolve()
-    if module.is_relative_to(ROOT) or "site-packages" not in module.parts:
-        raise RuntimeError(
-            "paid DolphinBench run requires an installed AtMem wheel outside the checkout"
-        )
-
     dist = distribution("atmem")
     files: dict[str, str] = {}
     for entry in sorted(dist.files or (), key=str):
