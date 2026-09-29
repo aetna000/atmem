@@ -410,15 +410,19 @@ class AtMemDolphinAdapter:
                     request.phase, request.persona, request.interaction_id, result
                 )
             result.duration_ms = result.duration_ms or (time.monotonic() - started) * 1000
-            result.settings = {
-                **dict(result.settings),
-                "atmem": {
-                    "scope": request.persona,
-                    "context_sha256": "sha256:" + hashlib.sha256(context.encode()).hexdigest(),
-                    "context_injected": bool(context),
-                    "writes_allowed": request.phase == "ingestion",
-                },
-            }
+            result.attempts = list(result.attempts or [])
+            if result.attempts:
+                result.attempts[-1] = {
+                    **dict(result.attempts[-1]),
+                    "atmem": {
+                        "scope": request.persona,
+                        "context_sha256": "sha256:" + hashlib.sha256(
+                            context.encode()
+                        ).hexdigest(),
+                        "context_injected": bool(context),
+                        "writes_allowed": request.phase == "ingestion",
+                    },
+                }
             return result
         finally:
             memory.close()
