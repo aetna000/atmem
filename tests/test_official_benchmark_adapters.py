@@ -882,6 +882,16 @@ def test_dolphin_adapter_ingests_then_reads_without_changing_checkpoint(
         )
 
 
+def test_dolphin_source_chunking_is_bounded_and_lossless() -> None:
+    from research.production_benchmarks.dolphinbench import _bounded_text_parts
+
+    source = ("alpha beta gamma " * 400) + "tail"
+    parts = _bounded_text_parts(source)
+
+    assert "".join(parts) == source
+    assert all(0 < len(part) <= 1_800 for part in parts)
+
+
 def test_dolphin_development_runner_selects_before_official_execute(
     tmp_path: Path, monkeypatch
 ) -> None:

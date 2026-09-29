@@ -51,6 +51,23 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _bounded_text_parts(text: str, *, limit: int = 1_800) -> tuple[str, ...]:
+    """Split source text below the memory-unit fact ceiling without data loss."""
+    if limit < 1:
+        raise ValueError("text part limit must be positive")
+    parts: list[str] = []
+    position = 0
+    while position < len(text):
+        end = min(len(text), position + limit)
+        if end < len(text):
+            boundary = text.rfind(" ", position, end)
+            if boundary > position:
+                end = boundary + 1
+        parts.append(text[position:end])
+        position = end
+    return tuple(parts) or ("",)
+
+
 def _target(value: str):
     module, separator, name = value.partition(":")
     if not separator or not module or not name:
@@ -489,15 +506,24 @@ class AtMemDolphinAdapter:
 
     def _ingest(self, memory: Memory, request) -> dict:
         text = request.dated_message
+        chunks = _bounded_text_parts(text)
         episode_request = EpisodeIngestRequest(
             episode_id=f"dolphin-{request.persona}-{request.interaction_id}",
             idempotency_key=f"dolphin-{request.persona}-{request.interaction_id}",
             scope=self._scope(request.persona),
-            parts=(EpisodePart(
-                part_id="dated-message", ordinal=0, kind="text",
-                source_type="user_message", content=text,
-                content_sha256="sha256:" + hashlib.sha256(text.encode()).hexdigest(),
-            ),),
+            parts=tuple(
+                EpisodePart(
+                    part_id=f"dated-message-{index:04d}",
+                    ordinal=index,
+                    kind="text",
+                    source_type="user_message",
+                    content=chunk,
+                    content_sha256="sha256:" + hashlib.sha256(
+                        chunk.encode()
+                    ).hexdigest(),
+                )
+                for index, chunk in enumerate(chunks)
+            ),
             binding_method="host_asserted",
             binding_assurance="host_asserted",
             session_id=request.interaction_id,
