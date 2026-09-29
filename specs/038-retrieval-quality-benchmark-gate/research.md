@@ -59,6 +59,33 @@ Primary references:
 
 ## Diagnosis
 
+### Independent retained-checkpoint review — 2026-09-29
+
+Independent Claude Opus 5.5 and Codex Astra-ultra reviews inspected product
+code and the encrypted development checkpoints. Astra reproduced the critical
+behaviors with nonpersistent probes. The measured checkpoint populations were:
+
+| Stored evidence | Enterprise | Web |
+| --- | ---: | ---: |
+| Trajectories ingested | 100 | 100 |
+| Formation receipts marked complete | 0 | 4 |
+| Active metadata fragments | 98 | 98 |
+| Active UI-state fragments | 1 | 123 |
+| Superseded UI-state fragments | 1 | 521 |
+| Cross-episode supersession links | 0 | 516 |
+| Polarity-mismatch proposal rejections | 2,403 | 932 |
+| Source parts skipped for formation deadline | 2,785 | 1,382 |
+| Source parts skipped for source-byte budget | 220 | 71 |
+
+These counts are diagnostic, not benchmark scores. They show distinct primary
+failures: enterprise answer-bearing state was mostly never retrievable, while
+web observations were heavily suppressed by identity/reconciliation. Reviews
+also confirmed query-insensitive sufficiency, rank loss before packing,
+continued packing after implemented sufficiency, media outside the text budget,
+lossy procedure serialization and reader finalization failures in both retrieval
+and no-retrieval arms. Therefore formation availability and reader finalization
+are measured before another paid accuracy sample.
+
 ### 1. Formation is the first bottleneck
 
 The existing benchmark adapter converts trajectories into bounded text records.
@@ -113,23 +140,26 @@ fail because the agent ignored correct memory or chose the wrong tool. The paper
 must report these stages separately rather than attributing every task failure
 to retrieval.
 
-### 7. The first experimental adapter is not yet an inert benchmark rig
+### 7. Historical first experimental adapter diagnosis
 
-The development fork's `memory_modules/atmem.py` currently creates fixed-size
+At the pre-Spec-038 development commit, the fork's `memory_modules/atmem.py`
+created fixed-size
 text chunks, filters accessibility-tree lines, accesses stores/indexes directly
 and labels trajectory content as a user message. That is useful evidence about
 the plumbing experiment but violates the product-API boundary in this spec and
 can remove exact answer-bearing state before AtMem sees it. The production
-adapter must become a lossless mapper into `episode-ingest-v1`; all formation,
-indexing, retrieval and packing belong to installed AtMem product code.
+adapter therefore had to become a lossless mapper into `episode-ingest-v1`;
+T053 replaced this path. The diagnosis is retained as historical rationale, not
+a description of the current adapter.
 
-### 8. The current hybrid collector has a known scale blocker
+### 8. Historical hybrid scale blocker
 
-The present `atmem/retrieve/hybrid.py` loads all authorized records, constructs
+Before T029, `atmem/retrieve/hybrid.py` loaded all authorized records, constructed
 an in-memory FTS table for every query and refuses corpora above 10,000 records
 or 8 MiB. Typed formation increases record count, so persistent exact/FTS
-nomination and bounded canonical reloads are a correctness prerequisite, not a
-post-benchmark micro-optimization.
+nomination and bounded canonical reloads were a correctness prerequisite, not a
+post-benchmark micro-optimization. T029 replaced that whole-store path; the new
+review still requires rank and obligation preservation through canonical reload.
 
 ## Product provenance for the typed ontology
 
@@ -290,3 +320,20 @@ objects from improvements caused by retrieval or reader prompting.
   model identity and repeated-trial policy.
 - Benchmark workloads may reward patterns not representative of all customers;
   public claims must name their scope.
+
+## Independent review cycle — 2026-09-30
+
+The requested read-only `gpt-6-astra` ultra review initially returned BLOCK
+with thirteen reproducible findings. Before commit or paid execution, the
+implementation was amended to cover explicit-supersession trust, exact polarity
+grounding, full-slot legacy reconciliation, relation-complete routing, replay
+readiness, configuration-bound probe artifacts, installed-distribution hashing,
+completed Dolphin turns, serialized reader byte ceilings, year and historical
+nomination semantics, resumable media ownership, and pre-read media limits.
+Dedicated regression tests accompany these repairs.
+
+Claude Opus 5.5 was invoked independently in read-only plan mode, but the CLI
+returned only `You've hit your session limit · resets 1:20am
+(Australia/Sydney)`. It supplied no review evidence or approval. A retry remains
+required if the reset occurs before this task completes; otherwise the declared
+reviewer-limit exception applies and Astra remains the independent reviewer.

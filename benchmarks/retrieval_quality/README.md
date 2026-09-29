@@ -130,8 +130,18 @@ normal prepare and ingestion stages, then run:
 python research/production_benchmarks/run_dolphin_development.py \
   --checkout /external/dolphinbench \
   --config /external/dolphin-run/run.yaml \
+  --checkpoint-root /external/dolphin-run \
+  --finalization-manifest /external/dolphin-run/frozen-finalization.json \
+  --finalization-gate /external/dolphin-run/passed-finalization.json \
   --confirm-paid-run
 ```
+
+The manifest is a separately reviewed, pre-run JSON artifact with format
+`atmem-dolphin-finalization-manifest-v1` and a complete `identity` object. The
+runner derives the candidate commit, run-config digest, gate type and cost
+authorization itself; it never accepts those expectations from the submitted
+gate. Changing the model, grader, checkpoint, prompt or budgets therefore
+requires a new reviewed manifest and a new finalization run.
 
 The development runner selects the six precommitted IDs per persona before the
 official `_execute` path creates side-effect markers. It uses the official

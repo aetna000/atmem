@@ -8,6 +8,7 @@ that can never change authority.
 
 from __future__ import annotations
 
+from dataclasses import replace
 import pytest
 
 from atmem.contracts import AuthorityScope
@@ -23,6 +24,8 @@ from atmem.extract import (
     screen_content,
     validate_proposal,
 )
+from atmem.extract.models import AtomicFactPayload
+from atmem.extract.formation import form_typed_proposals
 from atmem.memory import Memory
 
 
@@ -152,6 +155,26 @@ def test_resolution_context_excludes_other_workspaces(memory: Memory) -> None:
     assert [row["id"] for row in context.records] == []
 
 
+def test_resolution_context_excludes_explicitly_scoped_foreign_episodes(
+    memory: Memory,
+) -> None:
+    memory.store.insert_episode(
+        subject_id=SCOPE.subject_id,
+        session_id=None,
+        turn_id=None,
+        message="Foreign workspace note.",
+        source_type="user_message",
+        raw={"authority_scope": {"workspace_id": "other-workspace"}},
+    )
+    memory.remember(SCOPE.subject_id, "Local workspace note.")
+
+    context = build_resolution_context(memory.store, SCOPE.subject_id, scope=SCOPE)
+
+    assert [episode["message"] for episode in context.episodes] == [
+        "Local workspace note."
+    ]
+
+
 # --- User Story 2: correct without duplicate pollution ---------------------
 
 
@@ -175,6 +198,98 @@ def test_correction_leaves_one_current_value_with_intact_history(
         and row["status"] == "superseded"
         for row in history
     )
+
+
+def test_correction_reconciles_the_full_slot_outside_recent_window(
+    memory: Memory,
+) -> None:
+    _submit(memory, "My preferred airport is Sydney.")
+    for index in range(70):
+        memory.remember(SCOPE.subject_id, f"Unrelated note {index}.")
+    context = build_resolution_context(
+        memory.store, SCOPE.subject_id, scope=SCOPE, window=0
+    )
+    [proposal] = propose_from_rules(
+        "Actually my preferred airport is Melbourne.", scope=SCOPE,
+        source_id="source-late-correction", context=context,
+    )
+    assert proposal.action is ProposalAction.ADD
+    outcome = memory.submit_extraction_proposal(
+        proposal, source_text="Actually my preferred airport is Melbourne.",
+        window=0,
+    )
+    assert outcome["review_state"] == "committed"
+    assert len(outcome["superseded_record_ids"]) == 1
+    active = [
+        row["content"] for row in memory.list(SCOPE.subject_id)
+        if "preferred airport" in row["content"]
+    ]
+    assert active == ["User's preferred airport is Melbourne."]
+
+
+def test_typed_correction_reconciles_legacy_slot_outside_recent_window(
+    memory: Memory,
+) -> None:
+    legacy = memory.remember(SCOPE.subject_id, "My preferred airport is Sydney.")
+    assert legacy["records"][0]["fact_key"] == "preferred airport"
+    for index in range(70):
+        memory.remember(SCOPE.subject_id, f"Unrelated note {index}.")
+    context = build_resolution_context(
+        memory.store, SCOPE.subject_id, scope=SCOPE, window=0
+    )
+    [proposal] = propose_from_rules(
+        "Actually my preferred airport is Melbourne.", scope=SCOPE,
+        source_id="source-legacy-correction", context=context,
+    )
+    outcome = memory.submit_extraction_proposal(
+        proposal, source_text="Actually my preferred airport is Melbourne.",
+        window=0,
+    )
+    assert outcome["review_state"] == "committed"
+    assert legacy["records"][0]["id"] in outcome["superseded_record_ids"]
+
+
+def test_episode_correction_reconciles_legacy_slot_outside_recent_window() -> None:
+    memory = Memory(":memory:", allow_insecure_typed_development=True)
+    legacy = memory.remember(SCOPE.subject_id, "My preferred airport is Sydney.")
+    for index in range(70):
+        memory.remember(SCOPE.subject_id, f"Unrelated note {index}.")
+    from atmem.contracts import EpisodeIngestRequest, EpisodePart
+    from atmem.core.canonical import sha256_hex
+
+    text = "Actually my preferred airport is Melbourne."
+    try:
+        result = memory.form_episode(EpisodeIngestRequest(
+            episode_id="legacy-episode-correction", idempotency_key="legacy-episode-correction",
+            scope=SCOPE, parts=(EpisodePart(
+                part_id="message", ordinal=0, kind="text", source_type="user_message",
+                content=text, content_sha256="sha256:" + sha256_hex(text),
+            ),),
+        ))
+        assert legacy["records"][0]["id"] in result["outcomes"][0]["superseded_record_ids"]
+    finally:
+        memory.close()
+
+
+def test_typed_legacy_reconciliation_never_crosses_the_claim_subject(
+    memory: Memory,
+) -> None:
+    legacy = memory.remember(SCOPE.subject_id, "My preferred airport is Sydney.")
+    [proposal] = form_typed_proposals(
+        "My preferred airport is Melbourne.", scope=SCOPE,
+        source_id="source-bob-airport", formation_id="formation-bob-airport",
+    )
+    assert proposal.unit is not None
+    bob_unit = replace(
+        proposal.unit,
+        payload=AtomicFactPayload("Bob", "preferred airport", "Melbourne"),
+    )
+    # A malicious/legacy proposer may reuse the user's human fact key. Subject
+    # compatibility, not key spelling, is the correction boundary.
+    bob_proposal = replace(proposal, unit=bob_unit, fact_key="preferred airport")
+    reconciled = memory._reconcile_typed_proposal(bob_proposal)
+    assert legacy["records"][0]["id"] not in reconciled.affected_record_ids
+    assert reconciled.action is ProposalAction.ADD
 
 
 def test_correction_records_immutable_lineage(memory: Memory) -> None:

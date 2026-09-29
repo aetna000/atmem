@@ -1,18 +1,26 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 
 import pytest
 
 from atmem.benchmark.contracts import (
+    canonical_digest,
     load_json_compatible_yaml,
     validate_dolphin_split,
     validate_longmem_pilot,
     validate_provider_route_probe,
     validate_question_split,
     validate_retrieval_quality_protocol,
+)
+from atmem.benchmark.finalization import (
+    FORMAT as FINALIZATION_FORMAT,
+    finalization_identity,
+    probe_artifact_identity,
+    validate_finalization_gate,
 )
 
 
@@ -205,4 +213,172 @@ def test_pilot_protocol_rejects_under_reserved_provider_cost() -> None:
             dolphin_split=dolphin,
             route_probe=route_probe,
             for_pilot_run=True,
+        )
+
+
+def _finalization_gate() -> dict:
+    identity = {
+        "gate_type": "longmemeval",
+        "candidate_commit": "a" * 40,
+        "candidate_artifact_sha256": "sha256:" + "9" * 64,
+        "checkpoint_sha256": "sha256:" + "b" * 64,
+        "provider": "runpod",
+        "model": "Qwen/Qwen3.5-9B",
+        "model_revision": "c" * 40,
+        "processor_sha256": "sha256:" + "d" * 64,
+        "prompt_sha256": "sha256:" + "e" * 64,
+        "proxy_sha256": "sha256:" + "f" * 64,
+        "concurrency": 2,
+        "input_budget": 8192,
+        "output_budget": 1024,
+        "sampling": {"temperature": 0, "top_p": 1},
+        "judge_provider": "openai", "judge_model": "gpt-5.2",
+        "judge_revision": "2026-09-01",
+        "judge_prompt_sha256": "sha256:" + "1" * 64,
+        "probe_set_sha256": "sha256:" + "0" * 64,
+        "run_config_sha256": "sha256:" + "4" * 64,
+        "cost_authorization_id": "pilot-1",
+        "runner_sha256": "sha256:" + "5" * 64,
+        "agent_driver_target": "fixture:run",
+        "agent_driver_sha256": "sha256:" + "7" * 64,
+        "grader_runtime": {
+            "provider": "openai", "model": "gpt-5.2", "maximum_retries": 0,
+        },
+    }
+    probes = []
+    for condition in (
+        "short_control", "oracle_evidence", "product_context",
+        "worst_budget_multimodal",
+    ):
+        for _ in range(3):
+            probes.append({
+                "probe_id": f"reader-{condition}-{len(probes)}",
+                "role": "reader", "condition": condition, "status": "completed",
+                "finish_reason": "stop", "content_sha256": "sha256:" + "2" * 64,
+                "content_bytes": 12, "answer_parse_ok": True,
+                "artifact_sha256": "sha256:" + "5" * 64,
+                "usage": {"prompt_tokens": 10, "completion_tokens": 2},
+                "cleanup_failed": False, "error": None, "retries": 0,
+                "latency_ms": 20, "cost_usd": 0.001,
+            })
+    probes.extend({
+        "probe_id": f"judge-{index}",
+        "role": "judge", "condition": "official_judge", "status": "completed",
+        "finish_reason": "stop", "content_sha256": "sha256:" + "3" * 64,
+        "content_bytes": 1, "answer_parse_ok": True,
+        "artifact_sha256": "sha256:" + "6" * 64,
+        "usage": {"prompt_tokens": 10, "completion_tokens": 1},
+        "cleanup_failed": False, "error": None, "retries": 0,
+        "latency_ms": 10, "cost_usd": 0.001,
+    } for index in range(3))
+    identity["probe_set_sha256"] = canonical_digest([
+        {"probe_id": probe["probe_id"], "role": probe["role"], "condition": probe["condition"]}
+        for probe in probes
+    ])
+    for probe in probes:
+        probe["artifact_sha256"] = probe_artifact_identity(probe, identity)
+    now = datetime.now(timezone.utc)
+    return {
+        "format": FINALIZATION_FORMAT,
+        "gate_type": "longmemeval",
+        "identity": identity,
+        "identity_sha256": finalization_identity(identity),
+        "status": "passed",
+        "bypassed": False,
+        "created_at": (now - timedelta(minutes=1)).isoformat(),
+        "expires_at": (now + timedelta(hours=1)).isoformat(),
+        "probes": probes,
+        "cost_authorization": {
+            "authorization_id": "pilot-1", "cap_usd": 10.0,
+            "reserved_usd": 2.0, "spent_usd": 1.0,
+        },
+    }
+
+
+def test_finalization_gate_rejects_reasoning_only_and_stale_evidence() -> None:
+    gate = _finalization_gate()
+    assert validate_finalization_gate(
+        gate, expected_identity=gate["identity"]
+    )["status"] == "passed"
+    reasoning_only = deepcopy(gate)
+    reasoning_only["probes"][0]["content_bytes"] = 0
+    with pytest.raises(ValueError, match="no final answer"):
+        validate_finalization_gate(
+            reasoning_only, expected_identity=reasoning_only["identity"]
+        )
+    stale = deepcopy(gate["identity"])
+    stale["candidate_commit"] = "9" * 40
+    with pytest.raises(ValueError, match="another configuration"):
+        validate_finalization_gate(gate, expected_identity=stale)
+
+
+def test_finalization_gate_rejects_sampling_relabel_retry_nan_and_wrong_probe_set() -> None:
+    gate = _finalization_gate()
+    changed = deepcopy(gate["identity"])
+    changed["sampling"] = {"temperature": 0.5, "top_p": 1}
+    with pytest.raises(ValueError, match="another configuration"):
+        validate_finalization_gate(gate, expected_identity=changed)
+
+    relabeled = deepcopy(gate)
+    relabeled["gate_type"] = "dolphinbench"
+    with pytest.raises(ValueError, match="gate_type"):
+        validate_finalization_gate(relabeled, expected_identity=gate["identity"])
+
+    retried = deepcopy(gate)
+    retried["probes"][0]["retries"] = 1
+    with pytest.raises(ValueError, match="used retries"):
+        validate_finalization_gate(retried, expected_identity=retried["identity"])
+
+    non_finite = deepcopy(gate)
+    non_finite["cost_authorization"]["spent_usd"] = float("nan")
+    with pytest.raises(ValueError, match="cost authorization"):
+        validate_finalization_gate(non_finite, expected_identity=non_finite["identity"])
+
+    wrong_condition = deepcopy(gate)
+    wrong_condition["probes"][0]["condition"] = "near_limit"
+    wrong_condition["probes"][0]["artifact_sha256"] = probe_artifact_identity(
+        wrong_condition["probes"][0], wrong_condition["identity"]
+    )
+    with pytest.raises(ValueError, match="frozen twelve"):
+        validate_finalization_gate(
+            wrong_condition, expected_identity=wrong_condition["identity"]
+        )
+
+
+def test_finalization_gate_binds_artifacts_attempts_cost_and_runner_type() -> None:
+    gate = _finalization_gate()
+    with pytest.raises(ValueError, match="runner"):
+        validate_finalization_gate(
+            gate, expected_identity=gate["identity"],
+            expected_gate_type="dolphinbench",
+        )
+    missing_attempt = deepcopy(gate)
+    missing_attempt["probes"][0].pop("retries")
+    with pytest.raises(ValueError, match="attempt evidence"):
+        validate_finalization_gate(
+            missing_attempt, expected_identity=missing_attempt["identity"]
+        )
+    missing_artifact = deepcopy(gate)
+    missing_artifact["probes"][0].pop("artifact_sha256")
+    with pytest.raises(ValueError, match="artifact binding"):
+        validate_finalization_gate(
+            missing_artifact, expected_identity=missing_artifact["identity"]
+        )
+    over_cap = deepcopy(gate)
+    over_cap["probes"][0]["cost_usd"] = 2.0
+    over_cap["probes"][0]["artifact_sha256"] = probe_artifact_identity(
+        over_cap["probes"][0], over_cap["identity"]
+    )
+    with pytest.raises(ValueError, match="probe costs"):
+        validate_finalization_gate(over_cap, expected_identity=over_cap["identity"])
+
+
+def test_finalization_probe_artifacts_cannot_move_between_configurations() -> None:
+    gate = _finalization_gate()
+    transplanted = deepcopy(gate)
+    transplanted["identity"]["model_revision"] = "different-checkpoint"
+    transplanted["identity_sha256"] = finalization_identity(transplanted["identity"])
+    with pytest.raises(ValueError, match="artifact binding"):
+        validate_finalization_gate(
+            transplanted, expected_identity=transplanted["identity"]
         )

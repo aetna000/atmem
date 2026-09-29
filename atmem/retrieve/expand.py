@@ -28,7 +28,9 @@ def expand_evidence_neighborhood(
     visits = len(selected)
     truncated = False
     for depth in range(1, budget.neighbor_depth + 1):
-        typed = store.typed_units_for_records(subject_id, workspace_id, frontier)
+        typed = store.typed_units_for_records(
+            subject_id, workspace_id, frontier, remote=remote
+        )
         source_to_seed: dict[str, str] = {}
         for row in typed:
             for evidence in row["unit"].get("evidence") or ():

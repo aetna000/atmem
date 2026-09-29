@@ -242,6 +242,7 @@ def test_runpod_reader_proxy_reassembles_sse_without_promoting_reasoning(
         f"http://127.0.0.1:{upstream.server_port}/v1",
     )
     monkeypatch.setenv("RUNPOD_READER_API_KEY", "fixture-key")
+    monkeypatch.setenv("ATMEM_READER_REQUEST_MAX_BYTES", "1048576")
     request = urllib.request.Request(
         f"http://127.0.0.1:{proxy.server_port}/v1/chat/completions",
         data=json.dumps({"model": "fixture-reader", "messages": []}).encode(),
@@ -264,6 +265,18 @@ def test_runpod_reader_proxy_reassembles_sse_without_promoting_reasoning(
     assert Upstream.user_agent == "OpenAI/Python 3.19.2"
 
 
+def test_reader_proxy_budget_applies_after_upstream_serialization() -> None:
+    from research.production_benchmarks.runpod_reader_proxy import (
+        encoded_upstream_body,
+    )
+
+    payload = {"model": "reader", "messages": [{"role": "user", "content": "x"}]}
+    expanded = encoded_upstream_body(payload, 10_000)
+    assert len(expanded) > len(json.dumps(payload).encode())
+    with pytest.raises(ValueError, match="serialized reader request"):
+        encoded_upstream_body(payload, len(expanded) - 1)
+
+
 def test_judge_proxy_allows_one_egress_and_records_content_free_usage(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -282,7 +295,7 @@ def test_judge_proxy_allows_one_egress_and_records_content_free_usage(
             length = int(self.headers["Content-Length"])
             self.rfile.read(length)
             body = json.dumps({
-                "choices": [{"message": {"content": '{"label": 1}'}}],
+                "choices": [{"finish_reason": "stop", "message": {"content": '{"label": 1}'}}],
                 "usage": {"prompt_tokens": 100, "completion_tokens": 10},
             }).encode()
             self.send_response(200)
@@ -425,7 +438,7 @@ def test_judge_proxy_waits_for_reader_phase_gate(
             type(self).calls += 1
             self.rfile.read(int(self.headers["Content-Length"]))
             body = json.dumps({
-                "choices": [{"message": {"content": '{"label": 1}'}}],
+                "choices": [{"finish_reason": "stop", "message": {"content": '{"label": 1}'}}],
                 "usage": {"prompt_tokens": 4, "completion_tokens": 2},
             }).encode()
             self.send_response(200)
@@ -627,7 +640,18 @@ def test_longmem_adapter_preserves_official_state_media_and_native_trust(
     text = "\n".join(item["value"] for item in result if item["type"] == "text")
     assert "Place order" in text
     assert "must never enter memory" not in text
-    assert {item["value"] for item in result if item["type"] == "image"} == {str(image)}
+    returned_images = [Path(item["value"]) for item in result if item["type"] == "image"]
+    assert len(returned_images) == 1
+    assert returned_images[0] != image
+    assert returned_images[0].read_bytes() == image.read_bytes()
+    image.unlink()
+    reconstructed = adapter.query("What is the current checkout label?")
+    rebuilt_images = [
+        Path(item["value"]) for item in reconstructed if item["type"] == "image"
+    ]
+    assert len(rebuilt_images) == 1
+    assert rebuilt_images[0].is_file()
+    assert rebuilt_images[0].read_bytes() == b"fixture image bytes"
     records = adapter._memory.store.list_records("subject", statuses=None)
     assert records
     assert {row["source_type"] for row in records} == {"tool_output"}
@@ -649,6 +673,41 @@ def test_dolphin_adapter_keeps_personas_isolated_and_benchmark_logic_out() -> No
     assert 'PERSONAS = ("alex", "morgan", "riley")' in source
     assert "writes_allowed\": request.phase == \"ingestion\"" in source
     assert "request.phase == \"ingestion\"" in source
+
+
+def test_dolphin_rejects_empty_or_length_terminated_agent_turns() -> None:
+    from research.production_benchmarks.dolphinbench import (
+        _require_completed_interaction,
+    )
+
+    with pytest.raises(RuntimeError, match="complete final answer"):
+        _require_completed_interaction(SimpleNamespace(messages=[{
+            "role": "assistant", "content": "", "finish_reason": "length",
+        }]))
+
+
+def test_dolphin_accepts_official_message_schema_with_driver_completion() -> None:
+    from research.production_benchmarks.dolphinbench import _require_completed_interaction
+
+    _require_completed_interaction(SimpleNamespace(
+        messages=[{"role": "assistant", "content": "done"}],
+        attempts=[{"driver_ok": True}],
+    ))
+
+
+def test_dolphin_rejects_length_terminated_grader_response() -> None:
+    from research.production_benchmarks.dolphinbench import (
+        require_completed_provider_response,
+    )
+
+    with pytest.raises(RuntimeError, match="complete final answer"):
+        require_completed_provider_response({
+            "choices": [{
+                "finish_reason": "length",
+                "message": {"content": '{"passed": true}'},
+            }],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 10},
+        }, role="grader")
 
 
 def test_dolphin_official_checkout_and_frozen_split_are_rederived(
@@ -743,7 +802,10 @@ def test_dolphin_adapter_ingests_then_reads_without_changing_checkpoint(
         captured.append(kwargs["memory_context"])
         return InteractionRecord(
             settings={"model": kwargs["model"], "cost_usd": 0.001},
-            messages=[{"role": "user", "content": kwargs["request"].dated_message}],
+            messages=[
+                {"role": "user", "content": kwargs["request"].dated_message},
+                {"role": "assistant", "content": "done", "finish_reason": "stop"},
+            ],
         )
 
     driver_module = ModuleType("fixture_dolphin_driver")

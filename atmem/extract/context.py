@@ -250,13 +250,12 @@ def build_resolution_context(
     and non-active records are not eligible evidence.
     """
     bounded = max(0, min(int(window), MAX_WINDOW))
-    episodes = store.list_episodes(subject_id)[-bounded:] if bounded else []
     excluded = set(store.excluded_record_ids(subject_id))
-    records = [
-        row
-        for row in store.list_records(subject_id, statuses=("active",))
-        if str(row["id"]) not in excluded and _in_scope(row, scope)
-    ]
+    episodes, records = store.bounded_resolution_context(
+        subject_id, scope.workspace_id if scope is not None else None,
+        limit=bounded,
+    )
+    records = [row for row in records if _in_scope(row, scope)]
     return ResolutionContext(
         subject_id=subject_id,
         scope=scope,

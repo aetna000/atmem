@@ -752,7 +752,13 @@ def run_official_pilot_case(
     protocol_digest = hashlib.sha256(
         json.dumps(protocol, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
-    shared_ledger_root = benchmark_root / "cost-ledgers" / protocol_digest
+    cost_authorization_id = supplied.get("ATMEM_COST_AUTHORIZATION_ID", "").strip()
+    if not cost_authorization_id:
+        raise RuntimeError("paid pilot requires ATMEM_COST_AUTHORIZATION_ID")
+    authorization_digest = hashlib.sha256(
+        cost_authorization_id.encode("utf-8")
+    ).hexdigest()
+    shared_ledger_root = benchmark_root / "cost-ledgers" / authorization_digest
     reader_ledger = DurableCostLedger(
         shared_ledger_root / "longmem-reader-cost-ledger.json",
         total_cap_usd=float(requirements["pilot_reader_cost_cap_usd"]),
@@ -772,6 +778,7 @@ def run_official_pilot_case(
         "RUNPOD_READER_API_KEY", "ATMEM_READER_BASE_URL",
         "ATMEM_LME_TRAJECTORY_POOL_ROOT",
         "ATMEM_BENCHMARK_ROOT",
+        "ATMEM_COST_AUTHORIZATION_ID",
     }
     forbidden = sorted(set(supplied) - allowed_environment)
     if forbidden:
@@ -996,7 +1003,7 @@ def _reader_usage(row: dict[str, Any]) -> dict[str, int]:
         "prompt_tokens": int(usage.get("prompt_tokens", 0) or 0),
         "completion_tokens": int(usage.get("completion_tokens", 0) or 0),
     }
-    if result["prompt_tokens"] <= 0 or result["completion_tokens"] < 0:
+    if result["prompt_tokens"] <= 0 or result["completion_tokens"] <= 0:
         raise RuntimeError("official reader did not report valid token usage")
     return result
 

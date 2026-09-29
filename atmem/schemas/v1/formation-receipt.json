@@ -16,6 +16,10 @@
     "unsupported_parts": {"type": "array", "items": {"type": "string"}},
     "unrepresented_ranges": {"type": "array", "items": {"type": "object"}},
     "media_references": {"type": "array", "items": {"type": "object", "required": ["part_id", "ordinal", "reference_id", "reference_sha256", "adjacent_source_id"]}},
+    "processing_complete": {"type": "boolean"},
+    "representation_complete": {"type": "boolean"},
+    "retrieval_ready": {"type": "boolean"},
+    "next_positions": {"type": "array", "items": {"type": "object", "required": ["part_id", "start_offset", "reason"]}},
     "complete": {"type": "boolean"},
     "reason_codes": {"type": "array", "items": {"type": "string"}}
   },

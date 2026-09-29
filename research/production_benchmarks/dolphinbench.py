@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-from importlib import import_module
 import inspect
+from importlib import import_module
 import json
+import os
 from pathlib import Path
 import subprocess
 import time
@@ -55,6 +56,43 @@ def _target(value: str):
     if not separator or not module or not name:
         raise ValueError("agent_driver must be a module:callable import path")
     return getattr(import_module(module), name)
+
+
+def _driver_artifact_sha256(driver) -> str:
+    path_value = inspect.getsourcefile(driver) or inspect.getfile(driver)
+    path = Path(path_value).resolve()
+    if not path.is_file():
+        raise RuntimeError("agent_driver must come from a hashable source file")
+    return "sha256:" + _sha256(path)
+
+
+def _require_completed_interaction(result) -> None:
+    final = result.messages[-1] if result.messages else {}
+    attempts = list(getattr(result, "attempts", None) or [])
+    driver_completed = bool(attempts and attempts[-1].get("driver_ok") is True)
+    legacy_completed = str(final.get("finish_reason") or "") == "stop"
+    if (final.get("role") != "assistant"
+            or not str(final.get("content") or "").strip()
+            or not (driver_completed or legacy_completed)):
+        raise RuntimeError("DolphinBench agent did not produce a complete final answer")
+
+
+def require_completed_provider_response(response: object, *, role: str) -> dict:
+    """Reject incomplete paid model output before it can affect a score."""
+    if not isinstance(response, dict):
+        raise RuntimeError(f"DolphinBench {role} returned a non-object response")
+    choices = response.get("choices") or []
+    if len(choices) != 1 or not isinstance(choices[0], dict):
+        raise RuntimeError(f"DolphinBench {role} must return exactly one choice")
+    choice = choices[0]
+    message = choice.get("message") or {}
+    usage = response.get("usage") or {}
+    if (choice.get("finish_reason") != "stop"
+            or not str(message.get("content") or "").strip()
+            or int(usage.get("prompt_tokens") or 0) <= 0
+            or int(usage.get("completion_tokens") or 0) <= 0):
+        raise RuntimeError(f"DolphinBench {role} did not produce a complete final answer")
+    return response
 
 
 def verify_official_checkout(checkout: str | Path, split: dict) -> dict:
@@ -229,6 +267,13 @@ class AtMemDolphinAdapter:
         if not self.driver_target:
             raise ValueError("options.agent_driver is required")
         self.driver = _target(self.driver_target)
+        expected_target = os.environ.get("ATMEM_DOLPHIN_DRIVER_TARGET", "").strip()
+        expected_digest = os.environ.get("ATMEM_DOLPHIN_DRIVER_SHA256", "").strip()
+        if expected_target or expected_digest:
+            if expected_target != self.driver_target:
+                raise RuntimeError("agent_driver target differs from finalization identity")
+            if expected_digest != _driver_artifact_sha256(self.driver):
+                raise RuntimeError("agent_driver artifact differs from finalization identity")
         self.model = str(self.options.get("model") or "")
         if not self.model:
             raise ValueError("options.model is required")
@@ -313,6 +358,7 @@ class AtMemDolphinAdapter:
                     result = await result
             if not isinstance(result, InteractionRecord):
                 raise TypeError("agent_driver must return harness.adapter.InteractionRecord")
+            _require_completed_interaction(result)
             if request.phase == "ingestion":
                 self._ingest(memory, request)
             elif request.phase != "tests":
@@ -381,7 +427,7 @@ class AtMemDolphinAdapter:
 
     def _ingest(self, memory: Memory, request) -> None:
         text = request.dated_message
-        memory.form_episode(EpisodeIngestRequest(
+        episode_request = EpisodeIngestRequest(
             episode_id=f"dolphin-{request.persona}-{request.interaction_id}",
             idempotency_key=f"dolphin-{request.persona}-{request.interaction_id}",
             scope=self._scope(request.persona),
@@ -394,7 +440,22 @@ class AtMemDolphinAdapter:
             binding_assurance="host_asserted",
             session_id=request.interaction_id,
             retain_body=True,
-        ))
+        )
+        budget = RetrievalBudget(proposals=256, source_bytes=max(262_144, len(text.encode())))
+        formed = memory.form_episode(episode_request, budget=budget)
+        for _ in range(31):
+            if not formed["receipt"].get("next_positions"):
+                break
+            formed = memory.form_episode(episode_request, budget=budget)
+        receipt = formed["receipt"]
+        if not (
+            receipt.get("processing_complete")
+            and receipt.get("representation_complete")
+            and receipt.get("retrieval_ready")
+        ):
+            raise RuntimeError(
+                "DolphinBench history was not completely represented; refusing checkpoint"
+            )
 
     def _recall(self, memory: Memory, persona: str, query: str) -> str:
         scope = self._scope(persona)

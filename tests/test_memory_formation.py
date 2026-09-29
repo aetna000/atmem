@@ -1,7 +1,10 @@
 from atmem import Memory
 from atmem.contracts import AuthorityScope, EpisodeIngestRequest, EpisodePart, RetrievalBudget
 from atmem.core.canonical import sha256_hex
-from atmem.extract.formation import form_typed_proposals
+from atmem.extract.formation import _fact_key, form_typed_proposals
+from atmem.extract.models import Polarity, ProposalAction, ProposalPrecondition
+from atmem.extract.review import ReviewPolicy
+from dataclasses import replace
 import json
 from pathlib import Path
 
@@ -20,6 +23,74 @@ def test_structured_state_with_empty_key_uses_non_empty_fallback_relation():
 
     assert len(proposals) == 1
     assert proposals[0].unit.payload.relation == "structured event"
+
+
+def test_structured_slice_cannot_forge_identity_or_polarity(tmp_path):
+    body = json.dumps({"title": "Settings", "tree": "visible setting " * 200})
+    memory = Memory(
+        tmp_path / "structured-grounding.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        formed = memory.form_episode(episode(
+            "structured-source", [body], part_kind="state", host_asserted=True
+        ))
+        source_id = formed["receipt"]["source_ids"][0]
+        proposal = form_typed_proposals(
+            body, scope=SCOPE, source_id=source_id,
+            formation_id="forged-formation", part_kind="state",
+        )[1]
+        forged = replace(
+            proposal,
+            proposal_id="forged-proposal",
+            idempotency_key="forged-proposal",
+            unit=replace(
+                proposal.unit,
+                unit_id="forged-unit",
+                payload=replace(
+                    proposal.unit.payload,
+                    entity="Unseen Entity",
+                    relation="Unseen Relation",
+                    polarity=Polarity.NEGATIVE,
+                ),
+            ),
+        )
+        outcome = memory.submit_extraction_proposal(
+            forged, source_text=body,
+            review_policy=ReviewPolicy(quarantine_non_durable=False),
+        )
+        assert outcome["review_state"] == "rejected"
+        assert "typed_structured_identity_mismatch" in outcome["reason_codes"]
+        assert "typed_polarity_mismatch" in outcome["reason_codes"]
+    finally:
+        memory.close()
+
+
+def test_fact_keys_do_not_collapse_punctuation_or_unicode_relations():
+    c_plus_plus = _fact_key("user", "C++ preference")
+    c_sharp = _fact_key("user", "C# preference")
+    japanese = _fact_key("user", "言語")
+
+    assert c_plus_plus != c_sharp
+    assert japanese
+    assert len({c_plus_plus, c_sharp, japanese}) == 3
+    assert _fact_key("a_b", "c") != _fact_key("a", "b_c")
+
+
+def test_structured_snapshot_negation_does_not_invert_container_polarity(tmp_path):
+    body = '{"title":"Settings","warning":"feature is not available"}'
+    memory = Memory(
+        tmp_path / "formation.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        result = memory.form_episode(episode(
+            "structured-negation", [body], part_kind="state", host_asserted=True
+        ))
+        assert result["receipt"]["rejected"] == 0
+        assert result["receipt"]["admitted"] == 1
+    finally:
+        memory.close()
 
 
 def _words(value: object) -> set[str]:
@@ -135,11 +206,12 @@ def test_unstructured_content_is_preserved_and_loss_is_visible(tmp_path):
         result = memory.form_episode(episode("episode-unstructured", [text]))
         receipt = result["receipt"]
         assert receipt["complete"] is False
-        assert receipt["unrepresented_ranges"][0]["part_id"] == "part-0"
+        assert receipt["unrepresented_ranges"] == ()
+        assert receipt["withheld"] == 1
         source = memory.store.get_protocol_source_by_id(receipt["source_ids"][0])
         retained = memory.store.get_episode(SCOPE.subject_id, source["episode_id"])
         assert retained["message"] == text
-        assert result["outcomes"] == []
+        assert result["outcomes"][0]["review_state"] == "pending_review"
     finally:
         memory.close()
 
@@ -208,6 +280,373 @@ def test_compatible_typed_update_supersedes_old_fact_with_generation_guard(tmp_p
         memory.close()
 
 
+def test_long_structured_state_does_not_treat_container_negation_as_claim_polarity(tmp_path):
+    body = json.dumps({"title": "Settings", "tree": "not available " * 700})
+    memory = Memory(
+        tmp_path / "formation.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        result = memory.form_episode(episode(
+            "long-negative-state", [body], part_kind="state", host_asserted=True
+        ))
+        assert result["receipt"]["rejected"] == 0
+        assert result["receipt"]["representation_complete"] is True
+    finally:
+        memory.close()
+
+
+def test_fact_updates_are_order_independent_when_observation_time_is_known(tmp_path):
+    memory = Memory(
+        tmp_path / "formation.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        newer = episode("age-new", ["I am 46 years old."])
+        newer = replace(newer, parts=(replace(
+            newer.parts[0], observed_at="2026-09-02T00:00:00Z"
+        ),))
+        older = episode("age-old", ["I am 45 years old."])
+        older = replace(older, parts=(replace(
+            older.parts[0], observed_at="2026-09-01T00:00:00Z"
+        ),))
+        memory.form_episode(newer)
+        result = memory.form_episode(older)
+        assert result["outcomes"][0]["review_state"] == "committed"
+        assert "historical_observation" in result["outcomes"][0]["reason_codes"]
+        active = memory.store.active_records_for_fact_key(SCOPE.subject_id, "user_age")
+        assert [row["content"] for row in active] == ["user age: 46 (positive)"]
+        history = memory.store.list_records(SCOPE.subject_id, statuses=None)
+        assert {(row["content"], row["status"]) for row in history} == {
+            ("user age: 45 (positive)", "superseded"),
+            ("user age: 46 (positive)", "active"),
+        }
+    finally:
+        memory.close()
+
+
+def test_untrusted_fact_cannot_retire_a_trusted_current_fact(tmp_path):
+    memory = Memory(
+        tmp_path / "formation.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        trusted = memory.form_episode(episode("trusted-age", ["I am 46 years old."]))
+        external = episode("external-age", ["I am 30 years old."])
+        external = replace(external, parts=(replace(
+            external.parts[0], source_type="website"
+        ),))
+        result = memory.form_episode(external)
+        assert result["outcomes"][0]["review_state"] == "pending_review"
+        trusted_id = trusted["outcomes"][0]["record_ids"][0]
+        assert memory.store.get_record(SCOPE.subject_id, trusted_id)["status"] == "active"
+    finally:
+        memory.close()
+
+
+def test_explicit_untrusted_supersession_cannot_retire_trusted_fact(tmp_path):
+    memory = Memory(
+        tmp_path / "explicit-trust.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        trusted = memory.form_episode(episode("trusted", ["I am 45 years old."]))
+        target_id = trusted["outcomes"][0]["record_ids"][0]
+        target = memory.store.get_record(SCOPE.subject_id, target_id)
+        external = episode("external", ["I am 30 years old."])
+        external = replace(external, parts=(replace(
+            external.parts[0], source_type="website"
+        ),))
+        observed = memory.form_episode(external)
+        source_id = observed["receipt"]["source_ids"][0]
+        proposal = form_typed_proposals(
+            "I am 30 years old.", scope=SCOPE, source_id=source_id,
+            formation_id="explicit-untrusted",
+        )[0]
+        proposal = replace(
+            proposal, proposal_id="explicit-untrusted",
+            idempotency_key="explicit-untrusted",
+            action=ProposalAction.SUPERSEDE,
+            affected_record_ids=(target_id,),
+            preconditions=(ProposalPrecondition(
+                record_id=target_id, generation=int(target["generation"]),
+                status="active",
+                content_sha256=f"sha256:{sha256_hex(target['content'])}",
+            ),),
+        )
+        outcome = memory.submit_extraction_proposal(
+            proposal, source_text="I am 30 years old."
+        )
+        assert outcome["review_state"] == "pending_review"
+        assert memory.store.get_record(SCOPE.subject_id, target_id)["status"] == "active"
+    finally:
+        memory.close()
+
+
+def test_plain_state_relation_named_chunk_cannot_forge_negative_polarity(tmp_path):
+    text = "The current download chunk is available."
+    memory = Memory(
+        tmp_path / "chunk-polarity.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        formed = memory.form_episode(episode(
+            "chunk-source", [text], part_kind="state", host_asserted=True
+        ))
+        proposal = form_typed_proposals(
+            text, scope=SCOPE, source_id=formed["receipt"]["source_ids"][0],
+            formation_id="forged-chunk", part_kind="state",
+        )[0]
+        forged = replace(
+            proposal, proposal_id="forged-chunk", idempotency_key="forged-chunk",
+            unit=replace(
+                proposal.unit, unit_id="forged-chunk-unit",
+                payload=replace(proposal.unit.payload, polarity=Polarity.NEGATIVE),
+            ),
+        )
+        outcome = memory.submit_extraction_proposal(
+            forged, source_text=text,
+            review_policy=ReviewPolicy(quarantine_non_durable=False),
+        )
+        assert outcome["review_state"] == "rejected"
+        assert "typed_polarity_mismatch" in outcome["reason_codes"]
+    finally:
+        memory.close()
+
+
+def test_bracket_prefixed_plain_state_cannot_forge_negative_polarity(tmp_path):
+    text = "[notice] The service is available."
+    memory = Memory(
+        tmp_path / "bracket-polarity.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        formed = memory.form_episode(episode(
+            "bracket-source", [text], part_kind="state", host_asserted=True
+        ))
+        proposal = form_typed_proposals(
+            text, scope=SCOPE, source_id=formed["receipt"]["source_ids"][0],
+            formation_id="forged-bracket", part_kind="state",
+        )[0]
+        forged = replace(
+            proposal, proposal_id="forged-bracket", idempotency_key="forged-bracket",
+            unit=replace(
+                proposal.unit, unit_id="forged-bracket-unit",
+                payload=replace(proposal.unit.payload, polarity=Polarity.NEGATIVE),
+            ),
+        )
+        outcome = memory.submit_extraction_proposal(
+            forged, source_text=text,
+            review_policy=ReviewPolicy(quarantine_non_durable=False),
+        )
+        assert outcome["review_state"] == "rejected"
+        assert "typed_polarity_mismatch" in outcome["reason_codes"]
+    finally:
+        memory.close()
+
+
+def test_long_unclassified_text_forms_lossless_bounded_units(tmp_path):
+    text = "Background context. " * 150
+    memory = Memory(
+        tmp_path / "long-unclassified.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        result = memory.form_episode(episode(
+            "long-unclassified", [text], host_asserted=True
+        ))
+        assert result["receipt"]["representation_complete"] is True
+        assert result["receipt"]["retrieval_ready"] is True
+        assert result["receipt"]["proposals_by_kind"]["environment_state"] > 1
+    finally:
+        memory.close()
+
+
+def test_replay_does_not_mark_pending_review_retrieval_ready(tmp_path):
+    memory = Memory(
+        tmp_path / "pending-replay.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        request = episode("pending-replay", [
+            "I am 45 years old.",
+            "When deploying a release, must post to the releases channel.",
+        ])
+        first = memory.form_episode(request)
+        replay = memory.form_episode(request)
+        assert first["receipt"]["withheld"] == 1
+        assert first["receipt"]["retrieval_ready"] is False
+        assert replay["receipt"]["retrieval_ready"] is False
+    finally:
+        memory.close()
+
+
+def test_resume_keeps_earlier_pending_review_not_ready(tmp_path):
+    memory = Memory(
+        tmp_path / "pending-resume.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        request = episode("pending-resume", [
+            "When deploying a release, must post to the releases channel.",
+            "I am 45 years old.",
+        ])
+        first = memory.form_episode(request, budget=RetrievalBudget(proposals=1))
+        resumed = memory.form_episode(request, budget=RetrievalBudget(proposals=8))
+        assert first["receipt"]["withheld"] == 2
+        assert resumed["receipt"]["processing_complete"] is True
+        assert resumed["receipt"]["withheld"] == 1
+        assert resumed["receipt"]["retrieval_ready"] is False
+    finally:
+        memory.close()
+
+
+def test_negative_neutral_observation_is_retrievable_as_observed_text(tmp_path):
+    memory = Memory(
+        tmp_path / "negative-observation.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        result = memory.form_episode(episode(
+            "negative-observation", ["There was no music playing in the room."],
+            host_asserted=True,
+        ))
+        assert result["outcomes"][0]["review_state"] == "committed"
+        assert result["receipt"]["retrieval_ready"] is True
+    finally:
+        memory.close()
+
+
+def test_duplicate_typed_observations_retain_each_source_occurrence(tmp_path):
+    memory = Memory(
+        tmp_path / "formation.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        first = memory.form_episode(episode("age-one", ["I am 45 years old."]))
+        second = memory.form_episode(episode("age-two", ["I am 45 years old."]))
+        assert second["outcomes"][0]["review_state"] == "noop"
+        assert second["outcomes"][0]["record_ids"] == first["outcomes"][0]["record_ids"]
+        duplicate = memory.store._conn.execute(
+            "SELECT unit_id FROM typed_memory_units"
+        ).fetchone()
+        unit = memory.store.get_typed_memory_unit(
+            SCOPE.subject_id, SCOPE.workspace_id, duplicate["unit_id"]
+        )
+        assert len(unit["evidence"]) == 2
+        replay = memory.form_episode(episode("age-two", ["I am 45 years old."]))
+        assert replay["receipt"]["retrieval_ready"] is True
+    finally:
+        memory.close()
+
+
+def test_negative_fact_and_state_are_admitted_with_negative_polarity(tmp_path):
+    memory = Memory(
+        tmp_path / "negative.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        fact = memory.form_episode(episode(
+            "negative-fact", ["My preferred airport is not Sydney."]
+        ))
+        state = memory.form_episode(episode(
+            "negative-state", ["The current subscription is not available."],
+            part_kind="state", host_asserted=True,
+        ))
+        assert fact["receipt"]["rejected"] == 0
+        assert state["receipt"]["rejected"] == 0
+        for result in (fact, state):
+            record = memory.store.get_record(
+                SCOPE.subject_id, result["outcomes"][0]["record_ids"][0]
+            )
+            assert record["raw"]["typed_unit"]["payload"]["polarity"] == "negative"
+    finally:
+        memory.close()
+
+
+def test_claim_local_negation_does_not_invert_other_facts(tmp_path):
+    memory = Memory(
+        tmp_path / "local-negation.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        compound = memory.form_episode(episode(
+            "compound-negation",
+            ["I am 45 years old and my subscription is not available."],
+        ))
+        contrast = memory.form_episode(episode(
+            "contrast-negation",
+            ["My preferred airport is Sydney, not Melbourne."],
+        ))
+        assert compound["outcomes"][0]["review_state"] == "committed"
+        record = memory.store.get_record(
+            SCOPE.subject_id, contrast["outcomes"][0]["record_ids"][0]
+        )
+        assert record["raw"]["typed_unit"]["payload"]["value"] == "Sydney"
+        assert record["raw"]["typed_unit"]["payload"]["polarity"] == "positive"
+    finally:
+        memory.close()
+
+
+def test_excluded_typed_occurrence_cannot_be_resurrected_by_reingest(tmp_path):
+    memory = Memory(
+        tmp_path / "excluded-reingest.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        first = memory.form_episode(episode("excluded-one", ["I am 45 years old."]))
+        record_id = first["outcomes"][0]["record_ids"][0]
+        memory.set_retrieval_excluded(SCOPE.subject_id, record_id, True)
+        second = memory.form_episode(episode("excluded-two", ["I am 45 years old."]))
+        assert second["outcomes"][0]["review_state"] == "rejected"
+        assert "typed_occurrence_previously_excluded" in second["outcomes"][0]["reason_codes"]
+        assert second["receipt"]["retrieval_ready"] is False
+    finally:
+        memory.close()
+
+
+def test_source_identity_is_scoped_not_globally_episode_named(tmp_path):
+    memory = Memory(
+        tmp_path / "formation.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        first = episode("same-episode", ["I am 45 years old."])
+        second = replace(
+            first,
+            scope=AuthorityScope("other-person", "other-agent", "other-workspace"),
+            idempotency_key="other-key",
+        )
+        a = memory.form_episode(first)
+        b = memory.form_episode(second)
+        assert a["receipt"]["source_ids"] != b["receipt"]["source_ids"]
+    finally:
+        memory.close()
+
+
+def test_independent_structured_observations_do_not_supersede_by_fact_key(tmp_path):
+    memory = Memory(
+        tmp_path / "formation.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        first = memory.form_episode(episode(
+            "snapshot-one", ['{"state_index":1,"url":"https://example.test/a"}'],
+            part_kind="state", host_asserted=True,
+        ))
+        second = memory.form_episode(episode(
+            "snapshot-two", ['{"state_index":1,"url":"https://example.test/a"}'],
+            part_kind="state", host_asserted=True,
+        ))
+        first_id = first["outcomes"][0]["record_ids"][0]
+        second_id = second["outcomes"][0]["record_ids"][0]
+        assert first_id != second_id
+        assert memory.store.get_record(SCOPE.subject_id, first_id)["status"] == "active"
+        assert memory.store.get_record(SCOPE.subject_id, second_id)["status"] == "active"
+    finally:
+        memory.close()
+
+
 def test_formation_budget_withholds_work_but_retains_source_and_receipt(tmp_path):
     memory = Memory(
         tmp_path / "formation.db", auto_vectors=False,
@@ -224,6 +663,202 @@ def test_formation_budget_withholds_work_but_retains_source_and_receipt(tmp_path
         assert receipt["complete"] is False
         assert "formation_proposal_budget_exhausted" in receipt["reason_codes"]
         assert len(receipt["source_ids"]) == 2
+    finally:
+        memory.close()
+
+
+def test_partial_formation_resumes_by_proposal_with_a_larger_budget(tmp_path):
+    memory = Memory(
+        tmp_path / "formation.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        request = episode("resume", [
+            "My favorite city is Sydney.",
+            "My favorite food is pasta.",
+        ])
+        partial = memory.form_episode(
+            request, budget=RetrievalBudget(proposals=1)
+        )
+        assert partial["receipt"]["processing_complete"] is False
+        assert partial["receipt"]["next_positions"][0]["proposal_id"]
+        completed = memory.form_episode(
+            request, budget=RetrievalBudget(proposals=8)
+        )
+        assert completed["replayed"] is False
+        assert completed["receipt"]["processing_complete"] is True
+        assert completed["receipt"]["representation_complete"] is True
+        replay = memory.form_episode(request, budget=RetrievalBudget(proposals=8))
+        assert replay["replayed"] is True
+    finally:
+        memory.close()
+
+
+def test_resume_processes_both_proposal_and_source_budget_positions(tmp_path):
+    values = [
+        "My favorite city is Sydney.",
+        "My favorite food is pasta.",
+        "My favorite color is blue.",
+    ]
+    memory = Memory(
+        tmp_path / "resume-mixed.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        request = episode("mixed-resume", values)
+        first = memory.form_episode(
+            request,
+            budget=RetrievalBudget(
+                proposals=1,
+                source_bytes=len("".join(values[:2]).encode()),
+            ),
+        )
+        assert {row["part_id"] for row in first["receipt"]["next_positions"]} == {
+            "part-1", "part-2",
+        }
+        resumed = memory.form_episode(
+            request, budget=RetrievalBudget(proposals=10, source_bytes=1_000)
+        )
+        assert resumed["receipt"]["retrieval_ready"] is True
+        assert resumed["receipt"]["next_positions"] == ()
+        assert {row["content"] for row in memory.store.list_records(
+            SCOPE.subject_id, statuses=None
+        )} == {
+            "user favorite city: Sydney (positive)",
+            "user favorite food: pasta (positive)",
+            "user favorite color: blue (positive)",
+        }
+    finally:
+        memory.close()
+
+
+def test_untrusted_transition_cannot_retire_trusted_state(tmp_path):
+    memory = Memory(
+        tmp_path / "transition-trust.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        memory.form_episode(episode(
+            "trusted-transition",
+            ["Account status changed from pending to active after approval."],
+            part_kind="state",
+            host_asserted=True,
+        ))
+        request = episode(
+            "website-transition",
+            ["Account status changed from active to disabled after rejection."],
+            part_kind="state",
+            host_asserted=True,
+        )
+        request = replace(request, parts=(replace(
+            request.parts[0], source_type="website"
+        ),))
+        result = memory.form_episode(request)
+        assert result["outcomes"][0]["review_state"] == "pending_review"
+        active = memory.store.list_records(SCOPE.subject_id)
+        assert len(active) == 1
+        assert "active" in active[0]["content"]
+    finally:
+        memory.close()
+
+
+def test_protected_media_follows_encryption_exclusion_deletion_and_occurrence(tmp_path):
+    media_path = tmp_path / "screen.bin"
+    media_path.write_bytes(b"same screenshot bytes")
+
+    def media_episode(name: str) -> EpisodeIngestRequest:
+        base = episode(
+            name, ["My favorite city is Sydney."], host_asserted=True
+        )
+        return replace(base, parts=base.parts + (EpisodePart(
+            part_id="image", ordinal=1, kind="media_reference",
+            source_type="tool_output", reference_id=str(media_path),
+            reference_sha256=f"sha256:{sha256_hex(media_path.read_bytes())}",
+        ),))
+
+    plaintext = Memory(tmp_path / "plain.db", auto_vectors=False)
+    try:
+        result = plaintext.form_episode(media_episode("plain-media"))
+        assert result["receipt"]["media_references"] == ()
+        assert plaintext.store._conn.execute(
+            "SELECT COUNT(*) FROM protected_formation_media"
+        ).fetchone()[0] == 0
+    finally:
+        plaintext.close()
+
+    memory = Memory(
+        tmp_path / "media.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        first = memory.form_episode(media_episode("media-one"))
+        record_id = first["outcomes"][0]["record_ids"][0]
+        media_id = first["receipt"]["media_references"][0]["media_id"]
+        assert memory.store.protected_formation_media(
+            SCOPE.subject_id, SCOPE.workspace_id, media_id
+        ) is not None
+        memory.set_retrieval_excluded(SCOPE.subject_id, record_id, True)
+        assert memory.store.protected_formation_media(
+            SCOPE.subject_id, SCOPE.workspace_id, media_id
+        ) is None
+        memory.set_retrieval_excluded(SCOPE.subject_id, record_id, False)
+        memory.forget_record(SCOPE.subject_id, record_id)
+        assert memory.store.protected_formation_media(
+            SCOPE.subject_id, SCOPE.workspace_id, media_id
+        ) is None
+        second = memory.form_episode(media_episode("media-two"))
+        third = memory.form_episode(media_episode("media-three"))
+        assert (
+            second["receipt"]["media_references"][0]["media_id"]
+            != third["receipt"]["media_references"][0]["media_id"]
+        )
+    finally:
+        memory.close()
+
+
+def test_incomplete_replay_stays_not_ready(tmp_path):
+    memory = Memory(
+        tmp_path / "incomplete-replay.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        request = episode(
+            "incomplete-replay", ["I am 45 years old. We discussed a project."]
+        )
+        first = memory.form_episode(request)
+        replay = memory.form_episode(request)
+        assert first["receipt"]["representation_complete"] is False
+        assert replay["receipt"]["representation_complete"] is False
+        assert replay["receipt"]["retrieval_ready"] is False
+    finally:
+        memory.close()
+
+
+def test_deferred_source_keeps_adjacent_media_resumable(tmp_path):
+    media = tmp_path / "screen.bin"
+    media.write_bytes(b"screen bytes")
+    base = episode("deferred-media", ["I am 45 years old."], host_asserted=True)
+    request = replace(base, parts=base.parts + (EpisodePart(
+        part_id="image", ordinal=1, kind="media_reference",
+        source_type="tool_output", reference_id=str(media),
+        reference_sha256=f"sha256:{sha256_hex(media.read_bytes())}",
+    ),))
+    memory = Memory(
+        tmp_path / "deferred-media.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        first = memory.form_episode(
+            request, budget=RetrievalBudget(source_bytes=1)
+        )
+        assert {row["part_id"] for row in first["receipt"]["next_positions"]} == {
+            "part-0", "image",
+        }
+        resumed = memory.form_episode(
+            request, budget=RetrievalBudget(source_bytes=1_000)
+        )
+        assert resumed["receipt"]["retrieval_ready"] is True
+        assert len(resumed["receipt"]["media_references"]) == 1
     finally:
         memory.close()
 

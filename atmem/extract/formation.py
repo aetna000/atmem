@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from dataclasses import asdict
 from typing import Any
 
@@ -42,7 +43,9 @@ _GOTCHA = re.compile(
     r"\b(?:when|if)\s+(.+?),\s*(.+?\b(?:fails?|failed|errors?|breaks?))\s*[;.]\s*(?:instead|use|workaround:)\s*(.+?)(?:[.!]|$)",
     re.I,
 )
-_CURRENT = re.compile(r"\b(?:the\s+)?current\s+(.+?)\s+is\s+(.+?)(?:[.!]|$)", re.I)
+_CURRENT = re.compile(
+    r"\b(?:the\s+)?current\s+(.+?)\s+is\s+(.+?)(?:[.!](?=\s|$)|$)", re.I
+)
 _MY_FACT = re.compile(r"\bmy\s+([\w -]{1,64}?)\s+is\s+(.+?)(?:[.!]|$)", re.I)
 _AGE = re.compile(r"\bI am\s+(\d{1,3})\s+years? old\b", re.I)
 _PREMISE = re.compile(
@@ -333,9 +336,10 @@ def form_typed_proposals(
     current = _CURRENT.search(source)
     if current:
         relation, value = current.group(1).strip(), current.group(2).strip()
+        polarity = _claim_polarity(value)
         candidates.append((
             MemoryUnitKind.ENVIRONMENT_STATE,
-            EnvironmentStatePayload(relation, relation, value),
+            EnvironmentStatePayload(relation, relation, value, polarity),
             MemoryClass.TEMPORARY_STATE,
             _fact_key("environment", relation),
         ))
@@ -373,9 +377,17 @@ def form_typed_proposals(
         ))
     elif (fact := _MY_FACT.search(source)):
         relation, value = fact.group(1).strip(), fact.group(2).strip()
+        polarity = _claim_polarity(value)
+        if polarity is Polarity.POSITIVE:
+            # "Sydney, not Melbourne" asserts Sydney and rejects an
+            # alternative; the negation does not negate the represented slot.
+            value = re.split(
+                r"\s*,\s*(?:not|rather than|instead of)\b", value,
+                maxsplit=1, flags=re.I,
+            )[0].strip()
         candidates.append((
             MemoryUnitKind.ATOMIC_FACT,
-            AtomicFactPayload("user", relation, value),
+            AtomicFactPayload("user", relation, value, polarity),
             MemoryClass.DURABLE_FACT,
             _fact_key("user", relation),
         ))
@@ -420,7 +432,20 @@ def form_typed_proposals(
             None,
         ))
 
-    return _materialize_candidates(
+    if not candidates:
+        # Preserve otherwise unclassified source as an occurrence-scoped
+        # observation. This does not promote prose into a durable fact; it
+        # keeps exact evidence retrievable and makes formation loss explicit
+        # through a neutral typed envelope usable by every agent adapter.
+        for chunk_index, chunk in enumerate(_bounded_text_chunks(text)):
+            candidates.append((
+                MemoryUnitKind.ENVIRONMENT_STATE,
+                EnvironmentStatePayload("episode", "observed text", chunk),
+                MemoryClass.TEMPORARY_STATE,
+                _fact_key("episode", f"observed text:{chunk_index:04d}"),
+            ))
+
+    proposals = _materialize_candidates(
         candidates,
         text=text,
         formation_id=formation_id,
@@ -429,6 +454,39 @@ def form_typed_proposals(
         evidence=evidence,
         confidence=confidence,
         observed_at=observed_at,
+    )
+    covered = sorted(
+        (item.evidence[0].start_offset, item.evidence[0].end_offset)
+        for item in proposals
+    )
+    gaps: list[str] = []
+    cursor = 0
+    for start, end in covered + [(len(text), len(text))]:
+        gap = text[cursor:start]
+        if any(character.isalnum() for character in gap):
+            gaps.extend(_bounded_text_chunks(gap))
+        cursor = max(cursor, end)
+    if not gaps:
+        return proposals
+    fallback_candidates = [
+        (
+            MemoryUnitKind.ENVIRONMENT_STATE,
+            EnvironmentStatePayload("episode", "observed text", chunk),
+            MemoryClass.TEMPORARY_STATE,
+            _fact_key("episode", f"observed text gap:{index:04d}"),
+        )
+        for index, chunk in enumerate(gaps)
+    ]
+    return proposals + _materialize_candidates(
+        fallback_candidates,
+        text=text,
+        formation_id=formation_id,
+        source_id=source_id,
+        scope=scope,
+        evidence=evidence,
+        confidence=confidence,
+        observed_at=observed_at,
+        use_payload_value_for_fact=True,
     )
 
 
@@ -445,7 +503,80 @@ def _materialize_candidates(
     use_payload_value_for_fact: bool = False,
 ) -> tuple[ExtractionProposal, ...]:
     proposals: list[ExtractionProposal] = []
+    structured_cursor = 0
     for ordinal, (kind, payload, memory_class, fact_key) in enumerate(candidates):
+        item_evidence = evidence
+        if kind is MemoryUnitKind.ENVIRONMENT_STATE and len(text) > 2_000:
+            chunk = str(getattr(payload, "value", ""))
+            start = text.find(chunk, structured_cursor)
+            if start < 0:
+                raise ValueError("structured state chunk is not source-grounded")
+            end = start + len(chunk)
+            structured_cursor = end
+            item_evidence = ProposalEvidence(
+                source_id=source_id,
+                source_sha256=evidence.source_sha256,
+                start_offset=start,
+                end_offset=end,
+                excerpt_sha256=f"sha256:{sha256_hex(chunk)}",
+            )
+        elif hasattr(payload, "value"):
+            value = str(getattr(payload, "value", ""))
+            matches = list(re.finditer(re.escape(value), text, re.I))
+            match = None
+            if matches:
+                subject = str(getattr(payload, "subject", getattr(payload, "entity", "")))
+                relation = str(getattr(payload, "relation", ""))
+                relation_tokens = set(re.findall(r"[^\W_]+", relation.casefold()))
+                if relation.casefold() == "age":
+                    relation_tokens.update({"old", "years", "born"})
+                subject_tokens = set(re.findall(r"[^\W_]+", subject.casefold()))
+
+                def support_score(candidate: re.Match[str]) -> tuple[int, int]:
+                    left = max(
+                        text.rfind(".", 0, candidate.start()),
+                        text.rfind("!", 0, candidate.start()),
+                        text.rfind("?", 0, candidate.start()),
+                        text.rfind("\n", 0, candidate.start()),
+                    ) + 1
+                    right_values = [
+                        position for delimiter in ".!?\n"
+                        if (position := text.find(delimiter, candidate.end())) >= 0
+                    ]
+                    right = min(right_values) + 1 if right_values else len(text)
+                    tokens = set(re.findall(r"[^\W_]+", text[left:right].casefold()))
+                    subject_supported = bool(subject_tokens & tokens) or (
+                        subject.casefold() in {"user", "self", "speaker"}
+                        and bool(tokens & {"i", "me", "my", "mine"})
+                    )
+                    return (
+                        int(bool(relation_tokens & tokens)) + int(subject_supported),
+                        -candidate.start(),
+                    )
+
+                match = max(matches, key=support_score)
+            if match is not None:
+                start = max(
+                    text.rfind(".", 0, match.start()),
+                    text.rfind("!", 0, match.start()),
+                    text.rfind("?", 0, match.start()),
+                    text.rfind("\n", 0, match.start()),
+                ) + 1
+                while start < len(text) and text[start].isspace():
+                    start += 1
+                ends = [
+                    position for delimiter in ".!?\n"
+                    if (position := text.find(delimiter, match.end())) >= 0
+                ]
+                end = min(ends) + 1 if ends else len(text)
+                excerpt = text[start:end]
+                item_evidence = ProposalEvidence(
+                    source_id=source_id,
+                    source_sha256=evidence.source_sha256,
+                    start_offset=start,
+                    end_offset=end,
+                    excerpt_sha256=f"sha256:{sha256_hex(excerpt)}",
+                )
         identity = canonical_json({
             "formation_id": formation_id,
             "source_id": source_id,
@@ -460,7 +591,7 @@ def _materialize_candidates(
             kind=kind,
             scope=scope,
             payload=payload,
-            evidence=(evidence,),
+            evidence=(item_evidence,),
             confidence=confidence,
             evidence_status=EvidenceStatus.OBSERVED,
             observed_at=observed_at,
@@ -474,10 +605,15 @@ def _materialize_candidates(
             memory_class=memory_class,
             confidence=confidence,
             reason_codes=("deterministic_typed_formation",),
-            evidence=(evidence,),
+            evidence=(item_evidence,),
             fact=(
                 str(getattr(payload, "value"))
                 if use_payload_value_for_fact
+                or (
+                    kind is MemoryUnitKind.ENVIRONMENT_STATE
+                    and getattr(payload, "entity", None) == "episode"
+                    and getattr(payload, "relation", None) == "observed text"
+                )
                 else text
             ),
             fact_key=fact_key,
@@ -486,9 +622,36 @@ def _materialize_candidates(
     return tuple(proposals)
 
 
+def _claim_polarity(value: str) -> Polarity:
+    """Classify negation only when it governs the represented value."""
+    return (
+        Polarity.NEGATIVE
+        if re.match(r"^\s*(?:not|no|never|without)\b", value, re.I)
+        else Polarity.POSITIVE
+    )
+
+
 def _fact_key(subject: str, relation: str) -> str:
-    value = re.sub(r"[^a-z0-9]+", "_", f"{subject}_{relation}".casefold()).strip("_")
-    return value[:128]
+    """Return a readable key without conflating distinct Unicode claims.
+
+    The legacy slug remains stable for simple ASCII identifiers.  Whenever
+    normalization would discard information (``C++``/``C#``, non-Latin text,
+    or truncation), a digest of the NFC source tuple makes the key lossless.
+    """
+    subject_nfc = unicodedata.normalize("NFC", subject).casefold()
+    relation_nfc = unicodedata.normalize("NFC", relation).casefold()
+    canonical = canonical_json(["durable_fact_identity_v2", subject_nfc, relation_nfc])
+    readable_source = f"{subject_nfc}_{relation_nfc}"
+    readable = re.sub(r"[^a-z0-9]+", "_", readable_source).strip("_")
+    unambiguous_legacy = bool(
+        re.fullmatch(r"[a-z0-9]+", subject_nfc)
+        and re.fullmatch(r"[a-z0-9]+", relation_nfc)
+    )
+    lossy = not unambiguous_legacy or not readable or len(readable) > 96
+    if not lossy:
+        return readable
+    prefix = readable[:87] or "fact"
+    return f"{prefix}_{sha256_hex(canonical)[:32]}"
 
 
 def _bounded_text_chunks(value: str, *, maximum: int = 1_900) -> tuple[str, ...]:

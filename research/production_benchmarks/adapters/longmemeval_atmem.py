@@ -10,6 +10,8 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import tempfile
+import atexit
 import uuid
 
 from atmem import Memory as AtMem
@@ -74,6 +76,8 @@ class AtMemMemory(Memory):
             allow_insecure_typed_development=not require_encrypted,
         )
         self._allow_insecure_typed_development = not require_encrypted
+        self._media_cache = Path(tempfile.mkdtemp(prefix="atmem-lme-media-"))
+        atexit.register(shutil.rmtree, self._media_cache, True)
 
     def insert(self, trajectory: dict[str, object]) -> None:
         trajectory_id = str(trajectory.get("id") or "").strip()
@@ -130,7 +134,7 @@ class AtMemMemory(Memory):
                     kind="media_reference", source_type="tool_output",
                     reference_id=str(image), reference_sha256=_digest_file(image),
                 ))
-        self._memory.form_episode(EpisodeIngestRequest(
+        request = EpisodeIngestRequest(
             episode_id=f"trajectory-{trajectory_id}",
             idempotency_key=f"longmemeval-trajectory-{trajectory_id}",
             scope=self.scope,
@@ -139,10 +143,52 @@ class AtMemMemory(Memory):
             binding_assurance="host_asserted",
             session_id=f"trajectory:{trajectory_id}",
             retain_body=True,
-        ))
+        )
+        source_bytes = sum(
+            len((part.content or "").encode("utf-8")) for part in parts
+        ) + sum(
+            Path(str(part.reference_id)).stat().st_size
+            for part in parts if part.reference_id
+        )
+        budget = RetrievalBudget(
+            source_bytes=max(262_144, source_bytes),
+            proposals=max(256, len(parts) * 8),
+            wall_time_ms=60_000,
+        )
+        formed = self._memory.form_episode(request, budget=budget)
+        for _ in range(31):
+            if not formed["receipt"].get("next_positions"):
+                break
+            formed = self._memory.form_episode(request, budget=budget)
+        receipt = formed["receipt"]
+        if (
+            not receipt.get("processing_complete")
+            or not receipt.get("representation_complete")
+            or not receipt.get("retrieval_ready")
+        ):
+            raise RuntimeError(
+                "AtMem did not completely represent the trajectory; refusing an "
+                "unusable LongMemEval checkpoint"
+            )
 
     def query(self, query: str, query_image: str | None = None) -> list[dict[str, str]]:
-        del query_image  # The official reader receives the question image separately.
+        total_input_bytes = int(
+            self.memory_params.get("total_input_bytes", 8_388_608)
+        )
+        total_input_bytes -= int(
+            self.memory_params.get("reader_overhead_bytes", 131_072)
+        )
+        if total_input_bytes <= 0:
+            raise RuntimeError("reader overhead exhausts the frozen input budget")
+        question_media_bytes = 0
+        if query_image is not None:
+            question_path = Path(query_image)
+            if not question_path.is_file():
+                raise RuntimeError("question image is missing")
+            question_media_bytes = 64 + 4 * ((question_path.stat().st_size + 2) // 3)
+        memory_input_bytes = total_input_bytes - question_media_bytes
+        if memory_input_bytes <= len(query.encode("utf-8")):
+            raise RuntimeError("question exhausts the frozen total-input budget")
         request_id = f"lme-{uuid.uuid4().hex}"
         candidates = self._memory.eligible_candidates(RecallRequest(
             request_id=request_id,
@@ -159,16 +205,38 @@ class AtMemMemory(Memory):
             scope=self.scope,
             query=query,
             budget=RetrievalBudget(
-                context_bytes=int(self.memory_params.get("context_bytes", 120_000))
+                context_bytes=int(self.memory_params.get("context_bytes", 120_000)),
+                total_input_bytes=memory_input_bytes,
             ),
         ))
         result: list[dict[str, str]] = []
+        delivered_bytes = (
+            len(query.encode("utf-8"))
+            + question_media_bytes
+            + len(package.context.encode("utf-8"))
+        )
         if package.context:
             result.append({"type": "text", "value": package.context})
         for reference in package.media_references:
             image = Path(str(reference["reference_id"]))
-            if image.is_file() and _digest_file(image) == reference.get("reference_sha256"):
-                result.append({"type": "image", "value": str(image)})
+            if (
+                str(reference["reference_id"]).startswith("atmem-protected:")
+                or not image.is_file()
+                or _digest_file(image) != reference.get("reference_sha256")
+            ):
+                media_id = str(reference.get("media_id") or "")
+                if not media_id:
+                    raise RuntimeError("required media is missing and has no protected copy")
+                suffix = str(reference.get("original_suffix") or "")
+                if not suffix.startswith(".") or len(suffix) > 16:
+                    suffix = ".bin"
+                image = self._memory.materialize_protected_media(
+                    self.scope, media_id, self._media_cache / f"{media_id}{suffix}"
+                )
+            delivered_bytes += 64 + 4 * ((image.stat().st_size + 2) // 3)
+            if delivered_bytes > total_input_bytes:
+                raise RuntimeError("reader input exceeds the frozen total-input budget")
+            result.append({"type": "image", "value": str(image)})
         return result
 
     @classmethod

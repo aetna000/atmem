@@ -48,6 +48,27 @@
 
 ## Architecture decisions
 
+### Review correction — repair representation before ranking
+
+The 2026-09-29 independent Claude and Codex Astra reviews make formation and
+identity correctness the first implementation boundary. Retained encrypted
+development checkpoints showed two different failure modes: enterprise state
+was mostly rejected or skipped during formation, while web state was heavily
+suppressed by cross-episode supersession. Retrieval tuning begins only after a
+reader-free rebuild proves that answer-bearing evidence survives formation and
+remains historically addressable.
+
+The correction is implemented as one product path, not benchmark compensation:
+
+1. validate structured assertions against their exact supporting field/span;
+2. preserve collision-resistant occurrence identity separately from durable
+   fact identity and reconciliation;
+3. make formation receipts resumable and impossible to discard silently;
+4. preserve retrieval rank and query obligations through canonical reload;
+5. bind sufficiency to query/evidence pairs;
+6. budget the entire reader input, including media;
+7. qualify reader finalization independently from retrieval accuracy.
+
 ### A. Extend the existing extraction pipeline with typed memory units
 
 Retain source episodes once in the protected evidence store. Admit compact typed
@@ -91,6 +112,53 @@ proposal producers:
 It validates schemas, links exact source evidence, reconciles stable identities,
 records loss/coverage, then uses existing AtMem authority to admit or withhold.
 Model output never writes directly to storage.
+
+Structured snapshots are observations, not one affirmative proposition. The
+producer emits field- or bounded-span-grounded units and validation evaluates
+the polarity of that unit's support, not arbitrary words elsewhere in the
+snapshot. Formation checkpoints store the last processed source position and
+resume deterministically. A `complete` receipt is valid only when every source
+position is represented, explicitly unsupported, or rejected with a reason.
+
+Occurrence identifiers are collision-resistant structured digests over scope,
+episode, event, part and fragment. They are never shortened by prefix
+truncation. A separate durable-fact key supports correction/conflict logic.
+Repeated equal observations retain separate occurrence links even when their
+payload bytes are deduplicated. Reconciliation cannot infer correction from a
+shared URL, state index, chunk ordinal or ingestion order.
+
+The persisted schema separates `source_identity_v2`, `occurrence_identity_v1`
+and `durable_fact_identity_v2`. Their canonical preimages are versioned JSON
+arrays serialized with RFC 8785 JCS after Unicode NFC normalization rather than
+delimiter-concatenated strings and include authority scope;
+digests remain independent of execution budgets. An additive old-to-new mapping
+retains legacy identifiers, evidence links and every lifecycle/exclusion state.
+Migration never reactivates a superseded, deleted, rejected, excluded,
+quarantined or ambiguous legacy row. Historical queries may nominate a
+superseded observation only through an explicit historical obligation and the
+same authority predicate used for active retrieval.
+
+The occurrence, mapping and deduplicated-byte tables are encrypted registered
+derivatives. Deduplication is scope-local. Forget removes one occurrence without
+affecting other authorized references, deletes shared bytes at the final
+in-scope reference, verifies every derivative and records the mutation. An
+ambiguous legacy row is placed in the product review queue; authorized CLI and
+dashboard actions resolve it to reinstated, confirmed superseded or rebuilt
+from retained evidence with append-only audit evidence.
+
+Migration uses an additive encrypted generation with explicit checkpoints. It
+is tested from published 2.3.x and beta stores, crashes safely at every
+checkpoint, and rolls back by reselecting the untouched legacy profile without
+deleting the new generation or emitting plaintext. Reader-free qualification
+both migrates copies of retained checkpoints in place and rebuilds them from
+retained evidence, then compares authorized historical/current state except for
+explicitly queued ambiguity.
+
+Original media bytes are captured into the protected evidence store before a
+media occurrence is retrieval-ready. Locators remain provenance only. Backup,
+restore and deletion cover the protected artifact and its derivatives, and an
+installed-artifact disaster test removes the original host/dataset directory
+before reconstructing the selected evidence.
 
 Host and benchmark adapters submit ordered native evidence through
 `episode-ingest-v1`, an additive envelope over existing `source-capture-v1` and
@@ -500,6 +568,36 @@ not run paid benchmarks implicitly and does not treat a missing file as a skip.
    adapters, documentation and final 2.3.8 release decision.
 
 ## Verification strategy
+
+Before any new paid benchmark call, run a reader-free checkpoint replay that
+measures, for each frozen question: source representation, active historical
+availability, nomination, neighborhood completion, packed minimal-evidence-set
+coverage, useful-evidence precision and total reader tokens including images.
+The replay compares the original checkpoint, admission/budget repair, identity
+repair, combined repair and retrieval/packing additions so each improvement has
+causal evidence.
+
+Development evidence annotations live only in evaluator-owned external-root
+artifacts bound to development IDs and immutable source hashes. Runtime product
+code, adapters and confirmation execution cannot import or read them. Changing
+an annotation must not change formation, retrieval, packing or reader input.
+The annotation contract distinguishes answerable, explicit-negative and
+unsupported/abstention cases, alternative minimal sets, ordering, polarity and
+fixed source coordinates.
+
+Then run a separately budgeted twelve-call finalization probe: short control, oracle evidence,
+product context and worst-budget multimodal context, each repeated three times.
+All twelve must contain a parseable final answer and must not terminate for
+length. This probe tests serving/finalization only and is not reported as memory
+accuracy.
+
+The enforced sequence is: freeze contracts/annotations; repair authority,
+media retention, formation and identity; pass the reader-free formation rebuild;
+repair retrieval/sufficiency/packing; pass reader-free evidence, security,
+migration and installed-artifact gates; obtain independent review; commit and
+push the reviewed candidate; pass the configuration-specific paid finalization
+probe; then run the corresponding scored development sample. Existing paid
+tasks T059, T061 and T064 are subject to the same prerequisite chain.
 
 - Contract/schema round trips and rejected malformed proposals.
 - Property tests for stable identities, ordering, polarity and deterministic

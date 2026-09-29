@@ -10,6 +10,18 @@ from pathlib import Path
 import urllib.request
 
 
+def encoded_upstream_body(payload: dict, maximum: int) -> bytes:
+    value = dict(payload)
+    value["stream"] = True
+    value["stream_options"] = {"include_usage": True}
+    encoded = json.dumps(
+        value, ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
+    if maximum <= 0 or len(encoded) > maximum:
+        raise ValueError("serialized reader request exceeds the frozen byte budget")
+    return encoded
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "AtMemRunpodReaderProxy/1"
 
@@ -21,13 +33,20 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         length = int(self.headers.get("Content-Length", "0"))
+        maximum = int(os.environ.get("ATMEM_READER_REQUEST_MAX_BYTES", "0"))
+        if maximum <= 0 or length <= 0 or length > maximum:
+            self.send_error(413, "reader request exceeds the frozen byte budget")
+            return
         payload = json.loads(self.rfile.read(length))
-        payload["stream"] = True
-        payload["stream_options"] = {"include_usage": True}
+        try:
+            upstream_body = encoded_upstream_body(payload, maximum)
+        except ValueError:
+            self.send_error(413, "serialized reader request exceeds the frozen byte budget")
+            return
         request = urllib.request.Request(
             os.environ["ATMEM_RUNPOD_UPSTREAM_URL"].rstrip("/")
             + "/chat/completions",
-            data=json.dumps(payload).encode("utf-8"),
+            data=upstream_body,
             headers={
                 "Authorization": "Bearer " + os.environ["RUNPOD_READER_API_KEY"],
                 "Content-Type": "application/json",
@@ -76,6 +95,14 @@ class Handler(BaseHTTPRequestHandler):
             }],
             "usage": usage,
         }
+        if finish_reason != "stop" or not "".join(content).strip():
+            self.send_error(502, "reader did not produce a complete final answer")
+            return
+        if int(usage.get("prompt_tokens") or 0) <= 0 or int(
+            usage.get("completion_tokens") or 0
+        ) <= 0:
+            self.send_error(502, "reader response lacks complete token usage")
+            return
         encoded = json.dumps(result).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")

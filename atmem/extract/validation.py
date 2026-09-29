@@ -15,6 +15,7 @@ stable reasons instead of silently adding or silently dropping memory.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import re
 from typing import Any, Iterable
 
@@ -301,19 +302,64 @@ def validate_proposal(
             _verified_excerpt(item, (source_bodies or {}).get(item.source_id, source_text), reasons)
             for item in proposal.unit.evidence
         )
-        if any(not _phrase_grounded(claim, evidence_text) for claim in proposal.unit.grounding_claims()):
-            reasons.append("typed_payload_not_grounded_in_source")
         payload = proposal.unit.payload
+        structured_slice = (
+            proposal.unit.kind.value == "environment_state"
+            and str(getattr(payload, "value", "")) == evidence_text
+            and any(
+                item.start_offset > 0
+                or item.end_offset < len((source_bodies or {}).get(item.source_id, source_text))
+                for item in proposal.unit.evidence
+            )
+        )
+        neutral_observation = (
+            proposal.unit.kind.value == "environment_state"
+            and str(getattr(payload, "entity", "")) == "episode"
+            and str(getattr(payload, "relation", "")) == "observed text"
+            and str(getattr(payload, "value", "")) == evidence_text
+        )
+        claims = (
+            (str(getattr(payload, "value")),)
+            if structured_slice or neutral_observation else proposal.unit.grounding_claims()
+        )
+        if any(not _phrase_grounded(claim, evidence_text) for claim in claims):
+            reasons.append("typed_payload_not_grounded_in_source")
         subject = getattr(payload, "subject", getattr(payload, "entity", None))
         relation = getattr(payload, "relation", None)
-        if subject and not _identity_grounded(str(subject), evidence_text, subject=True):
-            reasons.append("typed_subject_not_grounded_in_source")
-        if relation and not _identity_grounded(str(relation), evidence_text, subject=False):
-            reasons.append("typed_relation_not_grounded_in_source")
+        if neutral_observation:
+            if getattr(payload, "polarity", None).value != "positive":
+                reasons.append("typed_polarity_mismatch")
+        elif structured_slice:
+            bodies = [
+                (source_bodies or {}).get(item.source_id, source_text)
+                for item in proposal.unit.evidence
+            ]
+            expected = {_structured_state_identity(body) for body in bodies}
+            if (str(subject), str(relation)) not in expected:
+                reasons.append("typed_structured_identity_mismatch")
+        else:
+            if subject and not _identity_grounded(str(subject), evidence_text, subject=True):
+                reasons.append("typed_subject_not_grounded_in_source")
+            if relation and not _identity_grounded(str(relation), evidence_text, subject=False):
+                reasons.append("typed_relation_not_grounded_in_source")
         polarity = getattr(payload, "polarity", None)
         if polarity is not None:
-            negated = bool(_NEGATION_RE.search(evidence_text))
-            if (polarity.value == "negative") != negated:
+            structured_container = False
+            structured_value = getattr(payload, "value", None)
+            if isinstance(structured_value, str):
+                try:
+                    structured_container = isinstance(
+                        json.loads(structured_value), (dict, list)
+                    )
+                except (TypeError, json.JSONDecodeError):
+                    structured_container = False
+            if (structured_slice or structured_container) and polarity.value != "positive":
+                reasons.append("typed_polarity_mismatch")
+            polarity_text = "" if neutral_observation else _polarity_evidence(
+                payload, evidence_text, structured_slice=structured_slice
+            )
+            negated = bool(_NEGATION_RE.search(polarity_text))
+            if polarity_text and (polarity.value == "negative") != negated:
                 reasons.append("typed_polarity_mismatch")
 
     for evidence in proposal.evidence:
@@ -364,10 +410,83 @@ def validate_proposal(
     return Validation(not reasons, review, tuple(dict.fromkeys(reasons)))
 
 
+def _structured_state_identity(body: str) -> tuple[str, str]:
+    """Re-derive the only identity allowed for an exact structured slice."""
+    try:
+        value = json.loads(body)
+    except (TypeError, json.JSONDecodeError):
+        return ("", "")
+    if not isinstance(value, (dict, list)):
+        return ("", "")
+    entity = relation = "structured event"
+    if isinstance(value, dict):
+        if value:
+            first_key = str(next(iter(value))).strip()
+            if first_key:
+                entity = relation = first_key
+        for key in ("id", "name", "title", "url"):
+            candidate = value.get(key)
+            if isinstance(candidate, (str, int, float)) and str(candidate).strip():
+                entity = str(candidate).strip()
+                break
+    return entity, relation
+
+
 _NEGATION_RE = re.compile(
     r"\b(?:no|not|never|without|cannot|can't|do not|don't|does not|doesn't|is not|isn't|are not|aren't)\b",
     re.I,
 )
+
+
+def _polarity_evidence(
+    payload: Any, evidence_text: str, *, structured_slice: bool = False
+) -> str:
+    """Bound polarity validation to the represented claim, not its container.
+
+    A structured tool/browser snapshot may contain unrelated negative labels.
+    Its container-state polarity records observation/existence, so serialized
+    JSON is not interpreted as natural-language polarity.  For prose claims,
+    use the sentence containing the answer-bearing value or proposition.
+    """
+    value = getattr(payload, "value", None)
+    if isinstance(value, str):
+        try:
+            structured = json.loads(value)
+        except (TypeError, json.JSONDecodeError):
+            structured = None
+        if isinstance(structured, (dict, list)):
+            return ""
+        # Exact slices of a large structured snapshot are not independently
+        # parseable JSON. Their polarity records an observed state, not every
+        # natural-language token in the surrounding container.
+        if type(payload).__name__ == "EnvironmentStatePayload" and (
+            structured_slice
+        ):
+            return ""
+    claim = str(value or getattr(payload, "proposition", "") or "").strip()
+    if not claim:
+        return evidence_text
+    match = re.search(re.escape(claim), evidence_text, re.I)
+    if match is None:
+        return claim
+    # Coordinate clauses commonly carry unrelated negation. Validate against
+    # the smallest clause containing the represented value so "I am 45 and X
+    # is not available" does not make the age negative.
+    for clause in re.split(r"\s+(?:and|but)\s+|[,;]", evidence_text, flags=re.I):
+        if re.search(re.escape(claim), clause, re.I):
+            return clause
+    start = max(
+        evidence_text.rfind(".", 0, match.start()),
+        evidence_text.rfind("!", 0, match.start()),
+        evidence_text.rfind("?", 0, match.start()),
+        evidence_text.rfind("\n", 0, match.start()),
+    ) + 1
+    ends = [
+        position for delimiter in ".!?\n"
+        if (position := evidence_text.find(delimiter, match.end())) >= 0
+    ]
+    end = min(ends) + 1 if ends else len(evidence_text)
+    return evidence_text[start:end]
 
 
 def _verified_excerpt(

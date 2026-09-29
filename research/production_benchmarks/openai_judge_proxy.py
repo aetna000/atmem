@@ -62,12 +62,19 @@ def _completed_usage(value: object) -> dict[str, object]:
     if not isinstance(value, dict) or not isinstance(value.get("usage"), dict):
         raise ValueError("provider response is missing usage")
     usage = value["usage"]
+    choices = value.get("choices") or []
+    if len(choices) != 1:
+        raise ValueError("judge response must contain exactly one answer")
+    choice = choices[0]
+    content = ((choice.get("message") or {}).get("content") or "")
+    if choice.get("finish_reason") != "stop" or not str(content).strip():
+        raise ValueError("judge did not produce a complete final answer")
     if "prompt_tokens" not in usage or "completion_tokens" not in usage:
         raise ValueError("provider response has incomplete usage")
     prompt_tokens = int(usage["prompt_tokens"])
     completion_tokens = int(usage["completion_tokens"])
-    if prompt_tokens < 0 or completion_tokens < 0:
-        raise ValueError("provider returned invalid usage")
+    if prompt_tokens <= 0 or completion_tokens <= 0:
+        raise ValueError("provider returned incomplete usage")
     cost = (
         prompt_tokens * INPUT_USD_PER_MILLION
         + completion_tokens * OUTPUT_USD_PER_MILLION
@@ -175,6 +182,11 @@ class Handler(BaseHTTPRequestHandler):
                 status = response.status
             parsed = json.loads(response_body)
             _write_json_durable(state.usage_file, _completed_usage(parsed))
+        except ValueError as exc:
+            response_body = json.dumps(
+                {"error": {"message": str(exc)}}
+            ).encode()
+            status = 502
         except urllib.error.HTTPError as exc:
             response_body = exc.read()
             status = exc.code

@@ -14,9 +14,10 @@ from atmem.retrieve.profiles import profile_for_need
 SEMANTIC_NOMINATION_FLOOR = 0.0
 
 
-def authorized(record, request, excluded):
+def authorized(record, request, excluded, *, include_superseded=False):
     scope = request.scope
-    if record['subject_id'] != scope.subject_id or record['status'] != 'active' or record['id'] in excluded:
+    allowed_statuses = {'active', 'superseded'} if include_superseded else {'active'}
+    if record['subject_id'] != scope.subject_id or record['status'] not in allowed_statuses or record['id'] in excluded:
         return False
     raw = record.get('raw') or {}
     authority = raw.get('authority_scope') or {}
@@ -32,6 +33,9 @@ def collect(memory, request):
 
     generation = memory.store.record_generation(request.scope.subject_id)
     need = route_information_need(request.query)
+    include_superseded = bool(
+        need.temporal_target and need.temporal_target != 'current'
+    )
     profile = profile_for_need(need.type)
     records, indexed_lexical, indexed_fact, withheld_count, input_metadata = (
         memory.store.scoped_search_candidates(
@@ -40,11 +44,13 @@ def collect(memory, request):
             query_tokens(request.query),
             limit=request.candidate_limit,
             remote=request.egress_class == 'remote',
+            include_superseded=include_superseded,
         )
     )
     excluded = memory.store.excluded_record_ids(request.scope.subject_id)
     authorized_records = [
-        record for record in records if authorized(record, request, excluded)
+        record for record in records
+        if authorized(record, request, excluded, include_superseded=include_superseded)
     ]
     withheld_count += len(records) - len(authorized_records)
     records = authorized_records
@@ -62,9 +68,36 @@ def collect(memory, request):
         if _typed_relevant(record, request.query, need)
     ]
     for record in typed_records:
-        if record['id'] not in by_id and authorized(record, request, excluded):
+        if record['id'] not in by_id and authorized(
+            record, request, excluded, include_superseded=include_superseded
+        ):
             records.append(record)
             by_id[record['id']] = record
+    historical_records = []
+    if include_superseded:
+        obligation = need.obligations[0] if need.obligations else {}
+        historical_records = memory.store.scoped_historical_typed_candidates(
+            request.scope.subject_id,
+            request.scope.workspace_id,
+            subject=str(obligation.get('entity') or '') or None,
+            relation=str(obligation.get('relation') or need.relation_or_action or '') or None,
+            temporal_target=str(need.temporal_target or '') or None,
+            limit=max(request.candidate_limit, profile.graph_quota),
+            remote=request.egress_class == 'remote',
+        )
+        temporal_target = str(need.temporal_target or '')
+        historical_records.sort(key=lambda record: (
+            not str(
+                ((record.get('raw') or {}).get('typed_unit') or {}).get('event_at')
+                or ((record.get('raw') or {}).get('typed_unit') or {}).get('observed_at')
+                or ''
+            ).startswith(temporal_target),
+            str(record.get('id') or ''),
+        ))
+        for record in historical_records:
+            if record['id'] not in by_id:
+                records.append(record)
+                by_id[record['id']] = record
     indexed_lexical = {
         record_id: score for record_id, score in indexed_lexical.items()
         if record_id in by_id
@@ -123,7 +156,10 @@ def collect(memory, request):
                             )
                             for record_id in list(semantic):
                                 record = semantic_records.get(record_id)
-                                if record is None or not authorized(record, request, excluded):
+                                if record is None or not authorized(
+                                    record, request, excluded,
+                                    include_superseded=include_superseded,
+                                ):
                                     semantic.pop(record_id, None)
                                     continue
                                 if record_id not in by_id:
@@ -152,9 +188,31 @@ def collect(memory, request):
         statuses['typed'] = 'canonical_typed_units'
         channels['typed'] = sorted(typed)[:min(request.candidate_limit, profile.graph_quota)]
         raw_scores['typed'] = typed
+    temporal = {record['id']: 1.0 for record in historical_records}
+    if temporal:
+        channels['temporal'] = list(temporal)[:max(
+            request.candidate_limit, profile.graph_quota
+        )]
+        raw_scores['temporal'] = temporal
     fused = fuse_rankings(channels)
+    if include_superseded:
+        target = str(need.temporal_target or "")
+
+        def temporal_match(record_id: str) -> bool:
+            unit = ((by_id.get(record_id, {}).get('raw') or {}).get('typed_unit') or {})
+            observed = str(unit.get('event_at') or unit.get('observed_at') or '')
+            return bool(target and observed.startswith(target))
+
+        if any(temporal_match(item['record_id']) for item in fused):
+            fused.sort(key=lambda item: (
+                not temporal_match(item['record_id']), -item['score'], item['record_id']
+            ))
     preserved_record_id = None
-    if need.type in {'exact_fact', 'current_state'} and len(channels.get('typed', ())) == 1:
+    if (
+        not include_superseded
+        and need.type in {'exact_fact', 'current_state'}
+        and len(channels.get('typed', ())) == 1
+    ):
         preserved_record_id = channels['typed'][0]
         fused.sort(key=lambda item: (item['record_id'] != preserved_record_id, -item['score'], item['record_id']))
     signal_metadata = {'version': FUSION_VERSION, 'channel_status': statuses,
@@ -179,7 +237,10 @@ def collect(memory, request):
     for record_id in validation_ids:
         record = current.get(record_id)
         if (record_id not in by_id or record is None
-                or not authorized(record, request, current_excluded)
+                or not authorized(
+                    record, request, current_excluded,
+                    include_superseded=include_superseded,
+                )
                 or record['content'] != by_id[record_id]['content']):
             raise ValueError('candidate changed during core hybrid retrieval; retry')
     result = []
@@ -192,6 +253,7 @@ def collect(memory, request):
                                    'fusion': {**signal_metadata, 'channel_ranks': item['channel_ranks'],
                                               'raw_scores': {c: raw_scores[c][record_id] for c in item['channel_ranks']},
                                               **({'graph_path': graph_paths[record_id]} if record_id in graph_paths else {})}}})
+    metadata['include_superseded'] = include_superseded
     return result, metadata
 
 

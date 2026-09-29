@@ -13,7 +13,22 @@
     "polarity": {"enum": ["positive", "negative", "unknown"]},
     "expected_form": {"type": ["string", "null"]},
     "required_slots": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
-    "parent_need_id": {"type": ["string", "null"]}
+    "parent_need_id": {"type": ["string", "null"]},
+    "obligations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "entity": {"type": "string"},
+          "relation": {"type": "string"},
+          "action": {"type": "string"},
+          "polarity": {"enum": ["positive", "negative", "unknown"]},
+          "temporal_target": {"type": "string"}
+        },
+        "additionalProperties": false,
+        "minProperties": 1
+      }
+    }
   },
   "additionalProperties": true
 }

@@ -30,7 +30,11 @@ from research.production_benchmarks.longmemeval_v2 import (  # noqa: E402
     run_official_pilot_case,
     verify_installed_adapter,
 )
-from atmem.benchmark.contracts import validate_retrieval_quality_protocol  # noqa: E402
+from atmem.benchmark.contracts import (  # noqa: E402
+    canonical_digest,
+    validate_retrieval_quality_protocol,
+)
+from atmem.benchmark.finalization import validate_finalization_gate  # noqa: E402
 from research.production_benchmarks.cost_ledger import DurableCostLedger  # noqa: E402
 
 
@@ -49,8 +53,42 @@ def _canonical_digest(value: Any) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _tree_digest(root: Path) -> str:
+    """Content-bind a prebuilt memory tree without retaining its contents."""
+    if not root.is_dir():
+        raise RuntimeError(f"benchmark checkpoint root does not exist: {root}")
+    files: dict[str, str] = {}
+    for path in sorted(value for value in root.rglob("*") if value.is_file()):
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(block)
+        files[path.relative_to(root).as_posix()] = digest.hexdigest()
+    if not files:
+        raise RuntimeError("benchmark checkpoint root contains no files")
+    return "sha256:" + _canonical_digest(files)
+
+
+def _expected_probe_set_sha256() -> str:
+    probes = []
+    for condition in (
+        "short_control", "oracle_evidence", "product_context",
+        "worst_budget_multimodal",
+    ):
+        for _ in range(3):
+            probes.append({
+                "probe_id": f"reader-{condition}-{len(probes)}",
+                "role": "reader", "condition": condition,
+            })
+    probes.extend({
+        "probe_id": f"judge-{index}", "role": "judge",
+        "condition": "official_judge",
+    } for index in range(3))
+    return canonical_digest(probes)
+
+
 def _installed_product(expected_version: str) -> dict[str, str]:
-    from importlib.metadata import version
+    from importlib.metadata import distribution, version
     import atmem
 
     module = Path(atmem.__file__).resolve()
@@ -63,7 +101,27 @@ def _installed_product(expected_version: str) -> dict[str, str]:
         raise RuntimeError(
             f"paid pilot requires AtMem {expected_version}; found {installed_version}"
         )
-    return {"version": installed_version, "module": str(module)}
+    dist = distribution("atmem")
+    installed_files: dict[str, str] = {}
+    for entry in sorted(dist.files or (), key=str):
+        relative = str(entry)
+        if not (
+            relative.startswith("atmem/")
+            or relative.endswith(("METADATA", "entry_points.txt"))
+        ):
+            continue
+        path = Path(dist.locate_file(entry)).resolve()
+        if path.is_file():
+            installed_files[relative] = "sha256:" + hashlib.sha256(
+                path.read_bytes()
+            ).hexdigest()
+    if not installed_files:
+        raise RuntimeError("installed AtMem artifact has no hashable package files")
+    return {
+        "version": installed_version,
+        "module": str(module),
+        "artifact_sha256": canonical_digest(installed_files),
+    }
 
 
 def _question_domains(data_root: Path) -> dict[str, str]:
@@ -235,9 +293,15 @@ def main() -> None:
     parser.add_argument("--output-root", required=True)
     parser.add_argument("--confirm-paid-run", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument("--finalization-gate")
     args = parser.parse_args()
     if not args.confirm_paid_run:
         raise SystemExit("refusing paid pilot without --confirm-paid-run")
+    if subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=no"], cwd=ROOT,
+        check=True, capture_output=True, text=True,
+    ).stdout.strip():
+        raise SystemExit("paid pilot requires the exact clean reviewed commit")
     checkout = Path(args.checkout).expanduser().resolve()
     data_root = Path(args.data_root).expanduser().resolve()
     output_root = Path(args.output_root).expanduser().resolve()
@@ -313,6 +377,83 @@ def main() -> None:
             "paid_egress_started": False,
         }, indent=2, sort_keys=True))
         return
+    if not args.finalization_gate:
+        raise RuntimeError(
+            "paid pilot requires --finalization-gate"
+        )
+    cost_authorization_id = os.environ.get("ATMEM_COST_AUTHORIZATION_ID", "").strip()
+    if not cost_authorization_id:
+        raise RuntimeError("paid pilot requires ATMEM_COST_AUTHORIZATION_ID")
+    gate = _load(Path(args.finalization_gate).expanduser().resolve())
+    reader = dict(protocol["models"]["longmemeval_reader"])
+    judge = dict(protocol["models"]["longmemeval_judge"])
+    requirements = dict(protocol["paid_run_requirements"])
+    prebuilt_root_value = os.environ.get("ATMEM_LME_PREBUILT_ROOT", "").strip()
+    if not prebuilt_root_value:
+        raise RuntimeError("paid pilot requires ATMEM_LME_PREBUILT_ROOT")
+    gate_prebuilt_root = Path(prebuilt_root_value).expanduser().resolve()
+    expected_identity = {
+        "gate_type": "longmemeval",
+        "candidate_commit": subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip(),
+        "candidate_artifact_sha256": installed_product["artifact_sha256"],
+        "checkpoint_sha256": _tree_digest(gate_prebuilt_root),
+        "provider": reader["provider"],
+        "model": reader["model"],
+        "model_revision": reader["revision"],
+        "processor_sha256": canonical_digest(processor_preflight),
+        "prompt_sha256": "sha256:" + requirements["reader_prompt_sha256"],
+        "proxy_sha256": "sha256:" + hashlib.sha256(
+            (ROOT / "research/production_benchmarks/runpod_reader_proxy.py").read_bytes()
+        ).hexdigest(),
+        "concurrency": int(requirements["reader_runtime_billing"]["max_num_seqs"]),
+        "input_budget": int(reader["max_prompt_tokens"]),
+        "output_budget": int(reader["max_completion_tokens"]),
+        "sampling": {
+            "temperature": reader["temperature"], "top_p": reader["top_p"],
+            "top_k": reader["top_k"], "enable_thinking": reader["enable_thinking"],
+        },
+        "judge_provider": judge["provider"],
+        "judge_model": judge["model"],
+        "judge_revision": judge["revision"],
+        "judge_prompt_sha256": "sha256:" + requirements["judge_prompt_sha256"],
+        "probe_set_sha256": _expected_probe_set_sha256(),
+        "run_config_sha256": "sha256:" + _canonical_digest({
+            "protocol": protocol,
+            "pilot": pilot,
+            "question_split": question_split,
+            "installed_product": installed_product,
+            "official_checkout": verification,
+            "processor": processor_preflight,
+            "hardware_profile": hardware_profile,
+            "methods": METHODS,
+        }),
+        "cost_authorization_id": cost_authorization_id,
+        "runner_sha256": "sha256:" + _canonical_digest({
+            path.relative_to(ROOT).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in (
+                ROOT / "research/production_benchmarks/run_longmem_pilot.py",
+                ROOT / "research/production_benchmarks/longmemeval_v2.py",
+                ROOT / "research/production_benchmarks/adapters/longmemeval_atmem.py",
+            )
+        }),
+        "grader_runtime": {
+            "provider": judge["provider"], "model": judge["model"],
+            "revision": judge["revision"],
+            "prompt_sha256": "sha256:" + requirements["judge_prompt_sha256"],
+        },
+        "agent_driver_target": "longmemeval-reader-proxy",
+        "agent_driver_sha256": "sha256:" + hashlib.sha256(
+            (ROOT / "research/production_benchmarks/runpod_reader_proxy.py").read_bytes()
+        ).hexdigest(),
+    }
+    validate_finalization_gate(
+        gate,
+        expected_identity=expected_identity,
+        expected_gate_type="longmemeval",
+    )
     output_root.mkdir(parents=True, exist_ok=False)
     progress_path = output_root / "pilot-progress.json"
     cases: list[dict[str, Any]] = []
@@ -358,8 +499,11 @@ def main() -> None:
     # cleanup; this is the last-resort process-exit guard.
     atexit.register(cleanup_runpod)
     protocol_digest = _canonical_digest(protocol)
+    authorization_digest = hashlib.sha256(
+        cost_authorization_id.encode("utf-8")
+    ).hexdigest()
     reader_ledger = DurableCostLedger(
-        benchmark_root / "cost-ledgers" / protocol_digest / "longmem-reader-runtime-ledger.json",
+        benchmark_root / "cost-ledgers" / authorization_digest / "longmem-reader-runtime-ledger.json",
         total_cap_usd=float(requirements["pilot_reader_cost_cap_usd"]),
     )
     reader_key = (
@@ -382,6 +526,7 @@ def main() -> None:
         provider="runpod-pods",
         maximum_usd=reader_maximum,
         metadata={
+            "protocol_sha256": protocol_digest,
             "pod_id": os.environ.get("ATMEM_RUNPOD_POD_ID"),
             "hardware_id": billing["hardware_id"],
             "billing_mode": billing["mode"],
@@ -439,7 +584,10 @@ def main() -> None:
             pilot=pilot,
             dolphin_split=dolphin_split,
             route_probe=route_probe,
-            environment={"ATMEM_READER_BASE_URL": reader_proxy_url},
+            environment={
+                "ATMEM_READER_BASE_URL": reader_proxy_url,
+                "ATMEM_COST_AUTHORIZATION_ID": cost_authorization_id,
+            },
             confirmed_paid_run=True,
             data_preflight=data_preflight,
             shared_reader_runtime_reservation=True,
@@ -495,6 +643,9 @@ def main() -> None:
             "PYTHONDONTWRITEBYTECODE": "1",
             "ATMEM_RUNPOD_UPSTREAM_URL": reader_base_url,
             "RUNPOD_READER_API_KEY": reader_api_key,
+            "ATMEM_READER_REQUEST_MAX_BYTES": str(
+                requirements["reader_request_max_bytes"]
+            ),
         }
         reader_proxy = subprocess.Popen(
             [

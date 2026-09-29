@@ -148,9 +148,9 @@
       "data/__init__.py": "6fd6e1d6249094d5ec4955ce122784ffbf5de28a44e24615eb9cb1ffb55eda34"
     },
     "official_code_combined_sha256": "5e9afe0cb292646da5b65f8ce8f13ca7cdd131ee31b3d0af94b257499dedc8fe",
-    "reader_proxy_sha256": "08be372072cbbfc0208f142e45cd92d3ffc0ffb9832711cbd513ee8c48ee2a85",
+    "reader_proxy_sha256": "511a2597ca9846d6e61f8a8cf810e940b4838df4f3c581751d89ed72374d0528",
     "embedding_proxy_sha256": "415849c07f4da8e67e3c9799aaa6abfdde7c556f310937a3fa88926d6efc440d",
-    "judge_proxy_sha256": "9bd7583972d78978102bc5de02ed419da5c024d29bc8d31e475999ee61d09522",
+    "judge_proxy_sha256": "1a99cc2d6aa8aef7c0b05949049d2c56ae5e0b367e5f8c5dfb2ef409c2a760db",
     "pilot_manifest": "longmemeval-v2-pilot-v1.json",
     "pilot_reader_cost_cap_usd": 2.2,
     "pilot_openai_cost_cap_usd": 8.5,
@@ -179,6 +179,7 @@
       "source": "https://developers.openai.com/api/docs/models/gpt-5.2"
     },
     "judge_request_max_bytes": 131072,
+    "reader_request_max_bytes": 8388608,
     "paid_request_retries": 0,
     "egress": "public benchmark prompts may be sent only to the pinned routes after explicit paid-run confirmation"
   },

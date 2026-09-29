@@ -9,7 +9,10 @@ from atmem.contracts import (
 )
 from atmem.core.canonical import sha256_hex
 from atmem.extract.review import ReviewService
+from atmem.retrieve.assemble import _complementary_rows, assemble_context_v2
 from atmem.retrieve.expand import expand_evidence_neighborhood
+from atmem.retrieve.intent import route_information_need
+from dataclasses import replace
 
 
 SCOPE = AuthorityScope("context-person", "context-agent", "context-workspace")
@@ -185,5 +188,231 @@ def test_sufficient_rule_becomes_a_structured_action_constraint(tmp_path):
         assert len(package.action_constraints) == 1
         assert package.action_constraints[0].required_action == "post to the releases channel"
         assert "Required action" in package.context
+    finally:
+        memory.close()
+
+
+def test_excluded_neighbor_cannot_reenter_through_expansion(tmp_path):
+    memory = Memory(
+        tmp_path / "context.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        formed = memory.form_episode(request([
+            "My favorite city is Sydney.",
+            "My favorite food is pasta.",
+        ], episode_id="excluded-neighbor"))
+        seed, excluded = [item["record_ids"][0] for item in formed["outcomes"]]
+        memory.set_retrieval_excluded(SCOPE.subject_id, excluded, True)
+        neighborhood = expand_evidence_neighborhood(
+            memory.store, subject_id=SCOPE.subject_id,
+            workspace_id=SCOPE.workspace_id, need_id="exclusion-test",
+            seed_record_ids=(seed,), budget=RetrievalBudget(),
+        )
+        assert excluded not in neighborhood.selected_record_ids
+    finally:
+        memory.close()
+
+
+def test_rank_precedes_diversity_and_oversized_conflict_never_becomes_sufficient():
+    need = route_information_need("What is Alice age?")
+
+    def candidate(record_id, relation, value, rank, sources):
+        return {
+            "record_id": record_id,
+            "rank": rank,
+            "unit": {
+                "kind": "atomic_fact",
+                "payload": {
+                    "subject": "Alice", "relation": relation,
+                    "value": value, "polarity": "positive",
+                },
+                "evidence": [{
+                    "source_id": source,
+                    "start_offset": 0, "end_offset": 1,
+                    "excerpt_sha256": "sha256:" + "0" * 64,
+                } for source in sources],
+            },
+        }
+
+    ranked = _complementary_rows(need, [
+        candidate("rank-1", "age", "45", 1, ["s1"]),
+        candidate("rank-50", "color", "blue", 50, ["s2", "s3"]),
+    ], 3_000)
+    assert ranked[0]["record_id"] == "rank-1"
+
+    package = assemble_context_v2(
+        context_id="conflict-context", scope=SCOPE, need=need,
+        profile_id="test", generation=1, preparation_id="prep",
+        budget=RetrievalBudget(context_bytes=1_300),
+        typed_rows=[
+            candidate("age-45", "age", "45", 1, ["s1"]),
+            candidate("age-46", "age", "46 " + "x" * 2_000, 2, ["s2"]),
+        ],
+    )
+    assert package.sufficiency.status == "unsupported"
+    assert package.record_ids == ()
+    assert "known_conflict_did_not_fit_context_budget" in package.sufficiency.reason_codes
+
+
+def test_packing_prefers_uncovered_obligations_over_duplicate_evidence():
+    need = route_information_need("Compare Alice age and Bob city")
+
+    def candidate(record_id, subject, relation, value, rank):
+        return {
+            "record_id": record_id,
+            "rank": rank,
+            "unit": {
+                "kind": "atomic_fact",
+                "payload": {
+                    "subject": subject, "relation": relation,
+                    "value": value, "polarity": "positive",
+                },
+                "evidence": [{
+                    "source_id": f"source-{record_id}", "start_offset": 0,
+                    "end_offset": 1, "excerpt_sha256": "sha256:" + "0" * 64,
+                }],
+            },
+        }
+
+    chosen = _complementary_rows(need, [
+        candidate("alice-1", "Alice", "age", "45", 1),
+        candidate("alice-2", "Alice", "age", "45", 2),
+        candidate("bob", "Bob", "city", "Paris", 3),
+    ], 1_200)
+    assert [row["record_id"] for row in chosen[:2]] == ["alice-1", "bob"]
+
+
+def test_authorized_lexical_fallback_is_retained_as_unverified_background():
+    need = route_information_need("What is the support email?")
+    package = assemble_context_v2(
+        context_id="fallback-context", scope=SCOPE, need=need,
+        profile_id="test", generation=1, preparation_id="prep",
+        budget=RetrievalBudget(context_bytes=2_000),
+        typed_rows=[{
+            "record_id": "fallback", "rank": 1,
+            "unit": {
+                "kind": "environment_state",
+                "payload": {
+                    "entity": "episode", "relation": "observed text",
+                    "value": "For support, contact ops@example.test",
+                    "polarity": "positive",
+                },
+                "evidence": [{
+                    "source_id": "source-fallback", "start_offset": 0,
+                    "end_offset": 1, "excerpt_sha256": "sha256:" + "0" * 64,
+                }],
+            },
+        }],
+    )
+    assert package.sufficiency.status == "partial"
+    assert package.record_ids == ("fallback",)
+    assert "ops@example.test" in package.context
+    assert package.action_constraints == ()
+
+
+def test_historical_target_wins_before_publication_limit(tmp_path):
+    memory = Memory(
+        tmp_path / "historical.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        old = request(["I am 45 years old."], episode_id="age-2020")
+        old = replace(old, parts=(replace(
+            old.parts[0], observed_at="2020-06-01T00:00:00Z"
+        ),))
+        new = request(["I am 46 years old."], episode_id="age-2021")
+        new = replace(new, parts=(replace(
+            new.parts[0], observed_at="2021-06-01T00:00:00Z"
+        ),))
+        memory.form_episode(old)
+        memory.form_episode(new)
+        query = "How old was I in 2020?"
+        package = context(
+            memory,
+            candidates(memory, query, limit=1, candidate_limit=1),
+            query,
+        )
+        assert package.sufficiency.status == "sufficient"
+        assert "45" in package.context
+        assert "user age: 46" not in package.context
+    finally:
+        memory.close()
+
+
+def test_historical_qualified_relation_wins_at_candidate_limit_one(tmp_path):
+    memory = Memory(
+        tmp_path / "historical-food.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        for episode_id, value, observed_at in (
+            ("food-2020", "pasta", "2020-06-01T00:00:00Z"),
+            ("food-2021", "pizza", "2021-06-01T00:00:00Z"),
+        ):
+            item = request([f"My favorite food is {value}."], episode_id=episode_id)
+            item = replace(item, parts=(replace(item.parts[0], observed_at=observed_at),))
+            memory.form_episode(item)
+        query = "What was my favorite food in 2020?"
+        package = context(
+            memory, candidates(memory, query, limit=1, candidate_limit=1), query
+        )
+        assert package.sufficiency.status == "sufficient"
+        assert "pasta" in package.context and "pizza" not in package.context
+    finally:
+        memory.close()
+
+
+def test_historical_environment_state_wins_at_candidate_limit_one(tmp_path):
+    memory = Memory(
+        tmp_path / "historical-state.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        for year in range(2020, 2030):
+            item = request(
+                [f"Dashboard currently uses configuration state-{year}."],
+                episode_id=f"dashboard-{year}",
+            )
+            item = replace(
+                item,
+                binding_method="host_asserted",
+                binding_assurance="host_asserted",
+                parts=(replace(
+                    item.parts[0], kind="state",
+                    observed_at=f"{year}-06-01T00:00:00Z",
+                ),),
+            )
+            memory.form_episode(item)
+        query = "What was the dashboard configuration in 2020?"
+        package = context(
+            memory, candidates(memory, query, limit=1, candidate_limit=1), query
+        )
+        assert package.sufficiency.status == "sufficient"
+        assert "state-2020" in package.context
+        assert "state-2029" not in package.context
+    finally:
+        memory.close()
+
+
+def test_repeated_fact_occurrences_keep_historical_timestamps(tmp_path):
+    memory = Memory(
+        tmp_path / "fact-occurrences.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        for year in (2020, 2021):
+            item = request(["I am 45 years old."], episode_id=f"age-{year}")
+            item = replace(item, parts=(replace(
+                item.parts[0], observed_at=f"{year}-06-01T00:00:00Z"
+            ),))
+            memory.form_episode(item)
+        query = "How old was I in 2021?"
+        package = context(
+            memory, candidates(memory, query, limit=1, candidate_limit=1), query
+        )
+        assert package.sufficiency.status == "sufficient"
+        assert "45" in package.context
+        assert package.provenance[0]["record_id"]
     finally:
         memory.close()

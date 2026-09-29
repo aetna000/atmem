@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import re
 
 from atmem.contracts import InformationNeed, SufficiencyDecision
 from atmem.core.canonical import canonical_json, sha256_hex
@@ -19,6 +20,7 @@ def decide_sufficiency(
     identities: dict[tuple[str, str, str], tuple[str, str]] = {}
     contradictions: list[str] = []
     entity_relations: set[tuple[str, str]] = set()
+    obligation_matches = [False] * len(need.obligations)
 
     for row in typed_rows:
         record_id = str(row["record_id"])
@@ -32,11 +34,20 @@ def decide_sufficiency(
             "value": payload.get("value", payload.get("after")),
             "polarity": payload.get("polarity"),
         })
-        if subject and relation:
-            entity_relations.add((subject.casefold(), relation.casefold()))
+        matched_indexes = [
+            index for index, obligation in enumerate(need.obligations)
+            if _matches_single_obligation(obligation, kind, payload, unit)
+        ]
         relevant = set(need.required_slots) & slots
+        if relevant and not _matches_obligation(need, kind, payload, unit):
+            relevant = set()
         if need.type == "relational_synthesis" and subject and relation:
-            relevant = {"supporting_evidence"}
+            relevant = (
+                {"supporting_evidence"}
+                if _matches_obligation(need, kind, payload, unit) else set()
+            )
+        if relevant and subject and relation:
+            entity_relations.add((subject.casefold(), relation.casefold()))
         # Contradiction status describes evidence relevant to this need.
         # Conflicting background rows must not manufacture an evidence-free
         # contradiction for an unrelated question.
@@ -50,6 +61,8 @@ def decide_sufficiency(
                 identities[key] = (record_id, value)
         if not relevant:
             continue
+        for index in matched_indexes:
+            obligation_matches[index] = True
         covered.update(relevant)
         evidence_ids.append(record_id)
         valid_until = unit.get("valid_until")
@@ -59,6 +72,11 @@ def decide_sufficiency(
     if need.type == "relational_synthesis" and len(entity_relations) >= 2:
         covered.update({"entities", "relations", "supporting_evidence"})
     required = tuple(need.required_slots)
+    if obligation_matches and not all(obligation_matches) and required:
+        # The public decision contract remains slot-partitioned. Keep at least
+        # one answer-bearing slot uncovered until every explicit obligation is
+        # supported instead of inventing a non-contractual pseudo-slot.
+        covered.discard("supporting_evidence" if "supporting_evidence" in required else required[-1])
     missing = tuple(slot for slot in required if slot not in covered)
     covered_ordered = tuple(slot for slot in required if slot in covered)
     evidence = tuple(dict.fromkeys(
@@ -93,6 +111,191 @@ def decide_sufficiency(
         contradiction_ids=contradiction_ids,
         reason_codes=_reason_codes(status, missing),
     )
+
+
+_TERM = re.compile(r"[^\W_]+", re.UNICODE)
+_ALIASES = {
+    "old": "age",
+    "aged": "age",
+    "years": "age",
+    "where": "location",
+    "deploying": "deploy",
+    "deployment": "deploy",
+}
+_RELATION_TERMS = {
+    "age", "location", "food", "city", "status", "model", "configuration",
+    "name", "email", "channel", "deploy", "procedure",
+}
+_QUERY_NOISE = {
+    "what", "which", "how", "where", "when", "is", "are", "do", "does",
+    "should", "use", "under", "our", "policy", "compare", "favorite",
+    "together", "current", "selected", "value", "my", "me", "i", "user",
+    "steps",
+}
+
+
+def _terms(value: object) -> set[str]:
+    terms = {_ALIASES.get(token, token) for token in _TERM.findall(str(value).casefold())}
+    return {term for term in terms if len(term) > 1}
+
+
+def _matches_obligation(
+    need: InformationNeed, kind: str, payload: dict, unit: dict | None = None
+) -> bool:
+    """Require answer-bearing evidence to match the routed semantic target.
+
+    Slot shape alone is not relevance: an arbitrary ``subject/relation/value``
+    triple must not satisfy a question about age.  This deterministic check is
+    intentionally conservative and precedes the richer ranker.
+    """
+    obligation_matched = bool(need.obligations) and any(
+        _matches_single_obligation(obligation, kind, payload, unit)
+        for obligation in need.obligations
+    )
+    if need.obligations and not obligation_matched:
+        return False
+    payload_polarity = str(payload.get("polarity") or "unknown")
+    if need.polarity != "unknown" and payload_polarity != need.polarity:
+        return False
+    if (
+        not need.obligations
+        and need.temporal_target
+        and need.temporal_target != "current"
+    ):
+        timestamp = str(
+            (unit or {}).get("event_at") or (unit or {}).get("observed_at") or ""
+        )
+        if not timestamp or not timestamp.startswith(str(need.temporal_target)):
+            return False
+    if obligation_matched:
+        return True
+    query_terms = _terms((*need.entities, need.relation_or_action or ""))
+    if not query_terms:
+        return False
+    if kind in {"atomic_fact", "environment_state"}:
+        target = _terms((
+            payload.get("subject") or payload.get("entity") or "",
+            payload.get("relation") or "",
+        ))
+        if kind == "environment_state":
+            value = payload.get("value")
+            try:
+                structured = json.loads(value) if isinstance(value, str) else value
+            except json.JSONDecodeError:
+                structured = None
+            if isinstance(structured, dict):
+                if need.type == "ordered_task":
+                    target.update(_terms((
+                        structured.get("goal") or "",
+                        structured.get("actions") or (),
+                        structured.get("outcome") or "",
+                    )))
+                else:
+                    target.update(_terms((
+                        structured.get("url") or "",
+                        structured.get("title") or "",
+                        structured.get("name") or "",
+                    )))
+    elif kind == "state_transition":
+        target = _terms((payload.get("entity") or "", payload.get("relation") or ""))
+    elif kind == "procedure":
+        target = _terms(payload.get("goal") or "")
+    elif kind == "durable_rule":
+        target = _terms((
+            payload.get("condition") or "",
+            payload.get("required_action") or "",
+            payload.get("prohibited_action") or "",
+        ))
+    elif kind == "failure_gotcha":
+        target = _terms((payload.get("trigger") or "", payload.get("failure") or ""))
+    elif kind == "premise_constraint":
+        target = _terms(payload.get("proposition") or "")
+    else:
+        return False
+    if need.type == "relational_synthesis":
+        return bool((query_terms - _QUERY_NOISE) & target)
+    if kind in {"atomic_fact", "environment_state", "state_transition"}:
+        if (
+            kind == "environment_state"
+            and need.type == "ordered_task"
+            and isinstance(locals().get("structured"), dict)
+        ):
+            return bool((query_terms - _QUERY_NOISE) & target)
+        subject_terms = _terms(
+            payload.get("subject") or payload.get("entity") or ""
+        )
+        relation_terms = _terms(payload.get("relation") or "")
+        requested_relations = query_terms & _RELATION_TERMS
+        requested_entities = query_terms - requested_relations - _QUERY_NOISE
+        return (
+            (not requested_relations or bool(requested_relations & relation_terms))
+            and (not requested_entities or bool(requested_entities & subject_terms))
+        )
+    return bool((query_terms - _QUERY_NOISE) & target)
+
+
+def _matches_single_obligation(
+    obligation: dict[str, str], kind: str, payload: dict, unit: dict | None = None
+) -> bool:
+    subject_terms = _terms(payload.get("subject") or payload.get("entity") or "")
+    if kind == "environment_state":
+        subject_terms.update(_terms(payload.get("value") or ""))
+    relation_terms = _terms(payload.get("relation") or "")
+    if kind == "environment_state":
+        relation_terms.update(_terms(payload.get("value") or ""))
+    entity = str(obligation.get("entity") or "").casefold()
+    relation = str(obligation.get("relation") or "").casefold()
+    action = str(obligation.get("action") or "").casefold()
+    polarity = str(obligation.get("polarity") or "unknown")
+    temporal_target = str(obligation.get("temporal_target") or "")
+    if entity:
+        entity_terms = _terms(entity)
+        if entity == "user":
+            entity_terms.update({"user", "self", "speaker"})
+        if not entity_terms & subject_terms:
+            return False
+    if relation:
+        expected = _terms(relation)
+        if relation == "age":
+            expected.update({"old", "years", "born"})
+        required = expected - {"current"}
+        if not (
+            (required and required <= relation_terms)
+            or (not required and bool(expected & relation_terms))
+            or (relation == "age" and bool(expected & relation_terms))
+        ):
+            return False
+    if action:
+        target = _terms(canonical_json(payload))
+        expected_action = _terms(action)
+        if not (
+            expected_action & target
+            or any(
+                len(left) >= 4 and (left.startswith(right) or right.startswith(left))
+                for left in expected_action for right in target if len(right) >= 4
+            )
+        ):
+            return False
+    if polarity != "unknown" and str(payload.get("polarity") or "unknown") != polarity:
+        return False
+    if temporal_target:
+        observed = str(
+            (unit or {}).get("event_at") or (unit or {}).get("observed_at") or ""
+        )
+        if not observed or not observed.startswith(temporal_target):
+            return False
+    return bool(entity or relation or action)
+
+
+def matching_obligation_indexes(
+    need: InformationNeed, kind: str, payload: dict, unit: dict | None = None
+) -> set[int]:
+    """Return the explicit evidence obligations discharged by one unit."""
+    return {
+        index
+        for index, obligation in enumerate(need.obligations)
+        if _matches_single_obligation(obligation, kind, payload, unit)
+    }
 
 
 def covered_slots(kind: str, payload: dict, unit: dict) -> set[str]:

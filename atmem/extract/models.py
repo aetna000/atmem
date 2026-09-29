@@ -285,14 +285,45 @@ class MemoryUnit:
 
     def semantic_identity(self) -> str:
         value = self.to_dict()
+        occurrence = None
+        if self.kind in {
+            MemoryUnitKind.ENVIRONMENT_STATE,
+            MemoryUnitKind.STATE_TRANSITION,
+        }:
+            occurrence = [
+                {
+                    "source_id": row.source_id,
+                    "source_sha256": row.source_sha256,
+                    "start_offset": row.start_offset,
+                    "end_offset": row.end_offset,
+                }
+                for row in self.evidence
+            ]
         for key in (
             "unit_id", "formation_id", "confidence", "lifecycle",
-            "formation_version", "evidence", "observed_at",
+            "formation_version", "evidence",
+        ):
+            value.pop(key, None)
+        if occurrence is not None:
+            value["occurrence"] = occurrence
+        for key in ("observed_at", "event_at", "valid_from", "valid_until"):
+            if value.get(key):
+                value[key] = _parse_time(key, value[key]).astimezone(timezone.utc).isoformat()
+        return f"sha256:{sha256_hex(canonical_json(value))}"
+
+    def exclusion_identity(self) -> str:
+        """Stable claim occurrence identity used to preserve user exclusions."""
+        value = self.to_dict()
+        for key in (
+            "unit_id", "formation_id", "confidence", "lifecycle",
+            "formation_version", "evidence",
         ):
             value.pop(key, None)
         for key in ("observed_at", "event_at", "valid_from", "valid_until"):
             if value.get(key):
-                value[key] = _parse_time(key, value[key]).astimezone(timezone.utc).isoformat()
+                value[key] = _parse_time(key, value[key]).astimezone(
+                    timezone.utc
+                ).isoformat()
         return f"sha256:{sha256_hex(canonical_json(value))}"
 
     def canonical_text(self) -> str:

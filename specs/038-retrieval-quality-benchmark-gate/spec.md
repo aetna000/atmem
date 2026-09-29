@@ -366,6 +366,83 @@ and AtFlows services are unavailable.
   and personal-memory regressions. BEAM applicability MUST be recorded; if the
   change does not exercise its scheduling/large-workload claim, the package
   states why it is not an accuracy gate rather than silently omitting it.
+- **FR-055:** Structured observations MUST be validated at the assertion or
+  field span that supports the proposed unit. Negation elsewhere in the same
+  snapshot, accessibility tree, tool result or source part MUST NOT cause a
+  faithful observation to be rejected or have its polarity changed. A proposal
+  whose polarity cannot be grounded at its supporting span MUST be withheld
+  with a specific reason.
+- **FR-056:** Observation occurrence identity MUST be distinct from durable-fact
+  identity. Every admitted observation MUST retain a collision-resistant
+  episode, event and fragment identity without truncating away discriminators.
+  Equal content observed in separate episodes MAY share deduplicated bytes but
+  MUST retain every occurrence and its provenance. Supersession requires an
+  explicit compatible fact identity plus correction or temporal-transition
+  evidence; URL, source position or chunk coincidence alone is insufficient.
+  Source and occurrence identifiers MUST use an unambiguous canonical encoding
+  (length-prefixed or RFC 8785 JSON after Unicode NFC normalization) that
+  includes authority scope and a version, without truncating or lossily
+  normalizing discriminators; lifecycle, exclusion,
+  quarantine, deletion and tombstone state MUST survive migration and rebuild,
+  and ambiguous legacy supersessions MUST remain unavailable pending review
+  rather than being blanket-reactivated. Ambiguous legacy rows MUST enter an
+  authorized, audited review queue with `pending_review`, `reinstated`,
+  `confirmed_superseded` and `rebuilt_from_evidence` outcomes; rebuilding from
+  retained evidence is the default remedy. Byte deduplication MUST NOT cross an
+  authority scope. Occurrence, identity-mapping and deduplicated-byte records
+  are encrypted registered derivatives: forget MUST remove and verify their
+  references, delete shared bytes after the last in-scope reference, and append
+  an audit event.
+- **FR-057:** Formation MUST be resumable across declared byte, proposal and
+  wall-time boundaries. Receipts MUST distinguish processing completion,
+  representation coverage and retrieval readiness; identify every processed,
+  terminally unsupported/rejected and resumable source position; and expose the
+  next resume position. Adapters or callers MUST retain and surface the receipt,
+  MUST NOT checkpoint an unfinished formation as ready, and MUST NOT treat
+  source capture as proof that derived evidence is retrievable. Resuming or
+  changing independent episode ingestion order MUST not change the set of
+  historically available observations or the current/superseded assignment,
+  which is determined by event/assertion time rather than arrival order.
+- **FR-058:** Candidate rank, channel score, episode occurrence and information-
+  need obligations MUST survive canonical typed-unit reload and enter expansion
+  and packing explicitly. Metadata or short unrelated units MUST NOT gain
+  priority merely because rank information was discarded or because they cover
+  generic non-empty fields. One shared authority/lifecycle/exclusion predicate
+  MUST run before every reload, traversal or global escape-path lookup as well
+  as during final revalidation; ineligible content MUST NOT influence paths,
+  budgets, sufficiency, diagnostics or timing labels.
+- **FR-059:** Sufficiency MUST bind each requested obligation to supporting
+  evidence for the same entity, relation/action, polarity, temporal target and
+  applicability. Evidence from unrelated episodes or entities MUST NOT be
+  combined into a sufficient decision. Early packing termination is permitted
+  only after all obligations are supported and a bounded contradiction/current-
+  validity check completes.
+  Obligations MUST use a versioned contract carrying entity/relation or action,
+  polarity, temporal target, applicability, alternatives and unresolved
+  interpretation, and MUST propagate unchanged from the product request through
+  nomination, expansion, packing and the decision receipt.
+- **FR-060:** Context budgets MUST cover the complete delivered reader input,
+  including structured text, serialization overhead and original media or
+  screenshots. Media MUST be deduplicated and selected because it discharges a
+  named evidence obligation; it MUST NOT be appended outside the budget. The
+  package MUST preserve every procedure prerequisite, step condition,
+  completion criterion and failure condition. Original media bytes MUST first
+  be retained as protected evidence and remain authoritatively resolvable after
+  the source workspace or benchmark corpus is removed. Budget receipts MUST pin
+  tokenizer/processor, chat template, image policy, host/request overhead and
+  output allowance; exceeding the budget MUST yield a visible partial or
+  unsupported package rather than silently dropping a required case.
+- **FR-061:** Reader qualification MUST distinguish evidence availability from
+  answer finalization. Before a scored paid sample, pinned short-control,
+  oracle-evidence, product-context and worst-budget multimodal probes MUST
+  record finish reason, final-answer presence, input/output tokens, latency,
+  retries and cost. Reasoning-only, empty, unparsable or length-terminated
+  output is an operational failure and MUST NOT be silently retried or scored
+  as a memory-quality result. Each reader/agent/grader configuration requires
+  its own frozen gate manifest bound to candidate, checkpoint, provider, model,
+  processor, prompt, sampling, proxy, concurrency and budget identities. Every
+  scored response MUST reapply finalization validation and immediately cancel
+  siblings on failure with durable cleanup and cost evidence.
 
 ## Success criteria
 
@@ -426,6 +503,56 @@ and AtFlows services are unavailable.
   typed profile does not regress the matched legacy profile by more than two
   absolute accuracy points, with quality, p50/p95 latency, error/refusal and
   resource evidence retained under the same claim rules.
+- **SC-017:** Frozen formation fixtures and a rebuild of the retained
+  development checkpoints produce zero unintended cross-episode, intra-episode
+  or truncated-key supersessions; every repeated observation retains occurrence
+  provenance; and structured snapshots containing unrelated negation preserve
+  all grounded positive and negative fields. Mechanically, every supersession
+  link MUST cite a compatible durable-fact identity plus explicit correction or
+  transition evidence.
+- **SC-018:** Every source part is either represented, terminally classified
+  with a reason, or named by an unfinished receipt with an exact resume
+  position. Processing completion, representation coverage and retrieval
+  readiness are reported independently. Interrupted/resumed formation and at
+  least two independent episode-ingestion orders produce the same authorized
+  historical observation set and current/superseded assignment, and no receipt
+  marked complete has unprocessed positions.
+- **SC-019:** On the frozen fourteen-question LongMemEval-V2 development sample,
+  at least 13 questions satisfy a frozen evaluator-owned evidence annotation:
+  one complete minimal evidence set for answerable cases, the required explicit
+  negative/contradiction for negative cases, or no supporting set plus the
+  declared unsupported-premise evidence for abstention cases. Alternative
+  sufficient sets and fixed source coordinates are permitted only when frozen
+  before repair tuning. Useful-evidence precision uses the fixed source
+  span/event denominator; both macro and micro precision MUST be at least 80%.
+  Abstention cases score precision as one minus the fraction of packed spans
+  that support the rejected premise, with an empty package scoring 1.0. SC-019
+  is evaluated independently at 4K, 8K and 16K total-input profiles. The frozen
+  regression case is question `1defc293` and its annotated minimal evidence set
+  MUST remain fully packed;
+  useful-evidence precision is at least 80% at span/event level, and the
+  frozen regression case does not regress. Formation availability,
+  nomination, expansion, packing and reader use are reported independently.
+  This development diagnostic cannot support a customer-facing quality claim;
+  a checked manifest MUST prove all fourteen IDs are disjoint from SC-003
+  confirmation IDs.
+- **SC-020:** Frozen 4K, 8K and 16K total-reader-token profiles count text and
+  media. The selected profile is the smallest profile meeting SC-019, never
+  exceeds its declared limit, and emits no context that omits a represented
+  prerequisite, condition, ordered step or contradiction required for its
+  sufficiency decision.
+- **SC-021:** Each finalization-gate identity declares its probe set.
+  LongMemEval completes twelve of twelve reader probes—three repetitions of
+  each FR-061 reader condition—and at least three frozen judge probes with a
+  usable final
+  answer, no length termination, no hidden retry and complete latency/token/cost
+  evidence. Failure blocks paid LongMemEval-V2 and DolphinBench development
+  samples without weakening their frozen scoring or sample membership. Probe
+  spend is separately preauthorized and accounted. LongMemEval reader/judge and
+  DolphinBench Hermes/model/grader paths have separate gate identities and one
+  cannot qualify the other. The Dolphin manifest declares three repetitions of
+  each applicable Hermes/model and grader condition and records a reason for any
+  inapplicable condition.
 
 ### Research and leaderboard targets
 
@@ -449,7 +576,7 @@ and AtFlows services are unavailable.
 
 Research targets guide the paper and leaderboard submission. Missing SC-004 or
 SC-009 through SC-011 does not by itself fail 2.3.8 if SC-001 through SC-003,
-SC-005 through SC-008 and SC-012 through SC-016 pass, but no corresponding
+SC-005 through SC-008 and SC-012 through SC-021 pass, but no corresponding
 validation or leadership claim may be made.
 
 ## Edge cases
@@ -506,7 +633,7 @@ content that was never captured cannot be invented during migration.
 
 Published 2.3.8 prereleases remain historical artifacts. The final 2.3.8
 release must not be described as retrieval-qualified until SC-001–SC-003,
-SC-005–SC-008 and SC-012–SC-016 pass on the exact reviewed candidate. If they
+SC-005–SC-008 and SC-012–SC-021 pass on the exact reviewed candidate. If they
 do not pass, the final release is delayed or the retrieval profile remains
 explicitly experimental in a differently scoped release; documentation may not
 silently weaken the gate.

@@ -441,6 +441,10 @@ class FormationReceipt(Contract):
     unsupported_parts: tuple[str, ...] = ()
     unrepresented_ranges: tuple[dict[str, Any], ...] = ()
     media_references: tuple[dict[str, Any], ...] = ()
+    processing_complete: bool = False
+    representation_complete: bool = False
+    retrieval_ready: bool = False
+    next_positions: tuple[dict[str, Any], ...] = ()
     complete: bool = False
     reason_codes: tuple[str, ...] = ()
 
@@ -461,6 +465,14 @@ class FormationReceipt(Contract):
             raise ValueError("formation with visible loss cannot be complete")
         if self.complete and self.source_events_observed < 1:
             raise ValueError("complete formation requires an observed source event")
+        if self.representation_complete and not self.processing_complete:
+            raise ValueError("representation cannot complete before processing")
+        if self.retrieval_ready and not self.representation_complete:
+            raise ValueError("retrieval cannot be ready before representation")
+        if self.processing_complete and self.next_positions:
+            raise ValueError("complete processing cannot retain resume positions")
+        if self.complete and (not self.processing_complete or self.next_positions):
+            raise ValueError("complete formation must have finished all resumable work")
 
 
 @dataclass(frozen=True, slots=True)
@@ -475,6 +487,7 @@ class InformationNeed(Contract):
     expected_form: str | None = None
     required_slots: tuple[str, ...] = ()
     parent_need_id: str | None = None
+    obligations: tuple[dict[str, str], ...] = ()
 
     def __post_init__(self) -> None:
         _required_id("need_id", self.need_id)
@@ -486,6 +499,12 @@ class InformationNeed(Contract):
             raise ValueError("information need requires at least one evidence slot")
         if len(set(self.required_slots)) != len(self.required_slots):
             raise ValueError("information need slots must be unique")
+        for obligation in self.obligations:
+            if not isinstance(obligation, dict) or not any(
+                str(obligation.get(name) or "").strip()
+                for name in ("entity", "relation", "action")
+            ):
+                raise ValueError("information-need obligations must identify a target")
 
 
 @dataclass(frozen=True, slots=True)
@@ -501,6 +520,7 @@ class RetrievalBudget(Contract):
     graph_visits: int = 100
     neighbor_depth: int = 2
     context_bytes: int = 8_192
+    total_input_bytes: int = 8_388_608
     optional_model_calls: int = 1
     optional_model_tokens: int = 4_096
     optional_cost_microusd: int = 0
@@ -512,7 +532,7 @@ class RetrievalBudget(Contract):
         values = asdict(self)
         if any(not isinstance(value, int) or isinstance(value, bool) or value < 0 for value in values.values()):
             raise ValueError("retrieval budget values must be non-negative integers")
-        positive = ("source_bytes", "proposals", "optional_concurrency", "wall_time_ms", "subqueries", "candidates_per_channel", "total_candidates", "graph_visits", "neighbor_depth", "context_bytes", "peak_working_bytes", "derived_storage_bytes")
+        positive = ("source_bytes", "proposals", "optional_concurrency", "wall_time_ms", "subqueries", "candidates_per_channel", "total_candidates", "graph_visits", "neighbor_depth", "context_bytes", "total_input_bytes", "peak_working_bytes", "derived_storage_bytes")
         if any(values[name] < 1 for name in positive):
             raise ValueError("core retrieval budgets must be positive")
         if self.candidates_per_channel > self.total_candidates:
