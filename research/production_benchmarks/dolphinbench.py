@@ -546,7 +546,11 @@ class AtMemDolphinAdapter:
             session_id=request.interaction_id,
             retain_body=True,
         )
-        budget = RetrievalBudget(proposals=256, source_bytes=max(262_144, len(text.encode())))
+        budget = RetrievalBudget(
+            proposals=256,
+            source_bytes=max(262_144, len(text.encode())),
+            wall_time_ms=120_000,
+        )
         formed = memory.form_episode(episode_request, budget=budget)
         for _ in range(1_023):
             if not formed["receipt"].get("next_positions"):
