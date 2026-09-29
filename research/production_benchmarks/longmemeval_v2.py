@@ -873,7 +873,7 @@ def run_official_pilot_case(
             *(
                 ["--reader-enable-thinking"]
                 if models["longmemeval_reader"]["enable_thinking"]
-                else ["--reader-disable-thinking"]
+                else ["--no-reader-enable-thinking"]
             ),
             "--max-completion-tokens", str(
                 models["longmemeval_reader"]["max_completion_tokens"]
