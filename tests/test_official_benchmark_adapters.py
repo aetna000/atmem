@@ -868,11 +868,11 @@ def test_dolphin_adapter_ingests_then_reads_without_changing_checkpoint(
 
     assert "blue" in captured[-1]
     adapter.verify_checkpoint("alex", checkpoint)
-    assert adapter.total_cost_usd("ingestion") == 0.001
+    assert adapter.total_cost_usd("ingestion") == 0.0
     assert adapter.total_cost_usd("tests") == 0.001
     with pytest.raises(RuntimeError, match="refusing a blind retry"):
         adapter.run_interaction(test)
-    assert len(captured) == 2
+    assert len(captured) == 1
     adapter._reserve_interaction_cost("tests", "alex", "missing-cost")
     with pytest.raises(RuntimeError, match="neither aggregate nor attempt cost"):
         adapter._record_cost(

@@ -355,24 +355,52 @@ class AtMemDolphinAdapter:
             not in self.allowed_test_ids[request.persona]
         ):
             raise ValueError("test interaction is outside the frozen allowed split")
-        self._reserve_interaction_cost(
-            request.phase, request.persona, request.interaction_id
-        )
         memory = Memory(self._path(request.persona), retain_query_text=False, auto_vectors=False)
         try:
-            context = self._recall(memory, request.persona, request.dated_message)
-            async with connect_apps(request.apps) as apps:
-                tools = (await apps.list_tools()).tools
-                result = self.driver(
-                    request=request,
-                    tools=tools,
-                    call_app=apps.call_tool,
-                    memory_context=context,
-                    model=self.model,
-                    max_cost_usd=self.max_interaction_cost_usd,
+            if request.phase == "ingestion":
+                context = ""
+                result = InteractionRecord(
+                    settings={
+                        "model": "atmem-local-history-ingestion",
+                        "temperature": 0,
+                        "max_tokens": 0,
+                        "cost_usd": 0.0,
+                    },
+                    messages=[
+                        {"role": "user", "content": request.dated_message},
+                        {
+                            "role": "assistant",
+                            "content": "History recorded.",
+                            "finish_reason": "stop",
+                        },
+                    ],
+                    duration_ms=0.0,
+                    attempts=[{
+                        "driver_ok": True,
+                        "error": None,
+                        "cost_usd": 0.0,
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                    }],
+                    app_calls=[],
                 )
-                if inspect.isawaitable(result):
-                    result = await result
+            else:
+                self._reserve_interaction_cost(
+                    request.phase, request.persona, request.interaction_id
+                )
+                context = self._recall(memory, request.persona, request.dated_message)
+                async with connect_apps(request.apps) as apps:
+                    tools = (await apps.list_tools()).tools
+                    result = self.driver(
+                        request=request,
+                        tools=tools,
+                        call_app=apps.call_tool,
+                        memory_context=context,
+                        model=self.model,
+                        max_cost_usd=self.max_interaction_cost_usd,
+                    )
+                    if inspect.isawaitable(result):
+                        result = await result
             if not isinstance(result, InteractionRecord):
                 raise TypeError("agent_driver must return harness.adapter.InteractionRecord")
             _require_completed_interaction(result)
@@ -380,9 +408,10 @@ class AtMemDolphinAdapter:
                 self._ingest(memory, request)
             elif request.phase != "tests":
                 raise ValueError(f"unsupported DolphinBench phase: {request.phase}")
-            self._record_cost(
-                request.phase, request.persona, request.interaction_id, result
-            )
+            if request.phase != "ingestion":
+                self._record_cost(
+                    request.phase, request.persona, request.interaction_id, result
+                )
             result.duration_ms = result.duration_ms or (time.monotonic() - started) * 1000
             result.settings = {
                 **dict(result.settings),
@@ -559,7 +588,6 @@ class AtMemDolphinAdapter:
         DurableCostLedger(
             self._ledger_path(), total_cap_usd=self.cost_cap_usd
         ).complete(key, cost_usd=float(cost))
-
 
 def create(options: dict, work_dir: Path) -> AtMemDolphinAdapter:
     return AtMemDolphinAdapter(options, work_dir)
