@@ -69,7 +69,7 @@
       "model": "Qwen/Qwen3.5-9B",
       "repository_model": "Qwen/Qwen3.5-9B",
       "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
-      "enable_thinking": true,
+      "enable_thinking": false,
       "max_prompt_tokens": 242144,
       "max_completion_tokens": 20000,
       "memory_context_max_tokens": 200000,
