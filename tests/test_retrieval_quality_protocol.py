@@ -167,7 +167,7 @@ def test_frozen_three_percent_pilots_validate_and_are_development_only() -> None
         for_pilot_run=True,
     )
     assert validated["paid_run_requirements"]["provider_route_probe_sha256"] == (
-        "d1f9c0d797857bf6062819ba4ab3b66e50417538e601d558ff514ab763f5cfe1"
+            "265f7f5cdf985a4ab975ab46c022a8863c5c5f5c91e6f083fa29974b8bbd989e"
     )
     assert validate_provider_route_probe(route_probe)["routes"]["judge"]["model"] == (
         "gpt-5.2-2025-12-11"

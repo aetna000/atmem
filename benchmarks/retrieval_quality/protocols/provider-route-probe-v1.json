@@ -1,6 +1,6 @@
 {
   "format": "atmem-provider-route-probe-v1",
-  "probe_sha256": "d1f9c0d797857bf6062819ba4ab3b66e50417538e601d558ff514ab763f5cfe1",
+  "probe_sha256": "265f7f5cdf985a4ab975ab46c022a8863c5c5f5c91e6f083fa29974b8bbd989e",
   "routes": {
     "embedding": {
       "content_retained": false,
@@ -24,15 +24,15 @@
     },
     "reader": {
       "content_retained": false,
-      "duration_ms": 117761.171,
-      "evidence_note": "The exact frozen reader request completed on one Runpod Secure L40S using the pinned vLLM image digest and model revision. SSE transport avoids the Runpod HTTPS proxy's non-streaming edge timeout; the local benchmark facade reconstructs the ordinary OpenAI-compatible JSON response without logging content.",
+      "duration_ms": 3600.0,
+      "evidence_note": "A control reader request completed on one Runpod Secure A100 80GB PCIe using the pinned vLLM image digest and model revision. The paid development pilot remains responsible for full frozen-request evidence.",
       "model": "Qwen/Qwen3.5-9B",
       "outcome": "succeeded",
-      "provider_route": "runpod-secure-l40s-vllm",
-      "request_profile": "exact-first-frozen-longmemeval-reader-request",
+      "provider_route": "runpod-secure-a100-80gb-vllm",
+      "request_profile": "control-reader-finalization-request",
       "status": 200,
       "transport": "openai-compatible-sse-via-loopback-facade",
-      "usage": {"completion_tokens": 5087, "prompt_tokens": 187, "total_tokens": 5274}
+      "usage": {"completion_tokens": 221, "prompt_tokens": 15, "total_tokens": 236}
     }
   }
 }
