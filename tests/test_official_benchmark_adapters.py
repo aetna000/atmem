@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -19,6 +20,69 @@ LONGMEM_ASSET = (
     ROOT / "research/production_benchmarks/adapters/longmemeval_atmem.py"
 )
 DOLPHIN_ADAPTER = ROOT / "research/production_benchmarks/dolphinbench.py"
+
+
+def test_dolphin_driver_defers_structured_app_trace_to_official_runner(
+    monkeypatch,
+) -> None:
+    from research.production_benchmarks import dolphin_openai_driver
+
+    @dataclass
+    class InteractionRecord:
+        settings: dict
+        messages: list[dict]
+        duration_ms: float | None = None
+        attempts: list[dict] = field(default_factory=list)
+        app_calls: list[dict] | None = None
+
+    adapter_module = ModuleType("harness.adapter")
+    adapter_module.InteractionRecord = InteractionRecord  # type: ignore[attr-defined]
+    harness_package = ModuleType("harness")
+    monkeypatch.setitem(sys.modules, "harness", harness_package)
+    monkeypatch.setitem(sys.modules, "harness.adapter", adapter_module)
+    replies = iter([
+        {
+            "choices": [{"finish_reason": "tool_calls", "message": {
+                "role": "assistant", "content": None, "tool_calls": [{
+                    "id": "call-1", "type": "function", "function": {
+                        "name": "send_message", "arguments": '{"text":"hi"}'
+                    },
+                }],
+            }}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+        },
+        {
+            "choices": [{"finish_reason": "stop", "message": {
+                "role": "assistant", "content": "done",
+            }}],
+            "usage": {"prompt_tokens": 15, "completion_tokens": 2},
+        },
+    ])
+    monkeypatch.setattr(dolphin_openai_driver, "_post", lambda _payload: next(replies))
+    monkeypatch.setenv("ATMEM_DOLPHIN_GPU_USD_PER_HOUR", "1.0")
+    calls = []
+
+    async def call_app(name, arguments):
+        calls.append((name, arguments))
+        return SimpleNamespace(content=[SimpleNamespace(text='{"ok":true}')])
+
+    record = asyncio.run(dolphin_openai_driver.run(
+        request=SimpleNamespace(dated_message="[2028-01-01] Send it."),
+        tools=[SimpleNamespace(
+            name="send_message", description="Send a message",
+            inputSchema={"type": "object", "properties": {
+                "text": {"type": "string"},
+            }},
+        )],
+        call_app=call_app,
+        memory_context="Relevant evidence.",
+        model="fixture-model",
+        max_cost_usd=1.0,
+    ))
+
+    assert calls == [("send_message", {"text": "hi"})]
+    assert record.app_calls is None
+    assert record.messages[-1]["content"] == "done"
 
 
 def test_longmem_adapter_is_inert_product_api_only() -> None:
