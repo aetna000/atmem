@@ -288,6 +288,7 @@ class AtMemDolphinAdapter:
     def __init__(self, options: dict, work_dir: Path) -> None:
         self.options = dict(options)
         self.work_dir = Path(work_dir).resolve()
+        self._memories: dict[str, Memory] = {}
         configured_root = self.options.get("household_root")
         self.root = (
             Path(str(configured_root)).expanduser().resolve()
@@ -372,7 +373,7 @@ class AtMemDolphinAdapter:
             not in self.allowed_test_ids[request.persona]
         ):
             raise ValueError("test interaction is outside the frozen allowed split")
-        memory = Memory(self._path(request.persona), retain_query_text=False, auto_vectors=False)
+        memory = self._memory(request.persona)
         try:
             formation_receipt = None
             if request.phase == "ingestion":
@@ -456,11 +457,13 @@ class AtMemDolphinAdapter:
                     },
                 }
             return result
-        finally:
-            memory.close()
+        except BaseException:
+            self._close_memory(request.persona)
+            raise
 
     def freeze(self, persona: str) -> dict:
         path = self._path(persona)
+        self._close_memory(persona)
         status = HouseholdApplication.status(path)
         if status["state"] != "encrypted":
             raise RuntimeError(f"persona household is not encrypted: {persona}")
@@ -496,6 +499,20 @@ class AtMemDolphinAdapter:
 
     def _path(self, persona: str) -> Path:
         return self.root / f"{persona}.db"
+
+    def _memory(self, persona: str) -> Memory:
+        memory = self._memories.get(persona)
+        if memory is None:
+            memory = Memory(
+                self._path(persona), retain_query_text=False, auto_vectors=False
+            )
+            self._memories[persona] = memory
+        return memory
+
+    def _close_memory(self, persona: str) -> None:
+        memory = self._memories.pop(persona, None)
+        if memory is not None:
+            memory.close()
 
     def _scope(self, persona: str) -> AuthorityScope:
         return AuthorityScope(

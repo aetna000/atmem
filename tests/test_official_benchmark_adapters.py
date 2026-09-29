@@ -853,7 +853,9 @@ def test_dolphin_adapter_ingests_then_reads_without_changing_checkpoint(
         dated_message="[2026-01-01] My favorite color is blue.", apps={},
     )
     adapter.run_interaction(ingestion)
+    assert set(adapter._memories) == {"alex"}
     checkpoint = adapter.freeze("alex")
+    assert adapter._memories == {}
     test = SimpleNamespace(
         persona="alex", phase="tests", interaction_id="test-1",
         dated_message="[2026-02-01] What is my favorite color?", apps={},
