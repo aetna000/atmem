@@ -163,13 +163,13 @@
       "mode": "pod-runtime",
       "provider": "runpod",
       "cloud_type": "SECURE",
-      "hardware_id": "NVIDIA A100 80GB PCIe",
+        "hardware_id": "NVIDIA A100-SXM4-80GB",
       "container_image": "vllm/vllm-openai:v0.29.0",
       "container_image_digest": "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
       "max_num_seqs": 2,
       "usd_per_hour": 1.59,
       "maximum_active_seconds": 3600,
-      "observed_utc": "2026-09-29T17:10:06Z",
+        "observed_utc": "2026-09-29T18:30:23Z",
       "source": "Runpod GraphQL gpuTypes securePrice"
     },
     "openai_judge_price_usd_per_million": {
