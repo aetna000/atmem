@@ -498,7 +498,7 @@ class AtMemDolphinAdapter:
         if not (
             receipt.get("processing_complete")
             and receipt.get("representation_complete")
-            and receipt.get("retrieval_ready")
+            and not receipt.get("next_positions")
         ):
             raise RuntimeError(
                 "DolphinBench history was not completely represented; refusing checkpoint"
