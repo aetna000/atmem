@@ -548,7 +548,7 @@ class AtMemDolphinAdapter:
         )
         budget = RetrievalBudget(proposals=256, source_bytes=max(262_144, len(text.encode())))
         formed = memory.form_episode(episode_request, budget=budget)
-        for _ in range(31):
+        for _ in range(1_023):
             if not formed["receipt"].get("next_positions"):
                 break
             formed = memory.form_episode(episode_request, budget=budget)
