@@ -105,8 +105,9 @@ async def run(*, request, tools, call_app, memory_context: str, model: str,
             "role": str(provider_message.get("role") or "assistant"),
             "content": provider_message.get("content"),
         }
-        if provider_message.get("tool_calls"):
-            message["tool_calls"] = provider_message["tool_calls"]
+        raw_calls = list(provider_message.get("tool_calls") or ())
+        if raw_calls:
+            message["tool_calls"] = raw_calls
         usage = dict(response.get("usage") or {})
         if int(usage.get("prompt_tokens") or 0) <= 0 or int(
             usage.get("completion_tokens") or 0
@@ -114,14 +115,26 @@ async def run(*, request, tools, call_app, memory_context: str, model: str,
             raise RuntimeError("Dolphin agent response lacks token usage")
         prompt_tokens += int(usage["prompt_tokens"])
         completion_tokens += int(usage["completion_tokens"])
-        message["usage"] = {
-            "input_tokens": int(usage["prompt_tokens"]),
-            "output_tokens": int(usage["completion_tokens"]),
+        recorded_message = {
+            "role": message["role"],
+            "content": message.get("content"),
+            "usage": {
+                "input_tokens": int(usage["prompt_tokens"]),
+                "output_tokens": int(usage["completion_tokens"]),
+            },
         }
+        if raw_calls:
+            recorded_message["tool_calls"] = [{
+                "id": str(call.get("id") or ""),
+                "name": str((call.get("function") or {}).get("name") or ""),
+                "arguments": json.loads(
+                    str((call.get("function") or {}).get("arguments") or "{}")
+                ),
+            } for call in raw_calls]
         finish_reason = str(choice.get("finish_reason") or "")
-        recorded.append(message)
-        messages.append({key: value for key, value in message.items() if key != "usage"})
-        calls = list(message.get("tool_calls") or ())
+        recorded.append(recorded_message)
+        messages.append(message)
+        calls = raw_calls
         if not calls:
             if finish_reason != "stop" or not str(message.get("content") or "").strip():
                 raise RuntimeError("Dolphin agent did not return a complete final answer")

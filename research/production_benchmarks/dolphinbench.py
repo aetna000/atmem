@@ -368,6 +368,7 @@ class AtMemDolphinAdapter:
                         {
                             "role": "assistant",
                             "content": "History recorded.",
+                            "usage": {"input_tokens": 0, "output_tokens": 0},
                         },
                     ],
                     duration_ms=0.0,
