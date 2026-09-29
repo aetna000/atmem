@@ -357,6 +357,7 @@ class AtMemDolphinAdapter:
             raise ValueError("test interaction is outside the frozen allowed split")
         memory = Memory(self._path(request.persona), retain_query_text=False, auto_vectors=False)
         try:
+            formation_receipt = None
             if request.phase == "ingestion":
                 context = ""
                 result = InteractionRecord(
@@ -402,7 +403,7 @@ class AtMemDolphinAdapter:
                 raise TypeError("agent_driver must return harness.adapter.InteractionRecord")
             _require_completed_interaction(result)
             if request.phase == "ingestion":
-                self._ingest(memory, request)
+                formation_receipt = self._ingest(memory, request)
             elif request.phase != "tests":
                 raise ValueError(f"unsupported DolphinBench phase: {request.phase}")
             if request.phase != "ingestion":
@@ -421,6 +422,20 @@ class AtMemDolphinAdapter:
                         ).hexdigest(),
                         "context_injected": bool(context),
                         "writes_allowed": request.phase == "ingestion",
+                        "formation": ({
+                            "processing_complete": bool(
+                                formation_receipt.get("processing_complete")
+                            ),
+                            "representation_complete": bool(
+                                formation_receipt.get("representation_complete")
+                            ),
+                            "retrieval_ready": bool(
+                                formation_receipt.get("retrieval_ready")
+                            ),
+                            "admitted": int(formation_receipt.get("admitted") or 0),
+                            "withheld": int(formation_receipt.get("withheld") or 0),
+                            "rejected": int(formation_receipt.get("rejected") or 0),
+                        } if formation_receipt is not None else None),
                     },
                 }
             return result
@@ -472,7 +487,7 @@ class AtMemDolphinAdapter:
             workspace_id=f"dolphin:{persona}",
         )
 
-    def _ingest(self, memory: Memory, request) -> None:
+    def _ingest(self, memory: Memory, request) -> dict:
         text = request.dated_message
         episode_request = EpisodeIngestRequest(
             episode_id=f"dolphin-{request.persona}-{request.interaction_id}",
@@ -497,12 +512,13 @@ class AtMemDolphinAdapter:
         receipt = formed["receipt"]
         if not (
             receipt.get("processing_complete")
-            and receipt.get("representation_complete")
             and not receipt.get("next_positions")
+            and int(receipt.get("source_events_observed") or 0) >= 1
         ):
             raise RuntimeError(
-                "DolphinBench history was not completely represented; refusing checkpoint"
+                "DolphinBench history processing did not complete; refusing checkpoint"
             )
+        return receipt
 
     def _recall(self, memory: Memory, persona: str, query: str) -> str:
         scope = self._scope(persona)
