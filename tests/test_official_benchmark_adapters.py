@@ -834,15 +834,19 @@ def test_dolphin_adapter_ingests_then_reads_without_changing_checkpoint(
     monkeypatch.setitem(sys.modules, "examples", examples_package)
     monkeypatch.setitem(sys.modules, "examples.mcp_connection", connection_module)
 
-    prepare_persona_households(tmp_path)
+    household_root = tmp_path / "separate-households"
+    prepare_persona_households(tmp_path, household_root=household_root)
     adapter = AtMemDolphinAdapter(
         {
             "agent_driver": "fixture_dolphin_driver:run", "model": "fixture-model",
             "cost_cap_usd": 1.0, "max_interaction_cost_usd": 0.1,
             "allowed_test_ids": {"alex": ["test-1"], "morgan": [], "riley": []},
+            "household_root": str(household_root),
         },
         tmp_path,
     )
+    assert adapter.root == household_root.resolve()
+    assert not (tmp_path / "atmem-personas").exists()
     ingestion = SimpleNamespace(
         persona="alex", phase="ingestion", interaction_id="history-1",
         dated_message="[2026-01-01] My favorite color is blue.", apps={},

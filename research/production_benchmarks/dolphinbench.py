@@ -248,9 +248,18 @@ def evaluate_development(runner, checkout: str | Path) -> dict:
     return result
 
 
-def prepare_persona_households(work_dir: str | Path, *, backend: str = "file") -> list[dict]:
+def prepare_persona_households(
+    work_dir: str | Path,
+    *,
+    backend: str = "file",
+    household_root: str | Path | None = None,
+) -> list[dict]:
     """Explicit no-model preflight; constructors remain side-effect free."""
-    root = Path(work_dir).expanduser().resolve() / "atmem-personas"
+    root = (
+        Path(household_root).expanduser().resolve()
+        if household_root is not None
+        else Path(work_dir).expanduser().resolve() / "atmem-personas"
+    )
     root.mkdir(parents=True, exist_ok=True)
     return [
         HouseholdApplication.initialize(root / f"{persona}.db", encrypted=True, backend=backend)
@@ -262,7 +271,12 @@ class AtMemDolphinAdapter:
     def __init__(self, options: dict, work_dir: Path) -> None:
         self.options = dict(options)
         self.work_dir = Path(work_dir).resolve()
-        self.root = self.work_dir / "atmem-personas"
+        configured_root = self.options.get("household_root")
+        self.root = (
+            Path(str(configured_root)).expanduser().resolve()
+            if configured_root
+            else self.work_dir / "atmem-personas"
+        )
         self.driver_target = str(self.options.get("agent_driver") or "")
         if not self.driver_target:
             raise ValueError("options.agent_driver is required")
@@ -316,6 +330,9 @@ class AtMemDolphinAdapter:
             "model": self.model,
             "personas": list(PERSONAS),
             "memory_scope": "one encrypted household per persona",
+            "household_root_sha256": "sha256:" + hashlib.sha256(
+                str(self.root).encode("utf-8")
+            ).hexdigest(),
             "test_phase_writes": False,
             "cost_cap_usd": self.cost_cap_usd,
             "max_interaction_cost_usd": self.max_interaction_cost_usd,

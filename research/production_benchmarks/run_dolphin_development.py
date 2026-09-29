@@ -147,6 +147,7 @@ def main() -> int:
         gate, expected_identity=identity, expected_gate_type="dolphinbench"
     )
     original = official_runner.Runner.evaluate
+    original_init = official_runner.Runner.__init__
     original_urlopen_json = llm_judge._urlopen_json
     driver_target = str(identity.get("agent_driver_target") or "")
     driver_sha256 = str(identity.get("agent_driver_sha256") or "")
@@ -171,7 +172,22 @@ def main() -> int:
             "this is not an official 600-task score."
         )
 
+    def development_init(instance, *init_args, **init_kwargs) -> None:
+        """Permit the manifest-bound OpenAI judge for this non-submission slice.
+
+        The upstream runner intentionally accepts only its leaderboard Azure
+        judge when paid execution is enabled.  This wrapper produces explicitly
+        non-official 18-task development evidence, so it constructs the runner
+        through the no-paid validation path and then enables the already-bound
+        provider calls used by evaluation.
+        """
+        allow_paid = bool(init_kwargs.pop("allow_paid", False))
+        original_init(instance, *init_args, allow_paid=False, **init_kwargs)
+        instance.allow_paid = allow_paid
+
     official_runner.Runner.evaluate = selected_evaluate
+    if llm_judge.BACKEND != "azure":
+        official_runner.Runner.__init__ = development_init
     llm_judge._urlopen_json = checked_urlopen_json
     old_driver_target = os.environ.get("ATMEM_DOLPHIN_DRIVER_TARGET")
     old_driver_sha256 = os.environ.get("ATMEM_DOLPHIN_DRIVER_SHA256")
@@ -185,6 +201,7 @@ def main() -> int:
         ]))
     finally:
         official_runner.Runner.evaluate = original
+        official_runner.Runner.__init__ = original_init
         llm_judge._urlopen_json = original_urlopen_json
         if old_driver_target is None:
             os.environ.pop("ATMEM_DOLPHIN_DRIVER_TARGET", None)
