@@ -46,6 +46,23 @@ def _tool_result(value: Any) -> str:
     return json.dumps(rows, ensure_ascii=False, default=str)
 
 
+def _structured_tool_result(value: Any) -> Any:
+    """Recover the MCP result object without changing model-supplied arguments."""
+    content = _value(value, "content", default=value)
+    items = list(content) if isinstance(content, (list, tuple)) else [content]
+    decoded: list[Any] = []
+    for item in items:
+        text = _value(item, "text")
+        candidate = text if text is not None else item
+        if isinstance(candidate, str):
+            try:
+                candidate = json.loads(candidate)
+            except json.JSONDecodeError:
+                pass
+        decoded.append(candidate)
+    return decoded[0] if len(decoded) == 1 else decoded
+
+
 def _post(payload: dict[str, Any]) -> dict[str, Any]:
     base_url = os.environ["ATMEM_DOLPHIN_AGENT_BASE_URL"].rstrip("/")
     request = urllib.request.Request(
@@ -79,6 +96,7 @@ async def run(*, request, tools, call_app, memory_context: str, model: str,
         ),
     }, {"role": "user", "content": request.dated_message}]
     recorded = list(messages)
+    app_calls: list[dict[str, Any]] = []
     prompt_tokens = 0
     completion_tokens = 0
     finish_reason = ""
@@ -144,6 +162,11 @@ async def run(*, request, tools, call_app, memory_context: str, model: str,
             arguments = json.loads(str(function.get("arguments") or "{}"))
             result = await call_app(name, arguments)
             content = _tool_result(result)
+            app_calls.append({
+                "tool": name,
+                "args": arguments,
+                "result": _structured_tool_result(result),
+            })
             tool_message = {
                 "role": "tool",
                 "tool_call_id": str(call.get("id") or ""),
@@ -176,9 +199,9 @@ async def run(*, request, tools, call_app, memory_context: str, model: str,
         messages=recorded,
         duration_ms=duration_ms,
         attempts=[attempt],
-        # Let the official Runner load structured call evidence from the MCP
-        # JSONL log.  Returning our prompt-facing string representation here
-        # would override that authoritative trace and make result.ok invisible
-        # to the explicit grader.
-        app_calls=None,
+        # Preserve the exact arguments exposed to the model while retaining
+        # the MCP server's structured result.  Server-side validation may add
+        # optional defaults to its JSONL arguments, which no longer match the
+        # conversation boundary required by the official submission validator.
+        app_calls=app_calls,
     )

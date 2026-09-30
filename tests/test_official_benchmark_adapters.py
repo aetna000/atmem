@@ -22,7 +22,7 @@ LONGMEM_ASSET = (
 DOLPHIN_ADAPTER = ROOT / "research/production_benchmarks/dolphinbench.py"
 
 
-def test_dolphin_driver_defers_structured_app_trace_to_official_runner(
+def test_dolphin_driver_returns_model_arguments_with_structured_app_result(
     monkeypatch,
 ) -> None:
     from research.production_benchmarks import dolphin_openai_driver
@@ -81,7 +81,11 @@ def test_dolphin_driver_defers_structured_app_trace_to_official_runner(
     ))
 
     assert calls == [("send_message", {"text": "hi"})]
-    assert record.app_calls is None
+    assert record.app_calls == [{
+        "tool": "send_message",
+        "args": {"text": "hi"},
+        "result": {"ok": True},
+    }]
     assert record.messages[-1]["content"] == "done"
 
 
