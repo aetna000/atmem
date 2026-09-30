@@ -48,28 +48,36 @@ review/publication approvals; planning authorizes no paid calls or deployment.
 ### 2.3.8 final retrieval-quality gate
 
 The integration betas may continue to validate packaging and host setup, but the
-final AtMem 2.3.8 release is now also gated by
-[Spec 038](../specs/038-retrieval-quality-benchmark-gate/spec.md). The quality
-track first fixes the product's memory formation, information-need routing,
-evidence-neighborhood retrieval, sufficiency decision and context construction;
+final AtMem 2.3.8 release is now governed by
+[Spec 040](../specs/040-atmem-context-engine/spec.md), whose
+[complete crosswalk](../specs/040-atmem-context-engine/alignment.md) preserves or
+explicitly replaces every Spec 038 requirement and success criterion. Spec 038
+remains the historical evidence and gate source, but no longer owns the engine
+architecture. The quality track replaces the formation/retrieval core behind
+AtMem's context-provider and governance boundaries with multi-view formation,
+obligation-first retrieval, bounded source navigation, source-backed
+sufficiency and complementary context construction;
 the LongMemEval-V2 and DolphinBench adapters remain inert consumers of the same
 public APIs used by supported agents.
 
-Final promotion requires all mandatory Spec 038 SC-001–SC-003, SC-005–SC-008
-and SC-012–SC-016 evidence,
-including frozen local fixtures, complete matched LongMemEval-V2 Small and
-LoCoMo no-regression runs, uncertainty, provenance, installed-candidate migration and
+Final promotion requires Spec 040 SC-013 and every safety/product gate it
+references: the absolute LongMemEval confirmation floor, non-inferiority to the
+legacy control, LoCoMo no-regression, frozen local fixtures, uncertainty,
+provenance, installed-candidate migration and
 adapter checks, a benchmark-independent CLI/MCP/dashboard product journey,
 bounded CPU/storage/diagnostic behavior, Linux/macOS/Windows installed tests
 (with Hermes using its supported WSL route on Windows),
-reversible shadow activation, and external storage of heavy artifacts. Missing
-or invalid evidence blocks the stable release rather than being counted as a
-skipped test. Leadership targets SC-009–SC-011 are research goals and may not
-be described as achieved without complete validated results.
-The DolphinBench action result (SC-004) is a separately approved research gate,
-not a paid dependency of the stable package. LongMemEval development and
-confirmation use a precommitted question-ID split; Medium is reported as a
-larger-haystack scale test because it reuses the same questions.
+reversible sampled shadow activation, and external storage of heavy artifacts. Missing
+or invalid safety/product evidence blocks the stable release rather than being
+counted as skipped. The stricter matched LongMemEval ≥10%-relative lead with a
+positive paired confidence interval is the target for a benchmark-leading claim,
+not a substitute for release safety. If that claim gate fails, V3 may ship only
+as experimental/shadow after the release floor passes and no leadership claim
+may be made. DolphinBench development/full results are separately approved
+research/claim gates, not paid dependencies of the stable package. LongMemEval
+confirmation IDs are disjoint from every inspected development ID; complete
+Small is reported separately as non-held-out. Dolphin freezes the shared persona
+checkpoint before scoring and reports 600/600 plus 582 non-development tasks.
 This gate preserves the MCP Registry, Hermes, continuity and coordinated
 AtFlows redaction commitments; it does not authorize a release, paid benchmark
 run or leaderboard submission.
