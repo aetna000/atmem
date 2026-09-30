@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import time
+import urllib.request
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -20,6 +22,45 @@ from research.production_benchmarks.dolphinbench import (  # noqa: E402
     require_completed_provider_response,
 )
 from atmem.benchmark.finalization import validate_finalization_gate  # noqa: E402
+
+
+def _call_openai_reasoning_judge(llm_judge, system_prompt: str,
+                                 user_prompt: str, config: dict,
+                                 timeout: int = 90) -> dict:
+    """Use the current OpenAI request fields for the pinned reasoning judge."""
+    model = config.get("judge_model", llm_judge.OPENAI_DEFAULT_MODEL)
+    endpoint = config.get("judge_endpoint", llm_judge.OPENAI_DEFAULT_ENDPOINT)
+    api_key_env = config.get("judge_key_env", llm_judge.OPENAI_API_KEY_ENV)
+    api_key = os.environ.get(api_key_env, "")
+    if not api_key:
+        raise RuntimeError(f"Missing env var {api_key_env}")
+    body = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "reasoning_effort": llm_judge.JUDGE_REASONING_EFFORT,
+        "max_completion_tokens": llm_judge.DEFAULT_MAX_TOKENS,
+        "response_format": {"type": "json_object"},
+    }
+    request = urllib.request.Request(
+        endpoint, method="POST", data=json.dumps(body).encode(),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://github.com/hermes-agent",
+            "X-Title": "DolphinBench Benchmark",
+        },
+    )
+    started = time.monotonic()
+    raw = llm_judge._urlopen_json(request, timeout, model=model)
+    from graders.judge_recording import record_response
+    record_response(
+        {key: value for key, value in body.items() if key != "messages"},
+        body["messages"], raw, (time.monotonic() - started) * 1000,
+    )
+    return llm_judge._extract_json(raw["choices"][0]["message"]["content"])
 
 
 def _installed_artifact_sha256() -> str:
@@ -149,6 +190,7 @@ def main() -> int:
     original = official_runner.Runner.evaluate
     original_init = official_runner.Runner.__init__
     original_urlopen_json = llm_judge._urlopen_json
+    original_call_openai = llm_judge._call_openai
     driver_target = str(identity.get("agent_driver_target") or "")
     driver_sha256 = str(identity.get("agent_driver_sha256") or "")
     if not driver_target or not driver_sha256:
@@ -188,6 +230,11 @@ def main() -> int:
     official_runner.Runner.evaluate = selected_evaluate
     if llm_judge.BACKEND != "azure":
         official_runner.Runner.__init__ = development_init
+        llm_judge._call_openai = lambda system_prompt, user_prompt, config, timeout=90: (
+            _call_openai_reasoning_judge(
+                llm_judge, system_prompt, user_prompt, config, timeout
+            )
+        )
     llm_judge._urlopen_json = checked_urlopen_json
     old_driver_target = os.environ.get("ATMEM_DOLPHIN_DRIVER_TARGET")
     old_driver_sha256 = os.environ.get("ATMEM_DOLPHIN_DRIVER_SHA256")
@@ -203,6 +250,7 @@ def main() -> int:
         official_runner.Runner.evaluate = original
         official_runner.Runner.__init__ = original_init
         llm_judge._urlopen_json = original_urlopen_json
+        llm_judge._call_openai = original_call_openai
         if old_driver_target is None:
             os.environ.pop("ATMEM_DOLPHIN_DRIVER_TARGET", None)
         else:
