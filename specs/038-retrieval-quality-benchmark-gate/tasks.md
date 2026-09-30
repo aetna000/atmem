@@ -1,5 +1,9 @@
 # Tasks: Retrieval Quality and Benchmark Release Gate
 
+> **Historical task ledger.** Do not execute this list as a second 2.3.8 engine
+> plan. Spec 040 is controlling; its alignment crosswalk preserves the required
+> outcomes and records replacements.
+
 **Input**: [spec.md](spec.md), [research.md](research.md), [plan.md](plan.md)
 **Release target**: AtMem 2.3.8 final; prereleases may remain integration betas
 **Rule**: The benchmark is an inert consumer of public product APIs. No task may

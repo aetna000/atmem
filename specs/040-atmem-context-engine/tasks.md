@@ -12,13 +12,13 @@ development run is permitted after the matched adapters are ready.
 - [x] [T001] Record the controlling/superseded specification matrix and 2.3.8
   release disposition in `docs/release-roadmap.md` and
   `specs/040-atmem-context-engine/alignment.md` (FR-031–FR-032).
-- [ ] [T002] Freeze disjoint development/sealed-holdout halves of one
+- [x] [T002] Freeze disjoint development/sealed-holdout halves of one
   benchmark-neutral minimal-evidence corpus with source ranges for exact fact,
   correction, comparison, negative premise, transition, procedure, gotcha,
   conflict, temporal and private/shared-agent cases; pin a system-neutral
   output-to-source-span normalizer before any system run in
   `research/reference_parity/fixtures/` (FR-024–FR-028, SC-001).
-- [ ] [T003] Pin neutral result/cassette schemas plus AtMem, Mem0 OSS and
+- [x] [T003] Pin neutral result/cassette schemas plus AtMem, Mem0 OSS and
   AgentRunbook-R/C revisions/configuration hashes, dataset commit/license/SHA,
   model and embedding revisions, prompts, normalizer hash and encrypted-cassette
   policy in
@@ -27,7 +27,7 @@ development run is permitted after the matched adapters are ready.
 - [ ] [T004] Implement and run the pre-change reader-free baseline for all three
   systems, retaining heavy raw outputs on `MEM` and the signed aggregate under
   `benchmarks/retrieval_quality/baselines/` (FR-025–FR-029).
-- [ ] [T005] Freeze disjoint development/confirmation IDs, reader/judge prompts,
+- [x] [T005] Freeze disjoint development/confirmation IDs, reader/judge prompts,
   provider revisions, hardware, retry policy, seeds and cost ceilings in
   `benchmarks/retrieval_quality/protocols/2.3.8-context-engine.yaml`; include all
   inspected IDs in development and define per-arm formation/embedding/planner/
@@ -209,7 +209,7 @@ answer/action scoring.
 - [ ] [T045] Run AtMem, Mem0 OSS and AgentRunbook-R/C on the same frozen
   14-question LongMem development sample; produce a single matched table with
   accuracy, evidence metrics, latency, tokens, resource, storage and cost
-  (`research/production_benchmarks/run_longmem_pilot.py`) (SC-003).
+  (`research/production_benchmarks/run_longmem_pilot.py`) (SC-003, SC-016).
 - [ ] [T046] Run AtMem and matched Mem0 on the same frozen 18-task Dolphin
   development sample through Hermes; preserve all tasks and exact tool/grader
   evidence (`research/production_benchmarks/run_dolphin_development.py`) (SC-005).

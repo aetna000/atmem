@@ -103,9 +103,9 @@ similarly named legacy code exists.
 | Hermes/OpenClaw/Pydantic/LangChain adapters | Preserve setup, restore and host boundaries; translate only the shared V3 package after contract tests pass |
 | Existing typed evidence and benchmark work from Spec 038 | Reuse fixtures, schemas and measured evidence where identities/provenance match; reimplement behavior inside the clean engine rather than declaring task completion by resemblance |
 | `research/production_benchmarks/` LongMem/Dolphin runners | Extend into matched arms and frozen protocols; prior AtMem-only and hosted-Mem0 runs remain historical, unmatched evidence |
-| `research/reference_parity/` contracts/source pins | Reuse as the laboratory seed; T002–T005 remain open until neutral splits, normalizer, complete config cards and actual three-system baselines exist |
+| `research/reference_parity/` contracts/source pins | Reuse as the laboratory seed; T002, T003 and T005 are now evidenced. T004 remains open until AgentRunbook-C/V2, encrypted external raw outputs and repeated frozen-hardware measurements complete the baseline |
 | Dashboard, CLI and MCP surfaces | Preserve current behavior; V3 status is added only through the shared service and cannot imply activation or qualification |
 
-Only T001 is complete at specification freeze. T002–T053 require executable
-evidence against the new contracts; prior implementation reduces effort but is
-not silently relabelled as passing V3.
+At specification freeze only T001 was complete. Later checkmarks in `tasks.md`
+require executable evidence against the new contracts; prior implementation
+reduces effort but is not silently relabelled as passing V3.

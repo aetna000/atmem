@@ -17,6 +17,13 @@ over the strongest matched reference. Reports also show the absolute percentage
 point delta. Results from different samples, model families, or incomplete runs
 are not directly compared.
 
+The neutral twelve-case reader-free corpus and evaluator are frozen in
+`fixtures/minimal-evidence-v1.json`, `normalizer.py` and `runner.py`. The current
+partial pre-change comparison is recorded in
+`benchmarks/retrieval_quality/reports/context-engine-prechange-reader-free.md`.
+Its Mem0 and AgentRunbook-R arms deliberately omit model-assisted formation;
+they are implementation diagnostics, not published-score reproductions.
+
 `benchmarks/retrieval_quality/baselines/reference-results-20260930.json`
 separates matched development results from published leaderboard context. In
 particular, the published Mem0 score on the same eighteen Dolphin tasks uses a

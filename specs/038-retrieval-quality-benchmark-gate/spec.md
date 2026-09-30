@@ -2,7 +2,10 @@
 
 **Feature directory:** `specs/038-retrieval-quality-benchmark-gate`
 **Created:** 2026-09-27
-**Status:** Proposed
+**Status:** Historical gate/evidence source; engine architecture superseded by
+[Spec 040](../040-atmem-context-engine/spec.md). Requirements and success
+criteria are dispositioned in the
+[normative crosswalk](../040-atmem-context-engine/alignment.md).
 **Target:** AtMem 2.3.8 final retrieval-quality gate; prereleases may expose
 explicitly labelled, opt-in research profiles but may not claim qualification.
 

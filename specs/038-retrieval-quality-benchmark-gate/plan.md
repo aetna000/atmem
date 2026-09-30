@@ -1,5 +1,9 @@
 # Retrieval Quality and Benchmark Release Gate Plan
 
+> **Historical plan.** Spec 040 now controls the 2.3.8 context-engine
+> architecture and task order. Reuse this plan only as evidence or where the
+> Spec 040 crosswalk explicitly retains a gate.
+
 ## Technical context
 
 - **Runtime:** Python 3.10–3.13.
