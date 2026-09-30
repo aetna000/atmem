@@ -146,10 +146,10 @@ add benchmark-only retrieval, memory formation, answer hints, or recovery logic.
 - [ ] [T091] After T080–T085, rebuild and independently migrate a copy of each retained development checkpoint in place; require the authorized historical/current sets to agree except for explicitly queued ambiguity. Gate formation availability at annotated answer-bearing spans for at least 13/14 development questions, occurrence/lifecycle correctness, zero complete receipts with unprocessed positions and receipt completeness before retrieval tuning; retain controlled original/admission/identity/combined comparison artifacts and checksum-backed diagnosis under the external root (FR-027, FR-036, FR-055–FR-057, SC-017–SC-019).
 - [ ] [T092] After T086–T090, run evaluator-owned reader-free stage attribution for the frozen fourteen-question LongMemEval-V2 development set, including source representation, authorized availability, nomination, expansion and packed evidence coverage/precision. Reader use is excluded from this gate and annotations never enter product imports (FR-027–FR-035, SC-019–SC-020).
 - [ ] [T093] Implement the frozen per-configuration finalization-gate manifests and validators, including candidate/checkpoint/provider/model/processor/prompt/proxy/concurrency/budget binding, stale/bypass/length-with-content/reasoning-only/malformed/missing-usage/cleanup-failure tests and cumulative cost authorization independent of a changing protocol digest. Then run focused authority/exclusion, protected-media disaster reconstruction, migration/rollback/deletion, performance, product-API and installed-artifact regression suites; prove gold annotation noninterference and record an explicit SC-017–SC-020 acceptance matrix under the external root (FR-001–FR-061, SC-017–SC-021).
-- [ ] [T094] Only after T092 passes SC-019/SC-020 and T093 passes its acceptance matrix, obtain a post-implementation independent Claude review (or an equivalently capable independent reviewer if unavailable) of the diff, tests, migration, FR-061 validators and evidence; resolve every critical/high correctness or constitutional finding and record reviewer identity, artifact hashes, disposition and accepted lower-severity limitations (FR-001–FR-061, SC-017–SC-021).
+- [ ] [T094] Only after T092 passes SC-019/SC-020, T093 passes its acceptance matrix and T108 completes the reference differential, obtain a post-implementation independent Claude review (or an equivalently capable independent reviewer if unavailable) of the diff, tests, migration, FR-061–FR-063 validators and evidence; resolve every critical/high correctness or constitutional finding and record reviewer identity, artifact hashes, disposition and accepted lower-severity limitations (FR-001–FR-063, SC-017–SC-022).
 - [ ] [T095] Commit and push the exact reviewed candidate, then run the separately budgeted frozen twelve-call LongMemEval reader/judge finalization gate bound to that commit/checkpoint/provider/model/processor/prompt/proxy/configuration. Validate every scored response, cancel siblings immediately on failure, preserve durable cost/cleanup evidence and block T059 on stale or failed evidence (FR-061, SC-021).
-- [ ] [T096] After T095 passes, run the frozen three-percent LongMemEval-V2 development sample through the official inert adapter and report accuracy, stage failures, p50/p95 latency, tokens, resource use and reconciled cost without release or leaderboard claims (FR-028–FR-036, FR-061, SC-006, SC-021).
-- [ ] [T097] Independently preflight and authorize DolphinBench credentials/cost, run a frozen Hermes/model/grader finalization gate bound to the reviewed candidate and immutable persona checkpoints, then run the frozen 18/600 development sample only if that gate passes; report action score, persona/stage failures, p50/p95 latency, tokens, resource use and reconciled cost without release or leaderboard claims (FR-028–FR-036, FR-061, SC-004, SC-006, SC-021).
+- [ ] [T096] After T095 and SC-022 pass, run the frozen three-percent LongMemEval-V2 development sample through the official inert adapter and report accuracy, stage failures, p50/p95 latency, tokens, resource use and reconciled cost without release or leaderboard claims (FR-028–FR-036, FR-061–FR-063, SC-006, SC-021–SC-022).
+- [ ] [T097] After SC-022 passes, independently preflight and authorize DolphinBench credentials/cost, run a frozen Hermes/model/grader finalization gate bound to the reviewed candidate and immutable persona checkpoints, then run the frozen 18/600 development sample only if that gate passes; report action score, persona/stage failures, p50/p95 latency, tokens, resource use and reconciled cost without release or leaderboard claims (FR-028–FR-036, FR-061–FR-063, SC-004, SC-006, SC-021–SC-022).
 - [x] [T098] Resolve the 2026-09-30 Astra ultra adversarial review with
   regression coverage for all thirteen findings: trust-safe explicit
   supersession, exact polarity grounding, full-slot reconciliation,
@@ -160,6 +160,55 @@ add benchmark-only retrieval, memory formation, answer hints, or recovery logic.
   adapter/protocol suite passes 128 tests; repository-wide and independent
   rereview gates must still pass before commit.
 
+## Phase 14 — Reference parity and bounded source navigation
+
+- [ ] [T099] Pin source revisions, licenses and configuration manifests for
+  AgentRunbook-C/C V2, AgentRunbook-R and Mem0 under the external benchmark
+  root; add small evaluator-only adapters and a neutral result contract under
+  `research/reference_parity/` without importing reference code from `atmem/`
+  runtime modules (FR-028, FR-033, FR-063).
+- [ ] [T100] Implement the authority-checked `EvidenceNavigator` manifest,
+  search, inspect, follow and submit operations in `atmem/retrieve/navigator.py`
+  with one total-input/operation/time budget, exact inspection receipts and
+  final canonical revalidation (FR-001–FR-002, FR-019, FR-025, FR-060, FR-062).
+- [ ] [T101] Add governed `retrieval_hint` derivatives and lifecycle handling
+  in `atmem/retrieve/hints.py`; prove hints can change a search plan but cannot
+  satisfy sufficiency, enter direct-support context, cross scope or survive
+  revocation/expiry (FR-001–FR-004, FR-021–FR-023, FR-038, FR-062).
+- [ ] [T102] Add the three operating points `typed-fast`,
+  `typed-navigate-deterministic` and `typed-navigate-agentic`, with explicit
+  trigger reasons, limits, egress/model identity, fallback and per-stage
+  latency/token/cost receipts in the public product service (FR-027, FR-037,
+  FR-044, FR-053, FR-062).
+- [ ] [T103] Freeze a benchmark-neutral reference-capability corpus and tests
+  covering exact state, transition, ordered procedure, gotcha, invalid premise,
+  personal/organizational action rule, correction, conflict, duplicate
+  occurrence and private/shared-agent scope. Bind every expected result to
+  source ranges and action-constraint fields, not prose answers (FR-033,
+  FR-063, SC-001–SC-002, SC-022).
+- [ ] [T104] Capture one pinned set of raw model outputs for the reference
+  systems and AtMem, store heavy cassettes externally, and add deterministic
+  replay tests. Clearly label replay as orchestration regression evidence, not
+  a live quality score (FR-030, FR-036, FR-063).
+- [ ] [T105] Implement reader-free differential scoring for source
+  representation, minimal-evidence-set recall/precision, sufficiency
+  calibration, exact action constraints, context bytes/tokens, p50/p95 latency,
+  storage amplification and policy/scope errors. Report fast-only and
+  fast-plus-navigation separately (FR-027, FR-034, FR-063, SC-022).
+- [ ] [T106] Extend the frozen evaluator-owned Dolphin development annotations
+  with memory-dependent rule, applicability, required/prohibited action and
+  exact tool-argument obligations, without exposing them to runtime or adapter
+  imports (FR-032–FR-033, FR-046, FR-063, SC-022).
+- [ ] [T107] Run the no-model unit/cassette layers and reader-free LongMem and
+  Dolphin preflight. Stop unless SC-001/SC-002/SC-019/SC-020 and the
+  deterministic clauses of SC-022 pass; retain a signed failure-stage report
+  rather than starting a live differential or paid sample (FR-063, SC-022).
+- [ ] [T108] Run one small pinned model-backed differential development slice
+  across AtMem and the applicable public reference paths, using deterministic
+  evidence/action scoring and no answer judge by default. Only if this result is
+  promising proceed to the separate finalization probes and 3% runs in
+  T095–T097 (FR-030, FR-034, FR-063, SC-011, SC-022).
+
 T080 plus T012/T022 freeze annotations and protected evidence. T081–T085 repair
 formation/identity, then T091 must pass before T086–T090 retrieval work. T036
 and its shared eligibility predicate are prerequisites of T086–T090. T092 and
@@ -168,6 +217,11 @@ configuration-specific finalization gate in T095. T096 and T097 are independent
 scored development runs. A paid run
 must stop immediately if the finalization gate, provider pin, immutable split,
 cost reservation or official adapter validation fails.
+T099–T106 may be built alongside the repair work after their contracts freeze.
+T107 depends on T091–T093 and T099–T106. T108 depends on T107, completes SC-022
+and precedes the independent review in T094. It is the final quality sanity
+check before T095–T097 and does not replace configuration-specific serving
+finalization.
 Any code, prompt, processor or configuration change after T094 invalidates the
 review and T095 evidence and requires a delta review plus a new finalization
 gate before either scored sample.

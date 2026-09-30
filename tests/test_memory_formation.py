@@ -1,5 +1,12 @@
 from atmem import Memory
-from atmem.contracts import AuthorityScope, EpisodeIngestRequest, EpisodePart, RetrievalBudget
+from atmem.contracts import (
+    AuthorityScope,
+    ContextRequestV2,
+    EpisodeIngestRequest,
+    EpisodePart,
+    RecallRequest,
+    RetrievalBudget,
+)
 from atmem.core.canonical import sha256_hex
 from atmem.extract.formation import _fact_key, form_typed_proposals
 from atmem.extract.models import Polarity, ProposalAction, ProposalPrecondition
@@ -7,6 +14,8 @@ from atmem.extract.review import ReviewPolicy
 from dataclasses import replace
 import json
 from pathlib import Path
+
+import pytest
 
 
 SCOPE = AuthorityScope("formation-person", "formation-agent", "formation-workspace")
@@ -26,7 +35,7 @@ def test_structured_state_with_empty_key_uses_non_empty_fallback_relation():
 
 
 def test_structured_slice_cannot_forge_identity_or_polarity(tmp_path):
-    body = json.dumps({"title": "Settings", "tree": "visible setting " * 200})
+    body = json.dumps({"title": "Settings", "tree": "visible setting " * 600})
     memory = Memory(
         tmp_path / "structured-grounding.db", auto_vectors=False,
         allow_insecure_typed_development=True,
@@ -235,7 +244,7 @@ def test_episode_formation_is_idempotent(tmp_path):
 
 
 def test_long_structured_state_is_losslessly_sliced_with_unique_fact_keys(tmp_path):
-    body = '{"accessibility_tree":"' + ("visible button text " * 180) + '"}'
+    body = '{"accessibility_tree":"' + ("visible button text " * 500) + '"}'
     memory = Memory(
         tmp_path / "formation.db", auto_vectors=False,
         allow_insecure_typed_development=True,
@@ -253,7 +262,188 @@ def test_long_structured_state_is_losslessly_sliced_with_unique_fact_keys(tmp_pa
         ]
         assert len(rows) == units
         assert len({row["fact_key"] for row in rows}) == units
-        assert all(0 < len(row["content"]) <= 2_000 for row in rows)
+        assert all(
+            0 < len(row["raw"]["typed_unit"]["payload"]["value"]) <= 8_000
+            for row in rows
+        )
+    finally:
+        memory.close()
+
+
+def test_long_browser_state_preserves_navigation_fields_and_large_tree(tmp_path):
+    body = json.dumps({
+        "state_index": 17,
+        "step": 17,
+        "url": "https://admin.example.test/customer/10",
+        "action": "click('notify')",
+        "thought": "The customer toolbar is visible; send the notification next.",
+        "accessibility_tree": "button label and state " * 900,
+    }, sort_keys=True, separators=(",", ":"))
+    memory = Memory(
+        tmp_path / "browser-state.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        result = memory.form_episode(episode(
+            "browser-state", [body], part_kind="state", host_asserted=True
+        ))
+        assert result["receipt"]["rejected"] == 0
+        assert result["receipt"]["representation_complete"] is True
+        records = [
+            memory.store.get_record(SCOPE.subject_id, record_id)
+            for outcome in result["outcomes"]
+            for record_id in outcome["record_ids"]
+        ]
+        payloads = [record["raw"]["typed_unit"]["payload"] for record in records]
+        summary = next(value for value in payloads if value["relation"] == "state summary")
+        assert "https://admin.example.test/customer/10" in summary["value"]
+        assert "click('notify')" in summary["value"]
+        assert "send the notification next" in summary["value"]
+        tree_parts = [
+            value["value"] for value in payloads
+            if value["relation"] == "accessibility_tree"
+        ]
+        assert len(tree_parts) >= 2
+        assert all(0 < len(value) <= 8_000 for value in tree_parts)
+    finally:
+        memory.close()
+
+
+def test_long_browser_state_builds_compact_control_state_index(tmp_path):
+    body = json.dumps({
+        "state_index": 1,
+        "url": "https://admin.example.test/hardware/new",
+        "accessibility_tree": (
+            "RootWebArea 'New Hardware'\n"
+            "searchbox 'Managed by', clickable, visible\n"
+            "combobox 'Priority' value='5 - Planning', clickable\n"
+            "option '4 - Low', selected=False\n"
+            "option '5 - Planning', selected=True\n"
+            + "generic 'padding'\n" * 900
+        ),
+    }, sort_keys=True, separators=(",", ":"))
+    memory = Memory(
+        tmp_path / "control-index.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        result = memory.form_episode(episode(
+            "control-index", [body], part_kind="state", host_asserted=True
+        ))
+        records = [
+            memory.store.get_record(SCOPE.subject_id, record_id)
+            for outcome in result["outcomes"]
+            for record_id in outcome["record_ids"]
+        ]
+        indexes = [
+            record["raw"]["typed_unit"]["payload"]["value"]
+            for record in records
+            if record["raw"]["typed_unit"]["payload"]["relation"]
+            == "ui control state index"
+        ]
+        assert len(indexes) == 1
+        assert "searchbox 'Managed by' value='<blank>'" in indexes[0]
+        assert "combobox 'Priority' value='5 - Planning'" in indexes[0]
+        assert "option '4 - Low' selected='False'" not in indexes[0]
+        assert "option '5 - Planning' selected='True'" in indexes[0]
+    finally:
+        memory.close()
+
+
+def test_large_control_state_index_admits_every_grounded_chunk(tmp_path):
+    controls = "\n".join(
+        f"checkbox 'Field {index:04d}' checked='false'" for index in range(600)
+    )
+    body = json.dumps({
+        "state_index": 9,
+        "url": "https://admin.example.test/large-form",
+        "accessibility_tree": controls + "\n" + "generic 'padding'\n" * 600,
+    }, sort_keys=True, separators=(",", ":"))
+    memory = Memory(
+        tmp_path / "large-control-index.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        result = memory.form_episode(episode(
+            "large-control-index", [body], part_kind="state", host_asserted=True
+        ))
+        assert result["receipt"]["rejected"] == 0
+        records = [
+            memory.store.get_record(SCOPE.subject_id, record_id)
+            for outcome in result["outcomes"]
+            for record_id in outcome["record_ids"]
+        ]
+        indexes = [
+            record["raw"]["typed_unit"]["payload"]["value"]
+            for record in records
+            if record["raw"]["typed_unit"]["payload"]["relation"]
+            == "ui control state index"
+        ]
+        assert len(indexes) > 1
+        assert "checkbox 'Field 0000' checked='false'" in "".join(indexes)
+        assert "checkbox 'Field 0599' checked='false'" in "".join(indexes)
+    finally:
+        memory.close()
+
+
+def test_large_browser_state_builds_ordered_ui_surface_index(tmp_path):
+    body = json.dumps({
+        "state_index": 3,
+        "url": "https://shop.example.test/catalog",
+        "accessibility_tree": (
+            "RootWebArea 'Developer laptops'\n"
+            "link 'Windows Developer Laptop'\n"
+            "button 'Sort by'\n"
+            "option 'Newest' selected='False'\n"
+            "option 'Most Commented' selected='True'\n"
+            + "generic 'padding'\n" * 900
+        ),
+    }, sort_keys=True, separators=(",", ":"))
+    memory = Memory(
+        tmp_path / "surface-index.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        result = memory.form_episode(episode(
+            "surface-index", [body], part_kind="state", host_asserted=True
+        ))
+        assert result["receipt"]["rejected"] == 0
+        records = [
+            memory.store.get_record(SCOPE.subject_id, record_id)
+            for outcome in result["outcomes"]
+            for record_id in outcome["record_ids"]
+        ]
+        indexes = [
+            record["raw"]["typed_unit"]["payload"]["value"]
+            for record in records
+            if record["raw"]["typed_unit"]["payload"]["relation"]
+            == "ui surface index"
+        ]
+        assert len(indexes) == 1
+        assert indexes[0].splitlines() == [
+            "rootwebarea 'Developer laptops'",
+            "link 'Windows Developer Laptop'",
+            "button 'Sort by'",
+            "option 'Newest'",
+            "option 'Most Commented'",
+        ]
+        candidates = memory.eligible_candidates(RecallRequest(
+            request_id="surface-recall",
+            scope=SCOPE,
+            query="What option is immediately after Newest in the Sort by menu?",
+            limit=8,
+            candidate_limit=40,
+            signals=("lexical", "graph"),
+        ))
+        package = memory.prepare_context_v2(ContextRequestV2(
+            context_id="surface-context",
+            candidate_set_id=candidates.candidate_set_id,
+            scope=SCOPE,
+            query="What option is immediately after Newest in the Sort by menu?",
+            budget=RetrievalBudget(context_bytes=16_384),
+        ))
+        assert "option &#x27;Newest&#x27;" in package.context
+        assert "option &#x27;Most Commented&#x27;" in package.context
     finally:
         memory.close()
 
@@ -645,6 +835,43 @@ def test_independent_structured_observations_do_not_supersede_by_fact_key(tmp_pa
         assert memory.store.get_record(SCOPE.subject_id, second_id)["status"] == "active"
     finally:
         memory.close()
+
+
+def test_host_can_explicitly_admit_sensitive_observation_only_when_encrypted(tmp_path):
+    from dataclasses import replace
+
+    from atmem.core.keys import sqlcipher_runtime_status
+    from atmem.service.household import HouseholdApplication
+
+    request = replace(
+        episode(
+            "sensitive-state",
+            ['{"state_index":1,"label":"Medical diagnosis"}'],
+            part_kind="state",
+            host_asserted=True,
+        ),
+        sensitive_observation_handling="admit_encrypted",
+    )
+    path = tmp_path / "encrypted.db"
+    if sqlcipher_runtime_status()["available"]:
+        HouseholdApplication.initialize(path, encrypted=True, backend="file")
+        memory = Memory(path, auto_vectors=False)
+        try:
+            result = memory.form_episode(request)
+            assert result["receipt"]["retrieval_ready"] is True
+            assert result["receipt"]["withheld"] == 0
+        finally:
+            memory.close()
+
+    insecure = Memory(
+        tmp_path / "plain.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        with pytest.raises(ValueError, match="only into encrypted storage"):
+            insecure.form_episode(request)
+    finally:
+        insecure.close()
 
 
 def test_formation_budget_withholds_work_but_retains_source_and_receipt(tmp_path):

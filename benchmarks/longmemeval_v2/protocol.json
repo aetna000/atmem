@@ -1,0 +1,51 @@
+{
+  "format": "atmem-longmemeval-v2-protocol-v1",
+  "qualification": "development",
+  "upstream": {
+    "repository": "https://github.com/xiaowu0162/LongMemEval-V2",
+    "commit": "2cc8c540bdb87fe6761629b585e727e1c4704520",
+    "dataset_revision": "f152293e235517d504809563c833d7190b8c713b",
+    "tier": "small",
+    "trajectory_input": "text-only",
+    "scorer_modifications": false
+  },
+  "atmem": {
+    "source_commit": "11bdb8aab1ba346d12601462ded0dbdd45e31f8c",
+    "adapter_format": "atmem-longmemeval-v2-adapter-v1",
+    "retrieval_strategy": "core-rrf-v1",
+    "signals": [
+      "lexical",
+      "semantic",
+      "graph",
+      "trust",
+      "recency"
+    ],
+    "top_k": 4,
+    "maximum_record_characters": 1800,
+    "maximum_salient_tree_lines": 32
+  },
+  "models": {
+    "reader": {
+      "provider": "ollama",
+      "model": "qwen3:4b",
+      "digest": "sha256:359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+      "maximum_completion_tokens": 512,
+      "context_length": 4096
+    },
+    "embedding": {
+      "provider": "ollama",
+      "model": "mxbai-embed-large:latest",
+      "digest": "sha256:468836162de7f81e041c43663fedbbba921dcea9b9fefea135685a39b2d83dd8"
+    },
+    "judge": null
+  },
+  "execution": {
+    "paid_api_calls": 0,
+    "python": "3.11.16",
+    "ollama": "0.32.0",
+    "operating_system": "macOS 26.5.2 arm64",
+    "reader_max_concurrent_requests": 2,
+    "prompt_build_max_workers": 1
+  },
+  "claim_boundary": "Ten-question deterministic-scorer development slice; not an official LongMemEval-V2 leaderboard submission."
+}

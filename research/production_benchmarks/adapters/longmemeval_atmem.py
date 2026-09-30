@@ -43,6 +43,39 @@ def _digest_file(path: Path) -> str:
     return "sha256:" + digest.hexdigest()
 
 
+def _ordered_action_batches(
+    trajectory_id: str, actions: list[object], *, maximum_bytes: int = 7_000
+) -> tuple[str, ...]:
+    """Serialize every source action into bounded, ordered JSON batches."""
+    batches: list[str] = []
+    current: list[object] = []
+    offset = 0
+    for action in actions:
+        candidate = [*current, action]
+        encoded = _canonical({
+            "id": trajectory_id,
+            "action_offset": offset,
+            "actions": candidate,
+        })
+        if current and len(encoded.encode("utf-8")) > maximum_bytes:
+            batches.append(_canonical({
+                "id": trajectory_id,
+                "action_offset": offset,
+                "actions": current,
+            }))
+            offset += len(current)
+            current = [action]
+        else:
+            current = candidate
+    if current:
+        batches.append(_canonical({
+            "id": trajectory_id,
+            "action_offset": offset,
+            "actions": current,
+        }))
+    return tuple(batches)
+
+
 @register_memory
 class AtMemMemory(Memory):
     memory_type = "atmem"
@@ -76,6 +109,9 @@ class AtMemMemory(Memory):
             allow_insecure_typed_development=not require_encrypted,
         )
         self._allow_insecure_typed_development = not require_encrypted
+        self._sensitive_observation_handling = (
+            "admit_encrypted" if require_encrypted else "review"
+        )
         self._media_cache = Path(tempfile.mkdtemp(prefix="atmem-lme-media-"))
         atexit.register(shutil.rmtree, self._media_cache, True)
 
@@ -90,19 +126,46 @@ class AtMemMemory(Memory):
         # The official public trajectory schema is explicitly allowlisted.
         # Evaluation annotations or future harness-only fields cannot enter
         # AtMem merely because upstream added them to the same object.
-        metadata = _canonical({
+        metadata_payload = {
             key: trajectory[key]
             for key in (
                 "id", "domain", "environment", "goal", "outcome", "start_url",
                 "actions",
             )
             if key in trajectory
-        })
+        }
+        actions = metadata_payload.pop("actions", None)
+        if actions is None:
+            # Preserve the source trajectory's ordered action sequence in its
+            # own bounded metadata unit.  This is derived exclusively from the
+            # inserted episode—not questions, answers, or benchmark labels—and
+            # gives procedure retrieval the same immutable navigation surface
+            # that raw-state slice baselines expose.
+            actions = [
+                state["action"]
+                for state in states
+                if isinstance(state, dict)
+                and state.get("action") not in (None, "")
+            ]
+        metadata = _canonical(metadata_payload)
         parts.append(EpisodePart(
             part_id="trajectory-metadata", ordinal=0, kind="state",
             source_type="tool_output", content=metadata,
             content_sha256=_digest_text(metadata),
         ))
+        if not isinstance(actions, list):
+            raise ValueError("trajectory.actions must be a list when present")
+        for batch_index, action_batch in enumerate(
+            _ordered_action_batches(trajectory_id, actions)
+        ):
+            parts.append(EpisodePart(
+                part_id=f"trajectory-actions-{batch_index}",
+                ordinal=len(parts),
+                kind="state",
+                source_type="tool_output",
+                content=action_batch,
+                content_sha256=_digest_text(action_batch),
+            ))
         for state_index, state in enumerate(states):
             if not isinstance(state, dict):
                 raise ValueError(f"trajectory state {state_index} must be an object")
@@ -143,6 +206,12 @@ class AtMemMemory(Memory):
             binding_assurance="host_asserted",
             session_id=f"trajectory:{trajectory_id}",
             retain_body=True,
+            # LongMemEval is a synthetic, pinned corpus and this run is an
+            # explicit evaluation opt-in.  Preserve synthetic UI observations
+            # in the encrypted household instead of creating an unattended
+            # human-review queue for words such as "salary" or "diagnosis".
+            # Normal product ingestion retains the conservative review default.
+            sensitive_observation_handling=self._sensitive_observation_handling,
         )
         source_bytes = sum(
             len((part.content or "").encode("utf-8")) for part in parts
@@ -156,9 +225,26 @@ class AtMemMemory(Memory):
             wall_time_ms=60_000,
         )
         formed = self._memory.form_episode(request, budget=budget)
-        for _ in range(31):
-            if not formed["receipt"].get("next_positions"):
+        previous_pending: tuple[tuple[str, str], ...] | None = None
+        for _ in range(1023):
+            pending = tuple(
+                (
+                    str(position.get("part_id") or ""),
+                    str(position.get("proposal_id") or ""),
+                )
+                for position in formed["receipt"].get("next_positions") or ()
+            )
+            if not pending:
                 break
+            # Large enterprise accessibility trees can legitimately require
+            # more than 32 bounded proposal batches.  Continue while the
+            # durable cursor advances, but fail immediately on a true stall.
+            if pending == previous_pending:
+                raise RuntimeError(
+                    f"AtMem formation stalled for trajectory {trajectory_id}; "
+                    f"pending={len(pending)}"
+                )
+            previous_pending = pending
             formed = self._memory.form_episode(request, budget=budget)
         receipt = formed["receipt"]
         if (
@@ -167,8 +253,10 @@ class AtMemMemory(Memory):
             or not receipt.get("retrieval_ready")
         ):
             raise RuntimeError(
-                "AtMem did not completely represent the trajectory; refusing an "
-                "unusable LongMemEval checkpoint"
+                f"AtMem did not completely represent trajectory {trajectory_id}; "
+                "refusing an unusable LongMemEval checkpoint; "
+                f"reasons={receipt.get('reason_codes')}; "
+                f"pending={len(receipt.get('next_positions') or ())}"
             )
 
     def query(self, query: str, query_image: str | None = None) -> list[dict[str, str]]:
@@ -205,7 +293,11 @@ class AtMemMemory(Memory):
             scope=self.scope,
             query=query,
             budget=RetrievalBudget(
-                context_bytes=int(self.memory_params.get("context_bytes", 120_000)),
+                # Keep the reader-facing evidence package bounded.  The source
+                # archive remains lossless in AtMem; retrieval should expose a
+                # small, complementary package rather than make the reader
+                # rediscover evidence inside a near-context-window dump.
+                context_bytes=int(self.memory_params.get("context_bytes", 32_768)),
                 total_input_bytes=memory_input_bytes,
             ),
         ))
@@ -261,14 +353,25 @@ class AtMemMemory(Memory):
         requested_database = str(requested_params.pop("database_path", "")).strip()
         if not saved_database or not requested_database:
             raise RuntimeError("loaded AtMem memory requires a database path")
-        if saved_params != requested_params:
+        # The official runner reconstructs only the run-local identity fields;
+        # retrieval limits are persisted by the checkpoint.  Preserve every
+        # saved parameter, while still rejecting any explicit runtime override
+        # that differs from the checkpoint.  This keeps restoration immutable
+        # without requiring the runner to duplicate adapter-specific defaults.
+        conflicting = {
+            name
+            for name, value in requested_params.items()
+            if name not in saved_params or saved_params[name] != value
+        }
+        if conflicting:
             raise RuntimeError(
-                "loaded AtMem memory parameters differ beyond the run-local database path"
+                "loaded AtMem memory parameters differ beyond the run-local database path: "
+                + ", ".join(sorted(conflicting))
             )
         return {
             "memory_type": cls.memory_type,
             "memory_params": {
-                **requested_params,
+                **saved_params,
                 "database_path": requested_database,
             },
         }

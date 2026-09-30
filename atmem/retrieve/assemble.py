@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import html
+import json
+import re
 
 from atmem.contracts import (
     ActionConstraint,
@@ -18,6 +20,9 @@ from atmem.retrieve.sufficiency import (
     decide_sufficiency,
     matching_obligation_indexes,
 )
+
+
+_MAX_CONTEXT_UNITS = 12
 
 
 def assemble_context_v2(
@@ -35,8 +40,10 @@ def assemble_context_v2(
     full_sufficiency = decide_sufficiency(need, typed_rows)
     sufficiency = decide_sufficiency(need, chosen)
     chosen_ids = {str(row["record_id"]) for row in chosen}
-    conflict_evidence = set(full_sufficiency.evidence_ids) | set(
-        full_sufficiency.contradiction_ids
+    # Preserve the actual conflicting pair. Requiring every same-valued
+    # supporting duplicate made large histories collapse to empty context.
+    conflict_evidence = _conflict_evidence_ids(
+        typed_rows, set(full_sufficiency.contradiction_ids)
     )
     if (
         full_sufficiency.status == "contradictory"
@@ -186,12 +193,22 @@ def _complementary_rows(
     covered: set[str] = set()
     covered_obligations: set[int] = set()
     used_sources: set[str] = set()
+    evidence_group_counts: dict[tuple[str, str, str], int] = {}
     approximate_bytes = 256
-    mandatory_conflicts = set(full_decision.contradiction_ids)
+    mandatory_conflicts = _conflict_evidence_ids(
+        rows, set(full_decision.contradiction_ids)
+    )
     while remaining:
+        if len(chosen) >= _MAX_CONTEXT_UNITS:
+            break
         ranked = []
         for index, row in enumerate(remaining):
             unit = row["unit"]
+            evidence_group = _evidence_group(unit)
+            group_count = evidence_group_counts.get(evidence_group, 0)
+            group_limit = _evidence_group_limit(unit)
+            if group_count >= group_limit and str(row["record_id"]) not in mandatory_conflicts:
+                continue
             slots = covered_slots(str(unit.get("kind") or ""), unit.get("payload") or {}, unit)
             new_slots = len((slots & set(need.required_slots)) - covered)
             obligations = matching_obligation_indexes(
@@ -202,16 +219,40 @@ def _complementary_rows(
                 str(item.get("source_id")) for item in unit.get("evidence") or ()
             }
             diversity = len(sources - used_sources)
-            size = max(1, len(str(unit).encode("utf-8")))
+            group_diversity = int(group_count == 0)
+            # Budget what the reader will actually receive.  Canonical typed
+            # units retain exact source-linked state, while large browser
+            # accessibility trees have a compact ordered-label projection at
+            # serialization time.  Charging the full stored JSON here made a
+            # 16 KiB context reject useful lower-ranked evidence even when its
+            # reader projection was only a few hundred bytes.
+            size = _estimated_unit_bytes(unit)
             priority = -int(row.get("rank") or (index + 1))
             answer_priority = int(str(row["record_id"]) in answer_bearing)
-            ranked.append((
-                new_obligations, answer_priority, new_slots, priority, diversity,
-                -size, -index, row, slots, sources, obligations,
-            ))
-        best = max(ranked, key=lambda value: value[:7])
+            # The candidate rank is the relevance contract produced by the
+            # bounded hybrid retriever.  Slot-shaped evidence from an
+            # unrelated state must not displace a stronger seed merely because
+            # it happens to expose more generic fields.  Once relevance is
+            # fixed, prefer complementary obligations/slots and diversity.
+            if chosen:
+                selection_key = (
+                    new_obligations, answer_priority, new_slots,
+                    group_diversity, priority, diversity, -size, -index,
+                )
+            else:
+                # A deterministic router is necessarily imperfect on novel UI
+                # language.  Preserve the retriever's strongest seed before
+                # using inferred obligations to diversify the remainder.
+                selection_key = (
+                    priority, answer_priority, new_obligations, new_slots,
+                    group_diversity, diversity, -size, -index,
+                )
+            ranked.append((*selection_key, row, slots, sources, obligations))
+        if not ranked:
+            break
+        best = max(ranked, key=lambda value: value[:8])
         (
-            _new_obligation, _answer, _new, _priority, _diversity,
+            _first, _second, _third, _fourth, _fifth, _sixth,
             negative_size, _index, row, slots, sources, obligations,
         ) = best
         size = -negative_size + 96
@@ -223,6 +264,8 @@ def _complementary_rows(
         covered.update(slots & set(need.required_slots))
         covered_obligations.update(obligations)
         used_sources.update(sources)
+        group = _evidence_group(row["unit"])
+        evidence_group_counts[group] = evidence_group_counts.get(group, 0) + 1
         chosen_ids = {str(value["record_id"]) for value in chosen}
         if (
             decide_sufficiency(need, chosen).status == "sufficient"
@@ -230,6 +273,74 @@ def _complementary_rows(
         ):
             break
     return chosen
+
+
+def _conflict_evidence_ids(rows: list[dict], contradiction_ids: set[str]) -> set[str]:
+    """Return each conflicting record and the earliest opposing value."""
+    if not contradiction_ids:
+        return set()
+    result = set(contradiction_ids)
+    by_id = {str(row["record_id"]): row for row in rows}
+    for record_id in contradiction_ids:
+        conflicting = by_id.get(record_id)
+        if conflicting is None:
+            continue
+        unit = conflicting["unit"]
+        payload = unit.get("payload") or {}
+        identity = (
+            str(unit.get("kind") or ""),
+            str(payload.get("subject") or payload.get("entity") or "").casefold(),
+            str(payload.get("relation") or "").casefold(),
+        )
+        value = json.dumps(
+            {"value": payload.get("value", payload.get("after")),
+             "polarity": payload.get("polarity")},
+            sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        )
+        for candidate in rows:
+            candidate_unit = candidate["unit"]
+            candidate_payload = candidate_unit.get("payload") or {}
+            candidate_identity = (
+                str(candidate_unit.get("kind") or ""),
+                str(candidate_payload.get("subject") or candidate_payload.get("entity") or "").casefold(),
+                str(candidate_payload.get("relation") or "").casefold(),
+            )
+            candidate_value = json.dumps(
+                {"value": candidate_payload.get("value", candidate_payload.get("after")),
+                 "polarity": candidate_payload.get("polarity")},
+                sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+            )
+            if candidate_identity == identity and candidate_value != value:
+                result.add(str(candidate["record_id"]))
+                break
+    return result
+
+
+def _evidence_group(unit: dict) -> tuple[str, str, str]:
+    """Group equivalent reader surfaces while retaining distinct state kinds.
+
+    Browser trajectories often contain many chunks or revisits of the same URL.
+    Packing every one crowds out the second fact needed by comparison and
+    invalid-premise questions.  The immutable records remain available; this
+    key only diversifies one bounded context package.
+    """
+    payload = unit.get("payload") or {}
+    subject = str(payload.get("subject") or payload.get("entity") or "").strip().casefold()
+    relation = str(payload.get("relation") or "").strip().casefold()
+    relation_family = relation.split(":", 1)[0]
+    return str(unit.get("kind") or ""), subject, relation_family
+
+
+def _evidence_group_limit(unit: dict) -> int:
+    payload = unit.get("payload") or {}
+    relation = str(payload.get("relation") or "").strip().casefold()
+    if relation in {"accessibility_tree", "tree"}:
+        return 2
+    if relation.startswith("state summary"):
+        return 3
+    if relation == "ui surface index":
+        return 4
+    return 2
 
 
 def _unsupported_decision(
@@ -275,12 +386,17 @@ def _serialize(need, sufficiency, rows, constraints, budget: int) -> tuple[str, 
     if sufficiency.missing_slots:
         parts.append(f"Missing evidence: {', '.join(sufficiency.missing_slots)}\n")
     parts.append("</need>\n")
+    guidance = _evidence_guidance(need)
+    if guidance:
+        parts.append("<evidence-policy>\n")
+        parts.extend(f"- {html.escape(item)}\n" for item in guidance)
+        parts.append("</evidence-policy>\n")
     closing = "</atmem-context>\n"
     for row in rows:
         unit = row["unit"]
         block = (
             f'<memory id="{html.escape(str(row["record_id"]))}" kind="{html.escape(str(unit.get("kind") or ""))}">\n'
-            f"{html.escape(_unit_text(unit))}\n"
+            f"{html.escape(_unit_text(unit, focus_terms=need.evidence_terms))}\n"
             f"Sources: {', '.join(html.escape(str(item['source_id'])) for item in unit.get('evidence') or ())}\n"
             "</memory>\n"
         )
@@ -300,6 +416,36 @@ def _serialize(need, sufficiency, rows, constraints, budget: int) -> tuple[str, 
             packed_constraints.append(constraint)
     parts.append(closing)
     return "".join(parts), tuple(packed_ids), tuple(packed_constraints)
+
+
+def _evidence_guidance(need: InformationNeed) -> tuple[str, ...]:
+    """State reusable evidence semantics without supplying an answer.
+
+    Similarity-ranked UI evidence is easy for a reader to over-interpret.  A
+    visible field is not proof that it changed, an early preview is not the
+    final recovery step, and a question's premise is not source evidence.  The
+    directives below make those distinctions explicit while remaining fully
+    query- and corpus-independent.
+    """
+    common = (
+        "Use only observed evidence; do not substitute common product practice.",
+    )
+    if need.type == "state_change":
+        return common + (
+            "A visible field or possible value is not a transition.",
+            "Report a change only when an action or before/after evidence records it; otherwise report that no change is evidenced.",
+        )
+    if need.type == "exception_risk":
+        return common + (
+            "Prefer a later observed recovery or outcome over an earlier preview or screenshot hypothesis.",
+            "A visible control is not proof that invoking it was the missing action.",
+        )
+    if need.type == "assumption_check":
+        return common + (
+            "Treat the entities asserted by the question as a premise to verify, not as facts.",
+            "A complete relevant result surface can disprove the premise; a partial surface can only leave it unsupported.",
+        )
+    return common
 
 
 def _unsupported_package(
@@ -337,11 +483,19 @@ def _unsupported_package(
     )
 
 
-def _unit_text(unit: dict) -> str:
+def _unit_text(unit: dict, *, focus_terms: tuple[str, ...] = ()) -> str:
     payload = unit.get("payload") or {}
     kind = unit.get("kind")
     if kind in {"atomic_fact", "environment_state"}:
-        return f"{payload.get('subject') or payload.get('entity')} {payload.get('relation')}: {payload.get('value')} ({payload.get('polarity')})"
+        value = str(payload.get("value") or "")
+        if kind == "environment_state":
+            value = _reader_state_projection(
+                value,
+                structured_hint=str(payload.get("relation") or "")
+                == "accessibility_tree",
+                focus_terms=focus_terms,
+            )
+        return f"{payload.get('subject') or payload.get('entity')} {payload.get('relation')}: {value} ({payload.get('polarity')})"
     if kind == "state_transition":
         return f"{payload.get('entity')} {payload.get('before')} --{payload.get('action')}--> {payload.get('after')}"
     if kind == "procedure":
@@ -363,6 +517,180 @@ def _unit_text(unit: dict) -> str:
     if kind == "failure_gotcha":
         return f"When {payload.get('trigger')}; failure={payload.get('failure')}; required={payload.get('required_action')}; prohibited={payload.get('prohibited_action')}"
     return f"Premise ({payload.get('polarity')}): {payload.get('proposition')}; applies={payload.get('applies_when')}; excluded={payload.get('excluded_when')}"
+
+
+def _estimated_unit_bytes(unit: dict) -> int:
+    """Cheap bounded packing estimate; exact projection happens after selection."""
+    payload = unit.get("payload") or {}
+    raw = payload.get("value")
+    if raw is None:
+        raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+    # Large UI trees compact sharply. Charging a bounded estimate prevents
+    # regex-projecting every nominee during combinatorial selection while the
+    # exact serializer still enforces the hard byte budget.
+    return min(4_096, max(128, len(str(raw).encode("utf-8"))))
+
+
+def _reader_state_projection(
+    value: str, *, structured_hint: bool = False,
+    focus_terms: tuple[str, ...] = (),
+) -> str:
+    """Compact browser trees without changing their canonical source record.
+
+    Accessibility snapshots spend most of their bytes on node identifiers,
+    indentation, roles and interaction flags.  The reader primarily needs the
+    ordered visible labels.  Keeping their order preserves adjacency and
+    procedure evidence, while immutable source/evidence offsets remain
+    available for audit and reconstruction.
+    """
+    structured = None
+    try:
+        structured = json.loads(value)
+    except (TypeError, json.JSONDecodeError):
+        pass
+    prefixes: list[str] = []
+    if isinstance(structured, dict):
+        goal = structured.get("goal")
+        if goal is not None and str(goal).strip():
+            prefixes.append(f"Goal: {' '.join(str(goal).split())}")
+        actions = structured.get("actions")
+        if isinstance(actions, list) and actions:
+            prefixes.append(
+                "Ordered actions: "
+                + "; ".join(
+                    f"{index}. {' '.join(str(action).split())}"
+                    for index, action in enumerate(actions, start=1)
+                    if str(action).strip()
+                )
+            )
+        outcome = structured.get("outcome")
+        if outcome is not None and str(outcome).strip():
+            prefixes.append(f"Outcome: {' '.join(str(outcome).split())}")
+        start_url = structured.get("start_url")
+        if start_url is not None and str(start_url).strip():
+            prefixes.append(f"Start URL: {' '.join(str(start_url).split())}")
+        for key, label in (
+            ("state_index", "State index"),
+            ("step", "Step"),
+            ("url", "URL"),
+            ("action", "Action"),
+            ("thought", "Thought"),
+            ("thoughts", "Thoughts"),
+        ):
+            field = structured.get(key)
+            if field is not None and str(field).strip():
+                prefixes.append(f"{label}: {' '.join(str(field).split())}")
+        tree = structured.get("accessibility_tree")
+        decoded = str(tree if tree is not None else value)
+    else:
+        decoded = value
+    decoded = (
+        decoded.replace("\\\\n", "\n")
+        .replace("\\\\t", "\t")
+        .replace("\\n", "\n")
+        .replace("\\t", "\t")
+        .replace('\\\\"', '"')
+    )
+    controls: list[str] = []
+    control_pattern = re.compile(
+        r"\b(button|link|textbox|searchbox|combobox|listbox|checkbox|radio|"
+        r"menuitem|tab|spinbutton|slider|option)\s+'([^'\n]{0,512})'([^\n]*)",
+        re.I,
+    )
+    attribute_pattern = re.compile(
+        r"\b(value|checked|selected|disabled|expanded|pressed)="
+        r"(?:'([^']*)'|\"([^\"]*)\"|([^,\s]+))",
+        re.I,
+    )
+    for role, raw_label, tail in control_pattern.findall(decoded):
+        label = " ".join(raw_label.split())
+        label = re.sub(r"^(?:\\\\u[0-9a-fA-F]{4}|[\ue000-\uf8ff])\s*", "", label)
+        attributes: list[str] = []
+        for name, single, double, bare in attribute_pattern.findall(tail):
+            value = single if single != "" else double if double != "" else bare
+            # An explicitly empty value is answer-bearing (for example a blank
+            # default field), so distinguish it from a missing attribute.
+            if name.casefold() == "value" and value == "":
+                value = "<blank>"
+            attributes.append(f"{name.casefold()}={value}")
+        if (
+            not attributes
+            and label
+            and role.casefold() in {"textbox", "searchbox"}
+        ):
+            # Accessibility snapshots omit ``value`` for an empty text input.
+            # Preserve that explicit UI state instead of reducing the field to
+            # a label, which makes blank defaults impossible to answer.
+            attributes.append("value=<blank>")
+        # Ordered labels below already preserve buttons and links.  Repeat a
+        # control here only when it carries state that label-only projection
+        # would lose (selected value, blank value, checked/disabled, etc.).
+        if not attributes:
+            continue
+        rendered = f"{role.casefold()} '{label}'"
+        if attributes:
+            rendered += " [" + ", ".join(attributes) + "]"
+        if controls and controls[-1].casefold() == rendered.casefold():
+            continue
+        controls.append(rendered)
+    if controls:
+        focused_controls = _focused_neighbourhood(
+            controls, focus_terms, radius=1, fallback=24, maximum=64
+        )
+        prefixes.append("UI controls with state: " + " | ".join(focused_controls))
+    # Anchor quotes to accessibility roles.  A generic quote matcher pairs the
+    # closing quote of an empty label with the opening quote on the next role,
+    # accidentally retaining the verbose syntax we are removing.
+    labels: list[str] = []
+    for match in re.findall(
+        r"\b(?:RootWebArea|[A-Za-z][A-Za-z0-9_-]*)\s+'([^'\n]{0,512})'",
+        decoded,
+    ):
+        label = " ".join(match.split())
+        # Browser trees commonly expose an icon glyph, its accessible label,
+        # and the same StaticText label as three adjacent nodes.  Remove the
+        # private-use glyph prefix and collapse only adjacent duplicates.  We
+        # deliberately retain non-adjacent repetition because counts and
+        # repeated states can be answer-bearing.
+        label = re.sub(r"^(?:\\\\u[0-9a-fA-F]{4}|[\ue000-\uf8ff])\s*", "", label)
+        if not label:
+            continue
+        if labels and labels[-1].casefold() == label.casefold():
+            continue
+        labels.append(label)
+    if labels:
+        focused_labels = _focused_neighbourhood(
+            labels, focus_terms, radius=2, fallback=32, maximum=96
+        )
+        prefixes.append("UI labels in source order: " + " | ".join(focused_labels))
+    elif decoded.strip():
+        compact_observation = " ".join(decoded.split())
+        if isinstance(structured, dict) and tree is not None:
+            prefixes.append("UI observation: " + compact_observation)
+        elif not prefixes:
+            prefixes.append(compact_observation)
+    return "; ".join(prefixes)
+
+
+def _focused_neighbourhood(
+    values: list[str], focus_terms: tuple[str, ...], *, radius: int,
+    fallback: int, maximum: int,
+) -> list[str]:
+    """Keep matching UI evidence and bounded adjacent source-order context."""
+    normalized_terms = tuple(
+        value.casefold() for value in focus_terms if len(value.strip()) > 2
+    )
+    indexes = {
+        index
+        for index, value in enumerate(values)
+        if any(term in value.casefold() for term in normalized_terms)
+    }
+    if not indexes:
+        return values[:fallback]
+    expanded: set[int] = set()
+    for index in indexes:
+        expanded.update(range(max(0, index - radius), min(len(values), index + radius + 1)))
+    return [values[index] for index in sorted(expanded)[:maximum]]
 
 
 def _action_constraint(row: dict, status: str) -> ActionConstraint | None:

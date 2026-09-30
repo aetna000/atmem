@@ -301,6 +301,94 @@ Dashboard reads use keyset pagination and cached aggregates. Status and health
 paths never rebuild an index or decrypt/scan full evidence. Cache identity
 includes scope, policy generation, lifecycle generation and profile version.
 
+### L. Combine a fast typed lane with bounded source navigation
+
+AgentRunbook-C succeeds because its query-time controller can navigate retained
+trajectories and verify exact spans when a precomputed representation is
+insufficient. AtMem preserves that recovery mechanism without paying the
+latency and model cost on every recall.
+
+The default **fast lane** remains deterministic information-need routing over
+typed units and derived views. A separate **investigative lane** may run only
+when deterministic sufficiency is partial, contradictory or stale; an exact
+source-backed answer is required but no typed unit covers an obligation; or the
+caller explicitly requests bounded deep-evidence mode.
+
+`EvidenceNavigator` exposes five host-neutral operations over authorized
+retained evidence:
+
+1. `manifest` returns a concise episode/source map with identities, time ranges,
+   types and formation coverage, not full content;
+2. `search` shortlists episodes/spans by exact, lexical, typed and temporal cues;
+3. `inspect` returns one exact span/event/media item within budget;
+4. `follow` traverses a registered source/transition/procedure/conflict edge;
+5. `submit` proposes the final evidence set and obligation bindings for normal
+   deterministic sufficiency and packing.
+
+The navigator never receives inaccessible candidate content, cannot read host
+files or databases directly, and cannot turn its own prose into memory support.
+Every inspected item consumes the same request budget and every submitted ID is
+revalidated. The deterministic implementation may execute a fixed search plan.
+An optional registered query agent may choose operations, but its transcript,
+model identity, limits and cost are retained.
+
+AgentRunbook-C V2's online strategy memory is adapted as governed
+`retrieval_hint` derivatives. Hints may record successful query formulations,
+useful source families and failed search paths, scoped by environment and
+information need. They contain no benchmark answer, cannot satisfy an evidence
+obligation, expire/version independently and are only search leads. Current
+source evidence must verify every final result.
+
+This architecture provides three measurable operating points:
+
+- `typed-fast`: typed retrieval only;
+- `typed-navigate-deterministic`: fast lane plus bounded deterministic source
+  inspection;
+- `typed-navigate-agentic`: fast lane plus optional model-directed inspection.
+
+Promotion compares accuracy, evidence completeness, latency, context size and
+cost. The agentic lane is not the default merely because it is more accurate.
+
+### M. Maintain a reference-parity laboratory outside product runtime
+
+The public front-runners are behavioral references, not copied runtime
+dependencies:
+
+| Reference | Behavior isolated for comparison | AtMem implementation boundary |
+| --- | --- | --- |
+| AgentRunbook-C | manifest-first triage, targeted inspection, exact bounded spans, abstention on missing or contradictory evidence | `EvidenceNavigator`, source manifests and obligation-bound submission |
+| AgentRunbook-C V2 | learned search guidance reverified against current source | governed non-evidentiary `retrieval_hint` derivatives |
+| AgentRunbook-R | separate raw-state, transition, procedure and hint/gotcha pools with query-specific nomination and reranking | typed units plus independent derived views and information-need quotas |
+| Mem0 | high-recall additive extraction, exact-detail preservation, linked memories, entity/run/agent scopes and hybrid retrieval | grounded formation coverage, occurrence/fact links, authority scopes and exact/lexical/semantic fusion |
+
+The laboratory lives under `research/reference_parity/` and tests the same
+frozen micro-corpora through pinned out-of-process reference adapters. It has
+four layers:
+
+1. **Contract/unit layer, no model:** property and adversarial tests for source
+   preservation, typed relations, updates, scopes, navigation budgets and exact
+   evidence packing.
+2. **Cassette layer, no live model:** replay versioned raw extractor/query-agent
+   responses captured once from pinned models. This tests orchestration,
+   reconciliation and retrieval deterministically, but is never reported as a
+   live competitor score.
+3. **Reader-free evidence layer, no reader or judge:** compare returned source
+   IDs/ranges and action constraints with evaluator-owned minimal evidence sets.
+   Report formation coverage, evidence-set recall/precision, sufficiency
+   calibration, context bytes, latency and storage amplification.
+4. **Micro differential layer, model-backed:** run a small frozen development
+   corpus through actual pinned AtMem, AgentRunbook-R/C and Mem0 paths using the
+   same eligible source, model family and budgets where their contracts allow.
+   Judge by deterministic source/action annotations first; use no answer judge
+   unless a reader-use question remains unresolved.
+
+The laboratory normalizes only evidence identity, source range, status, context
+size, latency and storage. It does not force unlike systems into AtMem's typed
+ontology or mistake feature presence for benchmark parity. Reference code,
+models, datasets and heavy cassettes remain on the external benchmark root;
+only adapters, schemas, small neutral fixtures and signed summaries are
+versioned.
+
 ## Contracts and data model
 
 ### New additive contracts
@@ -349,6 +437,8 @@ atmem/
     validation.py             # extend existing proposal validation
   retrieve/
     intent.py
+    navigator.py              # bounded source inspection and submission
+    hints.py                  # governed, non-evidentiary search leads
     expand.py
     sufficiency.py
     assemble.py
@@ -383,6 +473,14 @@ research/production_benchmarks/
   longmemeval_v2.py           # orchestration only; official harness does scoring
   dolphinbench.py             # orchestration only; official harness does grading
   quality_analysis.py         # paired/uncertainty and stage attribution
+
+research/reference_parity/
+  contracts.py                # neutral comparison result schema
+  runner.py                   # layered no-model/cassette/live runner
+  adapters/
+    atmem.py
+    agentrunbook.py
+    mem0.py
 
 benchmarks/retrieval_quality/
   README.md
@@ -584,6 +682,22 @@ an annotation must not change formation, retrieval, packing or reader input.
 The annotation contract distinguishes answerable, explicit-negative and
 unsupported/abstention cases, alternative minimal sets, ordering, polarity and
 fixed source coordinates.
+
+The cheaper validation ladder is mandatory and stops at the first failure:
+
+| Gate | Live LLM | Reader/judge | Purpose |
+| --- | --- | --- | --- |
+| Structural unit suite | No | No | formation, identity, scope, update and budget correctness |
+| Reference cassette replay | No | No | deterministic orchestration and behavioral regression |
+| Frozen evidence replay | No | No | answer-bearing evidence recall/precision and action constraints |
+| Micro differential | Yes, small/pinned | No by default | real extraction/navigation comparison with public references |
+| Finalization probes | Yes | Yes where required | serving and usable-final-answer qualification |
+| 3% development samples | Yes | Yes | end-to-end trajectory after all cheaper gates pass |
+
+Most implementation iterations therefore require no LLM. A live model remains
+necessary before claiming promising parity because AgentRunbook query planning,
+AgentRunbook-R note/query generation and Mem0 extraction are model-dependent.
+Their raw outputs are captured once and replayed for subsequent regressions.
 
 Then run a separately budgeted twelve-call finalization probe: short control, oracle evidence,
 product context and worst-budget multimodal context, each repeated three times.

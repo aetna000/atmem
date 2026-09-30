@@ -258,6 +258,42 @@ the feature unavailable to normal agents.
 
 ## Product lessons adopted from open source
 
+### Code-level reference review — 2026-09-30
+
+The implementation review pinned LongMemEval-V2 at
+`2cc8c540bdb87fe6761629b585e727e1c4704520`, DolphinBench at
+`81cb6f8405b40a9e76089cef650806a80af06ea2`, Mem0 at `94c3fe9f238f`,
+Hindsight at `eb021da3b250` and Honcho at `27a672451552`. The first three are
+the immediate implementation references for this feature.
+
+AgentRunbook-C's `INSTRUCTION.md`, summary renderer and trajectory inspector
+show that its quality does not come from an exotic database. It builds concise
+and full trajectory maps, triages the information need, shortlists by exact
+workflow family, inspects individual states or short spans, rejects
+nearby-but-not-exact matches and submits source coordinates under a 20-state
+budget. AgentRunbook-C V2 permits learned guidance only as a search lead and
+requires independent current evidence before returning answer-like content.
+
+AgentRunbook-R's implementation creates per-trajectory raw-state slices,
+transition events, procedure notes and hint notes, embeds them separately,
+generates pool-specific queries, applies independent quotas, optionally
+reranks bounded candidates and builds pool-specific context. Its central lesson
+is heterogeneous representation and retrieval, not a particular embedding
+score.
+
+Mem0's current OSS implementation performs additive high-recall extraction,
+preserves exact proper nouns and values, links related memories, maintains
+separate occurrence/history state, scopes by user/agent/run, uses semantic plus
+keyword nomination when the backend supports it and optionally reranks. The
+Dolphin leader used Mem0's hosted service, so OSS code review establishes
+mechanism access but not exact hosted-result reproducibility.
+
+These references support a hybrid AtMem design: fast typed retrieval for common
+queries, bounded source navigation as a recovery path, multiple views over one
+retained source, and coverage-first linked formation. They do not justify
+copying benchmark prompts, making an LLM authoritative or introducing an
+implicit shared scope.
+
 ### Adopt
 
 - Make the common product surface small: form/retain, recall, explain and

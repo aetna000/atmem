@@ -10,6 +10,14 @@ from atmem.contracts import InformationNeed, SufficiencyDecision
 from atmem.core.canonical import canonical_json, sha256_hex
 
 
+_EPISODIC_PROJECTION_RELATIONS = frozenset({
+    "accessibility_tree",
+    "state summary",
+    "ui control state index",
+    "ui surface index",
+})
+
+
 def decide_sufficiency(
     need: InformationNeed,
     typed_rows: list[dict],
@@ -52,7 +60,14 @@ def decide_sufficiency(
         # Conflicting background rows must not manufacture an evidence-free
         # contradiction for an unrelated question.
         is_partition = "_chunk_" in str(row.get("fact_key") or "")
-        if relevant and subject and relation and not is_partition:
+        is_episode_projection = (
+            kind == "environment_state"
+            and relation.casefold() in _EPISODIC_PROJECTION_RELATIONS
+        )
+        if (
+            relevant and subject and relation
+            and not is_partition and not is_episode_projection
+        ):
             key = (kind, subject.casefold(), relation.casefold())
             prior = identities.get(key)
             if prior is not None and prior[1] != value:

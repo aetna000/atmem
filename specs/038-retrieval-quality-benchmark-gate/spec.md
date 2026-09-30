@@ -443,6 +443,26 @@ and AtFlows services are unavailable.
   processor, prompt, sampling, proxy, concurrency and budget identities. Every
   scored response MUST reapply finalization validation and immediately cancel
   siblings on failure with durable cleanup and cost evidence.
+- **FR-062:** AtMem MUST expose a bounded, authority-checked source-navigation
+  contract for cases where the fast typed path is partial, contradictory or
+  explicitly requested in deep-evidence mode. The navigator MUST provide a
+  compact episode manifest, shortlist/search operations, exact span or event
+  inspection, registered-edge traversal and a final evidence-set submission.
+  It MUST inspect immutable retained evidence through AtMem rather than a host
+  workspace, MUST count every inspected byte/event/media item against one
+  declared budget, and MUST revalidate the final evidence identifiers. Learned
+  search hints MAY guide navigation but MUST never count as answer support;
+  every delivered claim MUST be independently supported by current authorized
+  source evidence.
+- **FR-063:** Before another scored development sample, AtMem MUST pass a
+  reference-parity preflight derived from public AgentRunbook-C/C V2,
+  AgentRunbook-R and Mem0 behavior. The preflight MUST distinguish deterministic
+  unit/contract tests, replay of recorded model outputs, reader-free evaluation
+  against frozen source-span/action annotations, and a small pinned model-backed
+  differential run. It MUST NOT describe mocked or cassette-replayed execution
+  as competitor quality. Competitor source revisions, configurations, model
+  outputs and normalizers MUST be pinned, and benchmark answers or gold evidence
+  MUST remain evaluator-only.
 
 ## Success criteria
 
@@ -553,6 +573,18 @@ and AtFlows services are unavailable.
   cannot qualify the other. The Dolphin manifest declares three repetitions of
   each applicable Hermes/model and grader condition and records a reason for any
   inapplicable condition.
+- **SC-022:** A no-judge preflight passes before T096 or T097: all
+  reference-capability contracts pass; the candidate meets SC-001 and SC-002;
+  the fourteen-question reader-free LongMemEval development replay meets
+  SC-019/SC-020; and evaluator-owned Dolphin development annotations show an
+  exact applicable rule/action-constraint package for at least 90% of
+  memory-dependent grading checks whose source evidence was represented. The
+  preflight reports fast-path-only and fast-plus-navigation results separately,
+  including navigation trigger rate, evidence recall/precision, total input
+  bytes/tokens, p50/p95 latency, storage amplification and scope/policy errors.
+  A small model-backed differential run against pinned public reference systems
+  is required to call the result `promising`; deterministic and cassette-only
+  passes may establish correctness and readiness but not quality parity.
 
 ### Research and leaderboard targets
 

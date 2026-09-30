@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import json
 
 import pytest
 
@@ -117,6 +118,40 @@ def test_typed_proposal_persists_source_once_and_survives_restart(tmp_path):
         assert stored["unit"]["payload"]["value"] == "45"
     finally:
         reopened.close()
+
+
+def test_resolution_window_is_compacted_in_proposal_and_audit_storage(tmp_path):
+    memory = typed_memory(tmp_path / "bounded-receipts.db")
+    try:
+        for index in range(80):
+            memory.remember(
+                SCOPE.subject_id,
+                f"Durable benchmark context item {index}.",
+                force=True,
+            )
+        capture(memory)
+        outcome = memory.submit_extraction_proposal(proposal(), source_text=SOURCE)
+
+        summary = outcome["resolution_receipt_summary"]
+        assert summary["format"] == "atmem-resolution-receipt-summary-v1"
+        assert summary["count"] >= 64
+        assert len(summary["edge_receipts"]) == 2
+        assert outcome["resolution_receipts"] == []
+
+        stored = memory.store.get_memory_proposal("proposal-1")
+        assert len(json.dumps(stored["outcome"])) < 2_000
+        event = memory.store.get_audit_event(
+            SCOPE.subject_id, outcome["audit_event_id"]
+        )
+        assert len(json.dumps(event["payload"])) < 4_000
+        assert "resolution_receipts" not in event["payload"]
+
+        audit_fts_sql = memory.store._conn.execute(
+            "SELECT sql FROM sqlite_master WHERE name = 'audit_fts'"
+        ).fetchone()["sql"]
+        assert "payload UNINDEXED" in audit_fts_sql
+    finally:
+        memory.close()
 
 
 def test_typed_unit_lifecycle_and_source_deletion_follow_canonical_record(tmp_path):

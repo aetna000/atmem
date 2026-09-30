@@ -1,0 +1,27 @@
+{
+  "format": "atmem-reference-baseline-v1",
+  "created_at": "2026-09-30",
+  "candidate_commit": "108af05d5ba058e9a9ee182eeb52e64b64ba639f",
+  "target": {
+    "first": "parity with strongest matched reference",
+    "stretch": "10 percent relative improvement over strongest matched reference",
+    "report_absolute_percentage_point_delta": true
+  },
+  "longmemeval_v2": {
+    "sample_id": "longmemeval-v2-pilot-v1",
+    "sample_size": 14,
+    "sample_manifest_sha256": "sha256:2daea3483b28d15c1bdabd62cb9910574a03ff2719c6391c73628dbd4d026397",
+    "reader": "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "judge": "gpt-5.2-2025-12-11 medium",
+    "systems": ["atmem", "agentrunbook-r", "agentrunbook-c"]
+  },
+  "dolphinbench": {
+    "sample_id": "dolphinbench-task-split-v1",
+    "sample_size": 18,
+    "sample_manifest_sha256": "sha256:38a0aa677e9829b42785bb92e79f98afeeacb5b8ebf9481cd2319729710a4d83",
+    "agent": "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "judge": "gpt-5.2-2025-12-11 medium",
+    "systems": ["atmem", "mem0-oss"],
+    "hosted_mem0_note": "Published hosted Mem0 is retained as leaderboard context, not a matched local reproduction."
+  }
+}

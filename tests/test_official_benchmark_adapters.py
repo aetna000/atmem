@@ -102,6 +102,59 @@ def test_longmem_adapter_is_inert_product_api_only() -> None:
     assert "prepare_context_v2" in source
 
 
+def test_longmem_checkpoint_restore_preserves_saved_retrieval_parameters(
+    monkeypatch,
+) -> None:
+    memory_module = ModuleType("memory_modules.memory")
+
+    class Memory:
+        def __init__(self, memory_params):
+            self.memory_params = dict(memory_params)
+
+    memory_module.Memory = Memory  # type: ignore[attr-defined]
+    memory_module.register_memory = lambda cls: cls  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "memory_modules", ModuleType("memory_modules"))
+    monkeypatch.setitem(sys.modules, "memory_modules.memory", memory_module)
+    spec = importlib.util.spec_from_file_location(
+        "_fixture_longmemeval_atmem", LONGMEM_ASSET
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    saved = {
+        "memory_type": "atmem",
+        "memory_params": {
+            "database_path": "/build/atmem.db",
+            "subject_id": "subject",
+            "agent_id": "agent",
+            "workspace_id": "workspace",
+            "limit": 20,
+            "candidate_limit": 200,
+            "context_bytes": 32_768,
+        },
+    }
+    requested = {
+        "memory_type": "atmem",
+        "memory_params": {
+            "database_path": "/run/atmem.db",
+            "subject_id": "subject",
+            "agent_id": "agent",
+            "workspace_id": "workspace",
+        },
+    }
+    restored = module.AtMemMemory.reconcile_loaded_memory_config(saved, requested)
+    assert restored["memory_params"] == {
+        **saved["memory_params"],
+        "database_path": "/run/atmem.db",
+    }
+
+    conflicting = json.loads(json.dumps(requested))
+    conflicting["memory_params"]["candidate_limit"] = 50
+    with pytest.raises(RuntimeError, match="candidate_limit"):
+        module.AtMemMemory.reconcile_loaded_memory_config(saved, conflicting)
+
+
 def test_longmem_registry_patch_rejects_unrelated_edits(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -729,6 +782,39 @@ def test_longmem_adapter_preserves_official_state_media_and_native_trust(
         item["value"] for item in procedure if item["type"] == "text"
     )
     adapter._memory.close()
+
+
+def test_longmem_action_batches_are_bounded_ordered_and_lossless(
+    monkeypatch,
+) -> None:
+    registry: dict[str, type] = {}
+
+    class OfficialMemory:
+        def __init__(self, memory_params):
+            self.memory_params = dict(memory_params)
+
+    def register(cls):
+        registry[cls.memory_type] = cls
+        return cls
+
+    package = ModuleType("memory_modules")
+    module = ModuleType("memory_modules.memory")
+    module.Memory = OfficialMemory  # type: ignore[attr-defined]
+    module.register_memory = register  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "memory_modules", package)
+    monkeypatch.setitem(sys.modules, "memory_modules.memory", module)
+    spec = importlib.util.spec_from_file_location("fixture_longmem_batches", LONGMEM_ASSET)
+    assert spec and spec.loader
+    loaded = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(loaded)
+
+    actions = [f"action-{index}-" + ("x" * 900) for index in range(20)]
+    batches = loaded._ordered_action_batches("trajectory-large", actions)
+    decoded = [json.loads(value) for value in batches]
+    assert len(batches) > 1
+    assert all(len(value.encode("utf-8")) <= 7_000 for value in batches)
+    assert [item for batch in decoded for item in batch["actions"]] == actions
+    assert [batch["action_offset"] for batch in decoded] == [0, 7, 14]
 
 
 def test_dolphin_adapter_keeps_personas_isolated_and_benchmark_logic_out() -> None:

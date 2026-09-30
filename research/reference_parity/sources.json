@@ -1,0 +1,27 @@
+{
+  "format": "atmem-reference-sources-v1",
+  "captured_at": "2026-09-30",
+  "systems": {
+    "agentrunbook": {
+      "checkout": "external:LongMemEval-V2",
+      "commit": "2cc8c540bdb87fe6761629b585e727e1c4704520",
+      "license": "Apache-2.0",
+      "configurations": {
+        "agentrunbook-c": "sha256:d07fb0c14fb6f1a81a48651585b6828a476e60c03d45f9a80476bf5490c8f17b",
+        "agentrunbook-r": "sha256:2847bfc7bfc6288115ec953f69efa0cc04a0327cc11a6b529d0d48763111ab0b"
+      }
+    },
+    "dolphinbench": {
+      "checkout": "external:dolphinbench",
+      "commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
+      "license": "Apache-2.0",
+      "published_results_sha256": "sha256:1d04a2a88f6a1ebffa03cf139565bc79abd2c8f740f643c62028b523e41a33d7"
+    },
+    "mem0-oss": {
+      "checkout": "external:mem0",
+      "commit": "d3891e48baa2c6e769f9cfa4003873bd6a85bc07",
+      "license": "Apache-2.0",
+      "comparability": "Open-source engine only; not equivalent to the hosted Mem0 DolphinBench leaderboard service."
+    }
+  }
+}

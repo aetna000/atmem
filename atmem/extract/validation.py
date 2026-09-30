@@ -31,6 +31,10 @@ from atmem.extract.models import (
     ProposalEvidence,
 )
 from atmem.extract.rules import CandidateFact, extract_facts
+from atmem.extract.structured_projection import (
+    structured_control_index,
+    structured_surface_index,
+)
 
 
 MAX_FACT_LENGTH = 2_000
@@ -318,24 +322,53 @@ def validate_proposal(
             and str(getattr(payload, "relation", "")) == "observed text"
             and str(getattr(payload, "value", "")) == evidence_text
         )
+        structured_source = None
+        if proposal.unit.kind.value == "environment_state":
+            try:
+                structured_source = json.loads(evidence_text)
+            except (TypeError, json.JSONDecodeError):
+                pass
+        structured_host_state = isinstance(structured_source, (dict, list))
         claims = (
             (str(getattr(payload, "value")),)
             if structured_slice or neutral_observation else proposal.unit.grounding_claims()
         )
-        if any(not _phrase_grounded(claim, evidence_text) for claim in claims):
+        if structured_host_state:
+            if not _structured_payload_grounded(payload, structured_source, evidence_text):
+                reasons.append("typed_payload_not_grounded_in_source")
+        elif any(not _phrase_grounded(claim, evidence_text) for claim in claims):
             reasons.append("typed_payload_not_grounded_in_source")
         subject = getattr(payload, "subject", getattr(payload, "entity", None))
         relation = getattr(payload, "relation", None)
         if neutral_observation:
             if getattr(payload, "polarity", None).value != "positive":
                 reasons.append("typed_polarity_mismatch")
-        elif structured_slice:
+        elif structured_slice or structured_host_state:
             bodies = [
                 (source_bodies or {}).get(item.source_id, source_text)
                 for item in proposal.unit.evidence
             ]
             expected = {_structured_state_identity(body) for body in bodies}
-            if (str(subject), str(relation)) not in expected:
+            allowed_relations = {
+                relation_value
+                for _entity_value, relation_value in expected
+            } | {
+                "state summary",
+                "accessibility_tree",
+                "trajectory goal",
+                "ui control state index",
+                "ui surface index",
+            }
+            if isinstance(structured_source, dict):
+                allowed_relations.update(
+                    str(key) for key, value in structured_source.items()
+                    if isinstance(value, str)
+                )
+            expected_entities = {entity_value for entity_value, _ in expected}
+            if (
+                str(subject) not in expected_entities
+                or str(relation) not in allowed_relations
+            ):
                 reasons.append("typed_structured_identity_mismatch")
         else:
             if subject and not _identity_grounded(str(subject), evidence_text, subject=True):
@@ -353,10 +386,14 @@ def validate_proposal(
                     )
                 except (TypeError, json.JSONDecodeError):
                     structured_container = False
-            if (structured_slice or structured_container) and polarity.value != "positive":
+            if (
+                structured_slice or structured_container or structured_host_state
+            ) and polarity.value != "positive":
                 reasons.append("typed_polarity_mismatch")
             polarity_text = "" if neutral_observation else _polarity_evidence(
-                payload, evidence_text, structured_slice=structured_slice
+                payload,
+                evidence_text,
+                structured_slice=structured_slice or structured_host_state,
             )
             negated = bool(_NEGATION_RE.search(polarity_text))
             if polarity_text and (polarity.value == "negative") != negated:
@@ -430,6 +467,36 @@ def _structured_state_identity(body: str) -> tuple[str, str]:
                 entity = str(candidate).strip()
                 break
     return entity, relation
+
+
+def _structured_payload_grounded(
+    payload: Any, source: dict[str, Any] | list[Any], evidence_text: str
+) -> bool:
+    """Validate field-preserving projections of one structured host state."""
+    represented = str(getattr(payload, "value", ""))
+    if represented == evidence_text:
+        return True
+    relation = str(getattr(payload, "relation", ""))
+    if isinstance(source, dict):
+        source_field = source.get(relation)
+        if isinstance(source_field, str):
+            return represented in source_field
+        try:
+            projected = json.loads(represented)
+        except (TypeError, json.JSONDecodeError):
+            projected = None
+        if isinstance(projected, dict):
+            return all(key in source and source[key] == value for key, value in projected.items())
+        if relation == "trajectory goal":
+            return represented == canonical_json(source)
+        if relation == "ui control state index":
+            # Large deterministic indexes are split into bounded storage
+            # units. Every admitted unit must still be an exact contiguous
+            # slice of the projection re-derived from immutable source.
+            return represented in structured_control_index(source)
+        if relation == "ui surface index":
+            return represented in structured_surface_index(source)
+    return represented in evidence_text
 
 
 _NEGATION_RE = re.compile(

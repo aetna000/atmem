@@ -1,0 +1,99 @@
+{
+  "format": "atmem-reference-results-v1",
+  "created_at": "2026-09-30",
+  "warning": "Published references and matched development results are separate comparison classes and must not be merged into one score.",
+  "longmemeval_v2": {
+    "matched_development": {
+      "sample_id": "longmemeval-v2-pilot-v1",
+      "sample_size": 14,
+      "atmem_prior_checkpoint": {
+        "passed": 0,
+        "accuracy": 0.0,
+        "status": "complete",
+        "qualification": "The run is valid for its retained checkpoint, but the checkpoint predates the latest formation replay and omits known answer-bearing source states. It is not the latest-implementation baseline."
+      },
+      "atmem_latest": {
+        "passed": 3,
+        "accuracy": 0.21428571428571427,
+        "sample_size": 14,
+        "web_passed": 1,
+        "enterprise_passed": 2,
+        "reader": "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+        "judge": "gpt-5.2-2025-12-11 medium",
+        "status": "complete",
+        "qualification": "Official pinned 3% development slice before the current evidence-navigation iteration; retained as the latest paid baseline, not as a claim for the unscored v5 candidate."
+      },
+      "atmem_enterprise_iteration": {
+        "sample_size": 7,
+        "strict_baseline_passed": 2,
+        "strict_baseline_accuracy": 0.2857142857142857,
+        "bounded_peak_passed": 4,
+        "bounded_peak_accuracy": 0.5714285714285714,
+        "bounded_confirmation_passed": 3,
+        "bounded_confirmation_accuracy": 0.42857142857142855,
+        "reader": "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+        "judge": "gpt-5.2-2025-12-11 medium",
+        "status": "directional",
+        "qualification": "Same frozen enterprise questions and checkpoint. Bounded runs use a 4096-token completion ceiling with reader thinking disabled, so they are not strict matches to the 20000-token baseline. The 4/7 peak did not reproduce: confirmation was 3/7."
+      },
+      "agentrunbook_c": {
+        "status": "invalid",
+        "reason": "The pinned harness selected a model unsupported by the installed ChatGPT OAuth Codex client. A one-question compatible-default preflight completed but missed the answer and is not a scored matched run."
+      },
+      "agentrunbook_r": {
+        "status": "not_run"
+      }
+    },
+    "published_small": {
+      "comparison_class": "published_full_small_not_matched_to_atmem_development_slice",
+      "agentrunbook_r": {
+        "accuracy": 0.586,
+        "median_latency_seconds": 26.9
+      },
+      "agentrunbook_c": {
+        "accuracy": 0.749,
+        "median_latency_seconds": 108.3
+      },
+      "source_revision": "2cc8c540bdb87fe6761629b585e727e1c4704520"
+    }
+  },
+  "dolphinbench": {
+    "matched_development": {
+      "sample_id": "dolphinbench-task-split-v1",
+      "sample_size": 18,
+      "atmem_qwen": {
+        "passed": 4,
+        "accuracy": 0.2222222222222222,
+        "checks_passed": 18,
+        "checks_total": 59,
+        "status": "complete"
+      }
+    },
+    "published_mem0_slice": {
+      "comparison_class": "same_frozen_tasks_different_agent_model_and_hosted_memory",
+      "system": "Mem0 hosted with Hermes and GPT 5.6 Luna",
+      "passed": 14,
+      "sample_size": 18,
+      "accuracy": 0.7777777777777778,
+      "checks_passed": 48,
+      "checks_total": 59,
+      "source_revision": "81cb6f8405b40a9e76089cef650806a80af06ea2"
+    },
+    "mem0_oss_matched": {
+      "status": "not_run",
+      "reason": "No hosted Mem0 credential is available; the open-source engine must be run and labeled separately."
+    }
+  },
+  "targets": {
+    "rule": "Reach parity with the strongest matched reference first, then at least 10 percent relative improvement while also reporting absolute percentage-point delta.",
+    "dolphin_published_slice_context_only": {
+      "parity_tasks": 14,
+      "ten_percent_relative_target_tasks": 16
+    },
+    "longmemeval_published_small_context_only": {
+      "agentrunbook_r_parity_accuracy": 0.586,
+      "agentrunbook_c_parity_accuracy": 0.749,
+      "ten_percent_relative_over_c_accuracy": 0.8239
+    }
+  }
+}

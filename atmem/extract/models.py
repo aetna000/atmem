@@ -14,6 +14,8 @@ from atmem.core.canonical import canonical_json, sha256_hex
 
 _DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 _ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]{0,127}$")
+MAX_TEXT_FIELD_CHARS = 2_000
+MAX_STRUCTURED_STATE_CHARS = 8_000
 
 
 class MemoryClass(str, Enum):
@@ -90,7 +92,8 @@ class EnvironmentStatePayload:
     polarity: Polarity = Polarity.POSITIVE
 
     def __post_init__(self) -> None:
-        _require_text_fields(self, "entity", "relation", "value")
+        _require_text_fields(self, "entity", "relation")
+        _require_text_fields(self, "value", maximum=MAX_STRUCTURED_STATE_CHARS)
         _require_enum("polarity", self.polarity, Polarity)
 
 
@@ -523,8 +526,16 @@ class ExtractionProposal:
         mutations = {ProposalAction.ADD, ProposalAction.UPDATE, ProposalAction.SUPERSEDE}
         if self.action in mutations and not self.fact:
             raise ValueError("mutating proposals require a screened fact")
-        if self.fact is not None and len(self.fact) > 2_000:
-            raise ValueError("proposal fact must contain at most 2,000 characters")
+        fact_limit = (
+            MAX_STRUCTURED_STATE_CHARS
+            if self.unit is not None
+            and self.unit.kind is MemoryUnitKind.ENVIRONMENT_STATE
+            else MAX_TEXT_FIELD_CHARS
+        )
+        if self.fact is not None and len(self.fact) > fact_limit:
+            raise ValueError(
+                f"proposal fact must contain at most {fact_limit:,} characters"
+            )
         if self.unit is not None and self.unit.scope != self.scope:
             raise ValueError("typed unit scope must equal proposal scope")
         if self.unit is not None and not set(self.unit.evidence) <= set(self.evidence):
@@ -630,11 +641,15 @@ def _enum_values(value: Any) -> Any:
     return value
 
 
-def _require_text_fields(value: Any, *names: str) -> None:
+def _require_text_fields(
+    value: Any,
+    *names: str,
+    maximum: int = MAX_TEXT_FIELD_CHARS,
+) -> None:
     if any(
         not isinstance(getattr(value, name), str)
         or not getattr(value, name).strip()
-        or len(getattr(value, name)) > 2_000
+        or len(getattr(value, name)) > maximum
         for name in names
     ):
         raise ValueError(f"{type(value).__name__} requires non-empty {', '.join(names)}")

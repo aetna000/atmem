@@ -9,7 +9,12 @@ from atmem.contracts import (
 )
 from atmem.core.canonical import sha256_hex
 from atmem.extract.review import ReviewService
-from atmem.retrieve.assemble import _complementary_rows, assemble_context_v2
+from atmem.retrieve.assemble import (
+    _complementary_rows,
+    _evidence_guidance,
+    _unit_text,
+    assemble_context_v2,
+)
 from atmem.retrieve.expand import expand_evidence_neighborhood
 from atmem.retrieve.intent import route_information_need
 from dataclasses import replace
@@ -49,6 +54,22 @@ def context(memory, candidate_set, query, *, bytes_=8192):
         query=query,
         budget=RetrievalBudget(context_bytes=bytes_),
     ))
+
+
+def test_evidence_guidance_prevents_reader_from_strengthening_ui_hints() -> None:
+    transition = route_information_need(
+        "After clearing the assignment, what value should I set the state to?"
+    )
+    failure = route_information_need(
+        "After Execute Now, deletion does not happen. What action remains?"
+    )
+    premise = route_information_need(
+        "What are the exact two item names for Linux and Chromebook laptops?"
+    )
+
+    assert any("not a transition" in line for line in _evidence_guidance(transition))
+    assert any("later observed recovery" in line for line in _evidence_guidance(failure))
+    assert any("premise to verify" in line for line in _evidence_guidance(premise))
 
 
 def test_exact_fact_is_evidence_complete_and_v1_safe(tmp_path):
@@ -283,6 +304,40 @@ def test_packing_prefers_uncovered_obligations_over_duplicate_evidence():
     assert [row["record_id"] for row in chosen[:2]] == ["alice-1", "bob"]
 
 
+def test_conflict_requires_actual_pair_not_same_value_duplicates():
+    need = route_information_need("What is Alice age?")
+
+    def candidate(record_id, value, rank):
+        return {
+            "record_id": record_id, "rank": rank,
+            "unit": {
+                "kind": "atomic_fact",
+                "payload": {
+                    "subject": "Alice", "relation": "age",
+                    "value": value, "polarity": "positive",
+                },
+                "evidence": [{
+                    "source_id": f"source-{record_id}", "start_offset": 0,
+                    "end_offset": 1, "excerpt_sha256": "sha256:" + "0" * 64,
+                }],
+            },
+        }
+
+    package = assemble_context_v2(
+        context_id="minimal-conflict", scope=SCOPE, need=need,
+        profile_id="test", generation=1, preparation_id="prep",
+        budget=RetrievalBudget(context_bytes=2_000),
+        typed_rows=[
+            candidate("age-45-a", "45", 1),
+            candidate("age-45-b", "45", 2),
+            candidate("age-46", "46", 3),
+        ],
+    )
+
+    assert package.sufficiency.status == "contradictory"
+    assert {"age-45-a", "age-46"} <= set(package.record_ids)
+
+
 def test_authorized_lexical_fallback_is_retained_as_unverified_background():
     need = route_information_need("What is the support email?")
     package = assemble_context_v2(
@@ -309,6 +364,113 @@ def test_authorized_lexical_fallback_is_retained_as_unverified_background():
     assert package.record_ids == ("fallback",)
     assert "ops@example.test" in package.context
     assert package.action_constraints == ()
+
+
+def test_accessibility_tree_reader_projection_preserves_ordered_labels_compactly():
+    value = (
+        '{"accessibility_tree":"RootWebArea \'Customer\'\\\\n\\\\t[10] '
+        "button 'Delete Customer', clickable, visible\\\\n\\\\t[11] "
+        "button 'Login as Customer', clickable, visible\\\\n\\\\t[12] "
+        "button 'Back', clickable, visible" + ("\\\\n\\\\tgeneric ''" * 200) + '"}'
+    )
+    rendered = _unit_text({
+        "kind": "environment_state",
+        "payload": {
+            "entity": "customer page", "relation": "accessibility_tree",
+            "value": value, "polarity": "positive",
+        },
+    })
+
+    assert "Delete Customer | Login as Customer | Back" in rendered
+    assert rendered.index("Delete Customer") < rendered.index("Back")
+    assert len(rendered) < len(value) // 4
+
+
+def test_accessibility_tree_reader_projection_preserves_control_values_and_blank():
+    value = (
+        '{"accessibility_tree":"RootWebArea \'Hardware\'\\\\n\\\\t[10] '
+        "combobox 'Catalog Input Type' value='Text Swatch', clickable\\\\n\\\\t[11] "
+        "textbox 'Managed by' value='', clickable\\\\n\\\\t[12] "
+        "checkbox 'Active' checked='true', clickable" + '"}'
+    )
+    rendered = _unit_text({
+        "kind": "environment_state",
+        "payload": {
+            "entity": "hardware form", "relation": "accessibility_tree",
+            "value": value, "polarity": "positive",
+        },
+    })
+
+    assert "combobox 'Catalog Input Type' [value=Text Swatch]" in rendered
+    assert "textbox 'Managed by' [value=<blank>]" in rendered
+    assert "checkbox 'Active' [checked=true]" in rendered
+
+
+def test_accessibility_tree_missing_text_value_is_explicit_blank() -> None:
+    rendered = _unit_text({
+        "kind": "environment_state",
+        "payload": {
+            "entity": "blank form", "relation": "accessibility_tree",
+            "value": "searchbox 'Managed by', clickable, visible",
+            "polarity": "positive",
+        },
+    })
+
+    assert "searchbox 'Managed by' [value=<blank>]" in rendered
+
+
+def test_packing_caps_duplicate_accessibility_surfaces():
+    need = route_information_need("Compare the Size attribute and Theme page")
+
+    def candidate(record_id, subject, rank):
+        return {
+            "record_id": record_id,
+            "rank": rank,
+            "unit": {
+                "kind": "environment_state",
+                "payload": {
+                    "entity": subject,
+                    "relation": "accessibility_tree",
+                    "value": f"RootWebArea '{subject}'",
+                    "polarity": "positive",
+                },
+                "evidence": [{
+                    "source_id": f"source-{record_id}", "start_offset": 0,
+                    "end_offset": 1, "excerpt_sha256": "sha256:" + "0" * 64,
+                }],
+            },
+        }
+
+    chosen = _complementary_rows(need, [
+        candidate("size-1", "size-url", 1),
+        candidate("size-2", "size-url", 2),
+        candidate("size-3", "size-url", 3),
+        candidate("theme", "theme-url", 4),
+    ], 4_000)
+
+    assert [row["record_id"] for row in chosen] == [
+        "size-1", "theme", "size-2",
+    ]
+
+
+def test_trajectory_projection_preserves_goal_ordered_actions_and_outcome():
+    rendered = _unit_text({
+        "kind": "environment_state",
+        "payload": {
+            "entity": "trajectory-1", "relation": "trajectory goal",
+            "value": (
+                '{"goal":"notify the customer","actions":'
+                '["open order","click notify","submit message"],'
+                '"outcome":"success","start_url":"https://admin.test/"}'
+            ),
+            "polarity": "positive",
+        },
+    })
+
+    assert "Goal: notify the customer" in rendered
+    assert "1. open order; 2. click notify; 3. submit message" in rendered
+    assert "Outcome: success" in rendered
+    assert "Start URL: https://admin.test/" in rendered
 
 
 def test_historical_target_wins_before_publication_limit(tmp_path):
@@ -416,3 +578,28 @@ def test_repeated_fact_occurrences_keep_historical_timestamps(tmp_path):
         assert package.provenance[0]["record_id"]
     finally:
         memory.close()
+
+
+def test_reader_projection_keeps_focused_controls_and_local_neighbours():
+    rendered = _unit_text({
+        "kind": "environment_state",
+        "payload": {
+            "entity": "form",
+            "relation": "accessibility_tree",
+            "polarity": "positive",
+            "value": (
+                "button 'Unrelated A'\n"
+                "textbox 'Incident number' value='INC1'\n"
+                "combobox 'Priority' value='5 - Planning'\n"
+                "button 'Save Incident'\n"
+                "button 'Unrelated B'\n"
+                "button 'Unrelated C'\n"
+                "button 'Unrelated D'"
+            ),
+        },
+    }, focus_terms=("incident", "priority"))
+
+    assert "Incident number" in rendered
+    assert "Priority" in rendered
+    assert "Save Incident" in rendered
+    assert "Unrelated D" not in rendered

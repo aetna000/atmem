@@ -397,6 +397,9 @@ class EpisodeIngestRequest(Contract):
     turn_id: str | None = None
     host_message_id: str | None = None
     retain_body: bool = True
+    sensitive_observation_handling: Literal[
+        "review", "admit_encrypted"
+    ] = "review"
 
     def __post_init__(self) -> None:
         _required_id("episode_id", self.episode_id)
@@ -420,6 +423,15 @@ class EpisodeIngestRequest(Contract):
         }
         if self.binding_method not in allowed_assurance or self.binding_assurance not in allowed_assurance[self.binding_method]:
             raise ValueError("binding assurance is stronger than the episode binding method")
+        if self.sensitive_observation_handling not in {"review", "admit_encrypted"}:
+            raise ValueError("unsupported sensitive observation handling")
+        if (
+            self.sensitive_observation_handling == "admit_encrypted"
+            and self.binding_assurance != "host_asserted"
+        ):
+            raise ValueError(
+                "encrypted sensitive observations require host-asserted binding"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         value = Contract.to_dict(self)
@@ -460,7 +472,11 @@ class FormationReceipt(Contract):
             raise ValueError("proposal counts must be non-negative integers")
         proposal_count = sum(self.proposals_by_kind.values())
         if proposal_count != self.admitted + self.withheld + self.rejected:
-            raise ValueError("formation proposal outcomes do not reconcile")
+            raise ValueError(
+                "formation proposal outcomes do not reconcile: "
+                f"proposals={proposal_count}, admitted={self.admitted}, "
+                f"withheld={self.withheld}, rejected={self.rejected}"
+            )
         if self.complete and (self.unsupported_parts or self.unrepresented_ranges):
             raise ValueError("formation with visible loss cannot be complete")
         if self.complete and self.source_events_observed < 1:
@@ -488,6 +504,7 @@ class InformationNeed(Contract):
     required_slots: tuple[str, ...] = ()
     parent_need_id: str | None = None
     obligations: tuple[dict[str, str], ...] = ()
+    evidence_terms: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         _required_id("need_id", self.need_id)
@@ -499,6 +516,8 @@ class InformationNeed(Contract):
             raise ValueError("information need requires at least one evidence slot")
         if len(set(self.required_slots)) != len(self.required_slots):
             raise ValueError("information need slots must be unique")
+        if any(not isinstance(value, str) or not value.strip() for value in self.evidence_terms):
+            raise ValueError("information-need evidence terms must be non-empty strings")
         for obligation in self.obligations:
             if not isinstance(obligation, dict) or not any(
                 str(obligation.get(name) or "").strip()

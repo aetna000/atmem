@@ -924,13 +924,18 @@ class Memory:
                 turn=turn,
             )
 
+        resolution_receipts = context.receipts()
+        resolution_receipt_summary = _compact_resolution_receipts(
+            resolution_receipts,
+            window=context.window,
+        )
         outcome = {
             "state": state,
             "reason_codes": list(dict.fromkeys(reason_codes)),
             "record_ids": record_ids,
             "superseded_record_ids": superseded_ids,
             "lineage_ids": lineage_ids,
-            "resolution_receipts": context.receipts(),
+            "resolution_receipt_summary": resolution_receipt_summary,
         }
         event_id = self.store.append_audit_event(
             subject_id=subject_id,
@@ -962,7 +967,7 @@ class Memory:
                     }
                     for item in proposal.evidence
                 ],
-                "resolution_receipts": outcome["resolution_receipts"],
+                "resolution_receipt_summary": resolution_receipt_summary,
             },
         )
         outcome["audit_event_id"] = event_id
@@ -1747,7 +1752,18 @@ class Memory:
                     )
                 ):
                     from atmem.extract.review import ReviewPolicy
-                    review_policy = ReviewPolicy(quarantine_non_durable=False)
+                    admit_sensitive = (
+                        request.sensitive_observation_handling == "admit_encrypted"
+                    )
+                    if admit_sensitive and self.policy.state != "encrypted":
+                        raise ValueError(
+                            "sensitive observations may be admitted without review "
+                            "only into encrypted storage"
+                        )
+                    review_policy = ReviewPolicy(
+                        quarantine_non_durable=False,
+                        quarantine_sensitive=not admit_sensitive,
+                    )
                 outcomes.append(self.submit_extraction_proposal(
                     proposal,
                     source_text=part.content,
@@ -1762,11 +1778,6 @@ class Memory:
             bool(value.get("proposal_id"))
             for value in (previous or {}).get("next_positions") or ()
         )
-        admitted = int((previous or {}).get("admitted") or 0) + sum(
-            item["review_state"] == "committed"
-            or (item["review_state"] == "noop" and bool(item["record_ids"]))
-            for item in outcomes
-        )
         withheld = max(
             0, int((previous or {}).get("withheld") or 0) - previous_pending
         ) + sum(
@@ -1775,6 +1786,12 @@ class Memory:
         rejected = int((previous or {}).get("rejected") or 0) + sum(
             item["review_state"] in {"rejected", "stale"} for item in outcomes
         )
+        # ``proposals_by_kind`` counts represented source occurrences.  Two
+        # repeated UI slices may intentionally share one idempotent proposal
+        # identity, so a resumed batch can resolve an occurrence by replaying
+        # an already committed record without adding another proposal row.
+        # The receipt's three outcome buckets describe occurrences, not rows.
+        admitted = max(0, sum(counts.values()) - withheld - rejected)
         processing_complete = not next_positions
         representation_complete = (
             processing_complete and not unsupported and not unrepresented
@@ -1884,8 +1901,13 @@ class Memory:
             stage_started = time.monotonic()
             rows, metadata = collect(self, request)
             # Channel quotas are independent; bound the ranked publication prefix.
-            publication = replace(request, candidate_limit=max(request.candidate_limit, request.limit))
-            result = self.create_candidate_set_v1(publication, rows, retrieval_metadata=metadata)
+            publication = replace(
+                request,
+                candidate_limit=max(request.candidate_limit, request.limit),
+            )
+            result = self.create_candidate_set_v1(
+                publication, rows, retrieval_metadata=metadata
+            )
             self._record_retrieval_stage(
                 scope=request.scope,
                 request_id=request.request_id,
@@ -2283,30 +2305,48 @@ class Memory:
             )
             seeds = tuple(str(row["record_id"]) for row in seed_rows)
         if seeds and not include_superseded:
+            navigation_seed_limit = max(
+                1, min(8, request.budget.graph_visits // 16)
+            )
+            navigation_seeds = seeds[:navigation_seed_limit]
             neighborhood = expand_evidence_neighborhood(
                 self.store,
                 subject_id=scope.subject_id,
                 workspace_id=scope.workspace_id,
                 need_id=need.need_id,
-                seed_record_ids=seeds,
+                seed_record_ids=navigation_seeds,
                 budget=request.budget,
                 remote=value.get("_egress_class") == "remote",
             )
             typed_rows = self.store.typed_units_for_records(
                 scope.subject_id,
                 scope.workspace_id,
-                list(neighborhood.selected_record_ids),
+                list(dict.fromkeys((*neighborhood.selected_record_ids, *seeds))),
                 remote=value.get("_egress_class") == "remote",
             )
             nomination = {
                 str(row["record_id"]): row
                 for row in value.get("candidates") or ()
             }
+            paths = {
+                path.record_id: path for path in neighborhood.paths
+            }
             for expansion_rank, row in enumerate(typed_rows, start=1):
                 nominated = nomination.get(str(row["record_id"]))
-                row["rank"] = int(
-                    (nominated or {}).get("rank") or len(nomination) + expansion_rank
-                )
+                path = paths.get(str(row["record_id"]))
+                root = nomination.get(path.seed_record_id) if path is not None else None
+                root_rank = int((root or nominated or {}).get("rank") or len(nomination) + 1)
+                depth = int(path.depth if path is not None else 0)
+                # Keep a strong seed adjacent to its source-linked evidence.
+                # Candidate rank 1 and its trajectory neighbors must be packed
+                # before unrelated rank-2 seeds, otherwise navigation adds
+                # evidence that the byte budget can never expose.
+                row["rank"] = root_rank * 10_000 + depth * 1_000 + expansion_rank
+                row["source_neighborhood_rank"] = {
+                    "seed_record_id": path.seed_record_id if path is not None else str(row["record_id"]),
+                    "depth": depth,
+                    "reason": path.reason_code if path is not None else "eligible_seed",
+                }
                 row["channel_scores"] = dict(
                     (nominated or {}).get("signals") or {}
                 )
@@ -4928,10 +4968,40 @@ def _extraction_outcome(row: dict[str, Any]) -> dict[str, Any]:
         "superseded_record_ids": list(outcome.get("superseded_record_ids") or ()),
         "lineage_ids": list(outcome.get("lineage_ids") or ()),
         "resolution_receipts": list(outcome.get("resolution_receipts") or ()),
+        "resolution_receipt_summary": dict(
+            outcome.get("resolution_receipt_summary") or {}
+        ),
         "audit_event_id": outcome.get("audit_event_id"),
         "proposal": row.get("proposal") or {},
         "created_at": row["created_at"],
         "decided_at": row.get("decided_at"),
+    }
+
+
+def _compact_resolution_receipts(
+    receipts: list[dict[str, Any]], *, window: int
+) -> dict[str, Any]:
+    """Persist proof of the bounded context without copying the whole window.
+
+    Proposal evidence retains the source spans that justify the mutation.  The
+    resolution context is a separate authorization receipt: its canonical
+    digest proves which bounded window was available, while a small pair of
+    edge receipts makes operational inspection useful without multiplying the
+    same record metadata into every proposal and audit row.
+    """
+    canonical = canonical_json(receipts)
+    kinds: dict[str, int] = {}
+    for receipt in receipts:
+        kind = str(receipt.get("kind") or "unknown")
+        kinds[kind] = kinds.get(kind, 0) + 1
+    edges = receipts if len(receipts) <= 2 else [receipts[0], receipts[-1]]
+    return {
+        "format": "atmem-resolution-receipt-summary-v1",
+        "count": len(receipts),
+        "window": int(window),
+        "kinds": kinds,
+        "sha256": f"sha256:{sha256_hex(canonical)}",
+        "edge_receipts": edges,
     }
 
 

@@ -261,3 +261,24 @@ def test_structured_state_partitions_are_complementary_not_contradictory():
     ])
     assert decision.status == "sufficient"
     assert decision.contradiction_ids == ()
+
+
+def test_episode_ui_projections_are_observations_not_conflicting_facts() -> None:
+    need = route_information_need(
+        "After opening the blank form, what value is shown in `Managed by`?"
+    )
+    decision = decide_sufficiency(need, [
+        row("before", "environment_state", {
+            "entity": "hardware form", "relation": "ui control state index",
+            "value": "searchbox 'Managed by' value='Alex'",
+            "polarity": "positive",
+        }),
+        row("after", "environment_state", {
+            "entity": "hardware form", "relation": "ui control state index",
+            "value": "searchbox 'Managed by' value='<blank>'",
+            "polarity": "positive",
+        }),
+    ])
+
+    assert decision.status == "sufficient"
+    assert decision.contradiction_ids == ()

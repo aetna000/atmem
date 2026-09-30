@@ -5,6 +5,49 @@
 These are complete, frozen development slices. They are not official leaderboard
 submissions and must not be presented as full-benchmark or paper results.
 
+## Typed-retrieval iteration on the frozen enterprise slice
+
+A subsequent seven-question enterprise diagnostic reused the same official
+LongMemEval-V2 data, pinned Qwen 3.5 9B reader, GPT-5.2 snapshot judge, and
+encrypted AtMem checkpoint. Query-focused UI projection and complementary
+packing improved the judged score from **2/7 (28.6%)** to **4/7 (57.1%)**.
+The successful diagnostic used a 4,096-token completion ceiling and disabled
+reader thinking to avoid a single pathological generation invalidating the
+batch; it is therefore directional evidence, not a strict matched rerun of the
+20,000-token baseline.
+
+| Enterprise iteration | Correct | Accuracy | Mean AtMem query | Mean memory context |
+| --- | ---: | ---: | ---: | ---: |
+| Earlier strict reader run | 2/7 | 28.6% | 9.75 s | 12,170 tokens |
+| Focused bounded diagnostic | 4/7 | 57.1% | 9.56 s | 10,255 tokens |
+
+The newly correct cases were the post-action dynamic value and the two-form
+static comparison. The remaining failures expose reusable gaps rather than
+missing benchmark plumbing: absence/premise evidence, explicit no-change
+semantics, and recovery-step precedence over visually plausible snapshots.
+The next implementation routes presupposed-set questions as premise checks,
+routes observed failures ahead of incidental temporal language, and emits a
+source-neutral evidence policy that forbids readers from inventing transitions
+or substituting common product practice.
+
+A confirmation run after adding those evidence-use policies scored **3/7
+(42.9%)**. It retained the dynamic value, ordered procedure, and blank-default
+answers, but the two-form comparison fell back to `UNKNOWN` because the package
+contained only Problem-form evidence. This means 4/7 is a directional peak,
+not a stable candidate score. Offline inspection then reproduced the root
+cause: a joint comparison probe retrieved Problem pages that merely mentioned
+Incidents. The follow-up implementation now creates one lifecycle-and-relation
+probe per comparison side and preserves a distinct head candidate from each
+probe. On the same encrypted checkpoint, the reader-free gate now packs both
+Incident/Priority/5 and Problem/Priority/5 evidence. This post-confirmation
+candidate has not yet received a paid reader score.
+
+One strict focused retry was attempted before the bounded run. Six reader calls
+completed, but one exceeded the RunPod proxy's 120-second limit and the batch
+failed with HTTP 524 before scoring. It is retained as an operational failure,
+not counted as a result. Every paid pod was deleted after its attempt; the final
+RunPod listing was empty.
+
 | Benchmark / arm | Sample | Passed | Accuracy | Additional signal |
 | --- | ---: | ---: | ---: | --- |
 | LongMemEval-V2 `no-retrieval` | 14 questions | 0 | 0.0% | Seven categories, two questions each |

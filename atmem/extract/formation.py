@@ -18,6 +18,7 @@ from atmem.extract.models import (
     ExtractionProposal,
     FailureGotchaPayload,
     MemoryClass,
+    MAX_STRUCTURED_STATE_CHARS,
     MemoryUnit,
     MemoryUnitKind,
     Polarity,
@@ -27,6 +28,10 @@ from atmem.extract.models import (
     ProposalAction,
     ProposalEvidence,
     StateTransitionPayload,
+)
+from atmem.extract.structured_projection import (
+    structured_control_index,
+    structured_surface_index,
 )
 
 
@@ -94,8 +99,6 @@ _NEGATIVE_CONFIGURATION = re.compile(
 _APPLICABILITY = re.compile(
     r"\b(.+?rule)\s+applies\s+only\s+to\s+(.+?),\s+not\s+(.+?)(?:[.!]|$)", re.I
 )
-
-
 def form_typed_proposals(
     text: str,
     *,
@@ -149,19 +152,126 @@ def form_typed_proposals(
                 state_index = structured.get("state_index")
                 if isinstance(state_index, int) and not isinstance(state_index, bool):
                     fact_relation = f"{relation}:{state_index}"
-            if len(text) <= 2_000:
+            if len(text) <= MAX_STRUCTURED_STATE_CHARS:
+                if isinstance(structured, dict) and isinstance(
+                    structured.get("goal"), str
+                ):
+                    relation = "trajectory goal"
+                    fact_relation = relation
                 candidates.append((
                     MemoryUnitKind.ENVIRONMENT_STATE,
                     EnvironmentStatePayload(entity, relation, text),
                     MemoryClass.TEMPORARY_STATE,
                     _fact_key(entity, fact_relation),
                 ))
+            elif isinstance(structured, dict):
+                # Keep the navigational fields independently addressable.  A
+                # raw 8 KiB cut through serialized JSON can put ``action`` and
+                # ``thought`` inside invalid fragments and then the reader sees
+                # only accessibility labels.  The immutable source remains
+                # verbatim; typed derivatives preserve field boundaries.
+                large_fields = {
+                    key: value for key, value in structured.items()
+                    if isinstance(value, str)
+                    and (
+                        key in {"accessibility_tree", "tree"}
+                        or len(value) > MAX_STRUCTURED_STATE_CHARS
+                    )
+                }
+                summary = {
+                    key: value for key, value in structured.items()
+                    if key not in large_fields
+                }
+                state_index = structured.get("state_index")
+                suffix = (
+                    str(state_index)
+                    if isinstance(state_index, int) and not isinstance(state_index, bool)
+                    else "event"
+                )
+                if summary:
+                    summary_text = canonical_json(summary)
+                    for chunk_index, chunk in enumerate(
+                        _bounded_text_chunks(
+                            summary_text, maximum=MAX_STRUCTURED_STATE_CHARS
+                        )
+                    ):
+                        candidates.append((
+                            MemoryUnitKind.ENVIRONMENT_STATE,
+                            EnvironmentStatePayload(entity, "state summary", chunk),
+                            MemoryClass.TEMPORARY_STATE,
+                            _fact_key(
+                                entity,
+                                f"state summary:{suffix}:chunk:{chunk_index:04d}",
+                            ),
+                        ))
+                surface_index = structured_surface_index(structured)
+                for chunk_index, chunk in enumerate(
+                    _bounded_text_chunks(
+                        surface_index, maximum=MAX_STRUCTURED_STATE_CHARS
+                    ) if surface_index else ()
+                ):
+                    candidates.append((
+                        MemoryUnitKind.ENVIRONMENT_STATE,
+                        EnvironmentStatePayload(
+                            entity, "ui surface index", chunk
+                        ),
+                        MemoryClass.TEMPORARY_STATE,
+                        _fact_key(
+                            entity,
+                            f"ui surface index:{suffix}:chunk:{chunk_index:04d}",
+                        ),
+                    ))
+                control_index = structured_control_index(structured)
+                for chunk_index, chunk in enumerate(
+                    _bounded_text_chunks(
+                        control_index, maximum=MAX_STRUCTURED_STATE_CHARS
+                    ) if control_index else ()
+                ):
+                    candidates.append((
+                        MemoryUnitKind.ENVIRONMENT_STATE,
+                        EnvironmentStatePayload(
+                            entity, "ui control state index", chunk
+                        ),
+                        MemoryClass.TEMPORARY_STATE,
+                        _fact_key(
+                            entity,
+                            f"ui control state index:{suffix}:chunk:{chunk_index:04d}",
+                        ),
+                    ))
+                for field, field_value in large_fields.items():
+                    for chunk_index, chunk in enumerate(
+                        _bounded_text_chunks(
+                            field_value, maximum=MAX_STRUCTURED_STATE_CHARS
+                        )
+                    ):
+                        candidates.append((
+                            MemoryUnitKind.ENVIRONMENT_STATE,
+                            EnvironmentStatePayload(entity, field, chunk),
+                            MemoryClass.TEMPORARY_STATE,
+                            _fact_key(
+                                entity,
+                                f"{field}:{suffix}:chunk:{chunk_index:04d}",
+                            ),
+                        ))
+                if not candidates:
+                    for chunk_index, chunk in enumerate(
+                        _bounded_text_chunks(
+                            text, maximum=MAX_STRUCTURED_STATE_CHARS
+                        )
+                    ):
+                        candidates.append((
+                            MemoryUnitKind.ENVIRONMENT_STATE,
+                            EnvironmentStatePayload(entity, relation, chunk),
+                            MemoryClass.TEMPORARY_STATE,
+                            _fact_key(
+                                entity,
+                                f"{fact_relation}:chunk:{chunk_index:04d}",
+                            ),
+                        ))
             else:
-                # Browser and tool states routinely exceed the bounded typed
-                # payload contract. Preserve the immutable source verbatim and
-                # form independently addressable, lossless text slices instead
-                # of rejecting the complete episode or silently truncating it.
-                for chunk_index, chunk in enumerate(_bounded_text_chunks(text)):
+                for chunk_index, chunk in enumerate(
+                    _bounded_text_chunks(text, maximum=MAX_STRUCTURED_STATE_CHARS)
+                ):
                     candidates.append((
                         MemoryUnitKind.ENVIRONMENT_STATE,
                         EnvironmentStatePayload(entity, relation, chunk),
@@ -180,7 +290,8 @@ def form_typed_proposals(
                 evidence=evidence,
                 confidence=confidence,
                 observed_at=observed_at,
-                use_payload_value_for_fact=len(text) > 2_000,
+                use_payload_value_for_fact=len(text) > MAX_STRUCTURED_STATE_CHARS,
+                structured_derived=len(text) > MAX_STRUCTURED_STATE_CHARS,
             )
 
     steps = _NUMBERED_STEP.findall(source)
@@ -501,12 +612,17 @@ def _materialize_candidates(
     confidence: float,
     observed_at: str | None,
     use_payload_value_for_fact: bool = False,
+    structured_derived: bool = False,
 ) -> tuple[ExtractionProposal, ...]:
     proposals: list[ExtractionProposal] = []
     structured_cursor = 0
     for ordinal, (kind, payload, memory_class, fact_key) in enumerate(candidates):
         item_evidence = evidence
-        if kind is MemoryUnitKind.ENVIRONMENT_STATE and len(text) > 2_000:
+        if (
+            kind is MemoryUnitKind.ENVIRONMENT_STATE
+            and len(text) > 2_000
+            and not structured_derived
+        ):
             chunk = str(getattr(payload, "value", ""))
             start = text.find(chunk, structured_cursor)
             if start < 0:
@@ -520,7 +636,7 @@ def _materialize_candidates(
                 end_offset=end,
                 excerpt_sha256=f"sha256:{sha256_hex(chunk)}",
             )
-        elif hasattr(payload, "value"):
+        elif hasattr(payload, "value") and not structured_derived:
             value = str(getattr(payload, "value", ""))
             matches = list(re.finditer(re.escape(value), text, re.I))
             match = None
@@ -656,8 +772,11 @@ def _fact_key(subject: str, relation: str) -> str:
 
 def _bounded_text_chunks(value: str, *, maximum: int = 1_900) -> tuple[str, ...]:
     """Return exact, ordered, non-empty slices within typed field limits."""
-    if maximum <= 0 or maximum > 2_000:
-        raise ValueError("structured-state chunk size must be between 1 and 2,000")
+    if maximum <= 0 or maximum > MAX_STRUCTURED_STATE_CHARS:
+        raise ValueError(
+            "structured-state chunk size must be between 1 and "
+            f"{MAX_STRUCTURED_STATE_CHARS:,}"
+        )
     chunks: list[str] = []
     offset = 0
     while offset < len(value):

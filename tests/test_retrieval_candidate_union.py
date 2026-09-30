@@ -80,13 +80,16 @@ def test_semantic_only_nomination_and_quota(tmp_path, monkeypatch):
         result = memory.eligible_candidates(request(egress_class='remote', candidate_limit=1))
         assert len(result.candidates) == 2
         assert any(set(r.signals['fusion']['channel_ranks']) == {'semantic'} for r in result.candidates)
-        assert any('lexical' in r.signals['fusion']['channel_ranks'] for r in result.candidates)
+        assert any(
+            any(channel.startswith('lexical') for channel in r.signals['fusion']['channel_ranks'])
+            for r in result.candidates
+        )
         assert all('always choose' not in r.content for r in result.candidates)
     finally:
         memory.close()
 
 
-def test_persistent_postings_do_not_scan_the_active_corpus(tmp_path, monkeypatch):
+def test_persistent_fts_does_not_scan_the_active_corpus(tmp_path, monkeypatch):
     memory = Memory(tmp_path / 'm.db', auto_vectors=False)
     try:
         memory.remember('u', 'My booking reference is ZX93.')
@@ -103,6 +106,60 @@ def test_persistent_postings_do_not_scan_the_active_corpus(tmp_path, monkeypatch
         memory.close()
 
 
+def test_exact_anchor_ranking_requires_phrase_not_scattered_tokens(tmp_path):
+    memory = Memory(tmp_path / 'm.db', auto_vectors=False)
+    try:
+        scattered = seed(
+            memory,
+            'Customer profile. Delete this address. Return Back to the account.',
+        )
+        exact = seed(
+            memory,
+            'Back | Login as Customer | Delete Customer | Reset',
+        )
+        result = memory.eligible_candidates(replace(
+            request(signals=('lexical',), limit=2, candidate_limit=20),
+            query=(
+                'On the admin customer page, what is between '
+                '"Delete Customer" and "Back"?'
+            ),
+        ))
+        assert [row.record_id for row in result.candidates][:2] == [exact, scattered]
+    finally:
+        memory.close()
+
+
+def test_comparison_nomination_preserves_one_head_per_side(tmp_path):
+    memory = Memory(tmp_path / 'comparison.db', auto_vectors=False)
+    try:
+        incident = seed(
+            memory,
+            'Incident new record form. Priority value is 5 Planning.',
+        )
+        problem = seed(
+            memory,
+            'Problem new record form. Priority value is 5 Planning.',
+        )
+        for index in range(20):
+            seed(memory, f'Problem list mentions related incidents and priority {index}.')
+
+        result = memory.eligible_candidates(replace(
+            request(signals=('lexical',), limit=8, candidate_limit=40),
+            query=(
+                'Create Incident vs Problem. In both forms, is the default '
+                'value for "Priority" 5?'
+            ),
+        ))
+
+        assert {row.record_id for row in result.candidates[:2]} == {
+            incident,
+            problem,
+        }
+        assert result.candidates[0].signals['fusion']['comparison_head_count'] == 2
+    finally:
+        memory.close()
+
+
 def test_persistent_posting_and_diagnostic_status(tmp_path, monkeypatch):
     memory = Memory(tmp_path / 'm.db')
     try:
@@ -114,7 +171,7 @@ def test_persistent_posting_and_diagnostic_status(tmp_path, monkeypatch):
         result = memory.eligible_candidates(request())
         assert result.candidates
         statuses = result.candidates[0].signals['fusion']['channel_status']
-        assert statuses['lexical'] == 'persistent_postings'
+        assert statuses['lexical'] == 'persistent_fts'
         assert statuses['fact'] == 'persistent_postings'
         assert statuses['semantic'] == 'diagnostic'
     finally:
@@ -183,7 +240,7 @@ def test_postings_backfill_marker_prevents_reopen_rebuild_for_symbol_only_record
         state = memory.store._conn.execute(
             "SELECT value FROM retrieval_index_state WHERE key='postings_version'"
         ).fetchone()
-        assert state['value'] == 'scoped-postings-v2-tokenizer1'
+        assert state['value'] == 'scoped-postings-v3-fact-only'
     finally:
         memory.close()
     reopened = Memory(path, auto_vectors=False)

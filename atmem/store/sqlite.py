@@ -641,7 +641,7 @@ class SQLiteStore:
         )
         rows = self._conn.execute(
             f"""
-            SELECT r.* FROM typed_memory_units u
+            SELECT r.id FROM typed_memory_units u
             JOIN records r ON r.id = u.record_id
             WHERE u.subject_id = ? AND u.workspace_id = ?
               AND u.kind IN ({placeholders})
@@ -661,7 +661,9 @@ class SQLiteStore:
                 max(1, min(int(limit), 1000)),
             ),
         ).fetchall()
-        return [_record_from_row(row) for row in rows]
+        record_ids = [str(row["id"]) for row in rows]
+        loaded = self.get_records(subject_id, record_ids)
+        return [loaded[record_id] for record_id in record_ids if record_id in loaded]
 
     def typed_units_for_records(
         self, subject_id: str, workspace_id: str, record_ids: list[str],
@@ -820,9 +822,25 @@ class SQLiteStore:
               WHERE lineage.subject_id = ?
                 AND lineage.successor_record_id IN ({placeholders})
             )
-            SELECT DISTINCT related.record_id, related.seed_record_id, related.relation
+            SELECT related.record_id, related.seed_record_id, related.relation,
+                   MIN(COALESCE(next_source.ordinal,
+                                previous_source.ordinal + 1,
+                                1000000)) AS source_ordinal,
+                   MIN(e.start_offset) AS source_offset
             FROM related
             JOIN typed_memory_units u ON u.record_id = related.record_id
+            JOIN typed_unit_evidence e
+              ON e.subject_id = u.subject_id
+             AND e.workspace_id = u.workspace_id
+             AND e.unit_id = u.unit_id
+            LEFT JOIN source_adjacency next_source
+              ON next_source.subject_id = e.subject_id
+             AND next_source.workspace_id = e.workspace_id
+             AND next_source.from_source_id = e.source_id
+            LEFT JOIN source_adjacency previous_source
+              ON previous_source.subject_id = e.subject_id
+             AND previous_source.workspace_id = e.workspace_id
+             AND previous_source.to_source_id = e.source_id
             JOIN records r ON r.id = related.record_id
             WHERE u.subject_id = ? AND u.workspace_id = ?
               AND u.lifecycle = 'active' AND r.status = 'active'
@@ -833,7 +851,9 @@ class SQLiteStore:
                 WHERE x.subject_id = r.subject_id AND x.record_id = r.id
               )
               {sensitivity}
-            ORDER BY related.relation, related.record_id
+            GROUP BY related.record_id, related.seed_record_id, related.relation
+            ORDER BY related.relation, source_ordinal, source_offset,
+                     related.record_id
             LIMIT ?
             """,
             (
@@ -3821,10 +3841,12 @@ class SQLiteStore:
         remote: bool = False,
         graph_floor: int = 256,
         include_superseded: bool = False,
+        include_recency: bool = True,
+        include_fact: bool = True,
     ) -> tuple[
         list[dict[str, Any]], dict[str, float], dict[str, float], int, dict[str, Any]
     ]:
-        """Return bounded authorized candidates from persistent postings.
+        """Return bounded authorized candidates from FTS plus exact postings.
 
         Authorization predicates are applied in SQL before candidate limits or
         scores.  Workspace-private rows therefore cannot consume another
@@ -3854,7 +3876,34 @@ class SQLiteStore:
         if remote:
             auth_sql += " AND r.sensitivity_class NOT IN ('sensitive', 'restricted')"
 
-        def postings(field: str) -> dict[str, float]:
+        def lexical_fts() -> dict[str, float]:
+            if not normalized_terms or not self._fts_enabled:
+                return {}
+            match_expr = " OR ".join(
+                '"' + term.replace('"', '') + '"' for term in normalized_terms
+            )
+            try:
+                rows = self._conn.execute(
+                    f"""
+                    SELECT f.record_id, bm25(records_fts) AS rank, r.created_at
+                    FROM records_fts f JOIN records r ON r.id = f.record_id
+                    WHERE records_fts MATCH ? AND f.subject_id = ? AND {auth_sql}
+                    ORDER BY bm25(records_fts), r.created_at DESC, f.record_id
+                    LIMIT ?
+                    """,
+                    (match_expr, subject_id, *auth_params, limit),
+                ).fetchall()
+            except sqlite3.OperationalError:
+                return {}
+            # FTS owns term-frequency/document-frequency accounting.  Expose a
+            # stable reciprocal rank to the cross-channel fusion layer rather
+            # than persisting one redundant SQL row per content token.
+            return {
+                str(row["record_id"]): 1.0 / rank
+                for rank, row in enumerate(rows, start=1)
+            }
+
+        def fact_postings() -> dict[str, float]:
             if not normalized_terms:
                 return {}
             placeholders = ",".join("?" for _ in normalized_terms)
@@ -3867,7 +3916,7 @@ class SQLiteStore:
                   FROM record_search_terms p
                   JOIN authorized a ON a.id = p.record_id
                   WHERE p.subject_id = ? AND p.workspace_id IN ('', ?)
-                    AND p.field = ? AND p.term IN ({placeholders})
+                    AND p.field = 'fact_key' AND p.term IN ({placeholders})
                 ), term_df AS (
                   SELECT term, COUNT(DISTINCT record_id) AS document_frequency
                   FROM matched GROUP BY term
@@ -3882,20 +3931,20 @@ class SQLiteStore:
                 LIMIT ?
                 """,
                 (
-                    *auth_params, subject_id, workspace_id, field,
+                    *auth_params, subject_id, workspace_id,
                     *normalized_terms, len(normalized_terms), limit,
                 ),
             ).fetchall()
             return {str(row["record_id"]): float(row["score"]) for row in rows}
 
-        lexical_scores = postings("content")
-        fact_scores = postings("fact_key")
+        lexical_scores = lexical_fts()
+        fact_scores = fact_postings() if include_fact else {}
         nominated_ids = list(dict.fromkeys((*lexical_scores, *fact_scores)))
         loaded = self.get_records(subject_id, nominated_ids)
         records = [loaded[record_id] for record_id in nominated_ids if record_id in loaded]
         seen = {str(record["id"]) for record in records}
         recent: list[sqlite3.Row] = []
-        if len(records) < graph_limit:
+        if include_recency and len(records) < graph_limit:
             recent = self._conn.execute(
                 f"""
                 SELECT r.* FROM records r
@@ -3935,7 +3984,10 @@ class SQLiteStore:
             fact_scores,
             withheld,
             {
-                "graph_input_source": "persistent_postings_plus_bounded_recency",
+                "graph_input_source": (
+                    "persistent_fts_plus_bounded_recency"
+                    if include_recency else "persistent_fts"
+                ),
                 "graph_input_records": len(records),
                 "graph_input_limit": graph_limit,
                 "graph_input_truncated": len(recent) > graph_limit,
@@ -5561,16 +5613,28 @@ class SQLiteStore:
     def _migrate_audit_fts(self) -> None:
         try:
             self._conn.executescript("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS audit_fts
-                USING fts5(
-                  event_id, subject_id UNINDEXED, event_type, actor,
-                  session_id, turn_id, record_id, payload,
-                  content='audit_log', content_rowid='sequence',
-                  tokenize='porter unicode61'
-                );
                 CREATE TABLE IF NOT EXISTS audit_fts_state(
                   key TEXT PRIMARY KEY,
                   value TEXT NOT NULL
+                );
+                """)
+            version = self._conn.execute(
+                "SELECT value FROM audit_fts_state WHERE key = 'version'"
+            ).fetchone()
+            if version is None or version["value"] != "2":
+                self._conn.executescript("""
+                    DROP TRIGGER IF EXISTS audit_fts_insert;
+                    DROP TRIGGER IF EXISTS audit_fts_delete;
+                    DROP TRIGGER IF EXISTS audit_fts_update;
+                    DROP TABLE IF EXISTS audit_fts;
+                    """)
+            self._conn.executescript("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS audit_fts
+                USING fts5(
+                  event_id, subject_id UNINDEXED, event_type, actor,
+                  session_id, turn_id, record_id, payload UNINDEXED,
+                  content='audit_log', content_rowid='sequence',
+                  tokenize='porter unicode61'
                 );
                 CREATE TRIGGER IF NOT EXISTS audit_fts_insert AFTER INSERT ON audit_log BEGIN
                   INSERT INTO audit_fts(
@@ -5601,17 +5665,29 @@ class SQLiteStore:
                   );
                 END;
                 """)
-            version = self._conn.execute(
-                "SELECT value FROM audit_fts_state WHERE key = 'version'"
-            ).fetchone()
-            if version is None or version["value"] != "1":
+            if version is None or version["value"] != "2":
                 self._conn.execute("INSERT INTO audit_fts(audit_fts) VALUES('rebuild')")
                 self._conn.execute(
-                    "INSERT INTO audit_fts_state(key, value) VALUES('version', '1') "
+                    "INSERT INTO audit_fts_state(key, value) VALUES('version', '2') "
                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
                 )
             self._audit_fts_enabled = True
-        except sqlite3.OperationalError:
+        except Exception:
+            # Audit search is a rebuildable derived index.  SQLCipher exposes
+            # its own exception hierarchy (not sqlite3.DatabaseError), and an
+            # older or interrupted FTS shadow table can fail the special
+            # ``rebuild`` command even when the canonical audit_log passes
+            # integrity checks.  Never make the authority-bearing household
+            # unavailable because this optional index cannot be rebuilt.
+            try:
+                self._conn.executescript("""
+                    DROP TRIGGER IF EXISTS audit_fts_insert;
+                    DROP TRIGGER IF EXISTS audit_fts_delete;
+                    DROP TRIGGER IF EXISTS audit_fts_update;
+                    DROP TABLE IF EXISTS audit_fts;
+                    """)
+            except Exception:
+                pass
             self._audit_fts_enabled = False
 
     def _rebuild_fts(self) -> None:
@@ -5686,7 +5762,10 @@ class SQLiteStore:
             "DELETE FROM record_search_terms WHERE record_id = ?", (record_id,)
         )
         rows: list[tuple[str, str, str, str, str, int]] = []
-        for field, value in (("content", content), ("fact_key", fact_key or "")):
+        # Content already lives in the FTS5 index.  Only the compact exact
+        # fact-key channel needs explicit postings; duplicating every content
+        # token here made UI trajectories grow by hundreds of rows per state.
+        for field, value in (("fact_key", fact_key or ""),):
             counts: dict[str, int] = {}
             for term in _search_terms(value):
                 counts[term] = counts.get(term, 0) + 1
@@ -6692,7 +6771,7 @@ def _json(value: Any) -> str:
 
 
 _SEARCH_TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
-SEARCH_INDEX_VERSION = "scoped-postings-v2-tokenizer1"
+SEARCH_INDEX_VERSION = "scoped-postings-v3-fact-only"
 
 
 def _search_stem(token: str) -> str:
