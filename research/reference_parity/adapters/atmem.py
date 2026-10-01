@@ -12,6 +12,12 @@ from xml.etree import ElementTree
 
 from atmem import Memory
 from atmem.control import ControlMode, ControlPlaneManager
+from atmem.context_engine.formation import FormationManager, SourceEpisode, SourcePart
+from atmem.context_engine.planner import DeterministicPlanner
+from atmem.context_engine.retrieval import DeterministicRetriever
+from atmem.context_engine.sufficiency import decide_sufficiency
+from atmem.contracts.models import AuthorityScope
+from atmem.store.sqlite import SQLiteStore
 
 from ..contracts import CaseEvidenceResult
 from ..normalizer import normalize_evidence
@@ -24,6 +30,11 @@ ATMEM_LEGACY_CONFIG = (
 ATMEM_LEGACY_CONFIG_SHA256 = "sha256:" + hashlib.sha256(
     ATMEM_LEGACY_CONFIG.encode()
 ).hexdigest()
+ATMEM_V3_CONFIG = (
+    "atmem-context-fast;deterministic-formation-v1;planner-v1;contentless-fts;"
+    "independent-pools;obligation-first;selection-budget-sources=2"
+)
+ATMEM_V3_CONFIG_SHA256 = "sha256:" + hashlib.sha256(ATMEM_V3_CONFIG.encode()).hexdigest()
 
 
 class AtMemLegacyAdapter:
@@ -108,4 +119,64 @@ class AtMemLegacyAdapter:
             elapsed_ms=elapsed_ms,
             configuration_sha256=self.configuration_sha256,
             error=error,
+        )
+
+
+class AtMemContextFastAdapter:
+    """Reader-free adapter over the new source-backed product modules."""
+
+    system = "atmem-context-fast"
+
+    def run_case(self, case: Mapping[str, Any]) -> CaseEvidenceResult:
+        started = time.perf_counter()
+        selected_ranges: tuple[tuple[str, int, int], ...] = ()
+        status = "not_found_within_budget"
+        error: str | None = None
+        scope = AuthorityScope("local-user", "agent-a", "shared" if case.get("request_scope") == "workspace:shared" else "private-a")
+        store = SQLiteStore(":memory:")
+        try:
+            manager = FormationManager(store)
+            generation = manager.begin_generation(scope, profile_id="context-fast")
+            source_map: dict[str, str] = {}
+            unauthorized_present = False
+            for source in case["sources"]:
+                source_scope = str(source["scope"])
+                allowed = source_scope == "agent:a" or (
+                    source_scope == "workspace:shared" and case.get("request_scope") == "workspace:shared"
+                )
+                if not allowed:
+                    unauthorized_present = True
+                    continue
+                source_id = manager.retain_source(SourceEpisode(
+                    episode_id=str(source["id"]), scope=scope,
+                    parts=(SourcePart(
+                        "text", 0, "text", "text/plain", str(source["text"]).encode(),
+                    ),),
+                ))
+                source_map[source_id] = str(source["id"])
+                manager.form_source(source_id, generation)
+            plan = DeterministicPlanner().plan(str(case["query"]))
+            result = DeterministicRetriever(store).retrieve(
+                generation_id=generation, query=str(case["query"]), plan=plan,
+                max_sources=2,
+            )
+            decision = decide_sufficiency(plan, result)
+            status = decision.status
+            selected_ranges = tuple(
+                (source_map[item.source_id], item.start, item.end)
+                for item in result.candidates
+                if item.source_id in source_map
+            )
+            if not selected_ranges and unauthorized_present:
+                status = "withheld_by_policy"
+        except Exception as exc:
+            error = f"{type(exc).__name__}: {exc}"
+        finally:
+            store.close()
+        return CaseEvidenceResult(
+            system=self.system, case_id=str(case["id"]), split=str(case["split"]),
+            status=status, selected_ranges=selected_ranges,
+            forbidden_source_ids=tuple(str(v) for v in case.get("forbidden_source_ids", [])),
+            elapsed_ms=(time.perf_counter() - started) * 1000,
+            configuration_sha256=ATMEM_V3_CONFIG_SHA256, error=error,
         )

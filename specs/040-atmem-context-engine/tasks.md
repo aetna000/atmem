@@ -122,7 +122,7 @@ source range.
 - [ ] [T024] Implement deterministic and optional schema-constrained query plans
   in `atmem/context_engine/planner.py`, preserving the original query and an
   auditable fallback (FR-009).
-- [ ] [T025] Implement independent raw-state, transition, fact/entity,
+- [x] [T025] Implement independent raw-state, transition, fact/entity,
   procedure/rule, gotcha and premise pool interfaces/quotas in
   `atmem/context_engine/pools.py` (FR-010).
 - [ ] [T026] Implement exact/FTS, semantic, temporal and link nomination with

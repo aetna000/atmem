@@ -18,6 +18,7 @@ from research.reference_parity import (
 )
 from research.reference_parity.adapters import (
     AgentRunbookROfflineAdapter,
+    AtMemContextFastAdapter,
     AtMemLegacyAdapter,
     Mem0OssAdapter,
 )
@@ -191,6 +192,18 @@ def test_atmem_legacy_adapter_exercises_public_product_boundary() -> None:
     assert report["system"] == "atmem-legacy-control"
     assert report["aggregate"]["error_count"] == 0
     assert report["cases"][0]["configuration_sha256"] == "sha256:" + "4" * 64
+
+
+def test_atmem_context_fast_passes_reader_free_development_gate() -> None:
+    root = Path(__file__).resolve().parents[1]
+    corpus = load_corpus(
+        root / "research/reference_parity/fixtures/minimal-evidence-v1.json"
+    )
+    report = run(AtMemContextFastAdapter(), corpus)
+    assert report["aggregate"]["error_count"] == 0
+    assert report["aggregate"]["evidence_recall"] >= 0.90
+    assert report["aggregate"]["typed_status_accuracy"] >= 0.95
+    assert report["aggregate"]["unauthorized_exposure_count"] == 0
 
 
 def test_agentrunbook_adapter_uses_pinned_real_search_primitive() -> None:
