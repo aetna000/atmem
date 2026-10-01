@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from atmem.context_engine.formation import SourcePart, SourceEpisode, FormationManager
+from atmem.context_engine.formation import (
+    FormationManager, ModelFormationProposal, SourceEpisode, SourcePart,
+)
 from atmem.context_engine.coverage import storage_report
 from atmem.contracts.models import AuthorityScope
 from atmem.store.sqlite import SQLiteStore
@@ -167,5 +169,101 @@ def test_formation_replay_is_idempotent_with_stable_unit_occurrences() -> None:
             "SELECT COUNT(*) FROM context_evidence_units WHERE generation_id=?",
             (generation,),
         ).fetchone()[0] == unit_count
+    finally:
+        store.close()
+
+
+def test_correction_links_and_supersedes_prior_fact_but_preserves_source() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode, text in (
+            ("old", "Deployment updates go to room amber."),
+            ("new", "Correction: deployment updates now go to room cobalt, replacing amber."),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation)
+        links = store._conn.execute(
+            "SELECT * FROM context_evidence_links WHERE relation='supersedes'"
+        ).fetchall()
+        assert links
+        assert store._conn.execute(
+            "SELECT COUNT(*) FROM context_evidence_units WHERE lifecycle='superseded'"
+        ).fetchone()[0] >= 1
+        assert store._conn.execute("SELECT COUNT(*) FROM context_source_episodes").fetchone()[0] == 2
+    finally:
+        store.close()
+
+
+def test_duplicate_occurrence_is_linked_without_erasing_either_source() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode in ("occurrence-1", "occurrence-2"):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode, scope=SCOPE,
+                parts=(SourcePart(
+                    "text", 0, "text", "text/plain", b"The audit port is 7412.",
+                ),),
+            ))
+            manager.form_source(source, generation)
+        assert store._conn.execute(
+            "SELECT COUNT(*) FROM context_evidence_links WHERE relation='duplicate_occurrence'"
+        ).fetchone()[0] >= 1
+        assert store._conn.execute(
+            "SELECT COUNT(*) FROM context_source_episodes"
+        ).fetchone()[0] == 2
+    finally:
+        store.close()
+
+
+def test_optional_extraction_is_additive_grounded_and_fail_closed() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        source = manager.retain_source(_episode())
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        result = manager.form_with_extractor(
+            source, generation,
+            lambda _parts: (
+                ModelFormationProposal(
+                    kind="fact", source_id=source, part_id="text-1", start=0, end=7,
+                    compact_value={"subject": "person-1", "relation": "age", "value": 45},
+                ),
+                ModelFormationProposal(
+                    kind="fact", source_id=source, part_id="text-1", start=0, end=999,
+                    compact_value={"unsupported": True},
+                ),
+            ),
+            producer_id="fixture-model@sha256:abc", timeout_seconds=1,
+        )
+        assert result["deterministic"].representation_complete is True
+        assert len(result["optional"]["created_unit_ids"]) == 1
+        assert len(result["optional"]["rejected"]) == 1
+    finally:
+        store.close()
+
+
+def test_deterministic_views_stay_below_storage_amplification_limit() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        source = manager.retain_source(SourceEpisode(
+            episode_id="storage", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"Before repair uploads failed; rotating the certificate restored uploads. "
+                b"Release notices must go to eng-releases, never eng-all.",
+            ),),
+        ))
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        manager.form_source(source, generation)
+        report = storage_report(store)
+        assert report["derived_to_source_ratio"] <= 1.5
     finally:
         store.close()

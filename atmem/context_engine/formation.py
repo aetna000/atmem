@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 import json
 import re
 from typing import Any, Literal
@@ -57,6 +58,16 @@ class SourceEpisode:
 class StoredRange:
     range_id: str
     evidence: EvidenceRange
+
+
+@dataclass(frozen=True, slots=True)
+class ModelFormationProposal:
+    kind: UnitKind
+    source_id: str
+    part_id: str
+    start: int
+    end: int
+    compact_value: dict[str, Any]
 
 
 class FormationManager:
@@ -248,17 +259,12 @@ class FormationManager:
             "SELECT COUNT(*) FROM context_evidence_units WHERE generation_id=?",
             (generation_id,),
         ).fetchone()[0])
+        new_units: dict[str, list[str]] = {}
         for part in self.list_source_parts(source_id):
             source_range = self.add_range(source_id, part.part_id, 0, len(part.content))
             represented.append(source_range.evidence)
             text = part.content.decode("utf-8", errors="replace")
             lowered = text.casefold()
-            base = {
-                "source_id": source_id,
-                "part_id": part.part_id,
-                "modality": part.kind,
-                "mime_type": part.mime_type,
-            }
             kinds: set[UnitKind] = {"raw_state"}
             if part.kind == "text":
                 kinds.update(("fact", "entity"))
@@ -274,19 +280,24 @@ class FormationManager:
                     kinds.add("premise")
             entities = sorted(set(re.findall(r"\b[A-Z][A-Za-z0-9_-]*\b", text)))[:32]
             for kind in sorted(kinds):
-                compact = {
-                    **base,
-                    "view": kind,
-                    "entities": entities if kind == "entity" else [],
-                    "polarity": "negative" if kind == "premise" else "unknown",
-                }
-                self.add_unit(
+                # Source/range, modality and kind are normalized columns; do
+                # not repeat them inside each projection. Compact JSON carries
+                # only view-specific data that cannot be recovered from those
+                # columns or the source range.
+                compact: dict[str, Any] = {}
+                if kind == "entity" and entities:
+                    compact["e"] = entities
+                if kind == "premise":
+                    compact["p"] = "negative"
+                unit_id = self.add_unit(
                     generation_id,
                     kind=kind,
                     ranges=(source_range,),
                     compact_value=compact,
                     search_text=text,
                 )
+                new_units.setdefault(kind, []).append(unit_id)
+        self._reconcile_occurrences(source_id, generation_id, new_units.get("fact", []))
         units_after = int(self.store._conn.execute(
             "SELECT COUNT(*) FROM context_evidence_units WHERE generation_id=?",
             (generation_id,),
@@ -313,6 +324,116 @@ class FormationManager:
             processing_complete=True,
             representation_complete=coverage["coverage_ratio"] == 1.0,
         )
+
+    def _reconcile_occurrences(
+        self, source_id: str, generation_id: str, new_fact_units: list[str]
+    ) -> None:
+        if not new_fact_units:
+            return
+        source_text = "\n".join(
+            part.content.decode("utf-8", errors="replace")
+            for part in self.list_source_parts(source_id)
+            if part.kind == "text"
+        )
+        correction = bool(re.search(r"\b(correction|corrected|replacing|now)\b", source_text.casefold()))
+        new_tokens = {
+            token for token in re.findall(r"[^\W_]+", source_text.casefold())
+            if len(token) > 3 and token not in {"correction", "corrected", "replacing", "with", "from", "that", "this"}
+        }
+        rows = self.store._conn.execute(
+            """SELECT DISTINCT u.unit_id, r.source_id
+               FROM context_evidence_units u
+               JOIN context_unit_ranges ur
+                 ON ur.generation_id=u.generation_id AND ur.unit_id=u.unit_id
+               JOIN context_source_ranges r USING(range_id)
+               WHERE u.generation_id=? AND u.kind='fact' AND r.source_id<>?
+                 AND u.lifecycle='active'""",
+            (generation_id, source_id),
+        ).fetchall()
+        for row in rows:
+            previous_id = str(row["unit_id"])
+            previous_text = self.store._context_unit_search_text(generation_id, previous_id)
+            previous_tokens = {
+                token for token in re.findall(r"[^\W_]+", previous_text.casefold())
+                if len(token) > 3
+            }
+            relation: str | None = None
+            if " ".join(source_text.split()).casefold() == " ".join(previous_text.split()).casefold():
+                relation = "duplicate_occurrence"
+            elif correction and len(new_tokens & previous_tokens) >= 2:
+                relation = "supersedes"
+                self.store._conn.execute(
+                    """UPDATE context_evidence_units SET lifecycle='superseded'
+                       WHERE generation_id=? AND unit_id=?""",
+                    (generation_id, previous_id),
+                )
+            if relation:
+                for new_id in new_fact_units:
+                    self.store._conn.execute(
+                        """INSERT OR IGNORE INTO context_evidence_links(
+                             generation_id, from_unit_id, to_unit_id, relation
+                           ) VALUES (?, ?, ?, ?)""",
+                        (generation_id, new_id, previous_id, relation),
+                    )
+
+    def apply_model_proposals(
+        self, generation_id: str, proposals: tuple[ModelFormationProposal, ...],
+        *, producer_id: str,
+    ) -> dict[str, Any]:
+        """Validate additive model proposals against retained exact source bytes."""
+        if not producer_id.strip():
+            raise ValueError("pinned producer identity is required")
+        created: list[str] = []
+        rejected: list[dict[str, str]] = []
+        for index, proposal in enumerate(proposals):
+            try:
+                source_range = self.add_range(
+                    proposal.source_id, proposal.part_id, proposal.start, proposal.end
+                )
+                source = self.store._conn.execute(
+                    """SELECT e.subject_id, e.agent_id, e.workspace_id,
+                              g.subject_id AS g_subject, g.agent_id AS g_agent,
+                              g.workspace_id AS g_workspace, g.state
+                       FROM context_source_episodes e
+                       JOIN context_view_generations g ON g.generation_id=?
+                       WHERE e.source_id=?""",
+                    (generation_id, proposal.source_id),
+                ).fetchone()
+                if source is None or source["state"] != "building" or (
+                    source["subject_id"], source["agent_id"], source["workspace_id"]
+                ) != (source["g_subject"], source["g_agent"], source["g_workspace"]):
+                    raise ValueError("proposal source is outside the generation authority scope")
+                created.append(self.add_unit(
+                    generation_id, kind=proposal.kind, ranges=(source_range,),
+                    compact_value={**proposal.compact_value, "producer_id": producer_id},
+                    search_text=self.store._context_unit_search_text_for_range(source_range.range_id),
+                ))
+            except (KeyError, TypeError, ValueError, RuntimeError) as exc:
+                rejected.append({"proposal": str(index), "reason": str(exc)})
+        return {"producer_id": producer_id, "created_unit_ids": tuple(created), "rejected": tuple(rejected)}
+
+    def form_with_extractor(
+        self, source_id: str, generation_id: str, extractor: Any, *,
+        producer_id: str, timeout_seconds: float = 5.0,
+    ) -> dict[str, Any]:
+        deterministic = self.form_source(source_id, generation_id)
+        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="atmem-formation")
+        future = executor.submit(extractor, tuple(self.list_source_parts(source_id)))
+        try:
+            proposals = tuple(future.result(timeout=timeout_seconds))
+        except FutureTimeoutError:
+            future.cancel()
+            return {"deterministic": deterministic, "optional": {"producer_id": producer_id, "created_unit_ids": (), "rejected": ({"proposal": "*", "reason": "extractor_timeout"},)}}
+        except Exception as exc:
+            return {"deterministic": deterministic, "optional": {"producer_id": producer_id, "created_unit_ids": (), "rejected": ({"proposal": "*", "reason": f"extractor_error:{type(exc).__name__}"},)}}
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
+        return {
+            "deterministic": deterministic,
+            "optional": self.apply_model_proposals(
+                generation_id, proposals, producer_id=producer_id
+            ),
+        }
 
     def coverage_report(self, generation_id: str) -> dict[str, Any]:
         total = int(self.store._conn.execute(

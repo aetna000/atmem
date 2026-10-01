@@ -97,7 +97,7 @@ be rebuilt/rolled back safely.
   source regions in `tests/test_context_engine_formation.py` (FR-005–FR-007).
 - [x] [T018] Implement deterministic raw-state/structural transition/source
   projection in `atmem/context_engine/formation.py` (FR-004–FR-006).
-- [ ] [T019] Implement optional schema-constrained additive extraction and repair
+- [x] [T019] Implement optional schema-constrained additive extraction and repair
   with pinned model identity, bounded concurrency/deadline and exact source-range
   validation in `atmem/context_engine/formation.py` (FR-006–FR-008).
 - [ ] [T020] Implement fact/entity occurrence linking and source-grounded

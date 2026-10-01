@@ -5448,6 +5448,20 @@ class SQLiteStore:
             for row in rows
         )
 
+    def _context_unit_search_text_for_range(self, range_id: str) -> str:
+        row = self._conn.execute(
+            """SELECT p.content_bytes, r.start_offset, r.end_offset
+               FROM context_source_ranges r JOIN context_source_parts p
+                 ON p.source_id=r.source_id AND p.part_id=r.part_id
+               WHERE r.range_id=?""",
+            (range_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("source range is unavailable")
+        return bytes(row["content_bytes"])[
+            int(row["start_offset"]):int(row["end_offset"])
+        ].decode("utf-8", errors="replace")
+
     def _delete_context_fts_generation(self, generation_id: str) -> None:
         if not self._context_fts_enabled:
             return
