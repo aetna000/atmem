@@ -147,7 +147,7 @@ tests without whole-store scans or a model dependency.
 - [x] [T030] Implement authorized compact manifests and bounded navigation
   operations in `atmem/context_engine/navigator.py`; never expose gold or whole
   source corpora to the navigator (FR-013, FR-017, FR-024).
-- [ ] [T031] Implement obligation-grounded sufficiency in
+- [x] [T031] Implement obligation-grounded sufficiency in
   `atmem/context_engine/sufficiency.py`; model confidence cannot satisfy an
   obligation (FR-014).
 - [ ] [T032] Implement coverage-maximizing total-input packing, ordered evidence,

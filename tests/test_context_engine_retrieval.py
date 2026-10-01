@@ -4,7 +4,7 @@ from atmem.context_engine.formation import FormationManager, SourceEpisode, Sour
 from atmem.context_engine.planner import DeterministicPlanner
 from atmem.context_engine.retrieval import DeterministicRetriever
 from atmem.context_engine.sufficiency import decide_sufficiency
-from atmem.context_engine.packing import pack_context
+from atmem.context_engine.packing import derive_action_constraints, pack_context
 from atmem.contracts.models import AuthorityScope
 from atmem.store.sqlite import SQLiteStore
 
@@ -175,3 +175,41 @@ def test_cache_key_binds_generation_authority_plan_and_revision() -> None:
             )
     finally:
         store.close()
+
+
+def test_rule_evidence_yields_grounded_non_executing_action_constraint() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source = manager.retain_source(SourceEpisode(
+            episode_id="rule", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"Release notices must be sent to #eng-releases, never #eng-all.",
+            ),),
+        ))
+        manager.form_source(source, generation)
+        query = "Where must release notices be sent?"
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=2,
+        )
+        decision = decide_sufficiency(plan, result)
+        constraints = derive_action_constraints(query, result, decision)
+        assert constraints[0].target == "#eng-releases"
+        assert constraints[0].prohibited_action == "use #eng-all"
+        assert constraints[0].source_ids == (source,)
+    finally:
+        store.close()
+
+
+def test_sufficiency_can_report_stale_policy_withheld_and_bounded_not_found() -> None:
+    plan = DeterministicPlanner().plan("Where is the release room?")
+    from atmem.context_engine.retrieval import RetrievalResult
+    empty = RetrievalResult((), ("fact",), 0, False)
+    assert decide_sufficiency(plan, empty).status == "not_found_within_budget"
+    assert decide_sufficiency(plan, empty, lifecycle_stale=True).status == "stale"
+    withheld = decide_sufficiency(plan, empty, policy_withheld=True)
+    assert withheld.status == "withheld_by_policy"
+    assert withheld.evidence_unit_ids == ()

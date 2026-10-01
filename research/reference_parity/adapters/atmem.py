@@ -12,10 +12,10 @@ from xml.etree import ElementTree
 
 from atmem import Memory
 from atmem.control import ControlMode, ControlPlaneManager
-from atmem.context_engine.formation import FormationManager, SourceEpisode, SourcePart
-from atmem.context_engine.planner import DeterministicPlanner
-from atmem.context_engine.retrieval import DeterministicRetriever
-from atmem.context_engine.sufficiency import decide_sufficiency
+from atmem.context_engine import (
+    DeterministicPlanner, DeterministicRetriever, FormationManager,
+    SourceEpisode, SourcePart, decide_sufficiency,
+)
 from atmem.contracts.models import AuthorityScope
 from atmem.store.sqlite import SQLiteStore
 

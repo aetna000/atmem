@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
+
+from atmem.contracts.models import ActionConstraint
 
 from .contracts import QueryPlan, SufficiencyDecisionV2
 from .retrieval import RetrievalResult
@@ -57,3 +60,38 @@ def pack_context(
         excluded_unit_ids=tuple(excluded), bytes_used=used,
         complete=needed <= set(included),
     )
+
+
+def derive_action_constraints(
+    query: str, result: RetrievalResult, decision: SufficiencyDecisionV2,
+) -> tuple[ActionConstraint, ...]:
+    """Translate explicit source rules into agent-facing, non-executing constraints."""
+    if decision.status != "sufficient":
+        return ()
+    constraints: list[ActionConstraint] = []
+    for candidate in result.candidates:
+        text = candidate.text
+        if candidate.kind != "rule" and not re.search(
+            r"\b(must|should|required|never)\b", text, re.IGNORECASE
+        ):
+            continue
+        targets = re.findall(r"#[A-Za-z0-9_-]+", text)
+        required = None
+        prohibited = None
+        if re.search(r"\b(must|should|required)\b", text, re.IGNORECASE):
+            required = "follow governing source rule"
+        never = re.search(r"\bnever\s+(#[A-Za-z0-9_-]+)", text, re.IGNORECASE)
+        if never:
+            prohibited = f"use {never.group(1)}"
+        if required or prohibited:
+            constraints.append(ActionConstraint(
+                subject=query,
+                applies_when=query,
+                source_ids=(candidate.source_id,),
+                validity="current",
+                required_action=required,
+                prohibited_action=prohibited,
+                target=targets[0] if targets else None,
+                parameters={"source_range": f"{candidate.start}:{candidate.end}"},
+            ))
+    return tuple(constraints)

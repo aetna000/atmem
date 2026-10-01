@@ -10,7 +10,10 @@ from .contracts import QueryPlan, SufficiencyDecisionV2
 from .retrieval import RetrievalResult
 
 
-def decide_sufficiency(plan: QueryPlan, result: RetrievalResult) -> SufficiencyDecisionV2:
+def decide_sufficiency(
+    plan: QueryPlan, result: RetrievalResult, *,
+    lifecycle_stale: bool = False, policy_withheld: bool = False,
+) -> SufficiencyDecisionV2:
     required = tuple(item.obligation_id for item in plan.obligations if item.required)
     covered_set = {
         obligation_id
@@ -24,7 +27,16 @@ def decide_sufficiency(plan: QueryPlan, result: RetrievalResult) -> SufficiencyD
     status = "partial" if evidence_ids else "not_found_within_budget"
     conflicting: tuple[str, ...] = ()
     reason_codes: list[str] = []
-    if not missing:
+    if policy_withheld:
+        status = "withheld_by_policy"
+        covered = ()
+        missing = required
+        evidence_ids = ()
+        reason_codes.append("authority_withheld")
+    elif lifecycle_stale:
+        status = "stale"
+        reason_codes.append("lifecycle_generation_stale")
+    elif not missing:
         premise = any(item.kind == "premise_check" for item in plan.obligations)
         negative_evidence = any(
             re.search(r"\b(no|not|never|only|without|cannot|can't)\b", item.text.casefold())

@@ -33,7 +33,7 @@ class StoredContextEngine:
     def select(
         self, request: ContextRequestV3, manifest: AuthorizedManifest
     ) -> EngineSelection:
-        from .packing import pack_context
+        from .packing import derive_action_constraints, pack_context
         from .planner import DeterministicPlanner
         from .retrieval import DeterministicRetriever
         from .sufficiency import decide_sufficiency
@@ -80,6 +80,7 @@ class StoredContextEngine:
                 {"evidence_id": unit_id, "reason": "context_budget"}
                 for unit_id in packed.excluded_unit_ids
             ),
+            action_constraints=derive_action_constraints(request.query, result, decision),
             reason_codes=tuple(reason_codes),
         )
 
