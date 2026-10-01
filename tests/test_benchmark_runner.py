@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 
+from atmem.benchmark.contracts import canonical_digest, stable_quality_payload
 from atmem.benchmark.runner import data_path, run_benchmark
 
 
@@ -26,6 +28,15 @@ def test_quality_digest_ignores_latency() -> None:
     assert [row["case_id"] for row in first["case_results"]] == [
         row["case_id"] for row in second["case_results"]
     ]
+
+
+def test_quality_digest_changes_when_quality_changes() -> None:
+    report = run_benchmark()
+    changed = deepcopy(report)
+    changed["metrics"]["answerable_recall"]["value"] = 0.123456
+    assert canonical_digest(stable_quality_payload(report)) != canonical_digest(
+        stable_quality_payload(changed)
+    )
 
 
 def test_quality_floor_failure_keeps_complete_report(tmp_path) -> None:

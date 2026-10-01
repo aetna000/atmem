@@ -38,6 +38,7 @@ atflows = [
 ]
 dev = [
   "pytest>=8.0.0",
+  "jsonschema>=4.23,<5",
   "certifi>=2024.2.2",
   "loguru>=0.7,<1",
   "tomli>=2.0; python_version < '3.11'",
@@ -47,6 +48,9 @@ semantic = [
 ]
 semantic-accelerated = [
   "numpy>=1.26,<3",
+]
+encrypted = [
+  "sqlcipher3==0.6.2",
 ]
 mem0 = [
   "mem0ai>=2.0.20,<3",
@@ -112,7 +116,7 @@ include = ["atmem*"]
 [tool.setuptools.package-data]
 "atmem.adapters.hermes" = ["assets/*.py"]
 "atmem.control" = ["assets/*.jpg", "assets/*.html", "assets/*.css", "assets/*.js"]
-"atmem.schemas" = ["v1/*.json"]
+"atmem.schemas" = ["v1/*.json", "v2/*.json"]
 "atmem.contracts" = ["continuity-event-v1.json"]
 "atmem.retrieve" = ["*.json"]
 "atmem.benchmark" = ["data/*.json"]

@@ -598,6 +598,7 @@ class SemanticIndex:
         limit: int = 100,
         min_similarity: float = 0.2,
         allowed_ids: set[str] | None = None,
+        authorize_ids: Callable[[list[str]], set[str]] | None = None,
     ) -> list[dict[str, Any]]:
         epoch = self.active_epoch(subject_id)
         if epoch is None:
@@ -668,6 +669,17 @@ class SemanticIndex:
             batch = scored[start : start + batch_size]
             if batch[0][1] < float(min_similarity):
                 break
+            batch_ids = [str(row["object_id"]) for row, _ in batch]
+            authorized_ids = (
+                authorize_ids(batch_ids) if authorize_ids is not None else set(batch_ids)
+            )
+            batch = [
+                (row, similarity)
+                for row, similarity in batch
+                if str(row["object_id"]) in authorized_ids
+            ]
+            if not batch:
+                continue
             records = memory.store.get_record_validation(
                 subject_id, [str(row["object_id"]) for row, _ in batch]
             )

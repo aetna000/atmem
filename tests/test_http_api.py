@@ -8,6 +8,7 @@ from urllib.request import HTTPCookieProcessor, Request, build_opener
 
 from atmem.control.manager import ControlPlaneManager
 from atmem.control.web import ControlDashboardServer
+from atmem.core.canonical import sha256_hex
 from atmem.home import HomeService
 
 
@@ -45,6 +46,10 @@ def test_companion_navigation_requires_login_and_sanitizes_target(tmp_path, monk
         login = post("/api/auth/login", {"username": "administrator", "password": bootstrap["password"]})
         changed = post("/api/auth/change-password", {"new_password": "A much better local password 42!"}, login["csrf_token"])
         assert changed["account"]["role"] == "administrator"
+        retrieval = json.loads(opener.open(base + "/api/retrieval/status").read())
+        assert retrieval["format"] == "atmem-retrieval-quality-status-v1"
+        assert retrieval["activation"] == "explicit_v2_api"
+        assert retrieval["injection_active"] is False
         monkeypatch.setattr(atflows_service, "status", lambda: {"dashboard_url": "http://127.0.0.1:54001/"})
         assert json.loads(opener.open(base + "/api/companions").read())["atflows_dashboard_url"] == "http://127.0.0.1:54001/"
         monkeypatch.setattr(atflows_service, "status", lambda: {"dashboard_url": "http://attacker.example:54001/"})
@@ -65,6 +70,32 @@ def test_authenticated_v1_idempotency_pagination_and_authority(tmp_path) -> None
         first = json.loads(opener.open(_request(base, token, "/v1/memories", method="POST", body={"message": "My city is Sydney.", "idempotency_key": "one"})).read())
         replay = json.loads(opener.open(_request(base, token, "/v1/memories", method="POST", body={"message": "My city is Sydney.", "idempotency_key": "one"})).read())
         assert replay == first
+        v2_context = json.loads(opener.open(_request(
+            base, token, "/v1/retrieval/context", method="POST",
+            body={"query": "What is my city?", "max_context_bytes": 2048},
+        )).read())
+        assert v2_context["format"] == "atmem-api-retrieval-context-v2"
+        assert v2_context["retrieval"]["context_version"] == "v2"
+        assert v2_context["inject"] is False
+        source = "I am 45 years old."
+        formation = json.loads(opener.open(_request(
+            base, token, "/v1/retrieval/form", method="POST",
+            body={
+                "episode_id": "http-episode-age",
+                "idempotency_key": "http-episode-age-v1",
+                "parts": [{
+                    "part_id": "part-0", "ordinal": 0, "kind": "text",
+                    "source_type": "user_message", "content": source,
+                    "content_sha256": f"sha256:{sha256_hex(source)}",
+                }],
+            },
+        )).read())
+        assert formation["format"] == "atmem-api-episode-formation-v1"
+        assert formation["result"]["receipt"]["source_events_observed"] == 1
+        # This fixture uses a plaintext household. Formation is visible, but
+        # admission remains fail-closed until protected typed storage exists.
+        assert formation["result"]["outcomes"][0]["review_state"] == "rejected"
+        assert "typed_memory_requires_encrypted_household" in formation["result"]["outcomes"][0]["reason_codes"]
         with __import__("pytest").raises(HTTPError) as conflict:
             opener.open(_request(base, token, "/v1/memories", method="POST", body={"message": "different", "idempotency_key": "one"}))
         assert conflict.value.code == 409

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v1/episode-ingest.json",
+  "title": "AtMem lossless episode ingest v1",
+  "type": "object",
+  "required": ["format", "episode_id", "idempotency_key", "scope", "parts", "source_capture_format", "binding_method", "binding_assurance", "retain_body"],
+  "properties": {
+    "format": {"const": "atmem-episode-ingest-v1"},
+    "episode_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 256},
+    "scope": {"$ref": "scope.json"},
+    "source_capture_format": {"const": "atmem-source-capture-request-v1"},
+    "binding_method": {"enum": ["host_asserted", "caller_asserted"]},
+    "binding_assurance": {"enum": ["host_asserted", "caller_asserted"]},
+    "session_id": {"type": ["string", "null"]},
+    "turn_id": {"type": ["string", "null"]},
+    "host_message_id": {"type": ["string", "null"]},
+    "retain_body": {"type": "boolean"},
+    "parts": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["format", "part_id", "ordinal", "kind", "source_type"],
+        "properties": {
+          "format": {"const": "atmem-episode-part-v1"},
+          "part_id": {"type": "string", "minLength": 1},
+          "ordinal": {"type": "integer", "minimum": 0},
+          "kind": {"enum": ["text", "state", "action", "tool", "media_reference"]},
+          "source_type": {"enum": ["user_message", "agent_message", "tool_output", "website", "document"]},
+          "content": {"type": ["string", "null"]},
+          "reference_id": {"type": ["string", "null"]},
+          "start_offset": {"type": ["integer", "null"], "minimum": 0},
+          "end_offset": {"type": ["integer", "null"], "minimum": 1},
+          "observed_at": {"type": ["string", "null"], "format": "date-time"},
+          "content_sha256": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"},
+          "reference_sha256": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

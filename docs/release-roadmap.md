@@ -45,6 +45,43 @@ continuity qualification gates. Hermes memory support does not imply whole-agent
 capture or restart safety. Website docs and any submission need their normal
 review/publication approvals; planning authorizes no paid calls or deployment.
 
+### 2.3.8 final retrieval-quality gate
+
+The integration betas may continue to validate packaging and host setup, but the
+final AtMem 2.3.8 release is now governed by
+[Spec 040](../specs/040-atmem-context-engine/spec.md), whose
+[complete crosswalk](../specs/040-atmem-context-engine/alignment.md) preserves or
+explicitly replaces every Spec 038 requirement and success criterion. Spec 038
+remains the historical evidence and gate source, but no longer owns the engine
+architecture. The quality track replaces the formation/retrieval core behind
+AtMem's context-provider and governance boundaries with multi-view formation,
+obligation-first retrieval, bounded source navigation, source-backed
+sufficiency and complementary context construction;
+the LongMemEval-V2 and DolphinBench adapters remain inert consumers of the same
+public APIs used by supported agents.
+
+Final promotion requires Spec 040 SC-013 and every safety/product gate it
+references: the absolute LongMemEval confirmation floor, non-inferiority to the
+legacy control, LoCoMo no-regression, frozen local fixtures, uncertainty,
+provenance, installed-candidate migration and
+adapter checks, a benchmark-independent CLI/MCP/dashboard product journey,
+bounded CPU/storage/diagnostic behavior, Linux/macOS/Windows installed tests
+(with Hermes using its supported WSL route on Windows),
+reversible sampled shadow activation, and external storage of heavy artifacts. Missing
+or invalid safety/product evidence blocks the stable release rather than being
+counted as skipped. The stricter matched LongMemEval ≥10%-relative lead with a
+positive paired confidence interval is the target for a benchmark-leading claim,
+not a substitute for release safety. If that claim gate fails, V3 may ship only
+as experimental/shadow after the release floor passes and no leadership claim
+may be made. DolphinBench development/full results are separately approved
+research/claim gates, not paid dependencies of the stable package. LongMemEval
+confirmation IDs are disjoint from every inspected development ID; complete
+Small is reported separately as non-held-out. Dolphin freezes the shared persona
+checkpoint before scoring and reports 600/600 plus 582 non-development tasks.
+This gate preserves the MCP Registry, Hermes, continuity and coordinated
+AtFlows redaction commitments; it does not authorize a release, paid benchmark
+run or leaderboard submission.
+
 ### 2.3.8 companion security scope: AtFlows 0.1.4
 
 Scheduled 2026-09-26: fix secret retention in AtFlows telemetry before storage,

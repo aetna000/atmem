@@ -1,0 +1,104 @@
+# Research: AtMem Context Engine
+
+## Pinned references reviewed
+
+| System | Revision | Relevant executable behavior | Adopted principle |
+|---|---|---|---|
+| AgentRunbook-C/C V2 | `2cc8c540bdb87fe6761629b585e727e1c4704520` | Concise/full trajectory manifests, targeted exact span inspection, agent-directed stopping, source-span submission, invalid-premise handling | Bounded evidence navigation over immutable source |
+| AgentRunbook-R | same | Separate raw-state, transition, procedure and hint/gotcha pools; query bundle per pool; per-query merge caps; optional reranking | Independent evidence views, query-specific obligations and quotas |
+| Mem0 OSS | `d3891e48baa2c6e769f9cfa4003873bd6a85bc07` | Additive extraction, fact update/consolidation, hybrid vector/BM25/entity scoring, user/agent/run scopes | High-recall additive formation and linked lifecycle-aware facts |
+| DolphinBench | `81cb6f8405b40a9e76089cef650806a80af06ea2` | Hermes agent/action evaluation, persona stores, exact tool checks and published Mem0 result | End-to-end action quality with matched agent/model/tools |
+
+All are Apache-2.0 at the recorded revisions. Techniques are reimplemented
+against AtMem contracts; reference runtime code is not imported into product.
+
+## Current AtMem evidence
+
+- LongMemEval frozen 14-question run: 3/14 (21.4%).
+- Seven-question enterprise baseline: 2/7 (28.6%).
+- Best bounded diagnostic: 4/7 (57.1%), not reproduced.
+- Confirmation diagnostic: 3/7 (42.9%).
+- DolphinBench frozen 18-task run: 4/18 (22.2%).
+- Same Dolphin task IDs, hosted Mem0 with a different model/service: 14/18
+  (77.8%), context only rather than a matched local comparison.
+- Reader-free investigation showed formation omissions, multi-entity packing
+  loss, negative-premise weakness and unstable reader use.
+
+## Decisions
+
+### R1 — Clean engine boundary
+
+Build a new engine behind a versioned public context contract. Do not evolve
+`hybrid.py` into the new architecture. Legacy remains a frozen control and
+rollback implementation until migration and qualification pass.
+
+### R2 — Source once, views many
+
+Store immutable source episodes once. Every evidence view stores compact fields,
+source ranges and searchable projections, not another full trajectory body.
+Views are rebuildable generations and never authority.
+
+### R3 — High-recall formation with an explicit loss ledger
+
+Run deterministic projections for exact/raw surfaces and optional model-assisted
+additive extraction for semantic facts, procedures, transitions and gotchas.
+Validate every proposal against source ranges. Record uncovered ranges and
+unsupported media instead of marking the episode complete.
+
+### R4 — Obligation-first retrieval
+
+Plan the evidence needed to answer, not merely alternative search strings.
+Nominate independently per obligation and evidence view, reserve one valid head
+for each required obligation, then add complementary support. This prevents a
+dominant entity or pool from consuming the whole context.
+
+### R5 — Two operating points
+
+`context-fast` uses deterministic/query-model planning plus persistent indexes
+and bounded neighbourhood expansion. `context-navigate` may use a pinned model
+to inspect manifests and exact spans. Both return the same contract and enforce
+the same authority and total-input budget.
+
+### R6 — Sufficiency is source coverage
+
+Similarity, reranker probability and model prose remain ranking evidence only.
+Sufficiency requires grounded coverage of declared obligations and represents
+conflict, staleness, partial support and absence explicitly.
+
+### R7 — Comparators before claims
+
+Implement neutral AgentRunbook and Mem0 adapters before further leaderboard
+claims. Use reader-free minimal-evidence evaluation for rapid iteration, then a
+bounded live micro differential, then full matched development/confirmation.
+
+### R8 — Separate release safety from research leadership
+
+Stable release qualification uses an absolute LongMem quality floor,
+non-inferiority to legacy, LoCoMo no-regression, governance, performance,
+storage and installed product gates. Benchmark-leading language additionally
+requires a matched relative lead with paired uncertainty. Missing a claim gate
+cannot waive safety, but it also cannot indefinitely block unrelated product
+work; the candidate remains experimental/shadow and the result stays honest.
+
+### R9 — Neutral, symmetric evaluation
+
+Reader-free evaluation uses disjoint development/sealed-holdout fixtures and a
+pre-frozen output-to-source-span normalizer shared by AtMem, Mem0 and
+AgentRunbook. Paid arms declare complete model, prompt, embedding, resource and
+cost cards, receive equal-size development sweeps and symmetric repetitions,
+and report cost-normalized accuracy without best-of selection. Dolphin persona
+memory is frozen before tasks; task holdout is reported separately from corpus
+holdout.
+
+## Rejected alternatives
+
+- **Tune larger top-k on the existing hybrid ranker**: already produced unstable
+  gains and larger incomplete contexts.
+- **Copy reference code into AtMem runtime**: couples product behavior to
+  benchmark implementations and weakens contract/governance ownership.
+- **Use an LLM answer as memory context**: converts AtMem into an answerer and
+  obscures evidence provenance.
+- **Require model navigation for all queries**: violates local-first operation
+  and imposes avoidable cost/latency on exact facts.
+- **Use published numbers as the release comparator**: not matched and therefore
+  insufficient for a leadership claim.

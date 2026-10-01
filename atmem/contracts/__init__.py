@@ -2,19 +2,30 @@
 
 from atmem.contracts.models import (
     AuthorityScope,
+    ActionConstraint,
     ContextPackage,
+    ContextPackageV2,
     ContextRequest,
+    ContextRequestV2,
     EligibleCandidate,
     EligibleCandidateSet,
     ExposureConfirmation,
     ExposureReceipt,
+    EpisodeIngestRequest,
+    EpisodePart,
+    EvidenceNeighborhood,
+    EvidencePath,
+    FormationReceipt,
+    InformationNeed,
     InterpreterIdentity,
     MemoryAdmission,
     MemoryProposal,
     RecallRequest,
+    RetrievalBudget,
     SourceBinding,
     SourceCaptureRequest,
     SourceCaptureResult,
+    SufficiencyDecision,
 )
 from atmem.contracts.task_state import (
     ActorRole,
@@ -49,23 +60,65 @@ from atmem.contracts.task_state import (
 )
 from atmem.contracts.versions import capabilities
 
+_CONTEXT_ENGINE_EXPORTS = {
+    "ContextPackageV3",
+    "ContextRequestV3",
+    "EvidenceObligation",
+    "EvidenceRange",
+    "FormationReceiptV2",
+    "FormationRequestV2",
+    "NavigationReceipt",
+    "QueryPlan",
+    "SufficiencyDecisionV2",
+}
+
+
+def __getattr__(name: str):
+    """Load V3 types lazily so the compatibility export cannot form a cycle."""
+
+    if name in _CONTEXT_ENGINE_EXPORTS:
+        from atmem.context_engine import contracts as context_contracts
+
+        return getattr(context_contracts, name)
+    raise AttributeError(name)
+
 __all__ = [
     "ActorRole",
     "Assurance",
     "AuthorityScope",
+    "ActionConstraint",
     "ContextPackage",
+    "ContextPackageV2",
+    "ContextPackageV3",
     "ContextRequest",
+    "ContextRequestV2",
+    "ContextRequestV3",
     "EligibleCandidate",
     "EligibleCandidateSet",
     "ExposureConfirmation",
     "ExposureReceipt",
+    "EpisodeIngestRequest",
+    "EpisodePart",
+    "EvidenceNeighborhood",
+    "EvidenceObligation",
+    "EvidencePath",
+    "EvidenceRange",
+    "FormationReceipt",
+    "FormationReceiptV2",
+    "FormationRequestV2",
+    "InformationNeed",
     "InterpreterIdentity",
     "MemoryAdmission",
     "MemoryProposal",
+    "NavigationReceipt",
+    "QueryPlan",
     "RecallRequest",
+    "RetrievalBudget",
     "SourceBinding",
     "SourceCaptureRequest",
     "SourceCaptureResult",
+    "SufficiencyDecision",
+    "SufficiencyDecisionV2",
     "ContextDisposition",
     "EvidenceRef",
     "ExpiryPolicy",

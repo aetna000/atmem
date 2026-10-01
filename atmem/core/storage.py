@@ -16,6 +16,7 @@ POLICY_STATES = {
     "plaintext",
     "migration-prepared",
     "encrypting",
+    "encrypted-finalizing",
     "encrypted",
     "decrypting",
 }
@@ -92,12 +93,18 @@ class HouseholdPolicy:
             raise ValueError(":memory: policy cannot be written")
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.state_path.with_name(f".{self.state_path.name}.tmp")
-        temporary.write_text(
-            json.dumps(self.document(), indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        with temporary.open("w", encoding="utf-8") as handle:
+            handle.write(json.dumps(self.document(), indent=2, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
         temporary.chmod(0o600)
         os.replace(temporary, self.state_path)
+        if os.name != "nt":
+            descriptor = os.open(self.state_path.parent, os.O_RDONLY)
+            try:
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
 
 
 class HouseholdLock:
@@ -154,10 +161,14 @@ def connect(
     target = Path(path).expanduser().resolve(strict=False)
     state = policy.state
     header = _header(target)
-    if mode == "runtime" and state in {"migration-prepared", "encrypting", "decrypting"}:
+    if mode == "runtime" and state in {
+        "migration-prepared", "encrypting", "encrypted-finalizing", "decrypting"
+    }:
         raise RuntimeError(
-            f"household migration is {state}; migration tooling is not shipped in "
-            "this release, so restore a consistent plaintext backup"
+            f"household migration is {state}; runtime access is fail-closed. "
+            "Resume with `atmem household init <path> --encrypted` for a fresh "
+            "bootstrap, or `atmem household migrate <path>` for an existing "
+            "plaintext household"
         )
     if state == "plaintext":
         if header and header != SQLITE_HEADER:
@@ -166,6 +177,13 @@ def connect(
             )
         return sqlite3.connect(str(target), isolation_level=isolation_level)
     if state == "encrypted":
+        backup = target.with_name(f".{target.name}.atmem-plaintext-backup")
+        if backup.exists():
+            raise RuntimeError(
+                "encrypted household has a retained plaintext migration backup; "
+                "runtime access is fail-closed until `atmem household migrate <path>` "
+                "durably completes cleanup"
+            )
         if header == SQLITE_HEADER:
             raise RuntimeError(
                 "household state says encrypted but the database has a plaintext SQLite header"

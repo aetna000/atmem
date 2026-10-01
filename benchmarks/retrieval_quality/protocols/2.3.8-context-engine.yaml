@@ -1,0 +1,141 @@
+{
+  "format": "atmem-context-engine-protocol-v1",
+  "release": "2.3.8",
+  "status": "frozen-before-context-engine-implementation",
+  "base_protocol": {
+    "path": "benchmarks/retrieval_quality/protocols/2.3.8.yaml",
+    "sha256": "b18fc4686bb960ad960c659c1dea4fbeb5192d853ab8233b50bb2912a90e3a85"
+  },
+  "reference_corpus": {
+    "path": "research/reference_parity/fixtures/minimal-evidence-v1.json",
+    "sha256": "902e3f25fb2842af511481796a2d7c1b130403c0a0e5cdaf529b0f671f42def4",
+    "normalizer": "research.reference_parity.normalizer:v1",
+    "normalizer_sha256": "372abd74cf26dfd9d6b110d553d8417b5f861eaa0b2a24b161f409428d33ffc1",
+    "selection_budget_sources": 2,
+    "development_cases": 6,
+    "sealed_holdout_cases": 6,
+    "role": "paid-run go-no-go only; never leaderboard evidence"
+  },
+  "splits": {
+    "longmemeval_development": {
+      "path": "benchmarks/retrieval_quality/protocols/longmemeval-v2-pilot-v1.json",
+      "sha256": "2daea3483b28d15c1bdabd62cb9910574a03ff2719c6391c73628dbd4d026397",
+      "count": 14,
+      "all_answer_inspected_ids_are_development": true
+    },
+    "longmemeval_confirmation": {
+      "path": "benchmarks/retrieval_quality/protocols/longmemeval-v2-question-split-v1.json",
+      "sha256": "8e5d5e2d253e74a12660693648593da795269700dd5f9d3023ff4dfe95f02049",
+      "count": 317,
+      "inspection_resets_confirmation_status": true,
+      "full_small_label": "non-held-out complete-small"
+    },
+    "dolphin_development": {
+      "path": "benchmarks/retrieval_quality/protocols/dolphinbench-task-split-v1.json",
+      "sha256": "38a0aa677e9829b42785bb92e79f98afeeacb5b8ebf9481cd2319729710a4d83",
+      "count": 18
+    },
+    "dolphin_full": {
+      "total_count": 600,
+      "non_development_count": 582,
+      "label": "tuned-on-corpus, held-out tasks",
+      "persona_checkpoint_must_be_frozen_before_scoring": true
+    }
+  },
+  "shared_models": {
+    "reader_and_optional_intelligence": "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "embedding": "Qwen/Qwen3-Embedding-8B@1d8ad4ca9b3dd8059ad90a75d4983776a23d44af",
+    "judge": "gpt-5.2-2025-12-11;reasoning=medium",
+    "temperature": 0.0,
+    "seeds": [23801, 23802]
+  },
+  "arm_policy": {
+    "development_repetitions": 2,
+    "confirmation_repetitions": 1,
+    "same_repetitions_for_every_arm": true,
+    "best_of_selection": false,
+    "failure_denominator": "all frozen cases",
+    "report_per_run_and_mean": true,
+    "paired_bootstrap": true,
+    "report_cost_normalized_accuracy": true,
+    "development_sweep_cases_per_arm": 14
+  },
+  "arms": {
+    "atmem-context-navigate": {
+      "source": "this repository exact candidate commit",
+      "formation": "Qwen/Qwen3.5-9B additive extraction; deterministic fallback",
+      "embedding": "shared embedding",
+      "planner_navigator": "shared reader model",
+      "reader": "shared reader model",
+      "judge": "shared judge",
+      "top_k": 20,
+      "total_context_tokens": 16000,
+      "max_model_calls_per_query": 8,
+      "max_intelligence_tokens_per_query": 20000,
+      "max_navigation_operations": 24,
+      "timeout_seconds": 600,
+      "max_retries": 0
+    },
+    "agentrunbook-c-v2": {
+      "source": "LongMemEval-V2@2cc8c540bdb87fe6761629b585e727e1c4704520",
+      "formation": "immutable trajectory summaries from pinned implementation",
+      "embedding": "none",
+      "planner_navigator": "shared reader model",
+      "reader": "shared reader model",
+      "judge": "shared judge",
+      "top_k": 20,
+      "total_context_tokens": 16000,
+      "max_model_calls_per_query": 8,
+      "max_intelligence_tokens_per_query": 20000,
+      "max_navigation_operations": 24,
+      "timeout_seconds": 600,
+      "max_retries": 0
+    },
+    "agentrunbook-r": {
+      "source": "LongMemEval-V2@2cc8c540bdb87fe6761629b585e727e1c4704520",
+      "formation": "pinned raw-state/transition/procedure/gotcha indexes",
+      "embedding": "shared embedding",
+      "planner_navigator": "shared reader model used only where pinned configuration requires it",
+      "reader": "shared reader model",
+      "judge": "shared judge",
+      "top_k": 20,
+      "total_context_tokens": 16000,
+      "max_model_calls_per_query": 8,
+      "max_intelligence_tokens_per_query": 20000,
+      "max_navigation_operations": 24,
+      "timeout_seconds": 600,
+      "max_retries": 0
+    },
+    "mem0-oss": {
+      "source": "mem0@d3891e48baa2c6e769f9cfa4003873bd6a85bc07",
+      "formation": "shared reader model with pinned Mem0 fact update prompt",
+      "embedding": "shared embedding",
+      "planner_navigator": "none",
+      "reader": "shared reader model",
+      "judge": "shared judge",
+      "top_k": 20,
+      "total_context_tokens": 16000,
+      "max_model_calls_per_query": 8,
+      "max_intelligence_tokens_per_query": 20000,
+      "max_navigation_operations": 0,
+      "timeout_seconds": 600,
+      "max_retries": 0
+    }
+  },
+  "hardware": {
+    "reader_class": "single GPU with at least 24GB VRAM; exact SKU/region recorded per run",
+    "product_class": "CPU-only frozen 50k/100k fixture; exact OS/CPU/RAM recorded per run"
+  },
+  "egress": {
+    "allowed_fields": ["public benchmark source", "public benchmark query", "candidate answer", "public expected answer for judge only"],
+    "providers": ["operator-approved RunPod OpenAI-compatible endpoint", "OpenAI judge"],
+    "content_free_audit_required": true,
+    "encrypted_cassettes_required": true,
+    "dataset_license_check_required": true
+  },
+  "cost_ceiling_usd": {
+    "longmemeval_14_all_arms_two_repetitions": 25.0,
+    "dolphin_18_all_arms_two_repetitions": 25.0,
+    "context_navigate_per_query": 0.05
+  }
+}

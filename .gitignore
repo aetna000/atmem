@@ -32,6 +32,9 @@ idea.md
 # JEV-Lab generated reports are local experiment outputs.
 research/jev_lab/results/
 
+# Raw benchmark outputs may contain licensed questions, answers and prompts.
+benchmarks/longmemeval_v2/results/
+
 # Node (OpenClaw plugin)
 node_modules/
 integrations/openclaw/dist/

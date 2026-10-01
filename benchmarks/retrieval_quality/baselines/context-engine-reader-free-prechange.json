@@ -1,0 +1,55 @@
+{
+  "format": "atmem-reader-free-reference-aggregate-v1",
+  "status": "complete_reader_free_baseline",
+  "recorded_at": "2026-10-01",
+  "atmem_source_commit": "1b3d414de4a4ee725ae58ca6968deacdfe0111d2",
+  "corpus_sha256": "sha256:902e3f25fb2842af511481796a2d7c1b130403c0a0e5cdaf529b0f671f42def4",
+  "normalizer_sha256": "sha256:372abd74cf26dfd9d6b110d553d8417b5f861eaa0b2a24b161f409428d33ffc1",
+  "protocol_sha256": "sha256:8f4a4284abc41f27f8d81fa9bec2441eef3bd44c0c453e800239f82ad196e894",
+  "external_raw_root": "/Volumes/MEM/atmem-benchmarks/baselines/context-engine-prechange-20261001",
+  "external_manifest_sha256": "sha256:f0afde8b93af3d4d1f39b1ea51fb0bd08a42d8650a7415dd7970b70e8e21b792",
+  "case_count": 12,
+  "selection_budget_sources": 2,
+  "global_distractor_count": 8,
+  "arms": [
+    {
+      "system": "atmem-legacy-control",
+      "configuration_sha256": "sha256:a7fc9c9dbd4c50eb15ec8bd01dfbf59a487b92ba85a3eea2be1c3eca45cc6b78",
+      "evidence_recall": 0.7083333333333334,
+      "typed_status_accuracy": 0.5833333333333334,
+      "holdout_evidence_recall": 0.9166666666666666,
+      "holdout_typed_status_accuracy": 0.6666666666666666,
+      "unauthorized_exposure_count": 0,
+      "error_count": 0,
+      "median_latency_ms_observed": 96.81433299556375
+    },
+    {
+      "system": "mem0-oss-raw-offline",
+      "configuration_sha256": "sha256:a4f61e0a6469094cec691b1077b639bbc00e692b8bd3b8acc437fbf5e10bb38e",
+      "evidence_recall": 0.8333333333333334,
+      "typed_status_accuracy": 0.5833333333333334,
+      "holdout_evidence_recall": 1.0,
+      "holdout_typed_status_accuracy": 0.5,
+      "unauthorized_exposure_count": 0,
+      "error_count": 0,
+      "median_latency_ms_observed": 27.190999477170408
+    },
+    {
+      "system": "agentrunbook-r-index-offline",
+      "configuration_sha256": "sha256:fa242da5bd4b0a267747046c810a9fb613ab74e4f5a31885338bceb535fae47e",
+      "evidence_recall": 0.8333333333333334,
+      "typed_status_accuracy": 0.5833333333333334,
+      "holdout_evidence_recall": 1.0,
+      "holdout_typed_status_accuracy": 0.5,
+      "unauthorized_exposure_count": 0,
+      "error_count": 0,
+      "median_latency_ms_observed": 0.49825001042336226
+    }
+  ],
+  "limitations": [
+    "AgentRunbook-C/V2 is model-directed and belongs to the later live-cassette gate",
+    "latency values are single-run diagnostics, not frozen-hardware measurements",
+    "reference arms omit model-assisted formation and are not published-score reproductions"
+  ],
+  "claim": "Reader-free development diagnostic only; not an official benchmark or leadership result."
+}

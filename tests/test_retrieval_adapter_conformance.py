@@ -9,6 +9,8 @@ from atmem.adapters import AtMemAdapterIdentity, AtMemTurnLifecycle
 from atmem.control import ControlMode, ControlPlaneManager
 from atmem.control.server import ControlMCPServer
 from atmem.mcp.server import MCPServer
+from atmem.contracts import AuthorityScope, EpisodeIngestRequest, EpisodePart
+from atmem.core.canonical import sha256_hex
 
 
 @pytest.fixture
@@ -105,5 +107,30 @@ def test_raw_mcp_governed_recall_preserves_no_useful_memory(tmp_path) -> None:
         assert payload["decision"]["support_class"] == "no_useful_memory"
         assert payload["records"] == []
         assert payload["context"]["record_ids"] == ()
+    finally:
+        memory.close()
+
+
+def test_raw_mcp_v2_delivers_same_typed_sufficiency_contract(tmp_path) -> None:
+    memory = Memory(
+        tmp_path / "mcp-v2.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        text = "I am 45 years old."
+        scope = AuthorityScope("local-user", "mcp", "mcp:local-user")
+        memory.form_episode(EpisodeIngestRequest(
+            episode_id="mcp-age", idempotency_key="mcp-age-key", scope=scope,
+            parts=(EpisodePart(
+                part_id="age", ordinal=0, kind="text", source_type="user_message",
+                content=text, content_sha256=f"sha256:{sha256_hex(text)}",
+            ),),
+        ))
+        payload = MCPServer(memory, default_subject="local-user")._tool_recall_decision(
+            {"query": "How old am I?", "context_version": "v2"}
+        )
+        assert payload["format"] == "atmem-mcp-recall-decision-v2"
+        assert payload["context"]["sufficiency"]["status"] == "sufficient"
+        assert "45" in payload["context"]["context"]
     finally:
         memory.close()
