@@ -143,3 +143,35 @@ def test_missing_comparison_side_is_partial_not_false_sufficient() -> None:
         assert decision.missing_obligation_ids == ("comparison-2",)
     finally:
         store.close()
+
+
+def test_cache_key_binds_generation_authority_plan_and_revision() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source = manager.retain_source(SourceEpisode(
+            episode_id="cache", scope=SCOPE,
+            parts=(SourcePart("text", 0, "text", "text/plain", b"Audit uses port 7412."),),
+        ))
+        manager.form_source(source, generation)
+        plan = DeterministicPlanner().plan("Which port does audit use?")
+        retriever = DeterministicRetriever(store)
+        first = retriever.retrieve(
+            generation_id=generation, query="Which port does audit use?",
+            plan=plan, max_sources=2,
+        )
+        assert retriever.retrieve(
+            generation_id=generation, query="Which port does audit use?",
+            plan=plan, max_sources=2,
+        ) is first
+        assert retriever.cache_hits == 1
+        manager.delete_source(source)
+        import pytest
+        with pytest.raises(RuntimeError, match="unavailable"):
+            retriever.retrieve(
+                generation_id=generation, query="Which port does audit use?",
+                plan=plan, max_sources=2,
+            )
+    finally:
+        store.close()

@@ -84,7 +84,32 @@ def test_interrupted_backfill_resumes_without_duplicate_source() -> None:
         store.close()
 
 
+def test_interrupted_backfill_state_survives_snapshot_and_resume(tmp_path) -> None:
+    first = SQLiteStore(":memory:")
+    for value in ("one", "two"):
+        first.insert_episode(
+            subject_id=SCOPE.subject_id, session_id="session", turn_id=value,
+            message=value, source_type="test",
+        )
+    manager = FormationManager(first)
+    assert manager.backfill_legacy_sources(SCOPE, limit=1)["processed"] == 1
+    snapshot = tmp_path / "interrupted.db"
+    first.backup_to(snapshot)
+    first.close()
+
+    resumed = SQLiteStore(":memory:")
+    try:
+        resumed.restore_from(snapshot)
+        result = FormationManager(resumed).backfill_legacy_sources(SCOPE, limit=10)
+        assert result["processed"] == 1
+        assert resumed._conn.execute(
+            "SELECT COUNT(*) FROM context_source_episodes"
+        ).fetchone()[0] == 2
+    finally:
+        resumed.close()
+
+
 def test_context_engine_migrations_are_append_only_and_ordered() -> None:
     identifiers = [item[0] for item in MIGRATION_REGISTRY]
     assert identifiers == sorted(identifiers)
-    assert identifiers[-1] == "0400_context_engine_generations"
+    assert identifiers[-1] == "0401_context_generation_revision"

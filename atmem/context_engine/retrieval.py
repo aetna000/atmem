@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import re
 
 from atmem.store.sqlite import SQLiteStore
@@ -50,21 +51,33 @@ class DeterministicRetriever:
     def __init__(self, store: SQLiteStore, *, budget: PoolBudget | None = None) -> None:
         self.store = store
         self.budget = budget or PoolBudget()
+        self._cache: dict[tuple[object, ...], RetrievalResult] = {}
+        self.cache_hits = 0
 
-    def _pool(self, generation_id: str, kind: str, query: str) -> list[RetrievedCandidate]:
+    def _pool(
+        self, generation_id: str, kind: str, query: str,
+        allowed_unit_ids: frozenset[str] | None = None,
+    ) -> list[RetrievedCandidate]:
         expression = _fts_query(query)
         if not expression or not self.store._context_fts_enabled:
             return []
+        allowed_sql = ""
+        allowed_params: tuple[str, ...] = ()
+        if allowed_unit_ids is not None:
+            if not allowed_unit_ids:
+                return []
+            allowed_sql = " AND m.unit_id IN (" + ",".join("?" for _ in allowed_unit_ids) + ")"
+            allowed_params = tuple(sorted(allowed_unit_ids))
         rows = self.store._conn.execute(
-            """SELECT m.unit_id, bm25(context_units_fts) AS rank
+            f"""SELECT m.unit_id, bm25(context_units_fts) AS rank
                FROM context_units_fts
                JOIN context_units_fts_map m ON m.fts_rowid=context_units_fts.rowid
                JOIN context_evidence_units u
                  ON u.generation_id=m.generation_id AND u.unit_id=m.unit_id
                WHERE context_units_fts MATCH ? AND m.generation_id=?
-                 AND u.kind=? AND u.lifecycle='active'
+                 AND u.kind=? AND u.lifecycle='active' {allowed_sql}
                ORDER BY rank, m.unit_id LIMIT ?""",
-            (expression, generation_id, kind, self.budget.per_pool),
+            (expression, generation_id, kind, *allowed_params, self.budget.per_pool),
         ).fetchall()
         values: list[RetrievedCandidate] = []
         for row in rows:
@@ -93,15 +106,34 @@ class DeterministicRetriever:
 
     def retrieve(
         self, *, generation_id: str, query: str, plan: QueryPlan, max_sources: int,
+        allowed_unit_ids: frozenset[str] | None = None,
     ) -> RetrievalResult:
         if max_sources <= 0:
             raise ValueError("max_sources must be positive")
+        generation = self.store._conn.execute(
+            "SELECT state, revision FROM context_view_generations WHERE generation_id=?",
+            (generation_id,),
+        ).fetchone()
+        if generation is None or generation["state"] == "retired":
+            raise RuntimeError("context generation is unavailable or retired")
+        allowed_digest = hashlib.sha256(
+            "\n".join(sorted(allowed_unit_ids or ())).encode()
+        ).hexdigest()
+        cache_key = (
+            generation_id, str(generation["state"]), int(generation["revision"]),
+            plan.query_sha256, plan.plan_id, max_sources, allowed_digest,
+            self.budget.per_pool, self.budget.total_units,
+        )
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            self.cache_hits += 1
+            return cached
         by_pool: dict[str, list[RetrievedCandidate]] = {}
         scanned = 0
         for pool in POOL_KINDS:
             if not plan.pool_queries.get(pool):
                 continue
-            rows = self._pool(generation_id, pool, query)
+            rows = self._pool(generation_id, pool, query, allowed_unit_ids)
             by_pool[pool] = rows
             scanned += len(rows)
             if scanned >= self.budget.total_units:
@@ -146,7 +178,11 @@ class DeterministicRetriever:
                 used_sources.add(item.source_id)
                 if len(selected) >= max_sources:
                     break
-        return RetrievalResult(
+        value = RetrievalResult(
             candidates=tuple(selected), searched_pools=tuple(by_pool), scanned_units=scanned,
             exhausted=scanned >= self.budget.total_units,
         )
+        if len(self._cache) >= 256:
+            self._cache.pop(next(iter(self._cache)))
+        self._cache[cache_key] = value
+        return value

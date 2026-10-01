@@ -128,7 +128,7 @@ source range.
 - [ ] [T026] Implement exact/FTS, semantic, temporal and link nomination with
   independent normalized signals and obligation-head reservation in
   `atmem/context_engine/retrieval.py` (FR-011–FR-012, FR-017).
-- [ ] [T027] Implement generation-aware scoped caches whose keys include all
+- [x] [T027] Implement generation-aware scoped caches whose keys include all
   authority, lifecycle, profile, model/index and query identities in
   `atmem/context_engine/retrieval.py` (FR-017, FR-019, FR-022).
 
@@ -137,14 +137,14 @@ tests without whole-store scans or a model dependency.
 
 ## Phase 6 — Bounded evidence navigation, sufficiency and packing
 
-- [ ] [T028] [P] Add failing manifest/search/inspect/follow/submit budget and
+- [x] [T028] [P] Add failing manifest/search/inspect/follow/submit budget and
   canonical-range validation tests in `tests/test_context_engine_navigation.py`
   (FR-013).
 - [ ] [T029] [P] Add failing sufficiency/packing tests for complete, partial,
   conflicted, contradicted, stale, not-found-within-budget, policy-withheld,
   ordered, comparative, media and byte-exhausted contexts in
   `tests/test_context_engine_retrieval.py` (FR-014–FR-016, FR-034).
-- [ ] [T030] Implement authorized compact manifests and bounded navigation
+- [x] [T030] Implement authorized compact manifests and bounded navigation
   operations in `atmem/context_engine/navigator.py`; never expose gold or whole
   source corpora to the navigator (FR-013, FR-017, FR-024).
 - [ ] [T031] Implement obligation-grounded sufficiency in

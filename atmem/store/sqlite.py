@@ -5370,6 +5370,10 @@ class SQLiteStore:
                     self._ensure_column(
                         table, "sequence", "INTEGER NOT NULL DEFAULT 0"
                     )
+            if identifier == "0401_context_generation_revision":
+                self._ensure_column(
+                    "context_view_generations", "revision", "INTEGER NOT NULL DEFAULT 0"
+                )
             self._conn.executescript(script)
             self._conn.execute(
                 "INSERT OR IGNORE INTO schema_migrations(identifier, applied_at) "
@@ -5412,9 +5416,10 @@ class SQLiteStore:
         ).fetchone()
         if existing is not None:
             rowid = int(existing["fts_rowid"])
+            old_text = self._context_unit_search_text(generation_id, unit_id)
             self._conn.execute(
                 "INSERT INTO context_units_fts(context_units_fts, rowid, generation_id, unit_id, text) VALUES('delete', ?, ?, ?, ?)",
-                (rowid, generation_id, unit_id, text),
+                (rowid, generation_id, unit_id, old_text),
             )
             self._conn.execute("DELETE FROM context_units_fts_map WHERE fts_rowid=?", (rowid,))
         cursor = self._conn.execute(
@@ -5426,6 +5431,23 @@ class SQLiteStore:
             (generation_id, unit_id, int(cursor.lastrowid)),
         )
 
+    def _context_unit_search_text(self, generation_id: str, unit_id: str) -> str:
+        rows = self._conn.execute(
+            """SELECT p.content_bytes, r.start_offset, r.end_offset
+               FROM context_unit_ranges ur
+               JOIN context_source_ranges r USING(range_id)
+               JOIN context_source_parts p
+                 ON p.source_id=r.source_id AND p.part_id=r.part_id
+               WHERE ur.generation_id=? AND ur.unit_id=? ORDER BY ur.ordinal""",
+            (generation_id, unit_id),
+        ).fetchall()
+        return "\n".join(
+            bytes(row["content_bytes"])[int(row["start_offset"]):int(row["end_offset"])].decode(
+                "utf-8", errors="replace"
+            )
+            for row in rows
+        )
+
     def _delete_context_fts_generation(self, generation_id: str) -> None:
         if not self._context_fts_enabled:
             return
@@ -5434,11 +5456,7 @@ class SQLiteStore:
             (generation_id,),
         ).fetchall()
         for row in rows:
-            unit = self._conn.execute(
-                "SELECT compact_json FROM context_evidence_units WHERE generation_id=? AND unit_id=?",
-                (generation_id, row["unit_id"]),
-            ).fetchone()
-            text = str(unit["compact_json"]) if unit else ""
+            text = self._context_unit_search_text(generation_id, str(row["unit_id"]))
             self._conn.execute(
                 "INSERT INTO context_units_fts(context_units_fts, rowid, generation_id, unit_id, text) VALUES('delete', ?, ?, ?, ?)",
                 (row["fts_rowid"], generation_id, row["unit_id"], text),
@@ -6923,6 +6941,7 @@ MIGRATION_REGISTRY: tuple[tuple[str, str], ...] = (
           verified_at TEXT,
           activated_at TEXT,
           retired_at TEXT
+          ,revision INTEGER NOT NULL DEFAULT 0
         );
         CREATE UNIQUE INDEX IF NOT EXISTS idx_context_one_active_generation
           ON context_view_generations(subject_id, workspace_id, agent_id)
@@ -7008,6 +7027,10 @@ MIGRATION_REGISTRY: tuple[tuple[str, str], ...] = (
           PRIMARY KEY(subject_id, workspace_id, agent_id)
         );
         """,
+    ),
+    (
+        "0401_context_generation_revision",
+        """SELECT 1;""",
     ),
 )
 

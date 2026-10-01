@@ -18,6 +18,9 @@ from atmem.context_engine.service import (
     ContextEngineService,
     EngineSelection,
     GovernanceViolation,
+    StoredContextEngine,
+    load_stored_canonical,
+    stored_manifest,
 )
 from atmem.context_engine.profiles import (
     EngineProfileState,
@@ -365,5 +368,66 @@ def test_subject_reset_removes_v3_source_views_ranges_indexes_and_vectors() -> N
             "context_vectors", "context_backfill_state", "context_units_fts_map",
         ):
             assert store._conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
+    finally:
+        store.close()
+
+
+def test_source_deletion_invalidates_active_generation_and_all_derivatives() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        source = manager.retain_source(SourceEpisode(
+            episode_id="delete-one", scope=SCOPE,
+            parts=(SourcePart("text", 0, "text", "text/plain", b"age is 45"),),
+        ))
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        manager.form_source(source, generation)
+        manager.verify_generation(generation)
+        manager.activate_generation(generation)
+        receipt = manager.delete_source(source)
+        assert receipt["invalidated_generations"] == (generation,)
+        assert manager.active_generation(SCOPE) is None
+        for table in (
+            "context_source_episodes", "context_source_parts", "context_source_ranges",
+            "context_view_generations", "context_evidence_units", "context_unit_ranges",
+            "context_coverage", "context_loss_receipts", "context_vectors",
+            "context_units_fts_map",
+        ):
+            assert store._conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
+    finally:
+        store.close()
+
+
+def test_stored_engine_runs_through_governance_and_canonical_reload() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        source = manager.retain_source(SourceEpisode(
+            episode_id="service-e2e", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"The local audit service listens on port 7412.",
+            ),),
+        ))
+        generation_id = manager.begin_generation(SCOPE, profile_id="context-fast")
+        manager.form_source(source, generation_id)
+        manager.verify_generation(generation_id)
+        request = replace(_request(), query="Which port does the local audit service use?", generation=0)
+        service = ContextEngineService(
+            authorize=lambda value: stored_manifest(
+                store, value, generation_id=generation_id
+            ),
+            load_canonical=lambda unit_ids, canonical_generation: load_stored_canonical(
+                store, SCOPE, generation_id, unit_ids, canonical_generation
+            ),
+            audit=lambda *_args: "audit-stored-1",
+            expires_at=lambda: "2026-10-01T12:00:00+00:00",
+        )
+        package = service.prepare(
+            request, StoredContextEngine(store, generation_id=generation_id)
+        )
+        assert package.status == "sufficient"
+        assert "port 7412" in package.context
+        assert package.audit_event_id == "audit-stored-1"
     finally:
         store.close()

@@ -205,7 +205,7 @@ class FormationManager:
             ).fetchone()
             if generation is None or generation["state"] != "building":
                 raise RuntimeError("evidence units may only be added to a building generation")
-            self.store._conn.execute(
+            inserted = self.store._conn.execute(
                 """INSERT OR IGNORE INTO context_evidence_units(
                      generation_id, unit_id, kind, compact_json, compact_sha256,
                      lifecycle, created_at
@@ -228,6 +228,11 @@ class FormationManager:
                 [(generation_id, item.range_id) for item in ranges],
             )
             self.store.index_context_unit(generation_id, unit_id, search_text or compact)
+            if inserted.rowcount:
+                self.store._conn.execute(
+                    "UPDATE context_view_generations SET revision=revision+1 WHERE generation_id=?",
+                    (generation_id,),
+                )
         return unit_id
 
     def form_source(self, source_id: str, generation_id: str) -> FormationReceiptV2:
@@ -546,3 +551,37 @@ class FormationManager:
                 ),
             )
         return {"processed": len(rows), "cursor_episode_id": next_cursor, "complete": len(rows) < limit}
+
+    def delete_source(self, source_id: str) -> dict[str, Any]:
+        """Delete canonical V3 source and invalidate every dependent generation."""
+        source = self.store._conn.execute(
+            "SELECT subject_id FROM context_source_episodes WHERE source_id=?",
+            (source_id,),
+        ).fetchone()
+        if source is None:
+            return {"deleted": False, "source_id": source_id, "invalidated_generations": ()}
+        generations = tuple(
+            str(row["generation_id"])
+            for row in self.store._conn.execute(
+                """SELECT DISTINCT ur.generation_id
+                   FROM context_unit_ranges ur
+                   JOIN context_source_ranges r USING(range_id)
+                   WHERE r.source_id=? ORDER BY ur.generation_id""",
+                (source_id,),
+            ).fetchall()
+        )
+        with self.store.transaction():
+            for generation_id in generations:
+                self.store._delete_context_fts_generation(generation_id)
+                self.store._conn.execute(
+                    "DELETE FROM context_view_generations WHERE generation_id=?",
+                    (generation_id,),
+                )
+            self.store._conn.execute(
+                "DELETE FROM context_source_episodes WHERE source_id=?", (source_id,)
+            )
+        return {
+            "deleted": True,
+            "source_id": source_id,
+            "invalidated_generations": generations,
+        }
