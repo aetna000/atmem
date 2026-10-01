@@ -672,6 +672,39 @@ class ControlStore:
         )
         self._conn.commit()
 
+    def get_context_engine_profile_state(
+        self, migration_id: str
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT value FROM schema_meta WHERE key = ?",
+            (f"context_engine_profile:{migration_id}",),
+        ).fetchone()
+        if row is None:
+            return None
+        value = json.loads(str(row["value"]))
+        if not isinstance(value, dict):
+            raise ValueError("context-engine profile state must be an object")
+        return value
+
+    def set_context_engine_profile_state(
+        self, migration_id: str, value: dict[str, Any]
+    ) -> None:
+        if not migration_id or not isinstance(value, dict):
+            raise ValueError("migration and context-engine profile state are required")
+        migration = self._conn.execute(
+            "SELECT 1 FROM migrations WHERE migration_id = ?", (migration_id,)
+        ).fetchone()
+        if migration is None:
+            raise ValueError("context-engine profile requires an existing migration")
+        with self._conn:
+            self._conn.execute(
+                """
+                INSERT INTO schema_meta(key, value) VALUES(?, ?)
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                """,
+                (f"context_engine_profile:{migration_id}", canonical_json(value)),
+            )
+
     def append_evidence(
         self,
         migration_id: str,

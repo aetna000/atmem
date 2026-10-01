@@ -229,13 +229,13 @@ def test_mem0_adapter_uses_pinned_real_raw_search_path() -> None:
     assert report["aggregate"]["error_count"] == 0
 
 
-def test_partial_baseline_is_explicitly_non_claiming() -> None:
+def test_reader_free_baseline_is_explicitly_non_claiming() -> None:
     root = Path(__file__).resolve().parents[1]
     baseline = json.loads((
         root / "benchmarks/retrieval_quality/baselines/"
-        "context-engine-reader-free-prechange-partial.json"
+        "context-engine-reader-free-prechange.json"
     ).read_text())
-    assert baseline["status"] == "partial"
+    assert baseline["status"] == "complete_reader_free_baseline"
     assert len(baseline["arms"]) == 3
     assert "not an official benchmark" in baseline["claim"]
-    assert baseline["missing_for_complete_baseline"]
+    assert baseline["limitations"]

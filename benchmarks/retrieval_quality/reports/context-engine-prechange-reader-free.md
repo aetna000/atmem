@@ -1,6 +1,7 @@
 # Context engine pre-change reader-free comparison
 
-**Status:** partial development diagnostic, recorded 2026-10-01. This is not a
+**Status:** complete reader-free development baseline, recorded 2026-10-01.
+This is not a
 LongMemEval-V2 or DolphinBench score and does not support a leadership claim.
 
 The frozen neutral corpus contains twelve cases, eight shared distractors and a
@@ -27,8 +28,10 @@ formation and query rewriting with identity formation/all-pool routing. It is
 not a reproduction of published AgentRunbook-R/C scores.
 
 The aggregate is checksum-bound in
-`baselines/context-engine-reader-free-prechange-partial.json`; full per-case
+`baselines/context-engine-reader-free-prechange.json`; full per-case
 outputs and a checksum manifest are retained under
 `/Volumes/MEM/atmem-benchmarks/baselines/context-engine-prechange-20261001`.
-Spec 040 T004 remains open until AgentRunbook-C/V2 navigation, a cryptographic
-manifest signature and frozen-hardware repetitions are present.
+This completes Spec 040 T004 for the three reader-free systems. AgentRunbook-C/
+V2 is intrinsically model-directed and remains in T034/T037; its absence here is
+not converted into a reader-free proxy. Latency remains diagnostic until the
+later frozen-hardware gate.

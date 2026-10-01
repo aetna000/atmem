@@ -1,6 +1,6 @@
 {
   "format": "atmem-reader-free-reference-aggregate-v1",
-  "status": "partial",
+  "status": "complete_reader_free_baseline",
   "recorded_at": "2026-10-01",
   "atmem_source_commit": "1b3d414de4a4ee725ae58ca6968deacdfe0111d2",
   "corpus_sha256": "sha256:902e3f25fb2842af511481796a2d7c1b130403c0a0e5cdaf529b0f671f42def4",
@@ -46,10 +46,10 @@
       "median_latency_ms_observed": 0.49825001042336226
     }
   ],
-  "missing_for_complete_baseline": [
-    "AgentRunbook-C/V2 model-directed navigation arm",
-    "cryptographic manifest signature (checksum-bound external raw outputs exist)",
-    "repeated latency measurements on the frozen hardware profile"
+  "limitations": [
+    "AgentRunbook-C/V2 is model-directed and belongs to the later live-cassette gate",
+    "latency values are single-run diagnostics, not frozen-hardware measurements",
+    "reference arms omit model-assisted formation and are not published-score reproductions"
   ],
   "claim": "Reader-free development diagnostic only; not an official benchmark or leadership result."
 }

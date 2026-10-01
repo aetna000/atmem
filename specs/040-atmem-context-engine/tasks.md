@@ -24,9 +24,11 @@ development run is permitted after the matched adapters are ready.
   policy in
   `research/reference_parity/contracts.py` and
   `research/reference_parity/sources.json` (FR-025–FR-029).
-- [ ] [T004] Implement and run the pre-change reader-free baseline for all three
-  systems, retaining heavy raw outputs on `MEM` and the signed aggregate under
-  `benchmarks/retrieval_quality/baselines/` (FR-025–FR-029).
+- [x] [T004] Implement and run the pre-change reader-free baseline for AtMem,
+  Mem0 OSS and AgentRunbook-R, retaining raw outputs on `MEM` and the
+  checksum-bound aggregate under `benchmarks/retrieval_quality/baselines/`;
+  AgentRunbook-C/V2 remains in the model-directed cassette/live gates T034/T037
+  (FR-025–FR-029).
 - [x] [T005] Freeze disjoint development/confirmation IDs, reader/judge prompts,
   provider revisions, hardware, retry policy, seeds and cost ceilings in
   `benchmarks/retrieval_quality/protocols/2.3.8-context-engine.yaml`; include all
@@ -39,22 +41,22 @@ development run is permitted after the matched adapters are ready.
 
 ## Phase 2 — Context Engine V3 contracts and governance shell
 
-- [ ] [T006] [P] Add failing round-trip/malformed/compatibility tests for
+- [x] [T006] [P] Add failing round-trip/malformed/compatibility tests for
   Formation V2, evidence obligations, navigation receipts, Sufficiency V2 and
   Context Package V3 in `tests/test_context_engine_contracts.py` (FR-001,
   FR-006, FR-009, FR-013–FR-016).
-- [ ] [T007] [P] Add failing authority, egress, lifecycle, cross-scope
+- [x] [T007] [P] Add failing authority, egress, lifecycle, cross-scope
   noninterference and canonical-revalidation tests in
   `tests/test_context_engine_governance.py` (FR-002, FR-019, FR-022, SC-009).
-- [ ] [T008] Implement additive host-neutral contracts in
+- [x] [T008] Implement additive host-neutral contracts in
   `atmem/context_engine/contracts.py`, export compatibility types through
   `atmem/contracts/`, and add fail-closed V3-to-V2 compatibility serialization
   plus golden tests for every status/reason mapping (FR-001, FR-020–FR-021,
   FR-034).
-- [ ] [T009] Implement `ContextEngineService` authorization, generation binding,
+- [x] [T009] Implement `ContextEngineService` authorization, generation binding,
   canonical reload/revalidation and audit boundary in
   `atmem/context_engine/service.py` without ranking logic (FR-002–FR-003).
-- [ ] [T010] Add engine profile definitions and explicit
+- [x] [T010] Add engine profile definitions and explicit
   `legacy-control`/`context-fast`/`context-navigate` shadow/active state in
   `atmem/context_engine/profiles.py` and the existing control store (FR-020).
 
