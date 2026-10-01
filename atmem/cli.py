@@ -997,6 +997,18 @@ External evaluation:
                 help="Manual paraphrase used to verify the first eligible record",
             )
 
+    context_engine_parser = subparsers.add_parser(
+        "context-engine", help="Inspect Context Engine V3 storage and readiness"
+    )
+    context_engine_commands = context_engine_parser.add_subparsers(
+        dest="context_engine_command"
+    )
+    context_engine_storage = context_engine_commands.add_parser(
+        "storage", help="Report encrypted-storage readiness, growth, and duplication"
+    )
+    context_engine_storage.add_argument("path")
+    context_engine_storage.add_argument("--json", action="store_true")
+
     retrieval_parser = subparsers.add_parser(
         "retrieval",
         help="Inspect typed retrieval routing, evidence coverage, and safe context",
@@ -1985,6 +1997,28 @@ or input errors.""",
             semantic_parser.print_help()
             return
         _run_semantic(args)
+        return
+
+    if args.command == "context-engine":
+        if args.context_engine_command is None:
+            context_engine_parser.print_help()
+            return
+        from atmem.context_engine.coverage import storage_report
+        from atmem.store.sqlite import SQLiteStore
+
+        store = SQLiteStore(args.path)
+        try:
+            report = storage_report(store)
+        finally:
+            store.close()
+        if args.json:
+            _print(report)
+        else:
+            print(f"Storage ready: {report['storage_ready']['ready']}")
+            print(f"Source bytes: {report['source_bytes']}")
+            print(f"Derived bytes: {report['derived_bytes']}")
+            print(f"Derived/source ratio: {report['derived_to_source_ratio']:.3f}")
+            print(f"Source duplication rows: {report['source_duplication']['duplicate_rows']}")
         return
 
     if args.command == "retrieval":

@@ -43,6 +43,7 @@ class SQLiteStore:
         self._fts_enabled = False
         self._graph_fts_enabled = False
         self._audit_fts_enabled = False
+        self._context_fts_enabled = False
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.execute("PRAGMA secure_delete = ON")
         self._conn.execute("PRAGMA busy_timeout = 5000")
@@ -145,6 +146,24 @@ class SQLiteStore:
 
     def reset_subject(self, subject_id: str) -> None:
         with self.transaction():
+            # Derived V3 state is deleted before its source ledger so every
+            # range/link/vector row is removed by foreign-key cascade.
+            if self._context_fts_enabled:
+                generation_rows = self._conn.execute(
+                    "SELECT generation_id FROM context_view_generations WHERE subject_id=?",
+                    (subject_id,),
+                ).fetchall()
+                for generation_row in generation_rows:
+                    self._delete_context_fts_generation(str(generation_row["generation_id"]))
+            self._conn.execute(
+                "DELETE FROM context_view_generations WHERE subject_id=?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM context_backfill_state WHERE subject_id=?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM context_source_episodes WHERE subject_id=?", (subject_id,)
+            )
             preparation_ids = [
                 str(row["preparation_id"])
                 for row in self._conn.execute(
@@ -517,6 +536,41 @@ class SQLiteStore:
             (subject_id, episode_id),
         ).fetchone()
         return _episode_from_row(row) if row is not None else None
+
+    def context_engine_storage_ready(self) -> dict[str, Any]:
+        """Report whether V3 may persist semantic source/view data."""
+        if self.path == ":memory:":
+            return {
+                "ready": True, "encrypted": False, "ephemeral": True,
+                "reason": "ephemeral_test_store",
+            }
+        if self.policy.state != "encrypted":
+            return {
+                "ready": False, "encrypted": False, "ephemeral": False,
+                "reason": "encrypted_household_required",
+            }
+        return {
+            "ready": True, "encrypted": True, "ephemeral": False, "reason": None,
+        }
+
+    def require_context_engine_storage(self) -> None:
+        if not self.context_engine_storage_ready()["ready"]:
+            raise RuntimeError(
+                "Context Engine V3 requires an encrypted household; provision "
+                "SQLCipher and complete `atmem household migrate` before formation"
+            )
+
+    def context_source_storage(self, source_id: str) -> dict[str, int]:
+        row = self._conn.execute(
+            """SELECT COUNT(*) AS rows, COALESCE(SUM(length(content_bytes)), 0) AS bytes
+               FROM context_source_parts WHERE source_id = ?""",
+            (source_id,),
+        ).fetchone()
+        return {
+            "source_body_rows": int(row["rows"]),
+            "source_body_bytes": int(row["bytes"]),
+            "derived_source_body_bytes": 0,
+        }
 
     def insert_typed_memory_unit(
         self,
@@ -5275,6 +5329,7 @@ class SQLiteStore:
             self._migrate_graph_fts()
             self._migrate_audit_fts()
             self._apply_bootstrap_migrations()
+            self._migrate_context_fts()
             while self._backfill_typed_identity_mappings():
                 pass
             self._backfill_typed_exclusion_identities()
@@ -5321,6 +5376,76 @@ class SQLiteStore:
                 "VALUES (?, ?)",
                 (identifier, utc_now()),
             )
+
+    def _migrate_context_fts(self) -> None:
+        """Create the rebuildable V3 lexical index without copying source bodies."""
+        try:
+            self._conn.executescript("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS context_units_fts USING fts5(
+                  generation_id UNINDEXED,
+                  unit_id UNINDEXED,
+                  text,
+                  content=''
+                );
+                CREATE TABLE IF NOT EXISTS context_units_fts_map(
+                  generation_id TEXT NOT NULL,
+                  unit_id TEXT NOT NULL,
+                  fts_rowid INTEGER NOT NULL UNIQUE,
+                  PRIMARY KEY(generation_id, unit_id),
+                  FOREIGN KEY(generation_id, unit_id)
+                    REFERENCES context_evidence_units(generation_id, unit_id)
+                    ON DELETE CASCADE
+                );
+                """)
+            self._context_fts_enabled = True
+        except Exception:
+            self._context_fts_enabled = False
+
+    def index_context_unit(
+        self, generation_id: str, unit_id: str, text: str
+    ) -> None:
+        if not self._context_fts_enabled:
+            return
+        existing = self._conn.execute(
+            "SELECT fts_rowid FROM context_units_fts_map WHERE generation_id=? AND unit_id=?",
+            (generation_id, unit_id),
+        ).fetchone()
+        if existing is not None:
+            rowid = int(existing["fts_rowid"])
+            self._conn.execute(
+                "INSERT INTO context_units_fts(context_units_fts, rowid, generation_id, unit_id, text) VALUES('delete', ?, ?, ?, ?)",
+                (rowid, generation_id, unit_id, text),
+            )
+            self._conn.execute("DELETE FROM context_units_fts_map WHERE fts_rowid=?", (rowid,))
+        cursor = self._conn.execute(
+            "INSERT INTO context_units_fts(generation_id, unit_id, text) VALUES (?, ?, ?)",
+            (generation_id, unit_id, text),
+        )
+        self._conn.execute(
+            "INSERT INTO context_units_fts_map(generation_id, unit_id, fts_rowid) VALUES (?, ?, ?)",
+            (generation_id, unit_id, int(cursor.lastrowid)),
+        )
+
+    def _delete_context_fts_generation(self, generation_id: str) -> None:
+        if not self._context_fts_enabled:
+            return
+        rows = self._conn.execute(
+            "SELECT unit_id, fts_rowid FROM context_units_fts_map WHERE generation_id=?",
+            (generation_id,),
+        ).fetchall()
+        for row in rows:
+            unit = self._conn.execute(
+                "SELECT compact_json FROM context_evidence_units WHERE generation_id=? AND unit_id=?",
+                (generation_id, row["unit_id"]),
+            ).fetchone()
+            text = str(unit["compact_json"]) if unit else ""
+            self._conn.execute(
+                "INSERT INTO context_units_fts(context_units_fts, rowid, generation_id, unit_id, text) VALUES('delete', ?, ?, ?, ?)",
+                (row["fts_rowid"], generation_id, row["unit_id"], text),
+            )
+        self._conn.execute(
+            "DELETE FROM context_units_fts_map WHERE generation_id=?", (generation_id,)
+        )
 
     def applied_migrations(self) -> list[str]:
         """Bootstrap identifiers this database has already applied, in order."""
@@ -6743,6 +6868,145 @@ MIGRATION_REGISTRY: tuple[tuple[str, str], ...] = (
           ON typed_exclusion_identities(
             subject_id, workspace_id, exclusion_identity, record_id
           );
+        """,
+    ),
+    (
+        "0400_context_engine_generations",
+        """
+        CREATE TABLE IF NOT EXISTS context_source_episodes (
+          source_id TEXT PRIMARY KEY,
+          legacy_episode_id TEXT UNIQUE,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          source_sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(subject_id, agent_id, workspace_id, source_sha256)
+        );
+        CREATE INDEX IF NOT EXISTS idx_context_sources_scope
+          ON context_source_episodes(subject_id, workspace_id, agent_id, source_id);
+        CREATE TABLE IF NOT EXISTS context_source_parts (
+          source_id TEXT NOT NULL,
+          part_id TEXT NOT NULL,
+          ordinal INTEGER NOT NULL CHECK(ordinal >= 0),
+          kind TEXT NOT NULL,
+          mime_type TEXT NOT NULL,
+          content_sha256 TEXT NOT NULL,
+          content_bytes BLOB NOT NULL,
+          PRIMARY KEY(source_id, part_id),
+          UNIQUE(source_id, ordinal),
+          FOREIGN KEY(source_id) REFERENCES context_source_episodes(source_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_source_ranges (
+          range_id TEXT PRIMARY KEY,
+          source_id TEXT NOT NULL,
+          part_id TEXT NOT NULL,
+          start_offset INTEGER NOT NULL CHECK(start_offset >= 0),
+          end_offset INTEGER NOT NULL CHECK(end_offset > start_offset),
+          source_sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(source_id, part_id, start_offset, end_offset),
+          FOREIGN KEY(source_id, part_id)
+            REFERENCES context_source_parts(source_id, part_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_view_generations (
+          generation_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          profile_id TEXT NOT NULL,
+          state TEXT NOT NULL CHECK(state IN ('building','verified','active','retired')),
+          canonical_generation INTEGER NOT NULL DEFAULT 0,
+          configuration_sha256 TEXT NOT NULL,
+          verification_json TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL,
+          verified_at TEXT,
+          activated_at TEXT,
+          retired_at TEXT
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_context_one_active_generation
+          ON context_view_generations(subject_id, workspace_id, agent_id)
+          WHERE state = 'active';
+        CREATE INDEX IF NOT EXISTS idx_context_generation_scope_state
+          ON context_view_generations(subject_id, workspace_id, agent_id, state, created_at);
+        CREATE TABLE IF NOT EXISTS context_evidence_units (
+          generation_id TEXT NOT NULL,
+          unit_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK(kind IN (
+            'raw_state','transition','fact','entity','procedure','rule','gotcha','premise'
+          )),
+          compact_json TEXT NOT NULL,
+          compact_sha256 TEXT NOT NULL,
+          lifecycle TEXT NOT NULL CHECK(lifecycle IN (
+            'active','superseded','conflicted','revoked','expired','deleted'
+          )),
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(generation_id, unit_id),
+          FOREIGN KEY(generation_id) REFERENCES context_view_generations(generation_id)
+            ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_context_units_generation_kind
+          ON context_evidence_units(generation_id, lifecycle, kind, unit_id);
+        CREATE TABLE IF NOT EXISTS context_unit_ranges (
+          generation_id TEXT NOT NULL,
+          unit_id TEXT NOT NULL,
+          range_id TEXT NOT NULL,
+          ordinal INTEGER NOT NULL,
+          PRIMARY KEY(generation_id, unit_id, range_id),
+          UNIQUE(generation_id, unit_id, ordinal),
+          FOREIGN KEY(generation_id, unit_id)
+            REFERENCES context_evidence_units(generation_id, unit_id) ON DELETE CASCADE,
+          FOREIGN KEY(range_id) REFERENCES context_source_ranges(range_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_evidence_links (
+          generation_id TEXT NOT NULL,
+          from_unit_id TEXT NOT NULL,
+          to_unit_id TEXT NOT NULL,
+          relation TEXT NOT NULL,
+          PRIMARY KEY(generation_id, from_unit_id, to_unit_id, relation),
+          FOREIGN KEY(generation_id, from_unit_id)
+            REFERENCES context_evidence_units(generation_id, unit_id) ON DELETE CASCADE,
+          FOREIGN KEY(generation_id, to_unit_id)
+            REFERENCES context_evidence_units(generation_id, unit_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_coverage (
+          generation_id TEXT NOT NULL,
+          range_id TEXT NOT NULL,
+          disposition TEXT NOT NULL CHECK(disposition IN ('represented','unsupported','withheld')),
+          reason_code TEXT,
+          PRIMARY KEY(generation_id, range_id),
+          FOREIGN KEY(generation_id) REFERENCES context_view_generations(generation_id) ON DELETE CASCADE,
+          FOREIGN KEY(range_id) REFERENCES context_source_ranges(range_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_loss_receipts (
+          generation_id TEXT NOT NULL,
+          range_id TEXT NOT NULL,
+          reason_code TEXT NOT NULL,
+          detail_json TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(generation_id, range_id, reason_code),
+          FOREIGN KEY(generation_id) REFERENCES context_view_generations(generation_id) ON DELETE CASCADE,
+          FOREIGN KEY(range_id) REFERENCES context_source_ranges(range_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_vectors (
+          generation_id TEXT NOT NULL,
+          unit_id TEXT NOT NULL,
+          model_id TEXT NOT NULL,
+          dimensions INTEGER NOT NULL,
+          vector_bytes BLOB NOT NULL,
+          PRIMARY KEY(generation_id, unit_id, model_id),
+          FOREIGN KEY(generation_id, unit_id)
+            REFERENCES context_evidence_units(generation_id, unit_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_backfill_state (
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          cursor_episode_id TEXT,
+          completed INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY(subject_id, workspace_id, agent_id)
+        );
         """,
     ),
 )

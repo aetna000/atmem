@@ -27,6 +27,8 @@ from atmem.context_engine.profiles import (
 )
 from atmem.contracts.models import AuthorityScope
 from atmem.control.store import ControlStore
+from atmem.context_engine.formation import FormationManager, SourceEpisode, SourcePart
+from atmem.store.sqlite import SQLiteStore
 
 
 SCOPE = AuthorityScope(subject_id="user-1", agent_id="agent-a", workspace_id="work-1")
@@ -332,3 +334,36 @@ def test_fresh_install_activates_fast_only_after_local_qualification() -> None:
             generation=1,
             qualified_profiles=("legacy-control",),
         )
+
+
+def test_subject_reset_removes_v3_source_views_ranges_indexes_and_vectors() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        source_id = manager.retain_source(SourceEpisode(
+            episode_id="episode-delete", scope=SCOPE,
+            parts=(SourcePart("text", 0, "text", "text/plain", b"private age 45"),),
+        ))
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source_range = manager.add_range(source_id, "text", 0, 14)
+        unit_id = manager.add_unit(
+            generation, kind="fact", ranges=(source_range,),
+            compact_value={"subject": "user", "relation": "age", "value": 45},
+        )
+        store._conn.execute(
+            "INSERT INTO context_vectors VALUES (?, ?, 'fixture', 1, ?)",
+            (generation, unit_id, b"vector"),
+        )
+        manager.verify_generation(generation)
+        manager.activate_generation(generation)
+
+        store.reset_subject(SCOPE.subject_id)
+
+        for table in (
+            "context_source_episodes", "context_source_parts", "context_source_ranges",
+            "context_view_generations", "context_evidence_units", "context_unit_ranges",
+            "context_vectors", "context_backfill_state", "context_units_fts_map",
+        ):
+            assert store._conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
+    finally:
+        store.close()

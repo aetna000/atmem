@@ -65,22 +65,22 @@ formation or ranking exists yet.
 
 ## Phase 3 — Immutable source ranges and derived generations
 
-- [ ] [T011] [P] Add failing source-range identity, ordered multimodal linkage,
+- [x] [T011] [P] Add failing source-range identity, ordered multimodal linkage,
   idempotency and source-once storage tests in
   `tests/test_context_engine_formation.py` (FR-004–FR-006, SC-002, SC-008).
 - [ ] [T012] [P] Add failing interrupted migration, backfill, activation,
   published-store upgrade, and ingest/delete-under-V3 then rollback freshness
   tests in
   `tests/test_context_engine_migration.py` (FR-018–FR-020, FR-033, SC-009).
-- [ ] [T013] Add encrypted schema/migration support for source ranges, view
+- [x] [T013] Add encrypted schema/migration support for source ranges, view
   generations, compact units, links, coverage and loss receipts in
   `atmem/store/sqlite.py`; require SQLCipher provisioning/migration before typed
   activation, contentless/external-content FTS and household-encrypted vectors;
   do not duplicate source bodies (FR-004–FR-007, FR-018–FR-019, SC-008).
-- [ ] [T014] Implement generation build/verify/activate/retire/rebuild and
+- [x] [T014] Implement generation build/verify/activate/retire/rebuild and
   resumable backfill in `atmem/context_engine/formation.py` and
   `atmem/context_engine/coverage.py` (FR-005–FR-008, FR-020).
-- [ ] [T015] Add category-level storage accounting and a source-duplication
+- [x] [T015] Add category-level storage accounting and a source-duplication
   detector in `atmem/context_engine/coverage.py` plus CLI JSON output (FR-018,
   SC-008).
 - [ ] [T016] Prove verified deletion and lifecycle invalidation across source
@@ -95,7 +95,7 @@ be rebuilt/rolled back safely.
 - [ ] [T017] [P] Add failing deterministic fixtures for all eight evidence-view
   kinds, correction/occurrence linkage, negative observations and uncovered
   source regions in `tests/test_context_engine_formation.py` (FR-005–FR-007).
-- [ ] [T018] Implement deterministic raw-state/structural transition/source
+- [x] [T018] Implement deterministic raw-state/structural transition/source
   projection in `atmem/context_engine/formation.py` (FR-004–FR-006).
 - [ ] [T019] Implement optional schema-constrained additive extraction and repair
   with pinned model identity, bounded concurrency/deadline and exact source-range
