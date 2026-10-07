@@ -255,6 +255,27 @@ def test_checkpoint_builder_replaces_stale_embedding_readiness(tmp_path: Path) -
         process.wait(timeout=5)
 
 
+def test_checkpoint_tree_digest_streams_files(tmp_path: Path, monkeypatch) -> None:
+    from research.production_benchmarks import prepare_longmem_memories
+
+    checkpoint = tmp_path / "checkpoint"
+    checkpoint.mkdir()
+    (checkpoint / "memory.bin").write_bytes(b"bounded-read" * 1000)
+
+    original_read_bytes = Path.read_bytes
+
+    def reject_bulk_read(path: Path) -> bytes:
+        if path == checkpoint / "memory.bin":
+            raise AssertionError("checkpoint digest used an unbounded bulk read")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", reject_bulk_read)
+    first = prepare_longmem_memories._digest_tree(checkpoint)
+    second = prepare_longmem_memories._digest_tree(checkpoint)
+    assert first == second
+    assert first.startswith("sha256:")
+
+
 def test_paid_proxy_and_harness_environments_are_credential_isolated() -> None:
     from research.production_benchmarks import longmemeval_v2
 

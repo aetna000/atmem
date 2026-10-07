@@ -72,11 +72,15 @@ def _preflight_runtime(protocol: dict) -> dict[str, object]:
 
 
 def _digest_tree(root: Path) -> str:
-    files = {
-        path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
-        for path in sorted(root.rglob("*"))
-        if path.is_file() and not path.name.startswith("._") and path.name != ".DS_Store"
-    }
+    files: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.name.startswith("._") or path.name == ".DS_Store":
+            continue
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(block)
+        files[path.relative_to(root).as_posix()] = digest.hexdigest()
     if not files:
         raise RuntimeError(f"checkpoint contains no files: {root}")
     body = json.dumps(files, sort_keys=True, separators=(",", ":")).encode()

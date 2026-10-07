@@ -111,6 +111,9 @@ development run is permitted after the matched adapters are ready.
   local embedding readiness receipts before accepting a loopback endpoint.
   Prove a prior dead port cannot be reused and preserve completed arms while
   rerunning only an incomplete comparator workspace (FR-039, SC-019).
+- [x] [T005O] Stream checkpoint hashing in bounded one-megabyte blocks so
+  multi-gigabyte encrypted memories can be validated and resumed without
+  loading an entire database file into RAM (FR-039, SC-013, SC-019).
 
 **Checkpoint**: A real A/B/C baseline exists before candidate implementation.
 
