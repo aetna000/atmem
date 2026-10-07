@@ -22,6 +22,15 @@ LONGMEM_ASSET = (
 DOLPHIN_ADAPTER = ROOT / "research/production_benchmarks/dolphinbench.py"
 
 
+def test_paid_entrypoints_prepend_the_reviewed_checkout_before_site_packages() -> None:
+    for name in ("run_longmem_pilot.py", "run_dolphin_development.py"):
+        source = (ROOT / "research/production_benchmarks" / name).read_text(
+            encoding="utf-8"
+        )
+        assert "sys.path.insert(0, str(ROOT))" in source
+        assert "sys.path.append(str(ROOT))" not in source
+
+
 def test_dolphin_driver_returns_model_arguments_with_structured_app_result(
     monkeypatch,
 ) -> None:
@@ -164,7 +173,8 @@ def test_longmem_registry_patch_rejects_unrelated_edits(
     registry = tmp_path / "memory.py"
     monkeypatch.setattr(longmemeval_v2, "_git_blob", lambda _root, _name: original)
     registry.write_text(
-        original.decode().rstrip() + "\n" + longmemeval_v2.IMPORT_LINE + "\n",
+        original.decode().rstrip() + "\n"
+        + "\n".join(longmemeval_v2.IMPORT_LINES) + "\n",
         encoding="utf-8",
     )
     assert longmemeval_v2._is_expected_registry_patch(tmp_path, registry)
@@ -218,7 +228,7 @@ def test_paid_proxy_and_harness_environments_are_credential_isolated() -> None:
     assert '"--memory-context-max-tokens"' in source
     assert '"--evaluator-reasoning-effort"' in source
     assert source.index("pilot method has no price-derived reservation") < source.index(
-        'if method == "official-rag-query-to-slice-notes"'
+        'if method in {"official-rag-query-to-slice-notes", "agentrunbook-r"}'
     )
 
 
@@ -231,7 +241,6 @@ def test_paid_runtime_preflight_is_complete_before_output(
         (ROOT / "benchmarks/retrieval_quality/protocols/2.3.8.yaml").read_text()
     )
     environment = {
-        "HF_TOKEN": "fixture-hf",
         "OPENAI_API_KEY": "fixture-openai",
         "RUNPOD_READER_API_KEY": "fixture-runpod-reader",
     }
@@ -262,7 +271,6 @@ def test_paid_runtime_preflight_is_complete_before_output(
             broken, methods=("typed-local",), environment=environment
         )
 
-    monkeypatch.delenv("HF_TOKEN", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with pytest.raises(RuntimeError, match="requires credentials"):
         longmemeval_v2.preflight_paid_runtime(
@@ -757,6 +765,14 @@ def test_longmem_adapter_preserves_official_state_media_and_native_trust(
         })
 
     result = adapter.query("What is the current checkout label?")
+    metadata = adapter.post_query_hook(
+        query="What is the current checkout label?",
+        query_image=None,
+        memory_context=result,
+    )
+    assert metadata["format"] == "atmem-longmemeval-query-metadata-v1"
+    assert metadata["context_sha256"].startswith("sha256:")
+    assert metadata["sufficiency"]["required_slots"]
 
     text = "\n".join(item["value"] for item in result if item["type"] == "text")
     assert "Place order" in text
@@ -1054,11 +1070,12 @@ def test_dolphin_development_runner_selects_before_official_execute(
     from research.production_benchmarks import dolphinbench
 
     selected = {
-        persona: {f"{index:03d}" for index in range(1, 7)}
+        persona: {f"{index:03d}" for index in range(1, 11)}
         for persona in dolphinbench.PERSONAS
     }
     verification = {
         "source_commit": dolphinbench.PINNED_COMMIT,
+        "development_profile_sha256": dolphinbench.PINNED_DEVELOPMENT_PROFILE_SHA256,
         "development_ids": sorted(
             f"{persona}:{item}"
             for persona, values in selected.items()
@@ -1086,6 +1103,7 @@ def test_dolphin_development_runner_selects_before_official_execute(
     adapter = object.__new__(dolphinbench.AtMemDolphinAdapter)
     adapter.allowed_test_ids = selected
     adapter.verify_checkpoint = lambda _persona, _checkpoint: None  # type: ignore[method-assign]
+    adapter.identity = lambda: {"format": "atmem-dolphinbench-adapter-v1"}  # type: ignore[method-assign]
     executed: list[tuple[str, str]] = []
 
     class Runner:
@@ -1124,13 +1142,34 @@ def test_dolphin_development_runner_selects_before_official_execute(
 
     result = dolphinbench.evaluate_development(Runner(), tmp_path / "checkout")
 
-    assert len(executed) == 18
+    assert len(executed) == 30
     assert set(executed) == {
         (persona, item) for persona, values in selected.items() for item in values
     }
-    assert result["tests"] == 18
-    assert result["checks"] == 18
-    assert result["claim"] == "development-18-of-600-not-an-official-score"
+    assert result["tests"] == 30
+    assert result["checks"] == 30
+    assert result["checks_passed"] == 30
+    assert result["tasks_passed"] == 30
+    assert result["system_failure_count"] == 0
+    assert result["claim"] == "development-30-of-600-not-an-official-score"
+
+    class FailureRunner(Runner):
+        directory = tmp_path / "failure"
+
+        def _execute(self, phase, persona, spec):
+            if persona == "alex" and int(spec["id"]) == 1:
+                raise TimeoutError("fixture timeout")
+            return super()._execute(phase, persona, spec)
+
+    for persona in dolphinbench.PERSONAS:
+        checkpoint = FailureRunner.directory / "checkpoints" / f"{persona}.json"
+        checkpoint.parent.mkdir(parents=True, exist_ok=True)
+        checkpoint.write_text("{}", encoding="utf-8")
+    failed = dolphinbench.evaluate_development(FailureRunner(), tmp_path / "checkout")
+    assert failed["tests"] == 30
+    assert failed["tasks_passed"] == 29
+    assert failed["system_failure_count"] == 1
+    assert failed["system_failures"][0]["error_type"] == "timeout"
 
 
 def test_paid_call_ledger_is_durable_and_refuses_blind_retry(tmp_path: Path) -> None:

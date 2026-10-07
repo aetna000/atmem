@@ -113,6 +113,7 @@ class AtMemMemory(Memory):
             "admit_encrypted" if require_encrypted else "review"
         )
         self._media_cache = Path(tempfile.mkdtemp(prefix="atmem-lme-media-"))
+        self._last_query_metadata: dict[str, object] | None = None
         atexit.register(shutil.rmtree, self._media_cache, True)
 
     def insert(self, trajectory: dict[str, object]) -> None:
@@ -301,6 +302,20 @@ class AtMemMemory(Memory):
                 total_input_bytes=memory_input_bytes,
             ),
         ))
+        self._last_query_metadata = {
+            "format": "atmem-longmemeval-query-metadata-v1",
+            "context_id": package.context_id,
+            "preparation_id": package.preparation_id,
+            "profile_id": package.profile_id,
+            "need": package.need.to_dict(),
+            "sufficiency": package.sufficiency.to_dict(),
+            "record_ids": list(package.record_ids),
+            "source_ids": list(package.source_ids),
+            "provenance": list(package.provenance),
+            "excluded_evidence_ids": list(package.excluded_evidence_ids),
+            "reason_codes": list(package.reason_codes),
+            "context_sha256": package.context_sha256,
+        }
         result: list[dict[str, str]] = []
         delivered_bytes = (
             len(query.encode("utf-8"))
@@ -330,6 +345,20 @@ class AtMemMemory(Memory):
                 raise RuntimeError("reader input exceeds the frozen total-input budget")
             result.append({"type": "image", "value": str(image)})
         return result
+
+    def post_query_hook(
+        self,
+        *,
+        query: str,
+        query_image: str | None,
+        memory_context: list[dict[str, str]],
+    ) -> dict[str, object] | None:
+        """Expose content-free product receipts to the evaluator harness."""
+        metadata = self._last_query_metadata
+        self._last_query_metadata = None
+        if metadata is None:
+            raise RuntimeError("AtMem query metadata is missing")
+        return metadata
 
     @classmethod
     def reconcile_loaded_memory_config(

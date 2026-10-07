@@ -132,6 +132,20 @@ Complete neutral AtMem, Mem0 and AgentRunbook adapters. The laboratory has:
 Official adapters invoke installed public APIs and cannot compensate for missing
 product behavior.
 
+The paid development profile is a nested five-percent expansion of the retained
+historical calibration: 23 of 451 LongMemEval-V2 questions and 30 of 600
+DolphinBench tasks. Selection uses public identifiers and pinned salts only;
+the old 14/18 manifests and results remain immutable historical artifacts.
+Case selection is the sole reduced dimension: each selected case follows the
+full-run formation, retrieval, modality, reader/agent, tool, prompt, budget,
+retry, judge/grader, telemetry, raw-evidence and reporting path. A generated
+equivalence receipt compares the effective development configuration with the
+frozen full-run configuration after removing only the case-ID field and fails
+closed on every other difference.
+Every paid runner imports the exact candidate checkout ahead of site packages,
+executes in an isolated environment, records the resolved module and wheel
+digest, and refuses a globally installed or mismatched AtMem artifact.
+
 The reference corpus is split into development and sealed holdout before any
 system run. A pinned system-neutral output-to-source-span normalizer prevents
 AtMem source-range output from receiving structural credit unavailable to Mem0
@@ -145,6 +159,44 @@ same-size development sweep and symmetric repeats; reports show per-run values,
 means, paired bootstrap intervals and cost-normalized accuracy, never best-of.
 For Dolphin, the persona checkpoint is frozen before scoring and results report
 all 600 tasks and the 582 non-development tasks separately.
+
+Before scoring, evaluator-only manifests enumerate the evidence requirements
+for all 23 LongMemEval questions and action prerequisites for all 30 Dolphin
+tasks. Per-requirement stage ledgers distinguish source, formation, nomination,
+neighbour expansion, packing, delivery, reader use and action. LongMem uses the
+same pinned reader on product context, verified minimal evidence and no-memory
+control to separate memory-pipeline failures from reading failures. Dolphin
+removal tests pass only on a named pre-action missing-requirement receipt with
+no model invocation and no tool call; transport, timeout, parsing and generic
+no-call outcomes remain separately failed.
+
+The evaluator manifest uses stable requirement identifiers and the complete
+class vocabulary from FR-040. It is loaded only by evaluation/reporting code,
+never by AtMem formation, retrieval, packing, the memory adapter, or the host
+agent. A requirement ledger records the eight ordered stages from source
+existence through reflected answer/action with four-state observations
+(`passed`, `failed`, `not_reached`, `not_applicable`). A deterministic
+classifier emits exactly one terminal outcome per case and rejects missing,
+unknown, contradictory or silently defaulted evidence.
+The checksum-bound evaluator-only `attribution-review-protocol-v1` defines the
+per-stage evidence rules. Review packets begin unsigned with invalid
+`unreviewed` states and can be finalized only after every requirement/stage has
+an artifact citation or explicit non-pass reason and every case has one known
+terminal outcome. `used_by_reader` is an observable response/controlled-input
+proxy, never a claim about hidden model cognition.
+
+LongMem attribution executes three reader inputs for every selected question:
+the byte-identical product package, a verified evaluator-owned minimal evidence
+package, and no memory. The runner binds all three to one reader identity,
+prompt, sampling configuration and budget. Dolphin action evaluation adds a
+host-side pre-action gate: removed evidence must yield a named
+`blocked_missing_requirement` receipt before model invocation, while restored
+evidence must open the gate and reach the expected tool path. Error and
+no-call outcomes remain failed observations rather than safety blocks.
+
+The retained twelve-case reader-free fixture is reanalysed from its frozen raw
+results into a separate requirement-class table. Its report is explicitly a
+small historical diagnostic and is not merged into five-percent aggregates.
 
 ## Migration and Compatibility
 
@@ -196,6 +248,8 @@ research/reference_parity/
 
 research/production_benchmarks/
   adapters/longmemeval_atmem.py
+  adapters/longmemeval_mem0.py
+  matched_results.py
   run_longmem_pilot.py
   run_dolphin_development.py
 
@@ -212,6 +266,8 @@ tests/
   test_context_engine_migration.py
   test_context_engine_performance.py
   test_reference_parity.py
+  test_official_benchmark_adapters.py
+  test_retrieval_quality_protocol.py
 ```
 
 **Structure Decision**: Use a new `atmem/context_engine/` package rather than
@@ -230,7 +286,7 @@ outside runtime.
 6. Run reader-free reference parity; iterate until AtMem is at least 10%
    relatively better than both comparators on the frozen micro corpus.
 7. Run a bounded live differential; freeze the best reproducible profile.
-8. Run complete matched 14-question LongMem development and 18-task Dolphin
+8. Run complete matched 23-question LongMem development and 30-task Dolphin
    development—never another AtMem-only paid run.
 9. Only after development targets pass, run untouched confirmation/full gates.
 10. Complete installed cross-platform product qualification and release decision.

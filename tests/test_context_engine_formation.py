@@ -101,6 +101,27 @@ def test_storage_report_detects_no_source_body_duplication() -> None:
         store.close()
 
 
+def test_storage_report_detects_linked_full_source_duplication() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        source_id = manager.retain_source(_episode())
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source_range = manager.add_range(
+            source_id, "text-1", 0, len(b"I am 45 years old.")
+        )
+        manager.add_unit(
+            generation,
+            kind="fact",
+            ranges=(source_range,),
+            compact_value={"copied_source": "I am 45 years old."},
+        )
+        report = storage_report(store)
+        assert report["source_duplication"] == {"duplicate_rows": 1, "passed": False}
+    finally:
+        store.close()
+
+
 def test_storage_report_has_machine_readable_cli(tmp_path, monkeypatch, capsys) -> None:
     path = tmp_path / "memory.db"
     store = SQLiteStore(path)

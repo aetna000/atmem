@@ -19,7 +19,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
-from research.production_benchmarks.hf_embedding_proxy import Handler
+from research.production_benchmarks.local_embedding_proxy import Handler, MODEL as EMBEDDING_MODEL
 
 def canonical(value: object) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
@@ -60,8 +60,8 @@ def request(
     }
 
 
-def embedding_request(token: str) -> dict:
-    """Probe the exact OpenAI-compatible route used by the official comparator."""
+def embedding_request() -> dict:
+    """Probe the exact content-blind local route shared by comparator arms."""
     started = time.monotonic()
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -69,10 +69,10 @@ def embedding_request(token: str) -> dict:
     call = urllib.request.Request(
         f"http://127.0.0.1:{server.server_port}/v1/embeddings",
         data=canonical({
-            "model": "Qwen/Qwen3-Embedding-8B:scaleway",
+            "model": EMBEDDING_MODEL,
             "input": "route probe",
         }).encode(),
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        headers={"Content-Type": "application/json"},
         method="POST",
     )
     try:
@@ -95,8 +95,8 @@ def embedding_request(token: str) -> dict:
     return {
         "outcome": "succeeded",
         "status": status,
-        "model": "Qwen/Qwen3-Embedding-8B",
-        "provider_route": "scaleway",
+        "model": EMBEDDING_MODEL,
+        "provider_route": "local-deterministic",
         "transport": "openai-compatible-v1-embeddings",
         "shape": [1, len(vectors[0]["embedding"])],
         "duration_ms": round((time.monotonic() - started) * 1000, 3),
@@ -123,13 +123,19 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True)
     parser.add_argument("--confirm-paid-call", action="store_true")
+    parser.add_argument(
+        "--reader-base-url",
+        default=os.environ.get("ATMEM_RUNPOD_READER_URL", ""),
+    )
     args = parser.parse_args()
     if not args.confirm_paid_call:
         raise SystemExit("refusing provider calls without --confirm-paid-call")
-    hf = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACEHUB_API_TOKEN")
+    reader_key = os.environ.get("RUNPOD_READER_API_KEY")
     openai = os.environ.get("OPENAI_API_KEY")
-    if not hf or not openai:
-        raise SystemExit("HF_TOKEN (or HUGGINGFACEHUB_API_TOKEN) and OPENAI_API_KEY are required")
+    if not args.reader_base_url or not reader_key or not openai:
+        raise SystemExit(
+            "--reader-base-url, RUNPOD_READER_API_KEY and OPENAI_API_KEY are required"
+        )
     output = Path(args.output).expanduser().resolve()
     repository = Path(__file__).resolve().parents[2]
     if output == repository or repository in output.parents:
@@ -138,16 +144,16 @@ def main() -> None:
         "format": "atmem-provider-route-probe-v1",
         "routes": {
             "reader": probe(
-                "huggingface/deepinfra/Qwen3.5-9B",
+                "runpod/Qwen3.5-9B",
                 lambda: request(
-                    "https://router.huggingface.co/v1/chat/completions", hf,
-                    {"model": "Qwen/Qwen3.5-9B:deepinfra", "messages": [{"role": "user", "content": "Reply OK."}], "max_tokens": 1},
-                    provider_route="deepinfra",
+                    args.reader_base_url.rstrip("/") + "/chat/completions", reader_key,
+                    {"model": "Qwen/Qwen3.5-9B", "messages": [{"role": "user", "content": "Reply OK."}], "max_tokens": 8},
+                    provider_route="runpod-vllm",
                 ),
             ),
             "embedding": probe(
-                "huggingface/scaleway/Qwen3-Embedding-8B",
-                lambda: embedding_request(hf),
+                "local/hash-bow-768-v1",
+                embedding_request,
             ),
             "judge": probe(
                 "openai/gpt-5.2-2025-12-11",

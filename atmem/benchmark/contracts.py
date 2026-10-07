@@ -16,6 +16,8 @@ RETRIEVAL_PROTOCOL_FORMAT = "atmem-retrieval-quality-protocol-v1"
 QUESTION_SPLIT_FORMAT = "atmem-longmemeval-v2-question-split-v1"
 LONGMEM_PILOT_FORMAT = "atmem-longmemeval-v2-pilot-v1"
 DOLPHIN_SPLIT_FORMAT = "atmem-dolphinbench-task-split-v1"
+LONGMEM_DEVELOPMENT_PROFILE_FORMAT = "atmem-longmemeval-v2-development-profile-v1"
+DOLPHIN_DEVELOPMENT_PROFILE_FORMAT = "atmem-dolphinbench-development-profile-v1"
 PROVIDER_ROUTE_PROBE_FORMAT = "atmem-provider-route-probe-v1"
 _CATEGORIES = {
     "extraction",
@@ -228,6 +230,104 @@ def validate_dolphin_split(value: Mapping[str, Any]) -> dict[str, Any]:
     return split
 
 
+def validate_longmem_development_profile(
+    value: Mapping[str, Any], *, split: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Validate the nested answer-blind five-percent LongMem development set."""
+    profile = dict(value)
+    if profile.get("format") != LONGMEM_DEVELOPMENT_PROFILE_FORMAT:
+        raise ValueError(
+            f"LongMem development profile format must be {LONGMEM_DEVELOPMENT_PROFILE_FORMAT}"
+        )
+    validated_split = validate_question_split(split)
+    identifiers = _identifier_set(profile.get("question_ids"), "profile question_ids")
+    historical = _identifier_set(
+        profile.get("historical_question_ids"), "historical_question_ids"
+    )
+    if len(identifiers) != 23 or int(profile.get("question_count", -1)) != 23:
+        raise ValueError("LongMem five-percent profile must contain exactly 23 questions")
+    if len(historical) != 14 or not historical <= identifiers:
+        raise ValueError("LongMem five-percent profile must contain the historical 14-question slice")
+    if identifiers - set(validated_split["development_ids"]):
+        raise ValueError("LongMem five-percent profile may contain development question IDs only")
+    if profile.get("confirmation_overlap") != 0:
+        raise ValueError("LongMem five-percent profile must not overlap confirmation")
+    if profile.get("question_split_sha256") != validated_split.get("split_sha256"):
+        raise ValueError("LongMem five-percent profile names a different frozen split")
+    manifest = str(profile.get("selected_input_manifest_sha256") or "")
+    if len(manifest) != 64 or any(character not in "0123456789abcdef" for character in manifest):
+        raise ValueError("LongMem five-percent selected input manifest is required")
+    stable = {key: item for key, item in profile.items() if key != "profile_sha256"}
+    if profile.get("profile_sha256") != hashlib.sha256(
+        canonical_json(stable).encode("utf-8")
+    ).hexdigest():
+        raise ValueError("LongMem five-percent profile digest does not match")
+    _reject_secrets(profile, "longmem_development_profile")
+    return profile
+
+
+def validate_dolphin_development_profile(
+    value: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Validate the nested answer-blind five-percent Dolphin development set."""
+    profile = dict(value)
+    if profile.get("format") != DOLPHIN_DEVELOPMENT_PROFILE_FORMAT:
+        raise ValueError(
+            f"Dolphin development profile format must be {DOLPHIN_DEVELOPMENT_PROFILE_FORMAT}"
+        )
+    development = _identifier_set(profile.get("development_ids"), "development_ids")
+    confirmation = _identifier_set(profile.get("confirmation_ids"), "confirmation_ids")
+    historical = _identifier_set(
+        profile.get("historical_development_ids"), "historical_development_ids"
+    )
+    if development & confirmation or len(development | confirmation) != 600:
+        raise ValueError("Dolphin five-percent profile must partition all 600 tasks")
+    if len(development) != 30 or len(confirmation) != 570:
+        raise ValueError("Dolphin five-percent profile must contain exactly 30 development tasks")
+    if len(historical) != 18 or not historical <= development:
+        raise ValueError("Dolphin five-percent profile must contain the historical 18-task slice")
+    personas = dict(profile.get("personas") or {})
+    if set(personas) != {"alex", "morgan", "riley"}:
+        raise ValueError("Dolphin five-percent profile must contain all three official personas")
+    for persona, counts in personas.items():
+        prefix = f"{persona}:"
+        actual_development = sum(item.startswith(prefix) for item in development)
+        actual_confirmation = sum(item.startswith(prefix) for item in confirmation)
+        if (
+            actual_development != 10
+            or actual_confirmation != 190
+            or int(counts.get("development", -1)) != actual_development
+            or int(counts.get("confirmation", -1)) != actual_confirmation
+            or int(counts.get("total", -1)) != 200
+        ):
+            raise ValueError(f"Dolphin five-percent counts differ for {persona}")
+    stable = {key: item for key, item in profile.items() if key != "profile_sha256"}
+    if profile.get("profile_sha256") != hashlib.sha256(
+        canonical_json(stable).encode("utf-8")
+    ).hexdigest():
+        raise ValueError("Dolphin five-percent profile digest does not match")
+    _reject_secrets(profile, "dolphin_development_profile")
+    return profile
+
+
+def validate_longmem_development_selection(
+    value: Mapping[str, Any], *, split: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Validate either the retained calibration pilot or current 5% profile."""
+    if value.get("format") == LONGMEM_PILOT_FORMAT:
+        return validate_longmem_pilot(value, split=split)
+    return validate_longmem_development_profile(value, split=split)
+
+
+def validate_dolphin_development_selection(
+    value: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Validate either the retained calibration split or current 5% profile."""
+    if value.get("format") == DOLPHIN_SPLIT_FORMAT:
+        return validate_dolphin_split(value)
+    return validate_dolphin_development_profile(value)
+
+
 def validate_provider_route_probe(value: Mapping[str, Any]) -> dict[str, Any]:
     probe = dict(value)
     if probe.get("format") != PROVIDER_ROUTE_PROBE_FORMAT:
@@ -238,8 +338,8 @@ def validate_provider_route_probe(value: Mapping[str, Any]) -> dict[str, Any]:
         raise ValueError("provider route probe digest does not match its canonical content")
     routes = dict(probe.get("routes") or {})
     expected_routes = {
-        "reader": ("Qwen/Qwen3.5-9B", "runpod-secure-a100-80gb-vllm"),
-        "embedding": ("Qwen/Qwen3-Embedding-8B", "scaleway"),
+        "reader": ("Qwen/Qwen3.5-9B", "runpod-vllm"),
+        "embedding": ("atmem/hash-bow-768-v1", "local-deterministic"),
         "judge": ("gpt-5.2-2025-12-11", "openai-direct"),
     }
     if set(routes) != set(expected_routes):
@@ -365,10 +465,16 @@ def validate_retrieval_quality_protocol(
         if not str(dolphin.get(key) or "").strip():
             raise ValueError(f"DolphinBench protocol is missing {key}")
     if dolphin_split is not None:
-        validated_dolphin = validate_dolphin_split(dolphin_split)
+        validated_dolphin = validate_dolphin_development_selection(dolphin_split)
         if validated_dolphin["source_commit"] != dolphin["source_commit"]:
             raise ValueError("DolphinBench protocol and split commits differ")
-        if validated_dolphin["split_sha256"] != dolphin["development_split_sha256"]:
+        if validated_dolphin.get("format") == DOLPHIN_SPLIT_FORMAT:
+            expected_dolphin_digest = dolphin["development_split_sha256"]
+            actual_dolphin_digest = validated_dolphin["split_sha256"]
+        else:
+            expected_dolphin_digest = dolphin.get("development_profile_sha256")
+            actual_dolphin_digest = validated_dolphin["profile_sha256"]
+        if actual_dolphin_digest != expected_dolphin_digest:
             raise ValueError("DolphinBench protocol and split digests differ")
     locomo = dict(datasets.get("locomo") or {})
     if not all(str(locomo.get(key) or "").strip() for key in ("repository", "source_ref", "manifest", "role")):
@@ -405,8 +511,19 @@ def validate_retrieval_quality_protocol(
             raise ValueError(
                 "pilot run requires both frozen pilot manifests and provider evidence"
             )
-        validate_longmem_pilot(pilot, split=validated_split)
-        validate_dolphin_split(dolphin_split)
+        validated_longmem_development = validate_longmem_development_selection(
+            pilot, split=validated_split
+        )
+        validate_dolphin_development_selection(dolphin_split)
+        if validated_longmem_development.get("format") == LONGMEM_DEVELOPMENT_PROFILE_FORMAT:
+            longmem_profile = dict(longmem.get("development_profile") or {})
+            if (
+                Path(str(longmem_profile.get("file") or "")).name
+                != "longmemeval-v2-development-5pct-v1.json"
+                or longmem_profile.get("sha256")
+                != validated_longmem_development.get("profile_sha256")
+            ):
+                raise ValueError("LongMem five-percent profile differs from the frozen protocol")
         requirements = dict(protocol.get("paid_run_requirements") or {})
         required = (
             "candidate_atmem_version", "official_harness_sha256", "reader_prompt_sha256",
@@ -444,8 +561,8 @@ def validate_retrieval_quality_protocol(
                 "runpod://ephemeral-a100-80gb/v1",
             ),
             "official_rag_embedding": (
-                "Qwen/Qwen3-Embedding-8B:scaleway", "scaleway",
-                "https://router.huggingface.co/v1",
+                "atmem/hash-bow-768-v1", "local-deterministic",
+                "local://openai-compatible/v1",
             ),
         }
         for name, (model, route, base_url) in expected_models.items():
@@ -468,7 +585,10 @@ def validate_retrieval_quality_protocol(
         method_reservations = dict(
             requirements.get("pilot_method_reservations_usd") or {}
         )
-        allowed_pilot_methods = {"no-retrieval", "typed-local"}
+        allowed_pilot_methods = {
+            "no-retrieval", "typed-local", "verified-evidence",
+            "mem0-oss", "agentrunbook-r"
+        }
         if set(method_reservations) != allowed_pilot_methods:
             raise ValueError("pilot reservations must cover only the reviewed paid methods")
         case_reservations = [

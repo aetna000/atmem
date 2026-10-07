@@ -16,15 +16,26 @@ import threading
 import time
 from typing import Any
 
-from atmem.benchmark.contracts import validate_retrieval_quality_protocol
+from atmem.benchmark.contracts import (
+    validate_longmem_development_selection,
+    validate_retrieval_quality_protocol,
+)
 from atmem.service.household import HouseholdApplication
 from research.production_benchmarks.cost_ledger import DurableCostLedger
 
 
 PINNED_COMMIT = "2cc8c540bdb87fe6761629b585e727e1c4704520"
-IMPORT_LINE = "from .atmem import AtMemMemory  # noqa: E402,F401"
-METHOD_MARKER = 'METHODS = {\n    "atmem",'
+IMPORT_LINES = (
+    "from .atmem import AtMemMemory  # noqa: E402,F401",
+    "from .mem0_oss import Mem0Memory  # noqa: E402,F401",
+    "from .atmem_verified import VerifiedEvidenceMemory  # noqa: E402,F401",
+)
+METHOD_MARKER = (
+    'METHODS = {\n    "atmem",\n    "mem0_oss",\n'
+    '    "atmem_verified_evidence",'
+)
 METHOD_ORIGINAL = "METHODS = {"
+PRIOR_METHOD_MARKER = 'METHODS = {\n    "atmem",\n    "mem0_oss",'
 CONFIG_MARKER = '''def build_memory_config(args: argparse.Namespace, data_root: Path) -> dict[str, object]:
     if args.method == "atmem":
         required = {
@@ -50,9 +61,44 @@ CONFIG_MARKER = '''def build_memory_config(args: argparse.Namespace, data_root: 
                 "require_encrypted": True,
             },
         }
+    if args.method == "mem0_oss":
+        required = {
+            name: os.environ.get(name, "").strip()
+            for name in ("ATMEM_MEM0_CHECKOUT", "ATMEM_MEM0_STORAGE_PATH")
+        }
+        missing = sorted(name for name, value in required.items() if not value)
+        if missing:
+            raise RuntimeError(f"Mem0 LongMemEval environment is missing: {', '.join(missing)}")
+        return {
+            "memory_type": "mem0_oss",
+            "memory_params": {
+                "checkout": required["ATMEM_MEM0_CHECKOUT"],
+                "storage_path": required["ATMEM_MEM0_STORAGE_PATH"],
+                "top_k": 20,
+            },
+        }
+    if args.method == "atmem_verified_evidence":
+        manifest_path = os.environ.get("ATMEM_LME_REQUIREMENT_MANIFEST", "").strip()
+        if not manifest_path:
+            raise RuntimeError("verified-evidence control requires ATMEM_LME_REQUIREMENT_MANIFEST")
+        return {
+            "memory_type": "atmem_verified_evidence",
+            "memory_params": {"requirement_manifest_path": manifest_path},
+        }
 '''
 CONFIG_ORIGINAL = (
     "def build_memory_config(args: argparse.Namespace, data_root: Path) -> dict[str, object]:\n"
+)
+PRIOR_CONFIG_MARKER = CONFIG_MARKER.split(
+    '    if args.method == "atmem_verified_evidence":', 1
+)[0]
+LEGACY_METHOD_MARKER = 'METHODS = {\n    "atmem",'
+LEGACY_CONFIG_MARKER = CONFIG_MARKER.split(
+    '    if args.method == "mem0_oss":', 1
+)[0]
+LEGACY_CONFIG_MARKER_V0 = LEGACY_CONFIG_MARKER.replace(
+    'os.environ.get(\n                    "ATMEM_LME_TRAJECTORY_POOL_ROOT", str(data_root)\n                )',
+    'str(data_root / "trajectories")',
 )
 EVALUATOR_ARG_ORIGINAL = '    parser.add_argument("--evaluator-model", default=os.getenv("EVALUATOR_MODEL", "gpt-5.2"))\n'
 EVALUATOR_ARG_MARKER = EVALUATOR_ARG_ORIGINAL + '    parser.add_argument("--evaluator-base-url", default=None)\n'
@@ -187,7 +233,7 @@ def preflight_paid_runtime(
     supplied = dict(environment or {})
     credentials = {
         name: supplied.get(name) or os.environ.get(name, "")
-        for name in ("HF_TOKEN", "OPENAI_API_KEY", "RUNPOD_READER_API_KEY")
+        for name in ("OPENAI_API_KEY", "RUNPOD_READER_API_KEY")
     }
     missing = sorted(name for name, value in credentials.items() if not value.strip())
     if missing:
@@ -212,7 +258,7 @@ def preflight_paid_runtime(
             )
     sources = {
         "reader_proxy_sha256": Path(__file__).with_name("runpod_reader_proxy.py"),
-        "embedding_proxy_sha256": Path(__file__).with_name("hf_embedding_proxy.py"),
+        "embedding_proxy_sha256": Path(__file__).with_name("local_embedding_proxy.py"),
         "judge_proxy_sha256": Path(__file__).with_name("openai_judge_proxy.py"),
     }
     result: dict[str, str] = {}
@@ -481,6 +527,10 @@ def install_official_adapter(checkout: str | Path) -> dict[str, str]:
         raise RuntimeError(f"LongMemEval-V2 checkout must be {PINNED_COMMIT}; found {head}")
     source = Path(__file__).with_name("adapters") / "longmemeval_atmem.py"
     destination = root / "memory_modules" / "atmem.py"
+    mem0_source = Path(__file__).with_name("adapters") / "longmemeval_mem0.py"
+    mem0_destination = root / "memory_modules" / "mem0_oss.py"
+    verified_source = Path(__file__).with_name("adapters") / "longmemeval_verified.py"
+    verified_destination = root / "memory_modules" / "atmem_verified.py"
     registry = root / "memory_modules" / "memory.py"
     runner = root / "evaluation" / "run_eval.py"
     retry_files = (
@@ -490,10 +540,16 @@ def install_official_adapter(checkout: str | Path) -> dict[str, str]:
     if not registry.is_file():
         raise FileNotFoundError(f"official memory registry missing: {registry}")
     destination.write_bytes(source.read_bytes())
+    mem0_destination.write_bytes(mem0_source.read_bytes())
+    verified_destination.write_bytes(verified_source.read_bytes())
     text = registry.read_text(encoding="utf-8")
-    if IMPORT_LINE not in text:
-        registry.write_text(text.rstrip() + "\n" + IMPORT_LINE + "\n", encoding="utf-8")
+    for import_line in IMPORT_LINES:
+        if import_line not in text:
+            text = text.rstrip() + "\n" + import_line + "\n"
+    registry.write_text(text, encoding="utf-8")
     runner_text = runner.read_text(encoding="utf-8")
+    if _is_legacy_runner_patch(root, runner):
+        runner_text = _git_blob(root, "evaluation/run_eval.py").decode("utf-8")
     if METHOD_MARKER not in runner_text:
         if METHOD_ORIGINAL not in runner_text:
             raise RuntimeError("official run_eval METHODS marker changed")
@@ -544,6 +600,8 @@ def install_official_adapter(checkout: str | Path) -> dict[str, str]:
         "source_commit": head,
         "adapter_path": str(destination),
         "adapter_sha256": _sha256(destination),
+        "mem0_adapter_sha256": _sha256(mem0_destination),
+        "verified_adapter_sha256": _sha256(verified_destination),
         "registry_sha256": _sha256(registry),
         "runner_sha256": _sha256(runner),
         "runtime_verified": str(installed["runtime_verified"]),
@@ -584,7 +642,10 @@ def verify_official_checkout(checkout: str | Path) -> dict[str, str]:
             root, path
         ):
             continue
-        if name == "evaluation/run_eval.py" and _is_expected_runner_patch(root, path):
+        if name == "evaluation/run_eval.py" and (
+            _is_expected_runner_patch(root, path)
+            or _is_legacy_runner_patch(root, path)
+        ):
             continue
         if name in {"evaluation/harness.py", "evaluation/qa_eval_metrics.py"} and (
             _is_expected_retry_patch(root, path, name)
@@ -634,11 +695,19 @@ def verify_installed_adapter(checkout: str | Path) -> dict[str, Any]:
     root = Path(checkout).expanduser().resolve()
     verification = verify_official_checkout(root)
     adapter = root / "memory_modules" / "atmem.py"
+    mem0_adapter = root / "memory_modules" / "mem0_oss.py"
+    verified_adapter = root / "memory_modules" / "atmem_verified.py"
     registry = root / "memory_modules" / "memory.py"
     runner = root / "evaluation" / "run_eval.py"
     expected_adapter = Path(__file__).with_name("adapters") / "longmemeval_atmem.py"
+    expected_mem0 = Path(__file__).with_name("adapters") / "longmemeval_mem0.py"
+    expected_verified = Path(__file__).with_name("adapters") / "longmemeval_verified.py"
     if not adapter.is_file() or adapter.read_bytes() != expected_adapter.read_bytes():
         raise RuntimeError("installed AtMem adapter differs from the reviewed source")
+    if not mem0_adapter.is_file() or mem0_adapter.read_bytes() != expected_mem0.read_bytes():
+        raise RuntimeError("installed Mem0 adapter differs from the reviewed source")
+    if not verified_adapter.is_file() or verified_adapter.read_bytes() != expected_verified.read_bytes():
+        raise RuntimeError("installed verified-evidence adapter differs from the reviewed source")
     if not _is_expected_registry_patch(root, registry):
         raise RuntimeError("official LongMemEval registry has not loaded the AtMem adapter")
     if not _is_expected_runner_patch(root, runner):
@@ -681,6 +750,7 @@ def run_official_pilot_case(
         for_pilot_run=True, external_root=output,
         repository_root=Path(__file__).resolve().parents[2],
     )
+    validate_longmem_development_selection(pilot, split=question_split)
     if not confirmed_paid_run:
         raise RuntimeError("paid pilot requires an explicit confirmed_paid_run flag")
     supplied = dict(environment or {})
@@ -725,7 +795,12 @@ def run_official_pilot_case(
     method_map = {
         "no-retrieval": "no_retrieval",
         "official-rag-query-to-slice-notes": "rag_query_to_slice_notes",
+        "agentrunbook-r": "agentrunbook_r",
+        "agentrunbook-c": "agentrunbook_c",
+        "agentrunbook-c-v2": "agentrunbook_c_v2",
+        "mem0-oss": "mem0_oss",
         "typed-local": "atmem",
+        "verified-evidence": "atmem_verified_evidence",
     }
     if method not in method_map:
         raise ValueError("pilot method is not an executable frozen operating point")
@@ -743,7 +818,7 @@ def run_official_pilot_case(
             "paid pilot hardware differs from the frozen protocol: "
             f"{actual_hardware}"
         )
-    proxy_source = Path(__file__).with_name("hf_embedding_proxy.py")
+    proxy_source = Path(__file__).with_name("local_embedding_proxy.py")
     judge_proxy_source = Path(__file__).with_name("openai_judge_proxy.py")
     reservations = requirements["pilot_method_reservations_usd"].get(method)
     if not isinstance(reservations, dict):  # guarded by the no-write preflight
@@ -774,9 +849,11 @@ def run_official_pilot_case(
     case_output = output / "runs" / question_id / method
     allowed_environment = {
         "PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL",
-        "SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "HF_TOKEN", "OPENAI_API_KEY",
+        "SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "OPENAI_API_KEY",
         "RUNPOD_READER_API_KEY", "ATMEM_READER_BASE_URL",
         "ATMEM_LME_TRAJECTORY_POOL_ROOT",
+        "ATMEM_LME_REQUIREMENT_MANIFEST",
+        "ATMEM_MEM0_CHECKOUT", "ATMEM_MEM0_STORAGE_PATH",
         "ATMEM_BENCHMARK_ROOT",
         "ATMEM_COST_AUTHORIZATION_ID",
     }
@@ -793,7 +870,8 @@ def run_official_pilot_case(
     run_environment.update(supplied)
     run_environment["PYTHONDONTWRITEBYTECODE"] = "1"
     reader_api_key_env = str(
-        dict(protocol["models"]["longmemeval_reader"]).get("api_key_env") or "HF_TOKEN"
+        dict(protocol["models"]["longmemeval_reader"]).get("api_key_env")
+        or "RUNPOD_READER_API_KEY"
     )
     if (
         not run_environment.get(reader_api_key_env)
@@ -832,14 +910,15 @@ def run_official_pilot_case(
     judge_proxy: subprocess.Popen[bytes] | None = None
     judge_usage = case_output / "judge-usage.json"
     try:
-        if method == "official-rag-query-to-slice-notes":
+        if method in {"official-rag-query-to-slice-notes", "agentrunbook-r"}:
             ready_file = case_output / "embedding-proxy-ready.json"
             proxy = subprocess.Popen(
                 [os.sys.executable, os.fspath(proxy_source), "--ready-file", os.fspath(ready_file)],
-                cwd=case_output, env=_proxy_environment(run_environment, "HF_TOKEN"),
+                cwd=case_output,
+                env=_proxy_environment(run_environment, "RUNPOD_READER_API_KEY"),
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
-            embedding_base_url = _wait_for_proxy(proxy, ready_file, label="HF embedding")
+            embedding_base_url = _wait_for_proxy(proxy, ready_file, label="local embedding")
         judge_ready = case_output / "judge-proxy-ready.json"
         judge_proxy_command = [
                 os.sys.executable, os.fspath(judge_proxy_source),
@@ -883,13 +962,13 @@ def run_official_pilot_case(
             ),
             "--controller-model", models["official_rag_controller"]["model"],
             "--controller-base-url", models["official_rag_controller"]["base_url"],
-            "--controller-api-key-env", "HF_TOKEN",
+            "--controller-api-key-env", reader_api_key_env,
             "--controller-temperature", str(models["official_rag_controller"]["temperature"]),
             "--controller-top-p", str(models["official_rag_controller"]["top_p"]),
             "--controller-top-k", str(models["official_rag_controller"]["top_k"]),
             "--embedding-model", models["official_rag_embedding"]["model"],
             "--embedding-base-url", embedding_base_url,
-            "--embedding-api-key-env", "HF_TOKEN",
+            "--embedding-api-key-env", reader_api_key_env,
             "--evaluator-model", models["longmemeval_judge"]["model"],
             "--evaluator-base-url", evaluator_base_url,
             "--evaluator-api-key-env", "ATMEM_JUDGE_PROXY_KEY",
@@ -983,6 +1062,26 @@ def _is_expected_runner_patch(root: Path, path: Path) -> bool:
     return path.read_text(encoding="utf-8") == expected
 
 
+def _is_legacy_runner_patch(root: Path, path: Path) -> bool:
+    original = _git_blob(root, "evaluation/run_eval.py").decode("utf-8")
+    expected = {
+        original.replace(METHOD_ORIGINAL, LEGACY_METHOD_MARKER, 1).replace(
+            CONFIG_ORIGINAL, marker, 1
+        )
+        for marker in (LEGACY_CONFIG_MARKER, LEGACY_CONFIG_MARKER_V0)
+    }
+    expected.add(
+        original.replace(METHOD_ORIGINAL, PRIOR_METHOD_MARKER, 1).replace(
+            CONFIG_ORIGINAL, PRIOR_CONFIG_MARKER, 1
+        ).replace(EVALUATOR_ARG_ORIGINAL, EVALUATOR_ARG_MARKER, 1).replace(
+            EVALUATOR_FORWARD_ORIGINAL, EVALUATOR_FORWARD_MARKER, 1
+        ).replace(MEMORY_CACHE_ARG_ORIGINAL, MEMORY_CACHE_ARG_MARKER, 1).replace(
+            MEMORY_CACHE_FORWARD_ORIGINAL, MEMORY_CACHE_FORWARD_MARKER, 1
+        )
+    )
+    return path.read_text(encoding="utf-8") in expected
+
+
 def _is_expected_retry_patch(root: Path, path: Path, git_name: str) -> bool:
     original = _git_blob(root, git_name).decode("utf-8")
     expected = original.replace(RETRY_ORIGINAL, RETRY_MARKER, 1)
@@ -1034,10 +1133,23 @@ def _is_expected_registry_patch(root: Path, path: Path) -> bool:
     expected = (
         _git_blob(root, "memory_modules/memory.py").decode("utf-8").rstrip()
         + "\n"
-        + IMPORT_LINE
+        + "\n".join(IMPORT_LINES)
         + "\n"
     )
-    return path.read_text(encoding="utf-8") == expected
+    actual = path.read_text(encoding="utf-8")
+    legacy = (
+        _git_blob(root, "memory_modules/memory.py").decode("utf-8").rstrip()
+        + "\n"
+        + IMPORT_LINES[0]
+        + "\n"
+    )
+    prior = (
+        _git_blob(root, "memory_modules/memory.py").decode("utf-8").rstrip()
+        + "\n"
+        + "\n".join(IMPORT_LINES[:2])
+        + "\n"
+    )
+    return actual in {expected, prior, legacy}
 
 
 def _verify_worktree_shape(root: Path) -> None:
@@ -1051,6 +1163,8 @@ def _verify_worktree_shape(root: Path) -> None:
         " M evaluation/qa_eval_metrics.py",
         " M memory_modules/memory.py",
         "?? memory_modules/atmem.py",
+        "?? memory_modules/mem0_oss.py",
+        "?? memory_modules/atmem_verified.py",
     }
     dangerous_suffixes = (".pyc", ".pyo", ".so", ".pyd", ".dll", ".dylib")
     unexpected = sorted(

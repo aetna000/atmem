@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import os
 from pathlib import Path
 import re
 import sys
@@ -52,8 +53,19 @@ class Mem0OssAdapter:
 
     def _load(self):
         checkout_text = str(self.checkout)
-        if checkout_text not in sys.path:
-            sys.path.insert(0, checkout_text)
+        if checkout_text in sys.path:
+            sys.path.remove(checkout_text)
+        sys.path.insert(0, checkout_text)
+        loaded_mem0 = sys.modules.get("mem0")
+        loaded_path = Path(getattr(loaded_mem0, "__file__", "")).resolve() if loaded_mem0 else None
+        if loaded_path is not None and self.checkout not in loaded_path.parents:
+            # Reference arms may run after another Mem0 adapter in the same
+            # pytest process. Never silently reuse that globally installed or
+            # differently pinned package.
+            for name in tuple(sys.modules):
+                if name == "mem0" or name.startswith("mem0."):
+                    del sys.modules[name]
+        os.environ.setdefault("MEM0_TELEMETRY", "False")
         from mem0 import Memory as Mem0Memory
         from mem0.utils.factory import EmbedderFactory
 

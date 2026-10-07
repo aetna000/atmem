@@ -170,16 +170,23 @@ models, budgets and dataset hashes match the frozen protocol.
 
 **Acceptance Scenarios**:
 
-1. **Given** the 14-question LongMemEval development slice, **when** a candidate
+1. **Given** the nested 23-question LongMemEval five-percent development slice,
+   **when** a candidate
    is tuned, **then** AtMem, Mem0 OSS and AgentRunbook-R/C use identical eligible
    questions, source data, reader/judge configuration and budgets, with
    unavoidable differences disclosed.
-2. **Given** the 18-task Dolphin development slice, **when** AtMem is compared
+2. **Given** the nested 30-task Dolphin five-percent development slice, **when** AtMem is compared
    with Mem0, **then** the Hermes/model/tools/grader configuration is matched and
    all failed tasks stay in the denominator.
 3. **Given** a selected profile, **when** confirmation begins, **then** no
    confirmation answer, grader output or task state is available to formation,
    retrieval, prompts or tuning.
+4. **Given** either five-percent development profile, **when** its runner is
+   compared with the corresponding full benchmark runner, **then** the only
+   permitted reduction is the number of selected question/task IDs. Formation,
+   retrieval, modalities, reader/agent, tools, prompts, token and operation
+   budgets, retries, judge/grader, requirement attribution, telemetry, failure
+   retention and report schema MUST remain production-equivalent.
 
 ### Edge Cases
 
@@ -198,6 +205,10 @@ models, budgets and dataset hashes match the frozen protocol.
 - Context and media together must respect one total-input budget.
 - Repeated benchmark runs must not select the best random outcome or silently
   drop failed provider calls.
+- A small development sample must not use shortened context, text-only
+  substitutes, weaker instrumentation, omitted comparators, relaxed validation,
+  or cheaper execution semantics unless that difference is also part of the
+  frozen full-run protocol and is disclosed as a separate operating point.
 
 ## Requirements
 
@@ -341,6 +352,79 @@ models, budgets and dataset hashes match the frozen protocol.
   licenses, and keep any protected model cassette encrypted with the AtMem
   household key. A product or comparator adapter cannot silently export user or
   benchmark source.
+- **FR-037 — Five-percent development profiles**: The paid development runners
+  MUST use immutable, checksum-bound, answer-blind samples containing exactly
+  23 of 451 LongMemEval-V2 questions and exactly 30 of 600 DolphinBench tasks.
+  Each profile MUST be nested over the historical 14/18 calibration slice,
+  preserve the existing development/confirmation boundary, and rederive its
+  membership from the pinned salt and public identifiers before execution.
+- **FR-038 — Sample-size-only reduction**: The 23-question and 30-task
+  development runs MUST execute the same production benchmark pipeline and
+  quality gates intended for the corresponding full run. The sample selector
+  MAY reduce only the set of public case identifiers. It MUST NOT reduce source
+  history, screenshots or other modalities for a selected case; formation or
+  retrieval work; matched comparator arms; model, prompt, tool, judge or grader
+  quality; context/output/operation budgets; retry and timeout policy;
+  requirement-level attribution; telemetry; raw evidence; error classification;
+  reproducibility metadata; or reporting fields. Any unavoidable difference
+  MUST fail the equivalence gate or be declared as a separately named,
+  non-comparable operating point.
+- **FR-039 — Complete failure attribution**: Every one of the 23 LongMemEval
+  questions and 30 DolphinBench tasks MUST receive evaluator-only requirement
+  annotations and a terminal stage classification. LongMemEval MUST distinguish
+  incomplete source/formation/retrieval/packing from reader non-use by comparing
+  product context with verified complete evidence under the same reader
+  configuration. Dolphin removal tests count a safety block only when a
+  pre-action receipt names the removed requirement and proves the model was not
+  invoked and no tool call occurred; timeout, provider error, parse error,
+  generic abstention and silent no-call are failures, never valid blocks.
+- **FR-040 — Evaluator-only requirement manifests**: Before any scored run, an
+  immutable evaluator-owned manifest MUST enumerate every material requirement
+  for all 23 LongMemEval questions and 30 DolphinBench tasks. Requirements MUST
+  use one or more of these classes: exact fact/value, entity/relation,
+  time/current state, state transition, procedure step/order, applicability
+  condition, comparison side, polarity/negative premise, conflict/correction,
+  action target, required action, and prohibited action. Each requirement MUST
+  have a stable identifier and source reference. Gold answers, source labels,
+  load-bearing-fact identifiers and requirement annotations MUST remain outside
+  AtMem runtime inputs and product-visible retrieval state.
+- **FR-041 — Requirement-stage ledger**: Evaluation MUST record each requirement
+  through `source_exists`, `represented`, `nominated`, `expanded`, `packed`,
+  `delivered`, `used_by_reader`, and `reflected_in_answer_or_action`. Every stage
+  MUST be `passed`, `failed`, `not_reached`, or `not_applicable` with evidence or
+  a reason; absent observations MUST NOT become zero, false success, or inferred
+  passage. Each case MUST end in exactly one of source/dataset, formation,
+  retrieval, packing, reading, parsing, provider/system, action-attempt,
+  action-success, or action-failure outcomes, using the earliest evidenced
+  failure without hiding later system errors. A frozen evaluator-only review
+  protocol MUST define permitted evidence and the decision rule for every
+  stage. `used_by_reader` MUST be labelled as an observable response/controlled-
+  input proxy and MUST NOT claim access to hidden model cognition.
+- **FR-042 — Controlled reader attribution**: Every LongMemEval development
+  question MUST run the same pinned reader and prompt against three inputs:
+  exactly the product context, evaluator-provided verified complete minimal
+  evidence, and no memory. Classification MUST follow the predeclared decision
+  table: absent source is a source/dataset failure; unrepresented source is a
+  formation failure; represented but undelivered evidence is retrieval/packing;
+  incomplete product context with successful verified evidence is a memory
+  pipeline failure; complete product context with successful verified evidence
+  but a wrong product answer is reader-use/noise; a wrong verified-evidence
+  answer is reader capability/prompt; and timeout, truncation, malformed output,
+  parse error or provider error is a system failure.
+- **FR-043 — Pre-action Dolphin gating and controls**: For tasks with remembered
+  prerequisites, the host adapter MUST evaluate AtMem's named obligation
+  sufficiency before invoking Hermes or any model. A missing obligation MUST
+  produce `blocked_missing_requirement`, name the exact missing requirement,
+  record `model_invoked=false` and zero tool calls, and prevent action. A removal
+  test succeeds only on that receipt; timeout, provider error, parse error,
+  generic abstention and silent no-call fail. Restoring the evidence MUST open
+  the same gate, invoke Hermes and permit the expected tool call, so an
+  always-blocking implementation cannot pass.
+- **FR-044 — Historical diagnostic reanalysis**: The frozen pre-change 12-case
+  reader-free diagnostic MUST be reanalysed by requirement class, reporting
+  totals and the earliest failed stage from its retained per-case evidence. It
+  MUST remain labelled a small diagnostic and MUST NOT be combined with, or
+  presented as evidence for, the 23/30 development benchmark result.
 
 ### Key Entities
 
@@ -376,9 +460,9 @@ models, budgets and dataset hashes match the frozen protocol.
 - **SC-002 — Formation coverage**: Every evaluator-owned answer-bearing source
   range is retained; at least 0.98 is reachable through an appropriate derived
   view; all remaining gaps have explicit loss receipts.
-- **SC-003 — LongMemEval development**: On the frozen 14-question slice, the
+- **SC-003 — LongMemEval development**: On the frozen 23-question five-percent slice, the
   selected AtMem profile exceeds the strongest locally matched Mem0 OSS or
-  AgentRunbook-R/C arm by at least 10% relative accuracy, with all 14 questions
+  AgentRunbook-R/C arm by at least 10% relative accuracy, with all 23 questions
   completed and no lower evidence-set recall.
 - **SC-004 — LongMemEval claim gate**: On precommitted confirmation IDs that are
   disjoint from every development or answer-inspected ID, AtMem exceeds the
@@ -387,9 +471,9 @@ models, budgets and dataset hashes match the frozen protocol.
   The complete official Small set is additionally reported as non-held-out.
   Inspecting any confirmation answer resets its confirmation status. Failure
   blocks a leadership claim, not an otherwise qualified 2.3.8 release.
-- **SC-005 — Dolphin development**: On the frozen 18-task slice with matched
-  Hermes/model/tools/grader, AtMem passes at least 16/18 tasks and exceeds the
-  matched Mem0 arm by at least two tasks.
+- **SC-005 — Dolphin development**: On the frozen 30-task five-percent slice
+  with matched Hermes/model/tools/grader, AtMem passes at least 27/30 tasks and
+  exceeds the matched Mem0 arm by at least three tasks.
 - **SC-006 — Dolphin claim gate**: A persona-formation checkpoint is frozen and
   hashed before task scoring. On all 600 official tasks, AtMem exceeds the frozen
   leaderboard leader and the locally matched Mem0 arm by at least one task, with
@@ -427,7 +511,7 @@ models, budgets and dataset hashes match the frozen protocol.
   improves by at least five percentage points over official
   `rag_query_to_slice_notes`, and is non-inferior to `legacy-control`; the pinned
   LoCoMo confirmation score regresses by no more than two points. SC-001–SC-002
-  and SC-007–SC-012 plus SC-014–SC-018 MUST also pass. A failure blocks stable
+  and SC-007–SC-012 plus SC-014–SC-019 MUST also pass. A failure blocks stable
   2.3.8 promotion but does not block unrelated Hermes/MCP/AtFlows work.
 - **SC-014 — Formation invariants**: Rebuilding retained source reproduces
   stable occurrence/durable-fact identities, corrections and supersession; every
@@ -435,7 +519,7 @@ models, budgets and dataset hashes match the frozen protocol.
 - **SC-015 — Reader/context profiles**: Frozen 4K, 8K and 16K total-reader-token
   profiles count text, media and protocol overhead and pass truncation/finalizer
   probes for every reader, judge and agent route.
-- **SC-016 — Reader-free regression**: At least 13/14 LongMem development cases
+- **SC-016 — Reader-free regression**: At least 21/23 LongMem development cases
   have answer-bearing evidence reachable before reader invocation, including the
   pinned `1defc293` regression case; result status distinguishes evidence
   availability from reader use.
@@ -447,6 +531,23 @@ models, budgets and dataset hashes match the frozen protocol.
   LongMem leadership target; SC-005–SC-006 are the Dolphin readiness/leadership
   targets. A qualified release that misses a claim gate ships V3 only as
   experimental/shadow and makes no benchmark-leading claim.
+- **SC-019 — Five-percent fidelity and attribution**: A machine-readable
+  equivalence receipt proves that selected-case count is the only execution
+  difference between each five-percent profile and its frozen full-run
+  protocol. All 23 LongMemEval and all 30 DolphinBench cases have complete
+  per-requirement stage records and exactly one terminal outcome; aggregates
+  reconcile to 23 and 30 with no unknown encoded as success. Every Dolphin
+  removal-test success names the removed requirement and records
+  `model_invoked=false` and zero tool calls. This gate permits a development
+  claim only and cannot substitute for the full 451/600 claim runs.
+- **SC-020 — Attribution and action-gate integrity**: All evaluator manifest
+  hashes validate; all 53 cases reconcile to complete requirement-stage ledgers
+  and one terminal outcome; all 23 LongMemEval cases contain product,
+  verified-evidence and no-memory reader results from the same pinned reader;
+  and every applicable Dolphin removal/restore pair proves both fail-closed
+  blocking and a working positive path. Reports separately count retrieval,
+  packing, reading, parsing, provider and action failures, and never credit an
+  unknown, timeout, error or silent no-call as safety success.
 
 ## Assumptions
 

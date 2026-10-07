@@ -532,6 +532,11 @@ class FormationManager:
                    WHERE generation_id=?""",
                 (now, generation_id),
             )
+        # Activation is the natural maintenance boundary: all units are
+        # immutable and verified, and no user query depends on this generation
+        # before it becomes active.  Merge fragmented FTS segments once here so
+        # the first real query is not charged for formation-time fragmentation.
+        self.store.optimize_context_fts()
 
     def active_generation(self, scope: AuthorityScope) -> dict[str, Any] | None:
         row = self.store._conn.execute(

@@ -18,12 +18,20 @@ _STOP = {
 }
 
 
-def _fts_query(value: str) -> str:
+def _fts_terms(value: str) -> tuple[str, ...]:
     terms = [
         token.casefold() for token in re.findall(r"[^\W_]+", value, re.UNICODE)
         if token.casefold() not in _STOP and len(token) > 1
     ]
-    return " OR ".join(f'"{term.replace(chr(34), chr(34) * 2)}"' for term in dict.fromkeys(terms))
+    return tuple(dict.fromkeys(terms))
+
+
+def _fts_query(terms: tuple[str, ...], *, operator: str) -> str:
+    if operator not in {"AND", "OR"}:
+        raise ValueError("unsupported FTS operator")
+    return f" {operator} ".join(
+        f'"{term.replace(chr(34), chr(34) * 2)}"' for term in terms
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,8 +66,8 @@ class DeterministicRetriever:
         self, generation_id: str, kind: str, query: str,
         allowed_unit_ids: frozenset[str] | None = None,
     ) -> list[RetrievedCandidate]:
-        expression = _fts_query(query)
-        if not expression or not self.store._context_fts_enabled:
+        terms = _fts_terms(query)
+        if not terms or not self.store._context_fts_enabled:
             return []
         allowed_sql = ""
         allowed_params: tuple[str, ...] = ()
@@ -68,17 +76,26 @@ class DeterministicRetriever:
                 return []
             allowed_sql = " AND m.unit_id IN (" + ",".join("?" for _ in allowed_unit_ids) + ")"
             allowed_params = tuple(sorted(allowed_unit_ids))
+        sql = f"""SELECT m.unit_id, bm25(context_units_fts) AS rank
+                  FROM context_units_fts
+                  JOIN context_units_fts_map m ON m.fts_rowid=context_units_fts.rowid
+                  JOIN context_evidence_units u
+                    ON u.generation_id=m.generation_id AND u.unit_id=m.unit_id
+                  WHERE context_units_fts MATCH ? AND m.generation_id=?
+                    AND u.kind=? AND u.lifecycle='active' {allowed_sql}
+                  ORDER BY rank, m.unit_id LIMIT ?"""
+        parameters = (generation_id, kind, *allowed_params, self.budget.per_pool)
+        # Most fact queries contain at least one discriminating entity/value.
+        # Intersect terms first so FTS does not rank every row containing common
+        # words.  Fall back to the recall-oriented union only when the precise
+        # query has no result.
         rows = self.store._conn.execute(
-            f"""SELECT m.unit_id, bm25(context_units_fts) AS rank
-               FROM context_units_fts
-               JOIN context_units_fts_map m ON m.fts_rowid=context_units_fts.rowid
-               JOIN context_evidence_units u
-                 ON u.generation_id=m.generation_id AND u.unit_id=m.unit_id
-               WHERE context_units_fts MATCH ? AND m.generation_id=?
-                 AND u.kind=? AND u.lifecycle='active' {allowed_sql}
-               ORDER BY rank, m.unit_id LIMIT ?""",
-            (expression, generation_id, kind, *allowed_params, self.budget.per_pool),
+            sql, (_fts_query(terms, operator="AND"), *parameters)
         ).fetchall()
+        if not rows and len(terms) > 1:
+            rows = self.store._conn.execute(
+                sql, (_fts_query(terms, operator="OR"), *parameters)
+            ).fetchall()
         values: list[RetrievedCandidate] = []
         for row in rows:
             evidence = self.store._conn.execute(

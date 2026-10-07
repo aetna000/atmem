@@ -78,9 +78,9 @@ class EvidenceNavigator:
 
     def search(self, query: str, *, kinds: tuple[str, ...] = ()) -> tuple[str, ...]:
         self._operation()
-        from .retrieval import _fts_query
+        from .retrieval import _fts_query, _fts_terms
 
-        expression = _fts_query(query)
+        expression = _fts_query(_fts_terms(query), operator="OR")
         if not expression or not self.authorized or not self.store._context_fts_enabled:
             return ()
         unit_placeholders = ",".join("?" for _ in self.authorized)

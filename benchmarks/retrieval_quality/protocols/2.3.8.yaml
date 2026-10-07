@@ -31,6 +31,11 @@
         "trajectories.jsonl": "363cec9a8e87aa8d9101ce4e600aadbf7031d674056ebe4f969e8424abc5f3c6"
       },
       "split_file": "longmemeval-v2-question-split-v1.json",
+      "development_profile": {
+        "file": "longmemeval-v2-development-5pct-v1.json",
+        "sha256": "1c0519e4437d769731f294cc9c8d5678867c9de339d2f902761cd10f604b8696",
+        "question_count": 23
+      },
       "forced_development_ids": ["ff311d07", "f3496ca5", "14a823df", "41a18e5c", "07ffeedf", "15e5efa6", "631667c9", "d3300354", "c738b934", "07ab3723"],
       "small_role": "development-and-unseen-question-confirmation",
       "medium_role": "same-question-larger-haystack-scale-test"
@@ -40,9 +45,11 @@
       "source_commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
       "development_split_file": "dolphinbench-task-split-v1.json",
       "development_split_sha256": "882a9e1cbd70862fa35172b806c0a0a48b39d0056cff89e68d870ca58a48fe34",
-      "pilot_tasks_per_persona": 6,
-      "grader_provider": "azure-openai",
-      "grader_model": "gpt-5.6-sol",
+      "development_profile_file": "dolphinbench-development-5pct-v1.json",
+      "development_profile_sha256": "60c681f8e7ce0796ec0209294c885abe7dc0fe5a594226aa1035c401535658de",
+      "pilot_tasks_per_persona": 10,
+      "grader_provider": "openai",
+      "grader_model": "gpt-5.2-2025-12-11",
       "grader_reasoning_effort": "medium",
       "status": "development-split-frozen-official-grader-credentials-required"
     },
@@ -94,12 +101,12 @@
       "top_k": 20
     },
     "official_rag_embedding": {
-      "provider": "huggingface-inference-providers",
-      "provider_route": "scaleway",
-      "base_url": "https://router.huggingface.co/v1",
-      "model": "Qwen/Qwen3-Embedding-8B:scaleway",
-      "repository_model": "Qwen/Qwen3-Embedding-8B",
-      "revision": "1d8ad4ca9b3dd8059ad90a75d4983776a23d44af",
+      "provider": "local",
+      "provider_route": "local-deterministic",
+      "base_url": "local://openai-compatible/v1",
+      "model": "atmem/hash-bow-768-v1",
+      "revision": "sha256:a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293",
+      "dimensions": 768,
       "max_input_tokens": 4096
     },
     "longmemeval_judge": {
@@ -128,7 +135,7 @@
     "official_harness_sha256": "93fe5855a74ad46d7e8b489cebac24de38a9b30ba7ec1de2dd8708bd4aeebdb6",
     "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
     "judge_prompt_sha256": "f8ba659e237c4282a07a92538090ea500ce8483820b390b1d19af187c01417ac",
-    "provider_route": "runpod-secure-a100-80gb-vllm-reader+scaleway-embedding; openai-direct-judge",
+    "provider_route": "runpod-vllm-reader+local-deterministic-embedding+openai-direct-judge",
     "provider_route_probe_sha256": "265f7f5cdf985a4ab975ab46c022a8863c5c5f5c91e6f083fa29974b8bbd989e",
     "hardware_profile": "Apple-M2;arm64;17179869184-bytes;macOS-26.5.2-build-25F84",
     "comparator_config_sha256": "08b99b870b3c134ccf3daca04cdba4248dda349004dd8d87159f0e8e4b62ec09",
@@ -149,15 +156,18 @@
     },
     "official_code_combined_sha256": "5e9afe0cb292646da5b65f8ce8f13ca7cdd131ee31b3d0af94b257499dedc8fe",
     "reader_proxy_sha256": "511a2597ca9846d6e61f8a8cf810e940b4838df4f3c581751d89ed72374d0528",
-    "embedding_proxy_sha256": "415849c07f4da8e67e3c9799aaa6abfdde7c556f310937a3fa88926d6efc440d",
+    "embedding_proxy_sha256": "a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293",
     "judge_proxy_sha256": "1a99cc2d6aa8aef7c0b05949049d2c56ae5e0b367e5f8c5dfb2ef409c2a760db",
     "pilot_manifest": "longmemeval-v2-pilot-v1.json",
     "pilot_reader_cost_cap_usd": 2.2,
-    "pilot_openai_cost_cap_usd": 8.5,
-    "pilot_total_cost_cap_usd": 10.7,
+    "pilot_openai_cost_cap_usd": 10.5,
+    "pilot_total_cost_cap_usd": 12.7,
     "pilot_method_reservations_usd": {
-      "no-retrieval": {"reader": 0.0, "openai": 0.29},
-      "typed-local": {"reader": 0.0, "openai": 0.29}
+      "no-retrieval": {"reader": 0.0, "openai": 0.09},
+      "typed-local": {"reader": 0.0, "openai": 0.09},
+      "verified-evidence": {"reader": 0.0, "openai": 0.09},
+      "mem0-oss": {"reader": 0.0, "openai": 0.09},
+      "agentrunbook-r": {"reader": 0.0, "openai": 0.09}
     },
     "reader_runtime_billing": {
       "mode": "pod-runtime",
@@ -178,12 +188,44 @@
       "observed_utc": "2026-09-28T03:25:00Z",
       "source": "https://developers.openai.com/api/docs/models/gpt-5.2"
     },
-    "judge_request_max_bytes": 131072,
+    "judge_request_max_bytes": 16384,
     "reader_request_max_bytes": 8388608,
     "paid_request_retries": 0,
     "egress": "public benchmark prompts may be sent only to the pinned routes after explicit paid-run confirmation"
   },
-  "operating_points": ["no-retrieval", "official-rag-query-to-slice-notes", "legacy", "typed-local"],
+  "attribution_requirements": {
+    "visibility": "evaluator_only",
+    "available_to_product": false,
+    "require_all_pipeline_stages": true,
+    "unknown_is_success": false,
+    "retain_all_failures_in_denominator": true,
+    "review_protocol": {
+      "file": "attribution-review-protocol-v1.json",
+      "file_sha256": "acf1f7ccc44692f557ff158ff996bb29c3ee00de6db3ba45d035c26efde113f0"
+    },
+    "longmemeval_v2": {
+      "file": "longmemeval-v2-requirements-5pct-v1.json",
+      "file_sha256": "0529af67cf567a32b81f792ba8f4f773ba8c905d4985b7f888b9b560b995460f",
+      "controlled_inputs": ["product_context", "verified_minimal_evidence", "no_memory"]
+    },
+    "dolphinbench": {
+      "file": "dolphinbench-requirements-5pct-v1.json",
+      "file_sha256": "002894c0f9e0f8377164d0a9edbbb86a5e2119449e30a12f4934bd0bf8849650",
+      "removal_requires_pre_action_block": true,
+      "positive_control_required": true
+    }
+  },
+  "equivalence_receipts": {
+    "longmemeval_v2": {
+      "file": "longmemeval-v2-equivalence-5pct-v1.json",
+      "file_sha256": "7a4b49718441c7c8a73b53e68c851d1ae906b83fd28cf55dc7c9bdab5d98163a"
+    },
+    "dolphinbench": {
+      "file": "dolphinbench-equivalence-5pct-v1.json",
+      "file_sha256": "f62447ebdb8b672a91017197dc44b09db92f0288ed6b83f6b124dc8ad5cfc1e3"
+    }
+  },
+  "operating_points": ["no-retrieval", "official-rag-query-to-slice-notes", "agentrunbook-r", "agentrunbook-c", "agentrunbook-c-v2", "mem0-oss", "legacy", "typed-local"],
   "uncertainty": "paired-bootstrap-over-precommitted-confirmation-question-ids",
   "seeds": [23801],
   "leakage_controls": {

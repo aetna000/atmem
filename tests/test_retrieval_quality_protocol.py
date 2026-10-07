@@ -11,10 +11,17 @@ from atmem.benchmark.contracts import (
     canonical_digest,
     load_json_compatible_yaml,
     validate_dolphin_split,
+    validate_dolphin_development_profile,
+    validate_longmem_development_profile,
     validate_longmem_pilot,
     validate_provider_route_probe,
     validate_question_split,
     validate_retrieval_quality_protocol,
+)
+from atmem.benchmark.attribution import (
+    validate_attribution_artifacts,
+    validate_equivalence_receipt,
+    validate_requirement_manifest,
 )
 from atmem.benchmark.finalization import (
     FORMAT as FINALIZATION_FORMAT,
@@ -29,11 +36,45 @@ PROTOCOL = ROOT / "benchmarks/retrieval_quality/protocols/2.3.8.yaml"
 SPLIT = ROOT / "benchmarks/retrieval_quality/protocols/longmemeval-v2-question-split-v1.json"
 PILOT = ROOT / "benchmarks/retrieval_quality/protocols/longmemeval-v2-pilot-v1.json"
 DOLPHIN_SPLIT = ROOT / "benchmarks/retrieval_quality/protocols/dolphinbench-task-split-v1.json"
+LONGMEM_FIVE_PERCENT = ROOT / "benchmarks/retrieval_quality/protocols/longmemeval-v2-development-5pct-v1.json"
+DOLPHIN_FIVE_PERCENT = ROOT / "benchmarks/retrieval_quality/protocols/dolphinbench-development-5pct-v1.json"
 ROUTE_PROBE = ROOT / "benchmarks/retrieval_quality/protocols/provider-route-probe-v1.json"
+LONGMEM_REQUIREMENTS = ROOT / "benchmarks/retrieval_quality/protocols/longmemeval-v2-requirements-5pct-v1.json"
+DOLPHIN_REQUIREMENTS = ROOT / "benchmarks/retrieval_quality/protocols/dolphinbench-requirements-5pct-v1.json"
+LONGMEM_EQUIVALENCE = ROOT / "benchmarks/retrieval_quality/protocols/longmemeval-v2-equivalence-5pct-v1.json"
+DOLPHIN_EQUIVALENCE = ROOT / "benchmarks/retrieval_quality/protocols/dolphinbench-equivalence-5pct-v1.json"
 
 
 def documents():
     return load_json_compatible_yaml(PROTOCOL), json.loads(SPLIT.read_text(encoding="utf-8"))
+
+
+def synthetic_current_route_probe() -> dict:
+    """Content-free unit fixture; never used as paid-run evidence."""
+    probe = {
+        "format": "atmem-provider-route-probe-v1",
+        "routes": {
+            "reader": {
+                "outcome": "succeeded", "status": 200,
+                "model": "Qwen/Qwen3.5-9B", "provider_route": "runpod-vllm",
+                "content_retained": False,
+            },
+            "embedding": {
+                "outcome": "succeeded", "status": 200,
+                "model": "atmem/hash-bow-768-v1",
+                "provider_route": "local-deterministic",
+                "transport": "openai-compatible-v1-embeddings",
+                "content_retained": False,
+            },
+            "judge": {
+                "outcome": "succeeded", "status": 200,
+                "model": "gpt-5.2-2025-12-11",
+                "provider_route": "openai-direct", "content_retained": False,
+            },
+        },
+    }
+    probe["probe_sha256"] = canonical_digest(probe).removeprefix("sha256:")
+    return probe
 
 
 def test_frozen_protocol_and_split_validate() -> None:
@@ -150,7 +191,7 @@ def test_protocol_refuses_paid_run_until_all_provider_settings_are_pinned() -> N
         validate_retrieval_quality_protocol(protocol, split=split, for_paid_run=True)
 
 
-def test_frozen_three_percent_pilots_validate_and_are_development_only() -> None:
+def test_historical_three_percent_manifests_remain_valid_but_stale_route_is_rejected() -> None:
     protocol, split = documents()
     pilot = json.loads(PILOT.read_text(encoding="utf-8"))
     dolphin = json.loads(DOLPHIN_SPLIT.read_text(encoding="utf-8"))
@@ -158,20 +199,82 @@ def test_frozen_three_percent_pilots_validate_and_are_development_only() -> None
 
     assert validate_longmem_pilot(pilot, split=split)["question_count"] == 14
     assert len(validate_dolphin_split(dolphin)["development_ids"]) == 18
-    validated = validate_retrieval_quality_protocol(
+    with pytest.raises(ValueError, match="provider route probe"):
+        validate_retrieval_quality_protocol(
+            protocol,
+            split=split,
+            pilot=pilot,
+            dolphin_split=dolphin,
+            route_probe=route_probe,
+            for_pilot_run=True,
+        )
+
+
+def test_frozen_five_percent_profiles_are_nested_answer_blind_and_development_only() -> None:
+    _, split = documents()
+    historical_longmem = json.loads(PILOT.read_text(encoding="utf-8"))
+    historical_dolphin = json.loads(DOLPHIN_SPLIT.read_text(encoding="utf-8"))
+    longmem = validate_longmem_development_profile(
+        json.loads(LONGMEM_FIVE_PERCENT.read_text(encoding="utf-8")), split=split,
+    )
+    dolphin = validate_dolphin_development_profile(
+        json.loads(DOLPHIN_FIVE_PERCENT.read_text(encoding="utf-8")),
+    )
+
+    assert longmem["question_count"] == 23
+    assert set(historical_longmem["question_ids"]) <= set(longmem["question_ids"])
+    assert not set(longmem["question_ids"]) & set(split["confirmation_ids"])
+    assert len(dolphin["development_ids"]) == 30
+    assert set(historical_dolphin["development_ids"]) <= set(dolphin["development_ids"])
+    assert all(row["development"] == 10 for row in dolphin["personas"].values())
+
+
+def test_five_percent_requirement_manifests_cover_all_53_cases_and_are_evaluator_only() -> None:
+    long_profile = json.loads(LONGMEM_FIVE_PERCENT.read_text(encoding="utf-8"))
+    dolphin_profile = json.loads(DOLPHIN_FIVE_PERCENT.read_text(encoding="utf-8"))
+    longmem = validate_requirement_manifest(
+        json.loads(LONGMEM_REQUIREMENTS.read_text(encoding="utf-8")),
+        expected_case_ids=long_profile["question_ids"],
+    )
+    dolphin = validate_requirement_manifest(
+        json.loads(DOLPHIN_REQUIREMENTS.read_text(encoding="utf-8")),
+        expected_case_ids=dolphin_profile["development_ids"],
+    )
+    assert len(longmem["cases"]) == 23
+    assert len(dolphin["cases"]) == 30
+    assert all(case["requirements"] for case in longmem["cases"] + dolphin["cases"])
+    runtime_roots = [ROOT / "atmem/context_engine", ROOT / "atmem/retrieve", ROOT / "atmem/memory.py"]
+    for runtime_root in runtime_roots:
+        paths = [runtime_root] if runtime_root.is_file() else runtime_root.rglob("*.py")
+        for path in paths:
+            text = path.read_text(encoding="utf-8")
+            assert "requirements-5pct-v1" not in text
+            assert "verified_evidence_text" not in text
+
+
+def test_five_percent_equivalence_receipts_prove_case_count_is_the_only_reduction() -> None:
+    longmem = validate_equivalence_receipt(
+        json.loads(LONGMEM_EQUIVALENCE.read_text(encoding="utf-8"))
+    )
+    dolphin = validate_equivalence_receipt(
+        json.loads(DOLPHIN_EQUIVALENCE.read_text(encoding="utf-8"))
+    )
+    assert len(longmem["full_configuration"]["selector"]["case_ids"]) == 451
+    assert len(longmem["sample_configuration"]["selector"]["case_ids"]) == 23
+    assert len(dolphin["full_configuration"]["selector"]["case_ids"]) == 600
+    assert len(dolphin["sample_configuration"]["selector"]["case_ids"]) == 30
+
+    protocol = load_json_compatible_yaml(PROTOCOL)
+    artifacts = validate_attribution_artifacts(
         protocol,
-        split=split,
-        pilot=pilot,
-        dolphin_split=dolphin,
-        route_probe=route_probe,
-        for_pilot_run=True,
+        protocols_root=PROTOCOL.parent,
+        longmem_case_ids=json.loads(LONGMEM_FIVE_PERCENT.read_text())["question_ids"],
+        dolphin_case_ids=json.loads(DOLPHIN_FIVE_PERCENT.read_text())["development_ids"],
     )
-    assert validated["paid_run_requirements"]["provider_route_probe_sha256"] == (
-            "265f7f5cdf985a4ab975ab46c022a8863c5c5f5c91e6f083fa29974b8bbd989e"
-    )
-    assert validate_provider_route_probe(route_probe)["routes"]["judge"]["model"] == (
-        "gpt-5.2-2025-12-11"
-    )
+    assert set(artifacts) == {
+        "longmemeval_v2", "dolphinbench", "review_protocol"
+    }
+    assert artifacts["review_protocol"]["missing_observation_policy"] == "reject"
 
 
 def test_pilot_validators_reject_confirmation_leakage_and_persona_loss() -> None:
@@ -200,7 +303,10 @@ def test_pilot_protocol_rejects_under_reserved_provider_cost() -> None:
     protocol, split = documents()
     pilot = json.loads(PILOT.read_text(encoding="utf-8"))
     dolphin = json.loads(DOLPHIN_SPLIT.read_text(encoding="utf-8"))
-    route_probe = json.loads(ROUTE_PROBE.read_text(encoding="utf-8"))
+    route_probe = synthetic_current_route_probe()
+    protocol["paid_run_requirements"]["provider_route_probe_sha256"] = route_probe[
+        "probe_sha256"
+    ]
     protocol["paid_run_requirements"]["pilot_method_reservations_usd"][
         "typed-local"
     ]["openai"] = 0.01

@@ -90,7 +90,8 @@ Its incomplete, development-only findings and reconciled costs are recorded in
   terminated.
 
 After the pinned dataset is prepared on an external volume and the reviewed
-adapter is installed into a clean pinned checkout, run the frozen two-arm pilot
+adapter is installed into a clean pinned checkout, run the frozen matched
+five-percent pilot
 only with explicit paid confirmation:
 
 ```bash
@@ -98,6 +99,7 @@ python research/production_benchmarks/run_longmem_pilot.py \
   --checkout /path/to/pinned/LongMemEval-V2 \
   --data-root /external/longmemeval-v2 \
   --output-root /external/runs/longmem-pilot-001 \
+  --finalization-gate /external/runs/longmem-finalization.json \
   --confirm-paid-run
 ```
 
@@ -107,6 +109,12 @@ It requires a temporary authenticated Runpod Pod created from the frozen image,
 hardware and model settings, then deletes that exact pod through the Runpod API
 in both success and failure paths. Use `--preflight-only` to run every
 local/package/data/credential check without creating a pod.
+
+The runner retains all 23 questions for AtMem, Mem0, AgentRunbook-R and the
+no-memory control. It also runs an evaluator-only verified-evidence arm using
+the same reader and prompt. That arm is never loaded by AtMem and cannot affect
+formation or retrieval. `controlled-reader-results.json` is a contrast report,
+not terminal attribution; terminal claims require complete eight-stage ledgers.
 
 ## Official inert adapters
 
@@ -122,7 +130,7 @@ uses ordinary episode formation, the test phase is read-only, checkpoints are
 content-hashed, and model/tool execution remains with the configured agent
 driver. Neither adapter can inspect answers, graders or split metadata.
 
-For the frozen 18-task development slice, configure the official runner with
+For the frozen 30-task development slice, configure the official runner with
 `research.production_benchmarks.dolphinbench:create_development`, complete its
 normal prepare and ingestion stages, then run:
 
@@ -143,7 +151,44 @@ authorization itself; it never accepts those expectations from the submitted
 gate. Changing the model, grader, checkpoint, prompt or budgets therefore
 requires a new reviewed manifest and a new finalization run.
 
-The development runner selects the six precommitted IDs per persona before the
+The development runner selects the ten precommitted IDs per persona before the
 official `_execute` path creates side-effect markers. It uses the official
-executor and grader, writes an explicit `18-of-600` development receipt, and
+executor and grader, writes an explicit `30-of-600` development receipt, and
 cannot create or package an official 600-task score.
+
+Before the paid run, `run_dolphin_removal_controls.py` removes one official
+load-bearing fact per task from disposable encrypted checkpoint clones. It
+never invokes a model. After the restored-evidence run, pass its `atmem-gates`
+directory back to the same command with `--positive-gate-root`; a control passes
+only when the removal receipt names the fact, records no model/tool call, and
+the restored run invokes the model and observes an expected tool call. Timeout,
+parse/provider errors, generic abstention and silent no-call remain failures.
+
+## Requirement attribution and final evidence
+
+`protocols/attribution-review-protocol-v1.json` freezes how every requirement
+is judged at all eight stages. `used_by_reader` is explicitly an observable
+response/controlled-contrast proxy; it is not presented as access to hidden
+model cognition. Missing, ambiguous, or unreadable evidence cannot pass.
+
+Create unsigned review packets before the run (normally on `MEM`):
+
+```bash
+python benchmarks/retrieval_quality/review_attribution_observations.py init \
+  --manifest benchmarks/retrieval_quality/protocols/longmemeval-v2-requirements-5pct-v1.json \
+  --review-protocol benchmarks/retrieval_quality/protocols/attribution-review-protocol-v1.json \
+  --reviewer-identity REVIEWER_OR_EVALUATOR_ID \
+  --output /external/longmem-reviewed.template.json
+```
+
+The template deliberately contains `unreviewed` states and cannot validate.
+After every stage has an evidence citation or a non-pass reason and each case
+has one terminal outcome, finalize it with the same tool's `finalize` command.
+Build the signed LongMem and Dolphin ledgers with
+`build_longmem_attribution_ledgers.py` and
+`build_dolphin_attribution_ledgers.py`, passing the frozen review protocol via
+`--review-protocol`. Finally, `render_attribution_tables.py` refuses anything
+other than all 23 LongMem ledgers, all 30 Dolphin ledgers, and all 30
+removal/restoration pairs. `render_project_atlas_response.py` drafts the public
+answer only from that complete evidence; it cannot turn a partial run or an
+unreviewed template into a claim.

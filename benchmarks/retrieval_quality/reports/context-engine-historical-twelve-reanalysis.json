@@ -1,0 +1,238 @@
+{
+  "breakdown": [
+    {
+      "passed": 1,
+      "requirement_class": "action_target",
+      "retrieval_or_packing_failure_unresolved": 0,
+      "sufficiency_classification_failure": 0,
+      "system_failure": 0,
+      "total": 1
+    },
+    {
+      "passed": 2,
+      "requirement_class": "applicability_condition",
+      "retrieval_or_packing_failure_unresolved": 1,
+      "sufficiency_classification_failure": 0,
+      "system_failure": 0,
+      "total": 3
+    },
+    {
+      "passed": 0,
+      "requirement_class": "comparison_side",
+      "retrieval_or_packing_failure_unresolved": 1,
+      "sufficiency_classification_failure": 0,
+      "system_failure": 0,
+      "total": 1
+    },
+    {
+      "passed": 0,
+      "requirement_class": "conflict_correction",
+      "retrieval_or_packing_failure_unresolved": 2,
+      "sufficiency_classification_failure": 0,
+      "system_failure": 0,
+      "total": 2
+    },
+    {
+      "passed": 1,
+      "requirement_class": "entity_relation",
+      "retrieval_or_packing_failure_unresolved": 0,
+      "sufficiency_classification_failure": 0,
+      "system_failure": 0,
+      "total": 1
+    },
+    {
+      "passed": 1,
+      "requirement_class": "exact_fact_value",
+      "retrieval_or_packing_failure_unresolved": 0,
+      "sufficiency_classification_failure": 0,
+      "system_failure": 0,
+      "total": 1
+    },
+    {
+      "passed": 0,
+      "requirement_class": "polarity_negative_premise",
+      "retrieval_or_packing_failure_unresolved": 0,
+      "sufficiency_classification_failure": 1,
+      "system_failure": 0,
+      "total": 1
+    },
+    {
+      "passed": 1,
+      "requirement_class": "procedure_step_order",
+      "retrieval_or_packing_failure_unresolved": 0,
+      "sufficiency_classification_failure": 0,
+      "system_failure": 0,
+      "total": 1
+    },
+    {
+      "passed": 1,
+      "requirement_class": "prohibited_action",
+      "retrieval_or_packing_failure_unresolved": 0,
+      "sufficiency_classification_failure": 0,
+      "system_failure": 0,
+      "total": 1
+    },
+    {
+      "passed": 1,
+      "requirement_class": "required_action",
+      "retrieval_or_packing_failure_unresolved": 0,
+      "sufficiency_classification_failure": 0,
+      "system_failure": 0,
+      "total": 1
+    },
+    {
+      "passed": 1,
+      "requirement_class": "state_transition",
+      "retrieval_or_packing_failure_unresolved": 0,
+      "sufficiency_classification_failure": 0,
+      "system_failure": 0,
+      "total": 1
+    },
+    {
+      "passed": 1,
+      "requirement_class": "time_current_state",
+      "retrieval_or_packing_failure_unresolved": 1,
+      "sufficiency_classification_failure": 0,
+      "system_failure": 0,
+      "total": 2
+    }
+  ],
+  "case_count": 12,
+  "cases": [
+    {
+      "case_id": "exact-fact-d",
+      "complete_evidence": true,
+      "fixture_category": "exact_fact",
+      "outcome": "passed",
+      "requirement_classes": [
+        "exact_fact_value",
+        "entity_relation"
+      ],
+      "typed_status_correct": true
+    },
+    {
+      "case_id": "correction-d",
+      "complete_evidence": false,
+      "fixture_category": "correction",
+      "outcome": "retrieval_or_packing_failure_unresolved",
+      "requirement_classes": [
+        "conflict_correction",
+        "time_current_state"
+      ],
+      "typed_status_correct": false
+    },
+    {
+      "case_id": "comparison-d",
+      "complete_evidence": false,
+      "fixture_category": "comparison",
+      "outcome": "retrieval_or_packing_failure_unresolved",
+      "requirement_classes": [
+        "comparison_side"
+      ],
+      "typed_status_correct": false
+    },
+    {
+      "case_id": "procedure-d",
+      "complete_evidence": true,
+      "fixture_category": "procedure",
+      "outcome": "passed",
+      "requirement_classes": [
+        "procedure_step_order"
+      ],
+      "typed_status_correct": true
+    },
+    {
+      "case_id": "gotcha-d",
+      "complete_evidence": false,
+      "fixture_category": "failure_gotcha",
+      "outcome": "retrieval_or_packing_failure_unresolved",
+      "requirement_classes": [
+        "applicability_condition"
+      ],
+      "typed_status_correct": false
+    },
+    {
+      "case_id": "private-shared-d",
+      "complete_evidence": true,
+      "fixture_category": "tenancy",
+      "outcome": "passed",
+      "requirement_classes": [
+        "applicability_condition"
+      ],
+      "typed_status_correct": true
+    },
+    {
+      "case_id": "negative-premise-h",
+      "complete_evidence": true,
+      "fixture_category": "negative_premise",
+      "outcome": "sufficiency_classification_failure",
+      "requirement_classes": [
+        "polarity_negative_premise"
+      ],
+      "typed_status_correct": false
+    },
+    {
+      "case_id": "transition-h",
+      "complete_evidence": true,
+      "fixture_category": "state_transition",
+      "outcome": "passed",
+      "requirement_classes": [
+        "state_transition"
+      ],
+      "typed_status_correct": true
+    },
+    {
+      "case_id": "temporal-h",
+      "complete_evidence": true,
+      "fixture_category": "temporal",
+      "outcome": "passed",
+      "requirement_classes": [
+        "time_current_state"
+      ],
+      "typed_status_correct": true
+    },
+    {
+      "case_id": "conflict-h",
+      "complete_evidence": false,
+      "fixture_category": "conflict",
+      "outcome": "retrieval_or_packing_failure_unresolved",
+      "requirement_classes": [
+        "conflict_correction"
+      ],
+      "typed_status_correct": false
+    },
+    {
+      "case_id": "exact-label-h",
+      "complete_evidence": true,
+      "fixture_category": "durable_rule",
+      "outcome": "passed",
+      "requirement_classes": [
+        "required_action",
+        "prohibited_action",
+        "action_target"
+      ],
+      "typed_status_correct": true
+    },
+    {
+      "case_id": "private-denial-h",
+      "complete_evidence": true,
+      "fixture_category": "tenancy",
+      "outcome": "passed",
+      "requirement_classes": [
+        "applicability_condition"
+      ],
+      "typed_status_correct": true
+    }
+  ],
+  "claim": "small-reader-free-diagnostic-only-not-benchmark-evidence",
+  "fixture_sha256": "sha256:902e3f25fb2842af511481796a2d7c1b130403c0a0e5cdaf529b0f671f42def4",
+  "format": "atmem-historical-twelve-reanalysis-v1",
+  "limitations": [
+    "The historical raw result records selected evidence but not formation, nomination, expansion, packing and delivery as separate stages.",
+    "Incomplete evidence is therefore labelled retrieval_or_packing_failure_unresolved and is not retrospectively assigned to a more specific stage.",
+    "No reader or action model ran, so this diagnostic cannot measure reading or action failures.",
+    "This twelve-case fixture is not LongMemEval-V2 or DolphinBench evidence."
+  ],
+  "raw_result_sha256": "sha256:0de0dd0dcfb3735fe10efc438cd88d5c238fc884d07b87b9d14519ee7ed97974",
+  "report_sha256": "sha256:e25609b284c707077dd3af4949093838ea82ff5a518c0baca0f1038f9e316f21"
+}

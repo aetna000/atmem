@@ -1,4 +1,4 @@
-"""Run the frozen 18-task DolphinBench development slice, not a submission."""
+"""Run the frozen 30-task DolphinBench development slice, not a submission."""
 
 from __future__ import annotations
 
@@ -14,14 +14,17 @@ import urllib.request
 
 
 ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))
+if str(ROOT) in sys.path:
+    sys.path.remove(str(ROOT))
+sys.path.insert(0, str(ROOT))
 
 from research.production_benchmarks.dolphinbench import (  # noqa: E402
     evaluate_development,
     require_completed_provider_response,
 )
 from atmem.benchmark.finalization import validate_finalization_gate  # noqa: E402
+from atmem.benchmark.attribution import validate_attribution_artifacts  # noqa: E402
+from atmem.benchmark.contracts import load_json_compatible_yaml  # noqa: E402
 
 
 def _call_openai_reasoning_judge(llm_judge, system_prompt: str,
@@ -93,10 +96,18 @@ def _tree_digest(root: Path) -> str:
         *sorted((root / "atmem-personas").glob("*.db-wal")),
         *sorted((root / "atmem-personas").glob("*.db-shm")),
         *sorted((root / "atmem-personas").glob("*.encryption.json")),
+        *sorted(
+            path for path in (root / "mem0-personas").rglob("*")
+            if path.is_file() and not path.name.startswith("._") and path.name != ".DS_Store"
+        ),
     ]
     files = {}
     for path in selected:
-        if not path.is_file():
+        if (
+            not path.is_file()
+            or path.name.startswith("._")
+            or path.name == ".DS_Store"
+        ):
             continue
         digest = hashlib.sha256()
         with path.open("rb") as handle:
@@ -133,6 +144,20 @@ def main() -> int:
     checkpoint_root = Path(args.checkpoint_root).expanduser().resolve()
     if not config.is_file():
         raise SystemExit(f"DolphinBench config does not exist: {config}")
+    protocols = ROOT / "benchmarks/retrieval_quality/protocols"
+    protocol = load_json_compatible_yaml(protocols / "2.3.8.yaml")
+    longmem_profile = json.loads(
+        (protocols / "longmemeval-v2-development-5pct-v1.json").read_text(encoding="utf-8")
+    )
+    dolphin_profile = json.loads(
+        (protocols / "dolphinbench-development-5pct-v1.json").read_text(encoding="utf-8")
+    )
+    validate_attribution_artifacts(
+        protocol,
+        protocols_root=protocols,
+        longmem_case_ids=longmem_profile["question_ids"],
+        dolphin_case_ids=dolphin_profile["development_ids"],
+    )
     gate = json.loads(Path(args.finalization_gate).read_text(encoding="utf-8"))
     manifest_path = Path(args.finalization_manifest).expanduser().resolve()
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -219,7 +244,7 @@ def main() -> int:
 
         The upstream runner intentionally accepts only its leaderboard Azure
         judge when paid execution is enabled.  This wrapper produces explicitly
-        non-official 18-task development evidence, so it constructs the runner
+        non-official 30-task development evidence, so it constructs the runner
         through the no-paid validation path and then enables the already-bound
         provider calls used by evaluation.
         """

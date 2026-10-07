@@ -22,12 +22,23 @@ def storage_report(store: SQLiteStore) -> dict[str, Any]:
     }
     source = categories["canonical_source"]
     derived = sum(value for name, value in categories.items() if name != "canonical_source")
+    # Compare a source part only with units that cite one of its ranges.  The
+    # previous uncorrelated source-parts × evidence-units scan was quadratic
+    # (and hex-encoded every encrypted source value), making the diagnostic
+    # itself the dominant CPU load at realistic sizes.  Formation requires
+    # every unit to carry a range, so this linked check is both stricter and
+    # bounded by the number of unit/range edges.
     duplicate_rows = int(store._conn.execute(
-        """SELECT COUNT(*) FROM context_source_parts p
-           WHERE EXISTS (
-             SELECT 1 FROM context_evidence_units u
-             WHERE instr(CAST(u.compact_json AS TEXT), hex(p.content_bytes)) > 0
-           )"""
+        """SELECT COUNT(DISTINCT p.source_id || char(0) || p.part_id)
+           FROM context_source_parts p
+           JOIN context_source_ranges r
+             ON r.source_id=p.source_id AND r.part_id=p.part_id
+           JOIN context_unit_ranges ur ON ur.range_id=r.range_id
+           JOIN context_evidence_units u
+             ON u.generation_id=ur.generation_id AND u.unit_id=ur.unit_id
+           WHERE length(p.content_bytes) > 0
+             AND instr(CAST(u.compact_json AS TEXT),
+                       CAST(p.content_bytes AS TEXT)) > 0"""
     ).fetchone()[0])
     return {
         "format": "atmem-context-storage-report-v1",

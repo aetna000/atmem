@@ -17,11 +17,15 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import time
 import uuid
 
 from atmem import Memory
-from atmem.benchmark.contracts import validate_dolphin_split
+from atmem.benchmark.contracts import (
+    DOLPHIN_DEVELOPMENT_PROFILE_FORMAT,
+    validate_dolphin_development_selection,
+)
 from atmem.contracts import (
     AuthorityScope,
     ContextRequestV2,
@@ -37,6 +41,7 @@ from research.production_benchmarks.cost_ledger import DurableCostLedger
 PERSONAS = ("alex", "morgan", "riley")
 PINNED_COMMIT = "81cb6f8405b40a9e76089cef650806a80af06ea2"
 PINNED_SPLIT_SHA256 = "882a9e1cbd70862fa35172b806c0a0a48b39d0056cff89e68d870ca58a48fe34"
+PINNED_DEVELOPMENT_PROFILE_SHA256 = "60c681f8e7ce0796ec0209294c885abe7dc0fe5a594226aa1035c401535658de"
 
 
 def _canonical(value: object) -> str:
@@ -83,10 +88,35 @@ def _driver_artifact_sha256(driver) -> str:
     return "sha256:" + _sha256(path)
 
 
+def build_pre_action_gate_receipt(request, package) -> dict:
+    """Return the product's fail-closed decision before any model/tool call."""
+    decision = package.sufficiency
+    missing = [str(item) for item in decision.missing_slots]
+    gate_open = decision.status == "sufficient" and not missing
+    return {
+        "format": "atmem-dolphin-pre-action-gate-v1",
+        "case_id": f"{request.persona}:{str(request.interaction_id).zfill(3)}",
+        "decision_id": decision.decision_id,
+        "outcome": "gate_open" if gate_open else "blocked_missing_requirement",
+        "required_requirement_ids": list(decision.required_slots),
+        "covered_requirement_ids": list(decision.covered_slots),
+        "missing_requirement_ids": missing or (
+            [] if gate_open else ["atmem:sufficiency:not_sufficient"]
+        ),
+        "actual_reason": "complete_evidence" if gate_open else "missing_requirement",
+        "model_invoked": False,
+        "tool_calls": 0,
+        "error_type": None,
+    }
+
+
 def _require_completed_interaction(result) -> None:
     final = result.messages[-1] if result.messages else {}
     attempts = list(getattr(result, "attempts", None) or [])
-    driver_completed = bool(attempts and attempts[-1].get("driver_ok") is True)
+    driver_completed = bool(attempts and (
+        attempts[-1].get("driver_ok") is True
+        or attempts[-1].get("gate_blocked") is True
+    ))
     legacy_completed = str(final.get("finish_reason") or "") == "stop"
     if (final.get("role") != "assistant"
             or not str(final.get("content") or "").strip()
@@ -114,7 +144,7 @@ def require_completed_provider_response(response: object, *, role: str) -> dict:
 
 def verify_official_checkout(checkout: str | Path, split: dict) -> dict:
     """Verify the official source pin and re-derive the frozen test partition."""
-    split = validate_dolphin_split(split)
+    split = validate_dolphin_development_selection(split)
     root = Path(checkout).expanduser().resolve()
     head = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=root, check=True,
@@ -132,7 +162,16 @@ def verify_official_checkout(checkout: str | Path, split: dict) -> dict:
         raise RuntimeError("DolphinBench checkout has unreviewed working-tree changes")
     if split.get("source_commit") != PINNED_COMMIT:
         raise RuntimeError("DolphinBench split source commit differs from the checkout")
-    if split.get("split_sha256") != PINNED_SPLIT_SHA256:
+    expected_digest = (
+        PINNED_DEVELOPMENT_PROFILE_SHA256
+        if split.get("format") == DOLPHIN_DEVELOPMENT_PROFILE_FORMAT
+        else PINNED_SPLIT_SHA256
+    )
+    actual_digest = split.get(
+        "profile_sha256" if split.get("format") == DOLPHIN_DEVELOPMENT_PROFILE_FORMAT
+        else "split_sha256"
+    )
+    if actual_digest != expected_digest:
         raise RuntimeError("DolphinBench development split differs from the frozen pin")
     salt = str(split.get("salt") or "")
     if not salt:
@@ -166,8 +205,19 @@ def verify_official_checkout(checkout: str | Path, split: dict) -> dict:
                     ).hexdigest(),
                     value,
                 ),
-            )[:6]
+            )[: int(counts["development"])]
         }
+        historical = set(split.get("historical_development_ids") or ())
+        if split.get("format") == DOLPHIN_DEVELOPMENT_PROFILE_FORMAT:
+            historical_persona = {value for value in historical if value.startswith(f"{persona}:")}
+            remainder = sorted(
+                available - historical_persona,
+                key=lambda value: (
+                    hashlib.sha256(salt.encode() + b"\0" + value.encode()).hexdigest(),
+                    value,
+                ),
+            )[:4]
+            derived = historical_persona | set(remainder)
         if selected != derived:
             raise RuntimeError(
                 f"DolphinBench development IDs do not match the frozen selection rule: {persona}"
@@ -177,6 +227,7 @@ def verify_official_checkout(checkout: str | Path, split: dict) -> dict:
     return {
         "format": "atmem-dolphinbench-official-preflight-v1",
         "source_commit": head,
+        "development_profile_sha256": actual_digest,
         "development_count": len(development),
         "held_out_count": len(held_out),
         "development_ids": sorted(development),
@@ -187,7 +238,7 @@ def verify_official_checkout(checkout: str | Path, split: dict) -> dict:
 def _frozen_development_split(checkout: str | Path) -> tuple[dict, dict[str, set[str]]]:
     split_path = (
         Path(__file__).resolve().parents[2]
-        / "benchmarks/retrieval_quality/protocols/dolphinbench-task-split-v1.json"
+        / "benchmarks/retrieval_quality/protocols/dolphinbench-development-5pct-v1.json"
     )
     split = json.loads(split_path.read_text(encoding="utf-8"))
     verification = verify_official_checkout(checkout, split)
@@ -203,7 +254,7 @@ def _frozen_development_split(checkout: str | Path) -> tuple[dict, dict[str, set
 
 
 def evaluate_development(runner, checkout: str | Path) -> dict:
-    """Run only the frozen 18 tasks through the official execute/grade path.
+    """Run only the frozen 30 tasks through the official execute/grade path.
 
     This produces development evidence, never an official 600-task package.
     The official release loader, interaction executor, and grader remain the
@@ -215,8 +266,10 @@ def evaluate_development(runner, checkout: str | Path) -> dict:
     verification, selected = _frozen_development_split(checkout)
     if set(runner.release) != set(PERSONAS):
         raise RuntimeError("official DolphinBench release must contain three personas")
-    if not isinstance(runner.adapter, AtMemDolphinAdapter):
-        raise RuntimeError("development runner requires the AtMem DolphinBench adapter")
+    if not all(callable(getattr(runner.adapter, name, None)) for name in (
+        "identity", "verify_checkpoint", "run_interaction", "total_cost_usd"
+    )):
+        raise RuntimeError("development runner requires a benchmark memory adapter")
     if runner.adapter.allowed_test_ids != selected:
         raise RuntimeError("adapter task allowance differs from the frozen development split")
 
@@ -234,30 +287,76 @@ def evaluate_development(runner, checkout: str | Path) -> dict:
             if str(spec["id"]).zfill(3) in selected[persona]
         ]
         found = {str(spec["id"]).zfill(3) for spec in specs}
-        if found != selected[persona] or len(specs) != 6:
+        if found != selected[persona] or len(specs) != 10:
             raise RuntimeError(f"official release is missing frozen development tasks: {persona}")
         chosen_specs[persona] = specs
     runner._saved_cost("ingestion")
 
     checks = 0
+    checks_passed = 0
+    tasks_passed = 0
+    system_failures = []
     for persona in PERSONAS:
         for spec in chosen_specs[persona]:
-            evidence = runner._execute("tests", persona, spec)
             item_id = str(spec["id"]).zfill(3)
             grade_path = runner._path("grades", persona, item_id)
-            if not grade_path.exists():
-                save_json(grade_path, runner._grade(spec, evidence))
+            try:
+                evidence = runner._execute("tests", persona, spec)
+                if not grade_path.exists():
+                    save_json(grade_path, runner._grade(spec, evidence))
+            except Exception as exc:
+                lowered = str(exc).casefold()
+                if isinstance(exc, TimeoutError) or "timeout" in lowered:
+                    failure_type = "timeout"
+                elif any(token in lowered for token in ("parse", "malformed", "json")):
+                    failure_type = "parse_error"
+                else:
+                    failure_type = "provider_error"
+                failure = {
+                    "case_id": f"{persona}:{item_id}",
+                    "outcome": "system_failure",
+                    "error_type": failure_type,
+                    "error_class": type(exc).__name__,
+                    "error_message": str(exc),
+                    "model_invoked": None,
+                    "tool_calls": None,
+                    "retained_in_denominator": True,
+                }
+                system_failures.append(failure)
+                save_json(
+                    runner._path("system-failures", persona, item_id), failure
+                )
+                assertions = list(
+                    dict(dict(spec.get("grade") or {}).get("config") or {}).get("assertions")
+                    or ()
+                )
+                save_json(grade_path, {
+                    "checks": [
+                        {"check": index, "passed": False, "system_failure": failure_type}
+                        for index in range(max(1, len(assertions)))
+                    ],
+                    "settings": {"not_invoked": "system failure before/during grading"},
+                })
             grade = json.loads(grade_path.read_text(encoding="utf-8"))
             checks += len(grade["checks"])
+            passed = sum(row.get("passed") is True for row in grade["checks"])
+            checks_passed += passed
+            tasks_passed += bool(grade["checks"]) and passed == len(grade["checks"])
     test_cost = runner._collect_cost("tests")
     result = {
         "format": "atmem-dolphinbench-development-evaluation-v1",
-        "claim": "development-18-of-600-not-an-official-score",
+        "claim": "development-30-of-600-not-an-official-score",
+        "system": runner.adapter.identity()["format"],
         "source_commit": verification["source_commit"],
-        "split_sha256": PINNED_SPLIT_SHA256,
+        "split_sha256": verification["development_profile_sha256"],
         "development_ids": verification["development_ids"],
-        "tests": 18,
+        "tests": 30,
         "checks": checks,
+        "checks_passed": checks_passed,
+        "tasks_passed": tasks_passed,
+        "system_failure_count": len(system_failures),
+        "system_failures": system_failures,
+        "all_failures_retained": True,
         "test_cost_usd": test_cost,
         "content_retained": False,
     }
@@ -285,6 +384,7 @@ def prepare_persona_households(
 
 
 class AtMemDolphinAdapter:
+    provider_name = "atmem"
     def __init__(self, options: dict, work_dir: Path) -> None:
         self.options = dict(options)
         self.work_dir = Path(work_dir).resolve()
@@ -404,19 +504,56 @@ class AtMemDolphinAdapter:
                 self._reserve_interaction_cost(
                     request.phase, request.persona, request.interaction_id
                 )
-                context = self._recall(memory, request.persona, request.dated_message)
-                async with connect_apps(request.apps) as apps:
-                    tools = (await apps.list_tools()).tools
-                    result = self.driver(
-                        request=request,
-                        tools=tools,
-                        call_app=apps.call_tool,
-                        memory_context=context,
-                        model=self.model,
-                        max_cost_usd=self.max_interaction_cost_usd,
+                package = self._recall(memory, request.persona, request.dated_message)
+                context = package.context
+                gate = self._pre_action_gate_receipt(request, package)
+                self._write_gate_receipt(request, gate)
+                if gate["outcome"] == "blocked_missing_requirement":
+                    result = InteractionRecord(
+                        settings={"model": self.model, "model_invoked": False},
+                        messages=[
+                            {"role": "user", "content": request.dated_message},
+                            {
+                                "role": "assistant",
+                                "content": (
+                                    "Blocked before model invocation: missing memory "
+                                    "requirement " + gate["missing_requirement_ids"][0]
+                                ),
+                            },
+                        ],
+                        duration_ms=(time.monotonic() - started) * 1000,
+                        attempts=[{
+                            "cost_usd": 0.0,
+                            "driver_ok": False,
+                            "gate_blocked": True,
+                            "error": None,
+                        }],
+                        app_calls=[],
                     )
-                    if inspect.isawaitable(result):
-                        result = await result
+                else:
+                    async with connect_apps(request.apps) as apps:
+                        tools = (await apps.list_tools()).tools
+                        result = self.driver(
+                            request=request,
+                            tools=tools,
+                            call_app=apps.call_tool,
+                            memory_context=context,
+                            model=self.model,
+                            max_cost_usd=self.max_interaction_cost_usd,
+                        )
+                        if inspect.isawaitable(result):
+                            result = await result
+                    gate = {
+                        **gate,
+                        "model_invoked": True,
+                        "tool_calls": len(result.app_calls or ()),
+                        "observed_tool_names": [
+                            str(call.get("tool") or call.get("name") or "")
+                            for call in (result.app_calls or ())
+                            if isinstance(call, dict)
+                        ],
+                    }
+                    self._write_gate_receipt(request, gate)
             if not isinstance(result, InteractionRecord):
                 raise TypeError("agent_driver must return harness.adapter.InteractionRecord")
             _require_completed_interaction(result)
@@ -433,7 +570,7 @@ class AtMemDolphinAdapter:
             if result.attempts:
                 result.attempts[-1] = {
                     **dict(result.attempts[-1]),
-                    "atmem": {
+                    self.provider_name: {
                         "scope": request.persona,
                         "context_sha256": "sha256:" + hashlib.sha256(
                             context.encode()
@@ -490,12 +627,20 @@ class AtMemDolphinAdapter:
     def total_cost_usd(self, phase: str) -> float:
         ledger = self._read_ledger()
         rows = [row for row in ledger if row.get("phase") == phase]
-        if any(
+        if phase == "ingestion" and any(
             row.get("state") != "completed" or row.get("cost_usd") is None
             for row in rows
         ):
-            raise RuntimeError(f"missing durable cost for DolphinBench {phase}")
-        return float(sum(float(row["cost_usd"]) for row in rows))
+            raise RuntimeError("missing durable cost for DolphinBench ingestion")
+        # A failed paid test may leave an intentionally unreconciled
+        # reservation. Count its full reserved maximum rather than dropping it
+        # or retrying blindly; this is conservative financial evidence.
+        return float(sum(
+            float(row["cost_usd"])
+            if row.get("state") == "completed" and row.get("cost_usd") is not None
+            else float(row.get("reserved_max_usd") or 0)
+            for row in rows
+        ))
 
     def _path(self, persona: str) -> Path:
         return self.root / f"{persona}.db"
@@ -567,7 +712,7 @@ class AtMemDolphinAdapter:
             )
         return receipt
 
-    def _recall(self, memory: Memory, persona: str, query: str) -> str:
+    def _recall(self, memory: Memory, persona: str, query: str):
         scope = self._scope(persona)
         request_id = f"dolphin-{uuid.uuid4().hex}"
         candidates = memory.eligible_candidates(RecallRequest(
@@ -585,7 +730,23 @@ class AtMemDolphinAdapter:
                 context_bytes=int(self.options.get("context_bytes", 32_000))
             ),
         ))
-        return package.context
+        return package
+
+    def _pre_action_gate_receipt(self, request, package) -> dict:
+        """Fail closed before the model when named memory obligations are missing."""
+        return build_pre_action_gate_receipt(request, package)
+
+    def _write_gate_receipt(self, request, receipt: dict) -> None:
+        target = (
+            self.work_dir / "atmem-gates" / request.persona
+            / f"{str(request.interaction_id).zfill(3)}.json"
+        )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary = target.with_suffix(".json.tmp")
+        temporary.write_text(
+            json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        temporary.replace(target)
 
     def _ledger_path(self) -> Path:
         return self.work_dir / "atmem-cost-ledger.json"
@@ -658,7 +819,7 @@ def create(options: dict, work_dir: Path) -> AtMemDolphinAdapter:
 
 
 def create_development(options: dict, work_dir: Path) -> AtMemDolphinAdapter:
-    """Create the 3% adapter only after re-deriving its official frozen split."""
+    """Create the 5% adapter only after re-deriving its official frozen split."""
     configured = dict(options)
     if "allowed_test_ids" in configured:
         raise ValueError("development allowed_test_ids are supplied by the frozen split")
@@ -671,3 +832,169 @@ def create_development(options: dict, work_dir: Path) -> AtMemDolphinAdapter:
         for persona in PERSONAS
     }
     return AtMemDolphinAdapter(configured, work_dir)
+
+
+class Mem0DolphinAdapter(AtMemDolphinAdapter):
+    """Matched open-source Mem0 arm using the same driver, tasks and budgets."""
+
+    provider_name = "mem0"
+
+    def __init__(self, options: dict, work_dir: Path) -> None:
+        self.options = dict(options)
+        self.work_dir = Path(work_dir).resolve()
+        self._memories: dict[str, object] = {}
+        self.root = Path(str(
+            self.options.get("memory_root") or self.work_dir / "mem0-personas"
+        )).expanduser().resolve()
+        self.root.mkdir(parents=True, exist_ok=True)
+        self.driver_target = str(self.options.get("agent_driver") or "")
+        if not self.driver_target:
+            raise ValueError("options.agent_driver is required")
+        self.driver = _target(self.driver_target)
+        expected_target = os.environ.get("ATMEM_DOLPHIN_DRIVER_TARGET", "").strip()
+        expected_digest = os.environ.get("ATMEM_DOLPHIN_DRIVER_SHA256", "").strip()
+        if expected_target or expected_digest:
+            if expected_target != self.driver_target:
+                raise RuntimeError("agent_driver target differs from finalization identity")
+            if expected_digest != _driver_artifact_sha256(self.driver):
+                raise RuntimeError("agent_driver artifact differs from finalization identity")
+        self.model = str(self.options.get("model") or "")
+        checkout = Path(str(self.options.get("mem0_checkout") or "")).expanduser().resolve()
+        if not self.model or not checkout.is_dir():
+            raise ValueError("options.model and a pinned mem0_checkout are required")
+        checkout_text = str(checkout)
+        if checkout_text in sys.path:
+            sys.path.remove(checkout_text)
+        sys.path.insert(0, checkout_text)
+        os.environ.setdefault("MEM0_TELEMETRY", "False")
+        from mem0 import Memory as Mem0
+        from mem0.utils.factory import EmbedderFactory
+        from research.reference_parity.adapters.mem0 import HashEmbedding
+
+        imported = Path(sys.modules[Mem0.__module__].__file__).resolve()
+        if checkout not in imported.parents:
+            raise RuntimeError(f"Mem0 imported from unpinned path: {imported}")
+        EmbedderFactory.provider_to_class["fastembed"] = (
+            "research.reference_parity.adapters.mem0.HashEmbedding"
+        )
+        self._Mem0 = Mem0
+        self._HashEmbedding = HashEmbedding
+        self.mem0_checkout = checkout
+        self.cost_cap_usd = float(self.options.get("cost_cap_usd") or 0.0)
+        self.max_interaction_cost_usd = float(
+            self.options.get("max_interaction_cost_usd") or 0.0
+        )
+        allowed = self.options.get("allowed_test_ids")
+        self.allowed_test_ids = {
+            persona: {str(value).zfill(3) for value in values}
+            for persona, values in dict(allowed or {}).items()
+        }
+        if set(self.allowed_test_ids) != set(PERSONAS):
+            raise ValueError("allowed_test_ids must contain exactly the three personas")
+        if self.cost_cap_usd <= 0 or not 0 < self.max_interaction_cost_usd <= self.cost_cap_usd:
+            raise ValueError("positive bounded interaction costs are required")
+
+    def identity(self) -> dict:
+        return {
+            "format": "mem0-oss-dolphinbench-adapter-v1",
+            "mem0_commit": "d3891e48baa2c6e769f9cfa4003873bd6a85bc07",
+            "driver": self.driver_target,
+            "model": self.model,
+            "personas": list(PERSONAS),
+            "memory_scope": "one local Qdrant collection per persona",
+            "formation": "infer=false raw dated messages",
+            "embedding": "hash-bow-256-v1",
+            "test_phase_writes": False,
+            "cost_cap_usd": self.cost_cap_usd,
+            "max_interaction_cost_usd": self.max_interaction_cost_usd,
+        }
+
+    def _persona_root(self, persona: str) -> Path:
+        return self.root / persona
+
+    def _memory(self, persona: str):
+        memory = self._memories.get(persona)
+        if memory is not None:
+            return memory
+        root = self._persona_root(persona)
+        root.mkdir(parents=True, exist_ok=True)
+        memory = self._Mem0.from_config({
+            "vector_store": {"provider": "qdrant", "config": {
+                "collection_name": f"dolphin_{persona}",
+                "path": str(root / "qdrant"), "embedding_model_dims": 256,
+            }},
+            "llm": {"provider": "openai", "config": {
+                "api_key": "unused", "model": "unused-infer-false",
+            }},
+            "embedder": {"provider": "fastembed", "config": {
+                "embedding_dims": 256,
+            }},
+            "history_db_path": str(root / "history.db"),
+        })
+        self._memories[persona] = memory
+        return memory
+
+    def _close_memory(self, persona: str) -> None:
+        memory = self._memories.pop(persona, None)
+        client = getattr(getattr(memory, "vector_store", None), "client", None)
+        if client is not None and hasattr(client, "close"):
+            client.close()
+
+    def _ingest(self, memory, request) -> dict:
+        record_path = self._persona_root(request.persona) / "records.jsonl"
+        text = request.dated_message
+        memory.add(
+            text, user_id=f"dolphin:{request.persona}",
+            metadata={"interaction_id": str(request.interaction_id)}, infer=False,
+        )
+        with record_path.open("a", encoding="utf-8") as handle:
+            handle.write(_canonical({
+                "interaction_id": str(request.interaction_id), "text": text,
+            }) + "\n")
+        return {
+            "processing_complete": True, "representation_complete": True,
+            "retrieval_ready": True, "source_events_observed": 1,
+            "admitted": 1, "withheld": 0, "rejected": 0,
+        }
+
+    def _recall(self, memory, persona: str, query: str) -> str:
+        result = memory.search(
+            query, filters={"user_id": f"dolphin:{persona}"},
+            top_k=int(self.options.get("memory_limit", 20)), threshold=0.0,
+        )
+        return "\n\n".join(
+            str(row.get("memory") or "")
+            for row in result.get("results", [])
+            if str(row.get("memory") or "").strip()
+        )
+
+    def freeze(self, persona: str) -> dict:
+        self._close_memory(persona)
+        records = self._persona_root(persona) / "records.jsonl"
+        if not records.is_file():
+            raise RuntimeError(f"Mem0 persona has no durable history: {persona}")
+        lines = [line for line in records.read_text(encoding="utf-8").splitlines() if line]
+        return {
+            "format": "mem0-oss-dolphinbench-checkpoint-v1",
+            "persona": persona,
+            "records": len(lines),
+            "records_sha256": _sha256(records),
+        }
+
+    def verify_checkpoint(self, persona: str, checkpoint: dict) -> None:
+        if self.freeze(persona) != checkpoint:
+            raise RuntimeError(f"Mem0 checkpoint changed for {persona}")
+
+
+def create_mem0_development(options: dict, work_dir: Path) -> Mem0DolphinAdapter:
+    configured = dict(options)
+    if "allowed_test_ids" in configured:
+        raise ValueError("development allowed_test_ids are supplied by the frozen split")
+    checkout = configured.pop("official_checkout", None)
+    if not checkout:
+        raise ValueError("official_checkout is required for the development adapter")
+    _, selected = _frozen_development_split(checkout)
+    configured["allowed_test_ids"] = {
+        persona: sorted(selected[persona]) for persona in PERSONAS
+    }
+    return Mem0DolphinAdapter(configured, work_dir)

@@ -36,6 +36,34 @@ development run is permitted after the matched adapters are ready.
   navigator/reader/judge identities, top-k/context, maximum model calls/tokens/
   operations, equal-size development sweeps and symmetric repeats with no
   best-of selection (FR-027–FR-029, FR-035–FR-036).
+- [x] [T005A] Generate and validate nested, answer-blind five-percent manifests
+  at `benchmarks/retrieval_quality/protocols/longmemeval-v2-development-5pct-v1.json`
+  and `benchmarks/retrieval_quality/protocols/dolphinbench-development-5pct-v1.json`;
+  retain the historical 14/18 manifests unchanged and add contract tests in
+  `tests/test_retrieval_quality_protocol.py` (FR-028, FR-037).
+- [x] [T005B] Freeze full-run-equivalent effective configurations and add a
+  validator that proves the 23/30 selectors change only case IDs—not source,
+  modalities, methods, models, prompts, tools, budgets, retries, judge/grader,
+  instrumentation, failures or report schema—in
+  `atmem/benchmark/contracts.py` and `tests/test_retrieval_quality_protocol.py`
+  (FR-038, SC-019).
+- [x] [T005C] Freeze evaluator-only requirement manifests for all 23 LongMemEval
+  questions and 30 Dolphin tasks, including requirement classes and action
+  prerequisites, with hashes and product-inaccessibility tests under
+  `benchmarks/retrieval_quality/protocols/` (FR-028, FR-039, SC-019).
+- [x] [T005D] Add versioned requirement-ledger, terminal-outcome and pre-action
+  gate contracts plus validators that reject absent stages, unknown-as-success,
+  timeout/parse/provider/silent-no-call blocks and always-blocking positive
+  controls in `atmem/benchmark/attribution.py` and contract/integration tests
+  (FR-041–FR-043, SC-020).
+- [x] [T005E] Reanalyse the retained pre-change twelve-case raw results by
+  requirement class and earliest evidenced failure, writing a checksum-bound
+  small-diagnostic-only table under `benchmarks/retrieval_quality/reports/`
+  without changing its frozen inputs (FR-044).
+- [x] [T005F] Freeze the evaluator review procedure, add unsigned fail-closed
+  23/30 review packets, checksum-bound observation validation, complete ledger
+  builders and report/Project-Atlas renderers; no missing or unreviewed stage
+  can be finalized or aggregated (FR-039–FR-043, SC-019–SC-020).
 
 **Checkpoint**: A real A/B/C baseline exists before candidate implementation.
 
@@ -162,8 +190,10 @@ tests without whole-store scans or a model dependency.
 ## Phase 7 — Reference parity and measured iteration
 
 - [ ] [T034] Implement neutral out-of-process AtMem, Mem0 OSS and
-  AgentRunbook-R/C adapters under `research/reference_parity/adapters/` without
-  reference imports in `atmem/` (FR-024–FR-027).
+  AgentRunbook-R/C adapters under `research/reference_parity/adapters/` and
+  production LongMem/Dolphin shims under `research/production_benchmarks/`
+  without reference imports in `atmem/`; record resolved module, source commit,
+  model route and artifact digest for every arm (FR-024–FR-027, FR-035).
 - [ ] [T035] Implement deterministic cassette and reader-free runner/reporting in
   `research/reference_parity/runner.py`, including exact evidence-set metrics,
   latency, bytes and storage (FR-025–FR-029).
@@ -174,8 +204,9 @@ tests without whole-store scans or a model dependency.
   regressions, in `benchmarks/retrieval_quality/reports/context-engine-trajectory.md`
   (FR-026–FR-029, SC-001, SC-017).
 - [ ] [T037] Capture one bounded pinned live extraction/planning/navigation
-  cassette per system on the development corpus and rerun the differential;
-  stop if source coverage or reader-free quality regresses (FR-026–FR-029).
+  cassette per system on the development corpus, validate encrypted external
+  retention and replay it through the neutral runner; stop if source coverage
+  or reader-free quality regresses (FR-026–FR-029, FR-036).
 
 **Checkpoint**: The new design has cheaper comparative evidence before paid
 answer/action scoring.
@@ -206,15 +237,27 @@ answer/action scoring.
 
 - [ ] [T044] Run a no-judge preflight plus configuration-specific finalization
   probes for every 4K/8K/16K reader, judge and agent route; reject malformed,
-  reasoning-only or length-truncated output and terminate paid infrastructure
-  promptly on failure (FR-026–FR-029, SC-015).
+  reasoning-only or length-truncated output, verify the candidate checkout is
+  imported ahead of site packages, validate the sample-size-only equivalence
+  receipt, and terminate paid infrastructure promptly on failure
+  (FR-026–FR-029, FR-035, FR-038, SC-015, SC-019).
 - [ ] [T045] Run AtMem, Mem0 OSS and AgentRunbook-R/C on the same frozen
-  14-question LongMem development sample; produce a single matched table with
-  accuracy, evidence metrics, latency, tokens, resource, storage and cost
-  (`research/production_benchmarks/run_longmem_pilot.py`) (SC-003, SC-016).
-- [ ] [T046] Run AtMem and matched Mem0 on the same frozen 18-task Dolphin
+  nested 23-question LongMem five-percent development sample; produce a single matched table with
+  accuracy, per-requirement pipeline coverage, product-context versus verified-
+  evidence reader attribution, latency, tokens, resource, storage and cost
+  inputs for product context, evaluator-verified minimal evidence and no memory
+  under the same pinned reader; retain complete eight-stage ledgers and the
+  deterministic terminal classification table
+  (`research/production_benchmarks/run_longmem_pilot.py`)
+  (FR-039–FR-042, SC-003, SC-016, SC-019–SC-020).
+- [ ] [T046] Run AtMem and matched Mem0 on the same frozen 30-task Dolphin
   development sample through Hermes; preserve all tasks and exact tool/grader
-  evidence (`research/production_benchmarks/run_dolphin_development.py`) (SC-005).
+  evidence, and run removal/positive-control tests whose block receipt names the
+  missing requirement and distinguishes timeout/provider/parse/silent-no-call
+  outcomes; for every applicable task pair each removal with a restored-evidence
+  positive control and reject always-blocking gates
+  (`research/production_benchmarks/run_dolphin_development.py`)
+  (FR-039–FR-043, SC-005, SC-019–SC-020).
 - [ ] [T047] Freeze the selected candidate only if T045/T046 targets pass; repeat
   the chosen development arm once to reject a non-reproducible peak. Otherwise
   return to the earliest attributed failing stage, not prompt/weight thrashing.
@@ -230,7 +273,7 @@ answer/action scoring.
 
 ## Phase 10 — Release decision and documentation
 
-- [ ] [T050] Validate SC-001–SC-018 from a signed/checksummed qualification index;
+- [ ] [T050] Validate SC-001–SC-020 from a signed/checksummed qualification index;
   missing evidence is fail/invalid, never skipped (FR-029–FR-032).
 - [ ] [T051] Update product, CLI/MCP, dashboard, storage, migration, benchmark and
   limitation documentation plus `docs/release-roadmap.md`; keep 2.3.8 Hermes,
@@ -245,14 +288,15 @@ answer/action scoring.
 
 ## Dependencies and stop conditions
 
-- T001–T005 precede implementation.
+- T001–T005A precede benchmark-readiness implementation.
 - T006–T010 block every new engine behavior.
 - T011–T021 block retrieval work because unrepresented evidence cannot be fixed
   by ranking.
 - T022–T033 block comparative and paid work.
 - T034–T037 block paid development: comparators must exist first.
 - T038–T043 block release qualification, not the no-model research loop.
-- T044 blocks T045/T046; T045 and T046 must be matched tables, never AtMem-only.
+- T005A–T005E and T034–T044 block T045/T046; T045 and T046 must be matched tables,
+  never AtMem-only.
 - T048 is forbidden until T045 is complete, reproducible and frozen.
 - Stop immediately on scope leakage, plaintext leakage, source loss, benchmark
   leakage, whole-store scans, invalid provider outputs, uncertain paid cleanup,

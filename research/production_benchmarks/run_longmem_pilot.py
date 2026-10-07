@@ -1,4 +1,4 @@
-"""Run the frozen two-arm LongMemEval-V2 development pilot."""
+"""Run the frozen matched LongMemEval-V2 five-percent development profile."""
 
 from __future__ import annotations
 
@@ -18,8 +18,9 @@ import urllib.request
 
 
 ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))
+if str(ROOT) in sys.path:
+    sys.path.remove(str(ROOT))
+sys.path.insert(0, str(ROOT))
 
 from research.production_benchmarks.longmemeval_v2 import (  # noqa: E402
     DatasetPreflight,
@@ -35,11 +36,17 @@ from atmem.benchmark.contracts import (  # noqa: E402
     validate_retrieval_quality_protocol,
 )
 from atmem.benchmark.finalization import validate_finalization_gate  # noqa: E402
+from atmem.benchmark.attribution import validate_attribution_artifacts  # noqa: E402
 from research.production_benchmarks.cost_ledger import DurableCostLedger  # noqa: E402
+from research.production_benchmarks.matched_results import write_longmem  # noqa: E402
+from research.production_benchmarks.matched_results import write_longmem_controls  # noqa: E402
 
 
 PROTOCOLS = ROOT / "benchmarks/retrieval_quality/protocols"
-METHODS = ("no-retrieval", "typed-local")
+SCORED_METHODS = ("no-retrieval", "typed-local", "mem0-oss", "agentrunbook-r")
+CONTROL_METHODS = ("verified-evidence",)
+METHODS = (*SCORED_METHODS, *CONTROL_METHODS)
+OPTIONAL_RECOMMENDED_METHODS = ("agentrunbook-c", "agentrunbook-c-v2")
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -58,7 +65,10 @@ def _tree_digest(root: Path) -> str:
     if not root.is_dir():
         raise RuntimeError(f"benchmark checkpoint root does not exist: {root}")
     files: dict[str, str] = {}
-    for path in sorted(value for value in root.rglob("*") if value.is_file()):
+    for path in sorted(
+        value for value in root.rglob("*")
+        if value.is_file() and not value.name.startswith("._") and value.name != ".DS_Store"
+    ):
         digest = hashlib.sha256()
         with path.open("rb") as handle:
             for block in iter(lambda: handle.read(1024 * 1024), b""):
@@ -212,11 +222,13 @@ def _wait_for_judge_gate(
     deadline: float,
 ) -> None:
     while True:
-        failed = [future.exception() for future in futures if future.done()]
-        if failed:
-            raise RuntimeError("reader phase failed before the judge gate") from failed[0]
         waiting = 0
-        for path in usage_paths:
+        for future, path in zip(futures, usage_paths, strict=True):
+            # run_case converts every ordinary case failure into a denominator
+            # row. A completed failed case therefore needs no judge gate.
+            if future.done():
+                waiting += 1
+                continue
             if not path.is_file():
                 continue
             try:
@@ -276,6 +288,10 @@ def _case_score(output_dir: Path) -> dict[str, Any]:
         "category": row["category"],
         "eval_function": row["eval_function"],
         "memory_context_token_count": int(row["memory_context_token_count"]),
+        "memory_context_was_truncated": bool(row["memory_context_was_truncated"]),
+        "memory_post_query_metadata": row.get("memory_post_query_metadata"),
+        "response_parsed_boxed": row.get("response_parsed_boxed"),
+        "is_unknown": bool(row.get("is_unknown")),
     }
 
 
@@ -314,9 +330,15 @@ def main() -> None:
     protocol_path = PROTOCOLS / "2.3.8.yaml"
     protocol = _load(protocol_path)
     question_split = _load(PROTOCOLS / "longmemeval-v2-question-split-v1.json")
-    pilot = _load(PROTOCOLS / "longmemeval-v2-pilot-v1.json")
-    dolphin_split = _load(PROTOCOLS / "dolphinbench-task-split-v1.json")
+    pilot = _load(PROTOCOLS / "longmemeval-v2-development-5pct-v1.json")
+    dolphin_split = _load(PROTOCOLS / "dolphinbench-development-5pct-v1.json")
     route_probe = _load(PROTOCOLS / "provider-route-probe-v1.json")
+    attribution_artifacts = validate_attribution_artifacts(
+        protocol,
+        protocols_root=PROTOCOLS,
+        longmem_case_ids=pilot["question_ids"],
+        dolphin_case_ids=dolphin_split["development_ids"],
+    )
     validate_retrieval_quality_protocol(
         protocol,
         split=question_split,
@@ -367,6 +389,13 @@ def main() -> None:
             "hardware_profile": hardware_profile,
             "data_preflight": data_preflight.report(),
             "reader_processor": processor_preflight,
+            "attribution_artifacts": {
+                name: {
+                    "manifest_sha256": row["manifest"]["manifest_sha256"],
+                    "equivalence_sha256": row["equivalence"]["receipt_sha256"],
+                }
+                for name, row in attribution_artifacts.items()
+            },
             "paid_egress_started": False,
         }, indent=2, sort_keys=True))
         return
@@ -430,6 +459,7 @@ def main() -> None:
                 ROOT / "research/production_benchmarks/run_longmem_pilot.py",
                 ROOT / "research/production_benchmarks/longmemeval_v2.py",
                 ROOT / "research/production_benchmarks/adapters/longmemeval_atmem.py",
+                ROOT / "research/production_benchmarks/adapters/longmemeval_verified.py",
             )
         }),
         "grader_runtime": {
@@ -461,6 +491,13 @@ def main() -> None:
         "reader_processor": processor_preflight,
         "hardware_profile": hardware_profile,
         "methods": list(METHODS),
+        "attribution_artifacts": {
+            name: {
+                "manifest_sha256": row["manifest"]["manifest_sha256"],
+                "equivalence_sha256": row["equivalence"]["receipt_sha256"],
+            }
+            for name, row in attribution_artifacts.items()
+        },
         "cases": cases,
     }
     _write_progress(progress_path, progress)
@@ -543,7 +580,9 @@ def main() -> None:
         raise RuntimeError("pilot requires ATMEM_LME_PREBUILT_ROOT")
     prebuilt_root = Path(prebuilt_root_value).expanduser().resolve()
     prebuilt_memory = {
-        domain: prebuilt_root / domain / "memory_state"
+        (method, domain): prebuilt_root / method / domain / "memory_state"
+        for method in SCORED_METHODS
+        if method != "no-retrieval"
         for domain in ("web", "enterprise")
     }
     no_retrieval_memory = prebuilt_root / "no-retrieval" / "memory_state"
@@ -551,7 +590,6 @@ def main() -> None:
     missing_prebuilt = [
         str(path) for path in prebuilt_memory.values()
         if not (path / "memory_config.json").is_file()
-        or not (path / "atmem.db").is_file()
     ]
     if not (no_retrieval_memory / "memory_config.json").is_file():
         missing_prebuilt.append(str(no_retrieval_memory))
@@ -565,35 +603,84 @@ def main() -> None:
         domain = domains.get(question_id)
         if domain is None:
             raise AssertionError(f"missing preflighted question domain: {question_id}")
-        result = run_official_pilot_case(
-            checkout,
-            data_root=data_root,
-            output_root=output_root,
-            question_id=question_id,
-            domain=domain,
-            method=method,
-            protocol_path=protocol_path,
-            question_split=question_split,
-            pilot=pilot,
-            dolphin_split=dolphin_split,
-            route_probe=route_probe,
-            environment={
-                "ATMEM_READER_BASE_URL": reader_proxy_url,
-                "ATMEM_COST_AUTHORIZATION_ID": cost_authorization_id,
-            },
-            confirmed_paid_run=True,
-            data_preflight=data_preflight,
-            shared_reader_runtime_reservation=True,
-            judge_gate_file=judge_gate if gated else None,
-            load_memory_dir=(
-                prebuilt_memory[domain]
-                if method == "typed-local"
-                else no_retrieval_memory
+        identity = {
+            "reader_identity_sha256": _canonical_digest(
+                protocol["models"]["longmemeval_reader"]
             ),
-            cancellation_event=cancellation_event,
-            deadline_monotonic=deadline,
-        )
-        return {**result, **_case_score(Path(result["output_dir"]))}
+            "reader_prompt_sha256": "sha256:" + requirements["reader_prompt_sha256"],
+        }
+        try:
+            result = run_official_pilot_case(
+                checkout,
+                data_root=data_root,
+                output_root=output_root,
+                question_id=question_id,
+                domain=domain,
+                method=method,
+                protocol_path=protocol_path,
+                question_split=question_split,
+                pilot=pilot,
+                dolphin_split=dolphin_split,
+                route_probe=route_probe,
+                environment={
+                    "ATMEM_READER_BASE_URL": reader_proxy_url,
+                    "ATMEM_COST_AUTHORIZATION_ID": cost_authorization_id,
+                    **({
+                        "ATMEM_MEM0_CHECKOUT": os.environ.get("ATMEM_MEM0_CHECKOUT", ""),
+                        "ATMEM_MEM0_STORAGE_PATH": str(
+                            output_root / "runtime-mem0" / question_id
+                        ),
+                    } if method == "mem0-oss" else {}),
+                    **({
+                        "ATMEM_LME_REQUIREMENT_MANIFEST": str(
+                            PROTOCOLS / "longmemeval-v2-requirements-5pct-v1.json"
+                        ),
+                    } if method == "verified-evidence" else {}),
+                },
+                confirmed_paid_run=True,
+                data_preflight=data_preflight,
+                shared_reader_runtime_reservation=True,
+                judge_gate_file=judge_gate if gated else None,
+                load_memory_dir=(
+                    prebuilt_memory[(method, domain)]
+                    if method in {"typed-local", "mem0-oss", "agentrunbook-r"}
+                    else no_retrieval_memory if method == "no-retrieval" else None
+                ),
+                cancellation_event=cancellation_event,
+                deadline_monotonic=deadline,
+            )
+            return {**result, **_case_score(Path(result["output_dir"])), **identity}
+        except Exception as exc:
+            lowered = str(exc).casefold()
+            if isinstance(exc, TimeoutError) or "timeout" in lowered or "deadline" in lowered:
+                error_type = "timeout"
+            elif isinstance(exc, (json.JSONDecodeError, ValueError)) and any(
+                token in lowered for token in ("json", "parse", "malformed")
+            ):
+                error_type = "parse_error"
+            else:
+                error_type = "provider_error"
+            return {
+                "format": "atmem-longmemeval-pilot-case-v1",
+                "question_id": question_id,
+                "domain": domain,
+                "method": method,
+                "output_dir": str(output_root / "runs" / question_id / method),
+                "score": 0.0,
+                "score_bool": False,
+                "memory_context_token_count": 0,
+                "memory_context_was_truncated": False,
+                "memory_post_query_metadata": None,
+                "response_parsed_boxed": None,
+                "is_unknown": True,
+                "openai_cost_usd": 0.0,
+                "reader_cost_usd": None,
+                "error_type": error_type,
+                "error_class": type(exc).__name__,
+                "error_message": str(exc),
+                "actual_reason": "system_failure",
+                **identity,
+            }
 
     def run_batch(
         items: list[tuple[str, str]], *, max_workers: int, gated: bool
@@ -743,7 +830,21 @@ def main() -> None:
         }
         for method in METHODS
     }
+    expected_pairs = {
+        (question_id, method)
+        for question_id in pilot["question_ids"] for method in METHODS
+    }
+    actual_pairs = {(row["question_id"], row["method"]) for row in cases}
+    if actual_pairs != expected_pairs or len(cases) != len(expected_pairs):
+        raise RuntimeError("LongMem run did not retain every frozen case/method outcome")
     progress["summary"]["reader_runtime"] = _load(endpoint_receipt)
+    _write_progress(progress_path, progress)
+    progress["matched_report"] = write_longmem(
+        progress_path, output_root / "matched-results.json", methods=SCORED_METHODS
+    )
+    progress["controlled_reader_report"] = write_longmem_controls(
+        progress_path, output_root / "controlled-reader-results.json"
+    )
     _write_progress(progress_path, progress)
     print(json.dumps(progress["summary"], indent=2, sort_keys=True))
 

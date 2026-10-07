@@ -5431,6 +5431,19 @@ class SQLiteStore:
             (generation_id, unit_id, int(cursor.lastrowid)),
         )
 
+    def optimize_context_fts(self) -> None:
+        """Merge FTS segments after a generation build.
+
+        Formation can add thousands of units in a bounded transaction.  FTS5
+        otherwise leaves many small segments, making the first query perform
+        avoidable work across every segment.  The index is derived and
+        rebuildable, so optimization contains no governance-sensitive state.
+        """
+        if self._context_fts_enabled:
+            self._conn.execute(
+                "INSERT INTO context_units_fts(context_units_fts) VALUES('optimize')"
+            )
+
     def _context_unit_search_text(self, generation_id: str, unit_id: str) -> str:
         rows = self._conn.execute(
             """SELECT p.content_bytes, r.start_offset, r.end_offset
