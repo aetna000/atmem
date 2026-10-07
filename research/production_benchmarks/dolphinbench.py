@@ -409,6 +409,9 @@ class AtMemDolphinAdapter:
         self.model = str(self.options.get("model") or "")
         if not self.model:
             raise ValueError("options.model is required")
+        self.authorized_history_import = bool(
+            self.options.get("authorized_history_import", False)
+        )
         self.cost_cap_usd = float(self.options.get("cost_cap_usd") or 0.0)
         self.max_interaction_cost_usd = float(
             self.options.get("max_interaction_cost_usd") or 0.0
@@ -452,6 +455,7 @@ class AtMemDolphinAdapter:
                 str(self.root).encode("utf-8")
             ).hexdigest(),
             "test_phase_writes": False,
+            "authorized_history_import": self.authorized_history_import,
             "cost_cap_usd": self.cost_cap_usd,
             "max_interaction_cost_usd": self.max_interaction_cost_usd,
         }
@@ -648,8 +652,20 @@ class AtMemDolphinAdapter:
     def _memory(self, persona: str) -> Memory:
         memory = self._memories.get(persona)
         if memory is None:
+            scope = self._scope(persona)
+            authorities = ()
+            if self.authorized_history_import:
+                authorities = ({
+                    "principal_id": f"benchmark-history-import:{persona}",
+                    "subject_id": scope.subject_id,
+                    "agent_id": scope.agent_id,
+                    "workspace_id": scope.workspace_id,
+                    "scopes": ("history_import:review", "procedure:review"),
+                    "assurance": "explicit_benchmark_operator_configuration",
+                },)
             memory = Memory(
-                self._path(persona), retain_query_text=False, auto_vectors=False
+                self._path(persona), retain_query_text=False, auto_vectors=False,
+                review_authorities=authorities,
             )
             self._memories[persona] = memory
         return memory
@@ -690,17 +706,30 @@ class AtMemDolphinAdapter:
             binding_assurance="host_asserted",
             session_id=request.interaction_id,
             retain_body=True,
+            source_observation_granularity=(
+                "sentence" if self.authorized_history_import else "none"
+            ),
         )
         budget = RetrievalBudget(
             proposals=256,
             source_bytes=max(262_144, len(text.encode())),
             wall_time_ms=120_000,
         )
-        formed = memory.form_episode(episode_request, budget=budget)
+        import_principal = (
+            f"benchmark-history-import:{request.persona}"
+            if self.authorized_history_import else None
+        )
+        formed = memory.form_episode(
+            episode_request, budget=budget,
+            history_import_principal=import_principal,
+        )
         for _ in range(1_023):
             if not formed["receipt"].get("next_positions"):
                 break
-            formed = memory.form_episode(episode_request, budget=budget)
+            formed = memory.form_episode(
+                episode_request, budget=budget,
+                history_import_principal=import_principal,
+            )
         receipt = formed["receipt"]
         if not (
             receipt.get("processing_complete")

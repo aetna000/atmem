@@ -31,6 +31,22 @@
 Kinds: `raw_state`, `state_transition`, `atomic_fact`, `entity_link`,
 `procedure`, `durable_rule`, `failure_gotcha`, `premise_constraint`.
 
+`raw_state` includes a reserved `source episode` / `source statement` schema
+whose value is one exact sentence or bounded clause and whose evidence range
+is the identical immutable-source substring. Schema labels are structural, not
+claims that those words appeared in the source. These units make individual
+requirements independently retrievable and removable without duplicating
+canonical authority.
+
+### HistoryImportReviewReceipt
+
+- proposal, source, subject, agent and workspace identity
+- configured operator principal and assurance
+- single-use `history_import:review` authorization identity
+- additional `procedure:review` authorization for action-bearing units
+- approve/reject decision, reason, resulting record IDs and audit event
+- no evaluator requirement, answer, task or grader fields
+
 ### FormationCoverage
 
 - source-region inventory
@@ -101,3 +117,6 @@ Kinds: `raw_state`, `state_transition`, `atomic_fact`, `entity_link`,
 6. FTS indexes use contentless/external-content storage. Vector indexes are
    encrypted under the household key/profile and are included in storage
    amplification and stolen-store tests.
+7. Sentence-granularity source observations are opt-in. Automated settlement
+   additionally requires host-asserted binding and a configured, scope-bound
+   history-import principal; otherwise observations remain in review.

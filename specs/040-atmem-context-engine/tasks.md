@@ -70,6 +70,23 @@ development run is permitted after the matched adapters are ready.
 - [x] [T005H] Bind Dolphin removal targets to frozen evaluator-only source
   provenance; canonical registry wording must not be mistaken for verbatim
   product memory, and absent represented source units remain formation failures.
+- [x] [T005I] Retain the first full-history 30-task removal diagnostic as
+  non-benchmark evidence: 14 valid named blocks, 10 unrepresented source
+  targets (five pending review and five typed validation rejection), and six
+  non-atomic/gate-mismatch outcomes. Do not tune the evaluator to hide them.
+- [x] [T005J] Add exact source-linked sentence/bounded-clause observations with
+  stable offsets, reserved structural schema validation and regression tests;
+  require one-requirement removal units and emit `non_atomic_removal_target`
+  instead of deleting a multi-requirement episode (FR-046–FR-047, SC-021).
+- [x] [T005K] Add an opt-in scope-bound authorized history-import review flow
+  using public review APIs, single-use authorization and audit receipts. Prove
+  default imports remain fail-closed and evaluator manifests cannot enter the
+  product path (FR-045, SC-009, SC-021).
+- [ ] [T005L] Build and install a clean candidate wheel, rebuild all three
+  encrypted Dolphin persona checkpoints from full history, rerun all 30 removal
+  controls, and retain formation/review/atomization counts. Paid evaluation is
+  blocked until every applicable control is valid and zero unknown/system
+  outcomes are credited (FR-039–FR-047, SC-019–SC-021).
 
 **Checkpoint**: A real A/B/C baseline exists before candidate implementation.
 
@@ -279,7 +296,7 @@ answer/action scoring.
 
 ## Phase 10 — Release decision and documentation
 
-- [ ] [T050] Validate SC-001–SC-020 from a signed/checksummed qualification index;
+- [ ] [T050] Validate SC-001–SC-021 from a signed/checksummed qualification index;
   missing evidence is fail/invalid, never skipped (FR-029–FR-032).
 - [ ] [T051] Update product, CLI/MCP, dashboard, storage, migration, benchmark and
   limitation documentation plus `docs/release-roadmap.md`; keep 2.3.8 Hermes,

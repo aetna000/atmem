@@ -281,7 +281,8 @@ class Memory:
         return ReviewAuthorization(**payload, token=token)
 
     def verify_review_authorization(
-        self, authorization: Any, stored: dict[str, Any]
+        self, authorization: Any, stored: dict[str, Any], *,
+        required_scopes: tuple[str, ...] = ("procedure:review",),
     ) -> str:
         """Verify issuance, configured permission, and proposal scope."""
         from atmem.extract.review import ReviewAuthorization
@@ -310,8 +311,13 @@ class Memory:
                 raise PermissionError(
                     "procedure review authorization does not match configured authority"
                 )
-        if "procedure" not in authorization.scopes and "procedure:review" not in authorization.scopes:
-            raise PermissionError("procedure review requires the procedure scope")
+        available = set(authorization.scopes)
+        for required in required_scopes:
+            aliases = {required}
+            if required == "procedure:review":
+                aliases.add("procedure")
+            if not (aliases & available):
+                raise PermissionError(f"review authorization requires the {required} scope")
         if authorization.subject_id != stored["subject_id"]:
             raise PermissionError("procedure review authority is outside the subject scope")
         if authorization.agent_id != stored.get("agent_id"):
@@ -1498,7 +1504,10 @@ class Memory:
             "derivatives_sha256": f"sha256:{sha256_hex(canonical_json(derivative_identity))}",
         }
 
-    def form_episode(self, request: Any, *, budget: Any = None) -> dict[str, Any]:
+    def form_episode(
+        self, request: Any, *, budget: Any = None,
+        history_import_principal: str | None = None,
+    ) -> dict[str, Any]:
         """Losslessly capture an episode, then conservatively form typed units."""
         from atmem.contracts import (
             EpisodeIngestRequest,
@@ -1513,6 +1522,15 @@ class Memory:
         active_budget = budget or RetrievalBudget()
         if not isinstance(active_budget, RetrievalBudget):
             raise TypeError("budget must be RetrievalBudget")
+        if history_import_principal is not None:
+            if request.binding_assurance != "host_asserted":
+                raise PermissionError(
+                    "authorized history import requires host-asserted binding"
+                )
+            if request.source_observation_granularity != "sentence":
+                raise ValueError(
+                    "authorized history import requires sentence source observations"
+                )
         formation_id = f"formation-{sha256_hex(canonical_json({'request': request.to_dict(), 'version': 'typed-formation-v2'}))[:24]}"
         previous = self.store.get_formation_receipt(formation_id)
         if previous is not None and previous.get("processing_complete"):
@@ -1689,6 +1707,9 @@ class Memory:
                 formation_id=formation_id,
                 observed_at=part.observed_at,
                 part_kind=part.kind,
+                include_source_observations=(
+                    request.source_observation_granularity == "sentence"
+                ),
             ) if request.retain_body else ()
             from atmem.extract.context import build_resolution_context
             part_resolution_context = build_resolution_context(
@@ -1764,7 +1785,7 @@ class Memory:
                         quarantine_non_durable=False,
                         quarantine_sensitive=not admit_sensitive,
                     )
-                outcomes.append(self.submit_extraction_proposal(
+                outcome = self.submit_extraction_proposal(
                     proposal,
                     source_text=part.content,
                     session_id=request.session_id,
@@ -1772,7 +1793,30 @@ class Memory:
                     actor=f"formation:{request.scope.agent_id}",
                     review_policy=review_policy,
                     _resolution_context=part_resolution_context,
-                ))
+                )
+                if (
+                    outcome["review_state"] == "pending_review"
+                    and history_import_principal is not None
+                ):
+                    from atmem.extract.review import ReviewService
+
+                    scopes = ["history_import:review"]
+                    if proposal.unit.kind.value in {
+                        "durable_rule", "failure_gotcha", "procedure"
+                    }:
+                        scopes.append("procedure:review")
+                    authorization = self.issue_review_authorization(
+                        history_import_principal, scopes=tuple(scopes)
+                    )
+                    outcome = ReviewService(self).decide(
+                        proposal.proposal_id,
+                        "approve",
+                        actor=history_import_principal,
+                        reason="explicit authorized history import",
+                        session_id=request.session_id,
+                        authorization=authorization,
+                    )
+                outcomes.append(outcome)
 
         previous_pending = sum(
             bool(value.get("proposal_id"))

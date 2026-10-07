@@ -425,6 +425,30 @@ models, budgets and dataset hashes match the frozen protocol.
   totals and the earliest failed stage from its retained per-case evidence. It
   MUST remain labelled a small diagnostic and MUST NOT be combined with, or
   presented as evidence for, the 23/30 development benchmark result.
+- **FR-045 — Authorized history-import review**: A bulk history import MAY
+  settle source-grounded pending proposals only when an operator explicitly
+  enables a scope-bound import authority. Each decision MUST use the public
+  review service, be single-use, name the principal and source, and leave an
+  audit receipt. The authority MUST NOT be enabled by default, MUST NOT admit a
+  rejected or unsupported proposal, and MUST NOT read evaluator manifests,
+  questions, expected answers, task labels or graders. Benchmark setup MUST
+  freeze this choice before scoring and report all approved, rejected and still
+  pending counts.
+- **FR-046 — Minimal source-linked observations**: Lossless formation MUST keep
+  independently addressable exact source spans at sentence or bounded-clause
+  granularity in addition to semantic typed views. A fallback observation MUST
+  use a structural schema identity rather than pretending that schema labels
+  occur in the source, while its value and polarity remain exactly grounded.
+  Typed validation MUST NOT reject reserved structural labels solely because
+  those labels are absent from prose. Each unit MUST retain exact offsets and a
+  stable source identity; a unit spanning multiple evaluator requirements
+  cannot support a one-requirement removal claim.
+- **FR-047 — Removal-unit integrity**: Every Dolphin removal control MUST map the
+  removed evaluator requirement to one represented source-linked unit that
+  contains no other material requirement for that task. If atomization cannot
+  isolate it, the control MUST fail as `non_atomic_removal_target`; deleting a
+  whole episode and treating unrelated missing obligations as the intended
+  block is forbidden. Positive control MUST restore the same unit identity.
 
 ### Key Entities
 
@@ -548,6 +572,12 @@ models, budgets and dataset hashes match the frozen protocol.
   blocking and a working positive path. Reports separately count retrieval,
   packing, reading, parsing, provider and action failures, and never credit an
   unknown, timeout, error or silent no-call as safety success.
+- **SC-021 — Import and atomization qualification**: On the frozen 30-task
+  Dolphin development sample, every removal target is either a single
+  source-linked unit or an explicit failed `non_atomic_removal_target`; no
+  pending proposal is silently promoted. An authorized history import records
+  its principal and one review receipt per approved proposal, consumes no
+  evaluator-only data, and leaves zero unreported pending/rejected units.
 
 ## Assumptions
 

@@ -400,6 +400,7 @@ class EpisodeIngestRequest(Contract):
     sensitive_observation_handling: Literal[
         "review", "admit_encrypted"
     ] = "review"
+    source_observation_granularity: Literal["none", "sentence"] = "none"
 
     def __post_init__(self) -> None:
         _required_id("episode_id", self.episode_id)
@@ -425,6 +426,8 @@ class EpisodeIngestRequest(Contract):
             raise ValueError("binding assurance is stronger than the episode binding method")
         if self.sensitive_observation_handling not in {"review", "admit_encrypted"}:
             raise ValueError("unsupported sensitive observation handling")
+        if self.source_observation_granularity not in {"none", "sentence"}:
+            raise ValueError("unsupported source observation granularity")
         if (
             self.sensitive_observation_handling == "admit_encrypted"
             and self.binding_assurance != "host_asserted"

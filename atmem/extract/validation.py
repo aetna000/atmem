@@ -322,6 +322,12 @@ def validate_proposal(
             and str(getattr(payload, "relation", "")) == "observed text"
             and str(getattr(payload, "value", "")) == evidence_text
         )
+        source_observation = (
+            proposal.unit.kind.value == "environment_state"
+            and str(getattr(payload, "entity", "")) == "source episode"
+            and str(getattr(payload, "relation", "")) == "source statement"
+            and str(getattr(payload, "value", "")) == evidence_text
+        )
         structured_source = None
         if proposal.unit.kind.value == "environment_state":
             try:
@@ -331,7 +337,8 @@ def validate_proposal(
         structured_host_state = isinstance(structured_source, (dict, list))
         claims = (
             (str(getattr(payload, "value")),)
-            if structured_slice or neutral_observation else proposal.unit.grounding_claims()
+            if structured_slice or neutral_observation or source_observation
+            else proposal.unit.grounding_claims()
         )
         if structured_host_state:
             if not _structured_payload_grounded(payload, structured_source, evidence_text):
@@ -340,7 +347,7 @@ def validate_proposal(
             reasons.append("typed_payload_not_grounded_in_source")
         subject = getattr(payload, "subject", getattr(payload, "entity", None))
         relation = getattr(payload, "relation", None)
-        if neutral_observation:
+        if neutral_observation or source_observation:
             if getattr(payload, "polarity", None).value != "positive":
                 reasons.append("typed_polarity_mismatch")
         elif structured_slice or structured_host_state:
@@ -390,7 +397,7 @@ def validate_proposal(
                 structured_slice or structured_container or structured_host_state
             ) and polarity.value != "positive":
                 reasons.append("typed_polarity_mismatch")
-            polarity_text = "" if neutral_observation else _polarity_evidence(
+            polarity_text = "" if neutral_observation or source_observation else _polarity_evidence(
                 payload,
                 evidence_text,
                 structured_slice=structured_slice or structured_host_state,

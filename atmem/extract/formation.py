@@ -108,6 +108,7 @@ def form_typed_proposals(
     confidence: float = 1.0,
     observed_at: str | None = None,
     part_kind: str = "text",
+    include_source_observations: bool = False,
 ) -> tuple[ExtractionProposal, ...]:
     """Form only structures whose complete fields occur in the source.
 
@@ -543,7 +544,7 @@ def form_typed_proposals(
             None,
         ))
 
-    if not candidates:
+    if not candidates and not include_source_observations:
         # Preserve otherwise unclassified source as an occurrence-scoped
         # observation. This does not promote prose into a durable fact; it
         # keeps exact evidence retrievable and makes formation loss explicit
@@ -566,6 +567,33 @@ def form_typed_proposals(
         confidence=confidence,
         observed_at=observed_at,
     )
+    if include_source_observations:
+        observation_candidates = [
+            (
+                MemoryUnitKind.ENVIRONMENT_STATE,
+                EnvironmentStatePayload(
+                    "source episode", "source statement", statement
+                ),
+                MemoryClass.TEMPORARY_STATE,
+                _fact_key(
+                    "source_episode",
+                    f"source_statement_{sha256_hex(statement)[:24]}",
+                ),
+            )
+            for statement in _source_observation_parts(text)
+        ]
+        proposals += _materialize_candidates(
+            observation_candidates,
+            text=text,
+            formation_id=formation_id,
+            source_id=source_id,
+            scope=scope,
+            evidence=evidence,
+            confidence=confidence,
+            observed_at=observed_at,
+            use_payload_value_for_fact=True,
+            exact_value_evidence=True,
+        )
     covered = sorted(
         (item.evidence[0].start_offset, item.evidence[0].end_offset)
         for item in proposals
@@ -613,6 +641,7 @@ def _materialize_candidates(
     observed_at: str | None,
     use_payload_value_for_fact: bool = False,
     structured_derived: bool = False,
+    exact_value_evidence: bool = False,
 ) -> tuple[ExtractionProposal, ...]:
     proposals: list[ExtractionProposal] = []
     structured_cursor = 0
@@ -672,19 +701,22 @@ def _materialize_candidates(
 
                 match = max(matches, key=support_score)
             if match is not None:
-                start = max(
-                    text.rfind(".", 0, match.start()),
-                    text.rfind("!", 0, match.start()),
-                    text.rfind("?", 0, match.start()),
-                    text.rfind("\n", 0, match.start()),
-                ) + 1
-                while start < len(text) and text[start].isspace():
-                    start += 1
-                ends = [
-                    position for delimiter in ".!?\n"
-                    if (position := text.find(delimiter, match.end())) >= 0
-                ]
-                end = min(ends) + 1 if ends else len(text)
+                if exact_value_evidence:
+                    start, end = match.start(), match.end()
+                else:
+                    start = max(
+                        text.rfind(".", 0, match.start()),
+                        text.rfind("!", 0, match.start()),
+                        text.rfind("?", 0, match.start()),
+                        text.rfind("\n", 0, match.start()),
+                    ) + 1
+                    while start < len(text) and text[start].isspace():
+                        start += 1
+                    ends = [
+                        position for delimiter in ".!?\n"
+                        if (position := text.find(delimiter, match.end())) >= 0
+                    ]
+                    end = min(ends) + 1 if ends else len(text)
                 excerpt = text[start:end]
                 item_evidence = ProposalEvidence(
                     source_id=source_id,
@@ -792,3 +824,25 @@ def _bounded_text_chunks(value: str, *, maximum: int = 1_900) -> tuple[str, ...]
         chunks.append(value[offset:end])
         offset = end
     return tuple(chunks)
+
+
+def _source_observation_parts(value: str, *, maximum: int = 1_900) -> tuple[str, ...]:
+    """Return exact sentence/clause spans for lossless, removable source views.
+
+    The separator stays attached to the preceding span. Whitespace between
+    spans is retained with the following span and stripped only at the outside,
+    so every emitted value is an exact substring of the immutable source.
+    Long spans still use the ordinary bounded exact chunker.
+    """
+    parts: list[str] = []
+    start = 0
+    for match in re.finditer(r"(?:[.!?]+(?=\s|$)|[;]+|\n+)", value):
+        end = match.end()
+        candidate = value[start:end].strip()
+        if any(character.isalnum() for character in candidate):
+            parts.extend(_bounded_text_chunks(candidate, maximum=maximum))
+        start = end
+    tail = value[start:].strip()
+    if any(character.isalnum() for character in tail):
+        parts.extend(_bounded_text_chunks(tail, maximum=maximum))
+    return tuple(parts)

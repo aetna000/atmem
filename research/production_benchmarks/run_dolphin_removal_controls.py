@@ -104,6 +104,56 @@ def _matching_records(records: list[dict], requirement: dict) -> list[dict]:
     return matches
 
 
+def _is_source_statement(record: dict) -> bool:
+    unit = ((record.get("raw") or {}).get("typed_unit") or {})
+    payload = unit.get("payload") or {}
+    return (
+        unit.get("kind") == "environment_state"
+        and payload.get("entity") == "source episode"
+        and payload.get("relation") == "source statement"
+    )
+
+
+def _atomic_removal_records(
+    records: list[dict], requirement: dict, case_requirements: list[dict]
+) -> tuple[list[dict], str | None]:
+    """Select one evaluator-matched source unit or fail without deleting.
+
+    Provenance narrows selection to the immutable source session. Evaluator
+    wording may then identify a minimal source-statement unit, but never enters
+    retrieval or the product database. Ties and units that also materially
+    match another requirement are non-atomic controls rather than successes.
+    """
+    candidates = _matching_records(records, requirement)
+    statements = [row for row in candidates if _is_source_statement(row)]
+    if not statements:
+        return [], "non_atomic_removal_target" if candidates else "removal_target_unrepresented"
+    expected_tokens = _tokens(str(requirement.get("expected") or ""))
+    scored = []
+    for row in statements:
+        content_tokens = _tokens(str(row.get("content") or ""))
+        score = (
+            len(expected_tokens & content_tokens) / len(expected_tokens)
+            if expected_tokens else 0.0
+        )
+        scored.append((score, str(row.get("id") or ""), row))
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    if not scored or scored[0][0] <= 0:
+        return [], "non_atomic_removal_target"
+    if len(scored) > 1 and abs(scored[0][0] - scored[1][0]) < 1e-12:
+        return [], "non_atomic_removal_target"
+    selected = scored[0][2]
+    selected_tokens = _tokens(str(selected.get("content") or ""))
+    source_sessions = set(_source_session_ids(requirement))
+    for other in case_requirements:
+        if other is requirement or not (source_sessions & set(_source_session_ids(other))):
+            continue
+        other_tokens = _tokens(str(other.get("expected") or ""))
+        if other_tokens and len(other_tokens & selected_tokens) / len(other_tokens) >= 0.60:
+            return [], "non_atomic_removal_target"
+    return [selected], None
+
+
 def _gate_blocks_removed_requirement(gate: dict, requirement: dict) -> bool:
     """Require semantic obligation linkage, not merely any closed gate."""
     expected = set(requirement.get("expected_obligation_slots") or ())
@@ -168,22 +218,21 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
         try:
             memory = Memory(clone, retain_query_text=False, auto_vectors=False)
             source_session_ids = _source_session_ids(requirement)
-            matches = _matching_records(memory.list(subject), requirement)
+            matches, selection_failure = _atomic_removal_records(
+                memory.list(subject), requirement, list(case["requirements"])
+            )
             if not matches:
                 results.append({
                     "case_id": case_id,
                     "removed_requirement_id": requirement_id,
                     "outcome": "control_failed",
-                    "actual_reason": "removal_target_unrepresented",
+                    "actual_reason": selection_failure,
                     "model_invoked": False,
                     "tool_calls": 0,
                     "error_type": None,
                     "deleted_record_ids": [],
                     "source_session_ids": list(source_session_ids),
-                    "selection_method": (
-                        "source_session_provenance" if source_session_ids
-                        else "conservative_lexical_fallback"
-                    ),
+                    "selection_method": "atomic_source_statement",
                 })
                 continue
             deleted = []
@@ -217,10 +266,7 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
                 "error_type": None,
                 "deleted_record_ids": deleted,
                 "source_session_ids": list(source_session_ids),
-                "selection_method": (
-                    "source_session_provenance" if source_session_ids
-                    else "conservative_lexical_fallback"
-                ),
+                "selection_method": "atomic_source_statement",
                 "expected_obligation_slots": sorted(removed_slots),
                 "context_sha256": "sha256:" + hashlib.sha256(package.context.encode()).hexdigest(),
             })

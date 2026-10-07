@@ -176,14 +176,25 @@ class ReviewService:
                 "typed proposals cannot be text-edited; reject and submit a new source-linked proposal"
             )
         stored_unit = (stored.get("proposal") or {}).get("unit") or {}
-        if stored["memory_class"] == "procedure" or stored_unit.get("kind") in {
+        action_bearing = stored["memory_class"] == "procedure" or stored_unit.get("kind") in {
             "durable_rule", "failure_gotcha", "procedure"
-        }:
+        }
+        if action_bearing:
             if authorization is None:
                 raise PermissionError(
                     "procedure review requires authenticated scoped authorization"
                 )
-            actor = self.memory.verify_review_authorization(authorization, stored)
+        if authorization is not None:
+            required = ["procedure:review"] if action_bearing else []
+            if "history_import:review" in authorization.scopes:
+                required.append("history_import:review")
+            if not required:
+                raise PermissionError(
+                    "non-procedural automated review requires history_import:review"
+                )
+            actor = self.memory.verify_review_authorization(
+                authorization, stored, required_scopes=tuple(required)
+            )
         return self._settle(
             stored,
             decision,

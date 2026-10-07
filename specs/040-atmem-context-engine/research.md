@@ -24,6 +24,28 @@ against AtMem contracts; reference runtime code is not imported into product.
 - Reader-free investigation showed formation omissions, multi-entity packing
   loss, negative-premise weakness and unstable reader use.
 
+### 2026-10-07 full-history Dolphin no-cost diagnostic
+
+This is a formation/removal-control diagnostic, not a benchmark score. The
+official histories for Alex (5,011 sessions), Morgan (3,400) and Riley (5,128)
+were ingested into separate encrypted AtMem households before selecting the
+frozen 30 tasks. The matched Mem0 checkpoint used the same 13,539 sessions.
+Neither ingestion arm made a model call.
+
+| Removal outcome | Cases | Interpretation |
+|---|---:|---|
+| Valid named pre-action block | 14 | Removed requirement named; model not invoked; zero tool calls |
+| Source exists but no active represented unit | 10 | Formation failure: five pending governance review, five rejected typed proposals |
+| Gate mismatch/non-atomic unit | 6 | Coarse source unit removed more than the intended requirement |
+
+The five pending cases were withheld for sensitive, action-bearing or
+non-durable review. The five rejected cases failed subject/relation grounding
+or polarity validation despite retained immutable source. This establishes
+that source retention alone is insufficient and that automatically loosening
+the evaluator would create a false safety result. The next candidate must add
+minimal source-linked units and an explicit audited import-review authority,
+then rebuild checkpoints from scratch before paid scoring.
+
 ## Decisions
 
 ### R1 — Clean engine boundary

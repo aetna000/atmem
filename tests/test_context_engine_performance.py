@@ -77,6 +77,7 @@ def test_controlled_reader_report_requires_matched_three_way_inputs() -> None:
 
 def test_dolphin_removal_matching_is_conservative() -> None:
     from research.production_benchmarks.run_dolphin_removal_controls import (
+        _atomic_removal_records,
         _gate_blocks_removed_requirement,
         _matching_records,
     )
@@ -101,6 +102,39 @@ def test_dolphin_removal_matching_is_conservative() -> None:
     assert [
         row["id"] for row in _matching_records(provenance_records, provenance_requirement)
     ] == ["right"]
+    source_statement = lambda value: {
+        "typed_unit": {
+            "kind": "environment_state",
+            "payload": {
+                "entity": "source episode", "relation": "source statement",
+                "value": value,
+            },
+        }
+    }
+    atomic_records = [
+        {
+            "id": "blue", "source_session_id": "004978",
+            "content": "The deployment channel is eng-releases.",
+            "raw": source_statement("The deployment channel is eng-releases."),
+        },
+        {
+            "id": "timezone", "source_session_id": "004978",
+            "content": "The timezone is UTC.",
+            "raw": source_statement("The timezone is UTC."),
+        },
+    ]
+    removal = {
+        "expected": "Deployment updates go to eng-releases.",
+        "source_refs": ["session:004978"],
+    }
+    selected, failure = _atomic_removal_records(atomic_records, removal, [removal])
+    assert failure is None
+    assert [row["id"] for row in selected] == ["blue"]
+    selected, failure = _atomic_removal_records(
+        provenance_records, provenance_requirement, [provenance_requirement]
+    )
+    assert selected == []
+    assert failure == "non_atomic_removal_target"
     requirement = {"expected_obligation_slots": ["target", "rule"]}
     assert _gate_blocks_removed_requirement({
         "outcome": "blocked_missing_requirement",

@@ -225,6 +225,93 @@ def test_unstructured_content_is_preserved_and_loss_is_visible(tmp_path):
         memory.close()
 
 
+def test_sentence_source_observations_are_exact_independent_spans(tmp_path):
+    text = "First fact is blue; second fact is green. Third fact is current."
+    request = replace(
+        episode("episode-source-observations", [text], host_asserted=True),
+        source_observation_granularity="sentence",
+    )
+    memory = Memory(
+        tmp_path / "formation.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+    )
+    try:
+        result = memory.form_episode(request)
+        observations = [
+            row for row in memory.list_extraction_proposals(
+                SCOPE.subject_id, review_states=None, limit=100
+            )
+            if ((row.get("proposal") or {}).get("unit") or {}).get("payload", {}).get(
+                "relation"
+            ) == "source statement"
+        ]
+        assert [row["proposal"]["fact"] for row in observations] == [
+            "First fact is blue;",
+            "second fact is green.",
+            "Third fact is current.",
+        ]
+        source = memory.store.get_protocol_source_by_id(result["receipt"]["source_ids"][0])
+        for row in observations:
+            evidence = row["proposal"]["evidence"][0]
+            assert text[evidence["start_offset"] : evidence["end_offset"]] == row["proposal"]["fact"]
+            assert row["review_state"] == "pending_review"
+        assert len({row["fact_key"] for row in observations}) == 3
+    finally:
+        memory.close()
+
+
+def test_authorized_history_import_is_explicit_scoped_and_audited(tmp_path):
+    request = replace(
+        episode(
+            "episode-authorized-import",
+            ["When publishing, must use the release channel. Another fact is blue."],
+            host_asserted=True,
+        ),
+        source_observation_granularity="sentence",
+    )
+    authority = {
+        "principal_id": "history-importer",
+        "subject_id": SCOPE.subject_id,
+        "agent_id": SCOPE.agent_id,
+        "workspace_id": SCOPE.workspace_id,
+        "scopes": ("history_import:review", "procedure:review"),
+        "assurance": "explicit_test_configuration",
+    }
+    memory = Memory(
+        tmp_path / "formation.db", auto_vectors=False,
+        allow_insecure_typed_development=True,
+        review_authorities=(authority,),
+    )
+    try:
+        with pytest.raises(PermissionError, match="host-asserted"):
+            memory.form_episode(
+                replace(request, binding_method="caller_asserted", binding_assurance="caller_asserted"),
+                history_import_principal="history-importer",
+            )
+        result = memory.form_episode(
+            request, history_import_principal="history-importer"
+        )
+        assert result["receipt"]["withheld"] == 0
+        assert result["receipt"]["retrieval_ready"] is True
+        reviewed = [
+            row for row in memory.list_extraction_proposals(
+                SCOPE.subject_id, review_states=("committed",), limit=100
+            )
+            if "history" in " ".join(
+                review.get("reason") or ""
+                for review in memory.store.list_memory_reviews(row["proposal_id"])
+            )
+        ]
+        assert reviewed
+        assert all(
+            memory.store.list_memory_reviews(row["proposal_id"])[0]["actor"]
+            == "history-importer"
+            for row in reviewed
+        )
+    finally:
+        memory.close()
+
+
 def test_episode_formation_is_idempotent(tmp_path):
     memory = Memory(
         tmp_path / "formation.db", auto_vectors=False,

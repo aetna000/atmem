@@ -1014,10 +1014,12 @@ def test_dolphin_adapter_ingests_then_reads_without_changing_checkpoint(
             "cost_cap_usd": 1.0, "max_interaction_cost_usd": 0.1,
             "allowed_test_ids": {"alex": ["test-1"], "morgan": [], "riley": []},
             "household_root": str(household_root),
+            "authorized_history_import": True,
         },
         tmp_path,
     )
     assert adapter.root == household_root.resolve()
+    assert adapter.identity()["authorized_history_import"] is True
     assert not (tmp_path / "atmem-personas").exists()
     ingestion = SimpleNamespace(
         persona="alex", phase="ingestion", interaction_id="history-1",
@@ -1025,6 +1027,15 @@ def test_dolphin_adapter_ingests_then_reads_without_changing_checkpoint(
     )
     adapter.run_interaction(ingestion)
     assert set(adapter._memories) == {"alex"}
+    assert any(
+        review["actor"] == "benchmark-history-import:alex"
+        for proposal in adapter._memories["alex"].list_extraction_proposals(
+            "dolphin:alex", review_states=("committed",), limit=100
+        )
+        for review in adapter._memories["alex"].store.list_memory_reviews(
+            proposal["proposal_id"]
+        )
+    )
     checkpoint = adapter.freeze("alex")
     assert adapter._memories == {}
     test = SimpleNamespace(

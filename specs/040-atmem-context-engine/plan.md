@@ -198,6 +198,25 @@ The retained twelve-case reader-free fixture is reanalysed from its frozen raw
 results into a separate requirement-class table. Its report is explicitly a
 small historical diagnostic and is not merged into five-percent aggregates.
 
+The first full-history Dolphin no-cost checkpoint exposed three distinct
+product failures that are now hard gates rather than evaluator exceptions. Of
+30 removal controls, 14 produced a valid named pre-action block, 10 selected
+source episodes had no active represented unit, and 6 removed a coarse unit
+whose gate failure could not be attributed to the intended fact. The 10
+formation gaps divide into five pending-review episodes and five episodes with
+typed grounding/polarity rejection. These numbers are development diagnostics,
+not benchmark scores.
+
+Formation therefore preserves minimal exact source-linked observations beside
+semantic views, and removal controls require a one-requirement unit rather than
+deleting an entire message. Reserved schema labels such as the structural
+observation subject/relation are validated as schema, while the carried value,
+offsets and polarity remain source-derived. Bulk history review is permitted
+only through an explicitly configured, scope-bound operator authority and the
+ordinary audited review service; it is answer-blind and evaluator manifests
+remain inaccessible. A rebuilt checkpoint and all no-cost removal gates must
+pass before any paid reader or Hermes invocation.
+
 ## Migration and Compatibility
 
 - Additive schema migration creates V3 generations without changing current
