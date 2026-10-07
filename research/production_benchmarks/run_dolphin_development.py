@@ -21,6 +21,7 @@ sys.path.append(str(ROOT))
 from research.production_benchmarks.dolphinbench import (  # noqa: E402
     evaluate_development,
     require_completed_provider_response,
+    verify_official_checkout,
 )
 from atmem.benchmark.finalization import validate_finalization_gate  # noqa: E402
 from atmem.benchmark.attribution import validate_attribution_artifacts  # noqa: E402
@@ -112,10 +113,11 @@ def main() -> int:
     parser.add_argument("--checkout", required=True)
     parser.add_argument("--config", required=True)
     parser.add_argument("--confirm-paid-run", action="store_true")
-    parser.add_argument("--finalization-gate", required=True)
+    parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument("--finalization-gate")
     parser.add_argument("--checkpoint-root", required=True)
     parser.add_argument(
-        "--finalization-manifest", required=True,
+        "--finalization-manifest",
         help="independently reviewed JSON identity for this exact paid run",
     )
     args = parser.parse_args()
@@ -139,12 +141,64 @@ def main() -> int:
     dolphin_profile = json.loads(
         (protocols / "dolphinbench-development-5pct-v1.json").read_text(encoding="utf-8")
     )
-    validate_attribution_artifacts(
+    attribution_artifacts = validate_attribution_artifacts(
         protocol,
         protocols_root=protocols,
         longmem_case_ids=longmem_profile["question_ids"],
         dolphin_case_ids=dolphin_profile["development_ids"],
     )
+    official_checkout = verify_official_checkout(checkout, dolphin_profile)
+    configuration = load_json_compatible_yaml(config)
+    options = dict(configuration.get("options") or {})
+    configured_checkout = Path(str(options.get("official_checkout") or "")).expanduser().resolve()
+    if configured_checkout != checkout:
+        raise SystemExit("DolphinBench config official checkout differs")
+    adapter = str(configuration.get("adapter") or "")
+    if adapter not in {
+        "research.production_benchmarks.dolphinbench:create_development",
+        "research.production_benchmarks.dolphinbench:create_mem0_development",
+    }:
+        raise SystemExit("DolphinBench config does not select a matched development adapter")
+    if options.get("agent_driver") != "research.production_benchmarks.dolphin_openai_driver:run":
+        raise SystemExit("DolphinBench config does not select the pinned agent driver")
+    checkpoint_sha256 = _tree_digest(checkpoint_root)
+    installed_product = installed_atmem_identity()
+    if args.preflight_only:
+        missing = [
+            name for name in ("OPENAI_API_KEY", "RUN_POD")
+            if not os.environ.get(name, "").strip()
+        ]
+        if missing:
+            raise SystemExit(
+                "DolphinBench preflight requires credentials: " + ", ".join(missing)
+            )
+        print(json.dumps({
+            "format": "atmem-dolphinbench-development-preflight-v1",
+            "status": "ready",
+            "paid_egress_started": False,
+            "official_checkout": official_checkout,
+            "development_tasks": len(dolphin_profile["development_ids"]),
+            "adapter": adapter,
+            "checkpoint_sha256": checkpoint_sha256,
+            "installed_product": installed_product,
+            "attribution_artifacts": {
+                "review_protocol_sha256": attribution_artifacts[
+                    "review_protocol"
+                ]["review_protocol_sha256"],
+                "manifest_sha256": attribution_artifacts[
+                    "dolphinbench"
+                ]["manifest"]["manifest_sha256"],
+                "equivalence_sha256": attribution_artifacts[
+                    "dolphinbench"
+                ]["equivalence"]["receipt_sha256"],
+            },
+        }, indent=2, sort_keys=True))
+        return 0
+    if not args.finalization_gate or not args.finalization_manifest:
+        raise SystemExit(
+            "paid DolphinBench run requires --finalization-gate and "
+            "--finalization-manifest"
+        )
     gate = json.loads(Path(args.finalization_gate).read_text(encoding="utf-8"))
     manifest_path = Path(args.finalization_manifest).expanduser().resolve()
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -184,7 +238,7 @@ def main() -> int:
             capture_output=True, text=True,
         ).stdout.strip(),
         "candidate_artifact_sha256": _installed_artifact_sha256(),
-        "checkpoint_sha256": _tree_digest(checkpoint_root),
+        "checkpoint_sha256": checkpoint_sha256,
         "run_config_sha256": "sha256:" + hashlib.sha256(config.read_bytes()).hexdigest(),
         "cost_authorization_id": authorization_id,
         "grader_runtime": grader_identity,

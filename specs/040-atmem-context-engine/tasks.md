@@ -122,6 +122,11 @@ development run is permitted after the matched adapters are ready.
   durable RunPod account credential without requiring the ephemeral reader key
   that exists only after pod provisioning; retain the live-key requirement for
   every paid case (FR-035, SC-019).
+- [x] [T005R] Add an equivalent no-egress Dolphin preflight that validates the
+  official 30-task split, matched adapter/driver, installed artifact,
+  checkpoint digest, attribution artifacts, and durable provider credentials
+  without requiring finalization evidence or starting paid calls (FR-035,
+  FR-038, SC-019).
 
 **Checkpoint**: A real A/B/C baseline exists before candidate implementation.
 
