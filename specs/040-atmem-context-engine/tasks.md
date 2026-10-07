@@ -89,7 +89,11 @@ development run is permitted after the matched adapters are ready.
   outcomes are credited (FR-039–FR-047, SC-019–SC-021). The `449b559` rebuild
   completed 13,539/13,539 sessions with zero model calls, but remains a failed
   gate: 18/30 controls were valid, 12/30 failed, and encrypted checkpoint
-  storage was 1,027,932,160 bytes for 7,727,403 source-message bytes.
+  storage was 1,027,932,160 bytes for 7,727,403 source-message bytes. The
+  `8652889` compact V3 attempt rebuilt all 13,539 sessions at 245,264,384 bytes
+  with zero model calls and no duplicated source bodies, but remains a failed
+  gate: 25 controls exposed duplicate evidence identifiers across typed views
+  and five removal targets remained non-atomic. No failed control was credited.
 
 **Checkpoint**: A real A/B/C baseline exists before candidate implementation.
 

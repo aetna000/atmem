@@ -59,6 +59,19 @@ adapter still used legacy canonical records: that is an integration failure,
 not zero derived storage. Paid execution remains blocked. The complete table is
 in `benchmarks/retrieval_quality/reports/dolphin-removal-diagnostic-449b559.md`.
 
+### `8652889` compact V3 qualification attempt
+
+The installed wheel rebuilt the complete 13,539-session Dolphin history in
+three active encrypted Context Engine V3 generations with zero model calls.
+Physical checkpoint storage fell to 245,264,384 bytes (76.1% below `449b559`),
+logical derived/source ratios were 1.20x--1.28x, and no source body was
+duplicated. The removal run was correctly rejected: 25/30 cases raised
+`engine returned duplicate evidence identifiers` because one compact unit was
+nominated through multiple typed views, while five targets remained
+non-atomic. No outcome was credited. The fix must deduplicate at the retrieval
+boundary while retaining cross-source diversity; the reader-free quality gate
+must pass before the checkpoints are rebuilt again.
+
 ## Decisions
 
 ### R1 — Clean engine boundary

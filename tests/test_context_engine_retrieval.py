@@ -204,6 +204,36 @@ def test_rule_evidence_yields_grounded_non_executing_action_constraint() -> None
         store.close()
 
 
+def test_compact_multi_view_retrieval_emits_each_evidence_id_once() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("compact-rule", b"Release notices must be sent to eng-releases, never eng-all."),
+            ("compact-timezone", b"The release audit timezone is UTC."),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = "Where must release notices be sent and which timezone is used?"
+        plan = DeterministicPlanner().plan(query)
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+
+        ids = [item.unit_id for item in result.candidates]
+        assert len(ids) == len(set(ids))
+        assert len(ids) == 2
+        assert any("eng-releases" in item.text for item in result.candidates)
+        assert any("UTC" in item.text for item in result.candidates)
+    finally:
+        store.close()
+
+
 def test_sufficiency_can_report_stale_policy_withheld_and_bounded_not_found() -> None:
     plan = DeterministicPlanner().plan("Where is the release room?")
     from atmem.context_engine.retrieval import RetrievalResult

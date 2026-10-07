@@ -181,6 +181,7 @@ class DeterministicRetriever:
             if scanned >= self.budget.total_units:
                 break
         selected: list[RetrievedCandidate] = []
+        used_units: set[str] = set()
         used_sources: set[str] = set()
         for obligation in plan.obligations:
             preferred = {
@@ -198,7 +199,14 @@ class DeterministicRetriever:
                 )
             else:
                 candidates.sort(key=lambda item: (-item.score, item.source_id))
-            candidate = next((item for item in candidates if item.source_id not in used_sources), None)
+            candidate = next(
+                (
+                    item for item in candidates
+                    if item.unit_id not in used_units
+                    and item.source_id not in used_sources
+                ),
+                None,
+            )
             if candidate is None:
                 continue
             selected.append(RetrievedCandidate(
@@ -207,16 +215,28 @@ class DeterministicRetriever:
                 )},
                 matched_obligation_ids=(obligation.obligation_id,),
             ))
+            used_units.add(candidate.unit_id)
             used_sources.add(candidate.source_id)
             if len(selected) >= max_sources:
                 break
         if len(selected) < max_sources:
             remainder = sorted(
-                (item for rows in by_pool.values() for item in rows if item.source_id not in used_sources),
-                key=lambda item: (-item.score, item.source_id),
+                (
+                    item for rows in by_pool.values() for item in rows
+                    if item.unit_id not in used_units
+                    and item.source_id not in used_sources
+                ),
+                key=lambda item: (-item.score, item.source_id, item.unit_id),
             )
             for item in remainder:
+                # The same source-backed unit may appear through several typed
+                # views. Sorting materializes the remainder before selection,
+                # so recheck here rather than relying only on the generator's
+                # initial used-unit snapshot.
+                if item.unit_id in used_units or item.source_id in used_sources:
+                    continue
                 selected.append(item)
+                used_units.add(item.unit_id)
                 used_sources.add(item.source_id)
                 if len(selected) >= max_sources:
                     break
