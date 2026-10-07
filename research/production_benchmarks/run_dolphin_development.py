@@ -12,6 +12,8 @@ import sys
 import time
 import urllib.request
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) in sys.path:
@@ -148,7 +150,9 @@ def main() -> int:
         dolphin_case_ids=dolphin_profile["development_ids"],
     )
     official_checkout = verify_official_checkout(checkout, dolphin_profile)
-    configuration = load_json_compatible_yaml(config)
+    configuration = yaml.safe_load(config.read_text(encoding="utf-8"))
+    if not isinstance(configuration, dict):
+        raise SystemExit("DolphinBench config must be a YAML object")
     options = dict(configuration.get("options") or {})
     configured_checkout = Path(str(options.get("official_checkout") or "")).expanduser().resolve()
     if configured_checkout != checkout:
