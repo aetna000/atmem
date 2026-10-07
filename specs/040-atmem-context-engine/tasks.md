@@ -86,7 +86,10 @@ development run is permitted after the matched adapters are ready.
   encrypted Dolphin persona checkpoints from full history, rerun all 30 removal
   controls, and retain formation/review/atomization counts. Paid evaluation is
   blocked until every applicable control is valid and zero unknown/system
-  outcomes are credited (FR-039–FR-047, SC-019–SC-021).
+  outcomes are credited (FR-039–FR-047, SC-019–SC-021). The `449b559` rebuild
+  completed 13,539/13,539 sessions with zero model calls, but remains a failed
+  gate: 18/30 controls were valid, 12/30 failed, and encrypted checkpoint
+  storage was 1,027,932,160 bytes for 7,727,403 source-message bytes.
 
 **Checkpoint**: A real A/B/C baseline exists before candidate implementation.
 

@@ -1969,6 +1969,305 @@ class Memory:
         )
         return {"receipt": stored_receipt, "outcomes": outcomes, "replayed": False}
 
+    def form_context_episode(
+        self, request: Any, *, profile_id: str = "context-fast",
+        range_granularity: str = "sentence",
+        history_import_principal: str,
+    ) -> dict[str, Any]:
+        """Retain one governed episode in the compact Context Engine V3 store."""
+        from atmem.contracts import EpisodeIngestRequest
+        from atmem.context_engine.formation import (
+            FormationManager, SourceEpisode, SourcePart,
+        )
+
+        if not isinstance(request, EpisodeIngestRequest):
+            raise TypeError("request must be EpisodeIngestRequest")
+        if request.binding_assurance != "host_asserted":
+            raise PermissionError("context history import requires host-asserted binding")
+        if range_granularity != "sentence":
+            raise ValueError("context history import requires sentence source ranges")
+        authority = self._review_authorities.get(history_import_principal)
+        if (
+            authority is None
+            or "history_import:review" not in authority["scopes"]
+            or authority["subject_id"] != request.scope.subject_id
+            or authority["agent_id"] != request.scope.agent_id
+            or authority["workspace_id"] != request.scope.workspace_id
+        ):
+            raise PermissionError("history import principal is not configured for this scope")
+        if self.policy.state != "encrypted" and not self._allow_insecure_typed_development:
+            raise PermissionError("context history import requires encrypted storage")
+        parts = tuple(
+            SourcePart(
+                part_id=part.part_id,
+                ordinal=part.ordinal,
+                kind="tool" if part.kind == "tool" else "text",
+                mime_type="text/plain",
+                content=str(part.content).encode("utf-8"),
+            )
+            for part in request.parts
+            if part.content is not None
+        )
+        if not parts:
+            raise ValueError("context history import requires retained source text")
+        manager = FormationManager(self.store)
+        generation = self._context_generation_row(request.scope, profile_id=profile_id)
+        if generation["state"] != "building":
+            raise RuntimeError("cannot ingest into a frozen context generation")
+        source_id = manager.retain_source(
+            SourceEpisode(
+                episode_id=request.episode_id, scope=request.scope, parts=parts,
+            ),
+            legacy_episode_id=request.session_id or request.episode_id,
+        )
+        receipt = manager.form_source(
+            source_id, str(generation["generation_id"]),
+            range_granularity="sentence",
+        )
+        self.store.append_audit_event(
+            subject_id=request.scope.subject_id,
+            event_type="memory.history_import_authorized",
+            actor=history_import_principal,
+            session_id=request.session_id,
+            turn_id=_turn_id(request.turn_id),
+            payload={
+                "format": "atmem-history-import-authorization-v1",
+                "source_id": source_id,
+                "workspace_id": request.scope.workspace_id,
+                "agent_id": request.scope.agent_id,
+                "source_observation_granularity": range_granularity,
+                "content_retained": False,
+            },
+        )
+        return {
+            **receipt.to_dict(),
+            "source_events_observed": len(parts),
+            "admitted": receipt.units_created,
+            "withheld": 0,
+            "rejected": receipt.units_rejected,
+            "next_positions": [],
+            "retrieval_ready": receipt.representation_complete,
+        }
+
+    def _context_generation_row(
+        self, scope: Any, *, profile_id: str = "context-fast",
+    ) -> dict[str, Any]:
+        from atmem.context_engine.formation import FormationManager
+
+        manager = FormationManager(self.store)
+        active = manager.active_generation(scope)
+        if active is not None:
+            return active
+        building = self.store._conn.execute(
+            "SELECT * FROM context_view_generations WHERE subject_id=? "
+            "AND agent_id=? AND workspace_id=? AND state='building' "
+            "ORDER BY created_at DESC LIMIT 1",
+            (scope.subject_id, scope.agent_id, scope.workspace_id),
+        ).fetchone()
+        if building is not None:
+            return dict(building)
+        generation_id = manager.begin_generation(
+            scope, profile_id=profile_id,
+            canonical_generation=self.store.record_generation(scope.subject_id),
+            configuration={
+                "formation": "deterministic-source-ranges-v1",
+                "range_granularity": "sentence",
+            },
+        )
+        return dict(self.store._conn.execute(
+            "SELECT * FROM context_view_generations WHERE generation_id=?",
+            (generation_id,),
+        ).fetchone())
+
+    def freeze_context_engine(self, scope: Any) -> dict[str, Any]:
+        """Verify, activate and describe the compact generation for one scope."""
+        from atmem.context_engine.coverage import storage_report
+        from atmem.context_engine.formation import FormationManager
+
+        manager = FormationManager(self.store)
+        generation = self._context_generation_row(scope)
+        if generation["state"] == "building":
+            manager.verify_generation(str(generation["generation_id"]))
+            manager.activate_generation(str(generation["generation_id"]))
+            generation = manager.active_generation(scope)
+            if generation is None:
+                raise RuntimeError("activated context generation is unavailable")
+        return {
+            "generation_id": str(generation["generation_id"]),
+            "generation_state": str(generation["state"]),
+            "source_count": int(self.store._conn.execute(
+                "SELECT COUNT(*) FROM context_source_episodes WHERE subject_id=? "
+                "AND agent_id=? AND workspace_id=?",
+                (scope.subject_id, scope.agent_id, scope.workspace_id),
+            ).fetchone()[0]),
+            "storage": storage_report(self.store),
+        }
+
+    def context_generation(self, scope: Any) -> dict[str, Any]:
+        """Return the active compact generation identity for one exact scope."""
+        from atmem.context_engine.formation import FormationManager
+
+        generation = FormationManager(self.store).active_generation(scope)
+        if generation is None:
+            raise RuntimeError("active compact context generation is unavailable")
+        return generation
+
+    def list_context_observations(
+        self, scope: Any, *, source_session_ids: tuple[str, ...] = (),
+    ) -> list[dict[str, Any]]:
+        """List exact active source-range observations for an authorized scope."""
+        generation = self.context_generation(scope)
+        filters = ""
+        params: list[Any] = [str(generation["generation_id"])]
+        if source_session_ids:
+            filters = " AND e.legacy_episode_id IN (" + ",".join(
+                "?" for _ in source_session_ids
+            ) + ")"
+            params.extend(source_session_ids)
+        rows = self.store._conn.execute(
+            """SELECT u.unit_id, r.range_id, r.source_id, r.part_id,
+                      r.start_offset, r.end_offset, p.content_bytes,
+                      e.legacy_episode_id
+               FROM context_evidence_units u
+               JOIN context_unit_ranges ur
+                 ON ur.generation_id=u.generation_id AND ur.unit_id=u.unit_id
+               JOIN context_source_ranges r USING(range_id)
+               JOIN context_source_parts p
+                 ON p.source_id=r.source_id AND p.part_id=r.part_id
+               JOIN context_source_episodes e USING(source_id)
+               WHERE u.generation_id=? AND u.kind='raw_state'
+                 AND u.lifecycle='active'""" + filters +
+            " ORDER BY e.legacy_episode_id, r.start_offset, u.unit_id",
+            tuple(params),
+        ).fetchall()
+        values = []
+        for row in rows:
+            start, end = int(row["start_offset"]), int(row["end_offset"])
+            content = bytes(row["content_bytes"])[start:end].decode(
+                "utf-8", errors="replace"
+            )
+            values.append({
+                "id": str(row["unit_id"]),
+                "range_id": str(row["range_id"]),
+                "source_id": str(row["source_id"]),
+                "source_session_id": str(row["legacy_episode_id"] or ""),
+                "content": content,
+                "raw": {"typed_unit": {
+                    "kind": "environment_state",
+                    "payload": {
+                        "entity": "source episode",
+                        "relation": "source statement",
+                        "value": content,
+                    },
+                }},
+            })
+        return values
+
+    def forget_context_observation(
+        self, scope: Any, unit_id: str, *, actor: str,
+    ) -> dict[str, Any]:
+        """Delete every typed view of one exact range in a disposable scope."""
+        generation = self.context_generation(scope)
+        generation_id = str(generation["generation_id"])
+        row = self.store._conn.execute(
+            """SELECT ur.range_id FROM context_unit_ranges ur
+               JOIN context_evidence_units u
+                 ON u.generation_id=ur.generation_id AND u.unit_id=ur.unit_id
+               JOIN context_view_generations g USING(generation_id)
+               WHERE ur.generation_id=? AND ur.unit_id=?
+                 AND g.subject_id=? AND g.agent_id=? AND g.workspace_id=?
+               ORDER BY ur.ordinal LIMIT 1""",
+            (
+                generation_id, unit_id, scope.subject_id, scope.agent_id,
+                scope.workspace_id,
+            ),
+        ).fetchone()
+        if row is None:
+            raise KeyError(unit_id)
+        range_id = str(row["range_id"])
+        with self.store.transaction(immediate=True):
+            unit_rows = self.store._conn.execute(
+                "SELECT unit_id FROM context_unit_ranges WHERE generation_id=? "
+                "AND range_id=? ORDER BY unit_id",
+                (generation_id, range_id),
+            ).fetchall()
+            unit_ids = [str(item["unit_id"]) for item in unit_rows]
+            self.store._conn.execute(
+                "UPDATE context_evidence_units SET lifecycle='deleted' "
+                "WHERE generation_id=? AND unit_id IN (" +
+                ",".join("?" for _ in unit_ids) + ")",
+                (generation_id, *unit_ids),
+            )
+            self.store.remove_context_range_index(generation_id, range_id)
+            self.store._conn.execute(
+                "UPDATE context_view_generations SET revision=revision+1 "
+                "WHERE generation_id=?", (generation_id,),
+            )
+            event_id = self.store.append_audit_event(
+                subject_id=scope.subject_id,
+                event_type="context.observation_forgotten",
+                actor=actor,
+                payload={
+                    "format": "atmem-context-observation-forget-v1",
+                    "generation_id": generation_id,
+                    "range_id": range_id,
+                    "unit_count": len(unit_ids),
+                    "content_retained": False,
+                },
+            )
+        return {
+            "range_id": range_id, "unit_ids": unit_ids,
+            "audit_event_id": event_id,
+        }
+
+    def prepare_context_v3(self, request: Any) -> Any:
+        """Prepare governed V3 context from the active compact generation."""
+        from atmem.context_engine.contracts import ContextRequestV3
+        from atmem.context_engine.formation import FormationManager
+        from atmem.context_engine.service import (
+            ContextEngineService, StoredContextEngine, load_stored_canonical,
+            stored_manifest,
+        )
+
+        if not isinstance(request, ContextRequestV3):
+            raise TypeError("request must be ContextRequestV3")
+        manager = FormationManager(self.store)
+        generation = manager.active_generation(request.scope)
+        if generation is None:
+            raise RuntimeError("active compact context generation is unavailable")
+        if int(generation["canonical_generation"]) != request.generation:
+            raise RuntimeError("context request generation does not match active source")
+        generation_id = str(generation["generation_id"])
+        service = ContextEngineService(
+            authorize=lambda value: stored_manifest(
+                self.store, value, generation_id=generation_id,
+            ),
+            load_canonical=lambda ids, canonical_generation: load_stored_canonical(
+                self.store, request.scope, generation_id, ids,
+                canonical_generation,
+            ),
+            audit=lambda value, selection, canonical: self.store.append_audit_event(
+                subject_id=request.scope.subject_id,
+                event_type="context.v3.prepared",
+                actor=request.scope.agent_id,
+                session_id=None,
+                turn_id=_turn_id(request.turn_id),
+                payload={
+                    "format": "atmem-context-v3-audit-v1",
+                    "request_id": value.request_id,
+                    "status": selection.status,
+                    "selected_count": len(canonical),
+                    "content_retained": False,
+                },
+            ),
+            expires_at=lambda: (
+                datetime.now(timezone.utc) + timedelta(minutes=10)
+            ).isoformat(),
+        )
+        return service.prepare(
+            request, StoredContextEngine(self.store, generation_id=generation_id)
+        )
+
     def memory_lineage(
         self, subject_id: str, record_id: str | None = None
     ) -> list[dict[str, Any]]:

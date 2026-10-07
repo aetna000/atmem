@@ -67,23 +67,48 @@ class DeterministicRetriever:
         allowed_unit_ids: frozenset[str] | None = None,
     ) -> list[RetrievedCandidate]:
         terms = _fts_terms(query)
-        if not terms or not self.store._context_fts_enabled:
+        range_indexed = bool(
+            getattr(self.store, "_context_range_fts_enabled", False)
+            and self.store._conn.execute(
+                "SELECT 1 FROM context_range_fts_map WHERE generation_id=? LIMIT 1",
+                (generation_id,),
+            ).fetchone()
+        )
+        if not terms or not (range_indexed or self.store._context_fts_enabled):
             return []
         allowed_sql = ""
         allowed_params: tuple[str, ...] = ()
         if allowed_unit_ids is not None:
             if not allowed_unit_ids:
                 return []
-            allowed_sql = " AND m.unit_id IN (" + ",".join("?" for _ in allowed_unit_ids) + ")"
+            unit_alias = "ur" if range_indexed else "m"
+            allowed_sql = " AND " + unit_alias + ".unit_id IN (" + ",".join(
+                "?" for _ in allowed_unit_ids
+            ) + ")"
             allowed_params = tuple(sorted(allowed_unit_ids))
-        sql = f"""SELECT m.unit_id, bm25(context_units_fts) AS rank
-                  FROM context_units_fts
-                  JOIN context_units_fts_map m ON m.fts_rowid=context_units_fts.rowid
-                  JOIN context_evidence_units u
-                    ON u.generation_id=m.generation_id AND u.unit_id=m.unit_id
-                  WHERE context_units_fts MATCH ? AND m.generation_id=?
-                    AND u.kind=? AND u.lifecycle='active' {allowed_sql}
-                  ORDER BY rank, m.unit_id LIMIT ?"""
+        if range_indexed:
+            sql = f"""SELECT ur.unit_id, bm25(context_ranges_fts) AS rank
+                      FROM context_ranges_fts
+                      JOIN context_range_fts_map m
+                        ON m.fts_rowid=context_ranges_fts.rowid
+                      JOIN context_unit_ranges ur
+                        ON ur.generation_id=m.generation_id AND ur.range_id=m.range_id
+                      JOIN context_evidence_units u
+                        ON u.generation_id=ur.generation_id AND u.unit_id=ur.unit_id
+                      JOIN context_unit_views v
+                        ON v.generation_id=u.generation_id AND v.unit_id=u.unit_id
+                      WHERE context_ranges_fts MATCH ? AND m.generation_id=?
+                        AND v.kind=? AND u.lifecycle='active' {allowed_sql}
+                      ORDER BY rank, ur.unit_id LIMIT ?"""
+        else:
+            sql = f"""SELECT m.unit_id, bm25(context_units_fts) AS rank
+                      FROM context_units_fts
+                      JOIN context_units_fts_map m ON m.fts_rowid=context_units_fts.rowid
+                      JOIN context_evidence_units u
+                        ON u.generation_id=m.generation_id AND u.unit_id=m.unit_id
+                      WHERE context_units_fts MATCH ? AND m.generation_id=?
+                        AND u.kind=? AND u.lifecycle='active' {allowed_sql}
+                      ORDER BY rank, m.unit_id LIMIT ?"""
         parameters = (generation_id, kind, *allowed_params, self.budget.per_pool)
         # Most fact queries contain at least one discriminating entity/value.
         # Intersect terms first so FTS does not rank every row containing common

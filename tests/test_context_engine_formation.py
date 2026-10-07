@@ -173,6 +173,62 @@ def test_deterministic_formation_builds_all_eight_source_linked_views() -> None:
         store.close()
 
 
+def test_sentence_formation_is_atomic_and_indexes_each_source_span_once() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        text = (
+            b"The deployment channel for every production release, rollback, "
+            b"and incident update is eng-releases. "
+            b"The canonical operating timezone for scheduling and audit "
+            b"timestamps is UTC."
+        )
+        source = manager.retain_source(SourceEpisode(
+            episode_id="episode-atomic", scope=SCOPE,
+            parts=(SourcePart("text", 0, "text", "text/plain", text),),
+        ))
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+
+        receipt = manager.form_source(
+            source, generation, range_granularity="sentence"
+        )
+
+        ranges = store._conn.execute(
+            "SELECT start_offset, end_offset FROM context_source_ranges "
+            "WHERE source_id=? ORDER BY start_offset", (source,),
+        ).fetchall()
+        assert [text[row["start_offset"]:row["end_offset"]] for row in ranges] == [
+            b"The deployment channel for every production release, rollback, "
+            b"and incident update is eng-releases.",
+            b"The canonical operating timezone for scheduling and audit "
+            b"timestamps is UTC.",
+        ]
+        assert receipt.representation_complete is True
+        assert store._conn.execute(
+            "SELECT COUNT(*) AS n FROM context_range_fts_map WHERE generation_id=?",
+            (generation,),
+        ).fetchone()["n"] == 2
+        assert store._conn.execute(
+            "SELECT COUNT(*) AS n FROM context_evidence_units WHERE generation_id=?",
+            (generation,),
+        ).fetchone()["n"] == 2
+        assert {
+            row["kind"] for row in store._conn.execute(
+                "SELECT kind FROM context_unit_views WHERE generation_id=?",
+                (generation,),
+            ).fetchall()
+        } >= {"raw_state", "fact", "entity"}
+        report = storage_report(store)
+        assert report["bytes"]["lexical_index_source"] == len(text) - 1
+        assert report["derived_to_source_ratio"] <= 1.5
+        assert report["bytes"]["links"] == 0
+        assert report["source_duplication"] == {
+            "duplicate_rows": 0, "passed": True,
+        }
+    finally:
+        store.close()
+
+
 def test_formation_replay_is_idempotent_with_stable_unit_occurrences() -> None:
     store = SQLiteStore(":memory:")
     try:

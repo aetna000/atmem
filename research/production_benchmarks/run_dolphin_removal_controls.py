@@ -31,11 +31,9 @@ from atmem.benchmark.attribution import (
     assess_dolphin_action_gate_pair,
 )
 from atmem.contracts import (
-    AuthorityScope,
-    ContextRequestV2,
-    RecallRequest,
-    RetrievalBudget,
+    AuthorityScope, RetrievalBudget,
 )
+from atmem.context_engine.contracts import ContextRequestV3
 from research.production_benchmarks.dolphinbench import build_pre_action_gate_receipt
 from research.production_benchmarks.installed_product import installed_atmem_identity
 
@@ -181,19 +179,15 @@ def _recall(memory: Memory, persona: str, query: str, *, options: dict) -> objec
         workspace_id=f"dolphin:{persona}",
     )
     request_id = f"dolphin-removal-{uuid.uuid4().hex}"
-    candidates = memory.eligible_candidates(RecallRequest(
+    generation = memory.context_generation(scope)
+    return memory.prepare_context_v3(ContextRequestV3(
+        context_id=f"context-{request_id}",
         request_id=request_id,
         scope=scope,
         query=query,
-        limit=int(options.get("memory_limit", 20)),
-        candidate_limit=int(options.get("candidate_limit", 200)),
-        retrieval_strategy="core-rrf-v1",
-    ))
-    return memory.prepare_context_v2(ContextRequestV2(
-        context_id=f"context-{request_id}",
-        candidate_set_id=candidates.candidate_set_id,
-        scope=scope,
-        query=query,
+        profile_id="context-fast",
+        mode="active",
+        generation=int(generation["canonical_generation"]),
         budget=RetrievalBudget(context_bytes=int(options.get("context_bytes", 32_000))),
     ))
 
@@ -206,6 +200,11 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
     for case in manifest["cases"]:
         case_id = str(case["case_id"])
         persona, item = case_id.split(":", 1)
+        scope = AuthorityScope(
+            subject_id=f"dolphin:{persona}",
+            agent_id="dolphin-agent",
+            workspace_id=f"dolphin:{persona}",
+        )
         requirement = next(
             row for row in case["requirements"] if row.get("removal_applicable") is True
         )
@@ -213,13 +212,16 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
         source = checkpoint_root / "atmem-personas" / f"{persona}.db"
         clone = scratch / f"{persona}-{item}.db"
         _clone_household(source, clone)
-        subject = f"dolphin:{persona}"
         memory: Memory | None = None
         try:
             memory = Memory(clone, retain_query_text=False, auto_vectors=False)
             source_session_ids = _source_session_ids(requirement)
             matches, selection_failure = _atomic_removal_records(
-                memory.list(subject), requirement, list(case["requirements"])
+                memory.list_context_observations(
+                    scope,
+                    source_session_ids=source_session_ids,
+                ),
+                requirement, list(case["requirements"])
             )
             if not matches:
                 results.append({
@@ -237,8 +239,10 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
                 continue
             deleted = []
             for record in matches:
-                result = memory.forget_record(subject, str(record["id"]), actor="benchmark-evaluator")
-                deleted.extend(result["record_ids"])
+                result = memory.forget_context_observation(
+                    scope, str(record["id"]), actor="benchmark-evaluator"
+                )
+                deleted.extend(result["unit_ids"])
             spec = yaml.safe_load((checkout / "tests" / persona / f"{item}.yaml").read_text())
             request = SimpleNamespace(
                 persona=persona,

@@ -5330,6 +5330,7 @@ class SQLiteStore:
             self._migrate_audit_fts()
             self._apply_bootstrap_migrations()
             self._migrate_context_fts()
+            self._migrate_context_range_fts()
             while self._backfill_typed_identity_mappings():
                 pass
             self._backfill_typed_exclusion_identities()
@@ -5405,6 +5406,79 @@ class SQLiteStore:
         except Exception:
             self._context_fts_enabled = False
 
+    def _migrate_context_range_fts(self) -> None:
+        """Create one rebuildable lexical row per exact source range."""
+        try:
+            self._conn.executescript("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS context_ranges_fts USING fts5(
+                  generation_id UNINDEXED,
+                  range_id UNINDEXED,
+                  text,
+                  content=''
+                );
+                CREATE TABLE IF NOT EXISTS context_range_fts_map(
+                  generation_id TEXT NOT NULL,
+                  range_id TEXT NOT NULL,
+                  fts_rowid INTEGER NOT NULL UNIQUE,
+                  PRIMARY KEY(generation_id, range_id),
+                  FOREIGN KEY(generation_id)
+                    REFERENCES context_view_generations(generation_id)
+                    ON DELETE CASCADE,
+                  FOREIGN KEY(range_id)
+                    REFERENCES context_source_ranges(range_id)
+                    ON DELETE CASCADE
+                );
+                """)
+            self._context_range_fts_enabled = True
+        except Exception:
+            self._context_range_fts_enabled = False
+
+    def index_context_range(
+        self, generation_id: str, range_id: str, text: str
+    ) -> None:
+        if not self._context_range_fts_enabled:
+            return
+        existing = self._conn.execute(
+            "SELECT fts_rowid FROM context_range_fts_map "
+            "WHERE generation_id=? AND range_id=?",
+            (generation_id, range_id),
+        ).fetchone()
+        if existing is not None:
+            return
+        cursor = self._conn.execute(
+            "INSERT INTO context_ranges_fts(generation_id, range_id, text) "
+            "VALUES (?, ?, ?)",
+            (generation_id, range_id, text),
+        )
+        self._conn.execute(
+            "INSERT INTO context_range_fts_map(generation_id, range_id, fts_rowid) "
+            "VALUES (?, ?, ?)",
+            (generation_id, range_id, int(cursor.lastrowid)),
+        )
+
+    def remove_context_range_index(
+        self, generation_id: str, range_id: str
+    ) -> None:
+        if not self._context_range_fts_enabled:
+            return
+        row = self._conn.execute(
+            "SELECT fts_rowid FROM context_range_fts_map "
+            "WHERE generation_id=? AND range_id=?",
+            (generation_id, range_id),
+        ).fetchone()
+        if row is None:
+            return
+        text = self._context_unit_search_text_for_range(range_id)
+        self._conn.execute(
+            "INSERT INTO context_ranges_fts(context_ranges_fts, rowid, "
+            "generation_id, range_id, text) VALUES('delete', ?, ?, ?, ?)",
+            (row["fts_rowid"], generation_id, range_id, text),
+        )
+        self._conn.execute(
+            "DELETE FROM context_range_fts_map WHERE generation_id=? AND range_id=?",
+            (generation_id, range_id),
+        )
+
     def index_context_unit(
         self, generation_id: str, unit_id: str, text: str
     ) -> None:
@@ -5442,6 +5516,10 @@ class SQLiteStore:
         if self._context_fts_enabled:
             self._conn.execute(
                 "INSERT INTO context_units_fts(context_units_fts) VALUES('optimize')"
+            )
+        if self._context_range_fts_enabled:
+            self._conn.execute(
+                "INSERT INTO context_ranges_fts(context_ranges_fts) VALUES('optimize')"
             )
 
     def _context_unit_search_text(self, generation_id: str, unit_id: str) -> str:
@@ -5491,6 +5569,22 @@ class SQLiteStore:
         self._conn.execute(
             "DELETE FROM context_units_fts_map WHERE generation_id=?", (generation_id,)
         )
+        if self._context_range_fts_enabled:
+            rows = self._conn.execute(
+                "SELECT range_id, fts_rowid FROM context_range_fts_map "
+                "WHERE generation_id=?", (generation_id,),
+            ).fetchall()
+            for row in rows:
+                text = self._context_unit_search_text_for_range(str(row["range_id"]))
+                self._conn.execute(
+                    "INSERT INTO context_ranges_fts(context_ranges_fts, rowid, "
+                    "generation_id, range_id, text) VALUES('delete', ?, ?, ?, ?)",
+                    (row["fts_rowid"], generation_id, row["range_id"], text),
+                )
+            self._conn.execute(
+                "DELETE FROM context_range_fts_map WHERE generation_id=?",
+                (generation_id,),
+            )
 
     def applied_migrations(self) -> list[str]:
         """Bootstrap identifiers this database has already applied, in order."""
@@ -7058,6 +7152,29 @@ MIGRATION_REGISTRY: tuple[tuple[str, str], ...] = (
     (
         "0401_context_generation_revision",
         """SELECT 1;""",
+    ),
+    (
+        "0402_context_range_lexical_index",
+        """SELECT 1;""",
+    ),
+    (
+        "0403_context_unit_views",
+        """
+        CREATE TABLE IF NOT EXISTS context_unit_views (
+          generation_id TEXT NOT NULL,
+          unit_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK(kind IN (
+            'raw_state','transition','fact','entity','procedure','rule','gotcha','premise'
+          )),
+          PRIMARY KEY(generation_id, unit_id, kind),
+          FOREIGN KEY(generation_id, unit_id)
+            REFERENCES context_evidence_units(generation_id, unit_id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_context_unit_views_kind
+          ON context_unit_views(generation_id, kind, unit_id);
+        INSERT OR IGNORE INTO context_unit_views(generation_id, unit_id, kind)
+          SELECT generation_id, unit_id, kind FROM context_evidence_units;
+        """,
     ),
 )
 

@@ -20,10 +20,43 @@ PartKind = Literal["text", "image", "audio", "video", "file", "tool"]
 UnitKind = Literal[
     "raw_state", "transition", "fact", "entity", "procedure", "rule", "gotcha", "premise"
 ]
+RangeGranularity = Literal["part", "sentence"]
 
 
 def _digest(value: bytes | str) -> str:
     return "sha256:" + sha256_hex(value)
+
+
+def _sentence_ranges(content: bytes) -> tuple[tuple[int, int], ...]:
+    """Return exact, non-empty byte spans without normalizing source text."""
+    values: list[tuple[int, int]] = []
+    for match in re.finditer(rb".+?(?:[.!?](?=\s|$)|\n+|$)", content, re.DOTALL):
+        start, end = match.span()
+        while start < end and content[start:start + 1].isspace():
+            start += 1
+        while end > start and content[end - 1:end].isspace():
+            end -= 1
+        if end > start:
+            values.append((start, end))
+    return tuple(values) or ((0, len(content)),)
+
+
+def _view_kinds(text: str, part_kind: str) -> tuple[UnitKind, ...]:
+    kinds: set[UnitKind] = {"raw_state"}
+    lowered = text.casefold()
+    if part_kind == "text":
+        kinds.update(("fact", "entity"))
+        if re.search(r"\b(before|after|changed|replacing|restored|now)\b", lowered):
+            kinds.add("transition")
+        if re.search(r"\b(in order|step|first|then|finally|restore)\b", lowered):
+            kinds.add("procedure")
+        if re.search(r"\b(must|required|should|never|always)\b", lowered):
+            kinds.add("rule")
+        if re.search(r"\b(gotcha|failed|failure|error|zero records|doing nothing)\b", lowered):
+            kinds.add("gotcha")
+        if re.search(r"\b(no|not|never|only|without|cannot|can't)\b", lowered):
+            kinds.add("premise")
+    return tuple(sorted(kinds))
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,7 +233,7 @@ class FormationManager:
     def add_unit(
         self, generation_id: str, *, kind: UnitKind, ranges: tuple[StoredRange, ...],
         compact_value: dict[str, Any], lifecycle: str = "active",
-        search_text: str | None = None,
+        search_text: str | None = None, index_text: bool = True,
     ) -> str:
         if not ranges:
             raise ValueError("an evidence unit requires at least one source range")
@@ -238,7 +271,15 @@ class FormationManager:
                    ) VALUES (?, ?, 'represented', NULL)""",
                 [(generation_id, item.range_id) for item in ranges],
             )
-            self.store.index_context_unit(generation_id, unit_id, search_text or compact)
+            self.store._conn.execute(
+                "INSERT OR IGNORE INTO context_unit_views(generation_id, unit_id, kind) "
+                "VALUES (?, ?, ?)",
+                (generation_id, unit_id, kind),
+            )
+            if index_text:
+                self.store.index_context_unit(
+                    generation_id, unit_id, search_text or compact
+                )
             if inserted.rowcount:
                 self.store._conn.execute(
                     "UPDATE context_view_generations SET revision=revision+1 WHERE generation_id=?",
@@ -246,7 +287,10 @@ class FormationManager:
                 )
         return unit_id
 
-    def form_source(self, source_id: str, generation_id: str) -> FormationReceiptV2:
+    def form_source(
+        self, source_id: str, generation_id: str, *,
+        range_granularity: RangeGranularity = "part",
+    ) -> FormationReceiptV2:
         """Create deterministic additive views while preserving full source coverage."""
         generation = self.store._conn.execute(
             "SELECT state FROM context_view_generations WHERE generation_id=?",
@@ -261,43 +305,75 @@ class FormationManager:
         ).fetchone()[0])
         new_units: dict[str, list[str]] = {}
         for part in self.list_source_parts(source_id):
-            source_range = self.add_range(source_id, part.part_id, 0, len(part.content))
-            represented.append(source_range.evidence)
-            text = part.content.decode("utf-8", errors="replace")
-            lowered = text.casefold()
-            kinds: set[UnitKind] = {"raw_state"}
-            if part.kind == "text":
-                kinds.update(("fact", "entity"))
-                if re.search(r"\b(before|after|changed|replacing|restored|now)\b", lowered):
-                    kinds.add("transition")
-                if re.search(r"\b(in order|step|first|then|finally|restore)\b", lowered):
-                    kinds.add("procedure")
-                if re.search(r"\b(must|required|should|never|always)\b", lowered):
-                    kinds.add("rule")
-                if re.search(r"\b(gotcha|failed|failure|error|zero records|doing nothing)\b", lowered):
-                    kinds.add("gotcha")
-                if re.search(r"\b(no|not|never|only|without|cannot|can't)\b", lowered):
-                    kinds.add("premise")
-            entities = sorted(set(re.findall(r"\b[A-Z][A-Za-z0-9_-]*\b", text)))[:32]
-            for kind in sorted(kinds):
-                # Source/range, modality and kind are normalized columns; do
-                # not repeat them inside each projection. Compact JSON carries
-                # only view-specific data that cannot be recovered from those
-                # columns or the source range.
-                compact: dict[str, Any] = {}
-                if kind == "entity" and entities:
-                    compact["e"] = entities
-                if kind == "premise":
-                    compact["p"] = "negative"
-                unit_id = self.add_unit(
-                    generation_id,
-                    kind=kind,
-                    ranges=(source_range,),
-                    compact_value=compact,
-                    search_text=text,
+            spans = (
+                _sentence_ranges(part.content)
+                if range_granularity == "sentence" and part.kind == "text"
+                else ((0, len(part.content)),)
+            )
+            for start, end in spans:
+                source_range = self.add_range(
+                    source_id, part.part_id, start, end
                 )
-                new_units.setdefault(kind, []).append(unit_id)
-        self._reconcile_occurrences(source_id, generation_id, new_units.get("fact", []))
+                represented.append(source_range.evidence)
+                text = part.content[start:end].decode("utf-8", errors="replace")
+                if range_granularity == "sentence":
+                    self.store.index_context_range(
+                        generation_id, source_range.range_id, text
+                    )
+                entities = sorted(set(
+                    re.findall(r"\b[A-Z][A-Za-z0-9_-]*\b", text)
+                ))[:32]
+                kinds = _view_kinds(text, part.kind)
+                if range_granularity == "sentence":
+                    compact: dict[str, Any] = {}
+                    if entities:
+                        compact["e"] = entities
+                    if "premise" in kinds:
+                        compact["p"] = "negative"
+                    unit_id = self.add_unit(
+                        generation_id,
+                        kind="raw_state",
+                        ranges=(source_range,),
+                        compact_value=compact,
+                        index_text=False,
+                    )
+                    self.store._conn.executemany(
+                        "INSERT OR IGNORE INTO context_unit_views("
+                        "generation_id, unit_id, kind) VALUES (?, ?, ?)",
+                        [
+                            (generation_id, unit_id, kind)
+                            for kind in kinds
+                        ],
+                    )
+                    for kind in kinds:
+                        new_units.setdefault(kind, []).append(unit_id)
+                    continue
+                for kind in kinds:
+                    # Source/range, modality and kind are normalized columns;
+                    # compact JSON contains only irreducible view metadata.
+                    compact: dict[str, Any] = {}
+                    if kind == "entity" and entities:
+                        compact["e"] = entities
+                    if kind == "premise":
+                        compact["p"] = "negative"
+                    unit_id = self.add_unit(
+                        generation_id,
+                        kind=kind,
+                        ranges=(source_range,),
+                        compact_value=compact,
+                        search_text=text,
+                        index_text=range_granularity != "sentence",
+                    )
+                    new_units.setdefault(kind, []).append(unit_id)
+        # Sentence-range imports deliberately avoid the legacy token-overlap
+        # reconciliation pass. That pass compares each new fact with every
+        # prior fact and becomes quadratic on long histories. Exact source
+        # ranges remain authoritative; indexed, source-grounded reconciliation
+        # is delivered separately by the occurrence/correction task.
+        if range_granularity == "part":
+            self._reconcile_occurrences(
+                source_id, generation_id, new_units.get("fact", [])
+            )
         units_after = int(self.store._conn.execute(
             "SELECT COUNT(*) FROM context_evidence_units WHERE generation_id=?",
             (generation_id,),
@@ -614,6 +690,12 @@ class FormationManager:
                 (rebuilt, generation_id),
             )
             self.store._conn.execute(
+                """INSERT INTO context_unit_views(generation_id, unit_id, kind)
+                   SELECT ?, unit_id, kind FROM context_unit_views
+                   WHERE generation_id=?""",
+                (rebuilt, generation_id),
+            )
+            self.store._conn.execute(
                 """INSERT INTO context_evidence_links(
                      generation_id, from_unit_id, to_unit_id, relation
                    ) SELECT ?, from_unit_id, to_unit_id, relation
@@ -633,12 +715,38 @@ class FormationManager:
                      FROM context_loss_receipts WHERE generation_id=?""",
                 (rebuilt, utc_now(), generation_id),
             )
-            rows = self.store._conn.execute(
-                "SELECT unit_id, compact_json FROM context_evidence_units WHERE generation_id=?",
-                (rebuilt,),
+            range_rows = self.store._conn.execute(
+                """SELECT DISTINCT m.range_id, p.content_bytes,
+                                  r.start_offset, r.end_offset
+                   FROM context_range_fts_map m
+                   JOIN context_source_ranges r USING(range_id)
+                   JOIN context_source_parts p
+                     ON p.source_id=r.source_id AND p.part_id=r.part_id
+                   WHERE m.generation_id=? ORDER BY m.range_id""",
+                (generation_id,),
             ).fetchall()
-            for row in rows:
-                self.store.index_context_unit(rebuilt, str(row["unit_id"]), str(row["compact_json"]))
+            if range_rows:
+                for row in range_rows:
+                    body = bytes(row["content_bytes"])
+                    start = int(row["start_offset"])
+                    end = int(row["end_offset"])
+                    self.store.index_context_range(
+                        rebuilt,
+                        str(row["range_id"]),
+                        body[start:end].decode("utf-8", errors="replace"),
+                    )
+            else:
+                # Generations created before the compact range index retain
+                # their unit-scoped lexical representation on rebuild.
+                rows = self.store._conn.execute(
+                    "SELECT unit_id, compact_json FROM context_evidence_units "
+                    "WHERE generation_id=?",
+                    (rebuilt,),
+                ).fetchall()
+                for row in rows:
+                    self.store.index_context_unit(
+                        rebuilt, str(row["unit_id"]), str(row["compact_json"])
+                    )
         return rebuilt
 
     def backfill_legacy_sources(self, scope: AuthorityScope, *, limit: int = 100) -> dict[str, Any]:

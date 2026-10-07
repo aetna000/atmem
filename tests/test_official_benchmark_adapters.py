@@ -1033,6 +1033,10 @@ def test_dolphin_adapter_ingests_then_reads_without_changing_checkpoint(
         for event in adapter._memories["alex"].store.list_audit_events("dolphin:alex")
     )
     checkpoint = adapter.freeze("alex")
+    assert checkpoint["context_engine"]["source_count"] == 1
+    assert checkpoint["context_engine"]["generation_state"] == "active"
+    assert checkpoint["context_engine"]["storage"]["source_bytes"] > 0
+    assert checkpoint["context_engine"]["storage"]["derived_to_source_ratio"] <= 1.5
     assert adapter._memories == {}
     test = SimpleNamespace(
         persona="alex", phase="tests", interaction_id="test-1",
@@ -1054,6 +1058,20 @@ def test_dolphin_adapter_ingests_then_reads_without_changing_checkpoint(
     with pytest.raises(RuntimeError, match="refusing a blind retry"):
         adapter.run_interaction(test)
     assert len(captured) == 1
+    memory = adapter._memory("alex")
+    observations = memory.list_context_observations(
+        adapter._scope("alex"), source_session_ids=("history-1",)
+    )
+    assert len(observations) == 1
+    assert observations[0]["content"].endswith("favorite color is blue.")
+    memory.forget_context_observation(
+        adapter._scope("alex"), observations[0]["id"], actor="test-evaluator"
+    )
+    removed = adapter._recall(memory, "alex", test.dated_message)
+    gate = adapter._pre_action_gate_receipt(test, removed)
+    assert gate["outcome"] == "blocked_missing_requirement"
+    assert gate["model_invoked"] is False
+    assert gate["tool_calls"] == 0
     adapter._reserve_interaction_cost("tests", "alex", "missing-cost")
     with pytest.raises(RuntimeError, match="neither aggregate nor attempt cost"):
         adapter._record_cost(

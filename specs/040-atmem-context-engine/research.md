@@ -46,6 +46,19 @@ the evaluator would create a false safety result. The next candidate must add
 minimal source-linked units and an explicit audited import-review authority,
 then rebuild checkpoints from scratch before paid scoring.
 
+### `449b559` source-atomic follow-up
+
+The clean installed follow-up rebuilt all 13,539 sessions and improved valid
+named removal blocks from 14/30 to 18/30. Seven controls still named obligations
+unrelated to the removed requirement, four could not isolate one requirement,
+and one gate remained open after removal. No timeout, parse, provider or silent
+no-call result was credited. The three encrypted checkpoints occupied
+1,027,932,160 bytes for 7,727,403 bytes of source messages (about 133.0x).
+Context Engine V3 storage accounting returned zero because the benchmark
+adapter still used legacy canonical records: that is an integration failure,
+not zero derived storage. Paid execution remains blocked. The complete table is
+in `benchmarks/retrieval_quality/reports/dolphin-removal-diagnostic-449b559.md`.
+
 ## Decisions
 
 ### R1 — Clean engine boundary

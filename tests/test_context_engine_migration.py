@@ -62,6 +62,43 @@ def test_rebuild_preserves_unit_and_range_identity_but_not_generation_identity()
         store.close()
 
 
+def test_rebuild_preserves_compact_range_index_without_unit_index_duplication() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        source = manager.retain_source(SourceEpisode(
+            episode_id="episode-compact-rebuild", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"The production release channel is eng-releases. Timezone is UTC.",
+            ),),
+        ))
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        manager.form_source(source, generation, range_granularity="sentence")
+        manager.verify_generation(generation)
+
+        rebuilt = manager.rebuild_generation(generation)
+
+        old_ranges = store._conn.execute(
+            "SELECT range_id FROM context_range_fts_map WHERE generation_id=? "
+            "ORDER BY range_id", (generation,),
+        ).fetchall()
+        new_ranges = store._conn.execute(
+            "SELECT range_id FROM context_range_fts_map WHERE generation_id=? "
+            "ORDER BY range_id", (rebuilt,),
+        ).fetchall()
+        assert [row["range_id"] for row in new_ranges] == [
+            row["range_id"] for row in old_ranges
+        ]
+        assert len(new_ranges) == 2
+        assert store._conn.execute(
+            "SELECT COUNT(*) FROM context_units_fts_map WHERE generation_id=?",
+            (rebuilt,),
+        ).fetchone()[0] == 0
+    finally:
+        store.close()
+
+
 def test_interrupted_backfill_resumes_without_duplicate_source() -> None:
     store = SQLiteStore(":memory:")
     try:
@@ -112,4 +149,4 @@ def test_interrupted_backfill_state_survives_snapshot_and_resume(tmp_path) -> No
 def test_context_engine_migrations_are_append_only_and_ordered() -> None:
     identifiers = [item[0] for item in MIGRATION_REGISTRY]
     assert identifiers == sorted(identifiers)
-    assert identifiers[-1] == "0401_context_generation_revision"
+    assert identifiers[-1] == "0403_context_unit_views"

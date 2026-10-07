@@ -34,6 +34,7 @@ from atmem.contracts import (
     RecallRequest,
     RetrievalBudget,
 )
+from atmem.context_engine.contracts import ContextRequestV3
 from atmem.service.household import HouseholdApplication
 from research.production_benchmarks.cost_ledger import DurableCostLedger
 
@@ -91,15 +92,41 @@ def _driver_artifact_sha256(driver) -> str:
 def build_pre_action_gate_receipt(request, package) -> dict:
     """Return the product's fail-closed decision before any model/tool call."""
     decision = package.sufficiency
-    missing = [str(item) for item in decision.missing_slots]
+    if hasattr(decision, "missing_obligation_ids"):
+        slot_map = {
+            "subject_relation_value": ("subject", "relation", "value"),
+            "condition_action": ("condition", "required_or_prohibited_action", "applicability"),
+            "before_action_after": ("before", "action", "after", "event_time"),
+            "ordered_steps": ("goal", "ordered_steps", "conditions", "completion"),
+            "claim_support": ("trigger", "failure", "safe_action"),
+            "comparison_side": ("comparison", "left", "right", "sides"),
+            "premise_check": ("polarity", "proposition", "applicability"),
+        }
+        required = [
+            slot
+            for obligation in package.plan.obligations
+            for slot in slot_map[obligation.kind]
+        ]
+        missing_obligations = set(decision.missing_obligation_ids)
+        missing = [
+            slot
+            for obligation in package.plan.obligations
+            if obligation.obligation_id in missing_obligations
+            for slot in slot_map[obligation.kind]
+        ]
+        covered = [slot for slot in required if slot not in missing]
+    else:
+        required = list(decision.required_slots)
+        covered = list(decision.covered_slots)
+        missing = [str(item) for item in decision.missing_slots]
     gate_open = decision.status == "sufficient" and not missing
     return {
         "format": "atmem-dolphin-pre-action-gate-v1",
         "case_id": f"{request.persona}:{str(request.interaction_id).zfill(3)}",
         "decision_id": decision.decision_id,
         "outcome": "gate_open" if gate_open else "blocked_missing_requirement",
-        "required_requirement_ids": list(decision.required_slots),
-        "covered_requirement_ids": list(decision.covered_slots),
+        "required_requirement_ids": required,
+        "covered_requirement_ids": covered,
         "missing_requirement_ids": missing or (
             [] if gate_open else ["atmem:sufficiency:not_sufficient"]
         ),
@@ -604,6 +631,8 @@ class AtMemDolphinAdapter:
 
     def freeze(self, persona: str) -> dict:
         path = self._path(persona)
+        memory = self._memory(persona)
+        context_checkpoint = memory.freeze_context_engine(self._scope(persona))
         self._close_memory(persona)
         status = HouseholdApplication.status(path)
         if status["state"] != "encrypted":
@@ -617,6 +646,7 @@ class AtMemDolphinAdapter:
             "format": "atmem-dolphinbench-checkpoint-v1",
             "persona": persona,
             "canonical": canonical,
+            "context_engine": context_checkpoint,
             "database_sha256": _sha256(path),
             "policy_sha256": _sha256(Path(f"{path}.encryption.json")),
             "size_bytes": path.stat().st_size,
@@ -624,7 +654,7 @@ class AtMemDolphinAdapter:
 
     def verify_checkpoint(self, persona: str, checkpoint: dict) -> None:
         current = self.freeze(persona)
-        for key in ("persona", "policy_sha256", "canonical"):
+        for key in ("persona", "policy_sha256", "canonical", "context_engine"):
             if current[key] != checkpoint.get(key):
                 raise RuntimeError(f"AtMem checkpoint changed for {persona}: {key}")
 
@@ -684,82 +714,49 @@ class AtMemDolphinAdapter:
 
     def _ingest(self, memory: Memory, request) -> dict:
         text = request.dated_message
-        chunks = _bounded_text_parts(text)
+        if not self.authorized_history_import:
+            raise RuntimeError(
+                "compact Dolphin history formation requires explicit import authority"
+            )
+        scope = self._scope(request.persona)
         episode_request = EpisodeIngestRequest(
             episode_id=f"dolphin-{request.persona}-{request.interaction_id}",
             idempotency_key=f"dolphin-{request.persona}-{request.interaction_id}",
-            scope=self._scope(request.persona),
-            parts=tuple(
-                EpisodePart(
-                    part_id=f"dated-message-{index:04d}",
-                    ordinal=index,
-                    kind="text",
-                    source_type="user_message",
-                    content=chunk,
-                    content_sha256="sha256:" + hashlib.sha256(
-                        chunk.encode()
-                    ).hexdigest(),
-                )
-                for index, chunk in enumerate(chunks)
-            ),
+            scope=scope,
+            parts=(EpisodePart(
+                part_id="dated-message-0000", ordinal=0, kind="text",
+                source_type="user_message", content=text,
+                content_sha256="sha256:" + hashlib.sha256(text.encode()).hexdigest(),
+            ),),
             binding_method="host_asserted",
             binding_assurance="host_asserted",
-            session_id=request.interaction_id,
+            session_id=str(request.interaction_id),
             retain_body=True,
-            source_observation_granularity=(
-                "sentence" if self.authorized_history_import else "none"
-            ),
+            source_observation_granularity="sentence",
         )
-        budget = RetrievalBudget(
-            proposals=256,
-            source_bytes=max(262_144, len(text.encode())),
-            wall_time_ms=120_000,
+        return memory.form_context_episode(
+            episode_request,
+            history_import_principal=f"benchmark-history-import:{request.persona}",
         )
-        import_principal = (
-            f"benchmark-history-import:{request.persona}"
-            if self.authorized_history_import else None
-        )
-        formed = memory.form_episode(
-            episode_request, budget=budget,
-            history_import_principal=import_principal,
-        )
-        for _ in range(1_023):
-            if not formed["receipt"].get("next_positions"):
-                break
-            formed = memory.form_episode(
-                episode_request, budget=budget,
-                history_import_principal=import_principal,
-            )
-        receipt = formed["receipt"]
-        if not (
-            receipt.get("processing_complete")
-            and not receipt.get("next_positions")
-            and int(receipt.get("source_events_observed") or 0) >= 1
-        ):
-            raise RuntimeError(
-                "DolphinBench history processing did not complete; refusing checkpoint"
-            )
-        return receipt
 
     def _recall(self, memory: Memory, persona: str, query: str):
         scope = self._scope(persona)
         request_id = f"dolphin-{uuid.uuid4().hex}"
-        candidates = memory.eligible_candidates(RecallRequest(
-            request_id=request_id, scope=scope, query=query,
-            limit=int(self.options.get("memory_limit", 20)),
-            candidate_limit=int(self.options.get("candidate_limit", 200)),
-            retrieval_strategy="core-rrf-v1",
-        ))
-        package = memory.prepare_context_v2(ContextRequestV2(
+        generation = memory.context_generation(scope)
+        request = ContextRequestV3(
             context_id=f"context-{request_id}",
-            candidate_set_id=candidates.candidate_set_id,
+            request_id=request_id,
             scope=scope,
             query=query,
+            profile_id="context-fast",
+            mode="active",
+            generation=int(generation["canonical_generation"]),
             budget=RetrievalBudget(
-                context_bytes=int(self.options.get("context_bytes", 32_000))
+                total_candidates=int(self.options.get("candidate_limit", 200)),
+                context_bytes=int(self.options.get("context_bytes", 32_000)),
             ),
-        ))
-        return package
+        )
+        return memory.prepare_context_v3(request)
 
     def _pre_action_gate_receipt(self, request, package) -> dict:
         """Fail closed before the model when named memory obligations are missing."""

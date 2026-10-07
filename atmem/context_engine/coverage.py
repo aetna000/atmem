@@ -15,6 +15,8 @@ def storage_report(store: SQLiteStore) -> dict[str, Any]:
         "links": "SELECT COALESCE(SUM(length(relation)),0) FROM context_evidence_links",
         "vectors": "SELECT COALESCE(SUM(length(vector_bytes)),0) FROM context_vectors",
         "coverage_loss": "SELECT COALESCE(SUM(length(COALESCE(reason_code,''))),0) FROM context_coverage",
+        "lexical_index_source": """SELECT COALESCE(SUM(r.end_offset-r.start_offset),0)
+            FROM context_range_fts_map m JOIN context_source_ranges r USING(range_id)""",
     }
     categories = {
         name: int(store._conn.execute(sql).fetchone()[0])
