@@ -162,6 +162,55 @@ def test_withheld_range_in_matched_episode_keeps_obligation_partial() -> None:
         store.close()
 
 
+def test_withheld_range_can_name_query_need_without_exposing_removed_value() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source = manager.retain_source(SourceEpisode(
+            episode_id="vendor-choice", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"Honeycomb was selected for end-to-end request tracing. "
+                b"The team moved on to unrelated launch planning.",
+            ),),
+        ))
+        manager.form_source(source, generation, range_granularity="sentence")
+        hidden = store._conn.execute(
+            """SELECT ur.range_id, u.unit_id
+               FROM context_evidence_units u
+               JOIN context_unit_ranges ur USING(generation_id, unit_id)
+               JOIN context_source_ranges r USING(range_id)
+               WHERE u.generation_id=? AND r.start_offset=0""",
+            (generation,),
+        ).fetchone()
+        with store.transaction():
+            store._conn.execute(
+                "UPDATE context_evidence_units SET lifecycle='deleted' "
+                "WHERE generation_id=? AND unit_id=?",
+                (generation, hidden["unit_id"]),
+            )
+            store._conn.execute(
+                "UPDATE context_coverage SET disposition='withheld', "
+                "reason_code='observation_forgotten' "
+                "WHERE generation_id=? AND range_id=?",
+                (generation, hidden["range_id"]),
+            )
+            store.remove_context_range_index(generation, str(hidden["range_id"]))
+        query = "Name the tracing vendor selected for end-to-end requests."
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        decision = decide_sufficiency(plan, result)
+        assert result.withheld_obligation_ids == ("need-1",)
+        assert decision.status == "partial"
+        assert all("Honeycomb" not in item.text for item in result.candidates)
+        assert all("Honeycomb" not in item.relation_or_action for item in plan.obligations)
+    finally:
+        store.close()
+
+
 def test_independent_pool_retrieval_reserves_both_comparison_sides() -> None:
     store = SQLiteStore(":memory:")
     try:

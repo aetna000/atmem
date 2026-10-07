@@ -80,6 +80,7 @@ def test_dolphin_removal_matching_is_conservative() -> None:
         _atomic_removal_records,
         _gate_blocks_removed_requirement,
         _matching_records,
+        _select_removal_requirement,
     )
 
     requirement = {
@@ -156,6 +157,22 @@ def test_dolphin_removal_matching_is_conservative() -> None:
     )
     assert failure is None
     assert {row["id"] for row in selected} == {"choice", "reason"}
+    selected_requirement, selection = _select_removal_requirement(
+        {"requirements": [
+            {
+                "requirement_id": "fact-b", "expected": "Unrelated old state.",
+                "removal_applicable": True,
+            },
+            {
+                "requirement_id": "fact-a",
+                "expected": "The empty source list is the next focus.",
+                "removal_applicable": True,
+            },
+        ]},
+        "Explain why the empty source list became the next focus.",
+    )
+    assert selected_requirement["requirement_id"] == "fact-a"
+    assert selection["product_output_observed"] is False
     requirement = {"expected": "Deployment updates must go to eng-releases."}
     assert _gate_blocks_removed_requirement({
         "outcome": "blocked_missing_requirement",

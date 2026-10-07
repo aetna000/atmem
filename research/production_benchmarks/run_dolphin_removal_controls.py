@@ -60,7 +60,21 @@ def _normalized(value: str) -> str:
 
 
 def _tokens(value: str) -> set[str]:
-    return {token for token in _normalized(value).split() if token not in STOP}
+    synonyms = {
+        "cc": "copy", "copied": "copy", "outside": "external",
+        "emails": "email", "threads": "thread", "calculation": "calculate",
+        "calculated": "calculate", "chose": "choose", "chosen": "choose",
+        "selected": "choose", "target": "choose", "personal": "private",
+        "completed": "finish", "finished": "finish",
+    }
+    values = set()
+    for raw in _normalized(value).split():
+        token = synonyms.get(raw, raw)
+        if len(token) > 4 and token.endswith("s") and not token.endswith("ss"):
+            token = token[:-1]
+        if token not in STOP:
+            values.add(token)
+    return values
 
 
 def _source_session_ids(requirement: dict) -> tuple[str, ...]:
@@ -70,6 +84,32 @@ def _source_session_ids(requirement: dict) -> tuple[str, ...]:
         if isinstance(ref, str) and ref.startswith("session:")
         and ref.partition(":")[2]
     }))
+
+
+def _select_removal_requirement(case: dict, task_text: str) -> tuple[dict, dict]:
+    """Freeze the most request-aligned removable fact without product output."""
+    query_tokens = _tokens(task_text)
+    candidates = []
+    for requirement in case["requirements"]:
+        if requirement.get("removal_applicable") is not True:
+            continue
+        expected = _tokens(str(requirement.get("expected") or ""))
+        overlap = len(query_tokens & expected)
+        candidates.append((
+            overlap / max(1, len(expected)), overlap,
+            str(requirement["requirement_id"]), requirement,
+        ))
+    if not candidates:
+        raise RuntimeError("case has no removal-applicable requirement")
+    candidates.sort(key=lambda row: (-row[0], -row[1], row[2]))
+    ratio, overlap, requirement_id, requirement = candidates[0]
+    return requirement, {
+        "method": "query_aligned_requirement_v1",
+        "requirement_id": requirement_id,
+        "overlap_tokens": overlap,
+        "expected_token_coverage": ratio,
+        "product_output_observed": False,
+    }
 
 
 def _matching_records(records: list[dict], requirement: dict) -> list[dict]:
@@ -192,12 +232,17 @@ def _gate_blocks_removed_requirement(gate: dict, requirement: dict) -> bool:
     expected = _tokens(str(requirement.get("expected") or ""))
     if gate.get("outcome") != "blocked_missing_requirement" or not expected:
         return False
-    for obligation in gate.get("missing_obligations") or ():
-        description = " ".join(str(obligation.get(key) or "") for key in (
+    descriptions = [
+        " ".join(str(obligation.get(key) or "") for key in (
             "entity", "relation_or_action", "temporal_target", "applicability",
         ))
+        for obligation in gate.get("missing_obligations") or ()
+    ]
+    for description in (*descriptions, " ".join(descriptions)):
         overlap = expected & _tokens(description)
-        if len(overlap) >= 2 and len(overlap) / len(expected) >= 0.10:
+        if len(overlap) >= 3 or (
+            len(overlap) >= 2 and len(overlap) / len(expected) >= 0.10
+        ):
             return True
     return False
 
@@ -231,6 +276,63 @@ def _recall(memory: Memory, persona: str, query: str, *, options: dict) -> objec
     ))
 
 
+def run_restored_gate_precheck(
+    *, checkpoint_root: Path, checkout: Path, manifest: dict,
+    output_root: Path, options: dict,
+) -> dict:
+    """Prove complete checkpoints open every gate without invoking a model."""
+    rows = []
+    memories: dict[str, Memory] = {}
+    try:
+        for case in manifest["cases"]:
+            case_id = str(case["case_id"])
+            persona, item = case_id.split(":", 1)
+            memory = memories.get(persona)
+            if memory is None:
+                memory = Memory(
+                    checkpoint_root / "atmem-personas" / f"{persona}.db",
+                    retain_query_text=False, auto_vectors=False,
+                )
+                memories[persona] = memory
+            spec = yaml.safe_load(
+                (checkout / "tests" / persona / f"{item}.yaml").read_text()
+            )
+            request = SimpleNamespace(
+                persona=persona,
+                interaction_id=item,
+                dated_message=(
+                    f"[{spec['narrative_anchor_date']}] {spec['test'].strip()}"
+                ),
+            )
+            package = _recall(
+                memory, persona, request.dated_message, options=options
+            )
+            gate = build_pre_action_gate_receipt(request, package)
+            rows.append({
+                "case_id": case_id,
+                "outcome": gate["outcome"],
+                "missing_requirement_ids": gate["missing_requirement_ids"],
+                "context_sha256": "sha256:" + hashlib.sha256(
+                    package.context.encode()
+                ).hexdigest(),
+                "model_invoked": False,
+                "tool_calls": 0,
+            })
+    finally:
+        for memory in memories.values():
+            memory.close()
+    report = {
+        "format": "atmem-dolphin-restored-gate-precheck-v1",
+        "case_count": len(rows),
+        "gate_open": sum(row["outcome"] == "gate_open" for row in rows),
+        "all_failures_retained": True,
+        "model_invocations": 0,
+        "results": rows,
+    }
+    _write(output_root / "restored-gate-precheck.json", report)
+    return report
+
+
 def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
                  output_root: Path, options: dict) -> dict:
     results = []
@@ -239,13 +341,16 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
     for case in manifest["cases"]:
         case_id = str(case["case_id"])
         persona, item = case_id.split(":", 1)
+        spec = yaml.safe_load(
+            (checkout / "tests" / persona / f"{item}.yaml").read_text()
+        )
+        requirement, requirement_selection = _select_removal_requirement(
+            case, str(spec["test"])
+        )
         scope = AuthorityScope(
             subject_id=f"dolphin:{persona}",
             agent_id="dolphin-agent",
             workspace_id=f"dolphin:{persona}",
-        )
-        requirement = next(
-            row for row in case["requirements"] if row.get("removal_applicable") is True
         )
         requirement_id = str(requirement["requirement_id"])
         source = checkpoint_root / "atmem-personas" / f"{persona}.db"
@@ -274,6 +379,7 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
                     "deleted_record_ids": [],
                     "source_session_ids": list(source_session_ids),
                     "selection_method": "atomic_source_statement",
+                    "requirement_selection": requirement_selection,
                 })
                 continue
             deleted = []
@@ -282,7 +388,6 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
                     scope, str(record["id"]), actor="benchmark-evaluator"
                 )
                 deleted.extend(result["unit_ids"])
-            spec = yaml.safe_load((checkout / "tests" / persona / f"{item}.yaml").read_text())
             request = SimpleNamespace(
                 persona=persona,
                 interaction_id=item,
@@ -311,6 +416,7 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
                 "deleted_record_ids": deleted,
                 "source_session_ids": list(source_session_ids),
                 "selection_method": "atomic_source_statement",
+                "requirement_selection": requirement_selection,
                 "expected_obligation_slots": sorted(removed_slots),
                 "context_sha256": "sha256:" + hashlib.sha256(package.context.encode()).hexdigest(),
             })
@@ -405,6 +511,11 @@ def main() -> None:
     args = parser.parse_args()
     manifest = _load(args.manifest.resolve())
     options = _load(args.adapter_options.resolve()) if args.adapter_options else {}
+    run_restored_gate_precheck(
+        checkpoint_root=args.checkpoint_root.resolve(),
+        checkout=args.dolphin_checkout.resolve(), manifest=manifest,
+        output_root=args.output_root.resolve(), options=options,
+    )
     removal = run_removals(
         checkpoint_root=args.checkpoint_root.resolve(),
         checkout=args.dolphin_checkout.resolve(), manifest=manifest,

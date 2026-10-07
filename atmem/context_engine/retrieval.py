@@ -434,23 +434,18 @@ class DeterministicRetriever:
             }
         withheld_obligations: tuple[str, ...] = ()
         incomplete_rows = self.store._conn.execute(
-            """SELECT DISTINCT r.source_id, r.start_offset, r.end_offset,
+            """SELECT DISTINCT missing_range.source_id,
+                              missing_range.start_offset,
+                              missing_range.end_offset,
                               p.content_bytes
                FROM context_coverage missing
                JOIN context_source_ranges missing_range
                  ON missing_range.range_id=missing.range_id
-               JOIN context_source_ranges r
-                 ON r.source_id=missing_range.source_id
-               JOIN context_unit_ranges ur
-                 ON ur.generation_id=missing.generation_id
-                AND ur.range_id=r.range_id
-               JOIN context_evidence_units u
-                 ON u.generation_id=ur.generation_id AND u.unit_id=ur.unit_id
                JOIN context_source_parts p
-                 ON p.source_id=r.source_id AND p.part_id=r.part_id
+                 ON p.source_id=missing_range.source_id
+                AND p.part_id=missing_range.part_id
                WHERE missing.generation_id=? AND missing.disposition='withheld'
-                 AND u.lifecycle='active'
-               ORDER BY r.source_id, r.start_offset LIMIT 256""",
+               ORDER BY missing_range.source_id, missing_range.start_offset LIMIT 256""",
             (generation_id,),
         ).fetchall()
         incomplete_source_terms: dict[str, set[str]] = {}
@@ -460,8 +455,34 @@ class DeterministicRetriever:
             incomplete_source_terms.setdefault(str(row["source_id"]), set()).update(
                 _fts_terms(body[start:end].decode("utf-8", errors="replace"))
             )
+        active_context_rows = self.store._conn.execute(
+            """SELECT DISTINCT missing_range.source_id, r.start_offset,
+                              r.end_offset, p.content_bytes
+               FROM context_coverage missing
+               JOIN context_source_ranges missing_range
+                 ON missing_range.range_id=missing.range_id
+               JOIN context_source_ranges r
+                 ON r.source_id=missing_range.source_id
+               JOIN context_coverage active
+                 ON active.generation_id=missing.generation_id
+                AND active.range_id=r.range_id
+               JOIN context_source_parts p
+                 ON p.source_id=r.source_id AND p.part_id=r.part_id
+               WHERE missing.generation_id=? AND missing.disposition='withheld'
+                 AND active.disposition='represented'
+               ORDER BY missing_range.source_id, r.start_offset LIMIT 512""",
+            (generation_id,),
+        ).fetchall()
+        active_source_terms: dict[str, set[str]] = {}
+        for row in active_context_rows:
+            body = bytes(row["content_bytes"])
+            start, end = int(row["start_offset"]), int(row["end_offset"])
+            active_source_terms.setdefault(str(row["source_id"]), set()).update(
+                _fts_terms(body[start:end].decode("utf-8", errors="replace"))
+            )
         if withheld_sources or incomplete_source_terms:
             values: list[str] = []
+            query_terms = set(_fts_terms(query))
             for obligation in plan.obligations:
                 terms = set(_fts_terms(" ".join(filter(None, (
                     obligation.entity, obligation.relation_or_action,
@@ -475,7 +496,26 @@ class DeterministicRetriever:
                     (len(terms & source_terms) for source_terms in incomplete_source_terms.values()),
                     default=0,
                 )
-                if relevant_incomplete_source or incomplete_overlap >= min(2, len(terms)):
+                query_overlap = max(
+                    (
+                        len(query_terms & source_terms)
+                        for source_terms in incomplete_source_terms.values()
+                    ),
+                    default=0,
+                )
+                active_source_overlap = max(
+                    (
+                        len(query_terms & source_terms)
+                        for source_terms in active_source_terms.values()
+                    ),
+                    default=0,
+                )
+                if (
+                    relevant_incomplete_source
+                    or incomplete_overlap >= max(1, min(2, len(terms)))
+                    or query_overlap >= max(1, min(2, len(query_terms)))
+                    or active_source_overlap >= max(1, min(2, len(query_terms)))
+                ):
                     values.append(obligation.obligation_id)
             withheld_obligations = tuple(values)
         value = RetrievalResult(

@@ -68,11 +68,12 @@ def decide_sufficiency(
                 reason_codes.append("distinct_source_values")
             else:
                 status = "sufficient"
+    elif set(missing) & set(result.withheld_obligation_ids):
+        status = "partial"
+        reason_codes.append("source_episode_incomplete")
     elif evidence_ids:
         reason_codes.append(
-            "source_episode_incomplete"
-            if set(missing) & set(result.withheld_obligation_ids)
-            else "missing_required_obligations"
+            "missing_required_obligations"
         )
     else:
         reason_codes.append("search_budget_exhausted" if result.exhausted else "no_indexed_evidence")

@@ -234,6 +234,10 @@ models, budgets and dataset hashes match the frozen protocol.
 - **FR-006 — Coverage and loss**: Formation MUST emit source-region coverage,
   proposal/admission/rejection counts and explicit loss/unsupported receipts.
   Representation completeness MUST NOT be inferred from processing completion.
+  An authorized retained source range that is withheld from retrieval MAY be
+  used only to decide that a query-derived obligation has lost coverage. Its
+  value MUST NOT become a candidate, context byte, or missing-obligation label;
+  the externally visible label MUST be derived from the request itself.
 - **FR-007 — Reconciliation**: Add, update, correction, supersession, conflict,
   duplicate occurrence and negative observations MUST preserve source lineage,
   current/historical state and idempotent replay.
@@ -454,7 +458,12 @@ models, budgets and dataset hashes match the frozen protocol.
   atomization cannot isolate it, the control MUST fail as
   `non_atomic_removal_target`; deleting a whole episode and treating unrelated
   missing obligations as the intended block is forbidden. Positive control
-  MUST restore the same unit identities.
+  MUST restore the same unit identities. Where a task has several removable
+  requirements, the control target MUST be frozen before product execution by
+  the deterministic `query_aligned_requirement_v1` rule: greatest normalized
+  lexical coverage by the official task request, then greatest overlap count,
+  then stable requirement ID. Product output and gate outcome MUST NOT
+  participate in target selection.
 
 ### Key Entities
 

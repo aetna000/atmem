@@ -30,6 +30,7 @@ def _need_clauses(query: str) -> tuple[str, ...]:
         flags=re.IGNORECASE,
     )
     clauses = []
+    pending_context: str | None = None
     for piece in pieces:
         normalized = " ".join(piece.split()).strip(" ,.;")
         significant = [
@@ -45,12 +46,21 @@ def _need_clauses(query: str) -> tuple[str, ...]:
                 r"\b(required|established|usual|earliest|current|historical|"
                 r"decision|evidence|status|scope|outcome|approved|accountability|"
                 r"measurement|pending|closed|open|former|prior|final|claiming|"
-                r"correct|review|inspect|find)\b",
+                r"correct|review|inspect|find|told|remember|reassessment|"
+                r"running\s+plan|summari[sz](?:e|ing)|mature\s+read)\b",
                 lowered,
             )
         )
         if len(significant) >= 2 and memory_cue:
-            clauses.append(normalized)
+            clauses.append(
+                f"{pending_context}. {normalized}" if pending_context else normalized
+            )
+            pending_context = None
+        elif len(significant) >= 2:
+            # Preserve immediately preceding user-supplied context as part of
+            # the next explicit need rather than promoting it to a standalone
+            # requirement that could make every action fail closed.
+            pending_context = normalized
     return tuple(dict.fromkeys(clauses[:4])) or (value,)
 
 
