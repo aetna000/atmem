@@ -447,11 +447,14 @@ models, budgets and dataset hashes match the frozen protocol.
   stable source identity; a unit spanning multiple evaluator requirements
   cannot support a one-requirement removal claim.
 - **FR-047 — Removal-unit integrity**: Every Dolphin removal control MUST map the
-  removed evaluator requirement to one represented source-linked unit that
-  contains no other material requirement for that task. If atomization cannot
-  isolate it, the control MUST fail as `non_atomic_removal_target`; deleting a
-  whole episode and treating unrelated missing obligations as the intended
-  block is forbidden. Positive control MUST restore the same unit identity.
+  removed evaluator requirement to the smallest represented source-linked unit
+  set that contains no other material requirement for that task. A requirement
+  spanning adjacent clauses MAY use multiple exact units only when every unit
+  is exclusive to that requirement and the receipt names the complete set. If
+  atomization cannot isolate it, the control MUST fail as
+  `non_atomic_removal_target`; deleting a whole episode and treating unrelated
+  missing obligations as the intended block is forbidden. Positive control
+  MUST restore the same unit identities.
 
 ### Key Entities
 

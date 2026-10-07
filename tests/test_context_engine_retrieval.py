@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from atmem.context_engine.formation import FormationManager, SourceEpisode, SourcePart
+from atmem.context_engine.formation import (
+    FormationManager, SourceEpisode, SourcePart, _sentence_ranges,
+)
 from atmem.context_engine.planner import DeterministicPlanner
 from atmem.context_engine.retrieval import DeterministicRetriever, _fts_terms
 from atmem.context_engine.sufficiency import decide_sufficiency
@@ -10,6 +12,25 @@ from atmem.store.sqlite import SQLiteStore
 
 
 SCOPE = AuthorityScope(subject_id="person-1", agent_id="agent-a", workspace_id="work-1")
+
+
+def test_bounded_clause_ranges_isolate_compound_facts_without_splitting_lists() -> None:
+    compound = (
+        b"Evergreen follow-up was prepared, and an Acme prompt pointed support "
+        b"to the clock-skew docs."
+    )
+    spans = _sentence_ranges(compound)
+    assert [compound[start:end] for start, end in spans] == [
+        b"Evergreen follow-up was prepared,",
+        b"and an Acme prompt pointed support to the clock-skew docs.",
+    ]
+    metric = (
+        b"OAuth cancellation fell from 41 to 14 and support tickets fell from "
+        b"12 to 2, so I am treating that as validated activation work."
+    )
+    assert len(_sentence_ranges(metric)) == 3
+    palette = b"The palette is ultramarine, burnt sienna, and yellow ochre."
+    assert _sentence_ranges(palette) == ((0, len(palette)),)
 
 
 def test_planner_declares_distinct_comparison_heads_and_preserves_query() -> None:

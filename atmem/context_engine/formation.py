@@ -37,7 +37,38 @@ def _sentence_ranges(content: bytes) -> tuple[tuple[int, int], ...]:
         while end > start and content[end - 1:end].isspace():
             end -= 1
         if end > start:
-            values.append((start, end))
+            # Preserve independently removable facts when prose joins two
+            # substantial clauses. The source bytes remain canonical and are
+            # never copied; these are only exact offsets into that source.
+            boundaries = [start]
+            segment = content[start:end]
+            for clause in re.finditer(
+                rb",\s+(?=(?:and|but|so)\s+.{24,}$)|"
+                rb"\s+(?=and\s+(?:support\s+tickets|I(?:'m|\s+am)\b|"
+                rb"we\b|they\b|he\b|she\b|the\s+[A-Za-z-]+\s+"
+                rb"(?:is|was|has|will)\b))",
+                segment,
+                re.IGNORECASE,
+            ):
+                boundary = start + clause.end()
+                left_text = content[boundaries[-1]:boundary]
+                right_text = content[boundary:end]
+                predicate = rb"\b(?:is|are|was|were|has|have|had|fell|rose|grew|became|remains?|[A-Za-z]+ed|[A-Za-z]+ing)\b"
+                if (
+                    boundary - boundaries[-1] >= 24
+                    and end - boundary >= 24
+                    and re.search(predicate, left_text, re.IGNORECASE)
+                    and re.search(predicate, right_text, re.IGNORECASE)
+                ):
+                    boundaries.append(boundary)
+            boundaries.append(end)
+            for left, right in zip(boundaries, boundaries[1:]):
+                while left < right and content[left:left + 1].isspace():
+                    left += 1
+                while right > left and content[right - 1:right].isspace():
+                    right -= 1
+                if right > left:
+                    values.append((left, right))
     return tuple(values) or ((0, len(content)),)
 
 

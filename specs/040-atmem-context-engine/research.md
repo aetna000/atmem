@@ -110,6 +110,15 @@ range whose surviving source text cannot identify the missing need. They are
 failures for this control run, not silent successes. The five composite ranges
 still require bounded-clause formation. Paid execution remains blocked.
 
+The next clean candidate keeps the immutable source body unchanged but permits
+bounded predicate-bearing clauses to become separately source-linked units.
+Where one evaluator requirement genuinely spans adjacent clauses, the removal
+control may select the smallest set whose members are all exclusive to that
+requirement. It may not delete a clause that materially supports another
+requirement, and it records every removed unit identity. This is a formation
+and evaluator-integrity correction; its result must come from a newly built,
+installed wheel and newly formed checkpoints rather than the prior databases.
+
 ## Decisions
 
 ### R1 — Clean engine boundary

@@ -115,12 +115,13 @@ def _is_source_statement(record: dict) -> bool:
 def _atomic_removal_records(
     records: list[dict], requirement: dict, case_requirements: list[dict]
 ) -> tuple[list[dict], str | None]:
-    """Select one evaluator-matched source unit or fail without deleting.
+    """Select a minimal evaluator-matched unit set or fail without deleting.
 
     Provenance narrows selection to the immutable source session. Evaluator
-    wording may then identify a minimal source-statement unit, but never enters
-    retrieval or the product database. Ties and units that also materially
-    match another requirement are non-atomic controls rather than successes.
+    wording may then identify minimal source-statement units, but never enters
+    retrieval or the product database. A fact may span adjacent atomic clauses;
+    every selected clause must be exclusive to that one requirement. Units that
+    also materially match another requirement remain non-atomic failures.
     """
     candidates = _matching_records(records, requirement)
     statements = [row for row in candidates if _is_source_statement(row)]
@@ -138,18 +139,47 @@ def _atomic_removal_records(
     scored.sort(key=lambda item: (-item[0], item[1]))
     if not scored or scored[0][0] <= 0:
         return [], "non_atomic_removal_target"
-    if len(scored) > 1 and abs(scored[0][0] - scored[1][0]) < 1e-12:
-        return [], "non_atomic_removal_target"
-    selected = scored[0][2]
-    selected_tokens = _tokens(str(selected.get("content") or ""))
     source_sessions = set(_source_session_ids(requirement))
-    for other in case_requirements:
-        if other is requirement or not (source_sessions & set(_source_session_ids(other))):
+    exclusive: list[tuple[float, str, dict, set[str]]] = []
+    for score, unit_id, row in scored:
+        selected_tokens = _tokens(str(row.get("content") or ""))
+        overlaps_other = False
+        for other in case_requirements:
+            if other is requirement or not (
+                source_sessions & set(_source_session_ids(other))
+            ):
+                continue
+            other_tokens = _tokens(str(other.get("expected") or ""))
+            if (
+                other_tokens
+                and len(other_tokens & selected_tokens) / len(other_tokens) >= 0.60
+            ):
+                overlaps_other = True
+                break
+        if not overlaps_other:
+            exclusive.append((score, unit_id, row, selected_tokens))
+    if not exclusive:
+        return [], "non_atomic_removal_target"
+    selected_rows: list[dict] = []
+    covered: set[str] = set()
+    for _score, _unit_id, row, tokens in exclusive:
+        gain = (tokens & expected_tokens) - covered
+        if not gain:
             continue
-        other_tokens = _tokens(str(other.get("expected") or ""))
-        if other_tokens and len(other_tokens & selected_tokens) / len(other_tokens) >= 0.60:
+        selected_rows.append(row)
+        covered.update(tokens & expected_tokens)
+        if len(covered) / len(expected_tokens) >= 0.80 or len(selected_rows) >= 4:
+            break
+    if not selected_rows:
+        return [], "non_atomic_removal_target"
+    # If several candidates contribute exactly the same coverage, choosing one
+    # would make the control depend on an arbitrary unit ID.
+    if len(selected_rows) == 1 and len(exclusive) > 1:
+        first_coverage = exclusive[0][3] & expected_tokens
+        second_coverage = exclusive[1][3] & expected_tokens
+        if first_coverage == second_coverage:
             return [], "non_atomic_removal_target"
-    return [selected], None
+    return selected_rows, None
 
 
 def _gate_blocks_removed_requirement(gate: dict, requirement: dict) -> bool:

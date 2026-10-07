@@ -76,8 +76,9 @@ development run is permitted after the matched adapters are ready.
   non-atomic/gate-mismatch outcomes. Do not tune the evaluator to hide them.
 - [x] [T005J] Add exact source-linked sentence/bounded-clause observations with
   stable offsets, reserved structural schema validation and regression tests;
-  require one-requirement removal units and emit `non_atomic_removal_target`
-  instead of deleting a multi-requirement episode (FR-046–FR-047, SC-021).
+  require the smallest exclusive one-requirement removal unit set and emit
+  `non_atomic_removal_target` instead of deleting a multi-requirement episode
+  (FR-046–FR-047, SC-021).
 - [x] [T005K] Add an opt-in scope-bound authorized history-import review flow
   using public review APIs, single-use authorization and audit receipts. Prove
   default imports remain fail-closed and evaluator manifests cannot enter the

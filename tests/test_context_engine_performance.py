@@ -135,6 +135,27 @@ def test_dolphin_removal_matching_is_conservative() -> None:
     )
     assert selected == []
     assert failure == "non_atomic_removal_target"
+    spanning = {
+        "expected": "Honeycomb was chosen because tracing follows requests end to end.",
+        "source_refs": ["session:004978"],
+    }
+    spanning_records = [
+        {
+            "id": "choice", "source_session_id": "004978",
+            "content": "Honeycomb was chosen.",
+            "raw": source_statement("Honeycomb was chosen."),
+        },
+        {
+            "id": "reason", "source_session_id": "004978",
+            "content": "Tracing follows requests end to end.",
+            "raw": source_statement("Tracing follows requests end to end."),
+        },
+    ]
+    selected, failure = _atomic_removal_records(
+        spanning_records, spanning, [spanning]
+    )
+    assert failure is None
+    assert {row["id"] for row in selected} == {"choice", "reason"}
     requirement = {"expected": "Deployment updates must go to eng-releases."}
     assert _gate_blocks_removed_requirement({
         "outcome": "blocked_missing_requirement",
