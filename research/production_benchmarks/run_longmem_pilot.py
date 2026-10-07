@@ -56,6 +56,22 @@ def _load(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _attribution_summary(artifacts: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Serialize both the shared review policy and benchmark-specific pins."""
+    summary: dict[str, Any] = {
+        "review_protocol": {
+            "protocol_sha256": canonical_digest(artifacts["review_protocol"]),
+        }
+    }
+    for name in ("longmemeval_v2", "dolphinbench"):
+        row = artifacts[name]
+        summary[name] = {
+            "manifest_sha256": row["manifest"]["manifest_sha256"],
+            "equivalence_sha256": row["equivalence"]["receipt_sha256"],
+        }
+    return summary
+
+
 def _canonical_digest(value: Any) -> str:
     encoded = json.dumps(
         value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
@@ -366,13 +382,7 @@ def main() -> None:
             "hardware_profile": hardware_profile,
             "data_preflight": data_preflight.report(),
             "reader_processor": processor_preflight,
-            "attribution_artifacts": {
-                name: {
-                    "manifest_sha256": row["manifest"]["manifest_sha256"],
-                    "equivalence_sha256": row["equivalence"]["receipt_sha256"],
-                }
-                for name, row in attribution_artifacts.items()
-            },
+            "attribution_artifacts": _attribution_summary(attribution_artifacts),
             "paid_egress_started": False,
         }, indent=2, sort_keys=True))
         return
@@ -468,13 +478,7 @@ def main() -> None:
         "reader_processor": processor_preflight,
         "hardware_profile": hardware_profile,
         "methods": list(METHODS),
-        "attribution_artifacts": {
-            name: {
-                "manifest_sha256": row["manifest"]["manifest_sha256"],
-                "equivalence_sha256": row["equivalence"]["receipt_sha256"],
-            }
-            for name, row in attribution_artifacts.items()
-        },
+        "attribution_artifacts": _attribution_summary(attribution_artifacts),
         "cases": cases,
     }
     _write_progress(progress_path, progress)
