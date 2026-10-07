@@ -239,6 +239,22 @@ def test_longmem_agentrunbook_hash_embedder_patch_is_exact(
     assert not longmemeval_v2._is_expected_agentrunbook_patch(tmp_path, adapter)
 
 
+def test_checkpoint_builder_replaces_stale_embedding_readiness(tmp_path: Path) -> None:
+    from research.production_benchmarks import prepare_longmem_memories
+
+    ready = tmp_path / "embedding-ready.json"
+    ready.write_text(
+        json.dumps({"base_url": "http://127.0.0.1:1/v1"}), encoding="utf-8"
+    )
+    process, base_url = prepare_longmem_memories._start_embedding_proxy(ready)
+    try:
+        assert base_url != "http://127.0.0.1:1/v1"
+        assert json.loads(ready.read_text(encoding="utf-8"))["base_url"] == base_url
+    finally:
+        process.terminate()
+        process.wait(timeout=5)
+
+
 def test_paid_proxy_and_harness_environments_are_credential_isolated() -> None:
     from research.production_benchmarks import longmemeval_v2
 

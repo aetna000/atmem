@@ -93,6 +93,17 @@ def _wait_ready(process: subprocess.Popen, path: Path) -> str:
     raise RuntimeError("local embedding proxy did not become ready")
 
 
+def _start_embedding_proxy(ready: Path) -> tuple[subprocess.Popen, str]:
+    """Start a fresh proxy without trusting a prior run's readiness receipt."""
+    ready.unlink(missing_ok=True)
+    process = subprocess.Popen([
+        sys.executable,
+        str(ROOT / "research/production_benchmarks/local_embedding_proxy.py"),
+        "--ready-file", str(ready),
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return process, _wait_ready(process, ready)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkout", required=True)
@@ -141,12 +152,7 @@ def main() -> int:
             domains[str(row["domain"])].append(str(row["id"]))
     output.mkdir(parents=True, exist_ok=args.resume)
     ready = output / "embedding-ready.json"
-    proxy = subprocess.Popen([
-        sys.executable,
-        str(ROOT / "research/production_benchmarks/local_embedding_proxy.py"),
-        "--ready-file", str(ready),
-    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    embedding_url = _wait_ready(proxy, ready)
+    proxy, embedding_url = _start_embedding_proxy(ready)
     receipts = []
     try:
         work = [("no-retrieval", "web")]

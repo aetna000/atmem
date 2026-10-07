@@ -107,6 +107,10 @@ development run is permitted after the matched adapters are ready.
   without attempting an unrelated Hugging Face tokenizer download. Reject any
   other comparator source change and rerun only incomplete checkpoint arms
   (FR-039, FR-041, SC-019).
+- [x] [T005N] Make resumable matched-checkpoint construction replace stale
+  local embedding readiness receipts before accepting a loopback endpoint.
+  Prove a prior dead port cannot be reused and preserve completed arms while
+  rerunning only an incomplete comparator workspace (FR-039, SC-019).
 
 **Checkpoint**: A real A/B/C baseline exists before candidate implementation.
 
