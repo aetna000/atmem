@@ -83,7 +83,7 @@ development run is permitted after the matched adapters are ready.
   using public review APIs, single-use authorization and audit receipts. Prove
   default imports remain fail-closed and evaluator manifests cannot enter the
   product path (FR-045, SC-009, SC-021).
-- [ ] [T005L] Build and install a clean candidate wheel, rebuild all three
+- [x] [T005L] Build and install a clean candidate wheel, rebuild all three
   encrypted Dolphin persona checkpoints from full history, rerun all 30 removal
   controls, and retain formation/review/atomization counts. Paid evaluation is
   blocked until every applicable control is valid and zero unknown/system
@@ -95,6 +95,12 @@ development run is permitted after the matched adapters are ready.
   with zero model calls and no duplicated source bodies, but remains a failed
   gate: 25 controls exposed duplicate evidence identifiers across typed views
   and five removal targets remained non-atomic. No failed control was credited.
+  Clean commit `3831928` rebuilt all 13,539 sessions into three encrypted V3
+  checkpoints (311,545,856 bytes; 1.21x--1.28x logical derived/source ratio;
+  zero source duplication). All 30 restored-evidence gates opened and all 30
+  deterministic request-aligned removals produced a named pre-action block,
+  with zero model/tool calls or system-failure credit. See
+  `benchmarks/retrieval_quality/reports/dolphin-action-gate-3831928.md`.
 
 **Checkpoint**: A real A/B/C baseline exists before candidate implementation.
 

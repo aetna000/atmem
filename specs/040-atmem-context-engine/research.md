@@ -119,6 +119,20 @@ requirement, and it records every removed unit identity. This is a formation
 and evaluator-integrity correction; its result must come from a newly built,
 installed wheel and newly formed checkpoints rather than the prior databases.
 
+### `3831928` loss-aware action-gate qualification
+
+The exact installed wheel rebuilt all 13,539 sessions into three encrypted V3
+checkpoints. On the frozen 30-task manifest, complete evidence opened 30/30
+pre-action gates; after the deterministic evaluator-only
+`query_aligned_requirement_v1` rule selected one load-bearing fact per task,
+removing its smallest exclusive unit set blocked 30/30 gates and named a
+matching request-derived missing obligation. No model or tool was invoked and
+no timeout, parse error, provider error, generic abstention, or silent no-call
+was credited. The result closes the reader-free removal gate, not benchmark
+accuracy: paid restored-evidence controls must still invoke Hermes and produce
+the expected action. Exact identities and the per-task table are retained in
+`benchmarks/retrieval_quality/reports/dolphin-action-gate-3831928.md`.
+
 ## Decisions
 
 ### R1 — Clean engine boundary
