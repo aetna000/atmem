@@ -81,12 +81,26 @@ def test_dolphin_removal_matching_is_conservative() -> None:
         _matching_records,
     )
 
-    statement = "Deployment updates must go to the eng-releases channel."
+    requirement = {
+        "expected": "Deployment updates must go to the eng-releases channel.",
+        "source_refs": ["registry/facts.yaml#fact:1"],
+    }
     records = [
         {"id": "right", "content": "Deployment updates must go to eng-releases."},
         {"id": "wrong", "content": "The engineering team discussed deployment."},
     ]
-    assert [row["id"] for row in _matching_records(records, statement)] == ["right"]
+    assert [row["id"] for row in _matching_records(records, requirement)] == ["right"]
+    provenance_requirement = {
+        "expected": "Canonical wording not present in the source.",
+        "source_refs": ["session:004978"],
+    }
+    provenance_records = [
+        {"id": "right", "source_session_id": "004978", "content": "raw words"},
+        {"id": "wrong", "source_session_id": "004977", "content": "canonical wording"},
+    ]
+    assert [
+        row["id"] for row in _matching_records(provenance_records, provenance_requirement)
+    ] == ["right"]
     requirement = {"expected_obligation_slots": ["target", "rule"]}
     assert _gate_blocks_removed_requirement({
         "outcome": "blocked_missing_requirement",

@@ -65,7 +65,31 @@ def _tokens(value: str) -> set[str]:
     return {token for token in _normalized(value).split() if token not in STOP}
 
 
-def _matching_records(records: list[dict], statement: str) -> list[dict]:
+def _source_session_ids(requirement: dict) -> tuple[str, ...]:
+    return tuple(sorted({
+        ref.partition(":")[2]
+        for ref in requirement.get("source_refs") or ()
+        if isinstance(ref, str) and ref.startswith("session:")
+        and ref.partition(":")[2]
+    }))
+
+
+def _matching_records(records: list[dict], requirement: dict) -> list[dict]:
+    """Resolve the removable unit from frozen provenance, never answer text.
+
+    The official registry expresses a normalized fact that is often not a
+    verbatim substring of the user-authored source.  Session references are
+    evaluator-only provenance and select the represented source unit without
+    influencing retrieval.  Lexical matching is permitted only for manifests
+    that genuinely lack a source-session reference.
+    """
+    source_sessions = set(_source_session_ids(requirement))
+    if source_sessions:
+        return [
+            record for record in records
+            if str(record.get("source_session_id") or "") in source_sessions
+        ]
+    statement = str(requirement["expected"])
     expected = _normalized(statement)
     expected_tokens = _tokens(statement)
     if not expected_tokens:
@@ -143,7 +167,8 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
         memory: Memory | None = None
         try:
             memory = Memory(clone, retain_query_text=False, auto_vectors=False)
-            matches = _matching_records(memory.list(subject), str(requirement["expected"]))
+            source_session_ids = _source_session_ids(requirement)
+            matches = _matching_records(memory.list(subject), requirement)
             if not matches:
                 results.append({
                     "case_id": case_id,
@@ -154,6 +179,11 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
                     "tool_calls": 0,
                     "error_type": None,
                     "deleted_record_ids": [],
+                    "source_session_ids": list(source_session_ids),
+                    "selection_method": (
+                        "source_session_provenance" if source_session_ids
+                        else "conservative_lexical_fallback"
+                    ),
                 })
                 continue
             deleted = []
@@ -186,6 +216,11 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
                 "tool_calls": 0,
                 "error_type": None,
                 "deleted_record_ids": deleted,
+                "source_session_ids": list(source_session_ids),
+                "selection_method": (
+                    "source_session_provenance" if source_session_ids
+                    else "conservative_lexical_fallback"
+                ),
                 "expected_obligation_slots": sorted(removed_slots),
                 "context_sha256": "sha256:" + hashlib.sha256(package.context.encode()).hexdigest(),
             })

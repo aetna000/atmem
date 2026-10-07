@@ -67,6 +67,9 @@ development run is permitted after the matched adapters are ready.
 - [x] [T005G] Fail closed when any checkpoint, removal-control, ingestion, or
   paid runner imports AtMem from the source checkout instead of the pinned
   installed wheel.
+- [x] [T005H] Bind Dolphin removal targets to frozen evaluator-only source
+  provenance; canonical registry wording must not be mistaken for verbatim
+  product memory, and absent represented source units remain formation failures.
 
 **Checkpoint**: A real A/B/C baseline exists before candidate implementation.
 
