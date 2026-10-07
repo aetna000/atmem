@@ -208,6 +208,37 @@ def test_longmem_retry_patch_is_exact(tmp_path: Path, monkeypatch) -> None:
     )
 
 
+def test_longmem_agentrunbook_hash_embedder_patch_is_exact(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from research.production_benchmarks import longmemeval_v2
+
+    original = (
+        "import re\n"
+        + longmemeval_v2.AGENTRUNBOOK_TOKENIZER_ORIGINAL
+        + "\n"
+        + longmemeval_v2.AGENTRUNBOOK_TRUNCATE_ORIGINAL
+    ).encode()
+    adapter = tmp_path / "agentrunbook_r.py"
+    monkeypatch.setattr(longmemeval_v2, "_git_blob", lambda _root, _name: original)
+    adapter.write_text(
+        original.decode().replace(
+            longmemeval_v2.AGENTRUNBOOK_TOKENIZER_ORIGINAL,
+            longmemeval_v2.AGENTRUNBOOK_TOKENIZER_MARKER,
+            1,
+        ).replace(
+            longmemeval_v2.AGENTRUNBOOK_TRUNCATE_ORIGINAL,
+            longmemeval_v2.AGENTRUNBOOK_TRUNCATE_MARKER,
+            1,
+        ),
+        encoding="utf-8",
+    )
+    assert longmemeval_v2._is_expected_agentrunbook_patch(tmp_path, adapter)
+
+    adapter.write_text(adapter.read_text() + "unreviewed = True\n", encoding="utf-8")
+    assert not longmemeval_v2._is_expected_agentrunbook_patch(tmp_path, adapter)
+
+
 def test_paid_proxy_and_harness_environments_are_credential_isolated() -> None:
     from research.production_benchmarks import longmemeval_v2
 

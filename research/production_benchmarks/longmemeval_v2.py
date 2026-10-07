@@ -126,6 +126,50 @@ MEMORY_CACHE_FORWARD_MARKER = (
 )
 RETRY_ORIGINAL = "OPENAI_MAX_RETRIES = 10\n"
 RETRY_MARKER = "OPENAI_MAX_RETRIES = 0  # AtMem paid-pilot egress cap\n"
+AGENTRUNBOOK_TOKENIZER_ORIGINAL = '''    def _get_embedding_tokenizer(self):
+        if self._embedding_tokenizer is None:
+            with self._embedding_tokenizer_init_lock:
+                if self._embedding_tokenizer is None:
+                    self._embedding_tokenizer = AutoTokenizer.from_pretrained(self.embedding_model)
+        return self._embedding_tokenizer
+'''
+AGENTRUNBOOK_TOKENIZER_MARKER = '''    def _get_embedding_tokenizer(self):
+        # The frozen parity route uses a local deterministic hash embedder,
+        # not a Hugging Face model. Its tokens are regex word spans, so no
+        # remote tokenizer lookup is valid or necessary.
+        if self.embedding_model == "atmem/hash-bow-768-v1":
+            return None
+        if self._embedding_tokenizer is None:
+            with self._embedding_tokenizer_init_lock:
+                if self._embedding_tokenizer is None:
+                    self._embedding_tokenizer = AutoTokenizer.from_pretrained(self.embedding_model)
+        return self._embedding_tokenizer
+'''
+AGENTRUNBOOK_TRUNCATE_ORIGINAL = '''    def _truncate_for_embedding(self, text: str) -> str:
+        if len(text) > EMBEDDING_PRETOKEN_CHAR_CAP:
+            text = _truncate_middle(text, EMBEDDING_PRETOKEN_CHAR_CAP)
+        tokenizer = self._get_embedding_tokenizer()
+        token_ids = tokenizer.encode(text, add_special_tokens=False)
+        if len(token_ids) <= self.embedding_max_input_tokens:
+            return text
+        truncated_ids = token_ids[: self.embedding_max_input_tokens]
+        return tokenizer.decode(truncated_ids, skip_special_tokens=True)
+'''
+AGENTRUNBOOK_TRUNCATE_MARKER = '''    def _truncate_for_embedding(self, text: str) -> str:
+        if len(text) > EMBEDDING_PRETOKEN_CHAR_CAP:
+            text = _truncate_middle(text, EMBEDDING_PRETOKEN_CHAR_CAP)
+        if self.embedding_model == "atmem/hash-bow-768-v1":
+            spans = list(re.finditer(r"\\w+", text))
+            if len(spans) <= self.embedding_max_input_tokens:
+                return text
+            return text[:spans[self.embedding_max_input_tokens - 1].end()]
+        tokenizer = self._get_embedding_tokenizer()
+        token_ids = tokenizer.encode(text, add_special_tokens=False)
+        if len(token_ids) <= self.embedding_max_input_tokens:
+            return text
+        truncated_ids = token_ids[: self.embedding_max_input_tokens]
+        return tokenizer.decode(truncated_ids, skip_special_tokens=True)
+'''
 LLM_EVALUATORS = {"llm_abstention_checker", "llm_gotchas_checker"}
 NONSECRET_CHILD_ENVIRONMENT = {
     "PATH", "HOME", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL",
@@ -533,6 +577,7 @@ def install_official_adapter(checkout: str | Path) -> dict[str, str]:
     verified_destination = root / "memory_modules" / "atmem_verified.py"
     registry = root / "memory_modules" / "memory.py"
     runner = root / "evaluation" / "run_eval.py"
+    agentrunbook = root / "memory_modules" / "agentrunbook_r.py"
     retry_files = (
         root / "evaluation" / "harness.py",
         root / "evaluation" / "qa_eval_metrics.py",
@@ -583,6 +628,20 @@ def install_official_adapter(checkout: str | Path) -> dict[str, str]:
             MEMORY_CACHE_FORWARD_ORIGINAL, MEMORY_CACHE_FORWARD_MARKER, 1
         )
     runner.write_text(runner_text, encoding="utf-8")
+    agentrunbook_text = agentrunbook.read_text(encoding="utf-8")
+    if AGENTRUNBOOK_TOKENIZER_MARKER not in agentrunbook_text:
+        if agentrunbook_text.count(AGENTRUNBOOK_TOKENIZER_ORIGINAL) != 1:
+            raise RuntimeError("official AgentRunbook-R tokenizer marker changed")
+        agentrunbook_text = agentrunbook_text.replace(
+            AGENTRUNBOOK_TOKENIZER_ORIGINAL, AGENTRUNBOOK_TOKENIZER_MARKER, 1
+        )
+    if AGENTRUNBOOK_TRUNCATE_MARKER not in agentrunbook_text:
+        if agentrunbook_text.count(AGENTRUNBOOK_TRUNCATE_ORIGINAL) != 1:
+            raise RuntimeError("official AgentRunbook-R truncation marker changed")
+        agentrunbook_text = agentrunbook_text.replace(
+            AGENTRUNBOOK_TRUNCATE_ORIGINAL, AGENTRUNBOOK_TRUNCATE_MARKER, 1
+        )
+    agentrunbook.write_text(agentrunbook_text, encoding="utf-8")
     for retry_file in retry_files:
         retry_text = retry_file.read_text(encoding="utf-8")
         if RETRY_MARKER not in retry_text:
@@ -604,6 +663,7 @@ def install_official_adapter(checkout: str | Path) -> dict[str, str]:
         "verified_adapter_sha256": _sha256(verified_destination),
         "registry_sha256": _sha256(registry),
         "runner_sha256": _sha256(runner),
+        "agentrunbook_compatibility_sha256": _sha256(agentrunbook),
         "runtime_verified": str(installed["runtime_verified"]),
         "official_code_combined_sha256": verification[
             "official_code_combined_sha256"
@@ -649,6 +709,10 @@ def verify_official_checkout(checkout: str | Path) -> dict[str, str]:
             continue
         if name in {"evaluation/harness.py", "evaluation/qa_eval_metrics.py"} and (
             _is_expected_retry_patch(root, path, name)
+        ):
+            continue
+        if name == "memory_modules/agentrunbook_r.py" and (
+            _is_expected_agentrunbook_patch(root, path)
         ):
             continue
         raise RuntimeError(
@@ -699,6 +763,7 @@ def verify_installed_adapter(checkout: str | Path) -> dict[str, Any]:
     verified_adapter = root / "memory_modules" / "atmem_verified.py"
     registry = root / "memory_modules" / "memory.py"
     runner = root / "evaluation" / "run_eval.py"
+    agentrunbook = root / "memory_modules" / "agentrunbook_r.py"
     expected_adapter = Path(__file__).with_name("adapters") / "longmemeval_atmem.py"
     expected_mem0 = Path(__file__).with_name("adapters") / "longmemeval_mem0.py"
     expected_verified = Path(__file__).with_name("adapters") / "longmemeval_verified.py"
@@ -722,6 +787,10 @@ def verify_installed_adapter(checkout: str | Path) -> dict[str, Any]:
         "evaluation/qa_eval_metrics.py",
     ):
         raise RuntimeError("official LongMemEval judge retries are not safely bounded")
+    if not _is_expected_agentrunbook_patch(root, agentrunbook):
+        raise RuntimeError(
+            "official AgentRunbook-R deterministic embedder compatibility is not installed"
+        )
     return {**verification, "runtime_verified": True}
 
 
@@ -1088,6 +1157,21 @@ def _is_expected_retry_patch(root: Path, path: Path, git_name: str) -> bool:
     return path.read_text(encoding="utf-8") == expected
 
 
+def _is_expected_agentrunbook_patch(root: Path, path: Path) -> bool:
+    """Accept only the frozen local-hash-tokenizer compatibility patch."""
+    original = _git_blob(root, "memory_modules/agentrunbook_r.py").decode("utf-8")
+    if original.count(AGENTRUNBOOK_TOKENIZER_ORIGINAL) != 1:
+        return False
+    if original.count(AGENTRUNBOOK_TRUNCATE_ORIGINAL) != 1:
+        return False
+    expected = original.replace(
+        AGENTRUNBOOK_TOKENIZER_ORIGINAL, AGENTRUNBOOK_TOKENIZER_MARKER, 1
+    ).replace(
+        AGENTRUNBOOK_TRUNCATE_ORIGINAL, AGENTRUNBOOK_TRUNCATE_MARKER, 1
+    )
+    return path.read_text(encoding="utf-8") == expected
+
+
 def _read_case_row(case_output: Path) -> dict[str, Any]:
     path = case_output / "per_question.jsonl"
     rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
@@ -1162,6 +1246,7 @@ def _verify_worktree_shape(root: Path) -> None:
         " M evaluation/harness.py",
         " M evaluation/qa_eval_metrics.py",
         " M memory_modules/memory.py",
+        " M memory_modules/agentrunbook_r.py",
         "?? memory_modules/atmem.py",
         "?? memory_modules/mem0_oss.py",
         "?? memory_modules/atmem_verified.py",

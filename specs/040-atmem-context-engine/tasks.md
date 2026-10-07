@@ -101,6 +101,12 @@ development run is permitted after the matched adapters are ready.
   deterministic request-aligned removals produced a named pre-action block,
   with zero model/tool calls or system-failure credit. See
   `benchmarks/retrieval_quality/reports/dolphin-action-gate-3831928.md`.
+- [x] [T005M] Fail closed when the frozen AgentRunbook-R comparator uses the
+  local deterministic hash embedding route, and install an exact verifier-bound
+  compatibility patch that truncates on that embedder's regex-token boundary
+  without attempting an unrelated Hugging Face tokenizer download. Reject any
+  other comparator source change and rerun only incomplete checkpoint arms
+  (FR-039, FR-041, SC-019).
 
 **Checkpoint**: A real A/B/C baseline exists before candidate implementation.
 
