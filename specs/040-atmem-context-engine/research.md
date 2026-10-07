@@ -98,6 +98,18 @@ displacing exact matches. The next gate is independent
 exact/lexical/temporal/semantic fusion plus obligation-grounded coverage, not a
 larger undifferentiated top-k or a paid reader run.
 
+The subsequent obligation/loss-ledger iteration decomposed explicit request
+requirements, required lexical grounding for each nominated head, changed a
+forgotten observation from `represented` to `withheld`, and emitted the actual
+product obligation IDs and descriptions in the pre-action receipt. On the same
+30 controls, 19 removals produced a pre-action block whose independently
+evaluated product description matched the removed fact, with no model or tool
+invocation. Six gates remained open and five targets remained non-atomic. The
+six open cases contain either strong duplicate evidence elsewhere or a removed
+range whose surviving source text cannot identify the missing need. They are
+failures for this control run, not silent successes. The five composite ranges
+still require bounded-clause formation. Paid execution remains blocked.
+
 ## Decisions
 
 ### R1 — Clean engine boundary

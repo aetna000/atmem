@@ -57,6 +57,7 @@ class RetrievalResult:
     searched_pools: tuple[str, ...]
     scanned_units: int
     exhausted: bool
+    withheld_obligation_ids: tuple[str, ...] = ()
 
 
 class DeterministicRetriever:
@@ -285,13 +286,29 @@ class DeterministicRetriever:
             self.cache_hits += 1
             return cached
         by_pool: dict[str, list[RetrievedCandidate]] = {}
+        by_pool_query: dict[tuple[str, str], list[RetrievedCandidate]] = {}
         scanned = 0
         for pool in POOL_KINDS:
-            if not plan.pool_queries.get(pool):
+            queries = plan.pool_queries.get(pool) or ()
+            if not queries:
                 continue
-            rows = self._pool(generation_id, pool, query, allowed_unit_ids)
-            by_pool[pool] = rows
-            scanned += len(rows)
+            merged: dict[str, RetrievedCandidate] = {}
+            for pool_query in queries:
+                if scanned >= self.budget.total_units:
+                    break
+                rows = self._pool(
+                    generation_id, pool, pool_query, allowed_unit_ids
+                )
+                by_pool_query[(pool, pool_query)] = rows
+                scanned += len(rows)
+                for item in rows:
+                    prior = merged.get(item.unit_id)
+                    if prior is None or item.score > prior.score:
+                        merged[item.unit_id] = item
+            by_pool[pool] = sorted(
+                merged.values(),
+                key=lambda item: (-item.score, item.source_id, item.unit_id),
+            )
             if scanned >= self.budget.total_units:
                 break
         selected: list[RetrievedCandidate] = []
@@ -305,7 +322,32 @@ class DeterministicRetriever:
                 "claim_support": ("gotcha", "fact", "raw_state"),
                 "premise_check": ("premise", "raw_state"),
             }.get(obligation.kind, ("fact", "rule", "entity", "raw_state"))
-            candidates = [item for pool in preferred for item in by_pool.get(pool, ())]
+            obligation_query = obligation.relation_or_action or query
+            candidates = [
+                item
+                for pool in preferred
+                for item in by_pool_query.get(
+                    (pool, obligation_query), by_pool.get(pool, ())
+                )
+            ]
+            need_terms = set(_fts_terms(" ".join(filter(None, (
+                obligation.entity, obligation.relation_or_action,
+            )))))
+
+            def grounded(item: RetrievedCandidate) -> bool:
+                overlap = need_terms & set(_fts_terms(item.text))
+                if obligation.kind == "comparison_side":
+                    return bool(
+                        obligation.entity
+                        and obligation.entity.casefold() in item.text.casefold()
+                    )
+                if obligation.kind in {"claim_support", "premise_check"}:
+                    return bool(overlap)
+                return bool(overlap) and (
+                    len(overlap) >= 2
+                    or len(overlap) / max(1, len(need_terms)) >= 0.20
+                )
+
             if obligation.entity:
                 entity = obligation.entity.casefold()
                 candidates.sort(
@@ -318,6 +360,7 @@ class DeterministicRetriever:
                     item for item in candidates
                     if item.unit_id not in used_units
                     and item.source_id not in used_sources
+                    and grounded(item)
                 ),
                 None,
             )
@@ -374,9 +417,71 @@ class DeterministicRetriever:
                 used_units.discard(displaced.unit_id)
                 selected.append(neighbor)
             used_units.add(neighbor.unit_id)
+        selected_sources = {item.source_id for item in selected}
+        withheld_sources: set[str] = set()
+        if selected_sources:
+            placeholders = ",".join("?" for _ in selected_sources)
+            withheld_sources = {
+                str(row["source_id"])
+                for row in self.store._conn.execute(
+                    f"""SELECT DISTINCT r.source_id
+                         FROM context_coverage c
+                         JOIN context_source_ranges r USING(range_id)
+                         WHERE c.generation_id=? AND c.disposition='withheld'
+                           AND r.source_id IN ({placeholders})""",
+                    (generation_id, *sorted(selected_sources)),
+                ).fetchall()
+            }
+        withheld_obligations: tuple[str, ...] = ()
+        incomplete_rows = self.store._conn.execute(
+            """SELECT DISTINCT r.source_id, r.start_offset, r.end_offset,
+                              p.content_bytes
+               FROM context_coverage missing
+               JOIN context_source_ranges missing_range
+                 ON missing_range.range_id=missing.range_id
+               JOIN context_source_ranges r
+                 ON r.source_id=missing_range.source_id
+               JOIN context_unit_ranges ur
+                 ON ur.generation_id=missing.generation_id
+                AND ur.range_id=r.range_id
+               JOIN context_evidence_units u
+                 ON u.generation_id=ur.generation_id AND u.unit_id=ur.unit_id
+               JOIN context_source_parts p
+                 ON p.source_id=r.source_id AND p.part_id=r.part_id
+               WHERE missing.generation_id=? AND missing.disposition='withheld'
+                 AND u.lifecycle='active'
+               ORDER BY r.source_id, r.start_offset LIMIT 256""",
+            (generation_id,),
+        ).fetchall()
+        incomplete_source_terms: dict[str, set[str]] = {}
+        for row in incomplete_rows:
+            body = bytes(row["content_bytes"])
+            start, end = int(row["start_offset"]), int(row["end_offset"])
+            incomplete_source_terms.setdefault(str(row["source_id"]), set()).update(
+                _fts_terms(body[start:end].decode("utf-8", errors="replace"))
+            )
+        if withheld_sources or incomplete_source_terms:
+            values: list[str] = []
+            for obligation in plan.obligations:
+                terms = set(_fts_terms(" ".join(filter(None, (
+                    obligation.entity, obligation.relation_or_action,
+                )))))
+                relevant_incomplete_source = any(
+                    item.source_id in withheld_sources
+                    and bool(terms & set(_fts_terms(item.text)))
+                    for item in selected
+                )
+                incomplete_overlap = max(
+                    (len(terms & source_terms) for source_terms in incomplete_source_terms.values()),
+                    default=0,
+                )
+                if relevant_incomplete_source or incomplete_overlap >= min(2, len(terms)):
+                    values.append(obligation.obligation_id)
+            withheld_obligations = tuple(values)
         value = RetrievalResult(
             candidates=tuple(selected), searched_pools=tuple(by_pool), scanned_units=scanned,
             exhausted=scanned >= self.budget.total_units,
+            withheld_obligation_ids=withheld_obligations,
         )
         if len(self._cache) >= 256:
             self._cache.pop(next(iter(self._cache)))

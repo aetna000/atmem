@@ -92,35 +92,36 @@ def _driver_artifact_sha256(driver) -> str:
 def build_pre_action_gate_receipt(request, package) -> dict:
     """Return the product's fail-closed decision before any model/tool call."""
     decision = package.sufficiency
-    if hasattr(decision, "missing_obligation_ids"):
-        slot_map = {
-            "subject_relation_value": ("subject", "relation", "value"),
-            "condition_action": ("condition", "required_or_prohibited_action", "applicability"),
-            "before_action_after": ("before", "action", "after", "event_time"),
-            "ordered_steps": ("goal", "ordered_steps", "conditions", "completion"),
-            "claim_support": ("trigger", "failure", "safe_action"),
-            "comparison_side": ("comparison", "left", "right", "sides"),
-            "premise_check": ("polarity", "proposition", "applicability"),
-        }
-        required = [
-            slot
+    v3 = hasattr(decision, "missing_obligation_ids")
+    if v3:
+        obligation_rows = [
+            {
+                "obligation_id": obligation.obligation_id,
+                "kind": obligation.kind,
+                "entity": obligation.entity,
+                "relation_or_action": obligation.relation_or_action,
+                "temporal_target": obligation.temporal_target,
+                "polarity": obligation.polarity,
+                "applicability": obligation.applicability,
+            }
             for obligation in package.plan.obligations
-            for slot in slot_map[obligation.kind]
+            if obligation.required
         ]
+        required = [row["obligation_id"] for row in obligation_rows]
         missing_obligations = set(decision.missing_obligation_ids)
         missing = [
-            slot
-            for obligation in package.plan.obligations
-            if obligation.obligation_id in missing_obligations
-            for slot in slot_map[obligation.kind]
+            row["obligation_id"]
+            for row in obligation_rows
+            if row["obligation_id"] in missing_obligations
         ]
-        covered = [slot for slot in required if slot not in missing]
+        covered = [value for value in required if value not in missing]
     else:
+        obligation_rows = []
         required = list(decision.required_slots)
         covered = list(decision.covered_slots)
         missing = [str(item) for item in decision.missing_slots]
     gate_open = decision.status == "sufficient" and not missing
-    return {
+    receipt = {
         "format": "atmem-dolphin-pre-action-gate-v1",
         "case_id": f"{request.persona}:{str(request.interaction_id).zfill(3)}",
         "decision_id": decision.decision_id,
@@ -135,6 +136,13 @@ def build_pre_action_gate_receipt(request, package) -> dict:
         "tool_calls": 0,
         "error_type": None,
     }
+    if v3:
+        receipt["required_obligations"] = obligation_rows
+        receipt["missing_obligations"] = [
+            row for row in obligation_rows
+            if row["obligation_id"] in set(missing)
+        ]
+    return receipt
 
 
 def _require_completed_interaction(result) -> None:

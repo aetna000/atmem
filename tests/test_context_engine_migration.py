@@ -149,4 +149,4 @@ def test_interrupted_backfill_state_survives_snapshot_and_resume(tmp_path) -> No
 def test_context_engine_migrations_are_append_only_and_ordered() -> None:
     identifiers = [item[0] for item in MIGRATION_REGISTRY]
     assert identifiers == sorted(identifiers)
-    assert identifiers[-1] == "0404_context_range_lookup_indexes"
+    assert identifiers[-1] == "0405_context_coverage_disposition_index"

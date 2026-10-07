@@ -20,7 +20,7 @@ def decide_sufficiency(
         for item in result.candidates
         for obligation_id in item.matched_obligation_ids
         if obligation_id in required
-    }
+    } - set(result.withheld_obligation_ids)
     covered = tuple(item for item in required if item in covered_set)
     missing = tuple(item for item in required if item not in covered_set)
     evidence_ids = tuple(dict.fromkeys(item.unit_id for item in result.candidates))
@@ -56,7 +56,10 @@ def decide_sufficiency(
             }
             corrected = any("correction:" in text.casefold() or "replacing" in text.casefold() for text in texts)
             conflict_sensitive = any(
-                "approved" in (item.relation_or_action or "").casefold()
+                re.search(
+                    r"^(?:what|which)\s+(?:is|was|are|were)\s+the\s+approved\b",
+                    (item.relation_or_action or "").casefold(),
+                )
                 for item in plan.obligations
             )
             if conflict_sensitive and len(values) > 1 and len(texts) > 1 and not corrected:
@@ -66,7 +69,11 @@ def decide_sufficiency(
             else:
                 status = "sufficient"
     elif evidence_ids:
-        reason_codes.append("missing_required_obligations")
+        reason_codes.append(
+            "source_episode_incomplete"
+            if set(missing) & set(result.withheld_obligation_ids)
+            else "missing_required_obligations"
+        )
     else:
         reason_codes.append("search_budget_exhausted" if result.exhausted else "no_indexed_evidence")
     decision_id = "suff3_" + sha256_hex(canonical_json({

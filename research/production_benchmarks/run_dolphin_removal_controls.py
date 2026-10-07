@@ -153,14 +153,23 @@ def _atomic_removal_records(
 
 
 def _gate_blocks_removed_requirement(gate: dict, requirement: dict) -> bool:
-    """Require semantic obligation linkage, not merely any closed gate."""
-    expected = set(requirement.get("expected_obligation_slots") or ())
-    missing = set(gate.get("missing_requirement_ids") or ())
-    return (
-        gate.get("outcome") == "blocked_missing_requirement"
-        and bool(expected)
-        and bool(expected & missing)
-    )
+    """Require a product-named need that matches the removed fact.
+
+    Generic slot names are deliberately insufficient. Evaluator-only expected
+    text is used here only to verify the product receipt after the run; it is
+    never passed into planning, retrieval, or the action gate.
+    """
+    expected = _tokens(str(requirement.get("expected") or ""))
+    if gate.get("outcome") != "blocked_missing_requirement" or not expected:
+        return False
+    for obligation in gate.get("missing_obligations") or ():
+        description = " ".join(str(obligation.get(key) or "") for key in (
+            "entity", "relation_or_action", "temporal_target", "applicability",
+        ))
+        overlap = expected & _tokens(description)
+        if len(overlap) >= 2 and len(overlap) / len(expected) >= 0.10:
+            return True
+    return False
 
 
 def _clone_household(source: Path, destination: Path) -> None:
@@ -258,7 +267,8 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
                 "removed_requirement_id": requirement_id,
                 "outcome": gate["outcome"] if blocked else "control_failed",
                 "missing_requirement_id": requirement_id if blocked else None,
-                "product_missing_slots": gate["missing_requirement_ids"],
+                "product_missing_obligation_ids": gate["missing_requirement_ids"],
+                "product_missing_obligations": gate.get("missing_obligations") or [],
                 "actual_reason": (
                     "missing_requirement" if blocked
                     else "unmatched_missing_obligation"

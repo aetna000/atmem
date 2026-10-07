@@ -7187,6 +7187,13 @@ MIGRATION_REGISTRY: tuple[tuple[str, str], ...] = (
           ON context_source_ranges(source_id, part_id, start_offset, end_offset, range_id);
         """,
     ),
+    (
+        "0405_context_coverage_disposition_index",
+        """
+        CREATE INDEX IF NOT EXISTS idx_context_coverage_disposition
+          ON context_coverage(generation_id, disposition, range_id);
+        """,
+    ),
 )
 
 # Compatibility alias retained for downstream tests/extensions that imported

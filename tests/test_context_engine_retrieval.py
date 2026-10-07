@@ -27,6 +27,120 @@ def test_planner_routes_procedure_transition_and_premise_needs() -> None:
     assert planner.plan("Which cable is required for the wireless-only sensor?").obligations[0].kind == "premise_check"
 
 
+def test_planner_splits_explicit_independent_memory_requirements() -> None:
+    plan = DeterministicPlanner().plan(
+        "Send Kara written notice ending the contractor arrangement on the earliest "
+        "permitted date, and include the required external-email copy recipient."
+    )
+    assert len(plan.obligations) == 2
+    assert "earliest permitted date" in plan.obligations[0].relation_or_action
+    assert "copy recipient" in plan.obligations[1].relation_or_action
+    assert plan.obligations[0].kind == "condition_action"
+    assert plan.obligations[1].kind == "condition_action"
+    assert plan.pool_queries["raw_state"][1:] == tuple(
+        item.relation_or_action for item in plan.obligations
+    )
+
+
+def test_each_planned_requirement_needs_independently_grounded_evidence() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("notice", "Contract termination notice must be written at least 30 days ahead."),
+            ("copy", "Outside email threads must copy Sarah Kim from the start."),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Send Kara written notice ending the contractor arrangement on the earliest "
+            "permitted date, and include the required outside email copy recipient."
+        )
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        assert decide_sufficiency(plan, result).status == "sufficient"
+        assert {
+            obligation_id
+            for item in result.candidates
+            for obligation_id in item.matched_obligation_ids
+        } == {"need-1", "need-2"}
+
+        manager.delete_source(next(
+            item.source_id for item in result.candidates
+            if "Sarah Kim" in item.text
+        ))
+        # Rebuild a generation from the remaining immutable source so the
+        # lifecycle failure is not confused with a missing requirement.
+        replacement = manager.begin_generation(SCOPE, profile_id="context-fast")
+        remaining = store._conn.execute(
+            "SELECT source_id FROM context_source_episodes"
+        ).fetchall()
+        for row in remaining:
+            manager.form_source(str(row["source_id"]), replacement, range_granularity="sentence")
+        partial = DeterministicRetriever(store).retrieve(
+            generation_id=replacement, query=query, plan=plan, max_sources=8,
+        )
+        decision = decide_sufficiency(plan, partial)
+        assert decision.status == "partial"
+        assert decision.missing_obligation_ids == ("need-2",)
+    finally:
+        store.close()
+
+
+def test_withheld_range_in_matched_episode_keeps_obligation_partial() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source = manager.retain_source(SourceEpisode(
+            episode_id="closeout", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"The final sample contains 61 requests. "
+                b"Send the final intake closeout to Hema.",
+            ),),
+        ))
+        manager.form_source(source, generation, range_granularity="sentence")
+        hidden = store._conn.execute(
+            """SELECT ur.range_id, u.unit_id
+               FROM context_evidence_units u
+               JOIN context_unit_ranges ur USING(generation_id, unit_id)
+               JOIN context_source_ranges r USING(range_id)
+               WHERE u.generation_id=? AND r.start_offset=0""",
+            (generation,),
+        ).fetchone()
+        with store.transaction():
+            store._conn.execute(
+                "UPDATE context_evidence_units SET lifecycle='deleted' "
+                "WHERE generation_id=? AND unit_id=?",
+                (generation, hidden["unit_id"]),
+            )
+            store._conn.execute(
+                "UPDATE context_coverage SET disposition='withheld', "
+                "reason_code='observation_forgotten' "
+                "WHERE generation_id=? AND range_id=?",
+                (generation, hidden["range_id"]),
+            )
+            store.remove_context_range_index(generation, str(hidden["range_id"]))
+        query = "What should the final intake closeout sent to Hema contain?"
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        decision = decide_sufficiency(plan, result)
+        assert result.withheld_obligation_ids == ("need-1",)
+        assert decision.status == "partial"
+        assert decision.reason_codes == ("source_episode_incomplete",)
+    finally:
+        store.close()
+
+
 def test_independent_pool_retrieval_reserves_both_comparison_sides() -> None:
     store = SQLiteStore(":memory:")
     try:

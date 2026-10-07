@@ -135,14 +135,20 @@ def test_dolphin_removal_matching_is_conservative() -> None:
     )
     assert selected == []
     assert failure == "non_atomic_removal_target"
-    requirement = {"expected_obligation_slots": ["target", "rule"]}
+    requirement = {"expected": "Deployment updates must go to eng-releases."}
     assert _gate_blocks_removed_requirement({
         "outcome": "blocked_missing_requirement",
-        "missing_requirement_ids": ["rule"],
+        "missing_obligations": [{
+            "entity": "deployment updates",
+            "relation_or_action": "required channel for eng-releases deployment updates",
+        }],
     }, requirement)
     assert not _gate_blocks_removed_requirement({
         "outcome": "blocked_missing_requirement",
-        "missing_requirement_ids": ["unrelated_slot"],
+        "missing_obligations": [{
+            "entity": "timezone",
+            "relation_or_action": "which timezone is configured",
+        }],
     }, requirement)
 
 

@@ -2198,6 +2198,12 @@ class Memory:
                 ",".join("?" for _ in unit_ids) + ")",
                 (generation_id, *unit_ids),
             )
+            self.store._conn.execute(
+                """UPDATE context_coverage
+                   SET disposition='withheld', reason_code='observation_forgotten'
+                   WHERE generation_id=? AND range_id=?""",
+                (generation_id, range_id),
+            )
             self.store.remove_context_range_index(generation_id, range_id)
             self.store._conn.execute(
                 "UPDATE context_view_generations SET revision=revision+1 "
