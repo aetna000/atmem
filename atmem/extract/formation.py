@@ -836,7 +836,7 @@ def _source_observation_parts(value: str, *, maximum: int = 1_900) -> tuple[str,
     """
     parts: list[str] = []
     start = 0
-    for match in re.finditer(r"(?:[.!?]+(?=\s|$)|[;]+|\n+)", value):
+    for match in re.finditer(r"(?:[.!?]+(?=\s|$)|\n+)", value):
         end = match.end()
         candidate = value[start:end].strip()
         if any(character.isalnum() for character in candidate):

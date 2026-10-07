@@ -1028,13 +1028,9 @@ def test_dolphin_adapter_ingests_then_reads_without_changing_checkpoint(
     adapter.run_interaction(ingestion)
     assert set(adapter._memories) == {"alex"}
     assert any(
-        review["actor"] == "benchmark-history-import:alex"
-        for proposal in adapter._memories["alex"].list_extraction_proposals(
-            "dolphin:alex", review_states=("committed",), limit=100
-        )
-        for review in adapter._memories["alex"].store.list_memory_reviews(
-            proposal["proposal_id"]
-        )
+        event["event_type"] == "memory.history_import_authorized"
+        and event["actor"] == "benchmark-history-import:alex"
+        for event in adapter._memories["alex"].store.list_audit_events("dolphin:alex")
     )
     checkpoint = adapter.freeze("alex")
     assert adapter._memories == {}

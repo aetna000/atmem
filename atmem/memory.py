@@ -1531,6 +1531,21 @@ class Memory:
                 raise ValueError(
                     "authorized history import requires sentence source observations"
                 )
+            configured_importer = self._review_authorities.get(
+                history_import_principal
+            )
+            if (
+                configured_importer is None
+                or "history_import:review" not in configured_importer["scopes"]
+                or configured_importer["subject_id"] != request.scope.subject_id
+                or configured_importer["agent_id"] != request.scope.agent_id
+                or configured_importer["workspace_id"] != request.scope.workspace_id
+            ):
+                raise PermissionError(
+                    "history import principal is not configured for this scope"
+                )
+            if self.policy.state != "encrypted" and not self._allow_insecure_typed_development:
+                raise PermissionError("authorized history import requires encrypted storage")
         formation_id = f"formation-{sha256_hex(canonical_json({'request': request.to_dict(), 'version': 'typed-formation-v2'}))[:24]}"
         previous = self.store.get_formation_receipt(formation_id)
         if previous is not None and previous.get("processing_complete"):
@@ -1699,6 +1714,25 @@ class Memory:
             ))
             if source_id not in source_ids:
                 source_ids.append(source_id)
+            if history_import_principal is not None:
+                self.store.append_audit_event(
+                    subject_id=request.scope.subject_id,
+                    event_type="memory.history_import_authorized",
+                    actor=history_import_principal,
+                    session_id=request.session_id,
+                    turn_id=_turn_id(request.turn_id),
+                    payload={
+                        "format": "atmem-history-import-authorization-v1",
+                        "formation_id": formation_id,
+                        "source_id": source_id,
+                        "workspace_id": request.scope.workspace_id,
+                        "agent_id": request.scope.agent_id,
+                        "source_observation_granularity": (
+                            request.source_observation_granularity
+                        ),
+                        "content_retained": False,
+                    },
+                )
             processed_bytes += part_bytes
             proposals = form_typed_proposals(
                 part.content,
@@ -1784,6 +1818,20 @@ class Memory:
                     review_policy = ReviewPolicy(
                         quarantine_non_durable=False,
                         quarantine_sensitive=not admit_sensitive,
+                    )
+                if (
+                    history_import_principal is not None
+                    and proposal.unit.kind.value == "environment_state"
+                    and getattr(proposal.unit.payload, "entity", None)
+                    == "source episode"
+                    and getattr(proposal.unit.payload, "relation", None)
+                    == "source statement"
+                ):
+                    from atmem.extract.review import ReviewPolicy
+
+                    review_policy = ReviewPolicy(
+                        quarantine_non_durable=False,
+                        quarantine_sensitive=False,
                     )
                 outcome = self.submit_extraction_proposal(
                     proposal,

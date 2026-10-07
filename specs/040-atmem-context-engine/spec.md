@@ -428,8 +428,11 @@ models, budgets and dataset hashes match the frozen protocol.
 - **FR-045 — Authorized history-import review**: A bulk history import MAY
   settle source-grounded pending proposals only when an operator explicitly
   enables a scope-bound import authority. Each decision MUST use the public
-  review service, be single-use, name the principal and source, and leave an
-  audit receipt. The authority MUST NOT be enabled by default, MUST NOT admit a
+  review service for pending semantic/action proposals, name the principal and
+  source, and leave one content-free import-authorization receipt per source
+  episode. Exact source-range observations MAY be admitted directly under that
+  frozen authority to avoid per-span review duplication. The authority MUST
+  NOT be enabled by default, MUST NOT admit a
   rejected or unsupported proposal, and MUST NOT read evaluator manifests,
   questions, expected answers, task labels or graders. Benchmark setup MUST
   freeze this choice before scoring and report all approved, rejected and still
@@ -576,7 +579,8 @@ models, budgets and dataset hashes match the frozen protocol.
   Dolphin development sample, every removal target is either a single
   source-linked unit or an explicit failed `non_atomic_removal_target`; no
   pending proposal is silently promoted. An authorized history import records
-  its principal and one review receipt per approved proposal, consumes no
+  its principal and one authorization receipt per imported source episode plus
+  ordinary review receipts for pending semantic/action proposals, consumes no
   evaluator-only data, and leaves zero unreported pending/rejected units.
 
 ## Assumptions

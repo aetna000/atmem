@@ -42,9 +42,10 @@ canonical authority.
 
 - proposal, source, subject, agent and workspace identity
 - configured operator principal and assurance
-- single-use `history_import:review` authorization identity
+- frozen `history_import:review` authorization identity
 - additional `procedure:review` authorization for action-bearing units
-- approve/reject decision, reason, resulting record IDs and audit event
+- imported source identity, granularity and audit event; pending semantic or
+  action proposals retain their ordinary single-use review receipts
 - no evaluator requirement, answer, task or grader fields
 
 ### FormationCoverage

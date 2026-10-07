@@ -246,8 +246,7 @@ def test_sentence_source_observations_are_exact_independent_spans(tmp_path):
             ) == "source statement"
         ]
         assert [row["proposal"]["fact"] for row in observations] == [
-            "First fact is blue;",
-            "second fact is green.",
+            "First fact is blue; second fact is green.",
             "Third fact is current.",
         ]
         source = memory.store.get_protocol_source_by_id(result["receipt"]["source_ids"][0])
@@ -255,7 +254,7 @@ def test_sentence_source_observations_are_exact_independent_spans(tmp_path):
             evidence = row["proposal"]["evidence"][0]
             assert text[evidence["start_offset"] : evidence["end_offset"]] == row["proposal"]["fact"]
             assert row["review_state"] == "pending_review"
-        assert len({row["fact_key"] for row in observations}) == 3
+        assert len({row["fact_key"] for row in observations}) == 2
     finally:
         memory.close()
 
@@ -293,21 +292,13 @@ def test_authorized_history_import_is_explicit_scoped_and_audited(tmp_path):
         )
         assert result["receipt"]["withheld"] == 0
         assert result["receipt"]["retrieval_ready"] is True
-        reviewed = [
-            row for row in memory.list_extraction_proposals(
-                SCOPE.subject_id, review_states=("committed",), limit=100
-            )
-            if "history" in " ".join(
-                review.get("reason") or ""
-                for review in memory.store.list_memory_reviews(row["proposal_id"])
-            )
+        import_events = [
+            row for row in memory.store.list_audit_events(SCOPE.subject_id)
+            if row["event_type"] == "memory.history_import_authorized"
         ]
-        assert reviewed
-        assert all(
-            memory.store.list_memory_reviews(row["proposal_id"])[0]["actor"]
-            == "history-importer"
-            for row in reviewed
-        )
+        assert len(import_events) == 1
+        assert import_events[0]["actor"] == "history-importer"
+        assert import_events[0]["payload"]["content_retained"] is False
     finally:
         memory.close()
 
