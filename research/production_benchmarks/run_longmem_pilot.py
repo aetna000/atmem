@@ -345,7 +345,11 @@ def main() -> None:
     installed_product = _installed_product(
         str(protocol["paid_run_requirements"]["candidate_atmem_version"])
     )
-    preflight_paid_runtime(protocol, methods=METHODS)
+    preflight_paid_runtime(
+        protocol,
+        methods=METHODS,
+        require_live_reader=not args.preflight_only,
+    )
     processor_preflight = preflight_reader_processor(protocol)
     expected_hardware = protocol["paid_run_requirements"]["hardware_profile"]
     hardware_profile = current_hardware_profile()

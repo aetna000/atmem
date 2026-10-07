@@ -118,6 +118,10 @@ development run is permitted after the matched adapters are ready.
   to `MEM`, revalidate content and logical persona receipts after transfer, and
   publish a checksum-bound readiness report that explicitly excludes scores and
   incomplete AgentRunbook work (FR-039, SC-019).
+- [x] [T005Q] Make the documented no-egress LongMem preflight validate the
+  durable RunPod account credential without requiring the ephemeral reader key
+  that exists only after pod provisioning; retain the live-key requirement for
+  every paid case (FR-035, SC-019).
 
 **Checkpoint**: A real A/B/C baseline exists before candidate implementation.
 

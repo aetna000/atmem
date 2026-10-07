@@ -349,7 +349,7 @@ def test_paid_runtime_preflight_is_complete_before_output(
     source = (
         ROOT / "research/production_benchmarks/run_longmem_pilot.py"
     ).read_text(encoding="utf-8")
-    assert source.index("preflight_paid_runtime(protocol") < source.index(
+    assert source.index("preflight_paid_runtime(") < source.index(
         "output_root.mkdir"
     )
     assert source.index(
@@ -361,6 +361,37 @@ def test_paid_runtime_preflight_is_complete_before_output(
     assert adapter_source.index(
         "_preflight_official_harness_import(root, run_environment)"
         ) < adapter_source.rindex("_reserve_with_local_lock_wait(")
+
+
+def test_no_egress_preflight_requires_account_key_not_ephemeral_reader_key(
+    monkeypatch,
+) -> None:
+    from research.production_benchmarks import longmemeval_v2
+
+    protocol = json.loads(
+        (ROOT / "benchmarks/retrieval_quality/protocols/2.3.8.yaml").read_text()
+    )
+    expected_packages = protocol["paid_run_requirements"]["official_runtime_packages"]
+    monkeypatch.setattr(
+        longmemeval_v2, "package_version", lambda name: expected_packages[name]
+    )
+    result = longmemeval_v2.preflight_paid_runtime(
+        protocol,
+        methods=("no-retrieval", "typed-local"),
+        environment={"OPENAI_API_KEY": "fixture-openai", "RUN_POD": "fixture-account"},
+        require_live_reader=False,
+    )
+    assert result["reader_proxy_sha256"] == protocol["paid_run_requirements"][
+        "reader_proxy_sha256"
+    ]
+
+    with pytest.raises(RuntimeError, match="RUN_POD"):
+        longmemeval_v2.preflight_paid_runtime(
+            protocol,
+            methods=("typed-local",),
+            environment={"OPENAI_API_KEY": "fixture-openai"},
+            require_live_reader=False,
+        )
 
 
 def test_longmem_case_honours_fail_fast_cancellation_before_writes(

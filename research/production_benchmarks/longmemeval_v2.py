@@ -272,12 +272,16 @@ def preflight_paid_runtime(
     *,
     methods: tuple[str, ...],
     environment: dict[str, str] | None = None,
+    require_live_reader: bool = True,
 ) -> dict[str, str]:
     """Validate credentials, proxy code, and reservations without writing output."""
     supplied = dict(environment or {})
+    reader_credential = (
+        "RUNPOD_READER_API_KEY" if require_live_reader else "RUN_POD"
+    )
     credentials = {
         name: supplied.get(name) or os.environ.get(name, "")
-        for name in ("OPENAI_API_KEY", "RUNPOD_READER_API_KEY")
+        for name in ("OPENAI_API_KEY", reader_credential)
     }
     missing = sorted(name for name, value in credentials.items() if not value.strip())
     if missing:
