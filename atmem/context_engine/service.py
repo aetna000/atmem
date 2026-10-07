@@ -39,12 +39,17 @@ class StoredContextEngine:
         from .sufficiency import decide_sufficiency
 
         plan = DeterministicPlanner().plan(request.query)
+        allowed = (
+            None
+            if manifest.all_generation_units_authorized
+            else frozenset(manifest.authorized_unit_ids)
+        )
         result = DeterministicRetriever(self.store).retrieve(
             generation_id=self.generation_id,
             query=request.query,
             plan=plan,
-            max_sources=max(1, min(12, request.budget.total_candidates)),
-            allowed_unit_ids=frozenset(manifest.authorized_unit_ids),
+            max_sources=max(1, min(32, request.budget.total_candidates)),
+            allowed_unit_ids=allowed,
         )
         decision = decide_sufficiency(plan, result)
         packed = pack_context(
@@ -113,6 +118,7 @@ def stored_manifest(
         request_id=request.request_id, scope=request.scope,
         generation=request.generation, authorized_unit_ids=units,
         authority_sha256=digest,
+        all_generation_units_authorized=True,
     )
 
 
@@ -167,6 +173,7 @@ class AuthorizedManifest:
     authorized_unit_ids: tuple[str, ...]
     authority_sha256: str
     egress_allowed: bool = False
+    all_generation_units_authorized: bool = False
 
     def __post_init__(self) -> None:
         if not self.request_id or self.generation < 0:

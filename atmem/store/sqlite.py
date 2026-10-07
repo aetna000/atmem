@@ -5428,6 +5428,8 @@ class SQLiteStore:
                     REFERENCES context_source_ranges(range_id)
                     ON DELETE CASCADE
                 );
+                CREATE INDEX IF NOT EXISTS idx_context_range_fts_rowid
+                  ON context_range_fts_map(fts_rowid, generation_id, range_id);
                 """)
             self._context_range_fts_enabled = True
         except Exception:
@@ -7174,6 +7176,15 @@ MIGRATION_REGISTRY: tuple[tuple[str, str], ...] = (
           ON context_unit_views(generation_id, kind, unit_id);
         INSERT OR IGNORE INTO context_unit_views(generation_id, unit_id, kind)
           SELECT generation_id, unit_id, kind FROM context_evidence_units;
+        """,
+    ),
+    (
+        "0404_context_range_lookup_indexes",
+        """
+        CREATE INDEX IF NOT EXISTS idx_context_unit_ranges_range
+          ON context_unit_ranges(generation_id, range_id, unit_id);
+        CREATE INDEX IF NOT EXISTS idx_context_source_ranges_order
+          ON context_source_ranges(source_id, part_id, start_offset, end_offset, range_id);
         """,
     ),
 )

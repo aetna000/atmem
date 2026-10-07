@@ -14,11 +14,15 @@ from .pools import POOL_KINDS, PoolBudget
 
 _STOP = {
     "a", "an", "and", "as", "be", "does", "do", "for", "how", "in", "is", "of",
-    "the", "to", "what", "when", "where", "which", "why",
+    "the", "to", "what", "when", "where", "which", "why", "on", "with", "my",
+    "our", "its", "please", "create", "send", "post", "inspect", "review", "comment",
+    "find", "update", "short", "concise", "note", "document", "reference", "include",
+    "state", "briefly", "actual", "another", "current", "earlier", "conversation",
 }
 
 
 def _fts_terms(value: str) -> tuple[str, ...]:
+    value = re.sub(r"^\s*\[\d{4}-\d{2}-\d{2}\]\s*", "", value)
     terms = [
         token.casefold() for token in re.findall(r"[^\W_]+", value, re.UNICODE)
         if token.casefold() not in _STOP and len(token) > 1
@@ -87,19 +91,33 @@ class DeterministicRetriever:
             ) + ")"
             allowed_params = tuple(sorted(allowed_unit_ids))
         if range_indexed:
-            sql = f"""SELECT ur.unit_id, bm25(context_ranges_fts) AS rank
-                      FROM context_ranges_fts
-                      JOIN context_range_fts_map m
-                        ON m.fts_rowid=context_ranges_fts.rowid
-                      JOIN context_unit_ranges ur
+            # Materialize a bounded lexical shortlist before relational joins
+            # and force that join order. Otherwise SQLite may begin with every
+            # unit in the encrypted generation for each typed pool.
+            sql = f"""WITH ranked AS (
+                        SELECT rowid, bm25(context_ranges_fts) AS rank
+                        FROM context_ranges_fts
+                        WHERE context_ranges_fts MATCH ?
+                        ORDER BY rank LIMIT ?
+                      )
+                      SELECT ur.unit_id, ranked.rank AS rank,
+                             r.source_id, r.part_id, r.start_offset, r.end_offset,
+                             p.content_bytes
+                      FROM ranked
+                      CROSS JOIN context_range_fts_map m
+                        ON m.fts_rowid=ranked.rowid
+                      CROSS JOIN context_unit_ranges ur
                         ON ur.generation_id=m.generation_id AND ur.range_id=m.range_id
-                      JOIN context_evidence_units u
+                      CROSS JOIN context_evidence_units u
                         ON u.generation_id=ur.generation_id AND u.unit_id=ur.unit_id
-                      JOIN context_unit_views v
+                      CROSS JOIN context_unit_views v
                         ON v.generation_id=u.generation_id AND v.unit_id=u.unit_id
-                      WHERE context_ranges_fts MATCH ? AND m.generation_id=?
+                      CROSS JOIN context_source_ranges r ON r.range_id=m.range_id
+                      CROSS JOIN context_source_parts p
+                        ON p.source_id=r.source_id AND p.part_id=r.part_id
+                      WHERE m.generation_id=?
                         AND v.kind=? AND u.lifecycle='active' {allowed_sql}
-                      ORDER BY rank, ur.unit_id LIMIT ?"""
+                      ORDER BY ranked.rank, ur.unit_id LIMIT ?"""
         else:
             sql = f"""SELECT m.unit_id, bm25(context_units_fts) AS rank
                       FROM context_units_fts
@@ -109,21 +127,34 @@ class DeterministicRetriever:
                       WHERE context_units_fts MATCH ? AND m.generation_id=?
                         AND u.kind=? AND u.lifecycle='active' {allowed_sql}
                       ORDER BY rank, m.unit_id LIMIT ?"""
-        parameters = (generation_id, kind, *allowed_params, self.budget.per_pool)
+        row_limit = (
+            max(96, self.budget.per_pool * 32)
+            if range_indexed else self.budget.per_pool
+        )
+        parameters = (generation_id, kind, *allowed_params, row_limit)
         # Most fact queries contain at least one discriminating entity/value.
         # Intersect terms first so FTS does not rank every row containing common
         # words.  Fall back to the recall-oriented union only when the precise
         # query has no result.
-        rows = self.store._conn.execute(
-            sql, (_fts_query(terms, operator="AND"), *parameters)
-        ).fetchall()
+        if range_indexed:
+            shortlist = max(96, self.budget.per_pool * 4)
+
+            def execute(operator: str):
+                return self.store._conn.execute(
+                    sql,
+                    (_fts_query(terms, operator=operator), shortlist, *parameters),
+                ).fetchall()
+        else:
+            def execute(operator: str):
+                return self.store._conn.execute(
+                    sql, (_fts_query(terms, operator=operator), *parameters)
+                ).fetchall()
+        rows = execute("AND")
         if not rows and len(terms) > 1:
-            rows = self.store._conn.execute(
-                sql, (_fts_query(terms, operator="OR"), *parameters)
-            ).fetchall()
+            rows = execute("OR")
         values: list[RetrievedCandidate] = []
         for row in rows:
-            evidence = self.store._conn.execute(
+            evidence = row if range_indexed else self.store._conn.execute(
                 """SELECT r.source_id, r.part_id, r.start_offset, r.end_offset,
                           p.content_bytes
                    FROM context_unit_ranges ur
@@ -144,7 +175,90 @@ class DeterministicRetriever:
                 start=start, end=end, text=body[start:end].decode("utf-8", errors="replace"),
                 score=-float(row["rank"]), matched_obligation_ids=(),
             ))
-        return values
+        if not range_indexed:
+            return values
+        # Rank source episodes by complementary term coverage, then publish
+        # the strongest exact range as the head. This lets several short,
+        # adjacent statements jointly nominate the right episode without
+        # concatenating or duplicating canonical source.
+        by_source: dict[str, list[RetrievedCandidate]] = {}
+        for item in values:
+            by_source.setdefault(item.source_id, []).append(item)
+        ranked_sources: list[RetrievedCandidate] = []
+        query_terms = set(terms)
+        for source_id, source_rows in by_source.items():
+            covered = {
+                term
+                for item in source_rows
+                for term in _fts_terms(item.text)
+                if term in query_terms
+            }
+            head = max(
+                source_rows,
+                key=lambda item: (
+                    len(query_terms & set(_fts_terms(item.text))),
+                    item.score,
+                    item.unit_id,
+                ),
+            )
+            coverage = len(covered) / max(1, len(query_terms))
+            ranked_sources.append(RetrievedCandidate(
+                unit_id=head.unit_id, kind=head.kind,
+                source_id=source_id, part_id=head.part_id,
+                start=head.start, end=head.end, text=head.text,
+                # BM25 remains the primary signal. Coverage is only a bounded
+                # source-level bonus; multiplying it by a large constant made
+                # long, generic episodes outrank an exact short answer.
+                score=head.score + coverage * 5.0,
+                matched_obligation_ids=(),
+            ))
+        return sorted(
+            ranked_sources,
+            key=lambda item: (-item.score, item.source_id, item.unit_id),
+        )[: self.budget.per_pool]
+
+    def _neighbors(
+        self, generation_id: str, head: RetrievedCandidate, *, radius: int = 2,
+    ) -> tuple[RetrievedCandidate, ...]:
+        """Return exact adjacent raw-state ranges around a nominated head."""
+        rows = self.store._conn.execute(
+            """SELECT u.unit_id, r.part_id, r.start_offset, r.end_offset,
+                      p.content_bytes
+               FROM context_evidence_units u
+               JOIN context_unit_views v
+                 ON v.generation_id=u.generation_id AND v.unit_id=u.unit_id
+               JOIN context_unit_ranges ur
+                 ON ur.generation_id=u.generation_id AND ur.unit_id=u.unit_id
+               JOIN context_source_ranges r USING(range_id)
+               JOIN context_source_parts p
+                 ON p.source_id=r.source_id AND p.part_id=r.part_id
+               WHERE u.generation_id=? AND r.source_id=?
+                 AND u.lifecycle='active' AND v.kind='raw_state'
+               ORDER BY p.ordinal, r.start_offset, r.end_offset, u.unit_id""",
+            (generation_id, head.source_id),
+        ).fetchall()
+        position = next(
+            (index for index, row in enumerate(rows) if row["unit_id"] == head.unit_id),
+            None,
+        )
+        if position is None:
+            return ()
+        values: list[RetrievedCandidate] = []
+        start = max(0, position - radius)
+        end = min(len(rows), position + radius + 1)
+        for row in rows[start:end]:
+            unit_id = str(row["unit_id"])
+            if unit_id == head.unit_id:
+                continue
+            body = bytes(row["content_bytes"])
+            range_start, range_end = int(row["start_offset"]), int(row["end_offset"])
+            values.append(RetrievedCandidate(
+                unit_id=unit_id, kind="raw_state", source_id=head.source_id,
+                part_id=str(row["part_id"]), start=range_start, end=range_end,
+                text=body[range_start:range_end].decode("utf-8", errors="replace"),
+                score=head.score, matched_obligation_ids=(),
+            ))
+        return tuple(values)
 
     def retrieve(
         self, *, generation_id: str, query: str, plan: QueryPlan, max_sources: int,
@@ -240,6 +354,26 @@ class DeterministicRetriever:
                 used_sources.add(item.source_id)
                 if len(selected) >= max_sources:
                     break
+        # Evidence is often distributed across adjacent statements in one
+        # immutable episode. Reserve nomination breadth first, then replace
+        # the lowest-ranked tail with exact neighbours of the strongest heads.
+        # Neighbours remain obligation-neutral: adjacency can improve evidence
+        # coverage but cannot by itself satisfy a requirement.
+        heads = tuple(selected[: max(1, min(4, len(selected)))])
+        neighbors = [
+            neighbor
+            for head in heads
+            for neighbor in self._neighbors(generation_id, head)
+            if neighbor.unit_id not in used_units
+        ]
+        for neighbor in neighbors:
+            if len(selected) < max_sources:
+                selected.append(neighbor)
+            elif selected:
+                displaced = selected.pop()
+                used_units.discard(displaced.unit_id)
+                selected.append(neighbor)
+            used_units.add(neighbor.unit_id)
         value = RetrievalResult(
             candidates=tuple(selected), searched_pools=tuple(by_pool), scanned_units=scanned,
             exhausted=scanned >= self.budget.total_units,

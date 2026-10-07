@@ -413,10 +413,10 @@ def test_stored_engine_runs_through_governance_and_canonical_reload() -> None:
         manager.form_source(source, generation_id)
         manager.verify_generation(generation_id)
         request = replace(_request(), query="Which port does the local audit service use?", generation=0)
+        manifest = stored_manifest(store, request, generation_id=generation_id)
+        assert manifest.all_generation_units_authorized is True
         service = ContextEngineService(
-            authorize=lambda value: stored_manifest(
-                store, value, generation_id=generation_id
-            ),
+            authorize=lambda _value: manifest,
             load_canonical=lambda unit_ids, canonical_generation: load_stored_canonical(
                 store, SCOPE, generation_id, unit_ids, canonical_generation
             ),

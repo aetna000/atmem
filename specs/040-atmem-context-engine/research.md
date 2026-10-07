@@ -72,6 +72,32 @@ non-atomic. No outcome was credited. The fix must deduplicate at the retrieval
 boundary while retaining cross-source diversity; the reader-free quality gate
 must pass before the checkpoints are rebuilt again.
 
+### 2026-10-07 bounded full-history retrieval diagnostic
+
+The encrypted range lookup now materializes a bounded FTS shortlist before
+joining the full generation, backed by generation/range indexes and a
+full-generation authorization fast path. A representative full-history query
+fell from 8.7--26.7 seconds to 0.08--0.20 seconds at the SQL retrieval layer.
+
+The same frozen 30-case Dolphin development manifest was then used only as an
+evaluator-side source-recall diagnostic. No evaluator requirement or source
+reference entered the product query. With 32 bounded nominations and exact
+neighbour expansion, the evaluator-verified source appeared in the delivered
+package for 26/30 cases, up from 13/30 immediately before the breadth/ranking
+change (and 8/28 in the earlier interrupted diagnostic). Median end-to-end
+context preparation was 2.51 seconds and maximum was 4.11 seconds on the local
+encrypted checkpoints. The remaining source misses were `alex:042`,
+`alex:136`, `morgan:011`, and `morgan:097`.
+
+This is not a benchmark score and does not satisfy T005L. All packages still
+reported sufficient because the deterministic planner exposes too few semantic
+obligations and the retriever can attach one generic obligation to a merely
+similar candidate. A local no-cost embedding experiment also showed that
+semantic reranking alone is insufficient: it rescued some lexical misses while
+displacing exact matches. The next gate is independent
+exact/lexical/temporal/semantic fusion plus obligation-grounded coverage, not a
+larger undifferentiated top-k or a paid reader run.
+
 ## Decisions
 
 ### R1 — Clean engine boundary

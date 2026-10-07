@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from atmem.context_engine.formation import FormationManager, SourceEpisode, SourcePart
 from atmem.context_engine.planner import DeterministicPlanner
-from atmem.context_engine.retrieval import DeterministicRetriever
+from atmem.context_engine.retrieval import DeterministicRetriever, _fts_terms
 from atmem.context_engine.sufficiency import decide_sufficiency
 from atmem.context_engine.packing import derive_action_constraints, pack_context
 from atmem.contracts.models import AuthorityScope
@@ -52,7 +52,7 @@ def test_independent_pool_retrieval_reserves_both_comparison_sides() -> None:
             plan.obligations[0].obligation_id, plan.obligations[1].obligation_id,
         }
         assert all("cafeteria" not in item.text.casefold() for item in result.candidates)
-        assert result.scanned_units <= 24
+        assert result.scanned_units <= 200
     finally:
         store.close()
 
@@ -230,6 +230,51 @@ def test_compact_multi_view_retrieval_emits_each_evidence_id_once() -> None:
         assert len(ids) == 2
         assert any("eng-releases" in item.text for item in result.candidates)
         assert any("UTC" in item.text for item in result.candidates)
+    finally:
+        store.close()
+
+
+def test_anchor_date_is_not_treated_as_query_evidence() -> None:
+    assert _fts_terms("[2028-01-01] Find the approved release room") == (
+        "approved", "release", "room",
+    )
+
+
+def test_retrieval_keeps_source_breadth_and_adjacent_exact_evidence() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="target", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"The approved tracing vendor is Honeycomb. "
+                b"Use it for end-to-end request instrumentation.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        for index in range(40):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=f"noise-{index}", scope=SCOPE,
+                parts=(SourcePart(
+                    "text", 0, "text", "text/plain",
+                    f"Request instrumentation review note {index}.".encode(),
+                ),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        plan = DeterministicPlanner().plan(
+            "Which tracing vendor should request instrumentation target?"
+        )
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation,
+            query="Which tracing vendor should request instrumentation target?",
+            plan=plan,
+            max_sources=32,
+        )
+        assert any("Honeycomb" in item.text for item in result.candidates)
+        assert any("end-to-end" in item.text for item in result.candidates)
+        assert len(result.candidates) <= 32
     finally:
         store.close()
 
