@@ -23,7 +23,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) in sys.path:
     sys.path.remove(str(ROOT))
-sys.path.insert(0, str(ROOT))
+sys.path.append(str(ROOT))
 
 from atmem import Memory
 from atmem.benchmark.attribution import (
@@ -37,6 +37,7 @@ from atmem.contracts import (
     RetrievalBudget,
 )
 from research.production_benchmarks.dolphinbench import build_pre_action_gate_receipt
+from research.production_benchmarks.installed_product import installed_atmem_identity
 
 
 STOP = frozenset({
@@ -268,6 +269,7 @@ def pair_positive_controls(*, removal_report: dict, manifest: dict,
 
 
 def main() -> None:
+    installed_atmem_identity()
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint-root", required=True, type=Path)
     parser.add_argument("--dolphin-checkout", required=True, type=Path)

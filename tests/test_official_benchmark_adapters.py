@@ -22,13 +22,14 @@ LONGMEM_ASSET = (
 DOLPHIN_ADAPTER = ROOT / "research/production_benchmarks/dolphinbench.py"
 
 
-def test_paid_entrypoints_prepend_the_reviewed_checkout_before_site_packages() -> None:
+def test_paid_entrypoints_preserve_installed_product_precedence() -> None:
     for name in ("run_longmem_pilot.py", "run_dolphin_development.py"):
         source = (ROOT / "research/production_benchmarks" / name).read_text(
             encoding="utf-8"
         )
-        assert "sys.path.insert(0, str(ROOT))" in source
-        assert "sys.path.append(str(ROOT))" not in source
+        assert "sys.path.append(str(ROOT))" in source
+        assert "installed_atmem_identity" in source
+        assert "sys.path.insert(0, str(ROOT))" not in source
 
 
 def test_dolphin_driver_returns_model_arguments_with_structured_app_result(

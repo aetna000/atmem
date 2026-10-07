@@ -17,12 +17,15 @@ import time
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) in sys.path:
     sys.path.remove(str(ROOT))
-sys.path.insert(0, str(ROOT))
+sys.path.append(str(ROOT))
 
 from atmem.service.household import HouseholdApplication  # noqa: E402
 from research.production_benchmarks.longmemeval_v2 import (  # noqa: E402
     install_official_adapter,
     preflight_selected_data,
+)
+from research.production_benchmarks.installed_product import (  # noqa: E402
+    installed_atmem_identity,
 )
 
 
@@ -58,9 +61,13 @@ def _preflight_runtime(protocol: dict) -> dict[str, object]:
         raise RuntimeError(
             f"official macOS benchmark runtime requires arm64 Python; found {machine}"
         )
+    product = installed_atmem_identity(
+        str(protocol["paid_run_requirements"]["candidate_atmem_version"])
+    )
     return {
         "python": sys.version.split()[0], "machine": machine,
         "executable": sys.executable, "packages": installed,
+        "installed_product": product,
     }
 
 

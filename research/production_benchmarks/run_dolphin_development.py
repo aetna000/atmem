@@ -16,7 +16,7 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) in sys.path:
     sys.path.remove(str(ROOT))
-sys.path.insert(0, str(ROOT))
+sys.path.append(str(ROOT))
 
 from research.production_benchmarks.dolphinbench import (  # noqa: E402
     evaluate_development,
@@ -25,6 +25,9 @@ from research.production_benchmarks.dolphinbench import (  # noqa: E402
 from atmem.benchmark.finalization import validate_finalization_gate  # noqa: E402
 from atmem.benchmark.attribution import validate_attribution_artifacts  # noqa: E402
 from atmem.benchmark.contracts import load_json_compatible_yaml  # noqa: E402
+from research.production_benchmarks.installed_product import (  # noqa: E402
+    installed_atmem_identity,
+)
 
 
 def _call_openai_reasoning_judge(llm_judge, system_prompt: str,
@@ -68,23 +71,7 @@ def _call_openai_reasoning_judge(llm_judge, system_prompt: str,
 
 def _installed_artifact_sha256() -> str:
     """Hash the installed AtMem package, metadata, and entry point files."""
-    from importlib.metadata import distribution
-    dist = distribution("atmem")
-    files: dict[str, str] = {}
-    for entry in sorted(dist.files or (), key=str):
-        relative = str(entry)
-        if not (
-            relative.startswith("atmem/")
-            or relative.endswith(("METADATA", "entry_points.txt"))
-        ):
-            continue
-        path = Path(dist.locate_file(entry)).resolve()
-        if path.is_file():
-            files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
-    if not files:
-        raise RuntimeError("installed AtMem artifact has no hashable package files")
-    encoded = json.dumps(files, sort_keys=True, separators=(",", ":")).encode()
-    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+    return str(installed_atmem_identity()["artifact_sha256"])
 
 
 def _tree_digest(root: Path) -> str:

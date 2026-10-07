@@ -20,7 +20,7 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) in sys.path:
     sys.path.remove(str(ROOT))
-sys.path.insert(0, str(ROOT))
+sys.path.append(str(ROOT))
 
 from research.production_benchmarks.longmemeval_v2 import (  # noqa: E402
     DatasetPreflight,
@@ -40,6 +40,9 @@ from atmem.benchmark.attribution import validate_attribution_artifacts  # noqa: 
 from research.production_benchmarks.cost_ledger import DurableCostLedger  # noqa: E402
 from research.production_benchmarks.matched_results import write_longmem  # noqa: E402
 from research.production_benchmarks.matched_results import write_longmem_controls  # noqa: E402
+from research.production_benchmarks.installed_product import (  # noqa: E402
+    installed_atmem_identity,
+)
 
 
 PROTOCOLS = ROOT / "benchmarks/retrieval_quality/protocols"
@@ -98,33 +101,7 @@ def _expected_probe_set_sha256() -> str:
 
 
 def _installed_product(expected_version: str) -> dict[str, str]:
-    from importlib.metadata import distribution, version
-    installed_version = version("atmem")
-    if installed_version != expected_version:
-        raise RuntimeError(
-            f"paid pilot requires AtMem {expected_version}; found {installed_version}"
-        )
-    dist = distribution("atmem")
-    installed_files: dict[str, str] = {}
-    for entry in sorted(dist.files or (), key=str):
-        relative = str(entry)
-        if not (
-            relative.startswith("atmem/")
-            or relative.endswith(("METADATA", "entry_points.txt"))
-        ):
-            continue
-        path = Path(dist.locate_file(entry)).resolve()
-        if path.is_file():
-            installed_files[relative] = "sha256:" + hashlib.sha256(
-                path.read_bytes()
-            ).hexdigest()
-    if not installed_files:
-        raise RuntimeError("installed AtMem artifact has no hashable package files")
-    return {
-        "version": installed_version,
-        "module": str(dist.locate_file("atmem/__init__.py")),
-        "artifact_sha256": canonical_digest(installed_files),
-    }
+    return installed_atmem_identity(expected_version)
 
 
 def _question_domains(data_root: Path) -> dict[str, str]:

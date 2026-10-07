@@ -64,6 +64,9 @@ development run is permitted after the matched adapters are ready.
   23/30 review packets, checksum-bound observation validation, complete ledger
   builders and report/Project-Atlas renderers; no missing or unreviewed stage
   can be finalized or aggregated (FR-039–FR-043, SC-019–SC-020).
+- [x] [T005G] Fail closed when any checkpoint, removal-control, ingestion, or
+  paid runner imports AtMem from the source checkout instead of the pinned
+  installed wheel.
 
 **Checkpoint**: A real A/B/C baseline exists before candidate implementation.
 
