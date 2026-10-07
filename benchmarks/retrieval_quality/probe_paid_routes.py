@@ -32,7 +32,13 @@ def request(
     call = urllib.request.Request(
         url,
         data=canonical(body).encode(),
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            # RunPod's edge rejects urllib's default user agent (HTTP 403/1010).
+            # Match the paid reader proxy so this probe exercises the same route.
+            "User-Agent": "OpenAI/Python 3.19.2",
+        },
         method="POST",
     )
     try:

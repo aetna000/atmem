@@ -191,7 +191,7 @@ def test_protocol_refuses_paid_run_until_all_provider_settings_are_pinned() -> N
         validate_retrieval_quality_protocol(protocol, split=split, for_paid_run=True)
 
 
-def test_historical_three_percent_manifests_remain_valid_but_stale_route_is_rejected() -> None:
+def test_historical_three_percent_manifests_remain_valid_with_current_route() -> None:
     protocol, split = documents()
     pilot = json.loads(PILOT.read_text(encoding="utf-8"))
     dolphin = json.loads(DOLPHIN_SPLIT.read_text(encoding="utf-8"))
@@ -199,15 +199,17 @@ def test_historical_three_percent_manifests_remain_valid_but_stale_route_is_reje
 
     assert validate_longmem_pilot(pilot, split=split)["question_count"] == 14
     assert len(validate_dolphin_split(dolphin)["development_ids"]) == 18
-    with pytest.raises(ValueError, match="provider route probe"):
-        validate_retrieval_quality_protocol(
-            protocol,
-            split=split,
-            pilot=pilot,
-            dolphin_split=dolphin,
-            route_probe=route_probe,
-            for_pilot_run=True,
-        )
+    validated = validate_retrieval_quality_protocol(
+        protocol,
+        split=split,
+        pilot=pilot,
+        dolphin_split=dolphin,
+        route_probe=route_probe,
+        for_pilot_run=True,
+    )
+    assert validated["paid_run_requirements"]["provider_route_probe_sha256"] == (
+        route_probe["probe_sha256"]
+    )
 
 
 def test_frozen_five_percent_profiles_are_nested_answer_blind_and_development_only() -> None:

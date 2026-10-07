@@ -1,38 +1,36 @@
 {
   "format": "atmem-provider-route-probe-v1",
-  "probe_sha256": "265f7f5cdf985a4ab975ab46c022a8863c5c5f5c91e6f083fa29974b8bbd989e",
+  "probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
   "routes": {
     "embedding": {
       "content_retained": false,
-      "duration_ms": 2519.143,
-      "model": "Qwen/Qwen3-Embedding-8B",
+      "duration_ms": 507.96,
+      "model": "atmem/hash-bow-768-v1",
       "outcome": "succeeded",
-      "provider_route": "scaleway",
-      "shape": [1, 4096],
+      "provider_route": "local-deterministic",
+      "shape": [1, 768],
       "status": 200,
       "transport": "openai-compatible-v1-embeddings"
     },
     "judge": {
       "content_retained": false,
-      "duration_ms": 3576.813,
+      "duration_ms": 3401.35,
       "model": "gpt-5.2-2025-12-11",
       "outcome": "succeeded",
       "provider_route": "openai-direct",
-      "response_id_sha256": "f5d6f961529f7328717d09e23cf1e8f9c5a35a21b0540bedccd8c15ec0e7a2f8",
+      "response_id_sha256": "8a6b23d8ac372d99643d9cbbf54efa9a99ef04ad5e8db850465c88978a4d4049",
       "status": 200,
       "usage": {"input_tokens": 9, "output_tokens": 5, "total_tokens": 14}
     },
     "reader": {
       "content_retained": false,
-      "duration_ms": 3600.0,
-      "evidence_note": "A control reader request completed on one Runpod Secure A100 80GB PCIe using the pinned vLLM image digest and model revision. The paid development pilot remains responsible for full frozen-request evidence.",
+      "duration_ms": 920.547,
       "model": "Qwen/Qwen3.5-9B",
       "outcome": "succeeded",
-      "provider_route": "runpod-secure-a100-80gb-vllm",
-      "request_profile": "control-reader-finalization-request",
+      "provider_route": "runpod-vllm",
+      "response_id_sha256": "869969342b9460956ec8dc364dbfd1ce36be7de78ab61629307aa60fd93f48b5",
       "status": 200,
-      "transport": "openai-compatible-sse-via-loopback-facade",
-      "usage": {"completion_tokens": 221, "prompt_tokens": 15, "total_tokens": 236}
+      "usage": {"completion_tokens": 8, "prompt_tokens": 13, "total_tokens": 21}
     }
   }
 }
