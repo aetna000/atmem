@@ -6,6 +6,7 @@ import json
 import os
 import time
 from typing import Any
+import urllib.error
 import urllib.request
 
 
@@ -75,8 +76,14 @@ def _post(payload: dict[str, Any]) -> dict[str, Any]:
             "User-Agent": "OpenAI/Python 3.19.2",
         },
     )
-    with urllib.request.urlopen(request, timeout=600) as response:
-        return json.load(response)
+    try:
+        with urllib.request.urlopen(request, timeout=600) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:2_000]
+        raise RuntimeError(
+            f"Dolphin agent provider returned HTTP {exc.code}: {detail}"
+        ) from exc
 
 
 async def run(*, request, tools, call_app, memory_context: str, model: str,

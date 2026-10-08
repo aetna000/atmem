@@ -4,10 +4,12 @@ import asyncio
 import importlib.util
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 import json
 from pathlib import Path
 import sys
 import threading
+from urllib.error import HTTPError
 from types import ModuleType, SimpleNamespace
 from dataclasses import dataclass, field
 from contextlib import asynccontextmanager
@@ -97,6 +99,23 @@ def test_dolphin_driver_returns_model_arguments_with_structured_app_result(
         "result": {"ok": True},
     }]
     assert record.messages[-1]["content"] == "done"
+
+
+def test_dolphin_driver_preserves_provider_http_error_detail(monkeypatch) -> None:
+    from research.production_benchmarks import dolphin_openai_driver
+
+    monkeypatch.setenv("ATMEM_DOLPHIN_AGENT_BASE_URL", "https://reader.test/v1")
+    monkeypatch.setenv("ATMEM_DOLPHIN_AGENT_API_KEY", "secret")
+
+    def fail(*_args, **_kwargs):
+        raise HTTPError(
+            "https://reader.test/v1/chat/completions", 400, "Bad Request", {},
+            BytesIO(b'{"error":"tool parser is disabled"}'),
+        )
+
+    monkeypatch.setattr(dolphin_openai_driver.urllib.request, "urlopen", fail)
+    with pytest.raises(RuntimeError, match="tool parser is disabled"):
+        dolphin_openai_driver._post({"model": "fixture"})
 
 
 def test_longmem_adapter_is_inert_product_api_only() -> None:
@@ -1187,6 +1206,30 @@ def test_dolphin_source_chunking_is_bounded_and_lossless() -> None:
 
     assert "".join(parts) == source
     assert all(0 < len(part) <= 1_800 for part in parts)
+
+
+def test_dolphin_mem0_recall_uses_text_without_atmem_package_contract() -> None:
+    from research.production_benchmarks.dolphinbench import Mem0DolphinAdapter
+
+    adapter = object.__new__(Mem0DolphinAdapter)
+    request = SimpleNamespace(
+        persona="alex", interaction_id="7",
+    )
+
+    assert adapter._context_from_recall("remembered fact") == "remembered fact"
+    receipt = adapter._pre_action_gate_receipt(request, "remembered fact")
+    assert receipt == {
+        "format": "mem0-dolphin-pre-action-receipt-v1",
+        "case_id": "alex:007",
+        "outcome": "gate_open",
+        "required_requirement_ids": [],
+        "covered_requirement_ids": [],
+        "missing_requirement_ids": [],
+        "actual_reason": "matched_baseline_without_sufficiency_gate",
+        "model_invoked": False,
+        "tool_calls": 0,
+        "error_type": None,
+    }
 
 
 def test_dolphin_development_runner_selects_before_official_execute(

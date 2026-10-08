@@ -543,9 +543,11 @@ class AtMemDolphinAdapter:
                 self._reserve_interaction_cost(
                     request.phase, request.persona, request.interaction_id
                 )
-                package = self._recall(memory, request.persona, request.dated_message)
-                context = package.context
-                gate = self._pre_action_gate_receipt(request, package)
+                recalled = self._recall(
+                    memory, request.persona, request.dated_message
+                )
+                context = self._context_from_recall(recalled)
+                gate = self._pre_action_gate_receipt(request, recalled)
                 self._write_gate_receipt(request, gate)
                 if gate["outcome"] == "blocked_missing_requirement":
                     result = InteractionRecord(
@@ -769,6 +771,13 @@ class AtMemDolphinAdapter:
     def _pre_action_gate_receipt(self, request, package) -> dict:
         """Fail closed before the model when named memory obligations are missing."""
         return build_pre_action_gate_receipt(request, package)
+
+    def _context_from_recall(self, recalled) -> str:
+        """Normalize provider recall without weakening AtMem's typed contract."""
+        context = getattr(recalled, "context", None)
+        if not isinstance(context, str):
+            raise TypeError("AtMem recall must return a context package")
+        return context
 
     def _write_gate_receipt(self, request, receipt: dict) -> None:
         target = (
@@ -1001,6 +1010,29 @@ class Mem0DolphinAdapter(AtMemDolphinAdapter):
             for row in result.get("results", [])
             if str(row.get("memory") or "").strip()
         )
+
+    def _context_from_recall(self, recalled) -> str:
+        if not isinstance(recalled, str):
+            raise TypeError("Mem0 recall must return text")
+        return recalled
+
+    def _pre_action_gate_receipt(self, request, _recalled) -> dict:
+        """Record that the matched Mem0 baseline has no AtMem sufficiency gate."""
+        return {
+            "format": "mem0-dolphin-pre-action-receipt-v1",
+            "case_id": (
+                f"{request.persona}:"
+                f"{str(request.interaction_id).zfill(3)}"
+            ),
+            "outcome": "gate_open",
+            "required_requirement_ids": [],
+            "covered_requirement_ids": [],
+            "missing_requirement_ids": [],
+            "actual_reason": "matched_baseline_without_sufficiency_gate",
+            "model_invoked": False,
+            "tool_calls": 0,
+            "error_type": None,
+        }
 
     def freeze(self, persona: str) -> dict:
         self._close_memory(persona)
