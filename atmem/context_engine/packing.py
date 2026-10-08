@@ -87,13 +87,19 @@ def _coverage_order(
     )
     ordered = list(required)
     while remaining:
+        def rank(pair: tuple[int, RetrievedCandidate]) -> tuple[float, int, int, int]:
+            index, candidate = pair
+            new_count = len(coverage_by_unit[candidate.unit_id] - covered)
+            byte_count = max(1, len(candidate.text.encode("utf-8")))
+            # Prefer complementary evidence density. A single 12 KiB UI state
+            # that happens to mention three fields should not displace three
+            # short, exact source ranges that establish the same coverage with
+            # far less reader noise.
+            return (-new_count / byte_count, -new_count, byte_count, index)
+
         ranked = sorted(
             enumerate(remaining),
-            key=lambda pair: (
-                -len(coverage_by_unit[pair[1].unit_id] - covered),
-                len(pair[1].text.encode("utf-8")),
-                pair[0],
-            ),
+            key=rank,
         )
         index, candidate = ranked[0]
         new = coverage_by_unit[candidate.unit_id] - covered

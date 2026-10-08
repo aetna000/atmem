@@ -69,7 +69,30 @@ def _sentence_ranges(content: bytes) -> tuple[tuple[int, int], ...]:
                     right -= 1
                 if right > left:
                     values.append((left, right))
-    return tuple(values) or ((0, len(content)),)
+    initial = tuple(values) or ((0, len(content)),)
+    bounded: list[tuple[int, int]] = []
+    maximum = 4_096
+    for start, end in initial:
+        cursor = start
+        while end - cursor > maximum:
+            window_end = min(end, cursor + maximum)
+            window = content[cursor:window_end]
+            # Canonical JSON retains accessibility-tree line breaks as the
+            # two bytes ``\n``. Split at the last structural boundary in the
+            # window, keeping exact source offsets and avoiding arbitrary
+            # UTF-8 cuts. Ordinary prose without such boundaries is unchanged.
+            boundaries = [
+                match.end() for match in re.finditer(rb"\\n|\n+", window)
+                if match.end() >= maximum // 2
+            ]
+            if not boundaries:
+                break
+            boundary = cursor + boundaries[-1]
+            bounded.append((cursor, boundary))
+            cursor = boundary
+        if cursor < end:
+            bounded.append((cursor, end))
+    return tuple(bounded)
 
 
 def _view_kinds(text: str, part_kind: str) -> tuple[UnitKind, ...]:

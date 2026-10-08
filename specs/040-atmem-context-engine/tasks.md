@@ -354,6 +354,21 @@ answer/action scoring.
   allowed unrelated Incident/Change surfaces to outrank the requested Problem
   workflow. The same six IDs MUST be rerun after those generic defects pass
   reader-free and installed-artifact gates; the other 17 remain inaccessible.
+  The second paid attempt (`3ea37cd-r2-attempt2`) was stopped at the earliest
+  mathematically terminal checkpoint: AtMem was 2/4, so 5/6 was no longer
+  reachable. No provider errors were counted as retrieval failures and the
+  single L40S pod was confirmed terminated. The attempt established two
+  distinct defects: a common misspelling (`intergrates`) suppressed the exact
+  Outlook relation facet, and canonical JSON accessibility trees produced a
+  12.7 KiB range that buried option-field evidence. The generic correction
+  accepts the misspelling as the same explicit relation, bounds structured
+  source ranges at exact escaped line boundaries, nominates every explicit
+  option field from the requested workflow sources, and applies source-diverse
+  FTS shortlisting. On the real frozen enterprise checkpoint, reader-free
+  evidence now contains Outlook within 15.3 KiB and contains Subcategory,
+  Assignment Group and State while excluding Routing Cluster within 15.5 KiB.
+  A clean checkpoint and installed artifact MUST be produced before paid
+  attempt 3; T045 remains locked until attempt 3 reaches at least 5/6.
 - [ ] [T045] Run AtMem, Mem0 OSS and AgentRunbook-R/C on the same frozen
   nested 23-question LongMem five-percent development sample; produce a single matched table with
   accuracy, per-requirement pipeline coverage, product-context versus verified-

@@ -6,6 +6,7 @@ from atmem.context_engine.formation import (
 from atmem.context_engine.planner import DeterministicPlanner
 from atmem.context_engine.retrieval import (
     DeterministicRetriever, RetrievedCandidate, RetrievalResult, _fts_terms,
+    _option_fields,
 )
 from atmem.context_engine.sufficiency import decide_sufficiency
 from atmem.context_engine.packing import derive_action_constraints, pack_context
@@ -35,6 +36,16 @@ def test_bounded_clause_ranges_isolate_compound_facts_without_splitting_lists() 
     assert len(_sentence_ranges(metric)) == 3
     palette = b"The palette is ultramarine, burnt sienna, and yellow ochre."
     assert _sentence_ranges(palette) == ((0, len(palette)),)
+
+
+def test_structured_json_ranges_are_bounded_at_escaped_line_breaks() -> None:
+    content = b'{"tree":"' + (b"Problem field value\\n" * 800) + b'"}'
+
+    spans = _sentence_ranges(content)
+
+    assert len(spans) > 1
+    assert max(end - start for start, end in spans) <= 4_096
+    assert b"".join(content[start:end] for start, end in spans) == content
 
 
 def test_trajectory_action_and_state_json_form_procedure_and_transition_views() -> None:
@@ -560,12 +571,35 @@ def test_fts_terms_normalize_common_workflow_inflections() -> None:
     )
 
 
+def test_option_fields_are_extracted_without_answer_labels() -> None:
+    assert _option_fields(
+        "Which option?\nA. Subcategory, Assignment Group\nB. Impact/Priority/Urgency"
+    ) == (
+        "Subcategory", "Assignment Group", "Impact", "Priority", "Urgency",
+    )
+
+
 def test_planner_adds_compact_create_workflow_facet() -> None:
     plan = DeterministicPlanner().plan(
-        "Which option applies when navigating and creating problem requests?\n\n"
+        "Which option applies on the Problem table when navigating and "
+        "creating problem requests?\n\n"
         "A. State, Assignment Group"
     )
     assert "create problem" in plan.pool_queries["raw_state"]
+    assert "State" in plan.pool_queries["raw_state"]
+    assert plan.pool_queries["raw_state"].index("State") < plan.pool_queries[
+        "raw_state"
+    ].index("Problem table State")
+
+
+def test_planner_keeps_alternative_focus_when_integration_is_misspelled() -> None:
+    plan = DeterministicPlanner().plan(
+        "Among these forms (change request/problem/incident/hardware/user), "
+        "which page intergrates with Outlook calendar?"
+    )
+
+    assert "Outlook calendar" in plan.pool_queries["raw_state"]
+    assert "Outlook calendar user" in plan.pool_queries["raw_state"]
 
 
 def test_single_need_packing_keeps_grounding_head_first_and_bounded() -> None:
@@ -635,6 +669,47 @@ def test_option_packing_covers_named_fields_before_redundant_states() -> None:
     packed = pack_context(plan, result, decision, max_bytes=16_384)
 
     assert packed.included_unit_ids[:2] == ("head", "complementary")
+
+
+def test_option_packing_prefers_complementary_evidence_per_byte() -> None:
+    plan = DeterministicPlanner().plan(
+        "Which option contains fields present on the Problem table?\n\n"
+        "A. Subcategory, Assignment Group, State"
+    )
+    obligation_id = plan.obligations[0].obligation_id
+    head = RetrievedCandidate(
+        unit_id="head", kind="raw_state", source_id="workflow",
+        part_id="metadata", start=0, end=20,
+        text="Create a new problem.", score=10.0,
+        matched_obligation_ids=(obligation_id,),
+    )
+    large = RetrievedCandidate(
+        unit_id="large", kind="raw_state", source_id="workflow",
+        part_id="state", start=0, end=12_000,
+        text=("Problem table filler " * 500) + " Subcategory Assignment Group State",
+        score=9.0, matched_obligation_ids=(),
+    )
+    exact = [
+        RetrievedCandidate(
+            unit_id=f"exact-{index}", kind="raw_state", source_id=f"source-{index}",
+            part_id="state", start=0, end=80,
+            text=f"Problem table: {field}", score=5.0,
+            matched_obligation_ids=(),
+        )
+        for index, field in enumerate(("Subcategory", "Assignment Group", "State"))
+    ]
+    result = RetrievalResult(
+        candidates=(head, large, *exact), searched_pools=("raw_state",),
+        scanned_units=5, exhausted=False,
+    )
+    decision = decide_sufficiency(plan, result)
+
+    packed = pack_context(plan, result, decision, max_bytes=16_384)
+
+    assert packed.included_unit_ids[0] == "head"
+    assert set(packed.included_unit_ids[1:4]) == {
+        "exact-0", "exact-1", "exact-2",
+    }
 
 
 def test_retrieval_keeps_source_breadth_and_adjacent_exact_evidence() -> None:

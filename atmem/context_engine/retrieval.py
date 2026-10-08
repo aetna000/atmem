@@ -45,6 +45,16 @@ def _fts_query(terms: tuple[str, ...], *, operator: str) -> str:
     )
 
 
+def _option_fields(query: str) -> tuple[str, ...]:
+    fields: list[str] = []
+    for line in re.findall(r"(?m)^\s*[A-Z]\s*[.)]\s*([^\n]+)$", query):
+        fields.extend(
+            " ".join(item.split()).strip(" ,.;")
+            for item in re.split(r"\s*,\s*|\s*/\s*", line)
+        )
+    return tuple(dict.fromkeys(item for item in fields if len(item) > 1))
+
+
 @dataclass(frozen=True, slots=True)
 class RetrievedCandidate:
     unit_id: str
@@ -77,7 +87,9 @@ class DeterministicRetriever:
     def _pool(
         self, generation_id: str, kind: str, query: str,
         allowed_unit_ids: frozenset[str] | None = None,
+        result_limit: int | None = None,
     ) -> list[RetrievedCandidate]:
+        limit = result_limit or self.budget.per_pool
         terms = _fts_terms(query)
         range_indexed = bool(
             getattr(self.store, "_context_range_fts_enabled", False)
@@ -136,8 +148,8 @@ class DeterministicRetriever:
                         AND u.kind=? AND u.lifecycle='active' {allowed_sql}
                       ORDER BY rank, m.unit_id LIMIT ?"""
         row_limit = (
-            max(96, self.budget.per_pool * 32)
-            if range_indexed else self.budget.per_pool
+            max(32, limit * 32)
+            if range_indexed else limit
         )
         parameters = (generation_id, kind, *allowed_params, row_limit)
         # Most fact queries contain at least one discriminating entity/value.
@@ -145,7 +157,11 @@ class DeterministicRetriever:
         # words.  Fall back to the recall-oriented union only when the precise
         # query has no result.
         if range_indexed:
-            shortlist = max(96, self.budget.per_pool * 4)
+            # The range shortlist must be wider than the final source limit:
+            # a repetitive form can contribute dozens of top BM25 ranges and
+            # otherwise crowd every other source out before source-level
+            # diversity is applied.
+            shortlist = max(128, limit * 16)
 
             def execute(operator: str):
                 return self.store._conn.execute(
@@ -240,7 +256,7 @@ class DeterministicRetriever:
         return sorted(
             ranked_sources,
             key=lambda item: (-item.score, item.source_id, item.unit_id),
-        )[: self.budget.per_pool]
+        )[:limit]
 
     def _neighbors(
         self, generation_id: str, head: RetrievedCandidate, *, radius: int = 2,
@@ -312,6 +328,7 @@ class DeterministicRetriever:
         by_pool: dict[str, list[RetrievedCandidate]] = {}
         by_pool_query: dict[tuple[str, str], list[RetrievedCandidate]] = {}
         scanned = 0
+        option_comparison_query = "which option" in query.casefold()
         for pool in POOL_KINDS:
             queries = plan.pool_queries.get(pool) or ()
             if not queries:
@@ -321,7 +338,14 @@ class DeterministicRetriever:
                 if scanned >= self.budget.total_units:
                     break
                 rows = self._pool(
-                    generation_id, pool, pool_query, allowed_unit_ids
+                    generation_id, pool, pool_query, allowed_unit_ids,
+                    result_limit=(
+                        min(8, self.budget.per_pool)
+                        if option_comparison_query
+                        and pool_query != query
+                        and len(_fts_terms(pool_query)) <= 6
+                        else None
+                    ),
                 )
                 by_pool_query[(pool, pool_query)] = rows
                 scanned += len(rows)
@@ -341,7 +365,6 @@ class DeterministicRetriever:
         supplemental_priority_units: set[str] = set()
         supplemental_intent_sources: set[str] = set()
         supplemental_query_hits: dict[str, set[str]] = {}
-        option_comparison_query = "which option" in query.casefold()
         for obligation in plan.obligations:
             preferred = {
                 "comparison_side": ("entity", "fact", "raw_state"),
@@ -497,6 +520,42 @@ class DeterministicRetriever:
             used_sources.add(candidate.source_id)
             if len(selected) >= max_sources:
                 break
+        # Multiple-choice field questions need one precise nomination per
+        # explicit field, not merely the ranges that happen to mention the
+        # largest number of option words. Keep those nominations constrained
+        # to the answer-blind workflow-intent sources when such sources exist.
+        # This preserves evidence for rare fields (for example Subcategory)
+        # without importing similarly named fields from unrelated forms.
+        if option_comparison_query and len(selected) < max_sources:
+            for field in _option_fields(query):
+                rows = [
+                    item
+                    for pool in ("fact", "entity", "raw_state")
+                    for item in by_pool_query.get((pool, field), ())
+                    if item.unit_id not in used_units
+                ]
+                if supplemental_intent_sources:
+                    rows = [
+                        item for item in rows
+                        if item.source_id in supplemental_intent_sources
+                    ]
+                if not rows:
+                    continue
+                candidate = min(
+                    rows,
+                    key=lambda item: (
+                        len(item.text.encode("utf-8")),
+                        -item.score,
+                        item.source_id,
+                        item.unit_id,
+                    ),
+                )
+                selected.append(candidate)
+                used_units.add(candidate.unit_id)
+                used_sources.add(candidate.source_id)
+                supplemental_priority_units.add(candidate.unit_id)
+                if len(selected) >= max_sources:
+                    break
         if len(selected) < max_sources:
             remainder = sorted(
                 (

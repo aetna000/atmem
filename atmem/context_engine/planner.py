@@ -152,11 +152,15 @@ def _targeted_facets(query: str) -> tuple[str, ...]:
         ]
         entities = [item for item in entities if 1 < len(item) <= 48]
         focus = re.search(
-            r"\b(?:integrates?|integration)\s+with\s+([^?.\n]+)",
+            # ``intergrate`` is a common transposition in natural questions.
+            # Treat it as the same explicit relation instead of dropping every
+            # answer-blind alternative facet because of one misspelling.
+            r"\b(?:integrates?|integration|intergrates?)\s+with\s+([^?.\n]+)",
             query, re.IGNORECASE,
         )
         focus_text = " ".join(focus.group(1).split()) if focus else ""
         if 2 <= len(entities) <= 12 and focus_text:
+            values.append(focus_text)
             values.extend(f"{focus_text} {entity}" for entity in entities)
 
     option_lines = re.findall(
@@ -174,8 +178,14 @@ def _targeted_facets(query: str) -> tuple[str, ...]:
                 " ".join(item.split()).strip(" ,.;")
                 for item in re.split(r"\s*,\s*|\s*/\s*", line)
             )
-        for field in dict.fromkeys(item for item in fields if len(item) > 1):
-            values.append(f"{prefix} {field}".strip())
+        unique_fields = tuple(dict.fromkeys(item for item in fields if len(item) > 1))
+        # Search the exact field phrase first. Surface qualification is applied
+        # later from the compact workflow facet/source identity; requiring the
+        # words "Problem table" to occur in the same 4 KiB source range can
+        # hide a real field merely because the form title is in an earlier
+        # structural range.
+        values.extend(unique_fields)
+        values.extend(f"{prefix} {field}".strip() for field in unique_fields)
     return tuple(dict.fromkeys(values))
 
 
@@ -227,7 +237,7 @@ class DeterministicPlanner:
             tuple(item.relation_or_action or normalized for item in obligations)
         )
         routed_queries = tuple(dict.fromkeys((
-            normalized, *obligation_queries, *_targeted_facets(query),
+            *_targeted_facets(query), normalized, *obligation_queries,
         )))
         pools = {
             "raw_state": routed_queries,
