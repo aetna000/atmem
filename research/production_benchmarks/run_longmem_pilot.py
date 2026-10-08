@@ -811,7 +811,7 @@ def main() -> None:
         run_batch(non_llm_work, max_workers=2, gated=False)
         # Every LLM-judged case must reach the local gate before Runpod is
         # terminated. The remote vLLM server still enforces max_num_seqs=2.
-        executor = ThreadPoolExecutor(max_workers=len(llm_work))
+        executor = ThreadPoolExecutor(max_workers=max(1, len(llm_work)))
         llm_futures = [
             executor.submit(run_case, item, gated=True) for item in llm_work
         ]
@@ -820,7 +820,8 @@ def main() -> None:
                 output_root / "runs" / question_id / method / "judge-usage.json"
                 for question_id, method in llm_work
             ]
-            _wait_for_judge_gate(llm_futures, usage_paths, deadline=deadline)
+            if llm_futures:
+                _wait_for_judge_gate(llm_futures, usage_paths, deadline=deadline)
             terminated = _terminate_runpod_pod(pod_id)
             if not terminated:
                 raise RuntimeError("Runpod pod termination failed; manual action required")

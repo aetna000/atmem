@@ -8,7 +8,7 @@ import re
 from atmem.contracts.models import ActionConstraint
 
 from .contracts import QueryPlan, SufficiencyDecisionV2
-from .retrieval import RetrievalResult
+from .retrieval import RetrievalResult, RetrievedCandidate
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,6 +18,92 @@ class PackedContext:
     excluded_unit_ids: tuple[str, ...]
     bytes_used: int
     complete: bool
+
+
+def _option_field_facets(plan: QueryPlan) -> tuple[tuple[str, ...], ...]:
+    """Return answer-blind field phrases explicitly named by an option query."""
+    if not any(
+        "which option" in (item.relation_or_action or "").casefold()
+        for item in plan.obligations
+    ):
+        return ()
+    facets: list[tuple[str, ...]] = []
+    for queries in plan.pool_queries.values():
+        for query in queries:
+            match = re.fullmatch(
+                r"\s*[A-Za-z0-9_-]+\s+table\s+(.+?)\s*", query,
+                re.IGNORECASE,
+            )
+            if not match:
+                continue
+            terms = tuple(
+                token.casefold()
+                for token in re.findall(r"[^\W_]+", match.group(1), re.UNICODE)
+                if len(token) > 1
+            )
+            if terms and terms not in facets:
+                facets.append(terms)
+    return tuple(facets)
+
+
+def _coverage_order(
+    candidates: list[RetrievedCandidate], plan: QueryPlan,
+) -> list[RetrievedCandidate]:
+    """Greedily pack explicit option-field coverage before redundant UI text."""
+    facets = _option_field_facets(plan)
+    if not facets:
+        return candidates
+    required = [item for item in candidates if item.matched_obligation_ids]
+    remaining = [item for item in candidates if not item.matched_obligation_ids]
+    intent_sources = {
+        item.source_id
+        for item in candidates
+        if item.part_id == "trajectory-metadata"
+        and re.search(r"\bcreat(?:e|es|ed|ing)\b.{0,32}\bproblems?\b", item.text,
+                      re.IGNORECASE | re.DOTALL)
+    }
+
+    def coverage(item: RetrievedCandidate) -> set[tuple[str, ...]]:
+        # A field name in an Incident, Change, or generic dictionary is not
+        # evidence that the field exists on the requested Problem surface.
+        # Keep field coverage inside a matching workflow trajectory or an
+        # explicit Problem table/form observation.
+        if item.source_id not in intent_sources and not re.search(
+            r"\bproblems?\s+table\b|\bproblem_table\b|\bproblem\s*\|\s*servicenow\b",
+            item.text,
+            re.IGNORECASE,
+        ):
+            return set()
+        words = {
+            token.casefold()
+            for token in re.findall(r"[^\W_]+", item.text, re.UNICODE)
+        }
+        return {facet for facet in facets if set(facet) <= words}
+
+    coverage_by_unit = {item.unit_id: coverage(item) for item in candidates}
+    covered = (
+        set().union(*(coverage_by_unit[item.unit_id] for item in required))
+        if required else set()
+    )
+    ordered = list(required)
+    while remaining:
+        ranked = sorted(
+            enumerate(remaining),
+            key=lambda pair: (
+                -len(coverage_by_unit[pair[1].unit_id] - covered),
+                len(pair[1].text.encode("utf-8")),
+                pair[0],
+            ),
+        )
+        index, candidate = ranked[0]
+        new = coverage_by_unit[candidate.unit_id] - covered
+        if not new:
+            ordered.extend(remaining)
+            break
+        ordered.append(candidate)
+        covered.update(new)
+        remaining.pop(index)
+    return ordered
 
 
 def pack_context(
@@ -30,12 +116,29 @@ def pack_context(
     if max_bytes < 0:
         raise ValueError("max_bytes cannot be negative")
     order = {item.obligation_id: index for index, item in enumerate(plan.obligations)}
-    candidates = sorted(
-        result.candidates,
-        key=lambda item: (
-            min((order.get(value, len(order)) for value in item.matched_obligation_ids), default=len(order)),
-            item.source_id,
-        ),
+    # Retrieval order is meaningful: obligation-grounding heads precede their
+    # bounded neighbourhood and lower-ranked supplemental sources. Sorting by
+    # opaque source IDs used to randomize that order and place unrelated raw
+    # states before the evidence that actually satisfied the question.
+    candidates = [
+        item for _, item in sorted(
+            enumerate(result.candidates),
+            key=lambda pair: (
+                0 if pair[1].matched_obligation_ids else 1,
+                min(
+                    (order.get(value, len(order)) for value in pair[1].matched_obligation_ids),
+                    default=len(order),
+                ),
+                pair[0],
+            ),
+        )
+    ]
+    candidates = _coverage_order(candidates, plan)
+    # A single information need should receive a compact evidence package,
+    # not 32 KiB of loosely related UI states. Required evidence still has
+    # first claim on the budget; this cap only removes supplemental noise.
+    effective_max_bytes = (
+        min(max_bytes, 16_384) if len(plan.obligations) == 1 else max_bytes
     )
     chunks: list[str] = []
     included: list[str] = []
@@ -48,7 +151,7 @@ def pack_context(
         )
         separator = "\n\n" if chunks else ""
         size = len((separator + chunk).encode())
-        if used + size > max_bytes:
+        if used + size > effective_max_bytes:
             excluded.append(candidate.unit_id)
             continue
         chunks.append(chunk)

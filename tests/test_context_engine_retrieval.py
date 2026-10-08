@@ -554,6 +554,89 @@ def test_anchor_date_is_not_treated_as_query_evidence() -> None:
     )
 
 
+def test_fts_terms_normalize_common_workflow_inflections() -> None:
+    assert _fts_terms("Creating problems, requests, fields, actions and steps") == (
+        "create", "problem", "request", "field", "action", "step",
+    )
+
+
+def test_planner_adds_compact_create_workflow_facet() -> None:
+    plan = DeterministicPlanner().plan(
+        "Which option applies when navigating and creating problem requests?\n\n"
+        "A. State, Assignment Group"
+    )
+    assert "create problem" in plan.pool_queries["raw_state"]
+
+
+def test_single_need_packing_keeps_grounding_head_first_and_bounded() -> None:
+    plan = DeterministicPlanner().plan("How many actions remain in this workflow?")
+    obligation_id = plan.obligations[0].obligation_id
+    required = RetrievedCandidate(
+        unit_id="required", kind="procedure", source_id="z-source",
+        part_id="actions", start=0, end=32,
+        text="Fill Comment; check Notify; click Submit.", score=10.0,
+        matched_obligation_ids=(obligation_id,),
+    )
+    noise = RetrievedCandidate(
+        unit_id="noise", kind="raw_state", source_id="a-source",
+        part_id="state", start=0, end=20_000, text="noise " * 4_000,
+        score=1.0, matched_obligation_ids=(),
+    )
+    result = RetrievalResult(
+        candidates=(required, noise), searched_pools=("procedure",),
+        scanned_units=2, exhausted=False,
+    )
+    decision = decide_sufficiency(plan, result)
+
+    packed = pack_context(plan, result, decision, max_bytes=32_768)
+
+    assert packed.context.startswith("[source=z-source")
+    assert "Fill Comment" in packed.context
+    assert "noise" not in packed.context
+    assert len(packed.context.encode()) <= 16_384
+
+
+def test_option_packing_covers_named_fields_before_redundant_states() -> None:
+    plan = DeterministicPlanner().plan(
+        "Which option contains fields present on the Problem table?\n\n"
+        "A. Description, State\nB. Subcategory, Assignment Group"
+    )
+    obligation_id = plan.obligations[0].obligation_id
+    head = RetrievedCandidate(
+        unit_id="head", kind="raw_state", source_id="workflow",
+        part_id="metadata", start=0, end=20,
+        text="Create a new problem.", score=10.0,
+        matched_obligation_ids=(obligation_id,),
+    )
+    redundant = RetrievedCandidate(
+        unit_id="redundant", kind="raw_state", source_id="workflow",
+        part_id="state-1", start=0, end=8_000,
+        text=("Description State " * 400), score=9.0,
+        matched_obligation_ids=(),
+    )
+    complementary = RetrievedCandidate(
+        unit_id="complementary", kind="raw_state", source_id="other",
+        part_id="state-2", start=0, end=100,
+        text="Problems table: Subcategory Assignment Group State", score=5.0,
+        matched_obligation_ids=(),
+    )
+    wrong_surface = RetrievedCandidate(
+        unit_id="incident-fields", kind="raw_state", source_id="incident",
+        part_id="state-3", start=0, end=100,
+        text="Incident fields: Description State Subcategory Assignment Group",
+        score=20.0, matched_obligation_ids=(),
+    )
+    result = RetrievalResult(
+        candidates=(head, wrong_surface, redundant, complementary),
+        searched_pools=("raw_state",), scanned_units=4, exhausted=False,
+    )
+    decision = decide_sufficiency(plan, result)
+
+    packed = pack_context(plan, result, decision, max_bytes=16_384)
+
+    assert packed.included_unit_ids[:2] == ("head", "complementary")
+
+
 def test_retrieval_keeps_source_breadth_and_adjacent_exact_evidence() -> None:
     store = SQLiteStore(":memory:")
     try:

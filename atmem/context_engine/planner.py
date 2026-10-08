@@ -123,6 +123,14 @@ def _targeted_facets(query: str) -> tuple[str, ...]:
     every distractor would incorrectly fail closed.
     """
     values: list[str] = []
+    workflow = re.search(
+        r"\bcreat(?:e|ing)\s+(?:a\s+|new\s+|a\s+new\s+)?"
+        r"([A-Za-z][A-Za-z_-]*)(?:\s+requests?)?\b",
+        query,
+        re.IGNORECASE,
+    )
+    if workflow:
+        values.append(f"create {workflow.group(1).casefold()}")
     # Preserve the user's task intent as a compact nomination query. Long
     # questions often wrap a short action in UI, location, and answer-format
     # prose; searching only the full sentence lets framing words dominate the

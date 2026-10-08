@@ -15,7 +15,7 @@ from .pools import POOL_KINDS, PoolBudget
 _STOP = {
     "a", "an", "and", "as", "be", "does", "do", "for", "how", "in", "is", "of",
     "the", "to", "what", "when", "where", "which", "why", "on", "with", "my",
-    "our", "its", "please", "create", "send", "post", "inspect", "review", "comment",
+    "our", "its", "please", "send", "post", "inspect", "review", "comment",
     "find", "update", "short", "concise", "note", "document", "reference", "include",
     "state", "briefly", "actual", "another", "current", "earlier", "conversation",
     "would", "like", "user", "perform", "conclude", "task",
@@ -24,8 +24,14 @@ _STOP = {
 
 def _fts_terms(value: str) -> tuple[str, ...]:
     value = re.sub(r"^\s*\[\d{4}-\d{2}-\d{2}\]\s*", "", value)
+    aliases = {
+        "creating": "create", "created": "create", "creates": "create",
+        "problems": "problem", "requests": "request", "fields": "field",
+        "actions": "action", "steps": "step", "orders": "order",
+    }
     terms = [
-        token.casefold() for token in re.findall(r"[^\W_]+", value, re.UNICODE)
+        aliases.get(token.casefold(), token.casefold())
+        for token in re.findall(r"[^\W_]+", value, re.UNICODE)
         if token.casefold() not in _STOP and len(token) > 1
     ]
     return tuple(dict.fromkeys(terms))
@@ -188,6 +194,10 @@ class DeterministicRetriever:
             by_source.setdefault(item.source_id, []).append(item)
         ranked_sources: list[RetrievedCandidate] = []
         query_terms = set(terms)
+        workflow_target = (
+            next((term for term in terms if term != "create"), None)
+            if "create" in terms else None
+        )
         for source_id, source_rows in by_source.items():
             covered = {
                 term
@@ -195,9 +205,22 @@ class DeterministicRetriever:
                 for term in _fts_terms(item.text)
                 if term in query_terms
             }
+            def workflow_match(item: RetrievedCandidate) -> bool:
+                return bool(
+                    workflow_target
+                    and re.search(
+                        rf"\bcreat(?:e|es|ed|ing)\b.{{0,32}}"
+                        rf"\b{re.escape(workflow_target)}s?\b",
+                        item.text,
+                        re.IGNORECASE | re.DOTALL,
+                    )
+                )
+
             head = max(
                 source_rows,
                 key=lambda item: (
+                    workflow_match(item),
+                    workflow_match(item) and item.part_id == "trajectory-metadata",
                     len(query_terms & set(_fts_terms(item.text))),
                     item.score,
                     item.unit_id,
@@ -315,6 +338,10 @@ class DeterministicRetriever:
         selected: list[RetrievedCandidate] = []
         used_units: set[str] = set()
         used_sources: set[str] = set()
+        supplemental_priority_units: set[str] = set()
+        supplemental_intent_sources: set[str] = set()
+        supplemental_query_hits: dict[str, set[str]] = {}
+        option_comparison_query = "which option" in query.casefold()
         for obligation in plan.obligations:
             preferred = {
                 "comparison_side": ("entity", "fact", "raw_state"),
@@ -328,7 +355,71 @@ class DeterministicRetriever:
             # blind facets must also be able to ground an obligation. Earlier,
             # a useful facet could only fill a supplemental slot whenever the
             # verbose original query returned any noisy result.
-            candidates_by_unit: dict[str, tuple[tuple[int, int, float], RetrievedCandidate]] = {}
+            facet_hits: dict[str, set[str]] = {}
+            intent_units: set[str] = set()
+            for pool in preferred:
+                for pool_query in plan.pool_queries.get(pool) or ():
+                    for item in by_pool_query.get((pool, pool_query), ()):
+                        facet_hits.setdefault(item.source_id, set()).add(pool_query)
+                        facet_terms = _fts_terms(pool_query)
+                        intent_match = re.fullmatch(
+                            r"\s*create\s+([A-Za-z0-9_-]+)\s*",
+                            pool_query,
+                            re.IGNORECASE,
+                        )
+                        intent_tail = (
+                            intent_match.group(1).casefold() if intent_match else None
+                        )
+                        if (
+                            len(facet_terms) <= 4
+                            and intent_tail is not None
+                            and re.search(
+                                rf"\bcreat(?:e|es|ed|ing)\b.{{0,32}}\b{re.escape(intent_tail)}s?\b",
+                                item.text,
+                                re.IGNORECASE | re.DOTALL,
+                            )
+                        ):
+                            intent_units.add(item.unit_id)
+            option_comparison = option_comparison_query
+            supplemental_priority_units.update(intent_units)
+            intent_items = [
+                item
+                for rows in by_pool_query.values()
+                for item in rows
+                if item.unit_id in intent_units
+            ]
+            # Prefer trajectories whose compact metadata states the requested
+            # workflow. A UI state can mention “create problem” incidentally
+            # (history, navigation, help text); treating every such source as
+            # the same intent bucket reintroduces unrelated long states ahead
+            # of the actual workflow evidence.
+            metadata_intent_sources = {
+                item.source_id
+                for item in intent_items
+                if item.part_id == "trajectory-metadata"
+            }
+            supplemental_intent_sources.update(
+                metadata_intent_sources
+                or {item.source_id for item in intent_items}
+            )
+            if option_comparison:
+                for (_pool_name, pool_query), rows in by_pool_query.items():
+                    for item in rows:
+                        supplemental_query_hits.setdefault(item.unit_id, set()).add(
+                            pool_query
+                        )
+            def intent_priority(item: RetrievedCandidate) -> int:
+                if not intent_units:
+                    return 0
+                if item.unit_id in intent_units and item.part_id == "trajectory-metadata":
+                    return 0
+                if item.unit_id in intent_units:
+                    return 1
+                return 2
+
+            candidates_by_unit: dict[
+                str, tuple[tuple[int, int, int, int, float], RetrievedCandidate]
+            ] = {}
             for pool_index, pool in enumerate(preferred):
                 queries = plan.pool_queries.get(pool) or (obligation_query,)
                 ordered_queries = (
@@ -337,12 +428,22 @@ class DeterministicRetriever:
                 )
                 for query_index, pool_query in enumerate(ordered_queries):
                     for item in by_pool_query.get((pool, pool_query), ()):
-                        priority = (query_index, pool_index, -item.score)
+                        priority = (
+                            intent_priority(item),
+                            -len(facet_hits.get(item.source_id, ()))
+                            if option_comparison else 0,
+                            query_index, pool_index, -item.score,
+                        )
                         prior = candidates_by_unit.get(item.unit_id)
                         if prior is None or priority < prior[0]:
                             candidates_by_unit[item.unit_id] = (priority, item)
                 for item in by_pool.get(pool, ()):
-                    priority = (len(ordered_queries), pool_index, -item.score)
+                    priority = (
+                        intent_priority(item),
+                        -len(facet_hits.get(item.source_id, ()))
+                        if option_comparison else 0,
+                        len(ordered_queries), pool_index, -item.score,
+                    )
                     prior = candidates_by_unit.get(item.unit_id)
                     if prior is None or priority < prior[0]:
                         candidates_by_unit[item.unit_id] = (priority, item)
@@ -366,7 +467,9 @@ class DeterministicRetriever:
                     or len(overlap) / max(1, len(need_terms)) >= 0.20
                 )
 
-            if obligation.entity:
+            if option_comparison:
+                pass
+            elif obligation.entity:
                 entity = obligation.entity.casefold()
                 candidates.sort(
                     key=lambda item: (entity not in item.text.casefold(), -item.score, item.source_id)
@@ -397,18 +500,31 @@ class DeterministicRetriever:
         if len(selected) < max_sources:
             remainder = sorted(
                 (
-                    item for rows in by_pool.values() for item in rows
+                    item
+                    for rows in (*by_pool.values(), *by_pool_query.values())
+                    for item in rows
                     if item.unit_id not in used_units
-                    and item.source_id not in used_sources
+                    and (
+                        option_comparison_query
+                        or item.source_id not in used_sources
+                    )
                 ),
-                key=lambda item: (-item.score, item.source_id, item.unit_id),
+                key=lambda item: (
+                    item.source_id not in supplemental_intent_sources,
+                    item.unit_id not in supplemental_priority_units,
+                    item.part_id != "trajectory-metadata",
+                    -len(supplemental_query_hits.get(item.unit_id, ())),
+                    -item.score, item.source_id, item.unit_id,
+                ),
             )
             for item in remainder:
                 # The same source-backed unit may appear through several typed
                 # views. Sorting materializes the remainder before selection,
                 # so recheck here rather than relying only on the generator's
                 # initial used-unit snapshot.
-                if item.unit_id in used_units or item.source_id in used_sources:
+                if item.unit_id in used_units or (
+                    not option_comparison_query and item.source_id in used_sources
+                ):
                     continue
                 selected.append(item)
                 used_units.add(item.unit_id)

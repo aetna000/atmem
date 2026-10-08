@@ -345,6 +345,15 @@ answer/action scoring.
   failures in the denominator and retain the stage evidence before either
   returning to the attributed implementation stage or unlocking T045
   (FR-035, FR-037A, FR-038–FR-042, SC-015–SC-016, SC-019).
+  The first paid stage (`6814770-r1`) retained all 30 matched outcomes and
+  measured AtMem 4/6, current AgentRunbook-R 2/6, verified evidence 4/6,
+  Mem0 OSS 0/6 and no-memory 0/6. Expansion remains locked because AtMem only
+  tied the stronger retained AgentRunbook-R same-six reference (4/6), rather
+  than beating it. Attribution returned to two bounded defects: excess UI
+  context caused one reader/provider failure, and OR-fallback field matches
+  allowed unrelated Incident/Change surfaces to outrank the requested Problem
+  workflow. The same six IDs MUST be rerun after those generic defects pass
+  reader-free and installed-artifact gates; the other 17 remain inaccessible.
 - [ ] [T045] Run AtMem, Mem0 OSS and AgentRunbook-R/C on the same frozen
   nested 23-question LongMem five-percent development sample; produce a single matched table with
   accuracy, per-requirement pipeline coverage, product-context versus verified-

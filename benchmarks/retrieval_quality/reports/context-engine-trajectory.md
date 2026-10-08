@@ -46,3 +46,27 @@ household is SQLCipher-encrypted.
   installed-artifact, and matched paid development gates remain incomplete.
 - No website, release note, or dashboard may present this result as benchmark
   leadership.
+
+## LongMemEval-V2 six-case stage `6814770-r1`
+
+Claim class: paid development-stage diagnostic; not a five-percent or public
+benchmark result.
+
+| Arm | Score | Interpretation |
+|---|---:|---|
+| AtMem `context-fast` | 4/6 | Ties, but does not beat, the stronger retained reference |
+| AgentRunbook-R, current execution | 2/6 | Two reader/provider failures make this run unsuitable as the sole bar |
+| AgentRunbook-R, retained same-six reference | 4/6 | Controlling expansion threshold |
+| Evaluator-verified evidence | 4/6 | Two reader/system failures remain visible |
+| Mem0 OSS | 0/6 | Matched current execution |
+| No memory | 0/6 | Matched current execution |
+
+The stage therefore failed its precommitted strict-lead gate and the remaining
+17 development questions stayed locked. Case `07ab3723` was attributed to
+reader/provider failure after delivery of a 31 KiB UI-heavy context. Case
+`07ffeedf` was attributed to retrieval/packing: union-query fallback credited
+generic “Problem table” matches as if they contained the requested named field,
+and unrelated Incident/Change surfaces displaced the compact create-Problem
+workflow evidence. Remediation is limited to retrieval-order validation,
+surface-bound field coverage and bounded coverage-maximizing packing; the
+frozen questions, comparators, reader, judge and budgets remain unchanged.
