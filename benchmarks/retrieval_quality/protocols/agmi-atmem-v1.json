@@ -1,0 +1,44 @@
+{
+  "format": "atmem-agmi-protocol-v1",
+  "repository": "https://github.com/tech4biz-yasha/agmi",
+  "source_commit": "115493a41a7b41952f92ec07e1ea0932926e194f",
+  "package": "agent-memory-integrity",
+  "package_version": "0.6.3",
+  "candidate_atmem_version": "2.3.8b6",
+  "files": {
+    "agmi/adapters/atmem.py": "3b1880a86e94abc7e1254224be1f92ac3914e120d9dcec219f3ff09df1ff2255",
+    "agmi/attacks/at_rest.py": "2d860c2b29c180595512dfe3db15dc414b584abd02c8041fd2c3893626133dab",
+    "tests/test_atmem.py": "bd6978fff34276abd9f19c156a8aca519c7e5e7d9378400f2427a4e2245311ed"
+  },
+  "profiles": [
+    "atmem-chain",
+    "atmem-chain+checkpoint"
+  ],
+  "attacks": [
+    "tamper",
+    "truncate",
+    "delete_middle",
+    "reorder",
+    "forge",
+    "cross_replay",
+    "rollback_replay",
+    "metadata_tamper",
+    "snapshot_rollback"
+  ],
+  "published_2_3_7": {
+    "atmem-chain": {
+      "detected": 0,
+      "total": 9
+    },
+    "atmem-chain+checkpoint": {
+      "detected": 1,
+      "total": 9
+    }
+  },
+  "execution": {
+    "hardware_profile": "RunPod-SECURE;Linux;x86_64;NVIDIA-A100-SXM4-80GB;remote-worker-v1",
+    "installed_artifact_required": true,
+    "all_failures_retained": true,
+    "score_can_stop_run": false
+  }
+}

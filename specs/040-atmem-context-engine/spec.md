@@ -401,17 +401,17 @@ read-path result, explicit verification result and exact detection point.
   Each profile MUST be nested over the historical 14/18 calibration slice,
   preserve the existing development/confirmation boundary, and rederive its
   membership from the pinned salt and public identifiers before execution.
-- **FR-037A — Staged LongMem stop/go gate**: Before spending the complete
-  23-question LongMemEval-V2 development budget, the runner MUST execute the
-  immutable six-question stage declared by
-  `longmemeval-v2-stage-gate-v1.json`. The stage MUST preserve every production
-  setting and matched arm required by FR-035 and FR-038; only the public case
-  count may differ. It is a diagnostic, not a five-percent result. AtMem MUST
-  score strictly above AgentRunbook-R on that stage before the remaining 17
-  questions may run. A tie or loss MUST stop paid execution, retain all
-  outcomes, attribute the earliest failing pipeline stage, and return to an
-  implementation fix followed by an identical-stage rerun. Cases, order,
-  reader, judge or budgets MUST NOT be changed in response to an outcome.
+- **FR-037A — Staged LongMem progress checkpoint**: The immutable six-question
+  stage declared by `longmemeval-v2-stage-gate-v1.json` MAY be reported as an
+  operational progress checkpoint while the complete 23-question
+  LongMemEval-V2 development run continues. The checkpoint MUST preserve every
+  production setting and matched arm required by FR-035 and FR-038; only the
+  public case count may differ. It is diagnostic, never a five-percent result,
+  and its score MUST NOT stop, restart or alter an otherwise valid full run.
+  The runner may stop or restart only for a code defect, invalid evidence,
+  provider/infrastructure failure, security failure or another condition that
+  makes the final run incomplete or non-comparable. A low or losing score is
+  retained as the result and is not itself a blocker.
 - **FR-038 — Sample-size-only reduction**: The 23-question and 30-task
   development runs MUST execute the same production benchmark pipeline and
   quality gates intended for the corresponding full run. The sample selector
@@ -552,6 +552,16 @@ read-path result, explicit verification result and exact detection point.
   gates. The result MUST bind the beta version, commit, artifact SHA-256,
   dataset manifests and evaluator configuration; a later source-tree result
   MUST NOT be attributed to that beta.
+- **FR-053 — Remote paid-run isolation**: LongMemEval-V2 and DolphinBench paid
+  evaluation workers MUST execute on the frozen RunPod Linux worker profile,
+  including memory formation, retrieval, comparator execution, reader/agent
+  calls and result assembly. The operator workstation MAY perform only bounded
+  orchestration, immutable artifact transfer and result collection. A paid
+  runner invoked on macOS or Windows MUST fail before provider reservation or
+  benchmark work. The remote worker identity, hardware class, image digest,
+  resource limits and cleanup receipt MUST be bound into finalization evidence.
+  A score below target MUST NOT interrupt the run; only a defect or failure
+  that invalidates completeness, integrity or comparability may do so.
 
 ### Key Entities
 

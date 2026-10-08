@@ -138,9 +138,10 @@
     "official_harness_sha256": "93fe5855a74ad46d7e8b489cebac24de38a9b30ba7ec1de2dd8708bd4aeebdb6",
     "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
     "judge_prompt_sha256": "f8ba659e237c4282a07a92538090ea500ce8483820b390b1d19af187c01417ac",
-    "provider_route": "runpod-vllm-reader+local-deterministic-embedding+openai-direct-judge",
+    "provider_route": "runpod-remote-worker+vllm-reader+deterministic-embedding+openai-direct-judge",
     "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
-    "hardware_profile": "Apple-M2;arm64;17179869184-bytes;macOS-26.5.2-build-25F84",
+    "hardware_profile": "RunPod-SECURE;Linux;x86_64;NVIDIA-A100-SXM4-80GB;remote-worker-v1",
+    "remote_worker_case_concurrency": 2,
     "comparator_config_sha256": "08b99b870b3c134ccf3daca04cdba4248dda349004dd8d87159f0e8e4b62ec09",
     "official_code_files": {
       "evaluation/harness.py": "93fe5855a74ad46d7e8b489cebac24de38a9b30ba7ec1de2dd8708bd4aeebdb6",
@@ -221,11 +222,11 @@
   "equivalence_receipts": {
     "longmemeval_v2": {
       "file": "longmemeval-v2-equivalence-5pct-v1.json",
-      "file_sha256": "6494cdd492469eae50029498f5f621377ed5010113c2e290406e2b729fa66214"
+      "file_sha256": "959278b2158ef7fa1d391c6ac974893a80ff5b5dd351e4663f4fccb1b4f32838"
     },
     "dolphinbench": {
       "file": "dolphinbench-equivalence-5pct-v1.json",
-      "file_sha256": "25544dd611531d5d3eeadea6dcbe7d4316adb42bdb0e8b5151028d8ff68ed468"
+      "file_sha256": "8d11c6ed1cd95a5ca39ac62f13690723fada727221f924a6b8128cd6f4407d61"
     }
   },
   "operating_points": ["no-retrieval", "official-rag-query-to-slice-notes", "agentrunbook-r", "agentrunbook-c", "agentrunbook-c-v2", "mem0-oss", "legacy", "typed-local"],

@@ -325,15 +325,16 @@ outside runtime.
 5. Add navigation and pass source-span tests.
 6. Run reader-free reference parity; iterate until AtMem is at least 10%
    relatively better than both comparators on the frozen micro corpus.
-7. Run the immutable six-question LongMem stage with the complete production
-   pipeline and every matched arm. Unlock the remaining five-percent cases only
-   when AtMem is strictly above AgentRunbook-R; a tie or loss returns to the
-   earliest attributed implementation stage and reruns the identical six.
+7. Use the immutable six-question LongMem stage only as a progress checkpoint
+   within the complete production run. Never stop or restart a valid run because
+   AtMem ties or trails a comparator; retain the observed score as-is.
 8. Reproduce the published AGMI 2.3.7 rows, implement record-to-chain and
    external-checkpoint verification, then pass the pinned T1–T9 development
    gate without weakening retrieval or governance.
-9. After the six-question gate passes, run complete matched 23-question LongMem development and 30-task Dolphin
-   development—never another AtMem-only paid run.
+9. Run complete matched 23-question LongMem development and 30-task Dolphin
+   development—never another AtMem-only paid run and never interrupt for a bad
+   score. Restart only when a code, evidence, provider or infrastructure defect
+   invalidates the run.
 10. Only after development targets pass, run untouched confirmation/full gates.
 11. Complete installed cross-platform product qualification and release decision.
 12. Build the next beta from that exact reviewed commit and rerun the
@@ -345,6 +346,10 @@ outside runtime.
     only for immutable datasets/checkpoints and durable logs, receipts and final
     evidence; clean each case's local runtime state immediately after that case,
     not only after the complete run.
+14. Execute every paid benchmark worker on the pinned RunPod Linux profile.
+    The operator workstation only transfers immutable inputs, launches and
+    monitors the remote job, and collects durable evidence. Paid runners refuse
+    local macOS/Windows execution before reserving cost or starting work.
 
 Each iteration writes an A-to-B table with formation coverage, evidence recall,
 sufficiency, reader/action accuracy, latency, bytes, storage and cost. Peaks and

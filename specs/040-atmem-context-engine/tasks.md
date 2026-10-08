@@ -338,12 +338,11 @@ answer/action scoring.
   imported ahead of site packages, validate the sample-size-only equivalence
   receipt, and terminate paid infrastructure promptly on failure
   (FR-026–FR-029, FR-035, FR-038, SC-015, SC-019).
-- [x] [T044A] Freeze and validate the six-question LongMem stage gate, bind its
-  selected identifiers and diagnostic claim into finalization/run identity,
-  execute every matched arm with the production pipeline, and automatically
-  stop after the stage unless AtMem is strictly above AgentRunbook-R. Preserve
-  failures in the denominator and retain the stage evidence before either
-  returning to the attributed implementation stage or unlocking T045
+- [x] [T044A] Freeze and validate the six-question LongMem progress checkpoint,
+  bind its selected identifiers and diagnostic claim into finalization/run
+  identity, and execute every matched arm with the production pipeline.
+  Preserve failures in the denominator and retain the stage evidence without
+  stopping, restarting or changing the complete run because of its score
   (FR-035, FR-037A, FR-038–FR-042, SC-015–SC-016, SC-019).
   The first paid stage (`6814770-r1`) retained all 30 matched outcomes and
   measured AtMem 4/6, current AgentRunbook-R 2/6, verified evidence 4/6,
@@ -428,6 +427,12 @@ answer/action scoring.
   contract's required `\\boxed{...}` boundary. This is applied identically to
   every arm and is bound into finalization identity; memory formation,
   retrieval, packed context, prompt and grader remain unchanged.
+- [ ] [T044B] Move the complete paid LongMem and Dolphin worker path to one
+  pinned RunPod Linux execution profile. Add a pre-cost fail-closed guard that
+  rejects macOS/Windows benchmark execution, bind worker/image/GPU/resource and
+  cleanup identity into finalization, retain remote checkpoints durably, and
+  test that the operator workstation performs orchestration and transfer only
+  (FR-029, FR-035, FR-038, FR-053, SC-012, SC-019).
 - [ ] [T046] Run AtMem and matched Mem0 on the same frozen 30-task Dolphin
   development sample through Hermes; preserve all tasks and exact tool/grader
   evidence, and run removal/positive-control tests whose block receipt names the
@@ -480,12 +485,13 @@ answer/action scoring.
 - T038–T043 block release qualification, not the no-model research loop.
 - T005S and T043A–T043E block integrity claims and stable promotion; they do not
   justify interrupting an already-authorized paid reader run.
-- T005A–T005E and T034–T044A block T045/T046; T045 and T046 must be matched tables,
+- T005A–T005E and T034–T044B block T045/T046; T045 and T046 must be matched tables,
   never AtMem-only.
 - T048 is forbidden until T045 is complete, reproducible and frozen.
 - Stop immediately on scope leakage, plaintext leakage, source loss, benchmark
   leakage, whole-store scans, invalid provider outputs, uncertain paid cleanup,
-  or missing comparator identity.
-- A failed benchmark target returns to the attributed formation, nomination,
-  navigation, sufficiency, reader-use or agent-action stage. It does not trigger
-  unbounded review cycles.
+  missing comparator identity or another defect that invalidates completeness
+  or comparability. Do not stop or restart because a valid score is low.
+- A failed benchmark target is retained and reported honestly. It may inform a
+  later separately authorized iteration, but cannot interrupt these final runs
+  or trigger an unbounded review cycle.

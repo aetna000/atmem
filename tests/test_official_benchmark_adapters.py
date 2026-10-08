@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
 import json
 from pathlib import Path
+import subprocess
 import sys
 import threading
 from urllib.error import HTTPError
@@ -487,10 +488,26 @@ def test_longmem_runtime_reservation_covers_the_complete_pod_envelope() -> None:
     assert "* remaining_billed_seconds\n        / 3_600" not in source
 
 
-def test_longmem_stage_gate_is_frozen_nested_and_strict() -> None:
+def test_longmem_remote_case_concurrency_is_bounded_by_reader_capacity() -> None:
+    protocol = json.loads(
+        (ROOT / "benchmarks/retrieval_quality/protocols/2.3.8.yaml").read_text()
+    )
+    requirements = protocol["paid_run_requirements"]
+    assert requirements["remote_worker_case_concurrency"] == 2
+    assert requirements["remote_worker_case_concurrency"] <= requirements[
+        "reader_runtime_billing"
+    ]["max_num_seqs"]
+    source = (
+        ROOT / "research/production_benchmarks/run_longmem_pilot.py"
+    ).read_text(encoding="utf-8")
+    assert "max(1, len(llm_work))" not in source
+    assert "ThreadPoolExecutor(max_workers=remote_case_concurrency)" in source
+
+
+def test_longmem_stage_checkpoint_never_stops_for_score() -> None:
     from research.production_benchmarks.run_longmem_pilot import (
         _selected_question_ids,
-        _stage_gate_passed,
+        _stage_checkpoint_summary,
     )
 
     protocols = ROOT / "benchmarks/retrieval_quality/protocols"
@@ -503,16 +520,73 @@ def test_longmem_stage_gate_is_frozen_nested_and_strict() -> None:
     selected, claim = _selected_question_ids(pilot, gate)
     assert selected == gate["question_ids"]
     assert len(selected) == 6
-    assert claim == "matched_stage_gate_diagnostic"
+    assert claim == "matched_progress_checkpoint_diagnostic"
 
     tied = [
         {"method": method, "score_bool": outcome}
         for method in ("typed-local", "agentrunbook-r")
         for outcome in (True, False)
     ]
-    assert _stage_gate_passed(tied) is False
+    summary = _stage_checkpoint_summary(tied)
+    assert summary["atmem_ahead"] is False
+    assert summary["continuation_required"] is True
+    assert summary["score_can_stop_run"] is False
     ahead = tied + [{"method": "typed-local", "score_bool": True}]
-    assert _stage_gate_passed(ahead) is True
+    summary = _stage_checkpoint_summary(ahead)
+    assert summary["atmem_ahead"] is True
+    assert summary["continuation_required"] is True
+    assert summary["score_can_stop_run"] is False
+
+
+def test_paid_benchmark_worker_refuses_operator_workstation(monkeypatch) -> None:
+    from research.production_benchmarks.remote_worker import (
+        require_remote_paid_worker,
+    )
+
+    monkeypatch.setattr("platform.system", lambda: "Darwin")
+    monkeypatch.setattr("platform.machine", lambda: "arm64")
+    with pytest.raises(RuntimeError, match="orchestration-only"):
+        require_remote_paid_worker()
+
+
+def test_paid_benchmark_worker_binds_runpod_gpu(monkeypatch) -> None:
+    from research.production_benchmarks.remote_worker import (
+        REMOTE_HARDWARE_PROFILE,
+        require_remote_paid_worker,
+    )
+
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+    monkeypatch.setattr("platform.machine", lambda: "x86_64")
+    monkeypatch.setenv("ATMEM_BENCHMARK_EXECUTION_SITE", "runpod")
+    monkeypatch.setenv("RUNPOD_POD_ID", "pod-test")
+    monkeypatch.setenv("ATMEM_RUNPOD_CLOUD_TYPE", "SECURE")
+
+    def fake_run(*args, **kwargs):
+        return subprocess.CompletedProcess(
+            args=args[0], returncode=0,
+            stdout="NVIDIA A100-SXM4-80GB, 81920\n", stderr="",
+        )
+
+    receipt = require_remote_paid_worker(run=fake_run)
+    assert receipt["hardware_profile"] == REMOTE_HARDWARE_PROFILE
+    assert receipt["pod_id"] == "pod-test"
+    assert receipt["gpu_memory_mib"] == 81920
+
+
+def test_agmi_runner_pins_all_nine_attacks_without_score_assertions() -> None:
+    protocol = json.loads(
+        (ROOT / "benchmarks/retrieval_quality/protocols/agmi-atmem-v1.json").read_text()
+    )
+    assert protocol["source_commit"] == "115493a41a7b41952f92ec07e1ea0932926e194f"
+    assert protocol["profiles"] == ["atmem-chain", "atmem-chain+checkpoint"]
+    assert len(protocol["attacks"]) == 9
+    assert protocol["execution"]["score_can_stop_run"] is False
+    source = (
+        ROOT / "research/production_benchmarks/run_agmi_integrity.py"
+    ).read_text(encoding="utf-8")
+    assert "AT_REST_ATTACKS_WITH_SNAPSHOT" in source
+    assert "historical_published_result" in source
+    assert "assert result.detected" not in source
 
 
 def test_longmem_runner_keeps_mutable_databases_on_local_runtime_storage() -> None:

@@ -546,25 +546,11 @@ def preflight_selected_data(
 
 
 def current_hardware_profile() -> str:
-    if platform.system() != "Darwin":
-        raise RuntimeError("the frozen paid pilot hardware profile requires macOS")
-    arm64 = subprocess.run(
-        ["sysctl", "-n", "hw.optional.arm64"],
-        check=True, capture_output=True, text=True,
-    ).stdout.strip()
-    architecture = "arm64" if arm64 == "1" else platform.machine()
-    cpu = subprocess.run(
-        ["sysctl", "-n", "machdep.cpu.brand_string"],
-        check=True, capture_output=True, text=True,
-    ).stdout.strip().replace(" ", "-")
-    build = subprocess.run(
-        ["sw_vers", "-buildVersion"], check=True, capture_output=True, text=True
-    ).stdout.strip()
-    memory = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
-    return (
-        f"{cpu};{architecture};{memory}-bytes;"
-        f"macOS-{platform.mac_ver()[0]}-build-{build}"
+    from research.production_benchmarks.remote_worker import (
+        require_remote_paid_worker,
     )
+
+    return str(require_remote_paid_worker()["hardware_profile"])
 
 
 def install_official_adapter(checkout: str | Path) -> dict[str, str]:

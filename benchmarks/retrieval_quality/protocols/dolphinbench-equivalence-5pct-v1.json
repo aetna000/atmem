@@ -133,7 +133,8 @@
         "comparator_config_sha256": "08b99b870b3c134ccf3daca04cdba4248dda349004dd8d87159f0e8e4b62ec09",
         "egress": "public benchmark prompts may be sent only to the pinned routes after explicit paid-run confirmation",
         "embedding_proxy_sha256": "a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293",
-        "hardware_profile": "Apple-M2;arm64;17179869184-bytes;macOS-26.5.2-build-25F84",
+        "hardware_profile": "RunPod-SECURE;Linux;x86_64;NVIDIA-A100-SXM4-80GB;remote-worker-v1",
+        "remote_worker_case_concurrency": 2,
         "judge_prompt_sha256": "f8ba659e237c4282a07a92538090ea500ce8483820b390b1d19af187c01417ac",
         "judge_proxy_sha256": "1a99cc2d6aa8aef7c0b05949049d2c56ae5e0b367e5f8c5dfb2ef409c2a760db",
         "judge_request_max_bytes": 16384,
@@ -198,7 +199,7 @@
         "pilot_openai_cost_cap_usd": 10.5,
         "pilot_reader_cost_cap_usd": 5.37,
         "pilot_total_cost_cap_usd": 15.87,
-        "provider_route": "runpod-vllm-reader+local-deterministic-embedding+openai-direct-judge",
+        "provider_route": "runpod-remote-worker+vllm-reader+deterministic-embedding+openai-direct-judge",
         "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
         "reader_proxy_sha256": "062aa3dae5af476036992008f40cd950940c05443ed358dc78dd63dced4d32c7",
@@ -843,8 +844,8 @@
       ]
     }
   },
-  "full_effective_sha256": "sha256:750904a1547d8d5291f88329a2745c0ebfca34983b48844af69334fd0cbe73da",
-  "receipt_sha256": "sha256:1d093bcb5746430d6737821c46124d7afca28957c33732717364d04a076de0dc",
+  "full_effective_sha256": "sha256:25725354d84a456c780e30ff495a4328190f254de6ee594ffbe50d342a100b54",
+  "receipt_sha256": "sha256:c9bb996740ee77bea3b1230d7a139cd847fcce8614cbf34f4e3cc74e36635283",
   "sample_configuration": {
     "pipeline": {
       "attribution": {
@@ -973,7 +974,8 @@
         "comparator_config_sha256": "08b99b870b3c134ccf3daca04cdba4248dda349004dd8d87159f0e8e4b62ec09",
         "egress": "public benchmark prompts may be sent only to the pinned routes after explicit paid-run confirmation",
         "embedding_proxy_sha256": "a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293",
-        "hardware_profile": "Apple-M2;arm64;17179869184-bytes;macOS-26.5.2-build-25F84",
+        "hardware_profile": "RunPod-SECURE;Linux;x86_64;NVIDIA-A100-SXM4-80GB;remote-worker-v1",
+        "remote_worker_case_concurrency": 2,
         "judge_prompt_sha256": "f8ba659e237c4282a07a92538090ea500ce8483820b390b1d19af187c01417ac",
         "judge_proxy_sha256": "1a99cc2d6aa8aef7c0b05949049d2c56ae5e0b367e5f8c5dfb2ef409c2a760db",
         "judge_request_max_bytes": 16384,
@@ -1038,7 +1040,7 @@
         "pilot_openai_cost_cap_usd": 10.5,
         "pilot_reader_cost_cap_usd": 5.37,
         "pilot_total_cost_cap_usd": 15.87,
-        "provider_route": "runpod-vllm-reader+local-deterministic-embedding+openai-direct-judge",
+        "provider_route": "runpod-remote-worker+vllm-reader+deterministic-embedding+openai-direct-judge",
         "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
         "reader_proxy_sha256": "062aa3dae5af476036992008f40cd950940c05443ed358dc78dd63dced4d32c7",
@@ -1113,6 +1115,6 @@
       ]
     }
   },
-  "sample_effective_sha256": "sha256:750904a1547d8d5291f88329a2745c0ebfca34983b48844af69334fd0cbe73da",
+  "sample_effective_sha256": "sha256:25725354d84a456c780e30ff495a4328190f254de6ee594ffbe50d342a100b54",
   "selector_path": "selector.case_ids"
 }

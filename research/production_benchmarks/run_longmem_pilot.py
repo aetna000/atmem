@@ -26,7 +26,6 @@ sys.path.append(str(ROOT))
 
 from research.production_benchmarks.longmemeval_v2 import (  # noqa: E402
     DatasetPreflight,
-    current_hardware_profile,
     preflight_paid_runtime,
     preflight_reader_processor,
     preflight_selected_data,
@@ -44,6 +43,9 @@ from research.production_benchmarks.matched_results import write_longmem  # noqa
 from research.production_benchmarks.matched_results import write_longmem_controls  # noqa: E402
 from research.production_benchmarks.installed_product import (  # noqa: E402
     installed_atmem_identity,
+)
+from research.production_benchmarks.remote_worker import (  # noqa: E402
+    require_remote_paid_worker,
 )
 
 
@@ -81,14 +83,19 @@ def _selected_question_ids(
     return selected, str(stage_gate["claim_class"])
 
 
-def _stage_gate_passed(cases: list[dict[str, Any]]) -> bool:
+def _stage_checkpoint_summary(cases: list[dict[str, Any]]) -> dict[str, Any]:
     scores = {
         method: sum(
             1 for row in cases if row["method"] == method and row["score_bool"]
         )
         for method in ("typed-local", "agentrunbook-r")
     }
-    return scores["typed-local"] > scores["agentrunbook-r"]
+    return {
+        "scores": scores,
+        "atmem_ahead": scores["typed-local"] > scores["agentrunbook-r"],
+        "continuation_required": True,
+        "score_can_stop_run": False,
+    }
 
 
 def _attribution_summary(artifacts: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -342,7 +349,7 @@ def main() -> None:
     parser.add_argument("--finalization-gate")
     parser.add_argument(
         "--stage-gate", action="store_true",
-        help="run the frozen six-question stop/go diagnostic",
+        help="run the frozen six-question progress diagnostic",
     )
     args = parser.parse_args()
     if not args.confirm_paid_run:
@@ -352,6 +359,7 @@ def main() -> None:
         check=True, capture_output=True, text=True,
     ).stdout.strip():
         raise SystemExit("paid pilot requires the exact clean reviewed commit")
+    worker = require_remote_paid_worker()
     checkout = Path(args.checkout).expanduser().resolve()
     data_root = Path(args.data_root).expanduser().resolve()
     output_root = Path(args.output_root).expanduser().resolve()
@@ -402,7 +410,7 @@ def main() -> None:
     )
     processor_preflight = preflight_reader_processor(protocol)
     expected_hardware = protocol["paid_run_requirements"]["hardware_profile"]
-    hardware_profile = current_hardware_profile()
+    hardware_profile = str(worker["hardware_profile"])
     if hardware_profile != expected_hardware:
         raise RuntimeError(
             "paid pilot hardware differs from the frozen protocol: "
@@ -434,6 +442,7 @@ def main() -> None:
             "installed_product": installed_product,
             "official_checkout": verification,
             "hardware_profile": hardware_profile,
+            "remote_worker": worker,
             "data_preflight": data_preflight.report(),
             "reader_processor": processor_preflight,
             "attribution_artifacts": _attribution_summary(attribution_artifacts),
@@ -518,6 +527,7 @@ def main() -> None:
             "official_checkout": verification,
             "processor": processor_preflight,
             "hardware_profile": hardware_profile,
+            "remote_worker_gpu": worker["gpu_name"],
             "methods": METHODS,
             "selected_question_ids": selected_question_ids,
             "claim_class": claim_class,
@@ -529,6 +539,7 @@ def main() -> None:
             for path in (
                 ROOT / "research/production_benchmarks/run_longmem_pilot.py",
                 ROOT / "research/production_benchmarks/longmemeval_v2.py",
+                ROOT / "research/production_benchmarks/remote_worker.py",
                 ROOT / "research/production_benchmarks/adapters/longmemeval_atmem.py",
                 ROOT / "research/production_benchmarks/adapters/longmemeval_verified.py",
             )
@@ -561,6 +572,7 @@ def main() -> None:
         "data_preflight": data_preflight.report(),
         "reader_processor": processor_preflight,
         "hardware_profile": hardware_profile,
+        "remote_worker": worker,
         "methods": list(METHODS),
         "selected_question_ids": selected_question_ids,
         "stage_gate_sha256": (
@@ -823,9 +835,17 @@ def main() -> None:
         reader_proxy_url = _wait_for_reader_proxy(reader_proxy, reader_proxy_ready)
         deadline = time.monotonic() + remaining_billed_seconds
         run_batch(non_llm_work, max_workers=2, gated=False)
-        # Every LLM-judged case must reach the local gate before Runpod is
-        # terminated. The remote vLLM server still enforces max_num_seqs=2.
-        executor = ThreadPoolExecutor(max_workers=max(1, len(llm_work)))
+        # Match case concurrency to the remote reader's capacity. Spawning one
+        # worker per arm only multiplies database clones, CPU and RSS while the
+        # GPU still admits at most max_num_seqs requests.
+        remote_case_concurrency = int(requirements["remote_worker_case_concurrency"])
+        if remote_case_concurrency < 1 or remote_case_concurrency > int(
+            billing["max_num_seqs"]
+        ):
+            raise RuntimeError(
+                "remote worker case concurrency exceeds the frozen reader capacity"
+            )
+        executor = ThreadPoolExecutor(max_workers=remote_case_concurrency)
         llm_futures = [
             executor.submit(run_case, item, gated=True) for item in llm_work
         ]
@@ -926,9 +946,8 @@ def main() -> None:
     progress["summary"]["reader_runtime"] = _load(endpoint_receipt)
     if stage_gate is not None:
         progress["stage_gate"] = {
-            "passed": _stage_gate_passed(cases),
-            "rule": stage_gate["stop_rule"],
-            "remaining_five_percent_unlocked": _stage_gate_passed(cases),
+            **_stage_checkpoint_summary(cases),
+            "rule": stage_gate["continuation_rule"],
         }
     _write_progress(progress_path, progress)
     progress["matched_report"] = write_longmem(
