@@ -8,7 +8,6 @@ from atmem.core.canonical import sha256_hex
 
 from .contracts import EvidenceObligation, QueryPlan
 
-
 _QUESTION_WORDS = frozenset({"what", "which", "where", "when", "how", "who", "why", "whether"})
 _PLAN_STOP = frozenset({
     "a", "am", "an", "and", "are", "as", "at", "be", "by", "do", "does", "for",
@@ -34,6 +33,16 @@ def _strip_host_scaffolding(query: str) -> str:
 def _need_clauses(query: str) -> tuple[str, ...]:
     """Split explicit memory needs without inventing hidden requirements."""
     value = _strip_host_scaffolding(query)
+    if re.search(
+        r"\bif\b[^?\n]*\bchange(?:d|s|ing)?\b[^?\n]*\bfrom\b[^?\n]*"
+        r"\bto\b[^?\n]*,\s*(?:what|which|how|where|when)\b",
+        value,
+        re.IGNORECASE,
+    ):
+        # The interrogative depends on the conditional state transition. Keep
+        # it as one evidence obligation instead of treating “what amount” as
+        # an unrelated second fact query.
+        return (" ".join(value.split()),)
     pieces = re.split(
         r"(?:[.;]\s+|,\s+(?:and\s+)?(?=(?:include|identify|name|state|explain|"
         r"briefly|whether|what|which|where|when|how|who|why|copy|cc)\b)|"
@@ -92,7 +101,14 @@ def _kind(value: str) -> str:
         or ("workflow" in lowered and re.search(r"\b(actions?|steps?)\b", lowered))
     ):
         return "ordered_steps"
-    if "what changed" in lowered or re.search(r"\b(before|after|transition)\b", lowered):
+    if (
+        "what changed" in lowered
+        or re.search(r"\b(before|after|transition)\b", lowered)
+        or (
+            re.search(r"\bchange(?:d|s|ing)?\b", lowered)
+            and re.search(r"\bfrom\b.+\bto\b", lowered)
+        )
+    ):
         return "before_action_after"
     if re.search(r"\b(wireless-only|without|no\s+\w+|not\s+approved)\b", lowered):
         return "premise_check"
@@ -144,6 +160,20 @@ def _targeted_facets(query: str) -> tuple[str, ...]:
         value = " ".join(intent.group(1).split()).strip(" ,.;")
         if 2 <= len(value.split()) <= 32:
             values.append(value)
+    transition = re.search(
+        r"\bfrom\s+(?:the\s+default\s+)?([^,?.\n]{1,64}?)\s+to\s+"
+        r"([^,?.\n]{1,64})",
+        query,
+        re.IGNORECASE,
+    )
+    if transition:
+        before = " ".join(transition.group(1).split()).strip(" ,.;")
+        after = " ".join(transition.group(2).split()).strip(" ,.;")
+        if before and after:
+            # Nominate both sides together so a post-action state containing
+            # the changed control and its relative price outranks unrelated
+            # states that mention only one operating value.
+            values.extend((f"{before} {after}", after, before))
     alternatives = re.search(r"\(([^()\n]*?/[^()\n]*?)\)", query)
     if alternatives:
         entities = [
@@ -227,7 +257,11 @@ class DeterministicPlanner:
                 )
                 obligations.append(EvidenceObligation(
                     obligation_id=f"need-{index}", kind=kind,
-                    entity=None if kind == "ordered_steps" else _entity(clause),
+                    entity=(
+                        None
+                        if kind in {"ordered_steps", "before_action_after"}
+                        else _entity(clause)
+                    ),
                     relation_or_action=clause,
                     temporal_target=temporal.group(0) if temporal else None,
                     polarity="negative" if kind == "premise_check" else "unknown",

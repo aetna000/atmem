@@ -377,6 +377,17 @@ answer/action scoring.
   are present, and the runner validates them before creating paid output or
   reserving provider cost. This infrastructure-only attempt is not a retrieval
   result and does not alter the retained stage scores.
+  Attempt 4 (`27f8033-r4-attempt4`) was stopped as soon as a strict win became
+  impossible. AtMem scored 4/6, tying rather than exceeding the retained
+  AgentRunbook-R 4/6 reference, so T045 stayed locked and the remaining 17
+  questions were not exposed. Attribution separated two faults: the paid run
+  restored a stale 1.72 GB checkpoint instead of the verified 1.95 GB
+  checkpoint, and transition retrieval delivered the pre-change Dell option
+  state rather than the requested post-change relative price. On the verified
+  checkpoint, reader-free validation now preserves the three real Problem
+  fields while excluding the invented distractor fields, and ranks the
+  post-change `Ubuntu [subtract $100.00]` source range first. The same six IDs
+  MUST pass the installed-artifact and paid stage again before T045 unlocks.
 - [ ] [T045] Run AtMem, Mem0 OSS and AgentRunbook-R/C on the same frozen
   nested 23-question LongMem five-percent development sample; produce a single matched table with
   accuracy, per-requirement pipeline coverage, product-context versus verified-

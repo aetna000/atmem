@@ -1,20 +1,28 @@
 from __future__ import annotations
 
+from atmem.context_engine.contracts import ContextRequestV3
 from atmem.context_engine.formation import (
-    FormationManager, SourceEpisode, SourcePart, _sentence_ranges, _view_kinds,
+    FormationManager,
+    SourceEpisode,
+    SourcePart,
+    _sentence_ranges,
+    _view_kinds,
 )
+from atmem.context_engine.packing import derive_action_constraints, pack_context
 from atmem.context_engine.planner import DeterministicPlanner
 from atmem.context_engine.retrieval import (
-    DeterministicRetriever, RetrievedCandidate, RetrievalResult, _fts_terms,
+    DeterministicRetriever,
+    RetrievalResult,
+    RetrievedCandidate,
+    _fts_terms,
     _option_fields,
+    _transition_answer_match,
+    _transition_target_match,
 )
-from atmem.context_engine.sufficiency import decide_sufficiency
-from atmem.context_engine.packing import derive_action_constraints, pack_context
 from atmem.context_engine.service import AuthorizedManifest, StoredContextEngine
-from atmem.context_engine.contracts import ContextRequestV3
+from atmem.context_engine.sufficiency import decide_sufficiency
 from atmem.contracts.models import AuthorityScope, RetrievalBudget
 from atmem.store.sqlite import SQLiteStore
-
 
 SCOPE = AuthorityScope(subject_id="person-1", agent_id="agent-a", workspace_id="work-1")
 
@@ -69,6 +77,43 @@ def test_planner_routes_procedure_transition_and_premise_needs() -> None:
     assert planner.plan("How should the archive be restored?").obligations[0].kind == "ordered_steps"
     assert planner.plan("What changed when the worker was repaired?").obligations[0].kind == "before_action_after"
     assert planner.plan("Which cable is required for the wireless-only sensor?").obligations[0].kind == "premise_check"
+
+
+def test_planner_routes_explicit_from_to_change_and_nominates_both_states() -> None:
+    plan = DeterministicPlanner().plan(
+        "If I change the operating system from the default Ubuntu to Windows 8, "
+        "what amount appears next to Ubuntu?"
+    )
+
+    assert plan.obligations[0].kind == "before_action_after"
+    assert len(plan.obligations) == 1
+    assert plan.obligations[0].entity is None
+    assert "Ubuntu Windows 8" in plan.pool_queries["transition"]
+
+
+def test_transition_target_match_requires_the_requested_post_change_selection() -> None:
+    query = "If I change from the default Ubuntu to Windows 8, what amount appears?"
+    before = "Windows 8 [add $100] checked='false'; Ubuntu checked='true'"
+    after = "Windows 8 checked='true'; Ubuntu [subtract $100] checked='false'"
+
+    assert _transition_target_match(before, query) is False
+    assert _transition_target_match(after, query) is True
+
+
+def test_transition_answer_match_requires_value_beside_requested_old_state() -> None:
+    query = (
+        "If I change from the default Ubuntu to Windows 8, what dollar amount "
+        "appears in brackets next to Ubuntu?"
+    )
+    wrong_relation = (
+        "Windows 8 [add $100] checked='true'; Ubuntu checked='false'"
+    )
+    requested_relation = (
+        "Windows 8 checked='true'; Ubuntu [subtract $100] checked='false'"
+    )
+
+    assert _transition_answer_match(wrong_relation, query) is False
+    assert _transition_answer_match(requested_relation, query) is True
 
 
 def test_planner_routes_workflow_action_count_as_ordered_steps() -> None:

@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import re
+from dataclasses import dataclass
 
 from atmem.store.sqlite import SQLiteStore
 
 from .contracts import QueryPlan
 from .pools import POOL_KINDS, PoolBudget
-
 
 _STOP = {
     "a", "an", "and", "as", "be", "does", "do", "for", "how", "in", "is", "of",
@@ -53,6 +52,78 @@ def _option_fields(query: str) -> tuple[str, ...]:
             for item in re.split(r"\s*,\s*|\s*/\s*", line)
         )
     return tuple(dict.fromkeys(item for item in fields if len(item) > 1))
+
+
+def _transition_values(query: str) -> tuple[str, str] | None:
+    match = re.search(
+        r"\bfrom\s+(?:the\s+default\s+)?([^,?.\n]{1,64}?)\s+to\s+"
+        r"([^,?.\n]{1,64})",
+        query,
+        re.IGNORECASE,
+    )
+    if match is None:
+        return None
+    before = " ".join(match.group(1).split()).strip(" ,.;")
+    after = " ".join(match.group(2).split()).strip(" ,.;")
+    if not before or not after:
+        return None
+    return before, after
+
+
+def _transition_target_match(text: str, query: str) -> bool:
+    """Return whether a source range shows the requested post-change state."""
+    values = _transition_values(query)
+    if values is None:
+        return False
+    before, after = values
+    lowered = text.casefold()
+    if before.casefold() not in lowered or after.casefold() not in lowered:
+        return False
+    escaped = re.escape(after)
+    return bool(
+        re.search(
+            rf"{escaped}(?:(?!checked|selected).){{0,96}}"
+            rf"(?:checked|selected)\s*[=:]\s*['\"]?true",
+            text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        or re.search(
+            rf"(?:checked|selected)\s*[=:]\s*['\"]?true"
+            rf"(?:(?!checked|selected).){{0,96}}{escaped}",
+            text,
+            re.IGNORECASE | re.DOTALL,
+        )
+    )
+
+
+def _transition_answer_match(text: str, query: str) -> bool:
+    """Require the requested post-transition relation when it is explicit."""
+    if not _transition_target_match(text, query):
+        return False
+    values = _transition_values(query)
+    if values is None:
+        return False
+    before, _after = values
+    bracket_target = re.search(
+        r"\b(?:amount|value|price|cost)\b[^?\n]{0,96}\b(?:brackets?|parentheses)\b"
+        r"[^?\n]{0,96}\bnext\s+to\s+([^?\n]{1,64})",
+        query,
+        re.IGNORECASE,
+    )
+    if bracket_target is None:
+        return True
+    requested = " ".join(bracket_target.group(1).split()).strip(" ,.;")
+    # The old value is normally the field whose post-change adjustment is
+    # requested.  Honour an explicit “next to X” phrase, while rejecting a
+    # state that only exposes a price beside the newly selected value.
+    label = requested or before
+    return bool(
+        re.search(
+            rf"{re.escape(label)}\s*\[[^\]\n]{{1,96}}\]",
+            text,
+            re.IGNORECASE,
+        )
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -235,6 +306,8 @@ class DeterministicRetriever:
             head = max(
                 source_rows,
                 key=lambda item: (
+                    _transition_answer_match(item.text, query),
+                    _transition_target_match(item.text, query),
                     workflow_match(item),
                     workflow_match(item) and item.part_id == "trajectory-metadata",
                     len(query_terms & set(_fts_terms(item.text))),
@@ -478,6 +551,10 @@ class DeterministicRetriever:
 
             def grounded(item: RetrievedCandidate) -> bool:
                 overlap = need_terms & set(_fts_terms(item.text))
+                if obligation.kind == "before_action_after":
+                    return _transition_answer_match(
+                        item.text, obligation.relation_or_action or query
+                    )
                 if obligation.kind == "comparison_side":
                     return bool(
                         obligation.entity
@@ -600,6 +677,10 @@ class DeterministicRetriever:
             item.obligation_id for item in plan.obligations
             if item.kind == "ordered_steps"
         }
+        transition_ids = {
+            item.obligation_id for item in plan.obligations
+            if item.kind == "before_action_after"
+        }
         neighbors = [
             neighbor
             for head in heads
@@ -607,7 +688,10 @@ class DeterministicRetriever:
                 generation_id,
                 head,
                 radius=(
-                    12 if set(head.matched_obligation_ids) & ordered_step_ids else 2
+                    12
+                    if set(head.matched_obligation_ids)
+                    & (ordered_step_ids | transition_ids)
+                    else 2
                 ),
             )
             if neighbor.unit_id not in used_units
