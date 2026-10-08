@@ -470,6 +470,23 @@ def test_longmem_runner_validates_every_prebuilt_checkpoint_before_cost_reservat
     assert source.index(requirement) < source.index("reader_ledger.reserve")
 
 
+def test_longmem_runtime_reservation_covers_the_complete_pod_envelope() -> None:
+    from research.production_benchmarks.run_longmem_pilot import (
+        _runtime_reservation_usd,
+    )
+
+    assert _runtime_reservation_usd({
+        "usd_per_hour": 1.79,
+        "maximum_active_seconds": 10_800,
+    }) == pytest.approx(5.37)
+
+    source = (
+        ROOT / "research/production_benchmarks/run_longmem_pilot.py"
+    ).read_text(encoding="utf-8")
+    assert "reader_maximum = _runtime_reservation_usd(billing)" in source
+    assert "* remaining_billed_seconds\n        / 3_600" not in source
+
+
 def test_longmem_stage_gate_is_frozen_nested_and_strict() -> None:
     from research.production_benchmarks.run_longmem_pilot import (
         _selected_question_ids,

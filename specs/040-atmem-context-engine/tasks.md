@@ -408,6 +408,16 @@ answer/action scoring.
   deterministic terminal classification table
   (`research/production_benchmarks/run_longmem_pilot.py`)
   (FR-039–FR-042, SC-003, SC-016, SC-019–SC-020).
+  Full attempt 6 reached the first ten frozen questions with AtMem 7/10,
+  AgentRunbook-R 2/10 and Mem0 OSS 1/10, but the run was deliberately
+  interrupted before the inherited 3,600-second pod-runtime envelope could
+  convert the remaining thirteen questions into artificial system failures.
+  This partial result is operational evidence only and MUST NOT be reported as
+  the five-percent score. The production-equivalent envelope is corrected to
+  10,800 seconds at the same pinned $1.79/hour route, with a $5.37 GPU cap and
+  immediate termination after reader completion. Runtime reservation covers
+  the entire envelope, including readiness and validation time already billed;
+  sample, model, prompts, retrieval, scoring and denominator are unchanged.
 - [ ] [T046] Run AtMem and matched Mem0 on the same frozen 30-task Dolphin
   development sample through Hermes; preserve all tasks and exact tool/grader
   evidence, and run removal/positive-control tests whose block receipt names the

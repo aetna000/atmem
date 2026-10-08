@@ -191,8 +191,8 @@
           }
         },
         "pilot_openai_cost_cap_usd": 10.5,
-        "pilot_reader_cost_cap_usd": 2.2,
-        "pilot_total_cost_cap_usd": 12.7,
+        "pilot_reader_cost_cap_usd": 5.37,
+        "pilot_total_cost_cap_usd": 15.87,
         "provider_route": "runpod-vllm-reader+local-deterministic-embedding+openai-direct-judge",
         "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
@@ -204,7 +204,7 @@
           "container_image_digest": "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
           "hardware_id": "NVIDIA A100-SXM4-80GB",
           "max_num_seqs": 2,
-          "maximum_active_seconds": 3600,
+          "maximum_active_seconds": 10800,
           "mode": "pod-runtime",
           "observed_utc": "2026-10-09T05:00:00Z",
           "provider": "runpod",
@@ -838,8 +838,8 @@
       ]
     }
   },
-  "full_effective_sha256": "sha256:ddc203f2f6ec47b3ba0ffdbe1dc0fee05e3fb66ba52c234e4dbcdeddf5bbad97",
-  "receipt_sha256": "sha256:4290776aa202b911271083a8a3de6e160747e3862865d33ee2f35e7f9339a6a1",
+  "full_effective_sha256": "sha256:42a0fc58a8abc7af818251d3d5db4a16889b56ca295b5bf2147c7aa5bfef8379",
+  "receipt_sha256": "sha256:a903776a09c85a22cf5b35b3f49d2a1a2aa2370b1babdda494c1627e4ce135e2",
   "sample_configuration": {
     "pipeline": {
       "attribution": {
@@ -1026,8 +1026,8 @@
           }
         },
         "pilot_openai_cost_cap_usd": 10.5,
-        "pilot_reader_cost_cap_usd": 2.2,
-        "pilot_total_cost_cap_usd": 12.7,
+        "pilot_reader_cost_cap_usd": 5.37,
+        "pilot_total_cost_cap_usd": 15.87,
         "provider_route": "runpod-vllm-reader+local-deterministic-embedding+openai-direct-judge",
         "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
@@ -1039,7 +1039,7 @@
           "container_image_digest": "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
           "hardware_id": "NVIDIA A100-SXM4-80GB",
           "max_num_seqs": 2,
-          "maximum_active_seconds": 3600,
+          "maximum_active_seconds": 10800,
           "mode": "pod-runtime",
           "observed_utc": "2026-10-09T05:00:00Z",
           "provider": "runpod",
@@ -1103,6 +1103,6 @@
       ]
     }
   },
-  "sample_effective_sha256": "sha256:ddc203f2f6ec47b3ba0ffdbe1dc0fee05e3fb66ba52c234e4dbcdeddf5bbad97",
+  "sample_effective_sha256": "sha256:42a0fc58a8abc7af818251d3d5db4a16889b56ca295b5bf2147c7aa5bfef8379",
   "selector_path": "selector.case_ids"
 }

@@ -114,6 +114,15 @@ def _canonical_digest(value: Any) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _runtime_reservation_usd(billing: dict[str, Any]) -> float:
+    """Reserve the whole frozen pod envelope, including setup time already billed."""
+    return (
+        float(billing["usd_per_hour"])
+        * float(billing["maximum_active_seconds"])
+        / 3_600
+    )
+
+
 def _tree_digest(root: Path) -> str:
     """Content-bind a prebuilt memory tree without retaining its contents."""
     if not root.is_dir():
@@ -602,11 +611,11 @@ def main() -> None:
         0.0,
         float(billing["maximum_active_seconds"]) - elapsed_billed_seconds,
     )
-    reader_maximum = (
-        float(billing["usd_per_hour"])
-        * remaining_billed_seconds
-        / 3_600
-    )
+    # Pod billing starts before this process enters its paid section. Reserve
+    # the complete frozen envelope because completion records total pod time,
+    # including readiness/finalization/checkpoint validation. Reserving only
+    # the remaining seconds could later settle more than was reserved.
+    reader_maximum = _runtime_reservation_usd(billing)
     if reader_maximum <= 0:
         raise RuntimeError("Runpod pod exceeded the frozen active-time limit")
     reader_ledger.reserve(

@@ -159,9 +159,9 @@
     "embedding_proxy_sha256": "a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293",
     "judge_proxy_sha256": "1a99cc2d6aa8aef7c0b05949049d2c56ae5e0b367e5f8c5dfb2ef409c2a760db",
     "pilot_manifest": "longmemeval-v2-pilot-v1.json",
-    "pilot_reader_cost_cap_usd": 2.2,
+    "pilot_reader_cost_cap_usd": 5.37,
     "pilot_openai_cost_cap_usd": 10.5,
-    "pilot_total_cost_cap_usd": 12.7,
+    "pilot_total_cost_cap_usd": 15.87,
     "pilot_method_reservations_usd": {
       "no-retrieval": {"reader": 0.0, "openai": 0.09},
       "typed-local": {"reader": 0.0, "openai": 0.09},
@@ -178,7 +178,7 @@
       "container_image_digest": "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
       "max_num_seqs": 2,
       "usd_per_hour": 1.79,
-      "maximum_active_seconds": 3600,
+      "maximum_active_seconds": 10800,
       "observed_utc": "2026-10-09T05:00:00Z",
       "source": "Runpod GraphQL gpuTypes securePrice"
     },
@@ -218,11 +218,11 @@
   "equivalence_receipts": {
     "longmemeval_v2": {
       "file": "longmemeval-v2-equivalence-5pct-v1.json",
-      "file_sha256": "695105149a255ae4d9d5b6c84cf5866d24bb5f55af9b7db11f60c29acf70135e"
+      "file_sha256": "be5dd6864104062d8f756e9a37fb0cab58065f9f9cdd4b0d352fd0f400b1f3e5"
     },
     "dolphinbench": {
       "file": "dolphinbench-equivalence-5pct-v1.json",
-      "file_sha256": "6fccdb2df9100477b7a83eaad267e7e28b1c8c3f4a52ef7a018bf1ba86f2dd51"
+      "file_sha256": "949b638b5e152a94b779539103b3588a9148b5ac6cdee0da9fb233ab423142b8"
     }
   },
   "operating_points": ["no-retrieval", "official-rag-query-to-slice-notes", "agentrunbook-r", "agentrunbook-c", "agentrunbook-c-v2", "mem0-oss", "legacy", "typed-local"],
