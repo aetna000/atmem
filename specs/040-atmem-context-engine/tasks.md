@@ -338,7 +338,7 @@ answer/action scoring.
   imported ahead of site packages, validate the sample-size-only equivalence
   receipt, and terminate paid infrastructure promptly on failure
   (FR-026–FR-029, FR-035, FR-038, SC-015, SC-019).
-- [ ] [T044A] Freeze and validate the six-question LongMem stage gate, bind its
+- [x] [T044A] Freeze and validate the six-question LongMem stage gate, bind its
   selected identifiers and diagnostic claim into finalization/run identity,
   execute every matched arm with the production pipeline, and automatically
   stop after the stage unless AtMem is strictly above AgentRunbook-R. Preserve
@@ -388,6 +388,17 @@ answer/action scoring.
   fields while excluding the invented distractor fields, and ranks the
   post-change `Ubuntu [subtract $100.00]` source range first. The same six IDs
   MUST pass the installed-artifact and paid stage again before T045 unlocks.
+  Attempt 5 (`2767f37-r5-attempt5`) passed that gate with the exact installed
+  wheel and verified 1.95 GB checkpoint: AtMem 5/6, AgentRunbook-R 3/6, Mem0
+  OSS 1/6, verified evidence 5/6 and no memory 0/6. AtMem therefore exceeded
+  both the live AgentRunbook-R result and the retained 4/6 same-six reference.
+  The sole AtMem miss was the ordered-workflow count (`one` rather than
+  `three`); it remains an attributed development defect, but does not block the
+  precommitted >=5/6 stage threshold. All 30 matched outcomes were retained,
+  the A100 reader pod terminated automatically after 2,156.470 seconds, and
+  its conservative runtime estimate was $1.072245. T045 is now unlocked; this
+  six-question development result is a stop/go diagnostic, not a benchmark
+  claim.
 - [ ] [T045] Run AtMem, Mem0 OSS and AgentRunbook-R/C on the same frozen
   nested 23-question LongMem five-percent development sample; produce a single matched table with
   accuracy, per-requirement pipeline coverage, product-context versus verified-
