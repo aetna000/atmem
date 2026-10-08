@@ -223,6 +223,28 @@ def main() -> int:
         except subprocess.TimeoutExpired:
             proxy.kill()
             proxy.wait(timeout=5)
+    # A targeted resume must not erase receipts for already-complete matched
+    # arms. This is important when AtMem formation is rebuilt locally while
+    # expensive comparator checkpoints are intentionally reused.
+    recorded = {(str(row["method"]), str(row["domain"])) for row in receipts}
+    for method in METHODS:
+        domains_to_check = ("web",) if method == "no-retrieval" else ("web", "enterprise")
+        for domain in domains_to_check:
+            key = (method, domain)
+            if key in recorded:
+                continue
+            destination = output / method / (domain if method != "no-retrieval" else "")
+            state = destination / "memory_state"
+            if state.is_dir() and (state / "memory_config.json").is_file():
+                receipts.append({
+                    "method": method,
+                    "domain": domain,
+                    "checkpoint": str(state),
+                    "checkpoint_sha256": _digest_tree(state),
+                    "resumed": True,
+                })
+                recorded.add(key)
+    receipts.sort(key=lambda row: (str(row["method"]), str(row["domain"])))
     manifest = {
         "format": "atmem-longmemeval-matched-checkpoints-v1",
         "profile_sha256": profile["profile_sha256"],

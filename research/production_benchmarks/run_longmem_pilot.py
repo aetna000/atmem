@@ -52,10 +52,43 @@ SCORED_METHODS = ("no-retrieval", "typed-local", "mem0-oss", "agentrunbook-r")
 CONTROL_METHODS = ("verified-evidence",)
 METHODS = (*SCORED_METHODS, *CONTROL_METHODS)
 OPTIONAL_RECOMMENDED_METHODS = ("agentrunbook-c", "agentrunbook-c-v2")
+STAGE_GATE_FILE = "longmemeval-v2-stage-gate-v1.json"
 
 
 def _load(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _selected_question_ids(
+    pilot: dict[str, Any], stage_gate: dict[str, Any] | None
+) -> tuple[list[str], str]:
+    """Return an immutable production-equivalent case set and its claim class."""
+    if stage_gate is None:
+        return list(pilot["question_ids"]), str(pilot["claim_class"])
+    if stage_gate.get("format") != "atmem-longmemeval-v2-stage-gate-v1":
+        raise ValueError("LongMem stage gate format is invalid")
+    if stage_gate.get("parent_profile") != "longmemeval-v2-development-5pct-v1.json":
+        raise ValueError("LongMem stage gate parent profile is invalid")
+    selected = list(stage_gate.get("question_ids", ()))
+    if stage_gate.get("question_count") != 6 or len(selected) != 6 or len(set(selected)) != 6:
+        raise ValueError("LongMem stage gate must contain six unique questions")
+    if not set(selected) <= set(pilot["question_ids"]):
+        raise ValueError("LongMem stage gate is not nested in the five-percent profile")
+    if stage_gate.get("quality_reductions") != ["public_case_count_only"]:
+        raise ValueError("LongMem stage gate reduces more than public case count")
+    if stage_gate.get("selection_frozen_before_candidate_scoring") is not True:
+        raise ValueError("LongMem stage gate is not frozen before scoring")
+    return selected, str(stage_gate["claim_class"])
+
+
+def _stage_gate_passed(cases: list[dict[str, Any]]) -> bool:
+    scores = {
+        method: sum(
+            1 for row in cases if row["method"] == method and row["score_bool"]
+        )
+        for method in ("typed-local", "agentrunbook-r")
+    }
+    return scores["typed-local"] > scores["agentrunbook-r"]
 
 
 def _attribution_summary(artifacts: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -298,6 +331,10 @@ def main() -> None:
     parser.add_argument("--confirm-paid-run", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--finalization-gate")
+    parser.add_argument(
+        "--stage-gate", action="store_true",
+        help="run the frozen six-question stop/go diagnostic",
+    )
     args = parser.parse_args()
     if not args.confirm_paid_run:
         raise SystemExit("refusing paid pilot without --confirm-paid-run")
@@ -326,6 +363,8 @@ def main() -> None:
     protocol = _load(protocol_path)
     question_split = _load(PROTOCOLS / "longmemeval-v2-question-split-v1.json")
     pilot = _load(PROTOCOLS / "longmemeval-v2-development-5pct-v1.json")
+    stage_gate = _load(PROTOCOLS / STAGE_GATE_FILE) if args.stage_gate else None
+    selected_question_ids, claim_class = _selected_question_ids(pilot, stage_gate)
     dolphin_split = _load(PROTOCOLS / "dolphinbench-development-5pct-v1.json")
     route_probe = _load(PROTOCOLS / "provider-route-probe-v1.json")
     attribution_artifacts = validate_attribution_artifacts(
@@ -452,6 +491,9 @@ def main() -> None:
             "processor": processor_preflight,
             "hardware_profile": hardware_profile,
             "methods": METHODS,
+            "selected_question_ids": selected_question_ids,
+            "claim_class": claim_class,
+            "stage_gate": stage_gate,
         }),
         "cost_authorization_id": cost_authorization_id,
         "runner_sha256": "sha256:" + _canonical_digest({
@@ -483,7 +525,7 @@ def main() -> None:
     cases: list[dict[str, Any]] = []
     progress = {
         "format": "atmem-longmemeval-v2-development-pilot-v1",
-        "claim": "development-plumbing-and-directional-quality-only",
+        "claim": claim_class,
         "protocol_sha256": _canonical_digest(protocol),
         "pilot_sha256": _canonical_digest(pilot),
         "official_checkout": verification,
@@ -492,6 +534,10 @@ def main() -> None:
         "reader_processor": processor_preflight,
         "hardware_profile": hardware_profile,
         "methods": list(METHODS),
+        "selected_question_ids": selected_question_ids,
+        "stage_gate_sha256": (
+            canonical_digest(stage_gate) if stage_gate is not None else None
+        ),
         "attribution_artifacts": _attribution_summary(attribution_artifacts),
         "cases": cases,
     }
@@ -563,7 +609,7 @@ def main() -> None:
     llm_evaluators = {"llm_abstention_checker", "llm_gotchas_checker"}
     work = [
         (question_id, method)
-        for question_id in pilot["question_ids"]
+        for question_id in selected_question_ids
         for method in METHODS
     ]
     non_llm_work = [item for item in work if evaluators[item[0]] not in llm_evaluators]
@@ -857,12 +903,18 @@ def main() -> None:
     }
     expected_pairs = {
         (question_id, method)
-        for question_id in pilot["question_ids"] for method in METHODS
+        for question_id in selected_question_ids for method in METHODS
     }
     actual_pairs = {(row["question_id"], row["method"]) for row in cases}
     if actual_pairs != expected_pairs or len(cases) != len(expected_pairs):
         raise RuntimeError("LongMem run did not retain every frozen case/method outcome")
     progress["summary"]["reader_runtime"] = _load(endpoint_receipt)
+    if stage_gate is not None:
+        progress["stage_gate"] = {
+            "passed": _stage_gate_passed(cases),
+            "rule": stage_gate["stop_rule"],
+            "remaining_five_percent_unlocked": _stage_gate_passed(cases),
+        }
     _write_progress(progress_path, progress)
     progress["matched_report"] = write_longmem(
         progress_path, output_root / "matched-results.json", methods=SCORED_METHODS

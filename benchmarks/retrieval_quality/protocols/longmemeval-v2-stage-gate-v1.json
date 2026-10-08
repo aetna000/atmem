@@ -1,0 +1,19 @@
+{
+  "claim_class": "matched_stage_gate_diagnostic",
+  "format": "atmem-longmemeval-v2-stage-gate-v1",
+  "parent_profile": "longmemeval-v2-development-5pct-v1.json",
+  "question_count": 6,
+  "question_ids": [
+    "05cce9b3",
+    "07ab3723",
+    "07ffeedf",
+    "19367bc7",
+    "1defc293",
+    "3fd81278"
+  ],
+  "selection_frozen_before_candidate_scoring": true,
+  "stop_rule": "AtMem must score strictly above AgentRunbook-R; a tie or loss stops paid execution and returns to attributed implementation work.",
+  "quality_reductions": [
+    "public_case_count_only"
+  ]
+}

@@ -18,6 +18,7 @@ from atmem import Memory as AtMem
 from atmem.contracts import (
     AuthorityScope,
     ContextRequestV2,
+    ContextRequestV3,
     EpisodeIngestRequest,
     EpisodePart,
     RecallRequest,
@@ -104,17 +105,29 @@ class AtMemMemory(Memory):
                     "AtMem LongMemEval adapter requires an initialized encrypted "
                     "household; run `atmem household init <database> --encrypted`"
                 )
-        self._memory = AtMem(
-            self.database_path, retain_query_text=False, auto_vectors=False,
-            allow_insecure_typed_development=not require_encrypted,
-        )
         self._allow_insecure_typed_development = not require_encrypted
         self._sensitive_observation_handling = (
             "admit_encrypted" if require_encrypted else "review"
         )
+        self._history_import_principal = "benchmark-history-import:longmemeval"
+        self._memory = self._open_memory()
         self._media_cache = Path(tempfile.mkdtemp(prefix="atmem-lme-media-"))
         self._last_query_metadata: dict[str, object] | None = None
         atexit.register(shutil.rmtree, self._media_cache, True)
+
+    def _open_memory(self) -> AtMem:
+        return AtMem(
+            self.database_path, retain_query_text=False, auto_vectors=False,
+            allow_insecure_typed_development=self._allow_insecure_typed_development,
+            review_authorities=({
+                "principal_id": self._history_import_principal,
+                "subject_id": self.scope.subject_id,
+                "agent_id": self.scope.agent_id,
+                "workspace_id": self.scope.workspace_id,
+                "scopes": ("history_import:review", "procedure:review"),
+                "assurance": "explicit_benchmark_operator_configuration",
+            },),
+        )
 
     def insert(self, trajectory: dict[str, object]) -> None:
         trajectory_id = str(trajectory.get("id") or "").strip()
@@ -259,6 +272,14 @@ class AtMemMemory(Memory):
                 f"reasons={receipt.get('reason_codes')}; "
                 f"pending={len(receipt.get('next_positions') or ())}"
             )
+        compact = self._memory.form_context_episode(
+            request,
+            history_import_principal=self._history_import_principal,
+        )
+        if not compact.get("representation_complete") or not compact.get("retrieval_ready"):
+            raise RuntimeError(
+                f"AtMem V3 did not completely represent trajectory {trajectory_id}"
+            )
 
     def query(self, query: str, query_image: str | None = None) -> list[dict[str, str]]:
         total_input_bytes = int(
@@ -279,7 +300,26 @@ class AtMemMemory(Memory):
         if memory_input_bytes <= len(query.encode("utf-8")):
             raise RuntimeError("question exhausts the frozen total-input budget")
         request_id = f"lme-{uuid.uuid4().hex}"
-        candidates = self._memory.eligible_candidates(RecallRequest(
+        # V3 is the benchmark candidate described by Spec 040. Keep the
+        # legacy candidate pass only for governed screenshot materialization
+        # until V3 media nomination lands; its prose context is never exposed
+        # to the reader.
+        generation = self._memory.context_generation(self.scope)
+        package = self._memory.prepare_context_v3(ContextRequestV3(
+            context_id=f"context-{request_id}",
+            request_id=request_id,
+            scope=self.scope,
+            query=query,
+            profile_id="context-fast",
+            mode="active",
+            generation=int(generation["canonical_generation"]),
+            budget=RetrievalBudget(
+                total_candidates=int(self.memory_params.get("candidate_limit", 200)),
+                context_bytes=int(self.memory_params.get("context_bytes", 32_768)),
+                total_input_bytes=memory_input_bytes,
+            ),
+        ))
+        media_candidates = self._memory.eligible_candidates(RecallRequest(
             request_id=request_id,
             scope=self.scope,
             query=query,
@@ -288,9 +328,9 @@ class AtMemMemory(Memory):
             signals=("lexical", "graph"),
             retrieval_strategy="core-rrf-v1",
         ))
-        package = self._memory.prepare_context_v2(ContextRequestV2(
-            context_id=f"context-{request_id}",
-            candidate_set_id=candidates.candidate_set_id,
+        media_package = self._memory.prepare_context_v2(ContextRequestV2(
+            context_id=f"media-{request_id}",
+            candidate_set_id=media_candidates.candidate_set_id,
             scope=self.scope,
             query=query,
             budget=RetrievalBudget(
@@ -303,16 +343,15 @@ class AtMemMemory(Memory):
             ),
         ))
         self._last_query_metadata = {
-            "format": "atmem-longmemeval-query-metadata-v1",
+            "format": "atmem-longmemeval-query-metadata-v2",
             "context_id": package.context_id,
             "preparation_id": package.preparation_id,
             "profile_id": package.profile_id,
-            "need": package.need.to_dict(),
             "sufficiency": package.sufficiency.to_dict(),
-            "record_ids": list(package.record_ids),
-            "source_ids": list(package.source_ids),
-            "provenance": list(package.provenance),
-            "excluded_evidence_ids": list(package.excluded_evidence_ids),
+            "plan": package.plan.to_dict(),
+            "selected_unit_ids": list(package.selected_unit_ids),
+            "selected_ranges": [item.to_dict() for item in package.selected_ranges],
+            "excluded_evidence": list(package.excluded_evidence),
             "reason_codes": list(package.reason_codes),
             "context_sha256": package.context_sha256,
         }
@@ -324,7 +363,7 @@ class AtMemMemory(Memory):
         )
         if package.context:
             result.append({"type": "text", "value": package.context})
-        for reference in package.media_references:
+        for reference in media_package.media_references:
             image = Path(str(reference["reference_id"]))
             if (
                 str(reference["reference_id"]).startswith("atmem-protected:")
@@ -406,6 +445,7 @@ class AtMemMemory(Memory):
         }
 
     def _save_backend(self, output_dir: Path) -> None:
+        self._memory.freeze_context_engine(self.scope)
         self._memory.close()
         try:
             shutil.copy2(self.database_path, output_dir / "atmem.db")
@@ -413,10 +453,7 @@ class AtMemMemory(Memory):
             if policy.exists():
                 shutil.copy2(policy, output_dir / "atmem.db.encryption.json")
         finally:
-            self._memory = AtMem(
-                self.database_path, retain_query_text=False, auto_vectors=False,
-                allow_insecure_typed_development=self._allow_insecure_typed_development,
-            )
+            self._memory = self._open_memory()
 
     def _load_backend(self, input_dir: Path) -> None:
         source = input_dir / "atmem.db"
@@ -428,7 +465,4 @@ class AtMemMemory(Memory):
         policy = input_dir / "atmem.db.encryption.json"
         if policy.exists():
             shutil.copy2(policy, Path(f"{self.database_path}.encryption.json"))
-        self._memory = AtMem(
-            self.database_path, retain_query_text=False, auto_vectors=False,
-            allow_insecure_typed_development=self._allow_insecure_typed_development,
-        )
+        self._memory = self._open_memory()

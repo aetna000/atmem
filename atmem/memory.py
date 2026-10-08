@@ -1997,16 +1997,21 @@ class Memory:
             raise PermissionError("history import principal is not configured for this scope")
         if self.policy.state != "encrypted" and not self._allow_insecure_typed_development:
             raise PermissionError("context history import requires encrypted storage")
+        retained_parts = tuple(
+            part for part in request.parts if part.content is not None
+        )
         parts = tuple(
             SourcePart(
                 part_id=part.part_id,
-                ordinal=part.ordinal,
+                # Media references do not carry source text. Compact the
+                # remaining ordinals after filtering them so an interleaved
+                # screenshot cannot break canonical V3 source ordering.
+                ordinal=ordinal,
                 kind="tool" if part.kind == "tool" else "text",
                 mime_type="text/plain",
                 content=str(part.content).encode("utf-8"),
             )
-            for part in request.parts
-            if part.content is not None
+            for ordinal, part in enumerate(retained_parts)
         )
         if not parts:
             raise ValueError("context history import requires retained source text")

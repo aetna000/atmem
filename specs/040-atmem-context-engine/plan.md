@@ -325,11 +325,14 @@ outside runtime.
 5. Add navigation and pass source-span tests.
 6. Run reader-free reference parity; iterate until AtMem is at least 10%
    relatively better than both comparators on the frozen micro corpus.
-7. Run a bounded live differential; freeze the best reproducible profile.
+7. Run the immutable six-question LongMem stage with the complete production
+   pipeline and every matched arm. Unlock the remaining five-percent cases only
+   when AtMem is strictly above AgentRunbook-R; a tie or loss returns to the
+   earliest attributed implementation stage and reruns the identical six.
 8. Reproduce the published AGMI 2.3.7 rows, implement record-to-chain and
    external-checkpoint verification, then pass the pinned T1–T9 development
    gate without weakening retrieval or governance.
-9. Run complete matched 23-question LongMem development and 30-task Dolphin
+9. After the six-question gate passes, run complete matched 23-question LongMem development and 30-task Dolphin
    development—never another AtMem-only paid run.
 10. Only after development targets pass, run untouched confirmation/full gates.
 11. Complete installed cross-platform product qualification and release decision.

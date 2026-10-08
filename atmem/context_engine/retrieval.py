@@ -18,6 +18,7 @@ _STOP = {
     "our", "its", "please", "create", "send", "post", "inspect", "review", "comment",
     "find", "update", "short", "concise", "note", "document", "reference", "include",
     "state", "briefly", "actual", "another", "current", "earlier", "conversation",
+    "would", "like", "user", "perform", "conclude", "task",
 }
 
 
@@ -323,13 +324,30 @@ class DeterministicRetriever:
                 "premise_check": ("premise", "raw_state"),
             }.get(obligation.kind, ("fact", "rule", "entity", "raw_state"))
             obligation_query = obligation.relation_or_action or query
-            candidates = [
-                item
-                for pool in preferred
-                for item in by_pool_query.get(
-                    (pool, obligation_query), by_pool.get(pool, ())
+            # Exact obligation queries remain eligible, but compact answer-
+            # blind facets must also be able to ground an obligation. Earlier,
+            # a useful facet could only fill a supplemental slot whenever the
+            # verbose original query returned any noisy result.
+            candidates_by_unit: dict[str, tuple[tuple[int, int, float], RetrievedCandidate]] = {}
+            for pool_index, pool in enumerate(preferred):
+                queries = plan.pool_queries.get(pool) or (obligation_query,)
+                ordered_queries = (
+                    sorted(queries, key=lambda value: (len(_fts_terms(value)), value))
+                    if obligation.kind == "ordered_steps" else queries
                 )
-            ]
+                for query_index, pool_query in enumerate(ordered_queries):
+                    for item in by_pool_query.get((pool, pool_query), ()):
+                        priority = (query_index, pool_index, -item.score)
+                        prior = candidates_by_unit.get(item.unit_id)
+                        if prior is None or priority < prior[0]:
+                            candidates_by_unit[item.unit_id] = (priority, item)
+                for item in by_pool.get(pool, ()):
+                    priority = (len(ordered_queries), pool_index, -item.score)
+                    prior = candidates_by_unit.get(item.unit_id)
+                    if prior is None or priority < prior[0]:
+                        candidates_by_unit[item.unit_id] = (priority, item)
+            prioritized = sorted(candidates_by_unit.values(), key=lambda value: value[0])
+            candidates = [item for _, item in prioritized]
             need_terms = set(_fts_terms(" ".join(filter(None, (
                 obligation.entity, obligation.relation_or_action,
             )))))
@@ -353,7 +371,7 @@ class DeterministicRetriever:
                 candidates.sort(
                     key=lambda item: (entity not in item.text.casefold(), -item.score, item.source_id)
                 )
-            else:
+            elif obligation.kind != "ordered_steps":
                 candidates.sort(key=lambda item: (-item.score, item.source_id))
             candidate = next(
                 (
@@ -403,10 +421,20 @@ class DeterministicRetriever:
         # Neighbours remain obligation-neutral: adjacency can improve evidence
         # coverage but cannot by itself satisfy a requirement.
         heads = tuple(selected[: max(1, min(4, len(selected)))])
+        ordered_step_ids = {
+            item.obligation_id for item in plan.obligations
+            if item.kind == "ordered_steps"
+        }
         neighbors = [
             neighbor
             for head in heads
-            for neighbor in self._neighbors(generation_id, head)
+            for neighbor in self._neighbors(
+                generation_id,
+                head,
+                radius=(
+                    12 if set(head.matched_obligation_ids) & ordered_step_ids else 2
+                ),
+            )
             if neighbor.unit_id not in used_units
         ]
         for neighbor in neighbors:

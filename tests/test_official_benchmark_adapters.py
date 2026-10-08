@@ -126,9 +126,11 @@ def test_longmem_adapter_is_inert_product_api_only() -> None:
     )
     assert all(term not in source.casefold() for term in forbidden)
     assert '"accessibility_tree"' in source
-    assert "form_episode" in source
-    assert "eligible_candidates" in source
-    assert "prepare_context_v2" in source
+    assert "form_context_episode" in source
+    assert "freeze_context_engine" in source
+    assert "prepare_context_v3" in source
+    # V2 remains only as the governed media bridge; its prose is not returned.
+    assert "media_package.media_references" in source
 
 
 def test_longmem_checkpoint_restore_preserves_saved_retrieval_parameters(
@@ -458,6 +460,34 @@ def test_longmem_runner_requires_mem0_checkout_before_paid_output() -> None:
     assert source.index(requirement) < source.index("output_root.mkdir")
 
 
+def test_longmem_stage_gate_is_frozen_nested_and_strict() -> None:
+    from research.production_benchmarks.run_longmem_pilot import (
+        _selected_question_ids,
+        _stage_gate_passed,
+    )
+
+    protocols = ROOT / "benchmarks/retrieval_quality/protocols"
+    pilot = json.loads(
+        (protocols / "longmemeval-v2-development-5pct-v1.json").read_text()
+    )
+    gate = json.loads(
+        (protocols / "longmemeval-v2-stage-gate-v1.json").read_text()
+    )
+    selected, claim = _selected_question_ids(pilot, gate)
+    assert selected == gate["question_ids"]
+    assert len(selected) == 6
+    assert claim == "matched_stage_gate_diagnostic"
+
+    tied = [
+        {"method": method, "score_bool": outcome}
+        for method in ("typed-local", "agentrunbook-r")
+        for outcome in (True, False)
+    ]
+    assert _stage_gate_passed(tied) is False
+    ahead = tied + [{"method": "typed-local", "score_bool": True}]
+    assert _stage_gate_passed(ahead) is True
+
+
 def test_longmem_runner_keeps_mutable_databases_on_local_runtime_storage() -> None:
     runner = (
         ROOT / "research/production_benchmarks/run_longmem_pilot.py"
@@ -472,6 +502,15 @@ def test_longmem_runner_keeps_mutable_databases_on_local_runtime_storage() -> No
     assert "runtime_paths = [case_runtime_root / question_id / method]" in runner
     assert "runtime_paths.append(mem0_runtime_root / question_id)" in runner
     assert "shutil.rmtree(runtime_path)" in runner
+
+
+def test_checkpoint_resume_preserves_existing_matched_arm_receipts() -> None:
+    source = (
+        ROOT / "research/production_benchmarks/prepare_longmem_memories.py"
+    ).read_text(encoding="utf-8")
+    assert "targeted resume must not erase receipts" in source
+    assert "for method in METHODS:" in source
+    assert 'receipts.sort(key=lambda row:' in source
 
 
 def test_runpod_reader_proxy_reassembles_sse_without_promoting_reasoning(
@@ -858,6 +897,11 @@ def test_longmem_paid_pilot_preflight_requires_prepared_media(tmp_path: Path) ->
 def test_longmem_adapter_preserves_official_state_media_and_native_trust(
     tmp_path: Path, monkeypatch
 ) -> None:
+    from atmem.core.keys import sqlcipher_runtime_status
+    from atmem.service.household import HouseholdApplication
+
+    if not sqlcipher_runtime_status()["available"]:
+        pytest.skip("LongMem V3 product-path fixture requires SQLCipher")
     registry: dict[str, type] = {}
 
     class OfficialMemory:
@@ -885,13 +929,15 @@ def test_longmem_adapter_preserves_official_state_media_and_native_trust(
     image = pool / "trajectory-1" / "screen.png"
     image.parent.mkdir(parents=True)
     image.write_bytes(b"fixture image bytes")
+    database = tmp_path / "atmem.db"
+    HouseholdApplication.initialize(database, encrypted=True, backend="file")
     adapter = loaded.AtMemMemory({
-        "database_path": str(tmp_path / "atmem.db"),
+        "database_path": str(database),
         "subject_id": "subject",
         "agent_id": "agent",
         "workspace_id": "workspace",
         "trajectory_pool_root": str(pool),
-        "require_encrypted": False,
+        "require_encrypted": True,
         "context_bytes": 32_000,
     })
     state = {
@@ -908,7 +954,13 @@ def test_longmem_adapter_preserves_official_state_media_and_native_trust(
     adapter.insert({
         "id": "trajectory-1", "goal": "checkout", "outcome": "completed",
         "start_url": "https://shop.example",
-        "actions": ["Open checkout", "Select Place order"], "states": [state],
+        "actions": ["Open checkout", "Select Place order"],
+        # A text state after an interleaved screenshot exercises V3's compact
+        # canonical ordinals rather than relying on media being last.
+        "states": [state, {
+            "state_index": 1,
+            "text": "The order confirmation page is visible.",
+        }],
         "gold": "must never enter memory",
     })
     with pytest.raises(ValueError, match="escapes its source root"):
@@ -917,15 +969,16 @@ def test_longmem_adapter_preserves_official_state_media_and_native_trust(
             "states": [{"state_index": 0, "screenshot": "../../outside.png"}],
         })
 
+    adapter._memory.freeze_context_engine(adapter.scope)
     result = adapter.query("What is the current checkout label?")
     metadata = adapter.post_query_hook(
         query="What is the current checkout label?",
         query_image=None,
         memory_context=result,
     )
-    assert metadata["format"] == "atmem-longmemeval-query-metadata-v1"
+    assert metadata["format"] == "atmem-longmemeval-query-metadata-v2"
     assert metadata["context_sha256"].startswith("sha256:")
-    assert metadata["sufficiency"]["required_slots"]
+    assert metadata["sufficiency"]["required_obligation_ids"]
 
     text = "\n".join(item["value"] for item in result if item["type"] == "text")
     assert "Place order" in text
@@ -946,7 +999,9 @@ def test_longmem_adapter_preserves_official_state_media_and_native_trust(
     assert records
     assert {row["source_type"] for row in records} == {"tool_output"}
     assert {row["trust_tier"] for row in records} == {"host_asserted_observation"}
-    procedure = adapter.query("How should I complete checkout? and what are the steps?")
+    procedure = adapter.query(
+        "According to the usual workflow, how many actions complete checkout?"
+    )
     assert "Select Place order" in "\n".join(
         item["value"] for item in procedure if item["type"] == "text"
     )

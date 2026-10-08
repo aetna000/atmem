@@ -11,16 +11,29 @@ from .contracts import EvidenceObligation, QueryPlan
 
 _QUESTION_WORDS = frozenset({"what", "which", "where", "when", "how", "who", "why", "whether"})
 _PLAN_STOP = frozenset({
-    "a", "an", "and", "are", "as", "at", "be", "by", "do", "does", "for",
+    "a", "am", "an", "and", "are", "as", "at", "be", "by", "do", "does", "for",
     "from", "i", "in", "is", "it", "my", "of", "on", "or", "our", "please",
     "that", "the", "their", "this", "to", "we", "with", "you", "send",
-    "email", "post", "create", "update", "inspect", "review", "find",
+    "email", "post", "create", "update", "inspect", "review", "find", "would", "like",
 })
+
+
+def _strip_host_scaffolding(query: str) -> str:
+    value = re.sub(r"^\s*\[\d{4}-\d{2}-\d{2}\]\s*", "", query).strip()
+    # Tool schemas and answer-format instructions describe the evaluator/host,
+    # not additional memory requirements. Letting them enter the plan creates
+    # impossible obligations such as remembering every available click verb.
+    value = re.split(r"\n\s*Action Space\s*:", value, maxsplit=1, flags=re.IGNORECASE)[0]
+    value = re.split(
+        r"\n\s*(?:Your final answer|Put your final answer|Mark your final answer)\b",
+        value, maxsplit=1, flags=re.IGNORECASE,
+    )[0]
+    return value.strip()
 
 
 def _need_clauses(query: str) -> tuple[str, ...]:
     """Split explicit memory needs without inventing hidden requirements."""
-    value = re.sub(r"^\s*\[\d{4}-\d{2}-\d{2}\]\s*", "", query).strip()
+    value = _strip_host_scaffolding(query)
     pieces = re.split(
         r"(?:[.;]\s+|,\s+(?:and\s+)?(?=(?:include|identify|name|state|explain|"
         r"briefly|whether|what|which|where|when|how|who|why|copy|cc)\b)|"
@@ -39,6 +52,12 @@ def _need_clauses(query: str) -> tuple[str, ...]:
         ]
         lowered = normalized.casefold()
         if lowered.startswith("today is "):
+            continue
+        if lowered.startswith(("i am ", "i have ", "i would ")) and "?" not in normalized:
+            pending_context = ". ".join(filter(None, (pending_context, normalized)))
+            continue
+        if lowered.startswith("according to ") and "?" not in normalized:
+            pending_context = ". ".join(filter(None, (pending_context, normalized)))
             continue
         memory_cue = bool(
             _QUESTION_WORDS & {token.casefold() for token in significant}
@@ -66,7 +85,12 @@ def _need_clauses(query: str) -> tuple[str, ...]:
 
 def _kind(value: str) -> str:
     lowered = value.casefold()
-    if lowered.startswith("how ") or re.search(r"\b(steps?|procedure|in order)\b", lowered):
+    if (
+        lowered.startswith("how ")
+        or re.search(r"\b(steps?|procedure|in order)\b", lowered)
+        or re.search(r"\bhow many (?:more )?(?:actions?|steps?)\b", lowered)
+        or ("workflow" in lowered and re.search(r"\b(actions?|steps?)\b", lowered))
+    ):
         return "ordered_steps"
     if "what changed" in lowered or re.search(r"\b(before|after|transition)\b", lowered):
         return "before_action_after"
@@ -90,11 +114,68 @@ def _entity(value: str) -> str:
     return words[0] if words else "query"
 
 
+def _targeted_facets(query: str) -> tuple[str, ...]:
+    """Derive answer-blind search facets from explicit alternatives and fields.
+
+    These are search nominations, not additional sufficiency obligations. A
+    question asking which one of several alternatives has a property normally
+    has evidence for the matching alternative only; requiring evidence for
+    every distractor would incorrectly fail closed.
+    """
+    values: list[str] = []
+    # Preserve the user's task intent as a compact nomination query. Long
+    # questions often wrap a short action in UI, location, and answer-format
+    # prose; searching only the full sentence lets framing words dominate the
+    # fallback ranking.
+    intent = re.search(
+        r"\b(?:would like to|want to|need to)\s+([^?.\n]+)",
+        query,
+        re.IGNORECASE,
+    )
+    if intent:
+        value = " ".join(intent.group(1).split()).strip(" ,.;")
+        if 2 <= len(value.split()) <= 32:
+            values.append(value)
+    alternatives = re.search(r"\(([^()\n]*?/[^()\n]*?)\)", query)
+    if alternatives:
+        entities = [
+            " ".join(item.split()).strip(" ,.;")
+            for item in alternatives.group(1).split("/")
+        ]
+        entities = [item for item in entities if 1 < len(item) <= 48]
+        focus = re.search(
+            r"\b(?:integrates?|integration)\s+with\s+([^?.\n]+)",
+            query, re.IGNORECASE,
+        )
+        focus_text = " ".join(focus.group(1).split()) if focus else ""
+        if 2 <= len(entities) <= 12 and focus_text:
+            values.extend(f"{focus_text} {entity}" for entity in entities)
+
+    option_lines = re.findall(
+        r"(?m)^\s*[A-Z]\s*[.)]\s*([^\n]+)$", query,
+    )
+    if option_lines:
+        table = re.search(
+            r"\b(?:on|in)\s+the\s+([A-Za-z0-9_-]+)\s+table\b",
+            query, re.IGNORECASE,
+        )
+        prefix = f"{table.group(1)} table" if table else ""
+        fields: list[str] = []
+        for line in option_lines:
+            fields.extend(
+                " ".join(item.split()).strip(" ,.;")
+                for item in re.split(r"\s*,\s*|\s*/\s*", line)
+            )
+        for field in dict.fromkeys(item for item in fields if len(item) > 1):
+            values.append(f"{prefix} {field}".strip())
+    return tuple(dict.fromkeys(values))
+
+
 class DeterministicPlanner:
     identity = "context-planner-deterministic-v1"
 
     def plan(self, query: str) -> QueryPlan:
-        normalized = " ".join(query.split())
+        normalized = " ".join(_strip_host_scaffolding(query).split())
         if not normalized:
             raise ValueError("query is required")
         obligations: list[EvidenceObligation] = []
@@ -128,17 +209,18 @@ class DeterministicPlanner:
                 )
                 obligations.append(EvidenceObligation(
                     obligation_id=f"need-{index}", kind=kind,
-                    entity=_entity(clause), relation_or_action=clause,
+                    entity=None if kind == "ordered_steps" else _entity(clause),
+                    relation_or_action=clause,
                     temporal_target=temporal.group(0) if temporal else None,
                     polarity="negative" if kind == "premise_check" else "unknown",
                 ))
-        routed_queries = (
-            (normalized,)
-            if comparison
-            else tuple(dict.fromkeys(
-                (normalized, *(item.relation_or_action or normalized for item in obligations))
-            ))
+        obligation_queries = (
+            () if comparison else
+            tuple(item.relation_or_action or normalized for item in obligations)
         )
+        routed_queries = tuple(dict.fromkeys((
+            normalized, *obligation_queries, *_targeted_facets(query),
+        )))
         pools = {
             "raw_state": routed_queries,
             "fact": routed_queries,

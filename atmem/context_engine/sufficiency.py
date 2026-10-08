@@ -23,7 +23,13 @@ def decide_sufficiency(
     } - set(result.withheld_obligation_ids)
     covered = tuple(item for item in required if item in covered_set)
     missing = tuple(item for item in required if item not in covered_set)
-    evidence_ids = tuple(dict.fromkeys(item.unit_id for item in result.candidates))
+    grounding_candidates = tuple(
+        item for item in result.candidates
+        if set(item.matched_obligation_ids) & set(required)
+    )
+    evidence_ids = tuple(dict.fromkeys(
+        item.unit_id for item in (grounding_candidates or result.candidates)
+    ))
     status = "partial" if evidence_ids else "not_found_within_budget"
     conflicting: tuple[str, ...] = ()
     reason_codes: list[str] = []
@@ -40,7 +46,7 @@ def decide_sufficiency(
         premise = any(item.kind == "premise_check" for item in plan.obligations)
         negative_evidence = any(
             re.search(r"\b(no|not|never|only|without|cannot|can't)\b", item.text.casefold())
-            for item in result.candidates
+            for item in grounding_candidates
         )
         if premise and negative_evidence:
             status = "contradicted"
@@ -48,7 +54,7 @@ def decide_sufficiency(
         else:
             # Two different exact numeric or channel values supporting the same
             # need are a conflict, unless one explicitly marks itself a correction.
-            texts = [item.text for item in result.candidates]
+            texts = [item.text for item in grounding_candidates]
             values = {
                 match.group(0).casefold()
                 for text in texts

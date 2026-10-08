@@ -77,9 +77,15 @@ def _view_kinds(text: str, part_kind: str) -> tuple[UnitKind, ...]:
     lowered = text.casefold()
     if part_kind == "text":
         kinds.update(("fact", "entity"))
-        if re.search(r"\b(before|after|changed|replacing|restored|now)\b", lowered):
+        if (
+            re.search(r"\b(before|after|changed|replacing|restored|now)\b", lowered)
+            or ('"state_index"' in lowered and '"action"' in lowered)
+        ):
             kinds.add("transition")
-        if re.search(r"\b(in order|step|first|then|finally|restore)\b", lowered):
+        if (
+            re.search(r"\b(in order|step|first|then|finally|restore)\b", lowered)
+            or ('"action_offset"' in lowered and '"actions"' in lowered)
+        ):
             kinds.add("procedure")
         if re.search(r"\b(must|required|should|never|always)\b", lowered):
             kinds.add("rule")

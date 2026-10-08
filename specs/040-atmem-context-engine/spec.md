@@ -401,6 +401,17 @@ read-path result, explicit verification result and exact detection point.
   Each profile MUST be nested over the historical 14/18 calibration slice,
   preserve the existing development/confirmation boundary, and rederive its
   membership from the pinned salt and public identifiers before execution.
+- **FR-037A — Staged LongMem stop/go gate**: Before spending the complete
+  23-question LongMemEval-V2 development budget, the runner MUST execute the
+  immutable six-question stage declared by
+  `longmemeval-v2-stage-gate-v1.json`. The stage MUST preserve every production
+  setting and matched arm required by FR-035 and FR-038; only the public case
+  count may differ. It is a diagnostic, not a five-percent result. AtMem MUST
+  score strictly above AgentRunbook-R on that stage before the remaining 17
+  questions may run. A tie or loss MUST stop paid execution, retain all
+  outcomes, attribute the earliest failing pipeline stage, and return to an
+  implementation fix followed by an identical-stage rerun. Cases, order,
+  reader, judge or budgets MUST NOT be changed in response to an outcome.
 - **FR-038 — Sample-size-only reduction**: The 23-question and 30-task
   development runs MUST execute the same production benchmark pipeline and
   quality gates intended for the corresponding full run. The sample selector

@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from atmem.context_engine.formation import (
-    FormationManager, SourceEpisode, SourcePart, _sentence_ranges,
+    FormationManager, SourceEpisode, SourcePart, _sentence_ranges, _view_kinds,
 )
 from atmem.context_engine.planner import DeterministicPlanner
-from atmem.context_engine.retrieval import DeterministicRetriever, _fts_terms
+from atmem.context_engine.retrieval import (
+    DeterministicRetriever, RetrievedCandidate, RetrievalResult, _fts_terms,
+)
 from atmem.context_engine.sufficiency import decide_sufficiency
 from atmem.context_engine.packing import derive_action_constraints, pack_context
-from atmem.contracts.models import AuthorityScope
+from atmem.context_engine.service import AuthorizedManifest, StoredContextEngine
+from atmem.context_engine.contracts import ContextRequestV3
+from atmem.contracts.models import AuthorityScope, RetrievalBudget
 from atmem.store.sqlite import SQLiteStore
 
 
@@ -33,6 +37,14 @@ def test_bounded_clause_ranges_isolate_compound_facts_without_splitting_lists() 
     assert _sentence_ranges(palette) == ((0, len(palette)),)
 
 
+def test_trajectory_action_and_state_json_form_procedure_and_transition_views() -> None:
+    action_batch = '{"action_offset":0,"actions":[{"name":"click"}]}'
+    state = '{"state_index":4,"action":{"name":"click"},"text":"Saved"}'
+
+    assert "procedure" in _view_kinds(action_batch, "text")
+    assert "transition" in _view_kinds(state, "text")
+
+
 def test_planner_declares_distinct_comparison_heads_and_preserves_query() -> None:
     plan = DeterministicPlanner().plan("Compare North and South export formats")
     assert plan.deterministic_fallback is True
@@ -46,6 +58,124 @@ def test_planner_routes_procedure_transition_and_premise_needs() -> None:
     assert planner.plan("How should the archive be restored?").obligations[0].kind == "ordered_steps"
     assert planner.plan("What changed when the worker was repaired?").obligations[0].kind == "before_action_after"
     assert planner.plan("Which cable is required for the wireless-only sensor?").obligations[0].kind == "premise_check"
+
+
+def test_planner_routes_workflow_action_count_as_ordered_steps() -> None:
+    plan = DeterministicPlanner().plan(
+        "I am using our shopping admin. I would like to notify a user to reorder "
+        "for a pending order. I have entered its detail page. According to our "
+        "usual workflow, with the action space below, how many more actions do "
+        "I need to perform?\n\n"
+        "Action Space: click(bid: str), fill(bid: str, value: str)\n\n"
+        "Your final answer should be an English number."
+    )
+
+    assert len(plan.obligations) == 1
+    assert plan.obligations[0].kind == "ordered_steps"
+    assert plan.obligations[0].entity is None
+    assert any(
+        "notify a user to reorder" in query.casefold()
+        for query in plan.pool_queries["procedure"]
+    )
+    assert plan.pool_queries["procedure"]
+    assert all("click(bid" not in query for query in plan.pool_queries["procedure"])
+
+
+def test_planner_does_not_misroute_a_named_change_request_as_a_transition() -> None:
+    plan = DeterministicPlanner().plan(
+        "Among these five forms (change request/problem/incident/hardware/user), "
+        "which page integrates with Outlook calendar?"
+    )
+
+    assert all(item.kind != "before_action_after" for item in plan.obligations)
+    queries = {query.casefold() for query in plan.pool_queries["raw_state"]}
+    assert queries >= {
+        "outlook calendar change request", "outlook calendar problem",
+        "outlook calendar incident", "outlook calendar hardware",
+        "outlook calendar user",
+    }
+
+
+def test_planner_decomposes_multiple_choice_fields_into_targeted_queries() -> None:
+    plan = DeterministicPlanner().plan(
+        "Which option contains only fields present on the Problem table?\n"
+        "A. Problem Statement, Description, Category\n"
+        "B. Subcategory, Assignment Group, State"
+    )
+
+    queries = {item.casefold() for item in plan.pool_queries["raw_state"]}
+    assert "problem table subcategory" in queries
+    assert "problem table assignment group" in queries
+    assert "problem table state" in queries
+
+
+def test_sufficient_decision_requires_only_obligation_grounding_units() -> None:
+    plan = DeterministicPlanner().plan("Which port does audit use?")
+    grounded = RetrievedCandidate(
+        unit_id="grounded", kind="fact", source_id="source-1", part_id="text",
+        start=0, end=18, text="Audit uses port 7443.", score=2.0,
+        matched_obligation_ids=("need-1",),
+    )
+    neighbor = RetrievedCandidate(
+        unit_id="neighbor", kind="raw_state", source_id="source-1", part_id="text",
+        start=19, end=48, text="The service also emits metrics.", score=1.0,
+        matched_obligation_ids=(),
+    )
+    result = RetrievalResult(
+        candidates=(grounded, neighbor), searched_pools=("fact", "raw_state"),
+        scanned_units=2, exhausted=False,
+    )
+
+    decision = decide_sufficiency(plan, result)
+
+    assert decision.status == "sufficient"
+    assert decision.evidence_unit_ids == ("grounded",)
+
+
+def test_stored_engine_selects_only_evidence_that_fits_the_canonical_budget() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("answer", "Audit uses port 7443."),
+            ("noise", "Operators must review unrelated diagnostics " + "x" * 1000),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        request = ContextRequestV3(
+            context_id="context-1", request_id="request-1", scope=SCOPE,
+            query="Which port does audit use?", profile_id="context-fast",
+            mode="active", generation=0,
+            budget=RetrievalBudget(
+                candidates_per_channel=2, total_candidates=2, context_bytes=160,
+            ),
+        )
+        unit_ids = tuple(
+            str(row["unit_id"])
+            for row in store._conn.execute(
+                "SELECT unit_id FROM context_evidence_units WHERE generation_id=?",
+                (generation,),
+            ).fetchall()
+        )
+        selection = StoredContextEngine(store, generation_id=generation).select(
+            request,
+            AuthorizedManifest(
+                request_id=request.request_id, scope=SCOPE, generation=0,
+                authorized_unit_ids=unit_ids, authority_sha256="sha256:test",
+                all_generation_units_authorized=True,
+            ),
+        )
+
+        assert selection.status == "sufficient"
+        assert len(selection.selected_unit_ids) == 1
+        assert selection.selected_unit_ids == selection.sufficiency.evidence_unit_ids
+        assert selection.action_constraints == ()
+    finally:
+        store.close()
 
 
 def test_planner_splits_explicit_independent_memory_requirements() -> None:

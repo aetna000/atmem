@@ -55,7 +55,11 @@ class StoredContextEngine:
         packed = pack_context(
             plan, result, decision, max_bytes=request.budget.context_bytes
         )
-        selected = tuple(item.unit_id for item in result.candidates)
+        # Only identifiers whose exact canonical bytes fit the declared
+        # context budget cross the governance boundary. Retrieval may retain
+        # additional neighbours for diagnostics, but selecting them here
+        # would reload and expose evidence the packer explicitly excluded.
+        selected = packed.included_unit_ids
         reason_codes = list(decision.reason_codes)
         if decision.status == "sufficient" and not packed.complete:
             covered = {
@@ -76,6 +80,13 @@ class StoredContextEngine:
             )
             selected = packed.included_unit_ids
             reason_codes.append("context_budget_exhausted")
+        packed_result = replace(
+            result,
+            candidates=tuple(
+                item for item in result.candidates
+                if item.unit_id in set(selected)
+            ),
+        )
         return EngineSelection(
             status=decision.status,
             selected_unit_ids=selected,
@@ -85,7 +96,9 @@ class StoredContextEngine:
                 {"evidence_id": unit_id, "reason": "context_budget"}
                 for unit_id in packed.excluded_unit_ids
             ),
-            action_constraints=derive_action_constraints(request.query, result, decision),
+            action_constraints=derive_action_constraints(
+                request.query, packed_result, decision
+            ),
             reason_codes=tuple(reason_codes),
         )
 
