@@ -552,14 +552,16 @@ read-path result, explicit verification result and exact detection point.
   gates. The result MUST bind the beta version, commit, artifact SHA-256,
   dataset manifests and evaluator configuration; a later source-tree result
   MUST NOT be attributed to that beta.
-- **FR-053 — Remote paid-run isolation**: LongMemEval-V2 and DolphinBench paid
-  evaluation workers MUST execute on the frozen RunPod Linux worker profile,
-  including memory formation, retrieval, comparator execution, reader/agent
-  calls and result assembly. The operator workstation MAY perform only bounded
-  orchestration, immutable artifact transfer and result collection. A paid
-  runner invoked on macOS or Windows MUST fail before provider reservation or
-  benchmark work. The remote worker identity, hardware class, image digest,
-  resource limits and cleanup receipt MUST be bound into finalization evidence.
+- **FR-053 — Hybrid paid-run isolation**: LongMemEval-V2 and DolphinBench MUST
+  use the frozen RunPod Linux GPU profile for Qwen model inference only.
+  Formation, retrieval, comparator execution, result assembly and mutable
+  product databases MUST remain on the operator workstation at exactly one
+  case at a time, with BLAS/OpenMP thread caps and lowered process priority.
+  Frozen inputs, checkpoints and durable evidence MUST remain on `MEM` while
+  latency-sensitive mutable databases remain on local disk and are deleted per
+  case. The RunPod identity, hardware class, image digest, resource limits and
+  cleanup receipt plus the controller identity and concurrency MUST be bound
+  into finalization evidence.
   A score below target MUST NOT interrupt the run; only a defect or failure
   that invalidates completeness, integrity or comparability may do so.
 

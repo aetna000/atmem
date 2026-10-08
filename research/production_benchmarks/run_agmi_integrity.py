@@ -22,8 +22,8 @@ sys.path.append(str(ROOT))
 from research.production_benchmarks.installed_product import (  # noqa: E402
     installed_atmem_identity,
 )
-from research.production_benchmarks.remote_worker import (  # noqa: E402
-    require_remote_paid_worker,
+from research.production_benchmarks.local_resources import (  # noqa: E402
+    configure_local_resource_limits,
 )
 
 
@@ -63,6 +63,7 @@ def _verify_checkout(checkout: Path, protocol: dict) -> dict[str, object]:
 
 
 def main() -> int:
+    local_resources = configure_local_resource_limits()
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkout", required=True)
     parser.add_argument("--output", required=True)
@@ -76,10 +77,7 @@ def main() -> int:
     ).stdout.strip():
         raise SystemExit("AGMI qualification requires the exact clean reviewed commit")
 
-    worker = require_remote_paid_worker()
     protocol = json.loads(PROTOCOL.read_text(encoding="utf-8"))
-    if worker["hardware_profile"] != protocol["execution"]["hardware_profile"]:
-        raise RuntimeError("AGMI worker differs from frozen execution profile")
     installed = installed_atmem_identity(protocol["candidate_atmem_version"])
     checkout = Path(args.checkout).expanduser().resolve()
     source = _verify_checkout(checkout, protocol)
@@ -120,7 +118,8 @@ def main() -> int:
         "source": source,
         "installed_product": installed,
         "installed_distribution_version": metadata.version("atmem"),
-        "remote_worker": worker,
+        "execution_topology": "mac-controller;no-model-or-gpu-required",
+        "local_resources": local_resources,
         "started_unix": started,
         "completed_unix": time.time(),
         "historical_published_result": protocol["published_2_3_7"],

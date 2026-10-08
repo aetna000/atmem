@@ -31,8 +31,9 @@ from atmem.benchmark.contracts import load_json_compatible_yaml  # noqa: E402
 from research.production_benchmarks.installed_product import (  # noqa: E402
     installed_atmem_identity,
 )
-from research.production_benchmarks.remote_worker import (  # noqa: E402
-    require_remote_paid_worker,
+from research.production_benchmarks.longmemeval_v2 import current_hardware_profile  # noqa: E402
+from research.production_benchmarks.local_resources import (  # noqa: E402
+    configure_local_resource_limits,
 )
 
 
@@ -114,6 +115,7 @@ def _tree_digest(root: Path) -> str:
 
 
 def main() -> int:
+    local_resources = configure_local_resource_limits()
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkout", required=True)
     parser.add_argument("--config", required=True)
@@ -133,7 +135,6 @@ def main() -> int:
         check=True, capture_output=True, text=True,
     ).stdout.strip():
         raise SystemExit("paid DolphinBench run requires the exact clean reviewed commit")
-    worker = require_remote_paid_worker()
     checkout = Path(args.checkout).expanduser().resolve()
     config = Path(args.config).expanduser().resolve()
     checkpoint_root = Path(args.checkpoint_root).expanduser().resolve()
@@ -189,7 +190,8 @@ def main() -> int:
             "adapter": adapter,
             "checkpoint_sha256": checkpoint_sha256,
             "installed_product": installed_product,
-            "remote_worker": worker,
+            "execution_topology": "mac-controller+runpod-gpu-reader",
+            "local_resources": local_resources,
             "attribution_artifacts": {
                 "review_protocol_sha256": attribution_artifacts[
                     "review_protocol"
@@ -248,8 +250,9 @@ def main() -> int:
         ).stdout.strip(),
         "candidate_artifact_sha256": _installed_artifact_sha256(),
         "checkpoint_sha256": checkpoint_sha256,
-        "hardware_profile": worker["hardware_profile"],
-        "remote_worker_gpu": worker["gpu_name"],
+        "hardware_profile": current_hardware_profile(),
+        "gpu_execution_site": "runpod-only",
+        "local_resources": local_resources,
         "run_config_sha256": "sha256:" + hashlib.sha256(config.read_bytes()).hexdigest(),
         "cost_authorization_id": authorization_id,
         "grader_runtime": grader_identity,
@@ -258,7 +261,6 @@ def main() -> int:
             for path in (
                 ROOT / "research/production_benchmarks/run_dolphin_development.py",
                 ROOT / "research/production_benchmarks/dolphinbench.py",
-                ROOT / "research/production_benchmarks/remote_worker.py",
             )
         }, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
     })

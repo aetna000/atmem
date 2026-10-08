@@ -36,7 +36,8 @@
     }
   },
   "execution": {
-    "hardware_profile": "RunPod-SECURE;Linux;x86_64;NVIDIA-A100-SXM4-80GB;remote-worker-v1",
+    "hardware_profile": "Apple-M2;arm64;17179869184-bytes;macOS-26.5.2-build-25F84",
+    "execution_topology": "mac-controller;no-model-or-gpu-required",
     "installed_artifact_required": true,
     "all_failures_retained": true,
     "score_can_stop_run": false

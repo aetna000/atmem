@@ -26,6 +26,7 @@ sys.path.append(str(ROOT))
 
 from research.production_benchmarks.longmemeval_v2 import (  # noqa: E402
     DatasetPreflight,
+    current_hardware_profile,
     preflight_paid_runtime,
     preflight_reader_processor,
     preflight_selected_data,
@@ -44,11 +45,9 @@ from research.production_benchmarks.matched_results import write_longmem_control
 from research.production_benchmarks.installed_product import (  # noqa: E402
     installed_atmem_identity,
 )
-from research.production_benchmarks.remote_worker import (  # noqa: E402
-    require_remote_paid_worker,
+from research.production_benchmarks.local_resources import (  # noqa: E402
+    configure_local_resource_limits,
 )
-
-
 PROTOCOLS = ROOT / "benchmarks/retrieval_quality/protocols"
 SCORED_METHODS = ("no-retrieval", "typed-local", "mem0-oss", "agentrunbook-r")
 CONTROL_METHODS = ("verified-evidence",)
@@ -336,6 +335,7 @@ def _case_score(output_dir: Path) -> dict[str, Any]:
 
 
 def main() -> None:
+    local_resources = configure_local_resource_limits()
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkout", required=True)
     parser.add_argument("--data-root", required=True)
@@ -355,7 +355,6 @@ def main() -> None:
         check=True, capture_output=True, text=True,
     ).stdout.strip():
         raise SystemExit("paid pilot requires the exact clean reviewed commit")
-    worker = require_remote_paid_worker()
     checkout = Path(args.checkout).expanduser().resolve()
     data_root = Path(args.data_root).expanduser().resolve()
     output_root = Path(args.output_root).expanduser().resolve()
@@ -406,7 +405,7 @@ def main() -> None:
     )
     processor_preflight = preflight_reader_processor(protocol)
     expected_hardware = protocol["paid_run_requirements"]["hardware_profile"]
-    hardware_profile = str(worker["hardware_profile"])
+    hardware_profile = current_hardware_profile()
     if hardware_profile != expected_hardware:
         raise RuntimeError(
             "paid pilot hardware differs from the frozen protocol: "
@@ -438,7 +437,8 @@ def main() -> None:
             "installed_product": installed_product,
             "official_checkout": verification,
             "hardware_profile": hardware_profile,
-            "remote_worker": worker,
+            "execution_topology": "mac-controller+runpod-gpu-reader",
+            "local_resources": local_resources,
             "data_preflight": data_preflight.report(),
             "reader_processor": processor_preflight,
             "attribution_artifacts": _attribution_summary(attribution_artifacts),
@@ -523,7 +523,8 @@ def main() -> None:
             "official_checkout": verification,
             "processor": processor_preflight,
             "hardware_profile": hardware_profile,
-            "remote_worker_gpu": worker["gpu_name"],
+            "gpu_reader_hardware": billing["hardware_id"],
+            "execution_topology": "mac-controller+runpod-gpu-reader",
             "methods": METHODS,
             "selected_question_ids": selected_question_ids,
             "claim_class": claim_class,
@@ -535,7 +536,6 @@ def main() -> None:
             for path in (
                 ROOT / "research/production_benchmarks/run_longmem_pilot.py",
                 ROOT / "research/production_benchmarks/longmemeval_v2.py",
-                ROOT / "research/production_benchmarks/remote_worker.py",
                 ROOT / "research/production_benchmarks/adapters/longmemeval_atmem.py",
                 ROOT / "research/production_benchmarks/adapters/longmemeval_verified.py",
             )
@@ -568,7 +568,8 @@ def main() -> None:
         "data_preflight": data_preflight.report(),
         "reader_processor": processor_preflight,
         "hardware_profile": hardware_profile,
-        "remote_worker": worker,
+        "execution_topology": "mac-controller+runpod-gpu-reader",
+        "local_resources": local_resources,
         "methods": list(METHODS),
         "selected_question_ids": selected_question_ids,
         "stage_gate_sha256": (
@@ -795,11 +796,11 @@ def main() -> None:
     if protocol["models"]["longmemeval_reader"]["model"] not in probe["models"]:
         raise RuntimeError("Runpod vLLM server does not expose the frozen reader model")
     # Qdrant/SQLite runtime state is mutable and latency-sensitive. Keep it on
-    # the remote worker's local storage; only immutable evidence is retained.
+    # Mac local storage; immutable inputs and final evidence remain on MEM.
     mem0_runtime = tempfile.TemporaryDirectory(prefix="atmem-longmem-mem0-")
     mem0_runtime_root = Path(mem0_runtime.name)
     # Per-case AtMem databases are hot SQLite state and can approach a gigabyte.
-    # Keep them on the remote worker's local filesystem.
+    # Keep one at a time on the Mac local filesystem to bound CPU, RSS and I/O.
     case_runtime = tempfile.TemporaryDirectory(prefix="atmem-longmem-cases-")
     case_runtime_root = Path(case_runtime.name)
     terminated = False
@@ -837,18 +838,18 @@ def main() -> None:
             stderr=subprocess.DEVNULL,
         )
         reader_proxy_url = _wait_for_reader_proxy(reader_proxy, reader_proxy_ready)
-        run_batch(non_llm_work, max_workers=2, gated=False)
-        # Match case concurrency to the remote reader's capacity. Spawning one
-        # worker per arm only multiplies database clones, CPU and RSS while the
-        # GPU still admits at most max_num_seqs requests.
-        remote_case_concurrency = int(requirements["remote_worker_case_concurrency"])
-        if remote_case_concurrency < 1 or remote_case_concurrency > int(
+        run_batch(non_llm_work, max_workers=1, gated=False)
+        # The Mac performs storage/orchestration work one case at a time. The
+        # RunPod reader may batch internally, but that must never multiply Mac
+        # database clones, CPU work or resident memory.
+        controller_case_concurrency = int(requirements["controller_case_concurrency"])
+        if controller_case_concurrency != 1 or controller_case_concurrency > int(
             billing["max_num_seqs"]
         ):
             raise RuntimeError(
-                "remote worker case concurrency exceeds the frozen reader capacity"
+                "Mac controller concurrency must remain exactly one"
             )
-        executor = ThreadPoolExecutor(max_workers=remote_case_concurrency)
+        executor = ThreadPoolExecutor(max_workers=controller_case_concurrency)
         llm_futures = [
             executor.submit(run_case, item, gated=True) for item in llm_work
         ]

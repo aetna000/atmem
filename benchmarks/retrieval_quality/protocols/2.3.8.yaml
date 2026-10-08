@@ -138,10 +138,10 @@
     "official_harness_sha256": "93fe5855a74ad46d7e8b489cebac24de38a9b30ba7ec1de2dd8708bd4aeebdb6",
     "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
     "judge_prompt_sha256": "f8ba659e237c4282a07a92538090ea500ce8483820b390b1d19af187c01417ac",
-    "provider_route": "runpod-remote-worker+vllm-reader+deterministic-embedding+openai-direct-judge",
+    "provider_route": "mac-controller+runpod-vllm-reader+deterministic-embedding+openai-direct-judge",
     "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
-    "hardware_profile": "RunPod-SECURE;Linux;x86_64;NVIDIA-A100-SXM4-80GB;remote-worker-v1",
-    "remote_worker_case_concurrency": 2,
+    "hardware_profile": "Apple-M2;arm64;17179869184-bytes;macOS-26.5.2-build-25F84",
+    "controller_case_concurrency": 1,
     "comparator_config_sha256": "08b99b870b3c134ccf3daca04cdba4248dda349004dd8d87159f0e8e4b62ec09",
     "official_code_files": {
       "evaluation/harness.py": "93fe5855a74ad46d7e8b489cebac24de38a9b30ba7ec1de2dd8708bd4aeebdb6",
@@ -223,11 +223,11 @@
   "equivalence_receipts": {
     "longmemeval_v2": {
       "file": "longmemeval-v2-equivalence-5pct-v1.json",
-      "file_sha256": "cfe6320c02e7acabeb4b435344e407e44d3db71b4324db71826d8cb506ba3e7c"
+      "file_sha256": "5a946b72cb46dbbc8cd1d46ba586d106dbbff6e08f76c5924031888eebc2fa32"
     },
     "dolphinbench": {
       "file": "dolphinbench-equivalence-5pct-v1.json",
-      "file_sha256": "9beffced62d3edf6c679557f15d1a8a3eae3b423d1526227f642626400fcf1b1"
+      "file_sha256": "5ca91ff3fbb617f842e8c9f16db9a193a75d52c6ce36d15894d8a397839f875b"
     }
   },
   "operating_points": ["no-retrieval", "official-rag-query-to-slice-notes", "agentrunbook-r", "agentrunbook-c", "agentrunbook-c-v2", "mem0-oss", "legacy", "typed-local"],

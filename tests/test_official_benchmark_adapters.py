@@ -6,6 +6,7 @@ import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -488,20 +489,21 @@ def test_longmem_runtime_reservation_covers_the_complete_pod_envelope() -> None:
     assert "* remaining_billed_seconds\n        / 3_600" not in source
 
 
-def test_longmem_remote_case_concurrency_is_bounded_by_reader_capacity() -> None:
+def test_longmem_mac_controller_runs_exactly_one_case_at_a_time() -> None:
     protocol = json.loads(
         (ROOT / "benchmarks/retrieval_quality/protocols/2.3.8.yaml").read_text()
     )
     requirements = protocol["paid_run_requirements"]
-    assert requirements["remote_worker_case_concurrency"] == 2
-    assert requirements["remote_worker_case_concurrency"] <= requirements[
+    assert requirements["controller_case_concurrency"] == 1
+    assert requirements["controller_case_concurrency"] <= requirements[
         "reader_runtime_billing"
     ]["max_num_seqs"]
     source = (
         ROOT / "research/production_benchmarks/run_longmem_pilot.py"
     ).read_text(encoding="utf-8")
     assert "max(1, len(llm_work))" not in source
-    assert "ThreadPoolExecutor(max_workers=remote_case_concurrency)" in source
+    assert "ThreadPoolExecutor(max_workers=controller_case_concurrency)" in source
+    assert "run_batch(non_llm_work, max_workers=1" in source
 
 
 def test_longmem_controller_can_retain_shared_remote_worker() -> None:
@@ -562,39 +564,38 @@ def test_longmem_stage_checkpoint_never_stops_for_score() -> None:
     assert summary["score_can_stop_run"] is False
 
 
-def test_paid_benchmark_worker_refuses_operator_workstation(monkeypatch) -> None:
-    from research.production_benchmarks.remote_worker import (
-        require_remote_paid_worker,
+def test_paid_benchmark_topology_keeps_gpu_inference_remote() -> None:
+    protocol = json.loads(
+        (ROOT / "benchmarks/retrieval_quality/protocols/2.3.8.yaml").read_text()
+    )
+    requirements = protocol["paid_run_requirements"]
+    assert requirements["hardware_profile"].startswith("Apple-M2;")
+    assert requirements["controller_case_concurrency"] == 1
+    assert requirements["reader_runtime_billing"]["hardware_id"] == (
+        "NVIDIA A100-SXM4-80GB"
+    )
+    assert requirements["provider_route"].startswith(
+        "mac-controller+runpod-vllm-reader"
+    )
+
+
+def test_local_benchmark_resources_are_bounded(monkeypatch) -> None:
+    from research.production_benchmarks.local_resources import (
+        THREAD_LIMIT_ENV,
+        configure_local_resource_limits,
     )
 
     monkeypatch.setattr("platform.system", lambda: "Darwin")
-    monkeypatch.setattr("platform.machine", lambda: "arm64")
-    with pytest.raises(RuntimeError, match="orchestration-only"):
-        require_remote_paid_worker()
-
-
-def test_paid_benchmark_worker_binds_runpod_gpu(monkeypatch) -> None:
-    from research.production_benchmarks.remote_worker import (
-        REMOTE_HARDWARE_PROFILE,
-        require_remote_paid_worker,
-    )
-
-    monkeypatch.setattr("platform.system", lambda: "Linux")
-    monkeypatch.setattr("platform.machine", lambda: "x86_64")
-    monkeypatch.setenv("ATMEM_BENCHMARK_EXECUTION_SITE", "runpod")
-    monkeypatch.setenv("RUNPOD_POD_ID", "pod-test")
-    monkeypatch.setenv("ATMEM_RUNPOD_CLOUD_TYPE", "SECURE")
-
-    def fake_run(*args, **kwargs):
-        return subprocess.CompletedProcess(
-            args=args[0], returncode=0,
-            stdout="NVIDIA A100-SXM4-80GB, 81920\n", stderr="",
-        )
-
-    receipt = require_remote_paid_worker(run=fake_run)
-    assert receipt["hardware_profile"] == REMOTE_HARDWARE_PROFILE
-    assert receipt["pod_id"] == "pod-test"
-    assert receipt["gpu_memory_mib"] == 81920
+    monkeypatch.setattr("os.nice", lambda increment: 10 + increment)
+    receipt = configure_local_resource_limits()
+    assert receipt == {
+        "case_concurrency": 1,
+        "thread_limit": 1,
+        "niceness": 20,
+        "tokenizers_parallelism": False,
+    }
+    assert all(os.environ[name] == "1" for name in THREAD_LIMIT_ENV)
+    assert os.environ["TOKENIZERS_PARALLELISM"] == "false"
 
 
 def test_agmi_runner_pins_all_nine_attacks_without_score_assertions() -> None:

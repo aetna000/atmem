@@ -346,10 +346,11 @@ outside runtime.
     only for immutable datasets/checkpoints and durable logs, receipts and final
     evidence; clean each case's local runtime state immediately after that case,
     not only after the complete run.
-14. Execute every paid benchmark worker on the pinned RunPod Linux profile.
-    The operator workstation only transfers immutable inputs, launches and
-    monitors the remote job, and collects durable evidence. Paid runners refuse
-    local macOS/Windows execution before reserving cost or starting work.
+14. Use the pinned RunPod Linux GPU only for Qwen inference. Keep frozen inputs,
+    checkpoints and durable evidence on `MEM`; run bounded orchestration and
+    local product databases on the operator workstation at exactly one case at
+    a time. Cap BLAS/OpenMP threads and lower process priority so benchmark work
+    cannot saturate workstation CPU or RAM. Do not move non-GPU work to RunPod.
 
 Each iteration writes an A-to-B table with formation coverage, evidence recall,
 sufficiency, reader/action accuracy, latency, bytes, storage and cost. Peaks and

@@ -131,9 +131,10 @@
       "paid_run_requirements": {
         "candidate_atmem_version": "2.3.8b6",
         "comparator_config_sha256": "08b99b870b3c134ccf3daca04cdba4248dda349004dd8d87159f0e8e4b62ec09",
+        "controller_case_concurrency": 1,
         "egress": "public benchmark prompts may be sent only to the pinned routes after explicit paid-run confirmation",
         "embedding_proxy_sha256": "a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293",
-        "hardware_profile": "RunPod-SECURE;Linux;x86_64;NVIDIA-A100-SXM4-80GB;remote-worker-v1",
+        "hardware_profile": "Apple-M2;arm64;17179869184-bytes;macOS-26.5.2-build-25F84",
         "judge_prompt_sha256": "f8ba659e237c4282a07a92538090ea500ce8483820b390b1d19af187c01417ac",
         "judge_proxy_sha256": "1a99cc2d6aa8aef7c0b05949049d2c56ae5e0b367e5f8c5dfb2ef409c2a760db",
         "judge_request_max_bytes": 16384,
@@ -198,7 +199,7 @@
         "pilot_openai_cost_cap_usd": 10.5,
         "pilot_reader_cost_cap_usd": 20.0,
         "pilot_total_cost_cap_usd": 30.5,
-        "provider_route": "runpod-remote-worker+vllm-reader+deterministic-embedding+openai-direct-judge",
+        "provider_route": "mac-controller+runpod-vllm-reader+deterministic-embedding+openai-direct-judge",
         "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
         "reader_proxy_sha256": "062aa3dae5af476036992008f40cd950940c05443ed358dc78dd63dced4d32c7",
@@ -216,8 +217,7 @@
           "server_runtime": "vllm==0.29.0",
           "source": "Runpod GraphQL gpuTypes securePrice",
           "usd_per_hour": 1.79
-        },
-        "remote_worker_case_concurrency": 2
+        }
       },
       "release": "2.3.8",
       "repetition_policy": "one frozen paired run plus paired bootstrap; an independent repetition is required only for a claim that specifies repeated executions",
@@ -845,8 +845,8 @@
       ]
     }
   },
-  "full_effective_sha256": "sha256:ad3d878720ea79db2d2e52594b8d905a896fc21bc27d02858cbd835ada236e57",
-  "receipt_sha256": "sha256:2d63c72a7c80a661df92cd37a7676e10b20a060b24d2fc76929ff356c0c8a2bf",
+  "full_effective_sha256": "sha256:fc89a5bdb77ce27ad87f6116377095b3cbba31d1bc7157552e4fffed217cee35",
+  "receipt_sha256": "sha256:64366550ac8d941e125d07d6da80ad49c8a57a1a04a2501bddcba87f74c0b5af",
   "sample_configuration": {
     "pipeline": {
       "attribution": {
@@ -973,9 +973,10 @@
       "paid_run_requirements": {
         "candidate_atmem_version": "2.3.8b6",
         "comparator_config_sha256": "08b99b870b3c134ccf3daca04cdba4248dda349004dd8d87159f0e8e4b62ec09",
+        "controller_case_concurrency": 1,
         "egress": "public benchmark prompts may be sent only to the pinned routes after explicit paid-run confirmation",
         "embedding_proxy_sha256": "a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293",
-        "hardware_profile": "RunPod-SECURE;Linux;x86_64;NVIDIA-A100-SXM4-80GB;remote-worker-v1",
+        "hardware_profile": "Apple-M2;arm64;17179869184-bytes;macOS-26.5.2-build-25F84",
         "judge_prompt_sha256": "f8ba659e237c4282a07a92538090ea500ce8483820b390b1d19af187c01417ac",
         "judge_proxy_sha256": "1a99cc2d6aa8aef7c0b05949049d2c56ae5e0b367e5f8c5dfb2ef409c2a760db",
         "judge_request_max_bytes": 16384,
@@ -1040,7 +1041,7 @@
         "pilot_openai_cost_cap_usd": 10.5,
         "pilot_reader_cost_cap_usd": 20.0,
         "pilot_total_cost_cap_usd": 30.5,
-        "provider_route": "runpod-remote-worker+vllm-reader+deterministic-embedding+openai-direct-judge",
+        "provider_route": "mac-controller+runpod-vllm-reader+deterministic-embedding+openai-direct-judge",
         "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
         "reader_proxy_sha256": "062aa3dae5af476036992008f40cd950940c05443ed358dc78dd63dced4d32c7",
@@ -1058,8 +1059,7 @@
           "server_runtime": "vllm==0.29.0",
           "source": "Runpod GraphQL gpuTypes securePrice",
           "usd_per_hour": 1.79
-        },
-        "remote_worker_case_concurrency": 2
+        }
       },
       "release": "2.3.8",
       "repetition_policy": "one frozen paired run plus paired bootstrap; an independent repetition is required only for a claim that specifies repeated executions",
@@ -1117,6 +1117,6 @@
       ]
     }
   },
-  "sample_effective_sha256": "sha256:ad3d878720ea79db2d2e52594b8d905a896fc21bc27d02858cbd835ada236e57",
+  "sample_effective_sha256": "sha256:fc89a5bdb77ce27ad87f6116377095b3cbba31d1bc7157552e4fffed217cee35",
   "selector_path": "selector.case_ids"
 }

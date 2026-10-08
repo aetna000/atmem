@@ -427,11 +427,12 @@ answer/action scoring.
   contract's required `\\boxed{...}` boundary. This is applied identically to
   every arm and is bound into finalization identity; memory formation,
   retrieval, packed context, prompt and grader remain unchanged.
-- [ ] [T044B] Move the complete paid LongMem and Dolphin worker path to one
-  pinned RunPod Linux execution profile. Add a pre-cost fail-closed guard that
-  rejects macOS/Windows benchmark execution, bind worker/image/GPU/resource and
-  cleanup identity into finalization, retain remote checkpoints durably, and
-  test that the operator workstation performs orchestration and transfer only
+- [ ] [T044B] Keep the complete paid LongMem and Dolphin product path on the
+  Mac/MEM topology with exactly one local case at a time, thread caps and low
+  process priority; use the pinned RunPod Linux GPU only for Qwen inference.
+  Bind controller/concurrency and RunPod image/GPU/resource/cleanup identity
+  into finalization, retain checkpoints and durable evidence on `MEM`, and
+  test that the operator workstation never performs model inference
   (FR-029, FR-035, FR-038, FR-053, SC-012, SC-019).
 - [ ] [T046] Run AtMem and matched Mem0 on the same frozen 30-task Dolphin
   development sample through Hermes; preserve all tasks and exact tool/grader
