@@ -126,14 +126,15 @@
     "candidate_atmem_version": "2.3.8b6",
     "official_runtime_packages": {
       "huggingface_hub": "1.33.0",
-      "numpy": "2.5.3",
-      "openai": "3.19.2",
+      "numpy": "2.3.5",
+      "openai": "3.26.1",
       "openai-agents": "0.22.3",
       "pillow": "12.3.0",
-      "torch": "2.6.0",
-      "torchvision": "0.21.0",
+      "torch": "2.13.0",
+      "torchvision": "0.28.0",
       "tqdm": "4.70.1",
-      "transformers": "5.17.0"
+      "transformers": "5.19.0",
+      "vllm": "0.29.0"
     },
     "official_harness_sha256": "93fe5855a74ad46d7e8b489cebac24de38a9b30ba7ec1de2dd8708bd4aeebdb6",
     "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
@@ -163,9 +164,9 @@
     "embedding_proxy_sha256": "a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293",
     "judge_proxy_sha256": "1a99cc2d6aa8aef7c0b05949049d2c56ae5e0b367e5f8c5dfb2ef409c2a760db",
     "pilot_manifest": "longmemeval-v2-pilot-v1.json",
-    "pilot_reader_cost_cap_usd": 5.37,
+    "pilot_reader_cost_cap_usd": 20.0,
     "pilot_openai_cost_cap_usd": 10.5,
-    "pilot_total_cost_cap_usd": 15.87,
+    "pilot_total_cost_cap_usd": 30.5,
     "pilot_method_reservations_usd": {
       "no-retrieval": {"reader": 0.0, "openai": 0.09},
       "typed-local": {"reader": 0.0, "openai": 0.09},
@@ -178,11 +179,11 @@
       "provider": "runpod",
       "cloud_type": "SECURE",
       "hardware_id": "NVIDIA A100-SXM4-80GB",
-      "container_image": "vllm/vllm-openai:v0.29.0",
-      "container_image_digest": "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
+      "container_image": "runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404",
+      "container_image_digest": "sha256:60baa36d3fb6b98fd4f4ece6b96776c83c01a8b7c540e54460ab4d496816141f",
       "max_num_seqs": 2,
       "usd_per_hour": 1.79,
-      "maximum_active_seconds": 10800,
+      "maximum_active_seconds": 40000,
       "observed_utc": "2026-10-09T05:00:00Z",
       "source": "Runpod GraphQL gpuTypes securePrice"
     },
@@ -222,11 +223,11 @@
   "equivalence_receipts": {
     "longmemeval_v2": {
       "file": "longmemeval-v2-equivalence-5pct-v1.json",
-      "file_sha256": "959278b2158ef7fa1d391c6ac974893a80ff5b5dd351e4663f4fccb1b4f32838"
+      "file_sha256": "54700964475ac86683cc6ee4d438f5e39f30b17711e6a6253022da667d98837e"
     },
     "dolphinbench": {
       "file": "dolphinbench-equivalence-5pct-v1.json",
-      "file_sha256": "8d11c6ed1cd95a5ca39ac62f13690723fada727221f924a6b8128cd6f4407d61"
+      "file_sha256": "07e6571c8aa95b3d10636bc52fd2613696e435a146fad32eaac7404e4912d013"
     }
   },
   "operating_points": ["no-retrieval", "official-rag-query-to-slice-notes", "agentrunbook-r", "agentrunbook-c", "agentrunbook-c-v2", "mem0-oss", "legacy", "typed-local"],

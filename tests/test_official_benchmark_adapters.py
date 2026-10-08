@@ -478,8 +478,8 @@ def test_longmem_runtime_reservation_covers_the_complete_pod_envelope() -> None:
 
     assert _runtime_reservation_usd({
         "usd_per_hour": 1.79,
-        "maximum_active_seconds": 10_800,
-    }) == pytest.approx(5.37)
+        "maximum_active_seconds": 40_000,
+    }) == pytest.approx(19.888888889)
 
     source = (
         ROOT / "research/production_benchmarks/run_longmem_pilot.py"
@@ -502,6 +502,30 @@ def test_longmem_remote_case_concurrency_is_bounded_by_reader_capacity() -> None
     ).read_text(encoding="utf-8")
     assert "max(1, len(llm_work))" not in source
     assert "ThreadPoolExecutor(max_workers=remote_case_concurrency)" in source
+
+
+def test_longmem_controller_can_retain_shared_remote_worker() -> None:
+    source = (
+        ROOT / "research/production_benchmarks/run_longmem_pilot.py"
+    ).read_text(encoding="utf-8")
+    assert 'ATMEM_RUNPOD_CLEANUP_OWNER", "runner"' in source
+    assert 'cleanup_owner not in {"runner", "controller"}' in source
+    assert '"retained_by_controller"' in source
+    assert "if runner_owns_cleanup and not terminated:" in source
+
+
+def test_longmem_complete_batch_has_no_artificial_wall_clock() -> None:
+    source = (
+        ROOT / "research/production_benchmarks/run_longmem_pilot.py"
+    ).read_text(encoding="utf-8")
+    assert "Qwen reader phase exceeded the frozen endpoint runtime" not in source
+    assert "deadline = time.monotonic() + remaining_billed_seconds" not in source
+    assert "deadline_monotonic=None" in source
+
+    adapter = (
+        ROOT / "research/production_benchmarks/longmemeval_v2.py"
+    ).read_text(encoding="utf-8")
+    assert 'str(models["longmemeval_judge"]["timeout_seconds"])' in adapter
 
 
 def test_longmem_stage_checkpoint_never_stops_for_score() -> None:

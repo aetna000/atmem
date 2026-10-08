@@ -635,9 +635,10 @@ def validate_retrieval_quality_protocol(
             or reader_billing.get("provider") != "runpod"
             or reader_billing.get("cloud_type") != "SECURE"
             or reader_billing.get("hardware_id") != "NVIDIA A100-SXM4-80GB"
-            or reader_billing.get("container_image") != "vllm/vllm-openai:v0.29.0"
+            or reader_billing.get("container_image")
+            != "runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404"
             or reader_billing.get("container_image_digest")
-            != "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1"
+            != "sha256:60baa36d3fb6b98fd4f4ece6b96776c83c01a8b7c540e54460ab4d496816141f"
             or reader_billing.get("max_num_seqs") != 2
             or float(reader_billing.get("usd_per_hour") or 0) <= 0
             or float(reader_billing.get("maximum_active_seconds") or 0) <= 0

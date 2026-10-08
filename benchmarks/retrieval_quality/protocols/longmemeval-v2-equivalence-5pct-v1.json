@@ -152,7 +152,6 @@
         "egress": "public benchmark prompts may be sent only to the pinned routes after explicit paid-run confirmation",
         "embedding_proxy_sha256": "a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293",
         "hardware_profile": "RunPod-SECURE;Linux;x86_64;NVIDIA-A100-SXM4-80GB;remote-worker-v1",
-        "remote_worker_case_concurrency": 2,
         "judge_prompt_sha256": "f8ba659e237c4282a07a92538090ea500ce8483820b390b1d19af187c01417ac",
         "judge_proxy_sha256": "1a99cc2d6aa8aef7c0b05949049d2c56ae5e0b367e5f8c5dfb2ef409c2a760db",
         "judge_request_max_bytes": 16384,
@@ -175,14 +174,15 @@
         "official_harness_sha256": "93fe5855a74ad46d7e8b489cebac24de38a9b30ba7ec1de2dd8708bd4aeebdb6",
         "official_runtime_packages": {
           "huggingface_hub": "1.33.0",
-          "numpy": "2.5.3",
-          "openai": "3.19.2",
+          "numpy": "2.3.5",
+          "openai": "3.26.1",
           "openai-agents": "0.22.3",
           "pillow": "12.3.0",
-          "torch": "2.6.0",
-          "torchvision": "0.21.0",
+          "torch": "2.13.0",
+          "torchvision": "0.28.0",
           "tqdm": "4.70.1",
-          "transformers": "5.17.0"
+          "transformers": "5.19.0",
+          "vllm": "0.29.0"
         },
         "openai_judge_price_usd_per_million": {
           "input": 1.75,
@@ -215,8 +215,8 @@
           }
         },
         "pilot_openai_cost_cap_usd": 10.5,
-        "pilot_reader_cost_cap_usd": 5.37,
-        "pilot_total_cost_cap_usd": 15.87,
+        "pilot_reader_cost_cap_usd": 20.0,
+        "pilot_total_cost_cap_usd": 30.5,
         "provider_route": "runpod-remote-worker+vllm-reader+deterministic-embedding+openai-direct-judge",
         "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
@@ -224,17 +224,18 @@
         "reader_request_max_bytes": 8388608,
         "reader_runtime_billing": {
           "cloud_type": "SECURE",
-          "container_image": "vllm/vllm-openai:v0.29.0",
-          "container_image_digest": "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
+          "container_image": "runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404",
+          "container_image_digest": "sha256:60baa36d3fb6b98fd4f4ece6b96776c83c01a8b7c540e54460ab4d496816141f",
           "hardware_id": "NVIDIA A100-SXM4-80GB",
           "max_num_seqs": 2,
-          "maximum_active_seconds": 10800,
+          "maximum_active_seconds": 40000,
           "mode": "pod-runtime",
           "observed_utc": "2026-10-09T05:00:00Z",
           "provider": "runpod",
           "source": "Runpod GraphQL gpuTypes securePrice",
           "usd_per_hour": 1.79
-        }
+        },
+        "remote_worker_case_concurrency": 2
       },
       "release": "2.3.8",
       "repetition_policy": "one frozen paired run plus paired bootstrap; an independent repetition is required only for a claim that specifies repeated executions",
@@ -713,8 +714,8 @@
       ]
     }
   },
-  "full_effective_sha256": "sha256:8f884889cce55377ad3ba42d4c352fb8f79dff2415f2b7f3e63485952ec75ae2",
-  "receipt_sha256": "sha256:95db43bce22fe54d7f42cdd8618cb23a177b6d3676d28c3e20efa609862931bc",
+  "full_effective_sha256": "sha256:a5bde65af5709fff4eae3e23a7b3e7008eec94a90f33a983b15ef1931eead59d",
+  "receipt_sha256": "sha256:7237923e9e970a902d7d777ba94b5219952f4e54f4daa97703fb2b7e016bc5a8",
   "sample_configuration": {
     "pipeline": {
       "attribution": {
@@ -862,7 +863,6 @@
         "egress": "public benchmark prompts may be sent only to the pinned routes after explicit paid-run confirmation",
         "embedding_proxy_sha256": "a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293",
         "hardware_profile": "RunPod-SECURE;Linux;x86_64;NVIDIA-A100-SXM4-80GB;remote-worker-v1",
-        "remote_worker_case_concurrency": 2,
         "judge_prompt_sha256": "f8ba659e237c4282a07a92538090ea500ce8483820b390b1d19af187c01417ac",
         "judge_proxy_sha256": "1a99cc2d6aa8aef7c0b05949049d2c56ae5e0b367e5f8c5dfb2ef409c2a760db",
         "judge_request_max_bytes": 16384,
@@ -885,14 +885,15 @@
         "official_harness_sha256": "93fe5855a74ad46d7e8b489cebac24de38a9b30ba7ec1de2dd8708bd4aeebdb6",
         "official_runtime_packages": {
           "huggingface_hub": "1.33.0",
-          "numpy": "2.5.3",
-          "openai": "3.19.2",
+          "numpy": "2.3.5",
+          "openai": "3.26.1",
           "openai-agents": "0.22.3",
           "pillow": "12.3.0",
-          "torch": "2.6.0",
-          "torchvision": "0.21.0",
+          "torch": "2.13.0",
+          "torchvision": "0.28.0",
           "tqdm": "4.70.1",
-          "transformers": "5.17.0"
+          "transformers": "5.19.0",
+          "vllm": "0.29.0"
         },
         "openai_judge_price_usd_per_million": {
           "input": 1.75,
@@ -925,8 +926,8 @@
           }
         },
         "pilot_openai_cost_cap_usd": 10.5,
-        "pilot_reader_cost_cap_usd": 5.37,
-        "pilot_total_cost_cap_usd": 15.87,
+        "pilot_reader_cost_cap_usd": 20.0,
+        "pilot_total_cost_cap_usd": 30.5,
         "provider_route": "runpod-remote-worker+vllm-reader+deterministic-embedding+openai-direct-judge",
         "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
@@ -934,17 +935,18 @@
         "reader_request_max_bytes": 8388608,
         "reader_runtime_billing": {
           "cloud_type": "SECURE",
-          "container_image": "vllm/vllm-openai:v0.29.0",
-          "container_image_digest": "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
+          "container_image": "runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404",
+          "container_image_digest": "sha256:60baa36d3fb6b98fd4f4ece6b96776c83c01a8b7c540e54460ab4d496816141f",
           "hardware_id": "NVIDIA A100-SXM4-80GB",
           "max_num_seqs": 2,
-          "maximum_active_seconds": 10800,
+          "maximum_active_seconds": 40000,
           "mode": "pod-runtime",
           "observed_utc": "2026-10-09T05:00:00Z",
           "provider": "runpod",
           "source": "Runpod GraphQL gpuTypes securePrice",
           "usd_per_hour": 1.79
-        }
+        },
+        "remote_worker_case_concurrency": 2
       },
       "release": "2.3.8",
       "repetition_policy": "one frozen paired run plus paired bootstrap; an independent repetition is required only for a claim that specifies repeated executions",
@@ -995,6 +997,6 @@
       ]
     }
   },
-  "sample_effective_sha256": "sha256:8f884889cce55377ad3ba42d4c352fb8f79dff2415f2b7f3e63485952ec75ae2",
+  "sample_effective_sha256": "sha256:a5bde65af5709fff4eae3e23a7b3e7008eec94a90f33a983b15ef1931eead59d",
   "selector_path": "selector.case_ids"
 }

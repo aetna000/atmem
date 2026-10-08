@@ -993,7 +993,11 @@ def run_official_pilot_case(
             ]
         if judge_gate_file is not None:
             judge_proxy_command.extend(
-                ["--gate-file", os.fspath(Path(judge_gate_file).resolve())]
+                [
+                    "--gate-file", os.fspath(Path(judge_gate_file).resolve()),
+                    "--gate-timeout-seconds",
+                    str(models["longmemeval_judge"]["timeout_seconds"]),
+                ]
             )
         judge_proxy = subprocess.Popen(
             judge_proxy_command,

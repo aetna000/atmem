@@ -262,8 +262,6 @@ def _wait_for_reader_proxy(process: subprocess.Popen[bytes], ready: Path) -> str
 def _wait_for_judge_gate(
     futures: list[Future[dict[str, Any]]],
     usage_paths: list[Path],
-    *,
-    deadline: float,
 ) -> None:
     while True:
         waiting = 0
@@ -282,8 +280,6 @@ def _wait_for_judge_gate(
             waiting += state == "waiting_for_reader_phase_gate"
         if waiting == len(usage_paths):
             return
-        if time.monotonic() >= deadline:
-            raise TimeoutError("Qwen reader phase exceeded the frozen endpoint runtime")
         time.sleep(0.5)
 
 
@@ -589,6 +585,9 @@ def main() -> None:
     reader_api_key = os.environ.get("RUNPOD_READER_API_KEY", "").strip()
     billed_started_unix = float(os.environ.get("ATMEM_RUNPOD_BILLED_STARTED_UNIX", "0"))
     attempt = int(os.environ.get("ATMEM_BENCHMARK_ATTEMPT", "0"))
+    cleanup_owner = os.environ.get(
+        "ATMEM_RUNPOD_CLEANUP_OWNER", "runner"
+    ).strip()
     if (
         not pod_id
         or not reader_base_url
@@ -599,7 +598,12 @@ def main() -> None:
         raise RuntimeError(
             "Runpod pilot requires the frozen pod id, URL, key, billing start and attempt"
         )
-    pod_cleanup = {"required": True}
+    if cleanup_owner not in {"runner", "controller"}:
+        raise RuntimeError(
+            "ATMEM_RUNPOD_CLEANUP_OWNER must be runner or controller"
+        )
+    runner_owns_cleanup = cleanup_owner == "runner"
+    pod_cleanup = {"required": runner_owns_cleanup}
 
     def cleanup_runpod() -> None:
         if pod_cleanup["required"] and _terminate_runpod_pod(pod_id):
@@ -608,7 +612,8 @@ def main() -> None:
     # This covers preflight/reservation failures that happen before the main
     # reader try/finally block. The regular finally below performs immediate
     # cleanup; this is the last-resort process-exit guard.
-    atexit.register(cleanup_runpod)
+    if runner_owns_cleanup:
+        atexit.register(cleanup_runpod)
     protocol_digest = _canonical_digest(protocol)
     authorization_digest = hashlib.sha256(
         cost_authorization_id.encode("utf-8")
@@ -621,10 +626,6 @@ def main() -> None:
         f"longmem-pilot:{_canonical_digest(pilot)}:runpod-runtime:attempt-{attempt}"
     )
     elapsed_billed_seconds = max(0.0, time.time() - billed_started_unix)
-    remaining_billed_seconds = max(
-        0.0,
-        float(billing["maximum_active_seconds"]) - elapsed_billed_seconds,
-    )
     # Pod billing starts before this process enters its paid section. Reserve
     # the complete frozen envelope because completion records total pod time,
     # including readiness/finalization/checkpoint validation. Reserving only
@@ -713,7 +714,9 @@ def main() -> None:
                     else no_retrieval_memory if method == "no-retrieval" else None
                 ),
                 cancellation_event=cancellation_event,
-                deadline_monotonic=deadline,
+                # Individual provider requests keep their frozen 12-hour hung-call
+                # timeout; a healthy complete batch has no artificial wall clock.
+                deadline_monotonic=None,
             )
             return {**result, **_case_score(Path(result["output_dir"])), **identity}
         except Exception as exc:
@@ -786,16 +789,17 @@ def main() -> None:
     try:
         probe = _probe_reader(reader_base_url, reader_api_key)
     except Exception:
-        _terminate_runpod_pod(pod_id)
+        if runner_owns_cleanup:
+            _terminate_runpod_pod(pod_id)
         raise
     if protocol["models"]["longmemeval_reader"]["model"] not in probe["models"]:
         raise RuntimeError("Runpod vLLM server does not expose the frozen reader model")
     # Qdrant/SQLite runtime state is mutable and latency-sensitive. Keep it on
-    # OS-local storage; only immutable per-case evidence is retained on MEM.
+    # the remote worker's local storage; only immutable evidence is retained.
     mem0_runtime = tempfile.TemporaryDirectory(prefix="atmem-longmem-mem0-")
     mem0_runtime_root = Path(mem0_runtime.name)
     # Per-case AtMem databases are hot SQLite state and can approach a gigabyte.
-    # Keep them on the Mac's local filesystem; durable reports remain on MEM.
+    # Keep them on the remote worker's local filesystem.
     case_runtime = tempfile.TemporaryDirectory(prefix="atmem-longmem-cases-")
     case_runtime_root = Path(case_runtime.name)
     terminated = False
@@ -833,7 +837,6 @@ def main() -> None:
             stderr=subprocess.DEVNULL,
         )
         reader_proxy_url = _wait_for_reader_proxy(reader_proxy, reader_proxy_ready)
-        deadline = time.monotonic() + remaining_billed_seconds
         run_batch(non_llm_work, max_workers=2, gated=False)
         # Match case concurrency to the remote reader's capacity. Spawning one
         # worker per arm only multiplies database clones, CPU and RSS while the
@@ -855,11 +858,14 @@ def main() -> None:
                 for question_id, method in llm_work
             ]
             if llm_futures:
-                _wait_for_judge_gate(llm_futures, usage_paths, deadline=deadline)
-            terminated = _terminate_runpod_pod(pod_id)
-            if not terminated:
-                raise RuntimeError("Runpod pod termination failed; manual action required")
-            pod_cleanup["required"] = False
+                _wait_for_judge_gate(llm_futures, usage_paths)
+            if runner_owns_cleanup:
+                terminated = _terminate_runpod_pod(pod_id)
+                if not terminated:
+                    raise RuntimeError(
+                        "Runpod pod termination failed; manual action required"
+                    )
+                pod_cleanup["required"] = False
             active_seconds = time.time() - billed_started_unix
             reader_cost = active_seconds * float(billing["usd_per_hour"]) / 3_600
             reader_ledger.complete(reader_key, cost_usd=reader_cost)
@@ -877,7 +883,10 @@ def main() -> None:
                     "usd_per_hour": float(billing["usd_per_hour"]),
                     "estimated_cost_usd": round(reader_cost, 9),
                     "provider_invoice_reconciled": False,
-                    "pod_state_after_reader_phase": "terminated",
+                    "pod_state_after_reader_phase": (
+                        "terminated" if terminated else "retained_by_controller"
+                    ),
+                    "cleanup_owner": cleanup_owner,
                     "reader_case_count": len(work),
                     "readiness_probe": probe,
                     "content_retained": False,
@@ -885,11 +894,16 @@ def main() -> None:
             )
             _sound_reader_complete()
             print(
-                "RUNPOD_READER_PHASE_COMPLETE pod=terminated "
+                "RUNPOD_READER_PHASE_COMPLETE "
+                f"pod={'terminated' if terminated else 'retained_by_controller'} "
                 f"seconds={active_seconds:.3f} estimated_cost_usd={reader_cost:.6f}",
                 flush=True,
             )
-            judge_gate.write_text("reader phase complete; Runpod pod terminated\n", encoding="utf-8")
+            judge_gate.write_text(
+                "reader phase complete; Runpod pod "
+                + ("terminated\n" if terminated else "retained by controller\n"),
+                encoding="utf-8",
+            )
             for future in as_completed(llm_futures):
                 case = future.result()
                 cases.append(case)
@@ -911,7 +925,7 @@ def main() -> None:
             except subprocess.TimeoutExpired:
                 reader_proxy.kill()
                 reader_proxy.wait(timeout=5)
-        if not terminated:
+        if runner_owns_cleanup and not terminated:
             try:
                 if _terminate_runpod_pod(pod_id):
                     pod_cleanup["required"] = False
