@@ -333,6 +333,10 @@ outside runtime.
    development—never another AtMem-only paid run.
 10. Only after development targets pass, run untouched confirmation/full gates.
 11. Complete installed cross-platform product qualification and release decision.
+12. Build the next beta from that exact reviewed commit and rerun the
+    release-associated LongMemEval-V2, DolphinBench and AGMI qualification
+    against the installed artifact. Bind every retained row to the beta version
+    and wheel SHA-256; source-checkout rows remain diagnostic.
 
 Each iteration writes an A-to-B table with formation coverage, evidence recall,
 sufficiency, reader/action accuracy, latency, bytes, storage and cost. Peaks and

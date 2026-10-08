@@ -3,10 +3,63 @@ from __future__ import annotations
 from http.server import ThreadingHTTPServer
 import json
 from pathlib import Path
+import importlib
+import sys
 import threading
+import types
 import urllib.request
 
 from atmem import Memory
+
+
+def test_mem0_checkpoint_load_retries_a_disappearing_qdrant_lock(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    memory_module = types.ModuleType("memory_modules.memory")
+
+    class BaseMemory:
+        pass
+
+    memory_module.Memory = BaseMemory
+    memory_module.register_memory = lambda cls: cls
+    package = types.ModuleType("memory_modules")
+    package.__path__ = []
+    monkeypatch.setitem(sys.modules, "memory_modules", package)
+    monkeypatch.setitem(sys.modules, "memory_modules.memory", memory_module)
+    sys.modules.pop(
+        "research.production_benchmarks.adapters.longmemeval_mem0", None
+    )
+    adapter = importlib.import_module(
+        "research.production_benchmarks.adapters.longmemeval_mem0"
+    )
+
+    source = tmp_path / "checkpoint"
+    (source / "mem0").mkdir(parents=True)
+    (source / "mem0" / "records.jsonl").write_text("retained\n")
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    transient = runtime / ".lock"
+    transient.write_text("lock")
+    real_rmtree = adapter.shutil.rmtree
+    attempts = 0
+
+    def racing_rmtree(path: Path) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            transient.unlink()
+            raise FileNotFoundError(transient)
+        real_rmtree(path)
+
+    monkeypatch.setattr(adapter.shutil, "rmtree", racing_rmtree)
+    instance = adapter.Mem0Memory.__new__(adapter.Mem0Memory)
+    instance.root = runtime
+    instance._close = lambda: None
+    instance._open = lambda: object()
+    instance._load_backend(source)
+
+    assert attempts == 2
+    assert (runtime / "records.jsonl").read_text() == "retained\n"
 
 
 def test_local_embedding_route_is_deterministic_and_openai_compatible() -> None:

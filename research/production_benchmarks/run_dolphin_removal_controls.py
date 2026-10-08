@@ -15,6 +15,7 @@ from pathlib import Path
 import re
 import shutil
 import sys
+import tempfile
 from types import SimpleNamespace
 import uuid
 
@@ -283,14 +284,20 @@ def run_restored_gate_precheck(
     """Prove complete checkpoints open every gate without invoking a model."""
     rows = []
     memories: dict[str, Memory] = {}
+    scratch_context = tempfile.TemporaryDirectory(prefix="atmem-dolphin-restored-")
+    scratch = Path(scratch_context.name)
     try:
         for case in manifest["cases"]:
             case_id = str(case["case_id"])
             persona, item = case_id.split(":", 1)
             memory = memories.get(persona)
             if memory is None:
+                clone = scratch / f"{persona}.db"
+                _clone_household(
+                    checkpoint_root / "atmem-personas" / f"{persona}.db", clone
+                )
                 memory = Memory(
-                    checkpoint_root / "atmem-personas" / f"{persona}.db",
+                    clone,
                     retain_query_text=False, auto_vectors=False,
                 )
                 memories[persona] = memory
@@ -321,6 +328,7 @@ def run_restored_gate_precheck(
     finally:
         for memory in memories.values():
             memory.close()
+        scratch_context.cleanup()
     report = {
         "format": "atmem-dolphin-restored-gate-precheck-v1",
         "case_count": len(rows),
@@ -336,8 +344,10 @@ def run_restored_gate_precheck(
 def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
                  output_root: Path, options: dict) -> dict:
     results = []
-    scratch = output_root / "scratch"
-    scratch.mkdir(parents=True, exist_ok=True)
+    # Mutable control databases stay on OS-local storage; only durable reports
+    # are written to the removable evidence volume.
+    scratch_context = tempfile.TemporaryDirectory(prefix="atmem-dolphin-removal-")
+    scratch = Path(scratch_context.name)
     for case in manifest["cases"]:
         case_id = str(case["case_id"])
         persona, item = case_id.split(":", 1)
@@ -434,8 +444,7 @@ def run_removals(*, checkpoint_root: Path, checkout: Path, manifest: dict,
         finally:
             if memory is not None:
                 memory.close()
-            clone.unlink(missing_ok=True)
-            Path(f"{clone}.encryption.json").unlink(missing_ok=True)
+    scratch_context.cleanup()
     report = {
         "format": "atmem-dolphin-removal-controls-v1",
         "case_count": len(results),

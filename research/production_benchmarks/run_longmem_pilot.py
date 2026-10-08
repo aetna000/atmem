@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from typing import Any
@@ -591,6 +592,9 @@ def main() -> None:
             "pilot prebuilt AtMem memories are missing: " + ", ".join(missing_prebuilt)
         )
 
+    mem0_runtime: tempfile.TemporaryDirectory[str] | None = None
+    mem0_runtime_root: Path | None = None
+
     def run_case(item: tuple[str, str], *, gated: bool) -> dict[str, Any]:
         question_id, method = item
         domain = domains.get(question_id)
@@ -621,7 +625,7 @@ def main() -> None:
                     **({
                         "ATMEM_MEM0_CHECKOUT": str(mem0_checkout),
                         "ATMEM_MEM0_STORAGE_PATH": str(
-                            output_root / "runtime-mem0" / question_id
+                            mem0_runtime_root / question_id
                         ),
                     } if method == "mem0-oss" else {}),
                     **({
@@ -705,6 +709,10 @@ def main() -> None:
         raise
     if protocol["models"]["longmemeval_reader"]["model"] not in probe["models"]:
         raise RuntimeError("Runpod vLLM server does not expose the frozen reader model")
+    # Qdrant/SQLite runtime state is mutable and latency-sensitive. Keep it on
+    # OS-local storage; only immutable per-case evidence is retained on MEM.
+    mem0_runtime = tempfile.TemporaryDirectory(prefix="atmem-longmem-mem0-")
+    mem0_runtime_root = Path(mem0_runtime.name)
     terminated = False
     reader_proxy: subprocess.Popen[bytes] | None = None
     endpoint_receipt = output_root / "runpod-pod-runtime.json"
@@ -808,6 +816,8 @@ def main() -> None:
                     pod_cleanup["required"] = False
             except Exception:
                 pass
+        if mem0_runtime is not None:
+            mem0_runtime.cleanup()
     progress["summary"] = {
         method: {
             "correct": sum(

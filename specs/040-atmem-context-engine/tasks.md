@@ -50,7 +50,7 @@ development run is permitted after the matched adapters are ready.
 - [x] [T005C] Freeze evaluator-only requirement manifests for all 23 LongMemEval
   questions and 30 Dolphin tasks, including requirement classes and action
   prerequisites, with hashes and product-inaccessibility tests under
-  `benchmarks/retrieval_quality/protocols/` (FR-028, FR-039, SC-019).
+  `benchmarks/retrieval_quality/protocols/` (FR-028, FR-039–FR-040, SC-019).
 - [x] [T005D] Add versioned requirement-ledger, terminal-outcome and pre-action
   gate contracts plus validators that reject absent stages, unknown-as-success,
   timeout/parse/provider/silent-no-call blocks and always-blocking positive
@@ -370,7 +370,7 @@ answer/action scoring.
 
 ## Phase 10 — Release decision and documentation
 
-- [ ] [T050] Validate SC-001–SC-022 from a signed/checksummed qualification index;
+- [ ] [T050] Validate SC-001–SC-023 from a signed/checksummed qualification index;
   missing evidence is fail/invalid, never skipped (FR-029–FR-032).
 - [ ] [T051] Update product, CLI/MCP, dashboard, storage, migration, benchmark and
   limitation documentation plus `docs/release-roadmap.md`; keep 2.3.8 Hermes,
@@ -379,6 +379,11 @@ answer/action scoring.
 - [ ] [T052] Run one bounded Claude Opus 5.5 medium read-only final review of the
   implemented diff and evidence, resolve only concrete blocker findings, then
   rerun affected gates without opening a new architecture cycle.
+- [ ] [T052A] After T050–T052 pass, set the next beta version on the exact
+  reviewed commit, build and install its wheel in a clean environment, and
+  rerun the release-associated LongMemEval-V2, DolphinBench and AGMI gates.
+  Reject any result whose installed version, commit or artifact SHA-256 differs
+  from the beta qualification index (FR-030, FR-032, FR-052, SC-023).
 - [ ] [T053] Commit and push the reviewed candidate. Prepare or publish 2.3.8 only
   upon a separate explicit request and follow `AGENTS.md` release completion
   rules; do not tag from this implementation task.

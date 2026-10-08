@@ -142,8 +142,19 @@ class Mem0Memory(Memory):
         if not source.is_dir():
             raise FileNotFoundError(f"saved Mem0 state is missing: {source}")
         self._close()
-        if self.root.exists():
-            shutil.rmtree(self.root)
+        # Qdrant may remove its lock file immediately after ``close`` while
+        # Python 3.12's rmtree is traversing the directory. Python 3.13 ignores
+        # missing descendants; retain that behavior on every supported Python
+        # without hiding permission or I/O failures.
+        for attempt in range(3):
+            if not self.root.exists():
+                break
+            try:
+                shutil.rmtree(self.root)
+                break
+            except FileNotFoundError:
+                if attempt == 2 and self.root.exists():
+                    raise
         shutil.copytree(source, self.root)
         self._memory = self._open()
 

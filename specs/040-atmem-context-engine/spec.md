@@ -534,6 +534,13 @@ read-path result, explicit verification result and exact detection point.
   preserve a reversible backup, and never silently serve an uncommitted legacy
   row under a verified label. Integrity checks MUST be indexed/incremental and
   meet SC-007 without whole-store verification on every query.
+- **FR-052 — Beta-bound benchmark identity**: Development-checkout scores MUST
+  remain diagnostic. Any benchmark result presented as a reproducible release
+  result MUST be rerun from the exact installed beta artifact after the
+  candidate passes its no-cost, matched-quality, integrity and installed-path
+  gates. The result MUST bind the beta version, commit, artifact SHA-256,
+  dataset manifests and evaluator configuration; a later source-tree result
+  MUST NOT be attributed to that beta.
 
 ### Key Entities
 
@@ -673,6 +680,11 @@ read-path result, explicit verification result and exact detection point.
   counted as protected. Results reproduce on macOS, Linux and
   Windows-compatible paths and are submitted for upstream re-measurement before
   any public claim replaces the published AtMem 2.3.7 rows.
+- **SC-023 — Beta reproducibility**: The benchmark qualification index names
+  one installed beta version and artifact SHA-256, and every release-associated
+  LongMemEval-V2, DolphinBench and AGMI row verifies that exact identity before
+  execution. Development-checkout rows are labelled diagnostic and excluded
+  from beta aggregates.
 
 ## Assumptions
 
