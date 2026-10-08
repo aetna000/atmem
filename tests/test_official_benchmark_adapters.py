@@ -458,6 +458,19 @@ def test_longmem_runner_requires_mem0_checkout_before_paid_output() -> None:
     assert source.index(requirement) < source.index("output_root.mkdir")
 
 
+def test_longmem_runner_keeps_mutable_databases_on_local_runtime_storage() -> None:
+    runner = (
+        ROOT / "research/production_benchmarks/run_longmem_pilot.py"
+    ).read_text(encoding="utf-8")
+    adapter = (
+        ROOT / "research/production_benchmarks/longmemeval_v2.py"
+    ).read_text(encoding="utf-8")
+    assert 'TemporaryDirectory(prefix="atmem-longmem-cases-")' in runner
+    assert "local_runtime_root=case_runtime_root" in runner
+    assert '"ATMEM_LME_DATABASE_PATH": str(case_runtime / "atmem.db")' in adapter
+    assert 'HouseholdApplication.initialize(\n            case_runtime / "atmem.db"' in adapter
+
+
 def test_runpod_reader_proxy_reassembles_sse_without_promoting_reasoning(
     monkeypatch,
 ) -> None:

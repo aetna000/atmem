@@ -337,6 +337,10 @@ outside runtime.
     release-associated LongMemEval-V2, DolphinBench and AGMI qualification
     against the installed artifact. Bind every retained row to the beta version
     and wheel SHA-256; source-checkout rows remain diagnostic.
+13. Keep mutable benchmark databases, vector indexes and per-case runtime state
+    on the host's local performance filesystem. Use the external `MEM` volume
+    only for immutable datasets/checkpoints and durable logs, receipts and final
+    evidence; clean local runtime state after each run.
 
 Each iteration writes an A-to-B table with formation coverage, evidence recall,
 sufficiency, reader/action accuracy, latency, bytes, storage and cost. Peaks and

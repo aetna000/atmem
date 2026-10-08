@@ -594,6 +594,8 @@ def main() -> None:
 
     mem0_runtime: tempfile.TemporaryDirectory[str] | None = None
     mem0_runtime_root: Path | None = None
+    case_runtime: tempfile.TemporaryDirectory[str] | None = None
+    case_runtime_root: Path | None = None
 
     def run_case(item: tuple[str, str], *, gated: bool) -> dict[str, Any]:
         question_id, method = item
@@ -638,6 +640,7 @@ def main() -> None:
                 data_preflight=data_preflight,
                 shared_reader_runtime_reservation=True,
                 judge_gate_file=judge_gate if gated else None,
+                local_runtime_root=case_runtime_root,
                 load_memory_dir=(
                     prebuilt_memory[(method, domain)]
                     if method in {"typed-local", "mem0-oss", "agentrunbook-r"}
@@ -713,6 +716,10 @@ def main() -> None:
     # OS-local storage; only immutable per-case evidence is retained on MEM.
     mem0_runtime = tempfile.TemporaryDirectory(prefix="atmem-longmem-mem0-")
     mem0_runtime_root = Path(mem0_runtime.name)
+    # Per-case AtMem databases are hot SQLite state and can approach a gigabyte.
+    # Keep them on the Mac's local filesystem; durable reports remain on MEM.
+    case_runtime = tempfile.TemporaryDirectory(prefix="atmem-longmem-cases-")
+    case_runtime_root = Path(case_runtime.name)
     terminated = False
     reader_proxy: subprocess.Popen[bytes] | None = None
     endpoint_receipt = output_root / "runpod-pod-runtime.json"
@@ -818,6 +825,8 @@ def main() -> None:
                 pass
         if mem0_runtime is not None:
             mem0_runtime.cleanup()
+        if case_runtime is not None:
+            case_runtime.cleanup()
     progress["summary"] = {
         method: {
             "correct": sum(

@@ -808,6 +808,7 @@ def run_official_pilot_case(
     shared_reader_runtime_reservation: bool = False,
     judge_gate_file: str | Path | None = None,
     load_memory_dir: str | Path | None = None,
+    local_runtime_root: str | Path | None = None,
     cancellation_event: threading.Event | None = None,
     deadline_monotonic: float | None = None,
 ) -> dict[str, Any]:
@@ -958,9 +959,15 @@ def run_official_pilot_case(
     )
     _preflight_official_harness_import(root, run_environment)
     case_output.mkdir(parents=True, exist_ok=False)
+    case_runtime = (
+        Path(local_runtime_root).expanduser().resolve() / question_id / method
+        if local_runtime_root is not None
+        else case_output
+    )
+    case_runtime.mkdir(parents=True, exist_ok=True)
     models = protocol["models"]
     run_environment.update({
-        "ATMEM_LME_DATABASE_PATH": str(case_output / "atmem.db"),
+        "ATMEM_LME_DATABASE_PATH": str(case_runtime / "atmem.db"),
         "ATMEM_LME_SUBJECT_ID": "longmemeval-public",
         "ATMEM_LME_AGENT_ID": "longmemeval-v2",
         "ATMEM_LME_WORKSPACE_ID": f"{domain}-small",
@@ -968,7 +975,7 @@ def run_official_pilot_case(
     })
     if method == "typed-local":
         HouseholdApplication.initialize(
-            case_output / "atmem.db", encrypted=True, backend="file"
+            case_runtime / "atmem.db", encrypted=True, backend="file"
         )
     if not endpoint_runtime_billing:
         _reserve_with_local_lock_wait(
