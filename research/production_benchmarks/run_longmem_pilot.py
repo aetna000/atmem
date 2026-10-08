@@ -405,6 +405,14 @@ def main() -> None:
     if not prebuilt_root_value:
         raise RuntimeError("paid pilot requires ATMEM_LME_PREBUILT_ROOT")
     gate_prebuilt_root = Path(prebuilt_root_value).expanduser().resolve()
+    mem0_checkout_value = os.environ.get("ATMEM_MEM0_CHECKOUT", "").strip()
+    if not mem0_checkout_value:
+        raise RuntimeError("paid pilot requires ATMEM_MEM0_CHECKOUT")
+    mem0_checkout = Path(mem0_checkout_value).expanduser().resolve()
+    if not (mem0_checkout / "mem0").is_dir():
+        raise RuntimeError(
+            "ATMEM_MEM0_CHECKOUT must contain the pinned Mem0 source checkout"
+        )
     expected_identity = {
         "gate_type": "longmemeval",
         "candidate_commit": subprocess.run(
@@ -611,7 +619,7 @@ def main() -> None:
                     "ATMEM_READER_BASE_URL": reader_proxy_url,
                     "ATMEM_COST_AUTHORIZATION_ID": cost_authorization_id,
                     **({
-                        "ATMEM_MEM0_CHECKOUT": os.environ.get("ATMEM_MEM0_CHECKOUT", ""),
+                        "ATMEM_MEM0_CHECKOUT": str(mem0_checkout),
                         "ATMEM_MEM0_STORAGE_PATH": str(
                             output_root / "runtime-mem0" / question_id
                         ),

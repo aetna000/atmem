@@ -1034,7 +1034,15 @@ def run_official_pilot_case(
                 models["longmemeval_reader"]["memory_context_max_tokens"]
             ),
             "--controller-model", models["official_rag_controller"]["model"],
-            "--controller-base-url", models["official_rag_controller"]["base_url"],
+            # The protocol records a provider-neutral descriptive RunPod URI.
+            # Paid execution must route controller calls through the same
+            # authenticated loopback proxy as the frozen reader, never hand an
+            # SDK the non-HTTP ``runpod://`` identity URI.
+            "--controller-base-url", (
+                reader_base_url
+                if method in {"official-rag-query-to-slice-notes", "agentrunbook-r"}
+                else models["official_rag_controller"]["base_url"]
+            ),
             "--controller-api-key-env", reader_api_key_env,
             "--controller-temperature", str(models["official_rag_controller"]["temperature"]),
             "--controller-top-p", str(models["official_rag_controller"]["top_p"]),

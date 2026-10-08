@@ -127,6 +127,12 @@ development run is permitted after the matched adapters are ready.
   checkpoint digest, attribution artifacts, and durable provider credentials
   without requiring finalization evidence or starting paid calls (FR-035,
   FR-038, SC-019).
+- [ ] [T005S] Pin the official AGMI repository commit, package version, AtMem
+  adapter, T1–T9 attack implementations and the two published AtMem 2.3.7 rows;
+  add an installed-artifact runner and retain the exact published 0/9
+  chain-only and 1/9 externally checkpointed reproduction before changing
+  product behavior (`research/production_benchmarks/run_agmi_integrity.py`,
+  `benchmarks/retrieval_quality/protocols/agmi-atmem-v1.json`) (FR-048, SC-022).
 
 **Checkpoint**: A real A/B/C baseline exists before candidate implementation.
 
@@ -296,6 +302,34 @@ answer/action scoring.
   restart/query/inspect/rollback on macOS, Linux and Windows-compatible paths;
   retain installed evidence outside the repo (FR-030, SC-009–SC-012, SC-011).
 
+### Phase 8A — Memory integrity and AGMI qualification
+
+- [ ] [T043A] Add failing product tests for AGMI T1–T8 mutations that prove the
+  edit landed and require content, deletion, insertion, ordering,
+  cross-context, rollback-replay and metadata mismatches to fail before context
+  delivery; include matching controls and explicit error-state assertions
+  (`tests/test_integrity.py`, `tests/test_context_engine_governance.py`)
+  (FR-049, FR-051, SC-022).
+- [ ] [T043B] Implement indexed record-to-chain commitments and pre-delivery
+  verification covering content, identity, subject/scope, order and
+  security-relevant metadata without whole-store reads
+  (`atmem/store/sqlite.py`, `atmem/context_engine/service.py`) (FR-049,
+  FR-051, SC-007, SC-022).
+- [ ] [T043C] Add failing crash, stale/missing/forged checkpoint, backup,
+  restore, migration and key-rotation tests, then implement the recoverable
+  external monotonic checkpoint protocol outside the store directory
+  (`atmem/integrity.py`, `tests/test_integrity.py`) (FR-050–FR-051, SC-022).
+- [ ] [T043D] Expose identical integrity status and repair guidance through
+  CLI, MCP, dashboard, Hermes and OpenClaw; prove altered content is withheld
+  and legacy/unanchored state is not displayed as verified (FR-021, FR-051,
+  SC-009–SC-010, SC-022).
+- [ ] [T043E] Build and install a clean candidate and run all pinned AGMI T1–T9
+  cases in chain-only and external-checkpoint profiles on macOS, Linux and
+  Windows-compatible paths. Require zero silent T1–T8 accepts, anchored T9
+  detection, matching-control false-positive rate zero, and an explicit
+  chain-only T9 `unanchored` result; retain raw evidence and prepare an upstream
+  re-measurement request (FR-048–FR-051, SC-012, SC-022).
+
 ## Phase 9 — Matched paid development and confirmation
 
 - [ ] [T044] Run a no-judge preflight plus configuration-specific finalization
@@ -336,7 +370,7 @@ answer/action scoring.
 
 ## Phase 10 — Release decision and documentation
 
-- [ ] [T050] Validate SC-001–SC-021 from a signed/checksummed qualification index;
+- [ ] [T050] Validate SC-001–SC-022 from a signed/checksummed qualification index;
   missing evidence is fail/invalid, never skipped (FR-029–FR-032).
 - [ ] [T051] Update product, CLI/MCP, dashboard, storage, migration, benchmark and
   limitation documentation plus `docs/release-roadmap.md`; keep 2.3.8 Hermes,
@@ -358,6 +392,8 @@ answer/action scoring.
 - T022–T033 block comparative and paid work.
 - T034–T037 block paid development: comparators must exist first.
 - T038–T043 block release qualification, not the no-model research loop.
+- T005S and T043A–T043E block integrity claims and stable promotion; they do not
+  justify interrupting an already-authorized paid reader run.
 - T005A–T005E and T034–T044 block T045/T046; T045 and T046 must be matched tables,
   never AtMem-only.
 - T048 is forbidden until T045 is complete, reproducible and frozen.

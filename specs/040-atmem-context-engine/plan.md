@@ -26,7 +26,8 @@ evidence-view-generation, compact view and index metadata; optional encrypted
 vector store; heavy benchmark artifacts on `MEM`
 
 **Testing**: pytest contract/property/integration/installed-artifact tests,
-official LongMemEval-V2 and DolphinBench harnesses, neutral reference laboratory
+official LongMemEval-V2 and DolphinBench harnesses, pinned AGMI T1–T9 at-rest
+suite, neutral reference laboratory
 
 **Target Platform**: macOS, Linux and Windows supported package paths; Hermes
 uses its supported WSL path on Windows
@@ -59,6 +60,7 @@ bindings with isolated or explicitly shared scopes, full LongMemEval Small and
 | Executable claims | Matched held-out gates and exact installed artifact identity | qualification-package validator |
 | Local-first/replaceable intelligence | deterministic fast path works without models; egress/model explicit | provider-offline suite |
 | Production benchmark evidence | frozen splits, matched comparators, raw evidence and uncertainty | LongMem/Dolphin validation |
+| Executable integrity claims | record-to-chain verification plus honest external rollback anchor | AGMI T1–T9 validation |
 
 No constitutional exception is requested.
 
@@ -198,6 +200,24 @@ The retained twelve-case reader-free fixture is reanalysed from its frozen raw
 results into a separate requirement-class table. Its report is explicitly a
 small historical diagnostic and is not merged into five-percent aggregates.
 
+AGMI is a third, orthogonal qualification family rather than a retrieval score.
+Pin the upstream repository, package, adapter and T1–T9 attack implementations,
+then execute both published AtMem profiles from an installed candidate. Each
+case retains proof that the edit landed, whether the read path emitted altered
+memory, the explicit verification result and the detection point. Development
+runs may relax only AGMI's exact AtMem version assertion; they cannot be called
+an official re-measurement until upstream pins the released version.
+
+The integrity design adds a compact authenticated record commitment keyed by
+stable record identity and covering content digest, subject/scope, ordering and
+security-relevant metadata. Reads validate selected records against canonical
+commitments before context delivery; indexed roots avoid a whole-store scan.
+The anchored profile uses a recoverable two-phase store/root commit and a
+monotonic checkpoint placed outside the store attack domain. A chain entirely
+inside the rolled-back store cannot detect a whole-store snapshot rollback, so
+chain-only T9 remains explicitly `unanchored`; this is a technical boundary,
+not a benchmark exception.
+
 The first full-history Dolphin no-cost checkpoint exposed three distinct
 product failures that are now hard gates rather than evaluator exceptions. Of
 30 removal controls, 14 produced a valid named pre-action block, 10 selected
@@ -271,6 +291,7 @@ research/production_benchmarks/
   matched_results.py
   run_longmem_pilot.py
   run_dolphin_development.py
+  run_agmi_integrity.py
 
 benchmarks/retrieval_quality/
   protocols/
@@ -305,10 +326,13 @@ outside runtime.
 6. Run reader-free reference parity; iterate until AtMem is at least 10%
    relatively better than both comparators on the frozen micro corpus.
 7. Run a bounded live differential; freeze the best reproducible profile.
-8. Run complete matched 23-question LongMem development and 30-task Dolphin
+8. Reproduce the published AGMI 2.3.7 rows, implement record-to-chain and
+   external-checkpoint verification, then pass the pinned T1–T9 development
+   gate without weakening retrieval or governance.
+9. Run complete matched 23-question LongMem development and 30-task Dolphin
    development—never another AtMem-only paid run.
-9. Only after development targets pass, run untouched confirmation/full gates.
-10. Complete installed cross-platform product qualification and release decision.
+10. Only after development targets pass, run untouched confirmation/full gates.
+11. Complete installed cross-platform product qualification and release decision.
 
 Each iteration writes an A-to-B table with formation coverage, evidence recall,
 sufficiency, reader/action accuracy, latency, bytes, storage and cost. Peaks and

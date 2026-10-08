@@ -188,6 +188,40 @@ models, budgets and dataset hashes match the frozen protocol.
    budgets, retries, judge/grader, requirement attribution, telemetry, failure
    retention and report schema MUST remain production-equivalent.
 
+---
+
+### User Story 6 — Refuse tampered or replayed memory before use (Priority: P1)
+
+An operator can verify that storage-level edits cannot silently become agent
+context. AtMem binds every served record, its ordering, owner/scope metadata and
+lifecycle state to an authenticated integrity commitment. An optional monotonic
+checkpoint held outside the attacker-controlled store additionally detects
+whole-store rollback. Integrity failure is a typed, auditable, fail-closed read
+outcome and never a successful empty recall.
+
+**Independent Test**: Run the pinned AGMI AtMem adapters and all nine at-rest
+attacks against an installed candidate in both `audit-chain` and
+`audit-chain+external-checkpoint` modes, retaining the landed-edit control,
+read-path result, explicit verification result and exact detection point.
+
+**Acceptance Scenarios**:
+
+1. **Given** content, deletion, insertion, reordering, cross-context,
+   rollback-replay or metadata tampering within the live store, **when** the
+   affected memory would be read, **then** AtMem detects the mismatch before
+   emitting context and records a stable integrity reason.
+2. **Given** a whole-store snapshot rollback and an intact external checkpoint
+   outside the attacker's writable directory, **when** the store opens or is
+   read, **then** AtMem detects the stale generation before serving memory.
+3. **Given** chain-only mode and an attacker who can atomically roll back every
+   byte of the store, **when** no trusted state exists outside that store,
+   **then** AtMem labels snapshot freshness `unanchored` rather than claiming
+   rollback detection. This cryptographic limit is reported separately from
+   the externally anchored result.
+4. **Given** an integrity mismatch, **when** an agent, CLI, MCP or dashboard
+   requests the memory, **then** every surface exposes the same fail-closed
+   status and repair guidance without returning the altered content.
+
 ### Edge Cases
 
 - A source may be fully retained but incompletely represented; formation and
@@ -209,6 +243,11 @@ models, budgets and dataset hashes match the frozen protocol.
   substitutes, weaker instrumentation, omitted comparators, relaxed validation,
   or cheaper execution semantics unless that difference is also part of the
   frozen full-run protocol and is disclosed as a separate operating point.
+- A store-local hash chain cannot prove freshness after a complete atomic
+  rollback of itself; only a protected monotonic value outside the attacker's
+  rollback domain can close that case.
+- Integrity validation must not turn deletion, empty recall, database errors or
+  unsupported historical rows into apparent successful tamper detection.
 
 ## Requirements
 
@@ -464,6 +503,37 @@ models, budgets and dataset hashes match the frozen protocol.
   lexical coverage by the official task request, then greatest overlap count,
   then stable requirement ID. Product output and gate outcome MUST NOT
   participate in target selection.
+- **FR-048 — Pinned AGMI qualification**: The benchmark program MUST pin the
+  official `tech4biz-yasha/agmi` commit, package version, AtMem adapter source,
+  attack versions and tests for both `atmem-chain` and
+  `atmem-chain+checkpoint`. It MUST run an installed AtMem artifact on macOS,
+  Linux and Windows-compatible paths, preserve all T1–T9 landed-edit controls,
+  and report accepted, reported and rejected-on-read separately. A locally
+  adapted version-pin test is development evidence only until upstream
+  re-measures the released version.
+- **FR-049 — Record-to-chain verification**: Integrity verification MUST compare
+  canonical records against their authenticated creation/update/lifecycle
+  commitments, including content, stable record identity, subject/scope,
+  ordering and security-relevant metadata. Verification of the audit chain's
+  internal links alone is insufficient. A mismatch MUST be detected before the
+  affected record can enter a context package, and the receipt MUST name the
+  failed invariant without disclosing protected content.
+- **FR-050 — External rollback checkpoint**: The anchored profile MUST maintain
+  a crash-safe monotonic sequence and authenticated root outside the
+  attacker-controlled store directory. Store commit and checkpoint advancement
+  MUST have a recoverable two-phase protocol; missing, stale, forged,
+  inaccessible or partially advanced checkpoints MUST fail closed. The
+  checkpoint file and key MUST have explicit placement, permission, backup,
+  migration, rotation and restore contracts. Chain-only mode MUST expose its
+  inability to detect atomic whole-store rollback as `unanchored`, not silently
+  inherit the anchored claim.
+- **FR-051 — Integrity product contract**: CLI, MCP, dashboard and supported
+  adapters MUST expose the same `verified`, `tampered`, `unanchored`,
+  `checkpoint_unavailable` and `legacy_uncommitted` states. Upgrade MUST
+  inventory historical records, build and verify commitments before activation,
+  preserve a reversible backup, and never silently serve an uncommitted legacy
+  row under a verified label. Integrity checks MUST be indexed/incremental and
+  meet SC-007 without whole-store verification on every query.
 
 ### Key Entities
 
@@ -594,6 +664,15 @@ models, budgets and dataset hashes match the frozen protocol.
   its principal and one authorization receipt per imported source episode plus
   ordinary review receipts for pending semantic/action proposals, consumes no
   evaluator-only data, and leaves zero unreported pending/rejected units.
+- **SC-022 — AGMI integrity qualification**: On the pinned official AGMI T1–T9
+  at-rest suite, the installed candidate detects T1–T8 before altered memory is
+  returned in both profiles, with zero silent accepts and zero false detections
+  on matching controls. With the external checkpoint intact and outside the
+  attacker-controlled directory, T9 is also detected before read. Chain-only
+  T9 is reported as the explicit `unanchored` technical limit and is never
+  counted as protected. Results reproduce on macOS, Linux and
+  Windows-compatible paths and are submitted for upstream re-measurement before
+  any public claim replaces the published AtMem 2.3.7 rows.
 
 ## Assumptions
 
@@ -603,6 +682,9 @@ models, budgets and dataset hashes match the frozen protocol.
   volume; source code, schemas, adapters and small reports remain in the repo.
 - RunPod may host the pinned Qwen reader/formation model and OpenAI may provide
   the pinned judge when the frozen protocol permits egress and cost.
+- AGMI's at-rest attacker can write the database/store directory but does not
+  possess AtMem integrity keys; the anchored T9 claim additionally requires the
+  external checkpoint to remain outside that writable/rollback boundary.
 - Benchmark success may require replacing most existing formation/retrieval
   internals; public context/governance contracts and persisted-source migration
   remain mandatory.

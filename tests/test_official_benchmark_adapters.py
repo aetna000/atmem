@@ -440,6 +440,24 @@ def test_longmem_case_honours_fail_fast_cancellation_before_writes(
     assert not (tmp_path / "must-not-exist").exists()
 
 
+def test_longmem_paid_routes_bind_comparator_controller_to_live_reader() -> None:
+    source = (
+        ROOT / "research/production_benchmarks/longmemeval_v2.py"
+    ).read_text(encoding="utf-8")
+    assert 'if method in {"official-rag-query-to-slice-notes", "agentrunbook-r"}' in source
+    assert '"--controller-base-url", (' in source
+    assert "reader_base_url" in source
+
+
+def test_longmem_runner_requires_mem0_checkout_before_paid_output() -> None:
+    source = (
+        ROOT / "research/production_benchmarks/run_longmem_pilot.py"
+    ).read_text(encoding="utf-8")
+    requirement = 'raise RuntimeError("paid pilot requires ATMEM_MEM0_CHECKOUT")'
+    assert requirement in source
+    assert source.index(requirement) < source.index("output_root.mkdir")
+
+
 def test_runpod_reader_proxy_reassembles_sse_without_promoting_reasoning(
     monkeypatch,
 ) -> None:
