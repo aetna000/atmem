@@ -73,14 +73,14 @@
         },
         "longmemeval_reader": {
           "api_key_env": "RUNPOD_READER_API_KEY",
-          "base_url": "runpod://ephemeral-l40s/v1",
+          "base_url": "runpod://ephemeral-a100-80gb/v1",
           "enable_thinking": false,
           "max_completion_tokens": 20000,
           "max_prompt_tokens": 242144,
           "memory_context_max_tokens": 200000,
           "model": "Qwen/Qwen3.5-9B",
           "provider": "runpod-pods",
-          "provider_route": "runpod-secure-l40s-vllm",
+          "provider_route": "runpod-secure-a100-80gb-vllm",
           "repository_model": "Qwen/Qwen3.5-9B",
           "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
           "temperature": 0.6,
@@ -90,13 +90,13 @@
         },
         "official_rag_controller": {
           "api_key_env": "RUNPOD_READER_API_KEY",
-          "base_url": "runpod://ephemeral-l40s/v1",
+          "base_url": "runpod://ephemeral-a100-80gb/v1",
           "disable_thinking": false,
           "max_completion_tokens": 8192,
           "max_retries": 3,
           "model": "Qwen/Qwen3.5-9B",
           "provider": "runpod-pods",
-          "provider_route": "runpod-secure-l40s-vllm",
+          "provider_route": "runpod-secure-a100-80gb-vllm",
           "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
           "temperature": 0.6,
           "timeout_seconds": 600,
@@ -202,14 +202,14 @@
           "cloud_type": "SECURE",
           "container_image": "vllm/vllm-openai:v0.29.0",
           "container_image_digest": "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
-          "hardware_id": "NVIDIA L40S",
+          "hardware_id": "NVIDIA A100-SXM4-80GB",
           "max_num_seqs": 2,
           "maximum_active_seconds": 3600,
           "mode": "pod-runtime",
-          "observed_utc": "2026-10-09T00:00:00Z",
+          "observed_utc": "2026-10-09T05:00:00Z",
           "provider": "runpod",
           "source": "Runpod GraphQL gpuTypes securePrice",
-          "usd_per_hour": 1.09
+          "usd_per_hour": 1.79
         }
       },
       "release": "2.3.8",
@@ -838,8 +838,8 @@
       ]
     }
   },
-  "full_effective_sha256": "sha256:4aabd63481eef952d9aa2dfbd840fbce754cc195fd5edc0569eb82de9a245ad6",
-  "receipt_sha256": "sha256:06aebe22a8342513ede01873b6832dc80328262be8bf2589005412ace5337cb8",
+  "full_effective_sha256": "sha256:ddc203f2f6ec47b3ba0ffdbe1dc0fee05e3fb66ba52c234e4dbcdeddf5bbad97",
+  "receipt_sha256": "sha256:4290776aa202b911271083a8a3de6e160747e3862865d33ee2f35e7f9339a6a1",
   "sample_configuration": {
     "pipeline": {
       "attribution": {
@@ -908,14 +908,14 @@
         },
         "longmemeval_reader": {
           "api_key_env": "RUNPOD_READER_API_KEY",
-          "base_url": "runpod://ephemeral-l40s/v1",
+          "base_url": "runpod://ephemeral-a100-80gb/v1",
           "enable_thinking": false,
           "max_completion_tokens": 20000,
           "max_prompt_tokens": 242144,
           "memory_context_max_tokens": 200000,
           "model": "Qwen/Qwen3.5-9B",
           "provider": "runpod-pods",
-          "provider_route": "runpod-secure-l40s-vllm",
+          "provider_route": "runpod-secure-a100-80gb-vllm",
           "repository_model": "Qwen/Qwen3.5-9B",
           "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
           "temperature": 0.6,
@@ -925,13 +925,13 @@
         },
         "official_rag_controller": {
           "api_key_env": "RUNPOD_READER_API_KEY",
-          "base_url": "runpod://ephemeral-l40s/v1",
+          "base_url": "runpod://ephemeral-a100-80gb/v1",
           "disable_thinking": false,
           "max_completion_tokens": 8192,
           "max_retries": 3,
           "model": "Qwen/Qwen3.5-9B",
           "provider": "runpod-pods",
-          "provider_route": "runpod-secure-l40s-vllm",
+          "provider_route": "runpod-secure-a100-80gb-vllm",
           "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
           "temperature": 0.6,
           "timeout_seconds": 600,
@@ -1037,14 +1037,14 @@
           "cloud_type": "SECURE",
           "container_image": "vllm/vllm-openai:v0.29.0",
           "container_image_digest": "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
-          "hardware_id": "NVIDIA L40S",
+          "hardware_id": "NVIDIA A100-SXM4-80GB",
           "max_num_seqs": 2,
           "maximum_active_seconds": 3600,
           "mode": "pod-runtime",
-          "observed_utc": "2026-10-09T00:00:00Z",
+          "observed_utc": "2026-10-09T05:00:00Z",
           "provider": "runpod",
           "source": "Runpod GraphQL gpuTypes securePrice",
-          "usd_per_hour": 1.09
+          "usd_per_hour": 1.79
         }
       },
       "release": "2.3.8",
@@ -1103,6 +1103,6 @@
       ]
     }
   },
-  "sample_effective_sha256": "sha256:4aabd63481eef952d9aa2dfbd840fbce754cc195fd5edc0569eb82de9a245ad6",
+  "sample_effective_sha256": "sha256:ddc203f2f6ec47b3ba0ffdbe1dc0fee05e3fb66ba52c234e4dbcdeddf5bbad97",
   "selector_path": "selector.case_ids"
 }
