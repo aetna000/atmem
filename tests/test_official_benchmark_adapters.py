@@ -460,6 +460,16 @@ def test_longmem_runner_requires_mem0_checkout_before_paid_output() -> None:
     assert source.index(requirement) < source.index("output_root.mkdir")
 
 
+def test_longmem_runner_validates_every_prebuilt_checkpoint_before_cost_reservation() -> None:
+    source = (
+        ROOT / "research/production_benchmarks/run_longmem_pilot.py"
+    ).read_text(encoding="utf-8")
+    requirement = '"pilot prebuilt AtMem memories are missing: "'
+    assert requirement in source
+    assert source.index(requirement) < source.index("output_root.mkdir")
+    assert source.index(requirement) < source.index("reader_ledger.reserve")
+
+
 def test_longmem_stage_gate_is_frozen_nested_and_strict() -> None:
     from research.production_benchmarks.run_longmem_pilot import (
         _selected_question_ids,

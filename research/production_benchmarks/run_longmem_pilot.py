@@ -454,6 +454,23 @@ def main() -> None:
         raise RuntimeError(
             "ATMEM_MEM0_CHECKOUT must contain the pinned Mem0 source checkout"
         )
+    prebuilt_memory = {
+        (method, domain): gate_prebuilt_root / method / domain / "memory_state"
+        for method in SCORED_METHODS
+        if method != "no-retrieval"
+        for domain in ("web", "enterprise")
+    }
+    no_retrieval_memory = gate_prebuilt_root / "no-retrieval" / "memory_state"
+    missing_prebuilt = [
+        str(path) for path in prebuilt_memory.values()
+        if not (path / "memory_config.json").is_file()
+    ]
+    if not (no_retrieval_memory / "memory_config.json").is_file():
+        missing_prebuilt.append(str(no_retrieval_memory))
+    if missing_prebuilt:
+        raise RuntimeError(
+            "pilot prebuilt AtMem memories are missing: " + ", ".join(missing_prebuilt)
+        )
     expected_identity = {
         "gate_type": "longmemeval",
         "candidate_commit": subprocess.run(
@@ -616,28 +633,7 @@ def main() -> None:
     llm_work = [item for item in work if evaluators[item[0]] in llm_evaluators]
     judge_gate = output_root / "openai-judge.gate"
     reader_proxy_url = ""
-    prebuilt_root_value = os.environ.get("ATMEM_LME_PREBUILT_ROOT", "").strip()
-    if not prebuilt_root_value:
-        raise RuntimeError("pilot requires ATMEM_LME_PREBUILT_ROOT")
-    prebuilt_root = Path(prebuilt_root_value).expanduser().resolve()
-    prebuilt_memory = {
-        (method, domain): prebuilt_root / method / domain / "memory_state"
-        for method in SCORED_METHODS
-        if method != "no-retrieval"
-        for domain in ("web", "enterprise")
-    }
-    no_retrieval_memory = prebuilt_root / "no-retrieval" / "memory_state"
     cancellation_event = threading.Event()
-    missing_prebuilt = [
-        str(path) for path in prebuilt_memory.values()
-        if not (path / "memory_config.json").is_file()
-    ]
-    if not (no_retrieval_memory / "memory_config.json").is_file():
-        missing_prebuilt.append(str(no_retrieval_memory))
-    if missing_prebuilt:
-        raise RuntimeError(
-            "pilot prebuilt AtMem memories are missing: " + ", ".join(missing_prebuilt)
-        )
 
     mem0_runtime: tempfile.TemporaryDirectory[str] | None = None
     mem0_runtime_root: Path | None = None

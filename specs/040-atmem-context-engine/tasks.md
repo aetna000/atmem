@@ -368,7 +368,15 @@ answer/action scoring.
   evidence now contains Outlook within 15.3 KiB and contains Subcategory,
   Assignment Group and State while excluding Routing Cluster within 15.5 KiB.
   A clean checkpoint and installed artifact MUST be produced before paid
-  attempt 3; T045 remains locked until attempt 3 reaches at least 5/6.
+  attempt 3; T045 remains locked until a paid stage reaches at least 5/6.
+  Attempt 3 reached no benchmark case: the clean enterprise database had been
+  formed but was not installed under the frozen runner's `memory_state/atmem.db`
+  layout. The runner terminated its sole pod before any reader case and the
+  reservation was reconciled as a conservative local-termination upper bound.
+  The checkpoint is now installed, all seven required prebuilt configurations
+  are present, and the runner validates them before creating paid output or
+  reserving provider cost. This infrastructure-only attempt is not a retrieval
+  result and does not alter the retained stage scores.
 - [ ] [T045] Run AtMem, Mem0 OSS and AgentRunbook-R/C on the same frozen
   nested 23-question LongMem five-percent development sample; produce a single matched table with
   accuracy, per-requirement pipeline coverage, product-context versus verified-
