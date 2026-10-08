@@ -174,15 +174,14 @@
         "official_harness_sha256": "93fe5855a74ad46d7e8b489cebac24de38a9b30ba7ec1de2dd8708bd4aeebdb6",
         "official_runtime_packages": {
           "huggingface_hub": "1.33.0",
-          "numpy": "2.3.5",
-          "openai": "3.26.1",
+          "numpy": "2.5.3",
+          "openai": "3.19.2",
           "openai-agents": "0.22.3",
           "pillow": "12.3.0",
-          "torch": "2.13.0",
-          "torchvision": "0.28.0",
+          "torch": "2.6.0",
+          "torchvision": "0.21.0",
           "tqdm": "4.70.1",
-          "transformers": "5.19.0",
-          "vllm": "0.29.0"
+          "transformers": "5.17.0"
         },
         "openai_judge_price_usd_per_million": {
           "input": 1.75,
@@ -232,6 +231,7 @@
           "mode": "pod-runtime",
           "observed_utc": "2026-10-09T05:00:00Z",
           "provider": "runpod",
+          "server_runtime": "vllm==0.29.0",
           "source": "Runpod GraphQL gpuTypes securePrice",
           "usd_per_hour": 1.79
         },
@@ -714,8 +714,8 @@
       ]
     }
   },
-  "full_effective_sha256": "sha256:a5bde65af5709fff4eae3e23a7b3e7008eec94a90f33a983b15ef1931eead59d",
-  "receipt_sha256": "sha256:7237923e9e970a902d7d777ba94b5219952f4e54f4daa97703fb2b7e016bc5a8",
+  "full_effective_sha256": "sha256:489391d439446135edd384f709cf85a62a136cfdfb967220041a55088d6d1f3a",
+  "receipt_sha256": "sha256:9db826377956f8ecbb342dc304c3209fdad4e391bcc187d143c8335e86b85ab9",
   "sample_configuration": {
     "pipeline": {
       "attribution": {
@@ -885,15 +885,14 @@
         "official_harness_sha256": "93fe5855a74ad46d7e8b489cebac24de38a9b30ba7ec1de2dd8708bd4aeebdb6",
         "official_runtime_packages": {
           "huggingface_hub": "1.33.0",
-          "numpy": "2.3.5",
-          "openai": "3.26.1",
+          "numpy": "2.5.3",
+          "openai": "3.19.2",
           "openai-agents": "0.22.3",
           "pillow": "12.3.0",
-          "torch": "2.13.0",
-          "torchvision": "0.28.0",
+          "torch": "2.6.0",
+          "torchvision": "0.21.0",
           "tqdm": "4.70.1",
-          "transformers": "5.19.0",
-          "vllm": "0.29.0"
+          "transformers": "5.17.0"
         },
         "openai_judge_price_usd_per_million": {
           "input": 1.75,
@@ -943,6 +942,7 @@
           "mode": "pod-runtime",
           "observed_utc": "2026-10-09T05:00:00Z",
           "provider": "runpod",
+          "server_runtime": "vllm==0.29.0",
           "source": "Runpod GraphQL gpuTypes securePrice",
           "usd_per_hour": 1.79
         },
@@ -997,6 +997,6 @@
       ]
     }
   },
-  "sample_effective_sha256": "sha256:a5bde65af5709fff4eae3e23a7b3e7008eec94a90f33a983b15ef1931eead59d",
+  "sample_effective_sha256": "sha256:489391d439446135edd384f709cf85a62a136cfdfb967220041a55088d6d1f3a",
   "selector_path": "selector.case_ids"
 }

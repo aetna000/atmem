@@ -639,6 +639,7 @@ def validate_retrieval_quality_protocol(
             != "runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404"
             or reader_billing.get("container_image_digest")
             != "sha256:60baa36d3fb6b98fd4f4ece6b96776c83c01a8b7c540e54460ab4d496816141f"
+            or reader_billing.get("server_runtime") != "vllm==0.29.0"
             or reader_billing.get("max_num_seqs") != 2
             or float(reader_billing.get("usd_per_hour") or 0) <= 0
             or float(reader_billing.get("maximum_active_seconds") or 0) <= 0
