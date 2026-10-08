@@ -548,13 +548,16 @@ def test_runpod_reader_proxy_reassembles_sse_without_promoting_reasoning(
 
     class Upstream(BaseHTTPRequestHandler):
         user_agent = ""
+        payload = None
 
         def log_message(self, _format, *_args):
             return
 
         def do_POST(self):  # noqa: N802
             type(self).user_agent = self.headers.get("User-Agent", "")
-            self.rfile.read(int(self.headers["Content-Length"]))
+            type(self).payload = json.loads(
+                self.rfile.read(int(self.headers["Content-Length"]))
+            )
             chunks = [
                 {"id": "fixture", "model": "fixture-reader", "choices": [{
                     "delta": {"reasoning_content": "private reasoning"},
@@ -591,6 +594,9 @@ def test_runpod_reader_proxy_reassembles_sse_without_promoting_reasoning(
     )
     monkeypatch.setenv("RUNPOD_READER_API_KEY", "fixture-key")
     monkeypatch.setenv("ATMEM_READER_REQUEST_MAX_BYTES", "1048576")
+    monkeypatch.setenv("ATMEM_READER_SEED", "23801")
+    monkeypatch.setenv("ATMEM_READER_STOP_SEQUENCES", '["}"]')
+    monkeypatch.setenv("ATMEM_READER_INCLUDE_STOP_STR", "1")
     request = urllib.request.Request(
         f"http://127.0.0.1:{proxy.server_port}/v1/chat/completions",
         data=json.dumps({"model": "fixture-reader", "messages": []}).encode(),
@@ -611,6 +617,9 @@ def test_runpod_reader_proxy_reassembles_sse_without_promoting_reasoning(
     assert message["reasoning_content"] == "private reasoning"
     assert result["usage"]["total_tokens"] == 6
     assert Upstream.user_agent == "OpenAI/Python 3.19.2"
+    assert Upstream.payload["seed"] == 23801
+    assert Upstream.payload["stop"] == ["}"]
+    assert Upstream.payload["include_stop_str_in_output"] is True
 
 
 def test_reader_proxy_budget_applies_after_upstream_serialization() -> None:
@@ -619,10 +628,26 @@ def test_reader_proxy_budget_applies_after_upstream_serialization() -> None:
     )
 
     payload = {"model": "reader", "messages": [{"role": "user", "content": "x"}]}
-    expanded = encoded_upstream_body(payload, 10_000)
+    expanded = encoded_upstream_body(
+        payload,
+        10_000,
+        seed=23801,
+        stop_sequences=["}"],
+        include_stop_str_in_output=True,
+    )
+    expanded_payload = json.loads(expanded)
+    assert expanded_payload["seed"] == 23801
+    assert expanded_payload["stop"] == ["}"]
+    assert expanded_payload["include_stop_str_in_output"] is True
     assert len(expanded) > len(json.dumps(payload).encode())
     with pytest.raises(ValueError, match="serialized reader request"):
-        encoded_upstream_body(payload, len(expanded) - 1)
+        encoded_upstream_body(
+            payload,
+            len(expanded) - 1,
+            seed=23801,
+            stop_sequences=["}"],
+            include_stop_str_in_output=True,
+        )
 
 
 def test_judge_proxy_allows_one_egress_and_records_content_free_usage(

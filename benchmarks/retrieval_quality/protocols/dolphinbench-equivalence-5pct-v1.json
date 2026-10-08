@@ -75,6 +75,7 @@
           "api_key_env": "RUNPOD_READER_API_KEY",
           "base_url": "runpod://ephemeral-a100-80gb/v1",
           "enable_thinking": false,
+          "include_stop_str_in_output": true,
           "max_completion_tokens": 20000,
           "max_prompt_tokens": 242144,
           "memory_context_max_tokens": 200000,
@@ -83,6 +84,10 @@
           "provider_route": "runpod-secure-a100-80gb-vllm",
           "repository_model": "Qwen/Qwen3.5-9B",
           "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+          "seed": 23801,
+          "stop_sequences": [
+            "}"
+          ],
           "temperature": 0.6,
           "timeout_seconds": 43200,
           "top_k": 20,
@@ -196,7 +201,7 @@
         "provider_route": "runpod-vllm-reader+local-deterministic-embedding+openai-direct-judge",
         "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
-        "reader_proxy_sha256": "511a2597ca9846d6e61f8a8cf810e940b4838df4f3c581751d89ed72374d0528",
+        "reader_proxy_sha256": "062aa3dae5af476036992008f40cd950940c05443ed358dc78dd63dced4d32c7",
         "reader_request_max_bytes": 8388608,
         "reader_runtime_billing": {
           "cloud_type": "SECURE",
@@ -838,8 +843,8 @@
       ]
     }
   },
-  "full_effective_sha256": "sha256:42a0fc58a8abc7af818251d3d5db4a16889b56ca295b5bf2147c7aa5bfef8379",
-  "receipt_sha256": "sha256:a903776a09c85a22cf5b35b3f49d2a1a2aa2370b1babdda494c1627e4ce135e2",
+  "full_effective_sha256": "sha256:750904a1547d8d5291f88329a2745c0ebfca34983b48844af69334fd0cbe73da",
+  "receipt_sha256": "sha256:1d093bcb5746430d6737821c46124d7afca28957c33732717364d04a076de0dc",
   "sample_configuration": {
     "pipeline": {
       "attribution": {
@@ -910,6 +915,7 @@
           "api_key_env": "RUNPOD_READER_API_KEY",
           "base_url": "runpod://ephemeral-a100-80gb/v1",
           "enable_thinking": false,
+          "include_stop_str_in_output": true,
           "max_completion_tokens": 20000,
           "max_prompt_tokens": 242144,
           "memory_context_max_tokens": 200000,
@@ -918,6 +924,10 @@
           "provider_route": "runpod-secure-a100-80gb-vllm",
           "repository_model": "Qwen/Qwen3.5-9B",
           "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+          "seed": 23801,
+          "stop_sequences": [
+            "}"
+          ],
           "temperature": 0.6,
           "timeout_seconds": 43200,
           "top_k": 20,
@@ -1031,7 +1041,7 @@
         "provider_route": "runpod-vllm-reader+local-deterministic-embedding+openai-direct-judge",
         "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
-        "reader_proxy_sha256": "511a2597ca9846d6e61f8a8cf810e940b4838df4f3c581751d89ed72374d0528",
+        "reader_proxy_sha256": "062aa3dae5af476036992008f40cd950940c05443ed358dc78dd63dced4d32c7",
         "reader_request_max_bytes": 8388608,
         "reader_runtime_billing": {
           "cloud_type": "SECURE",
@@ -1103,6 +1113,6 @@
       ]
     }
   },
-  "sample_effective_sha256": "sha256:42a0fc58a8abc7af818251d3d5db4a16889b56ca295b5bf2147c7aa5bfef8379",
+  "sample_effective_sha256": "sha256:750904a1547d8d5291f88329a2745c0ebfca34983b48844af69334fd0cbe73da",
   "selector_path": "selector.case_ids"
 }

@@ -10,10 +10,22 @@ from pathlib import Path
 import urllib.request
 
 
-def encoded_upstream_body(payload: dict, maximum: int) -> bytes:
+def encoded_upstream_body(
+    payload: dict,
+    maximum: int,
+    *,
+    seed: int | None = None,
+    stop_sequences: list[str] | None = None,
+    include_stop_str_in_output: bool = False,
+) -> bytes:
     value = dict(payload)
     value["stream"] = True
     value["stream_options"] = {"include_usage": True}
+    if seed is not None:
+        value["seed"] = seed
+    if stop_sequences:
+        value["stop"] = stop_sequences
+        value["include_stop_str_in_output"] = include_stop_str_in_output
     encoded = json.dumps(
         value, ensure_ascii=False, separators=(",", ":")
     ).encode("utf-8")
@@ -39,7 +51,17 @@ class Handler(BaseHTTPRequestHandler):
             return
         payload = json.loads(self.rfile.read(length))
         try:
-            upstream_body = encoded_upstream_body(payload, maximum)
+            upstream_body = encoded_upstream_body(
+                payload,
+                maximum,
+                seed=int(os.environ["ATMEM_READER_SEED"]),
+                stop_sequences=json.loads(
+                    os.environ["ATMEM_READER_STOP_SEQUENCES"]
+                ),
+                include_stop_str_in_output=(
+                    os.environ["ATMEM_READER_INCLUDE_STOP_STR"] == "1"
+                ),
+            )
         except ValueError:
             self.send_error(413, "serialized reader request exceeds the frozen byte budget")
             return

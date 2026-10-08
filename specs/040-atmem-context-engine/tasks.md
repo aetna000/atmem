@@ -418,6 +418,16 @@ answer/action scoring.
   immediate termination after reader completion. Runtime reservation covers
   the entire envelope, including readiness and validation time already billed;
   sample, model, prompts, retrieval, scoring and denominator are unchanged.
+  Attempt 7 then completed the same six-question checkpoint at AtMem 2/6,
+  AgentRunbook-R 2/6, Mem0 OSS 0/6 and verified evidence 4/6. AtMem and
+  AgentRunbook-R each incurred one `reader did not produce a complete final
+  answer` system failure after consuming the 20,000-token completion budget;
+  neither failure is attributed to memory. The run stopped before question 7
+  was credited. The common reader route now sends the protocol seed `23801`
+  per request and retains the closing brace before stopping at the answer
+  contract's required `\\boxed{...}` boundary. This is applied identically to
+  every arm and is bound into finalization identity; memory formation,
+  retrieval, packed context, prompt and grader remain unchanged.
 - [ ] [T046] Run AtMem and matched Mem0 on the same frozen 30-task Dolphin
   development sample through Hermes; preserve all tasks and exact tool/grader
   evidence, and run removal/positive-control tests whose block receipt names the

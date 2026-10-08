@@ -502,6 +502,8 @@ def main() -> None:
         "sampling": {
             "temperature": reader["temperature"], "top_p": reader["top_p"],
             "top_k": reader["top_k"], "enable_thinking": reader["enable_thinking"],
+            "seed": reader["seed"], "stop_sequences": reader["stop_sequences"],
+            "include_stop_str_in_output": reader["include_stop_str_in_output"],
         },
         "judge_provider": judge["provider"],
         "judge_model": judge["model"],
@@ -797,6 +799,13 @@ def main() -> None:
             "RUNPOD_READER_API_KEY": reader_api_key,
             "ATMEM_READER_REQUEST_MAX_BYTES": str(
                 requirements["reader_request_max_bytes"]
+            ),
+            "ATMEM_READER_SEED": str(reader["seed"]),
+            "ATMEM_READER_STOP_SEQUENCES": json.dumps(
+                reader["stop_sequences"], separators=(",", ":")
+            ),
+            "ATMEM_READER_INCLUDE_STOP_STR": (
+                "1" if reader["include_stop_str_in_output"] else "0"
             ),
         }
         reader_proxy = subprocess.Popen(

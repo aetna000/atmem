@@ -83,7 +83,10 @@
       "timeout_seconds": 43200,
       "temperature": 0.6,
       "top_p": 0.95,
-      "top_k": 20
+      "top_k": 20,
+      "seed": 23801,
+      "stop_sequences": ["}"],
+      "include_stop_str_in_output": true
     },
     "official_rag_controller": {
       "provider": "runpod-pods",
@@ -155,7 +158,7 @@
       "data/__init__.py": "6fd6e1d6249094d5ec4955ce122784ffbf5de28a44e24615eb9cb1ffb55eda34"
     },
     "official_code_combined_sha256": "5e9afe0cb292646da5b65f8ce8f13ca7cdd131ee31b3d0af94b257499dedc8fe",
-    "reader_proxy_sha256": "511a2597ca9846d6e61f8a8cf810e940b4838df4f3c581751d89ed72374d0528",
+    "reader_proxy_sha256": "062aa3dae5af476036992008f40cd950940c05443ed358dc78dd63dced4d32c7",
     "embedding_proxy_sha256": "a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293",
     "judge_proxy_sha256": "1a99cc2d6aa8aef7c0b05949049d2c56ae5e0b367e5f8c5dfb2ef409c2a760db",
     "pilot_manifest": "longmemeval-v2-pilot-v1.json",
@@ -218,11 +221,11 @@
   "equivalence_receipts": {
     "longmemeval_v2": {
       "file": "longmemeval-v2-equivalence-5pct-v1.json",
-      "file_sha256": "be5dd6864104062d8f756e9a37fb0cab58065f9f9cdd4b0d352fd0f400b1f3e5"
+      "file_sha256": "6494cdd492469eae50029498f5f621377ed5010113c2e290406e2b729fa66214"
     },
     "dolphinbench": {
       "file": "dolphinbench-equivalence-5pct-v1.json",
-      "file_sha256": "949b638b5e152a94b779539103b3588a9148b5ac6cdee0da9fb233ab423142b8"
+      "file_sha256": "25544dd611531d5d3eeadea6dcbe7d4316adb42bdb0e8b5151028d8ff68ed468"
     }
   },
   "operating_points": ["no-retrieval", "official-rag-query-to-slice-notes", "agentrunbook-r", "agentrunbook-c", "agentrunbook-c-v2", "mem0-oss", "legacy", "typed-local"],

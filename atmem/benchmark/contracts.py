@@ -647,6 +647,9 @@ def validate_retrieval_quality_protocol(
             or judge_request_max_bytes <= 0
             or int(reader.get("max_prompt_tokens") or 0)
             + int(reader.get("max_completion_tokens") or 0) != 262_144
+            or reader.get("seed") != 23801
+            or reader.get("stop_sequences") != ["}"]
+            or reader.get("include_stop_str_in_output") is not True
             or int(reader.get("memory_context_max_tokens") or 0)
             > int(reader.get("max_prompt_tokens") or 0)
             or any(
