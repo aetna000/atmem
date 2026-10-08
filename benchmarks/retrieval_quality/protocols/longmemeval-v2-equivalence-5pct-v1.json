@@ -91,14 +91,14 @@
         },
         "longmemeval_reader": {
           "api_key_env": "RUNPOD_READER_API_KEY",
-          "base_url": "runpod://ephemeral-a100-80gb/v1",
+          "base_url": "runpod://ephemeral-l40s/v1",
           "enable_thinking": false,
           "max_completion_tokens": 20000,
           "max_prompt_tokens": 242144,
           "memory_context_max_tokens": 200000,
           "model": "Qwen/Qwen3.5-9B",
           "provider": "runpod-pods",
-          "provider_route": "runpod-secure-a100-80gb-vllm",
+          "provider_route": "runpod-secure-l40s-vllm",
           "repository_model": "Qwen/Qwen3.5-9B",
           "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
           "temperature": 0.6,
@@ -108,13 +108,13 @@
         },
         "official_rag_controller": {
           "api_key_env": "RUNPOD_READER_API_KEY",
-          "base_url": "runpod://ephemeral-a100-80gb/v1",
+          "base_url": "runpod://ephemeral-l40s/v1",
           "disable_thinking": false,
           "max_completion_tokens": 8192,
           "max_retries": 3,
           "model": "Qwen/Qwen3.5-9B",
           "provider": "runpod-pods",
-          "provider_route": "runpod-secure-a100-80gb-vllm",
+          "provider_route": "runpod-secure-l40s-vllm",
           "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
           "temperature": 0.6,
           "timeout_seconds": 600,
@@ -212,7 +212,7 @@
         "pilot_reader_cost_cap_usd": 2.2,
         "pilot_total_cost_cap_usd": 12.7,
         "provider_route": "runpod-vllm-reader+local-deterministic-embedding+openai-direct-judge",
-        "provider_route_probe_sha256": "265f7f5cdf985a4ab975ab46c022a8863c5c5f5c91e6f083fa29974b8bbd989e",
+        "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
         "reader_proxy_sha256": "511a2597ca9846d6e61f8a8cf810e940b4838df4f3c581751d89ed72374d0528",
         "reader_request_max_bytes": 8388608,
@@ -220,14 +220,14 @@
           "cloud_type": "SECURE",
           "container_image": "vllm/vllm-openai:v0.29.0",
           "container_image_digest": "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
-          "hardware_id": "NVIDIA A100-SXM4-80GB",
+          "hardware_id": "NVIDIA L40S",
           "max_num_seqs": 2,
           "maximum_active_seconds": 3600,
           "mode": "pod-runtime",
-          "observed_utc": "2026-09-29T18:30:23Z",
+          "observed_utc": "2026-10-09T00:00:00Z",
           "provider": "runpod",
           "source": "Runpod GraphQL gpuTypes securePrice",
-          "usd_per_hour": 1.59
+          "usd_per_hour": 1.09
         }
       },
       "release": "2.3.8",
@@ -707,8 +707,8 @@
       ]
     }
   },
-  "full_effective_sha256": "sha256:93805cabdce6ac0d7ceb7718ee8de1333938a31ca1adc8c147e1667e979dcbbd",
-  "receipt_sha256": "sha256:b41c6769e438dfea3ebb6b5f4252e025a1f995135df90b91dda6021a2e470a0a",
+  "full_effective_sha256": "sha256:696c8901ef6f4b6a1324fbbc914a016902737dac3aa4140d68172fc163f871d0",
+  "receipt_sha256": "sha256:a382fc68819810fdbde834dd4a168094a96790782bc5e6465f956bfd163f2263",
   "sample_configuration": {
     "pipeline": {
       "attribution": {
@@ -795,14 +795,14 @@
         },
         "longmemeval_reader": {
           "api_key_env": "RUNPOD_READER_API_KEY",
-          "base_url": "runpod://ephemeral-a100-80gb/v1",
+          "base_url": "runpod://ephemeral-l40s/v1",
           "enable_thinking": false,
           "max_completion_tokens": 20000,
           "max_prompt_tokens": 242144,
           "memory_context_max_tokens": 200000,
           "model": "Qwen/Qwen3.5-9B",
           "provider": "runpod-pods",
-          "provider_route": "runpod-secure-a100-80gb-vllm",
+          "provider_route": "runpod-secure-l40s-vllm",
           "repository_model": "Qwen/Qwen3.5-9B",
           "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
           "temperature": 0.6,
@@ -812,13 +812,13 @@
         },
         "official_rag_controller": {
           "api_key_env": "RUNPOD_READER_API_KEY",
-          "base_url": "runpod://ephemeral-a100-80gb/v1",
+          "base_url": "runpod://ephemeral-l40s/v1",
           "disable_thinking": false,
           "max_completion_tokens": 8192,
           "max_retries": 3,
           "model": "Qwen/Qwen3.5-9B",
           "provider": "runpod-pods",
-          "provider_route": "runpod-secure-a100-80gb-vllm",
+          "provider_route": "runpod-secure-l40s-vllm",
           "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
           "temperature": 0.6,
           "timeout_seconds": 600,
@@ -916,7 +916,7 @@
         "pilot_reader_cost_cap_usd": 2.2,
         "pilot_total_cost_cap_usd": 12.7,
         "provider_route": "runpod-vllm-reader+local-deterministic-embedding+openai-direct-judge",
-        "provider_route_probe_sha256": "265f7f5cdf985a4ab975ab46c022a8863c5c5f5c91e6f083fa29974b8bbd989e",
+        "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
         "reader_proxy_sha256": "511a2597ca9846d6e61f8a8cf810e940b4838df4f3c581751d89ed72374d0528",
         "reader_request_max_bytes": 8388608,
@@ -924,14 +924,14 @@
           "cloud_type": "SECURE",
           "container_image": "vllm/vllm-openai:v0.29.0",
           "container_image_digest": "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
-          "hardware_id": "NVIDIA A100-SXM4-80GB",
+          "hardware_id": "NVIDIA L40S",
           "max_num_seqs": 2,
           "maximum_active_seconds": 3600,
           "mode": "pod-runtime",
-          "observed_utc": "2026-09-29T18:30:23Z",
+          "observed_utc": "2026-10-09T00:00:00Z",
           "provider": "runpod",
           "source": "Runpod GraphQL gpuTypes securePrice",
-          "usd_per_hour": 1.59
+          "usd_per_hour": 1.09
         }
       },
       "release": "2.3.8",
@@ -983,6 +983,6 @@
       ]
     }
   },
-  "sample_effective_sha256": "sha256:93805cabdce6ac0d7ceb7718ee8de1333938a31ca1adc8c147e1667e979dcbbd",
+  "sample_effective_sha256": "sha256:696c8901ef6f4b6a1324fbbc914a016902737dac3aa4140d68172fc163f871d0",
   "selector_path": "selector.case_ids"
 }

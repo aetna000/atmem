@@ -70,8 +70,8 @@
   "models": {
     "longmemeval_reader": {
       "provider": "runpod-pods",
-      "provider_route": "runpod-secure-a100-80gb-vllm",
-      "base_url": "runpod://ephemeral-a100-80gb/v1",
+      "provider_route": "runpod-secure-l40s-vllm",
+      "base_url": "runpod://ephemeral-l40s/v1",
       "api_key_env": "RUNPOD_READER_API_KEY",
       "model": "Qwen/Qwen3.5-9B",
       "repository_model": "Qwen/Qwen3.5-9B",
@@ -87,8 +87,8 @@
     },
     "official_rag_controller": {
       "provider": "runpod-pods",
-      "provider_route": "runpod-secure-a100-80gb-vllm",
-      "base_url": "runpod://ephemeral-a100-80gb/v1",
+      "provider_route": "runpod-secure-l40s-vllm",
+      "base_url": "runpod://ephemeral-l40s/v1",
       "api_key_env": "RUNPOD_READER_API_KEY",
       "model": "Qwen/Qwen3.5-9B",
       "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
@@ -173,13 +173,13 @@
       "mode": "pod-runtime",
       "provider": "runpod",
       "cloud_type": "SECURE",
-        "hardware_id": "NVIDIA A100-SXM4-80GB",
+      "hardware_id": "NVIDIA L40S",
       "container_image": "vllm/vllm-openai:v0.29.0",
       "container_image_digest": "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
       "max_num_seqs": 2,
-      "usd_per_hour": 1.59,
+      "usd_per_hour": 1.09,
       "maximum_active_seconds": 3600,
-        "observed_utc": "2026-09-29T18:30:23Z",
+      "observed_utc": "2026-10-09T00:00:00Z",
       "source": "Runpod GraphQL gpuTypes securePrice"
     },
     "openai_judge_price_usd_per_million": {
@@ -218,11 +218,11 @@
   "equivalence_receipts": {
     "longmemeval_v2": {
       "file": "longmemeval-v2-equivalence-5pct-v1.json",
-      "file_sha256": "7a4b49718441c7c8a73b53e68c851d1ae906b83fd28cf55dc7c9bdab5d98163a"
+      "file_sha256": "cf96a0105ec538261b388ee8072351425a5436823cb392f303cfe2af4f2d9487"
     },
     "dolphinbench": {
       "file": "dolphinbench-equivalence-5pct-v1.json",
-      "file_sha256": "f62447ebdb8b672a91017197dc44b09db92f0288ed6b83f6b124dc8ad5cfc1e3"
+      "file_sha256": "d6a0c71c1ec499fdc1bb503fd3f67de232e8b19a1d2f47b6adbe436ed539c9af"
     }
   },
   "operating_points": ["no-retrieval", "official-rag-query-to-slice-notes", "agentrunbook-r", "agentrunbook-c", "agentrunbook-c-v2", "mem0-oss", "legacy", "typed-local"],

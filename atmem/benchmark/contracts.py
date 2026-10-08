@@ -553,12 +553,12 @@ def validate_retrieval_quality_protocol(
         ]
         expected_models = {
             "longmemeval_reader": (
-                "Qwen/Qwen3.5-9B", "runpod-secure-a100-80gb-vllm",
-                "runpod://ephemeral-a100-80gb/v1",
+                "Qwen/Qwen3.5-9B", "runpod-secure-l40s-vllm",
+                "runpod://ephemeral-l40s/v1",
             ),
             "official_rag_controller": (
-                "Qwen/Qwen3.5-9B", "runpod-secure-a100-80gb-vllm",
-                "runpod://ephemeral-a100-80gb/v1",
+                "Qwen/Qwen3.5-9B", "runpod-secure-l40s-vllm",
+                "runpod://ephemeral-l40s/v1",
             ),
             "official_rag_embedding": (
                 "atmem/hash-bow-768-v1", "local-deterministic",
@@ -634,7 +634,7 @@ def validate_retrieval_quality_protocol(
             or not endpoint_runtime_billing
             or reader_billing.get("provider") != "runpod"
             or reader_billing.get("cloud_type") != "SECURE"
-            or reader_billing.get("hardware_id") != "NVIDIA A100-SXM4-80GB"
+            or reader_billing.get("hardware_id") != "NVIDIA L40S"
             or reader_billing.get("container_image") != "vllm/vllm-openai:v0.29.0"
             or reader_billing.get("container_image_digest")
             != "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1"
