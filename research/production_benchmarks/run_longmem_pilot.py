@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -681,6 +682,18 @@ def main() -> None:
                 "actual_reason": "system_failure",
                 **identity,
             }
+        finally:
+            # A single enterprise checkpoint clone can consume several GB.
+            # Release hot local state as soon as its case finishes instead of
+            # retaining every clone until the complete 23-question run exits.
+            runtime_paths = [case_runtime_root / question_id / method]
+            if method == "mem0-oss":
+                runtime_paths.append(mem0_runtime_root / question_id)
+            for runtime_path in runtime_paths:
+                try:
+                    shutil.rmtree(runtime_path)
+                except FileNotFoundError:
+                    pass
 
     def run_batch(
         items: list[tuple[str, str]], *, max_workers: int, gated: bool

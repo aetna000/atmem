@@ -469,6 +469,9 @@ def test_longmem_runner_keeps_mutable_databases_on_local_runtime_storage() -> No
     assert "local_runtime_root=case_runtime_root" in runner
     assert '"ATMEM_LME_DATABASE_PATH": str(case_runtime / "atmem.db")' in adapter
     assert 'HouseholdApplication.initialize(\n            case_runtime / "atmem.db"' in adapter
+    assert "runtime_paths = [case_runtime_root / question_id / method]" in runner
+    assert "runtime_paths.append(mem0_runtime_root / question_id)" in runner
+    assert "shutil.rmtree(runtime_path)" in runner
 
 
 def test_runpod_reader_proxy_reassembles_sse_without_promoting_reasoning(

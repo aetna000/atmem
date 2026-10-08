@@ -340,7 +340,8 @@ outside runtime.
 13. Keep mutable benchmark databases, vector indexes and per-case runtime state
     on the host's local performance filesystem. Use the external `MEM` volume
     only for immutable datasets/checkpoints and durable logs, receipts and final
-    evidence; clean local runtime state after each run.
+    evidence; clean each case's local runtime state immediately after that case,
+    not only after the complete run.
 
 Each iteration writes an A-to-B table with formation coverage, evidence recall,
 sufficiency, reader/action accuracy, latency, bytes, storage and cost. Peaks and
