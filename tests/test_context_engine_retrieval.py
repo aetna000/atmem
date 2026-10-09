@@ -1244,3 +1244,58 @@ def test_temporal_action_prefers_source_covering_the_whole_request() -> None:
         assert "plus growth tier, not starter" in combined
     finally:
         store.close()
+
+
+def test_action_neighbour_expansion_is_fair_across_selected_sources() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for index in range(10):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=f"pinecone-noise-{index}", scope=SCOPE,
+                parts=(SourcePart(
+                    "text", 0, "text", "text/plain",
+                    (
+                        f"Pinecone integration thread reproduction note {index}. "
+                        "Header-only test details remain under review. "
+                        "The connector documentation is unchanged. "
+                        "A follow-up test will happen next week."
+                    ).encode(),
+                ),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="pinecone-contact", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"We are kicking off the Pinecone integration now. "
+                b"The contact is integrations@pinecone-test.com. "
+                b"Sarah stays copied on the usual external thread.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        policy = manager.retain_source(SourceEpisode(
+            episode_id="outside-email-policy", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"For outside email, cc Sarah Kim at sarah@atlas-test.com.",
+            ),),
+        ))
+        manager.form_source(policy, generation, range_granularity="sentence")
+        query = (
+            "Email the Pinecone integration contact for current reproduction "
+            "details and copy the usual person on the external thread."
+        )
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=16,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "integrations@pinecone-test.com" in combined
+        assert "Sarah stays copied" in combined
+        assert "sarah@atlas-test.com" in combined
+    finally:
+        store.close()

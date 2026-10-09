@@ -341,6 +341,16 @@ def targeted_facets(query: str) -> tuple[str, ...]:
             )
             if email_surface != value:
                 values.extend((email_surface, f"{email_surface} CC"))
+                # Users commonly say "external thread" while durable contact
+                # policy says "outside email".  Nominate that lexical alias
+                # explicitly; it identifies a communication surface, not a
+                # person or benchmark answer.
+                outside_surface = re.sub(
+                    r"\bexternal\b", "outside", email_surface,
+                    flags=re.IGNORECASE,
+                )
+                if outside_surface != email_surface:
+                    values.extend((outside_surface, f"{outside_surface} CC"))
     for role in re.finditer(
         r"\b(?:send|message|email|notify|copy|cc|ask)\s+"
         r"(?:our|my|the)\s+([A-Za-z][A-Za-z0-9_-]*)\b",

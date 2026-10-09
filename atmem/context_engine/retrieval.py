@@ -1073,15 +1073,30 @@ class DeterministicRetriever:
                 return 12
             return 2
 
-        neighbors = [
-            neighbor
-            for head in heads
-            for neighbor in self._neighbors(
-                generation_id,
-                head,
-                radius=neighbor_radius(head),
+        # Interleave neighbourhoods by distance instead of exhausting one
+        # source before visiting the next.  With a bounded candidate set, the
+        # old head-major order let the first long episode consume every
+        # replaceable slot and omit an adjacent address, condition, or outcome
+        # from another equally strong source.  Round-robin expansion gives
+        # every selected evidence head its nearest continuation before any
+        # source receives a second, more distant range.
+        neighbor_groups = [
+            tuple(
+                neighbor
+                for neighbor in self._neighbors(
+                    generation_id,
+                    head,
+                    radius=neighbor_radius(head),
+                )
+                if neighbor.unit_id not in used_units
             )
-            if neighbor.unit_id not in used_units
+            for head in heads
+        ]
+        neighbors = [
+            group[offset]
+            for offset in range(max((len(group) for group in neighbor_groups), default=0))
+            for group in neighbor_groups
+            if offset < len(group)
         ]
         head_units = {item.unit_id for item in heads}
         retained_neighbor_units: set[str] = set()
