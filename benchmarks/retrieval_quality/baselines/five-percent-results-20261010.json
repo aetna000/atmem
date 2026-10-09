@@ -133,14 +133,16 @@
   "agmi": {
     "source_commit": "115493a41a7b41952f92ec07e1ea0932926e194f",
     "source_package_version": "0.6.3",
+    "atmem_commit": "fdc63de4b5ced0029f2717ee542b9600730ce3fd",
     "arms": {
       "atmem-chain": {"detected": 8, "total": 9},
       "atmem-chain-with-external-checkpoint": {"detected": 9, "total": 9}
     },
     "artifact": {
-      "file": "agmi-results-0ea9574.json",
-      "sha256": "6cfbebdc4b8a20d95fd4c883ba88d8d385f10ceed20debc55724b6df0a984945"
+      "file": "agmi-2.3.8-20261010.json",
+      "sha256": "60275b8d5b0d174ecbc66c8cb8bc940f84743f605dc6a04707d8ea9fc57ca22a"
     },
+    "independence": "Vendor reproduction with the unchanged upstream AGMI harness; independent upstream rerun pending.",
     "known_limit": "Chain-only storage cannot distinguish a legitimate old store from a whole-store snapshot rollback without trusted state outside the attacker-controlled store directory."
   },
   "limitations": [
