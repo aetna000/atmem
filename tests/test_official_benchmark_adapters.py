@@ -159,6 +159,7 @@ def test_longmem_checkpoint_restore_preserves_saved_retrieval_parameters(
         "memory_type": "atmem",
         "memory_params": {
             "database_path": "/build/atmem.db",
+            "trajectory_pool_root": "/build/frozen-dataset",
             "subject_id": "subject",
             "agent_id": "agent",
             "workspace_id": "workspace",
@@ -171,6 +172,7 @@ def test_longmem_checkpoint_restore_preserves_saved_retrieval_parameters(
         "memory_type": "atmem",
         "memory_params": {
             "database_path": "/run/atmem.db",
+            "trajectory_pool_root": "/run/frozen-dataset",
             "subject_id": "subject",
             "agent_id": "agent",
             "workspace_id": "workspace",
@@ -180,6 +182,7 @@ def test_longmem_checkpoint_restore_preserves_saved_retrieval_parameters(
     assert restored["memory_params"] == {
         **saved["memory_params"],
         "database_path": "/run/atmem.db",
+        "trajectory_pool_root": "/run/frozen-dataset",
     }
 
     conflicting = json.loads(json.dumps(requested))
