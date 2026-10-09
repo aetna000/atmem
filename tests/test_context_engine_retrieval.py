@@ -9,7 +9,7 @@ from atmem.context_engine.formation import (
     _view_kinds,
 )
 from atmem.context_engine.packing import derive_action_constraints, pack_context
-from atmem.context_engine.planner import DeterministicPlanner
+from atmem.context_engine.planner import DeterministicPlanner, targeted_facets
 from atmem.context_engine.retrieval import (
     DeterministicRetriever,
     RetrievalResult,
@@ -964,6 +964,49 @@ def test_retrieval_keeps_source_breadth_and_adjacent_exact_evidence() -> None:
         store.close()
 
 
+def test_dated_decision_retrieval_keeps_complete_outcome_neighbourhood() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="dated-outcome", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"[2026-01-08T11:47:00-05:00] The staged replay finished. "
+                b"The diagnostic reconciled every accepted batch. "
+                b"All health checks stayed at baseline. "
+                b"This supplied staged evidence only. "
+                b"It did not authorize a production window. "
+                b"Direct production evidence and a later closeout remained pending.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        for index in range(40):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=f"dated-noise-{index}", scope=SCOPE,
+                parts=(SourcePart(
+                    "text", 0, "text", "text/plain",
+                    f"January 8 staged replay planning note {index}.".encode(),
+                ),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Inspect whether the January 8, 2026 staged replay authorized the "
+            "production window and report the actual decision."
+        )
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=32,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "did not authorize a production window" in combined
+        assert "later closeout remained pending" in combined
+    finally:
+        store.close()
+
+
 def test_sufficiency_can_report_stale_policy_withheld_and_bounded_not_found() -> None:
     plan = DeterministicPlanner().plan("Where is the release room?")
     from atmem.context_engine.retrieval import RetrievalResult
@@ -973,3 +1016,12 @@ def test_sufficiency_can_report_stale_policy_withheld_and_bounded_not_found() ->
     withheld = decide_sufficiency(plan, empty, policy_withheld=True)
     assert withheld.status == "withheld_by_policy"
     assert withheld.evidence_unit_ids == ()
+
+
+def test_targeted_facets_add_iso_narrative_date_for_temporal_subject() -> None:
+    facets = targeted_facets(
+        "Inspect whether the January 8, 2026 staged replay authorized the window."
+    )
+
+    assert "January 8, 2026 staged replay" in facets
+    assert "2026-01-08 staged replay" in facets

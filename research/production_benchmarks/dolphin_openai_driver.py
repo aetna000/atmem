@@ -96,9 +96,19 @@ async def run(*, request, tools, call_app, memory_context: str, model: str,
         "role": "system",
         "content": (
             "You are an action agent in a simulated personal workspace. Use the "
-            "available tools whenever the request requires an app action. Follow "
-            "the supplied memory as user-specific evidence; do not claim an action "
-            "succeeded unless its tool result confirms it.\n\nAtMem memory:\n"
+            "available tools whenever the request requires an app action. Treat "
+            "the supplied memory as authoritative user-specific evidence. Before "
+            "acting, identify every explicit part of the request and preserve all "
+            "directly relevant memory details in the action: exact people and "
+            "addresses, ownership or role relations, conditions and exceptions, "
+            "ordered steps, complete enumerations, polarity, and current state. "
+            "Resolve indirect references such as usual recipient or CEO from the "
+            "evidence, including adjacent name/role statements; never substitute "
+            "an unsupported identity. If the request asks you to contact someone "
+            "for information, send that request when the recipient is known rather "
+            "than asking the user to provide the requested information. Do not "
+            "claim an action succeeded unless its tool result confirms it.\n\n"
+            "AtMem memory:\n"
             + (memory_context or "No relevant memory was retrieved.")
         ),
     }, {"role": "user", "content": request.dated_message}]

@@ -880,21 +880,45 @@ class DeterministicRetriever:
             item.obligation_id for item in plan.obligations
             if item.kind == "before_action_after"
         }
+        # A question about the decision/outcome attached to a dated event must
+        # retain the bounded outcome tail of the episode recorded on that day.
+        # Formation intentionally atomizes long episodes into exact ranges;
+        # without this expansion the first sentence ("the replay finished")
+        # can win while its final condition ("did not authorize ... pending")
+        # is dropped. The date and intent both come only from the user query.
+        dated_facets = {
+            match.group(0)
+            for facet in targeted_facets(query)
+            for match in [re.match(r"\d{4}-\d{2}-\d{2}", facet)]
+            if match is not None
+        }
+        dated_decision_query = bool(dated_facets) and bool(re.search(
+            r"\b(?:authoriz(?:e|ed|es|ing)|decision|outcome|result|"
+            r"status|whether|actual)\b",
+            query,
+            re.IGNORECASE,
+        ))
+
+        def neighbor_radius(head: RetrievedCandidate) -> int:
+            if set(head.matched_obligation_ids) & (ordered_step_ids | transition_ids):
+                return 12
+            if dated_decision_query and any(
+                date in head.text[:64] for date in dated_facets
+            ):
+                return 12
+            return 2
+
         neighbors = [
             neighbor
             for head in heads
             for neighbor in self._neighbors(
                 generation_id,
                 head,
-                radius=(
-                    12
-                    if set(head.matched_obligation_ids)
-                    & (ordered_step_ids | transition_ids)
-                    else 2
-                ),
+                radius=neighbor_radius(head),
             )
             if neighbor.unit_id not in used_units
         ]
+        retained_neighbor_units: set[str] = set()
         for neighbor in neighbors:
             if len(selected) < max_sources:
                 selected.append(neighbor)
@@ -902,7 +926,7 @@ class DeterministicRetriever:
                 protected_units = {
                     item.unit_id for item in selected
                     if item.matched_obligation_ids
-                } | supplemental_priority_units
+                } | supplemental_priority_units | retained_neighbor_units
                 replace_at = next(
                     (
                         index for index in range(len(selected) - 1, -1, -1)
@@ -916,6 +940,11 @@ class DeterministicRetriever:
                 used_units.discard(displaced.unit_id)
                 selected.append(neighbor)
             used_units.add(neighbor.unit_id)
+            # Preserve each admitted neighbour while filling the remaining
+            # replaceable tail. Without this guard every later neighbour
+            # replaced the one inserted immediately before it, collapsing a
+            # bounded evidence neighbourhood to only its final sentence.
+            retained_neighbor_units.add(neighbor.unit_id)
         selected_sources = {item.source_id for item in selected}
         withheld_sources: set[str] = set()
         if selected_sources:

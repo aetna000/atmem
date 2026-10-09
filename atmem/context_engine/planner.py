@@ -200,7 +200,33 @@ def targeted_facets(query: str) -> tuple[str, ...]:
         re.IGNORECASE,
     )
     if temporal_subject:
-        values.append(" ".join(temporal_subject.group(1).split()))
+        temporal_value = " ".join(temporal_subject.group(1).split())
+        values.append(temporal_value)
+        # The canonical episode prefix stores narrative time as ISO-8601,
+        # while the request usually spells the month. Preserve an equivalent
+        # answer-blind ISO nomination so a completed event recorded on the
+        # requested day is not hidden by an older scheduling statement that
+        # repeats the natural-language date in its body.
+        dated = re.match(
+            r"(?P<month>[A-Za-z]+)\s+(?P<day>\d{1,2}),?\s+"
+            r"(?P<year>\d{4})(?P<subject>.*)",
+            temporal_value,
+        )
+        if dated:
+            months = {
+                "jan": 1, "january": 1, "feb": 2, "february": 2,
+                "mar": 3, "march": 3, "apr": 4, "april": 4,
+                "may": 5, "jun": 6, "june": 6, "jul": 7, "july": 7,
+                "aug": 8, "august": 8, "sep": 9, "sept": 9,
+                "september": 9, "oct": 10, "october": 10,
+                "nov": 11, "november": 11, "dec": 12, "december": 12,
+            }
+            month = months.get(dated.group("month").casefold())
+            if month is not None:
+                values.append(
+                    f'{dated.group("year")}-{month:02d}-'
+                    f'{int(dated.group("day")):02d}{dated.group("subject")}'
+                )
     workflow = re.search(
         r"\bcreat(?:e|ing)\s+(?:a\s+|new\s+|a\s+new\s+)?"
         r"([A-Za-z][A-Za-z_-]*)(?:\s+requests?)?\b",
