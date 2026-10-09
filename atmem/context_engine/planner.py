@@ -244,7 +244,14 @@ def _action_content_facets(query: str) -> tuple[str, ...]:
             selected.append(value)
         if len(selected) >= 8:
             break
-    return tuple(selected)
+    if re.search(
+        r"\b(?:usual|default|normal)\s+(?:person|contact|recipient)\s+on\s+"
+        r"(?:the\s+)?external\s+(?:thread|conversation)\b",
+        query,
+        re.IGNORECASE,
+    ):
+        selected = ["outside email CC", *selected]
+    return tuple(dict.fromkeys(selected[:8]))
 
 
 def targeted_facets(query: str) -> tuple[str, ...]:

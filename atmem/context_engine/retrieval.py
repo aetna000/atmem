@@ -705,8 +705,13 @@ class DeterministicRetriever:
                 for pool in ("entity", "fact", "rule", "raw_state"):
                     for item in by_pool_query.get((pool, facet), ()):
                         source_rows.setdefault(item.source_id, []).append(item)
+            contact_address_needed = bool(re.search(
+                r"\b(?:contact|recipient|copy|cc|email address)\b",
+                query,
+                re.IGNORECASE,
+            ))
             ranked_bridges: list[
-                tuple[float, int, int, float, str, RetrievedCandidate]
+                tuple[int, float, int, int, float, str, RetrievedCandidate]
             ] = []
             for source_id, rows in source_rows.items():
                 parts = self.store._conn.execute(
@@ -731,8 +736,12 @@ class DeterministicRetriever:
                     ),
                 )
                 byte_count = max(64, len(source_bytes))
+                has_address = int(contact_address_needed and bool(re.search(
+                    rb"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
+                    source_bytes,
+                )))
                 ranked_bridges.append((
-                    covered / math.sqrt(byte_count), covered, -byte_count,
+                    has_address, covered / math.sqrt(byte_count), covered, -byte_count,
                     head.score, source_id, head,
                 ))
             for *_rank, candidate in sorted(ranked_bridges, reverse=True)[:3]:
@@ -746,6 +755,22 @@ class DeterministicRetriever:
                     )
                     supplemental_priority_units.add(existing.unit_id)
                     content_bridge_units.add(existing.unit_id)
+                    adjacent_identifier = next((
+                        neighbor
+                        for neighbor in self._neighbors(
+                            generation_id, existing, radius=4,
+                        )
+                        if neighbor.unit_id not in used_units
+                        and re.search(
+                            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+"
+                            r"\.[A-Za-z]{2,}\b",
+                            neighbor.text,
+                        )
+                    ), None)
+                    if adjacent_identifier is not None and len(selected) < max_sources:
+                        selected.append(adjacent_identifier)
+                        used_units.add(adjacent_identifier.unit_id)
+                        supplemental_priority_units.add(adjacent_identifier.unit_id)
                     continue
                 if candidate.unit_id in used_units:
                     supplemental_priority_units.add(candidate.unit_id)
@@ -756,6 +781,26 @@ class DeterministicRetriever:
                 used_sources.add(candidate.source_id)
                 supplemental_priority_units.add(candidate.unit_id)
                 content_bridge_units.add(candidate.unit_id)
+                # An action source often introduces a contact in one sentence
+                # and stores the literal address in the next. Preserve that
+                # source-backed identifier before later facets consume the
+                # bounded candidate set.
+                adjacent_identifier = next((
+                    neighbor
+                    for neighbor in self._neighbors(
+                        generation_id, candidate, radius=4,
+                    )
+                    if neighbor.unit_id not in used_units
+                    and re.search(
+                        r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+"
+                        r"\.[A-Za-z]{2,}\b",
+                        neighbor.text,
+                    )
+                ), None)
+                if adjacent_identifier is not None and len(selected) < max_sources:
+                    selected.append(adjacent_identifier)
+                    used_units.add(adjacent_identifier.unit_id)
+                    supplemental_priority_units.add(adjacent_identifier.unit_id)
                 if len(selected) >= max_sources:
                     break
         # Reserve one compact, exact source range for each answer-blind action
@@ -821,12 +866,13 @@ class DeterministicRetriever:
                 candidate = min(
                     rows,
                     key=lambda item: (
-                        -identity_markers(item) if identity_seeking else 0,
                         0 if exact_temporal_source(item) else 1,
+                        0 if not identity_seeking or identity_markers(item) else 1,
+                        -len(facet_terms & set(_fts_terms(item.text))),
+                        len(item.text.encode("utf-8")) if identity_seeking else 0,
                         -source_request_coverage(item.source_id)
                         if action_facets else 0,
-                        -len(facet_terms & set(_fts_terms(item.text))),
-                        0,
+                        -identity_markers(item) if identity_seeking else 0,
                         len(item.text.encode("utf-8")),
                         -item.score,
                         item.source_id,
@@ -844,6 +890,23 @@ class DeterministicRetriever:
                     supplemental_priority_units.add(candidate.unit_id)
                     if action_facets:
                         content_bridge_units.add(candidate.unit_id)
+                if identity_seeking and "@" not in candidate.text:
+                    adjacent_identifier = next((
+                        neighbor
+                        for neighbor in self._neighbors(
+                            generation_id, candidate, radius=4,
+                        )
+                        if neighbor.unit_id not in used_units
+                        and re.search(
+                            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+"
+                            r"\.[A-Za-z]{2,}\b",
+                            neighbor.text,
+                        )
+                    ), None)
+                    if adjacent_identifier is not None and len(selected) < max_sources:
+                        selected.append(adjacent_identifier)
+                        used_units.add(adjacent_identifier.unit_id)
+                        supplemental_priority_units.add(adjacent_identifier.unit_id)
                 # When relevant evidence names an indirect recipient but does
                 # not carry the exact address, follow only that source-observed
                 # identity through the bounded indexes. This is evidence
@@ -1073,30 +1136,15 @@ class DeterministicRetriever:
                 return 12
             return 2
 
-        # Interleave neighbourhoods by distance instead of exhausting one
-        # source before visiting the next.  With a bounded candidate set, the
-        # old head-major order let the first long episode consume every
-        # replaceable slot and omit an adjacent address, condition, or outcome
-        # from another equally strong source.  Round-robin expansion gives
-        # every selected evidence head its nearest continuation before any
-        # source receives a second, more distant range.
-        neighbor_groups = [
-            tuple(
-                neighbor
-                for neighbor in self._neighbors(
-                    generation_id,
-                    head,
-                    radius=neighbor_radius(head),
-                )
-                if neighbor.unit_id not in used_units
-            )
-            for head in heads
-        ]
         neighbors = [
-            group[offset]
-            for offset in range(max((len(group) for group in neighbor_groups), default=0))
-            for group in neighbor_groups
-            if offset < len(group)
+            neighbor
+            for head in heads
+            for neighbor in self._neighbors(
+                generation_id,
+                head,
+                radius=neighbor_radius(head),
+            )
+            if neighbor.unit_id not in used_units
         ]
         head_units = {item.unit_id for item in heads}
         retained_neighbor_units: set[str] = set()

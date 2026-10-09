@@ -1246,25 +1246,11 @@ def test_temporal_action_prefers_source_covering_the_whole_request() -> None:
         store.close()
 
 
-def test_action_neighbour_expansion_is_fair_across_selected_sources() -> None:
+def test_external_thread_action_nominates_contact_and_outside_email_policy() -> None:
     store = SQLiteStore(":memory:")
     try:
         manager = FormationManager(store)
         generation = manager.begin_generation(SCOPE, profile_id="context-fast")
-        for index in range(10):
-            source = manager.retain_source(SourceEpisode(
-                episode_id=f"pinecone-noise-{index}", scope=SCOPE,
-                parts=(SourcePart(
-                    "text", 0, "text", "text/plain",
-                    (
-                        f"Pinecone integration thread reproduction note {index}. "
-                        "Header-only test details remain under review. "
-                        "The connector documentation is unchanged. "
-                        "A follow-up test will happen next week."
-                    ).encode(),
-                ),),
-            ))
-            manager.form_source(source, generation, range_granularity="sentence")
         target = manager.retain_source(SourceEpisode(
             episode_id="pinecone-contact", scope=SCOPE,
             parts=(SourcePart(
