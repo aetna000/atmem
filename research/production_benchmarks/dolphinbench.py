@@ -288,8 +288,14 @@ def _frozen_development_split(checkout: str | Path) -> tuple[dict, dict[str, set
     return verification, selected
 
 
-def evaluate_development(runner, checkout: str | Path) -> dict:
-    """Run only the frozen 30 tasks through the official execute/grade path.
+def _evaluate_development_selection(
+    runner,
+    checkout: str | Path,
+    *,
+    case_ids: set[str] | None = None,
+    claim: str = "development-30-of-600-not-an-official-score",
+) -> dict:
+    """Run a frozen selection through the official execute/grade path.
 
     This produces development evidence, never an official 600-task package.
     The official release loader, interaction executor, and grader remain the
@@ -308,6 +314,11 @@ def evaluate_development(runner, checkout: str | Path) -> dict:
     if runner.adapter.allowed_test_ids != selected:
         raise RuntimeError("adapter task allowance differs from the frozen development split")
 
+    frozen_ids = set(verification["development_ids"])
+    requested_ids = frozen_ids if case_ids is None else set(case_ids)
+    if not requested_ids or not requested_ids <= frozen_ids:
+        raise RuntimeError("diagnostic cases must be a non-empty frozen development subset")
+
     chosen_specs: dict[str, list[dict]] = {}
     for persona in PERSONAS:
         checkpoint = runner.directory / "checkpoints" / f"{persona}.json"
@@ -319,11 +330,12 @@ def evaluate_development(runner, checkout: str | Path) -> dict:
         specs = [
             spec
             for spec in runner.release[persona]["tests"]
-            if str(spec["id"]).zfill(3) in selected[persona]
+            if f"{persona}:{str(spec['id']).zfill(3)}" in requested_ids
         ]
-        found = {str(spec["id"]).zfill(3) for spec in specs}
-        if found != selected[persona] or len(specs) != 10:
-            raise RuntimeError(f"official release is missing frozen development tasks: {persona}")
+        found = {f"{persona}:{str(spec['id']).zfill(3)}" for spec in specs}
+        expected = {value for value in requested_ids if value.startswith(f"{persona}:")}
+        if found != expected:
+            raise RuntimeError(f"official release is missing requested development tasks: {persona}")
         chosen_specs[persona] = specs
     runner._saved_cost("ingestion")
 
@@ -380,12 +392,12 @@ def evaluate_development(runner, checkout: str | Path) -> dict:
     test_cost = runner._collect_cost("tests")
     result = {
         "format": "atmem-dolphinbench-development-evaluation-v1",
-        "claim": "development-30-of-600-not-an-official-score",
+        "claim": claim,
         "system": runner.adapter.identity()["format"],
         "source_commit": verification["source_commit"],
         "split_sha256": verification["development_profile_sha256"],
-        "development_ids": verification["development_ids"],
-        "tests": 30,
+        "development_ids": sorted(requested_ids),
+        "tests": len(requested_ids),
         "checks": checks,
         "checks_passed": checks_passed,
         "tasks_passed": tasks_passed,
@@ -397,6 +409,23 @@ def evaluate_development(runner, checkout: str | Path) -> dict:
     }
     save_json(runner.directory / "development-evaluation.json", result)
     return result
+
+
+def evaluate_development(runner, checkout: str | Path) -> dict:
+    """Run only the frozen 30 tasks through the official execute/grade path."""
+    return _evaluate_development_selection(runner, checkout)
+
+
+def evaluate_development_diagnostic(
+    runner, checkout: str | Path, *, case_ids: set[str]
+) -> dict:
+    """Run a predeclared diagnostic subset without changing product inputs."""
+    return _evaluate_development_selection(
+        runner,
+        checkout,
+        case_ids=case_ids,
+        claim="bounded-development-diagnostic-not-an-official-score",
+    )
 
 
 def prepare_persona_households(

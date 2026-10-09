@@ -22,6 +22,7 @@ sys.path.append(str(ROOT))
 
 from research.production_benchmarks.dolphinbench import (  # noqa: E402
     evaluate_development,
+    evaluate_development_diagnostic,
     require_completed_provider_response,
     verify_official_checkout,
 )
@@ -134,6 +135,10 @@ def main() -> int:
     parser.add_argument("--confirm-paid-run", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--finalization-gate")
+    parser.add_argument(
+        "--diagnostic-profile",
+        help="predeclared frozen-subset profile for a non-score diagnostic run",
+    )
     parser.add_argument("--checkpoint-root", required=True)
     parser.add_argument(
         "--finalization-manifest",
@@ -150,6 +155,10 @@ def main() -> int:
     checkout = Path(args.checkout).expanduser().resolve()
     config = Path(args.config).expanduser().resolve()
     checkpoint_root = Path(args.checkpoint_root).expanduser().resolve()
+    diagnostic_profile_path = (
+        Path(args.diagnostic_profile).expanduser().resolve()
+        if args.diagnostic_profile else None
+    )
     if not config.is_file():
         raise SystemExit(f"DolphinBench config does not exist: {config}")
     protocols = ROOT / "benchmarks/retrieval_quality/protocols"
@@ -160,6 +169,31 @@ def main() -> int:
     dolphin_profile = json.loads(
         (protocols / "dolphinbench-development-5pct-v1.json").read_text(encoding="utf-8")
     )
+    diagnostic_profile = None
+    diagnostic_case_ids: set[str] | None = None
+    diagnostic_profile_sha256 = None
+    if diagnostic_profile_path is not None:
+        diagnostic_profile = json.loads(
+            diagnostic_profile_path.read_text(encoding="utf-8")
+        )
+        if diagnostic_profile.get("format") != "atmem-dolphinbench-remediation-development-v1":
+            raise SystemExit("DolphinBench diagnostic profile format is invalid")
+        diagnostic_case_ids = {str(value) for value in diagnostic_profile.get("case_ids") or ()}
+        if (
+            len(diagnostic_case_ids) != len(diagnostic_profile.get("case_ids") or ())
+            or not diagnostic_case_ids
+            or not diagnostic_case_ids <= set(dolphin_profile["development_ids"])
+        ):
+            raise SystemExit("DolphinBench diagnostic cases must be a unique frozen subset")
+        source_manifest_path = protocols / str(diagnostic_profile.get("source_manifest") or "")
+        source_manifest_sha256 = "sha256:" + hashlib.sha256(
+            source_manifest_path.read_bytes()
+        ).hexdigest()
+        if source_manifest_sha256 != diagnostic_profile.get("source_manifest_sha256"):
+            raise SystemExit("DolphinBench diagnostic source manifest hash differs")
+        diagnostic_profile_sha256 = "sha256:" + hashlib.sha256(
+            diagnostic_profile_path.read_bytes()
+        ).hexdigest()
     attribution_artifacts = validate_attribution_artifacts(
         protocol,
         protocols_root=protocols,
@@ -198,7 +232,10 @@ def main() -> int:
             "status": "ready",
             "paid_egress_started": False,
             "official_checkout": official_checkout,
-            "development_tasks": len(dolphin_profile["development_ids"]),
+            "development_tasks": len(
+                diagnostic_case_ids or dolphin_profile["development_ids"]
+            ),
+            "diagnostic_profile_sha256": diagnostic_profile_sha256,
             "adapter": adapter,
             "checkpoint_sha256": checkpoint_sha256,
             "installed_product": installed_product,
@@ -276,6 +313,8 @@ def main() -> int:
             )
         }, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
     })
+    if diagnostic_profile_sha256 is not None:
+        identity["diagnostic_profile_sha256"] = diagnostic_profile_sha256
     validate_finalization_gate(
         gate, expected_identity=identity, expected_gate_type="dolphinbench"
     )
@@ -300,7 +339,13 @@ def main() -> int:
         validate_work_directory(Path(instance.directory), configured_output)
         if _tree_digest(checkpoint_root, adapter) != identity["checkpoint_sha256"]:
             raise RuntimeError("DolphinBench checkpoints changed after finalization")
-        result = evaluate_development(instance, checkout)
+        result = (
+            evaluate_development_diagnostic(
+                instance, checkout, case_ids=diagnostic_case_ids
+            )
+            if diagnostic_case_ids is not None
+            else evaluate_development(instance, checkout)
+        )
         print(
             f"Completed {result['tests']} frozen development tasks; "
             "this is not an official 600-task score."

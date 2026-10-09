@@ -1658,6 +1658,16 @@ def test_dolphin_development_runner_selects_before_official_execute(
     assert result["system_failure_count"] == 0
     assert result["claim"] == "development-30-of-600-not-an-official-score"
 
+    diagnostic_ids = {"alex:001", "morgan:002", "riley:003"}
+    diagnostic = dolphinbench.evaluate_development_diagnostic(
+        Runner(), tmp_path / "checkout", case_ids=diagnostic_ids
+    )
+    assert diagnostic["tests"] == 3
+    assert diagnostic["development_ids"] == sorted(diagnostic_ids)
+    assert diagnostic["checks"] == 3
+    assert diagnostic["tasks_passed"] == 3
+    assert diagnostic["claim"] == "bounded-development-diagnostic-not-an-official-score"
+
     class FailureRunner(Runner):
         directory = tmp_path / "failure"
 
