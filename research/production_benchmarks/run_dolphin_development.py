@@ -90,6 +90,51 @@ def _installed_artifact_sha256() -> str:
     return str(installed_atmem_identity()["artifact_sha256"])
 
 
+def _pinned_openai_judge_identity(llm_judge, protocol: dict) -> dict:
+    """Fail before paid execution unless the declared direct judge is active."""
+    expected = dict(protocol["models"]["longmemeval_judge"])
+    endpoint = "https://api.openai.com/v1/chat/completions"
+    observed = {
+        "backend": llm_judge.BACKEND,
+        "model": llm_judge.OPENAI_DEFAULT_MODEL,
+        "endpoint": llm_judge.OPENAI_DEFAULT_ENDPOINT,
+        "api_key_env": llm_judge.OPENAI_API_KEY_ENV,
+        "reasoning_effort": llm_judge.JUDGE_REASONING_EFFORT,
+        "maximum_tokens": llm_judge.DEFAULT_MAX_TOKENS,
+        "timeout_seconds": llm_judge.PER_CRITERION_TIMEOUT,
+        "maximum_retries": llm_judge.JUDGE_MAX_RETRIES,
+    }
+    required = {
+        "backend": "openai",
+        "model": expected["model"],
+        "endpoint": endpoint,
+        "api_key_env": "OPENAI_API_KEY",
+        "reasoning_effort": expected["reasoning_effort"],
+        "maximum_tokens": int(expected["max_completion_tokens"]),
+        "timeout_seconds": int(expected["timeout_seconds"]),
+        "maximum_retries": int(expected["max_retries"]),
+    }
+    if observed != required:
+        raise RuntimeError(
+            "DolphinBench judge runtime differs from the pinned direct OpenAI "
+            f"route: observed={observed!r}"
+        )
+    if not os.environ.get("OPENAI_API_KEY", "").strip():
+        raise RuntimeError("DolphinBench direct OpenAI judge key is missing")
+    return {
+        **observed,
+        "provider": expected["provider"],
+        "revision": expected["revision"],
+        "parallelism": llm_judge.PER_TEST_PARALLELISM,
+        "retry_base_seconds": llm_judge.JUDGE_RETRY_BASE_S,
+        "retry_max_seconds": llm_judge.JUDGE_RETRY_MAX_S,
+        "endpoint_sha256": "sha256:" + hashlib.sha256(endpoint.encode()).hexdigest(),
+        "system_prompt_sha256": "sha256:" + hashlib.sha256(
+            llm_judge.JUDGE_SYSTEM_PROMPT.encode("utf-8")
+        ).hexdigest(),
+    }
+
+
 def _tree_digest(root: Path, adapter: str | None = None) -> str:
     if not root.is_dir():
         raise RuntimeError(f"DolphinBench checkpoint root does not exist: {root}")
@@ -201,6 +246,10 @@ def main() -> int:
         dolphin_case_ids=dolphin_profile["development_ids"],
     )
     official_checkout = verify_official_checkout(checkout, dolphin_profile)
+    if str(checkout) not in sys.path:
+        sys.path.insert(0, str(checkout))
+    from graders import llm_judge
+    grader_identity = _pinned_openai_judge_identity(llm_judge, protocol)
     configuration = yaml.safe_load(config.read_text(encoding="utf-8"))
     if not isinstance(configuration, dict):
         raise SystemExit("DolphinBench config must be a YAML object")
@@ -267,29 +316,7 @@ def main() -> int:
     authorization_id = os.environ.get("ATMEM_COST_AUTHORIZATION_ID", "").strip()
     if not authorization_id:
         raise SystemExit("DolphinBench requires ATMEM_COST_AUTHORIZATION_ID")
-    if str(checkout) not in sys.path:
-        sys.path.insert(0, str(checkout))
-    from graders import llm_judge
     from harness import runner as official_runner
-
-    grader_identity = {
-        "backend": llm_judge.BACKEND,
-        "deployment": llm_judge.AZURE_DEPLOYMENT,
-        "api_version": llm_judge.AZURE_API_VERSION,
-        "reasoning_effort": llm_judge.JUDGE_REASONING_EFFORT,
-        "maximum_tokens": llm_judge.DEFAULT_MAX_TOKENS,
-        "timeout_seconds": llm_judge.PER_CRITERION_TIMEOUT,
-        "maximum_retries": llm_judge.JUDGE_MAX_RETRIES,
-        "retry_base_seconds": llm_judge.JUDGE_RETRY_BASE_S,
-        "retry_max_seconds": llm_judge.JUDGE_RETRY_MAX_S,
-        "parallelism": llm_judge.PER_TEST_PARALLELISM,
-        "endpoint_sha256": "sha256:" + hashlib.sha256(
-            llm_judge.AZURE_ENDPOINT.encode("utf-8")
-        ).hexdigest(),
-        "system_prompt_sha256": "sha256:" + hashlib.sha256(
-            llm_judge.JUDGE_SYSTEM_PROMPT.encode("utf-8")
-        ).hexdigest(),
-    }
     identity = dict(manifest.get("identity") or {})
     identity.update({
         "gate_type": "dolphinbench",

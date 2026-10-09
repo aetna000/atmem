@@ -36,6 +36,19 @@ def test_paid_entrypoints_preserve_installed_product_precedence() -> None:
         assert "sys.path.insert(0, str(ROOT))" not in source
 
 
+def test_dolphin_development_runner_pins_direct_openai_judge() -> None:
+    source = (
+        ROOT / "research/production_benchmarks/run_dolphin_development.py"
+    ).read_text(encoding="utf-8")
+    assert "_pinned_openai_judge_identity" in source
+    assert '"backend": "openai"' in source
+    assert '"api_key_env": "OPENAI_API_KEY"' in source
+    assert '"https://api.openai.com/v1/chat/completions"' in source
+    assert source.index("grader_identity = _pinned_openai_judge_identity") < (
+        source.index("if args.preflight_only:")
+    )
+
+
 def test_dolphin_work_output_is_bound_separately_from_checkpoint(tmp_path: Path) -> None:
     from research.production_benchmarks.run_dolphin_development import (
         validate_work_directory,
