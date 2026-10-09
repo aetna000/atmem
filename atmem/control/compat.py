@@ -17,6 +17,10 @@ import re
 # and every CLI surface the takeover path calls -- config get, plugins inspect,
 # gateway status/restart/stop, hooks disable -- were checked against a live
 # 2026.9.2 install.
+# 2026.9.9 verification: the declaration moved to an AsyncPluginHook map and
+# added an optional input-commit guard. The parser fixture and full bridge
+# type, build and behavior suites pin the reviewed surface; the governed
+# identity fields and fail-closed absence contract are unchanged.
 TESTED_OPENCLAW_VERSIONS = (
     "2026.7.1-2",
     "2026.8.1",
@@ -25,6 +29,7 @@ TESTED_OPENCLAW_VERSIONS = (
     "2026.9.4",
     "2026.9.5",
     "2026.9.6",
+    "2026.9.9",
 )
 
 _VERSION_RE = re.compile(r"(?<!\d)(\d{4})\.(\d+)\.(\d+)(?:-(\d+))?(?!\d)")
