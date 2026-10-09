@@ -442,6 +442,33 @@ answer/action scoring.
   positive control and reject always-blocking gates
   (`research/production_benchmarks/run_dolphin_development.py`)
   (FR-039–FR-043, SC-005, SC-019–SC-020).
+  The first complete matched run retained all 30 tasks with zero system
+  failures: AtMem 2/30 and 15/97 checks; Mem0 OSS 3/30 and 16/97 checks.
+  Removal controls were 30/30; paired removal/restored positive controls were
+  28/30 because restored evidence remained over-blocked for `morgan:063` and
+  `morgan:138`. This is valid development evidence, not a passing target and
+  not an official score. T046 remains open until reviewed requirement-stage
+  ledgers are complete and the post-remediation run is retained.
+- [ ] [T046A] Freeze the six-case Dolphin remediation subset
+  (`morgan:063`, `morgan:138`, `alex:082`, `morgan:103`, `alex:026`,
+  `riley:126`) and add evaluator-blind root-cause reporting plus synthetic
+  no-model contracts for represented action facts, obligation coverage,
+  restored-gate opening and passing-action non-regression
+  (`benchmarks/retrieval_quality/protocols/`,
+  `research/production_benchmarks/`, `tests/`) (FR-054, SC-024).
+- [ ] [T046B] Correct the earliest generic formation, retrieval or packing
+  defects evidenced by T046A without benchmark-specific query rules; require
+  6/6 restored gates open, 6/6 removal blocks remain named/fail-closed, both
+  prior fully passing tasks remain passing, and no-model/product contract tests
+  pass before paid scoring (`atmem/context_engine/`,
+  `research/production_benchmarks/`) (FR-014–FR-016, FR-043, FR-054, SC-024).
+- [ ] [T046C] Rebuild fresh isolated AtMem and Mem0 persona checkpoints and run
+  the unchanged matched 30-task Dolphin protocol once; retain all 30 tasks and
+  97 checks, zero system failures, costs, tool traces, removal/positive
+  controls and the pre-change table. Make no superiority claim unless AtMem
+  exceeds Mem0 on both task and check totals
+  (`research/production_benchmarks/run_dolphin_matched.py`,
+  `benchmarks/retrieval_quality/reports/`) (FR-038–FR-043, FR-054, SC-024).
 - [ ] [T047] Freeze the selected candidate only if T045/T046 targets pass; repeat
   the chosen development arm once to reject a non-reproducible peak. Otherwise
   return to the earliest attributed failing stage, not prompt/weight thrashing.
@@ -457,7 +484,7 @@ answer/action scoring.
 
 ## Phase 10 — Release decision and documentation
 
-- [ ] [T050] Validate SC-001–SC-023 from a signed/checksummed qualification index;
+- [ ] [T050] Validate SC-001–SC-024 from a signed/checksummed qualification index;
   missing evidence is fail/invalid, never skipped (FR-029–FR-032).
 - [ ] [T051] Update product, CLI/MCP, dashboard, storage, migration, benchmark and
   limitation documentation plus `docs/release-roadmap.md`; keep 2.3.8 Hermes,

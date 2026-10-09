@@ -82,14 +82,14 @@ def _transition_target_match(text: str, query: str) -> bool:
     escaped = re.escape(after)
     return bool(
         re.search(
-            rf"{escaped}(?:(?!checked|selected).){{0,96}}"
+            rf"{escaped}(?:(?!checked|selected)[^;\n]){{0,96}}"
             rf"(?:checked|selected)\s*[=:]\s*['\"]?true",
             text,
             re.IGNORECASE | re.DOTALL,
         )
         or re.search(
             rf"(?:checked|selected)\s*[=:]\s*['\"]?true"
-            rf"(?:(?!checked|selected).){{0,96}}{escaped}",
+            rf"(?:(?!checked|selected)[^;\n]){{0,96}}{escaped}",
             text,
             re.IGNORECASE | re.DOTALL,
         )
@@ -552,8 +552,20 @@ class DeterministicRetriever:
             def grounded(item: RetrievedCandidate) -> bool:
                 overlap = need_terms & set(_fts_terms(item.text))
                 if obligation.kind == "before_action_after":
-                    return _transition_answer_match(
-                        item.text, obligation.relation_or_action or query
+                    transition_query = obligation.relation_or_action or query
+                    if _transition_values(transition_query) is not None:
+                        return _transition_answer_match(item.text, transition_query)
+                    # "Before" also expresses an action prerequisite or
+                    # ordering rule (for example, obtain approval before HR
+                    # schedules a final loop). Such needs have no from/to
+                    # state pair, so requiring transition-state markup makes
+                    # them impossible to satisfy even when exact source
+                    # evidence is present. Keep them source-grounded using the
+                    # same conservative overlap threshold as ordinary facts;
+                    # similarity alone still cannot satisfy the obligation.
+                    return bool(overlap) and (
+                        len(overlap) >= 2
+                        or len(overlap) / max(1, len(need_terms)) >= 0.20
                     )
                 if obligation.kind == "comparison_side":
                     return bool(

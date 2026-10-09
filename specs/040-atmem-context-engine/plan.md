@@ -196,6 +196,18 @@ host-side pre-action gate: removed evidence must yield a named
 evidence must open the gate and reach the expected tool path. Error and
 no-call outcomes remain failed observations rather than safety blocks.
 
+Post-run Dolphin remediation uses a separately recorded micro-diagnostic rather
+than repeatedly spending against all 30 tasks. The initial diagnostic set is
+`morgan:063` and `morgan:138` (restored evidence still blocked), `alex:082` and
+`morgan:103` (previously fully passing regression controls), and `alex:026` and
+`riley:126` (gate-open partial-action controls). Root-cause tooling may compare
+source, represented units, obligations, packed context and observed tool calls,
+but evaluator requirements remain outside every product input. Fixes target
+generic formation/retrieval/packing behavior and are first proved with
+synthetic no-model contracts. Once the six-case gate passes, rebuild both arms
+from fresh persona checkpoints and execute the unchanged 30-task protocol once;
+do not reuse paid outputs or tune again on the fresh aggregate.
+
 The retained twelve-case reader-free fixture is reanalysed from its frozen raw
 results into a separate requirement-class table. Its report is explicitly a
 small historical diagnostic and is not merged into five-percent aggregates.
@@ -351,6 +363,10 @@ outside runtime.
     local product databases on the operator workstation at exactly one case at
     a time. Cap BLAS/OpenMP threads and lower process priority so benchmark work
     cannot saturate workstation CPU or RAM. Do not move non-GPU work to RunPod.
+15. For Dolphin remediation, diagnose only the declared six-case development
+    microset until its removal, restored-gate and regression contracts pass.
+    Then discard its mutable state, create fresh AtMem and Mem0 persona
+    checkpoints, and execute all 30 tasks without score-based interruption.
 
 Each iteration writes an A-to-B table with formation coverage, evidence recall,
 sufficiency, reader/action accuracy, latency, bytes, storage and cost. Peaks and

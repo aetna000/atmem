@@ -564,6 +564,22 @@ read-path result, explicit verification result and exact detection point.
   into finalization evidence.
   A score below target MUST NOT interrupt the run; only a defect or failure
   that invalidates completeness, integrity or comparability may do so.
+- **FR-054 — Bounded Dolphin post-run iteration**: After a complete matched
+  Dolphin development run, remediation MUST begin from a frozen diagnostic
+  subset declared from observed failure classes, not from hidden answers or
+  grader feedback injected into product state. The first subset MUST contain
+  `morgan:063` and `morgan:138`, which failed restored-evidence positive
+  controls, plus at least one previously passing task and one gate-open partial
+  task as regression controls. Iteration MAY inspect evaluator evidence only in
+  evaluation and root-cause tooling; product formation, query planning,
+  retrieval, packing and Hermes inputs MUST remain evaluator-blind. A change
+  advances only when it fixes a generic source-grounded obligation class,
+  preserves 30/30 removal blocking, opens every restored gate in the subset,
+  preserves the passing controls, and passes no-model contract tests. After
+  selection, the complete AtMem and Mem0 30-task arms MUST be rebuilt from
+  fresh isolated checkpoints and run once under the unchanged matched
+  protocol. All failures remain in the denominator and the pre-change 2/30
+  AtMem and 3/30 Mem0 result remains visible.
 
 ### Key Entities
 
@@ -708,6 +724,13 @@ read-path result, explicit verification result and exact detection point.
   LongMemEval-V2, DolphinBench and AGMI row verifies that exact identity before
   execution. Development-checkout rows are labelled diagnostic and excluded
   from beta aggregates.
+- **SC-024 — Dolphin remediation evidence**: The declared diagnostic subset
+  reaches 100% restored-gate opening, retains 100% named fail-closed removal
+  outcomes and does not regress its previously passing task/tool controls. A
+  subsequent fresh 30-task matched run has zero system failures, retains all
+  97 checks, and reports its AtMem result beside both the frozen pre-change
+  2/30, 15/97 result and the freshly rebuilt Mem0 arm. If AtMem does not exceed
+  Mem0 on tasks and checks, 2.3.8 makes no Dolphin superiority claim.
 
 ## Assumptions
 

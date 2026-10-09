@@ -116,6 +116,69 @@ def test_transition_answer_match_requires_value_beside_requested_old_state() -> 
     assert _transition_answer_match(requested_relation, query) is True
 
 
+def test_before_prerequisite_is_grounded_without_inventing_from_to_state() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source = manager.retain_source(SourceEpisode(
+            episode_id="hiring-approval", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"Morgan Chen must approve the leadership hiring sequence before "
+                b"HR schedules the final interview loop.",
+            ),),
+        ))
+        manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Post who should approve the leadership hiring sequence before HR "
+            "schedules the final loop."
+        )
+        plan = DeterministicPlanner().plan(query)
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        decision = decide_sufficiency(plan, result)
+
+        assert plan.obligations[0].kind == "before_action_after"
+        assert decision.status == "sufficient"
+        assert decision.missing_obligation_ids == ()
+        assert any("Morgan Chen" in item.text for item in result.candidates)
+    finally:
+        store.close()
+
+
+def test_explicit_from_to_transition_keeps_strict_post_state_grounding() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("before", "Ubuntu checked='true'; Windows 8 checked='false'."),
+            ("after", "Ubuntu checked='false'; Windows 8 checked='true'."),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = "What changed from Ubuntu to Windows 8?"
+        plan = DeterministicPlanner().plan(query)
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+
+        grounded = [
+            item for item in result.candidates if item.matched_obligation_ids
+        ]
+        assert len(grounded) == 1
+        assert "Windows 8 checked='true'" in grounded[0].text
+    finally:
+        store.close()
+
+
 def test_planner_routes_workflow_action_count_as_ordered_steps() -> None:
     plan = DeterministicPlanner().plan(
         "I am using our shopping admin. I would like to notify a user to reorder "
