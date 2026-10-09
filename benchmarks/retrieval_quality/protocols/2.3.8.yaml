@@ -165,9 +165,9 @@
     "embedding_proxy_sha256": "a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293",
     "judge_proxy_sha256": "1a99cc2d6aa8aef7c0b05949049d2c56ae5e0b367e5f8c5dfb2ef409c2a760db",
     "pilot_manifest": "longmemeval-v2-pilot-v1.json",
-    "pilot_reader_cost_cap_usd": 20.0,
+    "pilot_reader_cost_cap_usd": 40.0,
     "pilot_openai_cost_cap_usd": 10.5,
-    "pilot_total_cost_cap_usd": 30.5,
+    "pilot_total_cost_cap_usd": 50.5,
     "pilot_method_reservations_usd": {
       "no-retrieval": {"reader": 0.0, "openai": 0.09},
       "typed-local": {"reader": 0.0, "openai": 0.09},
