@@ -449,13 +449,16 @@ answer/action scoring.
   `morgan:138`. This is valid development evidence, not a passing target and
   not an official score. T046 remains open until reviewed requirement-stage
   ledgers are complete and the post-remediation run is retained.
-- [ ] [T046A] Freeze the six-case Dolphin remediation subset
+- [x] [T046A] Freeze the six-case Dolphin remediation subset
   (`morgan:063`, `morgan:138`, `alex:082`, `morgan:103`, `alex:026`,
   `riley:126`) and add evaluator-blind root-cause reporting plus synthetic
   no-model contracts for represented action facts, obligation coverage,
   restored-gate opening and passing-action non-regression
   (`benchmarks/retrieval_quality/protocols/`,
   `research/production_benchmarks/`, `tests/`) (FR-054, SC-024).
+  The checksum-bound protocol, retained pre-change tables, evaluator-blind
+  diagnosis and synthetic no-model contracts are recorded in
+  `benchmarks/retrieval_quality/reports/dolphin-remediation-6-20261010.md`.
 - [ ] [T046B] Correct the earliest generic formation, retrieval or packing
   defects evidenced by T046A without benchmark-specific query rules; require
   6/6 restored gates open, 6/6 removal blocks remain named/fail-closed, both

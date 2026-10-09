@@ -710,6 +710,111 @@ def test_planner_keeps_alternative_focus_when_integration_is_misspelled() -> Non
     assert "Outlook calendar user" in plan.pool_queries["raw_state"]
 
 
+def test_planner_adds_answer_blind_identity_and_temporal_facets() -> None:
+    contact = DeterministicPlanner().plan(
+        "Email the vector integration contact for current reproduction details. "
+        "Copy the usual person on the external thread."
+    )
+    assert "vector integration contact" in contact.pool_queries["entity"]
+    assert "external thread" in contact.pool_queries["entity"]
+    assert "external email CC" in contact.pool_queries["entity"]
+
+    role = DeterministicPlanner().plan(
+        "Create the annual operating review, then send our CEO a short DM."
+    )
+    assert "CEO" in role.pool_queries["entity"]
+
+    temporal = DeterministicPlanner().plan(
+        "Did what the January 8, 2026 staged replay authorized match the decision?"
+    )
+    assert "January 8, 2026 staged replay" in temporal.pool_queries["raw_state"]
+
+
+def test_retrieval_reserves_complementary_identity_evidence_for_action_slots() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            (
+                "integration-contact",
+                "The vector integration contact is integrations@vector.example.",
+            ),
+            (
+                "external-copy",
+                "On external email threads, CC Sarah Kim.",
+            ),
+            (
+                "contact-directory",
+                "Sarah Kim can be reached at sarah@example.com.",
+            ),
+            (
+                "noise",
+                "The connector docs contain current reproduction details and examples.",
+            ),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id,
+                scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Email the vector integration contact for current reproduction details. "
+            "Copy the usual person on the external thread."
+        )
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "integrations@vector.example" in combined
+        assert "sarah@example.com" in combined
+    finally:
+        store.close()
+
+
+def test_retrieval_reserves_role_identity_beside_multistep_action_evidence() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("role", "Send a staff note to Tomas Vega. He's the CEO."),
+            (
+                "accountability",
+                "Riley owns eligibility, activation, support load, lifecycle, and support boundaries.",
+            ),
+            (
+                "noise",
+                "The operating review agenda should be concise and link to the current document.",
+            ),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id,
+                scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Create a concise annual operating review agenda around Riley's established "
+            "accountability, then send our CEO a short DM with the link."
+        )
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "Tomas Vega" in combined
+        assert "He's the CEO" in combined
+        assert "eligibility" in combined
+        assert "support load" in combined
+    finally:
+        store.close()
+
+
 def test_single_need_packing_keeps_grounding_head_first_and_bounded() -> None:
     plan = DeterministicPlanner().plan("How many actions remain in this workflow?")
     obligation_id = plan.obligations[0].obligation_id

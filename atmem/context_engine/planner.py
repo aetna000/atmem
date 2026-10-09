@@ -130,7 +130,7 @@ def _entity(value: str) -> str:
     return words[0] if words else "query"
 
 
-def _targeted_facets(query: str) -> tuple[str, ...]:
+def targeted_facets(query: str) -> tuple[str, ...]:
     """Derive answer-blind search facets from explicit alternatives and fields.
 
     These are search nominations, not additional sufficiency obligations. A
@@ -139,6 +139,68 @@ def _targeted_facets(query: str) -> tuple[str, ...]:
     every distractor would incorrectly fail closed.
     """
     values: list[str] = []
+    # Action requests often refer to an identity indirectly ("our CEO", "the
+    # integration contact", or "the usual person on the external thread").
+    # Preserve those compact, answer-blind phrases as independent nominations;
+    # otherwise the surrounding action prose can bury the exact name/address
+    # record in a long history.  These are search facets, never inferred values
+    # or additional sufficiency obligations.
+    for contact in re.finditer(
+        r"\b(?:the|a|an)\s+([A-Za-z0-9_-]+(?:\s+[A-Za-z0-9_-]+){0,3}\s+contact)\b",
+        query,
+        re.IGNORECASE,
+    ):
+        value = " ".join(contact.group(1).split()).strip(" ,.;")
+        if value:
+            values.append(value)
+    for indirect in re.finditer(
+        r"\b(?:usual|default|normal)\s+(?:person|contact|recipient)\s+on\s+"
+        r"(?:the\s+)?([^?.;,\n]{2,64})",
+        query,
+        re.IGNORECASE,
+    ):
+        value = " ".join(indirect.group(1).split()).strip(" ,.;")
+        if value:
+            values.append(value)
+            # Thread/conversation wording and stored email wording are common
+            # host-level paraphrases of the same communication surface. Keep
+            # both as independent lexical nominations without guessing the
+            # recipient or address.
+            email_surface = re.sub(
+                r"\b(?:thread|conversation)\b", "email", value,
+                flags=re.IGNORECASE,
+            )
+            if email_surface != value:
+                values.extend((email_surface, f"{email_surface} CC"))
+    for role in re.finditer(
+        r"\b(?:send|message|email|notify|copy|cc|ask)\s+"
+        r"(?:our|my|the)\s+([A-Za-z][A-Za-z0-9_-]*)\b",
+        query,
+        re.IGNORECASE,
+    ):
+        values.append(role.group(1))
+    for approval in re.finditer(
+        r"\bwho\s+should\s+(?:approve|own|authorize|review)\s+"
+        r"(.+?)(?=\s+before\b|\s+after\b|\s+when\b|[?.;,]|$)",
+        query,
+        re.IGNORECASE,
+    ):
+        value = " ".join(approval.group(1).split()).strip(" ,.;")
+        if value:
+            values.append(value)
+    temporal_subject = re.search(
+        r"\b((?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|"
+        r"jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|"
+        r"nov(?:ember)?|dec(?:ember)?)\s+\d{1,2},?\s+\d{4}"
+        r"(?:\s+[A-Za-z0-9_-]+){1,3}?)(?=\s+(?:authoriz(?:e|ed|es|ing)|"
+        r"allow(?:ed|s|ing)?|open(?:ed|s|ing)?|mean(?:t|s|ing)?|"
+        r"establish(?:ed|es|ing)?|require(?:d|s|ing)?|change(?:d|s|ing)?|"
+        r"show(?:ed|s|ing)?|prov(?:e|ed|es|ing))\b|[?.;,]|$)",
+        query,
+        re.IGNORECASE,
+    )
+    if temporal_subject:
+        values.append(" ".join(temporal_subject.group(1).split()))
     workflow = re.search(
         r"\bcreat(?:e|ing)\s+(?:a\s+|new\s+|a\s+new\s+)?"
         r"([A-Za-z][A-Za-z_-]*)(?:\s+requests?)?\b",
@@ -271,7 +333,7 @@ class DeterministicPlanner:
             tuple(item.relation_or_action or normalized for item in obligations)
         )
         routed_queries = tuple(dict.fromkeys((
-            *_targeted_facets(query), normalized, *obligation_queries,
+            *targeted_facets(query), normalized, *obligation_queries,
         )))
         pools = {
             "raw_state": routed_queries,

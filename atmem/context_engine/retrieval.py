@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from atmem.store.sqlite import SQLiteStore
 
 from .contracts import QueryPlan
+from .planner import targeted_facets
 from .pools import POOL_KINDS, PoolBudget
 
 _STOP = {
@@ -402,13 +403,25 @@ class DeterministicRetriever:
         by_pool_query: dict[tuple[str, str], list[RetrievedCandidate]] = {}
         scanned = 0
         option_comparison_query = "which option" in query.casefold()
+        compact_targeted_facets = set(targeted_facets(query))
+        identity_navigation_reserve = (
+            min(32, max(0, self.budget.total_units // 4))
+            if any(re.search(
+                r"\b(?:contact|recipient|cc|CEO|CFO|COO|CTO|CRO|"
+                r"president|owner|lead|approver)\b",
+                facet,
+                re.IGNORECASE,
+            ) for facet in compact_targeted_facets)
+            else 0
+        )
+        nomination_limit = self.budget.total_units - identity_navigation_reserve
         for pool in POOL_KINDS:
             queries = plan.pool_queries.get(pool) or ()
             if not queries:
                 continue
             merged: dict[str, RetrievedCandidate] = {}
             for pool_query in queries:
-                if scanned >= self.budget.total_units:
+                if scanned >= nomination_limit:
                     break
                 rows = self._pool(
                     generation_id, pool, pool_query, allowed_unit_ids,
@@ -417,7 +430,11 @@ class DeterministicRetriever:
                         if option_comparison_query
                         and pool_query != query
                         and len(_fts_terms(pool_query)) <= 6
-                        else None
+                        else (
+                            min(8, self.budget.per_pool)
+                            if pool_query in compact_targeted_facets
+                            else None
+                        )
                     ),
                 )
                 by_pool_query[(pool, pool_query)] = rows
@@ -430,7 +447,7 @@ class DeterministicRetriever:
                 merged.values(),
                 key=lambda item: (-item.score, item.source_id, item.unit_id),
             )
-            if scanned >= self.budget.total_units:
+            if scanned >= nomination_limit:
                 break
         selected: list[RetrievedCandidate] = []
         used_units: set[str] = set()
@@ -609,6 +626,176 @@ class DeterministicRetriever:
             used_sources.add(candidate.source_id)
             if len(selected) >= max_sources:
                 break
+        # Reserve one compact, exact source range for each answer-blind action
+        # facet (contact, recipient, role, approver, temporal subject, and
+        # explicit option field) before general supplemental evidence.  A long
+        # action request can otherwise satisfy its broad obligation with a
+        # topical paragraph while omitting the exact address/name needed to
+        # execute it.  Facets come only from the request; no answer or evaluator
+        # annotation enters this path.
+        if len(selected) < max_sources:
+            for facet in targeted_facets(query):
+                facet_terms = set(_fts_terms(facet))
+                if not facet_terms:
+                    continue
+                rows = [
+                    item
+                    for pool in ("entity", "fact", "rule", "raw_state")
+                    for item in by_pool_query.get((pool, facet), ())
+                ]
+                if not rows:
+                    continue
+
+                def identity_markers(item: RetrievedCandidate) -> int:
+                    return (
+                        len(re.findall(
+                            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
+                            item.text,
+                        ))
+                        + len(re.findall(r"#[A-Za-z0-9_-]+", item.text))
+                        + len(re.findall(
+                            r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b", item.text
+                        ))
+                        + 5 * len(re.findall(
+                            r"\b[A-Z][\w'-]+(?:\s+[A-Z][\w'-]+)+\s+is\s+"
+                            r"(?:the\s+)?(?:CEO|CFO|COO|CTO|CRO|president|owner|lead)\b",
+                            item.text,
+                            re.IGNORECASE,
+                        ))
+                        + 5 * len(re.findall(
+                            r"\b(?:he|she|they)\s*(?:'s|is)\s+(?:the\s+)?"
+                            r"(?:CEO|CFO|COO|CTO|CRO|president|owner|lead)\b",
+                            item.text,
+                            re.IGNORECASE,
+                        ))
+                    )
+
+                identity_seeking = bool(re.search(
+                    r"\b(?:contact|recipient|cc|CEO|CFO|COO|CTO|CRO|"
+                    r"president|owner|lead|approver)\b",
+                    facet,
+                    re.IGNORECASE,
+                ))
+                candidate = min(
+                    rows,
+                    key=lambda item: (
+                        -identity_markers(item) if identity_seeking else 0,
+                        -len(facet_terms & set(_fts_terms(item.text))),
+                        -identity_markers(item) if not identity_seeking else 0,
+                        len(item.text.encode("utf-8")),
+                        -item.score,
+                        item.source_id,
+                        item.unit_id,
+                    ),
+                )
+                if candidate.unit_id not in used_units:
+                    selected.append(candidate)
+                    used_units.add(candidate.unit_id)
+                    used_sources.add(candidate.source_id)
+                    supplemental_priority_units.add(candidate.unit_id)
+                # When relevant evidence names an indirect recipient but does
+                # not carry the exact address, follow only that source-observed
+                # identity through the bounded indexes. This is evidence
+                # navigation, not answer inference: the emitted value must
+                # still occur verbatim in a canonical source range.
+                if identity_seeking and "@" not in candidate.text:
+                    observed_name_values: list[str] = []
+                    for raw_name in re.findall(
+                        r"\b[A-Z][\w'-]+(?:\s+[A-Z][\w'-]+)+\b",
+                        candidate.text,
+                    ):
+                        parts = raw_name.split()
+                        while len(parts) > 2 and parts[0].isupper():
+                            parts.pop(0)
+                        normalized_name = " ".join(parts)
+                        if len(parts) >= 2 and normalized_name not in observed_name_values:
+                            observed_name_values.append(normalized_name)
+                    observed_names = tuple(observed_name_values[:2])
+                    for observed_name in observed_names:
+                        linked_rows: list[RetrievedCandidate] = []
+                        for linked_query in (
+                            f"{observed_name} email",
+                            f"{observed_name} address",
+                            observed_name,
+                        ):
+                            for linked_pool in (
+                                "rule", "entity", "fact", "raw_state"
+                            ):
+                                if scanned >= self.budget.total_units:
+                                    break
+                                rows_for_name = self._pool(
+                                    generation_id,
+                                    linked_pool,
+                                    linked_query,
+                                    allowed_unit_ids,
+                                    result_limit=min(8, self.budget.per_pool),
+                                )
+                                scanned += len(rows_for_name)
+                                linked_rows.extend(rows_for_name)
+                            if any(re.search(
+                                r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+"
+                                r"\.[A-Za-z]{2,}\b",
+                                item.text,
+                            ) for item in linked_rows):
+                                break
+                        linked_identity = next(
+                            (
+                                item for item in sorted(
+                                    linked_rows,
+                                    key=lambda item: (
+                                        len(item.text.encode("utf-8")),
+                                        -item.score,
+                                        item.source_id,
+                                        item.unit_id,
+                                    ),
+                                )
+                                if item.unit_id not in used_units
+                                and observed_name.casefold() in item.text.casefold()
+                                and re.search(
+                                    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+"
+                                    r"\.[A-Za-z]{2,}\b",
+                                    item.text,
+                                )
+                            ),
+                            None,
+                        )
+                        if linked_identity is not None and len(selected) < max_sources:
+                            selected.append(linked_identity)
+                            used_units.add(linked_identity.unit_id)
+                            used_sources.add(linked_identity.source_id)
+                            supplemental_priority_units.add(linked_identity.unit_id)
+                            break
+                # Clause atomization can place the named subject immediately
+                # beside a pronoun-based role relation ("cc Ada. She's the
+                # CEO."). Preserve that bounded source neighbour as part of
+                # the same identity evidence instead of presenting a nameless
+                # role assertion to the agent.
+                if re.search(
+                    r"\b(?:he|she|they)\s*(?:'s|is)\s+(?:the\s+)?"
+                    r"(?:CEO|CFO|COO|CTO|CRO|president|owner|lead)\b",
+                    candidate.text,
+                    re.IGNORECASE,
+                ):
+                    named_neighbor = next(
+                        (
+                            item for item in self._neighbors(
+                                generation_id, candidate, radius=1
+                            )
+                            if item.unit_id not in used_units
+                            and re.search(
+                                r"\b[A-Z][\w'-]+(?:\s+[A-Z][\w'-]+)+\b",
+                                item.text,
+                            )
+                        ),
+                        None,
+                    )
+                    if named_neighbor is not None and len(selected) < max_sources:
+                        selected.append(named_neighbor)
+                        used_units.add(named_neighbor.unit_id)
+                        used_sources.add(named_neighbor.source_id)
+                        supplemental_priority_units.add(named_neighbor.unit_id)
+                if len(selected) >= max_sources:
+                    break
         # Multiple-choice field questions need one precise nomination per
         # explicit field, not merely the ranges that happen to mention the
         # largest number of option words. Keep those nominations constrained
@@ -712,7 +899,20 @@ class DeterministicRetriever:
             if len(selected) < max_sources:
                 selected.append(neighbor)
             elif selected:
-                displaced = selected.pop()
+                protected_units = {
+                    item.unit_id for item in selected
+                    if item.matched_obligation_ids
+                } | supplemental_priority_units
+                replace_at = next(
+                    (
+                        index for index in range(len(selected) - 1, -1, -1)
+                        if selected[index].unit_id not in protected_units
+                    ),
+                    None,
+                )
+                if replace_at is None:
+                    continue
+                displaced = selected.pop(replace_at)
                 used_units.discard(displaced.unit_id)
                 selected.append(neighbor)
             used_units.add(neighbor.unit_id)
