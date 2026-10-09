@@ -518,9 +518,23 @@ def test_longmem_mac_controller_runs_exactly_one_case_at_a_time() -> None:
     assert "max(1, len(llm_work))" not in source
     assert "ThreadPoolExecutor(max_workers=controller_case_concurrency)" in source
     assert "run_batch(non_llm_work, max_workers=1" in source
+    assert "executor.submit(run_case, item, gated=False)" in source
+    assert "_wait_for_judge_gate(llm_futures" not in source
     assert source.index(
         'billing = dict(requirements["reader_runtime_billing"])'
     ) < source.index('"gpu_reader_hardware": billing["hardware_id"]')
+
+
+def test_longmem_runner_resumes_only_validated_checkpoint_pairs() -> None:
+    source = (
+        ROOT / "research/production_benchmarks/run_longmem_pilot.py"
+    ).read_text(encoding="utf-8")
+    assert 'parser.add_argument(\n        "--resume-progress"' in source
+    assert 'progress["cases"] = cases' in source
+    assert "allowed_pairs - seen_pairs" in source
+    assert "resume progress contains an invalid or duplicate case" in source
+    assert "resume case lacks its official scored artifact" in source
+    assert 'output_root / "interrupted"' in source
 
 
 def test_longmem_controller_can_retain_shared_remote_worker() -> None:
