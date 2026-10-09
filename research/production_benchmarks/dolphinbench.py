@@ -418,6 +418,16 @@ def prepare_persona_households(
     ]
 
 
+def _blocked_interaction_settings(model: str) -> dict[str, str]:
+    """Return only fields accepted by Dolphin's public settings contract.
+
+    The pre-action decision remains in the durable gate receipt and attempt
+    evidence. It is not a model-generation setting and must not leak into the
+    official submission settings object.
+    """
+    return {"model": model}
+
+
 class AtMemDolphinAdapter:
     provider_name = "atmem"
     def __init__(self, options: dict, work_dir: Path) -> None:
@@ -551,7 +561,7 @@ class AtMemDolphinAdapter:
                 self._write_gate_receipt(request, gate)
                 if gate["outcome"] == "blocked_missing_requirement":
                     result = InteractionRecord(
-                        settings={"model": self.model, "model_invoked": False},
+                        settings=_blocked_interaction_settings(self.model),
                         messages=[
                             {"role": "user", "content": request.dated_message},
                             {

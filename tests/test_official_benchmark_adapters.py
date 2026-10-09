@@ -1518,6 +1518,30 @@ def test_dolphin_mem0_recall_uses_text_without_atmem_package_contract() -> None:
     }
 
 
+def test_dolphin_blocked_settings_keep_gate_metadata_out_of_model_contract() -> None:
+    from research.production_benchmarks.dolphinbench import (
+        _blocked_interaction_settings,
+    )
+
+    assert _blocked_interaction_settings("fixture-model") == {
+        "model": "fixture-model",
+    }
+
+
+def test_dolphin_matched_runner_reads_each_configured_output(tmp_path: Path) -> None:
+    from research.production_benchmarks.run_dolphin_matched import (
+        _evaluation_receipt,
+    )
+
+    config = tmp_path / "configs" / "atmem.yaml"
+    config.parent.mkdir()
+    config.write_text("output: ../runs/atmem\n", encoding="utf-8")
+
+    assert _evaluation_receipt(config) == (
+        tmp_path / "runs" / "atmem" / "development-evaluation.json"
+    ).resolve()
+
+
 def test_dolphin_development_runner_selects_before_official_execute(
     tmp_path: Path, monkeypatch
 ) -> None:
