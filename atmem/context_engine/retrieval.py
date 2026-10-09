@@ -675,13 +675,36 @@ class DeterministicRetriever:
         # policy note from crowding out one compact episode that contains the
         # requested facts. No evaluator requirement or answer enters ranking.
         action_facets = _action_content_facets(query)
+        request_terms = set(_fts_terms(query))
+        source_request_coverage_cache: dict[str, int] = {}
+        source_prefix_cache: dict[str, str] = {}
+
+        def source_request_coverage(source_id: str) -> int:
+            cached = source_request_coverage_cache.get(source_id)
+            if cached is not None:
+                return cached
+            parts = self.store._conn.execute(
+                """SELECT content_bytes FROM context_source_parts
+                   WHERE source_id=? ORDER BY ordinal""",
+                (source_id,),
+            ).fetchall()
+            source_terms = set(_fts_terms(b"\n".join(
+                bytes(row["content_bytes"]) for row in parts
+            ).decode("utf-8", errors="replace")))
+            if parts:
+                source_prefix_cache[source_id] = bytes(
+                    parts[0]["content_bytes"]
+                ).decode("utf-8", errors="replace")[:32]
+            covered = len(request_terms & source_terms)
+            source_request_coverage_cache[source_id] = covered
+            return covered
+
         if action_facets and len(selected) < max_sources:
             source_rows: dict[str, list[RetrievedCandidate]] = {}
             for facet in action_facets:
                 for pool in ("entity", "fact", "rule", "raw_state"):
                     for item in by_pool_query.get((pool, facet), ()):
                         source_rows.setdefault(item.source_id, []).append(item)
-            query_terms = set(_fts_terms(query))
             ranked_bridges: list[
                 tuple[float, int, int, float, str, RetrievedCandidate]
             ] = []
@@ -695,13 +718,13 @@ class DeterministicRetriever:
                 source_terms = set(_fts_terms(source_bytes.decode(
                     "utf-8", errors="replace"
                 )))
-                covered = len(query_terms & source_terms)
+                covered = len(request_terms & source_terms)
                 if covered < 2:
                     continue
                 head = min(
                     rows,
                     key=lambda item: (
-                        -len(query_terms & set(_fts_terms(item.text))),
+                        -len(request_terms & set(_fts_terms(item.text))),
                         len(item.text.encode("utf-8")),
                         -item.score,
                         item.unit_id,
@@ -716,10 +739,17 @@ class DeterministicRetriever:
                 candidate = self._source_query_head(
                     generation_id, candidate, query
                 )
-                if (
-                    candidate.unit_id in used_units
-                    or candidate.source_id in used_sources
-                ):
+                if candidate.source_id in used_sources:
+                    existing = next(
+                        item for item in selected
+                        if item.source_id == candidate.source_id
+                    )
+                    supplemental_priority_units.add(existing.unit_id)
+                    content_bridge_units.add(existing.unit_id)
+                    continue
+                if candidate.unit_id in used_units:
+                    supplemental_priority_units.add(candidate.unit_id)
+                    content_bridge_units.add(candidate.unit_id)
                     continue
                 selected.append(candidate)
                 used_units.add(candidate.unit_id)
@@ -778,10 +808,23 @@ class DeterministicRetriever:
                     facet,
                     re.IGNORECASE,
                 ))
+                temporal_facet = re.match(r"(\d{4}-\d{2}(?:-\d{2})?)", facet)
+
+                def exact_temporal_source(item: RetrievedCandidate) -> bool:
+                    if temporal_facet is None:
+                        return False
+                    source_request_coverage(item.source_id)
+                    return source_prefix_cache.get(item.source_id, "").startswith(
+                        f"[{temporal_facet.group(1)}"
+                    )
+
                 candidate = min(
                     rows,
                     key=lambda item: (
                         -identity_markers(item) if identity_seeking else 0,
+                        0 if exact_temporal_source(item) else 1,
+                        -source_request_coverage(item.source_id)
+                        if action_facets else 0,
                         -len(facet_terms & set(_fts_terms(item.text))),
                         0,
                         len(item.text.encode("utf-8")),
@@ -790,7 +833,7 @@ class DeterministicRetriever:
                         item.unit_id,
                     ),
                 )
-                if facet in action_facets:
+                if action_facets:
                     candidate = self._source_query_head(
                         generation_id, candidate, query
                     )
@@ -799,7 +842,7 @@ class DeterministicRetriever:
                     used_units.add(candidate.unit_id)
                     used_sources.add(candidate.source_id)
                     supplemental_priority_units.add(candidate.unit_id)
-                    if facet in action_facets:
+                    if action_facets:
                         content_bridge_units.add(candidate.unit_id)
                 # When relevant evidence names an indirect recipient but does
                 # not carry the exact address, follow only that source-observed
@@ -980,18 +1023,18 @@ class DeterministicRetriever:
         # Neighbours remain obligation-neutral: adjacency can improve evidence
         # coverage but cannot by itself satisfy a requirement.
         head_limit = 8 if action_facets else 4
-        heads = tuple(selected[: max(1, min(head_limit, len(selected)))])
         if action_facets:
-            request_terms = set(_fts_terms(query))
             heads = tuple(sorted(
-                heads,
+                selected,
                 key=lambda item: (
                     item.unit_id not in content_bridge_units,
                     -len(request_terms & set(_fts_terms(item.text))),
                     -item.score,
                     item.unit_id,
                 ),
-            ))
+            )[: max(1, min(head_limit, len(selected)))])
+        else:
+            heads = tuple(selected[: max(1, min(head_limit, len(selected)))])
         ordered_step_ids = {
             item.obligation_id for item in plan.obligations
             if item.kind == "ordered_steps"
@@ -1050,7 +1093,9 @@ class DeterministicRetriever:
                     item.unit_id for item in selected
                     if item.matched_obligation_ids
                 } | (
-                    supplemental_priority_units - content_bridge_units
+                    set()
+                    if action_facets
+                    else supplemental_priority_units - content_bridge_units
                 ) | head_units | retained_neighbor_units
                 replace_at = next(
                     (

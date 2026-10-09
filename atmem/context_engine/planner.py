@@ -255,12 +255,13 @@ def targeted_facets(query: str) -> tuple[str, ...]:
     has evidence for the matching alternative only; requiring evidence for
     every distractor would incorrectly fail closed.
     """
+    priority_values: list[str] = []
     values: list[str] = list(_action_content_facets(query))
     identifiers = [
         " ".join(value.split())
         for value in re.findall(r"`([^`]{2,96})`", query)
     ]
-    values.extend(identifiers)
+    priority_values.extend(identifiers)
     # Canonical episodes prefix their exact observation time in ISO form.
     # Nominate an equivalent ISO day/month from the user's explicit temporal
     # wording, and combine it with an explicit identifier or proper name. This
@@ -289,10 +290,10 @@ def targeted_facets(query: str) -> tuple[str, ...]:
             temporal_iso = f'{temporal_match.group("year")}-{month:02d}'
             if full_date is not None:
                 temporal_iso += f'-{int(full_date.group("day")):02d}'
-            values.append(temporal_iso)
+            priority_values.append(temporal_iso)
     if temporal_iso:
         if identifiers:
-            values.append(f"{temporal_iso} {identifiers[0]}")
+            priority_values.insert(0, f"{temporal_iso} {identifiers[0]}")
         proper_query = re.sub(
             r"^\s*(?:\[\d{4}-\d{2}-\d{2}\]\s*)?(?:please\s+)?"
             r"(?:create|email|send|message|post|notify|ask|update)\s+",
@@ -306,7 +307,7 @@ def targeted_facets(query: str) -> tuple[str, ...]:
         )
         if proper_name:
             name = re.sub(r"['’]s$", "", proper_name.group(1))
-            values.append(f"{temporal_iso} {name}")
+            priority_values.insert(0, f"{temporal_iso} {name}")
     # Action requests often refer to an identity indirectly ("our CEO", "the
     # integration contact", or "the usual person on the external thread").
     # Preserve those compact, answer-blind phrases as independent nominations;
@@ -466,7 +467,7 @@ def targeted_facets(query: str) -> tuple[str, ...]:
         # structural range.
         values.extend(unique_fields)
         values.extend(f"{prefix} {field}".strip() for field in unique_fields)
-    return tuple(dict.fromkeys(values))
+    return tuple(dict.fromkeys((*priority_values, *values)))
 
 
 class DeterministicPlanner:

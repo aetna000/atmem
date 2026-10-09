@@ -1163,3 +1163,84 @@ def test_action_content_facets_nominate_compact_exact_source_episode() -> None:
         assert "proof of a customer-facing product story" in combined
     finally:
         store.close()
+
+
+def test_late_temporal_action_head_expands_its_complete_source_episode() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="march-call", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"[2023-03-22T11:00:00-07:00] I spoke with Greg Shipman at Acme. "
+                b"He owned the ETA misses directly. "
+                b"He said Q2 delivery would be tighter on their side. "
+                b"I placed about 60%, not 100%, confidence in those assurances.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        for index in range(40):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=f"greg-noise-{index}", scope=SCOPE,
+                parts=(SourcePart(
+                    "text", 0, "text", "text/plain",
+                    f"Greg Shipman Acme CRM follow-up note {index} about later exports.".encode(),
+                ),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Update Greg Shipman's Acme CRM notes with the March 2023 ETA-reset "
+            "call outcome and how much confidence I placed in his assurances."
+        )
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=32,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "owned the ETA misses directly" in combined
+        assert "60%, not 100%" in combined
+    finally:
+        store.close()
+
+
+def test_temporal_action_prefers_source_covering_the_whole_request() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            (
+                "planning",
+                "[2023-04-10T08:30:00-05:00] Ship day for "
+                "lifecycle_onboarding_trigger_v2. Watch dashboards after launch.",
+            ),
+            (
+                "scope",
+                "[2023-04-10T10:00:00-05:00] lifecycle_onboarding_trigger_v2 "
+                "shipped to all mid-segment customers plus growth tier, not starter.",
+            ),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Create a rollout-scope reference for the Apr 10, 2023 shipment of "
+            "`lifecycle_onboarding_trigger_v2`, naming included customer groups "
+            "and the excluded tier."
+        )
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=8,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "plus growth tier, not starter" in combined
+    finally:
+        store.close()
