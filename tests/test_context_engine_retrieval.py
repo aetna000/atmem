@@ -1103,6 +1103,7 @@ def test_action_content_facets_cover_create_update_and_indirect_contacts() -> No
     )
 
     assert "lifecycle_onboarding_trigger_v2" in rollout
+    assert "2023-04-10 lifecycle_onboarding_trigger_v2" in rollout
     assert any("included" in value for value in rollout)
     assert any("excluded" in value for value in rollout)
     assert any("deposit" in value for value in closeout)
@@ -1110,6 +1111,7 @@ def test_action_content_facets_cover_create_update_and_indirect_contacts() -> No
     assert "Pinecone integration contact" in contact
     assert any("reproduction" in value for value in contact)
     assert any("Greg Shipman" in value for value in update)
+    assert "2023-03 Greg Shipman" in update
     assert any("confidence" in value for value in update)
 
 
