@@ -21,6 +21,17 @@ from atmem.retrieve.support import (
 )
 from atmem.retrieve.cache import RetrievalCacheKey, RetrievalDecisionCache, final_reload
 from atmem.retrieve.signals import SIGNAL_REGISTRY_VERSION, SIGNAL_VERSIONS
+from atmem.retrieve.intent import (
+    decompose_information_need,
+    evidence_anchor_queries,
+    plan_retrieval_queries,
+    route_information_need,
+    salient_retrieval_query,
+)
+from atmem.retrieve.profiles import RetrievalProfile, profile_for_need
+from atmem.retrieve.expand import expand_evidence_neighborhood
+from atmem.retrieve.sufficiency import decide_sufficiency
+from atmem.retrieve.assemble import assemble_context_v2
 
 __all__ = [
     "ScoredRecord",
@@ -41,4 +52,14 @@ __all__ = [
     "final_reload",
     "SIGNAL_REGISTRY_VERSION",
     "SIGNAL_VERSIONS",
+    "RetrievalProfile",
+    "decompose_information_need",
+    "evidence_anchor_queries",
+    "plan_retrieval_queries",
+    "route_information_need",
+    "salient_retrieval_query",
+    "profile_for_need",
+    "expand_evidence_neighborhood",
+    "decide_sufficiency",
+    "assemble_context_v2",
 ]

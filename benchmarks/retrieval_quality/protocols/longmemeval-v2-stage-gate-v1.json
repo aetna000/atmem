@@ -1,0 +1,19 @@
+{
+  "claim_class": "matched_progress_checkpoint_diagnostic",
+  "format": "atmem-longmemeval-v2-stage-gate-v1",
+  "parent_profile": "longmemeval-v2-development-5pct-v1.json",
+  "question_count": 6,
+  "question_ids": [
+    "05cce9b3",
+    "07ab3723",
+    "07ffeedf",
+    "19367bc7",
+    "1defc293",
+    "3fd81278"
+  ],
+  "selection_frozen_before_candidate_scoring": true,
+  "continuation_rule": "Report the six-question score as a diagnostic checkpoint and continue the complete run regardless of relative score; stop only for a defect or failure that invalidates completeness or comparability.",
+  "quality_reductions": [
+    "public_case_count_only"
+  ]
+}

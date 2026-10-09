@@ -27,7 +27,7 @@ try:
 
     SERVER_VERSION = _pkg_version("atmem")
 except Exception:  # not installed (e.g. run from a checkout)
-    SERVER_VERSION = "2.3.8b6"
+    SERVER_VERSION = "2.3.8"
 
 _SUBJECT_PROPERTY = {
     "subject_id": {
@@ -131,6 +131,7 @@ class MCPServer:
             "memory_observe": self._tool_observe,
             "memory_recall": self._tool_recall,
             "memory_recall_decision": self._tool_recall_decision,
+            "memory_form_episode": self._tool_form_episode,
             "memory_get_record": self._tool_get_record,
             "memory_get_source": self._tool_get_source,
             "memory_recall_block": self._tool_recall_block,
@@ -292,7 +293,10 @@ class MCPServer:
 
     def _tool_recall_decision(self, arguments: dict[str, Any]) -> Any:
         """Governed host-neutral recall with abstention and final reload."""
-        from atmem.contracts import AuthorityScope, ContextRequest, RecallRequest
+        from atmem.contracts import (
+            AuthorityScope, ContextRequest, ContextRequestV2, RecallRequest,
+            RetrievalBudget,
+        )
         from atmem.retrieve import decide_retrieval
 
         subject = self._subject(arguments)
@@ -309,9 +313,33 @@ class MCPServer:
             candidate_limit=max(1, min(200, int(arguments.get("candidate_limit", 100)))),
             min_score=float(arguments.get("min_score") or 0.0),
             egress_class="none",
+            retrieval_strategy=(
+                "core-rrf-v1" if arguments.get("context_version") == "v2" else "legacy"
+            ),
         )
         candidate_set = self.memory.eligible_candidates(request)
         rows = [candidate.to_dict() for candidate in candidate_set.candidates]
+        if arguments.get("context_version") == "v2":
+            context = self.memory.prepare_context_v2(ContextRequestV2(
+                context_id=f"mcp_context_{uuid.uuid4().hex}",
+                candidate_set_id=candidate_set.candidate_set_id,
+                scope=scope,
+                query=request.query,
+                budget=RetrievalBudget(
+                    context_bytes=max(256, int(arguments.get("budget_bytes", 8192)))
+                ),
+            ))
+            selected = set(context.record_ids)
+            return {
+                "format": "atmem-mcp-recall-decision-v2",
+                "decision": {
+                    "support_class": context.projected_support_class(),
+                    "ranked_record_ids": list(context.record_ids),
+                    "reason_codes": list(context.sufficiency.reason_codes),
+                },
+                "records": [row for row in rows if row["record_id"] in selected],
+                "context": context.to_dict(),
+            }
         decision = decide_retrieval(request.query, rows)
         context = self.memory.prepare_context_v1(
             ContextRequest(
@@ -329,6 +357,45 @@ class MCPServer:
             "records": [row for row in rows if row["record_id"] in selected],
             "context": context.to_dict(),
         }
+
+    def _tool_form_episode(self, arguments: dict[str, Any]) -> Any:
+        """Create governed typed proposals from exact, digest-bound source parts."""
+        from atmem.contracts import AuthorityScope, EpisodeIngestRequest, EpisodePart
+
+        subject = self._subject(arguments)
+        scope = AuthorityScope(
+            subject_id=subject,
+            agent_id=str(arguments.get("agent_id") or "mcp"),
+            workspace_id=str(arguments.get("workspace_id") or f"mcp:{subject}"),
+        )
+        parts = tuple(
+            EpisodePart(
+                part_id=str(row.get("part_id") or ""),
+                ordinal=int(row.get("ordinal")),
+                kind=str(row.get("kind") or "text"),
+                source_type=str(row.get("source_type") or "user_message"),
+                content=row.get("content"),
+                reference_id=row.get("reference_id"),
+                start_offset=row.get("start_offset"),
+                end_offset=row.get("end_offset"),
+                observed_at=row.get("observed_at"),
+                content_sha256=row.get("content_sha256"),
+                reference_sha256=row.get("reference_sha256"),
+            )
+            for row in arguments.get("parts") or ()
+        )
+        return self.memory.form_episode(EpisodeIngestRequest(
+            episode_id=str(arguments.get("episode_id") or ""),
+            idempotency_key=str(arguments.get("idempotency_key") or ""),
+            scope=scope,
+            parts=parts,
+            binding_method="caller_asserted",
+            binding_assurance="caller_asserted",
+            session_id=arguments.get("session_id"),
+            turn_id=arguments.get("turn_id"),
+            host_message_id=arguments.get("host_message_id"),
+            retain_body=bool(arguments.get("retain_body", True)),
+        ))
 
     def _tool_get_record(self, arguments: dict[str, Any]) -> Any:
         subject = self._subject(arguments)
@@ -684,9 +751,55 @@ class MCPServer:
                     "candidate_limit": {"type": "integer", "default": 100},
                     "min_score": {"type": "number", "default": 0.0},
                     "budget_chars": {"type": "integer", "default": 1800},
+                    "context_version": {
+                        "type": "string", "enum": ["v1", "v2"], "default": "v1",
+                        "description": "Use v2 for typed evidence sufficiency and action constraints."
+                    },
+                    "budget_bytes": {"type": "integer", "default": 8192},
                     **_SESSION_PROPERTIES,
                 },
                 required=["query"],
+            ),
+            _tool(
+                "memory_form_episode",
+                "Form source-linked typed memory proposals from exact episode "
+                "parts. AtMem verifies every digest and applies governance; the "
+                "tool does not bypass review, storage protection, scope, or activation.",
+                {
+                    **_SUBJECT_PROPERTY,
+                    "agent_id": {"type": "string", "default": "mcp"},
+                    "workspace_id": {"type": "string"},
+                    "episode_id": {"type": "string"},
+                    "idempotency_key": {"type": "string"},
+                    "parts": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "properties": {
+                                "part_id": {"type": "string"},
+                                "ordinal": {"type": "integer", "minimum": 0},
+                                "kind": {"type": "string", "enum": [
+                                    "text", "state", "action", "tool", "media_reference"
+                                ]},
+                                "source_type": {"type": "string"},
+                                "content": {"type": "string"},
+                                "reference_id": {"type": "string"},
+                                "content_sha256": {"type": "string"},
+                                "reference_sha256": {"type": "string"},
+                                "start_offset": {"type": "integer", "minimum": 0},
+                                "end_offset": {"type": "integer", "minimum": 1},
+                                "observed_at": {"type": "string"},
+                            },
+                            "required": ["part_id", "ordinal", "kind", "source_type"],
+                        },
+                    },
+                    "host_message_id": {"type": "string"},
+                    "retain_body": {"type": "boolean", "default": True},
+                    **_SESSION_PROPERTIES,
+                },
+                required=["episode_id", "idempotency_key", "parts"],
             ),
             _tool(
                 "memory_get_record",

@@ -23,6 +23,7 @@ RECENCY_WEIGHT = 0.10
 _TRUST_SCORES = {
     "trusted_user": 1.0,
     "user_confirmed": 0.9,
+    "host_asserted_observation": 0.7,
 }
 
 # Preserve letters and digits from non-Latin scripts. Underscores remain

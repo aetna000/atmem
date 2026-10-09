@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v2/context-package.json",
+  "type": "object",
+  "required": ["format", "context_id", "scope", "record_ids", "context", "context_sha256", "serializer_version", "generation", "expires_at", "preparation_id", "profile_id", "need", "sufficiency", "source_ids", "budget", "selected_units", "provenance", "excluded_evidence_ids"],
+  "properties": {
+    "format": {"const": "atmem-context-package-v2"}, "context_id": {"type": "string"},
+    "scope": {"$ref": "../v1/scope.json"}, "record_ids": {"type": "array", "items": {"type": "string"}},
+    "context": {"type": "string"}, "context_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "serializer_version": {"type": "string"}, "generation": {"type": "integer", "minimum": 0}, "expires_at": {"type": "string"},
+    "preparation_id": {"type": "string"}, "profile_id": {"type": "string"},
+    "need": {"$ref": "../v1/information-need.json"}, "sufficiency": {"$ref": "../v1/sufficiency-decision.json"},
+    "source_ids": {"type": "array", "items": {"type": "string"}},
+    "budget": {"$ref": "../v1/retrieval-budget.json"},
+    "selected_units": {"type": "array", "items": {"type": "object", "required": ["unit_id", "kind"]}},
+    "provenance": {"type": "array", "items": {"type": "object", "required": ["record_id", "source_id"]}},
+    "excluded_evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "action_constraints": {"type": "array", "items": {"type": "object", "required": ["format", "subject", "applies_when", "source_ids", "validity", "required_action", "prohibited_action", "target", "parameters"]}},
+    "media_references": {"type": "array", "items": {"type": "object", "required": ["reference_id", "adjacent_source_id"]}},
+    "reason_codes": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

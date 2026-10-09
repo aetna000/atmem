@@ -1,0 +1,153 @@
+{
+  "format": "atmem-neutral-minimal-evidence-v1",
+  "frozen_at": "2026-10-01",
+  "purpose": "Reader-free formation and evidence-selection comparison; never leaderboard evidence.",
+  "split_policy": "Cases ending d are development; cases ending h are sealed holdout. Holdout expected fields are evaluator-only.",
+  "normalizer": "research.reference_parity.normalizer:v1",
+  "selection_budget_sources": 2,
+  "global_distractors": [
+    {"id": "d1", "scope": "agent:a", "text": "The cafeteria serves tomato soup on Fridays."},
+    {"id": "d2", "scope": "agent:a", "text": "Nightly backups begin at 02:10 UTC."},
+    {"id": "d3", "scope": "agent:a", "text": "The dashboard theme uses a teal accent colour."},
+    {"id": "d4", "scope": "agent:a", "text": "The mobile client caches thumbnails for seven days."},
+    {"id": "d5", "scope": "agent:a", "text": "Office visitors collect a badge from reception."},
+    {"id": "d6", "scope": "agent:a", "text": "The quarterly planning meeting is held in June."},
+    {"id": "d7", "scope": "agent:a", "text": "A staging database is refreshed every Wednesday."},
+    {"id": "d8", "scope": "agent:a", "text": "The support rota is published in the staff calendar."}
+  ],
+  "cases": [
+    {
+      "id": "exact-fact-d",
+      "split": "development",
+      "category": "exact_fact",
+      "query": "Which port does the local audit service use?",
+      "sources": [{"id": "s1", "scope": "agent:a", "text": "The local audit service listens on port 7412."}],
+      "minimal_evidence": [{"source_id": "s1", "quote": "The local audit service listens on port 7412."}],
+      "expected_status": "sufficient"
+    },
+    {
+      "id": "correction-d",
+      "split": "development",
+      "category": "correction",
+      "query": "What is the current deployment room?",
+      "sources": [
+        {"id": "s1", "scope": "agent:a", "text": "Deployment updates go to room amber."},
+        {"id": "s2", "scope": "agent:a", "text": "Correction: deployment updates now go to room cobalt, replacing amber."}
+      ],
+      "minimal_evidence": [{"source_id": "s2", "quote": "Correction: deployment updates now go to room cobalt, replacing amber."}],
+      "expected_status": "sufficient"
+    },
+    {
+      "id": "comparison-d",
+      "split": "development",
+      "category": "comparison",
+      "query": "Compare the export formats used by North and South.",
+      "sources": [
+        {"id": "s1", "scope": "agent:a", "text": "North exports audit records as JSON Lines."},
+        {"id": "s2", "scope": "agent:a", "text": "South exports audit records as Parquet."}
+      ],
+      "minimal_evidence": [
+        {"source_id": "s1", "quote": "North exports audit records as JSON Lines."},
+        {"source_id": "s2", "quote": "South exports audit records as Parquet."}
+      ],
+      "expected_status": "sufficient"
+    },
+    {
+      "id": "procedure-d",
+      "split": "development",
+      "category": "procedure",
+      "query": "How should the archive be restored?",
+      "sources": [{"id": "s1", "scope": "agent:a", "text": "Restore the archive in order: verify the checksum; decrypt the bundle; import records; rebuild indexes."}],
+      "minimal_evidence": [{"source_id": "s1", "quote": "Restore the archive in order: verify the checksum; decrypt the bundle; import records; rebuild indexes."}],
+      "expected_status": "sufficient"
+    },
+    {
+      "id": "gotcha-d",
+      "split": "development",
+      "category": "failure_gotcha",
+      "query": "Why can the migration appear successful while doing nothing?",
+      "sources": [{"id": "s1", "scope": "agent:a", "text": "Gotcha: the migration exits successfully when the input glob is empty, but imports zero records."}],
+      "minimal_evidence": [{"source_id": "s1", "quote": "Gotcha: the migration exits successfully when the input glob is empty, but imports zero records."}],
+      "expected_status": "sufficient"
+    },
+    {
+      "id": "private-shared-d",
+      "split": "development",
+      "category": "tenancy",
+      "query": "What dessert does the shared project prefer?",
+      "request_scope": "workspace:shared",
+      "sources": [
+        {"id": "s1", "scope": "agent:private-a", "text": "The private agent prefers lemon tart."},
+        {"id": "s2", "scope": "workspace:shared", "text": "The shared project prefers mango sorbet."}
+      ],
+      "minimal_evidence": [{"source_id": "s2", "quote": "The shared project prefers mango sorbet."}],
+      "forbidden_source_ids": ["s1"],
+      "expected_status": "sufficient"
+    },
+    {
+      "id": "negative-premise-h",
+      "split": "holdout",
+      "category": "negative_premise",
+      "query": "Which USB cable is required for the wireless-only sensor?",
+      "sources": [{"id": "s1", "scope": "agent:a", "text": "The sensor has no USB connector and communicates only over LoRaWAN."}],
+      "minimal_evidence": [{"source_id": "s1", "quote": "The sensor has no USB connector and communicates only over LoRaWAN."}],
+      "expected_status": "contradicted"
+    },
+    {
+      "id": "transition-h",
+      "split": "holdout",
+      "category": "state_transition",
+      "query": "What changed when the worker was repaired?",
+      "sources": [{"id": "s1", "scope": "agent:a", "text": "Before repair the worker timed out; rotating the expired certificate restored successful uploads."}],
+      "minimal_evidence": [{"source_id": "s1", "quote": "Before repair the worker timed out; rotating the expired certificate restored successful uploads."}],
+      "expected_status": "sufficient"
+    },
+    {
+      "id": "temporal-h",
+      "split": "holdout",
+      "category": "temporal",
+      "query": "Which retention period was active in March?",
+      "sources": [
+        {"id": "s1", "scope": "agent:a", "text": "From January through March, retention was 14 days."},
+        {"id": "s2", "scope": "agent:a", "text": "Starting in April, retention changed to 30 days."}
+      ],
+      "minimal_evidence": [{"source_id": "s1", "quote": "From January through March, retention was 14 days."}],
+      "expected_status": "sufficient"
+    },
+    {
+      "id": "conflict-h",
+      "split": "holdout",
+      "category": "conflict",
+      "query": "What is the approved batch size?",
+      "sources": [
+        {"id": "s1", "scope": "agent:a", "text": "The operations note approves a batch size of 32."},
+        {"id": "s2", "scope": "agent:a", "text": "The signed runbook approves a batch size of 64 for the same job."}
+      ],
+      "minimal_evidence": [
+        {"source_id": "s1", "quote": "The operations note approves a batch size of 32."},
+        {"source_id": "s2", "quote": "The signed runbook approves a batch size of 64 for the same job."}
+      ],
+      "expected_status": "conflicted"
+    },
+    {
+      "id": "exact-label-h",
+      "split": "holdout",
+      "category": "durable_rule",
+      "query": "Where must release notices be sent?",
+      "sources": [{"id": "s1", "scope": "agent:a", "text": "Release notices must be sent to #eng-releases, never #eng-all."}],
+      "minimal_evidence": [{"source_id": "s1", "quote": "Release notices must be sent to #eng-releases, never #eng-all."}],
+      "expected_status": "sufficient"
+    },
+    {
+      "id": "private-denial-h",
+      "split": "holdout",
+      "category": "tenancy",
+      "query": "What is agent A's private recovery phrase?",
+      "request_scope": "agent:b",
+      "sources": [{"id": "s1", "scope": "agent:private-a", "text": "Agent A's private recovery phrase is quartz-lantern."}],
+      "minimal_evidence": [],
+      "forbidden_source_ids": ["s1"],
+      "expected_status": "withheld_by_policy"
+    }
+  ]
+}

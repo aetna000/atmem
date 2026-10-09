@@ -1,19 +1,23 @@
 # AtMem release roadmap
 
-**Status**: 2.3.7 stable release line; 2.3.8b6/0.1.4b3 is the current beta
-release candidate. Future versions remain planning targets.
+**Status**: 2.3.7 is the published stable release. AtMem 2.3.8 and its
+matching OpenClaw bridge are the current stable release candidates; they are
+not published until the reviewed commit is merged, tagged and verified in the
+registries. The exact tested AtFlows companion remains `0.1.4b3`.
 **Release baseline**: AtMem `2.3.7`, OpenClaw bridge `2.3.7`, companion pins
 `atmem-atbot==0.1.0` and `atflows==0.1.3`. Publication status is recorded by
 the matching GitHub release and registry artifacts, not this roadmap alone.
 
-**Next planned maintenance release:** AtMem/bridge `2.3.8`, including official
-MCP Registry registration ([issue #8](https://github.com/aetna000/atmem/issues/8))
-and coordinated AtFlows **0.1.4** secret redaction
-([AtFlows #6](https://github.com/aetna000/atflows/issues/6)).
-AtMem `2.3.7` and AtFlows `0.1.3` are the stable baseline. Preserve their opt-in continuity
-behavior and benchmark provenance; held-out qualification stays open. Companion
-versions change only when their implementation or compatibility requires it.
-This roadmap update schedules work; it does not authorize publication.
+**Next planned maintenance release:** AtMem/bridge `2.3.8`, with the governed
+context engine, first-class Hermes setup and bounded benchmark evidence described
+in [its release note](releases/v2.3.8.md). AtMem `2.3.7` remains the published
+stable baseline until the release workflow succeeds. Preserve opt-in continuity
+behavior and benchmark provenance; full held-out qualification stays open.
+Official MCP Registry registration ([issue #8](https://github.com/aetna000/atmem/issues/8))
+and stable AtFlows `0.1.4` generic secret redaction
+([AtFlows #6](https://github.com/aetna000/atflows/issues/6)) remain separately
+verified publication tracks and are not implied by the AtMem candidate. This
+roadmap update schedules work; it does not authorize publication.
 
 AtMem is an agent-neutral, standalone encrypted evidence authority for memory, context governance and execution investigation. Every release follows [PR-001–PR-008](../specs/product-requirements.md), including default full-fidelity multimodal capture, application-only privileged plaintext and store-only reconstruction after the agent and its logs are gone. Advertise only the host, provider, capture-boundary, cryptographic and deployment profiles actually verified for that release.
 
@@ -28,22 +32,54 @@ Then use the installed integration through an inert DolphinBench driver: no-cost
 checks, a separately budget-approved pilot, and complete 600-task qualification
 with matched configurations and retained cost/latency/action evidence.
 
-**Beta target: AtMem `2.3.8b6`**, selected 2026-09-27 for the one-command Hermes
-integration. The release note is the authority for this beta's shipped subset;
-scoped activation remains a follow-up gate. Finish packaged provider discovery,
-status/help and installed fresh/upgrade tests; pass existing adapter, security,
-build and documentation gates before tagging.
-The core provider alone is not a user-installable beta. Keep AtBot and AtFlows
-pins unchanged unless their separately tested changes are included. Align the
-OpenClaw bridge's matching prerelease metadata during release preparation.
+The historical **AtMem `2.3.8b6`** beta, selected 2026-09-27, established the
+one-command Hermes integration. Its release note remains the authority for that
+artifact. The 2.3.8 candidate keeps isolated shadow mode as the safe default,
+requires explicit activation or sharing, and aligns the OpenClaw bridge at
+`2.3.8`. AtBot remains `0.1.0`; the separately published, tested AtFlows pin is
+`0.1.4b3`.
 
-Benchmark accuracy is not a prerequisite for a usable integration beta, and no
-benchmark win or leaderboard placement may be claimed without completed runs.
-No leaderboard result is currently claimed. This beta does
-not displace the 2.3.8 MCP Registry/AtFlows redaction commitments or existing
-continuity qualification gates. Hermes memory support does not imply whole-agent
-capture or restart safety. Website docs and any submission need their normal
-review/publication approvals; planning authorizes no paid calls or deployment.
+The frozen 5% development runs are bounded release evidence, not a leaderboard
+result or a full-benchmark claim. Hermes memory support does not imply
+whole-agent capture or restart safety. Website docs and any submission need
+their normal review/publication approvals; planning authorizes no deployment.
+
+### 2.3.8 final retrieval-quality gate
+
+The integration betas may continue to validate packaging and host setup, but the
+final AtMem 2.3.8 release is now governed by
+[Spec 040](../specs/040-atmem-context-engine/spec.md), whose
+[complete crosswalk](../specs/040-atmem-context-engine/alignment.md) preserves or
+explicitly replaces every Spec 038 requirement and success criterion. Spec 038
+remains the historical evidence and gate source, but no longer owns the engine
+architecture. The quality track replaces the formation/retrieval core behind
+AtMem's context-provider and governance boundaries with multi-view formation,
+obligation-first retrieval, bounded source navigation, source-backed
+sufficiency and complementary context construction;
+the LongMemEval-V2 and DolphinBench adapters remain inert consumers of the same
+public APIs used by supported agents.
+
+Final promotion requires Spec 040 SC-013 and every safety/product gate it
+references: the absolute LongMemEval confirmation floor, non-inferiority to the
+legacy control, LoCoMo no-regression, frozen local fixtures, uncertainty,
+provenance, installed-candidate migration and
+adapter checks, a benchmark-independent CLI/MCP/dashboard product journey,
+bounded CPU/storage/diagnostic behavior, Linux/macOS/Windows installed tests
+(with Hermes using its supported WSL route on Windows),
+reversible sampled shadow activation, and external storage of heavy artifacts. Missing
+or invalid safety/product evidence blocks the stable release rather than being
+counted as skipped. The stricter matched LongMemEval ≥10%-relative lead with a
+positive paired confidence interval is the target for a benchmark-leading claim,
+not a substitute for release safety. If that claim gate fails, V3 may ship only
+as experimental/shadow after the release floor passes and no leadership claim
+may be made. DolphinBench development/full results are separately approved
+research/claim gates, not paid dependencies of the stable package. LongMemEval
+confirmation IDs are disjoint from every inspected development ID; complete
+Small is reported separately as non-held-out. Dolphin freezes the shared persona
+checkpoint before scoring and reports 600/600 plus 582 non-development tasks.
+This gate preserves the MCP Registry, Hermes, continuity and coordinated
+AtFlows redaction commitments; it does not authorize a release, paid benchmark
+run or leaderboard submission.
 
 ### 2.3.8 companion security scope: AtFlows 0.1.4
 
@@ -54,9 +90,11 @@ reproduction, coverage and acceptance gates. Preserve original provider requests
 and responses, continuity accounting and existing authentication behavior.
 
 Require fake-secret regression tests, installed fresh/upgrade checks, explicit
-legacy-data handling and honest detection limits. Publish and verify AtFlows
-0.1.4b3 on PyPI before merging AtMem's exact companion pin. Then verify the paired
-AtMem installation/upgrade, update both release notes and the website guides.
+legacy-data handling and honest detection limits. AtFlows `0.1.4b3` is the exact
+companion used by the AtMem 2.3.8 candidate. A future stable AtFlows `0.1.4`
+still requires its own implementation, review and publication gates. Then
+verify the paired AtMem installation/upgrade and update both release notes and
+the website guides.
 Do not silently clean historical databases or claim an upgrade removes secrets
 already present in backups/exports. Current runtime pins stay unchanged until
 the new artifact passes its release gates.

@@ -1,6 +1,6 @@
 # AtMem unified product roadmap
 
-**Updated**: 2026-09-26
+**Updated**: 2026-10-01
 **Status**: Implementation backlog; product capabilities below require their acceptance gates.
 
 **Numbered releases**: [Release roadmap — proposed 2.3 beta through 2.10 model-unlearning research preview](../docs/release-roadmap.md). Its Work group column maps the non-chronological M0–M4 dependency/scope groupings to independently sequenced releases; version numbers are planning targets, not publication claims.
@@ -10,6 +10,18 @@
 AtMem helps agents remember, controls the context they receive, and independently preserves what happened. The AtMem evidence store—not the agent, host logs or an external provider—is the investigation system of record.
 
 ## Product requirements that govern every feature
+
+### 2.3.8 context-engine quality direction
+
+[Spec 040](040-atmem-context-engine/spec.md) controls the final 2.3.8
+formation/retrieval architecture and matched qualification. It preserves AtMem
+as a governed, host-neutral context provider while replacing the legacy
+formation/ranking core with immutable source-linked views, obligation-first
+retrieval, bounded navigation, grounded sufficiency and complementary packing.
+Spec 038 remains historical evidence and a gate source only. Stable release
+safety and a benchmark-leading research claim are separate: failure to earn the
+matched lead forbids that claim and active-by-default promotion, but does not
+erase independently passed product, security or compatibility evidence.
 
 ### Planned Hermes integration and action benchmark
 

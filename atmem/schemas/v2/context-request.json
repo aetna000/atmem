@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v2/context-request.json",
+  "type": "object",
+  "required": ["format", "context_id", "candidate_set_id", "scope", "query", "budget"],
+  "properties": {
+    "format": {"const": "atmem-context-request-v2"},
+    "context_id": {"type": "string", "minLength": 1},
+    "candidate_set_id": {"type": "string", "minLength": 1},
+    "scope": {"$ref": "../v1/scope.json"},
+    "query": {"type": "string", "minLength": 1},
+    "budget": {"$ref": "../v1/retrieval-budget.json"}
+  },
+  "additionalProperties": true
+}

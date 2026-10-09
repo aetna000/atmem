@@ -1,6 +1,7 @@
 # Resume work with AtMem and AtFlows
 
-Available in AtMem 2.3.7 with AtFlows 0.1.3. Continuity requires the explicit
+Introduced in AtMem 2.3.7 and retained in 2.3.8 with AtFlows 0.1.4b3.
+Continuity requires the explicit
 setup below; installing the packages alone does not enable recovery.
 
 AtMem saves what your connected agent is doing before it calls a tool. When the
@@ -14,7 +15,7 @@ AtMem does not run your agent or replace LangGraph's scheduler/checkpointer.
 
 ## Try a real document
 
-Install `python -m pip install "atmem[langgraph-provider]==2.3.7"`.
+Install `python -m pip install "atmem[langgraph-provider]==2.3.8"`.
 Run `atmem init`, then `atmem status` to find your
 dashboard URL. Sign in and replace any temporary administrator password. Commands
 below assume the reported URL is `http://127.0.0.1:8768`; add `--url` otherwise.

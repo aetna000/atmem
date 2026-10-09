@@ -1,0 +1,65 @@
+{
+  "format": "atmem-reference-sources-v2",
+  "captured_at": "2026-10-01",
+  "protocol": {
+    "path": "benchmarks/retrieval_quality/protocols/2.3.8-context-engine.yaml",
+    "sha256": "8f4a4284abc41f27f8d81fa9bec2441eef3bd44c0c453e800239f82ad196e894",
+    "normalizer_sha256": "372abd74cf26dfd9d6b110d553d8417b5f861eaa0b2a24b161f409428d33ffc1"
+  },
+  "datasets": {
+    "longmemeval_v2": {
+      "commit": "2cc8c540bdb87fe6761629b585e727e1c4704520",
+      "dataset_revision": "f152293e235517d504809563c833d7190b8c713b",
+      "license": "Apache-2.0",
+      "questions_sha256": "0a3ae5ebea938c24d7800e1e0b0828e08ae1646f939a53853b2b8cdc08e292b7",
+      "small_sha256": "9b5301defb23a088a5f06e45ff8d5f35e569d78305a66d492046a9fff9b46593",
+      "source_archive_sha256": "4ba2282c2dedcaf78dc1d41bd7464a0af8ffecb4820800669859f155046b7ba8"
+    }
+  },
+  "models": {
+    "reader": "Qwen/Qwen3.5-9B@c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "embedding": "Qwen/Qwen3-Embedding-8B@1d8ad4ca9b3dd8059ad90a75d4983776a23d44af",
+    "judge": "gpt-5.2-2025-12-11;reasoning=medium"
+  },
+  "systems": {
+    "atmem": {
+      "checkout": "this repository",
+      "baseline_commit": "1b3d414de4a4ee725ae58ca6968deacdfe0111d2",
+      "license": "Apache-2.0",
+      "matched_arm_sha256": "sha256:4f7179ceaa3fdce860cdf93f796cdba2dea3135df6f809e78b9cfd3c572996bf",
+      "reader_free_legacy_config_sha256": "sha256:a7fc9c9dbd4c50eb15ec8bd01dfbf59a487b92ba85a3eea2be1c3eca45cc6b78"
+    },
+    "agentrunbook": {
+      "checkout": "external:LongMemEval-V2",
+      "commit": "2cc8c540bdb87fe6761629b585e727e1c4704520",
+      "license": "Apache-2.0",
+      "source_archive_sha256": "sha256:4ba2282c2dedcaf78dc1d41bd7464a0af8ffecb4820800669859f155046b7ba8",
+      "configurations": {
+        "agentrunbook-c": "sha256:d07fb0c14fb6f1a81a48651585b6828a476e60c03d45f9a80476bf5490c8f17b",
+        "agentrunbook-c-v2-module": "sha256:1bea5dc2b80f9589d68e2b0c8c1c11d161df433383c4bbfd57b8d52420442922",
+        "agentrunbook-r": "sha256:2847bfc7bfc6288115ec953f69efa0cc04a0327cc11a6b529d0d48763111ab0b",
+        "matched-arm": "sha256:fc643f9216c90dbc82267a52ab573d1685574c12690a770a72ba21f0c11e5989",
+        "reader-free-index-offline": "sha256:fa242da5bd4b0a267747046c810a9fb613ab74e4f5a31885338bceb535fae47e"
+      }
+    },
+    "dolphinbench": {
+      "checkout": "external:dolphinbench",
+      "commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
+      "license": "Apache-2.0",
+      "development_split_sha256": "sha256:38a0aa677e9829b42785bb92e79f98afeeacb5b8ebf9481cd2319729710a4d83",
+      "published_results_sha256": "sha256:1d04a2a88f6a1ebffa03cf139565bc79abd2c8f740f643c62028b523e41a33d7",
+      "source_archive_sha256": "sha256:e48a5b7da5b023bfe9fde36bbb7531638bab0857baa3e9396a514504a405756b"
+    },
+    "mem0-oss": {
+      "checkout": "external:mem0",
+      "commit": "d3891e48baa2c6e769f9cfa4003873bd6a85bc07",
+      "license": "Apache-2.0",
+      "license_sha256": "sha256:0bbcbe931c353293a2fafce08326181dfeea0e568c566afd4ce8337a70f5e219",
+      "base_config_sha256": "sha256:8bc0431f599c13ab2aff887e7b6eecc2688f8f4d070d76f029b3b55e37169b33",
+      "reader_free_raw_offline_config_sha256": "sha256:a4f61e0a6469094cec691b1077b639bbc00e692b8bd3b8acc437fbf5e10bb38e",
+      "matched_arm_sha256": "sha256:19f01995596a7dd97d0471507328f0c42b0842a1e8672f9eb437c4f5f7f718d6",
+      "source_archive_sha256": "sha256:49fe63bfed9df370be4506e70b99448f1e9d310c8ae09aa55486c9edb3dbf5f1",
+      "comparability": "Open-source engine only; not equivalent to the hosted Mem0 DolphinBench leaderboard service."
+    }
+  }
+}

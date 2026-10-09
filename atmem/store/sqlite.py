@@ -43,7 +43,9 @@ class SQLiteStore:
         self._fts_enabled = False
         self._graph_fts_enabled = False
         self._audit_fts_enabled = False
+        self._context_fts_enabled = False
         self._conn.execute("PRAGMA foreign_keys = ON")
+        self._conn.execute("PRAGMA secure_delete = ON")
         self._conn.execute("PRAGMA busy_timeout = 5000")
         if self.path != ":memory:":
             try:
@@ -144,6 +146,24 @@ class SQLiteStore:
 
     def reset_subject(self, subject_id: str) -> None:
         with self.transaction():
+            # Derived V3 state is deleted before its source ledger so every
+            # range/link/vector row is removed by foreign-key cascade.
+            if self._context_fts_enabled:
+                generation_rows = self._conn.execute(
+                    "SELECT generation_id FROM context_view_generations WHERE subject_id=?",
+                    (subject_id,),
+                ).fetchall()
+                for generation_row in generation_rows:
+                    self._delete_context_fts_generation(str(generation_row["generation_id"]))
+            self._conn.execute(
+                "DELETE FROM context_view_generations WHERE subject_id=?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM context_backfill_state WHERE subject_id=?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM context_source_episodes WHERE subject_id=?", (subject_id,)
+            )
             preparation_ids = [
                 str(row["preparation_id"])
                 for row in self._conn.execute(
@@ -165,6 +185,16 @@ class SQLiteStore:
             )
             self._conn.execute(
                 "DELETE FROM protocol_proposals WHERE subject_id = ?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM protected_formation_media WHERE subject_id = ?",
+                (subject_id,),
+            )
+            self._conn.execute(
+                "DELETE FROM formation_receipts WHERE subject_id = ?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM typed_identity_mappings WHERE subject_id = ?", (subject_id,)
             )
             self._conn.execute(
                 "DELETE FROM protocol_sources WHERE subject_id = ?", (subject_id,)
@@ -443,6 +473,11 @@ class SQLiteStore:
     ) -> str:
         record_id = _new_id("rec")
         created_at = utc_now()
+        raw_value = raw or {}
+        authority = raw_value.get("authority_scope") or {}
+        authority_subject_id = authority.get("subject_id")
+        authority_workspace_id = authority.get("workspace_id")
+        sensitivity_class = str(raw_value.get("sensitivity") or "personal")
         with self.transaction():
             self._conn.execute(
                 """
@@ -450,9 +485,10 @@ class SQLiteStore:
                   id, subject_id, content, content_normalized, source_type, trust_tier,
                   source_session_id, source_turn_id, episode_id, created_at,
                   updated_at, deleted_at, confidence, scope, status,
-                  supersedes_id, fact_key, raw
+                  supersedes_id, fact_key, raw, authority_subject_id, authority_workspace_id,
+                  sensitivity_class, authority_materialized
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                 """,
                 (
                     record_id,
@@ -470,11 +506,21 @@ class SQLiteStore:
                     status,
                     supersedes_id,
                     fact_key,
-                    _json(raw or {}),
+                    _json(raw_value),
+                    authority_subject_id,
+                    authority_workspace_id,
+                    sensitivity_class,
                 ),
             )
             if status == "active":
                 self._upsert_fts(record_id, subject_id, content)
+                self._upsert_search_terms(
+                    record_id=record_id,
+                    subject_id=subject_id,
+                    workspace_id=str(authority_workspace_id or ""),
+                    content=content,
+                    fact_key=fact_key,
+                )
         return record_id
 
     def get_record(self, subject_id: str, record_id: str) -> dict[str, Any] | None:
@@ -483,6 +529,449 @@ class SQLiteStore:
             (subject_id, record_id),
         ).fetchone()
         return _record_from_row(row) if row else None
+
+    def get_episode(self, subject_id: str, episode_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM episodes WHERE subject_id = ? AND id = ?",
+            (subject_id, episode_id),
+        ).fetchone()
+        return _episode_from_row(row) if row is not None else None
+
+    def context_engine_storage_ready(self) -> dict[str, Any]:
+        """Report whether V3 may persist semantic source/view data."""
+        if self.path == ":memory:":
+            return {
+                "ready": True, "encrypted": False, "ephemeral": True,
+                "reason": "ephemeral_test_store",
+            }
+        if self.policy.state != "encrypted":
+            return {
+                "ready": False, "encrypted": False, "ephemeral": False,
+                "reason": "encrypted_household_required",
+            }
+        return {
+            "ready": True, "encrypted": True, "ephemeral": False, "reason": None,
+        }
+
+    def require_context_engine_storage(self) -> None:
+        if not self.context_engine_storage_ready()["ready"]:
+            raise RuntimeError(
+                "Context Engine V3 requires an encrypted household; provision "
+                "SQLCipher and complete `atmem household migrate` before formation"
+            )
+
+    def context_source_storage(self, source_id: str) -> dict[str, int]:
+        row = self._conn.execute(
+            """SELECT COUNT(*) AS rows, COALESCE(SUM(length(content_bytes)), 0) AS bytes
+               FROM context_source_parts WHERE source_id = ?""",
+            (source_id,),
+        ).fetchone()
+        return {
+            "source_body_rows": int(row["rows"]),
+            "source_body_bytes": int(row["bytes"]),
+            "derived_source_body_bytes": 0,
+        }
+
+    def insert_typed_memory_unit(
+        self,
+        *,
+        unit: dict[str, Any],
+        record_id: str,
+        semantic_identity: str,
+    ) -> dict[str, Any]:
+        """Index one active canonical typed unit without duplicating its payload."""
+        scope = unit["scope"]
+        evidence = unit["evidence"]
+        source_ids = [str(row["source_id"]) for row in evidence]
+        if source_ids:
+            placeholders = ",".join("?" for _ in source_ids)
+            linked = self._conn.execute(
+                f"""
+                SELECT source_id FROM protocol_sources
+                WHERE subject_id = ? AND agent_id = ? AND workspace_id = ?
+                  AND source_id IN ({placeholders})
+                """,
+                (
+                    scope["subject_id"], scope["agent_id"], scope["workspace_id"],
+                    *source_ids,
+                ),
+            ).fetchall()
+            if {str(row["source_id"]) for row in linked} != set(source_ids):
+                raise ValueError("typed unit evidence source is not durably linked")
+        self._conn.execute(
+            """
+            INSERT INTO typed_memory_units(
+              unit_id, subject_id, agent_id, workspace_id, record_id,
+              formation_id, kind, semantic_identity, lifecycle, generation,
+              created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+            """,
+            (
+                unit["unit_id"], scope["subject_id"], scope["agent_id"],
+                scope["workspace_id"], record_id, unit["formation_id"],
+                unit["kind"], semantic_identity, unit["lifecycle"], utc_now(), utc_now(),
+            ),
+        )
+        self._conn.executemany(
+            """
+            INSERT INTO typed_unit_evidence(
+              subject_id, workspace_id, unit_id, source_id,
+              start_offset, end_offset, excerpt_sha256
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    scope["subject_id"], scope["workspace_id"],
+                    unit["unit_id"], row["source_id"], row["start_offset"],
+                    row["end_offset"], row["excerpt_sha256"],
+                )
+                for row in evidence
+            ],
+        )
+        return self.get_typed_memory_unit(
+            str(scope["subject_id"]), str(scope["workspace_id"]), str(unit["unit_id"])
+        ) or {}
+
+    def find_live_typed_identity(
+        self, subject_id: str, workspace_id: str, semantic_identity: str
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT u.* FROM typed_memory_units u
+            WHERE u.subject_id = ? AND u.workspace_id = ?
+              AND u.lifecycle IN ('active', 'quarantined')
+              AND (
+                u.semantic_identity = ? OR u.semantic_identity IN (
+                  SELECT m.legacy_identity FROM typed_identity_mappings m
+                  WHERE m.subject_id = ? AND m.workspace_id = ?
+                    AND m.identity_kind = 'semantic'
+                    AND m.current_identity = ? AND m.resolution_state = 'mapped'
+                )
+              )
+            ORDER BY CASE WHEN u.semantic_identity = ? THEN 0 ELSE 1 END
+            LIMIT 1
+            """,
+            (
+                subject_id, workspace_id, semantic_identity,
+                subject_id, workspace_id, semantic_identity, semantic_identity,
+            ),
+        ).fetchone()
+        return dict(row) if row is not None else None
+
+    def link_typed_occurrence_evidence(
+        self, *, subject_id: str, workspace_id: str, unit_id: str,
+        evidence: list[dict[str, Any]],
+    ) -> None:
+        """Link another observed occurrence to a deduplicated typed unit."""
+        self._conn.executemany(
+            """
+            INSERT OR IGNORE INTO typed_unit_evidence(
+              subject_id, workspace_id, unit_id, source_id,
+              start_offset, end_offset, excerpt_sha256
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            [(
+                subject_id, workspace_id, unit_id, row["source_id"],
+                int(row["start_offset"]), int(row["end_offset"]),
+                row["excerpt_sha256"],
+            ) for row in evidence],
+        )
+
+    def scoped_typed_candidates(
+        self,
+        subject_id: str,
+        workspace_id: str,
+        kinds: set[str],
+        *,
+        limit: int,
+        remote: bool = False,
+    ) -> list[dict[str, Any]]:
+        if not kinds:
+            return []
+        placeholders = ",".join("?" for _ in kinds)
+        sensitivity = (
+            "AND r.sensitivity_class NOT IN ('sensitive', 'restricted')"
+            if remote else ""
+        )
+        rows = self._conn.execute(
+            f"""
+            SELECT r.id FROM typed_memory_units u
+            JOIN records r ON r.id = u.record_id
+            WHERE u.subject_id = ? AND u.workspace_id = ?
+              AND u.kind IN ({placeholders})
+              AND u.lifecycle = 'active' AND r.status = 'active'
+              AND r.authority_materialized = 1
+              AND r.authority_subject_id = ? AND r.authority_workspace_id = ?
+              AND NOT EXISTS (
+                SELECT 1 FROM retrieval_exclusions x
+                WHERE x.subject_id = r.subject_id AND x.record_id = r.id
+              )
+              {sensitivity}
+            ORDER BY r.updated_at DESC, r.created_at DESC, r.id DESC
+            LIMIT ?
+            """,
+            (
+                subject_id, workspace_id, *sorted(kinds), subject_id, workspace_id,
+                max(1, min(int(limit), 1000)),
+            ),
+        ).fetchall()
+        record_ids = [str(row["id"]) for row in rows]
+        loaded = self.get_records(subject_id, record_ids)
+        return [loaded[record_id] for record_id in record_ids if record_id in loaded]
+
+    def typed_units_for_records(
+        self, subject_id: str, workspace_id: str, record_ids: list[str],
+        *, remote: bool = False, include_superseded: bool = False,
+    ) -> list[dict[str, Any]]:
+        if not record_ids:
+            return []
+        placeholders = ",".join("?" for _ in record_ids)
+        sensitivity = (
+            "AND r.sensitivity_class NOT IN ('sensitive', 'restricted')"
+            if remote else ""
+        )
+        lifecycle_sql = (
+            "u.lifecycle IN ('active', 'superseded') AND r.status IN ('active', 'superseded')"
+            if include_superseded else "u.lifecycle = 'active' AND r.status = 'active'"
+        )
+        rows = self._conn.execute(
+            f"""
+            SELECT u.record_id FROM typed_memory_units u
+            JOIN records r ON r.id = u.record_id
+            WHERE u.subject_id = ? AND u.workspace_id = ?
+              AND u.record_id IN ({placeholders})
+              AND {lifecycle_sql}
+              AND r.authority_materialized = 1
+              AND r.authority_subject_id = ? AND r.authority_workspace_id = ?
+              AND NOT EXISTS (
+                SELECT 1 FROM retrieval_exclusions x
+                WHERE x.subject_id = r.subject_id AND x.record_id = r.id
+              )
+              {sensitivity}
+            """,
+            (subject_id, workspace_id, *record_ids, subject_id, workspace_id),
+        ).fetchall()
+        result_by_id: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            record = self.get_record(subject_id, str(row["record_id"]))
+            unit = ((record or {}).get("raw") or {}).get("typed_unit")
+            if unit:
+                linked = self.get_typed_memory_unit(
+                    subject_id, workspace_id, str(unit["unit_id"])
+                )
+                unit = {
+                    **unit,
+                    "evidence": (linked or {}).get("evidence", unit.get("evidence", [])),
+                }
+                result_by_id[str(row["record_id"])] = {
+                    "record_id": str(row["record_id"]),
+                    "fact_key": str((record or {}).get("fact_key") or ""),
+                    "unit": unit,
+                }
+        return [result_by_id[value] for value in record_ids if value in result_by_id]
+
+    def adjacent_typed_records(
+        self,
+        subject_id: str,
+        workspace_id: str,
+        source_ids: list[str],
+        *,
+        limit: int,
+        remote: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Return one-hop, live, scoped typed neighbors without source bodies."""
+        if not source_ids:
+            return []
+        placeholders = ",".join("?" for _ in source_ids)
+        sensitivity = (
+            "AND r.sensitivity_class NOT IN ('sensitive', 'restricted')"
+            if remote else ""
+        )
+        rows = self._conn.execute(
+            f"""
+            WITH neighboring(source_id, seed_source_id, direction, ordinal) AS (
+              SELECT to_source_id, from_source_id, 'next', ordinal
+              FROM source_adjacency
+              WHERE subject_id = ? AND workspace_id = ?
+                AND from_source_id IN ({placeholders})
+              UNION ALL
+              SELECT from_source_id, to_source_id, 'previous', ordinal
+              FROM source_adjacency
+              WHERE subject_id = ? AND workspace_id = ?
+                AND to_source_id IN ({placeholders})
+            )
+            SELECT DISTINCT u.record_id, n.source_id, n.seed_source_id,
+                   n.direction, n.ordinal
+            FROM neighboring n
+            JOIN typed_unit_evidence e ON e.source_id = n.source_id
+            JOIN typed_memory_units u
+              ON u.subject_id = e.subject_id AND u.workspace_id = e.workspace_id
+             AND u.unit_id = e.unit_id
+            JOIN records r ON r.id = u.record_id
+            WHERE u.subject_id = ? AND u.workspace_id = ?
+              AND u.lifecycle = 'active' AND r.status = 'active'
+              AND r.authority_materialized = 1
+              AND r.authority_subject_id = ? AND r.authority_workspace_id = ?
+              AND NOT EXISTS (
+                SELECT 1 FROM retrieval_exclusions x
+                WHERE x.subject_id = r.subject_id AND x.record_id = r.id
+              )
+              {sensitivity}
+            ORDER BY n.ordinal, u.record_id
+            LIMIT ?
+            """,
+            (
+                subject_id, workspace_id, *source_ids,
+                subject_id, workspace_id, *source_ids,
+                subject_id, workspace_id, subject_id, workspace_id,
+                max(1, min(int(limit), 1000)),
+            ),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def related_typed_records(
+        self,
+        subject_id: str,
+        workspace_id: str,
+        record_ids: list[str],
+        *,
+        limit: int,
+        remote: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Return bounded live typed neighbors from explicit provenance links.
+
+        A shared formation or memory-lineage edge can nominate another already
+        authorized canonical record. It never creates factual authority and it
+        never reactivates superseded/revoked records.
+        """
+        if not record_ids:
+            return []
+        placeholders = ",".join("?" for _ in record_ids)
+        sensitivity = (
+            "AND r.sensitivity_class NOT IN ('sensitive', 'restricted')"
+            if remote else ""
+        )
+        rows = self._conn.execute(
+            f"""
+            WITH related(record_id, seed_record_id, relation) AS (
+              SELECT candidate.record_id, seed.record_id, 'same_formation'
+              FROM typed_memory_units seed
+              JOIN typed_memory_units candidate
+                ON candidate.subject_id = seed.subject_id
+               AND candidate.workspace_id = seed.workspace_id
+               AND candidate.formation_id = seed.formation_id
+               AND candidate.record_id != seed.record_id
+              WHERE seed.subject_id = ? AND seed.workspace_id = ?
+                AND seed.record_id IN ({placeholders})
+              UNION ALL
+              SELECT lineage.successor_record_id, lineage.predecessor_record_id,
+                     'lineage_successor'
+              FROM memory_lineage lineage
+              WHERE lineage.subject_id = ?
+                AND lineage.predecessor_record_id IN ({placeholders})
+              UNION ALL
+              SELECT lineage.predecessor_record_id, lineage.successor_record_id,
+                     'lineage_predecessor'
+              FROM memory_lineage lineage
+              WHERE lineage.subject_id = ?
+                AND lineage.successor_record_id IN ({placeholders})
+            )
+            SELECT related.record_id, related.seed_record_id, related.relation,
+                   MIN(COALESCE(next_source.ordinal,
+                                previous_source.ordinal + 1,
+                                1000000)) AS source_ordinal,
+                   MIN(e.start_offset) AS source_offset
+            FROM related
+            JOIN typed_memory_units u ON u.record_id = related.record_id
+            JOIN typed_unit_evidence e
+              ON e.subject_id = u.subject_id
+             AND e.workspace_id = u.workspace_id
+             AND e.unit_id = u.unit_id
+            LEFT JOIN source_adjacency next_source
+              ON next_source.subject_id = e.subject_id
+             AND next_source.workspace_id = e.workspace_id
+             AND next_source.from_source_id = e.source_id
+            LEFT JOIN source_adjacency previous_source
+              ON previous_source.subject_id = e.subject_id
+             AND previous_source.workspace_id = e.workspace_id
+             AND previous_source.to_source_id = e.source_id
+            JOIN records r ON r.id = related.record_id
+            WHERE u.subject_id = ? AND u.workspace_id = ?
+              AND u.lifecycle = 'active' AND r.status = 'active'
+              AND r.authority_materialized = 1
+              AND r.authority_subject_id = ? AND r.authority_workspace_id = ?
+              AND NOT EXISTS (
+                SELECT 1 FROM retrieval_exclusions x
+                WHERE x.subject_id = r.subject_id AND x.record_id = r.id
+              )
+              {sensitivity}
+            GROUP BY related.record_id, related.seed_record_id, related.relation
+            ORDER BY related.relation, source_ordinal, source_offset,
+                     related.record_id
+            LIMIT ?
+            """,
+            (
+                subject_id, workspace_id, *record_ids,
+                subject_id, *record_ids,
+                subject_id, *record_ids,
+                subject_id, workspace_id, subject_id, workspace_id,
+                max(1, min(int(limit), 1000)),
+            ),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_typed_memory_unit(
+        self, subject_id: str, workspace_id: str, unit_id: str
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT u.*, r.raw FROM typed_memory_units u
+            JOIN records r ON r.id = u.record_id
+            WHERE u.subject_id = ? AND u.workspace_id = ? AND u.unit_id = ?
+            """,
+            (subject_id, workspace_id, unit_id),
+        ).fetchone()
+        if row is None:
+            return None
+        raw = _load_json(row["raw"], {})
+        return {
+            **{key: row[key] for key in row.keys() if key != "raw"},
+            "unit": raw.get("typed_unit"),
+            "evidence": [
+                dict(value) for value in self._conn.execute(
+                    "SELECT * FROM typed_unit_evidence WHERE subject_id = ? "
+                    "AND workspace_id = ? AND unit_id = ? "
+                    "ORDER BY source_id, start_offset, end_offset",
+                    (subject_id, workspace_id, unit_id),
+                ).fetchall()
+            ],
+        }
+
+    def typed_derivative_identity(
+        self, subject_id: str, workspace_id: str, record_ids: list[str]
+    ) -> list[dict[str, Any]]:
+        """Content-free occurrence/lifecycle identity for immutable checkpoints."""
+        if not record_ids:
+            return []
+        placeholders = ",".join("?" for _ in record_ids)
+        rows = self._conn.execute(
+            f"""
+            SELECT u.record_id, u.unit_id, u.lifecycle, u.generation,
+                   e.source_id, e.start_offset, e.end_offset, e.excerpt_sha256,
+                   CASE WHEN x.record_id IS NULL THEN 0 ELSE 1 END AS excluded
+            FROM typed_memory_units u
+            LEFT JOIN typed_unit_evidence e
+              ON e.subject_id = u.subject_id AND e.workspace_id = u.workspace_id
+             AND e.unit_id = u.unit_id
+            LEFT JOIN retrieval_exclusions x
+              ON x.subject_id = u.subject_id AND x.record_id = u.record_id
+            WHERE u.subject_id = ? AND u.workspace_id = ?
+              AND u.record_id IN ({placeholders})
+            ORDER BY u.record_id, e.source_id, e.start_offset, e.end_offset
+            """,
+            (subject_id, workspace_id, *record_ids),
+        ).fetchall()
+        return [dict(row) for row in rows]
 
     def get_protocol_source(
         self, workspace_id: str, agent_id: str, idempotency_key: str
@@ -889,6 +1378,26 @@ class SQLiteStore:
         assert stored is not None
         return stored
 
+    def link_memory_proposal_sources(
+        self,
+        proposal_id: str,
+        subject_id: str,
+        workspace_id: str,
+        source_ids: list[str],
+    ) -> None:
+        """Retain source dependencies for pending, no-op, and committed proposals."""
+        self._conn.executemany(
+            """
+            INSERT OR IGNORE INTO memory_proposal_sources(
+              proposal_id, subject_id, workspace_id, source_id
+            ) VALUES (?, ?, ?, ?)
+            """,
+            [
+                (proposal_id, subject_id, workspace_id, source_id)
+                for source_id in dict.fromkeys(source_ids)
+            ],
+        )
+
     def get_memory_proposal(self, proposal_id: str) -> dict[str, Any] | None:
         row = self._conn.execute(
             "SELECT * FROM memory_proposals WHERE proposal_id = ?", (proposal_id,)
@@ -962,6 +1471,104 @@ class SQLiteStore:
                 return None
         return self.get_memory_proposal(proposal_id)
 
+    def redact_memory_proposal(self, proposal_id: str) -> None:
+        row = self._conn.execute(
+            "SELECT proposal FROM memory_proposals WHERE proposal_id = ?",
+            (proposal_id,),
+        ).fetchone()
+        if row is None:
+            return
+        value = _load_json(row["proposal"], {})
+        unit = value.get("unit") or {}
+        self._conn.execute(
+            "UPDATE memory_proposals SET proposal = ?, fact_key = NULL WHERE proposal_id = ?",
+            (
+                _json({
+                    "format": value.get("format"),
+                    "proposal_id": proposal_id,
+                    "scope": value.get("scope"),
+                    "action": value.get("action"),
+                    "memory_class": value.get("memory_class"),
+                    "unit_id": unit.get("unit_id"),
+                    "formation_id": unit.get("formation_id"),
+                    "kind": unit.get("kind"),
+                    "redacted": True,
+                }),
+                proposal_id,
+            ),
+        )
+
+    def _source_in_use(self, source_id: str) -> bool:
+        source = self.get_protocol_source_by_id(source_id)
+        if source is None:
+            return False
+        if self._conn.execute(
+            """
+            SELECT 1 FROM typed_unit_evidence e
+            JOIN typed_memory_units u
+              ON u.subject_id = e.subject_id AND u.workspace_id = e.workspace_id
+             AND u.unit_id = e.unit_id
+            WHERE e.source_id = ? AND u.lifecycle != 'deleted' LIMIT 1
+            """,
+            (source_id,),
+        ).fetchone() is not None:
+            return True
+        if self._conn.execute(
+            "SELECT 1 FROM records WHERE episode_id = ? AND status != 'tombstoned' LIMIT 1",
+            (source["episode_id"],),
+        ).fetchone() is not None:
+            return True
+        if self._conn.execute(
+            """
+            SELECT 1 FROM memory_proposal_sources ps
+            JOIN memory_proposals p ON p.proposal_id = ps.proposal_id
+            WHERE ps.source_id = ? AND p.review_state = 'pending_review' LIMIT 1
+            """,
+            (source_id,),
+        ).fetchone() is not None:
+            return True
+        rows = self._conn.execute(
+            "SELECT raw FROM records WHERE subject_id = ? AND status != 'tombstoned'",
+            (source["subject_id"],),
+        ).fetchall()
+        return any(
+            source_id in set(_load_json(row["raw"], {}).get("source_ids") or ())
+            for row in rows
+        )
+
+    def _purge_protocol_source(self, source_id: str) -> str | None:
+        source = self.get_protocol_source_by_id(source_id)
+        if source is None or self._source_in_use(source_id):
+            return None
+        linked = self._conn.execute(
+            "SELECT proposal_id FROM memory_proposal_sources WHERE source_id = ?",
+            (source_id,),
+        ).fetchall()
+        for row in linked:
+            proposal_id = str(row["proposal_id"])
+            self.redact_memory_proposal(proposal_id)
+            self._conn.execute(
+                """
+                UPDATE memory_proposals
+                SET review_state = CASE WHEN review_state = 'pending_review' THEN 'stale' ELSE review_state END,
+                    decided_at = CASE WHEN review_state = 'pending_review' THEN ? ELSE decided_at END
+                WHERE proposal_id = ?
+                """,
+                (utc_now(), proposal_id),
+            )
+        self._conn.execute(
+            """
+            UPDATE protocol_sources SET request_json = ?, result_json = ?
+            WHERE source_id = ?
+            """,
+            (
+                _json({"format": "atmem-source-capture-request-v1", "source_id": source_id, "redacted": True}),
+                _json({"format": "atmem-source-capture-result-v1", "source_id": source_id, "episode_id": source["episode_id"], "source_sha256": source["source_sha256"], "retained": False, "redacted": True}),
+                source_id,
+            ),
+        )
+        return str(source["episode_id"])
+
     def insert_memory_review(
         self,
         *,
@@ -999,6 +1606,344 @@ class SQLiteStore:
             )
         rows = self.list_memory_reviews(proposal_id)
         return next(row for row in rows if row["review_id"] == review_id)
+
+    def insert_formation_receipt(self, receipt: dict[str, Any]) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO formation_receipts(
+              formation_id, subject_id, workspace_id, episode_id,
+              receipt_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(formation_id) DO UPDATE SET
+              receipt_json = excluded.receipt_json
+            """,
+            (
+                receipt["formation_id"], receipt["scope_subject_id"],
+                receipt["scope_workspace_id"], receipt["episode_id"],
+                _json(receipt), utc_now(),
+            ),
+        )
+        self._conn.execute(
+            "DELETE FROM formation_media_references WHERE formation_id = ?",
+            (receipt["formation_id"],),
+        )
+        for reference in receipt.get("media_references") or ():
+            self._conn.execute(
+                """
+                INSERT INTO formation_media_references(
+                  formation_id, subject_id, workspace_id, adjacent_source_id,
+                  part_id, ordinal, reference_id, reference_sha256
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    receipt["formation_id"], receipt["scope_subject_id"],
+                    receipt["scope_workspace_id"], reference["adjacent_source_id"],
+                    reference["part_id"], int(reference["ordinal"]),
+                    reference["reference_id"], reference["reference_sha256"],
+                ),
+            )
+
+    def get_formation_receipt(self, formation_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT receipt_json FROM formation_receipts WHERE formation_id = ?",
+            (formation_id,),
+        ).fetchone()
+        return _load_json(row["receipt_json"], {}) if row is not None else None
+
+    def formation_unit_statuses(self, formation_id: str) -> list[str]:
+        receipt = self._conn.execute(
+            "SELECT subject_id, workspace_id FROM formation_receipts WHERE formation_id = ?",
+            (formation_id,),
+        ).fetchone()
+        if receipt is None:
+            return []
+        return [
+            str(row["effective_status"])
+            for row in self._conn.execute(
+                """
+                WITH receipt_sources(source_id) AS (
+                  SELECT source.value
+                  FROM formation_receipts f,
+                       json_each(f.receipt_json, '$.source_ids') source
+                  WHERE f.formation_id = ?
+                ), target_units(unit_id) AS (
+                  SELECT u.unit_id FROM typed_memory_units u
+                  WHERE u.subject_id = ? AND u.workspace_id = ?
+                    AND u.formation_id = ?
+                  UNION
+                  SELECT e.unit_id FROM typed_unit_evidence e
+                  JOIN receipt_sources s ON s.source_id = e.source_id
+                  WHERE e.subject_id = ? AND e.workspace_id = ?
+                )
+                SELECT CASE WHEN x.record_id IS NULL THEN r.status
+                            ELSE 'retrieval_excluded' END AS effective_status
+                FROM target_units target
+                JOIN typed_memory_units u ON u.unit_id = target.unit_id
+                JOIN records r ON r.id = u.record_id
+                LEFT JOIN retrieval_exclusions x
+                  ON x.subject_id = r.subject_id AND x.record_id = r.id
+                ORDER BY u.unit_id
+                """,
+                (
+                    formation_id,
+                    receipt["subject_id"], receipt["workspace_id"],
+                    formation_id,
+                    receipt["subject_id"], receipt["workspace_id"],
+                ),
+            ).fetchall()
+        ]
+
+    def insert_protected_formation_media(
+        self, *, media_id: str, formation_id: str, subject_id: str,
+        workspace_id: str, part_id: str, content_sha256: str,
+        content_bytes: bytes,
+    ) -> None:
+        self._conn.execute(
+            """
+            INSERT INTO protected_formation_media(
+              media_id, formation_id, subject_id, workspace_id, part_id,
+              content_sha256, content_bytes, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(formation_id, part_id) DO UPDATE SET
+              media_id = excluded.media_id,
+              content_sha256 = excluded.content_sha256,
+              content_bytes = excluded.content_bytes
+            """,
+            (
+                media_id, formation_id, subject_id, workspace_id, part_id,
+                content_sha256, sqlite3.Binary(content_bytes), utc_now(),
+            ),
+        )
+
+    def protected_formation_media(
+        self, subject_id: str, workspace_id: str, media_id: str
+    ) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """
+            SELECT p.media_id, p.content_sha256, p.content_bytes,
+                   length(p.content_bytes) AS content_size
+            FROM protected_formation_media p
+            JOIN formation_media_references f
+              ON f.formation_id = p.formation_id AND f.part_id = p.part_id
+            WHERE p.subject_id = ? AND p.workspace_id = ? AND p.media_id = ?
+              AND EXISTS (
+                SELECT 1 FROM typed_unit_evidence e
+                JOIN typed_memory_units u
+                  ON u.subject_id = e.subject_id
+                 AND u.workspace_id = e.workspace_id AND u.unit_id = e.unit_id
+                JOIN records r ON r.id = u.record_id
+                WHERE e.source_id = f.adjacent_source_id
+                  AND r.status = 'active' AND u.lifecycle = 'active'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM retrieval_exclusions x
+                    WHERE x.subject_id = r.subject_id AND x.record_id = r.id
+                  )
+              )
+            """,
+            (subject_id, workspace_id, media_id),
+        ).fetchone()
+        return dict(row) if row is not None else None
+
+    def media_references_for_sources(
+        self, subject_id: str, workspace_id: str, source_ids: list[str]
+    ) -> list[dict[str, Any]]:
+        """Return original protected media locators adjacent to selected evidence."""
+        wanted = set(source_ids)
+        if not wanted:
+            return []
+        placeholders = ",".join("?" for _ in wanted)
+        indexed = self._conn.execute(
+            f"""
+            SELECT r.adjacent_source_id, r.part_id, r.ordinal, r.reference_id,
+                   r.reference_sha256, p.media_id
+            FROM formation_media_references r
+            LEFT JOIN protected_formation_media p
+              ON p.formation_id = r.formation_id AND p.part_id = r.part_id
+            WHERE r.subject_id = ? AND r.workspace_id = ?
+              AND r.adjacent_source_id IN ({placeholders})
+            ORDER BY r.formation_id, r.ordinal
+            """,
+            (subject_id, workspace_id, *sorted(wanted)),
+        ).fetchall()
+        return [dict(row) for row in indexed]
+
+    def retrieval_quality_summary(self, subject_ids: list[str]) -> dict[str, Any]:
+        """Return bounded, content-free formation and retrieval quality totals."""
+        subjects = tuple(dict.fromkeys(str(value) for value in subject_ids if value))
+        if not subjects:
+            return {
+                "typed_by_kind": [],
+                "typed_by_lifecycle": [],
+                "formations": {"total": 0, "complete": 0, "with_loss": 0},
+                "context_preparations": [],
+                "stage_events": [],
+            }
+        placeholders = ",".join("?" for _ in subjects)
+        typed_by_kind = self._conn.execute(
+            f"""
+            SELECT kind AS value, COUNT(*) AS count
+            FROM typed_memory_units
+            WHERE subject_id IN ({placeholders})
+            GROUP BY kind ORDER BY count DESC, value ASC
+            """,
+            subjects,
+        ).fetchall()
+        typed_by_lifecycle = self._conn.execute(
+            f"""
+            SELECT lifecycle AS value, COUNT(*) AS count
+            FROM typed_memory_units
+            WHERE subject_id IN ({placeholders})
+            GROUP BY lifecycle ORDER BY count DESC, value ASC
+            """,
+            subjects,
+        ).fetchall()
+        formation_row = self._conn.execute(
+            f"""
+            SELECT COUNT(*) AS total,
+                   SUM(CASE WHEN json_extract(receipt_json, '$.complete') = 1
+                            THEN 1 ELSE 0 END) AS complete
+            FROM formation_receipts
+            WHERE subject_id IN ({placeholders})
+            """,
+            subjects,
+        ).fetchone()
+        event_rows = self._conn.execute(
+            f"""
+            SELECT created_at, payload FROM audit_log
+            WHERE subject_id IN ({placeholders})
+              AND event_type = 'memory.context_prepared_v2'
+            ORDER BY sequence DESC LIMIT 100
+            """,
+            subjects,
+        ).fetchall()
+        stage_rows = self._conn.execute(
+            f"""
+            SELECT created_at, payload FROM audit_log
+            WHERE subject_id IN ({placeholders})
+              AND event_type = 'memory.retrieval_stage_v1'
+            ORDER BY sequence DESC LIMIT 200
+            """,
+            subjects,
+        ).fetchall()
+        preparations = []
+        for row in event_rows:
+            payload = _load_json(row["payload"], {})
+            preparations.append({
+                "created_at": row["created_at"],
+                "information_need": payload.get("information_need"),
+                "profile_id": payload.get("profile_id"),
+                "sufficiency": payload.get("sufficiency"),
+                "missing_slots": payload.get("missing_slots") or [],
+                "neighborhood_visited": int(payload.get("neighborhood_visited") or 0),
+                "neighborhood_truncated": bool(payload.get("neighborhood_truncated")),
+            })
+        stages = []
+        for row in stage_rows:
+            payload = _load_json(row["payload"], {})
+            stages.append({
+                "created_at": row["created_at"],
+                "stage": payload.get("stage"),
+                "status": payload.get("status"),
+                "profile_id": payload.get("profile_id"),
+                "information_need": payload.get("information_need"),
+                "duration_ms": payload.get("duration_ms"),
+                "input_count": payload.get("input_count"),
+                "output_count": payload.get("output_count"),
+                "context_bytes": payload.get("context_bytes"),
+                "reason_codes": payload.get("reason_codes") or [],
+            })
+        formation_total = int(formation_row["total"] or 0)
+        formation_complete = int(formation_row["complete"] or 0)
+        return {
+            "typed_by_kind": [dict(row) for row in typed_by_kind],
+            "typed_by_lifecycle": [dict(row) for row in typed_by_lifecycle],
+            "formations": {
+                "total": formation_total,
+                "complete": formation_complete,
+                "with_loss": formation_total - formation_complete,
+            },
+            "context_preparations": preparations,
+            "stage_events": stages,
+        }
+
+    def retrieval_activation(self, scope: Any) -> dict[str, Any]:
+        key = _retrieval_activation_key(scope)
+        row = self._conn.execute(
+            "SELECT value, updated_at FROM retrieval_index_state WHERE key = ?",
+            (key,),
+        ).fetchone()
+        if row is None:
+            return {
+                "format": "atmem-retrieval-activation-v1",
+                "mode": "legacy",
+                "scope": scope.to_dict(),
+                "updated_at": None,
+            }
+        value = _load_json(row["value"], {})
+        return {**value, "updated_at": row["updated_at"]}
+
+    def set_retrieval_activation(
+        self, scope: Any, mode: str, *, actor: str
+    ) -> dict[str, Any]:
+        if mode not in {"legacy", "shadow", "active"}:
+            raise ValueError("retrieval activation mode must be legacy, shadow, or active")
+        if mode == "active" and self.policy.state != "encrypted":
+            raise ValueError("typed retrieval activation requires an encrypted household")
+        if mode == "active":
+            count = int(self._conn.execute(
+                """
+                SELECT COUNT(*) AS count FROM typed_memory_units
+                WHERE subject_id = ? AND agent_id = ? AND workspace_id = ?
+                  AND lifecycle = 'active'
+                """,
+                (scope.subject_id, scope.agent_id, scope.workspace_id),
+            ).fetchone()["count"])
+            if count < 1:
+                raise ValueError("typed retrieval activation requires at least one active typed unit")
+        value = {
+            "format": "atmem-retrieval-activation-v1",
+            "mode": mode,
+            "scope": scope.to_dict(),
+            "actor": str(actor),
+        }
+        with self.transaction(immediate=True):
+            self._conn.execute(
+                """
+                INSERT INTO retrieval_index_state(key, value, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET
+                  value = excluded.value, updated_at = excluded.updated_at
+                """,
+                (_retrieval_activation_key(scope), _json(value), utc_now()),
+            )
+            self.append_audit_event(
+                subject_id=scope.subject_id,
+                event_type="memory.retrieval_activation_changed",
+                actor=str(actor),
+                payload={
+                    "mode": mode,
+                    "agent_id": scope.agent_id,
+                    "workspace_id": scope.workspace_id,
+                },
+            )
+        return self.retrieval_activation(scope)
+
+    def link_source_sequence(
+        self, *, subject_id: str, workspace_id: str, source_ids: list[str]
+    ) -> None:
+        """Persist ordered, source-authoritative adjacency for bounded expansion."""
+        self._conn.executemany(
+            """
+            INSERT OR IGNORE INTO source_adjacency(
+              subject_id, workspace_id, from_source_id, to_source_id,
+              relation, ordinal
+            ) VALUES (?, ?, ?, ?, 'next', ?)
+            """,
+            [
+                (subject_id, workspace_id, left, right, ordinal)
+                for ordinal, (left, right) in enumerate(zip(source_ids, source_ids[1:]))
+            ],
+        )
 
     def list_memory_reviews(self, proposal_id: str) -> list[dict[str, Any]]:
         rows = self._conn.execute(
@@ -2372,6 +3317,154 @@ class SQLiteStore:
         ).fetchall()
         return [_record_from_row(row) for row in rows]
 
+    def active_records_for_typed_slot(
+        self, subject_id: str, workspace_id: str, *, subject: str, relation: str
+    ) -> list[dict[str, Any]]:
+        """Resolve a durable slot independently of legacy fact-key spelling."""
+        rows = self._conn.execute(
+            """
+            SELECT r.* FROM records r INDEXED BY idx_records_typed_subject_relation
+            WHERE r.subject_id = ? AND r.status = 'active'
+              AND r.authority_workspace_id = ?
+              AND r.authority_subject_id = ? AND r.authority_materialized = 1
+              AND lower(COALESCE(
+                    json_extract(r.raw, '$.typed_unit.payload.subject'),
+                    json_extract(r.raw, '$.typed_unit.payload.entity')
+                  )) = lower(?)
+              AND lower(json_extract(r.raw, '$.typed_unit.payload.relation')) = lower(?)
+              AND EXISTS (
+                SELECT 1 FROM typed_memory_units u
+                WHERE u.record_id = r.id AND u.subject_id = r.subject_id
+                  AND u.workspace_id = ? AND u.lifecycle = 'active'
+              )
+              AND NOT EXISTS (
+                SELECT 1 FROM retrieval_exclusions x
+                WHERE x.subject_id = r.subject_id AND x.record_id = r.id
+              )
+            ORDER BY r.created_at, r.id
+            """,
+            (
+                subject_id, workspace_id, subject_id, subject, relation,
+                workspace_id,
+            ),
+        ).fetchall()
+        return [_record_from_row(row) for row in rows]
+
+    def scoped_historical_typed_candidates(
+        self, subject_id: str, workspace_id: str, *, subject: str | None,
+        relation: str | None, temporal_target: str | None = None,
+        limit: int = 200, remote: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Bounded explicit-time candidates, including governed superseded history."""
+        clauses = [
+            "r.subject_id = ?", "u.workspace_id = ?",
+            "r.status IN ('active', 'superseded')",
+            "u.lifecycle IN ('active', 'superseded')",
+            "r.authority_materialized = 1",
+            "r.authority_subject_id = ?", "r.authority_workspace_id = ?",
+        ]
+        params: list[Any] = [subject_id, workspace_id, subject_id, workspace_id]
+        if subject:
+            clauses.append(
+                "lower(COALESCE(json_extract(r.raw, '$.typed_unit.payload.subject'), "
+                "json_extract(r.raw, '$.typed_unit.payload.entity'))) = lower(?)"
+            )
+            params.append(subject)
+        if relation:
+            clauses.append(
+                "(lower(json_extract(r.raw, '$.typed_unit.payload.relation')) = lower(?) "
+                "OR lower(json_extract(r.raw, '$.typed_unit.payload.relation')) "
+                "LIKE ('% ' || lower(?)))"
+            )
+            params.extend((relation, relation))
+        if remote:
+            clauses.append("r.sensitivity_class NOT IN ('sensitive', 'restricted')")
+        clauses.append(
+            "NOT EXISTS (SELECT 1 FROM retrieval_exclusions x "
+            "WHERE x.subject_id = r.subject_id AND x.record_id = r.id)"
+        )
+        target = str(temporal_target or "")
+        params.extend((target, target, max(1, min(int(limit), 2_000))))
+        rows = self._conn.execute(
+            f"""
+            SELECT r.* FROM records r
+            JOIN typed_memory_units u ON u.record_id = r.id
+            WHERE {' AND '.join(clauses)}
+            ORDER BY CASE WHEN ? != '' AND COALESCE(
+              json_extract(r.raw, '$.typed_unit.event_at'),
+              json_extract(r.raw, '$.typed_unit.observed_at'), r.created_at
+            ) LIKE (? || '%') THEN 0 ELSE 1 END,
+            COALESCE(
+              json_extract(r.raw, '$.typed_unit.event_at'),
+              json_extract(r.raw, '$.typed_unit.observed_at'), r.created_at
+            ) DESC, r.id DESC LIMIT ?
+            """,
+            tuple(params),
+        ).fetchall()
+        return [_record_from_row(row) for row in rows]
+
+    def bounded_resolution_context(
+        self, subject_id: str, workspace_id: str | None, *, limit: int
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Load only the newest authorized rows used by proposal resolution."""
+        bounded = max(0, min(int(limit), 100))
+        if not bounded:
+            return [], []
+        if workspace_id is None:
+            episode_rows = self._conn.execute(
+                """SELECT * FROM episodes WHERE subject_id = ?
+                   ORDER BY created_at DESC, id DESC LIMIT ?""",
+                (subject_id, bounded),
+            ).fetchall()
+        else:
+            episode_rows = self._conn.execute(
+                """
+                SELECT e.* FROM episodes e
+                WHERE e.subject_id = ? AND (
+                  EXISTS (
+                    SELECT 1 FROM protocol_sources s
+                    WHERE s.episode_id = e.id AND s.subject_id = ?
+                      AND s.workspace_id = ?
+                  )
+                  OR (
+                    NOT EXISTS (
+                      SELECT 1 FROM protocol_sources any_source
+                      WHERE any_source.episode_id = e.id
+                    )
+                    AND (
+                      json_extract(e.raw, '$.authority_scope.workspace_id') IS NULL
+                      OR json_extract(e.raw, '$.authority_scope.workspace_id') = ?
+                    )
+                  )
+                )
+                ORDER BY e.created_at DESC, e.id DESC LIMIT ?
+                """,
+                (subject_id, subject_id, workspace_id, workspace_id, bounded),
+            ).fetchall()
+        episodes = [_episode_from_row(row) for row in reversed(episode_rows)]
+        workspace_clause = (
+            "AND (r.authority_workspace_id IS NULL OR r.authority_workspace_id = ?)"
+            if workspace_id is not None else ""
+        )
+        parameters: list[Any] = [subject_id]
+        if workspace_id is not None:
+            parameters.append(workspace_id)
+        parameters.append(bounded)
+        rows = self._conn.execute(
+            f"""
+            SELECT r.* FROM records r
+            WHERE r.subject_id = ? AND r.status = 'active'
+              {workspace_clause}
+              AND NOT EXISTS (
+                SELECT 1 FROM retrieval_exclusions x
+                WHERE x.subject_id = r.subject_id AND x.record_id = r.id
+              )
+            ORDER BY r.created_at DESC, r.id DESC LIMIT ?
+            """,
+            tuple(parameters),
+        ).fetchall()
+        return episodes, [_record_from_row(row) for row in rows]
+
     def promote_record(
         self,
         *,
@@ -2392,15 +3485,35 @@ class SQLiteStore:
             ).fetchone()
             if row is None:
                 return None
+            raw = _load_json(row["raw"], {})
+            if isinstance(raw.get("typed_unit"), dict):
+                raw["typed_unit"]["lifecycle"] = "active"
             self._conn.execute(
                 """
                 UPDATE records
-                SET status = 'active', trust_tier = ?, updated_at = ?
+                SET status = 'active', trust_tier = ?, updated_at = ?, raw = ?
                 WHERE subject_id = ? AND id = ?
                 """,
-                (trust_tier, updated_at, subject_id, record_id),
+                (trust_tier, updated_at, _json(raw), subject_id, record_id),
             )
             self._upsert_fts(record_id, subject_id, row["content"])
+            authority = raw.get("authority_scope") or {}
+            self._upsert_search_terms(
+                record_id=record_id,
+                subject_id=subject_id,
+                workspace_id=str(authority.get("workspace_id") or ""),
+                content=str(row["content"]),
+                fact_key=row["fact_key"],
+            )
+            self._conn.execute(
+                """
+                UPDATE typed_memory_units
+                SET lifecycle = 'active', generation = generation + 1,
+                    updated_at = ?
+                WHERE record_id = ? AND lifecycle = 'quarantined'
+                """,
+                (updated_at, record_id),
+            )
         return self.get_record(subject_id, record_id)
 
     def supersede_records(
@@ -2426,6 +3539,8 @@ class SQLiteStore:
                     continue
                 raw = _load_json(row["raw"], {})
                 raw["superseded_by_id"] = superseded_by_id
+                if isinstance(raw.get("typed_unit"), dict):
+                    raw["typed_unit"]["lifecycle"] = "superseded"
                 self._conn.execute(
                     """
                     UPDATE records
@@ -2435,6 +3550,16 @@ class SQLiteStore:
                     (updated_at, _json(raw), subject_id, record_id),
                 )
                 self._delete_fts(record_id)
+                self._delete_search_terms(record_id)
+                self._conn.execute(
+                    """
+                    UPDATE typed_memory_units
+                    SET lifecycle = 'superseded', generation = generation + 1,
+                        updated_at = ?
+                    WHERE record_id = ? AND lifecycle IN ('active', 'quarantined')
+                    """,
+                    (updated_at, record_id),
+                )
 
     def tombstone_records(
         self, *, subject_id: str, record_ids: list[str]
@@ -2449,11 +3574,13 @@ class SQLiteStore:
             return [], []
         deleted_at = utc_now()
         changed: list[str] = []
+        typed_source_ids: set[str] = set()
+        typed_record_ids: set[str] = set()
         with self.transaction():
             for record_id in record_ids:
                 row = self._conn.execute(
                     """
-                    SELECT id FROM records
+                    SELECT id, raw FROM records
                     WHERE subject_id = ? AND id = ?
                       AND status IN ('active', 'quarantined', 'superseded')
                     """,
@@ -2461,6 +3588,23 @@ class SQLiteStore:
                 ).fetchone()
                 if row is None:
                     continue
+                unit_rows = self._conn.execute(
+                    """
+                    SELECT u.subject_id, u.workspace_id, u.unit_id, e.source_id
+                    FROM typed_memory_units u
+                    JOIN typed_unit_evidence e
+                      ON e.subject_id = u.subject_id
+                     AND e.workspace_id = u.workspace_id
+                     AND e.unit_id = u.unit_id
+                    WHERE u.record_id = ?
+                    """,
+                    (record_id,),
+                ).fetchall()
+                typed_source_ids.update(str(value["source_id"]) for value in unit_rows)
+                if unit_rows:
+                    typed_record_ids.add(record_id)
+                original_raw = _load_json(row["raw"], {})
+                proposal_id = original_raw.get("proposal_id")
                 self._conn.execute(
                     """
                     UPDATE records
@@ -2482,6 +3626,53 @@ class SQLiteStore:
                     ),
                 )
                 self._delete_fts(record_id)
+                self._delete_search_terms(record_id)
+                self._conn.execute(
+                    """
+                    UPDATE typed_memory_units
+                    SET lifecycle = 'deleted', semantic_identity = NULL,
+                        generation = generation + 1,
+                        updated_at = ?
+                    WHERE record_id = ? AND lifecycle != 'deleted'
+                    """,
+                    (deleted_at, record_id),
+                )
+                for value in unit_rows:
+                    self._conn.execute(
+                        """
+                        DELETE FROM typed_unit_evidence
+                        WHERE subject_id = ? AND workspace_id = ? AND unit_id = ?
+                        """,
+                        (value["subject_id"], value["workspace_id"], value["unit_id"]),
+                    )
+                if proposal_id:
+                    proposal_row = self._conn.execute(
+                        "SELECT proposal FROM memory_proposals WHERE proposal_id = ?",
+                        (proposal_id,),
+                    ).fetchone()
+                    if proposal_row is not None:
+                        proposal_value = _load_json(proposal_row["proposal"], {})
+                        unit_value = proposal_value.get("unit") or {}
+                        self._conn.execute(
+                            """
+                            UPDATE memory_proposals SET proposal = ?
+                            WHERE proposal_id = ?
+                            """,
+                            (
+                                _json({
+                                    "format": proposal_value.get("format"),
+                                    "proposal_id": proposal_id,
+                                    "scope": proposal_value.get("scope"),
+                                    "action": proposal_value.get("action"),
+                                    "memory_class": proposal_value.get("memory_class"),
+                                    "unit_id": unit_value.get("unit_id"),
+                                    "formation_id": unit_value.get("formation_id"),
+                                    "kind": unit_value.get("kind"),
+                                    "redacted": True,
+                                }),
+                                proposal_id,
+                            ),
+                        )
                 changed.append(record_id)
             episode_ids: list[str] = []
             if changed:
@@ -2495,16 +3686,81 @@ class SQLiteStore:
                     (subject_id, *changed),
                 ).fetchall()
                 episode_ids = [row["episode_id"] for row in episode_rows]
+                if typed_record_ids:
+                    typed_placeholders = ",".join("?" for _ in typed_record_ids)
+                    typed_episodes = self._conn.execute(
+                        f"SELECT episode_id FROM records WHERE id IN ({typed_placeholders})",
+                        tuple(typed_record_ids),
+                    ).fetchall()
+                    typed_episode_ids = {
+                        str(value["episode_id"]) for value in typed_episodes
+                        if value["episode_id"] is not None
+                    }
+                    episode_ids = [
+                        value for value in episode_ids if str(value) not in typed_episode_ids
+                    ]
+                if episode_ids:
+                    placeholders = ",".join("?" for _ in episode_ids)
+                    retained = self._conn.execute(
+                        f"""
+                        SELECT DISTINCT r.episode_id FROM records r
+                        WHERE r.episode_id IN ({placeholders})
+                          AND r.status != 'tombstoned'
+                        """,
+                        episode_ids,
+                    ).fetchall()
+                    retained_ids = {str(value["episode_id"]) for value in retained}
+                    episode_ids = [value for value in episode_ids if value not in retained_ids]
+            for source_id in typed_source_ids:
+                if not self._source_in_use(source_id):
+                    media_rows = self._conn.execute(
+                        """SELECT formation_id, part_id
+                           FROM formation_media_references
+                           WHERE adjacent_source_id = ?""",
+                        (source_id,),
+                    ).fetchall()
+                    for media_row in media_rows:
+                        self._conn.execute(
+                            """DELETE FROM protected_formation_media
+                               WHERE formation_id = ? AND part_id = ?""",
+                            (media_row["formation_id"], media_row["part_id"]),
+                        )
+                    self._conn.execute(
+                        "DELETE FROM formation_media_references WHERE adjacent_source_id = ?",
+                        (source_id,),
+                    )
+                episode_id = self._purge_protocol_source(source_id)
+                if episode_id is not None:
+                    episode_ids.append(episode_id)
+            episode_ids = list(dict.fromkeys(episode_ids))
             if episode_ids:
                 placeholders = ",".join("?" for _ in episode_ids)
-                self._conn.execute(
-                    f"""
-                    UPDATE episodes
-                    SET message = '[purged]', raw = ?
-                    WHERE subject_id = ? AND id IN ({placeholders})
-                    """,
-                    (_json({"purged": True}), subject_id, *episode_ids),
-                )
+                source_rows = self._conn.execute(
+                    f"SELECT source_id, episode_id FROM protocol_sources WHERE episode_id IN ({placeholders})",
+                    tuple(episode_ids),
+                ).fetchall()
+                retained_source_episodes = {
+                    str(source_row["episode_id"])
+                    for source_row in source_rows
+                    if self._source_in_use(str(source_row["source_id"]))
+                }
+                episode_ids = [
+                    value for value in episode_ids
+                    if str(value) not in retained_source_episodes
+                ]
+                for source_row in source_rows:
+                    if str(source_row["episode_id"]) in {str(value) for value in episode_ids}:
+                        self._purge_protocol_source(str(source_row["source_id"]))
+                if episode_ids:
+                    placeholders = ",".join("?" for _ in episode_ids)
+                    self._conn.execute(
+                        f"""
+                        UPDATE episodes
+                        SET message = '[purged]', raw = ?
+                        WHERE subject_id = ? AND id IN ({placeholders})
+                        """,
+                        (_json({"purged": True}), subject_id, *episode_ids),
+                    )
         return changed, episode_ids
 
     def list_records(
@@ -2628,6 +3884,211 @@ class SQLiteStore:
         records = [_record_from_row(row) for row in rows]
         records.sort(key=lambda record: (record["created_at"], record["id"]))
         return records, scores
+
+    def scoped_search_candidates(
+        self,
+        subject_id: str,
+        workspace_id: str,
+        terms: list[str],
+        *,
+        limit: int = 200,
+        remote: bool = False,
+        graph_floor: int = 256,
+        include_superseded: bool = False,
+        include_recency: bool = True,
+        include_fact: bool = True,
+    ) -> tuple[
+        list[dict[str, Any]], dict[str, float], dict[str, float], int, dict[str, Any]
+    ]:
+        """Return bounded authorized candidates from FTS plus exact postings.
+
+        Authorization predicates are applied in SQL before candidate limits or
+        scores.  Workspace-private rows therefore cannot consume another
+        workspace's quota or alter its ranking.  A bounded recency tail is
+        included solely as graph input until typed adjacency is persisted.
+        """
+        limit = max(1, min(int(limit), 2_000))
+        graph_limit = min(4_000, max(limit * 2, max(int(graph_floor), 1)))
+        normalized_terms = sorted(
+            {_search_stem(term) for term in terms if term.strip()}
+        )[:64]
+        status_sql = "r.status IN ('active', 'superseded')" if include_superseded else "r.status = 'active'"
+        auth_sql = f"""
+            r.subject_id = ? AND {status_sql}
+            AND (
+              r.authority_materialized = 1 AND (
+              (r.authority_subject_id IS NULL AND r.authority_workspace_id IS NULL)
+              OR (r.authority_subject_id = ? AND r.authority_workspace_id = ?)
+              )
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM retrieval_exclusions x
+              WHERE x.subject_id = r.subject_id AND x.record_id = r.id
+            )
+        """
+        auth_params: list[Any] = [subject_id, subject_id, workspace_id]
+        if remote:
+            auth_sql += " AND r.sensitivity_class NOT IN ('sensitive', 'restricted')"
+
+        def lexical_fts() -> dict[str, float]:
+            if not normalized_terms or not self._fts_enabled:
+                return {}
+            match_expr = " OR ".join(
+                '"' + term.replace('"', '') + '"' for term in normalized_terms
+            )
+            try:
+                rows = self._conn.execute(
+                    f"""
+                    SELECT f.record_id, bm25(records_fts) AS rank, r.created_at
+                    FROM records_fts f JOIN records r ON r.id = f.record_id
+                    WHERE records_fts MATCH ? AND f.subject_id = ? AND {auth_sql}
+                    ORDER BY bm25(records_fts), r.created_at DESC, f.record_id
+                    LIMIT ?
+                    """,
+                    (match_expr, subject_id, *auth_params, limit),
+                ).fetchall()
+            except sqlite3.OperationalError:
+                return {}
+            # FTS owns term-frequency/document-frequency accounting.  Expose a
+            # stable reciprocal rank to the cross-channel fusion layer rather
+            # than persisting one redundant SQL row per content token.
+            return {
+                str(row["record_id"]): 1.0 / rank
+                for rank, row in enumerate(rows, start=1)
+            }
+
+        def fact_postings() -> dict[str, float]:
+            if not normalized_terms:
+                return {}
+            placeholders = ",".join("?" for _ in normalized_terms)
+            rows = self._conn.execute(
+                f"""
+                WITH authorized AS (
+                  SELECT r.id, r.created_at FROM records r WHERE {auth_sql}
+                ), matched AS (
+                  SELECT p.record_id, p.term, p.term_frequency, a.created_at
+                  FROM record_search_terms p
+                  JOIN authorized a ON a.id = p.record_id
+                  WHERE p.subject_id = ? AND p.workspace_id IN ('', ?)
+                    AND p.field = 'fact_key' AND p.term IN ({placeholders})
+                ), term_df AS (
+                  SELECT term, COUNT(DISTINCT record_id) AS document_frequency
+                  FROM matched GROUP BY term
+                )
+                SELECT m.record_id,
+                  SUM((1.0 / d.document_frequency) *
+                      (1.0 + MIN(m.term_frequency, 3) * 0.05)) / ? AS score,
+                  MAX(m.created_at) AS created_at
+                FROM matched m JOIN term_df d ON d.term = m.term
+                GROUP BY m.record_id
+                ORDER BY score DESC, created_at DESC, m.record_id
+                LIMIT ?
+                """,
+                (
+                    *auth_params, subject_id, workspace_id,
+                    *normalized_terms, len(normalized_terms), limit,
+                ),
+            ).fetchall()
+            return {str(row["record_id"]): float(row["score"]) for row in rows}
+
+        lexical_scores = lexical_fts()
+        fact_scores = fact_postings() if include_fact else {}
+        nominated_ids = list(dict.fromkeys((*lexical_scores, *fact_scores)))
+        loaded = self.get_records(subject_id, nominated_ids)
+        records = [loaded[record_id] for record_id in nominated_ids if record_id in loaded]
+        seen = {str(record["id"]) for record in records}
+        recent: list[sqlite3.Row] = []
+        if include_recency and len(records) < graph_limit:
+            recent = self._conn.execute(
+                f"""
+                SELECT r.* FROM records r
+                WHERE {auth_sql}
+                ORDER BY r.created_at DESC, r.id DESC LIMIT ?
+                """,
+                (*auth_params, graph_limit + 1),
+            ).fetchall()
+            for row in recent[:graph_limit]:
+                if str(row["id"]) not in seen:
+                    records.append(_record_from_row(row))
+                    seen.add(str(row["id"]))
+                    if len(records) >= graph_limit:
+                        break
+        withheld = int(
+            self._conn.execute(
+                """
+                SELECT COUNT(*) AS count FROM records r
+                WHERE r.subject_id = ? AND r.status = 'active' AND (
+                  r.authority_materialized != 1
+                  OR ((r.authority_subject_id IS NOT NULL OR r.authority_workspace_id IS NOT NULL)
+                    AND NOT (r.authority_subject_id = ? AND r.authority_workspace_id = ?)
+                  )
+                  OR EXISTS (
+                    SELECT 1 FROM retrieval_exclusions x
+                    WHERE x.subject_id = r.subject_id AND x.record_id = r.id
+                  )
+                  OR (? = 1 AND r.sensitivity_class IN ('sensitive', 'restricted'))
+                )
+                """,
+                (subject_id, subject_id, workspace_id, 1 if remote else 0),
+            ).fetchone()["count"]
+        )
+        return (
+            records,
+            lexical_scores,
+            fact_scores,
+            withheld,
+            {
+                "graph_input_source": (
+                    "persistent_fts_plus_bounded_recency"
+                    if include_recency else "persistent_fts"
+                ),
+                "graph_input_records": len(records),
+                "graph_input_limit": graph_limit,
+                "graph_input_truncated": len(recent) > graph_limit,
+            },
+        )
+
+    def authorized_record_ids(
+        self,
+        subject_id: str,
+        workspace_id: str,
+        record_ids: list[str],
+        *,
+        remote: bool = False,
+    ) -> set[str]:
+        """Authorize bounded candidate IDs without enumerating the corpus."""
+        ids = list(dict.fromkeys(str(value) for value in record_ids))
+        allowed: set[str] = set()
+        for start in range(0, len(ids), 500):
+            batch = ids[start : start + 500]
+            if not batch:
+                continue
+            placeholders = ",".join("?" for _ in batch)
+            remote_clause = (
+                "AND r.sensitivity_class NOT IN ('sensitive', 'restricted')"
+                if remote else ""
+            )
+            rows = self._conn.execute(
+                f"""
+                SELECT r.id FROM records r
+                WHERE r.subject_id = ? AND r.status = 'active'
+                  AND (
+                    r.authority_materialized = 1 AND (
+                    (r.authority_subject_id IS NULL AND r.authority_workspace_id IS NULL)
+                    OR (r.authority_subject_id = ? AND r.authority_workspace_id = ?)
+                    )
+                  )
+                  {remote_clause}
+                  AND NOT EXISTS (
+                    SELECT 1 FROM retrieval_exclusions x
+                    WHERE x.subject_id = r.subject_id AND x.record_id = r.id
+                  )
+                  AND r.id IN ({placeholders})
+                """,
+                (subject_id, subject_id, workspace_id, *batch),
+            ).fetchall()
+            allowed.update(str(row["id"]) for row in rows)
+        return allowed
 
     def list_episodes(self, subject_id: str) -> list[dict[str, Any]]:
         rows = self._conn.execute(
@@ -3846,6 +5307,14 @@ class SQLiteStore:
                 """)
             self._ensure_column("records", "fact_key", "TEXT")
             self._ensure_column("records", "content_normalized", "TEXT")
+            self._ensure_column("records", "authority_workspace_id", "TEXT")
+            self._ensure_column("records", "authority_subject_id", "TEXT")
+            self._ensure_column(
+                "records", "authority_materialized", "INTEGER NOT NULL DEFAULT 0"
+            )
+            self._ensure_column(
+                "records", "sensitivity_class", "TEXT NOT NULL DEFAULT 'personal'"
+            )
             self._ensure_column("retrieval_events", "query_sha256", "TEXT")
             self._ensure_column(
                 "edges", "extractor_version", "TEXT NOT NULL DEFAULT 'graph-rules-v1'"
@@ -3860,6 +5329,12 @@ class SQLiteStore:
             self._migrate_graph_fts()
             self._migrate_audit_fts()
             self._apply_bootstrap_migrations()
+            self._migrate_context_fts()
+            self._migrate_context_range_fts()
+            while self._backfill_typed_identity_mappings():
+                pass
+            self._backfill_typed_exclusion_identities()
+            self._backfill_search_terms_if_needed()
 
     def _apply_bootstrap_migrations(self) -> None:
         """Apply the reserved, append-only bootstrap steps exactly once.
@@ -3896,11 +5371,221 @@ class SQLiteStore:
                     self._ensure_column(
                         table, "sequence", "INTEGER NOT NULL DEFAULT 0"
                     )
+            if identifier == "0401_context_generation_revision":
+                self._ensure_column(
+                    "context_view_generations", "revision", "INTEGER NOT NULL DEFAULT 0"
+                )
             self._conn.executescript(script)
             self._conn.execute(
                 "INSERT OR IGNORE INTO schema_migrations(identifier, applied_at) "
                 "VALUES (?, ?)",
                 (identifier, utc_now()),
+            )
+
+    def _migrate_context_fts(self) -> None:
+        """Create the rebuildable V3 lexical index without copying source bodies."""
+        try:
+            self._conn.executescript("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS context_units_fts USING fts5(
+                  generation_id UNINDEXED,
+                  unit_id UNINDEXED,
+                  text,
+                  content=''
+                );
+                CREATE TABLE IF NOT EXISTS context_units_fts_map(
+                  generation_id TEXT NOT NULL,
+                  unit_id TEXT NOT NULL,
+                  fts_rowid INTEGER NOT NULL UNIQUE,
+                  PRIMARY KEY(generation_id, unit_id),
+                  FOREIGN KEY(generation_id, unit_id)
+                    REFERENCES context_evidence_units(generation_id, unit_id)
+                    ON DELETE CASCADE
+                );
+                """)
+            self._context_fts_enabled = True
+        except Exception:
+            self._context_fts_enabled = False
+
+    def _migrate_context_range_fts(self) -> None:
+        """Create one rebuildable lexical row per exact source range."""
+        try:
+            self._conn.executescript("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS context_ranges_fts USING fts5(
+                  generation_id UNINDEXED,
+                  range_id UNINDEXED,
+                  text,
+                  content=''
+                );
+                CREATE TABLE IF NOT EXISTS context_range_fts_map(
+                  generation_id TEXT NOT NULL,
+                  range_id TEXT NOT NULL,
+                  fts_rowid INTEGER NOT NULL UNIQUE,
+                  PRIMARY KEY(generation_id, range_id),
+                  FOREIGN KEY(generation_id)
+                    REFERENCES context_view_generations(generation_id)
+                    ON DELETE CASCADE,
+                  FOREIGN KEY(range_id)
+                    REFERENCES context_source_ranges(range_id)
+                    ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_context_range_fts_rowid
+                  ON context_range_fts_map(fts_rowid, generation_id, range_id);
+                """)
+            self._context_range_fts_enabled = True
+        except Exception:
+            self._context_range_fts_enabled = False
+
+    def index_context_range(
+        self, generation_id: str, range_id: str, text: str
+    ) -> None:
+        if not self._context_range_fts_enabled:
+            return
+        existing = self._conn.execute(
+            "SELECT fts_rowid FROM context_range_fts_map "
+            "WHERE generation_id=? AND range_id=?",
+            (generation_id, range_id),
+        ).fetchone()
+        if existing is not None:
+            return
+        cursor = self._conn.execute(
+            "INSERT INTO context_ranges_fts(generation_id, range_id, text) "
+            "VALUES (?, ?, ?)",
+            (generation_id, range_id, text),
+        )
+        self._conn.execute(
+            "INSERT INTO context_range_fts_map(generation_id, range_id, fts_rowid) "
+            "VALUES (?, ?, ?)",
+            (generation_id, range_id, int(cursor.lastrowid)),
+        )
+
+    def remove_context_range_index(
+        self, generation_id: str, range_id: str
+    ) -> None:
+        if not self._context_range_fts_enabled:
+            return
+        row = self._conn.execute(
+            "SELECT fts_rowid FROM context_range_fts_map "
+            "WHERE generation_id=? AND range_id=?",
+            (generation_id, range_id),
+        ).fetchone()
+        if row is None:
+            return
+        text = self._context_unit_search_text_for_range(range_id)
+        self._conn.execute(
+            "INSERT INTO context_ranges_fts(context_ranges_fts, rowid, "
+            "generation_id, range_id, text) VALUES('delete', ?, ?, ?, ?)",
+            (row["fts_rowid"], generation_id, range_id, text),
+        )
+        self._conn.execute(
+            "DELETE FROM context_range_fts_map WHERE generation_id=? AND range_id=?",
+            (generation_id, range_id),
+        )
+
+    def index_context_unit(
+        self, generation_id: str, unit_id: str, text: str
+    ) -> None:
+        if not self._context_fts_enabled:
+            return
+        existing = self._conn.execute(
+            "SELECT fts_rowid FROM context_units_fts_map WHERE generation_id=? AND unit_id=?",
+            (generation_id, unit_id),
+        ).fetchone()
+        if existing is not None:
+            rowid = int(existing["fts_rowid"])
+            old_text = self._context_unit_search_text(generation_id, unit_id)
+            self._conn.execute(
+                "INSERT INTO context_units_fts(context_units_fts, rowid, generation_id, unit_id, text) VALUES('delete', ?, ?, ?, ?)",
+                (rowid, generation_id, unit_id, old_text),
+            )
+            self._conn.execute("DELETE FROM context_units_fts_map WHERE fts_rowid=?", (rowid,))
+        cursor = self._conn.execute(
+            "INSERT INTO context_units_fts(generation_id, unit_id, text) VALUES (?, ?, ?)",
+            (generation_id, unit_id, text),
+        )
+        self._conn.execute(
+            "INSERT INTO context_units_fts_map(generation_id, unit_id, fts_rowid) VALUES (?, ?, ?)",
+            (generation_id, unit_id, int(cursor.lastrowid)),
+        )
+
+    def optimize_context_fts(self) -> None:
+        """Merge FTS segments after a generation build.
+
+        Formation can add thousands of units in a bounded transaction.  FTS5
+        otherwise leaves many small segments, making the first query perform
+        avoidable work across every segment.  The index is derived and
+        rebuildable, so optimization contains no governance-sensitive state.
+        """
+        if self._context_fts_enabled:
+            self._conn.execute(
+                "INSERT INTO context_units_fts(context_units_fts) VALUES('optimize')"
+            )
+        if self._context_range_fts_enabled:
+            self._conn.execute(
+                "INSERT INTO context_ranges_fts(context_ranges_fts) VALUES('optimize')"
+            )
+
+    def _context_unit_search_text(self, generation_id: str, unit_id: str) -> str:
+        rows = self._conn.execute(
+            """SELECT p.content_bytes, r.start_offset, r.end_offset
+               FROM context_unit_ranges ur
+               JOIN context_source_ranges r USING(range_id)
+               JOIN context_source_parts p
+                 ON p.source_id=r.source_id AND p.part_id=r.part_id
+               WHERE ur.generation_id=? AND ur.unit_id=? ORDER BY ur.ordinal""",
+            (generation_id, unit_id),
+        ).fetchall()
+        return "\n".join(
+            bytes(row["content_bytes"])[int(row["start_offset"]):int(row["end_offset"])].decode(
+                "utf-8", errors="replace"
+            )
+            for row in rows
+        )
+
+    def _context_unit_search_text_for_range(self, range_id: str) -> str:
+        row = self._conn.execute(
+            """SELECT p.content_bytes, r.start_offset, r.end_offset
+               FROM context_source_ranges r JOIN context_source_parts p
+                 ON p.source_id=r.source_id AND p.part_id=r.part_id
+               WHERE r.range_id=?""",
+            (range_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("source range is unavailable")
+        return bytes(row["content_bytes"])[
+            int(row["start_offset"]):int(row["end_offset"])
+        ].decode("utf-8", errors="replace")
+
+    def _delete_context_fts_generation(self, generation_id: str) -> None:
+        if not self._context_fts_enabled:
+            return
+        rows = self._conn.execute(
+            "SELECT unit_id, fts_rowid FROM context_units_fts_map WHERE generation_id=?",
+            (generation_id,),
+        ).fetchall()
+        for row in rows:
+            text = self._context_unit_search_text(generation_id, str(row["unit_id"]))
+            self._conn.execute(
+                "INSERT INTO context_units_fts(context_units_fts, rowid, generation_id, unit_id, text) VALUES('delete', ?, ?, ?, ?)",
+                (row["fts_rowid"], generation_id, row["unit_id"], text),
+            )
+        self._conn.execute(
+            "DELETE FROM context_units_fts_map WHERE generation_id=?", (generation_id,)
+        )
+        if self._context_range_fts_enabled:
+            rows = self._conn.execute(
+                "SELECT range_id, fts_rowid FROM context_range_fts_map "
+                "WHERE generation_id=?", (generation_id,),
+            ).fetchall()
+            for row in rows:
+                text = self._context_unit_search_text_for_range(str(row["range_id"]))
+                self._conn.execute(
+                    "INSERT INTO context_ranges_fts(context_ranges_fts, rowid, "
+                    "generation_id, range_id, text) VALUES('delete', ?, ?, ?, ?)",
+                    (row["fts_rowid"], generation_id, row["range_id"], text),
+                )
+            self._conn.execute(
+                "DELETE FROM context_range_fts_map WHERE generation_id=?",
+                (generation_id,),
             )
 
     def applied_migrations(self) -> list[str]:
@@ -3911,6 +5596,156 @@ class SQLiteStore:
                 "SELECT identifier FROM schema_migrations ORDER BY identifier"
             ).fetchall()
         ]
+
+    def _backfill_typed_identity_mappings(self) -> bool:
+        """Advance a bounded, restart-safe old-to-current identity backfill."""
+        table = self._conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'typed_identity_mappings'"
+        ).fetchone()
+        if table is None:
+            return False
+        version = "3"
+        state = self._conn.execute(
+            "SELECT value FROM retrieval_index_state "
+            "WHERE key = 'typed_identity_mapping_version'"
+        ).fetchone()
+        if state is not None and str(state["value"]) == version:
+            return False
+        from atmem.extract.models import MemoryUnit
+
+        cursor_key = "typed_identity_mapping_cursor_v2"
+        cursor_row = self._conn.execute(
+            "SELECT value FROM retrieval_index_state WHERE key = ?", (cursor_key,)
+        ).fetchone()
+        cursor = int(cursor_row["value"]) if cursor_row is not None else 0
+        rows = self._conn.execute(
+            """SELECT u.rowid AS migration_rowid, u.subject_id, u.workspace_id,
+                      u.semantic_identity, r.raw
+               FROM typed_memory_units u JOIN records r ON r.id = u.record_id
+               WHERE u.semantic_identity IS NOT NULL AND u.rowid > ?
+               ORDER BY u.rowid LIMIT 500""",
+            (cursor,),
+        ).fetchall()
+        for row in rows:
+            raw = _load_json(row["raw"], {})
+            unit_value = raw.get("typed_unit")
+            if not isinstance(unit_value, dict):
+                continue
+            try:
+                current = MemoryUnit.from_dict(unit_value).semantic_identity()
+            except (KeyError, TypeError, ValueError):
+                continue
+            legacy = str(row["semantic_identity"])
+            existing = self._conn.execute(
+                """SELECT current_identity FROM typed_identity_mappings
+                   WHERE subject_id = ? AND workspace_id = ?
+                     AND identity_kind = 'semantic' AND legacy_identity = ?""",
+                (row["subject_id"], row["workspace_id"], legacy),
+            ).fetchone()
+            if existing is not None and str(existing["current_identity"]) != current:
+                self._conn.execute(
+                    """UPDATE typed_identity_mappings SET resolution_state = 'ambiguous_review'
+                       WHERE subject_id = ? AND workspace_id = ?
+                         AND identity_kind = 'semantic' AND legacy_identity = ?""",
+                    (row["subject_id"], row["workspace_id"], legacy),
+                )
+                self._conn.execute(
+                    """INSERT OR IGNORE INTO typed_identity_review_queue(
+                         subject_id, workspace_id, legacy_identity,
+                         proposed_current_identity, reason, created_at
+                       ) VALUES (?, ?, ?, ?, 'ambiguous_upgrade_identity', ?)""",
+                    (
+                        row["subject_id"], row["workspace_id"], legacy,
+                        current, utc_now(),
+                    ),
+                )
+                continue
+            self._conn.execute(
+                """INSERT OR IGNORE INTO typed_identity_mappings(
+                     subject_id, workspace_id, identity_kind, legacy_identity,
+                     current_identity, resolution_state, created_at
+                   ) VALUES (?, ?, 'semantic', ?, ?, 'mapped', ?)""",
+                (row["subject_id"], row["workspace_id"], legacy, current, utc_now()),
+            )
+        if rows:
+            self._conn.execute(
+                """INSERT INTO retrieval_index_state(key, value, updated_at)
+                   VALUES (?, ?, ?)
+                   ON CONFLICT(key) DO UPDATE SET value=excluded.value,
+                     updated_at=excluded.updated_at""",
+                (cursor_key, str(max(int(row["migration_rowid"]) for row in rows)), utc_now()),
+            )
+            return True
+        self._conn.execute(
+            """INSERT INTO retrieval_index_state(key, value, updated_at)
+               VALUES ('typed_identity_mapping_version', ?, ?)
+               ON CONFLICT(key) DO UPDATE SET value=excluded.value,
+                 updated_at=excluded.updated_at""",
+            (version, utc_now()),
+        )
+        self._conn.execute(
+            "DELETE FROM retrieval_index_state WHERE key = ?", (cursor_key,)
+        )
+        return False
+
+    def _backfill_typed_exclusion_identities(self) -> None:
+        """Materialize stable typed identities for pre-existing exclusions."""
+        from atmem.extract.models import MemoryUnit
+
+        rows = self._conn.execute(
+            """SELECT x.subject_id, x.record_id, r.raw
+               FROM retrieval_exclusions x
+               JOIN records r ON r.id = x.record_id
+               LEFT JOIN typed_exclusion_identities t
+                 ON t.subject_id = x.subject_id AND t.record_id = x.record_id
+               WHERE t.record_id IS NULL"""
+        ).fetchall()
+        for row in rows:
+            unit_value = _load_json(row["raw"], {}).get("typed_unit")
+            if not isinstance(unit_value, dict):
+                continue
+            try:
+                unit = MemoryUnit.from_dict(unit_value)
+            except (KeyError, TypeError, ValueError):
+                continue
+            self.set_typed_exclusion_identity(
+                subject_id=str(row["subject_id"]),
+                workspace_id=unit.scope.workspace_id,
+                record_id=str(row["record_id"]),
+                exclusion_identity=unit.exclusion_identity(),
+                excluded=True,
+            )
+
+    def set_typed_exclusion_identity(
+        self, *, subject_id: str, workspace_id: str, record_id: str,
+        exclusion_identity: str, excluded: bool,
+    ) -> None:
+        if excluded:
+            self._conn.execute(
+                """INSERT INTO typed_exclusion_identities(
+                     subject_id, workspace_id, record_id, exclusion_identity, created_at
+                   ) VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(subject_id, record_id) DO UPDATE SET
+                     workspace_id=excluded.workspace_id,
+                     exclusion_identity=excluded.exclusion_identity""",
+                (subject_id, workspace_id, record_id, exclusion_identity, utc_now()),
+            )
+        else:
+            self._conn.execute(
+                "DELETE FROM typed_exclusion_identities "
+                "WHERE subject_id = ? AND record_id = ?",
+                (subject_id, record_id),
+            )
+
+    def has_typed_exclusion_identity(
+        self, subject_id: str, workspace_id: str, exclusion_identity: str
+    ) -> bool:
+        return self._conn.execute(
+            """SELECT 1 FROM typed_exclusion_identities
+               WHERE subject_id = ? AND workspace_id = ?
+                 AND exclusion_identity = ? LIMIT 1""",
+            (subject_id, workspace_id, exclusion_identity),
+        ).fetchone() is not None
 
     def _ensure_column(self, table: str, column: str, column_type: str) -> None:
         """Add a column if it is missing, tolerating a concurrent first open.
@@ -4044,16 +5879,28 @@ class SQLiteStore:
     def _migrate_audit_fts(self) -> None:
         try:
             self._conn.executescript("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS audit_fts
-                USING fts5(
-                  event_id, subject_id UNINDEXED, event_type, actor,
-                  session_id, turn_id, record_id, payload,
-                  content='audit_log', content_rowid='sequence',
-                  tokenize='porter unicode61'
-                );
                 CREATE TABLE IF NOT EXISTS audit_fts_state(
                   key TEXT PRIMARY KEY,
                   value TEXT NOT NULL
+                );
+                """)
+            version = self._conn.execute(
+                "SELECT value FROM audit_fts_state WHERE key = 'version'"
+            ).fetchone()
+            if version is None or version["value"] != "2":
+                self._conn.executescript("""
+                    DROP TRIGGER IF EXISTS audit_fts_insert;
+                    DROP TRIGGER IF EXISTS audit_fts_delete;
+                    DROP TRIGGER IF EXISTS audit_fts_update;
+                    DROP TABLE IF EXISTS audit_fts;
+                    """)
+            self._conn.executescript("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS audit_fts
+                USING fts5(
+                  event_id, subject_id UNINDEXED, event_type, actor,
+                  session_id, turn_id, record_id, payload UNINDEXED,
+                  content='audit_log', content_rowid='sequence',
+                  tokenize='porter unicode61'
                 );
                 CREATE TRIGGER IF NOT EXISTS audit_fts_insert AFTER INSERT ON audit_log BEGIN
                   INSERT INTO audit_fts(
@@ -4084,17 +5931,29 @@ class SQLiteStore:
                   );
                 END;
                 """)
-            version = self._conn.execute(
-                "SELECT value FROM audit_fts_state WHERE key = 'version'"
-            ).fetchone()
-            if version is None or version["value"] != "1":
+            if version is None or version["value"] != "2":
                 self._conn.execute("INSERT INTO audit_fts(audit_fts) VALUES('rebuild')")
                 self._conn.execute(
-                    "INSERT INTO audit_fts_state(key, value) VALUES('version', '1') "
+                    "INSERT INTO audit_fts_state(key, value) VALUES('version', '2') "
                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value"
                 )
             self._audit_fts_enabled = True
-        except sqlite3.OperationalError:
+        except Exception:
+            # Audit search is a rebuildable derived index.  SQLCipher exposes
+            # its own exception hierarchy (not sqlite3.DatabaseError), and an
+            # older or interrupted FTS shadow table can fail the special
+            # ``rebuild`` command even when the canonical audit_log passes
+            # integrity checks.  Never make the authority-bearing household
+            # unavailable because this optional index cannot be rebuilt.
+            try:
+                self._conn.executescript("""
+                    DROP TRIGGER IF EXISTS audit_fts_insert;
+                    DROP TRIGGER IF EXISTS audit_fts_delete;
+                    DROP TRIGGER IF EXISTS audit_fts_update;
+                    DROP TABLE IF EXISTS audit_fts;
+                    """)
+            except Exception:
+                pass
             self._audit_fts_enabled = False
 
     def _rebuild_fts(self) -> None:
@@ -4150,6 +6009,114 @@ class SQLiteStore:
         self._conn.execute(
             "DELETE FROM records_fts_map WHERE record_id = ?", (record_id,)
         )
+
+    def _delete_search_terms(self, record_id: str) -> None:
+        self._conn.execute(
+            "DELETE FROM record_search_terms WHERE record_id = ?", (record_id,)
+        )
+
+    def _upsert_search_terms(
+        self,
+        *,
+        record_id: str,
+        subject_id: str,
+        workspace_id: str,
+        content: str,
+        fact_key: str | None,
+    ) -> None:
+        self._conn.execute(
+            "DELETE FROM record_search_terms WHERE record_id = ?", (record_id,)
+        )
+        rows: list[tuple[str, str, str, str, str, int]] = []
+        # Content already lives in the FTS5 index.  Only the compact exact
+        # fact-key channel needs explicit postings; duplicating every content
+        # token here made UI trajectories grow by hundreds of rows per state.
+        for field, value in (("fact_key", fact_key or ""),):
+            counts: dict[str, int] = {}
+            for term in _search_terms(value):
+                counts[term] = counts.get(term, 0) + 1
+            rows.extend(
+                (record_id, subject_id, workspace_id, field, term, count)
+                for term, count in counts.items()
+            )
+        if rows:
+            self._conn.executemany(
+                """
+                INSERT INTO record_search_terms(
+                  record_id, subject_id, workspace_id, field, term, term_frequency
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+
+    def _backfill_search_terms_if_needed(self) -> None:
+        version = SEARCH_INDEX_VERSION
+        state = self._conn.execute(
+            "SELECT value FROM retrieval_index_state WHERE key = 'postings_version'"
+        ).fetchone()
+        if state is not None and state["value"] == version:
+            return
+        owns_transaction = not self._conn.in_transaction
+        if owns_transaction:
+            self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            state = self._conn.execute(
+                "SELECT value FROM retrieval_index_state WHERE key = 'postings_version'"
+            ).fetchone()
+            if state is not None and state["value"] == version:
+                if owns_transaction:
+                    self._conn.commit()
+                return
+            self._conn.execute("DELETE FROM record_search_terms")
+            rows = self._conn.execute(
+                "SELECT id, subject_id, content, fact_key, raw, authority_subject_id, "
+                "authority_workspace_id, sensitivity_class, authority_materialized "
+                "FROM records WHERE status = 'active'"
+            ).fetchall()
+            for row in rows:
+                raw = _load_json(row["raw"], {})
+                authority = raw.get("authority_scope") or {}
+                authority_subject_id = authority.get("subject_id")
+                authority_workspace_id = authority.get("workspace_id")
+                sensitivity_class = str(raw.get("sensitivity") or "personal")
+                if (
+                    row["authority_subject_id"] != authority_subject_id
+                    or row["authority_workspace_id"] != authority_workspace_id
+                    or row["sensitivity_class"] != sensitivity_class
+                    or int(row["authority_materialized"] or 0) != 1
+                ):
+                    self._conn.execute(
+                        """
+                        UPDATE records SET authority_subject_id = ?,
+                          authority_workspace_id = ?, sensitivity_class = ?,
+                          authority_materialized = 1
+                        WHERE id = ?
+                        """,
+                        (
+                            authority_subject_id, authority_workspace_id,
+                            sensitivity_class, row["id"],
+                        ),
+                    )
+                self._upsert_search_terms(
+                    record_id=str(row["id"]), subject_id=str(row["subject_id"]),
+                    workspace_id=str(authority_workspace_id or ""),
+                    content=str(row["content"]), fact_key=row["fact_key"],
+                )
+            self._conn.execute(
+                """
+                INSERT INTO retrieval_index_state(key, value, updated_at)
+                VALUES ('postings_version', ?, ?)
+                ON CONFLICT(key) DO UPDATE SET
+                  value = excluded.value, updated_at = excluded.updated_at
+                """,
+                (version, utc_now()),
+            )
+            if owns_transaction:
+                self._conn.commit()
+        except BaseException:
+            if owns_transaction:
+                self._conn.rollback()
+            raise
 
     def _delete_records_fts_subject(self, subject_id: str) -> None:
         rows = self._conn.execute(
@@ -4794,6 +6761,439 @@ MIGRATION_REGISTRY: tuple[tuple[str, str], ...] = (
           ON governed_media_observations(subject_id,workspace_id,status,artifact_id);
         """,
     ),
+    (
+        "0380_scoped_retrieval_postings",
+        """
+        CREATE TABLE IF NOT EXISTS record_search_terms (
+          record_id TEXT NOT NULL,
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL DEFAULT '',
+          field TEXT NOT NULL CHECK (field IN ('content', 'fact_key')),
+          term TEXT NOT NULL,
+          term_frequency INTEGER NOT NULL CHECK (term_frequency > 0),
+          PRIMARY KEY (record_id, field, term),
+          FOREIGN KEY (record_id) REFERENCES records(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_record_search_terms_lookup
+          ON record_search_terms(subject_id, workspace_id, field, term, record_id);
+        CREATE INDEX IF NOT EXISTS idx_records_authorized_recall
+          ON records(subject_id, status, authority_subject_id, authority_workspace_id, sensitivity_class,
+                     authority_materialized, created_at, id);
+        CREATE INDEX IF NOT EXISTS idx_records_subject_recent
+          ON records(subject_id, status, created_at DESC, id DESC);
+        CREATE TABLE IF NOT EXISTS retrieval_index_state (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        """,
+    ),
+    (
+        "0381_typed_memory_sources",
+        """
+        CREATE TABLE IF NOT EXISTS typed_memory_units (
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          unit_id TEXT NOT NULL,
+          record_id TEXT NOT NULL UNIQUE,
+          formation_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          semantic_identity TEXT,
+          lifecycle TEXT NOT NULL CHECK (
+            lifecycle IN ('active', 'quarantined', 'superseded', 'revoked', 'deleted')
+          ),
+          generation INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (record_id) REFERENCES records(id) ON DELETE CASCADE,
+          PRIMARY KEY(subject_id, workspace_id, unit_id)
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_typed_units_live_identity
+          ON typed_memory_units(subject_id, workspace_id, semantic_identity)
+          WHERE lifecycle IN ('active', 'quarantined');
+        CREATE INDEX IF NOT EXISTS idx_typed_units_scope_lifecycle
+          ON typed_memory_units(subject_id, workspace_id, lifecycle, kind, unit_id);
+        CREATE INDEX IF NOT EXISTS idx_typed_units_formation
+          ON typed_memory_units(formation_id, unit_id);
+
+        CREATE TABLE IF NOT EXISTS typed_unit_evidence (
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          unit_id TEXT NOT NULL,
+          source_id TEXT NOT NULL,
+          start_offset INTEGER NOT NULL,
+          end_offset INTEGER NOT NULL,
+          excerpt_sha256 TEXT NOT NULL,
+          PRIMARY KEY(subject_id, workspace_id, unit_id, source_id, start_offset, end_offset),
+          FOREIGN KEY (subject_id, workspace_id, unit_id)
+            REFERENCES typed_memory_units(subject_id, workspace_id, unit_id)
+            ON DELETE CASCADE,
+          FOREIGN KEY (source_id) REFERENCES protocol_sources(source_id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_typed_evidence_source
+          ON typed_unit_evidence(subject_id, workspace_id, source_id, unit_id);
+        """,
+    ),
+    (
+        "0382_memory_proposal_sources",
+        """
+        CREATE TABLE IF NOT EXISTS memory_proposal_sources (
+          proposal_id TEXT NOT NULL,
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          source_id TEXT NOT NULL,
+          PRIMARY KEY(proposal_id, source_id),
+          FOREIGN KEY (proposal_id) REFERENCES memory_proposals(proposal_id) ON DELETE CASCADE,
+          FOREIGN KEY (source_id) REFERENCES protocol_sources(source_id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_memory_proposal_sources_source
+          ON memory_proposal_sources(subject_id, workspace_id, source_id, proposal_id);
+        """,
+    ),
+    (
+        "0383_formation_receipts",
+        """
+        CREATE TABLE IF NOT EXISTS formation_receipts (
+          formation_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          episode_id TEXT NOT NULL,
+          receipt_json TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_formation_receipts_scope
+          ON formation_receipts(subject_id, workspace_id, created_at, formation_id);
+        """,
+    ),
+    (
+        "0384_source_adjacency",
+        """
+        CREATE TABLE IF NOT EXISTS source_adjacency (
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          from_source_id TEXT NOT NULL,
+          to_source_id TEXT NOT NULL,
+          relation TEXT NOT NULL CHECK (relation IN ('next')),
+          ordinal INTEGER NOT NULL,
+          PRIMARY KEY(subject_id, workspace_id, from_source_id, to_source_id, relation),
+          FOREIGN KEY (from_source_id) REFERENCES protocol_sources(source_id) ON DELETE CASCADE,
+          FOREIGN KEY (to_source_id) REFERENCES protocol_sources(source_id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_source_adjacency_reverse
+          ON source_adjacency(subject_id, workspace_id, to_source_id, ordinal);
+        """,
+    ),
+    (
+        "0385_formation_media_references",
+        """
+        CREATE TABLE IF NOT EXISTS formation_media_references (
+          formation_id TEXT NOT NULL,
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          adjacent_source_id TEXT NOT NULL,
+          part_id TEXT NOT NULL,
+          ordinal INTEGER NOT NULL,
+          reference_id TEXT NOT NULL,
+          reference_sha256 TEXT NOT NULL,
+          PRIMARY KEY(formation_id, part_id),
+          FOREIGN KEY (formation_id) REFERENCES formation_receipts(formation_id) ON DELETE CASCADE,
+          FOREIGN KEY (adjacent_source_id) REFERENCES protocol_sources(source_id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_formation_media_source
+          ON formation_media_references(
+            subject_id, workspace_id, adjacent_source_id, formation_id, ordinal
+          );
+        """,
+    ),
+    (
+        "0386_typed_identity_and_protected_media",
+        """
+        CREATE TABLE IF NOT EXISTS typed_identity_mappings (
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          identity_kind TEXT NOT NULL,
+          legacy_identity TEXT NOT NULL,
+          current_identity TEXT NOT NULL,
+          resolution_state TEXT NOT NULL CHECK (
+            resolution_state IN (
+              'mapped', 'ambiguous_review', 'confirmed_superseded', 'rebuilt',
+              'reinstated', 'pending_review', 'rebuilt_from_evidence'
+            )
+          ),
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(subject_id, workspace_id, identity_kind, legacy_identity)
+        );
+        CREATE TABLE IF NOT EXISTS protected_formation_media (
+          media_id TEXT PRIMARY KEY,
+          formation_id TEXT NOT NULL,
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          part_id TEXT NOT NULL,
+          content_sha256 TEXT NOT NULL,
+          content_bytes BLOB NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(formation_id, part_id),
+          FOREIGN KEY (formation_id) REFERENCES formation_receipts(formation_id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_protected_formation_media_scope
+          ON protected_formation_media(subject_id, workspace_id, formation_id, part_id);
+        CREATE TABLE IF NOT EXISTS typed_identity_review_queue (
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          legacy_identity TEXT NOT NULL,
+          proposed_current_identity TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(subject_id, workspace_id, legacy_identity, proposed_current_identity)
+        );
+        """,
+    ),
+    (
+        "0387_typed_slot_lookup_indexes",
+        """
+        CREATE INDEX IF NOT EXISTS idx_records_typed_subject_relation
+          ON records(
+            subject_id, status, authority_workspace_id,
+            lower(COALESCE(
+              json_extract(raw, '$.typed_unit.payload.subject'),
+              json_extract(raw, '$.typed_unit.payload.entity')
+            )),
+            lower(json_extract(raw, '$.typed_unit.payload.relation')),
+            id
+          )
+          WHERE authority_materialized = 1;
+        CREATE INDEX IF NOT EXISTS idx_typed_units_formation_scope
+          ON typed_memory_units(formation_id, subject_id, workspace_id, lifecycle, record_id);
+        CREATE INDEX IF NOT EXISTS idx_typed_identity_current
+          ON typed_identity_mappings(
+            subject_id, workspace_id, identity_kind,
+            current_identity, resolution_state, legacy_identity
+          );
+        """,
+    ),
+    (
+        "0388_backfill_formation_media_references",
+        """
+        INSERT OR IGNORE INTO formation_media_references(
+          formation_id, subject_id, workspace_id, adjacent_source_id,
+          part_id, ordinal, reference_id, reference_sha256
+        )
+        SELECT f.formation_id, f.subject_id, f.workspace_id,
+               json_extract(item.value, '$.adjacent_source_id'),
+               json_extract(item.value, '$.part_id'),
+               CAST(json_extract(item.value, '$.ordinal') AS INTEGER),
+               json_extract(item.value, '$.reference_id'),
+               json_extract(item.value, '$.reference_sha256')
+        FROM formation_receipts f,
+             json_each(f.receipt_json, '$.media_references') item
+        WHERE json_extract(item.value, '$.adjacent_source_id') IS NOT NULL
+          AND json_extract(item.value, '$.part_id') IS NOT NULL
+          AND json_extract(item.value, '$.reference_id') IS NOT NULL
+          AND json_extract(item.value, '$.reference_sha256') IS NOT NULL;
+        """,
+    ),
+    (
+        "0389_typed_exclusion_identities",
+        """
+        CREATE TABLE IF NOT EXISTS typed_exclusion_identities (
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          record_id TEXT NOT NULL,
+          exclusion_identity TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(subject_id, record_id),
+          FOREIGN KEY(record_id) REFERENCES records(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_typed_exclusion_identity
+          ON typed_exclusion_identities(
+            subject_id, workspace_id, exclusion_identity, record_id
+          );
+        """,
+    ),
+    (
+        "0400_context_engine_generations",
+        """
+        CREATE TABLE IF NOT EXISTS context_source_episodes (
+          source_id TEXT PRIMARY KEY,
+          legacy_episode_id TEXT UNIQUE,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          source_sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(subject_id, agent_id, workspace_id, source_sha256)
+        );
+        CREATE INDEX IF NOT EXISTS idx_context_sources_scope
+          ON context_source_episodes(subject_id, workspace_id, agent_id, source_id);
+        CREATE TABLE IF NOT EXISTS context_source_parts (
+          source_id TEXT NOT NULL,
+          part_id TEXT NOT NULL,
+          ordinal INTEGER NOT NULL CHECK(ordinal >= 0),
+          kind TEXT NOT NULL,
+          mime_type TEXT NOT NULL,
+          content_sha256 TEXT NOT NULL,
+          content_bytes BLOB NOT NULL,
+          PRIMARY KEY(source_id, part_id),
+          UNIQUE(source_id, ordinal),
+          FOREIGN KEY(source_id) REFERENCES context_source_episodes(source_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_source_ranges (
+          range_id TEXT PRIMARY KEY,
+          source_id TEXT NOT NULL,
+          part_id TEXT NOT NULL,
+          start_offset INTEGER NOT NULL CHECK(start_offset >= 0),
+          end_offset INTEGER NOT NULL CHECK(end_offset > start_offset),
+          source_sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE(source_id, part_id, start_offset, end_offset),
+          FOREIGN KEY(source_id, part_id)
+            REFERENCES context_source_parts(source_id, part_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_view_generations (
+          generation_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          profile_id TEXT NOT NULL,
+          state TEXT NOT NULL CHECK(state IN ('building','verified','active','retired')),
+          canonical_generation INTEGER NOT NULL DEFAULT 0,
+          configuration_sha256 TEXT NOT NULL,
+          verification_json TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL,
+          verified_at TEXT,
+          activated_at TEXT,
+          retired_at TEXT
+          ,revision INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_context_one_active_generation
+          ON context_view_generations(subject_id, workspace_id, agent_id)
+          WHERE state = 'active';
+        CREATE INDEX IF NOT EXISTS idx_context_generation_scope_state
+          ON context_view_generations(subject_id, workspace_id, agent_id, state, created_at);
+        CREATE TABLE IF NOT EXISTS context_evidence_units (
+          generation_id TEXT NOT NULL,
+          unit_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK(kind IN (
+            'raw_state','transition','fact','entity','procedure','rule','gotcha','premise'
+          )),
+          compact_json TEXT NOT NULL,
+          compact_sha256 TEXT NOT NULL,
+          lifecycle TEXT NOT NULL CHECK(lifecycle IN (
+            'active','superseded','conflicted','revoked','expired','deleted'
+          )),
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(generation_id, unit_id),
+          FOREIGN KEY(generation_id) REFERENCES context_view_generations(generation_id)
+            ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_context_units_generation_kind
+          ON context_evidence_units(generation_id, lifecycle, kind, unit_id);
+        CREATE TABLE IF NOT EXISTS context_unit_ranges (
+          generation_id TEXT NOT NULL,
+          unit_id TEXT NOT NULL,
+          range_id TEXT NOT NULL,
+          ordinal INTEGER NOT NULL,
+          PRIMARY KEY(generation_id, unit_id, range_id),
+          UNIQUE(generation_id, unit_id, ordinal),
+          FOREIGN KEY(generation_id, unit_id)
+            REFERENCES context_evidence_units(generation_id, unit_id) ON DELETE CASCADE,
+          FOREIGN KEY(range_id) REFERENCES context_source_ranges(range_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_evidence_links (
+          generation_id TEXT NOT NULL,
+          from_unit_id TEXT NOT NULL,
+          to_unit_id TEXT NOT NULL,
+          relation TEXT NOT NULL,
+          PRIMARY KEY(generation_id, from_unit_id, to_unit_id, relation),
+          FOREIGN KEY(generation_id, from_unit_id)
+            REFERENCES context_evidence_units(generation_id, unit_id) ON DELETE CASCADE,
+          FOREIGN KEY(generation_id, to_unit_id)
+            REFERENCES context_evidence_units(generation_id, unit_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_coverage (
+          generation_id TEXT NOT NULL,
+          range_id TEXT NOT NULL,
+          disposition TEXT NOT NULL CHECK(disposition IN ('represented','unsupported','withheld')),
+          reason_code TEXT,
+          PRIMARY KEY(generation_id, range_id),
+          FOREIGN KEY(generation_id) REFERENCES context_view_generations(generation_id) ON DELETE CASCADE,
+          FOREIGN KEY(range_id) REFERENCES context_source_ranges(range_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_loss_receipts (
+          generation_id TEXT NOT NULL,
+          range_id TEXT NOT NULL,
+          reason_code TEXT NOT NULL,
+          detail_json TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(generation_id, range_id, reason_code),
+          FOREIGN KEY(generation_id) REFERENCES context_view_generations(generation_id) ON DELETE CASCADE,
+          FOREIGN KEY(range_id) REFERENCES context_source_ranges(range_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_vectors (
+          generation_id TEXT NOT NULL,
+          unit_id TEXT NOT NULL,
+          model_id TEXT NOT NULL,
+          dimensions INTEGER NOT NULL,
+          vector_bytes BLOB NOT NULL,
+          PRIMARY KEY(generation_id, unit_id, model_id),
+          FOREIGN KEY(generation_id, unit_id)
+            REFERENCES context_evidence_units(generation_id, unit_id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS context_backfill_state (
+          subject_id TEXT NOT NULL,
+          workspace_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          cursor_episode_id TEXT,
+          completed INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY(subject_id, workspace_id, agent_id)
+        );
+        """,
+    ),
+    (
+        "0401_context_generation_revision",
+        """SELECT 1;""",
+    ),
+    (
+        "0402_context_range_lexical_index",
+        """SELECT 1;""",
+    ),
+    (
+        "0403_context_unit_views",
+        """
+        CREATE TABLE IF NOT EXISTS context_unit_views (
+          generation_id TEXT NOT NULL,
+          unit_id TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK(kind IN (
+            'raw_state','transition','fact','entity','procedure','rule','gotcha','premise'
+          )),
+          PRIMARY KEY(generation_id, unit_id, kind),
+          FOREIGN KEY(generation_id, unit_id)
+            REFERENCES context_evidence_units(generation_id, unit_id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_context_unit_views_kind
+          ON context_unit_views(generation_id, kind, unit_id);
+        INSERT OR IGNORE INTO context_unit_views(generation_id, unit_id, kind)
+          SELECT generation_id, unit_id, kind FROM context_evidence_units;
+        """,
+    ),
+    (
+        "0404_context_range_lookup_indexes",
+        """
+        CREATE INDEX IF NOT EXISTS idx_context_unit_ranges_range
+          ON context_unit_ranges(generation_id, range_id, unit_id);
+        CREATE INDEX IF NOT EXISTS idx_context_source_ranges_order
+          ON context_source_ranges(source_id, part_id, start_offset, end_offset, range_id);
+        """,
+    ),
+    (
+        "0405_context_coverage_disposition_index",
+        """
+        CREATE INDEX IF NOT EXISTS idx_context_coverage_disposition
+          ON context_coverage(generation_id, disposition, range_id);
+        """,
+    ),
 )
 
 # Compatibility alias retained for downstream tests/extensions that imported
@@ -4817,6 +7217,27 @@ def _new_id(prefix: str) -> str:
 
 def _json(value: Any) -> str:
     return canonical_json(value)
+
+
+_SEARCH_TOKEN_RE = re.compile(r"[^\W_]+", re.UNICODE)
+SEARCH_INDEX_VERSION = "scoped-postings-v3-fact-only"
+
+
+def _search_stem(token: str) -> str:
+    value = token.lower()
+    if len(value) > 4 and value.endswith("ies"):
+        return value[:-3] + "i"
+    if len(value) > 3 and value.endswith("y"):
+        return value[:-1] + "i"
+    if len(value) > 4 and value.endswith("es"):
+        return value[:-2]
+    if len(value) > 3 and value.endswith("s"):
+        return value[:-1]
+    return value
+
+
+def _search_terms(value: str) -> list[str]:
+    return [_search_stem(token) for token in _SEARCH_TOKEN_RE.findall(value.lower())]
 
 
 def _load_json(value: str | None, default: Any) -> Any:
@@ -5060,6 +7481,11 @@ def _audit_from_row(row: sqlite3.Row) -> dict[str, Any]:
         "prev_hash": row["prev_hash"],
         "event_hash": row["event_hash"],
     }
+
+
+def _retrieval_activation_key(scope: Any) -> str:
+    digest = sha256_hex(canonical_json(scope.to_dict()))
+    return f"retrieval-v2-activation:{digest}"
 
 
 def _audit_fts_query(query: str) -> str:

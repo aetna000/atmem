@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.dev/schemas/v2/memory-unit.json",
+  "type": "object",
+  "required": ["format", "unit_id", "formation_id", "kind", "scope", "payload", "evidence", "confidence", "evidence_status", "formation_version", "observed_at", "event_at", "valid_from", "valid_until", "lifecycle"],
+  "properties": {
+    "format": {"const": "atmem-memory-unit-v2"},
+    "unit_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "formation_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "kind": {"enum": ["atomic_fact", "durable_rule", "environment_state", "state_transition", "procedure", "failure_gotcha", "premise_constraint"]},
+    "scope": {"$ref": "../v1/scope.json"},
+    "payload": {"type": "object"},
+    "evidence": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "object", "required": ["source_id", "source_sha256", "start_offset", "end_offset", "excerpt_sha256"], "properties": {"source_id": {"type": "string", "minLength": 1, "maxLength": 128}, "source_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "start_offset": {"type": "integer", "minimum": 0}, "end_offset": {"type": "integer", "minimum": 1}, "excerpt_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}}, "additionalProperties": false}},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "evidence_status": {"enum": ["observed", "inferred"]},
+    "formation_version": {"type": "string", "minLength": 1, "maxLength": 128},
+    "observed_at": {"type": ["string", "null"], "format": "date-time"},
+    "event_at": {"type": ["string", "null"], "format": "date-time"},
+    "valid_from": {"type": ["string", "null"], "format": "date-time"},
+    "valid_until": {"type": ["string", "null"], "format": "date-time"},
+    "lifecycle": {"enum": ["proposed", "active", "quarantined", "superseded", "revoked", "deleted"]}
+  },
+  "allOf": [
+    {"if": {"properties": {"kind": {"const": "atomic_fact"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/atomic_fact"}}}},
+    {"if": {"properties": {"kind": {"const": "durable_rule"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/durable_rule"}}}},
+    {"if": {"properties": {"kind": {"const": "environment_state"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/environment_state"}}}},
+    {"if": {"properties": {"kind": {"const": "state_transition"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/state_transition"}}}},
+    {"if": {"properties": {"kind": {"const": "procedure"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/procedure"}}}},
+    {"if": {"properties": {"kind": {"const": "failure_gotcha"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/failure_gotcha"}}}},
+    {"if": {"properties": {"kind": {"const": "premise_constraint"}}}, "then": {"properties": {"payload": {"$ref": "#/$defs/premise_constraint"}}}}
+  ],
+  "$defs": {
+    "text": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "text_list": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/text"}},
+    "polarity": {"enum": ["positive", "negative"]},
+    "atomic_fact": {"type": "object", "required": ["subject", "relation", "value", "polarity"], "properties": {"subject": {"$ref": "#/$defs/text"}, "relation": {"$ref": "#/$defs/text"}, "value": {"$ref": "#/$defs/text"}, "polarity": {"$ref": "#/$defs/polarity"}}, "additionalProperties": false},
+    "durable_rule": {"type": "object", "required": ["condition", "required_action", "prohibited_action", "exceptions"], "properties": {"condition": {"$ref": "#/$defs/text"}, "required_action": {"anyOf": [{"$ref": "#/$defs/text"}, {"type": "null"}]}, "prohibited_action": {"anyOf": [{"$ref": "#/$defs/text"}, {"type": "null"}]}, "exceptions": {"$ref": "#/$defs/text_list"}}, "anyOf": [{"properties": {"required_action": {"type": "string"}}}, {"properties": {"prohibited_action": {"type": "string"}}}], "additionalProperties": false},
+    "environment_state": {"type": "object", "required": ["entity", "relation", "value", "polarity"], "properties": {"entity": {"$ref": "#/$defs/text"}, "relation": {"$ref": "#/$defs/text"}, "value": {"$ref": "#/$defs/text"}, "polarity": {"$ref": "#/$defs/polarity"}}, "additionalProperties": false},
+    "state_transition": {"type": "object", "required": ["entity", "relation", "before", "action", "after", "transition_basis"], "properties": {"entity": {"$ref": "#/$defs/text"}, "relation": {"$ref": "#/$defs/text"}, "before": {"$ref": "#/$defs/text"}, "action": {"$ref": "#/$defs/text"}, "after": {"$ref": "#/$defs/text"}, "transition_basis": {"enum": ["observed", "inferred"]}}, "additionalProperties": false},
+    "procedure_step": {"type": "object", "required": ["ordinal", "instruction", "condition"], "properties": {"ordinal": {"type": "integer", "minimum": 1, "maximum": 64}, "instruction": {"$ref": "#/$defs/text"}, "condition": {"anyOf": [{"$ref": "#/$defs/text"}, {"type": "null"}]}}, "additionalProperties": false},
+    "procedure": {"type": "object", "required": ["goal", "steps", "prerequisites", "completion_evidence", "failure_conditions"], "properties": {"goal": {"$ref": "#/$defs/text"}, "steps": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/procedure_step"}}, "prerequisites": {"$ref": "#/$defs/text_list"}, "completion_evidence": {"$ref": "#/$defs/text_list"}, "failure_conditions": {"$ref": "#/$defs/text_list"}}, "additionalProperties": false},
+    "failure_gotcha": {"type": "object", "required": ["trigger", "failure", "required_action", "prohibited_action"], "properties": {"trigger": {"$ref": "#/$defs/text"}, "failure": {"$ref": "#/$defs/text"}, "required_action": {"anyOf": [{"$ref": "#/$defs/text"}, {"type": "null"}]}, "prohibited_action": {"anyOf": [{"$ref": "#/$defs/text"}, {"type": "null"}]}}, "additionalProperties": false},
+    "premise_constraint": {"type": "object", "required": ["proposition", "polarity", "applies_when", "excluded_when"], "properties": {"proposition": {"$ref": "#/$defs/text"}, "polarity": {"$ref": "#/$defs/polarity"}, "applies_when": {"anyOf": [{"$ref": "#/$defs/text"}, {"type": "null"}]}, "excluded_when": {"anyOf": [{"$ref": "#/$defs/text"}, {"type": "null"}]}}, "additionalProperties": false}
+  },
+  "additionalProperties": false
+}

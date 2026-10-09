@@ -9,6 +9,10 @@ from atmem.benchmark.contracts import (
 )
 from atmem.benchmark.runner import run_benchmark, run_task_state_benchmark
 from atmem.benchmark.retrieval import run_retrieval_quality_benchmark
+from atmem.benchmark.finalization import (
+    finalization_identity,
+    validate_finalization_gate,
+)
 
 __all__ = [
     "CASES_FORMAT",
@@ -18,5 +22,7 @@ __all__ = [
     "run_benchmark",
     "run_task_state_benchmark",
     "run_retrieval_quality_benchmark",
+    "finalization_identity",
+    "validate_finalization_gate",
     "validate_report",
 ]

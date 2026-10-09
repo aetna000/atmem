@@ -164,6 +164,16 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         if path == "/api/status":
             self._json(HTTPStatus.OK, self.server.manager.status())
             return
+        if path == "/api/retrieval/status":
+            try:
+                self._require_identity_session()
+                self._json(
+                    HTTPStatus.OK,
+                    self.server.manager.retrieval_quality_status(),
+                )
+            except PermissionError as exc:
+                self._json(HTTPStatus.FORBIDDEN, {"error": str(exc)})
+            return
         if path == "/api/evidence/protection":
             self._json(
                 HTTPStatus.OK,
@@ -1214,6 +1224,16 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     raise ValueError("unknown continuity action")
             elif path == "/v1/query":
                 value = self.server.application.query(principal, str(body.get("query") or ""))
+            elif path == "/v1/retrieval/context":
+                if set(body) - {"query", "max_context_bytes"}:
+                    raise ValueError("unexpected retrieval context field")
+                value = self.server.application.prepare_retrieval_context(
+                    principal,
+                    str(body.get("query") or ""),
+                    max_context_bytes=int(body.get("max_context_bytes") or 8192),
+                )
+            elif path == "/v1/retrieval/form":
+                value = self.server.application.form_retrieval_episode(principal, body)
             elif path == "/v1/lifecycle":
                 value = self.server.application.transition_lifecycle(principal, body)
             elif path == "/v1/interchange/plan":

@@ -1,0 +1,1316 @@
+from __future__ import annotations
+
+from atmem.context_engine.contracts import ContextRequestV3
+from atmem.context_engine.formation import (
+    FormationManager,
+    SourceEpisode,
+    SourcePart,
+    _sentence_ranges,
+    _view_kinds,
+)
+from atmem.context_engine.packing import derive_action_constraints, pack_context
+from atmem.context_engine.planner import DeterministicPlanner, targeted_facets
+from atmem.context_engine.retrieval import (
+    DeterministicRetriever,
+    RetrievalResult,
+    RetrievedCandidate,
+    _fts_terms,
+    _option_fields,
+    _transition_answer_match,
+    _transition_target_match,
+)
+from atmem.context_engine.service import AuthorizedManifest, StoredContextEngine
+from atmem.context_engine.sufficiency import decide_sufficiency
+from atmem.contracts.models import AuthorityScope, RetrievalBudget
+from atmem.store.sqlite import SQLiteStore
+
+SCOPE = AuthorityScope(subject_id="person-1", agent_id="agent-a", workspace_id="work-1")
+
+
+def test_bounded_clause_ranges_isolate_compound_facts_without_splitting_lists() -> None:
+    compound = (
+        b"Evergreen follow-up was prepared, and an Acme prompt pointed support "
+        b"to the clock-skew docs."
+    )
+    spans = _sentence_ranges(compound)
+    assert [compound[start:end] for start, end in spans] == [
+        b"Evergreen follow-up was prepared,",
+        b"and an Acme prompt pointed support to the clock-skew docs.",
+    ]
+    metric = (
+        b"OAuth cancellation fell from 41 to 14 and support tickets fell from "
+        b"12 to 2, so I am treating that as validated activation work."
+    )
+    assert len(_sentence_ranges(metric)) == 3
+    palette = b"The palette is ultramarine, burnt sienna, and yellow ochre."
+    assert _sentence_ranges(palette) == ((0, len(palette)),)
+
+
+def test_structured_json_ranges_are_bounded_at_escaped_line_breaks() -> None:
+    content = b'{"tree":"' + (b"Problem field value\\n" * 800) + b'"}'
+
+    spans = _sentence_ranges(content)
+
+    assert len(spans) > 1
+    assert max(end - start for start, end in spans) <= 4_096
+    assert b"".join(content[start:end] for start, end in spans) == content
+
+
+def test_trajectory_action_and_state_json_form_procedure_and_transition_views() -> None:
+    action_batch = '{"action_offset":0,"actions":[{"name":"click"}]}'
+    state = '{"state_index":4,"action":{"name":"click"},"text":"Saved"}'
+
+    assert "procedure" in _view_kinds(action_batch, "text")
+    assert "transition" in _view_kinds(state, "text")
+
+
+def test_planner_declares_distinct_comparison_heads_and_preserves_query() -> None:
+    plan = DeterministicPlanner().plan("Compare North and South export formats")
+    assert plan.deterministic_fallback is True
+    assert [item.kind for item in plan.obligations] == ["comparison_side", "comparison_side"]
+    assert [item.entity for item in plan.obligations] == ["North", "South"]
+    assert plan.pool_queries["fact"] == ("Compare North and South export formats",)
+
+
+def test_planner_routes_procedure_transition_and_premise_needs() -> None:
+    planner = DeterministicPlanner()
+    assert planner.plan("How should the archive be restored?").obligations[0].kind == "ordered_steps"
+    assert planner.plan("What changed when the worker was repaired?").obligations[0].kind == "before_action_after"
+    assert planner.plan("Which cable is required for the wireless-only sensor?").obligations[0].kind == "premise_check"
+
+
+def test_planner_routes_explicit_from_to_change_and_nominates_both_states() -> None:
+    plan = DeterministicPlanner().plan(
+        "If I change the operating system from the default Ubuntu to Windows 8, "
+        "what amount appears next to Ubuntu?"
+    )
+
+    assert plan.obligations[0].kind == "before_action_after"
+    assert len(plan.obligations) == 1
+    assert plan.obligations[0].entity is None
+    assert "Ubuntu Windows 8" in plan.pool_queries["transition"]
+
+
+def test_transition_target_match_requires_the_requested_post_change_selection() -> None:
+    query = "If I change from the default Ubuntu to Windows 8, what amount appears?"
+    before = "Windows 8 [add $100] checked='false'; Ubuntu checked='true'"
+    after = "Windows 8 checked='true'; Ubuntu [subtract $100] checked='false'"
+
+    assert _transition_target_match(before, query) is False
+    assert _transition_target_match(after, query) is True
+
+
+def test_transition_answer_match_requires_value_beside_requested_old_state() -> None:
+    query = (
+        "If I change from the default Ubuntu to Windows 8, what dollar amount "
+        "appears in brackets next to Ubuntu?"
+    )
+    wrong_relation = (
+        "Windows 8 [add $100] checked='true'; Ubuntu checked='false'"
+    )
+    requested_relation = (
+        "Windows 8 checked='true'; Ubuntu [subtract $100] checked='false'"
+    )
+
+    assert _transition_answer_match(wrong_relation, query) is False
+    assert _transition_answer_match(requested_relation, query) is True
+
+
+def test_before_prerequisite_is_grounded_without_inventing_from_to_state() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source = manager.retain_source(SourceEpisode(
+            episode_id="hiring-approval", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"Morgan Chen must approve the leadership hiring sequence before "
+                b"HR schedules the final interview loop.",
+            ),),
+        ))
+        manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Post who should approve the leadership hiring sequence before HR "
+            "schedules the final loop."
+        )
+        plan = DeterministicPlanner().plan(query)
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        decision = decide_sufficiency(plan, result)
+
+        assert plan.obligations[0].kind == "before_action_after"
+        assert decision.status == "sufficient"
+        assert decision.missing_obligation_ids == ()
+        assert any("Morgan Chen" in item.text for item in result.candidates)
+    finally:
+        store.close()
+
+
+def test_explicit_from_to_transition_keeps_strict_post_state_grounding() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("before", "Ubuntu checked='true'; Windows 8 checked='false'."),
+            ("after", "Ubuntu checked='false'; Windows 8 checked='true'."),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = "What changed from Ubuntu to Windows 8?"
+        plan = DeterministicPlanner().plan(query)
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+
+        grounded = [
+            item for item in result.candidates if item.matched_obligation_ids
+        ]
+        assert len(grounded) == 1
+        assert "Windows 8 checked='true'" in grounded[0].text
+    finally:
+        store.close()
+
+
+def test_planner_routes_workflow_action_count_as_ordered_steps() -> None:
+    plan = DeterministicPlanner().plan(
+        "I am using our shopping admin. I would like to notify a user to reorder "
+        "for a pending order. I have entered its detail page. According to our "
+        "usual workflow, with the action space below, how many more actions do "
+        "I need to perform?\n\n"
+        "Action Space: click(bid: str), fill(bid: str, value: str)\n\n"
+        "Your final answer should be an English number."
+    )
+
+    assert len(plan.obligations) == 1
+    assert plan.obligations[0].kind == "ordered_steps"
+    assert plan.obligations[0].entity is None
+    assert any(
+        "notify a user to reorder" in query.casefold()
+        for query in plan.pool_queries["procedure"]
+    )
+    assert plan.pool_queries["procedure"]
+    assert all("click(bid" not in query for query in plan.pool_queries["procedure"])
+
+
+def test_planner_does_not_misroute_a_named_change_request_as_a_transition() -> None:
+    plan = DeterministicPlanner().plan(
+        "Among these five forms (change request/problem/incident/hardware/user), "
+        "which page integrates with Outlook calendar?"
+    )
+
+    assert all(item.kind != "before_action_after" for item in plan.obligations)
+    queries = {query.casefold() for query in plan.pool_queries["raw_state"]}
+    assert queries >= {
+        "outlook calendar change request", "outlook calendar problem",
+        "outlook calendar incident", "outlook calendar hardware",
+        "outlook calendar user",
+    }
+
+
+def test_planner_decomposes_multiple_choice_fields_into_targeted_queries() -> None:
+    plan = DeterministicPlanner().plan(
+        "Which option contains only fields present on the Problem table?\n"
+        "A. Problem Statement, Description, Category\n"
+        "B. Subcategory, Assignment Group, State"
+    )
+
+    queries = {item.casefold() for item in plan.pool_queries["raw_state"]}
+    assert "problem table subcategory" in queries
+    assert "problem table assignment group" in queries
+    assert "problem table state" in queries
+
+
+def test_sufficient_decision_requires_only_obligation_grounding_units() -> None:
+    plan = DeterministicPlanner().plan("Which port does audit use?")
+    grounded = RetrievedCandidate(
+        unit_id="grounded", kind="fact", source_id="source-1", part_id="text",
+        start=0, end=18, text="Audit uses port 7443.", score=2.0,
+        matched_obligation_ids=("need-1",),
+    )
+    neighbor = RetrievedCandidate(
+        unit_id="neighbor", kind="raw_state", source_id="source-1", part_id="text",
+        start=19, end=48, text="The service also emits metrics.", score=1.0,
+        matched_obligation_ids=(),
+    )
+    result = RetrievalResult(
+        candidates=(grounded, neighbor), searched_pools=("fact", "raw_state"),
+        scanned_units=2, exhausted=False,
+    )
+
+    decision = decide_sufficiency(plan, result)
+
+    assert decision.status == "sufficient"
+    assert decision.evidence_unit_ids == ("grounded",)
+
+
+def test_stored_engine_selects_only_evidence_that_fits_the_canonical_budget() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("answer", "Audit uses port 7443."),
+            ("noise", "Operators must review unrelated diagnostics " + "x" * 1000),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        request = ContextRequestV3(
+            context_id="context-1", request_id="request-1", scope=SCOPE,
+            query="Which port does audit use?", profile_id="context-fast",
+            mode="active", generation=0,
+            budget=RetrievalBudget(
+                candidates_per_channel=2, total_candidates=2, context_bytes=160,
+            ),
+        )
+        unit_ids = tuple(
+            str(row["unit_id"])
+            for row in store._conn.execute(
+                "SELECT unit_id FROM context_evidence_units WHERE generation_id=?",
+                (generation,),
+            ).fetchall()
+        )
+        selection = StoredContextEngine(store, generation_id=generation).select(
+            request,
+            AuthorizedManifest(
+                request_id=request.request_id, scope=SCOPE, generation=0,
+                authorized_unit_ids=unit_ids, authority_sha256="sha256:test",
+                all_generation_units_authorized=True,
+            ),
+        )
+
+        assert selection.status == "sufficient"
+        assert len(selection.selected_unit_ids) == 1
+        assert selection.selected_unit_ids == selection.sufficiency.evidence_unit_ids
+        assert selection.action_constraints == ()
+    finally:
+        store.close()
+
+
+def test_planner_splits_explicit_independent_memory_requirements() -> None:
+    plan = DeterministicPlanner().plan(
+        "Send Kara written notice ending the contractor arrangement on the earliest "
+        "permitted date, and include the required external-email copy recipient."
+    )
+    assert len(plan.obligations) == 2
+    assert "earliest permitted date" in plan.obligations[0].relation_or_action
+    assert "copy recipient" in plan.obligations[1].relation_or_action
+    assert plan.obligations[0].kind == "condition_action"
+    assert plan.obligations[1].kind == "condition_action"
+    assert all(
+        item.relation_or_action in plan.pool_queries["raw_state"]
+        for item in plan.obligations
+    )
+
+
+def test_each_planned_requirement_needs_independently_grounded_evidence() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("notice", "Contract termination notice must be written at least 30 days ahead."),
+            ("copy", "Outside email threads must copy Sarah Kim from the start."),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Send Kara written notice ending the contractor arrangement on the earliest "
+            "permitted date, and include the required outside email copy recipient."
+        )
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        assert decide_sufficiency(plan, result).status == "sufficient"
+        assert {
+            obligation_id
+            for item in result.candidates
+            for obligation_id in item.matched_obligation_ids
+        } == {"need-1", "need-2"}
+
+        manager.delete_source(next(
+            item.source_id for item in result.candidates
+            if "Sarah Kim" in item.text
+        ))
+        # Rebuild a generation from the remaining immutable source so the
+        # lifecycle failure is not confused with a missing requirement.
+        replacement = manager.begin_generation(SCOPE, profile_id="context-fast")
+        remaining = store._conn.execute(
+            "SELECT source_id FROM context_source_episodes"
+        ).fetchall()
+        for row in remaining:
+            manager.form_source(str(row["source_id"]), replacement, range_granularity="sentence")
+        partial = DeterministicRetriever(store).retrieve(
+            generation_id=replacement, query=query, plan=plan, max_sources=8,
+        )
+        decision = decide_sufficiency(plan, partial)
+        assert decision.status == "partial"
+        assert decision.missing_obligation_ids == ("need-2",)
+    finally:
+        store.close()
+
+
+def test_withheld_range_in_matched_episode_keeps_obligation_partial() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source = manager.retain_source(SourceEpisode(
+            episode_id="closeout", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"The final sample contains 61 requests. "
+                b"Send the final intake closeout to Hema.",
+            ),),
+        ))
+        manager.form_source(source, generation, range_granularity="sentence")
+        hidden = store._conn.execute(
+            """SELECT ur.range_id, u.unit_id
+               FROM context_evidence_units u
+               JOIN context_unit_ranges ur USING(generation_id, unit_id)
+               JOIN context_source_ranges r USING(range_id)
+               WHERE u.generation_id=? AND r.start_offset=0""",
+            (generation,),
+        ).fetchone()
+        with store.transaction():
+            store._conn.execute(
+                "UPDATE context_evidence_units SET lifecycle='deleted' "
+                "WHERE generation_id=? AND unit_id=?",
+                (generation, hidden["unit_id"]),
+            )
+            store._conn.execute(
+                "UPDATE context_coverage SET disposition='withheld', "
+                "reason_code='observation_forgotten' "
+                "WHERE generation_id=? AND range_id=?",
+                (generation, hidden["range_id"]),
+            )
+            store.remove_context_range_index(generation, str(hidden["range_id"]))
+        query = "What should the final intake closeout sent to Hema contain?"
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        decision = decide_sufficiency(plan, result)
+        assert result.withheld_obligation_ids == ("need-1",)
+        assert decision.status == "partial"
+        assert decision.reason_codes == ("source_episode_incomplete",)
+    finally:
+        store.close()
+
+
+def test_withheld_range_can_name_query_need_without_exposing_removed_value() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source = manager.retain_source(SourceEpisode(
+            episode_id="vendor-choice", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"Honeycomb was selected for end-to-end request tracing. "
+                b"The team moved on to unrelated launch planning.",
+            ),),
+        ))
+        manager.form_source(source, generation, range_granularity="sentence")
+        hidden = store._conn.execute(
+            """SELECT ur.range_id, u.unit_id
+               FROM context_evidence_units u
+               JOIN context_unit_ranges ur USING(generation_id, unit_id)
+               JOIN context_source_ranges r USING(range_id)
+               WHERE u.generation_id=? AND r.start_offset=0""",
+            (generation,),
+        ).fetchone()
+        with store.transaction():
+            store._conn.execute(
+                "UPDATE context_evidence_units SET lifecycle='deleted' "
+                "WHERE generation_id=? AND unit_id=?",
+                (generation, hidden["unit_id"]),
+            )
+            store._conn.execute(
+                "UPDATE context_coverage SET disposition='withheld', "
+                "reason_code='observation_forgotten' "
+                "WHERE generation_id=? AND range_id=?",
+                (generation, hidden["range_id"]),
+            )
+            store.remove_context_range_index(generation, str(hidden["range_id"]))
+        query = "Name the tracing vendor selected for end-to-end requests."
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        decision = decide_sufficiency(plan, result)
+        assert result.withheld_obligation_ids == ("need-1",)
+        assert decision.status == "partial"
+        assert all("Honeycomb" not in item.text for item in result.candidates)
+        assert all("Honeycomb" not in item.relation_or_action for item in plan.obligations)
+    finally:
+        store.close()
+
+
+def test_independent_pool_retrieval_reserves_both_comparison_sides() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("north", "North exports audit records as JSON Lines."),
+            ("south", "South exports audit records as Parquet."),
+            ("noise", "The cafeteria serves tomato soup on Fridays."),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation)
+        plan = DeterministicPlanner().plan("Compare North and South export formats")
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query="Compare North and South export formats",
+            plan=plan, max_sources=2,
+        )
+        assert len(result.candidates) == 2
+        assert {item.matched_obligation_ids[0] for item in result.candidates} == {
+            plan.obligations[0].obligation_id, plan.obligations[1].obligation_id,
+        }
+        assert all("cafeteria" not in item.text.casefold() for item in result.candidates)
+        assert result.scanned_units <= 200
+    finally:
+        store.close()
+
+
+def test_negative_premise_retrieval_uses_premise_pool() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source = manager.retain_source(SourceEpisode(
+            episode_id="sensor", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"The sensor has no USB connector and communicates only over LoRaWAN.",
+            ),),
+        ))
+        manager.form_source(source, generation)
+        plan = DeterministicPlanner().plan(
+            "Which USB cable is required for the wireless-only sensor?"
+        )
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation,
+            query="Which USB cable is required for the wireless-only sensor?",
+            plan=plan,
+            max_sources=2,
+        )
+        assert result.candidates
+        assert result.candidates[0].kind == "premise"
+        assert "no USB connector" in result.candidates[0].text
+        decision = decide_sufficiency(plan, result)
+        assert decision.status == "contradicted"
+        assert decision.missing_obligation_ids == ()
+    finally:
+        store.close()
+
+
+def test_sufficiency_detects_conflicting_approved_values_in_bounded_evidence() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("operations", "The operations note approves a batch size of 32."),
+            ("runbook", "The signed runbook approves a batch size of 64 for the same job."),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation)
+        query = "What is the approved batch size?"
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=2,
+        )
+        decision = decide_sufficiency(plan, result)
+        assert len(result.candidates) == 2
+        assert decision.status == "conflicted"
+        assert set(decision.conflicting_unit_ids) == {
+            item.unit_id for item in result.candidates
+        }
+    finally:
+        store.close()
+
+
+def test_packing_preserves_obligation_order_and_one_total_byte_budget() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("north", "North exports audit records as JSON Lines."),
+            ("south", "South exports audit records as Parquet."),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation)
+        plan = DeterministicPlanner().plan("Compare North and South export formats")
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query="Compare North and South export formats",
+            plan=plan, max_sources=2,
+        )
+        decision = decide_sufficiency(plan, result)
+        packed = pack_context(plan, result, decision, max_bytes=1024)
+        assert decision.status == "sufficient"
+        assert packed.context.index("North") < packed.context.index("South")
+        assert len(packed.context.encode()) <= 1024
+        bounded = pack_context(plan, result, decision, max_bytes=20)
+        assert bounded.complete is False
+        assert bounded.excluded_unit_ids
+    finally:
+        store.close()
+
+
+def test_missing_comparison_side_is_partial_not_false_sufficient() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source = manager.retain_source(SourceEpisode(
+            episode_id="north", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"North exports audit records as JSON Lines.",
+            ),),
+        ))
+        manager.form_source(source, generation)
+        plan = DeterministicPlanner().plan("Compare North and South export formats")
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query="Compare North and South export formats",
+            plan=plan, max_sources=2,
+        )
+        decision = decide_sufficiency(plan, result)
+        assert decision.status == "partial"
+        assert decision.missing_obligation_ids == ("comparison-2",)
+    finally:
+        store.close()
+
+
+def test_cache_key_binds_generation_authority_plan_and_revision() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source = manager.retain_source(SourceEpisode(
+            episode_id="cache", scope=SCOPE,
+            parts=(SourcePart("text", 0, "text", "text/plain", b"Audit uses port 7412."),),
+        ))
+        manager.form_source(source, generation)
+        plan = DeterministicPlanner().plan("Which port does audit use?")
+        retriever = DeterministicRetriever(store)
+        first = retriever.retrieve(
+            generation_id=generation, query="Which port does audit use?",
+            plan=plan, max_sources=2,
+        )
+        assert retriever.retrieve(
+            generation_id=generation, query="Which port does audit use?",
+            plan=plan, max_sources=2,
+        ) is first
+        assert retriever.cache_hits == 1
+        manager.delete_source(source)
+        import pytest
+        with pytest.raises(RuntimeError, match="unavailable"):
+            retriever.retrieve(
+                generation_id=generation, query="Which port does audit use?",
+                plan=plan, max_sources=2,
+            )
+    finally:
+        store.close()
+
+
+def test_rule_evidence_yields_grounded_non_executing_action_constraint() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source = manager.retain_source(SourceEpisode(
+            episode_id="rule", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"Release notices must be sent to #eng-releases, never #eng-all.",
+            ),),
+        ))
+        manager.form_source(source, generation)
+        query = "Where must release notices be sent?"
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=2,
+        )
+        decision = decide_sufficiency(plan, result)
+        constraints = derive_action_constraints(query, result, decision)
+        assert constraints[0].target == "#eng-releases"
+        assert constraints[0].prohibited_action == "use #eng-all"
+        assert constraints[0].source_ids == (source,)
+    finally:
+        store.close()
+
+
+def test_compact_multi_view_retrieval_emits_each_evidence_id_once() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("compact-rule", b"Release notices must be sent to eng-releases, never eng-all."),
+            ("compact-timezone", b"The release audit timezone is UTC."),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = "Where must release notices be sent and which timezone is used?"
+        plan = DeterministicPlanner().plan(query)
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+
+        ids = [item.unit_id for item in result.candidates]
+        assert len(ids) == len(set(ids))
+        assert len(ids) == 2
+        assert any("eng-releases" in item.text for item in result.candidates)
+        assert any("UTC" in item.text for item in result.candidates)
+    finally:
+        store.close()
+
+
+def test_anchor_date_is_not_treated_as_query_evidence() -> None:
+    assert _fts_terms("[2028-01-01] Find the approved release room") == (
+        "approved", "release", "room",
+    )
+
+
+def test_fts_terms_normalize_common_workflow_inflections() -> None:
+    assert _fts_terms("Creating problems, requests, fields, actions and steps") == (
+        "create", "problem", "request", "field", "action", "step",
+    )
+
+
+def test_option_fields_are_extracted_without_answer_labels() -> None:
+    assert _option_fields(
+        "Which option?\nA. Subcategory, Assignment Group\nB. Impact/Priority/Urgency"
+    ) == (
+        "Subcategory", "Assignment Group", "Impact", "Priority", "Urgency",
+    )
+
+
+def test_planner_adds_compact_create_workflow_facet() -> None:
+    plan = DeterministicPlanner().plan(
+        "Which option applies on the Problem table when navigating and "
+        "creating problem requests?\n\n"
+        "A. State, Assignment Group"
+    )
+    assert "create problem" in plan.pool_queries["raw_state"]
+    assert "State" in plan.pool_queries["raw_state"]
+    assert plan.pool_queries["raw_state"].index("State") < plan.pool_queries[
+        "raw_state"
+    ].index("Problem table State")
+
+
+def test_planner_keeps_alternative_focus_when_integration_is_misspelled() -> None:
+    plan = DeterministicPlanner().plan(
+        "Among these forms (change request/problem/incident/hardware/user), "
+        "which page intergrates with Outlook calendar?"
+    )
+
+    assert "Outlook calendar" in plan.pool_queries["raw_state"]
+    assert "Outlook calendar user" in plan.pool_queries["raw_state"]
+
+
+def test_planner_adds_answer_blind_identity_and_temporal_facets() -> None:
+    contact = DeterministicPlanner().plan(
+        "Email the vector integration contact for current reproduction details. "
+        "Copy the usual person on the external thread."
+    )
+    assert "vector integration contact" in contact.pool_queries["entity"]
+    assert "external thread" in contact.pool_queries["entity"]
+    assert "external email CC" in contact.pool_queries["entity"]
+
+    role = DeterministicPlanner().plan(
+        "Create the annual operating review, then send our CEO a short DM."
+    )
+    assert "CEO" in role.pool_queries["entity"]
+
+    temporal = DeterministicPlanner().plan(
+        "Did what the January 8, 2026 staged replay authorized match the decision?"
+    )
+    assert "January 8, 2026 staged replay" in temporal.pool_queries["raw_state"]
+
+
+def test_retrieval_reserves_complementary_identity_evidence_for_action_slots() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            (
+                "integration-contact",
+                "The vector integration contact is integrations@vector.example.",
+            ),
+            (
+                "external-copy",
+                "On external email threads, CC Sarah Kim.",
+            ),
+            (
+                "contact-directory",
+                "Sarah Kim can be reached at sarah@example.com.",
+            ),
+            (
+                "noise",
+                "The connector docs contain current reproduction details and examples.",
+            ),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id,
+                scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Email the vector integration contact for current reproduction details. "
+            "Copy the usual person on the external thread."
+        )
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "integrations@vector.example" in combined
+        assert "sarah@example.com" in combined
+    finally:
+        store.close()
+
+
+def test_retrieval_reserves_role_identity_beside_multistep_action_evidence() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("role", "Send a staff note to Tomas Vega. He's the CEO."),
+            (
+                "accountability",
+                "Riley owns eligibility, activation, support load, lifecycle, and support boundaries.",
+            ),
+            (
+                "noise",
+                "The operating review agenda should be concise and link to the current document.",
+            ),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id,
+                scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Create a concise annual operating review agenda around Riley's established "
+            "accountability, then send our CEO a short DM with the link."
+        )
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "Tomas Vega" in combined
+        assert "He's the CEO" in combined
+        assert "eligibility" in combined
+        assert "support load" in combined
+    finally:
+        store.close()
+
+
+def test_single_need_packing_keeps_grounding_head_first_and_bounded() -> None:
+    plan = DeterministicPlanner().plan("How many actions remain in this workflow?")
+    obligation_id = plan.obligations[0].obligation_id
+    required = RetrievedCandidate(
+        unit_id="required", kind="procedure", source_id="z-source",
+        part_id="actions", start=0, end=32,
+        text="Fill Comment; check Notify; click Submit.", score=10.0,
+        matched_obligation_ids=(obligation_id,),
+    )
+    noise = RetrievedCandidate(
+        unit_id="noise", kind="raw_state", source_id="a-source",
+        part_id="state", start=0, end=20_000, text="noise " * 4_000,
+        score=1.0, matched_obligation_ids=(),
+    )
+    result = RetrievalResult(
+        candidates=(required, noise), searched_pools=("procedure",),
+        scanned_units=2, exhausted=False,
+    )
+    decision = decide_sufficiency(plan, result)
+
+    packed = pack_context(plan, result, decision, max_bytes=32_768)
+
+    assert packed.context.startswith("[source=z-source")
+    assert "Fill Comment" in packed.context
+    assert "noise" not in packed.context
+    assert len(packed.context.encode()) <= 16_384
+
+
+def test_action_packing_keeps_complete_best_source_neighborhood_contiguous() -> None:
+    plan = DeterministicPlanner().plan(
+        "Send Priya a message summarizing the January 29 OAuth-cancel mature "
+        "read and why empty source-list explanation became the next focus."
+    )
+    obligation_ids = tuple(item.obligation_id for item in plan.obligations)
+    identity = RetrievedCandidate(
+        unit_id="identity", kind="exact_fact", source_id="identity-source",
+        part_id="text", start=0, end=30,
+        text="Priya is the product owner.", score=10.0,
+        matched_obligation_ids=obligation_ids[:1],
+    )
+    complete_late = RetrievedCandidate(
+        unit_id="complete-late", kind="raw_state", source_id="mature-read",
+        part_id="text", start=80, end=160,
+        text="Empty source-list explanation became the next activation focus.",
+        score=8.0, matched_obligation_ids=obligation_ids[1:],
+    )
+    noise = RetrievedCandidate(
+        unit_id="noise", kind="raw_state", source_id="old-note",
+        part_id="text", start=0, end=50,
+        text="OAuth-cancel planning note without a mature result.", score=9.0,
+        matched_obligation_ids=(),
+    )
+    complete_early = RetrievedCandidate(
+        unit_id="complete-early", kind="raw_state", source_id="mature-read",
+        part_id="text", start=0, end=80,
+        text="January 29 mature OAuth-cancel read: setup fell from 41 to 14.",
+        score=8.0, matched_obligation_ids=obligation_ids[:1],
+    )
+    result = RetrievalResult(
+        candidates=(identity, complete_late, noise, complete_early),
+        searched_pools=("exact_fact", "raw_state"), scanned_units=4,
+        exhausted=False,
+    )
+    decision = decide_sufficiency(plan, result)
+
+    packed = pack_context(plan, result, decision, max_bytes=16_384)
+
+    assert packed.included_unit_ids[:2] == ("complete-early", "complete-late")
+    assert packed.included_unit_ids.index("complete-late") + 1 == packed.included_unit_ids.index(
+        "identity"
+    )
+
+
+def test_option_packing_covers_named_fields_before_redundant_states() -> None:
+    plan = DeterministicPlanner().plan(
+        "Which option contains fields present on the Problem table?\n\n"
+        "A. Description, State\nB. Subcategory, Assignment Group"
+    )
+    obligation_id = plan.obligations[0].obligation_id
+    head = RetrievedCandidate(
+        unit_id="head", kind="raw_state", source_id="workflow",
+        part_id="metadata", start=0, end=20,
+        text="Create a new problem.", score=10.0,
+        matched_obligation_ids=(obligation_id,),
+    )
+    redundant = RetrievedCandidate(
+        unit_id="redundant", kind="raw_state", source_id="workflow",
+        part_id="state-1", start=0, end=8_000,
+        text=("Description State " * 400), score=9.0,
+        matched_obligation_ids=(),
+    )
+    complementary = RetrievedCandidate(
+        unit_id="complementary", kind="raw_state", source_id="other",
+        part_id="state-2", start=0, end=100,
+        text="Problems table: Subcategory Assignment Group State", score=5.0,
+        matched_obligation_ids=(),
+    )
+    wrong_surface = RetrievedCandidate(
+        unit_id="incident-fields", kind="raw_state", source_id="incident",
+        part_id="state-3", start=0, end=100,
+        text="Incident fields: Description State Subcategory Assignment Group",
+        score=20.0, matched_obligation_ids=(),
+    )
+    result = RetrievalResult(
+        candidates=(head, wrong_surface, redundant, complementary),
+        searched_pools=("raw_state",), scanned_units=4, exhausted=False,
+    )
+    decision = decide_sufficiency(plan, result)
+
+    packed = pack_context(plan, result, decision, max_bytes=16_384)
+
+    assert packed.included_unit_ids[:2] == ("head", "complementary")
+
+
+def test_option_packing_prefers_complementary_evidence_per_byte() -> None:
+    plan = DeterministicPlanner().plan(
+        "Which option contains fields present on the Problem table?\n\n"
+        "A. Subcategory, Assignment Group, State"
+    )
+    obligation_id = plan.obligations[0].obligation_id
+    head = RetrievedCandidate(
+        unit_id="head", kind="raw_state", source_id="workflow",
+        part_id="metadata", start=0, end=20,
+        text="Create a new problem.", score=10.0,
+        matched_obligation_ids=(obligation_id,),
+    )
+    large = RetrievedCandidate(
+        unit_id="large", kind="raw_state", source_id="workflow",
+        part_id="state", start=0, end=12_000,
+        text=("Problem table filler " * 500) + " Subcategory Assignment Group State",
+        score=9.0, matched_obligation_ids=(),
+    )
+    exact = [
+        RetrievedCandidate(
+            unit_id=f"exact-{index}", kind="raw_state", source_id=f"source-{index}",
+            part_id="state", start=0, end=80,
+            text=f"Problem table: {field}", score=5.0,
+            matched_obligation_ids=(),
+        )
+        for index, field in enumerate(("Subcategory", "Assignment Group", "State"))
+    ]
+    result = RetrievalResult(
+        candidates=(head, large, *exact), searched_pools=("raw_state",),
+        scanned_units=5, exhausted=False,
+    )
+    decision = decide_sufficiency(plan, result)
+
+    packed = pack_context(plan, result, decision, max_bytes=16_384)
+
+    assert packed.included_unit_ids[0] == "head"
+    assert set(packed.included_unit_ids[1:4]) == {
+        "exact-0", "exact-1", "exact-2",
+    }
+
+
+def test_retrieval_keeps_source_breadth_and_adjacent_exact_evidence() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="target", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"The approved tracing vendor is Honeycomb. "
+                b"Use it for end-to-end request instrumentation.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        for index in range(40):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=f"noise-{index}", scope=SCOPE,
+                parts=(SourcePart(
+                    "text", 0, "text", "text/plain",
+                    f"Request instrumentation review note {index}.".encode(),
+                ),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        plan = DeterministicPlanner().plan(
+            "Which tracing vendor should request instrumentation target?"
+        )
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation,
+            query="Which tracing vendor should request instrumentation target?",
+            plan=plan,
+            max_sources=32,
+        )
+        assert any("Honeycomb" in item.text for item in result.candidates)
+        assert any("end-to-end" in item.text for item in result.candidates)
+        assert len(result.candidates) <= 32
+    finally:
+        store.close()
+
+
+def test_dated_decision_retrieval_keeps_complete_outcome_neighbourhood() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="dated-outcome", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"[2026-01-08T11:47:00-05:00] The staged replay finished. "
+                b"The diagnostic reconciled every accepted batch. "
+                b"All health checks stayed at baseline. "
+                b"This supplied staged evidence only. "
+                b"It did not authorize a production window. "
+                b"Direct production evidence and a later closeout remained pending.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        for index in range(40):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=f"dated-noise-{index}", scope=SCOPE,
+                parts=(SourcePart(
+                    "text", 0, "text", "text/plain",
+                    f"January 8 staged replay planning note {index}.".encode(),
+                ),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Inspect whether the January 8, 2026 staged replay authorized the "
+            "production window and report the actual decision."
+        )
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=32,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "did not authorize a production window" in combined
+        assert "later closeout remained pending" in combined
+    finally:
+        store.close()
+
+
+def test_sufficiency_can_report_stale_policy_withheld_and_bounded_not_found() -> None:
+    plan = DeterministicPlanner().plan("Where is the release room?")
+    from atmem.context_engine.retrieval import RetrievalResult
+    empty = RetrievalResult((), ("fact",), 0, False)
+    assert decide_sufficiency(plan, empty).status == "not_found_within_budget"
+    assert decide_sufficiency(plan, empty, lifecycle_stale=True).status == "stale"
+    withheld = decide_sufficiency(plan, empty, policy_withheld=True)
+    assert withheld.status == "withheld_by_policy"
+    assert withheld.evidence_unit_ids == ()
+
+
+def test_targeted_facets_add_iso_narrative_date_for_temporal_subject() -> None:
+    facets = targeted_facets(
+        "Inspect whether the January 8, 2026 staged replay authorized the window."
+    )
+
+    assert "January 8, 2026 staged replay" in facets
+    assert "2026-01-08 staged replay" in facets
+
+
+def test_action_content_facets_ignore_transport_and_recipient() -> None:
+    facets = targeted_facets(
+        "[2026-09-14] Email sarah@example.dev board-safe wording for what the "
+        "Q2 Compass evidence demonstrates and whether it supports a "
+        "customer-facing product story."
+    )
+
+    assert "Q2 Compass" in facets
+    assert "customer-facing product" in facets
+    assert all("sarah@example.dev" not in facet for facet in facets)
+
+
+def test_action_content_facets_cover_create_update_and_indirect_contacts() -> None:
+    rollout = targeted_facets(
+        "Create a short reference for the Apr 10, 2023 full shipment of "
+        "`lifecycle_onboarding_trigger_v2`, including included and excluded tiers."
+    )
+    closeout = targeted_facets(
+        "Please create a concise document for the Holly deposit disposition, "
+        "damage deductions or dispute, and remaining financial obligation."
+    )
+    contact = targeted_facets(
+        "Email the Pinecone integration contact for current reproduction details."
+    )
+    update = targeted_facets(
+        "Update Greg Shipman's CRM notes with the March 2023 call outcome and "
+        "confidence in his assurances."
+    )
+
+    assert "lifecycle_onboarding_trigger_v2" in rollout
+    assert "2023-04-10 lifecycle_onboarding_trigger_v2" in rollout
+    assert any("included" in value for value in rollout)
+    assert any("excluded" in value for value in rollout)
+    assert any("deposit" in value for value in closeout)
+    assert any("damage" in value for value in closeout)
+    assert "Pinecone integration contact" in contact
+    assert any("reproduction" in value for value in contact)
+    assert any("Greg Shipman" in value for value in update)
+    assert "2023-03 Greg Shipman" in update
+    assert any("confidence" in value for value in update)
+
+
+def test_month_year_temporal_target_is_not_truncated_to_day() -> None:
+    plan = DeterministicPlanner().plan(
+        "Update Greg Shipman's notes with the March 2023 call outcome."
+    )
+
+    assert plan.obligations[0].temporal_target == "March 2023"
+
+
+def test_action_content_facets_nominate_compact_exact_source_episode() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="exact-q2-read", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"The Q2 Compass owner-action read found concrete internal value. "
+                b"Give concise board-safe language without presenting this as "
+                b"proof of a customer-facing product story.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        for index in range(40):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=f"action-noise-{index}", scope=SCOPE,
+                parts=(SourcePart(
+                    "text", 0, "text", "text/plain",
+                    f"Sarah reviewed unrelated customer-facing wording note {index}.".encode(),
+                ),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Email sarah@example.dev board-safe wording for what the Q2 Compass "
+            "evidence demonstrates and whether it supports a customer-facing "
+            "product story."
+        )
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=32,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "Q2 Compass owner-action read" in combined
+        assert "proof of a customer-facing product story" in combined
+    finally:
+        store.close()
+
+
+def test_late_temporal_action_head_expands_its_complete_source_episode() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="march-call", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"[2023-03-22T11:00:00-07:00] I spoke with Greg Shipman at Acme. "
+                b"He owned the ETA misses directly. "
+                b"He said Q2 delivery would be tighter on their side. "
+                b"I placed about 60%, not 100%, confidence in those assurances.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        for index in range(40):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=f"greg-noise-{index}", scope=SCOPE,
+                parts=(SourcePart(
+                    "text", 0, "text", "text/plain",
+                    f"Greg Shipman Acme CRM follow-up note {index} about later exports.".encode(),
+                ),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Update Greg Shipman's Acme CRM notes with the March 2023 ETA-reset "
+            "call outcome and how much confidence I placed in his assurances."
+        )
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=32,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "owned the ETA misses directly" in combined
+        assert "60%, not 100%" in combined
+    finally:
+        store.close()
+
+
+def test_temporal_action_prefers_source_covering_the_whole_request() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            (
+                "planning",
+                "[2023-04-10T08:30:00-05:00] Ship day for "
+                "lifecycle_onboarding_trigger_v2. Watch dashboards after launch.",
+            ),
+            (
+                "scope",
+                "[2023-04-10T10:00:00-05:00] lifecycle_onboarding_trigger_v2 "
+                "shipped to all mid-segment customers plus growth tier, not starter.",
+            ),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Create a rollout-scope reference for the Apr 10, 2023 shipment of "
+            "`lifecycle_onboarding_trigger_v2`, naming included customer groups "
+            "and the excluded tier."
+        )
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=8,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "plus growth tier, not starter" in combined
+    finally:
+        store.close()
+
+
+def test_external_thread_action_nominates_contact_and_outside_email_policy() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="pinecone-contact", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"We are kicking off the Pinecone integration now. "
+                b"The contact is integrations@pinecone-test.com. "
+                b"Sarah stays copied on the usual external thread.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        policy = manager.retain_source(SourceEpisode(
+            episode_id="outside-email-policy", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"For outside email, cc Sarah Kim at sarah@atlas-test.com.",
+            ),),
+        ))
+        manager.form_source(policy, generation, range_granularity="sentence")
+        query = (
+            "Email the Pinecone integration contact for current reproduction "
+            "details and copy the usual person on the external thread."
+        )
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=16,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "integrations@pinecone-test.com" in combined
+        assert "Sarah stays copied" in combined
+        assert "sarah@atlas-test.com" in combined
+    finally:
+        store.close()

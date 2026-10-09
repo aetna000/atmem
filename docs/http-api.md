@@ -1,5 +1,22 @@
 # HTTP API and clients
 
+## Evidence-complete retrieval context (V2)
+
+POST `/v1/retrieval/context` runs the governed typed retrieval path for the
+credential's exact subject, agent and workspace. The request accepts `query`
+and an optional `max_context_bytes` from 256 through 65,536. It returns selected
+record IDs, provenance-backed sufficiency details and context only when the
+evidence is sufficient and the AtMem provider is active. Shadow mode records
+the content-free preparation evidence but returns `inject: false` and no model
+context. The endpoint cannot widen scope, override deletion or activate V2.
+
+POST `/v1/retrieval/form` accepts a host-neutral `atmem-episode-ingest-v1`
+body without caller-controlled scope. AtMem derives subject, agent and
+workspace from the authenticated principal, verifies every part digest,
+retains source/evidence links, and returns the formation receipt plus governed
+admission outcomes. Typed units remain unavailable for active delivery until
+the protected-storage gate and explicit profile activation both pass.
+
 ## Continuity extension (2.3.7)
 
 Continuity uses the authenticated `/v1` server and evidence-role authorization.

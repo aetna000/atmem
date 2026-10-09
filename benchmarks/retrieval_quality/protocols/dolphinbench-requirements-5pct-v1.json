@@ -1,0 +1,3237 @@
+{
+  "available_to_product": false,
+  "benchmark": "dolphinbench",
+  "case_count": 30,
+  "cases": [
+    {
+      "case_id": "alex:001",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "On December 13, 2027, Nadia delivered the complete October 1\u2013December 10 asynchronous-intake sample, containing 61 requests.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:001:fact:290",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:290",
+            "session:004978"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "On December 13, 2027, Nadia delivered the complete October 1\u2013December 10 asynchronous-intake sample, containing 61 requests."
+        },
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Of the 61 asynchronous-intake requests, 42 identified the affected component, mapped implementation or release owner, exactly one valid exception class, and a concrete observed failed or at-risk condition: 19 `failure_mode`, 10 `invariant`, seven `provenance`, four `ownership`, and two `escalation`.",
+          "expected_obligation_slots": [
+            "applicability",
+            "condition",
+            "conditions",
+            "current_value",
+            "entity",
+            "failure",
+            "object",
+            "relation",
+            "safe_action",
+            "source",
+            "subject",
+            "target",
+            "trigger",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:001:fact:291",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:291",
+            "session:004978"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Of the 61 asynchronous-intake requests, 42 identified the affected component, mapped implementation or release owner, exactly one valid exception class, and a concrete observed failed or at-risk condition: 19 `failure_mode`, 10 `invariant`, seven `provenance`, four `ownership`, and two `escalation`."
+        },
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value",
+            "state_transition"
+          ],
+          "expected": "Nineteen asynchronous-intake requests were returned before review: eight for placeholder-only conditions, six for multiple exception classes, and five for ordinary implementation or release work.",
+          "expected_obligation_slots": [
+            "action",
+            "after",
+            "applicability",
+            "before",
+            "condition",
+            "conditions",
+            "current_value",
+            "entity",
+            "event_time",
+            "failure",
+            "object",
+            "relation",
+            "safe_action",
+            "source",
+            "subject",
+            "target",
+            "trigger",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:001:fact:292",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:292",
+            "session:004978"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Nineteen asynchronous-intake requests were returned before review: eight for placeholder-only conditions, six for multiple exception classes, and five for ordinary implementation or release work."
+        },
+        {
+          "classes": [
+            "applicability_condition",
+            "comparison_side",
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Eight asynchronous-intake requests reached Alex Valdez: four `invariant`, three `provenance`, and one cross-service `failure_mode`; all eight retained the affected component, mapped owner, concrete condition, executable evidence, and closure.",
+          "expected_obligation_slots": [
+            "applicability",
+            "comparison",
+            "condition",
+            "conditions",
+            "current_value",
+            "entity",
+            "failure",
+            "left",
+            "object",
+            "relation",
+            "right",
+            "safe_action",
+            "sides",
+            "source",
+            "subject",
+            "target",
+            "trigger",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:001:fact:293",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:293",
+            "session:004978"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Eight asynchronous-intake requests reached Alex Valdez: four `invariant`, three `provenance`, and one cross-service `failure_mode`; all eight retained the affected component, mapped owner, concrete condition, executable evidence, and closure."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "No routine implementation or release approval entered Alex Valdez\u2019s review lane; mapped owners made every implementation, release, and rollback decision for the October 1\u2013December 10 asynchronous-intake sample.",
+          "expected_obligation_slots": [
+            "applicability",
+            "current_value",
+            "entity",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:001:fact:294",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:294",
+            "session:004978"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "No routine implementation or release approval entered Alex Valdez\u2019s review lane; mapped owners made every implementation, release, and rollback decision for the October 1\u2013December 10 asynchronous-intake sample."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Alex Valdez requested that Hema receive her concise final closeout in a private Slack direct message.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:001:fact:295",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:295",
+            "session:004978"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Alex Valdez requested that Hema receive her concise final closeout in a private Slack direct message."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "send_slack_dm",
+          "removal_applicable": false,
+          "requirement_id": "alex:001:action:send_slack_dm",
+          "source_refs": [
+            "tests/alex/001.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: send_slack_dm"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "result.user=hema",
+          "removal_applicable": false,
+          "requirement_id": "alex:001:target:send_slack_dm",
+          "source_refs": [
+            "tests/alex/001.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: result.user=hema"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "The message accurately closes out the 61-request sample. It gives the 42 routed requests and their 19 failure_mode, 10 invariant, seven provenance, four ownership, and two escalation breakdown; the 19 returned requests and their eight placeholder-only, six multiple-class, and five ordinary-work breakdown; and the eight requests that reached Alex, including their four invariant, three provenance, and one cross-service failure_mode breakdown. It also says those eight retained the required evidence and closure, no routine implementation or release approval entered Alex's review lane, and mapped owners made implementation, release, and rollback decisions.",
+          "removal_applicable": false,
+          "requirement_id": "alex:001:prohibited:send_slack_dm",
+          "source_refs": [
+            "tests/alex/001.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: The message accurately closes out the 61-request sample. It gives the 42 routed requests and their 19 failure_mode, 10 invariant, seven provenance, four ownership, and two escalation breakdown; the 19 returned requests and their eight placeholder-only, six multiple-class, and five ordinary-work breakdown; and the eight requests that reached Alex, including their four invariant, three provenance, and one cross-service failure_mode breakdown. It also says those eight retained the required evidence and closure, no routine implementation or release approval entered Alex's review lane, and mapped owners made implementation, release, and rollback decisions."
+        }
+      ],
+      "test_spec_sha256": "sha256:bbf521a75fd9d511fd558246e36a95e119e36e2190926bdabe35171d7b5eefa8"
+    },
+    {
+      "case_id": "alex:026",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "The Mosaic-shaped staged replay supplies the required staged evidence but does not open or authorize a capacity-related production window; direct production evidence and a later closeout decision remain pending.",
+          "expected_obligation_slots": [
+            "applicability",
+            "current_value",
+            "entity",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:026:fact:195",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:195",
+            "session:003338"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "The Mosaic-shaped staged replay supplies the required staged evidence but does not open or authorize a capacity-related production window; direct production evidence and a later closeout decision remain pending."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "get_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:026:action:get_pr",
+          "source_refs": [
+            "tests/alex/026.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: get_pr"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "get_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:026:target:get_pr",
+          "source_refs": [
+            "tests/alex/026.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: get_pr"
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "post_pr_comment",
+          "removal_applicable": false,
+          "requirement_id": "alex:026:action:post_pr_comment",
+          "source_refs": [
+            "tests/alex/026.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: post_pr_comment"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "post_pr_comment",
+          "removal_applicable": false,
+          "requirement_id": "alex:026:target:post_pr_comment",
+          "source_refs": [
+            "tests/alex/026.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: post_pr_comment"
+        }
+      ],
+      "test_spec_sha256": "sha256:a89f28c5caf6ef7b9dbaaad183fc4bb02204dd4cd0aeec0cdf8723a5b99b1cfe"
+    },
+    {
+      "case_id": "alex:042",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Hema accepted the exercised metrics-router canary-response reference for future use by Wes and other mapped operators.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:042:fact:129",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:129",
+            "session:001965"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Hema accepted the exercised metrics-router canary-response reference for future use by Wes and other mapped operators."
+        },
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Alex Valdez requested that the existing `rb_metrics_router_canary` entry replace its pending-validation marker with the completed 94-millisecond exercise and Hema\u2019s acceptance while preserving all thresholds, rollback conditions, and ownership language.",
+          "expected_obligation_slots": [
+            "applicability",
+            "condition",
+            "conditions",
+            "current_value",
+            "entity",
+            "failure",
+            "object",
+            "relation",
+            "safe_action",
+            "source",
+            "subject",
+            "target",
+            "trigger",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:042:fact:130",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:130",
+            "session:001965"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Alex Valdez requested that the existing `rb_metrics_router_canary` entry replace its pending-validation marker with the completed 94-millisecond exercise and Hema\u2019s acceptance while preserving all thresholds, rollback conditions, and ownership language."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "get_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:042:action:get_pr",
+          "source_refs": [
+            "tests/alex/042.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: get_pr"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "get_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:042:target:get_pr",
+          "source_refs": [
+            "tests/alex/042.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: get_pr"
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "post_pr_comment",
+          "removal_applicable": false,
+          "requirement_id": "alex:042:action:post_pr_comment",
+          "source_refs": [
+            "tests/alex/042.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: post_pr_comment"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "post_pr_comment",
+          "removal_applicable": false,
+          "requirement_id": "alex:042:target:post_pr_comment",
+          "source_refs": [
+            "tests/alex/042.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: post_pr_comment"
+        }
+      ],
+      "test_spec_sha256": "sha256:3a406dc25b5f43891d2ea1351cdfcf85d2a901788811fcc78cc2d1981a2100ac"
+    },
+    {
+      "case_id": "alex:044",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "state_transition",
+            "time_current_state"
+          ],
+          "expected": "On January 6, 2025, Lantern's internal operational-handoff rerun passed all three synthetic failure scenarios: responders identified stale provenance from an explicit unknown state without pursuing adapter latency, verified that a policy denial made zero adapter calls, and distinguished an adapter timeout occurring after a successful freshness check; every page contained only tenant-safe synthetic context, traces matched the displayed failure classes, and the alert-classification and operational-handoff gap is now closed.",
+          "expected_obligation_slots": [
+            "action",
+            "after",
+            "applicability",
+            "before",
+            "current_value",
+            "entity",
+            "event_time",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:044:fact:141",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:141",
+            "session:002283"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "On January 6, 2025, Lantern's internal operational-handoff rerun passed all three synthetic failure scenarios: responders identified stale provenance from an explicit unknown state without pursuing adapter latency, verified that a policy denial made zero adapter calls, and distinguished an adapter timeout occurring after a successful freshness check; every page contained only tenant-safe synthetic context, traces matched the displayed failure classes, and the alert-classification and operational-handoff gap is now closed."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "send_slack_message",
+          "removal_applicable": false,
+          "requirement_id": "alex:044:action:send_slack_message",
+          "source_refs": [
+            "tests/alex/044.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: send_slack_message"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "result.channel=#lantern",
+          "removal_applicable": false,
+          "requirement_id": "alex:044:target:send_slack_message",
+          "source_refs": [
+            "tests/alex/044.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: result.channel=#lantern"
+        }
+      ],
+      "test_spec_sha256": "sha256:d0ec3c1ce34906c24d4ddb335502433a7fbf6478a4dd9d40d5c04879a36e9203"
+    },
+    {
+      "case_id": "alex:054",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "The Park Slope property manager completed the post-handoff accounting and returned the full security deposit to Alex Valdez and Devika, with no deductions for cleaning, repairs, damage, utilities, keys, or occupancy.",
+          "expected_obligation_slots": [
+            "applicability",
+            "current_value",
+            "entity",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:054:fact:131",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:131",
+            "session:002000"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "The Park Slope property manager completed the post-handoff accounting and returned the full security deposit to Alex Valdez and Devika, with no deductions for cleaning, repairs, damage, utilities, keys, or occupancy."
+        },
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "The former Park Slope tenancy has a zero balance and no remaining condition claim; its financial and condition accounting is closed.",
+          "expected_obligation_slots": [
+            "applicability",
+            "condition",
+            "conditions",
+            "current_value",
+            "entity",
+            "failure",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "safe_action",
+            "source",
+            "subject",
+            "target",
+            "trigger",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:054:fact:132",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:132",
+            "session:002000"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "The former Park Slope tenancy has a zero balance and no remaining condition claim; its financial and condition accounting is closed."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "list_inbox",
+          "removal_applicable": false,
+          "requirement_id": "alex:054:action:list_inbox",
+          "source_refs": [
+            "tests/alex/054.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: list_inbox"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "list_inbox",
+          "removal_applicable": false,
+          "requirement_id": "alex:054:target:list_inbox",
+          "source_refs": [
+            "tests/alex/054.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: list_inbox"
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "alex:054:action:send_email",
+          "source_refs": [
+            "tests/alex/054.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: send_email"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "alex:054:target:send_email",
+          "source_refs": [
+            "tests/alex/054.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: send_email"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "The reply says Alex and Devika received the full security deposit with no deductions and the tenancy had a zero balance with no remaining condition claim. It asks for written withdrawal of the new claim and does not offer payment or reopen the closeout.",
+          "removal_applicable": false,
+          "requirement_id": "alex:054:prohibited:send_email",
+          "source_refs": [
+            "tests/alex/054.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: The reply says Alex and Devika received the full security deposit with no deductions and the tenancy had a zero balance with no remaining condition claim. It asks for written withdrawal of the new claim and does not offer payment or reopen the closeout."
+        }
+      ],
+      "test_spec_sha256": "sha256:02ecd158bb3e00d03565c48ca3ee239cea73829e4bfacdcc1f0f332ece0d6b41"
+    },
+    {
+      "case_id": "alex:074",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Alex Valdez agreed to investigate the data-platform throughput regression Cyrus brought to him during the week of March 13, 2023.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:074:fact:6",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:6",
+            "session:000013"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Alex Valdez agreed to investigate the data-platform throughput regression Cyrus brought to him during the week of March 13, 2023."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Alex Valdez approved Cyrus's three-line PR for the data-platform throughput regression on April 6, 2023.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:074:fact:23",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:23",
+            "session:000074"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Alex Valdez approved Cyrus's three-line PR for the data-platform throughput regression on April 6, 2023."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "alex:074:action:create_doc",
+          "source_refs": [
+            "tests/alex/074.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: create_doc"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "alex:074:target:create_doc",
+          "source_refs": [
+            "tests/alex/074.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: create_doc"
+        }
+      ],
+      "test_spec_sha256": "sha256:088e7f4098c575ec4ed9a7f9b3f2a0b4032539789bd36bcadb7f1ebf8c14acde"
+    },
+    {
+      "case_id": "alex:082",
+      "requirements": [
+        {
+          "classes": [
+            "conflict_correction",
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Cyrus agreed that remaining legacy-aggregator validation should use the OTel/Prometheus path plus Cardinality Guardrails fixtures instead of legacy mirrored writes.",
+          "expected_obligation_slots": [
+            "conflict",
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:082:fact:98",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:98",
+            "session:000871"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Cyrus agreed that remaining legacy-aggregator validation should use the OTel/Prometheus path plus Cardinality Guardrails fixtures instead of legacy mirrored writes."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "time_current_state"
+          ],
+          "expected": "Legacy-aggregator mirrored writes have been stopped; the service is now archived legacy code and is no longer an active replay source.",
+          "expected_obligation_slots": [
+            "applicability",
+            "current_value",
+            "entity",
+            "event_time",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:082:fact:99",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:99",
+            "session:000871"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Legacy-aggregator mirrored writes have been stopped; the service is now archived legacy code and is no longer an active replay source."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "get_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:082:action:get_pr",
+          "source_refs": [
+            "tests/alex/082.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: get_pr"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "get_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:082:target:get_pr",
+          "source_refs": [
+            "tests/alex/082.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: get_pr"
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "review_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:082:action:review_pr",
+          "source_refs": [
+            "tests/alex/082.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: review_pr"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "review_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:082:target:review_pr",
+          "source_refs": [
+            "tests/alex/082.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: review_pr"
+        }
+      ],
+      "test_spec_sha256": "sha256:2e1f40b98724dc6bf7a3d6fc2c3cf17c8047a0b7a93a03c0c81df0a6cc596252"
+    },
+    {
+      "case_id": "alex:105",
+      "requirements": [
+        {
+          "classes": [
+            "comparison_side",
+            "conflict_correction",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "Alex Valdez believed INC-2023-04-18-001 was caused by an earlier label-name change reaching shard-keeper but not rollup-service, which triggered all symptom alerts and no cause alerts.",
+          "expected_obligation_slots": [
+            "applicability",
+            "comparison",
+            "conflict",
+            "current_value",
+            "entity",
+            "left",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "right",
+            "sides",
+            "source",
+            "subject",
+            "target",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:105:fact:30",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:30",
+            "session:000103"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Alex Valdez believed INC-2023-04-18-001 was caused by an earlier label-name change reaching shard-keeper but not rollup-service, which triggered all symptom alerts and no cause alerts."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "get_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:105:action:get_pr",
+          "source_refs": [
+            "tests/alex/105.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: get_pr"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "get_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:105:target:get_pr",
+          "source_refs": [
+            "tests/alex/105.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: get_pr"
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "review_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:105:action:review_pr",
+          "source_refs": [
+            "tests/alex/105.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: review_pr"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "review_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:105:target:review_pr",
+          "source_refs": [
+            "tests/alex/105.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: review_pr"
+        }
+      ],
+      "test_spec_sha256": "sha256:eb3eade4e4e200fa86f38c56a5a8220638c0309702d7643e403f27e8524fb913"
+    },
+    {
+      "case_id": "alex:136",
+      "requirements": [
+        {
+          "classes": [
+            "comparison_side",
+            "entity_relation",
+            "exact_fact_value",
+            "time_current_state"
+          ],
+          "expected": "Product Engineering corrected the Lantern UI refactor to calculate the 24-hour explanation boundary from elapsed source instants rather than truncated local dates; signals exactly 24 hours apart remain eligible, signals 24 hours and one second apart remain separate, and regressions cover midnight crossings and both daylight-saving offset directions.",
+          "expected_obligation_slots": [
+            "comparison",
+            "current_value",
+            "entity",
+            "event_time",
+            "left",
+            "object",
+            "relation",
+            "right",
+            "sides",
+            "source",
+            "subject",
+            "target",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:136:fact:152",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:152",
+            "session:002608"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Product Engineering corrected the Lantern UI refactor to calculate the 24-hour explanation boundary from elapsed source instants rather than truncated local dates; signals exactly 24 hours apart remain eligible, signals 24 hours and one second apart remain separate, and regressions cover midnight crossings and both daylight-saving offset directions."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "get_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:136:action:get_pr",
+          "source_refs": [
+            "tests/alex/136.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: get_pr"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "get_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:136:target:get_pr",
+          "source_refs": [
+            "tests/alex/136.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: get_pr"
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "review_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:136:action:review_pr",
+          "source_refs": [
+            "tests/alex/136.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: review_pr"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "review_pr",
+          "removal_applicable": false,
+          "requirement_id": "alex:136:target:review_pr",
+          "source_refs": [
+            "tests/alex/136.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: review_pr"
+        }
+      ],
+      "test_spec_sha256": "sha256:c1606f044e008beb33bfc972448c74fb2d78ce31156b9cac6a7e64d314832cd8"
+    },
+    {
+      "case_id": "alex:147",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "time_current_state"
+          ],
+          "expected": "Alex Valdez completed the owner-held shard-keeper certificate replacement during the scheduled July 6, 2027, 10:00\u201311:00 AM window, installing the signed tenant-auth bundle through the approved configuration path while Cyrus covered the backup lane.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "event_time",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:147:fact:268",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:268",
+            "session:004333"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Alex Valdez completed the owner-held shard-keeper certificate replacement during the scheduled July 6, 2027, 10:00\u201311:00 AM window, installing the signed tenant-auth bundle through the approved configuration path while Cyrus covered the backup lane."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "The shard-keeper replacement passed the signed-bundle, rollback-material availability, production tenant-auth, and July 1 baseline parity checks.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:147:fact:269",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:269",
+            "session:004333"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "The shard-keeper replacement passed the signed-bundle, rollback-material availability, production tenant-auth, and July 1 baseline parity checks."
+        },
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "procedure_step_order",
+            "time_current_state"
+          ],
+          "expected": "The shard-keeper certificate rotation\u2019s 24-hour production observation ended on July 7, 2027 at 11:00 AM with tenant authentication successful, parity checks still matching the July 1 baseline, rollback material available through closeout, and no rollback condition occurring.",
+          "expected_obligation_slots": [
+            "action",
+            "applicability",
+            "completion",
+            "condition",
+            "conditions",
+            "current_value",
+            "entity",
+            "event_time",
+            "failure",
+            "object",
+            "ordering",
+            "polarity",
+            "proposition",
+            "relation",
+            "safe_action",
+            "source",
+            "steps",
+            "subject",
+            "target",
+            "trigger",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "alex:147:fact:270",
+          "source_refs": [
+            "registry/personas/alex/facts.yaml#fact:270",
+            "session:004337"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "The shard-keeper certificate rotation\u2019s 24-hour production observation ended on July 7, 2027 at 11:00 AM with tenant authentication successful, parity checks still matching the July 1 baseline, rollback material available through closeout, and no rollback condition occurring."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "list_inbox",
+          "removal_applicable": false,
+          "requirement_id": "alex:147:action:list_inbox",
+          "source_refs": [
+            "tests/alex/147.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: list_inbox"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "list_inbox",
+          "removal_applicable": false,
+          "requirement_id": "alex:147:target:list_inbox",
+          "source_refs": [
+            "tests/alex/147.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: list_inbox"
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "alex:147:action:send_email",
+          "source_refs": [
+            "tests/alex/147.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: send_email"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "alex:147:target:send_email",
+          "source_refs": [
+            "tests/alex/147.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: send_email"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "The reply says the signed replacement bundle was installed through the approved shard-keeper configuration path during the July 6 window; signed-bundle, rollback-material, production tenant-auth, and July 1 parity checks passed; and the 24-hour observation ended at 11:00 AM July 7 with successful tenant authentication, matching parity, and no rollback condition. Saying no rollback condition occurred is sufficient to answer the emergency rollback claim. It does not claim old rollback material is still retained in 2028.",
+          "removal_applicable": false,
+          "requirement_id": "alex:147:prohibited:send_email",
+          "source_refs": [
+            "tests/alex/147.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: The reply says the signed replacement bundle was installed through the approved shard-keeper configuration path during the July 6 window; signed-bundle, rollback-material, production tenant-auth, and July 1 parity checks passed; and the 24-hour observation ended at 11:00 AM July 7 with successful tenant authentication, matching parity, and no rollback condition. Saying no rollback condition occurred is sufficient to answer the emergency rollback claim. It does not claim old rollback material is still retained in 2028."
+        }
+      ],
+      "test_spec_sha256": "sha256:cae7cd2b88dd740afeb77e5f7104acfdf1c38d40396e47d79b88cea405103664"
+    },
+    {
+      "case_id": "morgan:011",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "time_current_state"
+          ],
+          "expected": "Morgan Chen requested that Sarah Kim (sarah@atlas-test.com) be CC'd on outside email threads from the start so she can see the full thread.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "event_time",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:011:fact:34",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:34",
+            "session:000292"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Morgan Chen requested that Sarah Kim (sarah@atlas-test.com) be CC'd on outside email threads from the start so she can see the full thread."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "procedure_step_order"
+          ],
+          "expected": "On April 27, 2023, Morgan Chen requested that tab 4 of the procurement runbook state that contract termination notice must be sent in writing at least 30 days in advance, with no side deals or exceptions because the minimum is non-negotiable.",
+          "expected_obligation_slots": [
+            "action",
+            "applicability",
+            "completion",
+            "current_value",
+            "entity",
+            "object",
+            "ordering",
+            "polarity",
+            "proposition",
+            "relation",
+            "source",
+            "steps",
+            "subject",
+            "target",
+            "trigger",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:011:fact:84",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:84",
+            "session:000457"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "On April 27, 2023, Morgan Chen requested that tab 4 of the procurement runbook state that contract termination notice must be sent in writing at least 30 days in advance, with no side deals or exceptions because the minimum is non-negotiable."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "morgan:011:action:send_email",
+          "source_refs": [
+            "tests/morgan/011.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: send_email"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "morgan:011:target:send_email",
+          "source_refs": [
+            "tests/morgan/011.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: send_email"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "Gives written notice making the Kestrel arrangement end October 14, 2026, or unambiguously 30 days after this September 14 notice. A different effective date or immediate termination fails. No recital of the old dispute is required.",
+          "removal_applicable": false,
+          "requirement_id": "morgan:011:prohibited:send_email",
+          "source_refs": [
+            "tests/morgan/011.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: Gives written notice making the Kestrel arrangement end October 14, 2026, or unambiguously 30 days after this September 14 notice. A different effective date or immediate termination fails. No recital of the old dispute is required."
+        }
+      ],
+      "test_spec_sha256": "sha256:e2892f7d29bd77f230651e3a3c9b472dbf4405019a9f072da002bb47632e2714"
+    },
+    {
+      "case_id": "morgan:045",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "state_transition"
+          ],
+          "expected": "For Evergreen, a Compass admin-review prompt helped Sarah prepare the standard usage and admin follow-up before April invoice questions escalated.",
+          "expected_obligation_slots": [
+            "action",
+            "after",
+            "before",
+            "current_value",
+            "entity",
+            "event_time",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:045:fact:296",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:296",
+            "session:003009"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "For Evergreen, a Compass admin-review prompt helped Sarah prepare the standard usage and admin follow-up before April invoice questions escalated."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "For Acme, a Compass API/JWT prompt directed support to the updated clock-skew documentation for Acme\u2019s audit file.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:045:fact:297",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:297",
+            "session:003009"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "For Acme, a Compass API/JWT prompt directed support to the updated clock-skew documentation for Acme\u2019s audit file."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Morgan requested concise, board-safe language that accurately describes the Q2 Compass owner-action read without presenting it as proof of repeatability, GTM, staffing, fundraising, a customer-facing product, or Atlas sequencing.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:045:fact:298",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:298",
+            "session:003009"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Morgan requested concise, board-safe language that accurately describes the Q2 Compass owner-action read without presenting it as proof of repeatability, GTM, staffing, fundraising, a customer-facing product, or Atlas sequencing."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "morgan:045:action:send_email",
+          "source_refs": [
+            "tests/morgan/045.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: send_email"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "morgan:045:target:send_email",
+          "source_refs": [
+            "tests/morgan/045.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: send_email"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "Limits demonstrated value to concrete internal owner outcomes at Evergreen Bank and Acme. Does not present those results as nameable repeatability beyond those accounts or proof of a customer-facing Compass product. Does not require a separate recital of every financing or hiring non-implication.",
+          "removal_applicable": false,
+          "requirement_id": "morgan:045:prohibited:send_email",
+          "source_refs": [
+            "tests/morgan/045.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: Limits demonstrated value to concrete internal owner outcomes at Evergreen Bank and Acme. Does not present those results as nameable repeatability beyond those accounts or proof of a customer-facing Compass product. Does not require a separate recital of every financing or hiring non-implication."
+        }
+      ],
+      "test_spec_sha256": "sha256:45af13b141bcfac079f5f599489161a78ef2530baf1a78ed6242ac0b811c109c"
+    },
+    {
+      "case_id": "morgan:063",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Morgan Chen owns board follow-through, operating sequencing, dates, promises, not-yet decisions, and the hiring sequence.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:063:fact:181",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:181",
+            "session:001038"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Morgan Chen owns board follow-through, operating sequencing, dates, promises, not-yet decisions, and the hiring sequence."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "send_slack_message",
+          "removal_applicable": false,
+          "requirement_id": "morgan:063:action:send_slack_message",
+          "source_refs": [
+            "tests/morgan/063.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: send_slack_message"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "result.channel=#hiring-leads",
+          "removal_applicable": false,
+          "requirement_id": "morgan:063:target:send_slack_message",
+          "source_refs": [
+            "tests/morgan/063.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: result.channel=#hiring-leads"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "Routes hiring-sequence approval through Morgan Chen. First-person wording from Morgan is valid. Does not substitute Jake, HR, or another owner.",
+          "removal_applicable": false,
+          "requirement_id": "morgan:063:prohibited:send_slack_message",
+          "source_refs": [
+            "tests/morgan/063.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: Routes hiring-sequence approval through Morgan Chen. First-person wording from Morgan is valid. Does not substitute Jake, HR, or another owner."
+        }
+      ],
+      "test_spec_sha256": "sha256:0bcac3690bbc86402f9b7d0d779a3a4e920d0179d8f2e8d14695c0daf3ebf70e"
+    },
+    {
+      "case_id": "morgan:071",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "On the morning of April 14, 2023, Morgan Chen chose Honeycomb over Datadog because Honeycomb's tracing is better for their use case, particularly for following requests end to end.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:071:fact:57",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:57",
+            "session:000364"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "On the morning of April 14, 2023, Morgan Chen chose Honeycomb over Datadog because Honeycomb's tracing is better for their use case, particularly for following requests end to end."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "post_pr_comment",
+          "removal_applicable": false,
+          "requirement_id": "morgan:071:action:post_pr_comment",
+          "source_refs": [
+            "tests/morgan/071.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: post_pr_comment"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "post_pr_comment",
+          "removal_applicable": false,
+          "requirement_id": "morgan:071:target:post_pr_comment",
+          "source_refs": [
+            "tests/morgan/071.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: post_pr_comment"
+        }
+      ],
+      "test_spec_sha256": "sha256:878bd099abfec4fe91e6eb0bc83866f8cb237f1b01cb22b3008649a700a243f0"
+    },
+    {
+      "case_id": "morgan:079",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "procedure_step_order",
+            "time_current_state"
+          ],
+          "expected": "Morgan Chen requested a reply in the January 8, 2024 HR thread asking HR to keep the internal record explicit that the 2023 senior-engineer process closed with no signed hire and no active offer artifact left in January, and that any future senior or principal engineering offer must restart from a fresh requisition and the current legal and recruiting checks rather than revive the November 2023 packet.",
+          "expected_obligation_slots": [
+            "action",
+            "applicability",
+            "completion",
+            "current_value",
+            "entity",
+            "event_time",
+            "object",
+            "ordering",
+            "polarity",
+            "proposition",
+            "relation",
+            "source",
+            "steps",
+            "subject",
+            "target",
+            "trigger",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:079:fact:170",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:170",
+            "session:000965"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Morgan Chen requested a reply in the January 8, 2024 HR thread asking HR to keep the internal record explicit that the 2023 senior-engineer process closed with no signed hire and no active offer artifact left in January, and that any future senior or principal engineering offer must restart from a fresh requisition and the current legal and recruiting checks rather than revive the November 2023 packet."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "morgan:079:action:send_email",
+          "source_refs": [
+            "tests/morgan/079.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: send_email"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "morgan:079:target:send_email",
+          "source_refs": [
+            "tests/morgan/079.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: send_email"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "Rejects reviving the archived November packet and requires a fresh requisition with current legal/recruiting checks. It may clarify that no signed hire resulted, but does not need to recite every archived artifact.",
+          "removal_applicable": false,
+          "requirement_id": "morgan:079:prohibited:send_email",
+          "source_refs": [
+            "tests/morgan/079.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: Rejects reviving the archived November packet and requires a fresh requisition with current legal/recruiting checks. It may clarify that no signed hire resulted, but does not need to recite every archived artifact."
+        }
+      ],
+      "test_spec_sha256": "sha256:eb26356708f4b22e101eb142e5670f4700eeb13e745774124472abd618ee6ae7"
+    },
+    {
+      "case_id": "morgan:082",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "time_current_state"
+          ],
+          "expected": "In the comparable 14-day window, setup sessions abandoned because of OAuth cancellation fell from 41 to 14.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "event_time",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:082:fact:275",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:275",
+            "session:002621"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "In the comparable 14-day window, setup sessions abandoned because of OAuth cancellation fell from 41 to 14."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "time_current_state"
+          ],
+          "expected": "In the comparable 14-day window, support tickets fell from 12 to 2.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "event_time",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:082:fact:276",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:276",
+            "session:002621"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "In the comparable 14-day window, support tickets fell from 12 to 2."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Morgan Chen treats the OAuth-cancel fix results as validated activation-quality work.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:082:fact:277",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:277",
+            "session:002621"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Morgan Chen treats the OAuth-cancel fix results as validated activation-quality work."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "The remaining visible confusion concerns the empty source list, which generated 11 support questions.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:082:fact:278",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:278",
+            "session:002621"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "The remaining visible confusion concerns the empty source list, which generated 11 support questions."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Morgan Chen decided that the next Mercury activation-quality focus will be explaining the empty source list.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:082:fact:279",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:279",
+            "session:002621"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Morgan Chen decided that the next Mercury activation-quality focus will be explaining the empty source list."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "send_discord_dm",
+          "removal_applicable": false,
+          "requirement_id": "morgan:082:action:send_discord_dm",
+          "source_refs": [
+            "tests/morgan/082.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: send_discord_dm"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "result.user=priya",
+          "removal_applicable": false,
+          "requirement_id": "morgan:082:target:send_discord_dm",
+          "source_refs": [
+            "tests/morgan/082.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: result.user=priya"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "Reports comparable 14-day OAuth-cancel setup abandonments falling 41 to 14 and support tickets 12 to 2, validating activation-quality work. Explains the next empty-source-list focus by the 11 remaining support questions. Does not substitute first-sync lift or imply those later questions were already fixed.",
+          "removal_applicable": false,
+          "requirement_id": "morgan:082:prohibited:send_discord_dm",
+          "source_refs": [
+            "tests/morgan/082.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: Reports comparable 14-day OAuth-cancel setup abandonments falling 41 to 14 and support tickets 12 to 2, validating activation-quality work. Explains the next empty-source-list focus by the 11 remaining support questions. Does not substitute first-sync lift or imply those later questions were already fixed."
+        }
+      ],
+      "test_spec_sha256": "sha256:7cb4020e907fa6a8d16a8b5a26ae64ac2a46b5257717e661e5b534e26653353f"
+    },
+    {
+      "case_id": "morgan:097",
+      "requirements": [
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value",
+            "time_current_state"
+          ],
+          "expected": "As of April 11, 2023, Morgan Chen has basically stopped accepting random investor coffee meetings unless they are really worthwhile.",
+          "expected_obligation_slots": [
+            "applicability",
+            "condition",
+            "conditions",
+            "current_value",
+            "entity",
+            "event_time",
+            "failure",
+            "object",
+            "relation",
+            "safe_action",
+            "source",
+            "subject",
+            "target",
+            "trigger",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:097:fact:51",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:51",
+            "session:000335"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "As of April 11, 2023, Morgan Chen has basically stopped accepting random investor coffee meetings unless they are really worthwhile."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "morgan:097:action:send_email",
+          "source_refs": [
+            "tests/morgan/097.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: send_email"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "morgan:097:target:send_email",
+          "source_refs": [
+            "tests/morgan/097.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: send_email"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "Does not agree to schedule the casual coffee on the invitation alone. Explains that a concrete reason making it worth Morgan's time could change the decision. Asking Devon to establish that reason before scheduling is valid. Does not invent a blanket ban on investor meetings.",
+          "removal_applicable": false,
+          "requirement_id": "morgan:097:prohibited:send_email",
+          "source_refs": [
+            "tests/morgan/097.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: Does not agree to schedule the casual coffee on the invitation alone. Explains that a concrete reason making it worth Morgan's time could change the decision. Asking Devon to establish that reason before scheduling is valid. Does not invent a blanket ban on investor meetings."
+        }
+      ],
+      "test_spec_sha256": "sha256:182e6bb2d86ba8817468dc747084960a389ab5976bacb65a48fce078a7a21410"
+    },
+    {
+      "case_id": "morgan:103",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "time_current_state"
+          ],
+          "expected": "For Mercury\u2019s sync-failed state, Priya required an actionable retry button and help documentation with simplified product-level copy. Marcus required no raw vendor errors, normalized auth/permissions, source-unavailable/timeout, and unknown/retry buckets, plus idempotent retry behavior that prevents duplicate jobs on double-click.",
+          "expected_obligation_slots": [
+            "applicability",
+            "current_value",
+            "entity",
+            "event_time",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:103:fact:119",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:119",
+            "session:000604"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "For Mercury\u2019s sync-failed state, Priya required an actionable retry button and help documentation with simplified product-level copy. Marcus required no raw vendor errors, normalized auth/permissions, source-unavailable/timeout, and unknown/retry buckets, plus idempotent retry behavior that prevents duplicate jobs on double-click."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "post_pr_comment",
+          "removal_applicable": false,
+          "requirement_id": "morgan:103:action:post_pr_comment",
+          "source_refs": [
+            "tests/morgan/103.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: post_pr_comment"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "post_pr_comment",
+          "removal_applicable": false,
+          "requirement_id": "morgan:103:target:post_pr_comment",
+          "source_refs": [
+            "tests/morgan/103.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: post_pr_comment"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "Requires simplified product-level errors using auth/permissions, source-unavailable/timeout, and unknown/retry handling, plus idempotent retry so repeated clicks cannot duplicate sync jobs. Blocks merging the current behavior. No unrelated activation or layout checklist is required.",
+          "removal_applicable": false,
+          "requirement_id": "morgan:103:prohibited:post_pr_comment",
+          "source_refs": [
+            "tests/morgan/103.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: Requires simplified product-level errors using auth/permissions, source-unavailable/timeout, and unknown/retry handling, plus idempotent retry so repeated clicks cannot duplicate sync jobs. Blocks merging the current behavior. No unrelated activation or layout checklist is required."
+        }
+      ],
+      "test_spec_sha256": "sha256:05ae7c906b27dad3fddfa63603b1d8d95f688bbcf009bbc814656ce6ae5cd5db"
+    },
+    {
+      "case_id": "morgan:138",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "time_current_state"
+          ],
+          "expected": "Morgan Chen requested that Sarah Kim (sarah@atlas-test.com) be CC'd on outside email threads from the start so she can see the full thread.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "event_time",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:138:fact:34",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:34",
+            "session:000292"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Morgan Chen requested that Sarah Kim (sarah@atlas-test.com) be CC'd on outside email threads from the start so she can see the full thread."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "The Pinecone-side contact for the integration is integrations@pinecone-test.com.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:138:fact:83",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:83",
+            "session:000454"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "The Pinecone-side contact for the integration is integrations@pinecone-test.com."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "morgan:138:action:send_email",
+          "source_refs": [
+            "tests/morgan/138.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: send_email"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "send_email",
+          "removal_applicable": false,
+          "requirement_id": "morgan:138:target:send_email",
+          "source_refs": [
+            "tests/morgan/138.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: send_email"
+        }
+      ],
+      "test_spec_sha256": "sha256:bd85781b49139232fc16ea81c23020869b31b1a9ac295c1b0f1868213c77ad14"
+    },
+    {
+      "case_id": "morgan:183",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "During the March 22, 2023 call, Greg Shipman directly took ownership of Acme\u2019s ETA misses and said Q2 would be tighter on Acme\u2019s side.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:183:fact:32",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:32",
+            "session:000272"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "During the March 22, 2023 call, Greg Shipman directly took ownership of Acme\u2019s ETA misses and said Q2 would be tighter on Acme\u2019s side."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Morgan Chen said on March 22, 2023 that they were about 60% convinced by Greg Shipman\u2019s assurances about Acme\u2019s Q2 performance.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "morgan:183:fact:33",
+          "source_refs": [
+            "registry/personas/morgan/facts.yaml#fact:33",
+            "session:000272"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Morgan Chen said on March 22, 2023 that they were about 60% convinced by Greg Shipman\u2019s assurances about Acme\u2019s Q2 performance."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "update_crm_row",
+          "removal_applicable": false,
+          "requirement_id": "morgan:183:action:update_crm_row",
+          "source_refs": [
+            "tests/morgan/183.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: update_crm_row"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "update_crm_row",
+          "removal_applicable": false,
+          "requirement_id": "morgan:183:target:update_crm_row",
+          "source_refs": [
+            "tests/morgan/183.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: update_crm_row"
+        }
+      ],
+      "test_spec_sha256": "sha256:9e22bf956fc98bbb4e33adc90cb75c27660459dd37691a761b165ce3b3bfb5e6"
+    },
+    {
+      "case_id": "riley:022",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "On April 10, 2023, Riley Tanaka confirmed that the PostHog flag `lifecycle_onboarding_trigger_v2` was shipped at 100% for all mid-segment and growth-tier users, excluding starter-tier users.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:022:fact:358",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:358",
+            "session:000165"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "On April 10, 2023, Riley Tanaka confirmed that the PostHog flag `lifecycle_onboarding_trigger_v2` was shipped at 100% for all mid-segment and growth-tier users, excluding starter-tier users."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:022:action:create_doc",
+          "source_refs": [
+            "tests/riley/022.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: create_doc"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:022:target:create_doc",
+          "source_refs": [
+            "tests/riley/022.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: create_doc"
+        }
+      ],
+      "test_spec_sha256": "sha256:5a1e3153e99563adfb86c69efda7acc6be03a9606ef744421cba14dfacf12cd8"
+    },
+    {
+      "case_id": "riley:044",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "Riley Tanaka completed `Ordinary Light` on April 5, 2026, a 9-by-12-inch cold-press still life she began with her mother in February using ultramarine, burnt sienna, and yellow ochre; it will remain personal practice in Riley\u2019s Cherrywood personal watercolor portfolio, with no sale, exhibition, or public-demonstration commitment.",
+          "expected_obligation_slots": [
+            "applicability",
+            "current_value",
+            "entity",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:044:fact:192",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:192",
+            "session:003569"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Riley Tanaka completed `Ordinary Light` on April 5, 2026, a 9-by-12-inch cold-press still life she began with her mother in February using ultramarine, burnt sienna, and yellow ochre; it will remain personal practice in Riley\u2019s Cherrywood personal watercolor portfolio, with no sale, exhibition, or public-demonstration commitment."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Riley Tanaka requests adding `Ordinary Light` to `Riley\u2019s watercolor inventory` with its dimensions, paper, subject, February start with her mother, April 5, 2026 completion, palette, portfolio location, personal-practice status, and lack of sale, exhibition, or public-demonstration commitment.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:044:fact:193",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:193",
+            "session:003569"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Riley Tanaka requests adding `Ordinary Light` to `Riley\u2019s watercolor inventory` with its dimensions, paper, subject, February start with her mother, April 5, 2026 completion, palette, portfolio location, personal-practice status, and lack of sale, exhibition, or public-demonstration commitment."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:044:action:create_doc",
+          "source_refs": [
+            "tests/riley/044.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: create_doc"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:044:target:create_doc",
+          "source_refs": [
+            "tests/riley/044.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: create_doc"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "The document identifies the finished artwork as `Ordinary Light` and records all of these physical details without contradiction: it is a 9-by-12-inch still life on a cold-press surface, with a palette of ultramarine, burnt sienna, and yellow ochre.\n\nThe document records the storage location as Riley's Cherrywood personal watercolor portfolio and clearly states that the artwork is personal practice with no sale, exhibition, or public-demonstration commitment. Missing or contradictory availability language must fail.\n\nThe body is presented as a private home-inventory or insurance record rather than marketing copy or a sales listing, and it includes a clearly labeled condition-notes field or area that is left empty for future tracking.\n\nThe body contains a clearly labeled valuation field that is blank or explicitly unfilled, and it does not invent or provide any monetary value, estimate, price, or appraisal amount for the artwork.",
+          "removal_applicable": false,
+          "requirement_id": "riley:044:prohibited:create_doc",
+          "source_refs": [
+            "tests/riley/044.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: The document identifies the finished artwork as `Ordinary Light` and records all of these physical details without contradiction: it is a 9-by-12-inch still life on a cold-press surface, with a palette of ultramarine, burnt sienna, and yellow ochre.\n\nThe document records the storage location as Riley's Cherrywood personal watercolor portfolio and clearly states that the artwork is personal practice with no sale, exhibition, or public-demonstration commitment. Missing or contradictory availability language must fail.\n\nThe body is presented as a private home-inventory or insurance record rather than marketing copy or a sales listing, and it includes a clearly labeled condition-notes field or area that is left empty for future tracking.\n\nThe body contains a clearly labeled valuation field that is blank or explicitly unfilled, and it does not invent or provide any monetary value, estimate, price, or appraisal amount for the artwork."
+        }
+      ],
+      "test_spec_sha256": "sha256:718a4d973a1495990dacdfb61584ad2f4b223a1ce2f85609898c6a4107c91fa1"
+    },
+    {
+      "case_id": "riley:045",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "At Riley Tanaka\u2019s November 5, 2027 reassessment, the clinician reviewed her symptom-free record and found no focal tenderness, swelling, instability, or gait change.",
+          "expected_obligation_slots": [
+            "applicability",
+            "current_value",
+            "entity",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:045:fact:297",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:297",
+            "session:004965"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "At Riley Tanaka\u2019s November 5, 2027 reassessment, the clinician reviewed her symptom-free record and found no focal tenderness, swelling, instability, or gait change."
+        },
+        {
+          "classes": [
+            "applicability_condition",
+            "comparison_side",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "procedure_step_order"
+          ],
+          "expected": "The clinician cleared Riley Tanaka for two nonconsecutive 40-minute continuous easy runs per week, with no running on Tuesday or Thursday bike-commute days; she must continue ankle-and-calf strengthening three times weekly and advance only when both the session and following day remain symptom-free.",
+          "expected_obligation_slots": [
+            "action",
+            "applicability",
+            "comparison",
+            "completion",
+            "condition",
+            "conditions",
+            "current_value",
+            "entity",
+            "failure",
+            "left",
+            "object",
+            "ordering",
+            "polarity",
+            "proposition",
+            "relation",
+            "right",
+            "safe_action",
+            "sides",
+            "source",
+            "steps",
+            "subject",
+            "target",
+            "trigger",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:045:fact:298",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:298",
+            "session:004965"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "The clinician cleared Riley Tanaka for two nonconsecutive 40-minute continuous easy runs per week, with no running on Tuesday or Thursday bike-commute days; she must continue ankle-and-calf strengthening three times weekly and advance only when both the session and following day remain symptom-free."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:045:action:create_doc",
+          "source_refs": [
+            "tests/riley/045.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: create_doc"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:045:target:create_doc",
+          "source_refs": [
+            "tests/riley/045.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: create_doc"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "The record says the clinician reviewed Riley's symptom-free history on November 5, 2027 and found no focal tenderness, swelling, instability, or gait change. It records clearance for two nonconsecutive 40-minute continuous easy runs per week, no running on Tuesday or Thursday bike-commute days, ankle-and-calf strengthening three times per week, and advancement only when both the session and following day remain symptom-free.",
+          "removal_applicable": false,
+          "requirement_id": "riley:045:prohibited:create_doc",
+          "source_refs": [
+            "tests/riley/045.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: The record says the clinician reviewed Riley's symptom-free history on November 5, 2027 and found no focal tenderness, swelling, instability, or gait change. It records clearance for two nonconsecutive 40-minute continuous easy runs per week, no running on Tuesday or Thursday bike-commute days, ankle-and-calf strengthening three times per week, and advancement only when both the session and following day remain symptom-free."
+        }
+      ],
+      "test_spec_sha256": "sha256:fde821752422b186ff3e2c9fe429eaa4d0e5f299bec79944d06c9ac0b15d1819"
+    },
+    {
+      "case_id": "riley:062",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "The January 24 organizational decision approved Lifecycle Systems as a formal Helio function beginning January 27, 2025, with Riley Tanaka as lead.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:062:fact:75",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:75",
+            "session:002453"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "The January 24 organizational decision approved Lifecycle Systems as a formal Helio function beginning January 27, 2025, with Riley Tanaka as lead."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Owen Pham\u2019s approved Lifecycle Systems lane covers measurement, definitions, and exception reporting.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:062:fact:76",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:76",
+            "session:002453"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Owen Pham\u2019s approved Lifecycle Systems lane covers measurement, definitions, and exception reporting."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Ines Kovac\u2019s approved Lifecycle Systems lane covers lifecycle governance and message-state controls.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:062:fact:77",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:77",
+            "session:002453"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Ines Kovac\u2019s approved Lifecycle Systems lane covers lifecycle governance and message-state controls."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Daniela Schultz\u2019s team is the approved Lifecycle Systems engineering partner for event and state reliability.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:062:fact:78",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:78",
+            "session:002453"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Daniela Schultz\u2019s team is the approved Lifecycle Systems engineering partner for event and state reliability."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Riley Tanaka\u2019s approved Lifecycle Systems lane covers high-stakes cuts and Helio\u2019s self-serve operating model, with support load measured beside activation.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:062:fact:79",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:79",
+            "session:002453",
+            "session:004079"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Riley Tanaka\u2019s approved Lifecycle Systems lane covers high-stakes cuts and Helio\u2019s self-serve operating model, with support load measured beside activation."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:062:action:create_doc",
+          "source_refs": [
+            "tests/riley/062.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: create_doc"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:062:target:create_doc",
+          "source_refs": [
+            "tests/riley/062.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: create_doc"
+        }
+      ],
+      "test_spec_sha256": "sha256:b605add9ed43792e4f9c5d0ffd9fa9ab244ea9f58fe04f77039511ec4a1d8b77"
+    },
+    {
+      "case_id": "riley:088",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Owen closed the October 6\u201318 initial production interval for the incomplete-setup reminder.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:088:fact:289",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:289",
+            "session:004896"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Owen closed the October 6\u201318 initial production interval for the incomplete-setup reminder."
+        },
+        {
+          "classes": [
+            "applicability_condition",
+            "comparison_side",
+            "conflict_correction",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "During the incomplete-setup reminder's October 6\u201318 initial production interval, 3,240 fresh evaluations produced 412 displays, 138 suppressions due to active Customer Success work, 61 holds due to missing, stale, unresolved, or conflicting required state, and 2,629 non-displays because the incomplete-setup or qualifying-human-admin condition was not met; reporting, lifecycle, and reminder outcomes agreed for every evaluation, with no customer correction, incident stop, source-age breach, rollback, or need for rollback.",
+          "expected_obligation_slots": [
+            "applicability",
+            "comparison",
+            "condition",
+            "conditions",
+            "conflict",
+            "current_value",
+            "entity",
+            "failure",
+            "left",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "right",
+            "safe_action",
+            "sides",
+            "source",
+            "subject",
+            "target",
+            "trigger",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:088:fact:290",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:290",
+            "session:004896"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "During the incomplete-setup reminder's October 6\u201318 initial production interval, 3,240 fresh evaluations produced 412 displays, 138 suppressions due to active Customer Success work, 61 holds due to missing, stale, unresolved, or conflicting required state, and 2,629 non-displays because the incomplete-setup or qualifying-human-admin condition was not met; reporting, lifecycle, and reminder outcomes agreed for every evaluation, with no customer correction, incident stop, source-age breach, rollback, or need for rollback."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "The completed October 6\u201318 interval for the incomplete-setup reminder provides evidence for a separate rollout decision but does not itself make that decision.",
+          "expected_obligation_slots": [
+            "applicability",
+            "current_value",
+            "entity",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:088:fact:291",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:291",
+            "session:004896"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "The completed October 6\u201318 interval for the incomplete-setup reminder provides evidence for a separate rollout decision but does not itself make that decision."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:088:action:create_doc",
+          "source_refs": [
+            "tests/riley/088.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: create_doc"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:088:target:create_doc",
+          "source_refs": [
+            "tests/riley/088.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: create_doc"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "The card says Owen closed the October 6-18, 2027 interval. It reconciles 3,240 fresh evaluations into 412 displays, 138 suppressions for active Customer Success work, 61 holds for missing, stale, unresolved, or conflicting state, and 2,629 non-displays because the incomplete-setup or qualifying-human-admin condition was not met. Reporting, lifecycle, and reminder outcomes agreed throughout, with no customer correction, incident stop, source-age breach, rollback, or need for rollback. The interval supplied evidence for a separate rollout decision but did not make that decision.",
+          "removal_applicable": false,
+          "requirement_id": "riley:088:prohibited:create_doc",
+          "source_refs": [
+            "tests/riley/088.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: The card says Owen closed the October 6-18, 2027 interval. It reconciles 3,240 fresh evaluations into 412 displays, 138 suppressions for active Customer Success work, 61 holds for missing, stale, unresolved, or conflicting state, and 2,629 non-displays because the incomplete-setup or qualifying-human-admin condition was not met. Reporting, lifecycle, and reminder outcomes agreed throughout, with no customer correction, incident stop, source-age breach, rollback, or need for rollback. The interval supplied evidence for a separate rollout decision but did not make that decision."
+        }
+      ],
+      "test_spec_sha256": "sha256:a4c08d22e50f586824bdd5f739c78f1ea7eae95e81603f40e77dfa11b0bafc1d"
+    },
+    {
+      "case_id": "riley:119",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Tom\u00e1s approved a June pre-discovery phase for the sub-50-seat tier.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:119:fact:389",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:389",
+            "session:000264"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Tom\u00e1s approved a June pre-discovery phase for the sub-50-seat tier."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Tom\u00e1s assigned Riley Tanaka to lead the sub-50-seat tier\u2019s pre-discovery phase.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:119:fact:390",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:390",
+            "session:000264",
+            "session:004079"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Tom\u00e1s assigned Riley Tanaka to lead the sub-50-seat tier\u2019s pre-discovery phase."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:119:action:create_doc",
+          "source_refs": [
+            "tests/riley/119.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: create_doc"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "args.folder=Growth",
+          "removal_applicable": false,
+          "requirement_id": "riley:119:target:create_doc",
+          "source_refs": [
+            "tests/riley/119.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: args.folder=Growth"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "The document is a historical decision card for the May 26, 2023 sub-50-seat tier authorization and clearly states that date and initiative.\n\nThe document accurately records that Tom\u00e1s approved a pre-discovery phase intended to begin in June 2023 and made Riley the accountable lead or person on point.\n\nThe document clearly limits the May 26 authorization to pre-discovery and does not present it as approval for a launch or a full build.",
+          "removal_applicable": false,
+          "requirement_id": "riley:119:prohibited:create_doc",
+          "source_refs": [
+            "tests/riley/119.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: The document is a historical decision card for the May 26, 2023 sub-50-seat tier authorization and clearly states that date and initiative.\n\nThe document accurately records that Tom\u00e1s approved a pre-discovery phase intended to begin in June 2023 and made Riley the accountable lead or person on point.\n\nThe document clearly limits the May 26 authorization to pre-discovery and does not present it as approval for a launch or a full build."
+        }
+      ],
+      "test_spec_sha256": "sha256:55f0226797dbdf44ac1f11e2106578bde31b4134da567bbefb2000c080ec1242"
+    },
+    {
+      "case_id": "riley:126",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "Riley Tanaka owns the January Helio Start operating model across eligibility, measurement, lifecycle, support load, and executive language; this responsibility does not create a formal new team.",
+          "expected_obligation_slots": [
+            "applicability",
+            "current_value",
+            "entity",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:126:fact:423",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:423",
+            "session:000972"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Riley Tanaka owns the January Helio Start operating model across eligibility, measurement, lifecycle, support load, and executive language; this responsibility does not create a formal new team."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "procedure_step_order"
+          ],
+          "expected": "The first-integration beta will treat support load as a first-class metric alongside activation.",
+          "expected_obligation_slots": [
+            "action",
+            "completion",
+            "current_value",
+            "entity",
+            "object",
+            "ordering",
+            "relation",
+            "source",
+            "steps",
+            "subject",
+            "target",
+            "trigger",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:126:fact:412",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:412",
+            "session:000538"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "The first-integration beta will treat support load as a first-class metric alongside activation."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Tom\u00e1s Vega is the CEO.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:126:fact:313",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:313",
+            "session:000020"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Tom\u00e1s Vega is the CEO."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:126:action:create_doc",
+          "source_refs": [
+            "tests/riley/126.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: create_doc"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:126:target:create_doc",
+          "source_refs": [
+            "tests/riley/126.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: create_doc"
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "send_slack_dm",
+          "removal_applicable": false,
+          "requirement_id": "riley:126:action:send_slack_dm",
+          "source_refs": [
+            "tests/riley/126.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: send_slack_dm"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "args.user=tomas",
+          "removal_applicable": false,
+          "requirement_id": "riley:126:target:send_slack_dm",
+          "source_refs": [
+            "tests/riley/126.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: args.user=tomas"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "The message is a short Slack kickoff note for the 2028 annual review, includes an explicit link presented as the newly created agenda, and does not state or imply that Riley has a new reporting relationship to Tom\u00e1s or that an organizational change has occurred.",
+          "removal_applicable": false,
+          "requirement_id": "riley:126:prohibited:send_slack_dm",
+          "source_refs": [
+            "tests/riley/126.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: The message is a short Slack kickoff note for the 2028 annual review, includes an explicit link presented as the newly created agenda, and does not state or imply that Riley has a new reporting relationship to Tom\u00e1s or that an organizational change has occurred."
+        }
+      ],
+      "test_spec_sha256": "sha256:8070c912a18bc4f6c6d9f7f907e0d2787afd942c08860ede596f62fe05a579c7"
+    },
+    {
+      "case_id": "riley:162",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "The Holly apartment's refundable deposit was released with no deductions for wall repair, paint, carpet cleaning, pet damage, appliance cleaning, or missing access items.",
+          "expected_obligation_slots": [
+            "applicability",
+            "current_value",
+            "entity",
+            "object",
+            "polarity",
+            "proposition",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:162:fact:27",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:27",
+            "session:001504"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "The Holly apartment's refundable deposit was released with no deductions for wall repair, paint, carpet cleaning, pet damage, appliance cleaning, or missing access items."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:162:action:create_doc",
+          "source_refs": [
+            "tests/riley/162.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: create_doc"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "args.title=Prior Residence Closeout \u2014 Holly",
+          "removal_applicable": false,
+          "requirement_id": "riley:162:target:create_doc",
+          "source_refs": [
+            "tests/riley/162.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: args.title=Prior Residence Closeout \u2014 Holly"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "The body must be a concise closeout record for the former Holly apartment that clearly states all of the following: the refundable deposit was released; there were no damage deductions and no dispute; and Riley and Sam have no remaining practical or financial obligation related to Holly. It must present the matter as closed rather than unresolved and must not include current-residence or current-lease terms. Missing or contradictory status information must fail.",
+          "removal_applicable": false,
+          "requirement_id": "riley:162:prohibited:create_doc",
+          "source_refs": [
+            "tests/riley/162.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: The body must be a concise closeout record for the former Holly apartment that clearly states all of the following: the refundable deposit was released; there were no damage deductions and no dispute; and Riley and Sam have no remaining practical or financial obligation related to Holly. It must present the matter as closed rather than unresolved and must not include current-residence or current-lease terms. Missing or contradictory status information must fail."
+        }
+      ],
+      "test_spec_sha256": "sha256:557edbdeee3dc47329eb26667e8619b5a4e978c23f21f42b11464dd1b52de565"
+    },
+    {
+      "case_id": "riley:163",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Ines holds Helio Start setup prompts while the external-authority readiness state is pending.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:163:fact:71",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:71",
+            "session:002262"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Ines holds Helio Start setup prompts while the external-authority readiness state is pending."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "procedure_step_order",
+            "time_current_state"
+          ],
+          "expected": "Daniela records external-authority readiness as a state separate from Helio admin proof and connector authentication.",
+          "expected_obligation_slots": [
+            "action",
+            "completion",
+            "current_value",
+            "entity",
+            "event_time",
+            "object",
+            "ordering",
+            "relation",
+            "source",
+            "steps",
+            "subject",
+            "target",
+            "trigger",
+            "validity",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:163:fact:70",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:70",
+            "session:002262"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Daniela records external-authority readiness as a state separate from Helio admin proof and connector authentication."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:163:action:create_doc",
+          "source_refs": [
+            "tests/riley/163.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: create_doc"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "args.title=Helio Start pending external-authority quick reference; args.folder=Growth",
+          "removal_applicable": false,
+          "requirement_id": "riley:163:target:create_doc",
+          "source_refs": [
+            "tests/riley/163.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: args.title=Helio Start pending external-authority quick reference; args.folder=Growth"
+        },
+        {
+          "classes": [
+            "prohibited_action"
+          ],
+          "expected": "The body is a compact, practical quick reference for new Helio Start operators, organized clearly by operational role or handoff. It must provide actionable guidance for a pending external-authority case rather than merely discussing the topic abstractly.\n\nThe body clearly states that external-system authority readiness is a distinct state and must not be collapsed into or treated as proof of either Helio admin status/proof or connector authentication. Missing or contradictory separation guidance fails.\n\nThe body assigns Daniela responsibility for recording external-authority readiness as its own separate state. A generic engineering owner or a different named owner fails.\n\nThe body assigns Ines responsibility for holding, suppressing, or withholding dependent setup prompts while external-authority state is pending. A generic lifecycle owner or a different named owner fails.\n\nThe body assigns Owen responsibility for reporting external-authority state separately rather than folding it into another proof or readiness measure. A generic reporting owner or a different named owner fails.",
+          "removal_applicable": false,
+          "requirement_id": "riley:163:prohibited:create_doc",
+          "source_refs": [
+            "tests/riley/163.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Prohibited action constraint: The body is a compact, practical quick reference for new Helio Start operators, organized clearly by operational role or handoff. It must provide actionable guidance for a pending external-authority case rather than merely discussing the topic abstractly.\n\nThe body clearly states that external-system authority readiness is a distinct state and must not be collapsed into or treated as proof of either Helio admin status/proof or connector authentication. Missing or contradictory separation guidance fails.\n\nThe body assigns Daniela responsibility for recording external-authority readiness as its own separate state. A generic engineering owner or a different named owner fails.\n\nThe body assigns Ines responsibility for holding, suppressing, or withholding dependent setup prompts while external-authority state is pending. A generic lifecycle owner or a different named owner fails.\n\nThe body assigns Owen responsibility for reporting external-authority state separately rather than folding it into another proof or readiness measure. A generic reporting owner or a different named owner fails."
+        }
+      ],
+      "test_spec_sha256": "sha256:01ae494f67c2d2f96b57535e8ea6bb1aaa4d7ff3ecd4d75a3a9ce58af7cea251"
+    },
+    {
+      "case_id": "riley:165",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Riley Tanaka committed to deliver a scoping document for the sub-50-seat tier by May 26, 2023.",
+          "expected_obligation_slots": [
+            "current_value",
+            "entity",
+            "object",
+            "relation",
+            "source",
+            "subject",
+            "target",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:165:fact:380",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:380",
+            "session:000245",
+            "session:001573"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Riley Tanaka committed to deliver a scoping document for the sub-50-seat tier by May 26, 2023."
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "procedure_step_order"
+          ],
+          "expected": "Riley Tanaka plans to scope the sub-50-seat tier beginning with seat caps, then feature fences and handoff failures involving billing, workspace limits, permissions, import and migration, and eligibility for human help.",
+          "expected_obligation_slots": [
+            "action",
+            "completion",
+            "current_value",
+            "entity",
+            "object",
+            "ordering",
+            "relation",
+            "source",
+            "steps",
+            "subject",
+            "target",
+            "trigger",
+            "value"
+          ],
+          "removal_applicable": true,
+          "requirement_id": "riley:165:fact:381",
+          "source_refs": [
+            "registry/personas/riley/facts.yaml#fact:381",
+            "session:000245"
+          ],
+          "source_verification": "official_load_bearing_fact",
+          "verified_evidence_text": "Riley Tanaka plans to scope the sub-50-seat tier beginning with seat caps, then feature fences and handoff failures involving billing, workspace limits, permissions, import and migration, and eligibility for human help."
+        },
+        {
+          "classes": [
+            "required_action"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:165:action:create_doc",
+          "source_refs": [
+            "tests/riley/165.yaml#expected_tool_calls"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action: create_doc"
+        },
+        {
+          "classes": [
+            "action_target"
+          ],
+          "expected": "create_doc",
+          "removal_applicable": false,
+          "requirement_id": "riley:165:target:create_doc",
+          "source_refs": [
+            "tests/riley/165.yaml#grade"
+          ],
+          "source_verification": "official_tool_trace_spec",
+          "verified_evidence_text": "Required action target: create_doc"
+        }
+      ],
+      "test_spec_sha256": "sha256:619208fa26f34b5a2c989bc5b81d0dc9564abb8c419f280afa9be429dcd929d2"
+    }
+  ],
+  "dataset_revision": "81cb6f8405b40a9e76089cef650806a80af06ea2",
+  "format": "atmem-evaluator-requirements-v1",
+  "manifest_sha256": "sha256:f8c7b6e5521400105c49c3c4a1a264241c1141eec6f2414e7ae8dfc8b3b981e8",
+  "sample_profile_sha256": "60c681f8e7ce0796ec0209294c885abe7dc0fe5a594226aa1035c401535658de",
+  "visibility": "evaluator_only"
+}

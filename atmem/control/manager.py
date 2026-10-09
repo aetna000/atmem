@@ -32,6 +32,7 @@ DEFAULT_CONTROL_ROOT = resolve_home() / "migrations"
 DEFAULT_STATE_PATH = compatible_home_path("config/control-plane.json", "control-plane.json")
 DEFAULT_SUBJECT = "local-user"
 GENERIC_CONFIG_NAME = "generic-adapter.json"
+_TOPOLOGY_CACHE_TTL_SECONDS = 120.0
 
 _ALLOWED_TRANSITIONS: dict[ControlMode, frozenset[ControlMode]] = {
     ControlMode.OFF: frozenset({ControlMode.SHADOW, ControlMode.ACTIVE}),
@@ -410,7 +411,10 @@ class ControlPlaneManager:
     def agent_topology(self, *, state: ControlState | None = None) -> dict[str, Any]:
         state = state or self.state()
         cached = getattr(self, "_agent_topology_cache", None)
-        if cached is not None and time.monotonic() - cached[0] < 5.0:
+        if (
+            cached is not None
+            and time.monotonic() - cached[0] < _TOPOLOGY_CACHE_TTL_SECONDS
+        ):
             return cached[1]
         if state.host == "openclaw":
             from atmem.control.openclaw_native import mirror_status
@@ -584,37 +588,17 @@ class ControlPlaneManager:
                 mirror_status,
                 takeover_status,
             )
-            from atmem.control.openclaw_topology import discover_agent_topology
 
             mirror = mirror_status(state)
             takeover = takeover_status(state)
             try:
-                live_topology = discover_agent_topology(
-                    base_subject_id=state.subject_id
-                )
-                mirrored_topology = (mirror or {}).get("topology") or {}
-                topology_matches = bool(mirrored_topology) and all(
-                    mirrored_topology.get(key) == live_topology.get(key)
-                    for key in ("agent_subjects", "agent_workspaces")
-                )
-                result["agent_topology"] = {
-                    **live_topology,
-                    "verified": bool((mirror or {}).get("audit_verified"))
-                    and topology_matches,
-                    "topology_matches_mirror": topology_matches,
-                    "status": (
-                        "working"
-                        if bool((mirror or {}).get("audit_verified"))
-                        and topology_matches
-                        else "needs_refresh"
-                    ),
-                    "reason": (
-                        "Every persistent agent is bound to its verified workspace memory scope."
-                        if bool((mirror or {}).get("audit_verified"))
-                        and topology_matches
-                        else "Sync agents and memory so the detected topology is bound to the memory mirror."
-                    ),
-                }
+                # Topology discovery invokes the host CLI and is materially more
+                # expensive than the SQLite status queries. Reuse the same
+                # short-lived, mutation-invalidated cache as every other
+                # topology consumer instead of rediscovering it on each
+                # dashboard poll. This path also includes registered external
+                # agents such as Hermes in the status response.
+                result["agent_topology"] = self.agent_topology(state=state)
             except (OSError, ValueError) as exc:
                 result["agent_topology"] = {
                     "verified": False,
@@ -1516,6 +1500,129 @@ class ControlPlaneManager:
             ),
         }
 
+    def retrieval_quality_status(self) -> dict[str, Any]:
+        """Describe typed retrieval readiness without exposing memory content."""
+        state = self.state()
+        topology = self.agent_topology(state=state)
+        default_agent = str(
+            topology.get("default_agent_id")
+            or ((topology.get("agents") or [{}])[0].get("agent_id") or "main")
+        )
+        default_subject = str(
+            (topology.get("agent_subjects") or {}).get(default_agent)
+            or state.subject_id
+        )
+        try:
+            _default_scope, memory_path = self._memory_authority_scope(
+                state, subject_id=default_subject, agent_id=default_agent
+            )
+        except ValueError:
+            memory_path = self._generic_memory_db(state)
+        empty = {
+            "typed_by_kind": [],
+            "typed_by_lifecycle": [],
+            "formations": {"total": 0, "complete": 0, "with_loss": 0},
+            "context_preparations": [],
+            "stage_events": [],
+        }
+        activations: list[dict[str, Any]] = []
+        if not memory_path.is_file():
+            summary = empty
+            encryption = "not_initialized"
+        else:
+            from atmem.contracts import AuthorityScope
+            from atmem.memory import Memory
+
+            memory = Memory(memory_path, retain_query_text=False)
+            try:
+                summary = memory.store.retrieval_quality_summary(
+                    self._generic_subjects(state)
+                )
+                encryption = memory.store.policy.state
+                for row in topology.get("agents") or ():
+                    agent_id = str(row.get("agent_id") or "")
+                    workspace_id = str(row.get("workspace_id") or "")
+                    subject_id = str(
+                        (topology.get("agent_subjects") or {}).get(agent_id)
+                        or state.subject_id
+                    )
+                    if agent_id and workspace_id:
+                        activations.append(memory.store.retrieval_activation(
+                            AuthorityScope(subject_id, agent_id, workspace_id)
+                        ))
+            finally:
+                memory.close()
+        preparations = summary["context_preparations"]
+        sufficiency = {
+            status: sum(row.get("sufficiency") == status for row in preparations)
+            for status in ("sufficient", "partial", "contradictory", "stale", "unsupported")
+        }
+        stage_funnel: dict[str, dict[str, Any]] = {}
+        for row in summary.get("stage_events") or ():
+            stage = str(row.get("stage") or "unknown")
+            bucket = stage_funnel.setdefault(stage, {
+                "stage": stage, "events": 0, "completed": 0, "partial": 0,
+                "withheld": 0, "failed": 0, "duration_ms_total": 0.0,
+            })
+            bucket["events"] += 1
+            status = str(row.get("status") or "")
+            if status in bucket:
+                bucket[status] += 1
+            if row.get("duration_ms") is not None:
+                bucket["duration_ms_total"] += float(row["duration_ms"])
+        for bucket in stage_funnel.values():
+            bucket["duration_ms_average"] = round(
+                bucket["duration_ms_total"] / max(1, bucket["events"]), 3
+            )
+            del bucket["duration_ms_total"]
+        return {
+            "format": "atmem-retrieval-quality-status-v1",
+            "activation": (
+                "active" if any(row["mode"] == "active" for row in activations)
+                else "shadow" if any(row["mode"] == "shadow" for row in activations)
+                else "explicit_v2_api"
+            ),
+            "activations": activations,
+            "injection_active": any(row["mode"] == "active" for row in activations),
+            "injection_note": (
+                "Active scopes use sufficient V2 context; shadow scopes compare V2 "
+                "without changing the context delivered to the agent."
+                if activations and any(row["mode"] != "legacy" for row in activations)
+                else "V2 context is returned only to callers that explicitly request it; automatic host injection is not enabled."
+            ),
+            "encryption": encryption,
+            **summary,
+            "recent_preparation_count": len(preparations),
+            "recent_sufficiency": sufficiency,
+            "stage_funnel": [
+                stage_funnel[name] for name in (
+                    "formation", "nomination", "expansion", "sufficiency",
+                    "packing", "delivery",
+                ) if name in stage_funnel
+            ],
+        }
+
+    def configure_retrieval(
+        self, *, subject_id: str | None = None, agent_id: str | None = None,
+        mode: str, actor: str,
+    ) -> dict[str, Any]:
+        state = self.state()
+        subject = self._resolve_subject(
+            state, subject_id=subject_id, agent_id=agent_id
+        )
+        scope, memory_path = self._memory_authority_scope(
+            state, subject_id=subject, agent_id=agent_id
+        )
+        from atmem.memory import Memory
+
+        memory = Memory(memory_path, retain_query_text=False)
+        try:
+            return memory.store.set_retrieval_activation(
+                scope, mode, actor=actor
+            )
+        finally:
+            memory.close()
+
     def memory_search(
         self,
         query: str,
@@ -2043,6 +2150,7 @@ class ControlPlaneManager:
         min_score: float = 0.3,
         limit: int = 50,
         reranker_model: str = "memory-query",
+        retrieval_strategy: str = "legacy",
     ) -> list[dict[str, Any]]:
         """Fuse governed candidates for query-only AtBot expansions."""
         from atmem.contracts import RecallRequest
@@ -2060,6 +2168,7 @@ class ControlPlaneManager:
                     request_id=f"dashboard_{uuid.uuid4().hex}",
                     scope=scope,
                     query=query,
+                    retrieval_strategy=retrieval_strategy,
                     limit=30,
                     candidate_limit=200,
                     signals=("lexical", "semantic", "graph", "trust", "recency"),
@@ -3941,17 +4050,39 @@ class ControlPlaneManager:
         subject_id: str | None = None,
         agent_id: str | None = None,
         deterministic: bool = False,
+        context_version: str | None = None,
     ) -> dict[str, Any]:
+        if context_version not in {None, "v1", "v2"}:
+            raise ValueError("context_version must be v1 or v2")
         state, warning = self.effective_state()
         if warning or not state.mode.captures:
             return self._no_context(state, warning or "migration is off")
         subject_id = self._resolve_subject(
             state, subject_id=subject_id, agent_id=agent_id
         )
+        shadow_v2 = False
+        if context_version is None:
+            configured_scope, configured_path = self._memory_authority_scope(
+                state, subject_id=subject_id, agent_id=agent_id
+            )
+            from atmem.memory import Memory
+
+            configured_memory = Memory(
+                configured_path, retain_query_text=False, auto_vectors=False
+            )
+            try:
+                configured_mode = configured_memory.store.retrieval_activation(
+                    configured_scope
+                )["mode"]
+            finally:
+                configured_memory.close()
+            shadow_v2 = configured_mode == "shadow"
+            context_version = "v2" if configured_mode == "active" else "v1"
         if deterministic:
             return self._prepare_deterministic_context(
                 state, query=query, subject_id=subject_id, agent_id=agent_id,
                 limit=limit, max_chars=max_chars, min_score=min_score,
+                context_version=context_version, shadow_v2=shadow_v2,
             )
         store = self._store(state)
         try:
@@ -4058,7 +4189,9 @@ class ControlPlaneManager:
                     return response
 
             from atmem.control.atbot_companion import AtBotCompanionClient
-            from atmem.contracts import ContextRequest
+            from atmem.contracts import (
+                ContextRequest, ContextRequestV2, RetrievalBudget,
+            )
             from atmem.memory import Memory
 
             companion = AtBotCompanionClient()
@@ -4073,6 +4206,9 @@ class ControlPlaneManager:
                 min_score=min_score,
                 limit=max(50, limit * 10),
                 reranker_model="control-prepare",
+                retrieval_strategy=(
+                    "core-rrf-v1" if context_version == "v2" else "legacy"
+                ),
             )
             candidate_set, scope, memory_path = self._durable_candidate_set(
                 query,
@@ -4083,6 +4219,34 @@ class ControlPlaneManager:
                 reranker_model="control-prepare",
                 min_score=min_score,
             )
+            shadow_candidate_set = None
+            shadow_error = None
+            if shadow_v2:
+                try:
+                    shadow_candidates = self._hybrid_memory_candidates(
+                        expanded_queries,
+                        subject_id=subject_id,
+                        agent_id=agent_id,
+                        min_score=min_score,
+                        limit=max(50, limit * 10),
+                        reranker_model="control-shadow-v2",
+                        retrieval_strategy="core-rrf-v1",
+                    )
+                    shadow_candidate_set, shadow_scope, shadow_path = (
+                        self._durable_candidate_set(
+                            query,
+                            shadow_candidates,
+                            subject_id=subject_id,
+                            agent_id=agent_id,
+                            limit=max(1, min(100, len(shadow_candidates) or 1)),
+                            reranker_model="control-shadow-v2",
+                            min_score=min_score,
+                        )
+                    )
+                    if shadow_scope != scope or shadow_path != memory_path:
+                        raise ValueError("shadow retrieval scope changed")
+                except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                    shadow_error = type(exc).__name__
             eligible_rows = [row.to_dict() for row in candidate_set.candidates]
             from atmem.retrieve import decide_retrieval
 
@@ -4110,24 +4274,50 @@ class ControlPlaneManager:
             # expired sets, unknown IDs, deleted records, and scope changes before
             # serializing the exact context bytes that an adapter may deliver.
             memory = Memory(memory_path, retain_query_text=False, graph_recall=True)
+            shadow_package = None
             try:
-                package = memory.prepare_context_v1(
-                    ContextRequest(
+                if context_version == "v2":
+                    package = memory.prepare_context_v2(ContextRequestV2(
                         context_id=f"control_context_{uuid.uuid4().hex}",
                         candidate_set_id=candidate_set.candidate_set_id,
                         scope=scope,
-                        record_ids=tuple(ranked_ids),
-                        budget_chars=max_chars,
-                    )
+                        query=query,
+                        budget=RetrievalBudget(context_bytes=max(1, max_chars)),
+                    ))
+                else:
+                    package = memory.prepare_context_v1(ContextRequest(
+                            context_id=f"control_context_{uuid.uuid4().hex}",
+                            candidate_set_id=candidate_set.candidate_set_id,
+                            scope=scope,
+                            record_ids=tuple(ranked_ids),
+                            budget_chars=max_chars,
+                        ))
+                    if shadow_v2 and shadow_candidate_set is not None:
+                        try:
+                            shadow_package = memory.prepare_context_v2(ContextRequestV2(
+                                context_id=f"control_shadow_{uuid.uuid4().hex}",
+                                candidate_set_id=shadow_candidate_set.candidate_set_id,
+                                scope=scope,
+                                query=query,
+                                budget=RetrievalBudget(context_bytes=max(1, max_chars)),
+                            ))
+                        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                            shadow_error = type(exc).__name__
+                selected_records = memory.store.get_records(
+                    subject_id, list(package.record_ids)
                 )
             finally:
                 memory.close()
             candidate_ids = list(package.record_ids)
             candidate_hashes = [
-                sha256_hex(str(eligible[record_id]["content"]))
+                str((selected_records.get(record_id) or {}).get("content_sha256") or "")
                 for record_id in candidate_ids
             ]
-            context = package.context if candidate_ids else ""
+            sufficient = (
+                context_version == "v1"
+                or package.sufficiency.status == "sufficient"
+            )
+            context = package.context if candidate_ids and sufficient else ""
             turn = store.insert_turn(
                 state.migration_id,
                 query_sha256=sha256_hex(query),
@@ -4148,6 +4338,10 @@ class ControlPlaneManager:
                 "candidate_set_id": candidate_set.candidate_set_id,
                 "preparation_id": package.preparation_id,
                 "serializer_version": package.serializer_version,
+                "context_version": context_version,
+                "sufficiency": (
+                    package.sufficiency.status if context_version == "v2" else None
+                ),
             }
             preview = store.insert_preview(
                 state.migration_id,
@@ -4157,7 +4351,9 @@ class ControlPlaneManager:
                 manifest_sha256=sha256_hex(canonical_json(manifest)),
             )
             inject = bool(context) and state.mode.influences_agent
-            reason: str | None = None
+            reason: str | None = (
+                None if sufficient else "typed evidence is not sufficient"
+            )
             exposure = None
             if inject:
                 exposure = store.insert_exposure(
@@ -4206,6 +4402,20 @@ class ControlPlaneManager:
                     "preparation_id": package.preparation_id,
                     "companion": ranking.get("companion"),
                     "decision": retrieval_decision.to_dict(),
+                    "context_version": context_version,
+                    "sufficiency": (
+                        package.sufficiency.to_dict()
+                        if context_version == "v2" else None
+                    ),
+                    "shadow_v2": (
+                        {
+                            "status": shadow_package.sufficiency.status,
+                            "selected_ids": list(shadow_package.record_ids),
+                            "context_sha256": shadow_package.context_sha256,
+                        }
+                        if shadow_package is not None else
+                        ({"status": "unavailable", "error_class": shadow_error} if shadow_v2 else None)
+                    ),
                 },
             }
         finally:
@@ -4214,6 +4424,7 @@ class ControlPlaneManager:
     def _prepare_deterministic_context(
         self, state: ControlState, *, query: str, subject_id: str,
         agent_id: str | None, limit: int, max_chars: int, min_score: float,
+        context_version: str, shadow_v2: bool,
     ) -> dict[str, Any]:
         """Prepare governed adapter context without the telemetry control store.
 
@@ -4221,7 +4432,7 @@ class ControlPlaneManager:
         lifecycle and serialization. Host lifecycle evidence is recorded by the
         adapter after delivery, so a large execution ledger cannot delay recall.
         """
-        from atmem.contracts import ContextRequest
+        from atmem.contracts import ContextRequest, ContextRequestV2, RetrievalBudget
         from atmem.memory import Memory
         from atmem.retrieve import decide_retrieval
 
@@ -4229,12 +4440,38 @@ class ControlPlaneManager:
             [query], subject_id=subject_id, agent_id=agent_id,
             min_score=min_score, limit=max(50, limit * 10),
             reranker_model="deterministic-adapter",
+            retrieval_strategy=(
+                "core-rrf-v1" if context_version == "v2" else "legacy"
+            ),
         )
         candidate_set, scope, memory_path = self._durable_candidate_set(
             query, candidates, subject_id=subject_id, agent_id=agent_id,
             limit=max(1, min(100, len(candidates) or 1)),
             reranker_model="deterministic-adapter", min_score=min_score,
         )
+        shadow_candidate_set = None
+        shadow_error = None
+        if shadow_v2:
+            try:
+                shadow_candidates = self._hybrid_memory_candidates(
+                    [query], subject_id=subject_id, agent_id=agent_id,
+                    min_score=min_score, limit=max(50, limit * 10),
+                    reranker_model="deterministic-shadow-v2",
+                    retrieval_strategy="core-rrf-v1",
+                )
+                shadow_candidate_set, shadow_scope, shadow_path = (
+                    self._durable_candidate_set(
+                        query, shadow_candidates, subject_id=subject_id,
+                        agent_id=agent_id,
+                        limit=max(1, min(100, len(shadow_candidates) or 1)),
+                        reranker_model="deterministic-shadow-v2",
+                        min_score=min_score,
+                    )
+                )
+                if shadow_scope != scope or shadow_path != memory_path:
+                    raise ValueError("shadow retrieval scope changed")
+            except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                shadow_error = type(exc).__name__
         rows = [row.to_dict() for row in candidate_set.candidates]
         decision = decide_retrieval(query, rows)
         allowed = set(decision.ranked_record_ids)
@@ -4242,15 +4479,40 @@ class ControlPlaneManager:
         ranked_ids = [str(record_id) for record_id in decision.ranked_record_ids
                       if str(record_id) in available][:max(0, limit)]
         memory = Memory(memory_path, retain_query_text=False, graph_recall=True)
+        shadow_package = None
         try:
-            package = memory.prepare_context_v1(ContextRequest(
-                context_id=f"adapter_context_{uuid.uuid4().hex}",
-                candidate_set_id=candidate_set.candidate_set_id,
-                scope=scope, record_ids=tuple(ranked_ids), budget_chars=max_chars,
-            ))
+            if context_version == "v2":
+                package = memory.prepare_context_v2(ContextRequestV2(
+                    context_id=f"adapter_context_{uuid.uuid4().hex}",
+                    candidate_set_id=candidate_set.candidate_set_id,
+                    scope=scope,
+                    query=query,
+                    budget=RetrievalBudget(context_bytes=max(1, max_chars)),
+                ))
+            else:
+                package = memory.prepare_context_v1(ContextRequest(
+                    context_id=f"adapter_context_{uuid.uuid4().hex}",
+                    candidate_set_id=candidate_set.candidate_set_id,
+                    scope=scope, record_ids=tuple(ranked_ids), budget_chars=max_chars,
+                ))
+                if shadow_v2 and shadow_candidate_set is not None:
+                    try:
+                        shadow_package = memory.prepare_context_v2(ContextRequestV2(
+                            context_id=f"adapter_shadow_{uuid.uuid4().hex}",
+                            candidate_set_id=shadow_candidate_set.candidate_set_id,
+                            scope=scope,
+                            query=query,
+                            budget=RetrievalBudget(context_bytes=max(1, max_chars)),
+                        ))
+                    except (OSError, RuntimeError, TypeError, ValueError) as exc:
+                        shadow_error = type(exc).__name__
         finally:
             memory.close()
-        context = package.context if package.record_ids else ""
+        sufficient = (
+            context_version == "v1"
+            or package.sufficiency.status == "sufficient"
+        )
+        context = package.context if package.record_ids and sufficient else ""
         inject = bool(context) and state.mode.influences_agent
         return {
             "authority": "atmem", "decision": "governed_context",
@@ -4269,7 +4531,7 @@ class ControlPlaneManager:
             "context": context if inject else "", "preview_context": context,
             "inject": inject,
             "exposure_id": package.preparation_id if inject else None,
-            "reason": None,
+            "reason": None if sufficient else "typed evidence is not sufficient",
             "retrieval": {
                 "queries": [query], "signals": ["lexical", "semantic", "graph", "trust", "recency"],
                 "eligible_candidate_count": len(rows),
@@ -4280,6 +4542,20 @@ class ControlPlaneManager:
                 "preparation_id": package.preparation_id,
                 "companion": {"provider": "deterministic", "used": False},
                 "decision": decision.to_dict(),
+                "context_version": context_version,
+                "sufficiency": (
+                    package.sufficiency.to_dict()
+                    if context_version == "v2" else None
+                ),
+                "shadow_v2": (
+                    {
+                        "status": shadow_package.sufficiency.status,
+                        "selected_ids": list(shadow_package.record_ids),
+                        "context_sha256": shadow_package.context_sha256,
+                    }
+                    if shadow_package is not None else
+                    ({"status": "unavailable", "error_class": shadow_error} if shadow_v2 else None)
+                ),
             },
         }
 

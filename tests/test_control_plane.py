@@ -710,7 +710,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         ]
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.3.8-beta.6"
+        assert product["atmem_npm_version"] == "2.3.8"
         assert product["x_url"] == "https://x.com/AtMemX"
         profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
         assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])
@@ -1096,6 +1096,7 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/product",
         "/api/companions",
         "/api/status",
+        "/api/retrieval/status",
         "/api/semantic/health",
         "/api/semantic/profiles",
         "/api/semantic/setup",

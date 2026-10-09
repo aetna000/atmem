@@ -1,0 +1,18 @@
+{
+  "format": "atmem-longmemeval-v2-selection-v1",
+  "selection_rule": "For each domain, sort deterministic-scorer questions in each category by SHA-256(question_id); select two static, two dynamic, and one procedure question.",
+  "enterprise": [
+    "ff311d07",
+    "f3496ca5",
+    "14a823df",
+    "41a18e5c",
+    "07ffeedf"
+  ],
+  "web": [
+    "15e5efa6",
+    "631667c9",
+    "d3300354",
+    "c738b934",
+    "07ab3723"
+  ]
+}

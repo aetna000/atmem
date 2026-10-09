@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import sqlite3
 import subprocess
 import sys
 
@@ -166,6 +167,105 @@ def test_checkpoint_detects_tail_truncation(tmp_path: Path) -> None:
         "truncated" in failure["reason"]
         for failure in result["subjects"]["user-1"]["failures"]
     )
+
+
+def _seed_integrity_records(path: Path) -> None:
+    memory = Memory(path, auto_vectors=False)
+    try:
+        for index in range(3):
+            memory.remember(
+                "user-1",
+                f"Integrity seed {index} has value {40 + index}.",
+                source_type="user_message",
+                force=True,
+                session_id="integrity",
+                turn_id=index,
+            )
+        assert memory.verify("user-1")["valid"] is True
+    finally:
+        memory.close()
+
+
+def _record_ids(connection: sqlite3.Connection) -> list[str]:
+    return [
+        str(row[0])
+        for row in connection.execute(
+            "SELECT id FROM records WHERE subject_id='user-1' "
+            "ORDER BY created_at, id"
+        )
+    ]
+
+
+def test_record_integrity_detects_pinned_at_rest_edits(tmp_path: Path) -> None:
+    mutations = {
+        "content": lambda connection, ids: connection.execute(
+            "UPDATE records SET content=content || ' [TAMPERED]' WHERE id=?",
+            (ids[0],),
+        ),
+        "tail_delete": lambda connection, ids: connection.execute(
+            "DELETE FROM records WHERE id=?", (ids[-1],)
+        ),
+        "middle_delete": lambda connection, ids: connection.execute(
+            "DELETE FROM records WHERE id=?", (ids[1],)
+        ),
+        "reorder": lambda connection, ids: connection.execute(
+            "UPDATE records SET content=CASE id WHEN ? THEN "
+            "(SELECT content FROM records WHERE id=?) WHEN ? THEN "
+            "(SELECT content FROM records WHERE id=?) ELSE content END "
+            "WHERE id IN (?, ?)",
+            (ids[0], ids[1], ids[1], ids[0], ids[0], ids[1]),
+        ),
+        "forge": lambda connection, ids: connection.execute(
+            "INSERT INTO records SELECT 'rec_forged', subject_id, "
+            "'Forged integrity record.', content_normalized, source_type, "
+            "trust_tier, source_session_id, source_turn_id, episode_id, "
+            "'2099-01-01T00:00:00+00:00', updated_at, deleted_at, confidence, "
+            "scope, status, supersedes_id, fact_key, raw, "
+            "authority_workspace_id, authority_subject_id, "
+            "authority_materialized, sensitivity_class, generation "
+            "FROM records WHERE id=?",
+            (ids[0],),
+        ),
+        "cross_replay": lambda connection, ids: connection.execute(
+            "UPDATE records SET content='Other user replay.' WHERE id=?", (ids[1],)
+        ),
+        "rollback_replay": lambda connection, ids: connection.execute(
+            "UPDATE records SET content=(SELECT content FROM records WHERE id=?) "
+            "WHERE id=?", (ids[0], ids[-1])
+        ),
+        "metadata": lambda connection, ids: connection.execute(
+            "UPDATE records SET source_type='webpage' WHERE id=?", (ids[0],)
+        ),
+    }
+    for name, mutate in mutations.items():
+        path = tmp_path / f"{name}.db"
+        _seed_integrity_records(path)
+        with sqlite3.connect(path) as connection:
+            ids = _record_ids(connection)
+            mutate(connection, ids)
+            connection.commit()
+        reopened = Memory(path, auto_vectors=False)
+        try:
+            report = reopened.verify("user-1")
+            assert report["valid"] is False, name
+            failures = report["subjects"]["user-1"]["record_integrity"]["failures"]
+            assert failures, name
+        finally:
+            reopened.close()
+
+
+def test_record_integrity_allows_governed_deletion(tmp_path: Path) -> None:
+    path = tmp_path / "governed-delete.db"
+    memory = Memory(path, auto_vectors=False)
+    try:
+        result = memory.remember(
+            "user-1", "My backup email is private@example.com.",
+            source_type="user_message", force=True,
+        )
+        memory.forget_record("user-1", result["records"][0]["id"])
+        assert memory.verify("user-1")["valid"] is True
+    finally:
+        memory.close()
 
 
 def test_standalone_verifier_agrees(tmp_path: Path) -> None:

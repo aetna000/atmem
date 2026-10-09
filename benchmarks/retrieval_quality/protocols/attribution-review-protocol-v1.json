@@ -1,0 +1,85 @@
+{
+  "available_to_product": false,
+  "format": "atmem-attribution-review-protocol-v1",
+  "missing_observation_policy": "reject",
+  "review_method": {
+    "adjudication": "A reviewer inspects the cited immutable artifact for every requirement/stage. Deterministic exact checks may propose a decision, but cannot fill or pass a stage without a cited artifact. Disagreements are retained in the review notes and resolved before signing.",
+    "reader_use_semantics": "Used by reader is an observable outcome proxy, not a claim about hidden model cognition: passed only when the response uses or preserves the requirement; failed when delivered evidence contains it but the response omits, contradicts, or misapplies it; not_reached after an earlier failed stage; not_applicable only for a terminal system failure before a reader response.",
+    "reviewer_identity": "Named human or content-addressed evaluator configuration",
+    "unknown_policy": "Unknown, absent, unreadable, or ambiguous evidence cannot pass and must carry a reason. It is never encoded as zero or inferred success."
+  },
+  "review_protocol_sha256": "sha256:7cbb3ce63ef695ccd714aab579dbfb82a25bf1caabf9d7a230e30a361730c23a",
+  "stages": [
+    {
+      "decision_rule": "Pass only when the frozen source artifact contains evidence that directly supports this requirement; otherwise fail with the absent or contradictory source reference.",
+      "permitted_evidence": [
+        "frozen dataset source reference",
+        "immutable source extract with byte/range identity"
+      ],
+      "stage": "source_exists"
+    },
+    {
+      "decision_rule": "Pass only when an authorized canonical or derived AtMem representation preserves the requirement and links to the source range.",
+      "permitted_evidence": [
+        "formation receipt",
+        "source-linked canonical/derived unit inspection",
+        "coverage or loss receipt"
+      ],
+      "stage": "represented"
+    },
+    {
+      "decision_rule": "Pass only when a retrieval candidate cited by the run contains the requirement; candidate existence elsewhere in storage is insufficient.",
+      "permitted_evidence": [
+        "candidate-set receipt",
+        "candidate record/source-range inspection"
+      ],
+      "stage": "nominated"
+    },
+    {
+      "decision_rule": "Pass when required adjacent or linked evidence was added and contains the requirement; use not_applicable with a reason only when no neighbourhood expansion is required for this requirement.",
+      "permitted_evidence": [
+        "navigation receipt",
+        "expanded candidate/source-range inspection",
+        "explicit no-expansion-required adjudication"
+      ],
+      "stage": "expanded"
+    },
+    {
+      "decision_rule": "Pass only when the final bounded context package contains the requirement with the necessary entity, relation, value, polarity, time, order, condition, comparison, conflict, or action constraint.",
+      "permitted_evidence": [
+        "context-package receipt",
+        "exact packed context retained by the evaluator"
+      ],
+      "stage": "packed"
+    },
+    {
+      "decision_rule": "Pass only when the exact reader/model input contains the packed requirement without truncation or transformation loss.",
+      "permitted_evidence": [
+        "exact prompt/model-input artifact",
+        "delivery and truncation receipt"
+      ],
+      "stage": "delivered"
+    },
+    {
+      "decision_rule": "Apply the pinned observable reader-use proxy; never infer hidden cognition from attention, confidence, or a successful final score alone.",
+      "permitted_evidence": [
+        "exact reader response",
+        "product/verified/no-memory controlled contrast",
+        "review adjudication note"
+      ],
+      "stage": "used_by_reader"
+    },
+    {
+      "decision_rule": "Pass only when the final answer or attempted/succeeded action correctly reflects this requirement; parsing, timeout, provider, and tool failures receive their own terminal system/action outcome.",
+      "permitted_evidence": [
+        "parsed and raw answer",
+        "tool-call arguments/result",
+        "official score/grader evidence",
+        "terminal failure receipt"
+      ],
+      "stage": "reflected_in_answer_or_action"
+    }
+  ],
+  "system_failure_policy": "terminal_system_failure",
+  "visibility": "evaluator_only"
+}

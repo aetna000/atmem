@@ -1,11 +1,16 @@
 # AtMem
 
-[![Version 2.3.8b6](https://img.shields.io/badge/version-2.3.8b6-blue)](./docs/releases/v2.3.8b6.md)
+[![Version 2.3.8](https://img.shields.io/badge/version-2.3.8-blue)](./docs/releases/v2.3.8.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-> **AtMem 2.3.7:** Product-owned continuity helps connected workflows reuse completed results, reconcile supported destinations, and stop uncertain work safely. AtFlows 0.1.3 adds attempt visibility and grouped event charts. See the [release note](./docs/releases/v2.3.7.md), [setup guide](./docs/continuity.md), and [recorded evidence](./benchmarks/agent_continuity/reports/product-continuity-20260925.md). Previous benchmarks retain their tested-version provenance.
+> **AtMem 2.3.8:** Source-linked typed context, bounded evidence packing and
+> one-command Hermes setup extend the existing governed continuity surface. The
+> exact AtFlows companion is 0.1.4b3. See the [release note](./docs/releases/v2.3.8.md),
+> [technical report](./docs/releases/v2.3.7-to-v2.3.8-technical-report.md), and
+> [bounded evaluation evidence](./benchmarks/retrieval_quality/reports/five-percent-results-20261010.md).
+> Previous benchmarks retain their tested-version provenance.
 > It records exact host-observed text and supported multimodal boundaries by default,
 > while keeping every claim limited to what the connected agent actually supplied.
 
@@ -22,7 +27,7 @@ authorizes, stores, scopes, injects, corrects, and deletes memory.
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --upgrade atmem==2.3.6
+python -m pip install --upgrade atmem==2.3.8
 atmem atbot setup
 atmem atbot doctor
 atmem init
@@ -35,7 +40,26 @@ always-present local vector index. Do **not** install AtBot separately. During
 hosted provider, or the safe deterministic fallback. API keys stay in
 environment variables; AtMem does not save them.
 
-In 2.3.7, `pip install atmem` installs the Python packages only; pip does not
+For encrypted local households, install the SQLCipher extra and verify the
+runtime before migration:
+
+```bash
+# Ubuntu/Debian first: sudo apt-get install libsqlcipher-dev build-essential
+# Then install with the system SQLCipher headers and library:
+CFLAGS="-I/usr/include/sqlcipher" LDFLAGS="-lsqlcipher" \
+  python -m pip install --upgrade 'atmem[encrypted]'
+
+# macOS and Windows can install the extra directly:
+python -m pip install --upgrade 'atmem[encrypted]'
+atmem household status ~/.atmem/memories.db
+atmem household migrate ~/.atmem/memories.db
+```
+
+Stop every writer before migration. AtMem validates SQLite integrity,
+SQLCipher page integrity and per-table row counts before the atomic cutover;
+see [SaaS integration and recovery](docs/saas-integration.md#privacy-retention-and-deletion).
+
+In 2.3.8, `pip install atmem` installs the Python packages only; pip does not
 run a post-install downloader. On the first `atmem init`, if compatible Bun is not
 already installed, AtMem clearly announces and downloads its pinned official
 Bun runtime for AtFlows, verifies the archive against a release-pinned SHA-256,
@@ -64,7 +88,7 @@ package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.6
+python -m pip install --upgrade atmem==2.3.8
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -87,7 +111,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.3.6'
+python -m pip install 'atmem[pydantic-ai]==2.3.8'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -112,7 +136,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.3.6'
+python -m pip install 'atmem[langgraph]==2.3.8'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -280,7 +304,7 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install atmem==2.3.6
+python -m pip install atmem==2.3.8
 atmem --version
 ```
 
@@ -290,7 +314,7 @@ embedding model, while the semantic extra adds local sentence-transformer
 choices:
 
 ```bash
-python -m pip install 'atmem[semantic]==2.3.6'
+python -m pip install 'atmem[semantic]==2.3.8'
 ```
 
 For repository development, install both workspace packages:
@@ -478,7 +502,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.6
+python -m pip install --upgrade atmem==2.3.8
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -610,7 +634,7 @@ atmem mcp --db ~/.atmem/memories.db --subject user-1
 ```
 
 MCP tools: `memory_remember`, `memory_observe`, `memory_recall`,
-`memory_recall_decision`,
+`memory_recall_decision`, `memory_form_episode`,
 `memory_get_record`, `memory_get_source`, `memory_recall_block`,
 `memory_persona`, `memory_context_pack`, `memory_capture`, `memory_list`,
 `memory_forget`, `memory_forget_artifact`, `memory_promote`, `memory_audit`,
@@ -711,10 +735,11 @@ npm test
 npm run smoke
 ```
 
-The latest stable release is **2.3.6** with matching OpenClaw bridge source
-**2.3.6**. Release validation requires exact Python/bridge alignment; AtBot
-retains its independent stable compatible version **0.1.0** and AtFlows remains
-**0.1.3**.
+The current source candidate is **2.3.8** with matching OpenClaw bridge source
+**2.3.8**. Release validation requires exact Python/bridge alignment; AtBot
+retains its independent compatible version **0.1.0** and the tested AtFlows pin
+is **0.1.4b3**. The published package remains 2.3.7 until the candidate is
+reviewed, tagged and registry-verified.
 
 ## License
 
