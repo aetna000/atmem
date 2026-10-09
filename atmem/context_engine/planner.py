@@ -130,6 +130,88 @@ def _entity(value: str) -> str:
     return words[0] if words else "query"
 
 
+def _action_content_facets(query: str) -> tuple[str, ...]:
+    """Return bounded answer-blind content anchors for addressed app actions."""
+    values: list[str] = []
+    # Separate the content of an app action from its transport and target.  A
+    # query such as "Email person@example.com board-safe wording for what the
+    # Q2 Compass evidence demonstrates" is otherwise dominated by the exact
+    # address and the generic action verb.  The source episode that contains
+    # the requested evidence need not repeat either.  Compact adjacent content
+    # anchors are answer-blind (they come only from the request), bounded, and
+    # are nominations rather than extra sufficiency obligations.
+    action_content = re.match(
+        r"\s*(?:\[\d{4}-\d{2}-\d{2}\]\s*)?"
+        r"(?:email|send|message|post|notify|ask)\b\s+"
+        r"(?:[^\s,;]+@[A-Za-z0-9.-]+|#[A-Za-z0-9_-]+)\s+(.+)",
+        query,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if action_content:
+        content_tokens = [
+            token
+            for token in re.findall(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*", action_content.group(1))
+            if token.casefold() not in _PLAN_STOP | _QUESTION_WORDS
+            and len(token) > 1
+        ]
+        for width in (2, 3):
+            for index in range(max(0, len(content_tokens) - width + 1)):
+                facet = " ".join(content_tokens[index:index + width])
+                if len(facet) <= 64:
+                    values.append(facet)
+                if len(values) >= 12:
+                    break
+            if len(values) >= 12:
+                break
+    unique = tuple(dict.fromkeys(values))
+
+    def salience(value: str) -> tuple[int, int, int]:
+        tokens = value.split()
+        named = sum(
+            token[:1].isupper() or any(character.isdigit() for character in token)
+            for token in tokens
+        )
+        compound = sum("-" in token for token in tokens)
+        return (-named, -compound, len(tokens))
+
+    ordered = list(sorted(unique, key=salience))
+    selected: list[str] = []
+    compound_by_root: dict[str, str] = {}
+    for item in ordered:
+        tokens = item.split()
+        root_index = next((i for i, token in enumerate(tokens) if "-" in token), None)
+        if root_index is None:
+            continue
+        root = tokens[root_index].casefold()
+        prior = compound_by_root.get(root)
+        if prior is None:
+            compound_by_root[root] = item
+            continue
+        prior_tokens = prior.split()
+        prior_index = next(i for i, token in enumerate(prior_tokens) if "-" in token)
+        if (root_index == len(tokens) - 1, len(tokens)) < (
+            prior_index == len(prior_tokens) - 1, len(prior_tokens)
+        ):
+            compound_by_root[root] = item
+    compound_facets = list(compound_by_root.values())
+    for value in (
+        *[
+            item for item in ordered
+            if any(
+                token[:1].isupper() or any(character.isdigit() for character in token)
+                for token in item.split()
+            )
+        ][:4],
+        *compound_facets[:2],
+        *ordered,
+    ):
+        if value not in selected:
+            selected.append(value)
+        if len(selected) >= 8:
+            break
+    return tuple(selected)
+
+
 def targeted_facets(query: str) -> tuple[str, ...]:
     """Derive answer-blind search facets from explicit alternatives and fields.
 
@@ -138,7 +220,7 @@ def targeted_facets(query: str) -> tuple[str, ...]:
     has evidence for the matching alternative only; requiring evidence for
     every distractor would incorrectly fail closed.
     """
-    values: list[str] = []
+    values: list[str] = list(_action_content_facets(query))
     # Action requests often refer to an identity indirectly ("our CEO", "the
     # integration contact", or "the usual person on the external thread").
     # Preserve those compact, answer-blind phrases as independent nominations;

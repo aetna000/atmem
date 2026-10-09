@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import re
 from dataclasses import dataclass
 
 from atmem.store.sqlite import SQLiteStore
 
 from .contracts import QueryPlan
-from .planner import targeted_facets
+from .planner import _action_content_facets, targeted_facets
 from .pools import POOL_KINDS, PoolBudget
 
 _STOP = {
@@ -453,6 +454,7 @@ class DeterministicRetriever:
         used_units: set[str] = set()
         used_sources: set[str] = set()
         supplemental_priority_units: set[str] = set()
+        content_bridge_units: set[str] = set()
         supplemental_intent_sources: set[str] = set()
         supplemental_query_hits: dict[str, set[str]] = {}
         for obligation in plan.obligations:
@@ -626,6 +628,63 @@ class DeterministicRetriever:
             used_sources.add(candidate.source_id)
             if len(selected) >= max_sources:
                 break
+        # Addressed app actions combine a transport target with a separate
+        # evidence request. Rank a few compact source episodes by how densely
+        # they cover the request-derived content anchors, then expand those
+        # exact sources below. This prevents an address match or a long generic
+        # policy note from crowding out one compact episode that contains the
+        # requested facts. No evaluator requirement or answer enters ranking.
+        action_facets = _action_content_facets(query)
+        if action_facets and len(selected) < max_sources:
+            source_rows: dict[str, list[RetrievedCandidate]] = {}
+            for facet in action_facets:
+                for pool in ("entity", "fact", "rule", "raw_state"):
+                    for item in by_pool_query.get((pool, facet), ()):
+                        source_rows.setdefault(item.source_id, []).append(item)
+            query_terms = set(_fts_terms(query))
+            ranked_bridges: list[
+                tuple[float, int, int, float, str, RetrievedCandidate]
+            ] = []
+            for source_id, rows in source_rows.items():
+                parts = self.store._conn.execute(
+                    """SELECT content_bytes FROM context_source_parts
+                       WHERE source_id=? ORDER BY ordinal""",
+                    (source_id,),
+                ).fetchall()
+                source_bytes = b"\n".join(bytes(row["content_bytes"]) for row in parts)
+                source_terms = set(_fts_terms(source_bytes.decode(
+                    "utf-8", errors="replace"
+                )))
+                covered = len(query_terms & source_terms)
+                if covered < 2:
+                    continue
+                head = min(
+                    rows,
+                    key=lambda item: (
+                        -len(query_terms & set(_fts_terms(item.text))),
+                        len(item.text.encode("utf-8")),
+                        -item.score,
+                        item.unit_id,
+                    ),
+                )
+                byte_count = max(64, len(source_bytes))
+                ranked_bridges.append((
+                    covered / math.sqrt(byte_count), covered, -byte_count,
+                    head.score, source_id, head,
+                ))
+            for *_rank, candidate in sorted(ranked_bridges, reverse=True)[:3]:
+                if (
+                    candidate.unit_id in used_units
+                    or candidate.source_id in used_sources
+                ):
+                    continue
+                selected.append(candidate)
+                used_units.add(candidate.unit_id)
+                used_sources.add(candidate.source_id)
+                supplemental_priority_units.add(candidate.unit_id)
+                content_bridge_units.add(candidate.unit_id)
+                if len(selected) >= max_sources:
+                    break
         # Reserve one compact, exact source range for each answer-blind action
         # facet (contact, recipient, role, approver, temporal subject, and
         # explicit option field) before general supplemental evidence.  A long
@@ -681,7 +740,7 @@ class DeterministicRetriever:
                     key=lambda item: (
                         -identity_markers(item) if identity_seeking else 0,
                         -len(facet_terms & set(_fts_terms(item.text))),
-                        -identity_markers(item) if not identity_seeking else 0,
+                        0,
                         len(item.text.encode("utf-8")),
                         -item.score,
                         item.source_id,
@@ -693,6 +752,8 @@ class DeterministicRetriever:
                     used_units.add(candidate.unit_id)
                     used_sources.add(candidate.source_id)
                     supplemental_priority_units.add(candidate.unit_id)
+                    if facet in action_facets:
+                        content_bridge_units.add(candidate.unit_id)
                 # When relevant evidence names an indirect recipient but does
                 # not carry the exact address, follow only that source-observed
                 # identity through the bounded indexes. This is evidence
@@ -871,7 +932,8 @@ class DeterministicRetriever:
         # the lowest-ranked tail with exact neighbours of the strongest heads.
         # Neighbours remain obligation-neutral: adjacency can improve evidence
         # coverage but cannot by itself satisfy a requirement.
-        heads = tuple(selected[: max(1, min(4, len(selected)))])
+        head_limit = 8 if action_facets else 4
+        heads = tuple(selected[: max(1, min(head_limit, len(selected)))])
         ordered_step_ids = {
             item.obligation_id for item in plan.obligations
             if item.kind == "ordered_steps"
@@ -900,6 +962,8 @@ class DeterministicRetriever:
         ))
 
         def neighbor_radius(head: RetrievedCandidate) -> int:
+            if head.unit_id in content_bridge_units:
+                return 8
             if set(head.matched_obligation_ids) & (ordered_step_ids | transition_ids):
                 return 12
             if dated_decision_query and any(

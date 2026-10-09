@@ -1025,3 +1025,57 @@ def test_targeted_facets_add_iso_narrative_date_for_temporal_subject() -> None:
 
     assert "January 8, 2026 staged replay" in facets
     assert "2026-01-08 staged replay" in facets
+
+
+def test_action_content_facets_ignore_transport_and_recipient() -> None:
+    facets = targeted_facets(
+        "[2026-09-14] Email sarah@example.dev board-safe wording for what the "
+        "Q2 Compass evidence demonstrates and whether it supports a "
+        "customer-facing product story."
+    )
+
+    assert "Q2 Compass" in facets
+    assert "customer-facing product" in facets
+    assert all("sarah@example.dev" not in facet for facet in facets)
+
+
+def test_action_content_facets_nominate_compact_exact_source_episode() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="exact-q2-read", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"The Q2 Compass owner-action read found concrete internal value. "
+                b"Give concise board-safe language without presenting this as "
+                b"proof of a customer-facing product story.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        for index in range(40):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=f"action-noise-{index}", scope=SCOPE,
+                parts=(SourcePart(
+                    "text", 0, "text", "text/plain",
+                    f"Sarah reviewed unrelated customer-facing wording note {index}.".encode(),
+                ),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Email sarah@example.dev board-safe wording for what the Q2 Compass "
+            "evidence demonstrates and whether it supports a customer-facing "
+            "product story."
+        )
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=32,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "Q2 Compass owner-action read" in combined
+        assert "proof of a customer-facing product story" in combined
+    finally:
+        store.close()

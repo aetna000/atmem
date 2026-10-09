@@ -472,6 +472,13 @@ answer/action scoring.
   exceeds Mem0 on both task and check totals
   (`research/production_benchmarks/run_dolphin_matched.py`,
   `benchmarks/retrieval_quality/reports/`) (FR-038–FR-043, FR-054, SC-024).
+- [ ] [T046D] Diagnose addressed-action content retrieval on the frozen
+  four-case development profile in
+  `benchmarks/retrieval_quality/protocols/dolphinbench-action-content-4-v1.json`.
+  Derive compact facets only from the user request and source-backed canonical
+  evidence. Advance to another fresh 30-task run only if AtMem reaches at
+  least 3/4 tasks and 11/14 checks, preserves both passing regression controls,
+  and records zero system failures (FR-014–FR-016, FR-043, FR-054, SC-024).
 - [ ] [T047] Freeze the selected candidate only if T045/T046 targets pass; repeat
   the chosen development arm once to reject a non-reproducible peak. Otherwise
   return to the earliest attributed failing stage, not prompt/weight thrashing.

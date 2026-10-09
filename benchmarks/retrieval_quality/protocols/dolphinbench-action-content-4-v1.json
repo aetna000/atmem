@@ -1,0 +1,36 @@
+{
+  "format": "atmem-dolphinbench-remediation-development-v1",
+  "claim": "bounded-development-diagnostic-not-an-official-score",
+  "source_manifest": "dolphinbench-requirements-5pct-v1.json",
+  "source_manifest_sha256": "sha256:002894c0f9e0f8377164d0a9edbbb86a5e2119449e30a12f4934bd0bf8849650",
+  "case_ids": [
+    "morgan:045",
+    "morgan:082",
+    "alex:026",
+    "morgan:079"
+  ],
+  "roles": {
+    "morgan:045": "addressed-action-content-retrieval-defect",
+    "morgan:082": "addressed-action-neighbourhood-regression",
+    "alex:026": "previously-fully-passing-regression-control",
+    "morgan:079": "previously-fully-passing-regression-control"
+  },
+  "adapter_options": {
+    "candidate_limit": 200,
+    "context_bytes": 32000,
+    "memory_limit": 20
+  },
+  "historical_baseline": {
+    "atmem_tasks": "2/4",
+    "atmem_checks": "7/14",
+    "mem0_tasks": "3/4",
+    "mem0_checks": "10/14"
+  },
+  "advance_gate": {
+    "atmem_tasks_minimum": "3/4",
+    "atmem_checks_minimum": "11/14",
+    "regression_controls_preserved": "2/2",
+    "system_failures": 0
+  },
+  "leakage_boundary": "Evaluator requirements may be used by diagnostic reporting only. They must not be passed to formation, planning, retrieval, packing, the memory adapter, or the reader."
+}
