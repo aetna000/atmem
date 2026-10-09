@@ -440,6 +440,28 @@ def test_finalization_gate_binds_optional_diagnostic_profile() -> None:
         validate_finalization_gate(diagnostic, expected_identity=mismatched)
 
 
+def test_finalization_gate_binds_optional_reader_runtime() -> None:
+    gate = _finalization_gate()
+    runtime_bound = deepcopy(gate)
+    runtime_bound["identity"]["reader_runtime_sha256"] = "sha256:" + "a" * 64
+    runtime_bound["identity_sha256"] = finalization_identity(
+        runtime_bound["identity"]
+    )
+    for probe in runtime_bound["probes"]:
+        probe["artifact_sha256"] = probe_artifact_identity(
+            probe, runtime_bound["identity"]
+        )
+
+    validate_finalization_gate(
+        runtime_bound,
+        expected_identity=runtime_bound["identity"],
+    )
+    mismatched = deepcopy(runtime_bound["identity"])
+    mismatched["reader_runtime_sha256"] = "sha256:" + "b" * 64
+    with pytest.raises(ValueError, match="another configuration"):
+        validate_finalization_gate(runtime_bound, expected_identity=mismatched)
+
+
 def test_finalization_gate_rejects_sampling_relabel_retry_nan_and_wrong_probe_set() -> None:
     gate = _finalization_gate()
     changed = deepcopy(gate["identity"])

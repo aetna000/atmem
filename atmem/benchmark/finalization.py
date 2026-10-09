@@ -54,8 +54,12 @@ def finalization_identity(value: Mapping[str, Any]) -> str:
     if missing:
         raise ValueError("finalization identity is missing: " + ", ".join(missing))
     bound = {name: identity[name] for name in required}
-    if identity.get("diagnostic_profile_sha256") not in (None, ""):
-        bound["diagnostic_profile_sha256"] = identity["diagnostic_profile_sha256"]
+    for optional_field in (
+        "diagnostic_profile_sha256",
+        "reader_runtime_sha256",
+    ):
+        if identity.get(optional_field) not in (None, ""):
+            bound[optional_field] = identity[optional_field]
     return canonical_digest(bound)
 
 
