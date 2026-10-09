@@ -36,6 +36,21 @@ def test_paid_entrypoints_preserve_installed_product_precedence() -> None:
         assert "sys.path.insert(0, str(ROOT))" not in source
 
 
+def test_dolphin_work_output_is_bound_separately_from_checkpoint(tmp_path: Path) -> None:
+    from research.production_benchmarks.run_dolphin_development import (
+        validate_work_directory,
+    )
+
+    configured_output = tmp_path / "run" / "atmem"
+    checkpoint_root = tmp_path / "state"
+    configured_output.mkdir(parents=True)
+    checkpoint_root.mkdir()
+
+    validate_work_directory(configured_output, configured_output)
+    with pytest.raises(RuntimeError, match="configured output"):
+        validate_work_directory(checkpoint_root, configured_output)
+
+
 def test_dolphin_driver_returns_model_arguments_with_structured_app_result(
     monkeypatch,
 ) -> None:

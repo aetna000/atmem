@@ -37,6 +37,14 @@ from research.production_benchmarks.local_resources import (  # noqa: E402
 )
 
 
+def validate_work_directory(actual: Path, configured_output: Path) -> None:
+    """Bind official mutable run output separately from memory checkpoints."""
+    if actual.expanduser().resolve() != configured_output.expanduser().resolve():
+        raise RuntimeError(
+            "official DolphinBench work directory differs from the configured output"
+        )
+
+
 def _call_openai_reasoning_judge(llm_judge, system_prompt: str,
                                  user_prompt: str, config: dict,
                                  timeout: int = 90) -> dict:
@@ -273,6 +281,9 @@ def main() -> int:
     original_call_openai = llm_judge._call_openai
     driver_target = str(identity.get("agent_driver_target") or "")
     driver_sha256 = str(identity.get("agent_driver_sha256") or "")
+    configured_output = Path(str(configuration.get("output") or "")).expanduser().resolve()
+    if not str(configuration.get("output") or "").strip():
+        raise RuntimeError("DolphinBench config does not declare an output directory")
     if not driver_target or not driver_sha256:
         raise RuntimeError("DolphinBench finalization must bind the agent driver")
 
@@ -282,10 +293,7 @@ def main() -> int:
         )
 
     def selected_evaluate(instance) -> None:
-        if Path(instance.directory).resolve() != checkpoint_root:
-            raise RuntimeError(
-                "official DolphinBench work directory differs from the bound checkpoint root"
-            )
+        validate_work_directory(Path(instance.directory), configured_output)
         if _tree_digest(checkpoint_root) != identity["checkpoint_sha256"]:
             raise RuntimeError("DolphinBench checkpoints changed after finalization")
         result = evaluate_development(instance, checkout)
