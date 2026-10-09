@@ -428,6 +428,18 @@ def _blocked_interaction_settings(model: str) -> dict[str, str]:
     return {"model": model}
 
 
+def _blocked_interaction_message(requirement_id: str) -> dict[str, object]:
+    """Represent a deliberate no-model response with explicit zero usage."""
+    return {
+        "role": "assistant",
+        "content": (
+            "Blocked before model invocation: missing memory requirement "
+            + requirement_id
+        ),
+        "usage": {"input_tokens": 0, "output_tokens": 0},
+    }
+
+
 class AtMemDolphinAdapter:
     provider_name = "atmem"
     def __init__(self, options: dict, work_dir: Path) -> None:
@@ -564,13 +576,9 @@ class AtMemDolphinAdapter:
                         settings=_blocked_interaction_settings(self.model),
                         messages=[
                             {"role": "user", "content": request.dated_message},
-                            {
-                                "role": "assistant",
-                                "content": (
-                                    "Blocked before model invocation: missing memory "
-                                    "requirement " + gate["missing_requirement_ids"][0]
-                                ),
-                            },
+                            _blocked_interaction_message(
+                                gate["missing_requirement_ids"][0]
+                            ),
                         ],
                         duration_ms=(time.monotonic() - started) * 1000,
                         attempts=[{

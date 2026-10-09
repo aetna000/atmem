@@ -51,6 +51,26 @@ def test_dolphin_work_output_is_bound_separately_from_checkpoint(tmp_path: Path)
         validate_work_directory(checkpoint_root, configured_output)
 
 
+def test_dolphin_checkpoint_digest_isolated_by_adapter(tmp_path: Path) -> None:
+    from research.production_benchmarks.run_dolphin_development import _tree_digest
+
+    atmem = tmp_path / "atmem-personas"
+    mem0 = tmp_path / "mem0-personas" / "alex"
+    atmem.mkdir(parents=True)
+    mem0.mkdir(parents=True)
+    (atmem / "alex.db").write_bytes(b"atmem-v1")
+    (mem0 / "memory.json").write_bytes(b"mem0-v1")
+    atmem_adapter = "research.production_benchmarks.dolphinbench:create_development"
+    mem0_adapter = "research.production_benchmarks.dolphinbench:create_mem0_development"
+
+    atmem_before = _tree_digest(tmp_path, atmem_adapter)
+    mem0_before = _tree_digest(tmp_path, mem0_adapter)
+    (atmem / "alex.db").write_bytes(b"atmem-audit-write")
+
+    assert _tree_digest(tmp_path, atmem_adapter) != atmem_before
+    assert _tree_digest(tmp_path, mem0_adapter) == mem0_before
+
+
 def test_dolphin_driver_returns_model_arguments_with_structured_app_result(
     monkeypatch,
 ) -> None:
@@ -1520,11 +1540,18 @@ def test_dolphin_mem0_recall_uses_text_without_atmem_package_contract() -> None:
 
 def test_dolphin_blocked_settings_keep_gate_metadata_out_of_model_contract() -> None:
     from research.production_benchmarks.dolphinbench import (
-        _blocked_interaction_settings,
+        _blocked_interaction_message, _blocked_interaction_settings,
     )
 
     assert _blocked_interaction_settings("fixture-model") == {
         "model": "fixture-model",
+    }
+    assert _blocked_interaction_message("required.fact") == {
+        "role": "assistant",
+        "content": (
+            "Blocked before model invocation: missing memory requirement required.fact"
+        ),
+        "usage": {"input_tokens": 0, "output_tokens": 0},
     }
 
 

@@ -89,19 +89,23 @@ def _installed_artifact_sha256() -> str:
     return str(installed_atmem_identity()["artifact_sha256"])
 
 
-def _tree_digest(root: Path) -> str:
+def _tree_digest(root: Path, adapter: str | None = None) -> str:
     if not root.is_dir():
         raise RuntimeError(f"DolphinBench checkpoint root does not exist: {root}")
+    include_atmem = adapter in (None, "research.production_benchmarks.dolphinbench:create_development")
+    include_mem0 = adapter in (None, "research.production_benchmarks.dolphinbench:create_mem0_development")
+    if not include_atmem and not include_mem0:
+        raise RuntimeError("DolphinBench checkpoint digest received an unknown adapter")
     selected = [
         *sorted((root / "checkpoints").glob("*.json")),
-        *sorted((root / "atmem-personas").glob("*.db")),
-        *sorted((root / "atmem-personas").glob("*.db-wal")),
-        *sorted((root / "atmem-personas").glob("*.db-shm")),
-        *sorted((root / "atmem-personas").glob("*.encryption.json")),
-        *sorted(
+        *([] if not include_atmem else sorted((root / "atmem-personas").glob("*.db"))),
+        *([] if not include_atmem else sorted((root / "atmem-personas").glob("*.db-wal"))),
+        *([] if not include_atmem else sorted((root / "atmem-personas").glob("*.db-shm"))),
+        *([] if not include_atmem else sorted((root / "atmem-personas").glob("*.encryption.json"))),
+        *([] if not include_mem0 else sorted(
             path for path in (root / "mem0-personas").rglob("*")
             if path.is_file() and not path.name.startswith("._") and path.name != ".DS_Store"
-        ),
+        )),
     ]
     files = {}
     for path in selected:
@@ -178,7 +182,7 @@ def main() -> int:
         raise SystemExit("DolphinBench config does not select a matched development adapter")
     if options.get("agent_driver") != "research.production_benchmarks.dolphin_openai_driver:run":
         raise SystemExit("DolphinBench config does not select the pinned agent driver")
-    checkpoint_sha256 = _tree_digest(checkpoint_root)
+    checkpoint_sha256 = _tree_digest(checkpoint_root, adapter)
     installed_product = installed_atmem_identity()
     if args.preflight_only:
         missing = [
@@ -294,7 +298,7 @@ def main() -> int:
 
     def selected_evaluate(instance) -> None:
         validate_work_directory(Path(instance.directory), configured_output)
-        if _tree_digest(checkpoint_root) != identity["checkpoint_sha256"]:
+        if _tree_digest(checkpoint_root, adapter) != identity["checkpoint_sha256"]:
             raise RuntimeError("DolphinBench checkpoints changed after finalization")
         result = evaluate_development(instance, checkout)
         print(
