@@ -58,6 +58,31 @@ _VECTOR_MUTATIONS = {
     "reject",
 }
 
+_RECORD_INTEGRITY_FIELDS = (
+    "id",
+    "subject_id",
+    "content",
+    "source_type",
+    "trust_tier",
+    "source_session_id",
+    "source_turn_id",
+    "episode_id",
+    "created_at",
+    "confidence",
+    "scope",
+    "status",
+    "supersedes_id",
+    "fact_key",
+    "raw",
+)
+
+
+def _record_integrity_sha256(record: dict[str, Any]) -> str:
+    """Bind the agent-visible record row to one chained audit event."""
+    return sha256_hex(canonical_json({
+        field: record.get(field) for field in _RECORD_INTEGRITY_FIELDS
+    }))
+
 
 def _embedder_for_epoch(epoch: dict[str, Any]) -> Any:
     """Reconstruct a verified local embedder from an active index epoch."""
@@ -3282,6 +3307,8 @@ class Memory:
                 if status == "active"
                 else "memory.record_quarantined"
             )
+            stored_record = self.store.get_record(subject_id, record_id)
+            assert stored_record is not None
             self.store.append_audit_event(
                 subject_id=subject_id,
                 event_type=event_type,
@@ -3301,10 +3328,15 @@ class Memory:
                     # Binds the stored content to the chain so a direct edit
                     # of the record row is detectable by an offline auditor.
                     "content_sha256": _sha256(candidate.content),
+                    # Bind identity, owner, ordering and security metadata as
+                    # well as content. The commitment itself is protected by
+                    # the audit chain; raw SQLite edits cannot update it
+                    # without invalidating that chain.
+                    "record_integrity_sha256": _record_integrity_sha256(
+                        stored_record
+                    ),
                 },
             )
-            stored_record = self.store.get_record(subject_id, record_id)
-            assert stored_record is not None
             graph_mutations = self.graph.supersede_records(
                 subject_id, old_ids, record_id
             )
@@ -4676,6 +4708,8 @@ class Memory:
                 fact_key=normalized_fact_key,
                 raw={"evidence": evidence, "proposer": proposer},
             )
+            record = self.store.get_record(subject_id, record_id)
+            assert record is not None
             self.store.append_audit_event(
                 subject_id=subject_id,
                 event_type="memory.record_quarantined",
@@ -4691,10 +4725,9 @@ class Memory:
                     "scope": "user_private",
                     "evidence": evidence,
                     "content_sha256": _sha256(content),
+                    "record_integrity_sha256": _record_integrity_sha256(record),
                 },
             )
-            record = self.store.get_record(subject_id, record_id)
-            assert record is not None
             self._audit_graph_mutations(
                 subject_id,
                 self.graph.index_record(record),
@@ -5174,6 +5207,107 @@ class Memory:
                 sink.write(canonical_json(document) + "\n")
         return document
 
+    def _verify_record_integrity(self, subject_id: str) -> dict[str, Any]:
+        """Compare current record rows with commitments in the audit chain.
+
+        Older stores remain verifiable: enforcement starts only when at least
+        one record event carries the 2.3.8 whole-row commitment. Record IDs
+        created by older events stay known, so writing one new committed record
+        does not misclassify every pre-upgrade row as forged.
+        """
+        events = self.store.list_audit_events(subject_id)
+        commitments: dict[str, str] = {}
+        known_record_ids: set[str] = set()
+        legitimately_changed: set[str] = set()
+        creation_events = {
+            "memory.record_created",
+            "memory.record_quarantined",
+        }
+        for event in events:
+            payload = event.get("payload") or {}
+            record_id = str(event.get("record_id") or "")
+            if event.get("event_type") in creation_events and record_id:
+                known_record_ids.add(record_id)
+                commitment = str(payload.get("record_integrity_sha256") or "")
+                if re.fullmatch(r"[0-9a-f]{64}", commitment):
+                    commitments[record_id] = commitment
+            for key in ("record_ids", "candidate_ids"):
+                known_record_ids.update(
+                    str(value) for value in payload.get(key, ()) if value
+                )
+            if event.get("event_type") == "media.observation_admitted":
+                observed_id = str(payload.get("record_id") or record_id)
+                if observed_id:
+                    known_record_ids.add(observed_id)
+            for key in (
+                "supersedes",
+                "purged_record_ids",
+                "duplicates_superseded",
+                "fact_key_repaired",
+            ):
+                legitimately_changed.update(
+                    str(value) for value in payload.get(key, ()) if value
+                )
+            if event.get("event_type") in {
+                "memory.record_promoted",
+                "memory.record_rejected",
+            } and record_id:
+                legitimately_changed.add(record_id)
+            if event.get("event_type") == "memory.record_corrected":
+                replaced = str(payload.get("replaces_record_id") or "")
+                if replaced:
+                    legitimately_changed.add(replaced)
+
+        if not commitments:
+            return {
+                "enabled": False,
+                "valid": True,
+                "committed_records": 0,
+                "records_checked": 0,
+                "failures": [],
+            }
+
+        current = {
+            str(row["id"]): row
+            for row in self.store.list_records(subject_id, statuses=None)
+        }
+        failures: list[dict[str, Any]] = []
+        checked = 0
+        for record_id, expected in sorted(commitments.items()):
+            if record_id in legitimately_changed:
+                continue
+            record = current.get(record_id)
+            if record is None:
+                failures.append({
+                    "record_id": record_id,
+                    "reason": "record committed by the audit chain is missing",
+                })
+                continue
+            checked += 1
+            if not hmac.compare_digest(_record_integrity_sha256(record), expected):
+                failures.append({
+                    "record_id": record_id,
+                    "reason": "record row does not match its chained integrity commitment",
+                })
+
+        for record_id, record in sorted(current.items()):
+            if (
+                record_id not in known_record_ids
+                and str(record.get("status") or "") != "tombstoned"
+            ):
+                failures.append({
+                    "record_id": record_id,
+                    "reason": "record has no creation event in the audit chain",
+                })
+
+        return {
+            "enabled": True,
+            "valid": not failures,
+            "committed_records": len(commitments),
+            "records_checked": checked,
+            "failures": failures,
+        }
+
     def verify(
         self,
         subject_id: str | None = None,
@@ -5194,6 +5328,7 @@ class Memory:
             incremental_report = (
                 self.store.verify_audit_chain_incremental(sid) if incremental else None
             )
+            record_integrity = self._verify_record_integrity(sid)
             subjects[sid] = {
                 "chain_valid": (
                     incremental_report["valid"]
@@ -5202,6 +5337,7 @@ class Memory:
                 ),
                 "verification_mode": "incremental" if incremental else "full",
                 "incremental": incremental_report,
+                "record_integrity": record_integrity,
                 "checkpoints_checked": 0,
                 "failures": (
                     [
@@ -5215,6 +5351,14 @@ class Memory:
                     else []
                 ),
             }
+            subjects[sid]["failures"].extend(
+                {
+                    "checkpoint": None,
+                    "record_id": failure["record_id"],
+                    "reason": failure["reason"],
+                }
+                for failure in record_integrity["failures"]
+            )
 
         for document in _load_checkpoints(checkpoints_path):
             recomputed = dict(document)
