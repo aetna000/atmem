@@ -420,6 +420,26 @@ def test_finalization_gate_rejects_reasoning_only_and_stale_evidence() -> None:
         validate_finalization_gate(gate, expected_identity=stale)
 
 
+def test_finalization_gate_binds_optional_diagnostic_profile() -> None:
+    gate = _finalization_gate()
+    diagnostic = deepcopy(gate)
+    diagnostic["identity"]["diagnostic_profile_sha256"] = "sha256:" + "a" * 64
+    diagnostic["identity_sha256"] = finalization_identity(diagnostic["identity"])
+    for probe in diagnostic["probes"]:
+        probe["artifact_sha256"] = probe_artifact_identity(
+            probe, diagnostic["identity"]
+        )
+
+    validate_finalization_gate(
+        diagnostic,
+        expected_identity=diagnostic["identity"],
+    )
+    mismatched = deepcopy(diagnostic["identity"])
+    mismatched["diagnostic_profile_sha256"] = "sha256:" + "b" * 64
+    with pytest.raises(ValueError, match="another configuration"):
+        validate_finalization_gate(diagnostic, expected_identity=mismatched)
+
+
 def test_finalization_gate_rejects_sampling_relabel_retry_nan_and_wrong_probe_set() -> None:
     gate = _finalization_gate()
     changed = deepcopy(gate["identity"])

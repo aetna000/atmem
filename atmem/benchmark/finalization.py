@@ -53,7 +53,10 @@ def finalization_identity(value: Mapping[str, Any]) -> str:
     missing = [name for name in required if identity.get(name) in (None, "")]
     if missing:
         raise ValueError("finalization identity is missing: " + ", ".join(missing))
-    return canonical_digest({name: identity[name] for name in required})
+    bound = {name: identity[name] for name in required}
+    if identity.get("diagnostic_profile_sha256") not in (None, ""):
+        bound["diagnostic_profile_sha256"] = identity["diagnostic_profile_sha256"]
+    return canonical_digest(bound)
 
 
 def validate_finalization_gate(
