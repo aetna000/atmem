@@ -126,10 +126,12 @@
     "candidate_atmem_version": "2.3.8b6",
     "official_runtime_packages": {
       "huggingface_hub": "1.33.0",
+      "mem0ai": "2.1.0",
       "numpy": "2.5.3",
       "openai": "3.19.2",
       "openai-agents": "0.22.3",
       "pillow": "12.3.0",
+      "sqlcipher3": "0.6.2",
       "torch": "2.6.0",
       "torchvision": "0.21.0",
       "tqdm": "4.70.1",
