@@ -5174,6 +5174,182 @@ class Memory:
                 sink.write(canonical_json(document) + "\n")
         return document
 
+    def _verify_record_bindings(self, subject_id: str) -> dict[str, Any]:
+        """Reconcile stored records with their hash-chained creation evidence.
+
+        The audit chain proves that audit events were not edited in place.  It
+        does not, by itself, prove that the independently mutable ``records``
+        table still contains the rows those events committed.  Replay the
+        record-producing events here and compare their immutable fields with
+        the rows currently served by memory reads.
+
+        Tombstoned records deliberately have their content and identifying
+        metadata scrubbed, so their continued presence is checked without
+        comparing the erased fields.  Whole-store rollback remains outside
+        this check's threat model and requires an external checkpoint.
+        """
+        events = self.store.list_audit_events(subject_id)
+        bindings: dict[str, dict[str, Any]] = {}
+
+        for event in events:
+            event_type = str(event.get("event_type") or "")
+            payload = event.get("payload") or {}
+            record_ids: list[str] = []
+            if event_type in {"memory.record_created", "memory.record_quarantined"}:
+                if event.get("record_id"):
+                    record_ids = [str(event["record_id"])]
+            elif event_type in {
+                "memory.proposal_admitted_v1",
+                "memory.proposal_committed",
+                "memory.proposal_reviewed",
+            }:
+                record_ids = [
+                    str(value)
+                    for value in (
+                        list(payload.get("record_ids") or ())
+                        + list(payload.get("candidate_ids") or ())
+                    )
+                    if value
+                ]
+            elif event_type == "media.observation_admitted":
+                value = payload.get("record_id") or event.get("record_id")
+                if value:
+                    record_ids = [str(value)]
+
+            for record_id in record_ids:
+                binding = bindings.setdefault(
+                    record_id,
+                    {
+                        "record_id": record_id,
+                        "event_type": event_type,
+                        "event_id": event.get("event_id"),
+                    },
+                )
+                if payload.get("content_sha256"):
+                    binding["content_sha256"] = str(payload["content_sha256"])
+                elif event_type == "media.observation_admitted" and payload.get(
+                    "text_sha256"
+                ):
+                    binding["content_sha256"] = str(payload["text_sha256"])
+                for field in (
+                    "source_type",
+                    "trust_tier",
+                    "scope",
+                    "fact_key",
+                    "confidence",
+                ):
+                    if field in payload:
+                        binding[field] = payload[field]
+                if event_type == "media.observation_admitted":
+                    binding.update(
+                        {
+                            "source_type": "tool_output",
+                            "trust_tier": TRUST_TIER_UNTRUSTED,
+                            "scope": "media_observation",
+                            "fact_key": None,
+                            "confidence": None,
+                        }
+                    )
+
+            # Replay governed lifecycle changes. These fields may legitimately
+            # differ from the original creation event, but only when the chain
+            # contains the corresponding transition.
+            superseded_ids = list(payload.get("supersedes") or ()) + list(
+                payload.get("superseded_record_ids") or ()
+            )
+            for superseded_id in superseded_ids:
+                if str(superseded_id) in bindings:
+                    bindings[str(superseded_id)]["expected_status"] = "superseded"
+            if event_type == "memory.record_promoted" and event.get("record_id"):
+                promoted_id = str(event["record_id"])
+                if promoted_id in bindings:
+                    bindings[promoted_id]["expected_status"] = "active"
+                    if "trust_tier" in payload:
+                        bindings[promoted_id]["trust_tier"] = payload["trust_tier"]
+            if event_type in {"memory.forget", "memory.record_rejected"}:
+                for purged_id in payload.get("purged_record_ids") or ():
+                    if str(purged_id) in bindings:
+                        bindings[str(purged_id)]["expected_status"] = "tombstoned"
+
+        for binding in bindings.values():
+            if "expected_status" not in binding and "status" in binding:
+                binding["expected_status"] = binding["status"]
+
+        records = {
+            str(record["id"]): record
+            for record in self.store.list_records(subject_id, statuses=None)
+        }
+        failures: list[dict[str, Any]] = []
+
+        for record_id, binding in bindings.items():
+            record = records.get(record_id)
+            if record is None:
+                failures.append(
+                    {
+                        "record_id": record_id,
+                        "reason": "record committed by the audit chain is missing",
+                    }
+                )
+                continue
+            expected_status = binding.get("expected_status")
+            if expected_status is not None and record.get("status") != expected_status:
+                failures.append(
+                    {
+                        "record_id": record_id,
+                        "field": "status",
+                        "reason": "record status does not match its audited lifecycle",
+                    }
+                )
+            if expected_status == "tombstoned" and record.get("status") == "tombstoned":
+                continue
+            expected_digest = binding.get("content_sha256")
+            if expected_digest and _sha256(str(record.get("content") or "")) != str(
+                expected_digest
+            ).removeprefix("sha256:"):
+                failures.append(
+                    {
+                        "record_id": record_id,
+                        "field": "content",
+                        "reason": "record content does not match its audit binding",
+                    }
+                )
+            for field in (
+                "source_type",
+                "trust_tier",
+                "scope",
+                "fact_key",
+                "confidence",
+            ):
+                if field not in binding:
+                    continue
+                actual = record.get(field)
+                expected = binding[field]
+                if actual != expected:
+                    failures.append(
+                        {
+                            "record_id": record_id,
+                            "field": field,
+                            "reason": f"record {field} does not match its audit binding",
+                        }
+                    )
+
+        for record_id in sorted(set(records) - set(bindings)):
+            record = records[record_id]
+            if record.get("status") != "tombstoned":
+                failures.append(
+                    {
+                        "record_id": record_id,
+                        "reason": "stored record has no record-producing audit event",
+                    }
+                )
+
+        return {
+            "valid": not failures,
+            "bindings_checked": len(bindings),
+            "records_checked": len(records),
+            "failures": failures,
+        }
+
     def verify(
         self,
         subject_id: str | None = None,
@@ -5194,6 +5370,7 @@ class Memory:
             incremental_report = (
                 self.store.verify_audit_chain_incremental(sid) if incremental else None
             )
+            record_bindings = self._verify_record_bindings(sid)
             subjects[sid] = {
                 "chain_valid": (
                     incremental_report["valid"]
@@ -5202,6 +5379,7 @@ class Memory:
                 ),
                 "verification_mode": "incremental" if incremental else "full",
                 "incremental": incremental_report,
+                "record_bindings": record_bindings,
                 "checkpoints_checked": 0,
                 "failures": (
                     [
@@ -5215,6 +5393,13 @@ class Memory:
                     else []
                 ),
             }
+            subjects[sid]["failures"].extend(
+                {
+                    "checkpoint": None,
+                    **failure,
+                }
+                for failure in record_bindings["failures"]
+            )
 
         for document in _load_checkpoints(checkpoints_path):
             recomputed = dict(document)
