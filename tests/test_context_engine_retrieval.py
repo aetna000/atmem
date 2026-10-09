@@ -523,6 +523,35 @@ def test_negative_premise_retrieval_uses_premise_pool() -> None:
         store.close()
 
 
+def test_sufficiency_detects_conflicting_approved_values_in_bounded_evidence() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("operations", "The operations note approves a batch size of 32."),
+            ("runbook", "The signed runbook approves a batch size of 64 for the same job."),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation)
+        query = "What is the approved batch size?"
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=2,
+        )
+        decision = decide_sufficiency(plan, result)
+        assert len(result.candidates) == 2
+        assert decision.status == "conflicted"
+        assert set(decision.conflicting_unit_ids) == {
+            item.unit_id for item in result.candidates
+        }
+    finally:
+        store.close()
+
+
 def test_packing_preserves_obligation_order_and_one_total_byte_budget() -> None:
     store = SQLiteStore(":memory:")
     try:
