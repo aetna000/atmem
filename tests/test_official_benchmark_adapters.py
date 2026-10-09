@@ -504,6 +504,9 @@ def test_longmem_mac_controller_runs_exactly_one_case_at_a_time() -> None:
     assert "max(1, len(llm_work))" not in source
     assert "ThreadPoolExecutor(max_workers=controller_case_concurrency)" in source
     assert "run_batch(non_llm_work, max_workers=1" in source
+    assert source.index(
+        'billing = dict(requirements["reader_runtime_billing"])'
+    ) < source.index('"gpu_reader_hardware": billing["hardware_id"]')
 
 
 def test_longmem_controller_can_retain_shared_remote_worker() -> None:

@@ -456,6 +456,7 @@ def main() -> None:
     reader = dict(protocol["models"]["longmemeval_reader"])
     judge = dict(protocol["models"]["longmemeval_judge"])
     requirements = dict(protocol["paid_run_requirements"])
+    billing = dict(requirements["reader_runtime_billing"])
     prebuilt_root_value = os.environ.get("ATMEM_LME_PREBUILT_ROOT", "").strip()
     if not prebuilt_root_value:
         raise RuntimeError("paid pilot requires ATMEM_LME_PREBUILT_ROOT")
@@ -580,7 +581,6 @@ def main() -> None:
     }
     _write_progress(progress_path, progress)
     requirements = dict(protocol["paid_run_requirements"])
-    billing = dict(requirements["reader_runtime_billing"])
     pod_id = os.environ.get("ATMEM_RUNPOD_POD_ID", "").strip()
     reader_base_url = os.environ.get("ATMEM_READER_BASE_URL", "").strip()
     reader_api_key = os.environ.get("RUNPOD_READER_API_KEY", "").strip()
