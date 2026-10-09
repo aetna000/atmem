@@ -675,6 +675,11 @@ class DeterministicRetriever:
         # policy note from crowding out one compact episode that contains the
         # requested facts. No evaluator requirement or answer enters ranking.
         action_facets = _action_content_facets(query)
+        contact_address_needed = bool(action_facets) and bool(re.search(
+            r"\b(?:contact|recipient|copy|cc|email address)\b",
+            query,
+            re.IGNORECASE,
+        ))
         request_terms = set(_fts_terms(query))
         source_request_coverage_cache: dict[str, int] = {}
         source_prefix_cache: dict[str, str] = {}
@@ -705,11 +710,6 @@ class DeterministicRetriever:
                 for pool in ("entity", "fact", "rule", "raw_state"):
                     for item in by_pool_query.get((pool, facet), ()):
                         source_rows.setdefault(item.source_id, []).append(item)
-            contact_address_needed = bool(re.search(
-                r"\b(?:contact|recipient|copy|cc|email address)\b",
-                query,
-                re.IGNORECASE,
-            ))
             ranked_bridges: list[
                 tuple[int, float, int, int, float, str, RetrievedCandidate]
             ] = []
@@ -766,7 +766,7 @@ class DeterministicRetriever:
                             r"\.[A-Za-z]{2,}\b",
                             neighbor.text,
                         )
-                    ), None)
+                    ), None) if contact_address_needed else None
                     if adjacent_identifier is not None and len(selected) < max_sources:
                         selected.append(adjacent_identifier)
                         used_units.add(adjacent_identifier.unit_id)
@@ -796,7 +796,7 @@ class DeterministicRetriever:
                         r"\.[A-Za-z]{2,}\b",
                         neighbor.text,
                     )
-                ), None)
+                ), None) if contact_address_needed else None
                 if adjacent_identifier is not None and len(selected) < max_sources:
                     selected.append(adjacent_identifier)
                     used_units.add(adjacent_identifier.unit_id)
@@ -866,13 +866,12 @@ class DeterministicRetriever:
                 candidate = min(
                     rows,
                     key=lambda item: (
+                        -identity_markers(item) if identity_seeking else 0,
                         0 if exact_temporal_source(item) else 1,
-                        0 if not identity_seeking or identity_markers(item) else 1,
-                        -len(facet_terms & set(_fts_terms(item.text))),
-                        len(item.text.encode("utf-8")) if identity_seeking else 0,
                         -source_request_coverage(item.source_id)
                         if action_facets else 0,
-                        -identity_markers(item) if identity_seeking else 0,
+                        -len(facet_terms & set(_fts_terms(item.text))),
+                        0,
                         len(item.text.encode("utf-8")),
                         -item.score,
                         item.source_id,
@@ -890,7 +889,11 @@ class DeterministicRetriever:
                     supplemental_priority_units.add(candidate.unit_id)
                     if action_facets:
                         content_bridge_units.add(candidate.unit_id)
-                if identity_seeking and "@" not in candidate.text:
+                if (
+                    contact_address_needed
+                    and identity_seeking
+                    and "@" not in candidate.text
+                ):
                     adjacent_identifier = next((
                         neighbor
                         for neighbor in self._neighbors(
