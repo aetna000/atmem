@@ -376,6 +376,46 @@ class DeterministicRetriever:
             ))
         return tuple(values)
 
+    def _source_query_head(
+        self, generation_id: str, seed: RetrievedCandidate, query: str,
+    ) -> RetrievedCandidate:
+        """Choose the exact range in one nominated source best aligned to the request."""
+        rows = self.store._conn.execute(
+            """SELECT u.unit_id, r.part_id, r.start_offset, r.end_offset,
+                      p.content_bytes
+               FROM context_evidence_units u
+               JOIN context_unit_views v
+                 ON v.generation_id=u.generation_id AND v.unit_id=u.unit_id
+               JOIN context_unit_ranges ur
+                 ON ur.generation_id=u.generation_id AND ur.unit_id=u.unit_id
+               JOIN context_source_ranges r USING(range_id)
+               JOIN context_source_parts p
+                 ON p.source_id=r.source_id AND p.part_id=r.part_id
+               WHERE u.generation_id=? AND r.source_id=?
+                 AND u.lifecycle='active' AND v.kind='raw_state'
+               ORDER BY p.ordinal, r.start_offset, r.end_offset, u.unit_id""",
+            (generation_id, seed.source_id),
+        ).fetchall()
+        query_terms = set(_fts_terms(query))
+        candidates: list[RetrievedCandidate] = []
+        for row in rows:
+            body = bytes(row["content_bytes"])
+            start, end = int(row["start_offset"]), int(row["end_offset"])
+            candidates.append(RetrievedCandidate(
+                unit_id=str(row["unit_id"]), kind="raw_state",
+                source_id=seed.source_id, part_id=str(row["part_id"]),
+                start=start, end=end,
+                text=body[start:end].decode("utf-8", errors="replace"),
+                score=seed.score, matched_obligation_ids=(),
+            ))
+        return max(
+            candidates or [seed],
+            key=lambda item: (
+                len(query_terms & set(_fts_terms(item.text))),
+                -len(item.text.encode("utf-8")), item.unit_id,
+            ),
+        )
+
     def retrieve(
         self, *, generation_id: str, query: str, plan: QueryPlan, max_sources: int,
         allowed_unit_ids: frozenset[str] | None = None,
@@ -673,6 +713,9 @@ class DeterministicRetriever:
                     head.score, source_id, head,
                 ))
             for *_rank, candidate in sorted(ranked_bridges, reverse=True)[:3]:
+                candidate = self._source_query_head(
+                    generation_id, candidate, query
+                )
                 if (
                     candidate.unit_id in used_units
                     or candidate.source_id in used_sources
@@ -747,6 +790,10 @@ class DeterministicRetriever:
                         item.unit_id,
                     ),
                 )
+                if facet in action_facets:
+                    candidate = self._source_query_head(
+                        generation_id, candidate, query
+                    )
                 if candidate.unit_id not in used_units:
                     selected.append(candidate)
                     used_units.add(candidate.unit_id)
@@ -934,6 +981,17 @@ class DeterministicRetriever:
         # coverage but cannot by itself satisfy a requirement.
         head_limit = 8 if action_facets else 4
         heads = tuple(selected[: max(1, min(head_limit, len(selected)))])
+        if action_facets:
+            request_terms = set(_fts_terms(query))
+            heads = tuple(sorted(
+                heads,
+                key=lambda item: (
+                    item.unit_id not in content_bridge_units,
+                    -len(request_terms & set(_fts_terms(item.text))),
+                    -item.score,
+                    item.unit_id,
+                ),
+            ))
         ordered_step_ids = {
             item.obligation_id for item in plan.obligations
             if item.kind == "ordered_steps"
@@ -982,6 +1040,7 @@ class DeterministicRetriever:
             )
             if neighbor.unit_id not in used_units
         ]
+        head_units = {item.unit_id for item in heads}
         retained_neighbor_units: set[str] = set()
         for neighbor in neighbors:
             if len(selected) < max_sources:
@@ -990,7 +1049,9 @@ class DeterministicRetriever:
                 protected_units = {
                     item.unit_id for item in selected
                     if item.matched_obligation_ids
-                } | supplemental_priority_units | retained_neighbor_units
+                } | (
+                    supplemental_priority_units - content_bridge_units
+                ) | head_units | retained_neighbor_units
                 replace_at = next(
                     (
                         index for index in range(len(selected) - 1, -1, -1)

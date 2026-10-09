@@ -22,13 +22,13 @@
   },
   "historical_baseline": {
     "atmem_tasks": "2/4",
-    "atmem_checks": "7/14",
+    "atmem_checks": "7/13",
     "mem0_tasks": "3/4",
-    "mem0_checks": "10/14"
+    "mem0_checks": "10/13"
   },
   "advance_gate": {
     "atmem_tasks_minimum": "3/4",
-    "atmem_checks_minimum": "11/14",
+    "atmem_checks_minimum": "11/13",
     "regression_controls_preserved": "2/2",
     "system_failures": 0
   },

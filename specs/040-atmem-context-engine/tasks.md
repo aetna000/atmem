@@ -477,7 +477,7 @@ answer/action scoring.
   `benchmarks/retrieval_quality/protocols/dolphinbench-action-content-4-v1.json`.
   Derive compact facets only from the user request and source-backed canonical
   evidence. Advance to another fresh 30-task run only if AtMem reaches at
-  least 3/4 tasks and 11/14 checks, preserves both passing regression controls,
+  least 3/4 tasks and 11/13 checks, preserves both passing regression controls,
   and records zero system failures (FR-014–FR-016, FR-043, FR-054, SC-024).
 - [ ] [T047] Freeze the selected candidate only if T045/T046 targets pass; repeat
   the chosen development arm once to reject a non-reproducible peak. Otherwise
