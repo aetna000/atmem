@@ -4,7 +4,7 @@
   "claim": "matched-development-samples-not-official-benchmark-scores",
   "candidate": {
     "version": "2.3.8b6",
-    "benchmark_commit": "8fdb862e96f737b46c573ae9c9e9d9790d546592"
+    "benchmark_commit": "b97d35e1df7ee6ef435928bafb8189ac99a1856d"
   },
   "longmemeval_v2": {
     "sample": "frozen-23-of-451",
@@ -101,6 +101,35 @@
       "wheel_sha256": "7d4787888e398847f1574e02242160fcfbc062f1f9856c9900014c0dfb526e55"
     }
   },
+  "dolphinbench_final_b97d35e": {
+    "sample": "frozen-30-of-600",
+    "source_commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
+    "candidate_commit": "b97d35e1df7ee6ef435928bafb8189ac99a1856d",
+    "split_sha256": "60c681f8e7ce0796ec0209294c885abe7dc0fe5a594226aa1035c401535658de",
+    "arms": {
+      "atmem": {
+        "tasks_passed": 9,
+        "tasks": 30,
+        "checks_passed": 32,
+        "checks": 97,
+        "system_failures": 0
+      },
+      "mem0-oss": {
+        "tasks_passed": 7,
+        "tasks": 30,
+        "checks_passed": 27,
+        "checks": 97,
+        "system_failures": 0
+      }
+    },
+    "artifacts": {
+      "summary": "dolphinbench-final-b97d35e.json",
+      "atmem_evaluation_sha256": "aa5242c509f4748a4ab067a56e8bedda3787abfdbc6e0df0ce63b80e936fd358",
+      "mem0_evaluation_sha256": "2283f4b6c2c3ded66005171abeed395c2614378f3445af1ef656d259afbb712b",
+      "atmem_finalization_gate_sha256": "ec3541ff5f5f625ef2623dfd6e10d3ca1059d650e071949002562acbc886427e",
+      "wheel_sha256": "6ac2cc33e7a17792b15aeddbdf1d5a24efdb159e16781962503b69b37adfa97e"
+    }
+  },
   "agmi": {
     "source_commit": "115493a41a7b41952f92ec07e1ea0932926e194f",
     "source_package_version": "0.6.3",
@@ -118,8 +147,8 @@
     "These are fixed development samples, not official or statistically representative leaderboard scores.",
     "LongMemEval terminal eight-stage requirement attribution remains pending reviewed evaluator ledgers.",
     "The Mem0 Dolphin arm ran without optional spaCy and fastembed extras.",
-    "The fresh DolphinBench rerun favors Mem0 by three tasks and seven checks on this sample.",
-    "The fresh AtMem Dolphin arm retained one provider failure in the denominator.",
+    "The final DolphinBench rerun favors AtMem by two tasks and five checks on this sample, but does not establish full-benchmark superiority.",
+    "The final AtMem and matched Mem0 Dolphin arms retained zero system failures.",
     "No broad superiority claim is supported by these results."
   ]
 }
