@@ -112,6 +112,86 @@ def _coverage_order(
     return ordered
 
 
+_ACTION_PACK_STOP = frozenset({
+    "a", "an", "and", "at", "be", "became", "by", "for", "from", "how",
+    "i", "in", "is", "it", "me", "of", "on", "or", "please", "send",
+    "email", "message", "post", "notify", "ask", "summarizing", "summary",
+    "the", "to", "what", "whether", "why", "with",
+})
+
+
+def _action_source_order(
+    candidates: list[RetrievedCandidate], plan: QueryPlan,
+) -> list[RetrievedCandidate]:
+    """Keep the strongest action evidence episode complete and contiguous.
+
+    Addressed actions frequently need several facts from one immutable episode.
+    Interleaving those ranges with recipient records and loosely related caveats
+    makes a reader omit exact values or over-apply an older boundary even though
+    retrieval found the right source.  Rank *source groups* by request coverage,
+    then retain source order inside each group.  The rank uses only the user's
+    information needs and source text; it has no access to benchmark answers.
+    """
+    action_need = any(re.match(
+        r"\s*(?:email|send|message|post|notify|ask)\b",
+        item.relation_or_action,
+        re.IGNORECASE,
+    ) for item in plan.obligations)
+    if not action_need or len(candidates) < 2:
+        return candidates
+
+    need_terms = {
+        token.casefold()
+        for item in plan.obligations
+        for token in re.findall(
+            r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*",
+            " ".join(filter(None, (item.entity, item.relation_or_action))),
+        )
+        if len(token) > 1 and token.casefold() not in _ACTION_PACK_STOP
+    }
+    if not need_terms:
+        return candidates
+
+    groups: dict[str, list[tuple[int, RetrievedCandidate]]] = {}
+    for index, candidate in enumerate(candidates):
+        groups.setdefault(candidate.source_id, []).append((index, candidate))
+
+    def rank(group: list[tuple[int, RetrievedCandidate]]) -> tuple[int, int, float, int]:
+        text_terms = {
+            token.casefold()
+            for _, candidate in group
+            for token in re.findall(
+                r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*", candidate.text
+            )
+        }
+        covered = len(need_terms & text_terms)
+        byte_count = max(1, sum(
+            len(candidate.text.encode("utf-8")) for _, candidate in group
+        ))
+        obligation_coverage = len({
+            obligation_id
+            for _, candidate in group
+            for obligation_id in candidate.matched_obligation_ids
+        })
+        return (-obligation_coverage, -covered, -covered / byte_count, group[0][0])
+
+    ordered: list[RetrievedCandidate] = []
+    for group in sorted(groups.values(), key=rank):
+        ordered.extend(
+            candidate
+            for _, candidate in sorted(
+                group,
+                key=lambda pair: (
+                    pair[1].part_id,
+                    pair[1].start,
+                    pair[1].end,
+                    pair[0],
+                ),
+            )
+        )
+    return ordered
+
+
 def pack_context(
     plan: QueryPlan,
     result: RetrievalResult,
@@ -140,6 +220,7 @@ def pack_context(
         )
     ]
     candidates = _coverage_order(candidates, plan)
+    candidates = _action_source_order(candidates, plan)
     # A single information need should receive a compact evidence package,
     # not 32 KiB of loosely related UI states. Required evidence still has
     # first claim on the budget; this cap only removes supplemental noise.

@@ -843,6 +843,51 @@ def test_single_need_packing_keeps_grounding_head_first_and_bounded() -> None:
     assert len(packed.context.encode()) <= 16_384
 
 
+def test_action_packing_keeps_complete_best_source_neighborhood_contiguous() -> None:
+    plan = DeterministicPlanner().plan(
+        "Send Priya a message summarizing the January 29 OAuth-cancel mature "
+        "read and why empty source-list explanation became the next focus."
+    )
+    obligation_ids = tuple(item.obligation_id for item in plan.obligations)
+    identity = RetrievedCandidate(
+        unit_id="identity", kind="exact_fact", source_id="identity-source",
+        part_id="text", start=0, end=30,
+        text="Priya is the product owner.", score=10.0,
+        matched_obligation_ids=obligation_ids[:1],
+    )
+    complete_late = RetrievedCandidate(
+        unit_id="complete-late", kind="raw_state", source_id="mature-read",
+        part_id="text", start=80, end=160,
+        text="Empty source-list explanation became the next activation focus.",
+        score=8.0, matched_obligation_ids=obligation_ids[1:],
+    )
+    noise = RetrievedCandidate(
+        unit_id="noise", kind="raw_state", source_id="old-note",
+        part_id="text", start=0, end=50,
+        text="OAuth-cancel planning note without a mature result.", score=9.0,
+        matched_obligation_ids=(),
+    )
+    complete_early = RetrievedCandidate(
+        unit_id="complete-early", kind="raw_state", source_id="mature-read",
+        part_id="text", start=0, end=80,
+        text="January 29 mature OAuth-cancel read: setup fell from 41 to 14.",
+        score=8.0, matched_obligation_ids=obligation_ids[:1],
+    )
+    result = RetrievalResult(
+        candidates=(identity, complete_late, noise, complete_early),
+        searched_pools=("exact_fact", "raw_state"), scanned_units=4,
+        exhausted=False,
+    )
+    decision = decide_sufficiency(plan, result)
+
+    packed = pack_context(plan, result, decision, max_bytes=16_384)
+
+    assert packed.included_unit_ids[:2] == ("complete-early", "complete-late")
+    assert packed.included_unit_ids.index("complete-late") + 1 == packed.included_unit_ids.index(
+        "identity"
+    )
+
+
 def test_option_packing_covers_named_fields_before_redundant_states() -> None:
     plan = DeterministicPlanner().plan(
         "Which option contains fields present on the Problem table?\n\n"
