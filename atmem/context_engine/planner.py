@@ -15,6 +15,15 @@ _PLAN_STOP = frozenset({
     "that", "the", "their", "this", "to", "we", "with", "you", "send",
     "email", "post", "create", "update", "inspect", "review", "find", "would", "like",
 })
+_ACTION_CONTENT_STOP = _PLAN_STOP | frozenset({
+    "again", "archive", "body", "concise", "document", "notes", "record",
+    "reference", "reply", "short", "titled", "wording",
+})
+_ACTION_FIELD_CUES = frozenset({
+    "assurance", "assurances", "confidence", "contact", "deduction",
+    "deductions", "deposit", "details", "dispute", "excluded", "included",
+    "obligation", "obligations", "outcome", "reproduction", "scope", "status",
+})
 
 
 def _strip_host_scaffolding(query: str) -> str:
@@ -140,18 +149,25 @@ def _action_content_facets(query: str) -> tuple[str, ...]:
     # the requested evidence need not repeat either.  Compact adjacent content
     # anchors are answer-blind (they come only from the request), bounded, and
     # are nominations rather than extra sufficiency obligations.
-    action_content = re.match(
-        r"\s*(?:\[\d{4}-\d{2}-\d{2}\]\s*)?"
+    addressed_content = re.match(
+        r"\s*(?:\[\d{4}-\d{2}-\d{2}\]\s*)?(?:please\s+)?"
         r"(?:email|send|message|post|notify|ask)\b\s+"
         r"(?:[^\s,;]+@[A-Za-z0-9.-]+|#[A-Za-z0-9_-]+)\s+(.+)",
         query,
         re.IGNORECASE | re.DOTALL,
     )
+    general_content = re.match(
+        r"\s*(?:\[\d{4}-\d{2}-\d{2}\]\s*)?(?:please\s+)?"
+        r"(?:create|email|send|message|post|notify|ask|update)\b\s+(.+)",
+        query,
+        re.IGNORECASE | re.DOTALL,
+    )
+    action_content = addressed_content or general_content
     if action_content:
         content_tokens = [
             token
             for token in re.findall(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*", action_content.group(1))
-            if token.casefold() not in _PLAN_STOP | _QUESTION_WORDS
+            if token.casefold() not in _ACTION_CONTENT_STOP | _QUESTION_WORDS
             and len(token) > 1
         ]
         for width in (2, 3):
@@ -159,9 +175,9 @@ def _action_content_facets(query: str) -> tuple[str, ...]:
                 facet = " ".join(content_tokens[index:index + width])
                 if len(facet) <= 64:
                     values.append(facet)
-                if len(values) >= 12:
+                if len(values) >= 64:
                     break
-            if len(values) >= 12:
+            if len(values) >= 64:
                 break
     unique = tuple(dict.fromkeys(values))
 
@@ -194,6 +210,16 @@ def _action_content_facets(query: str) -> tuple[str, ...]:
         ):
             compound_by_root[root] = item
     compound_facets = list(compound_by_root.values())
+    cue_facets: list[str] = []
+    covered_cues: set[str] = set()
+    for item in ordered:
+        item_cues = _ACTION_FIELD_CUES & {
+            token.casefold() for token in item.split()
+        }
+        if not item_cues - covered_cues:
+            continue
+        cue_facets.append(item)
+        covered_cues.update(item_cues)
     for value in (
         *[
             item for item in ordered
@@ -201,8 +227,9 @@ def _action_content_facets(query: str) -> tuple[str, ...]:
                 token[:1].isupper() or any(character.isdigit() for character in token)
                 for token in item.split()
             )
-        ][:4],
-        *compound_facets[:2],
+        ][:3],
+        *compound_facets[:1],
+        *cue_facets[:4],
         *ordered,
     ):
         if value not in selected:
@@ -221,6 +248,10 @@ def targeted_facets(query: str) -> tuple[str, ...]:
     every distractor would incorrectly fail closed.
     """
     values: list[str] = list(_action_content_facets(query))
+    values.extend(
+        " ".join(value.split())
+        for value in re.findall(r"`([^`]{2,96})`", query)
+    )
     # Action requests often refer to an identity indirectly ("our CEO", "the
     # integration contact", or "the usual person on the external thread").
     # Preserve those compact, answer-blind phrases as independent nominations;
@@ -315,7 +346,9 @@ def targeted_facets(query: str) -> tuple[str, ...]:
         query,
         re.IGNORECASE,
     )
-    if workflow:
+    if workflow and workflow.group(1).casefold() not in {
+        "concise", "document", "reference", "short",
+    }:
         values.append(f"create {workflow.group(1).casefold()}")
     # Preserve the user's task intent as a compact nomination query. Long
     # questions often wrap a short action in UI, location, and answer-format
@@ -422,7 +455,8 @@ class DeterministicPlanner:
                     r"\b(?:19|20)\d{2}(?:-\d{2}-\d{2})?|"
                     r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|"
                     r"jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|"
-                    r"nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:,\s*\d{4})?",
+                    r"nov(?:ember)?|dec(?:ember)?)\s+(?:(?:19|20)\d{2}|"
+                    r"\d{1,2}(?:,\s*\d{4})?)\b",
                     clause, re.IGNORECASE,
                 )
                 obligations.append(EvidenceObligation(

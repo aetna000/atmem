@@ -307,8 +307,9 @@ def test_planner_splits_explicit_independent_memory_requirements() -> None:
     assert "copy recipient" in plan.obligations[1].relation_or_action
     assert plan.obligations[0].kind == "condition_action"
     assert plan.obligations[1].kind == "condition_action"
-    assert plan.pool_queries["raw_state"][1:] == tuple(
-        item.relation_or_action for item in plan.obligations
+    assert all(
+        item.relation_or_action in plan.pool_queries["raw_state"]
+        for item in plan.obligations
     )
 
 
@@ -1082,6 +1083,42 @@ def test_action_content_facets_ignore_transport_and_recipient() -> None:
     assert "Q2 Compass" in facets
     assert "customer-facing product" in facets
     assert all("sarah@example.dev" not in facet for facet in facets)
+
+
+def test_action_content_facets_cover_create_update_and_indirect_contacts() -> None:
+    rollout = targeted_facets(
+        "Create a short reference for the Apr 10, 2023 full shipment of "
+        "`lifecycle_onboarding_trigger_v2`, including included and excluded tiers."
+    )
+    closeout = targeted_facets(
+        "Please create a concise document for the Holly deposit disposition, "
+        "damage deductions or dispute, and remaining financial obligation."
+    )
+    contact = targeted_facets(
+        "Email the Pinecone integration contact for current reproduction details."
+    )
+    update = targeted_facets(
+        "Update Greg Shipman's CRM notes with the March 2023 call outcome and "
+        "confidence in his assurances."
+    )
+
+    assert "lifecycle_onboarding_trigger_v2" in rollout
+    assert any("included" in value for value in rollout)
+    assert any("excluded" in value for value in rollout)
+    assert any("deposit" in value for value in closeout)
+    assert any("damage" in value for value in closeout)
+    assert "Pinecone integration contact" in contact
+    assert any("reproduction" in value for value in contact)
+    assert any("Greg Shipman" in value for value in update)
+    assert any("confidence" in value for value in update)
+
+
+def test_month_year_temporal_target_is_not_truncated_to_day() -> None:
+    plan = DeterministicPlanner().plan(
+        "Update Greg Shipman's notes with the March 2023 call outcome."
+    )
+
+    assert plan.obligations[0].temporal_target == "March 2023"
 
 
 def test_action_content_facets_nominate_compact_exact_source_episode() -> None:

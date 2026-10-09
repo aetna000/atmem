@@ -472,13 +472,27 @@ answer/action scoring.
   exceeds Mem0 on both task and check totals
   (`research/production_benchmarks/run_dolphin_matched.py`,
   `benchmarks/retrieval_quality/reports/`) (FR-038–FR-043, FR-054, SC-024).
-- [ ] [T046D] Diagnose addressed-action content retrieval on the frozen
+  The post-T046D matched run improved AtMem from 2/30 and 15/97 to 5/30 and
+  22/97, while Mem0 reached 7/30 and 27/97. One AtMem provider failure remained
+  in the denominator, so zero-system-failure qualification and superiority did
+  not pass. The exact paired-loss cases are frozen under T046E before any
+  further full run.
+- [x] [T046D] Diagnose addressed-action content retrieval on the frozen
   four-case development profile in
   `benchmarks/retrieval_quality/protocols/dolphinbench-action-content-4-v1.json`.
   Derive compact facets only from the user request and source-backed canonical
   evidence. Advance to another fresh 30-task run only if AtMem reaches at
   least 3/4 tasks and 11/13 checks, preserves both passing regression controls,
   and records zero system failures (FR-014–FR-016, FR-043, FR-054, SC-024).
+  Commit `d568865` reached 4/4 tasks and 13/13 checks with zero system failures;
+  the prior result was 2/4 and 7/13.
+- [ ] [T046E] Diagnose the four exact paired losses from the post-T046D matched
+  run (`morgan:138`, `morgan:183`, `riley:022`, `riley:162`) using
+  `dolphinbench-paired-loss-4-v1.json`. Correct generic action-content routing,
+  temporal parsing and evidence nomination only from user requests and source
+  evidence. Require 4/4 tasks, all 11 checks, zero system failures, and preserve
+  the four T046D passing cases before one final matched 30-task confirmation
+  (FR-014–FR-016, FR-043, FR-054, SC-024).
 - [ ] [T047] Freeze the selected candidate only if T045/T046 targets pass; repeat
   the chosen development arm once to reject a non-reproducible peak. Otherwise
   return to the earliest attributed failing stage, not prompt/weight thrashing.
