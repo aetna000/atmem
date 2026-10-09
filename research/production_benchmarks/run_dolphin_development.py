@@ -174,6 +174,14 @@ def _tree_digest(root: Path, adapter: str | None = None) -> str:
 
 def main() -> int:
     local_resources = configure_local_resource_limits()
+    reader_execution_site = os.environ.get(
+        "ATMEM_DOLPHIN_READER_EXECUTION_SITE", "runpod-only"
+    ).strip()
+    if reader_execution_site not in {"runpod-only", "huggingface-router"}:
+        raise SystemExit(
+            "DolphinBench reader execution site must be runpod-only or "
+            "huggingface-router"
+        )
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkout", required=True)
     parser.add_argument("--config", required=True)
@@ -288,7 +296,7 @@ def main() -> int:
             "adapter": adapter,
             "checkpoint_sha256": checkpoint_sha256,
             "installed_product": installed_product,
-            "execution_topology": "mac-controller+runpod-gpu-reader",
+            "execution_topology": f"mac-controller+{reader_execution_site}",
             "local_resources": local_resources,
             "attribution_artifacts": {
                 "review_protocol_sha256": attribution_artifacts[
@@ -327,7 +335,7 @@ def main() -> int:
         "candidate_artifact_sha256": _installed_artifact_sha256(),
         "checkpoint_sha256": checkpoint_sha256,
         "hardware_profile": current_hardware_profile(),
-        "gpu_execution_site": "runpod-only",
+        "gpu_execution_site": reader_execution_site,
         "local_resources": local_resources,
         "run_config_sha256": "sha256:" + hashlib.sha256(config.read_bytes()).hexdigest(),
         "cost_authorization_id": authorization_id,
