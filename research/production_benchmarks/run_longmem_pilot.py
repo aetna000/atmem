@@ -248,7 +248,11 @@ def _terminate_runpod_pod(pod_id: str) -> bool:
 def _wait_for_reader_proxy(process: subprocess.Popen[bytes], ready: Path) -> str:
     for _ in range(200):
         if ready.is_file():
-            value = str(json.loads(ready.read_text(encoding="utf-8"))["base_url"])
+            try:
+                value = str(json.loads(ready.read_text(encoding="utf-8"))["base_url"])
+            except (json.JSONDecodeError, KeyError):
+                time.sleep(0.05)
+                continue
             if value.startswith("http://127.0.0.1:"):
                 return value
             raise RuntimeError("reader proxy advertised a non-loopback URL")

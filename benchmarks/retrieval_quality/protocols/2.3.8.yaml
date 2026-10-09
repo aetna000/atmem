@@ -159,7 +159,7 @@
       "data/__init__.py": "6fd6e1d6249094d5ec4955ce122784ffbf5de28a44e24615eb9cb1ffb55eda34"
     },
     "official_code_combined_sha256": "5e9afe0cb292646da5b65f8ce8f13ca7cdd131ee31b3d0af94b257499dedc8fe",
-    "reader_proxy_sha256": "062aa3dae5af476036992008f40cd950940c05443ed358dc78dd63dced4d32c7",
+    "reader_proxy_sha256": "99bff633e9f990a63e850809710d373b79fbcd5cc1f87d389f98e82c2afd65e7",
     "embedding_proxy_sha256": "a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293",
     "judge_proxy_sha256": "1a99cc2d6aa8aef7c0b05949049d2c56ae5e0b367e5f8c5dfb2ef409c2a760db",
     "pilot_manifest": "longmemeval-v2-pilot-v1.json",
@@ -223,11 +223,11 @@
   "equivalence_receipts": {
     "longmemeval_v2": {
       "file": "longmemeval-v2-equivalence-5pct-v1.json",
-      "file_sha256": "5a946b72cb46dbbc8cd1d46ba586d106dbbff6e08f76c5924031888eebc2fa32"
+      "file_sha256": "038990256afade6aaf25ec7f93f4aee0718db3ae6a8405c6f0a1d0ecede37c2b"
     },
     "dolphinbench": {
       "file": "dolphinbench-equivalence-5pct-v1.json",
-      "file_sha256": "5ca91ff3fbb617f842e8c9f16db9a193a75d52c6ce36d15894d8a397839f875b"
+      "file_sha256": "c381a80ccab6ed91976452e20ea8d7c3fe19c7567ae687694bcf84e7357a4ecd"
     }
   },
   "operating_points": ["no-retrieval", "official-rag-query-to-slice-notes", "agentrunbook-r", "agentrunbook-c", "agentrunbook-c-v2", "mem0-oss", "legacy", "typed-local"],

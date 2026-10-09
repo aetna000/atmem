@@ -278,6 +278,17 @@ def test_checkpoint_builder_replaces_stale_embedding_readiness(tmp_path: Path) -
         process.wait(timeout=5)
 
 
+def test_runpod_reader_readiness_is_published_atomically(tmp_path: Path) -> None:
+    from research.production_benchmarks.runpod_reader_proxy import write_ready_file
+
+    ready = tmp_path / "reader-ready.json"
+    write_ready_file(ready, "http://127.0.0.1:1234/v1")
+    assert json.loads(ready.read_text(encoding="utf-8")) == {
+        "base_url": "http://127.0.0.1:1234/v1"
+    }
+    assert not list(tmp_path.glob(".reader-ready.json.*.tmp"))
+
+
 def test_checkpoint_tree_digest_streams_files(tmp_path: Path, monkeypatch) -> None:
     from research.production_benchmarks import prepare_longmem_memories
 

@@ -10,6 +10,21 @@ from pathlib import Path
 import urllib.request
 
 
+def write_ready_file(path: Path, base_url: str) -> None:
+    """Publish readiness atomically, including on the external evidence volume."""
+
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with temporary.open("x", encoding="utf-8") as handle:
+            json.dump({"base_url": base_url}, handle, separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def encoded_upstream_body(
     payload: dict,
     maximum: int,
@@ -139,9 +154,8 @@ def main() -> None:
     args = parser.parse_args()
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     ready = Path(args.ready_file)
-    ready.write_text(
-        json.dumps({"base_url": f"http://127.0.0.1:{server.server_port}/v1"}),
-        encoding="utf-8",
+    write_ready_file(
+        ready, f"http://127.0.0.1:{server.server_port}/v1",
     )
     server.serve_forever()
 

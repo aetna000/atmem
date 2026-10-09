@@ -220,7 +220,7 @@
         "provider_route": "mac-controller+runpod-vllm-reader+deterministic-embedding+openai-direct-judge",
         "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
-        "reader_proxy_sha256": "062aa3dae5af476036992008f40cd950940c05443ed358dc78dd63dced4d32c7",
+        "reader_proxy_sha256": "99bff633e9f990a63e850809710d373b79fbcd5cc1f87d389f98e82c2afd65e7",
         "reader_request_max_bytes": 8388608,
         "reader_runtime_billing": {
           "cloud_type": "SECURE",
@@ -714,8 +714,8 @@
       ]
     }
   },
-  "full_effective_sha256": "sha256:655e549383e102f222a3120a707ed23b9fcc34908ebe558d9218cc7c57ccd10e",
-  "receipt_sha256": "sha256:41ba2d7dd64d87d6182354d9e72fb3c054e36af2651440caad13f43b60e97b83",
+  "full_effective_sha256": "sha256:051dc086fa351e235d3cee011be7133fdb908eca21322d745fc00e207078089d",
+  "receipt_sha256": "sha256:c65fc2c9330c4a33c85203df4af219d1fa564c8502427112552206d6a87b5c96",
   "sample_configuration": {
     "pipeline": {
       "attribution": {
@@ -931,7 +931,7 @@
         "provider_route": "mac-controller+runpod-vllm-reader+deterministic-embedding+openai-direct-judge",
         "provider_route_probe_sha256": "8d24df998aeab4e1c0e6d7eef7951da50ec81eb3896ffb95b6253a2230cc6e2f",
         "reader_prompt_sha256": "583b6c497ee35ff2d9725648ee004e92441a192a61e7229cfbb31c099dd3285c",
-        "reader_proxy_sha256": "062aa3dae5af476036992008f40cd950940c05443ed358dc78dd63dced4d32c7",
+        "reader_proxy_sha256": "99bff633e9f990a63e850809710d373b79fbcd5cc1f87d389f98e82c2afd65e7",
         "reader_request_max_bytes": 8388608,
         "reader_runtime_billing": {
           "cloud_type": "SECURE",
@@ -997,6 +997,6 @@
       ]
     }
   },
-  "sample_effective_sha256": "sha256:655e549383e102f222a3120a707ed23b9fcc34908ebe558d9218cc7c57ccd10e",
+  "sample_effective_sha256": "sha256:051dc086fa351e235d3cee011be7133fdb908eca21322d745fc00e207078089d",
   "selector_path": "selector.case_ids"
 }
