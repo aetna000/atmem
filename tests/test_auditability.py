@@ -145,6 +145,98 @@ def test_checkpoint_roundtrip_verifies(tmp_path: Path) -> None:
     assert result["subjects"]["user-1"]["checkpoints_checked"] == 1
 
 
+def test_verify_detects_record_content_tampering() -> None:
+    memory = Memory(":memory:")
+    result = memory.remember("user-1", "My favorite color is teal.", force=True)
+    record_id = result["records"][0]["id"]
+
+    memory.store._conn.execute(
+        "UPDATE records SET content = ? WHERE id = ?",
+        ("My favorite color is orange.", record_id),
+    )
+    report = memory.verify("user-1")
+
+    assert report["valid"] is False
+    bindings = report["subjects"]["user-1"]["record_bindings"]
+    assert bindings["valid"] is False
+    assert any(item.get("field") == "content" for item in bindings["failures"])
+
+
+def test_verify_detects_missing_and_forged_records(tmp_path: Path) -> None:
+    import sqlite3
+
+    db_path = tmp_path / "mem.db"
+    memory = Memory(db_path)
+    first = memory.remember("user-1", "My favorite color is teal.", force=True)
+    second = memory.remember("user-1", "My home city is Sydney.", force=True)
+    first_id = first["records"][0]["id"]
+    template_id = second["records"][0]["id"]
+
+    memory.close()
+    attacker = sqlite3.connect(db_path)
+    attacker.execute("PRAGMA foreign_keys = OFF")
+    attacker.execute("DELETE FROM records WHERE id = ?", (first_id,))
+    attacker.execute(
+        """
+        INSERT INTO records (
+            id, subject_id, content, source_type, trust_tier, created_at,
+            status, scope, fact_key, raw, confidence
+        )
+        SELECT ?, subject_id, ?, source_type, trust_tier, created_at,
+               status, scope, fact_key, raw, confidence
+        FROM records WHERE id = ?
+        """,
+        ("rec_forged", "Forged memory.", template_id),
+    )
+    attacker.commit()
+    attacker.close()
+    memory = Memory(db_path)
+    report = memory.verify("user-1")
+
+    assert report["valid"] is False
+    reasons = [
+        item["reason"]
+        for item in report["subjects"]["user-1"]["record_bindings"]["failures"]
+    ]
+    assert "record committed by the audit chain is missing" in reasons
+    assert "stored record has no record-producing audit event" in reasons
+
+
+def test_verify_detects_record_metadata_tampering() -> None:
+    memory = Memory(":memory:")
+    result = memory.remember("user-1", "My favorite color is teal.", force=True)
+    record_id = result["records"][0]["id"]
+
+    memory.store._conn.execute(
+        "UPDATE records SET source_type = 'webpage' WHERE id = ?", (record_id,)
+    )
+    report = memory.verify("user-1")
+
+    assert report["valid"] is False
+    failures = report["subjects"]["user-1"]["record_bindings"]["failures"]
+    assert any(item.get("field") == "source_type" for item in failures)
+
+
+def test_verify_accepts_governed_tombstone_and_supersession() -> None:
+    memory = Memory(":memory:")
+    first = memory.remember(
+        "user-1",
+        "My favorite color is teal.",
+        force=True,
+        interpreted_fact_key="favorite.color",
+    )
+    memory.remember(
+        "user-1",
+        "My favorite color is orange.",
+        force=True,
+        interpreted_fact_key="favorite.color",
+    )
+    assert memory.verify("user-1")["valid"] is True
+
+    memory.forget_record("user-1", first["records"][0]["id"])
+    assert memory.verify("user-1")["valid"] is True
+
+
 def test_checkpoint_detects_tail_truncation(tmp_path: Path) -> None:
     sink = tmp_path / "checkpoints.jsonl"
     memory = Memory(tmp_path / "mem.db")
