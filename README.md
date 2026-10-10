@@ -22,6 +22,26 @@ custom agent governed long-term memory. **AtBot is installed automatically** as
 AtMem's private intelligence companion: AtBot proposes and ranks; AtMem alone
 authorizes, stores, scopes, injects, corrects, and deletes memory.
 
+## How AtMem compares
+
+**AtMem led Mem0 on two matched agent-memory development samples and led
+AgentRunbook-R on the LongMemEval-V2 sample.** These tests ask whether an agent
+can use remembered experience to answer a question or complete a task, rather
+than merely whether a search result looks relevant.
+
+| Benchmark | What it tests | AtMem | Mem0 OSS | AgentRunbook-R |
+| --- | --- | ---: | ---: | ---: |
+| [LongMemEval-V2](https://github.com/xiaowu0162/LongMemEval-V2), 23 of 451 questions | Answer questions from long histories of web-agent actions and observations, including changing state and learned workflows. | **5/23 (21.7%)** | 1/23 (4.3%) | 4/23 (17.4%) |
+| [DolphinBench](https://github.com/mem0ai/dolphinbench), 30 of 600 tasks | Use a simulated user's history to take the right actions in apps; a task passes only when all its required checks pass. | **9/30 (30.0%)** | 7/30 (23.3%) | Not run |
+
+On DolphinBench's individual checks, AtMem passed **32/97** and Mem0 passed
+**27/97**. The arms used matched tasks and reader/judge routes; every attempted
+case, including system failures, stayed in the denominator. The Mem0 Dolphin
+environment lacked optional spaCy and `fastembed` extras. These are frozen
+roughly 5% **development samples**, not full official scores or leaderboard
+results; absolute task accuracy is still low. See the
+[protocol, controls, and exact run evidence](./benchmarks/retrieval_quality/reports/five-percent-results-20261010.md).
+
 ## Start here
 
 ### 1. Install AtMem and choose memory intelligence
