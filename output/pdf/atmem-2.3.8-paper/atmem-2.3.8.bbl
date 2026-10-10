@@ -1,0 +1,128 @@
+\begin{thebibliography}{16}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[{AGMI contributors}(2026)]{agmi}
+{AGMI contributors}.
+\newblock Agent memory integrity: Version 0.6.3, 2026.
+\newblock URL
+  \url{https://github.com/tech4biz-yasha/agmi/tree/115493a41a7b41952f92ec07e1ea0932926e194f}.
+\newblock Pinned upstream commit 115493a41a7b41952f92ec07e1ea0932926e194f.
+
+\bibitem[{AtMem maintainers}(2026{\natexlab{a}})]{history}
+{AtMem maintainers}.
+\newblock Atmem benchmark development runs: 30 september 2026,
+  2026{\natexlab{a}}.
+\newblock URL
+  \url{https://github.com/aetna000/atmem/blob/v2.3.8/benchmarks/retrieval_quality/reports/benchmark-3pct-complete-20260930.md}.
+
+\bibitem[{AtMem maintainers}(2026{\natexlab{b}})]{results}
+{AtMem maintainers}.
+\newblock Frozen five-percent development benchmark results,
+  2026{\natexlab{b}}.
+\newblock URL
+  \url{https://github.com/aetna000/atmem/blob/bb05043/benchmarks/retrieval_quality/reports/five-percent-results-20261010.md}.
+\newblock Recorded 10 October 2026; aggregate report frozen at bb05043.
+
+\bibitem[Chhikara et~al.(2025)Chhikara, Khant, Aryan, Singh, and Yadav]{mem0}
+Prateek Chhikara, Dev Khant, Saket Aryan, Taranjeet Singh, and Deshraj Yadav.
+\newblock {Mem0}: Building production-ready {AI} agents with scalable long-term
+  memory.
+\newblock \emph{arXiv preprint arXiv:2504.19413}, 2025.
+\newblock URL \url{https://arxiv.org/abs/2504.19413}.
+
+\bibitem[{DolphinBench contributors}(2026)]{dolphin}
+{DolphinBench contributors}.
+\newblock {DolphinBench}: Mapping the pareto frontier of agent memory, 2026.
+\newblock URL
+  \url{https://github.com/mem0ai/dolphinbench/tree/81cb6f8405b40a9e76089cef650806a80af06ea2}.
+\newblock Repository pinned at 81cb6f8405b40a9e76089cef650806a80af06ea2.
+
+\bibitem[Lewis et~al.(2020)Lewis, Perez, Piktus, Petroni, Karpukhin, Goyal,
+  Kuttler, Lewis, Yih, Rocktaschel, Riedel, and Kiela]{rag}
+Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir
+  Karpukhin, Naman Goyal, Heinrich Kuttler, Mike Lewis, Wen-tau Yih, Tim
+  Rocktaschel, Sebastian Riedel, and Douwe Kiela.
+\newblock Retrieval-augmented generation for knowledge-intensive {NLP} tasks.
+\newblock \emph{Advances in Neural Information Processing Systems}, 2020.
+\newblock URL \url{https://arxiv.org/abs/2005.11401}.
+
+\bibitem[Liu et~al.(2023)Liu, Lin, Hewitt, Paranjape, Bevilacqua, Petroni, and
+  Liang]{lost}
+Nelson~F. Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele Bevilacqua,
+  Fabio Petroni, and Percy Liang.
+\newblock Lost in the middle: How language models use long contexts.
+\newblock \emph{arXiv preprint arXiv:2307.03172}, 2023.
+\newblock URL \url{https://arxiv.org/abs/2307.03172}.
+
+\bibitem[Maharana et~al.(2024)Maharana, Lee, Tulyakov, Bansal, Barbieri, and
+  Fang]{locomo}
+Adyasha Maharana, Dong-Ho Lee, Sergey Tulyakov, Mohit Bansal, Francesco
+  Barbieri, and Yuwei Fang.
+\newblock Evaluating very long-term conversational memory of {LLM} agents.
+\newblock \emph{arXiv preprint arXiv:2402.17753}, 2024.
+\newblock URL \url{https://arxiv.org/abs/2402.17753}.
+
+\bibitem[{Mem0 contributors}(2026)]{mem0source}
+{Mem0 contributors}.
+\newblock Mem0 oss pinned source metadata: Version 2.1.0, 2026.
+\newblock URL
+  \url{https://github.com/mem0ai/mem0/blob/d3891e48baa2c6e769f9cfa4003873bd6a85bc07/pyproject.toml}.
+\newblock Source revision d3891e48baa2c6e769f9cfa4003873bd6a85bc07; distinct
+  from historical AGMI version 2.0.20.
+
+\bibitem[Nemhauser et~al.(1978)Nemhauser, Wolsey, and Fisher]{submodular}
+George~L. Nemhauser, Laurence~A. Wolsey, and Marshall~L. Fisher.
+\newblock An analysis of approximations for maximizing submodular set
+  functions---{I}.
+\newblock \emph{Mathematical Programming}, 14:\penalty0 265--294, 1978.
+\newblock \doi{10.1007/BF01588971}.
+
+\bibitem[Packer et~al.(2023)Packer, Wooders, Lin, Fang, Patil, Stoica, and
+  Gonzalez]{memgpt}
+Charles Packer, Sarah Wooders, Kevin Lin, Vivian Fang, Shishir~G. Patil, Ion
+  Stoica, and Joseph~E. Gonzalez.
+\newblock {MemGPT}: Towards {LLMs} as operating systems.
+\newblock \emph{arXiv preprint arXiv:2310.08560}, 2023.
+\newblock URL \url{https://arxiv.org/abs/2310.08560}.
+
+\bibitem[Park et~al.(2023)Park, O'Brien, Cai, Morris, Liang, and
+  Bernstein]{generative}
+Joon~Sung Park, Joseph~C. O'Brien, Carrie~J. Cai, Meredith~Ringel Morris, Percy
+  Liang, and Michael~S. Bernstein.
+\newblock Generative agents: Interactive simulacra of human behavior.
+\newblock \emph{arXiv preprint arXiv:2304.03442}, 2023.
+\newblock URL \url{https://arxiv.org/abs/2304.03442}.
+
+\bibitem[Schneier and Kelsey(1999)]{audit}
+Bruce Schneier and John Kelsey.
+\newblock Secure audit logs to support computer forensics.
+\newblock \emph{ACM Transactions on Information and System Security}, 1999.
+\newblock URL
+  \url{https://www.schneier.com/academic/archives/1999/05/secure_audit_logs_to.html}.
+
+\bibitem[Taghia(2026)]{release}
+Javad Taghia.
+\newblock {AtMem} 2.3.8: Release notes and implementation, 2026.
+\newblock URL \url{https://github.com/aetna000/atmem/tree/v2.3.8}.
+\newblock Stable source commit 267c5b3ac08e8cac26dfee13c6eac2842d4bb876.
+
+\bibitem[Wu et~al.(2024)Wu, Wang, Yu, Zhang, Chang, and Yu]{lme}
+Di~Wu, Hongwei Wang, Wenhao Yu, Yuwei Zhang, Kai-Wei Chang, and Dong Yu.
+\newblock {LongMemEval}: Benchmarking chat assistants on long-term interactive
+  memory.
+\newblock \emph{arXiv preprint arXiv:2410.10813}, 2024.
+\newblock URL \url{https://arxiv.org/abs/2410.10813}.
+
+\bibitem[Wu et~al.(2026)Wu, Ji, Kawatkar, Kwan, Gu, Peng, and Chang]{lme2}
+Di~Wu, Zixiang Ji, Asmi Kawatkar, Bryan Kwan, Jia-Chen Gu, Nanyun Peng, and
+  Kai-Wei Chang.
+\newblock {LongMemEval-V2}: Evaluating long-term agent memory toward
+  experienced colleagues.
+\newblock \emph{arXiv preprint arXiv:2605.12493}, 2026.
+\newblock URL \url{https://arxiv.org/abs/2605.12493}.
+
+\end{thebibliography}

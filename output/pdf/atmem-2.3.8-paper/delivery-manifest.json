@@ -1,0 +1,58 @@
+{
+  "README.txt": {
+    "bytes": 2849,
+    "sha256": "e11bd9b9524ae431f56c00c6cb4e18843793f3867eb36a5e01f61d7209d7b347"
+  },
+  "atmem-2.3.8-arxiv-source.zip": {
+    "bytes": 117796,
+    "sha256": "be97fffbb39f89ad483c99d19457898e1ca47795726265f14bc6fab7ffa58db5"
+  },
+  "atmem-2.3.8-atmem-only-source.zip": {
+    "bytes": 90038,
+    "sha256": "4b507786e9a9d341218d016e9f294b6c2a439746dff68b3c4a2f94cb87f24f1a"
+  },
+  "atmem-2.3.8-atmem-only.pdf": {
+    "bytes": 179417,
+    "sha256": "f7ca07f20ee82362fe54e21d73d627088badeb234a19fd8ae3159bc8e498b738"
+  },
+  "atmem-2.3.8-atmem-only.tex": {
+    "bytes": 56733,
+    "sha256": "3cfb2cb71f81155e0565079a7523c75dc388ea52b1d95d21ca917ca7b1ed7c4a"
+  },
+  "atmem-2.3.8-complete-package.zip": {
+    "bytes": 1141027,
+    "sha256": "b83820f9ce9ba0aa8b9d09a1a103ed75234f78023251514f30b18cc55b077d2d"
+  },
+  "atmem-2.3.8-latex-source.zip": {
+    "bytes": 119297,
+    "sha256": "a29096d8ead82803dd46c52611c4803cd5fb8b2dc3ac8311135b02e7a2d5f5cb"
+  },
+  "atmem-2.3.8.pdf": {
+    "bytes": 214144,
+    "sha256": "8730ba702e34609d64353ba3ae2e3a1b18d9ef3f94bd2c333dbe99465bc75b98"
+  },
+  "atmem-2.3.8.tex": {
+    "bytes": 62596,
+    "sha256": "1050452011397f6ad7c97a4a088c6891a820fae2de72abba56802172a9e2c880"
+  },
+  "huggingface-article.txt": {
+    "bytes": 6049,
+    "sha256": "7e8cb584cee2e4f104102f776e30ee3f3e1fa96b7b43a4351519c3fd557cf272"
+  },
+  "requirements.txt": {
+    "bytes": 61,
+    "sha256": "4a48c5806b3fec33bf9e76d6b429a045c1373fe4ab2d3f321c5cefa42192acce"
+  },
+  "x-article-atmem-only.txt": {
+    "bytes": 7531,
+    "sha256": "c22c1d8eb929946db85446b73fa8a51ee8cdbd0078e69a28e63eac193e7ec60b"
+  },
+  "x-article.txt": {
+    "bytes": 3757,
+    "sha256": "47ccdc4b37e81bd4203b203fd78ba13dcc272ba22ee4fc2732fcee6ab1f0e40a"
+  },
+  "x-post.txt": {
+    "bytes": 277,
+    "sha256": "43cccee021e0149e3b030c51978d52e9cc8ee38a97353d50353e590ed7e190d7"
+  }
+}

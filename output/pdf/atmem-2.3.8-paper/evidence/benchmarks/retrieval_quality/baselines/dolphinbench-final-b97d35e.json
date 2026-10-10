@@ -1,0 +1,44 @@
+{
+  "format": "atmem-dolphinbench-matched-development-summary-v1",
+  "claim": "matched-development-30-of-600-not-an-official-score",
+  "recorded_date": "2026-10-10",
+  "sample": "frozen-30-of-600",
+  "source_commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
+  "split_sha256": "60c681f8e7ce0796ec0209294c885abe7dc0fe5a594226aa1035c401535658de",
+  "candidate_commit": "b97d35e1df7ee6ef435928bafb8189ac99a1856d",
+  "candidate_artifact_sha256": "0e5f681791a88b40c7bd734be70725a38a858d6ec8a11096a36c288ba1e9cad5",
+  "reader": {
+    "provider": "huggingface-inference-providers",
+    "model": "Qwen/Qwen3.5-9B",
+    "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+    "same_route_for_both_arms": true
+  },
+  "judge": {
+    "provider": "openai",
+    "model": "gpt-5.2-2025-12-11",
+    "reasoning_effort": "medium"
+  },
+  "arms": {
+    "atmem": {
+      "tasks_passed": 9,
+      "tasks": 30,
+      "checks_passed": 32,
+      "checks": 97,
+      "system_failures": 0,
+      "evaluation_sha256": "aa5242c509f4748a4ab067a56e8bedda3787abfdbc6e0df0ce63b80e936fd358"
+    },
+    "mem0-oss": {
+      "tasks_passed": 7,
+      "tasks": 30,
+      "checks_passed": 27,
+      "checks": 97,
+      "system_failures": 0,
+      "evaluation_sha256": "2283f4b6c2c3ded66005171abeed395c2614378f3445af1ef656d259afbb712b"
+    }
+  },
+  "limitations": [
+    "This is a fixed 5% development sample, not an official or statistically representative DolphinBench score.",
+    "The Mem0 arm was reused from the exact matched frozen run because its code, checkpoint, reader, judge, and task IDs did not change.",
+    "The Mem0 arm ran without optional spaCy and fastembed extras."
+  ]
+}

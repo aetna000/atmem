@@ -1,0 +1,18 @@
+{
+  "checked_date": "2026-10-10",
+  "mem0_utility_source": {
+    "repository": "https://github.com/mem0ai/mem0",
+    "commit": "d3891e48baa2c6e769f9cfa4003873bd6a85bc07",
+    "metadata_url": "https://raw.githubusercontent.com/mem0ai/mem0/d3891e48baa2c6e769f9cfa4003873bd6a85bc07/pyproject.toml",
+    "project_name": "mem0ai",
+    "declared_source_version": "2.1.0",
+    "scope": "Pinned source identity; does not reconstruct the full benchmark environment lock."
+  },
+  "mem0_historical_agmi": {
+    "package_version": "2.0.20",
+    "agmi_commit": "115493a41a7b41952f92ec07e1ea0932926e194f",
+    "profile": "mem0-qdrant-local",
+    "at_rest_accepted": 9,
+    "at_rest_reported": 0
+  }
+}

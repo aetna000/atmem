@@ -1,0 +1,6 @@
+*.aux
+*.blg
+*.log
+*.out
+atmem-2.3.8-complete-package.zip
+claude-review/

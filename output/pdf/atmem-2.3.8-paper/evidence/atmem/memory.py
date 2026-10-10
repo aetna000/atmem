@@ -1,0 +1,5662 @@
+from __future__ import annotations
+
+from functools import wraps
+import hashlib
+import hmac
+import json
+import os
+import re
+import secrets
+import time
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any, Callable, TypeVar
+import uuid
+
+from atmem.core.canonical import canonical_json, sha256_hex
+from atmem.core.storage import HouseholdPolicy
+from atmem.core.policy import (
+    TRUST_TIER_UNTRUSTED,
+    classify_source,
+    find_duplicate,
+    forget_needle,
+    initial_status,
+    normalize_content,
+    trust_tier_for_source,
+)
+from atmem.extract import extract_facts
+from atmem.extract.validation import screen_content
+from atmem.extract.rules import CandidateFact
+from atmem.graph import GRAPH_EXTRACTOR_VERSION, GraphIndex
+from atmem.media import MediaObservationEnvelope, normalize_media_sha256
+from atmem.retrieve import (
+    ScoredRecord,
+    query_tokens,
+    rank_records,
+    token_overlap_components,
+)
+from atmem.retrieve.rank import RECENCY_WEIGHT, TEXT_WEIGHT, TRUST_WEIGHT, decide_retrieval
+from atmem.store import SQLiteStore
+from atmem.store.sqlite import utc_now
+
+_T = TypeVar("_T")
+
+_RETRIEVAL_EVIDENCE_FORMAT = "atmem-retrieval-evidence-v2"
+_RECORD_RANKER_VERSION = "record-rank-v1"
+_GRAPH_FUSION_VERSION = "weighted-rrf-v1"
+_RRF_RANK_CONSTANT = 60.0
+_GRAPH_RRF_WEIGHT = 2.0
+_CANDIDATE_LOG_WINDOW = 50
+_VECTOR_MUTATIONS = {
+    "remember",
+    "remember_observation",
+    "submit_proposal",
+    "correct_record",
+    "forget",
+    "forget_record",
+    "promote",
+    "reject",
+}
+
+_RECORD_INTEGRITY_FIELDS = (
+    "id",
+    "subject_id",
+    "content",
+    "source_type",
+    "trust_tier",
+    "source_session_id",
+    "source_turn_id",
+    "episode_id",
+    "created_at",
+    "confidence",
+    "scope",
+    "status",
+    "supersedes_id",
+    "fact_key",
+    "raw",
+)
+
+
+def _record_integrity_sha256(record: dict[str, Any]) -> str:
+    """Bind the agent-visible record row to one chained audit event."""
+    return sha256_hex(canonical_json({
+        field: record.get(field) for field in _RECORD_INTEGRITY_FIELDS
+    }))
+
+
+def _embedder_for_epoch(epoch: dict[str, Any]) -> Any:
+    """Reconstruct a verified local embedder from an active index epoch."""
+    from atmem.semantic import HashingEmbedder, create_embedder
+
+    identity = epoch.get("identity") or {}
+    provider = str(identity.get("provider") or "")
+    if provider == "hashing-diagnostic":
+        return HashingEmbedder(dimensions=int(epoch["dimensions"]))
+    endpoint = str(identity.get("endpoint") or "") or None
+    if provider == "openai-compatible" and endpoint and not endpoint.startswith(
+        ("http://127.0.0.1", "http://localhost")
+    ):
+        raise ValueError(
+            "automatic governed recall will not send memory to a remote embedder"
+        )
+    return create_embedder(
+        provider,
+        str(identity.get("model") or ""),
+        endpoint=endpoint,
+        model_version=str(identity.get("version") or "unverified"),
+        dimensions=int(epoch.get("dimensions") or 0) or None,
+    )
+
+
+def _atomic(method: Callable[..., _T]) -> Callable[..., _T]:
+    """Make one public memory operation and all its audit writes atomic."""
+
+    @wraps(method)
+    def wrapped(self: "Memory", *args: Any, **kwargs: Any) -> _T:
+        with self.store.transaction(immediate=True):
+            result = method(self, *args, **kwargs)
+        if method.__name__ in _VECTOR_MUTATIONS and args:
+            target = args[0]
+            subject_id = (
+                target
+                if isinstance(target, str)
+                else getattr(getattr(target, "scope", None), "subject_id", None)
+            )
+            if subject_id:
+                self._vector_dirty_subjects.add(str(subject_id))
+        return result
+
+    return wrapped
+
+
+class Memory:
+    """Embedded auditable memory engine.
+
+    Core extraction stays deterministic. A trusted host may instead submit an
+    explicit model-interpreted fact together with the exact typed user source;
+    AtMem records that interpreter and the source/fact digests rather than
+    running a hidden model of its own. The invariants that matter:
+
+    - every semantic record derives from an episode and points back to it,
+    - untrusted extractions are quarantined until explicitly promoted,
+    - media bytes stay host-controlled while typed text observations retain
+      exact-byte artifact, segment, and extractor provenance,
+    - updates supersede (keyed on the extracted fact slot), never overwrite,
+    - deletion tombstones *and* purges, including the source episode,
+    - every mutation and every recall lands in the hash-linked audit log,
+    - the audit plane stores digests and structural metadata, never message
+      text, fact values, or query text (unless `retain_query_text=True`).
+    """
+
+    def __init__(
+        self,
+        path: str | Path = ":memory:",
+        *,
+        retain_query_text: bool = False,
+        graph_recall: bool = False,
+        recall_candidate_limit: int = 200,
+        policy: HouseholdPolicy | None = None,
+        auto_vectors: bool = True,
+        review_authorities: tuple[dict[str, Any], ...] = (),
+        allow_insecure_typed_development: bool = False,
+    ) -> None:
+        self.policy = policy or HouseholdPolicy.load(path)
+        self.store = SQLiteStore(path, policy=self.policy)
+        self.graph = GraphIndex(self.store)
+        self.retain_query_text = retain_query_text
+        self.graph_recall = graph_recall
+        self.recall_candidate_limit = max(1, int(recall_candidate_limit))
+        self._vector_dirty_subjects: set[str] = set()
+        self._auto_vectors = bool(auto_vectors)
+        self._allow_insecure_typed_development = bool(
+            allow_insecure_typed_development
+        )
+        self._review_authority_secret = secrets.token_bytes(32)
+        self._issued_review_authorizations: set[str] = set()
+        self._review_authorities: dict[str, dict[str, Any]] = {}
+        for authority in review_authorities:
+            principal_id = str(authority.get("principal_id") or "").strip()
+            subject_id = str(authority.get("subject_id") or "").strip()
+            scopes = tuple(sorted({str(value) for value in authority.get("scopes") or ()}))
+            agent_id = str(authority.get("agent_id") or "").strip()
+            workspace_id = str(authority.get("workspace_id") or "").strip()
+            if not principal_id or not subject_id or not agent_id or not workspace_id or not scopes:
+                raise ValueError(
+                    "review authorities require principal_id, subject_id, agent_id, workspace_id, and scopes"
+                )
+            self._review_authorities[principal_id] = {
+                "principal_id": principal_id,
+                "subject_id": subject_id,
+                "agent_id": agent_id,
+                "workspace_id": workspace_id,
+                "scopes": scopes,
+                "assurance": str(authority.get("assurance") or "configured_authority"),
+            }
+        if self.store.path != ":memory:" and self._auto_vectors:
+            # The dependency-free local vector store is a normal AtMem storage
+            # plane. Better embedding providers can replace its active epoch,
+            # but users never have to create the database by hand.
+            from atmem.semantic import SemanticIndex, default_index_path
+
+            vector_index = SemanticIndex(
+                default_index_path(self.store.path), policy=self.policy
+            )
+            vector_index.close()
+
+    def close(self) -> None:
+        try:
+            if self._auto_vectors:
+                for subject_id in sorted(self._vector_dirty_subjects):
+                    self.sync_default_vectors(subject_id)
+        finally:
+            self.store.close()
+
+    def materialize_protected_media(
+        self, scope: Any, media_id: str, destination: str | Path
+    ) -> Path:
+        """Materialize one authorized encrypted media blob for a reader call."""
+        from atmem.contracts import AuthorityScope
+
+        if not isinstance(scope, AuthorityScope):
+            raise TypeError("scope must be AuthorityScope")
+        row = self.store.protected_formation_media(
+            scope.subject_id, scope.workspace_id, media_id
+        )
+        if row is None:
+            raise ValueError("protected media is unavailable in this authority scope")
+        content = bytes(row["content_bytes"])
+        if f"sha256:{sha256_hex(content)}" != row["content_sha256"]:
+            raise ValueError("protected media failed integrity verification")
+        target = Path(destination).expanduser().resolve()
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if target.exists() and target.read_bytes() != content:
+            raise ValueError("protected media destination contains different bytes")
+        if not target.exists():
+            binary = getattr(os, "O_BINARY", 0)
+            descriptor = os.open(
+                target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | binary, 0o600
+            )
+            with os.fdopen(descriptor, "wb") as handle:
+                handle.write(content)
+        return target
+
+    def _record_retrieval_stage(
+        self,
+        *,
+        scope: Any,
+        request_id: str,
+        profile_id: str,
+        information_need: str | None,
+        stage: str,
+        status: str,
+        started_at: str,
+        started_monotonic: float,
+        input_count: int | None,
+        output_count: int | None,
+        reason_codes: tuple[str, ...] = (),
+        context_bytes: int | None = None,
+    ) -> str:
+        """Persist one content-free, AtFlows-compatible stage measurement."""
+        event_id = f"stage-{uuid.uuid4().hex}"
+        payload = {
+            "format": "atmem-retrieval-stage-event-v1",
+            "event_id": event_id,
+            "request_id": request_id,
+            "scope_digest": f"sha256:{sha256_hex(canonical_json(scope.to_dict()))}",
+            "profile_id": profile_id,
+            "information_need": information_need,
+            "stage": stage,
+            "status": status,
+            "reason_codes": list(reason_codes),
+            "started_at": started_at,
+            "duration_ms": round(max(0.0, (time.monotonic() - started_monotonic) * 1000), 3),
+            "input_count": input_count,
+            "output_count": output_count,
+            "context_bytes": context_bytes,
+            "usage": None,
+        }
+        self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.retrieval_stage_v1",
+            actor=f"protocol:{scope.agent_id}",
+            payload=payload,
+        )
+        return event_id
+
+    def issue_review_authorization(
+        self, principal_id: str, *, scopes: tuple[str, ...]
+    ) -> Any:
+        """Issue an instance-bound authorization from trusted configuration."""
+        from atmem.extract.review import ReviewAuthorization
+
+        configured = self._review_authorities.get(principal_id)
+        if configured is None:
+            raise PermissionError("review principal is not configured")
+        requested = tuple(sorted(set(scopes)))
+        if not requested or not set(requested).issubset(configured["scopes"]):
+            raise PermissionError("review principal does not have the requested scope")
+        nonce = secrets.token_hex(32)
+        payload = {**configured, "scopes": requested, "nonce": nonce}
+        token = hmac.new(
+            self._review_authority_secret,
+            canonical_json(payload).encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        self._issued_review_authorizations.add(token)
+        return ReviewAuthorization(**payload, token=token)
+
+    def verify_review_authorization(
+        self, authorization: Any, stored: dict[str, Any], *,
+        required_scopes: tuple[str, ...] = ("procedure:review",),
+    ) -> str:
+        """Verify issuance, configured permission, and proposal scope."""
+        from atmem.extract.review import ReviewAuthorization
+
+        if not isinstance(authorization, ReviewAuthorization):
+            raise PermissionError("procedure review authorization is invalid")
+        configured = self._review_authorities.get(authorization.principal_id)
+        if configured is None:
+            raise PermissionError("review principal is not configured")
+        payload = {
+            **configured,
+            "scopes": tuple(sorted(set(authorization.scopes))),
+            "nonce": authorization.nonce,
+        }
+        expected = hmac.new(
+            self._review_authority_secret,
+            canonical_json(payload).encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(expected, authorization.token):
+            raise PermissionError("procedure review authorization was not issued by AtMem")
+        if authorization.token not in self._issued_review_authorizations:
+            raise PermissionError("procedure review authorization is unknown or already used")
+        for field in ("subject_id", "agent_id", "workspace_id", "assurance"):
+            if getattr(authorization, field) != configured[field]:
+                raise PermissionError(
+                    "procedure review authorization does not match configured authority"
+                )
+        available = set(authorization.scopes)
+        for required in required_scopes:
+            aliases = {required}
+            if required == "procedure:review":
+                aliases.add("procedure")
+            if not (aliases & available):
+                raise PermissionError(f"review authorization requires the {required} scope")
+        if authorization.subject_id != stored["subject_id"]:
+            raise PermissionError("procedure review authority is outside the subject scope")
+        if authorization.agent_id != stored.get("agent_id"):
+            raise PermissionError("procedure review authority is outside the agent scope")
+        if authorization.workspace_id != stored.get("workspace_id"):
+            raise PermissionError("procedure review authority is outside the workspace scope")
+        self._issued_review_authorizations.remove(authorization.token)
+        return authorization.principal_id
+
+    def sync_default_vectors(self, subject_id: str) -> dict[str, Any]:
+        """Synchronize the active local vector projection without downgrading it."""
+        if self.store.path == ":memory:":
+            return {"ready": False, "reason": "ephemeral-memory"}
+        records = self.store.list_records(
+            subject_id, statuses=("active",)
+        )
+        if not records:
+            self._vector_dirty_subjects.discard(subject_id)
+            return {"ready": True, "entry_count": 0, "provider": "hashing-local-v1"}
+        from atmem.semantic import HashingEmbedder, SemanticIndex, default_index_path
+
+        index = SemanticIndex(default_index_path(self.store.path), policy=self.policy)
+        try:
+            epoch = index.active_epoch(subject_id)
+            embedder = (
+                _embedder_for_epoch(epoch)
+                if epoch is not None
+                else HashingEmbedder(dimensions=256)
+            )
+            report = index.build(self, subject_id, embedder)
+        finally:
+            index.close()
+        self._vector_dirty_subjects.discard(subject_id)
+        return {
+            **report,
+            "ready": True,
+            "default": str(report.get("embedder", {}).get("provider"))
+            == "hashing-diagnostic",
+        }
+
+    @_atomic
+    def capture_source(self, request: Any) -> Any:
+        """Capture one scope-bound source message with durable replay identity."""
+        from atmem.contracts import SourceCaptureRequest, SourceCaptureResult
+
+        if not isinstance(request, SourceCaptureRequest):
+            raise TypeError("request must be SourceCaptureRequest")
+        scope = request.scope
+        request_value = request.to_dict()
+        payload_sha256 = f"sha256:{sha256_hex(canonical_json(request_value))}"
+        existing = self.store.get_protocol_source(
+            scope.workspace_id, scope.agent_id, request.idempotency_key
+        )
+        if existing is not None:
+            if existing["payload_sha256"] != payload_sha256:
+                raise ValueError("source idempotency key was reused with a different payload")
+            saved = existing["result"]
+            return SourceCaptureResult(
+                source_id=saved["source_id"],
+                episode_id=saved["episode_id"],
+                source_sha256=saved["source_sha256"],
+                replayed=True,
+                retained=bool(saved["retained"]),
+                scope=scope,
+                audit_event_id=saved["audit_event_id"],
+            )
+        same_id = self.store.get_protocol_source_by_id(request.source_id)
+        if same_id is not None:
+            raise ValueError("source_id already belongs to another capture")
+        source_sha256 = request.source_sha256
+        episode_id = self.store.insert_episode(
+            subject_id=scope.subject_id,
+            session_id=request.session_id,
+            turn_id=request.turn_id,
+            message=request.message if request.retain_body else "[body not retained]",
+            source_type=request.source_type,
+            raw={
+                "protocol": request.format,
+                "source_id": request.source_id,
+                "host_message_id": request.host_message_id,
+                "source_sha256": source_sha256,
+                "binding_method": request.binding_method,
+                "binding_assurance": request.binding_assurance,
+                "authority_scope": scope.to_dict(),
+                "body_retained": request.retain_body,
+            },
+        )
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="source.captured_v1",
+            actor=f"protocol:{scope.agent_id}",
+            session_id=request.session_id,
+            turn_id=request.turn_id,
+            payload={
+                "source_id": request.source_id,
+                "episode_id": episode_id,
+                "source_sha256": source_sha256,
+                "workspace_id": scope.workspace_id,
+                "agent_id": scope.agent_id,
+                "binding_assurance": request.binding_assurance,
+                "body_retained": request.retain_body,
+            },
+        )
+        result = SourceCaptureResult(
+            source_id=request.source_id,
+            episode_id=episode_id,
+            source_sha256=source_sha256,
+            replayed=False,
+            retained=request.retain_body,
+            scope=scope,
+            audit_event_id=event_id,
+        )
+        stored_request = dict(request_value)
+        stored_request.pop("message", None)
+        self.store.insert_protocol_source(
+            source_id=request.source_id,
+            idempotency_key=request.idempotency_key,
+            payload_sha256=payload_sha256,
+            subject_id=scope.subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            episode_id=episode_id,
+            source_sha256=source_sha256,
+            request=stored_request,
+            result=result.to_dict(),
+        )
+        return result
+
+    @_atomic
+    def submit_proposal(self, proposal: Any) -> Any:
+        """Apply deterministic authority policy to a model-generated proposal."""
+        from atmem.contracts import MemoryAdmission, MemoryProposal
+        from atmem.core.fact_keys import FACT_KEY_VERSION, canonicalize_fact_key
+
+        if not isinstance(proposal, MemoryProposal):
+            raise TypeError("proposal must be MemoryProposal")
+        scope = proposal.scope
+        payload_sha256 = proposal.payload_digest()
+        if proposal.idempotency_key.startswith("sha256:"):
+            if proposal.idempotency_key != payload_sha256:
+                raise ValueError("sha256 idempotency key does not match proposal payload")
+        existing = self.store.get_protocol_proposal(
+            scope.workspace_id, scope.agent_id, proposal.idempotency_key
+        )
+        if existing is not None:
+            if existing["payload_sha256"] != payload_sha256:
+                raise ValueError("proposal idempotency key was reused with a different payload")
+            saved = existing["admission"]
+            return MemoryAdmission(
+                proposal_id=saved["proposal_id"],
+                decision=saved["decision"],
+                reason_codes=tuple(saved.get("reason_codes") or ()),
+                record_ids=tuple(saved.get("record_ids") or ()),
+                candidate_ids=tuple(saved.get("candidate_ids") or ()),
+                related_record_ids=tuple(saved.get("related_record_ids") or ()),
+                review_required=bool(saved.get("review_required")),
+                audit_event_id=saved.get("audit_event_id"),
+                replayed=True,
+            )
+
+        sources = [self.store.get_protocol_source_by_id(value) for value in proposal.source_ids]
+        if any(source is None for source in sources):
+            raise ValueError("proposal references an unknown source_id")
+        for source in sources:
+            assert source is not None
+            if (
+                source["subject_id"],
+                source["agent_id"],
+                source["workspace_id"],
+            ) != (scope.subject_id, scope.agent_id, scope.workspace_id):
+                raise ValueError("proposal source is outside the authority scope")
+        if proposal.source_binding.source_sha256 not in {
+            str(source["source_sha256"]) for source in sources if source is not None
+        }:
+            raise ValueError("proposal source binding does not match a captured source")
+        related_records: list[dict[str, Any]] = []
+        for record_id in proposal.related_record_ids:
+            related = self.store.get_record(scope.subject_id, record_id)
+            if related is None:
+                raise ValueError("proposal references an unknown related record")
+            related_scope = (related.get("raw") or {}).get("authority_scope") or {}
+            if not related_scope or (
+                related_scope.get("workspace_id") != scope.workspace_id
+                or related_scope.get("agent_id") != scope.agent_id
+                or related_scope.get("subject_id") != scope.subject_id
+            ):
+                raise ValueError("related record is outside the authority scope")
+            related_records.append(related)
+
+        # Semantic memory must never become a second secret store. The source
+        # episode remains available under the evidence policy, but a secret or
+        # an explicit do-not-remember instruction creates no canonical record.
+        semantic_payload = canonical_json(
+            {
+                "fact": proposal.fact,
+                "fact_key": proposal.fact_key,
+                "entities": proposal.entities,
+            }
+        )
+        screening = screen_content(semantic_payload, trusted=True)
+        refusal_reasons = tuple(
+            reason
+            for reason in screening.reason_codes
+            if reason in {"secret_material_detected", "explicit_exclusion_signal"}
+        )
+
+        canonical_key = (
+            None if refusal_reasons else canonicalize_fact_key(proposal.fact_key)
+        )
+        duplicate = self.store.find_duplicate_record(
+            scope.subject_id, proposal.fact, statuses=("active", "quarantined")
+        ) if not refusal_reasons else None
+        conflicts = (
+            self.store.active_records_for_fact_key(scope.subject_id, canonical_key)
+            if canonical_key
+            else []
+        )
+        record_ids: tuple[str, ...] = ()
+        candidate_ids: tuple[str, ...] = ()
+        if refusal_reasons:
+            decision = "rejected"
+            reason_codes = refusal_reasons
+            review_required = False
+        elif duplicate is not None:
+            decision = "duplicate"
+            reason_codes = ("semantic_record_already_exists",)
+            record_ids = (str(duplicate["id"]),)
+            review_required = False
+        else:
+            source_types = {str(source["request"].get("source_type")) for source in sources if source}
+            trusted_source = bool(source_types) and source_types <= {
+                "user_message",
+                "agent_message",
+            } and all(
+                str(source["request"].get("binding_assurance"))
+                in {"host_authenticated", "verified_by_atmem"}
+                for source in sources
+                if source
+            )
+            parent_taint_labels = {
+                str(label)
+                for record in related_records
+                for label in ((record.get("raw") or {}).get("taint_labels") or ())
+            }
+            parent_tainted = bool(parent_taint_labels) or any(
+                str(record.get("trust_tier")) == TRUST_TIER_UNTRUSTED
+                or str(record.get("status")) != "active"
+                for record in related_records
+            )
+            taint_labels = set(parent_taint_labels)
+            if not trusted_source:
+                # Persist the native origin risk marker on the record itself so
+                # derivation checks do not have to infer taint in an adapter.
+                taint_labels.add("UNTRUSTED_CONTENT")
+            if parent_tainted:
+                taint_labels.update({"UNTRUSTED_CONTENT", "DERIVED_FROM_TAINTED"})
+            safe_add = (
+                proposal.suggested_action in {"add", "supports", "extends"}
+                and proposal.sensitivity not in {"sensitive", "restricted"}
+                and not conflicts
+                and trusted_source
+                and not parent_tainted
+            )
+            decision = "active" if safe_add else ("conflict" if conflicts else "quarantined")
+            reason_codes = (
+                ("trusted_source_policy_admitted",)
+                if safe_add
+                else ("conflicts_with_active_record",)
+                if conflicts
+                else ("derived_from_tainted_memory",)
+                if parent_tainted
+                else ("model_proposal_requires_review",)
+            )
+            status = "active" if safe_add else "quarantined"
+            first_source = sources[0]
+            assert first_source is not None
+            record_id = self.store.insert_record(
+                subject_id=scope.subject_id,
+                content=proposal.fact,
+                source_type=(
+                    str(first_source["request"].get("source_type"))
+                    if trusted_source and not parent_tainted
+                    else "external_content"
+                ),
+                trust_tier=(
+                    "trusted_user" if trusted_source and not parent_tainted else "untrusted_content"
+                ),
+                source_session_id=proposal.session_id,
+                source_turn_id=proposal.turn_id,
+                episode_id=str(first_source["episode_id"]),
+                confidence=float(proposal.confidence),
+                scope="atbot_model_proposal",
+                status=status,
+                supersedes_id=None,
+                fact_key=canonical_key,
+                raw={
+                    "authority_scope": scope.to_dict(),
+                    "proposal_id": proposal.proposal_id,
+                    "source_ids": list(proposal.source_ids),
+                    "interpreter": proposal.interpreter.to_dict(),
+                    "source_binding": proposal.source_binding.to_dict(),
+                    "sensitivity": proposal.sensitivity,
+                    "suggested_action": proposal.suggested_action,
+                    "proposed_fact_key": proposal.fact_key,
+                    "fact_key_version": FACT_KEY_VERSION,
+                    "related_record_ids": list(proposal.related_record_ids),
+                    "taint_labels": sorted(taint_labels),
+                },
+            )
+            stored = self.store.get_record(scope.subject_id, record_id)
+            assert stored is not None
+            graph_mutations = self.graph.index_record(stored)
+            self._audit_graph_mutations(
+                scope.subject_id,
+                graph_mutations,
+                session_id=proposal.session_id,
+                turn_id=proposal.turn_id,
+                record_id=record_id,
+            )
+            if status == "active":
+                record_ids = (record_id,)
+            else:
+                candidate_ids = (record_id,)
+            review_required = status != "active"
+
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.proposal_admitted_v1",
+            actor="atmem-policy",
+            session_id=proposal.session_id,
+            turn_id=proposal.turn_id,
+            record_id=(record_ids or candidate_ids or (None,))[0],
+            payload={
+                "proposal_id": proposal.proposal_id,
+                "proposal_payload_sha256": payload_sha256,
+                "decision": decision,
+                "reason_codes": list(reason_codes),
+                "record_ids": list(record_ids),
+                "candidate_ids": list(candidate_ids),
+                "related_record_ids": list(proposal.related_record_ids),
+                "workspace_id": scope.workspace_id,
+                "agent_id": scope.agent_id,
+                "proposed_fact_key": None if refusal_reasons else proposal.fact_key,
+                "canonical_fact_key": canonical_key,
+                "fact_key_version": FACT_KEY_VERSION,
+                "rejected_semantic_payload_sha256": (
+                    f"sha256:{sha256_hex(semantic_payload)}"
+                    if refusal_reasons
+                    else None
+                ),
+            },
+        )
+        admission = MemoryAdmission(
+            proposal_id=proposal.proposal_id,
+            decision=decision,
+            reason_codes=reason_codes,
+            record_ids=record_ids,
+            candidate_ids=candidate_ids,
+            related_record_ids=proposal.related_record_ids,
+            review_required=review_required,
+            audit_event_id=event_id,
+        )
+        stored_proposal = proposal.to_dict()
+        if refusal_reasons:
+            stored_proposal = {
+                "format": proposal.format,
+                "proposal_id": proposal.proposal_id,
+                "scope": proposal.scope.to_dict(),
+                "source_ids": list(proposal.source_ids),
+                "fact": "[rejected sensitive semantic proposal]",
+                "fact_sha256": f"sha256:{sha256_hex(proposal.fact)}",
+                "semantic_payload_sha256": f"sha256:{sha256_hex(semantic_payload)}",
+                "reason_codes": list(refusal_reasons),
+            }
+        self.store.insert_protocol_proposal(
+            proposal_id=proposal.proposal_id,
+            idempotency_key=proposal.idempotency_key,
+            payload_sha256=payload_sha256,
+            subject_id=scope.subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            decision=decision,
+            proposal=stored_proposal,
+            admission=admission.to_dict(),
+        )
+        return admission
+
+    @_atomic
+    def submit_extraction_proposal(
+        self,
+        proposal: Any,
+        *,
+        source_text: str,
+        session_id: str | None = None,
+        turn_id: str | int | None = None,
+        actor: str = "atmem-policy",
+        window: int = 64,
+        review_confidence: float = 0.6,
+        review_policy: Any = None,
+        _resolution_context: Any = None,
+    ) -> dict[str, Any]:
+        """Validate one typed proposal and commit it, or route it to review.
+
+        This is the only path a v2 proposal may take into canonical memory. A
+        proposer never writes: it hands over an :class:`ExtractionProposal`,
+        AtMem re-derives the evidence, policy, scope, and lifecycle
+        preconditions inside this transaction, and only then mutates. The
+        generation check is what makes concurrent proposals safe -- a proposal
+        built against a value that has since changed fails closed with
+        ``stale_proposal_generation`` instead of overwriting the newer fact.
+        """
+        from atmem.extract.context import build_resolution_context
+        from atmem.extract.models import ExtractionProposal, ProposalAction
+        from atmem.extract.review import ReviewPolicy
+        from atmem.extract.validation import screen_content, validate_proposal
+
+        if not isinstance(proposal, ExtractionProposal):
+            raise TypeError("proposal must be ExtractionProposal")
+        submitted_digest = proposal.digest()
+        scope = proposal.scope
+        existing = self.store.find_memory_proposal(
+            scope.subject_id, scope.agent_id, scope.workspace_id, proposal.idempotency_key
+        )
+        if existing is not None:
+            if existing["proposal_sha256"] != submitted_digest:
+                raise ValueError(
+                    "proposal idempotency key was reused with a different payload"
+                )
+            return {**_extraction_outcome(existing), "replayed": True}
+        proposal = self._reconcile_typed_proposal(proposal)
+        scope = proposal.scope
+        subject_id = scope.subject_id
+        turn = _turn_id(turn_id)
+
+        source_bodies = self._verified_typed_sources(proposal)
+
+        context = _resolution_context or build_resolution_context(
+            self.store, subject_id, scope=scope, window=window
+        )
+        if context.subject_id != subject_id or context.scope != scope:
+            raise ValueError("resolution context does not match proposal authority")
+        if (
+            proposal.unit is None
+            and proposal.action is ProposalAction.ADD
+            and proposal.fact_key
+        ):
+            from dataclasses import replace
+            from atmem.extract.models import ProposalPrecondition
+
+            slot_rows = [
+                row for row in self.store.active_records_for_fact_key(
+                    subject_id, proposal.fact_key
+                )
+                if not (authority := ((row.get("raw") or {}).get("authority_scope") or {}))
+                or (
+                    authority.get("subject_id"), authority.get("agent_id"),
+                    authority.get("workspace_id"),
+                ) == (scope.subject_id, scope.agent_id, scope.workspace_id)
+            ]
+            if slot_rows:
+                proposal = replace(
+                    proposal,
+                    action=ProposalAction.SUPERSEDE,
+                    affected_record_ids=tuple(str(row["id"]) for row in slot_rows),
+                    preconditions=tuple(
+                        ProposalPrecondition(
+                            record_id=str(row["id"]),
+                            generation=int(row.get("generation") or 0),
+                            status=str(row.get("status") or "active"),
+                            content_sha256=f"sha256:{sha256_hex(str(row.get('content') or ''))}",
+                        )
+                        for row in slot_rows
+                    ),
+                    reason_codes=tuple(dict.fromkeys(
+                        proposal.reason_codes + ("full_slot_reconciliation",)
+                    )),
+                )
+        missing_targets = set(proposal.affected_record_ids) - {
+            str(row["id"]) for row in context.records
+        }
+        if missing_targets:
+            from dataclasses import replace
+
+            targets = self.store.get_records(subject_id, sorted(missing_targets))
+            excluded = self.store.excluded_record_ids(subject_id)
+            authorized = []
+            for record_id in sorted(missing_targets):
+                row = targets.get(record_id)
+                authority = ((row or {}).get("raw") or {}).get("authority_scope") or {}
+                if (
+                    row is not None and row.get("status") == "active"
+                    and record_id not in excluded
+                    and (
+                        not authority
+                        or (
+                            authority.get("subject_id"), authority.get("agent_id"),
+                            authority.get("workspace_id"),
+                        ) == (scope.subject_id, scope.agent_id, scope.workspace_id)
+                    )
+                ):
+                    authorized.append(row)
+            context = replace(context, records=context.records + tuple(authorized))
+        validation = validate_proposal(
+            proposal,
+            source_text=source_text,
+            source_bodies=source_bodies,
+            context=context,
+            scope=scope,
+            review_confidence=review_confidence,
+        )
+        semantic_payload = canonical_json(
+            {
+                "fact": proposal.fact,
+                "fact_key": proposal.fact_key,
+                "unit": proposal.unit.to_dict() if proposal.unit is not None else None,
+            }
+        )
+        semantic_screening = screen_content(semantic_payload, trusted=True)
+        semantic_refusals = tuple(
+            reason
+            for reason in semantic_screening.reason_codes
+            if reason in {"secret_material_detected", "explicit_exclusion_signal"}
+        )
+        mutations = {
+            ProposalAction.ADD,
+            ProposalAction.UPDATE,
+            ProposalAction.SUPERSEDE,
+        }
+        policy = review_policy or ReviewPolicy(min_confidence=review_confidence)
+        quarantine = policy.requires_review(proposal)
+        if proposal.unit is not None and proposal.unit.kind.value in {
+            "durable_rule", "failure_gotcha", "procedure"
+        }:
+            quarantine = tuple(dict.fromkeys(
+                quarantine + ("typed_action_requires_authorized_review",)
+            ))
+        if not validation.valid or semantic_refusals:
+            state = "rejected"
+            reason_codes = tuple(
+                dict.fromkeys(validation.reason_codes + semantic_refusals)
+            )
+        elif (
+            proposal.unit is not None
+            and self.policy.state != "encrypted"
+            and not self._allow_insecure_typed_development
+        ):
+            state = "rejected"
+            reason_codes = proposal.reason_codes + (
+                "typed_memory_requires_encrypted_household",
+            )
+        elif proposal.action is ProposalAction.REJECT:
+            state, reason_codes = "rejected", proposal.reason_codes
+        elif proposal.action is ProposalAction.NOOP:
+            state, reason_codes = "noop", proposal.reason_codes
+        elif (
+            proposal.unit is not None
+            and self.store.has_typed_exclusion_identity(
+                scope.subject_id,
+                scope.workspace_id,
+                proposal.unit.exclusion_identity(),
+            )
+        ):
+            state = "rejected"
+            reason_codes = proposal.reason_codes + (
+                "typed_occurrence_previously_excluded",
+            )
+        elif validation.review_required or quarantine:
+            state = "pending_review"
+            reason_codes = proposal.reason_codes + quarantine
+        else:
+            state, reason_codes = "committed", proposal.reason_codes
+            if proposal.unit is not None and self.policy.state != "encrypted":
+                reason_codes += ("insecure_typed_development_override",)
+
+        duplicate_occurrence: dict[str, Any] | None = None
+        if proposal.unit is not None and state == "committed":
+            duplicate = self.store.find_live_typed_identity(
+                scope.subject_id,
+                scope.workspace_id,
+                proposal.unit.semantic_identity(),
+            )
+            if duplicate is not None:
+                state = "noop"
+                duplicate_occurrence = duplicate
+                reason_codes = tuple(
+                    dict.fromkeys(reason_codes + ("duplicate_semantic_identity",))
+                )
+
+        record_ids: list[str] = []
+        superseded_ids: list[str] = []
+        lineage_ids: list[str] = []
+        if duplicate_occurrence is not None and proposal.unit is not None:
+            record_ids = [str(duplicate_occurrence["record_id"])]
+            self.store.link_typed_occurrence_evidence(
+                subject_id=scope.subject_id,
+                workspace_id=scope.workspace_id,
+                unit_id=str(duplicate_occurrence["unit_id"]),
+                evidence=[{
+                    "source_id": item.source_id,
+                    "start_offset": item.start_offset,
+                    "end_offset": item.end_offset,
+                    "excerpt_sha256": item.excerpt_sha256,
+                } for item in proposal.unit.evidence],
+            )
+        if state == "committed" and proposal.action in mutations:
+            record_ids, superseded_ids, lineage_ids = self._commit_extraction(
+                proposal,
+                context=context,
+                session_id=session_id,
+                turn=turn,
+            )
+
+        resolution_receipts = context.receipts()
+        resolution_receipt_summary = _compact_resolution_receipts(
+            resolution_receipts,
+            window=context.window,
+        )
+        outcome = {
+            "state": state,
+            "reason_codes": list(dict.fromkeys(reason_codes)),
+            "record_ids": record_ids,
+            "superseded_record_ids": superseded_ids,
+            "lineage_ids": lineage_ids,
+            "resolution_receipt_summary": resolution_receipt_summary,
+        }
+        event_id = self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type=f"memory.proposal_{state}",
+            actor=actor,
+            session_id=session_id,
+            turn_id=turn,
+            record_id=(record_ids or [None])[0],
+            payload={
+                "proposal_id": proposal.proposal_id,
+                "proposal_sha256": submitted_digest,
+                "action": proposal.action.value,
+                "memory_class": proposal.memory_class.value,
+                "confidence": proposal.confidence,
+                "fact_key": None if state == "rejected" else proposal.fact_key,
+                "reason_codes": outcome["reason_codes"],
+                "record_ids": record_ids,
+                "superseded_record_ids": superseded_ids,
+                "lineage_ids": lineage_ids,
+                "workspace_id": scope.workspace_id,
+                "agent_id": scope.agent_id,
+                "evidence": [
+                    {
+                        "source_id": item.source_id,
+                        "source_sha256": item.source_sha256,
+                        "start_offset": item.start_offset,
+                        "end_offset": item.end_offset,
+                        "excerpt_sha256": item.excerpt_sha256,
+                    }
+                    for item in proposal.evidence
+                ],
+                "resolution_receipt_summary": resolution_receipt_summary,
+            },
+        )
+        outcome["audit_event_id"] = event_id
+        stored_proposal = proposal.to_dict()
+        if semantic_refusals or (
+            proposal.unit is not None and state != "pending_review"
+        ):
+            stored_proposal = {
+                "format": proposal.format,
+                "proposal_id": proposal.proposal_id,
+                "scope": proposal.scope.to_dict(),
+                "action": proposal.action.value,
+                "memory_class": proposal.memory_class.value,
+                "fact": "[non-retained typed extraction proposal]",
+                "fact_sha256": f"sha256:{sha256_hex(str(proposal.fact or ''))}",
+                "semantic_payload_sha256": f"sha256:{sha256_hex(semantic_payload)}",
+                "reason_codes": list(outcome["reason_codes"]),
+                "redacted": True,
+            }
+        stored = self.store.insert_memory_proposal(
+            proposal_id=proposal.proposal_id,
+            subject_id=subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            idempotency_key=proposal.idempotency_key,
+            proposal_sha256=submitted_digest,
+            action=proposal.action.value,
+            memory_class=proposal.memory_class.value,
+            confidence=proposal.confidence,
+            fact_key=(
+                None
+                if state == "rejected"
+                or (proposal.unit is not None and state != "pending_review")
+                else proposal.fact_key
+            ),
+            review_state=state,
+            reason_codes=outcome["reason_codes"],
+            proposal=stored_proposal,
+            outcome=outcome,
+            decided_at=None if state == "pending_review" else utc_now(),
+        )
+        if proposal.unit is not None:
+            self.store.link_memory_proposal_sources(
+                proposal.proposal_id,
+                scope.subject_id,
+                scope.workspace_id,
+                [item.source_id for item in proposal.evidence],
+            )
+        return {**_extraction_outcome(stored), "replayed": False}
+
+    def _reconcile_typed_proposal(self, proposal: Any) -> Any:
+        """Turn a typed fact-slot replacement into an explicit guarded supersession."""
+        from dataclasses import replace
+        from atmem.extract.models import ProposalAction, ProposalPrecondition
+
+        sources = [
+            self.store.get_protocol_source_by_id(item.source_id)
+            for item in proposal.evidence
+        ]
+        source_requests = [
+            source.get("request", {}) for source in sources if source is not None
+        ]
+        trusted_sources = bool(source_requests) and all(
+            str(request.get("source_type") or "external_content")
+            in {"user_message", "agent_message"}
+            or (
+                str(request.get("source_type") or "") == "tool_output"
+                and str(request.get("binding_assurance") or "")
+                in {"host_asserted", "host_authenticated", "verified_by_atmem"}
+            )
+            for request in source_requests
+        )
+        if (
+            proposal.action in {
+                ProposalAction.ADD, ProposalAction.UPDATE, ProposalAction.SUPERSEDE,
+            }
+            and source_requests
+            and not trusted_sources
+        ):
+            return replace(
+                proposal,
+                review_required=True,
+                reason_codes=tuple(dict.fromkeys(
+                    proposal.reason_codes + ("untrusted_observation_cannot_supersede",)
+                )),
+            )
+        if proposal.unit is None:
+            return proposal
+        if (
+            proposal.action is not ProposalAction.ADD
+            or not proposal.fact_key
+            or proposal.unit.kind.value not in {
+                "atomic_fact", "state_transition", "environment_state",
+            }
+            or (
+                proposal.unit.kind.value == "environment_state"
+                and (
+                    getattr(proposal.unit.payload, "entity", None)
+                    != getattr(proposal.unit.payload, "relation", None)
+                    or getattr(proposal.unit.payload, "entity", None) == "episode"
+                )
+            )
+        ):
+            return proposal
+        if self.store.find_live_typed_identity(
+            proposal.scope.subject_id,
+            proposal.scope.workspace_id,
+            proposal.unit.semantic_identity(),
+        ) is not None:
+            return proposal
+        payload = proposal.unit.payload
+        matches = []
+        candidate_rows = self.store.active_records_for_fact_key(
+            proposal.scope.subject_id, proposal.fact_key
+        )
+        typed_subject = getattr(payload, "subject", None)
+        typed_relation = getattr(payload, "relation", None)
+        if typed_subject and typed_relation:
+            candidate_rows.extend(self.store.active_records_for_typed_slot(
+                proposal.scope.subject_id, proposal.scope.workspace_id,
+                subject=str(typed_subject), relation=str(typed_relation),
+            ))
+            # Pre-v2 records used the human relation as their fact key. They
+            # remain part of the same durable slot even after falling outside
+            # the bounded resolution window.
+            if str(typed_subject).casefold() in {"user", "self", "speaker"}:
+                candidate_rows.extend(self.store.active_records_for_fact_key(
+                    proposal.scope.subject_id, str(typed_relation).casefold()
+                ))
+        for row in candidate_rows:
+            authority = (row.get("raw") or {}).get("authority_scope") or {}
+            existing_unit = (row.get("raw") or {}).get("typed_unit") or {}
+            existing_payload = existing_unit.get("payload") or {}
+            existing_subject = existing_payload.get("subject") or existing_payload.get("entity")
+            existing_relation = existing_payload.get("relation")
+            typed_slot_compatible = (
+                not existing_unit
+                and str(typed_subject or "").casefold() in {"user", "self", "speaker"}
+            ) or (
+                bool(existing_subject and existing_relation)
+                and str(existing_subject).casefold() == str(typed_subject or "").casefold()
+                and str(existing_relation).casefold() == str(typed_relation or "").casefold()
+            )
+            if (
+                typed_slot_compatible
+                and
+                (
+                    not authority
+                    or (
+                        authority.get("subject_id"), authority.get("agent_id"),
+                        authority.get("workspace_id"),
+                    ) == (
+                        proposal.scope.subject_id, proposal.scope.agent_id,
+                        proposal.scope.workspace_id,
+                    )
+                )
+                and all(existing["id"] != row["id"] for existing in matches)
+            ):
+                matches.append(row)
+        if not matches:
+            return proposal
+        historical_observation = False
+        proposed_at = proposal.unit.event_at or proposal.unit.observed_at
+        if proposed_at:
+            proposed_time = datetime.fromisoformat(str(proposed_at).replace("Z", "+00:00"))
+            existing_times: list[datetime] = []
+            for row in matches:
+                raw_unit = ((row.get("raw") or {}).get("typed_unit") or {})
+                value = raw_unit.get("event_at") or raw_unit.get("observed_at")
+                if value:
+                    existing_times.append(
+                        datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+                    )
+            if existing_times and proposed_time < max(existing_times):
+                historical_observation = True
+        kinds = {
+            str(((row.get("raw") or {}).get("typed_unit") or {}).get("kind") or "")
+            for row in matches
+        } - {""}
+        shape_conflict = bool(kinds - {proposal.unit.kind.value})
+        return replace(
+            proposal,
+            action=(ProposalAction.ADD if historical_observation else ProposalAction.SUPERSEDE),
+            affected_record_ids=tuple(str(row["id"]) for row in matches),
+            preconditions=tuple(
+                ProposalPrecondition(
+                    record_id=str(row["id"]),
+                    generation=int(row.get("generation") or 0),
+                    status=str(row["status"]),
+                    content_sha256=f"sha256:{sha256_hex(str(row.get('content') or ''))}",
+                )
+                for row in matches
+            ),
+            reason_codes=tuple(dict.fromkeys(
+                proposal.reason_codes + (
+                    "historical_observation" if historical_observation
+                    else "typed_shape_conflict" if shape_conflict
+                    else "typed_compatible_update",
+                )
+            )),
+            review_required=proposal.review_required or shape_conflict,
+        )
+
+    def _verified_typed_sources(self, proposal: Any) -> dict[str, str]:
+        """Rehydrate and authenticate every typed evidence body from storage."""
+        if proposal.unit is None:
+            return {}
+        scope = proposal.scope
+        bodies: dict[str, str] = {}
+        for evidence in proposal.evidence:
+            source = self.store.get_protocol_source_by_id(evidence.source_id)
+            if source is None or (
+                source["subject_id"], source["agent_id"], source["workspace_id"]
+            ) != (scope.subject_id, scope.agent_id, scope.workspace_id):
+                raise ValueError("typed proposal evidence is not available in this authority scope")
+            if source["source_sha256"] != evidence.source_sha256:
+                raise ValueError("typed proposal evidence digest does not match captured source")
+            episode = self.store.get_episode(scope.subject_id, str(source["episode_id"]))
+            if (
+                episode is None
+                or episode["message"] == "[purged]"
+                or not bool((source.get("result") or {}).get("retained"))
+            ):
+                raise ValueError("typed proposal evidence body is no longer retained")
+            body = str(episode["message"])
+            if f"sha256:{sha256_hex(body)}" != evidence.source_sha256:
+                raise ValueError("typed proposal evidence body failed digest verification")
+            bodies[evidence.source_id] = body
+        return bodies
+
+    def _commit_extraction(
+        self,
+        proposal: Any,
+        *,
+        context: Any,
+        session_id: str | None,
+        turn: str | None,
+        fact: str | None = None,
+    ) -> tuple[list[str], list[str], list[str]]:
+        """Write one validated mutation and its immutable lineage.
+
+        Runs inside the caller's transaction. Preconditions were checked
+        against the same read, and ``supersede_records`` only matches rows
+        still active, so a lost race leaves the older fact untouched.
+        """
+        from dataclasses import replace
+        from atmem.extract.models import ProposalAction
+        from atmem.extract.review import typed_content_is_sensitive
+
+        if proposal.unit is not None:
+            self._verified_typed_sources(proposal)
+            duplicate = self.store.find_live_typed_identity(
+                proposal.scope.subject_id,
+                proposal.scope.workspace_id,
+                proposal.unit.semantic_identity(),
+            )
+            if duplicate is not None:
+                raise ValueError("typed semantic identity already has a live unit")
+
+        content = (
+            proposal.unit.canonical_text()
+            if proposal.unit is not None
+            else (fact if fact is not None else str(proposal.fact or ""))
+        )
+        if proposal.unit is not None:
+            typed_sources = [
+                self.store.get_protocol_source_by_id(item.source_id)
+                for item in proposal.unit.evidence
+            ]
+            if not typed_sources or any(source is None for source in typed_sources):
+                raise ValueError("typed proposal source was not durably captured")
+            source_rows = [source for source in typed_sources if source is not None]
+            episode_id = str(source_rows[0]["episode_id"])
+            source_types = {
+                str(source["request"].get("source_type") or "external_content")
+                for source in source_rows
+            }
+            source_assurances = {
+                str(source["request"].get("binding_assurance") or "")
+                for source in source_rows
+            }
+            native_source_type = (
+                next(iter(source_types)) if len(source_types) == 1
+                else "external_content"
+            )
+            trusted_user_source = source_types <= {"user_message", "agent_message"} and (
+                source_assurances <= {
+                    "caller_asserted", "host_asserted", "host_authenticated",
+                    "verified_by_atmem"
+                }
+            )
+            asserted_observation = source_types == {"tool_output"} and (
+                source_assurances <= {
+                    "host_asserted", "host_authenticated", "verified_by_atmem"
+                }
+            )
+            native_trust_tier = (
+                "trusted_user" if trusted_user_source
+                else "host_asserted_observation" if asserted_observation
+                else TRUST_TIER_UNTRUSTED
+            )
+        else:
+            episode_id = self.store.insert_episode(
+                subject_id=proposal.scope.subject_id,
+                session_id=session_id,
+                turn_id=turn,
+                message=content,
+                source_type="proposal",
+                raw={
+                    "format": "atmem-extraction-source-v2",
+                    "proposal_id": proposal.proposal_id,
+                    "evidence": [
+                        {
+                            "source_id": item.source_id,
+                            "source_sha256": item.source_sha256,
+                            "start_offset": item.start_offset,
+                            "end_offset": item.end_offset,
+                            "excerpt_sha256": item.excerpt_sha256,
+                        }
+                        for item in proposal.evidence
+                    ],
+                },
+            )
+            # Legacy extraction proposals are governed by their existing
+            # validation/review path. This branch has no captured native source
+            # envelope from which to derive a stricter origin tier.
+            native_source_type = "user_message"
+            native_trust_tier = "trusted_user"
+        targets = [
+            row
+            for row in context.records
+            if str(row["id"]) in set(proposal.affected_record_ids)
+        ]
+        historical_observation = "historical_observation" in proposal.reason_codes
+        parent_taint_labels = {
+            str(label)
+            for row in targets
+            for label in ((row.get("raw") or {}).get("taint_labels") or ())
+        }
+        native_tainted = native_trust_tier == TRUST_TIER_UNTRUSTED
+        parent_tainted = native_tainted or bool(parent_taint_labels) or any(
+            str(row.get("trust_tier")) == TRUST_TIER_UNTRUSTED
+            or str(row.get("status")) != "active"
+            for row in targets
+        )
+        if parent_tainted:
+            parent_taint_labels.update(
+                {"UNTRUSTED_CONTENT", "DERIVED_FROM_TAINTED"}
+            )
+        lifecycle = "quarantined" if parent_tainted else "active"
+        active_unit = (
+            replace(proposal.unit, lifecycle=lifecycle)
+            if proposal.unit is not None else None
+        )
+        record_id = self.store.insert_record(
+            subject_id=proposal.scope.subject_id,
+            content=content,
+            source_type=native_source_type,
+            trust_tier=(
+                TRUST_TIER_UNTRUSTED if parent_tainted else native_trust_tier
+            ),
+            source_session_id=session_id,
+            source_turn_id=turn,
+            episode_id=episode_id,
+            confidence=float(proposal.confidence),
+            scope="user_private",
+            status="quarantined" if parent_tainted else "active",
+            supersedes_id=(
+                None if historical_observation
+                else str(targets[0]["id"]) if targets else None
+            ),
+            fact_key=proposal.fact_key,
+            raw={
+                "authority_scope": proposal.scope.to_dict(),
+                "proposal_id": proposal.proposal_id,
+                "memory_class": proposal.memory_class.value,
+                "reason_codes": list(proposal.reason_codes),
+                "taint_labels": sorted(parent_taint_labels),
+                "sensitivity": (
+                    "sensitive" if typed_content_is_sensitive(proposal) else "personal"
+                ),
+                **(
+                    {"typed_unit": active_unit.to_dict()}
+                    if active_unit is not None else {}
+                ),
+            },
+        )
+        if active_unit is not None:
+            self.store.insert_typed_memory_unit(
+                unit=active_unit.to_dict(),
+                record_id=record_id,
+                semantic_identity=active_unit.semantic_identity(),
+            )
+        if historical_observation and targets:
+            # Preserve late-arriving evidence as history without allowing it to
+            # become the current value or retire the newer observation.
+            current_id = str(targets[0]["id"])
+            self.store.supersede_records(
+                subject_id=proposal.scope.subject_id,
+                record_ids=[record_id],
+                superseded_by_id=current_id,
+            )
+            lineage_id = self.store.insert_memory_lineage(
+                subject_id=proposal.scope.subject_id,
+                relation="precedes",
+                predecessor_record_id=record_id,
+                successor_record_id=current_id,
+                predecessor_content_sha256=f"sha256:{_sha256(content)}",
+                predecessor_generation=0,
+                proposal_id=proposal.proposal_id,
+            )
+            stored = self.store.get_record(proposal.scope.subject_id, record_id)
+            assert stored is not None
+            return [record_id], [record_id], [lineage_id]
+
+        relation = (
+            "refines" if proposal.action is ProposalAction.UPDATE else "supersedes"
+        )
+        if "explicit_correction" in proposal.reason_codes:
+            relation = "corrects"
+        superseded_ids = [str(row["id"]) for row in targets]
+        self.store.supersede_records(
+            subject_id=proposal.scope.subject_id,
+            record_ids=superseded_ids,
+            superseded_by_id=record_id,
+        )
+        lineage_ids = [
+            self.store.insert_memory_lineage(
+                subject_id=proposal.scope.subject_id,
+                relation=relation,
+                predecessor_record_id=str(row["id"]),
+                successor_record_id=record_id,
+                predecessor_content_sha256=(
+                    f"sha256:{_sha256(str(row.get('content') or ''))}"
+                ),
+                predecessor_generation=int(row.get("generation") or 0),
+                proposal_id=proposal.proposal_id,
+            )
+            for row in targets
+        ]
+        stored = self.store.get_record(proposal.scope.subject_id, record_id)
+        assert stored is not None
+        graph_mutations = self.graph.supersede_records(
+            proposal.scope.subject_id, superseded_ids, record_id
+        )
+        graph_mutations.extend(self.graph.index_record(stored))
+        self._audit_graph_mutations(
+            proposal.scope.subject_id,
+            graph_mutations,
+            session_id=session_id,
+            turn_id=turn,
+            record_id=record_id,
+        )
+        return [record_id], superseded_ids, lineage_ids
+
+    def list_extraction_proposals(
+        self,
+        subject_id: str | None = None,
+        *,
+        review_states: tuple[str, ...] | None = ("pending_review",),
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Proposals awaiting or past review, in stable submission order."""
+        return [
+            _extraction_outcome(row)
+            for row in self.store.list_memory_proposals(
+                subject_id, review_states=review_states, limit=limit
+            )
+        ]
+
+    def analyze_information_need(
+        self, query: str, *, budget: Any = None
+    ) -> dict[str, Any]:
+        """Return the deterministic retrieval route used by every host adapter."""
+        from atmem.contracts import RetrievalBudget
+        from atmem.retrieve import decompose_information_need, profile_for_need
+
+        active_budget = budget or RetrievalBudget()
+        if not isinstance(active_budget, RetrievalBudget):
+            raise TypeError("budget must be RetrievalBudget")
+        parent, children = decompose_information_need(query, budget=active_budget)
+        profile = profile_for_need(parent.type)
+        return {
+            "format": "atmem-information-need-analysis-v1",
+            "need": parent.to_dict(),
+            "subneeds": [child.to_dict() for child in children],
+            "profile": profile.to_dict(),
+            "budget": active_budget.to_dict(),
+        }
+
+    def memory_checkpoint(self, scope: Any) -> dict[str, Any]:
+        """Return a content-free identity for authority-bearing memory state.
+
+        Retrieval telemetry, candidate sets and audit events are deliberately
+        excluded, so a read-only evaluation can prove that canonical memory did
+        not change even though the black box recorded the read.
+        """
+        from atmem.contracts import AuthorityScope
+
+        if not isinstance(scope, AuthorityScope):
+            raise TypeError("scope must be AuthorityScope")
+        records = [
+            row for row in self.store.list_records(scope.subject_id, statuses=None)
+            if str(row.get("authority_workspace_id") or scope.workspace_id)
+            == scope.workspace_id
+        ]
+        identity = [
+            {
+                "record_id": str(row["id"]),
+                "status": str(row["status"]),
+                "generation": int(row.get("generation") or 0),
+                "content_sha256": f"sha256:{sha256_hex(str(row.get('content') or ''))}",
+                "raw_sha256": f"sha256:{sha256_hex(canonical_json(row.get('raw') or {}))}",
+            }
+            for row in records
+        ]
+        derivative_identity = self.store.typed_derivative_identity(
+            scope.subject_id,
+            scope.workspace_id,
+            [str(row["id"]) for row in records],
+        )
+        return {
+            "format": "atmem-canonical-memory-checkpoint-v1",
+            "scope": scope.to_dict(),
+            "generation": self.store.record_generation(scope.subject_id),
+            "record_count": len(identity),
+            "records_sha256": f"sha256:{sha256_hex(canonical_json(identity))}",
+            "derivatives_sha256": f"sha256:{sha256_hex(canonical_json(derivative_identity))}",
+        }
+
+    def form_episode(
+        self, request: Any, *, budget: Any = None,
+        history_import_principal: str | None = None,
+    ) -> dict[str, Any]:
+        """Losslessly capture an episode, then conservatively form typed units."""
+        from atmem.contracts import (
+            EpisodeIngestRequest,
+            FormationReceipt,
+            RetrievalBudget,
+            SourceCaptureRequest,
+        )
+        from atmem.extract.formation import form_typed_proposals
+
+        if not isinstance(request, EpisodeIngestRequest):
+            raise TypeError("request must be EpisodeIngestRequest")
+        active_budget = budget or RetrievalBudget()
+        if not isinstance(active_budget, RetrievalBudget):
+            raise TypeError("budget must be RetrievalBudget")
+        if history_import_principal is not None:
+            if request.binding_assurance != "host_asserted":
+                raise PermissionError(
+                    "authorized history import requires host-asserted binding"
+                )
+            if request.source_observation_granularity != "sentence":
+                raise ValueError(
+                    "authorized history import requires sentence source observations"
+                )
+            configured_importer = self._review_authorities.get(
+                history_import_principal
+            )
+            if (
+                configured_importer is None
+                or "history_import:review" not in configured_importer["scopes"]
+                or configured_importer["subject_id"] != request.scope.subject_id
+                or configured_importer["agent_id"] != request.scope.agent_id
+                or configured_importer["workspace_id"] != request.scope.workspace_id
+            ):
+                raise PermissionError(
+                    "history import principal is not configured for this scope"
+                )
+            if self.policy.state != "encrypted" and not self._allow_insecure_typed_development:
+                raise PermissionError("authorized history import requires encrypted storage")
+        formation_id = f"formation-{sha256_hex(canonical_json({'request': request.to_dict(), 'version': 'typed-formation-v2'}))[:24]}"
+        previous = self.store.get_formation_receipt(formation_id)
+        if previous is not None and previous.get("processing_complete"):
+            statuses = self.store.formation_unit_statuses(formation_id)
+            ready = bool(
+                previous.get("representation_complete")
+                and int(previous.get("withheld") or 0) == 0
+                and int(previous.get("rejected") or 0) == 0
+                and statuses
+                and all(status in {"active", "superseded"} for status in statuses)
+            )
+            replay = {**previous, "retrieval_ready": ready}
+            return {"receipt": replay, "outcomes": [], "replayed": True}
+        prior_positions = tuple((previous or {}).get("next_positions") or ())
+        pending_by_part: dict[str, set[str]] = {}
+        source_pending_parts: set[str] = set()
+        for position in prior_positions:
+            part_id = str(position.get("part_id") or "")
+            if position.get("proposal_id"):
+                pending_by_part.setdefault(part_id, set()).add(
+                    str(position["proposal_id"])
+                )
+            elif part_id:
+                source_pending_parts.add(part_id)
+
+        source_ids: list[str] = list((previous or {}).get("source_ids") or ())
+        outcomes: list[dict[str, Any]] = []
+        pending_part_ids = set(pending_by_part) | source_pending_parts
+        unsupported: list[str] = [
+            value for value in (previous or {}).get("unsupported_parts") or ()
+            if value not in pending_part_ids
+        ]
+        unrepresented: list[dict[str, Any]] = [
+            value for value in (previous or {}).get("unrepresented_ranges") or ()
+            if str(value.get("part_id") or "") not in pending_part_ids
+        ]
+        next_positions: list[dict[str, Any]] = []
+        counts: dict[str, int] = dict((previous or {}).get("proposals_by_kind") or {})
+        processed_bytes = 0
+        proposed_count = 0
+        budget_withheld = 0
+        media_references: list[dict[str, Any]] = list(
+            (previous or {}).get("media_references") or ()
+        )
+        protected_media: list[dict[str, Any]] = []
+        stage_started_at = utc_now()
+        started = time.monotonic()
+        for part in request.parts:
+            if previous is not None and part.part_id not in pending_part_ids:
+                continue
+            if part.content is None:
+                if part.kind == "media_reference":
+                    if (
+                        self.policy.state != "encrypted"
+                        and not self._allow_insecure_typed_development
+                    ):
+                        unsupported.append(part.part_id)
+                        continue
+                    preceding_parts = [
+                        candidate for candidate in request.parts
+                        if candidate.content is not None and candidate.ordinal < part.ordinal
+                    ]
+                    if not preceding_parts:
+                        unsupported.append(part.part_id)
+                        continue
+                    owner = max(preceding_parts, key=lambda candidate: candidate.ordinal)
+                    owner_source_id = "source-" + sha256_hex(canonical_json([
+                        "source_identity_v2", request.scope.to_dict(),
+                        request.episode_id, owner.part_id,
+                    ]))[:24]
+                    if owner_source_id not in source_ids:
+                        next_positions.append({
+                            "part_id": part.part_id, "start_offset": 0,
+                            "reason": "media_owner_source_not_captured",
+                        })
+                        continue
+                    reference = Path(str(part.reference_id or "")).expanduser()
+                    if not reference.is_file():
+                        unsupported.append(part.part_id)
+                        continue
+                    media_size = reference.stat().st_size
+                    deadline_exhausted = (
+                        (time.monotonic() - started) * 1000 >= active_budget.wall_time_ms
+                    )
+                    if (
+                        deadline_exhausted
+                        or processed_bytes + media_size > active_budget.source_bytes
+                    ):
+                        reason = (
+                            "formation_wall_time_exhausted" if deadline_exhausted
+                            else "formation_source_budget_exhausted"
+                        )
+                        position = {
+                            "part_id": part.part_id, "start_offset": 0,
+                            "end_offset": media_size, "reason": reason,
+                        }
+                        unrepresented.append(position)
+                        next_positions.append({
+                            "part_id": part.part_id, "start_offset": 0,
+                            "reason": reason,
+                        })
+                        continue
+                    media_bytes = reference.read_bytes()
+                    digest = f"sha256:{sha256_hex(media_bytes)}"
+                    if digest != part.reference_sha256:
+                        raise ValueError("media reference bytes do not match reference_sha256")
+                    processed_bytes += len(media_bytes)
+                    media_id = "media-" + sha256_hex(canonical_json([
+                        "protected_media_occurrence_v2", request.scope.to_dict(),
+                        formation_id, part.part_id, digest,
+                    ]))[:24]
+                    media_references.append({
+                        "part_id": part.part_id,
+                        "ordinal": part.ordinal,
+                        "reference_id": part.reference_id,
+                        "reference_sha256": part.reference_sha256,
+                        "adjacent_source_id": owner_source_id,
+                        "media_id": media_id,
+                    })
+                    protected_media.append({
+                        "media_id": media_id, "part_id": part.part_id,
+                        "content_sha256": digest, "content_bytes": media_bytes,
+                    })
+                else:
+                    unsupported.append(part.part_id)
+                continue
+            source_identity = canonical_json([
+                "source_identity_v2", request.scope.to_dict(),
+                request.episode_id, part.part_id,
+            ])
+            source_id = f"source-{sha256_hex(source_identity)[:24]}"
+            deadline_exhausted = (
+                (time.monotonic() - started) * 1000 >= active_budget.wall_time_ms
+            )
+            part_bytes = len(part.content.encode("utf-8"))
+            source_exhausted = processed_bytes + part_bytes > active_budget.source_bytes
+            if deadline_exhausted or source_exhausted:
+                position = {
+                    "part_id": part.part_id,
+                    "start_offset": 0,
+                    "end_offset": len(part.content),
+                    "reason": (
+                        "formation_deadline_exhausted" if deadline_exhausted
+                        else "formation_source_budget_exhausted"
+                    ),
+                }
+                unrepresented.append(position)
+                next_positions.append({
+                    "part_id": part.part_id,
+                    "start_offset": 0,
+                    "reason": position["reason"],
+                })
+                continue
+            self.capture_source(SourceCaptureRequest(
+                source_id=source_id,
+                idempotency_key=f"episode-{sha256_hex(canonical_json(['episode_part_v2', request.scope.to_dict(), request.idempotency_key, part.part_id]))[:24]}",
+                scope=request.scope,
+                message=part.content,
+                source_type=part.source_type,
+                session_id=request.session_id,
+                turn_id=request.turn_id,
+                host_message_id=request.host_message_id,
+                binding_method=request.binding_method,
+                binding_assurance=request.binding_assurance,
+                retain_body=request.retain_body,
+            ))
+            if source_id not in source_ids:
+                source_ids.append(source_id)
+            if history_import_principal is not None:
+                self.store.append_audit_event(
+                    subject_id=request.scope.subject_id,
+                    event_type="memory.history_import_authorized",
+                    actor=history_import_principal,
+                    session_id=request.session_id,
+                    turn_id=_turn_id(request.turn_id),
+                    payload={
+                        "format": "atmem-history-import-authorization-v1",
+                        "formation_id": formation_id,
+                        "source_id": source_id,
+                        "workspace_id": request.scope.workspace_id,
+                        "agent_id": request.scope.agent_id,
+                        "source_observation_granularity": (
+                            request.source_observation_granularity
+                        ),
+                        "content_retained": False,
+                    },
+                )
+            processed_bytes += part_bytes
+            proposals = form_typed_proposals(
+                part.content,
+                scope=request.scope,
+                source_id=source_id,
+                formation_id=formation_id,
+                observed_at=part.observed_at,
+                part_kind=part.kind,
+                include_source_observations=(
+                    request.source_observation_granularity == "sentence"
+                ),
+            ) if request.retain_body else ()
+            from atmem.extract.context import build_resolution_context
+            part_resolution_context = build_resolution_context(
+                self.store, request.scope.subject_id, scope=request.scope, window=64
+            )
+            if not proposals:
+                unrepresented.append({
+                    "part_id": part.part_id,
+                    "start_offset": 0,
+                    "end_offset": len(part.content),
+                    "reason": "no_lossless_typed_structure",
+                })
+            else:
+                spans = sorted({
+                    (int(item.start_offset), int(item.end_offset))
+                    for proposal in proposals for item in proposal.evidence
+                })
+                cursor = 0
+                for start_offset, end_offset in spans + [(len(part.content), len(part.content))]:
+                    gap = part.content[cursor:start_offset]
+                    if any(character.isalnum() for character in gap):
+                        unrepresented.append({
+                            "part_id": part.part_id,
+                            "start_offset": cursor,
+                            "end_offset": start_offset,
+                            "reason": "no_lossless_typed_structure",
+                        })
+                    cursor = max(cursor, end_offset)
+            for proposal in proposals:
+                pending_ids = pending_by_part.get(part.part_id, set())
+                if previous is None or part.part_id in source_pending_parts:
+                    counts[proposal.unit.kind.value] = counts.get(proposal.unit.kind.value, 0) + 1
+                elif pending_ids and proposal.proposal_id not in pending_ids:
+                    continue
+                deadline_exhausted = (
+                    (time.monotonic() - started) * 1000 >= active_budget.wall_time_ms
+                )
+                if proposed_count >= active_budget.proposals or deadline_exhausted:
+                    budget_withheld += 1
+                    next_positions.append({
+                        "part_id": part.part_id,
+                        "start_offset": int(proposal.evidence[0].start_offset),
+                        "proposal_id": proposal.proposal_id,
+                        "reason": (
+                            "formation_deadline_exhausted" if deadline_exhausted
+                            else "formation_proposal_budget_exhausted"
+                        ),
+                    })
+                    continue
+                proposed_count += 1
+                review_policy = None
+                if (
+                    request.binding_assurance == "host_asserted"
+                    and (
+                        part.kind in {"state", "tool"}
+                        or (
+                            proposal.unit.kind.value == "environment_state"
+                            and getattr(proposal.unit.payload, "entity", None) == "episode"
+                            and getattr(proposal.unit.payload, "relation", None) == "observed text"
+                        )
+                    )
+                ):
+                    from atmem.extract.review import ReviewPolicy
+                    admit_sensitive = (
+                        request.sensitive_observation_handling == "admit_encrypted"
+                    )
+                    if admit_sensitive and self.policy.state != "encrypted":
+                        raise ValueError(
+                            "sensitive observations may be admitted without review "
+                            "only into encrypted storage"
+                        )
+                    review_policy = ReviewPolicy(
+                        quarantine_non_durable=False,
+                        quarantine_sensitive=not admit_sensitive,
+                    )
+                if (
+                    history_import_principal is not None
+                    and proposal.unit.kind.value == "environment_state"
+                    and getattr(proposal.unit.payload, "entity", None)
+                    == "source episode"
+                    and getattr(proposal.unit.payload, "relation", None)
+                    == "source statement"
+                ):
+                    from atmem.extract.review import ReviewPolicy
+
+                    review_policy = ReviewPolicy(
+                        quarantine_non_durable=False,
+                        quarantine_sensitive=False,
+                    )
+                outcome = self.submit_extraction_proposal(
+                    proposal,
+                    source_text=part.content,
+                    session_id=request.session_id,
+                    turn_id=request.turn_id,
+                    actor=f"formation:{request.scope.agent_id}",
+                    review_policy=review_policy,
+                    _resolution_context=part_resolution_context,
+                )
+                if (
+                    outcome["review_state"] == "pending_review"
+                    and history_import_principal is not None
+                ):
+                    from atmem.extract.review import ReviewService
+
+                    scopes = ["history_import:review"]
+                    if proposal.unit.kind.value in {
+                        "durable_rule", "failure_gotcha", "procedure"
+                    }:
+                        scopes.append("procedure:review")
+                    authorization = self.issue_review_authorization(
+                        history_import_principal, scopes=tuple(scopes)
+                    )
+                    outcome = ReviewService(self).decide(
+                        proposal.proposal_id,
+                        "approve",
+                        actor=history_import_principal,
+                        reason="explicit authorized history import",
+                        session_id=request.session_id,
+                        authorization=authorization,
+                    )
+                outcomes.append(outcome)
+
+        previous_pending = sum(
+            bool(value.get("proposal_id"))
+            for value in (previous or {}).get("next_positions") or ()
+        )
+        withheld = max(
+            0, int((previous or {}).get("withheld") or 0) - previous_pending
+        ) + sum(
+            item["review_state"] == "pending_review" for item in outcomes
+        ) + budget_withheld
+        rejected = int((previous or {}).get("rejected") or 0) + sum(
+            item["review_state"] in {"rejected", "stale"} for item in outcomes
+        )
+        # ``proposals_by_kind`` counts represented source occurrences.  Two
+        # repeated UI slices may intentionally share one idempotent proposal
+        # identity, so a resumed batch can resolve an occurrence by replaying
+        # an already committed record without adding another proposal row.
+        # The receipt's three outcome buckets describe occurrences, not rows.
+        admitted = max(0, sum(counts.values()) - withheld - rejected)
+        processing_complete = not next_positions
+        representation_complete = (
+            processing_complete and not unsupported and not unrepresented
+            and rejected == 0 and budget_withheld == 0
+        )
+        formation_statuses = self.store.formation_unit_statuses(formation_id)
+        outcome_statuses = [
+            str((self.store.get_record(request.scope.subject_id, record_id) or {}).get("status") or "missing")
+            for item in outcomes for record_id in item["record_ids"]
+        ]
+        effective_statuses = tuple(dict.fromkeys(formation_statuses + outcome_statuses))
+        retrieval_ready = representation_complete and withheld == 0 and bool(
+            effective_statuses
+        ) and all(status in {"active", "superseded"} for status in effective_statuses) and all(
+            item["review_state"] in {"committed", "noop"}
+            and bool(item["record_ids"])
+            and all(
+                (self.store.get_record(request.scope.subject_id, record_id) or {})
+                .get("status") in {"active", "superseded"}
+                for record_id in item["record_ids"]
+            )
+            for item in outcomes
+        )
+        receipt = FormationReceipt(
+            formation_id=formation_id,
+            episode_id=request.episode_id,
+            source_ids=tuple(source_ids),
+            source_events_observed=len(request.parts),
+            proposals_by_kind=counts,
+            admitted=admitted,
+            withheld=withheld,
+            rejected=rejected,
+            unsupported_parts=tuple(unsupported),
+            unrepresented_ranges=tuple(unrepresented),
+            media_references=tuple(media_references),
+            processing_complete=processing_complete,
+            representation_complete=representation_complete,
+            retrieval_ready=retrieval_ready,
+            next_positions=tuple(next_positions),
+            complete=representation_complete and bool(effective_statuses),
+            reason_codes=tuple(
+                code for code, present in (
+                    ("unsupported_parts", bool(unsupported)),
+                    ("unrepresented_source_ranges", bool(unrepresented)),
+                    ("formation_rejections", rejected > 0),
+                    ("formation_proposal_budget_exhausted", budget_withheld > 0),
+                ) if present
+            ),
+        )
+        stored_receipt = {
+            **receipt.to_dict(),
+            "scope_subject_id": request.scope.subject_id,
+            "scope_workspace_id": request.scope.workspace_id,
+        }
+        with self.store.transaction(immediate=True):
+            self.store.link_source_sequence(
+                subject_id=request.scope.subject_id,
+                workspace_id=request.scope.workspace_id,
+                source_ids=source_ids,
+            )
+            self.store.insert_formation_receipt(stored_receipt)
+            for media in protected_media:
+                self.store.insert_protected_formation_media(
+                    media_id=media["media_id"], formation_id=formation_id,
+                    subject_id=request.scope.subject_id,
+                    workspace_id=request.scope.workspace_id,
+                    part_id=media["part_id"],
+                    content_sha256=media["content_sha256"],
+                    content_bytes=media["content_bytes"],
+                )
+        self._record_retrieval_stage(
+            scope=request.scope,
+            request_id=formation_id,
+            profile_id="typed-formation-v1",
+            information_need=None,
+            stage="formation",
+            status=("completed" if receipt.complete else "partial"),
+            started_at=stage_started_at,
+            started_monotonic=started,
+            input_count=len(request.parts),
+            output_count=admitted,
+            reason_codes=receipt.reason_codes,
+        )
+        return {"receipt": stored_receipt, "outcomes": outcomes, "replayed": False}
+
+    def form_context_episode(
+        self, request: Any, *, profile_id: str = "context-fast",
+        range_granularity: str = "sentence",
+        history_import_principal: str,
+    ) -> dict[str, Any]:
+        """Retain one governed episode in the compact Context Engine V3 store."""
+        from atmem.contracts import EpisodeIngestRequest
+        from atmem.context_engine.formation import (
+            FormationManager, SourceEpisode, SourcePart,
+        )
+
+        if not isinstance(request, EpisodeIngestRequest):
+            raise TypeError("request must be EpisodeIngestRequest")
+        if request.binding_assurance != "host_asserted":
+            raise PermissionError("context history import requires host-asserted binding")
+        if range_granularity != "sentence":
+            raise ValueError("context history import requires sentence source ranges")
+        authority = self._review_authorities.get(history_import_principal)
+        if (
+            authority is None
+            or "history_import:review" not in authority["scopes"]
+            or authority["subject_id"] != request.scope.subject_id
+            or authority["agent_id"] != request.scope.agent_id
+            or authority["workspace_id"] != request.scope.workspace_id
+        ):
+            raise PermissionError("history import principal is not configured for this scope")
+        if self.policy.state != "encrypted" and not self._allow_insecure_typed_development:
+            raise PermissionError("context history import requires encrypted storage")
+        retained_parts = tuple(
+            part for part in request.parts if part.content is not None
+        )
+        parts = tuple(
+            SourcePart(
+                part_id=part.part_id,
+                # Media references do not carry source text. Compact the
+                # remaining ordinals after filtering them so an interleaved
+                # screenshot cannot break canonical V3 source ordering.
+                ordinal=ordinal,
+                kind="tool" if part.kind == "tool" else "text",
+                mime_type="text/plain",
+                content=str(part.content).encode("utf-8"),
+            )
+            for ordinal, part in enumerate(retained_parts)
+        )
+        if not parts:
+            raise ValueError("context history import requires retained source text")
+        manager = FormationManager(self.store)
+        generation = self._context_generation_row(request.scope, profile_id=profile_id)
+        if generation["state"] != "building":
+            raise RuntimeError("cannot ingest into a frozen context generation")
+        source_id = manager.retain_source(
+            SourceEpisode(
+                episode_id=request.episode_id, scope=request.scope, parts=parts,
+            ),
+            legacy_episode_id=request.session_id or request.episode_id,
+        )
+        receipt = manager.form_source(
+            source_id, str(generation["generation_id"]),
+            range_granularity="sentence",
+        )
+        self.store.append_audit_event(
+            subject_id=request.scope.subject_id,
+            event_type="memory.history_import_authorized",
+            actor=history_import_principal,
+            session_id=request.session_id,
+            turn_id=_turn_id(request.turn_id),
+            payload={
+                "format": "atmem-history-import-authorization-v1",
+                "source_id": source_id,
+                "workspace_id": request.scope.workspace_id,
+                "agent_id": request.scope.agent_id,
+                "source_observation_granularity": range_granularity,
+                "content_retained": False,
+            },
+        )
+        return {
+            **receipt.to_dict(),
+            "source_events_observed": len(parts),
+            "admitted": receipt.units_created,
+            "withheld": 0,
+            "rejected": receipt.units_rejected,
+            "next_positions": [],
+            "retrieval_ready": receipt.representation_complete,
+        }
+
+    def _context_generation_row(
+        self, scope: Any, *, profile_id: str = "context-fast",
+    ) -> dict[str, Any]:
+        from atmem.context_engine.formation import FormationManager
+
+        manager = FormationManager(self.store)
+        active = manager.active_generation(scope)
+        if active is not None:
+            return active
+        building = self.store._conn.execute(
+            "SELECT * FROM context_view_generations WHERE subject_id=? "
+            "AND agent_id=? AND workspace_id=? AND state='building' "
+            "ORDER BY created_at DESC LIMIT 1",
+            (scope.subject_id, scope.agent_id, scope.workspace_id),
+        ).fetchone()
+        if building is not None:
+            return dict(building)
+        generation_id = manager.begin_generation(
+            scope, profile_id=profile_id,
+            canonical_generation=self.store.record_generation(scope.subject_id),
+            configuration={
+                "formation": "deterministic-source-ranges-v1",
+                "range_granularity": "sentence",
+            },
+        )
+        return dict(self.store._conn.execute(
+            "SELECT * FROM context_view_generations WHERE generation_id=?",
+            (generation_id,),
+        ).fetchone())
+
+    def freeze_context_engine(self, scope: Any) -> dict[str, Any]:
+        """Verify, activate and describe the compact generation for one scope."""
+        from atmem.context_engine.coverage import storage_report
+        from atmem.context_engine.formation import FormationManager
+
+        manager = FormationManager(self.store)
+        generation = self._context_generation_row(scope)
+        if generation["state"] == "building":
+            manager.verify_generation(str(generation["generation_id"]))
+            manager.activate_generation(str(generation["generation_id"]))
+            generation = manager.active_generation(scope)
+            if generation is None:
+                raise RuntimeError("activated context generation is unavailable")
+        return {
+            "generation_id": str(generation["generation_id"]),
+            "generation_state": str(generation["state"]),
+            "source_count": int(self.store._conn.execute(
+                "SELECT COUNT(*) FROM context_source_episodes WHERE subject_id=? "
+                "AND agent_id=? AND workspace_id=?",
+                (scope.subject_id, scope.agent_id, scope.workspace_id),
+            ).fetchone()[0]),
+            "storage": storage_report(self.store),
+        }
+
+    def context_generation(self, scope: Any) -> dict[str, Any]:
+        """Return the active compact generation identity for one exact scope."""
+        from atmem.context_engine.formation import FormationManager
+
+        generation = FormationManager(self.store).active_generation(scope)
+        if generation is None:
+            raise RuntimeError("active compact context generation is unavailable")
+        return generation
+
+    def list_context_observations(
+        self, scope: Any, *, source_session_ids: tuple[str, ...] = (),
+    ) -> list[dict[str, Any]]:
+        """List exact active source-range observations for an authorized scope."""
+        generation = self.context_generation(scope)
+        filters = ""
+        params: list[Any] = [str(generation["generation_id"])]
+        if source_session_ids:
+            filters = " AND e.legacy_episode_id IN (" + ",".join(
+                "?" for _ in source_session_ids
+            ) + ")"
+            params.extend(source_session_ids)
+        rows = self.store._conn.execute(
+            """SELECT u.unit_id, r.range_id, r.source_id, r.part_id,
+                      r.start_offset, r.end_offset, p.content_bytes,
+                      e.legacy_episode_id
+               FROM context_evidence_units u
+               JOIN context_unit_ranges ur
+                 ON ur.generation_id=u.generation_id AND ur.unit_id=u.unit_id
+               JOIN context_source_ranges r USING(range_id)
+               JOIN context_source_parts p
+                 ON p.source_id=r.source_id AND p.part_id=r.part_id
+               JOIN context_source_episodes e USING(source_id)
+               WHERE u.generation_id=? AND u.kind='raw_state'
+                 AND u.lifecycle='active'""" + filters +
+            " ORDER BY e.legacy_episode_id, r.start_offset, u.unit_id",
+            tuple(params),
+        ).fetchall()
+        values = []
+        for row in rows:
+            start, end = int(row["start_offset"]), int(row["end_offset"])
+            content = bytes(row["content_bytes"])[start:end].decode(
+                "utf-8", errors="replace"
+            )
+            values.append({
+                "id": str(row["unit_id"]),
+                "range_id": str(row["range_id"]),
+                "source_id": str(row["source_id"]),
+                "source_session_id": str(row["legacy_episode_id"] or ""),
+                "content": content,
+                "raw": {"typed_unit": {
+                    "kind": "environment_state",
+                    "payload": {
+                        "entity": "source episode",
+                        "relation": "source statement",
+                        "value": content,
+                    },
+                }},
+            })
+        return values
+
+    def forget_context_observation(
+        self, scope: Any, unit_id: str, *, actor: str,
+    ) -> dict[str, Any]:
+        """Delete every typed view of one exact range in a disposable scope."""
+        generation = self.context_generation(scope)
+        generation_id = str(generation["generation_id"])
+        row = self.store._conn.execute(
+            """SELECT ur.range_id FROM context_unit_ranges ur
+               JOIN context_evidence_units u
+                 ON u.generation_id=ur.generation_id AND u.unit_id=ur.unit_id
+               JOIN context_view_generations g USING(generation_id)
+               WHERE ur.generation_id=? AND ur.unit_id=?
+                 AND g.subject_id=? AND g.agent_id=? AND g.workspace_id=?
+               ORDER BY ur.ordinal LIMIT 1""",
+            (
+                generation_id, unit_id, scope.subject_id, scope.agent_id,
+                scope.workspace_id,
+            ),
+        ).fetchone()
+        if row is None:
+            raise KeyError(unit_id)
+        range_id = str(row["range_id"])
+        with self.store.transaction(immediate=True):
+            unit_rows = self.store._conn.execute(
+                "SELECT unit_id FROM context_unit_ranges WHERE generation_id=? "
+                "AND range_id=? ORDER BY unit_id",
+                (generation_id, range_id),
+            ).fetchall()
+            unit_ids = [str(item["unit_id"]) for item in unit_rows]
+            self.store._conn.execute(
+                "UPDATE context_evidence_units SET lifecycle='deleted' "
+                "WHERE generation_id=? AND unit_id IN (" +
+                ",".join("?" for _ in unit_ids) + ")",
+                (generation_id, *unit_ids),
+            )
+            self.store._conn.execute(
+                """UPDATE context_coverage
+                   SET disposition='withheld', reason_code='observation_forgotten'
+                   WHERE generation_id=? AND range_id=?""",
+                (generation_id, range_id),
+            )
+            self.store.remove_context_range_index(generation_id, range_id)
+            self.store._conn.execute(
+                "UPDATE context_view_generations SET revision=revision+1 "
+                "WHERE generation_id=?", (generation_id,),
+            )
+            event_id = self.store.append_audit_event(
+                subject_id=scope.subject_id,
+                event_type="context.observation_forgotten",
+                actor=actor,
+                payload={
+                    "format": "atmem-context-observation-forget-v1",
+                    "generation_id": generation_id,
+                    "range_id": range_id,
+                    "unit_count": len(unit_ids),
+                    "content_retained": False,
+                },
+            )
+        return {
+            "range_id": range_id, "unit_ids": unit_ids,
+            "audit_event_id": event_id,
+        }
+
+    def prepare_context_v3(self, request: Any) -> Any:
+        """Prepare governed V3 context from the active compact generation."""
+        from atmem.context_engine.contracts import ContextRequestV3
+        from atmem.context_engine.formation import FormationManager
+        from atmem.context_engine.service import (
+            ContextEngineService, StoredContextEngine, load_stored_canonical,
+            stored_manifest,
+        )
+
+        if not isinstance(request, ContextRequestV3):
+            raise TypeError("request must be ContextRequestV3")
+        manager = FormationManager(self.store)
+        generation = manager.active_generation(request.scope)
+        if generation is None:
+            raise RuntimeError("active compact context generation is unavailable")
+        if int(generation["canonical_generation"]) != request.generation:
+            raise RuntimeError("context request generation does not match active source")
+        generation_id = str(generation["generation_id"])
+        service = ContextEngineService(
+            authorize=lambda value: stored_manifest(
+                self.store, value, generation_id=generation_id,
+            ),
+            load_canonical=lambda ids, canonical_generation: load_stored_canonical(
+                self.store, request.scope, generation_id, ids,
+                canonical_generation,
+            ),
+            audit=lambda value, selection, canonical: self.store.append_audit_event(
+                subject_id=request.scope.subject_id,
+                event_type="context.v3.prepared",
+                actor=request.scope.agent_id,
+                session_id=None,
+                turn_id=_turn_id(request.turn_id),
+                payload={
+                    "format": "atmem-context-v3-audit-v1",
+                    "request_id": value.request_id,
+                    "status": selection.status,
+                    "selected_count": len(canonical),
+                    "content_retained": False,
+                },
+            ),
+            expires_at=lambda: (
+                datetime.now(timezone.utc) + timedelta(minutes=10)
+            ).isoformat(),
+        )
+        return service.prepare(
+            request, StoredContextEngine(self.store, generation_id=generation_id)
+        )
+
+    def memory_lineage(
+        self, subject_id: str, record_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        """The immutable relationships among original and replacing records."""
+        return self.store.list_memory_lineage(subject_id, record_id)
+
+    @_atomic
+    def eligible_candidates(self, request: Any) -> Any:
+        """Return only scope-authorized candidates for a declared reranker."""
+        from atmem.contracts import (
+            EligibleCandidate,
+            EligibleCandidateSet,
+            RecallRequest,
+        )
+
+        if not isinstance(request, RecallRequest):
+            raise TypeError("request must be RecallRequest")
+        if request.retrieval_strategy == 'core-rrf-v1':
+            from dataclasses import replace
+            from atmem.retrieve.hybrid import collect
+            stage_started_at = utc_now()
+            stage_started = time.monotonic()
+            rows, metadata = collect(self, request)
+            # Channel quotas are independent; bound the ranked publication prefix.
+            publication = replace(
+                request,
+                candidate_limit=max(request.candidate_limit, request.limit),
+            )
+            result = self.create_candidate_set_v1(
+                publication, rows, retrieval_metadata=metadata
+            )
+            self._record_retrieval_stage(
+                scope=request.scope,
+                request_id=request.request_id,
+                profile_id=str(metadata.get("profile_id") or "unknown"),
+                information_need=str(metadata.get("information_need") or "") or None,
+                stage="nomination",
+                status="completed" if result.candidates else "withheld",
+                started_at=stage_started_at,
+                started_monotonic=stage_started,
+                input_count=None,
+                output_count=len(result.candidates),
+                reason_codes=("no_eligible_candidates",) if not result.candidates else (),
+            )
+            return result
+        scope = request.scope
+        recalled = self.recall(
+            scope.subject_id,
+            request.query,
+            session_id=f"protocol:{request.request_id}",
+            limit=request.candidate_limit,
+            min_score=request.min_score,
+            use_graph="graph" in request.signals,
+            include_scores=True,
+        )
+        if "semantic" in request.signals and self.store.path != ":memory:":
+            # The always-present default index participates directly in the
+            # governed candidate stage. It never widens scope or lifecycle:
+            # only active canonical records can be nominated.
+            from atmem.semantic import SemanticIndex, default_index_path
+
+            index = SemanticIndex(default_index_path(self.store.path), policy=self.policy)
+            try:
+                epoch = index.active_epoch(scope.subject_id)
+                if epoch:
+                    embedder = _embedder_for_epoch(epoch)
+                    try:
+                        semantic = index.search(
+                            self,
+                            scope.subject_id,
+                            request.query,
+                            embedder,
+                            statuses=("active",),
+                            limit=request.candidate_limit,
+                            min_similarity=0.0,
+                        )
+                    except ValueError:
+                        # An old/incompatible epoch is a derived-index miss,
+                        # never a reason to break governed lexical retrieval.
+                        semantic = []
+                    by_id = {str(row["id"]): row for row in recalled}
+                    records = self.store.get_records(
+                        scope.subject_id, [str(row["record_id"]) for row in semantic]
+                    )
+                    for match in semantic:
+                        match["provider"] = str(
+                            (epoch.get("identity") or {}).get("provider") or "unknown"
+                        )
+                        record_id = str(match["record_id"])
+                        score = float(match["similarity"])
+                        if record_id in by_id:
+                            # Preserve the native candidate prior. Semantic
+                            # similarity has its own normalized signal and is
+                            # never fused with lexical/trust/recency via raw max.
+                            by_id[record_id]["semantic"] = match
+                        elif record_id in records:
+                            row = {**records[record_id], "score": score, "semantic": match}
+                            recalled.append(row)
+                            by_id[record_id] = row
+                    recalled.sort(
+                        key=lambda row: (-float(row.get("score") or 0.0), str(row["id"]))
+                    )
+            finally:
+                index.close()
+        recalled = [
+            row
+            for row in recalled
+            if float(row.get("score") or 0.0) >= float(request.min_score)
+        ]
+        allowed: list[dict[str, Any]] = []
+        withheld = 0
+        for record in recalled:
+            raw = record.get("raw") or {}
+            record_scope = raw.get("authority_scope") or {}
+            if record_scope and (
+                record_scope.get("workspace_id") != scope.workspace_id
+                or record_scope.get("subject_id") != scope.subject_id
+            ):
+                withheld += 1
+                continue
+            sensitivity = str(raw.get("sensitivity") or "personal")
+            if request.egress_class == "remote" and sensitivity in {
+                "sensitive",
+                "restricted",
+            }:
+                withheld += 1
+                continue
+            allowed.append(record)
+            if len(allowed) >= request.limit:
+                break
+        candidates = tuple(
+            EligibleCandidate(
+                record_id=str(record["id"]),
+                content=str(record["content"]),
+                score=float(record.get("score") or 0.0),
+                rank=rank,
+                source_type=str(record.get("source_type") or "unknown"),
+                trust_tier=str(record.get("trust_tier") or "unknown"),
+                created_at=str(record.get("created_at") or ""),
+                signals={
+                    "lexical": "lexical" in request.signals,
+                    "fact_key": str(record.get("fact_key") or ""),
+                    "graph": record.get("graph"),
+                    "semantic": "semantic" in request.signals,
+                    "semantic_evidence": record.get("semantic"),
+                },
+            )
+            for rank, record in enumerate(allowed, start=1)
+        )
+        generation = self.store.record_generation(scope.subject_id)
+        candidate_set_id = f"cset_{uuid.uuid4().hex}"
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(minutes=5)
+        ).isoformat(timespec="microseconds")
+        candidate_digest = f"sha256:{sha256_hex(canonical_json([row.to_dict() for row in candidates]))}"
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.eligible_candidates_v1",
+            actor=f"protocol:{scope.agent_id}",
+            payload={
+                "request_id": request.request_id,
+                "candidate_set_id": candidate_set_id,
+                "candidate_digest": candidate_digest,
+                "record_ids": [row.record_id for row in candidates],
+                "generation": generation,
+                "workspace_id": scope.workspace_id,
+                "egress_class": request.egress_class,
+                "reranker_provider": request.reranker_provider,
+                "reranker_model": request.reranker_model,
+                "withheld_count": withheld,
+            },
+        )
+        result = EligibleCandidateSet(
+            candidate_set_id=candidate_set_id,
+            request_id=request.request_id,
+            scope=scope,
+            candidates=candidates,
+            generation=generation,
+            expires_at=expires_at,
+            candidate_digest=candidate_digest,
+            audit_event_id=event_id,
+        )
+        self.store.put_protocol_candidate_set(
+            candidate_set_id,
+            subject_id=scope.subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            generation=generation,
+            expires_at=expires_at,
+            value={**result.to_dict(), "_egress_class": request.egress_class},
+        )
+        return result
+
+    @_atomic
+    def create_candidate_set_v1(
+        self, request: Any, candidates: list[dict[str, Any]], *, retrieval_metadata: dict[str, Any] | None = None
+    ) -> Any:
+        """Persist one revalidated union of already-governed retrieval signals.
+
+        Query expansion can produce several lexical/graph/vector candidate sets.
+        This operation fuses their scores without trusting their earlier content:
+        every record is reloaded from canonical storage and checked immediately
+        before the durable set is written.
+        """
+        from atmem.contracts import (
+            EligibleCandidate,
+            EligibleCandidateSet,
+            RecallRequest,
+        )
+
+        if not isinstance(request, RecallRequest):
+            raise TypeError("request must be RecallRequest")
+        scope = request.scope
+        ordered_rows: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for value in candidates[: request.candidate_limit]:
+            record_id = str(value.get("record_id") or value.get("id") or "")
+            if not record_id or record_id in seen:
+                continue
+            seen.add(record_id)
+            ordered_rows.append({**value, "record_id": record_id})
+
+        records = self.store.get_records(
+            scope.subject_id, [row["record_id"] for row in ordered_rows]
+        )
+        excluded = self.store.excluded_record_ids(scope.subject_id)
+        allowed_statuses = (
+            {"active", "superseded"}
+            if (retrieval_metadata or {}).get("include_superseded") else {"active"}
+        )
+        eligible_rows: list[dict[str, Any]] = []
+        for value in ordered_rows:
+            record_id = value["record_id"]
+            record = records.get(record_id)
+            if (
+                record is None
+                or record.get("status") not in allowed_statuses
+                or record_id in excluded
+            ):
+                raise ValueError("candidate record is no longer eligible")
+            raw = record.get("raw") or {}
+            authority = raw.get("authority_scope") or {}
+            if authority and (
+                authority.get("workspace_id") != scope.workspace_id
+                or authority.get("subject_id") != scope.subject_id
+            ):
+                raise ValueError("candidate record is outside the authority scope")
+            sensitivity = str(raw.get("sensitivity") or "personal")
+            if request.egress_class == "remote" and sensitivity in {
+                "sensitive",
+                "restricted",
+            }:
+                raise ValueError("candidate record is not eligible for remote egress")
+            supplied_content = str(value.get("content") or "")
+            canonical_content = str(record.get("content") or "")
+            if supplied_content and supplied_content != canonical_content:
+                raise ValueError("candidate content changed before persistence")
+            signals = dict(value.get("signals") or {})
+            signals["fact_key"] = str(record.get("fact_key") or "")
+            signals["matched_queries"] = list(value.get("matched_queries") or ())
+            signals["expansion_rank"] = int(value.get("expansion_rank") or 0)
+            eligible_rows.append(
+                {
+                    "record_id": record_id,
+                    "content": canonical_content,
+                    "score": value.get("score", 0.0),
+                    "source_type": str(record.get("source_type") or "unknown"),
+                    "trust_tier": str(record.get("trust_tier") or "unknown"),
+                    "created_at": str(record.get("created_at") or ""),
+                    "source_session_id": record.get("source_session_id"),
+                    "signals": signals,
+                }
+            )
+
+        # Supporting evidence is intelligence over an already-authorized set.
+        # Raw session provenance exists only in this in-process input; the
+        # ranker returns an opaque scope-bound group identity and bounded
+        # numeric signals, never the host session identifier.
+        from atmem.retrieve import (
+            SUPPORT_AGGREGATION_VERSION,
+            aggregate_supporting_evidence,
+            aggregation_signal_digest,
+        )
+
+        aggregated = eligible_rows if retrieval_metadata is not None else aggregate_supporting_evidence(
+            eligible_rows,
+            subject_id=scope.subject_id,
+            workspace_id=scope.workspace_id,
+            agent_id=scope.agent_id,
+        )
+        durable = [
+            EligibleCandidate(
+                record_id=str(value["record_id"]),
+                content=str(value["content"]),
+                score=float(value["score"]),
+                rank=rank,
+                source_type=str(value["source_type"]),
+                trust_tier=str(value["trust_tier"]),
+                created_at=str(value["created_at"]),
+                signals=dict(value.get("signals") or {}),
+            )
+            for rank, value in enumerate(aggregated[: request.limit], start=1)
+        ]
+        aggregation_digest = aggregation_signal_digest(
+            row.to_dict() for row in durable
+        )
+        grouped_candidates = [
+            row
+            for row in durable
+            if int(row.signals.get("eligible_support_count") or 0) > 0
+        ]
+
+        generation = self.store.record_generation(scope.subject_id)
+        candidate_set_id = f"cset_{uuid.uuid4().hex}"
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(minutes=5)
+        ).isoformat(timespec="microseconds")
+        candidate_digest = f"sha256:{sha256_hex(canonical_json([row.to_dict() for row in durable]))}"
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.eligible_candidates_v1",
+            actor=f"protocol:{scope.agent_id}",
+            payload={
+                "request_id": request.request_id,
+                "candidate_set_id": candidate_set_id,
+                "candidate_digest": candidate_digest,
+                "record_ids": [row.record_id for row in durable],
+                "generation": generation,
+                "workspace_id": scope.workspace_id,
+                "egress_class": request.egress_class,
+                "reranker_provider": request.reranker_provider,
+                "reranker_model": request.reranker_model,
+                "fused_query_count": len(
+                    {
+                        query
+                        for row in ordered_rows
+                        for query in row.get("matched_queries") or ()
+                    }
+                ),
+                "support_aggregation_version": None if retrieval_metadata is not None else SUPPORT_AGGREGATION_VERSION,
+                **({'retrieval_fusion': {**retrieval_metadata, 'candidate_ranks': {
+                    row.record_id: row.signals.get('fusion', {}).get('channel_ranks', {})
+                    for row in durable
+                }, 'graph_support_record_ids': {
+                    row.record_id: [step['record_id'] for step in row.signals.get('fusion', {}).get('graph_path', ())]
+                    for row in durable if row.signals.get('fusion', {}).get('graph_path')
+                }}} if retrieval_metadata is not None else {}),
+                "aggregation_signal_digest": aggregation_digest,
+                "grouped_candidate_count": len(grouped_candidates),
+                "supported_group_count": len(
+                    {
+                        str(row.signals.get("support_group_id") or "")
+                        for row in grouped_candidates
+                    }
+                ),
+            },
+        )
+        result = EligibleCandidateSet(
+            candidate_set_id=candidate_set_id,
+            request_id=request.request_id,
+            scope=scope,
+            candidates=tuple(durable),
+            generation=generation,
+            expires_at=expires_at,
+            candidate_digest=candidate_digest,
+            audit_event_id=event_id,
+        )
+        self.store.put_protocol_candidate_set(
+            candidate_set_id,
+            subject_id=scope.subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            generation=generation,
+            expires_at=expires_at,
+            value={
+                **result.to_dict(),
+                "_egress_class": request.egress_class,
+                "_include_superseded": bool(
+                    (retrieval_metadata or {}).get("include_superseded")
+                ),
+            },
+        )
+        return result
+
+    @_atomic
+    def prepare_context_v2(self, request: Any) -> Any:
+        """Expand, check and pack an eligible candidate set by evidence coverage."""
+        from atmem.contracts import ContextRequestV2
+        from atmem.retrieve import profile_for_need, route_information_need
+        from atmem.retrieve.assemble import assemble_context_v2
+        from atmem.retrieve.expand import expand_evidence_neighborhood
+
+        if not isinstance(request, ContextRequestV2):
+            raise TypeError("request must be ContextRequestV2")
+        scope = request.scope
+        candidate_set = self.store.get_protocol_candidate_set(request.candidate_set_id)
+        if candidate_set is None:
+            raise ValueError("candidate set was not found")
+        if (
+            candidate_set["subject_id"], candidate_set["agent_id"],
+            candidate_set["workspace_id"],
+        ) != (scope.subject_id, scope.agent_id, scope.workspace_id):
+            raise ValueError("candidate set is outside the authority scope")
+        if str(candidate_set["expires_at"]) < utc_now():
+            raise ValueError("candidate set has expired")
+        generation = self.store.record_generation(scope.subject_id)
+        if int(candidate_set["generation"]) != generation:
+            raise ValueError("candidate set was invalidated by a memory change")
+        value = candidate_set["value"]
+        seeds = tuple(
+            str(row["record_id"]) for row in value.get("candidates") or ()
+        )
+        need = route_information_need(request.query)
+        include_superseded = bool(
+            need.temporal_target and need.temporal_target != "current"
+        )
+        profile = profile_for_need(need.type)
+        preparation_id = f"prep_{uuid.uuid4().hex}"
+        expansion_started_at = utc_now()
+        expansion_started = time.monotonic()
+        if seeds:
+            seed_rows = self.store.typed_units_for_records(
+                scope.subject_id, scope.workspace_id, list(seeds),
+                remote=value.get("_egress_class") == "remote",
+                include_superseded=include_superseded,
+            )
+            seeds = tuple(str(row["record_id"]) for row in seed_rows)
+        if seeds and not include_superseded:
+            navigation_seed_limit = max(
+                1, min(8, request.budget.graph_visits // 16)
+            )
+            navigation_seeds = seeds[:navigation_seed_limit]
+            neighborhood = expand_evidence_neighborhood(
+                self.store,
+                subject_id=scope.subject_id,
+                workspace_id=scope.workspace_id,
+                need_id=need.need_id,
+                seed_record_ids=navigation_seeds,
+                budget=request.budget,
+                remote=value.get("_egress_class") == "remote",
+            )
+            typed_rows = self.store.typed_units_for_records(
+                scope.subject_id,
+                scope.workspace_id,
+                list(dict.fromkeys((*neighborhood.selected_record_ids, *seeds))),
+                remote=value.get("_egress_class") == "remote",
+            )
+            nomination = {
+                str(row["record_id"]): row
+                for row in value.get("candidates") or ()
+            }
+            paths = {
+                path.record_id: path for path in neighborhood.paths
+            }
+            for expansion_rank, row in enumerate(typed_rows, start=1):
+                nominated = nomination.get(str(row["record_id"]))
+                path = paths.get(str(row["record_id"]))
+                root = nomination.get(path.seed_record_id) if path is not None else None
+                root_rank = int((root or nominated or {}).get("rank") or len(nomination) + 1)
+                depth = int(path.depth if path is not None else 0)
+                # Keep a strong seed adjacent to its source-linked evidence.
+                # Candidate rank 1 and its trajectory neighbors must be packed
+                # before unrelated rank-2 seeds, otherwise navigation adds
+                # evidence that the byte budget can never expose.
+                row["rank"] = root_rank * 10_000 + depth * 1_000 + expansion_rank
+                row["source_neighborhood_rank"] = {
+                    "seed_record_id": path.seed_record_id if path is not None else str(row["record_id"]),
+                    "depth": depth,
+                    "reason": path.reason_code if path is not None else "eligible_seed",
+                }
+                row["channel_scores"] = dict(
+                    (nominated or {}).get("signals") or {}
+                )
+        else:
+            neighborhood = None
+            typed_rows = (
+                self.store.typed_units_for_records(
+                    scope.subject_id, scope.workspace_id, list(seeds),
+                    remote=value.get("_egress_class") == "remote",
+                    include_superseded=include_superseded,
+                ) if seeds else []
+            )
+        self._record_retrieval_stage(
+            scope=scope,
+            request_id=preparation_id,
+            profile_id=profile.profile_id,
+            information_need=need.type,
+            stage="expansion",
+            status=(
+                "partial" if neighborhood and neighborhood.truncated
+                else "completed" if typed_rows else "withheld"
+            ),
+            started_at=expansion_started_at,
+            started_monotonic=expansion_started,
+            input_count=len(seeds),
+            output_count=len(typed_rows),
+            reason_codes=(
+                neighborhood.reason_codes if neighborhood is not None else
+                ("no_eligible_seed",)
+            ),
+        )
+        packing_started_at = utc_now()
+        packing_started = time.monotonic()
+        from dataclasses import replace
+
+        query_bytes = len(request.query.encode("utf-8"))
+        available_context_bytes = request.budget.total_input_bytes - query_bytes
+        if available_context_bytes < 1:
+            raise ValueError("query exhausts the total input budget")
+        effective_budget = replace(
+            request.budget,
+            context_bytes=min(request.budget.context_bytes, available_context_bytes),
+        )
+        result = assemble_context_v2(
+            context_id=request.context_id,
+            scope=scope,
+            need=need,
+            profile_id=profile.profile_id,
+            typed_rows=typed_rows,
+            budget=effective_budget,
+            generation=generation,
+            preparation_id=preparation_id,
+        )
+        if query_bytes + len(result.context.encode("utf-8")) > request.budget.total_input_bytes:
+            raise ValueError("serialized context exceeds the total input budget")
+        if result.source_ids:
+            available = self.store.media_references_for_sources(
+                scope.subject_id,
+                scope.workspace_id,
+                list(result.source_ids),
+            )
+            selected_media: list[dict[str, Any]] = []
+            consumed = len(request.query.encode("utf-8")) + len(
+                result.context.encode("utf-8")
+            )
+            media_excluded = False
+            for reference in available:
+                media_id = str(reference.get("media_id") or "")
+                protected = self.store.protected_formation_media(
+                    scope.subject_id, scope.workspace_id, media_id
+                ) if media_id else None
+                raw_size = int(protected.get("content_size") or 0) if protected else 0
+                encoded_size = 64 + 4 * ((raw_size + 2) // 3) if raw_size else 0
+                if not encoded_size or consumed + encoded_size > request.budget.total_input_bytes:
+                    media_excluded = True
+                    continue
+                consumed += encoded_size
+                original_suffix = Path(str(reference.get("reference_id") or "")).suffix
+                selected_media.append({
+                    **reference,
+                    "reference_id": f"atmem-protected:{media_id}",
+                    "original_suffix": original_suffix,
+                })
+            result = replace(
+                result,
+                media_references=tuple(selected_media),
+                reason_codes=tuple(dict.fromkeys(
+                    result.reason_codes
+                    + (("media_excluded_by_total_input_budget",) if media_excluded else ())
+                )),
+            )
+        self._record_retrieval_stage(
+            scope=scope,
+            request_id=preparation_id,
+            profile_id=profile.profile_id,
+            information_need=need.type,
+            stage="packing",
+            status=(
+                "completed" if result.sufficiency.status == "sufficient"
+                else "withheld" if result.sufficiency.status in {"unsupported", "stale", "contradictory"}
+                else "partial"
+            ),
+            started_at=packing_started_at,
+            started_monotonic=packing_started,
+            input_count=len(typed_rows),
+            output_count=len(result.record_ids),
+            reason_codes=result.sufficiency.reason_codes,
+            context_bytes=len(result.context.encode("utf-8")),
+        )
+        # Final eligibility is reloaded after expansion and packing.
+        final_records = self.store.get_records(scope.subject_id, list(result.record_ids))
+        excluded = self.store.excluded_record_ids(scope.subject_id)
+        for record_id in result.record_ids:
+            record = final_records.get(record_id)
+            authority = ((record or {}).get("raw") or {}).get("authority_scope") or {}
+            sensitivity = str(((record or {}).get("raw") or {}).get("sensitivity") or "personal")
+            if (
+                record is None
+                or record.get("status") not in (
+                    {"active", "superseded"} if include_superseded else {"active"}
+                )
+                or record_id in excluded
+                or authority.get("subject_id") != scope.subject_id
+                or authority.get("workspace_id") != scope.workspace_id
+                or (value.get("_egress_class") == "remote" and sensitivity in {"sensitive", "restricted"})
+            ):
+                raise ValueError("selected evidence changed before context persistence")
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.context_prepared_v2",
+            actor=f"protocol:{scope.agent_id}",
+            payload={
+                "preparation_id": preparation_id,
+                "candidate_set_id": request.candidate_set_id,
+                "context_sha256": result.context_sha256,
+                "record_ids": list(result.record_ids),
+                "generation": generation,
+                "workspace_id": scope.workspace_id,
+                "profile_id": profile.profile_id,
+                "information_need": need.type,
+                "sufficiency": result.sufficiency.status,
+                "missing_slots": list(result.sufficiency.missing_slots),
+                "neighborhood_id": neighborhood.neighborhood_id if neighborhood else None,
+                "neighborhood_visited": neighborhood.visited_count if neighborhood else 0,
+                "neighborhood_truncated": neighborhood.truncated if neighborhood else False,
+                "serializer_version": result.serializer_version,
+            },
+        )
+        self.store.put_protocol_preparation(
+            preparation_id,
+            subject_id=scope.subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            context_sha256=result.context_sha256,
+            generation=generation,
+            expires_at=result.expires_at,
+            value={**result.to_dict(), "audit_event_id": event_id},
+        )
+        return result
+
+    @_atomic
+    def prepare_context_v1(self, request: Any) -> Any:
+        """Serialize an authorized candidate subset into byte-stable context."""
+        from atmem.contracts import ContextPackage, ContextRequest
+
+        if not isinstance(request, ContextRequest):
+            raise TypeError("request must be ContextRequest")
+        scope = request.scope
+        candidate_set = self.store.get_protocol_candidate_set(request.candidate_set_id)
+        if candidate_set is None:
+            raise ValueError("candidate set was not found")
+        if (
+            candidate_set["subject_id"],
+            candidate_set["agent_id"],
+            candidate_set["workspace_id"],
+        ) != (scope.subject_id, scope.agent_id, scope.workspace_id):
+            raise ValueError("candidate set is outside the authority scope")
+        if str(candidate_set["expires_at"]) < utc_now():
+            raise ValueError("candidate set has expired")
+        generation = self.store.record_generation(scope.subject_id)
+        if int(candidate_set["generation"]) != generation:
+            raise ValueError("candidate set was invalidated by a memory change")
+        eligible = {
+            str(row["record_id"]): row
+            for row in candidate_set["value"].get("candidates") or []
+        }
+        requested = list(dict.fromkeys(str(value) for value in request.record_ids))
+        if any(record_id not in eligible for record_id in requested):
+            raise ValueError("context contains a record outside the eligible candidate set")
+        records = self.store.get_records(scope.subject_id, requested)
+        excluded = self.store.excluded_record_ids(scope.subject_id)
+        ordered = []
+        for record_id in requested:
+            record = records.get(record_id)
+            if record is None or record.get("status") != "active" or record_id in excluded:
+                raise ValueError("context record is no longer eligible")
+            ordered.append(record)
+        parts = ["<atmem-context format=\"v1\">\n"]
+        accepted_ids: list[str] = []
+        used = len(parts[0]) + len("</atmem-context>\n")
+        for record in ordered:
+            block = (
+                f"<memory id=\"{record['id']}\">\n"
+                f"{str(record['content']).strip()}\n"
+                "</memory>\n"
+            )
+            if used + len(block) > int(request.budget_chars):
+                break
+            parts.append(block)
+            accepted_ids.append(str(record["id"]))
+            used += len(block)
+        parts.append("</atmem-context>\n")
+        context = "".join(parts)
+        context_sha256 = f"sha256:{sha256_hex(context)}"
+        preparation_id = f"prep_{uuid.uuid4().hex}"
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(minutes=2)
+        ).isoformat(timespec="microseconds")
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.context_prepared_v1",
+            actor=f"protocol:{scope.agent_id}",
+            payload={
+                "preparation_id": preparation_id,
+                "candidate_set_id": request.candidate_set_id,
+                "context_sha256": context_sha256,
+                "record_ids": accepted_ids,
+                "generation": generation,
+                "workspace_id": scope.workspace_id,
+                "serializer_version": "atmem-context-utf8-v1",
+            },
+        )
+        result = ContextPackage(
+            context_id=request.context_id,
+            scope=scope,
+            record_ids=tuple(accepted_ids),
+            context=context,
+            context_sha256=context_sha256,
+            serializer_version="atmem-context-utf8-v1",
+            generation=generation,
+            expires_at=expires_at,
+            preparation_id=preparation_id,
+        )
+        self.store.put_protocol_preparation(
+            preparation_id,
+            subject_id=scope.subject_id,
+            agent_id=scope.agent_id,
+            workspace_id=scope.workspace_id,
+            context_sha256=context_sha256,
+            generation=generation,
+            expires_at=expires_at,
+            value={**result.to_dict(), "audit_event_id": event_id},
+        )
+        return result
+
+    @_atomic
+    def confirm_exposure_v1(self, confirmation: Any) -> Any:
+        """Confirm exact context delivery once and return an audit-bound receipt."""
+        from atmem.contracts import ExposureConfirmation, ExposureReceipt
+
+        if not isinstance(confirmation, ExposureConfirmation):
+            raise TypeError("confirmation must be ExposureConfirmation")
+        scope = confirmation.scope
+        replay = self.store.get_protocol_exposure(confirmation.confirmation_id)
+        if replay is not None:
+            saved = replay["receipt"]
+            return ExposureReceipt(
+                receipt_id=saved["receipt_id"],
+                preparation_id=saved["preparation_id"],
+                scope=scope,
+                context_sha256=saved["context_sha256"],
+                exposed_at=saved["exposed_at"],
+                audit_event_id=saved["audit_event_id"],
+                replayed=True,
+            )
+        prepared = self.store.get_protocol_preparation(confirmation.preparation_id)
+        if prepared is None:
+            raise ValueError("context preparation was not found")
+        if self.store.get_protocol_exposure_for_preparation(
+            confirmation.preparation_id
+        ) is not None:
+            raise ValueError("context preparation was already exposed")
+        if (
+            prepared["subject_id"],
+            prepared["agent_id"],
+            prepared["workspace_id"],
+        ) != (scope.subject_id, scope.agent_id, scope.workspace_id):
+            raise ValueError("context preparation is outside the authority scope")
+        if str(prepared["expires_at"]) < utc_now():
+            raise ValueError("context preparation has expired")
+        if prepared["context_sha256"] != confirmation.context_sha256:
+            raise ValueError("exposed context digest does not match the preparation")
+        if int(prepared["generation"]) != self.store.record_generation(scope.subject_id):
+            raise ValueError("context preparation was invalidated by a memory change")
+        value = prepared["value"]
+        exposed_at = utc_now()
+        event_id = self.store.append_audit_event(
+            subject_id=scope.subject_id,
+            event_type="memory.context_injected",
+            actor=f"protocol:{scope.agent_id}",
+            session_id=confirmation.host_run_id,
+            payload={
+                "preparation_id": confirmation.preparation_id,
+                "context_sha256": confirmation.context_sha256,
+                "record_ids": value.get("record_ids") or [],
+                "workspace_id": scope.workspace_id,
+                "host_run_id": confirmation.host_run_id,
+            },
+        )
+        receipt = ExposureReceipt(
+            receipt_id=f"ctxr_{uuid.uuid4().hex}",
+            preparation_id=confirmation.preparation_id,
+            scope=scope,
+            context_sha256=confirmation.context_sha256,
+            exposed_at=exposed_at,
+            audit_event_id=event_id,
+        )
+        self.store.put_protocol_exposure(
+            confirmation.confirmation_id,
+            preparation_id=confirmation.preparation_id,
+            receipt=receipt.to_dict(),
+        )
+        return receipt
+
+    @_atomic
+    def remember(
+        self,
+        subject_id: str,
+        message: str | None = None,
+        *,
+        fact: str | None = None,
+        force: bool = False,
+        session_id: str | None = None,
+        turn_id: str | int | None = None,
+        source_type: str | None = None,
+        actor: str = "user",
+        raw: dict[str, Any] | None = None,
+        interpreted_fact: str | None = None,
+        interpreted_fact_key: str | None = None,
+    ) -> dict[str, Any]:
+        text = message if message is not None else fact
+        if text is None:
+            raise ValueError("remember() requires message or fact")
+        turn = _turn_id(turn_id)
+        source = source_type or classify_source(text)
+        interpreted_candidate: CandidateFact | None = None
+        if interpreted_fact is not None:
+            if source != "user_message":
+                raise ValueError("interpreted facts require a trusted user message")
+            content = _explicit_note(interpreted_fact)
+            if len(content) > 2_000:
+                raise ValueError("interpreted fact exceeds 2,000 characters")
+            interpreted_candidate = CandidateFact(
+                content=content,
+                confidence=1.0,
+                source_type=source,
+                trust_tier=trust_tier_for_source(source),
+                fact_key=(
+                    normalize_content(interpreted_fact_key)
+                    if interpreted_fact_key
+                    else None
+                ),
+                scope="host_agent_interpreted",
+            )
+            duplicate = self.store.find_duplicate_record(
+                subject_id, content, statuses=("active",)
+            )
+            if duplicate is not None:
+                self.store.append_audit_event(
+                    subject_id=subject_id,
+                    event_type="memory.semantic_interpretation_duplicate",
+                    actor=actor,
+                    session_id=session_id,
+                    turn_id=turn,
+                    record_id=duplicate["id"],
+                    payload={
+                        "interpreter": (raw or {}).get("interpreter"),
+                        "interpretation_assurance": (raw or {}).get(
+                            "interpretation_assurance", "caller_asserted"
+                        ),
+                        "source_binding": (raw or {}).get(
+                            "source_binding", "caller_supplied"
+                        ),
+                        "source_message_sha256": _sha256(text),
+                        "interpreted_fact_sha256": _sha256(content),
+                        "fact_key": interpreted_candidate.fact_key,
+                    },
+                )
+                return {
+                    "episode_id": None,
+                    "records": [],
+                    "duplicate_ids": [duplicate["id"]],
+                }
+        episode_id = self.store.insert_episode(
+            subject_id=subject_id,
+            session_id=session_id,
+            turn_id=turn,
+            message=text,
+            source_type=source,
+            raw=raw or {},
+        )
+        self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="episode.ingested",
+            actor=actor,
+            session_id=session_id,
+            turn_id=turn,
+            payload={
+                "episode_id": episode_id,
+                "source_type": source,
+                "message_sha256": _sha256(text),
+            },
+        )
+
+        if interpreted_fact is not None:
+            assert interpreted_candidate is not None
+            content = interpreted_candidate.content
+            candidates = [interpreted_candidate]
+            self.store.append_audit_event(
+                subject_id=subject_id,
+                event_type="memory.semantic_interpretation_received",
+                actor=actor,
+                session_id=session_id,
+                turn_id=turn,
+                payload={
+                    "episode_id": episode_id,
+                    "interpreter": (raw or {}).get("interpreter"),
+                    "interpretation_assurance": (raw or {}).get(
+                        "interpretation_assurance", "caller_asserted"
+                    ),
+                    "source_binding": (raw or {}).get(
+                        "source_binding", "caller_supplied"
+                    ),
+                    "source_message_sha256": _sha256(text),
+                    "interpreted_fact_sha256": _sha256(content),
+                    "fact_key": interpreted_candidate.fact_key,
+                },
+            )
+        else:
+            # Instruction-shaped, secret-bearing, and explicitly excluded
+            # content is refused before extraction so it never becomes a
+            # record to be reviewed later. The instruction screen is scoped to
+            # untrusted sources: a user's own "always do X" is a preference.
+            screening = screen_content(text, trusted=source == "user_message")
+            if not screening.admissible:
+                self.store.append_audit_event(
+                    subject_id=subject_id,
+                    event_type="memory.content_refused",
+                    actor="system",
+                    session_id=session_id,
+                    turn_id=turn,
+                    payload={
+                        "episode_id": episode_id,
+                        "source_type": source,
+                        "reason_codes": list(screening.reason_codes),
+                        "message_sha256": _sha256(text),
+                    },
+                )
+                return {
+                    "episode_id": episode_id,
+                    "records": [],
+                    "duplicate_ids": [],
+                    "refused": list(screening.reason_codes),
+                }
+            candidates = extract_facts(text, source_type=source)
+        if force and not candidates and source == "user_message":
+            candidates = [
+                CandidateFact(
+                    content=_explicit_note(text),
+                    confidence=0.7,
+                    source_type=source,
+                    trust_tier=trust_tier_for_source(source),
+                    fact_key=None,
+                    scope="user_note",
+                )
+            ]
+        records: list[dict[str, Any]] = []
+        duplicate_ids: list[str] = []
+        for candidate in candidates:
+            status = initial_status(candidate.trust_tier)
+            # A trusted statement only dedupes against active records — a
+            # quarantined copy must never swallow a user-confirmed fact.
+            duplicate = self.store.find_duplicate_record(
+                subject_id,
+                candidate.content,
+                statuses=(
+                    ("active",) if status == "active" else ("active", "quarantined")
+                ),
+            )
+            if duplicate is not None:
+                duplicate_ids.append(duplicate["id"])
+                self.store.append_audit_event(
+                    subject_id=subject_id,
+                    event_type="memory.duplicate_ignored",
+                    actor="system",
+                    session_id=session_id,
+                    turn_id=turn,
+                    record_id=duplicate["id"],
+                    payload={"episode_id": episode_id, "fact_key": candidate.fact_key},
+                )
+                continue
+
+            old_records = (
+                self.store.active_records_for_fact_key(subject_id, candidate.fact_key)
+                if status == "active"
+                else []
+            )
+            record_id = self.store.insert_record(
+                subject_id=subject_id,
+                content=candidate.content,
+                source_type=candidate.source_type,
+                trust_tier=candidate.trust_tier,
+                source_session_id=session_id,
+                source_turn_id=turn,
+                episode_id=episode_id,
+                confidence=candidate.confidence,
+                scope=candidate.scope,
+                status=status,
+                supersedes_id=old_records[0]["id"] if old_records else None,
+                fact_key=candidate.fact_key,
+                raw={},
+            )
+            old_ids = [record["id"] for record in old_records]
+            self.store.supersede_records(
+                subject_id=subject_id,
+                record_ids=old_ids,
+                superseded_by_id=record_id,
+            )
+            event_type = (
+                "memory.record_created"
+                if status == "active"
+                else "memory.record_quarantined"
+            )
+            stored_record = self.store.get_record(subject_id, record_id)
+            assert stored_record is not None
+            self.store.append_audit_event(
+                subject_id=subject_id,
+                event_type=event_type,
+                actor="system",
+                session_id=session_id,
+                turn_id=turn,
+                record_id=record_id,
+                payload={
+                    "episode_id": episode_id,
+                    "source_type": candidate.source_type,
+                    "trust_tier": candidate.trust_tier,
+                    "status": status,
+                    "fact_key": candidate.fact_key,
+                    "supersedes": old_ids,
+                    "confidence": candidate.confidence,
+                    "scope": candidate.scope,
+                    # Binds the stored content to the chain so a direct edit
+                    # of the record row is detectable by an offline auditor.
+                    "content_sha256": _sha256(candidate.content),
+                    # Bind identity, owner, ordering and security metadata as
+                    # well as content. The commitment itself is protected by
+                    # the audit chain; raw SQLite edits cannot update it
+                    # without invalidating that chain.
+                    "record_integrity_sha256": _record_integrity_sha256(
+                        stored_record
+                    ),
+                },
+            )
+            graph_mutations = self.graph.supersede_records(
+                subject_id, old_ids, record_id
+            )
+            graph_mutations.extend(self.graph.index_record(stored_record))
+            self._audit_graph_mutations(
+                subject_id,
+                graph_mutations,
+                session_id=session_id,
+                turn_id=turn,
+                record_id=record_id,
+            )
+            records.append(stored_record)
+
+        if not candidates and source != "user_message":
+            self.store.append_audit_event(
+                subject_id=subject_id,
+                event_type="memory.untrusted_source_ignored",
+                actor="system",
+                session_id=session_id,
+                turn_id=turn,
+                payload={"episode_id": episode_id, "source_type": source},
+            )
+
+        return {
+            "episode_id": episode_id,
+            "records": records,
+            "duplicate_ids": duplicate_ids,
+        }
+
+    @_atomic
+    def remember_observation(
+        self,
+        subject_id: str,
+        envelope: dict[str, Any],
+        *,
+        session_id: str | None = None,
+        turn_id: str | int | None = None,
+        actor: str = "media-observer",
+        forced_assurance: str | None = None,
+    ) -> dict[str, Any]:
+        """Admit one typed, quarantined text observation of external media."""
+        observation = MediaObservationEnvelope.from_mapping(
+            envelope, forced_assurance=forced_assurance
+        )
+        turn = _turn_id(turn_id)
+        artifact = None
+        if observation.artifact_id:
+            artifact = self.store.get_media_artifact(
+                subject_id, artifact_id=observation.artifact_id
+            )
+            if artifact is None:
+                raise ValueError(
+                    f"media artifact not found: {observation.artifact_id!r}"
+                )
+            if artifact["media_sha256"] != observation.media_sha256:
+                raise ValueError(
+                    "artifact digest mismatch: the supplied artifact_id names "
+                    "a different byte stream"
+                )
+        if artifact is None:
+            artifact = self.store.get_media_artifact(
+                subject_id, media_sha256=observation.media_sha256
+            )
+        if artifact is not None:
+            if artifact["status"] != "active":
+                raise ValueError(
+                    "media artifact digest was previously tombstoned; "
+                    "restoration is not implicit"
+                )
+            if artifact["modality"] != observation.modality:
+                raise ValueError(
+                    "media artifact modality mismatch: "
+                    f"stored={artifact['modality']!r}, "
+                    f"submitted={observation.modality!r}"
+                )
+        else:
+            artifact = self.store.insert_media_artifact(
+                subject_id=subject_id,
+                media_sha256=observation.media_sha256,
+                modality=observation.modality,
+                host_reference=observation.host_reference,
+                host_reference_sha256=observation.host_reference_sha256,
+                digest_assurance=observation.digest_assurance,
+            )
+
+        duplicate = self.store.find_media_observation_by_envelope(
+            subject_id, observation.envelope_sha256
+        )
+        if duplicate is not None and duplicate["status"] != "tombstoned":
+            event_id = self.store.append_audit_event(
+                subject_id=subject_id,
+                event_type="media.observation_duplicate",
+                actor=actor,
+                session_id=session_id,
+                turn_id=turn,
+                record_id=duplicate["record_id"],
+                payload={
+                    "artifact_id": artifact["id"],
+                    "observation_id": duplicate["id"],
+                    "envelope_sha256": observation.envelope_sha256,
+                },
+            )
+            record = self.store.get_record(subject_id, str(duplicate["record_id"]))
+            assert record is not None
+            return {
+                "format": "atmem-media-admission-v1",
+                "artifact": artifact,
+                "observation": duplicate,
+                "record": self._attach_media_provenance(subject_id, [record])[0],
+                "duplicate": True,
+                "audit_event_id": event_id,
+            }
+
+        previous = self.store.current_media_observations(
+            subject_id, observation.lineage_sha256
+        )
+        episode_id = self.store.insert_episode(
+            subject_id=subject_id,
+            session_id=session_id,
+            turn_id=turn,
+            message=observation.text,
+            source_type="tool_output",
+            raw={
+                "format": "atmem-media-observation-source-v1",
+                "artifact_id": artifact["id"],
+                "media_sha256": observation.media_sha256,
+                "envelope_sha256": observation.envelope_sha256,
+            },
+        )
+        record_id = self.store.insert_record(
+            subject_id=subject_id,
+            content=observation.text,
+            source_type="tool_output",
+            trust_tier=TRUST_TIER_UNTRUSTED,
+            source_session_id=session_id,
+            source_turn_id=turn,
+            episode_id=episode_id,
+            # Extractor confidence is retained on the evidence envelope only.
+            # It must not influence memory ranking, trust, or promotion policy.
+            confidence=None,
+            scope="media_observation",
+            status="quarantined",
+            supersedes_id=None,
+            fact_key=None,
+            raw={
+                "artifact_id": artifact["id"],
+                "media_sha256": observation.media_sha256,
+                "envelope_sha256": observation.envelope_sha256,
+            },
+        )
+        stored_observation = self.store.insert_media_observation(
+            subject_id=subject_id,
+            artifact_id=str(artifact["id"]),
+            episode_id=episode_id,
+            record_id=record_id,
+            text_sha256=observation.text_sha256,
+            segment=observation.segment,
+            segment_sha256=observation.segment_sha256,
+            extractor=observation.extractor,
+            extractor_sha256=observation.extractor_sha256,
+            confidence=observation.confidence,
+            digest_assurance=observation.digest_assurance,
+            lineage_sha256=observation.lineage_sha256,
+            envelope_sha256=observation.envelope_sha256,
+            observed_at=observation.observed_at,
+            supersedes_observation_id=(str(previous[-1]["id"]) if previous else None),
+        )
+        previous_ids = [str(item["id"]) for item in previous]
+        superseded_record_ids = self.store.supersede_media_observations(
+            subject_id,
+            previous_ids,
+            str(stored_observation["id"]),
+        )
+        stored_record = self.store.get_record(subject_id, record_id)
+        assert stored_record is not None
+        graph_mutations = self.graph.supersede_records(
+            subject_id, superseded_record_ids, record_id
+        )
+        graph_mutations.extend(self.graph.index_record(stored_record))
+        self._audit_graph_mutations(
+            subject_id,
+            graph_mutations,
+            session_id=session_id,
+            turn_id=turn,
+            record_id=record_id,
+        )
+        event_id = self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="media.observation_admitted",
+            actor=actor,
+            session_id=session_id,
+            turn_id=turn,
+            record_id=record_id,
+            payload={
+                "artifact_id": artifact["id"],
+                "media_sha256": observation.media_sha256,
+                "modality": observation.modality,
+                "observation_id": stored_observation["id"],
+                "episode_id": episode_id,
+                "record_id": record_id,
+                "text_sha256": observation.text_sha256,
+                "segment_sha256": observation.segment_sha256,
+                "extractor_identity_sha256": observation.extractor_sha256,
+                "host_reference_sha256": observation.host_reference_sha256,
+                "lineage_sha256": observation.lineage_sha256,
+                "envelope_sha256": observation.envelope_sha256,
+                "digest_assurance": observation.digest_assurance,
+                "confidence": observation.confidence,
+                "status": "quarantined",
+                "supersedes_observation_ids": previous_ids,
+                "superseded_record_ids": superseded_record_ids,
+            },
+        )
+        return {
+            "format": "atmem-media-admission-v1",
+            "artifact": artifact,
+            "observation": stored_observation,
+            "record": self._attach_media_provenance(subject_id, [stored_record])[0],
+            "duplicate": False,
+            "audit_event_id": event_id,
+        }
+
+    @_atomic
+    def recall(
+        self,
+        subject_id: str,
+        query: str,
+        *,
+        session_id: str | None = None,
+        limit: int = 10,
+        min_score: float | None = None,
+        use_graph: bool | None = None,
+        include_scores: bool = False,
+        _evidence: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Top-k recall over bounded active record and optional graph candidates."""
+        active_records, fts_scores = self.store.recall_candidates(
+            subject_id,
+            query_tokens(query),
+            limit=self.recall_candidate_limit,
+        )
+        excluded_ids = self.store.excluded_record_ids(subject_id)
+        if excluded_ids:
+            active_records = [
+                record for record in active_records if record["id"] not in excluded_ids
+            ]
+            fts_scores = {
+                record_id: score
+                for record_id, score in fts_scores.items()
+                if record_id not in excluded_ids
+            }
+        graph_result = None
+        graph_by_record: dict[str, dict[str, Any]] = {}
+        if self.graph_recall if use_graph is None else use_graph:
+            graph_result = self.graph.recall(subject_id, query)
+            for candidate in graph_result.candidates:
+                record_id = str(candidate["record_id"])
+                current = graph_by_record.get(record_id)
+                if current is None or candidate["score"] > current["score"]:
+                    graph_by_record[record_id] = candidate
+
+            # Graph spread is allowed to nominate records outside the direct
+            # FTS window; otherwise multi-hop recall would collapse back to
+            # lexical recall as soon as the database exceeds the candidate cap.
+            candidate_ids = {str(record["id"]) for record in active_records}
+            for record_id in graph_by_record:
+                if record_id in excluded_ids:
+                    continue
+                if record_id in candidate_ids:
+                    continue
+                record = self.store.get_record(subject_id, record_id)
+                if (
+                    record is not None
+                    and record["subject_id"] == subject_id
+                    and record["status"] == "active"
+                ):
+                    active_records.append(record)
+                    candidate_ids.add(record_id)
+
+        lexical_scored = rank_records(
+            query,
+            active_records,
+            fts_scores=fts_scores if fts_scores else None,
+        )
+        lexical_by_record = {str(item.record["id"]): item for item in lexical_scored}
+        lexical_rank = {
+            str(item.record["id"]): rank
+            for rank, item in enumerate(lexical_scored, start=1)
+        }
+        graph_rank = _graph_ranks(graph_by_record)
+        scored = lexical_scored
+        if graph_result is not None:
+            scored = _blend_graph_scores(scored, graph_by_record)
+        all_scored = scored
+        if min_score is not None:
+            scored = [item for item in scored if item.score >= min_score]
+        returned = scored[:limit]
+        returned_ids = [item.record["id"] for item in returned]
+
+        by_recency = sorted(
+            active_records,
+            key=lambda record: (
+                str(record.get("created_at") or ""),
+                str(record.get("id")),
+            ),
+        )
+        recency_rank = {
+            str(record["id"]): rank for rank, record in enumerate(by_recency)
+        }
+        recency_denominator = max(len(active_records) - 1, 1)
+        fts_max_raw = max(fts_scores.values(), default=0.0)
+        candidates_payload: list[dict[str, Any]] = []
+        returned_id_set = set(returned_ids)
+        for rank, item in enumerate(all_scored, start=1):
+            record_id = str(item.record["id"])
+            if rank > _CANDIDATE_LOG_WINDOW and record_id not in returned_id_set:
+                continue
+            lexical_item = lexical_by_record[record_id]
+            graph_candidate = graph_by_record.get(record_id)
+            overlap_matches, overlap_terms = token_overlap_components(
+                query, str(item.record.get("content") or "")
+            )
+            summary: dict[str, Any] = {
+                "record_id": record_id,
+                "rank": rank,
+                "score": item.score,
+                "base_score": lexical_item.score,
+                "text_score": item.text_score,
+                "text_method": "fts5" if fts_scores else "token-overlap",
+                "text_raw_score": round(float(fts_scores.get(record_id, 0.0)), 12),
+                "text_max_raw_score": round(float(fts_max_raw), 12),
+                "text_overlap_matches": overlap_matches,
+                "text_overlap_terms": overlap_terms,
+                "trust_score": item.trust_score,
+                "trust_tier": item.record["trust_tier"],
+                "recency_score": item.recency_score,
+                "recency_rank": recency_rank[record_id],
+                "recency_denominator": recency_denominator,
+                "lexical_rank": lexical_rank[record_id],
+                "graph_rank": graph_rank.get(record_id),
+                "graph_score": (
+                    round(float(graph_candidate["score"]), 6)
+                    if graph_candidate is not None
+                    else None
+                ),
+                "created_at": item.record["created_at"],
+                "status": item.record["status"],
+                "source_type": item.record["source_type"],
+                "above_threshold": min_score is None or item.score >= min_score,
+                "returned": record_id in returned_id_set,
+            }
+            if graph_candidate is not None and record_id in returned_id_set:
+                summary.update(
+                    {
+                        "graph_depth": graph_candidate["depth"],
+                        "graph_path": graph_candidate["path"],
+                    }
+                )
+            candidates_payload.append(summary)
+        graph_raw: dict[str, Any] = {}
+        if graph_result is not None:
+            graph_raw = {
+                "algorithm": "graph-seed-spread-v1",
+                "extractor_version": "graph-rules-v1",
+                "seeds": list(graph_result.seeds),
+                "seed_limit": graph_result.seed_limit,
+                "frontier_cap": graph_result.frontier_cap,
+                "max_depth": graph_result.max_depth,
+                "visited_edges": graph_result.visited_edges,
+                "pruned_digest": graph_result.pruned_digest,
+            }
+        graph_raw["replay"] = {
+            "use_graph": graph_result is not None,
+            "limit": limit,
+            "min_score": min_score,
+            "candidate_cap": self.recall_candidate_limit,
+            "ranker_version": _RECORD_RANKER_VERSION,
+            "record_weights": {
+                "text": TEXT_WEIGHT,
+                "trust": TRUST_WEIGHT,
+                "recency": RECENCY_WEIGHT,
+            },
+            "fusion_version": (_GRAPH_FUSION_VERSION if graph_by_record else None),
+            "rrf_rank_constant": _RRF_RANK_CONSTANT,
+            "graph_rrf_weight": _GRAPH_RRF_WEIGHT,
+            "candidate_log_window": _CANDIDATE_LOG_WINDOW,
+        }
+        query_sha256 = _sha256(query)
+        retained_query = query if self.retain_query_text else ""
+        retrieval_id = self.store.insert_retrieval_event(
+            subject_id=subject_id,
+            session_id=session_id,
+            query=retained_query,
+            query_sha256=query_sha256,
+            candidates=candidates_payload,
+            returned_ids=returned_ids,
+            raw=graph_raw,
+        )
+        # Digest over the retrieval evidence itself. The retrieval_events row
+        # is not part of the hash chain; this binding makes edits to logged
+        # candidate scores or paths detectable by an offline auditor.
+        retrieval_sha256 = sha256_hex(
+            canonical_json(
+                {
+                    "format": _RETRIEVAL_EVIDENCE_FORMAT,
+                    "retrieval_id": retrieval_id,
+                    "subject_id": subject_id,
+                    "session_id": session_id,
+                    "query": retained_query,
+                    "query_sha256": query_sha256,
+                    "candidates": candidates_payload,
+                    "returned_ids": returned_ids,
+                    "raw": graph_raw,
+                }
+            )
+        )
+        if _evidence is not None:
+            _evidence.update(
+                {
+                    "retrieval_id": retrieval_id,
+                    "retrieval_sha256": retrieval_sha256,
+                    "query_sha256": query_sha256,
+                }
+            )
+        self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="memory.recall",
+            actor="system",
+            session_id=session_id,
+            payload={
+                "retrieval_id": retrieval_id,
+                "retrieval_sha256": retrieval_sha256,
+                "retrieval_evidence_format": _RETRIEVAL_EVIDENCE_FORMAT,
+                "returned_ids": returned_ids,
+                "candidate_count": len(all_scored),
+                "logged_candidate_count": len(candidates_payload),
+                "min_score": min_score,
+                "limit": limit,
+                "algorithm": graph_raw.get("algorithm", "records-fts-v1"),
+                "candidate_cap": self.recall_candidate_limit,
+            },
+        )
+        results: list[dict[str, Any]] = []
+        for item in returned:
+            record = dict(item.record)
+            if include_scores:
+                # Compatibility surfaces such as OpenClaw's memory_search
+                # need the actual audited rank score. Keep it opt-in so the
+                # long-standing Python API result shape remains unchanged.
+                record["score"] = item.score
+            graph_candidate = graph_by_record.get(record["id"])
+            if graph_candidate is not None:
+                record["graph"] = {
+                    "edge_id": graph_candidate["edge_id"],
+                    "relation": graph_candidate["relation"],
+                    "score": graph_candidate["score"],
+                    "depth": graph_candidate["depth"],
+                    "path": graph_candidate["path"],
+                }
+            results.append(record)
+        return self._attach_media_provenance(subject_id, results)
+
+    def list(
+        self,
+        subject_id: str,
+        *,
+        include_inactive: bool = False,
+    ) -> list[dict[str, Any]]:
+        statuses = None if include_inactive else ("active",)
+        return self._attach_media_provenance(
+            subject_id, self.store.list_records(subject_id, statuses=statuses)
+        )
+
+    @_atomic
+    def set_retrieval_excluded(
+        self,
+        subject_id: str,
+        record_id: str,
+        excluded: bool,
+        *,
+        reason: str = "",
+        actor: str = "user",
+    ) -> dict[str, Any]:
+        record = self.store.get_record(subject_id, record_id)
+        if record is None or record.get("status") != "active":
+            raise ValueError(f"record {record_id} is not active for {subject_id}")
+        self.store.set_retrieval_excluded(
+            subject_id, record_id, excluded, actor=actor, reason=reason
+        )
+        unit_value = ((record.get("raw") or {}).get("typed_unit"))
+        if isinstance(unit_value, dict):
+            from atmem.extract.models import MemoryUnit
+            unit = MemoryUnit.from_dict(unit_value)
+            self.store.set_typed_exclusion_identity(
+                subject_id=subject_id,
+                workspace_id=unit.scope.workspace_id,
+                record_id=record_id,
+                exclusion_identity=unit.exclusion_identity(),
+                excluded=excluded,
+            )
+        self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type=(
+                "memory.retrieval_excluded"
+                if excluded
+                else "memory.retrieval_restored"
+            ),
+            actor=actor,
+            record_id=record_id,
+            payload={"reason": reason[:500]} if reason else {},
+        )
+        return {"record_id": record_id, "excluded": excluded}
+
+    @_atomic
+    def correct_record(
+        self,
+        subject_id: str,
+        record_id: str,
+        corrected_text: str,
+        *,
+        reason: str = "",
+        actor: str = "user",
+    ) -> dict[str, Any]:
+        old = self.store.get_record(subject_id, record_id)
+        if old is None or old.get("status") != "active":
+            raise ValueError(f"record {record_id} is not active for {subject_id}")
+        corrected = corrected_text.strip()
+        if not corrected or corrected == str(old.get("content") or "").strip():
+            raise ValueError("corrected memory must be non-empty and different")
+        result = self.remember(
+            subject_id,
+            message=corrected,
+            source_type="user_message",
+            actor=actor,
+            interpreted_fact=corrected,
+            interpreted_fact_key=old.get("fact_key") or f"correction-{record_id}",
+            raw={
+                "interpreter": "human-correction",
+                "interpretation_assurance": "verified_by_user",
+                "source_binding": "dashboard-exact-record-correction",
+            },
+        )
+        if not result.get("records"):
+            raise ValueError("correction did not create a replacement memory")
+        replacement = result["records"][0]
+        replacement_id = str(replacement["id"])
+        self.store.supersede_records(
+            subject_id=subject_id,
+            record_ids=[record_id],
+            superseded_by_id=replacement_id,
+        )
+        graph_mutations = self.graph.supersede_records(
+            subject_id, [record_id], replacement_id
+        )
+        self._audit_graph_mutations(subject_id, graph_mutations)
+        self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="memory.record_corrected",
+            actor=actor,
+            record_id=replacement_id,
+            payload={
+                "replaces_record_id": record_id,
+                "reason": reason[:500],
+            },
+        )
+        current = self.store.get_record(subject_id, replacement_id)
+        return {"replaced_record_id": record_id, "record": current}
+
+    @_atomic
+    def forget_record(
+        self,
+        subject_id: str,
+        record_id: str,
+        *,
+        actor: str = "user",
+    ) -> dict[str, Any]:
+        record = self.store.get_record(subject_id, record_id)
+        if record is None or record.get("status") == "tombstoned":
+            raise ValueError(f"record {record_id} is not available for deletion")
+        cleanup = self._purge_record_ids(
+            subject_id, [record_id], session_id=None, turn_id=None
+        )
+        event_id = self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="memory.forget",
+            actor=actor,
+            record_id=record_id,
+            payload={
+                "purged_record_ids": cleanup["purged_record_ids"],
+                "purged_episode_ids": cleanup["purged_episode_ids"],
+                "purged_graph_ids": cleanup["purged_graph_ids"],
+                "semantic_index_cleanup": cleanup["semantic_index_cleanup"],
+                "exact_record": True,
+            },
+        )
+        event = self.store.get_audit_event(subject_id, event_id)
+        receipt = {
+            "format": "atmem-exact-record-deletion-receipt-v1",
+            "subject_id": subject_id,
+            "created_at": event["created_at"],
+            "purged_record_ids": cleanup["purged_record_ids"],
+            "purged_episode_ids": cleanup["purged_episode_ids"],
+            "purged_graph_ids": cleanup["purged_graph_ids"],
+            "semantic_index_cleanup": cleanup["semantic_index_cleanup"],
+            "audit_event_id": event_id,
+            "audit_event_hash": event["event_hash"],
+        }
+        receipt["receipt_sha256"] = _sha256(canonical_json(receipt))
+        return {"deleted": True, "record_ids": [record_id], "receipt": receipt}
+
+    @_atomic
+    def forget(
+        self,
+        subject_id: str,
+        selector: dict[str, Any] | str | None = None,
+        *,
+        utterance: str | None = None,
+        session_id: str | None = None,
+        turn_id: str | int | None = None,
+        actor: str = "user",
+    ) -> dict[str, Any]:
+        turn = _turn_id(turn_id)
+        contains = _selector_contains(selector)
+        utterance_sha256 = _sha256(utterance) if utterance else None
+        if utterance:
+            contains = contains or forget_needle(utterance)
+
+        if not contains:
+            # Refuse to interpret an empty selector as "delete everything".
+            payload = {"reason": "empty selector"}
+            if utterance_sha256 is not None:
+                payload["utterance_sha256"] = utterance_sha256
+            self.store.append_audit_event(
+                subject_id=subject_id,
+                event_type="memory.forget_rejected",
+                actor=actor,
+                session_id=session_id,
+                turn_id=turn,
+                payload=payload,
+            )
+            return {"deleted": False, "record_ids": [], "receipt": None}
+
+        needle = contains.lower()
+        candidates = [
+            record
+            for record in self.store.list_records(
+                subject_id, statuses=("active", "quarantined", "superseded")
+            )
+            if needle in str(record.get("content") or "").lower()
+        ]
+
+        record_ids = [record["id"] for record in candidates]
+        selector_sha256 = _sha256(needle)
+        cleanup = self._purge_record_ids(
+            subject_id,
+            record_ids,
+            session_id=session_id,
+            turn_id=turn,
+        )
+        purged_ids = cleanup["purged_record_ids"]
+        purged_episode_ids = cleanup["purged_episode_ids"]
+        purged_graph_ids = cleanup["purged_graph_ids"]
+        semantic_index_cleanup = cleanup["semantic_index_cleanup"]
+        # The audit event carries the selector digest, never its text — the
+        # needle usually names exactly the thing being erased.
+        payload = {
+            "selector_sha256": selector_sha256,
+            "purged_record_ids": purged_ids,
+            "purged_episode_ids": purged_episode_ids,
+            "purged_graph_ids": purged_graph_ids,
+            "purged_count": len(purged_ids),
+        }
+        if cleanup["media_cleanup"]["observation_ids"]:
+            payload["media_cleanup"] = cleanup["media_cleanup"]
+        if semantic_index_cleanup is not None:
+            payload["semantic_index_cleanup"] = semantic_index_cleanup
+        if utterance_sha256 is not None:
+            payload["utterance_sha256"] = utterance_sha256
+        event_id = self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="memory.forget",
+            actor=actor,
+            session_id=session_id,
+            turn_id=turn,
+            payload=payload,
+        )
+        event = self.store.get_audit_event(subject_id, event_id)
+        receipt = {
+            "format": (
+                "atmem-deletion-receipt-v2"
+                if semantic_index_cleanup is not None
+                else "atmem-deletion-receipt-v1"
+            ),
+            "subject_id": subject_id,
+            "created_at": event["created_at"],
+            "selector_sha256": selector_sha256,
+            "purged_record_ids": purged_ids,
+            "purged_episode_ids": purged_episode_ids,
+            "purged_graph_ids": purged_graph_ids,
+            "audit_event_id": event_id,
+            "audit_event_hash": event["event_hash"],
+        }
+        if semantic_index_cleanup is not None:
+            receipt["semantic_index_cleanup"] = semantic_index_cleanup
+        if cleanup["media_cleanup"]["observation_ids"]:
+            receipt["media_cleanup"] = cleanup["media_cleanup"]
+        receipt["receipt_sha256"] = sha256_hex(canonical_json(receipt))
+        return {
+            "deleted": bool(purged_ids),
+            "record_ids": purged_ids,
+            "receipt": receipt,
+        }
+
+    @_atomic
+    def forget_artifact(
+        self,
+        subject_id: str,
+        media_sha256: str,
+        *,
+        artifact_id: str | None = None,
+        session_id: str | None = None,
+        turn_id: str | int | None = None,
+        actor: str = "user",
+    ) -> dict[str, Any]:
+        """Purge AtMem objects linked to one exact media byte-stream digest."""
+        digest = normalize_media_sha256(media_sha256)
+        turn = _turn_id(turn_id)
+        artifact = self.store.get_media_artifact(
+            subject_id,
+            artifact_id=artifact_id,
+            media_sha256=None if artifact_id else digest,
+        )
+        if artifact is None:
+            self.store.append_audit_event(
+                subject_id=subject_id,
+                event_type="media.artifact_forget_rejected",
+                actor=actor,
+                session_id=session_id,
+                turn_id=turn,
+                payload={
+                    "media_sha256": digest,
+                    "reason": "artifact not found",
+                },
+            )
+            return {"deleted": False, "record_ids": [], "receipt": None}
+        if artifact["media_sha256"] != digest:
+            raise ValueError(
+                "artifact digest mismatch: artifact_id and media_sha256 "
+                "do not name the same byte stream"
+            )
+        if artifact["status"] == "tombstoned":
+            return {"deleted": False, "record_ids": [], "receipt": None}
+
+        observations = self.store.list_media_observations(
+            subject_id,
+            artifact_id=str(artifact["id"]),
+            include_tombstoned=True,
+        )
+        observation_ids = [str(item["id"]) for item in observations]
+        record_ids = list(
+            dict.fromkeys(str(item["record_id"]) for item in observations)
+        )
+        episode_ids = list(
+            dict.fromkeys(str(item["episode_id"]) for item in observations)
+        )
+        cleanup = self._purge_record_ids(
+            subject_id,
+            record_ids,
+            session_id=session_id,
+            turn_id=turn,
+        )
+        media_cleanup = self.store.tombstone_media_artifact(
+            subject_id, str(artifact["id"])
+        )
+        records = self.store.get_records(subject_id, record_ids)
+        records_tombstoned = all(
+            record_id in records
+            and records[record_id]["status"] == "tombstoned"
+            and records[record_id]["content"] == ""
+            for record_id in record_ids
+        )
+        episodes = {
+            str(item["id"]): item
+            for item in self.store.list_episodes(subject_id)
+            if str(item["id"]) in episode_ids
+        }
+        episodes_purged = all(
+            episode_id in episodes and episodes[episode_id]["message"] == "[purged]"
+            for episode_id in episode_ids
+        )
+        verification = {
+            "artifact_tombstoned": media_cleanup["artifact_tombstoned"],
+            "observations_tombstoned": media_cleanup["observations_tombstoned"],
+            "records_tombstoned": records_tombstoned,
+            "episodes_purged": episodes_purged,
+            "vectors_verified_absent": (
+                cleanup["semantic_index_cleanup"] is None
+                or cleanup["semantic_index_cleanup"]["verified_absent"]
+            ),
+            "verified_at": utc_now(),
+        }
+        verification["valid"] = all(
+            value for key, value in verification.items() if key != "verified_at"
+        )
+        verification["report_sha256"] = sha256_hex(canonical_json(verification))
+        if not verification["valid"]:
+            raise RuntimeError(
+                "artifact deletion could not be verified; transaction rolled back"
+            )
+
+        payload = {
+            "artifact_id": artifact["id"],
+            "media_sha256": digest,
+            "host_reference_sha256": artifact["host_reference_sha256"],
+            "digest_assurance": artifact["digest_assurance"],
+            "purged_observation_ids": observation_ids,
+            "linked_record_ids": record_ids,
+            "linked_episode_ids": episode_ids,
+            **{
+                key: value
+                for key, value in cleanup.items()
+                if key != "semantic_index_cleanup"
+            },
+            "verification_report_sha256": verification["report_sha256"],
+            "host_file_deleted": False,
+        }
+        if cleanup["semantic_index_cleanup"] is not None:
+            payload["semantic_index_cleanup"] = cleanup["semantic_index_cleanup"]
+        event_id = self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="media.artifact_forgotten",
+            actor=actor,
+            session_id=session_id,
+            turn_id=turn,
+            payload=payload,
+        )
+        event = self.store.get_audit_event(subject_id, event_id)
+        receipt = {
+            "format": "atmem-artifact-deletion-receipt-v1",
+            "subject_id": subject_id,
+            "created_at": event["created_at"],
+            "artifact_id": artifact["id"],
+            "media_sha256": digest,
+            "digest_identity": "sha256-of-exact-byte-stream",
+            "host_reference_sha256": artifact["host_reference_sha256"],
+            "digest_assurance": artifact["digest_assurance"],
+            "claim": (
+                "All live AtMem objects linked through recorded observations "
+                "to this exact byte-stream digest were purged or tombstoned."
+            ),
+            "host_file_deleted": False,
+            "host_boundary": (
+                "The host-controlled original, unregistered copies, "
+                "re-encodings, backups, and unlinked observations are outside "
+                "this receipt."
+            ),
+            "purged_observation_ids": observation_ids,
+            "linked_record_ids": record_ids,
+            "linked_episode_ids": episode_ids,
+            "purged_record_ids": cleanup["purged_record_ids"],
+            "purged_episode_ids": cleanup["purged_episode_ids"],
+            "purged_graph_ids": cleanup["purged_graph_ids"],
+            "verification": verification,
+            "audit_event_id": event_id,
+            "audit_event_hash": event["event_hash"],
+        }
+        if cleanup["semantic_index_cleanup"] is not None:
+            receipt["semantic_index_cleanup"] = cleanup["semantic_index_cleanup"]
+        receipt["receipt_sha256"] = sha256_hex(canonical_json(receipt))
+        return {
+            "deleted": True,
+            "record_ids": cleanup["purged_record_ids"],
+            "receipt": receipt,
+        }
+
+    def _purge_record_ids(
+        self,
+        subject_id: str,
+        record_ids: list[str],
+        *,
+        session_id: str | None,
+        turn_id: str | None,
+    ) -> dict[str, Any]:
+        cleanup_ids = list(dict.fromkeys(str(value) for value in record_ids))
+        purged_ids, purged_episode_ids = self.store.tombstone_records(
+            subject_id=subject_id, record_ids=cleanup_ids
+        )
+        graph_mutations = self.graph.tombstone_records(subject_id, purged_ids)
+        purged_graph_ids = [
+            str(item["object_id"]) for item in graph_mutations if item.get("object_id")
+        ]
+        self._audit_graph_mutations(
+            subject_id,
+            graph_mutations,
+            session_id=session_id,
+            turn_id=turn_id,
+        )
+        media_cleanup = self.store.tombstone_media_observations_for_records(
+            subject_id, cleanup_ids
+        )
+        semantic_index_cleanup = None
+        if cleanup_ids and self.store.path != ":memory:":
+            from atmem.semantic import SemanticIndex, default_index_path
+
+            registered = self.store.semantic_index_paths(subject_id)
+            registered_by_path = {
+                str(Path(item["index_path"]).expanduser().resolve()): item
+                for item in registered
+            }
+            default_path = str(default_index_path(self.store.path).resolve())
+            if Path(default_path).exists() and default_path not in registered_by_path:
+                registered_by_path[default_path] = {
+                    "index_path": default_path,
+                    "index_path_sha256": sha256_hex(default_path),
+                    "active_epoch_id": None,
+                }
+            cleanup_results: list[dict[str, Any]] = []
+            for path_text, registry in sorted(registered_by_path.items()):
+                index_path = Path(path_text)
+                if not index_path.exists():
+                    raise RuntimeError(
+                        "registered semantic index is missing; deletion cannot "
+                        f"verify vector cleanup ({registry['index_path_sha256']})"
+                    )
+                semantic_index = SemanticIndex(index_path, policy=self.policy)
+                try:
+                    if semantic_index.active_epoch(subject_id) is not None:
+                        index_cleanup = semantic_index.purge(subject_id, cleanup_ids)
+                        index_verification = semantic_index.verify(self, subject_id)
+                        semantic_index.checkpoint_storage()
+                        result = {
+                            **index_cleanup,
+                            "index_path_sha256": registry["index_path_sha256"],
+                            "index_verification_valid": index_verification["valid"],
+                            "verification_report_sha256": index_verification[
+                                "report_sha256"
+                            ],
+                        }
+                        cleanup_results.append(result)
+                        if (
+                            not index_cleanup["verified_absent"]
+                            or not index_verification["valid"]
+                        ):
+                            raise RuntimeError(
+                                "semantic index purge could not be verified; "
+                                "canonical deletion was not committed: "
+                                f"{index_verification.get('failures') or index_cleanup.get('status')} "
+                                f"gaps={index_verification.get('coverage_gaps')}"
+                            )
+                finally:
+                    semantic_index.close()
+            if cleanup_results:
+                semantic_index_cleanup = {
+                    "status": "verified_absent",
+                    "verified_absent": True,
+                    "indexes": cleanup_results,
+                    "verified_at": utc_now(),
+                }
+                semantic_index_cleanup["result_sha256"] = sha256_hex(
+                    canonical_json(semantic_index_cleanup)
+                )
+        return {
+            "purged_record_ids": purged_ids,
+            "purged_episode_ids": purged_episode_ids,
+            "purged_graph_ids": purged_graph_ids,
+            "media_cleanup": media_cleanup,
+            "semantic_index_cleanup": semantic_index_cleanup,
+        }
+
+    @_atomic
+    def capture(
+        self,
+        subject_id: str,
+        role: str,
+        content: str,
+        *,
+        session_id: str | None = None,
+        turn_id: str | int | None = None,
+        tool_name: str | None = None,
+    ) -> dict[str, Any]:
+        """Host-adapter entry point for automatic conversation capture.
+
+        User turns run the full write pipeline (extraction + policy gates).
+        Assistant output and tool traffic are agent-generated — they are
+        logged to the audit chain as digests, never stored as memory records,
+        so auto-capture cannot become a self-poisoning loop.
+        """
+        if role == "user":
+            result = self.remember(
+                subject_id, content, session_id=session_id, turn_id=turn_id
+            )
+            return {"kind": "remembered", **result}
+        if role == "assistant":
+            event_id = self.log_action(
+                subject_id,
+                "agent.response_shown",
+                {"response_sha256": _sha256(content), "chars": len(content)},
+                session_id=session_id,
+                turn_id=turn_id,
+            )
+            return {"kind": "logged", "event_id": event_id}
+        if role == "tool_call":
+            event_id = self.log_action(
+                subject_id,
+                "agent.tool_call",
+                {"tool": tool_name, "args_sha256": _sha256(content)},
+                session_id=session_id,
+                turn_id=turn_id,
+            )
+            return {"kind": "logged", "event_id": event_id}
+        if role == "tool_result":
+            event_id = self.log_action(
+                subject_id,
+                "agent.tool_result",
+                {
+                    "tool": tool_name,
+                    "result_sha256": _sha256(content),
+                    "chars": len(content),
+                },
+                session_id=session_id,
+                turn_id=turn_id,
+            )
+            return {"kind": "logged", "event_id": event_id}
+        raise ValueError(f"unknown capture role: {role}")
+
+    @_atomic
+    def build_recall_block(
+        self,
+        subject_id: str,
+        query: str,
+        *,
+        session_id: str | None = None,
+        max_records: int = 5,
+        max_chars: int = 2000,
+        min_score: float = 0.3,
+        use_graph: bool | None = None,
+        reference_mode: str = "full",
+        exclude_record_ids: set[str] | None = None,
+        require_direct_support: bool = False,
+    ) -> dict[str, Any]:
+        """Deterministic, bounded <relevant_memories> block for prompt injection.
+
+        Uses recall() (so every candidate lands in retrieval_events), applies
+        hard budgets, and writes a memory.context_injected audit event naming
+        exactly which record IDs entered the agent's context. The default
+        min_score of 0.3 requires a lexical match — trust/recency priors
+        alone never inject.
+        """
+        if reference_mode not in {"full", "compact", "none"}:
+            raise ValueError("reference_mode must be full, compact, or none")
+        excluded = exclude_record_ids or set()
+        recall_evidence: dict[str, Any] = {}
+        # Direct-support filtering must inspect the bounded candidate window,
+        # not merely the first ``max_records`` by prior score. Otherwise a few
+        # strong but irrelevant FTS matches can hide an explicitly requested
+        # profile fact before the support classifier ever sees it.
+        recall_limit = (
+            self.recall_candidate_limit
+            if require_direct_support
+            else max_records + len(excluded)
+        )
+        records = self.recall(
+            subject_id,
+            query,
+            session_id=session_id,
+            limit=recall_limit,
+            min_score=min_score,
+            use_graph=use_graph,
+            _evidence=recall_evidence,
+        )
+        decision = decide_retrieval(query, records) if require_direct_support else None
+        supported = set(decision.ranked_record_ids) if decision else None
+        lines: list[str] = []
+        included: list[str] = []
+        used = 0
+        for record in records:
+            if len(included) >= max_records:
+                break
+            if record["id"] in excluded or (supported is not None and record["id"] not in supported):
+                continue
+            reference = _prompt_reference(str(record["id"]), reference_mode)
+            line = f"- {reference}{record['content']}"
+            if used + len(line) + 1 > max_chars:
+                break
+            lines.append(line)
+            included.append(record["id"])
+            used += len(line) + 1
+
+        if not lines:
+            return {
+                "block": "",
+                "record_ids": [],
+                "count": 0,
+                "retrieval_id": recall_evidence.get("retrieval_id"),
+                "context_event_id": None,
+            }
+
+        block = "<relevant_memories>\n" + "\n".join(lines) + "\n</relevant_memories>"
+        context_event_id = self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="memory.context_injected",
+            actor="system",
+            session_id=session_id,
+            payload={
+                "selection_profile": "direct-support-v1" if require_direct_support else "rank-threshold-v1",
+                "record_ids": included,
+                "reference_mode": reference_mode,
+                "block_sha256": _sha256(block),
+                "query_sha256": _sha256(query),
+                "retrieval_id": recall_evidence.get("retrieval_id"),
+                "retrieval_sha256": recall_evidence.get("retrieval_sha256"),
+            },
+        )
+        return {
+            "block": block,
+            "record_ids": included,
+            "count": len(included),
+            "retrieval_id": recall_evidence.get("retrieval_id"),
+            "context_event_id": context_event_id,
+        }
+
+    @_atomic
+    def build_persona(
+        self,
+        subject_id: str,
+        *,
+        session_id: str | None = None,
+        max_chars: int = 1500,
+        reference_mode: str = "full",
+    ) -> dict[str, Any]:
+        """L3: deterministic persona snapshot derived from active records.
+
+        Keyed facts (stable slots like "preferred airport") come first,
+        then unkeyed facts newest-first, under a hard character budget.
+        No LLM, no stored copy — the persona is always derived live from
+        L1, so it can never go stale, and every line carries the source
+        record id. Building one writes a memory.persona_built audit event.
+        """
+        if reference_mode not in {"full", "compact", "none"}:
+            raise ValueError("reference_mode must be full, compact, or none")
+        active = self.list(subject_id)
+        keyed = sorted(
+            (r for r in active if r.get("fact_key")),
+            key=lambda r: (str(r["fact_key"]), str(r["created_at"])),
+        )
+        unkeyed = sorted(
+            (r for r in active if not r.get("fact_key")),
+            key=lambda r: str(r["created_at"]),
+            reverse=True,
+        )
+
+        lines: list[str] = []
+        included: list[str] = []
+        used = 0
+        for record in [*keyed, *unkeyed]:
+            reference = _prompt_reference(str(record["id"]), reference_mode)
+            line = f"- {reference}{record['content']}"
+            if used + len(line) + 1 > max_chars:
+                break
+            lines.append(line)
+            included.append(record["id"])
+            used += len(line) + 1
+
+        if not lines:
+            return {"block": "", "record_ids": [], "count": 0}
+
+        block = "<user_persona>\n" + "\n".join(lines) + "\n</user_persona>"
+        context_event_id = self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="memory.persona_built",
+            actor="system",
+            session_id=session_id,
+            payload={
+                "record_ids": included,
+                "reference_mode": reference_mode,
+                "persona_sha256": _sha256(block),
+            },
+        )
+        return {
+            "block": block,
+            "record_ids": included,
+            "count": len(included),
+            "context_event_id": context_event_id,
+        }
+
+    @_atomic
+    def build_context_pack(
+        self,
+        subject_id: str,
+        query: str,
+        *,
+        session_id: str | None = None,
+        persona_max_chars: int = 600,
+        recall_max_records: int = 3,
+        recall_max_chars: int = 1200,
+        min_score: float = 0.3,
+        use_graph: bool | None = None,
+        reference_mode: str = "compact",
+    ) -> dict[str, Any]:
+        """Build a provider-neutral, cache-aware prompt context contract.
+
+        ``stable_context`` is the deterministic persona prefix a host should
+        keep in a stable system-prompt location. ``dynamic_context`` is the
+        bounded, query-specific suffix a host should place close to the
+        current user turn. The method does not call a model or depend on an
+        agent framework, and the audit plane always retains full record IDs
+        even when model-visible references are compact or omitted.
+        """
+        if min(persona_max_chars, recall_max_records, recall_max_chars) < 0:
+            raise ValueError("context-pack budgets must be non-negative")
+
+        persona = self.build_persona(
+            subject_id,
+            session_id=session_id,
+            max_chars=persona_max_chars,
+            reference_mode=reference_mode,
+        )
+        recall = self.build_recall_block(
+            subject_id,
+            query,
+            session_id=session_id,
+            max_records=recall_max_records,
+            max_chars=recall_max_chars,
+            min_score=min_score,
+            use_graph=use_graph,
+            reference_mode=reference_mode,
+            exclude_record_ids=set(persona["record_ids"]),
+        )
+        stable = str(persona["block"])
+        dynamic = str(recall["block"])
+        result = {
+            "format": "atmem-context-pack-v1",
+            "stable_context": stable,
+            "dynamic_context": dynamic,
+            "stable_record_ids": list(persona["record_ids"]),
+            "dynamic_record_ids": list(recall["record_ids"]),
+            "stable_sha256": _sha256(stable),
+            "dynamic_sha256": _sha256(dynamic),
+            "placement": {
+                "stable_context": "stable_system_prefix",
+                "dynamic_context": "current_turn_tail",
+            },
+            "budgets": {
+                "persona_max_chars": persona_max_chars,
+                "recall_max_records": recall_max_records,
+                "recall_max_chars": recall_max_chars,
+            },
+            "reference_mode": reference_mode,
+        }
+        self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="memory.context_pack_built",
+            actor="system",
+            session_id=session_id,
+            payload={
+                "format": result["format"],
+                "stable_record_ids": result["stable_record_ids"],
+                "dynamic_record_ids": result["dynamic_record_ids"],
+                "stable_sha256": result["stable_sha256"],
+                "dynamic_sha256": result["dynamic_sha256"],
+                "query_sha256": _sha256(query),
+                "reference_mode": reference_mode,
+            },
+        )
+        return result
+
+    def scenes(self, subject_id: str) -> list[dict[str, Any]]:
+        """L2: deterministic scene view — one scene per session.
+
+        Groups the episodic log by session with the records each session
+        produced. Purely derived (nothing stored), provenance is the
+        episode/record ids themselves. LLM-clustered scenes can layer on
+        later via propose_facts-style derivation.
+        """
+        episodes = self.store.list_episodes(subject_id)
+        records = self.list(subject_id, include_inactive=True)
+
+        by_session: dict[str, dict[str, Any]] = {}
+        for episode in episodes:
+            key = episode.get("session_id") or "(no session)"
+            scene = by_session.setdefault(
+                key,
+                {
+                    "scene_id": f"session:{key}",
+                    "session_id": episode.get("session_id"),
+                    "started_at": episode["created_at"],
+                    "ended_at": episode["created_at"],
+                    "episode_ids": [],
+                    "record_ids": [],
+                },
+            )
+            scene["episode_ids"].append(episode["id"])
+            scene["started_at"] = min(scene["started_at"], episode["created_at"])
+            scene["ended_at"] = max(scene["ended_at"], episode["created_at"])
+        for record in records:
+            key = record.get("source_session_id") or "(no session)"
+            if key in by_session:
+                by_session[key]["record_ids"].append(record["id"])
+
+        return sorted(
+            by_session.values(), key=lambda scene: str(scene["ended_at"]), reverse=True
+        )
+
+    @_atomic
+    def propose_facts(
+        self,
+        subject_id: str,
+        proposals: list[dict[str, Any]],
+        *,
+        proposer: str = "llm",
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Entry point for async LLM consolidation jobs.
+
+        Any external job (an LLM batch, a human review, a migration) may
+        propose candidate facts, but they land as *quarantined* derived
+        records, each required to cite evidence — existing episode or
+        record ids for this subject. Proposals without valid evidence are
+        rejected. Nothing becomes active except through promote().
+        """
+        episodes = {e["id"] for e in self.store.list_episodes(subject_id)}
+        record_ids = {r["id"] for r in self.list(subject_id, include_inactive=True)}
+        visible = self.store.list_records(
+            subject_id, statuses=("active", "quarantined")
+        )
+
+        quarantined: list[dict[str, Any]] = []
+        duplicates: list[str] = []
+        rejected: list[dict[str, Any]] = []
+        for proposal in proposals:
+            content = str(proposal.get("content") or "").strip()
+            evidence = list(proposal.get("evidence") or [])
+            if not content:
+                rejected.append({"proposal": proposal, "reason": "empty content"})
+                continue
+            unknown = [
+                item
+                for item in evidence
+                if item not in episodes and item not in record_ids
+            ]
+            if not evidence or unknown:
+                rejected.append(
+                    {
+                        "proposal": proposal,
+                        "reason": "missing or unknown evidence"
+                        + (f": {unknown}" if unknown else ""),
+                    }
+                )
+                continue
+            duplicate = find_duplicate(content, visible)
+            if duplicate is not None:
+                duplicates.append(duplicate["id"])
+                continue
+
+            fact_key = proposal.get("fact_key")
+            normalized_fact_key = str(fact_key).lower().strip() if fact_key else None
+            confidence = float(proposal.get("confidence", 0.5))
+            record_id = self.store.insert_record(
+                subject_id=subject_id,
+                content=content,
+                source_type="derived",
+                trust_tier="derived",
+                source_session_id=session_id,
+                source_turn_id=None,
+                episode_id=None,
+                confidence=confidence,
+                scope="user_private",
+                status="quarantined",
+                fact_key=normalized_fact_key,
+                raw={"evidence": evidence, "proposer": proposer},
+            )
+            record = self.store.get_record(subject_id, record_id)
+            assert record is not None
+            self.store.append_audit_event(
+                subject_id=subject_id,
+                event_type="memory.record_quarantined",
+                actor=proposer,
+                session_id=session_id,
+                record_id=record_id,
+                payload={
+                    "source_type": "derived",
+                    "trust_tier": "derived",
+                    "status": "quarantined",
+                    "fact_key": normalized_fact_key,
+                    "confidence": confidence,
+                    "scope": "user_private",
+                    "evidence": evidence,
+                    "content_sha256": _sha256(content),
+                    "record_integrity_sha256": _record_integrity_sha256(record),
+                },
+            )
+            self._audit_graph_mutations(
+                subject_id,
+                self.graph.index_record(record),
+                session_id=session_id,
+                record_id=record_id,
+            )
+            quarantined.append(record)
+            visible.append(record)
+
+        return {
+            "quarantined": quarantined,
+            "duplicate_ids": duplicates,
+            "rejected": rejected,
+        }
+
+    @_atomic
+    def consolidate(
+        self,
+        subject_id: str,
+        *,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Deterministic consolidation pass (no LLM).
+
+        1. Exact-duplicate active contents collapse: the newest copy stays
+           active, older copies become superseded (provenance intact).
+        2. fact_key repair: if several active records share a fact slot, the
+           newest supersedes the rest.
+
+        Every change is recorded in a memory.consolidated audit event.
+        """
+        active = self.list(subject_id)
+
+        duplicate_ids: list[str] = []
+        graph_mutations: list[dict[str, Any]] = []
+        survivors: list[dict[str, Any]] = []
+        by_content: dict[str, list[dict[str, Any]]] = {}
+        for record in active:
+            key = normalize_content(str(record.get("content") or ""))
+            by_content.setdefault(key, []).append(record)
+        for group in by_content.values():
+            group.sort(key=lambda r: (str(r["created_at"]), str(r["id"])))
+            keeper = group[-1]
+            older_ids = [record["id"] for record in group[:-1]]
+            if older_ids:
+                self.store.supersede_records(
+                    subject_id=subject_id,
+                    record_ids=older_ids,
+                    superseded_by_id=keeper["id"],
+                )
+                graph_mutations.extend(
+                    self.graph.supersede_records(subject_id, older_ids, keeper["id"])
+                )
+                duplicate_ids.extend(older_ids)
+            survivors.append(keeper)
+
+        repaired_ids: list[str] = []
+        by_key: dict[str, list[dict[str, Any]]] = {}
+        for record in survivors:
+            if record.get("fact_key"):
+                by_key.setdefault(str(record["fact_key"]), []).append(record)
+        for group in by_key.values():
+            if len(group) < 2:
+                continue
+            group.sort(key=lambda r: (str(r["created_at"]), str(r["id"])))
+            keeper = group[-1]
+            older_ids = [record["id"] for record in group[:-1]]
+            self.store.supersede_records(
+                subject_id=subject_id,
+                record_ids=older_ids,
+                superseded_by_id=keeper["id"],
+            )
+            graph_mutations.extend(
+                self.graph.supersede_records(subject_id, older_ids, keeper["id"])
+            )
+            repaired_ids.extend(older_ids)
+
+        report = {
+            "duplicates_superseded": duplicate_ids,
+            "fact_key_repaired": repaired_ids,
+            "active_before": len(active),
+            "active_after": len(self.list(subject_id)),
+        }
+        self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="memory.consolidated",
+            actor="system",
+            session_id=session_id,
+            payload=report,
+        )
+        self._audit_graph_mutations(subject_id, graph_mutations, session_id=session_id)
+        return report
+
+    @_atomic
+    def promote(
+        self,
+        subject_id: str,
+        record_id: str,
+        *,
+        session_id: str | None = None,
+        turn_id: str | int | None = None,
+        actor: str = "user",
+    ) -> dict[str, Any]:
+        """Activate a quarantined record after explicit user confirmation.
+
+        Media promotion is the deliberate trust boundary that closes an
+        extraction lineage: an admitted rerun cannot displace active memory,
+        but promoting it supersedes older active records from the exact same
+        artifact + segment + extractor lineage.
+        """
+        media_observation = self.store.get_media_observation_for_record(
+            subject_id, record_id
+        )
+        record = self.store.promote_record(subject_id=subject_id, record_id=record_id)
+        if record is None:
+            raise ValueError(f"record {record_id} is not quarantined for {subject_id}")
+
+        old_records = self.store.active_records_for_fact_key(
+            subject_id, record.get("fact_key"), exclude_id=record_id
+        )
+        lineage_records: list[dict[str, Any]] = []
+        if media_observation is not None:
+            lineage_records = self.store.active_media_records_for_lineage(
+                subject_id,
+                str(media_observation["lineage_sha256"]),
+                exclude_record_id=record_id,
+            )
+        old_ids = list(
+            dict.fromkeys(str(item["id"]) for item in [*old_records, *lineage_records])
+        )
+        superseded_observation_ids = [
+            str(item["media_observation_id"]) for item in lineage_records
+        ]
+        self.store.supersede_records(
+            subject_id=subject_id,
+            record_ids=old_ids,
+            superseded_by_id=record_id,
+        )
+        promotion_payload = {
+            "trust_tier": record["trust_tier"],
+            "fact_key": record.get("fact_key"),
+            "supersedes": old_ids,
+        }
+        if media_observation is not None:
+            promotion_payload.update(
+                {
+                    "media_lineage_sha256": media_observation["lineage_sha256"],
+                    "superseded_observation_ids": superseded_observation_ids,
+                }
+            )
+        self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="memory.record_promoted",
+            actor=actor,
+            session_id=session_id,
+            turn_id=_turn_id(turn_id),
+            record_id=record_id,
+            payload=promotion_payload,
+        )
+        promoted = self.store.get_record(subject_id, record_id)
+        assert promoted is not None
+        graph_mutations = self.graph.supersede_records(subject_id, old_ids, record_id)
+        graph_mutations.extend(self.graph.index_record(promoted))
+        self._audit_graph_mutations(
+            subject_id,
+            graph_mutations,
+            session_id=session_id,
+            turn_id=_turn_id(turn_id),
+            record_id=record_id,
+        )
+        return self._attach_media_provenance(subject_id, [promoted])[0]
+
+    @_atomic
+    def reject(
+        self,
+        subject_id: str,
+        record_id: str,
+        *,
+        session_id: str | None = None,
+        turn_id: str | int | None = None,
+        actor: str = "user",
+    ) -> dict[str, Any]:
+        """Reject and purge one quarantined record after human review.
+
+        Rejection is deliberately narrower than free-form forgetting: the
+        reviewer must name an exact quarantined record. Its content and any
+        linked derived indexes are purged while a digest-only audit event
+        preserves who made the decision and what record it covered.
+        """
+        turn = _turn_id(turn_id)
+        record = self.store.get_record(subject_id, record_id)
+        if record is None or record.get("status") != "quarantined":
+            raise ValueError(f"record {record_id} is not quarantined for {subject_id}")
+        content_sha256 = _sha256(str(record.get("content") or ""))
+        cleanup = self._purge_record_ids(
+            subject_id,
+            [record_id],
+            session_id=session_id,
+            turn_id=turn,
+        )
+        event_id = self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="memory.record_rejected",
+            actor=actor,
+            session_id=session_id,
+            turn_id=turn,
+            record_id=record_id,
+            payload={
+                "content_sha256": content_sha256,
+                "prior_status": "quarantined",
+                "purged_record_ids": cleanup["purged_record_ids"],
+                "purged_episode_ids": cleanup["purged_episode_ids"],
+                "purged_graph_ids": cleanup["purged_graph_ids"],
+                "media_cleanup": cleanup["media_cleanup"],
+                "semantic_index_cleanup": cleanup["semantic_index_cleanup"],
+            },
+        )
+        rejected = self.store.get_record(subject_id, record_id)
+        assert rejected is not None
+        return {
+            "record": rejected,
+            "decision": "rejected",
+            "audit_event_id": event_id,
+            "purged": record_id in cleanup["purged_record_ids"],
+        }
+
+    @_atomic
+    def backfill_graph(
+        self,
+        subject_id: str,
+        *,
+        rebuild: bool = False,
+        session_id: str | None = None,
+        actor: str = "system",
+    ) -> dict[str, Any]:
+        """Populate the derived graph from canonical records.
+
+        Backfill is idempotent. ``rebuild=True`` drops only graph index rows;
+        records, episodes, retrieval events, and the audit chain are untouched.
+        """
+        if rebuild:
+            self.graph.clear(subject_id)
+        report = self.graph.backfill(subject_id)
+        summary = {key: value for key, value in report.items() if key != "mutations"}
+        summary["mutation_count"] = len(report["mutations"])
+        summary["mutations_sha256"] = sha256_hex(canonical_json(report["mutations"]))
+        self._audit_graph_mutations(
+            subject_id,
+            [
+                mutation
+                for mutation in report["mutations"]
+                if mutation["event_type"] == "edge.reextracted"
+            ],
+            session_id=session_id,
+        )
+        if rebuild or report["records_indexed"]:
+            self.store.append_audit_event(
+                subject_id=subject_id,
+                event_type="graph.rebuilt" if rebuild else "graph.backfilled",
+                actor=actor,
+                session_id=session_id,
+                payload=summary,
+            )
+        return summary
+
+    def inspect_graph(self, subject_id: str) -> dict[str, Any]:
+        return self.graph.inspect(subject_id)
+
+    @_atomic
+    def consolidate_graph(
+        self,
+        subject_id: str,
+        *,
+        archive_root: str | Path | None = None,
+        archive_before: str | None = None,
+        prune_archive: bool = True,
+        session_id: str | None = None,
+        actor: str = "system",
+    ) -> dict[str, Any]:
+        """Refresh derived graph state and propose only conservative merges."""
+        backfill = self.graph.backfill(subject_id)
+        self._audit_graph_mutations(
+            subject_id,
+            [
+                mutation
+                for mutation in backfill["mutations"]
+                if mutation["event_type"] == "edge.reextracted"
+            ],
+            session_id=session_id,
+        )
+        merge_mutations = self.graph.propose_entity_merges(subject_id)
+        self._audit_graph_mutations(subject_id, merge_mutations, session_id=session_id)
+        archive = None
+        if archive_root is not None and archive_before is not None:
+            archive = self.graph.archive_history(
+                subject_id,
+                archive_root,
+                before=archive_before,
+                prune=prune_archive,
+            )
+            if archive["archived_edges"]:
+                self.store.append_audit_event(
+                    subject_id=subject_id,
+                    event_type="graph.history_archived",
+                    actor=actor,
+                    session_id=session_id,
+                    payload={
+                        "before": archive_before,
+                        "pruned": prune_archive,
+                        "archived_edges": archive["archived_edges"],
+                        "partitions": [
+                            {
+                                "id": item["id"],
+                                "year": item["year"],
+                                "row_count": item["row_count"],
+                                "content_sha256": item["content_sha256"],
+                                "archived_edge_ids_sha256": item[
+                                    "archived_edge_ids_sha256"
+                                ],
+                            }
+                            for item in archive["partitions"]
+                        ],
+                    },
+                )
+        report = {
+            "extractor_version": GRAPH_EXTRACTOR_VERSION,
+            "records_seen": backfill["records_seen"],
+            "records_indexed": backfill["records_indexed"],
+            "backfill_mutation_count": len(backfill["mutations"]),
+            "backfill_mutations_sha256": sha256_hex(
+                canonical_json(backfill["mutations"])
+            ),
+            "merge_proposals_created": len(merge_mutations),
+            "pending_merge_proposals": len(
+                self.graph.list_merge_proposals(subject_id, status="pending")
+            ),
+            "archive": archive,
+            "counts": self.graph.counts(subject_id),
+        }
+        self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type="graph.consolidated",
+            actor=actor,
+            session_id=session_id,
+            payload={
+                **report,
+                "archive": (
+                    {
+                        "archived_edges": archive["archived_edges"],
+                        "partition_ids": [item["id"] for item in archive["partitions"]],
+                    }
+                    if archive is not None
+                    else None
+                ),
+            },
+        )
+        return report
+
+    def list_graph_merge_proposals(
+        self, subject_id: str, *, status: str | None = None
+    ) -> list[dict[str, Any]]:
+        return self.graph.list_merge_proposals(subject_id, status=status)
+
+    @_atomic
+    def decide_graph_merge(
+        self,
+        subject_id: str,
+        proposal_id: str,
+        *,
+        approve: bool,
+        actor: str = "reviewer",
+        winner_entity: str | None = None,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        mutation = self.graph.decide_merge(
+            subject_id,
+            proposal_id,
+            approve=approve,
+            actor=actor,
+            winner_entity=winner_entity,
+        )
+        self._audit_graph_mutations(subject_id, [mutation], session_id=session_id)
+        return next(
+            item
+            for item in self.graph.list_merge_proposals(subject_id)
+            if item["id"] == proposal_id
+        )
+
+    @_atomic
+    def revert_graph_merge(
+        self,
+        subject_id: str,
+        proposal_id: str,
+        *,
+        actor: str = "reviewer",
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        mutation = self.graph.revert_merge(subject_id, proposal_id, actor=actor)
+        self._audit_graph_mutations(subject_id, [mutation], session_id=session_id)
+        return next(
+            item
+            for item in self.graph.list_merge_proposals(subject_id)
+            if item["id"] == proposal_id
+        )
+
+    @_atomic
+    def archive_graph_history(
+        self,
+        subject_id: str,
+        archive_root: str | Path,
+        *,
+        before: str,
+        prune: bool = True,
+        actor: str = "system",
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        report = self.graph.archive_history(
+            subject_id, archive_root, before=before, prune=prune
+        )
+        if report["archived_edges"]:
+            self.store.append_audit_event(
+                subject_id=subject_id,
+                event_type="graph.history_archived",
+                actor=actor,
+                session_id=session_id,
+                payload={
+                    "before": before,
+                    "pruned": prune,
+                    "archived_edges": report["archived_edges"],
+                    "partitions": [
+                        {
+                            key: item[key]
+                            for key in (
+                                "id",
+                                "year",
+                                "row_count",
+                                "content_sha256",
+                                "archived_edge_ids_sha256",
+                            )
+                        }
+                        for item in report["partitions"]
+                    ],
+                },
+            )
+        return report
+
+    def read_graph_archive(
+        self, subject_id: str, *, partition_year: int | None = None
+    ) -> list[dict[str, Any]]:
+        return self.graph.read_archive(subject_id, partition_year=partition_year)
+
+    def optimize(self) -> None:
+        self.store.optimize()
+
+    def checkpoint(
+        self,
+        *,
+        sink_path: str | Path | None = None,
+    ) -> dict[str, Any]:
+        """Snapshot every subject's audit-chain head for external anchoring.
+
+        The checkpoint pins each chain's latest (sequence, event_hash), so any
+        later tail truncation is detectable — the chain alone cannot prove
+        events were not deleted from its end. Write the returned document (or
+        the JSONL `sink_path`) somewhere the database owner cannot rewrite:
+        WORM/object-lock storage, a transparency log, or an RFC 3161
+        timestamping service.
+        """
+        document = {
+            "format": "atmem-checkpoint-v1",
+            "created_at": utc_now(),
+            "subjects": self.store.chain_heads(),
+        }
+        document["checkpoint_sha256"] = sha256_hex(canonical_json(document))
+        if sink_path is not None:
+            with Path(sink_path).open("a", encoding="utf-8") as sink:
+                sink.write(canonical_json(document) + "\n")
+        return document
+
+    def _verify_record_integrity(self, subject_id: str) -> dict[str, Any]:
+        """Compare current record rows with commitments in the audit chain.
+
+        Older stores remain verifiable: enforcement starts only when at least
+        one record event carries the 2.3.8 whole-row commitment. Record IDs
+        created by older events stay known, so writing one new committed record
+        does not misclassify every pre-upgrade row as forged.
+        """
+        events = self.store.list_audit_events(subject_id)
+        commitments: dict[str, str] = {}
+        known_record_ids: set[str] = set()
+        legitimately_changed: set[str] = set()
+        creation_events = {
+            "memory.record_created",
+            "memory.record_quarantined",
+        }
+        for event in events:
+            payload = event.get("payload") or {}
+            record_id = str(event.get("record_id") or "")
+            if event.get("event_type") in creation_events and record_id:
+                known_record_ids.add(record_id)
+                commitment = str(payload.get("record_integrity_sha256") or "")
+                if re.fullmatch(r"[0-9a-f]{64}", commitment):
+                    commitments[record_id] = commitment
+            for key in ("record_ids", "candidate_ids"):
+                known_record_ids.update(
+                    str(value) for value in payload.get(key, ()) if value
+                )
+            if event.get("event_type") == "media.observation_admitted":
+                observed_id = str(payload.get("record_id") or record_id)
+                if observed_id:
+                    known_record_ids.add(observed_id)
+            for key in (
+                "supersedes",
+                "purged_record_ids",
+                "duplicates_superseded",
+                "fact_key_repaired",
+            ):
+                legitimately_changed.update(
+                    str(value) for value in payload.get(key, ()) if value
+                )
+            if event.get("event_type") in {
+                "memory.record_promoted",
+                "memory.record_rejected",
+            } and record_id:
+                legitimately_changed.add(record_id)
+            if event.get("event_type") == "memory.record_corrected":
+                replaced = str(payload.get("replaces_record_id") or "")
+                if replaced:
+                    legitimately_changed.add(replaced)
+
+        if not commitments:
+            return {
+                "enabled": False,
+                "valid": True,
+                "committed_records": 0,
+                "records_checked": 0,
+                "failures": [],
+            }
+
+        current = {
+            str(row["id"]): row
+            for row in self.store.list_records(subject_id, statuses=None)
+        }
+        failures: list[dict[str, Any]] = []
+        checked = 0
+        for record_id, expected in sorted(commitments.items()):
+            if record_id in legitimately_changed:
+                continue
+            record = current.get(record_id)
+            if record is None:
+                failures.append({
+                    "record_id": record_id,
+                    "reason": "record committed by the audit chain is missing",
+                })
+                continue
+            checked += 1
+            if not hmac.compare_digest(_record_integrity_sha256(record), expected):
+                failures.append({
+                    "record_id": record_id,
+                    "reason": "record row does not match its chained integrity commitment",
+                })
+
+        for record_id, record in sorted(current.items()):
+            if (
+                record_id not in known_record_ids
+                and str(record.get("status") or "") != "tombstoned"
+            ):
+                failures.append({
+                    "record_id": record_id,
+                    "reason": "record has no creation event in the audit chain",
+                })
+
+        return {
+            "enabled": True,
+            "valid": not failures,
+            "committed_records": len(commitments),
+            "records_checked": checked,
+            "failures": failures,
+        }
+
+    def verify(
+        self,
+        subject_id: str | None = None,
+        *,
+        checkpoints_path: str | Path | None = None,
+        incremental: bool = False,
+    ) -> dict[str, Any]:
+        """Verify audit-chain integrity, optionally against anchored checkpoints.
+
+        Chain verification alone detects edits and in-place tampering;
+        checkpoint containment additionally detects tail truncation since the
+        checkpoint was anchored.
+        """
+        heads = self.store.chain_heads()
+        subject_ids = [subject_id] if subject_id is not None else sorted(heads)
+        subjects: dict[str, Any] = {}
+        for sid in subject_ids:
+            incremental_report = (
+                self.store.verify_audit_chain_incremental(sid) if incremental else None
+            )
+            record_integrity = self._verify_record_integrity(sid)
+            subjects[sid] = {
+                "chain_valid": (
+                    incremental_report["valid"]
+                    if incremental_report is not None
+                    else self.store.verify_audit_chain(sid)
+                ),
+                "verification_mode": "incremental" if incremental else "full",
+                "incremental": incremental_report,
+                "record_integrity": record_integrity,
+                "checkpoints_checked": 0,
+                "failures": (
+                    [
+                        {
+                            "checkpoint": None,
+                            "reason": incremental_report["failure"],
+                        }
+                    ]
+                    if incremental_report is not None
+                    and not incremental_report["valid"]
+                    else []
+                ),
+            }
+            subjects[sid]["failures"].extend(
+                {
+                    "checkpoint": None,
+                    "record_id": failure["record_id"],
+                    "reason": failure["reason"],
+                }
+                for failure in record_integrity["failures"]
+            )
+
+        for document in _load_checkpoints(checkpoints_path):
+            recomputed = dict(document)
+            claimed_digest = recomputed.pop("checkpoint_sha256", None)
+            if sha256_hex(canonical_json(recomputed)) != claimed_digest:
+                for sid in subjects:
+                    subjects[sid]["failures"].append(
+                        {
+                            "checkpoint": document.get("created_at"),
+                            "reason": "checkpoint digest mismatch",
+                        }
+                    )
+                continue
+            for sid, pinned in document.get("subjects", {}).items():
+                if sid not in subjects:
+                    continue
+                subjects[sid]["checkpoints_checked"] += 1
+                event = self.store.event_at_sequence(sid, pinned["sequence"])
+                if event is None:
+                    subjects[sid]["failures"].append(
+                        {
+                            "checkpoint": document.get("created_at"),
+                            "reason": f"pinned event at sequence {pinned['sequence']} is missing (tail truncated?)",
+                        }
+                    )
+                elif event["event_hash"] != pinned["event_hash"]:
+                    subjects[sid]["failures"].append(
+                        {
+                            "checkpoint": document.get("created_at"),
+                            "reason": f"event hash at sequence {pinned['sequence']} does not match checkpoint",
+                        }
+                    )
+
+        valid = all(
+            item["chain_valid"] and not item["failures"] for item in subjects.values()
+        )
+        return {"valid": valid, "subjects": subjects}
+
+    def inspect(self, subject_id: str) -> dict[str, Any]:
+        return {
+            "records": self.list(subject_id, include_inactive=True),
+            "episodes": self.store.list_episodes(subject_id),
+            "media_artifacts": self.store.list_media_artifacts(
+                subject_id, include_tombstoned=True
+            ),
+            "media_observations": self.store.list_media_observations(
+                subject_id, include_tombstoned=True
+            ),
+            "graph": self.inspect_graph(subject_id),
+            "retrieval_events": self.store.list_retrieval_events(subject_id),
+            "audit_log": self.store.list_audit_events(subject_id),
+            "audit_chain_valid": self.store.verify_audit_chain(subject_id),
+        }
+
+    def audit(self, subject_id: str) -> dict[str, Any]:
+        return {
+            "audit_log": self.store.list_audit_events(subject_id),
+            "retrieval_events": self.store.list_retrieval_events(subject_id),
+            "audit_chain_valid": self.store.verify_audit_chain(subject_id),
+        }
+
+    @_atomic
+    def log_action(
+        self,
+        subject_id: str,
+        action_type: str,
+        payload: dict[str, Any] | None = None,
+        *,
+        session_id: str | None = None,
+        turn_id: str | int | None = None,
+        actor: str = "agent",
+    ) -> str:
+        event_type = action_type if "." in action_type else f"agent.{action_type}"
+        return self.store.append_audit_event(
+            subject_id=subject_id,
+            event_type=event_type,
+            actor=actor,
+            session_id=session_id,
+            turn_id=_turn_id(turn_id),
+            payload=payload or {},
+        )
+
+    def get_retrieval_log(
+        self,
+        subject_id: str,
+        session_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return self.store.list_retrieval_events(subject_id, session_id=session_id)
+
+    def _attach_media_provenance(
+        self, subject_id: str, records: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        provenance = self.store.media_provenance_for_records(
+            subject_id, [str(record["id"]) for record in records]
+        )
+        return [
+            (
+                {
+                    **record,
+                    "media_observation": provenance[str(record["id"])],
+                }
+                if str(record["id"]) in provenance
+                else record
+            )
+            for record in records
+        ]
+
+    def _audit_graph_mutations(
+        self,
+        subject_id: str,
+        mutations: list[dict[str, Any]],
+        *,
+        session_id: str | None = None,
+        turn_id: str | None = None,
+        record_id: str | None = None,
+    ) -> None:
+        for mutation in mutations:
+            payload = {
+                key: value for key, value in mutation.items() if key != "event_type"
+            }
+            self.store.append_audit_event(
+                subject_id=subject_id,
+                event_type=str(mutation["event_type"]),
+                actor="graph-indexer",
+                session_id=session_id,
+                turn_id=turn_id,
+                record_id=str(mutation.get("record_id") or record_id or "") or None,
+                payload=payload,
+            )
+
+    def reset_subject(self, subject_id: str) -> None:
+        self.store.reset_subject(subject_id)
+
+
+def _extraction_outcome(row: dict[str, Any]) -> dict[str, Any]:
+    """Project one stored proposal into the shared review contract."""
+    outcome = dict(row.get("outcome") or {})
+    return {
+        "format": "atmem-extraction-outcome-v1",
+        "proposal_id": row["proposal_id"],
+        "subject_id": row["subject_id"],
+        "agent_id": row["agent_id"],
+        "workspace_id": row["workspace_id"],
+        "action": row["action"],
+        "memory_class": row["memory_class"],
+        "confidence": row["confidence"],
+        "fact_key": row.get("fact_key"),
+        "review_state": row["review_state"],
+        "reason_codes": list(
+            outcome.get("reason_codes") or row.get("reason_codes") or ()
+        ),
+        "record_ids": list(outcome.get("record_ids") or ()),
+        "superseded_record_ids": list(outcome.get("superseded_record_ids") or ()),
+        "lineage_ids": list(outcome.get("lineage_ids") or ()),
+        "resolution_receipts": list(outcome.get("resolution_receipts") or ()),
+        "resolution_receipt_summary": dict(
+            outcome.get("resolution_receipt_summary") or {}
+        ),
+        "audit_event_id": outcome.get("audit_event_id"),
+        "proposal": row.get("proposal") or {},
+        "created_at": row["created_at"],
+        "decided_at": row.get("decided_at"),
+    }
+
+
+def _compact_resolution_receipts(
+    receipts: list[dict[str, Any]], *, window: int
+) -> dict[str, Any]:
+    """Persist proof of the bounded context without copying the whole window.
+
+    Proposal evidence retains the source spans that justify the mutation.  The
+    resolution context is a separate authorization receipt: its canonical
+    digest proves which bounded window was available, while a small pair of
+    edge receipts makes operational inspection useful without multiplying the
+    same record metadata into every proposal and audit row.
+    """
+    canonical = canonical_json(receipts)
+    kinds: dict[str, int] = {}
+    for receipt in receipts:
+        kind = str(receipt.get("kind") or "unknown")
+        kinds[kind] = kinds.get(kind, 0) + 1
+    edges = receipts if len(receipts) <= 2 else [receipts[0], receipts[-1]]
+    return {
+        "format": "atmem-resolution-receipt-summary-v1",
+        "count": len(receipts),
+        "window": int(window),
+        "kinds": kinds,
+        "sha256": f"sha256:{sha256_hex(canonical)}",
+        "edge_receipts": edges,
+    }
+
+
+def _turn_id(value: str | int | None) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return f"t{value}"
+    return str(value)
+
+
+def _blend_graph_scores(
+    lexical: list[ScoredRecord], graph_by_record: dict[str, dict[str, Any]]
+) -> list[ScoredRecord]:
+    """Reciprocal-rank fusion over direct record and graph rankings."""
+    if not graph_by_record:
+        return lexical
+    lexical_rank = {
+        str(item.record["id"]): rank for rank, item in enumerate(lexical, start=1)
+    }
+    graph_rank = _graph_ranks(graph_by_record)
+    maximum = (1.0 + _GRAPH_RRF_WEIGHT) / (_RRF_RANK_CONSTANT + 1.0)
+    blended: list[ScoredRecord] = []
+    for item in lexical:
+        record_id = str(item.record["id"])
+        score = 1.0 / (_RRF_RANK_CONSTANT + lexical_rank[record_id])
+        if record_id in graph_rank:
+            graph_strength = max(
+                0.0, min(float(graph_by_record[record_id]["score"]), 1.0)
+            )
+            score += (
+                _GRAPH_RRF_WEIGHT
+                * graph_strength
+                / (_RRF_RANK_CONSTANT + graph_rank[record_id])
+            )
+        blended.append(
+            ScoredRecord(
+                record=item.record,
+                score=round(score / maximum, 6),
+                text_score=item.text_score,
+                trust_score=item.trust_score,
+                recency_score=item.recency_score,
+            )
+        )
+    blended.sort(
+        key=lambda item: (
+            -item.score,
+            str(item.record.get("created_at") or ""),
+            str(item.record.get("id")),
+        )
+    )
+    return blended
+
+
+def _graph_ranks(
+    graph_by_record: dict[str, dict[str, Any]],
+) -> dict[str, int]:
+    return {
+        record_id: rank
+        for rank, (record_id, _candidate) in enumerate(
+            sorted(
+                graph_by_record.items(),
+                key=lambda item: (-float(item[1]["score"]), item[0]),
+            ),
+            start=1,
+        )
+    }
+
+
+def _selector_contains(selector: dict[str, Any] | str | None) -> str | None:
+    if selector is None:
+        return None
+    if isinstance(selector, str):
+        return selector
+    value = selector.get("contains") or selector.get("content_contains")
+    return str(value) if value else None
+
+
+def _sha256(value: str) -> str:
+    return sha256_hex(value)
+
+
+def _prompt_reference(record_id: str, mode: str) -> str:
+    if mode == "none":
+        return ""
+    if mode == "compact":
+        suffix = record_id.removeprefix("rec_")[:8]
+        return f"[m:{suffix}] "
+    return f"[{record_id}] "
+
+
+def _explicit_note(value: str) -> str:
+    text = " ".join(value.strip().split())
+    if not text:
+        return "User asked to remember an empty note."
+    if text[0].islower():
+        text = text[0].upper() + text[1:]
+    if text[-1] not in ".?!":
+        text += "."
+    return text
+
+
+def _load_checkpoints(path: str | Path | None) -> list[dict[str, Any]]:
+    if path is None:
+        return []
+    documents: list[dict[str, Any]] = []
+    with Path(path).open("r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if line:
+                documents.append(json.loads(line))
+    return documents

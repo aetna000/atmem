@@ -1,0 +1,127 @@
+[
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "docs/releases/v2.3.8.md",
+    "sha256": "8a1cd81407d3f7b75fca97c1796deb88be462477a9150a60931fdd5a61c1cfce"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "docs/releases/v2.3.7-to-v2.3.8-technical-report.md",
+    "sha256": "ef1b9ed0c90e158670bf3ddb1c5393217420d80745786c4935164b0997ce4425"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "benchmarks/retrieval_quality/baselines/five-percent-results-20261010.json",
+    "sha256": "48704d2b801273a72f0a23894d91ce1466a8e1df9f9d8e047c378d832ffc9bfc"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "benchmarks/retrieval_quality/baselines/dolphinbench-final-b97d35e.json",
+    "sha256": "7167b520d53190e90d59cef83c16d748b00d77fee7c5d6dbbc52df0cb0a9ee53"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "benchmarks/retrieval_quality/baselines/agmi-2.3.8-20261010.json",
+    "sha256": "60275b8d5b0d174ecbc66c8cb8bc940f84743f605dc6a04707d8ea9fc57ca22a"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "benchmarks/retrieval_quality/reports/five-percent-results-20261010.md",
+    "sha256": "51b94af0192284e3d8666dd4da32047ecec9013bf2486e9c7e589fec4cfc8b8a"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "benchmarks/retrieval_quality/reports/benchmark-3pct-complete-20260930.md",
+    "sha256": "c3f0ea1d76b121b6e68802d3c54d0a8579f121bbed5fb8d9f368fc41512b2708"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "benchmarks/retrieval_quality/protocols/longmemeval-v2-development-5pct-v1.json",
+    "sha256": "99b0a62ca4bca85e9e692d2e67af7bfbdab3d18e065bb0bb3a86fc07dc36eb33"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "benchmarks/retrieval_quality/protocols/dolphinbench-development-5pct-v1.json",
+    "sha256": "ea3ce5ab986ce9a4f2ca1551e2136905f818ea531fd6d06a331258f92e71af0f"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "research/reference_parity/sources.json",
+    "sha256": "2e637de8d879590687df0e740ccac7433c3b7debb81452612b817d7211074b05"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "research/production_benchmarks/adapters/longmemeval_mem0.py",
+    "sha256": "e4926b25383a23ed5280236fd2fea11b9b65885ba326b55ba33aec7ffd311e83"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "research/production_benchmarks/prepare_longmem_memories.py",
+    "sha256": "0cfd4b6103a6a155e606b18c9e70401e0ef483245838f6d0f047e1703d4cfb5c"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "research/production_benchmarks/local_embedding_proxy.py",
+    "sha256": "a11706ec3fd671c8d686cfc263107a6d1321adb5e0bb63319ddafb249695d293"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "research/production_benchmarks/dolphinbench.py",
+    "sha256": "a8402d486669867278303b142f149db3b5cb71e9773988c66bda7328bd9edeae"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "atmem/memory.py",
+    "sha256": "eb3b824ca98163f2965b243784d066787f0774e8a885aeed569599bc8c1dde01"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "atmem/context_engine/contracts.py",
+    "sha256": "1044c5e499d7e683f335a430da4de186e13860bb4c0dc21d92e8dba925f681a9"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "atmem/context_engine/formation.py",
+    "sha256": "d51769f3f7e83c3df63a2f343215f169c3a450f6666c7aa99e55c0511ab562c4"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "atmem/context_engine/planner.py",
+    "sha256": "f0d688f8340b58ea572c80a13b29735045d9e33f26fb88a16e3d9edad3f4f0bc"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "atmem/context_engine/pools.py",
+    "sha256": "81a8a9550cf670c352a2f07cc34815ea9be4d1ff24ac5d6f9a5dc446f059fde2"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "atmem/context_engine/retrieval.py",
+    "sha256": "71b4dbb8df8c6467c7bf3f5c33c761f7cf49eaec2a755c180e7aa8e8c0f94e8f"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "atmem/context_engine/packing.py",
+    "sha256": "592d71ca5b62aa3b5d4fd963b525288a21ee31e05c02865ec0c8adc0109b0307"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "atmem/context_engine/sufficiency.py",
+    "sha256": "589b82fab0e05c7b5a595ef4e16604e3f6eee94d2f587bec8252cce639a5641d"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "atmem/context_engine/service.py",
+    "sha256": "d2f8f1722263108b0afa9f437e77bef0003e19e8543aeb6548d8db717fe8fd7c"
+  },
+  {
+    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "path": "atmem/context_engine/profiles.py",
+    "sha256": "dcb44934a0ec5d184da0fbe8fd2ee1ed0c2db9ebd54265bdcadabfd145c5931f"
+  },
+  {
+    "revision": "cb1cf0fc6e3e12dd0a52140bc0eda4797d2e887b",
+    "path": "atmem-2.3.7-memory.py",
+    "sha256": "dcc34ffe88a8b470fc26a4301f74e81036edffeb6669d36f2946883fa8cc1e10"
+  }
+]

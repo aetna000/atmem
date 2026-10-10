@@ -1,0 +1,5 @@
+AtMem 2.3.8 is here: source-linked evidence, coverage-aware context and stronger audit integrity.
+
+Development samples: 5/23 vs AgentRunbook-R 4/23 and Mem0 1/23; Dolphin 9/30 vs Mem0 7/30.
+
+Local hash-embedding baselines; not full-benchmark wins. Paper explains what changed.

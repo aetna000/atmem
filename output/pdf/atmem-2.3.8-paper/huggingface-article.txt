@@ -1,0 +1,67 @@
+AtMem 2.3.8: Evidence coverage meets memory governance
+
+AtMem 2.3.8 introduces a context engine designed to preserve the evidence an agent needs to answer or act. Its central idea is simple: a relevant memory is useful only if the final context retains the facts, conditions, and source relationships required by the task.
+
+The development candidate scored above our local Mem0 OSS and AgentRunbook-R configurations on a small LongMemEval-V2 sample, and above local Mem0 on a DolphinBench sample. This article explains the architecture behind those results and the limits of the comparison.
+
+From records to evidence obligations
+
+AtMem 2.3.7 already provided governed records, optional semantic and graph retrieval, scoped context preparation, audit receipts, and execution continuity. The new version extends this foundation:
+
+1. Preserve immutable source episodes and exact source ranges.
+2. Build typed evidence views for facts, transitions, procedures, rules, entities, gotchas, premises, and raw state.
+3. Derive bounded evidence obligations from the request.
+4. Retrieve across independent pools and expand bounded source neighbours.
+5. Pack complementary evidence and keep action episodes contiguous.
+6. Revalidate the selected canonical evidence before delivering context.
+
+A formation receipt records what was represented and what was lost or withheld. A sufficiency receipt records required, covered, and missing obligations. If packing removes necessary support, the decision is downgraded. The governance boundary checks selected IDs, scope, generation, lifecycle, and the final byte budget.
+
+Why might this help?
+
+Suppose an agent must email the final outcome of a review to the usual integration contact. A high-scoring address record may establish the recipient but omit the outcome. A related summary may omit an important restriction.
+
+AtMem attempts to preserve these complementary pieces together. Exact dates and identifiers help select the right episode; bounded source expansion recovers nearby conditions and outcomes; packing preserves the episode's order. These mechanisms target evidence loss between retrieval and model input.
+
+The implementation is heuristic. It includes application-specific workflow rules and bounded lexical grounding, so success on inspected tasks is not proof of generalization. No completed ablation establishes the independent contribution of each mechanism.
+
+Comparison and configuration
+
+Metric                         AtMem candidate   AgentRunbook-R   Mem0 OSS
+LongMemEval-V2 correct          5/23 (21.7%)       4/23 (17.4%)     1/23 (4.3%)
+DolphinBench tasks passed       9/30 (30.0%)       Not tested       7/30 (23.3%)
+DolphinBench checks passed      32/97 (33.0%)      Not tested       27/97 (27.8%)
+
+The samples contain 23 of 451 LongMem questions and 30 of 600 Dolphin tasks. They were used for development. Final Dolphin arms had zero system failures; LongMem retained six AtMem system failures, four AgentRunbook-R failures, and one Mem0 failure.
+
+The reader/agent was Qwen/Qwen3.5-9B, with the pinned GPT-5.2 snapshot used where semantic judging applied. Mem0 OSS was pinned at source revision d3891e48, which declares version 2.1.0; the historical AGMI comparator is separately versioned 2.0.20. AgentRunbook-R was pinned through the LongMemEval-V2 checkout at 2cc8c540; no separate release number was recorded.
+
+Configuration matters: the local LongMem route used 768-dimensional token-hash embeddings, including for AgentRunbook-R. Mem0 ingested raw records with infer=False. The Dolphin Mem0 arm used 256-dimensional hash embeddings and lacked optional spaCy and fastembed extras. These comparisons do not reproduce either competitor's strongest published settings or the hosted Mem0 service.
+
+What is the contribution?
+
+AgentRunbook-R already has typed retrieval pools. Mem0 already extracts and consolidates memories in its full architecture. AtMem's proposed distinction is the integration of source-range evidence, explicit obligations, packing-aware sufficiency, and independently checked canonical delivery. It extends existing governance rather than inventing memory retrieval.
+
+The observed lead supports investigating this integration. It does not prove causal superiority. The counts are too small for a conventional paired significance claim, even under the most favourable pairing consistent with the aggregates.
+
+AGMI and trustworthy reuse
+
+The integrity work addresses a separate issue: an intact audit chain can coexist with modified live records if the verifier never reconciles them. AtMem 2.3.8 adds whole-row commitments and reconciliation. Our reproduction of the unchanged AGMI 0.6.3 runner reports 8/9 attacks with the chain alone and 9/9 with a trusted external checkpoint. Whole-store rollback needs that external state because an old valid store is otherwise indistinguishable from a legitimate earlier state.
+
+These are maintainer-reproduced audit reports, with independent reproduction pending. Legacy records, lifecycle exceptions, checkpoint freshness, and enforcement on ordinary read paths remain explicit boundaries. Integrity success was not measured as the cause of the clean-data accuracy gains.
+
+Try the release:
+
+    python -m pip install --upgrade "atmem==2.3.8"
+    atmem install hermes --yes
+
+Hermes setup starts with isolated memory in shadow mode. Active recall and sharing are explicit choices.
+
+The next evaluation should use untouched tasks, stronger learned-embedding baselines, symmetric repetitions, and component ablations. AtMem's ambition is a memory layer whose usefulness and accountability can both be measured.
+
+Release: https://github.com/aetna000/atmem/blob/v2.3.8/docs/releases/v2.3.8.md
+Evidence: https://github.com/aetna000/atmem/blob/bb05043/benchmarks/retrieval_quality/reports/five-percent-results-20261010.md
+Mem0 paper: https://arxiv.org/abs/2504.19413
+LongMemEval-V2 / AgentRunbook: https://arxiv.org/abs/2605.12493
+DolphinBench: https://github.com/mem0ai/dolphinbench
+AGMI: https://github.com/tech4biz-yasha/agmi

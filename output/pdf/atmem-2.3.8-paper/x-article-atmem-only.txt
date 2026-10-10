@@ -1,0 +1,101 @@
+AtMem 2.3.8: From memory retrieval to governed evidence assembly
+
+An agent can retrieve a relevant memory and still act incorrectly.
+
+It may remember the project but omit the latest outcome. It may recover an exact value without the condition that determines when it applies. It may find all the necessary evidence initially, then lose a critical part while fitting that evidence into the model's context window.
+
+AtMem 2.3.8 addresses this gap by treating memory as evidence that must be assembled, checked, and governed before delivery.
+
+What changed from AtMem 2.3.7?
+
+AtMem 2.3.7 already provided governed memory records, scope and lifecycle checks, canonical record reload, audit receipts, optional semantic and graph retrieval, and continuity support for interrupted agent workflows.
+
+AtMem 2.3.8 extends that foundation with a source-linked context engine.
+
+The new architecture preserves immutable source episodes and exact ranges within those sources. It creates typed evidence views for facts, entities, procedures, rules, transitions, premises, and operational gotchas without replacing the underlying source.
+
+A formation receipt distinguishes two questions that are often treated as one:
+
+1. Was the source processed?
+2. Was its useful information represented successfully?
+
+If a source range was retained but not represented, AtMem records that loss instead of silently treating ingestion as complete.
+
+From search queries to evidence obligations
+
+AtMem 2.3.8 converts a request into bounded evidence obligations.
+
+A request asking what changed may require evidence for the earlier state, the transition, and the later state. A request asking for a comparison needs evidence for both sides. An addressed action can require separate evidence for its content and its recipient.
+
+These obligations guide retrieval across independent evidence pools. Candidate limits remain separate from the final context budget, allowing the system to search broadly without automatically delivering more data to the model.
+
+Once AtMem identifies a candidate, bounded source expansion can recover adjacent conditions, values, actions, and outcomes needed to interpret it. Packing then favors complementary evidence and complete action episodes rather than repeatedly selecting material that covers the same part of the request.
+
+Sufficiency is checked after packing
+
+Evidence can be complete before packing and incomplete afterward.
+
+AtMem therefore checks whether required support survived into the final context package. If packing removes necessary evidence, the decision is downgraded and the receipt records the missing obligation or exhausted budget.
+
+The governance service then reloads the exact selected evidence from canonical storage. It validates the selected IDs, scope, generation, lifecycle, ordering, and final byte size before producing model context.
+
+This creates a traceable path:
+
+request → obligations → candidate evidence → packed evidence → canonical validation → delivered context
+
+What did AtMem achieve?
+
+The current results come from frozen development samples and should be interpreted as engineering evidence rather than final benchmark claims.
+
+On a 23-question LongMemEval-V2 development sample, AtMem answered 5 questions correctly, or 21.7%.
+
+The no-retrieval control answered 1/23. A diagnostic condition using evaluator-verified evidence answered 19/23. This shows both an observed improvement over the no-memory condition and a substantial remaining gap between AtMem's delivered context and the evidence available to the reader under privileged conditions.
+
+Six AtMem LongMemEval cases remained system failures and were kept in the denominator: three reader finalization failures at the completion limit and three governance rejections requiring additional case-level analysis.
+
+On 30 DolphinBench development tasks, AtMem passed 9 tasks, or 30.0%, and satisfied 32 of 97 individual checks, or 33.0%.
+
+Earlier retained development results on the same 30-task sample recorded 2/30 tasks and 15/97 checks. The later results followed work on action-evidence neighbourhoods, exact workflow identity, comparison-side separation, and routing. Because several mechanisms and runtime conditions changed together, this progression is not a controlled ablation and cannot assign an independent effect to any single technique.
+
+The DolphinBench evidence-removal control blocked all 30 cases after required evidence was removed. Restoring the evidence opened the gate in all 30 cases. The paired removal-and-restoration procedure completed successfully in 29/30 cases, with one provider failure.
+
+These controls test whether AtMem's status responds to the presence of required evidence. They do not prove that its obligation planner is complete for arbitrary tasks.
+
+Record-to-audit integrity
+
+AtMem 2.3.8 also repairs a separate integrity gap.
+
+A valid audit-event chain does not, by itself, prove that the live memory table still contains the records committed to that history. A stored record could be modified while the original audit events remain internally consistent.
+
+The new implementation commits a canonical projection of each protected record into the audit history. Verification reconciles live rows against those commitments, checks for missing committed records, and identifies eligible records without recognized creation evidence.
+
+In the installed AtMem 2.3.8 reproduction of AGMI 0.6.3:
+
+• The audit-chain configuration reported 8 of 9 attack classes.
+• The configuration with a trusted external checkpoint reported 9 of 9.
+
+The external checkpoint is necessary for whole-store snapshot rollback. If both the database and its audit history are restored to the same legitimate earlier snapshot, nothing inside that rolled-back store can prove that a newer state previously existed.
+
+These results demonstrate audit detection in the tested cases. They do not prove that every memory surface is protected, that every ordinary read automatically blocks tampering, or that originally admitted information was factually correct.
+
+What is novel?
+
+The central contribution is evidence obligations connected to governed delivery.
+
+AtMem links what a request needs to the exact source ranges selected for it, records formation and packing losses, rechecks sufficiency after budgeting, reloads canonical evidence at the delivery boundary, and binds protected records back to the audit history.
+
+The system can therefore expose why context was delivered, why it was withheld, what evidence was missing, and whether persisted records still match protected commitments.
+
+What comes next?
+
+The immediate research priorities are held-out evaluation and component ablations.
+
+The obligation planner, typed formation, neighbour expansion, episode grouping, and sufficiency gate need to be removed individually under otherwise fixed conditions. Future evaluations should report correct answers, incorrect actions, safe blocks, false blocks, reader failures, provider failures, and policy rejections separately.
+
+AtMem 2.3.8 establishes an inspectable architecture for building useful and accountable agent memory. The current benchmarks identify measurable progress and equally measurable gaps. That combination gives the project a concrete path forward.
+
+Release and installation:
+https://github.com/aetna000/atmem/blob/v2.3.8/docs/releases/v2.3.8.md
+
+Results and limitations:
+https://github.com/aetna000/atmem/blob/bb05043/benchmarks/retrieval_quality/reports/five-percent-results-20261010.md

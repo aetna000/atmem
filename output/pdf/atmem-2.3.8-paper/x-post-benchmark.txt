@@ -1,0 +1,5 @@
+AtMem 2.3.8 beat our recorded local Mem0 and AgentRunbook-R configurations on the LongMemEval-V2 development sample: 5/23 vs 1/23 and 4/23.
+
+On DolphinBench, AtMem scored 9/30 vs Mem0's 7/30.
+
+Constrained local runs; these are not full-benchmark SOTA claims.

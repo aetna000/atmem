@@ -1,0 +1,45 @@
+AtMem 2.3.8: From remembering relevant text to assembling usable evidence
+
+An agent can remember the right project and still send the wrong update. It may retrieve the recipient but miss the latest outcome, or find the outcome while dropping the condition that changes what it should say.
+
+AtMem 2.3.8 focuses on that gap: turning retained history into evidence an agent can use, inspect, and trust within a defined scope.
+
+What changed from 2.3.7?
+
+Version 2.3.7 already had governed memory records, scope checks, audit trails, context receipts, and recovery for supported interrupted workflows. It also had lexical, graph, and semantic retrieval capabilities.
+
+Version 2.3.8 adds a new context engine. It preserves immutable source episodes, builds typed views over exact source ranges, and breaks a request into explicit evidence needs. Retrieval finds supporting ranges; packing keeps complementary facts and complete action episodes together. Before delivery, a separate governance layer reloads the selected evidence and checks its scope, generation, lifecycle, and size.
+
+The practical question is: did the evidence needed for the task actually survive into the context the agent receives?
+
+What is novel?
+
+The contribution is the connection between evidence needs, source preservation, packing, and governed delivery. Typed pools are not new: AgentRunbook-R already uses them. Audit chains and source attribution also have substantial prior art. AtMem brings these ideas into one inspectable pipeline with receipts for what is covered, missing, or withheld.
+
+For a request to email a review outcome, that can mean keeping the trigger, result, restriction, and recipient evidence together. If required evidence is missing, an integration can block before invoking a model or tool.
+
+What did we measure?
+
+On frozen development samples, the 2.3.8 candidate achieved:
+
+• LongMemEval-V2: 5/23 correct, versus AgentRunbook-R 4/23 and Mem0 OSS 1/23.
+• DolphinBench: 9/30 tasks passed, versus Mem0 OSS 7/30.
+• DolphinBench checks: 32/97 passed, versus Mem0 OSS 27/97.
+
+These are small development samples, not full benchmark or statistically significant wins. AgentRunbook-R was not tested on DolphinBench. The utility comparator uses pinned Mem0 source declaring 2.1.0. The local configurations used hash embeddings; Mem0 ran with inference disabled, and its Dolphin arm lacked optional ranking extras. These results do not represent the strongest published configurations of either competitor. LongMem also retained six AtMem system failures in the denominator.
+
+The evidence-preserving changes are plausible reasons for the observed lead. We still need ablations and untouched tasks to establish how much each technique contributes.
+
+Memory integrity improved too
+
+AGMI exposed a concrete gap: verifying an audit chain did not establish that the live memory records still matched it. Version 2.3.8 adds record commitments and reconciliation.
+
+In our reproduction of the unchanged AGMI 0.6.3 harness, the audit reported 8/9 attacks with the chain alone and 9/9 with a trusted checkpoint outside the attacker-controlled store. Independent upstream reproduction is pending. These are audit-detection results; they do not imply every read path automatically blocks tampering.
+
+AtMem's long-term case is the architecture: useful memory whose source, scope, completeness, and integrity can be investigated. The next step is stronger baselines and held-out evaluation, backed by the same explicit evidence.
+
+Release and install instructions:
+https://github.com/aetna000/atmem/blob/v2.3.8/docs/releases/v2.3.8.md
+
+Results and limitations:
+https://github.com/aetna000/atmem/blob/bb05043/benchmarks/retrieval_quality/reports/five-percent-results-20261010.md
