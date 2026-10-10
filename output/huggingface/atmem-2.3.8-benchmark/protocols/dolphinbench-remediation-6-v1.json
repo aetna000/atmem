@@ -1,0 +1,44 @@
+{
+  "format": "atmem-dolphinbench-remediation-development-v1",
+  "claim": "bounded-development-diagnostic-not-an-official-score",
+  "source_manifest": "dolphinbench-requirements-5pct-v1.json",
+  "source_manifest_sha256": "sha256:002894c0f9e0f8377164d0a9edbbb86a5e2119449e30a12f4934bd0bf8849650",
+  "case_ids": [
+    "morgan:063",
+    "morgan:138",
+    "alex:082",
+    "morgan:103",
+    "alex:026",
+    "riley:126"
+  ],
+  "roles": {
+    "morgan:063": "restored-gate-overblock",
+    "morgan:138": "restored-gate-overblock",
+    "alex:082": "fully-passing-regression-control",
+    "morgan:103": "fully-passing-regression-control",
+    "alex:026": "gate-open-partial-action-control",
+    "riley:126": "gate-open-partial-action-control"
+  },
+  "adapter_options": {
+    "candidate_limit": 200,
+    "context_bytes": 32000,
+    "memory_limit": 20
+  },
+  "baseline": {
+    "full_sample": {
+      "atmem_tasks": "2/30",
+      "atmem_checks": "15/97",
+      "mem0_tasks": "3/30",
+      "mem0_checks": "16/97"
+    },
+    "restored_gates": "28/30",
+    "removal_blocks": "30/30"
+  },
+  "advance_gate": {
+    "restored_gates": "6/6",
+    "removal_blocks": "6/6",
+    "fully_passing_regressions_preserved": "2/2",
+    "system_failures": 0
+  },
+  "leakage_boundary": "Evaluator requirements may be used by diagnostic reporting and removal-control selection only. They must not be passed to formation, planning, retrieval, packing, the memory adapter, or Hermes."
+}

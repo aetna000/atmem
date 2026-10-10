@@ -1,0 +1,36 @@
+{
+  "format": "atmem-dolphinbench-remediation-development-v1",
+  "claim": "bounded-development-diagnostic-not-an-official-score",
+  "source_manifest": "dolphinbench-requirements-5pct-v1.json",
+  "source_manifest_sha256": "sha256:002894c0f9e0f8377164d0a9edbbb86a5e2119449e30a12f4934bd0bf8849650",
+  "case_ids": [
+    "morgan:138",
+    "morgan:183",
+    "riley:022",
+    "riley:162"
+  ],
+  "roles": {
+    "morgan:138": "indirect-contact-and-copy-retrieval-defect",
+    "morgan:183": "month-year-outcome-and-confidence-retrieval-defect",
+    "riley:022": "dated-rollout-scope-retrieval-defect",
+    "riley:162": "prior-residence-closeout-retrieval-defect"
+  },
+  "adapter_options": {
+    "candidate_limit": 200,
+    "context_bytes": 32000,
+    "memory_limit": 20
+  },
+  "historical_baseline": {
+    "atmem_tasks": "0/4",
+    "atmem_checks": "0/11",
+    "mem0_tasks": "4/4",
+    "mem0_checks": "11/11"
+  },
+  "advance_gate": {
+    "atmem_tasks_minimum": "4/4",
+    "atmem_checks_minimum": "11/11",
+    "t046d_regression_controls_preserved": "4/4",
+    "system_failures": 0
+  },
+  "leakage_boundary": "Evaluator requirements may be used by diagnostic reporting only. They must not be passed to formation, planning, retrieval, packing, the memory adapter, or the reader."
+}

@@ -1,0 +1,19 @@
+{
+  "format": "atmem-retrieval-failure-taxonomy-v1",
+  "stages": [
+    "source_not_captured",
+    "formation_not_represented",
+    "formation_withheld",
+    "not_nominated",
+    "neighbor_not_expanded",
+    "evidence_partial",
+    "evidence_contradictory",
+    "evidence_stale",
+    "packing_budget_excluded",
+    "reader_did_not_use_evidence",
+    "agent_action_incorrect",
+    "judge_or_grader_disagreement",
+    "provider_or_system_error"
+  ],
+  "rule": "Record the earliest evidenced failure stage; unknown is never encoded as zero or success."
+}

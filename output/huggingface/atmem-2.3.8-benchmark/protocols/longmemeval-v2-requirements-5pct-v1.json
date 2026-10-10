@@ -1,0 +1,666 @@
+{
+  "available_to_product": false,
+  "benchmark": "longmemeval-v2",
+  "case_count": 23,
+  "cases": [
+    {
+      "case_id": "05cce9b3",
+      "question_text": "I am using our magento-based shopping admin dashboard. On customer detail pages, what is the name of the action between \"Delete Customer\" and \"Back\" in the top toolbar? Your final answer should be wrapped in \\boxed{}.",
+      "question_type": "static-environment",
+      "requirements": [
+        {
+          "classes": [
+            "comparison_side",
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "Login as Customer",
+          "requirement_id": "05cce9b3:r01",
+          "source_refs": [
+            "questions.jsonl#05cce9b3",
+            "haystacks/lme_v2_small.json#05cce9b3"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: Login as Customer"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:731bba3f629000d537ddad7a1dd95af07e6810c40e39e4ba9bfa9a9ce490941a"
+    },
+    {
+      "case_id": "07ab3723",
+      "question_text": "I am using our magento-based custom shopping admin website. I would like to notify a user to reorder for a recend pending order. I have pinpointed that order and entered its detail page. According to our usual workflow, with the action space below, how many more actions do I need to perform to conclude this task?\n\nAction Space:\nscroll(delta_x: float, delta_y: float), keyboard_press(key: str), click(bid: str, button='left', modifiers=[]), fill(bid: str, value: str, enable_autocomplete_menu: bool = False), hover(bid: str), tab_focus(index: int), new_tab(), go_back(), go_forward(), tab_close(), select_option(bid: str, options: str | list[str])\n\nYour final answer should be an English number (e.g., one, two, three, ...) wrapped in \\boxed{}.",
+      "question_type": "procedure",
+      "requirements": [
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value",
+            "procedure_step_order"
+          ],
+          "expected": "three",
+          "requirement_id": "07ab3723:r01",
+          "source_refs": [
+            "questions.jsonl#07ab3723",
+            "haystacks/lme_v2_small.json#07ab3723"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: three"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:731bba3f629000d537ddad7a1dd95af07e6810c40e39e4ba9bfa9a9ce490941a"
+    },
+    {
+      "case_id": "07ffeedf",
+      "question_text": "I am working with our ServiceNow portal. For the task of navigating and creating problem requests from incident-report results, which option contains only fields that are both (i) present on the Problem table in this environment and (ii) unimportant in our typical workflow?\n\nA. Problem Statement, Description, Category\nB. Problem Statement, Impact/Priority/Urgency, Assignment Group\nC. Subcategory, Routing Cluster, State\nD. Assignment Group, State, Escalation Tier\nE. Category, Subcategory, Configuration Item\nF. Description, Problem Statement, Workstream Code\nG. Subcategory, Assignment Group, State\nH. Configuration Item, Priority, Urgency\n\nPut your final answer into \\boxed{} format like \\boxed{A}.",
+      "question_type": "procedure",
+      "requirements": [
+        {
+          "classes": [
+            "applicability_condition",
+            "comparison_side",
+            "entity_relation",
+            "exact_fact_value",
+            "procedure_step_order"
+          ],
+          "expected": "G",
+          "requirement_id": "07ffeedf:r01",
+          "source_refs": [
+            "questions.jsonl#07ffeedf",
+            "haystacks/lme_v2_small.json#07ffeedf"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: G"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:350f5be05225777426a0ce46af78f41d05309b3cc44c6c6abb6655545ee0c7b6"
+    },
+    {
+      "case_id": "12f8cfd2",
+      "question_text": "I am working with our ServiceNow Portal. I need to offboard a user. After I clear the `Assigned to` field on that user's hardware asset record, what value should I set the `State` field to before clicking `Update`?\n\nMark your final answer (should be one or more short phrases) in \\boxed{}.",
+      "question_type": "procedure-abs",
+      "requirements": [
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "procedure_step_order",
+            "state_transition"
+          ],
+          "expected": "No `State` change is part of that hardware-asset step",
+          "requirement_id": "12f8cfd2:r01",
+          "source_refs": [
+            "questions.jsonl#12f8cfd2",
+            "haystacks/lme_v2_small.json#12f8cfd2"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: No `State` change is part of that hardware-asset step"
+        },
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "procedure_step_order",
+            "state_transition"
+          ],
+          "expected": "the workflow only requires clearing `Assigned to`",
+          "requirement_id": "12f8cfd2:r02",
+          "source_refs": [
+            "questions.jsonl#12f8cfd2",
+            "haystacks/lme_v2_small.json#12f8cfd2"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: the workflow only requires clearing `Assigned to`"
+        },
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "procedure_step_order",
+            "state_transition"
+          ],
+          "expected": "updating the record.",
+          "requirement_id": "12f8cfd2:r03",
+          "source_refs": [
+            "questions.jsonl#12f8cfd2",
+            "haystacks/lme_v2_small.json#12f8cfd2"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: updating the record."
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:350f5be05225777426a0ce46af78f41d05309b3cc44c6c6abb6655545ee0c7b6"
+    },
+    {
+      "case_id": "19367bc7",
+      "question_text": "I am working with a few forms in our ServiceNow portal. Among these five forms (change request/problem/incident/hardware/user), do you remember a page that intergrates with Outlook calendar?\n\nMark your final answer (should be one or more short phrases) in \\boxed{}.",
+      "question_type": "static-environment",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "state_transition"
+          ],
+          "expected": "User",
+          "requirement_id": "19367bc7:r01",
+          "source_refs": [
+            "questions.jsonl#19367bc7",
+            "haystacks/lme_v2_small.json#19367bc7"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: User"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:350f5be05225777426a0ce46af78f41d05309b3cc44c6c6abb6655545ee0c7b6"
+    },
+    {
+      "case_id": "1defc293",
+      "question_text": "I am using our magento-based shopping admin dashboard. Which pair is correct for this environment?\n\nA. Size attribute default dropdown: Text Swatch; theme detail page below General: there is no such tab.\nB. Size attribute default dropdown: Visual Swatch; theme detail page below General: Files.\nC. Size attribute default dropdown: Dropdown; theme detail page below General: Content.\nD. Size attribute default dropdown: Text Swatch; theme detail page below General: Files.\n\nPut your final answer into \\boxed{} format like \\boxed{A}.",
+      "question_type": "dynamic-environment",
+      "requirements": [
+        {
+          "classes": [
+            "comparison_side",
+            "entity_relation",
+            "exact_fact_value",
+            "time_current_state"
+          ],
+          "expected": "A",
+          "requirement_id": "1defc293:r01",
+          "source_refs": [
+            "questions.jsonl#1defc293",
+            "haystacks/lme_v2_small.json#1defc293"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: A"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:731bba3f629000d537ddad7a1dd95af07e6810c40e39e4ba9bfa9a9ce490941a"
+    },
+    {
+      "case_id": "285db8ec",
+      "question_text": "I am working in our ServiceNow portal. I am trying to delete the incorrect investments after identifying the exact records I want to remove with Delete with Preview, but after I press \"Execute Now\", the deletion does not happen. The screenshot shows the page state when this occurs. What is the most likely issue or one action I still need to take? Please give me only the most likely explanation or if action is needed only that one action. Do not list alternatives.",
+      "question_type": "errors-gotchas",
+      "requirements": [
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value",
+            "state_transition"
+          ],
+          "expected": "need to click \"Update\" button to save the changes",
+          "requirement_id": "285db8ec:r01",
+          "source_refs": [
+            "questions.jsonl#285db8ec",
+            "haystacks/lme_v2_small.json#285db8ec"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: need to click \"Update\" button to save the changes"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:350f5be05225777426a0ce46af78f41d05309b3cc44c6c6abb6655545ee0c7b6"
+    },
+    {
+      "case_id": "3a7a7880",
+      "question_text": "I am working with our ServiceNow portal. In the Service Catalog, the developer-laptop family uses similar but non-identical names. What are the exact two item names for the Linux and Chromebook developer laptop items? Separate them with semicolons in \\boxed{}.",
+      "question_type": "static-environment-abs",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "There are no Linux",
+          "requirement_id": "3a7a7880:r01",
+          "source_refs": [
+            "questions.jsonl#3a7a7880",
+            "haystacks/lme_v2_small.json#3a7a7880"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: There are no Linux"
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "Chromebook developer laptop items in that catalog view.",
+          "requirement_id": "3a7a7880:r02",
+          "source_refs": [
+            "questions.jsonl#3a7a7880",
+            "haystacks/lme_v2_small.json#3a7a7880"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: Chromebook developer laptop items in that catalog view."
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:350f5be05225777426a0ce46af78f41d05309b3cc44c6c6abb6655545ee0c7b6"
+    },
+    {
+      "case_id": "3b8210a1",
+      "question_text": "I am using our magento-based custom shopping admin website. I am now on the page that lists all products. I would like to take down some product from the website's display. I have selected all the target items. At minimum, how many buttons/links do I have to click to finish the update if the final state I need is `Archived`? Say the number in English (e.g., one, two, three) and then list the button/link names, separated by comma. Your final answers should be wrapped in \\boxed{}.",
+      "question_type": "procedure-abs",
+      "requirements": [
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "procedure_step_order"
+          ],
+          "expected": "That is impossible because this bulk workflow does not offer an `Archived` final state for products.",
+          "requirement_id": "3b8210a1:r01",
+          "source_refs": [
+            "questions.jsonl#3b8210a1",
+            "haystacks/lme_v2_small.json#3b8210a1"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: That is impossible because this bulk workflow does not offer an `Archived` final state for products."
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:731bba3f629000d537ddad7a1dd95af07e6810c40e39e4ba9bfa9a9ce490941a"
+    },
+    {
+      "case_id": "3fd81278",
+      "question_text": "I am working with our ServiceNow portal. When ordering a Dell XPS 13 from the Service Catalog, if I change the operating system from the default Ubuntu to Windows 8, what dollar amount appears in brackets next to Ubuntu?\n\nMark your final answer (should be a single integer indicating the amount) in \\boxed{}.",
+      "question_type": "dynamic-environment",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "state_transition",
+            "time_current_state"
+          ],
+          "expected": "100",
+          "requirement_id": "3fd81278:r01",
+          "source_refs": [
+            "questions.jsonl#3fd81278",
+            "haystacks/lme_v2_small.json#3fd81278"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: 100"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:350f5be05225777426a0ce46af78f41d05309b3cc44c6c6abb6655545ee0c7b6"
+    },
+    {
+      "case_id": "51764e11",
+      "question_text": "I am using our magento-based custom shopping admin website. When doing an Order Count report, I want to open the date picker and jump the report end date to the first day of next month before refreshing. Which button label can accomplish that jump? Your final answer should be wrapped in \\boxed{}.",
+      "question_type": "procedure-abs",
+      "requirements": [
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "procedure_step_order",
+            "state_transition"
+          ],
+          "expected": "There is no dedicated date-picker button that jumps straight to the first day of next month.",
+          "requirement_id": "51764e11:r01",
+          "source_refs": [
+            "questions.jsonl#51764e11",
+            "haystacks/lme_v2_small.json#51764e11"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: There is no dedicated date-picker button that jumps straight to the first day of next month."
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:731bba3f629000d537ddad7a1dd95af07e6810c40e39e4ba9bfa9a9ce490941a"
+    },
+    {
+      "case_id": "5f100f22",
+      "question_text": "I am working with a few forms in our ServiceNow portal. Create Incident vs Problem. In both forms, the default value for the field \"Priority\" is 5, true or false?\n\nMark your final answer (should be one or more short phrases) in \\boxed{}.",
+      "question_type": "static-environment",
+      "requirements": [
+        {
+          "classes": [
+            "comparison_side",
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "true",
+          "requirement_id": "5f100f22:r01",
+          "source_refs": [
+            "questions.jsonl#5f100f22",
+            "haystacks/lme_v2_small.json#5f100f22"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: true"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:350f5be05225777426a0ce46af78f41d05309b3cc44c6c6abb6655545ee0c7b6"
+    },
+    {
+      "case_id": "626e401e",
+      "question_text": "I am using our reddit-based custom forum website. What is the forum with the second-most submissions? Your final answer should be wrapped in \\boxed{}.",
+      "question_type": "errors-gotchas",
+      "requirements": [
+        {
+          "classes": [
+            "applicability_condition",
+            "comparison_side",
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "relationship, advice",
+          "requirement_id": "626e401e:r01",
+          "source_refs": [
+            "questions.jsonl#626e401e",
+            "haystacks/lme_v2_small.json#626e401e"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: relationship, advice"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:731bba3f629000d537ddad7a1dd95af07e6810c40e39e4ba9bfa9a9ce490941a"
+    },
+    {
+      "case_id": "6517165d",
+      "question_text": "I am using our magento-based shopping admin dashboard. On order detail pages in this environment, in the left column titled \"order view\", what is the name of the tab between \"Transactions\" and \"Shipments\"? Your final answer should be wrapped in \\boxed{}.",
+      "question_type": "static-environment-abs",
+      "requirements": [
+        {
+          "classes": [
+            "comparison_side",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "there is no such tab because the tab Transactions is not in our environment",
+          "requirement_id": "6517165d:r01",
+          "source_refs": [
+            "questions.jsonl#6517165d",
+            "haystacks/lme_v2_small.json#6517165d"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: there is no such tab because the tab Transactions is not in our environment"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:731bba3f629000d537ddad7a1dd95af07e6810c40e39e4ba9bfa9a9ce490941a"
+    },
+    {
+      "case_id": "73cbefdc",
+      "question_text": "I am working with our ServiceNow portal. In our company's tight-window, priority-aware change-request rescheduling workflow, which combined rule is correct?\n\nA. Schedule higher-risk changes first, and keep the gap between consecutive changes to at most 1 day while honoring risk-based durations.\nB. Keep the original change order and only resize durations by risk, even if adjacent changes overlap.\nC. Schedule higher-impact changes first, and keep the gap between consecutive changes to at most 1 day while honoring risk-based durations.\nD. Schedule lower-impact changes first so high-impact requests can use spare time at the end of the window.\nE. Schedule higher-impact changes first, keep the gap between consecutive changes to at most 1 hour, and still honor risk-based durations.\nF. Ignore the gap-limit requirement and only ensure non-overlap plus risk-based durations.\n\nPut your final answer into \\boxed{} format like \\boxed{A}.",
+      "question_type": "procedure",
+      "requirements": [
+        {
+          "classes": [
+            "applicability_condition",
+            "comparison_side",
+            "entity_relation",
+            "exact_fact_value",
+            "procedure_step_order",
+            "state_transition"
+          ],
+          "expected": "E",
+          "requirement_id": "73cbefdc:r01",
+          "source_refs": [
+            "questions.jsonl#73cbefdc",
+            "haystacks/lme_v2_small.json#73cbefdc"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: E"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:350f5be05225777426a0ce46af78f41d05309b3cc44c6c6abb6655545ee0c7b6"
+    },
+    {
+      "case_id": "83a77f9d",
+      "question_text": "I am using our reddit-based custom forum website. I am on the home page of a forum. If I click the sorting-criteria dropdown, what is the criterion displayed immediately after \"Most Commented\"? Your final answer should be wrapped in \\boxed{}.",
+      "question_type": "dynamic-environment-abs",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "state_transition",
+            "time_current_state"
+          ],
+          "expected": "There is no such criterion. Most Commented is the last one in that dropdown.",
+          "requirement_id": "83a77f9d:r01",
+          "source_refs": [
+            "questions.jsonl#83a77f9d",
+            "haystacks/lme_v2_small.json#83a77f9d"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: There is no such criterion. Most Commented is the last one in that dropdown."
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:731bba3f629000d537ddad7a1dd95af07e6810c40e39e4ba9bfa9a9ce490941a"
+    },
+    {
+      "case_id": "9680f077",
+      "question_text": "I am working with a few forms in our ServiceNow portal. Create Change Request vs Hardware. In both forms -- hardware and create-request -- what is the name of the field that is mandatory yet non-mutable for only one of the two forms?\n\nMark your final answer (should be one or more short phrases) in \\boxed{}.",
+      "question_type": "static-environment",
+      "requirements": [
+        {
+          "classes": [
+            "comparison_side",
+            "entity_relation",
+            "exact_fact_value",
+            "state_transition"
+          ],
+          "expected": "Quantity",
+          "requirement_id": "9680f077:r01",
+          "source_refs": [
+            "questions.jsonl#9680f077",
+            "haystacks/lme_v2_small.json#9680f077"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: Quantity"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:350f5be05225777426a0ce46af78f41d05309b3cc44c6c6abb6655545ee0c7b6"
+    },
+    {
+      "case_id": "b54161f8",
+      "question_text": "I am working with our ServiceNow service catalog and comparing the order pages for the `Standard Laptop` and the `Sales Laptop`. Which optional software choices appear on the `Sales Laptop` page but not on the `Standard Laptop` page? Give the two labels separated by semicolons in \\boxed{}.",
+      "question_type": "dynamic-environment",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "time_current_state"
+          ],
+          "expected": "Microsoft Powerpoint",
+          "requirement_id": "b54161f8:r01",
+          "source_refs": [
+            "questions.jsonl#b54161f8",
+            "haystacks/lme_v2_small.json#b54161f8"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: Microsoft Powerpoint"
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "time_current_state"
+          ],
+          "expected": "Siebel Client",
+          "requirement_id": "b54161f8:r02",
+          "source_refs": [
+            "questions.jsonl#b54161f8",
+            "haystacks/lme_v2_small.json#b54161f8"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: Siebel Client"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:350f5be05225777426a0ce46af78f41d05309b3cc44c6c6abb6655545ee0c7b6"
+    },
+    {
+      "case_id": "c216174c",
+      "question_text": "I am using our magento-based custom shopping admin website. I would like to update an order with a tracking number directly from the order list page, without first opening the order detail view. Which sequence of the next three buttons/links should I click? Your final answer should be a comma-separated list of three phrases, wrapped in \\boxed{}.",
+      "question_type": "procedure-abs",
+      "requirements": [
+        {
+          "classes": [
+            "applicability_condition",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "procedure_step_order"
+          ],
+          "expected": "That workflow is impossible from the order list page because you have to open the order detail view before adding a tracking number.",
+          "requirement_id": "c216174c:r01",
+          "source_refs": [
+            "questions.jsonl#c216174c",
+            "haystacks/lme_v2_small.json#c216174c"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: That workflow is impossible from the order list page because you have to open the order detail view before adding a tracking number."
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:731bba3f629000d537ddad7a1dd95af07e6810c40e39e4ba9bfa9a9ce490941a"
+    },
+    {
+      "case_id": "ca8e070b",
+      "question_text": "I am working with our ServiceNow portal. When we order a loaner laptop, we are able to choose from preset choices (like \"1 day\") for \"How long do you need it for\" and select a specific date for \"When do you need it\", true or false?\n\nMark your final answer (should be one or more short phrases) in \\boxed{}.",
+      "question_type": "static-environment",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value"
+          ],
+          "expected": "false",
+          "requirement_id": "ca8e070b:r01",
+          "source_refs": [
+            "questions.jsonl#ca8e070b",
+            "haystacks/lme_v2_small.json#ca8e070b"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: false"
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:350f5be05225777426a0ce46af78f41d05309b3cc44c6c6abb6655545ee0c7b6"
+    },
+    {
+      "case_id": "e532c01e",
+      "question_text": "I am using our reddit-based custom forum website. On the page of a subreddit, how do I hide submissions and comments? Your final answer should be wrapped in \\boxed{}.",
+      "question_type": "static-environment-abs",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "You cannot.",
+          "requirement_id": "e532c01e:r01",
+          "source_refs": [
+            "questions.jsonl#e532c01e",
+            "haystacks/lme_v2_small.json#e532c01e"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: You cannot."
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:731bba3f629000d537ddad7a1dd95af07e6810c40e39e4ba9bfa9a9ce490941a"
+    },
+    {
+      "case_id": "ee5252a3",
+      "question_text": "I am working with our ServiceNow portal while creating a hardware asset record. After clicking New and loading the blank Hardware form, what default value is shown in the `Managed by` field?\n\nMark your final answer (should be one or more short phrases) in \\boxed{}.",
+      "question_type": "dynamic-environment-abs",
+      "requirements": [
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "state_transition",
+            "time_current_state"
+          ],
+          "expected": "No default value is shown there",
+          "requirement_id": "ee5252a3:r01",
+          "source_refs": [
+            "questions.jsonl#ee5252a3",
+            "haystacks/lme_v2_small.json#ee5252a3"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: No default value is shown there"
+        },
+        {
+          "classes": [
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise",
+            "state_transition",
+            "time_current_state"
+          ],
+          "expected": "the `Managed by` field is blank on the loaded form.",
+          "requirement_id": "ee5252a3:r02",
+          "source_refs": [
+            "questions.jsonl#ee5252a3",
+            "haystacks/lme_v2_small.json#ee5252a3"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: the `Managed by` field is blank on the loaded form."
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:350f5be05225777426a0ce46af78f41d05309b3cc44c6c6abb6655545ee0c7b6"
+    },
+    {
+      "case_id": "f43926d9",
+      "question_text": "I am using our reddit-based custom forum website. On the All forums directory page, what browse tab appears between `Tags` and `Alphabetical` above the forum list? Mark your final answer as a short phrase in \\boxed{}.",
+      "question_type": "static-environment-abs",
+      "requirements": [
+        {
+          "classes": [
+            "comparison_side",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "There is no browse tab between `Tags`",
+          "requirement_id": "f43926d9:r01",
+          "source_refs": [
+            "questions.jsonl#f43926d9",
+            "haystacks/lme_v2_small.json#f43926d9"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: There is no browse tab between `Tags`"
+        },
+        {
+          "classes": [
+            "comparison_side",
+            "entity_relation",
+            "exact_fact_value",
+            "polarity_negative_premise"
+          ],
+          "expected": "`Alphabetical` there.",
+          "requirement_id": "f43926d9:r02",
+          "source_refs": [
+            "questions.jsonl#f43926d9",
+            "haystacks/lme_v2_small.json#f43926d9"
+          ],
+          "source_verification": "official_reference_and_selected_haystack",
+          "verified_evidence_text": "Evaluator-verified required fact for this question: `Alphabetical` there."
+        }
+      ],
+      "selected_trajectory_ids_sha256": "sha256:731bba3f629000d537ddad7a1dd95af07e6810c40e39e4ba9bfa9a9ce490941a"
+    }
+  ],
+  "dataset_revision": "f152293e235517d504809563c833d7190b8c713b",
+  "format": "atmem-evaluator-requirements-v1",
+  "manifest_sha256": "sha256:95f53f7dc45055fade3ad76cd0da75cd5682317949ee433a157d2d899cf0a7bc",
+  "sample_profile_sha256": "1c0519e4437d769731f294cc9c8d5678867c9de339d2f902761cd10f604b8696",
+  "visibility": "evaluator_only"
+}

@@ -1,0 +1,98 @@
+{
+  "longmem_atmem_mem0": [
+    {
+      "overlap": 0,
+      "atmem_only": 5,
+      "other_only": 1,
+      "two_sided_p": 0.21875
+    },
+    {
+      "overlap": 1,
+      "atmem_only": 4,
+      "other_only": 0,
+      "two_sided_p": 0.125
+    }
+  ],
+  "longmem_atmem_agentrunbook": [
+    {
+      "overlap": 0,
+      "atmem_only": 5,
+      "other_only": 4,
+      "two_sided_p": 1.0
+    },
+    {
+      "overlap": 1,
+      "atmem_only": 4,
+      "other_only": 3,
+      "two_sided_p": 1.0
+    },
+    {
+      "overlap": 2,
+      "atmem_only": 3,
+      "other_only": 2,
+      "two_sided_p": 1.0
+    },
+    {
+      "overlap": 3,
+      "atmem_only": 2,
+      "other_only": 1,
+      "two_sided_p": 1.0
+    },
+    {
+      "overlap": 4,
+      "atmem_only": 1,
+      "other_only": 0,
+      "two_sided_p": 1.0
+    }
+  ],
+  "dolphin_atmem_mem0": [
+    {
+      "overlap": 0,
+      "atmem_only": 9,
+      "other_only": 7,
+      "two_sided_p": 0.803619384765625
+    },
+    {
+      "overlap": 1,
+      "atmem_only": 8,
+      "other_only": 6,
+      "two_sided_p": 0.79052734375
+    },
+    {
+      "overlap": 2,
+      "atmem_only": 7,
+      "other_only": 5,
+      "two_sided_p": 0.7744140625
+    },
+    {
+      "overlap": 3,
+      "atmem_only": 6,
+      "other_only": 4,
+      "two_sided_p": 0.75390625
+    },
+    {
+      "overlap": 4,
+      "atmem_only": 5,
+      "other_only": 3,
+      "two_sided_p": 0.7265625
+    },
+    {
+      "overlap": 5,
+      "atmem_only": 4,
+      "other_only": 2,
+      "two_sided_p": 0.6875
+    },
+    {
+      "overlap": 6,
+      "atmem_only": 3,
+      "other_only": 1,
+      "two_sided_p": 0.625
+    },
+    {
+      "overlap": 7,
+      "atmem_only": 2,
+      "other_only": 0,
+      "two_sided_p": 0.5
+    }
+  ]
+}
