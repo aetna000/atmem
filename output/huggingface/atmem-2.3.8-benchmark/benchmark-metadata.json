@@ -1,0 +1,28 @@
+{
+  "format": "atmem-development-benchmark-v1",
+  "recorded_date": "2026-10-10",
+  "release": "2.3.8",
+  "claim_boundary": "Matched constrained local development samples; not official full-benchmark scores or a general state-of-the-art claim.",
+  "samples": {
+    "longmemeval_v2": {"attempted": 23, "full_benchmark": 451},
+    "dolphinbench": {"attempted": 30, "full_benchmark": 600, "checks": 97}
+  },
+  "reader": {
+    "model": "Qwen/Qwen3.5-9B",
+    "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a"
+  },
+  "judge": "gpt-5.2-2025-12-11 where semantic judging applied",
+  "systems": {
+    "atmem": "2.3.8 candidate; final Dolphin commit b97d35e",
+    "agentrunbook_r": "LongMemEval-V2 checkout 2cc8c540; no separate release number recorded",
+    "mem0_oss": "source revision d3891e48, declaring version 2.1.0"
+  },
+  "evidence_sha256": {
+    "longmemeval_matched_results": "89c800219cfab38b34cfc406d764919b49c24b550827a30414cb49fb4c247fd8",
+    "dolphinbench_matched_results": "84296c20aa11b998ddfeb5c80595d2fc58f9afd2b74ec42d2b018b5d92d40c62",
+    "final_dolphin_atmem_evaluation": "aa5242c509f4748a4ab067a56e8bedda3787abfdbc6e0df0ce63b80e936fd358",
+    "matched_dolphin_mem0_evaluation": "2283f4b6c2c3ded66005171abeed395c2614378f3445af1ef656d259afbb712b",
+    "agmi_compact_reproduction_record": "60275b8d5b0d174ecbc66c8cb8bc940f84743f605dc6a04707d8ea9fc57ca22a"
+  },
+  "independence": "The AGMI result is an AtMem-maintainer reproduction using the unchanged upstream runner; independent upstream reproduction is pending."
+}

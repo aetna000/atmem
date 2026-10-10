@@ -1,0 +1,13 @@
+benchmark,metric,system,version_or_revision,numerator,denominator,score_percent,system_failures,scope
+LongMemEval-V2,correct_answers,AtMem,2.3.8,5,23,21.7,6,frozen_5_percent_development_sample
+LongMemEval-V2,correct_answers,AgentRunbook-R,2cc8c540,4,23,17.4,4,frozen_5_percent_development_sample
+LongMemEval-V2,correct_answers,Mem0 OSS,d3891e48_declares_2.1.0,1,23,4.3,1,frozen_5_percent_development_sample
+LongMemEval-V2,correct_answers,No retrieval,local_control,1,23,4.3,0,frozen_5_percent_development_sample
+DolphinBench,tasks_passed,AtMem,b97d35e_candidate,9,30,30.0,0,frozen_5_percent_development_sample
+DolphinBench,tasks_passed,Mem0 OSS,d3891e48_declares_2.1.0,7,30,23.3,0,frozen_5_percent_development_sample
+DolphinBench,checks_passed,AtMem,b97d35e_candidate,32,97,33.0,0,frozen_5_percent_development_sample
+DolphinBench,checks_passed,Mem0 OSS,d3891e48_declares_2.1.0,27,97,27.8,0,frozen_5_percent_development_sample
+AGMI 0.6.3,attacks_detected,AtMem audit chain,2.3.8,8,9,88.9,0,maintainer_reproduction
+AGMI 0.6.3,attacks_detected,AtMem audit chain plus external checkpoint,2.3.8,9,9,100.0,0,maintainer_reproduction
+AGMI 0.6.3,attacks_detected,Historical AtMem audit chain,2.3.7,0,9,0.0,0,historical_local_result
+AGMI 0.6.3,attacks_detected,Historical AtMem chain plus external anchor,2.3.7,1,9,11.1,0,historical_local_result
