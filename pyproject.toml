@@ -29,7 +29,7 @@ classifiers = [
 dependencies = [
   "atmem-atbot==0.1.0",
   "atflows==0.1.4b3",
-  "cryptography>=42,<49",
+  "cryptography>=42,<51",
 ]
 
 [project.optional-dependencies]

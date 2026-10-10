@@ -39,7 +39,7 @@ The release was also tested against the unchanged AGMI 0.6.3 attack runner.
 | Audit chain only | 8/9 | 0/9 |
 | Audit chain plus trusted external checkpoint | **9/9** | 1/9 |
 
-The chain-only profile cannot distinguish an old, internally valid store from a legitimate earlier state. Detecting whole-store snapshot rollback requires trusted state outside the attacker-controlled store directory. This is an AtMem-maintainer reproduction; independent AGMI reproduction is pending.
+The chain-only profile cannot distinguish an old, internally valid store from a legitimate earlier state. Detecting whole-store snapshot rollback requires trusted state outside the attacker-controlled store directory. The AGMI maintainer independently reproduced these outcomes from the published AtMem 2.3.8 PyPI wheel on Linux and macOS; all seven pinned tests passed on both platforms. The merged evidence is in [AGMI PR #7](https://github.com/tech4biz-yasha/agent-memory-integrity/pull/7).
 
 ## Evaluation configuration
 

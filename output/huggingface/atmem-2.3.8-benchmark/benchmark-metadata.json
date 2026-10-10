@@ -4,8 +4,15 @@
   "release": "2.3.8",
   "claim_boundary": "Matched constrained local development samples; not official full-benchmark scores or a general state-of-the-art claim.",
   "samples": {
-    "longmemeval_v2": {"attempted": 23, "full_benchmark": 451},
-    "dolphinbench": {"attempted": 30, "full_benchmark": 600, "checks": 97}
+    "longmemeval_v2": {
+      "attempted": 23,
+      "full_benchmark": 451
+    },
+    "dolphinbench": {
+      "attempted": 30,
+      "full_benchmark": 600,
+      "checks": 97
+    }
   },
   "reader": {
     "model": "Qwen/Qwen3.5-9B",
@@ -22,7 +29,17 @@
     "dolphinbench_matched_results": "84296c20aa11b998ddfeb5c80595d2fc58f9afd2b74ec42d2b018b5d92d40c62",
     "final_dolphin_atmem_evaluation": "aa5242c509f4748a4ab067a56e8bedda3787abfdbc6e0df0ce63b80e936fd358",
     "matched_dolphin_mem0_evaluation": "2283f4b6c2c3ded66005171abeed395c2614378f3445af1ef656d259afbb712b",
-    "agmi_compact_reproduction_record": "60275b8d5b0d174ecbc66c8cb8bc940f84743f605dc6a04707d8ea9fc57ca22a"
+    "agmi_compact_reproduction_record": "d21c8bd6fbde8fa817cde5605409f4b0f4ea442eb73f5ee31e100d0cabc383e3"
   },
-  "independence": "The AGMI result is an AtMem-maintainer reproduction using the unchanged upstream runner; independent upstream reproduction is pending."
+  "independence": "AGMI independently reproduced by its maintainer on Linux and macOS from the published AtMem 2.3.8 PyPI wheel; utility comparisons remain local development results.",
+  "agmi_independent_reproduction": {
+    "status": "confirmed",
+    "evidence_url": "https://github.com/tech4biz-yasha/agent-memory-integrity/pull/7#issuecomment-6095069355",
+    "published_wheel_sha256": "05ca2c579be1af55de1da056ae257062417831b2e8eb4f2fda2a6413ba3ee923",
+    "platforms": [
+      "Linux, Python 3.12.3",
+      "macOS, Python 3.12"
+    ],
+    "pinned_tests_passed": "7/7 on each platform"
+  }
 }

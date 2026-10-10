@@ -38,7 +38,7 @@ Evidence and claim boundaries
   Architecture: stable v2.3.8, commit 267c5b3, compared with v2.3.7 cb1cf0f.
   Utility: historical candidate artifacts, including 2.3.8b6; not all measured
   on the stable release commit. The final Dolphin candidate is b97d35e.
-  Integrity: installed 2.3.8 wheel at fdc63de using unchanged AGMI 0.6.3.
+  Integrity: vendor candidate at fdc63de and independent Linux/macOS reproduction from the published 2.3.8 PyPI wheel using unchanged AGMI 0.6.3.
   The manuscript is a technical preprint draft, not peer reviewed or submitted.
   No new benchmark runs or paid model calls were made for this manuscript.
   The external raw benchmark volume was unavailable; compact results and
