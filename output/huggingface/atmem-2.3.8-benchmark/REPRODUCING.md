@@ -5,7 +5,8 @@
 | Component | Revision or identity |
 |---|---|
 | AtMem final Dolphin candidate | `b97d35e1df7ee6ef435928bafb8189ac99a1856d` |
-| AtMem AGMI candidate | `fdc63de4b5ced0029f2717ee542b9600730ce3fd` |
+| AtMem AGMI vendor candidate | `fdc63de4b5ced0029f2717ee542b9600730ce3fd` |
+| Published AtMem wheel independently checked by AGMI maintainer | `2.3.8`, SHA-256 `05ca2c579be1af55de1da056ae257062417831b2e8eb4f2fda2a6413ba3ee923` |
 | LongMemEval-V2 code | `2cc8c540bdb87fe6761629b585e727e1c4704520` |
 | LongMemEval-V2 dataset | `xiaowu0162/longmemeval-v2@f152293e235517d504809563c833d7190b8c713b` |
 | DolphinBench | `81cb6f8405b40a9e76089cef650806a80af06ea2` |
@@ -122,4 +123,4 @@ A new independent run should publish its per-case outputs, costs, system failure
 - The original raw per-case paid-provider transcripts are not in this bundle. The recorded hashes can verify an independently obtained copy but cannot reconstruct it.
 - The Mem0 Dolphin arm lacked optional spaCy and `fastembed` extras.
 - Aggregate counts are insufficient for a conventional paired significance claim.
-- AGMI is a maintainer reproduction using the unchanged upstream runner; an independent upstream reproduction remains pending.
+- The AGMI maintainer independently reproduced the vendor results from the published PyPI wheel on Linux and macOS. Chain-only still cannot detect whole-store snapshot rollback without trusted external state.

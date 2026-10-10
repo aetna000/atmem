@@ -76,7 +76,7 @@ ax.tick_params(length=0)
 for i in range(4):
     for j in range(9): ax.text(j,i,"R" if vals[i,j] else "A",ha="center",va="center",color="white" if vals[i,j] else GRAY,weight="bold")
 ax.set_title("AGMI 0.6.3 | R = reported by audit; A = accepted",loc="left",weight="bold",pad=14)
-fig.text(.03,.01,"2.3.8: maintainer reproduction, independent rerun pending. T9 protection requires a trusted external checkpoint.",fontsize=9,color=GRAY)
+fig.text(.03,.01,"2.3.8: independently reproduced from the PyPI wheel on Linux and macOS. T9 requires a trusted external checkpoint.",fontsize=9,color=GRAY)
 fig.tight_layout(rect=(0,.08,1,1)); save(fig,"integrity")
 
 fig, ax=plt.subplots(figsize=(10.5,3.2))

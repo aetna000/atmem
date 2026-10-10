@@ -10,9 +10,9 @@
     "sha256": "ef1b9ed0c90e158670bf3ddb1c5393217420d80745786c4935164b0997ce4425"
   },
   {
-    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "revision": "post-publication-correction:AGMI-PR-7",
     "path": "benchmarks/retrieval_quality/baselines/five-percent-results-20261010.json",
-    "sha256": "48704d2b801273a72f0a23894d91ce1466a8e1df9f9d8e047c378d832ffc9bfc"
+    "sha256": "3e1e3cf013354148937e6a7a91dce47e6c90abd7491644842fd8b4a490da530a"
   },
   {
     "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
@@ -20,14 +20,14 @@
     "sha256": "7167b520d53190e90d59cef83c16d748b00d77fee7c5d6dbbc52df0cb0a9ee53"
   },
   {
-    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "revision": "post-publication-correction:AGMI-PR-7",
     "path": "benchmarks/retrieval_quality/baselines/agmi-2.3.8-20261010.json",
-    "sha256": "60275b8d5b0d174ecbc66c8cb8bc940f84743f605dc6a04707d8ea9fc57ca22a"
+    "sha256": "d21c8bd6fbde8fa817cde5605409f4b0f4ea442eb73f5ee31e100d0cabc383e3"
   },
   {
-    "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "revision": "post-publication-correction:AGMI-PR-7",
     "path": "benchmarks/retrieval_quality/reports/five-percent-results-20261010.md",
-    "sha256": "51b94af0192284e3d8666dd4da32047ecec9013bf2486e9c7e589fec4cfc8b8a"
+    "sha256": "179199c183701c7395a7430c2172dd115c2067c4f93909eb98b13f27af03cb3f"
   },
   {
     "revision": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",

@@ -69,7 +69,7 @@ A valid audit-event chain does not, by itself, prove that the live memory table 
 
 The new implementation commits a canonical projection of each protected record into the audit history. Verification reconciles live rows against those commitments, checks for missing committed records, and identifies eligible records without recognized creation evidence.
 
-In the installed AtMem 2.3.8 reproduction of AGMI 0.6.3:
+In AGMI 0.6.3, independently reproduced by its maintainer from the published AtMem 2.3.8 PyPI wheel on Linux and macOS:
 
 • The audit-chain configuration reported 8 of 9 attack classes.
 • The configuration with a trusted external checkpoint reported 9 of 9.

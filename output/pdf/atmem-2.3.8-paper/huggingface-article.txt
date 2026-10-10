@@ -48,7 +48,7 @@ AGMI and trustworthy reuse
 
 The integrity work addresses a separate issue: an intact audit chain can coexist with modified live records if the verifier never reconciles them. AtMem 2.3.8 adds whole-row commitments and reconciliation. Our reproduction of the unchanged AGMI 0.6.3 runner reports 8/9 attacks with the chain alone and 9/9 with a trusted external checkpoint. Whole-store rollback needs that external state because an old valid store is otherwise indistinguishable from a legitimate earlier state.
 
-These are maintainer-reproduced audit reports, with independent reproduction pending. Legacy records, lifecycle exceptions, checkpoint freshness, and enforcement on ordinary read paths remain explicit boundaries. Integrity success was not measured as the cause of the clean-data accuracy gains.
+The AGMI maintainer independently reproduced these audit outcomes from the published PyPI wheel on Linux and macOS; all seven pinned tests passed on both platforms. Legacy records, lifecycle exceptions, checkpoint freshness, and enforcement on ordinary read paths remain explicit boundaries. Integrity success was not measured as the cause of the clean-data accuracy gains.
 
 Try the release:
 

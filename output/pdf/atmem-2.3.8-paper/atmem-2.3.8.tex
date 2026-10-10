@@ -33,7 +33,7 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-Persistent agent memory must recover useful evidence, preserve its authority, and expose when that evidence is incomplete or has been altered. We describe the evolution from AtMem 2.3.7, a governed record and execution-continuity system, to the 2.3.8 source-linked context engine. The new design connects immutable source ranges, typed evidence views, query-derived obligations, independent candidate pools, bounded neighbourhood expansion, coverage-aware context packing, and canonical revalidation at delivery. A separate integrity improvement reconciles current memory records with commitments stored in the audit chain. On a frozen 23-question LongMemEval-V2 development sample, the candidate answers 5 questions, compared with 4 for a local AgentRunbook-R configuration and 1 for a local Mem0 OSS configuration. On 30 DolphinBench development tasks, it passes 9 tasks compared with Mem0's 7. These comparisons use constrained local configurations, including hash embeddings and Mem0 ingestion with inference disabled; they do not reproduce the strongest published competitor configurations. A maintainer reproduction of AGMI 0.6.3 reports 8 of 9 storage attacks with the audit chain alone and 9 of 9 with a trusted external checkpoint. We give conditional propositions for evidence coverage, authority confinement, and rollback detection; none is a proof of empirical superiority. The contribution is an inspectable integration of retrieval and governance, supported by bounded comparative evidence, explicit failure accounting, and a reproducible path toward stronger evaluation.
+Persistent agent memory must recover useful evidence, preserve its authority, and expose when that evidence is incomplete or has been altered. We describe the evolution from AtMem 2.3.7, a governed record and execution-continuity system, to the 2.3.8 source-linked context engine. The new design connects immutable source ranges, typed evidence views, query-derived obligations, independent candidate pools, bounded neighbourhood expansion, coverage-aware context packing, and canonical revalidation at delivery. A separate integrity improvement reconciles current memory records with commitments stored in the audit chain. On a frozen 23-question LongMemEval-V2 development sample, the candidate answers 5 questions, compared with 4 for a local AgentRunbook-R configuration and 1 for a local Mem0 OSS configuration. On 30 DolphinBench development tasks, it passes 9 tasks compared with Mem0's 7. These comparisons use constrained local configurations, including hash embeddings and Mem0 ingestion with inference disabled; they do not reproduce the strongest published competitor configurations. An independent AGMI-maintainer reproduction of AGMI 0.6.3 from the published PyPI wheel reports 8 of 9 storage attacks with the audit chain alone and 9 of 9 with a trusted external checkpoint. We give conditional propositions for evidence coverage, authority confinement, and rollback detection; none is a proof of empirical superiority. The contribution is an inspectable integration of retrieval and governance, supported by bounded comparative evidence, explicit failure accounting, and a reproducible path toward stronger evaluation.
 \end{abstract}
 \noindent\textbf{Keywords:} agent memory; evidence coverage; context assembly; memory governance; audit integrity; LongMemEval-V2; DolphinBench.
 
@@ -259,7 +259,7 @@ An external checkpoint containing a later chain position and hash provides such 
 \subsection{Evidence scope and provenance}
 This paper analyzes retained reports and source; it does not run new paid experiments. The compact reports are available in the repository, while the heavy raw histories and run archives are referenced on an external volume that was not mounted during manuscript preparation. Counts are therefore verified against the retained compact records, not independently recomputed from every raw trajectory.
 
-The stable architecture is read at tag \code{v2.3.8}. The utility measurements were made on development candidates, including artifacts retaining the \code{2.3.8b6} version. The final Dolphin candidate is \code{b97d35e}; the AGMI stable-version wheel was built from \code{fdc63de}. A single stable tag was not rerun across all rows. We use ``2.3.8 candidate'' for utility and keep AGMI's installed 2.3.8 identity explicit.
+The stable architecture is read at tag \code{v2.3.8}. The utility measurements were made on development candidates, including artifacts retaining the \code{2.3.8b6} version. The final Dolphin candidate is \code{b97d35e}. The vendor AGMI candidate wheel was built from \code{fdc63de}; the AGMI maintainer independently reproduced its outcomes from the published PyPI wheel, whose installed package matches tag \code{v2.3.8}. Relative to \code{fdc63de}, the package differs only in a compatibility comment and tested OpenClaw version string. A single stable tag was not rerun across all utility rows. We use ``2.3.8 candidate'' for utility and keep AGMI's published 2.3.8 identity explicit.
 
 \subsection{Samples and metric definitions}
 LongMemEval-V2 uses 23 of 451 questions, or 5.10\%. The sample retains all 14 historical pilot IDs and adds nine IDs selected by a salted hash from the remaining development partition. It is thus a nested development sample, not a fresh random test. DolphinBench uses 30 of 600 tasks, exactly 5\%, across the three personas. Historical ingestion processed all 13,539 released sessions; the small task fraction does not mean only 5\% of the history was ingested.
@@ -353,7 +353,7 @@ Creation and quarantine events can carry a whole-row integrity digest. Verificat
 
 \begin{figure}[t]
 \centering\includegraphics[width=\linewidth]{figures/integrity.pdf}
-\caption{AGMI attack-class outcomes. ``Reported'' means the audit path reports a problem, not that every ordinary read API independently rejects it. The 2.3.8 rows are a maintainer reproduction of the unchanged pinned runner; the 2.3.7 rows are the retained upstream baseline.}
+\caption{AGMI attack-class outcomes. ``Reported'' means the audit path reports a problem, not that every ordinary read API independently rejects it. The 2.3.8 rows were independently reproduced by the AGMI maintainer from the published PyPI wheel on Linux and macOS; the 2.3.7 rows are the retained upstream baseline.}
 \label{fig:integrity}
 \end{figure}
 
@@ -436,12 +436,14 @@ The benchmark summary's top-level candidate identity is not a per-arm environmen
 Stable architecture commit & \path{267c5b3ac08e8cac26dfee13c6eac2842d4bb876}\\
 2.3.7 source commit & \path{cb1cf0fc6e3e12dd0a52140bc0eda4797d2e887b}\\
 Final Dolphin candidate & \path{b97d35e1df7ee6ef435928bafb8189ac99a1856d}\\
-AGMI wheel source & \path{fdc63de4b5ced0029f2717ee542b9600730ce3fd}\\
+AGMI vendor-candidate source & \path{fdc63de4b5ced0029f2717ee542b9600730ce3fd}\\
+AGMI independent confirmation & \href{https://github.com/tech4biz-yasha/agent-memory-integrity/pull/7}{AGMI PR 7}\\
 LongMem aggregate SHA-256 & \path{89c800219cfab38b34cfc406d764919b49c24b550827a30414cb49fb4c247fd8}\\
 Verified-evidence control SHA-256 & \path{26ba0c7d60b950ec0a5435813b6c7316a0b0badcd9050478b1ff0f262d3bddd6}\\
 Final Dolphin AtMem evaluation SHA-256 & \path{aa5242c509f4748a4ab067a56e8bedda3787abfdbc6e0df0ce63b80e936fd358}\\
 Final Dolphin Mem0 evaluation SHA-256 & \path{2283f4b6c2c3ded66005171abeed395c2614378f3445af1ef656d259afbb712b}\\
-AGMI installed wheel SHA-256 & \path{61cf17963177bd7e9c6a5e9fe18a3be30356cc0b2d4d6d373b215a9fe12266dd}\\
+AGMI vendor-candidate wheel SHA-256 & \path{61cf17963177bd7e9c6a5e9fe18a3be30356cc0b2d4d6d373b215a9fe12266dd}\\
+AGMI published PyPI wheel SHA-256 & \path{05ca2c579be1af55de1da056ae257062417831b2e8eb4f2fda2a6413ba3ee923}\\
 AGMI runner output SHA-256 & \path{5498bedba335d6c7f40846e17e13413e22d25c298675aa34536c80315f60cceb}\\\bottomrule
 \end{longtable}
 \end{small}

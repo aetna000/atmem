@@ -9,11 +9,34 @@
   "longmemeval_v2": {
     "sample": "frozen-23-of-451",
     "arms": {
-      "atmem-typed-local": {"correct": 5, "total": 23, "accuracy": 0.21739130434782608, "system_failures": 6},
-      "agentrunbook-r": {"correct": 4, "total": 23, "accuracy": 0.17391304347826086, "system_failures": 4},
-      "mem0-oss": {"correct": 1, "total": 23, "accuracy": 0.043478260869565216, "system_failures": 1},
-      "no-retrieval": {"correct": 1, "total": 23, "accuracy": 0.043478260869565216},
-      "verified-evidence": {"correct": 19, "total": 23, "accuracy": 0.8260869565217391}
+      "atmem-typed-local": {
+        "correct": 5,
+        "total": 23,
+        "accuracy": 0.21739130434782608,
+        "system_failures": 6
+      },
+      "agentrunbook-r": {
+        "correct": 4,
+        "total": 23,
+        "accuracy": 0.17391304347826086,
+        "system_failures": 4
+      },
+      "mem0-oss": {
+        "correct": 1,
+        "total": 23,
+        "accuracy": 0.043478260869565216,
+        "system_failures": 1
+      },
+      "no-retrieval": {
+        "correct": 1,
+        "total": 23,
+        "accuracy": 0.043478260869565216
+      },
+      "verified-evidence": {
+        "correct": 19,
+        "total": 23,
+        "accuracy": 0.8260869565217391
+      }
     },
     "artifact": {
       "file": "matched-results.json",
@@ -29,14 +52,38 @@
     "source_commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
     "split_sha256": "60c681f8e7ce0796ec0209294c885abe7dc0fe5a594226aa1035c401535658de",
     "arms": {
-      "atmem": {"tasks_passed": 2, "tasks": 30, "checks_passed": 15, "checks": 97, "system_failures": 0},
-      "mem0-oss": {"tasks_passed": 3, "tasks": 30, "checks_passed": 16, "checks": 97, "system_failures": 0}
+      "atmem": {
+        "tasks_passed": 2,
+        "tasks": 30,
+        "checks_passed": 15,
+        "checks": 97,
+        "system_failures": 0
+      },
+      "mem0-oss": {
+        "tasks_passed": 3,
+        "tasks": 30,
+        "checks_passed": 16,
+        "checks": 97,
+        "system_failures": 0
+      }
     },
     "controls": {
-      "removal": {"passed": 30, "total": 30},
-      "paired_removal_and_positive": {"passed": 28, "total": 30},
-      "restored_gate_open": {"passed": 28, "total": 30},
-      "overblocked_case_ids": ["morgan:063", "morgan:138"]
+      "removal": {
+        "passed": 30,
+        "total": 30
+      },
+      "paired_removal_and_positive": {
+        "passed": 28,
+        "total": 30
+      },
+      "restored_gate_open": {
+        "passed": 28,
+        "total": 30
+      },
+      "overblocked_case_ids": [
+        "morgan:063",
+        "morgan:138"
+      ]
     },
     "artifact": {
       "file": "matched-results.json",
@@ -72,7 +119,9 @@
         "checks_passed": 15,
         "checks": 97,
         "system_failures": 1,
-        "system_failure_case_ids": ["morgan:138"]
+        "system_failure_case_ids": [
+          "morgan:138"
+        ]
       },
       "mem0-oss": {
         "tasks_passed": 5,
@@ -83,13 +132,24 @@
       }
     },
     "controls": {
-      "restored_gate_open": {"passed": 30, "total": 30},
-      "removal": {"passed": 30, "total": 30},
-      "paired_removal_and_positive": {"passed": 29, "total": 30},
+      "restored_gate_open": {
+        "passed": 30,
+        "total": 30
+      },
+      "removal": {
+        "passed": 30,
+        "total": 30
+      },
+      "paired_removal_and_positive": {
+        "passed": 29,
+        "total": 30
+      },
       "model_invocations_during_removal": 0,
       "tool_calls_during_removal": 0,
       "false_system_failure_blocks": 0,
-      "failed_positive_case_ids": ["morgan:138"]
+      "failed_positive_case_ids": [
+        "morgan:138"
+      ]
     },
     "artifacts": {
       "matched_results_sha256": "87c1b8140d80e293765a6c4260744c51db005767fd88f7e8e3ce0c50d4806d12",
@@ -135,15 +195,32 @@
     "source_package_version": "0.6.3",
     "atmem_commit": "fdc63de4b5ced0029f2717ee542b9600730ce3fd",
     "arms": {
-      "atmem-chain": {"detected": 8, "total": 9},
-      "atmem-chain-with-external-checkpoint": {"detected": 9, "total": 9}
+      "atmem-chain": {
+        "detected": 8,
+        "total": 9
+      },
+      "atmem-chain-with-external-checkpoint": {
+        "detected": 9,
+        "total": 9
+      }
     },
     "artifact": {
       "file": "agmi-2.3.8-20261010.json",
-      "sha256": "60275b8d5b0d174ecbc66c8cb8bc940f84743f605dc6a04707d8ea9fc57ca22a"
+      "sha256": "d21c8bd6fbde8fa817cde5605409f4b0f4ea442eb73f5ee31e100d0cabc383e3"
     },
-    "independence": "Vendor reproduction with the unchanged upstream AGMI harness; independent upstream rerun pending.",
-    "known_limit": "Chain-only storage cannot distinguish a legitimate old store from a whole-store snapshot rollback without trusted state outside the attacker-controlled store directory."
+    "independence": "Independently reproduced by the AGMI maintainer on Linux and macOS from the published AtMem 2.3.8 PyPI wheel; results match the vendor reproduction.",
+    "known_limit": "Chain-only storage cannot distinguish a legitimate old store from a whole-store snapshot rollback without trusted state outside the attacker-controlled store directory.",
+    "published_wheel_sha256": "05ca2c579be1af55de1da056ae257062417831b2e8eb4f2fda2a6413ba3ee923",
+    "independent_reproduction": {
+      "status": "confirmed",
+      "performed_by": "AGMI maintainer",
+      "platforms": [
+        "Linux, Python 3.12.3",
+        "macOS, Python 3.12"
+      ],
+      "pinned_tests_passed": "7/7 on each platform",
+      "evidence_url": "https://github.com/tech4biz-yasha/agent-memory-integrity/pull/7#issuecomment-6095069355"
+    }
   },
   "limitations": [
     "These are fixed development samples, not official or statistically representative leaderboard scores.",

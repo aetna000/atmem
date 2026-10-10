@@ -1,12 +1,13 @@
 {
-  "format": "atmem-agmi-vendor-reproduction-v1",
+  "format": "atmem-agmi-reproduction-v2",
   "recorded_date": "2026-10-10",
-  "claim": "vendor-reproduced-upstream-harness-awaiting-independent-upstream-rerun",
+  "claim": "independently-reproduced-from-published-pypi-wheel",
   "atmem": {
     "version": "2.3.8",
     "commit": "fdc63de4b5ced0029f2717ee542b9600730ce3fd",
     "wheel": "atmem-2.3.8-py3-none-any.whl",
-    "wheel_sha256": "61cf17963177bd7e9c6a5e9fe18a3be30356cc0b2d4d6d373b215a9fe12266dd"
+    "wheel_sha256": "61cf17963177bd7e9c6a5e9fe18a3be30356cc0b2d4d6d373b215a9fe12266dd",
+    "artifact_role": "vendor candidate measured before publication"
   },
   "agmi": {
     "version": "0.6.3",
@@ -65,5 +66,38 @@
     }
   },
   "known_limit": "Chain-only storage cannot distinguish a legitimate old store from a whole-store snapshot rollback without trusted state outside the attacker-controlled store directory.",
-  "independence": "This is an AtMem-maintainer reproduction using the unchanged upstream harness. It is not an independent AGMI measurement; an upstream rerun is requested."
+  "independence": "Independently reproduced by the AGMI maintainer on Linux and macOS from the published AtMem 2.3.8 PyPI wheel; results match the vendor candidate reproduction.",
+  "independent_reproduction": {
+    "status": "confirmed",
+    "performed_by": "AGMI maintainer",
+    "merged_pr": "https://github.com/tech4biz-yasha/agent-memory-integrity/pull/7",
+    "evidence_url": "https://github.com/tech4biz-yasha/agent-memory-integrity/pull/7#issuecomment-6095069355",
+    "package_source": "published PyPI wheel",
+    "version": "2.3.8",
+    "wheel_sha256": "05ca2c579be1af55de1da056ae257062417831b2e8eb4f2fda2a6413ba3ee923",
+    "platforms": [
+      "Linux, Python 3.12.3",
+      "macOS, Python 3.12"
+    ],
+    "pinned_tests": {
+      "passed": 7,
+      "total": 7,
+      "on_each_platform": true
+    },
+    "profiles": {
+      "atmem-chain": {
+        "detected": 8,
+        "total": 9,
+        "accepted": [
+          "snapshot_rollback"
+        ]
+      },
+      "atmem-chain+checkpoint": {
+        "detected": 9,
+        "total": 9,
+        "accepted": []
+      }
+    },
+    "artifact_comparison": "The installed AtMem package matches tag v2.3.8. Relative to candidate fdc63de, atmem/control/compat.py differs only in a comment and the tested OpenClaw version string."
+  }
 }

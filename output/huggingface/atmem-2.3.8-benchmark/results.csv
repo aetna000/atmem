@@ -7,7 +7,7 @@ DolphinBench,tasks_passed,AtMem,b97d35e_candidate,9,30,30.0,0,frozen_5_percent_d
 DolphinBench,tasks_passed,Mem0 OSS,d3891e48_declares_2.1.0,7,30,23.3,0,frozen_5_percent_development_sample
 DolphinBench,checks_passed,AtMem,b97d35e_candidate,32,97,33.0,0,frozen_5_percent_development_sample
 DolphinBench,checks_passed,Mem0 OSS,d3891e48_declares_2.1.0,27,97,27.8,0,frozen_5_percent_development_sample
-AGMI 0.6.3,attacks_detected,AtMem audit chain,2.3.8,8,9,88.9,0,maintainer_reproduction
-AGMI 0.6.3,attacks_detected,AtMem audit chain plus external checkpoint,2.3.8,9,9,100.0,0,maintainer_reproduction
+AGMI 0.6.3,attacks_detected,AtMem audit chain,2.3.8,8,9,88.9,0,independently_reproduced
+AGMI 0.6.3,attacks_detected,AtMem audit chain plus external checkpoint,2.3.8,9,9,100.0,0,independently_reproduced
 AGMI 0.6.3,attacks_detected,Historical AtMem audit chain,2.3.7,0,9,0.0,0,historical_local_result
 AGMI 0.6.3,attacks_detected,Historical AtMem chain plus external anchor,2.3.7,1,9,11.1,0,historical_local_result

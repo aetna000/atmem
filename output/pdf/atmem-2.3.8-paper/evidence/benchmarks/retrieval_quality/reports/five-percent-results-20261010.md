@@ -52,7 +52,7 @@ The action-quality result is still weak despite correct gate behavior. Inspectio
 - LongMemEval recorded six AtMem system failures: three incomplete reader finalizations at the 20,000-token cap and three governance rejections outside the frozen selection. AgentRunbook-R had four incomplete finalizations; Mem0 had one.
 - DolphinBench arms used source commit `81cb6f8405b40a9e76089cef650806a80af06ea2` and split SHA-256 `60c681f8e7ce0796ec0209294c885abe7dc0fe5a594226aa1035c401535658de`.
 - The final Dolphin arms cover the same 30 task IDs. Both arms retained zero system failures. The Mem0 arm emitted warnings because optional spaCy and `fastembed` extras were absent; it nevertheless completed through the pinned matched adapter.
-- AGMI used the unchanged upstream runner at commit `115493a41a7b41952f92ec07e1ea0932926e194f`, package 0.6.3, and an installed 2.3.8 wheel built from `fdc63de4b5ced0029f2717ee542b9600730ce3fd`. This is a vendor reproduction; an independent upstream rerun is pending.
+- AGMI used the unchanged upstream runner at commit `115493a41a7b41952f92ec07e1ea0932926e194f`, package 0.6.3. The vendor run used a 2.3.8 candidate wheel built from `fdc63de4b5ced0029f2717ee542b9600730ce3fd`. The AGMI maintainer independently reproduced the same outcomes from the published PyPI wheel on Linux with Python 3.12.3 and macOS with Python 3.12; all seven pinned tests passed on both platforms. See [AGMI PR #7](https://github.com/tech4biz-yasha/agent-memory-integrity/pull/7).
 - The paid RunPod reader was stopped after the final artifacts were written.
 
 ## Evidence hashes
@@ -68,9 +68,10 @@ The action-quality result is still weak despite correct gate behavior. Inspectio
 | Fresh Dolphin matched results (`b550f26`) | `87c1b8140d80e293765a6c4260744c51db005767fd88f7e8e3ce0c50d4806d12` |
 | Fresh Dolphin paired controls | `fb291c2004abe23a6a2e081ffa59ce4e0319e0ffd2adfd7a635c9a8684feab6f` |
 | Fresh Dolphin restored-gate precheck | `62f9177cd219ce0a4cc2d60283407461b6190f28aa3d87de075eeee20332568d` |
-| AGMI compact reproduction record | `60275b8d5b0d174ecbc66c8cb8bc940f84743f605dc6a04707d8ea9fc57ca22a` |
+| AGMI compact reproduction record | `d21c8bd6fbde8fa817cde5605409f4b0f4ea442eb73f5ee31e100d0cabc383e3` |
 | AGMI unchanged-runner source output | `5498bedba335d6c7f40846e17e13413e22d25c298675aa34536c80315f60cceb` |
-| AGMI 2.3.8 wheel | `61cf17963177bd7e9c6a5e9fe18a3be30356cc0b2d4d6d373b215a9fe12266dd` |
+| AGMI 2.3.8 vendor candidate wheel | `61cf17963177bd7e9c6a5e9fe18a3be30356cc0b2d4d6d373b215a9fe12266dd` |
+| AGMI 2.3.8 published PyPI wheel, independently reproduced | `05ca2c579be1af55de1da056ae257062417831b2e8eb4f2fda2a6413ba3ee923` |
 | Final Dolphin AtMem evaluation (`b97d35e`) | `aa5242c509f4748a4ab067a56e8bedda3787abfdbc6e0df0ce63b80e936fd358` |
 | Matched Dolphin Mem0 evaluation | `2283f4b6c2c3ded66005171abeed395c2614378f3445af1ef656d259afbb712b` |
 | Final Dolphin candidate wheel | `6ac2cc33e7a17792b15aeddbdf1d5a24efdb159e16781962503b69b37adfa97e` |
