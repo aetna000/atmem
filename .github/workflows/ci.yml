@@ -358,14 +358,14 @@ jobs:
       matrix:
         include:
           - label: Debian Bookworm
-            image: debian:bookworm-slim
+            image: public.ecr.aws/docker/library/debian:bookworm-slim
             setup: >-
               apt-get update &&
               DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends
               ca-certificates libstdc++6 python3 python3-pip python3-venv &&
               rm -rf /var/lib/apt/lists/*
           - label: Fedora latest
-            image: fedora:latest
+            image: registry.fedoraproject.org/fedora:latest
             setup: >-
               dnf install -y ca-certificates libstdc++ python3 python3-pip &&
               dnf clean all

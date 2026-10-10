@@ -8,6 +8,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNNER = ROOT / "research/production_benchmarks/run_dolphin_development.py"
@@ -18,6 +20,19 @@ def _arm_arguments(parser: argparse.ArgumentParser, name: str) -> None:
     parser.add_argument(f"--{name}-checkpoint-root", required=True)
     parser.add_argument(f"--{name}-finalization-gate", required=True)
     parser.add_argument(f"--{name}-finalization-manifest", required=True)
+
+
+def _evaluation_receipt(config_path: Path) -> Path:
+    """Resolve the receipt from Dolphin's configured mutable run output."""
+    configuration = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    if not isinstance(configuration, dict) or not str(
+        configuration.get("output") or ""
+    ).strip():
+        raise RuntimeError("DolphinBench config does not declare an output directory")
+    output = Path(str(configuration["output"])).expanduser()
+    if not output.is_absolute():
+        output = config_path.parent / output
+    return output.resolve() / "development-evaluation.json"
 
 
 def main() -> int:
@@ -35,9 +50,10 @@ def main() -> int:
     results = []
     for name in ("atmem", "mem0"):
         checkpoint = Path(getattr(args, f"{name}_checkpoint_root")).expanduser().resolve()
+        config_path = Path(getattr(args, f"{name}_config")).expanduser().resolve()
         command = [
             sys.executable, str(RUNNER), "--checkout", args.checkout,
-            "--config", getattr(args, f"{name}_config"),
+            "--config", str(config_path),
             "--checkpoint-root", str(checkpoint),
             "--finalization-gate", getattr(args, f"{name}_finalization_gate"),
             "--finalization-manifest", getattr(args, f"{name}_finalization_manifest"),
@@ -46,7 +62,7 @@ def main() -> int:
         completed = subprocess.run(command, cwd=ROOT, check=False)
         if completed.returncode:
             raise RuntimeError(f"DolphinBench {name} arm failed with {completed.returncode}")
-        result_path = checkpoint / "development-evaluation.json"
+        result_path = _evaluation_receipt(config_path)
         if not result_path.is_file():
             raise RuntimeError(f"DolphinBench {name} arm produced no evaluation receipt")
         results.append(json.loads(result_path.read_text(encoding="utf-8")))

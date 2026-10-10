@@ -15,6 +15,23 @@ _PLAN_STOP = frozenset({
     "that", "the", "their", "this", "to", "we", "with", "you", "send",
     "email", "post", "create", "update", "inspect", "review", "find", "would", "like",
 })
+_ACTION_CONTENT_STOP = _PLAN_STOP | frozenset({
+    "again", "archive", "body", "concise", "document", "notes", "record",
+    "reference", "reply", "short", "titled", "wording",
+})
+_ACTION_FIELD_CUES = frozenset({
+    "assurance", "assurances", "confidence", "contact", "deduction",
+    "deductions", "deposit", "details", "dispute", "excluded", "included",
+    "obligation", "obligations", "outcome", "reproduction", "scope", "status",
+})
+_MONTH_NUMBERS = {
+    "jan": 1, "january": 1, "feb": 2, "february": 2,
+    "mar": 3, "march": 3, "apr": 4, "april": 4,
+    "may": 5, "jun": 6, "june": 6, "jul": 7, "july": 7,
+    "aug": 8, "august": 8, "sep": 9, "sept": 9,
+    "september": 9, "oct": 10, "october": 10,
+    "nov": 11, "november": 11, "dec": 12, "december": 12,
+}
 
 
 def _strip_host_scaffolding(query: str) -> str:
@@ -130,7 +147,114 @@ def _entity(value: str) -> str:
     return words[0] if words else "query"
 
 
-def _targeted_facets(query: str) -> tuple[str, ...]:
+def _action_content_facets(query: str) -> tuple[str, ...]:
+    """Return bounded answer-blind content anchors for addressed app actions."""
+    values: list[str] = []
+    # Separate the content of an app action from its transport and target.  A
+    # query such as "Email person@example.com board-safe wording for what the
+    # Q2 Compass evidence demonstrates" is otherwise dominated by the exact
+    # address and the generic action verb.  The source episode that contains
+    # the requested evidence need not repeat either.  Compact adjacent content
+    # anchors are answer-blind (they come only from the request), bounded, and
+    # are nominations rather than extra sufficiency obligations.
+    addressed_content = re.match(
+        r"\s*(?:\[\d{4}-\d{2}-\d{2}\]\s*)?(?:please\s+)?"
+        r"(?:email|send|message|post|notify|ask)\b\s+"
+        r"(?:[^\s,;]+@[A-Za-z0-9.-]+|#[A-Za-z0-9_-]+)\s+(.+)",
+        query,
+        re.IGNORECASE | re.DOTALL,
+    )
+    general_content = re.match(
+        r"\s*(?:\[\d{4}-\d{2}-\d{2}\]\s*)?(?:please\s+)?"
+        r"(?:create|email|send|message|post|notify|ask|update)\b\s+(.+)",
+        query,
+        re.IGNORECASE | re.DOTALL,
+    )
+    action_content = addressed_content or general_content
+    if action_content:
+        content_tokens = [
+            token
+            for token in re.findall(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*", action_content.group(1))
+            if token.casefold() not in _ACTION_CONTENT_STOP | _QUESTION_WORDS
+            and len(token) > 1
+        ]
+        for width in (2, 3):
+            for index in range(max(0, len(content_tokens) - width + 1)):
+                facet = " ".join(content_tokens[index:index + width])
+                if len(facet) <= 64:
+                    values.append(facet)
+                if len(values) >= 64:
+                    break
+            if len(values) >= 64:
+                break
+    unique = tuple(dict.fromkeys(values))
+
+    def salience(value: str) -> tuple[int, int, int]:
+        tokens = value.split()
+        named = sum(
+            token[:1].isupper() or any(character.isdigit() for character in token)
+            for token in tokens
+        )
+        compound = sum("-" in token for token in tokens)
+        return (-named, -compound, len(tokens))
+
+    ordered = list(sorted(unique, key=salience))
+    selected: list[str] = []
+    compound_by_root: dict[str, str] = {}
+    for item in ordered:
+        tokens = item.split()
+        root_index = next((i for i, token in enumerate(tokens) if "-" in token), None)
+        if root_index is None:
+            continue
+        root = tokens[root_index].casefold()
+        prior = compound_by_root.get(root)
+        if prior is None:
+            compound_by_root[root] = item
+            continue
+        prior_tokens = prior.split()
+        prior_index = next(i for i, token in enumerate(prior_tokens) if "-" in token)
+        if (root_index == len(tokens) - 1, len(tokens)) < (
+            prior_index == len(prior_tokens) - 1, len(prior_tokens)
+        ):
+            compound_by_root[root] = item
+    compound_facets = list(compound_by_root.values())
+    cue_facets: list[str] = []
+    covered_cues: set[str] = set()
+    for item in ordered:
+        item_cues = _ACTION_FIELD_CUES & {
+            token.casefold() for token in item.split()
+        }
+        if not item_cues - covered_cues:
+            continue
+        cue_facets.append(item)
+        covered_cues.update(item_cues)
+    for value in (
+        *[
+            item for item in ordered
+            if any(
+                token[:1].isupper() or any(character.isdigit() for character in token)
+                for token in item.split()
+            )
+        ][:3],
+        *compound_facets[:1],
+        *cue_facets[:4],
+        *ordered,
+    ):
+        if value not in selected:
+            selected.append(value)
+        if len(selected) >= 8:
+            break
+    if re.search(
+        r"\b(?:usual|default|normal)\s+(?:person|contact|recipient)\s+on\s+"
+        r"(?:the\s+)?external\s+(?:thread|conversation)\b",
+        query,
+        re.IGNORECASE,
+    ):
+        selected = ["outside email CC", *selected]
+    return tuple(dict.fromkeys(selected[:8]))
+
+
+def targeted_facets(query: str) -> tuple[str, ...]:
     """Derive answer-blind search facets from explicit alternatives and fields.
 
     These are search nominations, not additional sufficiency obligations. A
@@ -138,14 +262,158 @@ def _targeted_facets(query: str) -> tuple[str, ...]:
     has evidence for the matching alternative only; requiring evidence for
     every distractor would incorrectly fail closed.
     """
-    values: list[str] = []
+    priority_values: list[str] = []
+    values: list[str] = list(_action_content_facets(query))
+    identifiers = [
+        " ".join(value.split())
+        for value in re.findall(r"`([^`]{2,96})`", query)
+    ]
+    priority_values.extend(identifiers)
+    # Canonical episodes prefix their exact observation time in ISO form.
+    # Nominate an equivalent ISO day/month from the user's explicit temporal
+    # wording, and combine it with an explicit identifier or proper name. This
+    # distinguishes the requested historical outcome from years of later notes
+    # about the same entity without guessing any answer value.
+    temporal_iso: str | None = None
+    full_date = re.search(
+        r"\b(?P<month>jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|"
+        r"jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|"
+        r"nov(?:ember)?|dec(?:ember)?)\s+(?P<day>\d{1,2}),?\s+"
+        r"(?P<year>(?:19|20)\d{2})\b",
+        query,
+        re.IGNORECASE,
+    )
+    month_year = re.search(
+        r"\b(?P<month>jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|"
+        r"jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|"
+        r"nov(?:ember)?|dec(?:ember)?)\s+(?P<year>(?:19|20)\d{2})\b",
+        query,
+        re.IGNORECASE,
+    )
+    temporal_match = full_date or month_year
+    if temporal_match is not None:
+        month = _MONTH_NUMBERS.get(temporal_match.group("month").casefold())
+        if month is not None:
+            temporal_iso = f'{temporal_match.group("year")}-{month:02d}'
+            if full_date is not None:
+                temporal_iso += f'-{int(full_date.group("day")):02d}'
+            priority_values.append(temporal_iso)
+    if temporal_iso:
+        if identifiers:
+            priority_values.insert(0, f"{temporal_iso} {identifiers[0]}")
+        proper_query = re.sub(
+            r"^\s*(?:\[\d{4}-\d{2}-\d{2}\]\s*)?(?:please\s+)?"
+            r"(?:create|email|send|message|post|notify|ask|update)\s+",
+            "",
+            query,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        proper_name = re.search(
+            r"\b([A-Z][a-z]+\s+[A-Z][A-Za-z'-]+)\b", proper_query
+        )
+        if proper_name:
+            name = re.sub(r"['’]s$", "", proper_name.group(1))
+            priority_values.insert(0, f"{temporal_iso} {name}")
+    # Action requests often refer to an identity indirectly ("our CEO", "the
+    # integration contact", or "the usual person on the external thread").
+    # Preserve those compact, answer-blind phrases as independent nominations;
+    # otherwise the surrounding action prose can bury the exact name/address
+    # record in a long history.  These are search facets, never inferred values
+    # or additional sufficiency obligations.
+    for contact in re.finditer(
+        r"\b(?:the|a|an)\s+([A-Za-z0-9_-]+(?:\s+[A-Za-z0-9_-]+){0,3}\s+contact)\b",
+        query,
+        re.IGNORECASE,
+    ):
+        value = " ".join(contact.group(1).split()).strip(" ,.;")
+        if value:
+            values.append(value)
+    for indirect in re.finditer(
+        r"\b(?:usual|default|normal)\s+(?:person|contact|recipient)\s+on\s+"
+        r"(?:the\s+)?([^?.;,\n]{2,64})",
+        query,
+        re.IGNORECASE,
+    ):
+        value = " ".join(indirect.group(1).split()).strip(" ,.;")
+        if value:
+            values.append(value)
+            # Thread/conversation wording and stored email wording are common
+            # host-level paraphrases of the same communication surface. Keep
+            # both as independent lexical nominations without guessing the
+            # recipient or address.
+            email_surface = re.sub(
+                r"\b(?:thread|conversation)\b", "email", value,
+                flags=re.IGNORECASE,
+            )
+            if email_surface != value:
+                values.extend((email_surface, f"{email_surface} CC"))
+                # Users commonly say "external thread" while durable contact
+                # policy says "outside email".  Nominate that lexical alias
+                # explicitly; it identifies a communication surface, not a
+                # person or benchmark answer.
+                outside_surface = re.sub(
+                    r"\bexternal\b", "outside", email_surface,
+                    flags=re.IGNORECASE,
+                )
+                if outside_surface != email_surface:
+                    values.extend((outside_surface, f"{outside_surface} CC"))
+    for role in re.finditer(
+        r"\b(?:send|message|email|notify|copy|cc|ask)\s+"
+        r"(?:our|my|the)\s+([A-Za-z][A-Za-z0-9_-]*)\b",
+        query,
+        re.IGNORECASE,
+    ):
+        values.append(role.group(1))
+    for approval in re.finditer(
+        r"\bwho\s+should\s+(?:approve|own|authorize|review)\s+"
+        r"(.+?)(?=\s+before\b|\s+after\b|\s+when\b|[?.;,]|$)",
+        query,
+        re.IGNORECASE,
+    ):
+        value = " ".join(approval.group(1).split()).strip(" ,.;")
+        if value:
+            values.append(value)
+    temporal_subject = re.search(
+        r"\b((?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|"
+        r"jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|"
+        r"nov(?:ember)?|dec(?:ember)?)\s+\d{1,2},?\s+\d{4}"
+        r"(?:\s+[A-Za-z0-9_-]+){1,3}?)(?=\s+(?:authoriz(?:e|ed|es|ing)|"
+        r"allow(?:ed|s|ing)?|open(?:ed|s|ing)?|mean(?:t|s|ing)?|"
+        r"establish(?:ed|es|ing)?|require(?:d|s|ing)?|change(?:d|s|ing)?|"
+        r"show(?:ed|s|ing)?|prov(?:e|ed|es|ing))\b|[?.;,]|$)",
+        query,
+        re.IGNORECASE,
+    )
+    if temporal_subject:
+        temporal_value = " ".join(temporal_subject.group(1).split())
+        values.append(temporal_value)
+        # The canonical episode prefix stores narrative time as ISO-8601,
+        # while the request usually spells the month. Preserve an equivalent
+        # answer-blind ISO nomination so a completed event recorded on the
+        # requested day is not hidden by an older scheduling statement that
+        # repeats the natural-language date in its body.
+        dated = re.match(
+            r"(?P<month>[A-Za-z]+)\s+(?P<day>\d{1,2}),?\s+"
+            r"(?P<year>\d{4})(?P<subject>.*)",
+            temporal_value,
+        )
+        if dated:
+            month = _MONTH_NUMBERS.get(dated.group("month").casefold())
+            if month is not None:
+                values.append(
+                    f'{dated.group("year")}-{month:02d}-'
+                    f'{int(dated.group("day")):02d}{dated.group("subject")}'
+                )
     workflow = re.search(
         r"\bcreat(?:e|ing)\s+(?:a\s+|new\s+|a\s+new\s+)?"
         r"([A-Za-z][A-Za-z_-]*)(?:\s+requests?)?\b",
         query,
         re.IGNORECASE,
     )
-    if workflow:
+    if workflow and workflow.group(1).casefold() not in {
+        "concise", "document", "reference", "short",
+    }:
         values.append(f"create {workflow.group(1).casefold()}")
     # Preserve the user's task intent as a compact nomination query. Long
     # questions often wrap a short action in UI, location, and answer-format
@@ -216,7 +484,7 @@ def _targeted_facets(query: str) -> tuple[str, ...]:
         # structural range.
         values.extend(unique_fields)
         values.extend(f"{prefix} {field}".strip() for field in unique_fields)
-    return tuple(dict.fromkeys(values))
+    return tuple(dict.fromkeys((*priority_values, *values)))
 
 
 class DeterministicPlanner:
@@ -252,7 +520,8 @@ class DeterministicPlanner:
                     r"\b(?:19|20)\d{2}(?:-\d{2}-\d{2})?|"
                     r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|"
                     r"jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|"
-                    r"nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:,\s*\d{4})?",
+                    r"nov(?:ember)?|dec(?:ember)?)\s+(?:(?:19|20)\d{2}|"
+                    r"\d{1,2}(?:,\s*\d{4})?)\b",
                     clause, re.IGNORECASE,
                 )
                 obligations.append(EvidenceObligation(
@@ -271,7 +540,7 @@ class DeterministicPlanner:
             tuple(item.relation_or_action or normalized for item in obligations)
         )
         routed_queries = tuple(dict.fromkeys((
-            *_targeted_facets(query), normalized, *obligation_queries,
+            *targeted_facets(query), normalized, *obligation_queries,
         )))
         pools = {
             "raw_state": routed_queries,

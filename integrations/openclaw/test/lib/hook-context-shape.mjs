@@ -87,9 +87,11 @@ export function readOpenClawVersion(packageDir) {
  * never mistaken for this type's own.
  */
 export function extractTypeFields(source, typeName) {
-  const header = `type ${typeName} = {`;
-  const start = source.indexOf(header);
-  if (start === -1) {
+  const escapedType = typeName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const declaration = new RegExp(
+    `type\\s+${escapedType}\\s*=\\s*(?:(\\w+)\\s*&\\s*)?\\{`,
+  ).exec(source);
+  if (!declaration) {
     // OpenClaw 2026.9.6 makes this context versioned. AtMem registers the
     // direct-turn (default v1) factory, whose declared branch is the base type.
     // Match that exact declaration; do not infer safety for an unknown alias.
@@ -98,7 +100,7 @@ export function extractTypeFields(source, typeName) {
     }
     return null;
   }
-  const open = start + header.length - 1;
+  const open = declaration.index + declaration[0].length - 1;
   let depth = 0;
   let end = -1;
   for (let i = open; i < source.length; i += 1) {
@@ -125,17 +127,29 @@ export function extractTypeFields(source, typeName) {
       else if (ch === "}") nesting -= 1;
     }
   }
-  return fields;
+  const inherited = declaration[1]
+    ? (extractTypeFields(source, declaration[1]) ?? [])
+    : [];
+  return [...inherited, ...fields].filter(
+    (field, index, all) => all.findIndex((item) => item.name === field.name) === index,
+  );
 }
 
 /** Map each amendment hook to the context type name OpenClaw passes it. */
-function extractHookContexts(sources) {
+export function extractHookContexts(sources) {
   const contexts = {};
   for (const source of sources) {
     for (const hook of AMENDMENT_HOOKS) {
       if (contexts[hook]) continue;
-      const match = new RegExp(`^\\s+${hook}:\\s*\\(event:[^,]+,\\s*ctx:\\s*(\\w+)\\)`, "m")
-        .exec(source);
+      const direct = new RegExp(
+        `^\\s+${hook}:\\s*\\(event:[^,]+,\\s*ctx:\\s*(\\w+)\\)`,
+        "m",
+      ).exec(source);
+      const mapped = new RegExp(
+        `^\\s+${hook}:\\s*AsyncPluginHook<[^,\\n]+,\\s*(\\w+)`,
+        "m",
+      ).exec(source);
+      const match = direct ?? mapped;
       if (match) contexts[hook] = match[1];
     }
   }

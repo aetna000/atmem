@@ -348,6 +348,10 @@ def main() -> None:
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--finalization-gate")
     parser.add_argument(
+        "--resume-progress",
+        help="Resume a checkpointed pilot after validating its frozen identity",
+    )
+    parser.add_argument(
         "--stage-gate", action="store_true",
         help="run the frozen six-question progress diagnostic",
     )
@@ -560,10 +564,8 @@ def main() -> None:
         expected_identity=expected_identity,
         expected_gate_type="longmemeval",
     )
-    output_root.mkdir(parents=True, exist_ok=False)
     progress_path = output_root / "pilot-progress.json"
-    cases: list[dict[str, Any]] = []
-    progress = {
+    progress_template = {
         "format": "atmem-longmemeval-v2-development-pilot-v1",
         "claim": claim_class,
         "protocol_sha256": _canonical_digest(protocol),
@@ -581,9 +583,65 @@ def main() -> None:
             canonical_digest(stage_gate) if stage_gate is not None else None
         ),
         "attribution_artifacts": _attribution_summary(attribution_artifacts),
-        "cases": cases,
     }
-    _write_progress(progress_path, progress)
+    if args.resume_progress:
+        resume_path = Path(args.resume_progress).expanduser().resolve()
+        if resume_path != progress_path.resolve() or not progress_path.is_file():
+            raise RuntimeError("resume progress must be the output root checkpoint")
+        progress = _load(progress_path)
+        for name, expected in progress_template.items():
+            if progress.get(name) != expected:
+                raise RuntimeError(f"resume progress identity differs: {name}")
+        cases = list(progress.get("cases") or ())
+        seen_pairs: set[tuple[str, str]] = set()
+        allowed_pairs = {
+            (question_id, method)
+            for question_id in selected_question_ids for method in METHODS
+        }
+        for case in cases:
+            pair = (str(case.get("question_id") or ""), str(case.get("method") or ""))
+            if pair not in allowed_pairs or pair in seen_pairs:
+                raise RuntimeError("resume progress contains an invalid or duplicate case")
+            seen_pairs.add(pair)
+            case_output = Path(str(case.get("output_dir") or "")).resolve()
+            expected_output = (
+                output_root / "runs" / pair[0] / pair[1]
+            ).resolve()
+            if case_output != expected_output:
+                raise RuntimeError("resume case output path differs from the checkpoint")
+            if case.get("actual_reason") != "system_failure" and not (
+                case_output / "per_question.jsonl"
+            ).is_file():
+                raise RuntimeError("resume case lacks its official scored artifact")
+        interrupted_root = output_root / "interrupted"
+        for question_id, method in sorted(allowed_pairs - seen_pairs):
+            case_output = output_root / "runs" / question_id / method
+            if not case_output.exists():
+                continue
+            preserved = interrupted_root / question_id / method
+            if preserved.exists():
+                raise RuntimeError("resume interrupted artifact already exists")
+            preserved.parent.mkdir(parents=True, exist_ok=True)
+            case_output.replace(preserved)
+        progress["resume_lineage"] = [
+            *list(progress.get("resume_lineage") or ()),
+            {
+                "prior_case_count": len(cases),
+                "prior_progress_sha256": canonical_digest(progress),
+                "cost_authorization_id": cost_authorization_id,
+                "runner_commit": subprocess.run(
+                    ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True,
+                    capture_output=True, text=True,
+                ).stdout.strip(),
+            },
+        ]
+        progress["cases"] = cases
+        _write_progress(progress_path, progress)
+    else:
+        output_root.mkdir(parents=True, exist_ok=False)
+        cases = []
+        progress = {**progress_template, "cases": cases}
+        _write_progress(progress_path, progress)
     requirements = dict(protocol["paid_run_requirements"])
     pod_id = os.environ.get("ATMEM_RUNPOD_POD_ID", "").strip()
     reader_base_url = os.environ.get("ATMEM_READER_BASE_URL", "").strip()
@@ -653,14 +711,17 @@ def main() -> None:
     )
     evaluators = _question_evaluators(data_root)
     llm_evaluators = {"llm_abstention_checker", "llm_gotchas_checker"}
+    completed_pairs = {
+        (str(case["question_id"]), str(case["method"])) for case in cases
+    }
     work = [
         (question_id, method)
         for question_id in selected_question_ids
         for method in METHODS
+        if (question_id, method) not in completed_pairs
     ]
     non_llm_work = [item for item in work if evaluators[item[0]] not in llm_evaluators]
     llm_work = [item for item in work if evaluators[item[0]] in llm_evaluators]
-    judge_gate = output_root / "openai-judge.gate"
     reader_proxy_url = ""
     cancellation_event = threading.Event()
 
@@ -711,7 +772,7 @@ def main() -> None:
                 confirmed_paid_run=True,
                 data_preflight=data_preflight,
                 shared_reader_runtime_reservation=True,
-                judge_gate_file=judge_gate if gated else None,
+                judge_gate_file=None,
                 local_runtime_root=case_runtime_root,
                 load_memory_dir=(
                     prebuilt_memory[(method, domain)]
@@ -812,7 +873,7 @@ def main() -> None:
     endpoint_receipt = output_root / "runpod-pod-runtime.json"
     try:
         reader_proxy_source = Path(__file__).with_name("runpod_reader_proxy.py")
-        reader_proxy_ready = output_root / "reader-proxy-ready.json"
+        reader_proxy_ready = output_root / f"reader-proxy-ready-attempt-{attempt}.json"
         proxy_environment = {
             "PATH": os.environ.get("PATH", ""),
             "PYTHONDONTWRITEBYTECODE": "1",
@@ -855,15 +916,13 @@ def main() -> None:
             )
         executor = ThreadPoolExecutor(max_workers=controller_case_concurrency)
         llm_futures = [
-            executor.submit(run_case, item, gated=True) for item in llm_work
+            executor.submit(run_case, item, gated=False) for item in llm_work
         ]
         try:
-            usage_paths = [
-                output_root / "runs" / question_id / method / "judge-usage.json"
-                for question_id, method in llm_work
-            ]
-            if llm_futures:
-                _wait_for_judge_gate(llm_futures, usage_paths)
+            for future in as_completed(llm_futures):
+                case = future.result()
+                cases.append(case)
+                _write_progress(progress_path, progress)
             if runner_owns_cleanup:
                 terminated = _terminate_runpod_pod(pod_id)
                 if not terminated:
@@ -904,15 +963,6 @@ def main() -> None:
                 f"seconds={active_seconds:.3f} estimated_cost_usd={reader_cost:.6f}",
                 flush=True,
             )
-            judge_gate.write_text(
-                "reader phase complete; Runpod pod "
-                + ("terminated\n" if terminated else "retained by controller\n"),
-                encoding="utf-8",
-            )
-            for future in as_completed(llm_futures):
-                case = future.result()
-                cases.append(case)
-                _write_progress(progress_path, progress)
         except BaseException:
             cancellation_event.set()
             for future in llm_futures:

@@ -243,6 +243,30 @@ def test_dolphin_removal_matching_is_conservative() -> None:
     }, requirement)
 
 
+def test_dolphin_controls_use_the_same_candidate_budget_as_production() -> None:
+    from research.production_benchmarks.run_dolphin_removal_controls import _recall
+
+    class CapturingMemory:
+        request = None
+
+        def context_generation(self, _scope):
+            return {"canonical_generation": 7}
+
+        def prepare_context_v3(self, request):
+            self.request = request
+            return object()
+
+    memory = CapturingMemory()
+    _recall(
+        memory, "morgan", "Who approves before HR schedules the final loop?",
+        options={"candidate_limit": 200, "context_bytes": 32_000},
+    )
+
+    assert memory.request is not None
+    assert memory.request.budget.total_candidates == 200
+    assert memory.request.budget.context_bytes == 32_000
+
+
 def test_performance_qualification_freezes_50k_and_100k_gates() -> None:
     from benchmarks.retrieval_quality.qualify_context_performance import _parts
 

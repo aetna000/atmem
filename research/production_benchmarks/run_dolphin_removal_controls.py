@@ -273,7 +273,10 @@ def _recall(memory: Memory, persona: str, query: str, *, options: dict) -> objec
         profile_id="context-fast",
         mode="active",
         generation=int(generation["canonical_generation"]),
-        budget=RetrievalBudget(context_bytes=int(options.get("context_bytes", 32_000))),
+        budget=RetrievalBudget(
+            total_candidates=int(options.get("candidate_limit", 200)),
+            context_bytes=int(options.get("context_bytes", 32_000)),
+        ),
     ))
 
 

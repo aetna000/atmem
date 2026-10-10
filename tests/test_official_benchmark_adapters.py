@@ -36,6 +36,54 @@ def test_paid_entrypoints_preserve_installed_product_precedence() -> None:
         assert "sys.path.insert(0, str(ROOT))" not in source
 
 
+def test_dolphin_development_runner_pins_direct_openai_judge() -> None:
+    source = (
+        ROOT / "research/production_benchmarks/run_dolphin_development.py"
+    ).read_text(encoding="utf-8")
+    assert "_pinned_openai_judge_identity" in source
+    assert '"backend": "openai"' in source
+    assert '"api_key_env": "OPENAI_API_KEY"' in source
+    assert '"https://api.openai.com/v1/chat/completions"' in source
+    assert source.index("grader_identity = _pinned_openai_judge_identity") < (
+        source.index("if args.preflight_only:")
+    )
+
+
+def test_dolphin_work_output_is_bound_separately_from_checkpoint(tmp_path: Path) -> None:
+    from research.production_benchmarks.run_dolphin_development import (
+        validate_work_directory,
+    )
+
+    configured_output = tmp_path / "run" / "atmem"
+    checkpoint_root = tmp_path / "state"
+    configured_output.mkdir(parents=True)
+    checkpoint_root.mkdir()
+
+    validate_work_directory(configured_output, configured_output)
+    with pytest.raises(RuntimeError, match="configured output"):
+        validate_work_directory(checkpoint_root, configured_output)
+
+
+def test_dolphin_checkpoint_digest_isolated_by_adapter(tmp_path: Path) -> None:
+    from research.production_benchmarks.run_dolphin_development import _tree_digest
+
+    atmem = tmp_path / "atmem-personas"
+    mem0 = tmp_path / "mem0-personas" / "alex"
+    atmem.mkdir(parents=True)
+    mem0.mkdir(parents=True)
+    (atmem / "alex.db").write_bytes(b"atmem-v1")
+    (mem0 / "memory.json").write_bytes(b"mem0-v1")
+    atmem_adapter = "research.production_benchmarks.dolphinbench:create_development"
+    mem0_adapter = "research.production_benchmarks.dolphinbench:create_mem0_development"
+
+    atmem_before = _tree_digest(tmp_path, atmem_adapter)
+    mem0_before = _tree_digest(tmp_path, mem0_adapter)
+    (atmem / "alex.db").write_bytes(b"atmem-audit-write")
+
+    assert _tree_digest(tmp_path, atmem_adapter) != atmem_before
+    assert _tree_digest(tmp_path, mem0_adapter) == mem0_before
+
+
 def test_dolphin_driver_returns_model_arguments_with_structured_app_result(
     monkeypatch,
 ) -> None:
@@ -159,6 +207,7 @@ def test_longmem_checkpoint_restore_preserves_saved_retrieval_parameters(
         "memory_type": "atmem",
         "memory_params": {
             "database_path": "/build/atmem.db",
+            "trajectory_pool_root": "/build/frozen-dataset",
             "subject_id": "subject",
             "agent_id": "agent",
             "workspace_id": "workspace",
@@ -171,6 +220,7 @@ def test_longmem_checkpoint_restore_preserves_saved_retrieval_parameters(
         "memory_type": "atmem",
         "memory_params": {
             "database_path": "/run/atmem.db",
+            "trajectory_pool_root": "/run/frozen-dataset",
             "subject_id": "subject",
             "agent_id": "agent",
             "workspace_id": "workspace",
@@ -180,6 +230,7 @@ def test_longmem_checkpoint_restore_preserves_saved_retrieval_parameters(
     assert restored["memory_params"] == {
         **saved["memory_params"],
         "database_path": "/run/atmem.db",
+        "trajectory_pool_root": "/run/frozen-dataset",
     }
 
     conflicting = json.loads(json.dumps(requested))
@@ -515,9 +566,23 @@ def test_longmem_mac_controller_runs_exactly_one_case_at_a_time() -> None:
     assert "max(1, len(llm_work))" not in source
     assert "ThreadPoolExecutor(max_workers=controller_case_concurrency)" in source
     assert "run_batch(non_llm_work, max_workers=1" in source
+    assert "executor.submit(run_case, item, gated=False)" in source
+    assert "_wait_for_judge_gate(llm_futures" not in source
     assert source.index(
         'billing = dict(requirements["reader_runtime_billing"])'
     ) < source.index('"gpu_reader_hardware": billing["hardware_id"]')
+
+
+def test_longmem_runner_resumes_only_validated_checkpoint_pairs() -> None:
+    source = (
+        ROOT / "research/production_benchmarks/run_longmem_pilot.py"
+    ).read_text(encoding="utf-8")
+    assert 'parser.add_argument(\n        "--resume-progress"' in source
+    assert 'progress["cases"] = cases' in source
+    assert "allowed_pairs - seen_pairs" in source
+    assert "resume progress contains an invalid or duplicate case" in source
+    assert "resume case lacks its official scored artifact" in source
+    assert 'output_root / "interrupted"' in source
 
 
 def test_longmem_controller_can_retain_shared_remote_worker() -> None:
@@ -1486,6 +1551,37 @@ def test_dolphin_mem0_recall_uses_text_without_atmem_package_contract() -> None:
     }
 
 
+def test_dolphin_blocked_settings_keep_gate_metadata_out_of_model_contract() -> None:
+    from research.production_benchmarks.dolphinbench import (
+        _blocked_interaction_message, _blocked_interaction_settings,
+    )
+
+    assert _blocked_interaction_settings("fixture-model") == {
+        "model": "fixture-model",
+    }
+    assert _blocked_interaction_message("required.fact") == {
+        "role": "assistant",
+        "content": (
+            "Blocked before model invocation: missing memory requirement required.fact"
+        ),
+        "usage": {"input_tokens": 0, "output_tokens": 0},
+    }
+
+
+def test_dolphin_matched_runner_reads_each_configured_output(tmp_path: Path) -> None:
+    from research.production_benchmarks.run_dolphin_matched import (
+        _evaluation_receipt,
+    )
+
+    config = tmp_path / "configs" / "atmem.yaml"
+    config.parent.mkdir()
+    config.write_text("output: ../runs/atmem\n", encoding="utf-8")
+
+    assert _evaluation_receipt(config) == (
+        tmp_path / "runs" / "atmem" / "development-evaluation.json"
+    ).resolve()
+
+
 def test_dolphin_development_runner_selects_before_official_execute(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -1574,6 +1670,16 @@ def test_dolphin_development_runner_selects_before_official_execute(
     assert result["tasks_passed"] == 30
     assert result["system_failure_count"] == 0
     assert result["claim"] == "development-30-of-600-not-an-official-score"
+
+    diagnostic_ids = {"alex:001", "morgan:002", "riley:003"}
+    diagnostic = dolphinbench.evaluate_development_diagnostic(
+        Runner(), tmp_path / "checkout", case_ids=diagnostic_ids
+    )
+    assert diagnostic["tests"] == 3
+    assert diagnostic["development_ids"] == sorted(diagnostic_ids)
+    assert diagnostic["checks"] == 3
+    assert diagnostic["tasks_passed"] == 3
+    assert diagnostic["claim"] == "bounded-development-diagnostic-not-an-official-score"
 
     class FailureRunner(Runner):
         directory = tmp_path / "failure"

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import re
 from dataclasses import dataclass
 
 from atmem.store.sqlite import SQLiteStore
 
 from .contracts import QueryPlan
+from .planner import _action_content_facets, targeted_facets
 from .pools import POOL_KINDS, PoolBudget
 
 _STOP = {
@@ -82,14 +84,14 @@ def _transition_target_match(text: str, query: str) -> bool:
     escaped = re.escape(after)
     return bool(
         re.search(
-            rf"{escaped}(?:(?!checked|selected).){{0,96}}"
+            rf"{escaped}(?:(?!checked|selected)[^;\n]){{0,96}}"
             rf"(?:checked|selected)\s*[=:]\s*['\"]?true",
             text,
             re.IGNORECASE | re.DOTALL,
         )
         or re.search(
             rf"(?:checked|selected)\s*[=:]\s*['\"]?true"
-            rf"(?:(?!checked|selected).){{0,96}}{escaped}",
+            rf"(?:(?!checked|selected)[^;\n]){{0,96}}{escaped}",
             text,
             re.IGNORECASE | re.DOTALL,
         )
@@ -374,6 +376,46 @@ class DeterministicRetriever:
             ))
         return tuple(values)
 
+    def _source_query_head(
+        self, generation_id: str, seed: RetrievedCandidate, query: str,
+    ) -> RetrievedCandidate:
+        """Choose the exact range in one nominated source best aligned to the request."""
+        rows = self.store._conn.execute(
+            """SELECT u.unit_id, r.part_id, r.start_offset, r.end_offset,
+                      p.content_bytes
+               FROM context_evidence_units u
+               JOIN context_unit_views v
+                 ON v.generation_id=u.generation_id AND v.unit_id=u.unit_id
+               JOIN context_unit_ranges ur
+                 ON ur.generation_id=u.generation_id AND ur.unit_id=u.unit_id
+               JOIN context_source_ranges r USING(range_id)
+               JOIN context_source_parts p
+                 ON p.source_id=r.source_id AND p.part_id=r.part_id
+               WHERE u.generation_id=? AND r.source_id=?
+                 AND u.lifecycle='active' AND v.kind='raw_state'
+               ORDER BY p.ordinal, r.start_offset, r.end_offset, u.unit_id""",
+            (generation_id, seed.source_id),
+        ).fetchall()
+        query_terms = set(_fts_terms(query))
+        candidates: list[RetrievedCandidate] = []
+        for row in rows:
+            body = bytes(row["content_bytes"])
+            start, end = int(row["start_offset"]), int(row["end_offset"])
+            candidates.append(RetrievedCandidate(
+                unit_id=str(row["unit_id"]), kind="raw_state",
+                source_id=seed.source_id, part_id=str(row["part_id"]),
+                start=start, end=end,
+                text=body[start:end].decode("utf-8", errors="replace"),
+                score=seed.score, matched_obligation_ids=(),
+            ))
+        return max(
+            candidates or [seed],
+            key=lambda item: (
+                len(query_terms & set(_fts_terms(item.text))),
+                -len(item.text.encode("utf-8")), item.unit_id,
+            ),
+        )
+
     def retrieve(
         self, *, generation_id: str, query: str, plan: QueryPlan, max_sources: int,
         allowed_unit_ids: frozenset[str] | None = None,
@@ -402,13 +444,25 @@ class DeterministicRetriever:
         by_pool_query: dict[tuple[str, str], list[RetrievedCandidate]] = {}
         scanned = 0
         option_comparison_query = "which option" in query.casefold()
+        compact_targeted_facets = set(targeted_facets(query))
+        identity_navigation_reserve = (
+            min(32, max(0, self.budget.total_units // 4))
+            if any(re.search(
+                r"\b(?:contact|recipient|cc|CEO|CFO|COO|CTO|CRO|"
+                r"president|owner|lead|approver)\b",
+                facet,
+                re.IGNORECASE,
+            ) for facet in compact_targeted_facets)
+            else 0
+        )
+        nomination_limit = self.budget.total_units - identity_navigation_reserve
         for pool in POOL_KINDS:
             queries = plan.pool_queries.get(pool) or ()
             if not queries:
                 continue
             merged: dict[str, RetrievedCandidate] = {}
             for pool_query in queries:
-                if scanned >= self.budget.total_units:
+                if scanned >= nomination_limit:
                     break
                 rows = self._pool(
                     generation_id, pool, pool_query, allowed_unit_ids,
@@ -417,7 +471,11 @@ class DeterministicRetriever:
                         if option_comparison_query
                         and pool_query != query
                         and len(_fts_terms(pool_query)) <= 6
-                        else None
+                        else (
+                            min(8, self.budget.per_pool)
+                            if pool_query in compact_targeted_facets
+                            else None
+                        )
                     ),
                 )
                 by_pool_query[(pool, pool_query)] = rows
@@ -430,12 +488,13 @@ class DeterministicRetriever:
                 merged.values(),
                 key=lambda item: (-item.score, item.source_id, item.unit_id),
             )
-            if scanned >= self.budget.total_units:
+            if scanned >= nomination_limit:
                 break
         selected: list[RetrievedCandidate] = []
         used_units: set[str] = set()
         used_sources: set[str] = set()
         supplemental_priority_units: set[str] = set()
+        content_bridge_units: set[str] = set()
         supplemental_intent_sources: set[str] = set()
         supplemental_query_hits: dict[str, set[str]] = {}
         for obligation in plan.obligations:
@@ -552,8 +611,20 @@ class DeterministicRetriever:
             def grounded(item: RetrievedCandidate) -> bool:
                 overlap = need_terms & set(_fts_terms(item.text))
                 if obligation.kind == "before_action_after":
-                    return _transition_answer_match(
-                        item.text, obligation.relation_or_action or query
+                    transition_query = obligation.relation_or_action or query
+                    if _transition_values(transition_query) is not None:
+                        return _transition_answer_match(item.text, transition_query)
+                    # "Before" also expresses an action prerequisite or
+                    # ordering rule (for example, obtain approval before HR
+                    # schedules a final loop). Such needs have no from/to
+                    # state pair, so requiring transition-state markup makes
+                    # them impossible to satisfy even when exact source
+                    # evidence is present. Keep them source-grounded using the
+                    # same conservative overlap threshold as ordinary facts;
+                    # similarity alone still cannot satisfy the obligation.
+                    return bool(overlap) and (
+                        len(overlap) >= 2
+                        or len(overlap) / max(1, len(need_terms)) >= 0.20
                     )
                 if obligation.kind == "comparison_side":
                     return bool(
@@ -597,6 +668,351 @@ class DeterministicRetriever:
             used_sources.add(candidate.source_id)
             if len(selected) >= max_sources:
                 break
+        # Addressed app actions combine a transport target with a separate
+        # evidence request. Rank a few compact source episodes by how densely
+        # they cover the request-derived content anchors, then expand those
+        # exact sources below. This prevents an address match or a long generic
+        # policy note from crowding out one compact episode that contains the
+        # requested facts. No evaluator requirement or answer enters ranking.
+        action_facets = _action_content_facets(query)
+        contact_address_needed = bool(action_facets) and bool(re.search(
+            r"\b(?:contact|recipient|copy|cc|email address)\b",
+            query,
+            re.IGNORECASE,
+        ))
+        request_terms = set(_fts_terms(query))
+        source_request_coverage_cache: dict[str, int] = {}
+        source_prefix_cache: dict[str, str] = {}
+
+        def source_request_coverage(source_id: str) -> int:
+            cached = source_request_coverage_cache.get(source_id)
+            if cached is not None:
+                return cached
+            parts = self.store._conn.execute(
+                """SELECT content_bytes FROM context_source_parts
+                   WHERE source_id=? ORDER BY ordinal""",
+                (source_id,),
+            ).fetchall()
+            source_terms = set(_fts_terms(b"\n".join(
+                bytes(row["content_bytes"]) for row in parts
+            ).decode("utf-8", errors="replace")))
+            if parts:
+                source_prefix_cache[source_id] = bytes(
+                    parts[0]["content_bytes"]
+                ).decode("utf-8", errors="replace")[:32]
+            covered = len(request_terms & source_terms)
+            source_request_coverage_cache[source_id] = covered
+            return covered
+
+        if action_facets and len(selected) < max_sources:
+            source_rows: dict[str, list[RetrievedCandidate]] = {}
+            for facet in action_facets:
+                for pool in ("entity", "fact", "rule", "raw_state"):
+                    for item in by_pool_query.get((pool, facet), ()):
+                        source_rows.setdefault(item.source_id, []).append(item)
+            ranked_bridges: list[
+                tuple[int, float, int, int, float, str, RetrievedCandidate]
+            ] = []
+            for source_id, rows in source_rows.items():
+                parts = self.store._conn.execute(
+                    """SELECT content_bytes FROM context_source_parts
+                       WHERE source_id=? ORDER BY ordinal""",
+                    (source_id,),
+                ).fetchall()
+                source_bytes = b"\n".join(bytes(row["content_bytes"]) for row in parts)
+                source_terms = set(_fts_terms(source_bytes.decode(
+                    "utf-8", errors="replace"
+                )))
+                covered = len(request_terms & source_terms)
+                if covered < 2:
+                    continue
+                head = min(
+                    rows,
+                    key=lambda item: (
+                        -len(request_terms & set(_fts_terms(item.text))),
+                        len(item.text.encode("utf-8")),
+                        -item.score,
+                        item.unit_id,
+                    ),
+                )
+                byte_count = max(64, len(source_bytes))
+                has_address = int(contact_address_needed and bool(re.search(
+                    rb"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
+                    source_bytes,
+                )))
+                ranked_bridges.append((
+                    has_address, covered / math.sqrt(byte_count), covered, -byte_count,
+                    head.score, source_id, head,
+                ))
+            for *_rank, candidate in sorted(ranked_bridges, reverse=True)[:3]:
+                candidate = self._source_query_head(
+                    generation_id, candidate, query
+                )
+                if candidate.source_id in used_sources:
+                    existing = next(
+                        item for item in selected
+                        if item.source_id == candidate.source_id
+                    )
+                    supplemental_priority_units.add(existing.unit_id)
+                    content_bridge_units.add(existing.unit_id)
+                    adjacent_identifier = next((
+                        neighbor
+                        for neighbor in self._neighbors(
+                            generation_id, existing, radius=4,
+                        )
+                        if neighbor.unit_id not in used_units
+                        and re.search(
+                            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+"
+                            r"\.[A-Za-z]{2,}\b",
+                            neighbor.text,
+                        )
+                    ), None) if contact_address_needed else None
+                    if adjacent_identifier is not None and len(selected) < max_sources:
+                        selected.append(adjacent_identifier)
+                        used_units.add(adjacent_identifier.unit_id)
+                        supplemental_priority_units.add(adjacent_identifier.unit_id)
+                    continue
+                if candidate.unit_id in used_units:
+                    supplemental_priority_units.add(candidate.unit_id)
+                    content_bridge_units.add(candidate.unit_id)
+                    continue
+                selected.append(candidate)
+                used_units.add(candidate.unit_id)
+                used_sources.add(candidate.source_id)
+                supplemental_priority_units.add(candidate.unit_id)
+                content_bridge_units.add(candidate.unit_id)
+                # An action source often introduces a contact in one sentence
+                # and stores the literal address in the next. Preserve that
+                # source-backed identifier before later facets consume the
+                # bounded candidate set.
+                adjacent_identifier = next((
+                    neighbor
+                    for neighbor in self._neighbors(
+                        generation_id, candidate, radius=4,
+                    )
+                    if neighbor.unit_id not in used_units
+                    and re.search(
+                        r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+"
+                        r"\.[A-Za-z]{2,}\b",
+                        neighbor.text,
+                    )
+                ), None) if contact_address_needed else None
+                if adjacent_identifier is not None and len(selected) < max_sources:
+                    selected.append(adjacent_identifier)
+                    used_units.add(adjacent_identifier.unit_id)
+                    supplemental_priority_units.add(adjacent_identifier.unit_id)
+                if len(selected) >= max_sources:
+                    break
+        # Reserve one compact, exact source range for each answer-blind action
+        # facet (contact, recipient, role, approver, temporal subject, and
+        # explicit option field) before general supplemental evidence.  A long
+        # action request can otherwise satisfy its broad obligation with a
+        # topical paragraph while omitting the exact address/name needed to
+        # execute it.  Facets come only from the request; no answer or evaluator
+        # annotation enters this path.
+        if len(selected) < max_sources:
+            for facet in targeted_facets(query):
+                facet_terms = set(_fts_terms(facet))
+                if not facet_terms:
+                    continue
+                rows = [
+                    item
+                    for pool in ("entity", "fact", "rule", "raw_state")
+                    for item in by_pool_query.get((pool, facet), ())
+                ]
+                if not rows:
+                    continue
+
+                def identity_markers(item: RetrievedCandidate) -> int:
+                    return (
+                        len(re.findall(
+                            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
+                            item.text,
+                        ))
+                        + len(re.findall(r"#[A-Za-z0-9_-]+", item.text))
+                        + len(re.findall(
+                            r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b", item.text
+                        ))
+                        + 5 * len(re.findall(
+                            r"\b[A-Z][\w'-]+(?:\s+[A-Z][\w'-]+)+\s+is\s+"
+                            r"(?:the\s+)?(?:CEO|CFO|COO|CTO|CRO|president|owner|lead)\b",
+                            item.text,
+                            re.IGNORECASE,
+                        ))
+                        + 5 * len(re.findall(
+                            r"\b(?:he|she|they)\s*(?:'s|is)\s+(?:the\s+)?"
+                            r"(?:CEO|CFO|COO|CTO|CRO|president|owner|lead)\b",
+                            item.text,
+                            re.IGNORECASE,
+                        ))
+                    )
+
+                identity_seeking = bool(re.search(
+                    r"\b(?:contact|recipient|cc|CEO|CFO|COO|CTO|CRO|"
+                    r"president|owner|lead|approver)\b",
+                    facet,
+                    re.IGNORECASE,
+                ))
+                temporal_facet = re.match(r"(\d{4}-\d{2}(?:-\d{2})?)", facet)
+
+                def exact_temporal_source(item: RetrievedCandidate) -> bool:
+                    if temporal_facet is None:
+                        return False
+                    source_request_coverage(item.source_id)
+                    return source_prefix_cache.get(item.source_id, "").startswith(
+                        f"[{temporal_facet.group(1)}"
+                    )
+
+                candidate = min(
+                    rows,
+                    key=lambda item: (
+                        -identity_markers(item) if identity_seeking else 0,
+                        0 if exact_temporal_source(item) else 1,
+                        -source_request_coverage(item.source_id)
+                        if action_facets else 0,
+                        -len(facet_terms & set(_fts_terms(item.text))),
+                        0,
+                        len(item.text.encode("utf-8")),
+                        -item.score,
+                        item.source_id,
+                        item.unit_id,
+                    ),
+                )
+                if action_facets:
+                    candidate = self._source_query_head(
+                        generation_id, candidate, query
+                    )
+                if candidate.unit_id not in used_units:
+                    selected.append(candidate)
+                    used_units.add(candidate.unit_id)
+                    used_sources.add(candidate.source_id)
+                    supplemental_priority_units.add(candidate.unit_id)
+                    if action_facets:
+                        content_bridge_units.add(candidate.unit_id)
+                if (
+                    contact_address_needed
+                    and identity_seeking
+                    and "@" not in candidate.text
+                ):
+                    adjacent_identifier = next((
+                        neighbor
+                        for neighbor in self._neighbors(
+                            generation_id, candidate, radius=4,
+                        )
+                        if neighbor.unit_id not in used_units
+                        and re.search(
+                            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+"
+                            r"\.[A-Za-z]{2,}\b",
+                            neighbor.text,
+                        )
+                    ), None)
+                    if adjacent_identifier is not None and len(selected) < max_sources:
+                        selected.append(adjacent_identifier)
+                        used_units.add(adjacent_identifier.unit_id)
+                        supplemental_priority_units.add(adjacent_identifier.unit_id)
+                # When relevant evidence names an indirect recipient but does
+                # not carry the exact address, follow only that source-observed
+                # identity through the bounded indexes. This is evidence
+                # navigation, not answer inference: the emitted value must
+                # still occur verbatim in a canonical source range.
+                if identity_seeking and "@" not in candidate.text:
+                    observed_name_values: list[str] = []
+                    for raw_name in re.findall(
+                        r"\b[A-Z][\w'-]+(?:\s+[A-Z][\w'-]+)+\b",
+                        candidate.text,
+                    ):
+                        parts = raw_name.split()
+                        while len(parts) > 2 and parts[0].isupper():
+                            parts.pop(0)
+                        normalized_name = " ".join(parts)
+                        if len(parts) >= 2 and normalized_name not in observed_name_values:
+                            observed_name_values.append(normalized_name)
+                    observed_names = tuple(observed_name_values[:2])
+                    for observed_name in observed_names:
+                        linked_rows: list[RetrievedCandidate] = []
+                        for linked_query in (
+                            f"{observed_name} email",
+                            f"{observed_name} address",
+                            observed_name,
+                        ):
+                            for linked_pool in (
+                                "rule", "entity", "fact", "raw_state"
+                            ):
+                                if scanned >= self.budget.total_units:
+                                    break
+                                rows_for_name = self._pool(
+                                    generation_id,
+                                    linked_pool,
+                                    linked_query,
+                                    allowed_unit_ids,
+                                    result_limit=min(8, self.budget.per_pool),
+                                )
+                                scanned += len(rows_for_name)
+                                linked_rows.extend(rows_for_name)
+                            if any(re.search(
+                                r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+"
+                                r"\.[A-Za-z]{2,}\b",
+                                item.text,
+                            ) for item in linked_rows):
+                                break
+                        linked_identity = next(
+                            (
+                                item for item in sorted(
+                                    linked_rows,
+                                    key=lambda item: (
+                                        len(item.text.encode("utf-8")),
+                                        -item.score,
+                                        item.source_id,
+                                        item.unit_id,
+                                    ),
+                                )
+                                if item.unit_id not in used_units
+                                and observed_name.casefold() in item.text.casefold()
+                                and re.search(
+                                    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+"
+                                    r"\.[A-Za-z]{2,}\b",
+                                    item.text,
+                                )
+                            ),
+                            None,
+                        )
+                        if linked_identity is not None and len(selected) < max_sources:
+                            selected.append(linked_identity)
+                            used_units.add(linked_identity.unit_id)
+                            used_sources.add(linked_identity.source_id)
+                            supplemental_priority_units.add(linked_identity.unit_id)
+                            break
+                # Clause atomization can place the named subject immediately
+                # beside a pronoun-based role relation ("cc Ada. She's the
+                # CEO."). Preserve that bounded source neighbour as part of
+                # the same identity evidence instead of presenting a nameless
+                # role assertion to the agent.
+                if re.search(
+                    r"\b(?:he|she|they)\s*(?:'s|is)\s+(?:the\s+)?"
+                    r"(?:CEO|CFO|COO|CTO|CRO|president|owner|lead)\b",
+                    candidate.text,
+                    re.IGNORECASE,
+                ):
+                    named_neighbor = next(
+                        (
+                            item for item in self._neighbors(
+                                generation_id, candidate, radius=1
+                            )
+                            if item.unit_id not in used_units
+                            and re.search(
+                                r"\b[A-Z][\w'-]+(?:\s+[A-Z][\w'-]+)+\b",
+                                item.text,
+                            )
+                        ),
+                        None,
+                    )
+                    if named_neighbor is not None and len(selected) < max_sources:
+                        selected.append(named_neighbor)
+                        used_units.add(named_neighbor.unit_id)
+                        used_sources.add(named_neighbor.source_id)
+                        supplemental_priority_units.add(named_neighbor.unit_id)
+                if len(selected) >= max_sources:
+                    break
         # Multiple-choice field questions need one precise nomination per
         # explicit field, not merely the ranges that happen to mention the
         # largest number of option words. Keep those nominations constrained
@@ -672,7 +1088,19 @@ class DeterministicRetriever:
         # the lowest-ranked tail with exact neighbours of the strongest heads.
         # Neighbours remain obligation-neutral: adjacency can improve evidence
         # coverage but cannot by itself satisfy a requirement.
-        heads = tuple(selected[: max(1, min(4, len(selected)))])
+        head_limit = 8 if action_facets else 4
+        if action_facets:
+            heads = tuple(sorted(
+                selected,
+                key=lambda item: (
+                    item.unit_id not in content_bridge_units,
+                    -len(request_terms & set(_fts_terms(item.text))),
+                    -item.score,
+                    item.unit_id,
+                ),
+            )[: max(1, min(head_limit, len(selected)))])
+        else:
+            heads = tuple(selected[: max(1, min(head_limit, len(selected)))])
         ordered_step_ids = {
             item.obligation_id for item in plan.obligations
             if item.kind == "ordered_steps"
@@ -681,29 +1109,78 @@ class DeterministicRetriever:
             item.obligation_id for item in plan.obligations
             if item.kind == "before_action_after"
         }
+        # A question about the decision/outcome attached to a dated event must
+        # retain the bounded outcome tail of the episode recorded on that day.
+        # Formation intentionally atomizes long episodes into exact ranges;
+        # without this expansion the first sentence ("the replay finished")
+        # can win while its final condition ("did not authorize ... pending")
+        # is dropped. The date and intent both come only from the user query.
+        dated_facets = {
+            match.group(0)
+            for facet in targeted_facets(query)
+            for match in [re.match(r"\d{4}-\d{2}-\d{2}", facet)]
+            if match is not None
+        }
+        dated_decision_query = bool(dated_facets) and bool(re.search(
+            r"\b(?:authoriz(?:e|ed|es|ing)|decision|outcome|result|"
+            r"status|whether|actual)\b",
+            query,
+            re.IGNORECASE,
+        ))
+
+        def neighbor_radius(head: RetrievedCandidate) -> int:
+            if head.unit_id in content_bridge_units:
+                return 8
+            if set(head.matched_obligation_ids) & (ordered_step_ids | transition_ids):
+                return 12
+            if dated_decision_query and any(
+                date in head.text[:64] for date in dated_facets
+            ):
+                return 12
+            return 2
+
         neighbors = [
             neighbor
             for head in heads
             for neighbor in self._neighbors(
                 generation_id,
                 head,
-                radius=(
-                    12
-                    if set(head.matched_obligation_ids)
-                    & (ordered_step_ids | transition_ids)
-                    else 2
-                ),
+                radius=neighbor_radius(head),
             )
             if neighbor.unit_id not in used_units
         ]
+        head_units = {item.unit_id for item in heads}
+        retained_neighbor_units: set[str] = set()
         for neighbor in neighbors:
             if len(selected) < max_sources:
                 selected.append(neighbor)
             elif selected:
-                displaced = selected.pop()
+                protected_units = {
+                    item.unit_id for item in selected
+                    if item.matched_obligation_ids
+                } | (
+                    set()
+                    if action_facets
+                    else supplemental_priority_units - content_bridge_units
+                ) | head_units | retained_neighbor_units
+                replace_at = next(
+                    (
+                        index for index in range(len(selected) - 1, -1, -1)
+                        if selected[index].unit_id not in protected_units
+                    ),
+                    None,
+                )
+                if replace_at is None:
+                    continue
+                displaced = selected.pop(replace_at)
                 used_units.discard(displaced.unit_id)
                 selected.append(neighbor)
             used_units.add(neighbor.unit_id)
+            # Preserve each admitted neighbour while filling the remaining
+            # replaceable tail. Without this guard every later neighbour
+            # replaced the one inserted immediately before it, collapsing a
+            # bounded evidence neighbourhood to only its final sentence.
+            retained_neighbor_units.add(neighbor.unit_id)
         selected_sources = {item.source_id for item in selected}
         withheld_sources: set[str] = set()
         if selected_sources:

@@ -1,0 +1,156 @@
+{
+  "format": "atmem-five-percent-development-results-v2",
+  "recorded_date": "2026-10-10",
+  "claim": "matched-development-samples-not-official-benchmark-scores",
+  "candidate": {
+    "version": "2.3.8b6",
+    "benchmark_commit": "b97d35e1df7ee6ef435928bafb8189ac99a1856d"
+  },
+  "longmemeval_v2": {
+    "sample": "frozen-23-of-451",
+    "arms": {
+      "atmem-typed-local": {"correct": 5, "total": 23, "accuracy": 0.21739130434782608, "system_failures": 6},
+      "agentrunbook-r": {"correct": 4, "total": 23, "accuracy": 0.17391304347826086, "system_failures": 4},
+      "mem0-oss": {"correct": 1, "total": 23, "accuracy": 0.043478260869565216, "system_failures": 1},
+      "no-retrieval": {"correct": 1, "total": 23, "accuracy": 0.043478260869565216},
+      "verified-evidence": {"correct": 19, "total": 23, "accuracy": 0.8260869565217391}
+    },
+    "artifact": {
+      "file": "matched-results.json",
+      "sha256": "89c800219cfab38b34cfc406d764919b49c24b550827a30414cb49fb4c247fd8"
+    },
+    "controlled_reader_artifact": {
+      "file": "controlled-reader-results.json",
+      "sha256": "26ba0c7d60b950ec0a5435813b6c7316a0b0badcd9050478b1ff0f262d3bddd6"
+    }
+  },
+  "dolphinbench": {
+    "sample": "frozen-30-of-600",
+    "source_commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
+    "split_sha256": "60c681f8e7ce0796ec0209294c885abe7dc0fe5a594226aa1035c401535658de",
+    "arms": {
+      "atmem": {"tasks_passed": 2, "tasks": 30, "checks_passed": 15, "checks": 97, "system_failures": 0},
+      "mem0-oss": {"tasks_passed": 3, "tasks": 30, "checks_passed": 16, "checks": 97, "system_failures": 0}
+    },
+    "controls": {
+      "removal": {"passed": 30, "total": 30},
+      "paired_removal_and_positive": {"passed": 28, "total": 30},
+      "restored_gate_open": {"passed": 28, "total": 30},
+      "overblocked_case_ids": ["morgan:063", "morgan:138"]
+    },
+    "artifact": {
+      "file": "matched-results.json",
+      "sha256": "84296c20aa11b998ddfeb5c80595d2fc58f9afd2b74ec42d2b018b5d92d40c62"
+    },
+    "control_artifacts": {
+      "action_gate_controls_sha256": "42c86f80034250ec7ce1cd3bd606eac391793b12486f4f2358ef54449fd91d84",
+      "removal_controls_sha256": "1cf48ae1ee5a4892aa044ee708fdaf1ca696b2b28b6bf2b36d1cb7eb401a6482",
+      "restored_gate_precheck_sha256": "8ebf2e7eecc3a48768fbc67b0450da2f18c8fb14f738db910b151ad6aef9ff49"
+    },
+    "superseded_by": "dolphinbench_fresh_b550f26"
+  },
+  "dolphinbench_fresh_b550f26": {
+    "sample": "frozen-30-of-600",
+    "source_commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
+    "candidate_commit": "b550f266856aaf76cbe1311d04c35cd33dd794e3",
+    "split_sha256": "60c681f8e7ce0796ec0209294c885abe7dc0fe5a594226aa1035c401535658de",
+    "reader": {
+      "provider": "huggingface-inference-providers",
+      "model": "Qwen/Qwen3.5-9B",
+      "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+      "same_route_for_both_arms": true
+    },
+    "judge": {
+      "provider": "openai",
+      "model": "gpt-5.2-2025-12-11",
+      "reasoning_effort": "medium"
+    },
+    "arms": {
+      "atmem": {
+        "tasks_passed": 2,
+        "tasks": 30,
+        "checks_passed": 15,
+        "checks": 97,
+        "system_failures": 1,
+        "system_failure_case_ids": ["morgan:138"]
+      },
+      "mem0-oss": {
+        "tasks_passed": 5,
+        "tasks": 30,
+        "checks_passed": 22,
+        "checks": 97,
+        "system_failures": 0
+      }
+    },
+    "controls": {
+      "restored_gate_open": {"passed": 30, "total": 30},
+      "removal": {"passed": 30, "total": 30},
+      "paired_removal_and_positive": {"passed": 29, "total": 30},
+      "model_invocations_during_removal": 0,
+      "tool_calls_during_removal": 0,
+      "false_system_failure_blocks": 0,
+      "failed_positive_case_ids": ["morgan:138"]
+    },
+    "artifacts": {
+      "matched_results_sha256": "87c1b8140d80e293765a6c4260744c51db005767fd88f7e8e3ce0c50d4806d12",
+      "action_gate_controls_sha256": "fb291c2004abe23a6a2e081ffa59ce4e0319e0ffd2adfd7a635c9a8684feab6f",
+      "removal_controls_sha256": "1cf48ae1ee5a4892aa044ee708fdaf1ca696b2b28b6bf2b36d1cb7eb401a6482",
+      "restored_gate_precheck_sha256": "62f9177cd219ce0a4cc2d60283407461b6190f28aa3d87de075eeee20332568d",
+      "atmem_finalization_gate_sha256": "6c6158ae114e6563a1a2783b9e22d268e5d4b54c1126d60df56b0582dd3735e0",
+      "mem0_finalization_gate_sha256": "bec1198cb4b9f0e6bb913226976838a98b05ccef817f2ec9b4da1cd3e3e864bc",
+      "wheel_sha256": "7d4787888e398847f1574e02242160fcfbc062f1f9856c9900014c0dfb526e55"
+    }
+  },
+  "dolphinbench_final_b97d35e": {
+    "sample": "frozen-30-of-600",
+    "source_commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
+    "candidate_commit": "b97d35e1df7ee6ef435928bafb8189ac99a1856d",
+    "split_sha256": "60c681f8e7ce0796ec0209294c885abe7dc0fe5a594226aa1035c401535658de",
+    "arms": {
+      "atmem": {
+        "tasks_passed": 9,
+        "tasks": 30,
+        "checks_passed": 32,
+        "checks": 97,
+        "system_failures": 0
+      },
+      "mem0-oss": {
+        "tasks_passed": 7,
+        "tasks": 30,
+        "checks_passed": 27,
+        "checks": 97,
+        "system_failures": 0
+      }
+    },
+    "artifacts": {
+      "summary": "dolphinbench-final-b97d35e.json",
+      "atmem_evaluation_sha256": "aa5242c509f4748a4ab067a56e8bedda3787abfdbc6e0df0ce63b80e936fd358",
+      "mem0_evaluation_sha256": "2283f4b6c2c3ded66005171abeed395c2614378f3445af1ef656d259afbb712b",
+      "atmem_finalization_gate_sha256": "ec3541ff5f5f625ef2623dfd6e10d3ca1059d650e071949002562acbc886427e",
+      "wheel_sha256": "6ac2cc33e7a17792b15aeddbdf1d5a24efdb159e16781962503b69b37adfa97e"
+    }
+  },
+  "agmi": {
+    "source_commit": "115493a41a7b41952f92ec07e1ea0932926e194f",
+    "source_package_version": "0.6.3",
+    "atmem_commit": "fdc63de4b5ced0029f2717ee542b9600730ce3fd",
+    "arms": {
+      "atmem-chain": {"detected": 8, "total": 9},
+      "atmem-chain-with-external-checkpoint": {"detected": 9, "total": 9}
+    },
+    "artifact": {
+      "file": "agmi-2.3.8-20261010.json",
+      "sha256": "60275b8d5b0d174ecbc66c8cb8bc940f84743f605dc6a04707d8ea9fc57ca22a"
+    },
+    "independence": "Vendor reproduction with the unchanged upstream AGMI harness; independent upstream rerun pending.",
+    "known_limit": "Chain-only storage cannot distinguish a legitimate old store from a whole-store snapshot rollback without trusted state outside the attacker-controlled store directory."
+  },
+  "limitations": [
+    "These are fixed development samples, not official or statistically representative leaderboard scores.",
+    "LongMemEval terminal eight-stage requirement attribution remains pending reviewed evaluator ledgers.",
+    "The Mem0 Dolphin arm ran without optional spaCy and fastembed extras.",
+    "The final DolphinBench rerun favors AtMem by two tasks and five checks on this sample, but does not establish full-benchmark superiority.",
+    "The final AtMem and matched Mem0 Dolphin arms retained zero system failures.",
+    "No broad superiority claim is supported by these results."
+  ]
+}

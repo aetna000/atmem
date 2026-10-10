@@ -405,7 +405,7 @@ class AtMemMemory(Memory):
         saved_config: dict[str, object],
         requested_config: dict[str, object] | None,
     ) -> dict[str, object]:
-        """Allow only the run-local database destination to change on restore."""
+        """Allow run-local storage and frozen trajectory locations to change."""
         if requested_config is None:
             return {
                 "memory_type": str(saved_config["memory_type"]),
@@ -421,11 +421,15 @@ class AtMemMemory(Memory):
         requested_database = str(requested_params.pop("database_path", "")).strip()
         if not saved_database or not requested_database:
             raise RuntimeError("loaded AtMem memory requires a database path")
+        saved_trajectory_pool = saved_params.pop("trajectory_pool_root", None)
+        requested_trajectory_pool = requested_params.pop("trajectory_pool_root", None)
         # The official runner reconstructs only the run-local identity fields;
         # retrieval limits are persisted by the checkpoint.  Preserve every
-        # saved parameter, while still rejecting any explicit runtime override
-        # that differs from the checkpoint.  This keeps restoration immutable
-        # without requiring the runner to duplicate adapter-specific defaults.
+        # saved retrieval parameter, while still rejecting any explicit runtime
+        # override that differs from the checkpoint.  The trajectory pool is a
+        # portable source location, not a retrieval parameter: the benchmark
+        # preflight pins its dataset manifest, and restored checkpoints may be
+        # evaluated after that frozen dataset moves between local volumes.
         conflicting = {
             name
             for name, value in requested_params.items()
@@ -433,14 +437,24 @@ class AtMemMemory(Memory):
         }
         if conflicting:
             raise RuntimeError(
-                "loaded AtMem memory parameters differ beyond the run-local database path: "
+                "loaded AtMem memory parameters differ beyond run-local storage paths: "
                 + ", ".join(sorted(conflicting))
             )
+        effective_trajectory_pool = (
+            requested_trajectory_pool
+            if requested_trajectory_pool is not None
+            else saved_trajectory_pool
+        )
         return {
             "memory_type": cls.memory_type,
             "memory_params": {
                 **saved_params,
                 "database_path": requested_database,
+                **(
+                    {"trajectory_pool_root": effective_trajectory_pool}
+                    if effective_trajectory_pool is not None
+                    else {}
+                ),
             },
         }
 

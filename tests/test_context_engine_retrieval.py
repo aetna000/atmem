@@ -9,7 +9,7 @@ from atmem.context_engine.formation import (
     _view_kinds,
 )
 from atmem.context_engine.packing import derive_action_constraints, pack_context
-from atmem.context_engine.planner import DeterministicPlanner
+from atmem.context_engine.planner import DeterministicPlanner, targeted_facets
 from atmem.context_engine.retrieval import (
     DeterministicRetriever,
     RetrievalResult,
@@ -114,6 +114,69 @@ def test_transition_answer_match_requires_value_beside_requested_old_state() -> 
 
     assert _transition_answer_match(wrong_relation, query) is False
     assert _transition_answer_match(requested_relation, query) is True
+
+
+def test_before_prerequisite_is_grounded_without_inventing_from_to_state() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        source = manager.retain_source(SourceEpisode(
+            episode_id="hiring-approval", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"Morgan Chen must approve the leadership hiring sequence before "
+                b"HR schedules the final interview loop.",
+            ),),
+        ))
+        manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Post who should approve the leadership hiring sequence before HR "
+            "schedules the final loop."
+        )
+        plan = DeterministicPlanner().plan(query)
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        decision = decide_sufficiency(plan, result)
+
+        assert plan.obligations[0].kind == "before_action_after"
+        assert decision.status == "sufficient"
+        assert decision.missing_obligation_ids == ()
+        assert any("Morgan Chen" in item.text for item in result.candidates)
+    finally:
+        store.close()
+
+
+def test_explicit_from_to_transition_keeps_strict_post_state_grounding() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("before", "Ubuntu checked='true'; Windows 8 checked='false'."),
+            ("after", "Ubuntu checked='false'; Windows 8 checked='true'."),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = "What changed from Ubuntu to Windows 8?"
+        plan = DeterministicPlanner().plan(query)
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+
+        grounded = [
+            item for item in result.candidates if item.matched_obligation_ids
+        ]
+        assert len(grounded) == 1
+        assert "Windows 8 checked='true'" in grounded[0].text
+    finally:
+        store.close()
 
 
 def test_planner_routes_workflow_action_count_as_ordered_steps() -> None:
@@ -244,8 +307,9 @@ def test_planner_splits_explicit_independent_memory_requirements() -> None:
     assert "copy recipient" in plan.obligations[1].relation_or_action
     assert plan.obligations[0].kind == "condition_action"
     assert plan.obligations[1].kind == "condition_action"
-    assert plan.pool_queries["raw_state"][1:] == tuple(
-        item.relation_or_action for item in plan.obligations
+    assert all(
+        item.relation_or_action in plan.pool_queries["raw_state"]
+        for item in plan.obligations
     )
 
 
@@ -459,6 +523,35 @@ def test_negative_premise_retrieval_uses_premise_pool() -> None:
         store.close()
 
 
+def test_sufficiency_detects_conflicting_approved_values_in_bounded_evidence() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("operations", "The operations note approves a batch size of 32."),
+            ("runbook", "The signed runbook approves a batch size of 64 for the same job."),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation)
+        query = "What is the approved batch size?"
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=2,
+        )
+        decision = decide_sufficiency(plan, result)
+        assert len(result.candidates) == 2
+        assert decision.status == "conflicted"
+        assert set(decision.conflicting_unit_ids) == {
+            item.unit_id for item in result.candidates
+        }
+    finally:
+        store.close()
+
+
 def test_packing_preserves_obligation_order_and_one_total_byte_budget() -> None:
     store = SQLiteStore(":memory:")
     try:
@@ -647,6 +740,111 @@ def test_planner_keeps_alternative_focus_when_integration_is_misspelled() -> Non
     assert "Outlook calendar user" in plan.pool_queries["raw_state"]
 
 
+def test_planner_adds_answer_blind_identity_and_temporal_facets() -> None:
+    contact = DeterministicPlanner().plan(
+        "Email the vector integration contact for current reproduction details. "
+        "Copy the usual person on the external thread."
+    )
+    assert "vector integration contact" in contact.pool_queries["entity"]
+    assert "external thread" in contact.pool_queries["entity"]
+    assert "external email CC" in contact.pool_queries["entity"]
+
+    role = DeterministicPlanner().plan(
+        "Create the annual operating review, then send our CEO a short DM."
+    )
+    assert "CEO" in role.pool_queries["entity"]
+
+    temporal = DeterministicPlanner().plan(
+        "Did what the January 8, 2026 staged replay authorized match the decision?"
+    )
+    assert "January 8, 2026 staged replay" in temporal.pool_queries["raw_state"]
+
+
+def test_retrieval_reserves_complementary_identity_evidence_for_action_slots() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            (
+                "integration-contact",
+                "The vector integration contact is integrations@vector.example.",
+            ),
+            (
+                "external-copy",
+                "On external email threads, CC Sarah Kim.",
+            ),
+            (
+                "contact-directory",
+                "Sarah Kim can be reached at sarah@example.com.",
+            ),
+            (
+                "noise",
+                "The connector docs contain current reproduction details and examples.",
+            ),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id,
+                scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Email the vector integration contact for current reproduction details. "
+            "Copy the usual person on the external thread."
+        )
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "integrations@vector.example" in combined
+        assert "sarah@example.com" in combined
+    finally:
+        store.close()
+
+
+def test_retrieval_reserves_role_identity_beside_multistep_action_evidence() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            ("role", "Send a staff note to Tomas Vega. He's the CEO."),
+            (
+                "accountability",
+                "Riley owns eligibility, activation, support load, lifecycle, and support boundaries.",
+            ),
+            (
+                "noise",
+                "The operating review agenda should be concise and link to the current document.",
+            ),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id,
+                scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Create a concise annual operating review agenda around Riley's established "
+            "accountability, then send our CEO a short DM with the link."
+        )
+        plan = DeterministicPlanner().plan(query)
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query, plan=plan, max_sources=8,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "Tomas Vega" in combined
+        assert "He's the CEO" in combined
+        assert "eligibility" in combined
+        assert "support load" in combined
+    finally:
+        store.close()
+
+
 def test_single_need_packing_keeps_grounding_head_first_and_bounded() -> None:
     plan = DeterministicPlanner().plan("How many actions remain in this workflow?")
     obligation_id = plan.obligations[0].obligation_id
@@ -673,6 +871,51 @@ def test_single_need_packing_keeps_grounding_head_first_and_bounded() -> None:
     assert "Fill Comment" in packed.context
     assert "noise" not in packed.context
     assert len(packed.context.encode()) <= 16_384
+
+
+def test_action_packing_keeps_complete_best_source_neighborhood_contiguous() -> None:
+    plan = DeterministicPlanner().plan(
+        "Send Priya a message summarizing the January 29 OAuth-cancel mature "
+        "read and why empty source-list explanation became the next focus."
+    )
+    obligation_ids = tuple(item.obligation_id for item in plan.obligations)
+    identity = RetrievedCandidate(
+        unit_id="identity", kind="exact_fact", source_id="identity-source",
+        part_id="text", start=0, end=30,
+        text="Priya is the product owner.", score=10.0,
+        matched_obligation_ids=obligation_ids[:1],
+    )
+    complete_late = RetrievedCandidate(
+        unit_id="complete-late", kind="raw_state", source_id="mature-read",
+        part_id="text", start=80, end=160,
+        text="Empty source-list explanation became the next activation focus.",
+        score=8.0, matched_obligation_ids=obligation_ids[1:],
+    )
+    noise = RetrievedCandidate(
+        unit_id="noise", kind="raw_state", source_id="old-note",
+        part_id="text", start=0, end=50,
+        text="OAuth-cancel planning note without a mature result.", score=9.0,
+        matched_obligation_ids=(),
+    )
+    complete_early = RetrievedCandidate(
+        unit_id="complete-early", kind="raw_state", source_id="mature-read",
+        part_id="text", start=0, end=80,
+        text="January 29 mature OAuth-cancel read: setup fell from 41 to 14.",
+        score=8.0, matched_obligation_ids=obligation_ids[:1],
+    )
+    result = RetrievalResult(
+        candidates=(identity, complete_late, noise, complete_early),
+        searched_pools=("exact_fact", "raw_state"), scanned_units=4,
+        exhausted=False,
+    )
+    decision = decide_sufficiency(plan, result)
+
+    packed = pack_context(plan, result, decision, max_bytes=16_384)
+
+    assert packed.included_unit_ids[:2] == ("complete-early", "complete-late")
+    assert packed.included_unit_ids.index("complete-late") + 1 == packed.included_unit_ids.index(
+        "identity"
+    )
 
 
 def test_option_packing_covers_named_fields_before_redundant_states() -> None:
@@ -796,6 +1039,49 @@ def test_retrieval_keeps_source_breadth_and_adjacent_exact_evidence() -> None:
         store.close()
 
 
+def test_dated_decision_retrieval_keeps_complete_outcome_neighbourhood() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="dated-outcome", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"[2026-01-08T11:47:00-05:00] The staged replay finished. "
+                b"The diagnostic reconciled every accepted batch. "
+                b"All health checks stayed at baseline. "
+                b"This supplied staged evidence only. "
+                b"It did not authorize a production window. "
+                b"Direct production evidence and a later closeout remained pending.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        for index in range(40):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=f"dated-noise-{index}", scope=SCOPE,
+                parts=(SourcePart(
+                    "text", 0, "text", "text/plain",
+                    f"January 8 staged replay planning note {index}.".encode(),
+                ),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Inspect whether the January 8, 2026 staged replay authorized the "
+            "production window and report the actual decision."
+        )
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=32,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "did not authorize a production window" in combined
+        assert "later closeout remained pending" in combined
+    finally:
+        store.close()
+
+
 def test_sufficiency_can_report_stale_policy_withheld_and_bounded_not_found() -> None:
     plan = DeterministicPlanner().plan("Where is the release room?")
     from atmem.context_engine.retrieval import RetrievalResult
@@ -805,3 +1091,226 @@ def test_sufficiency_can_report_stale_policy_withheld_and_bounded_not_found() ->
     withheld = decide_sufficiency(plan, empty, policy_withheld=True)
     assert withheld.status == "withheld_by_policy"
     assert withheld.evidence_unit_ids == ()
+
+
+def test_targeted_facets_add_iso_narrative_date_for_temporal_subject() -> None:
+    facets = targeted_facets(
+        "Inspect whether the January 8, 2026 staged replay authorized the window."
+    )
+
+    assert "January 8, 2026 staged replay" in facets
+    assert "2026-01-08 staged replay" in facets
+
+
+def test_action_content_facets_ignore_transport_and_recipient() -> None:
+    facets = targeted_facets(
+        "[2026-09-14] Email sarah@example.dev board-safe wording for what the "
+        "Q2 Compass evidence demonstrates and whether it supports a "
+        "customer-facing product story."
+    )
+
+    assert "Q2 Compass" in facets
+    assert "customer-facing product" in facets
+    assert all("sarah@example.dev" not in facet for facet in facets)
+
+
+def test_action_content_facets_cover_create_update_and_indirect_contacts() -> None:
+    rollout = targeted_facets(
+        "Create a short reference for the Apr 10, 2023 full shipment of "
+        "`lifecycle_onboarding_trigger_v2`, including included and excluded tiers."
+    )
+    closeout = targeted_facets(
+        "Please create a concise document for the Holly deposit disposition, "
+        "damage deductions or dispute, and remaining financial obligation."
+    )
+    contact = targeted_facets(
+        "Email the Pinecone integration contact for current reproduction details."
+    )
+    update = targeted_facets(
+        "Update Greg Shipman's CRM notes with the March 2023 call outcome and "
+        "confidence in his assurances."
+    )
+
+    assert "lifecycle_onboarding_trigger_v2" in rollout
+    assert "2023-04-10 lifecycle_onboarding_trigger_v2" in rollout
+    assert any("included" in value for value in rollout)
+    assert any("excluded" in value for value in rollout)
+    assert any("deposit" in value for value in closeout)
+    assert any("damage" in value for value in closeout)
+    assert "Pinecone integration contact" in contact
+    assert any("reproduction" in value for value in contact)
+    assert any("Greg Shipman" in value for value in update)
+    assert "2023-03 Greg Shipman" in update
+    assert any("confidence" in value for value in update)
+
+
+def test_month_year_temporal_target_is_not_truncated_to_day() -> None:
+    plan = DeterministicPlanner().plan(
+        "Update Greg Shipman's notes with the March 2023 call outcome."
+    )
+
+    assert plan.obligations[0].temporal_target == "March 2023"
+
+
+def test_action_content_facets_nominate_compact_exact_source_episode() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="exact-q2-read", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"The Q2 Compass owner-action read found concrete internal value. "
+                b"Give concise board-safe language without presenting this as "
+                b"proof of a customer-facing product story.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        for index in range(40):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=f"action-noise-{index}", scope=SCOPE,
+                parts=(SourcePart(
+                    "text", 0, "text", "text/plain",
+                    f"Sarah reviewed unrelated customer-facing wording note {index}.".encode(),
+                ),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Email sarah@example.dev board-safe wording for what the Q2 Compass "
+            "evidence demonstrates and whether it supports a customer-facing "
+            "product story."
+        )
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=32,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "Q2 Compass owner-action read" in combined
+        assert "proof of a customer-facing product story" in combined
+    finally:
+        store.close()
+
+
+def test_late_temporal_action_head_expands_its_complete_source_episode() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="march-call", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"[2023-03-22T11:00:00-07:00] I spoke with Greg Shipman at Acme. "
+                b"He owned the ETA misses directly. "
+                b"He said Q2 delivery would be tighter on their side. "
+                b"I placed about 60%, not 100%, confidence in those assurances.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        for index in range(40):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=f"greg-noise-{index}", scope=SCOPE,
+                parts=(SourcePart(
+                    "text", 0, "text", "text/plain",
+                    f"Greg Shipman Acme CRM follow-up note {index} about later exports.".encode(),
+                ),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Update Greg Shipman's Acme CRM notes with the March 2023 ETA-reset "
+            "call outcome and how much confidence I placed in his assurances."
+        )
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=32,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "owned the ETA misses directly" in combined
+        assert "60%, not 100%" in combined
+    finally:
+        store.close()
+
+
+def test_temporal_action_prefers_source_covering_the_whole_request() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        for episode_id, text in (
+            (
+                "planning",
+                "[2023-04-10T08:30:00-05:00] Ship day for "
+                "lifecycle_onboarding_trigger_v2. Watch dashboards after launch.",
+            ),
+            (
+                "scope",
+                "[2023-04-10T10:00:00-05:00] lifecycle_onboarding_trigger_v2 "
+                "shipped to all mid-segment customers plus growth tier, not starter.",
+            ),
+        ):
+            source = manager.retain_source(SourceEpisode(
+                episode_id=episode_id, scope=SCOPE,
+                parts=(SourcePart("text", 0, "text", "text/plain", text.encode()),),
+            ))
+            manager.form_source(source, generation, range_granularity="sentence")
+        query = (
+            "Create a rollout-scope reference for the Apr 10, 2023 shipment of "
+            "`lifecycle_onboarding_trigger_v2`, naming included customer groups "
+            "and the excluded tier."
+        )
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=8,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "plus growth tier, not starter" in combined
+    finally:
+        store.close()
+
+
+def test_external_thread_action_nominates_contact_and_outside_email_policy() -> None:
+    store = SQLiteStore(":memory:")
+    try:
+        manager = FormationManager(store)
+        generation = manager.begin_generation(SCOPE, profile_id="context-fast")
+        target = manager.retain_source(SourceEpisode(
+            episode_id="pinecone-contact", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"We are kicking off the Pinecone integration now. "
+                b"The contact is integrations@pinecone-test.com. "
+                b"Sarah stays copied on the usual external thread.",
+            ),),
+        ))
+        manager.form_source(target, generation, range_granularity="sentence")
+        policy = manager.retain_source(SourceEpisode(
+            episode_id="outside-email-policy", scope=SCOPE,
+            parts=(SourcePart(
+                "text", 0, "text", "text/plain",
+                b"For outside email, cc Sarah Kim at sarah@atlas-test.com.",
+            ),),
+        ))
+        manager.form_source(policy, generation, range_granularity="sentence")
+        query = (
+            "Email the Pinecone integration contact for current reproduction "
+            "details and copy the usual person on the external thread."
+        )
+
+        result = DeterministicRetriever(store).retrieve(
+            generation_id=generation, query=query,
+            plan=DeterministicPlanner().plan(query), max_sources=16,
+        )
+        combined = "\n".join(item.text for item in result.candidates)
+
+        assert "integrations@pinecone-test.com" in combined
+        assert "Sarah stays copied" in combined
+        assert "sarah@atlas-test.com" in combined
+    finally:
+        store.close()

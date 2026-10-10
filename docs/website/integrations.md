@@ -5,6 +5,7 @@ Choose the boundary you control. Integrations do not all expose identical eviden
 | Runtime | Start here | Important boundary |
 | --- | --- | --- |
 | OpenClaw | [Setup](../openclaw-setup.md) | Supported hook profile includes full-fidelity multimodal capture |
+| Hermes | [Setup](integrations/hermes.md) | Reversible isolated shadow mode by default; active recall and sharing are explicit |
 | Pydantic AI | [Capability adapter](../framework-adapters.md#pydantic-ai) | Keeps framework history and model selection |
 | LangChain / LangGraph | [Middleware](../framework-adapters.md#langgraph-and-langchain) | Keeps checkpoints and workflow state |
 | Custom host / MCP | [Generic adapter](../generic-adapter.md) | Host must report actual delivery truthfully |
@@ -24,7 +25,8 @@ the request, verifies the signed response and records authorization/delivery.
 Provider delegation does not imply that the provider stores every agent session.
 
 ## Compatibility
-AtMem is 2.3.7 and the OpenClaw bridge is 2.3.7; AtBot remains 0.1.0. The locked OpenClaw
+The 2.3.8 source candidate and OpenClaw bridge are aligned at 2.3.8; AtBot
+remains 0.1.0 and AtFlows is pinned to 0.1.4b3. The locked OpenClaw
 conformance profile uses 2026.8.1, not a promise about every future host.
 Framework exact-delivery support does not imply the same durable multimodal capture
-coverage as OpenClaw. See [release compatibility](../releases/v2.3.7.md).
+coverage as OpenClaw. See [release compatibility](../releases/v2.3.8.md).

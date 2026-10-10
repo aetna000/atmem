@@ -9,13 +9,13 @@ and investigate the evidence a supported host captured.
 without an API key or a model download. Then [connect an agent](integrations.md)
 and review shadow mode before enabling context injection.
 
-## New in 2.3.7: preserve work across restarts
+## New in 2.3.8: source-linked context and Hermes setup
 
-Connected workflows can reuse saved tool results, query supported destinations
-after a lost receipt, or stop uncertain actions for confirmation. AtFlows 0.1.3
-shows attempts and reported recovery costs, with grouped event charts.
-Start with [Resume work](../continuity.md) and read the
-[2.3.7 release evidence and scope](../releases/v2.3.7.md).
+Typed formation, information-need routing, bounded evidence neighbourhoods and
+sufficiency receipts improve what supported agents receive without weakening
+scope or provenance. Hermes gains a reversible isolated-by-default installer.
+Read the [2.3.8 release evidence and limits](../releases/v2.3.8.md) and the
+[technical report](../releases/v2.3.7-to-v2.3.8-technical-report.md).
 
 ## Explore the documentation
 - [Product portfolio](portfolio.md): AtMem, AtBots and AtFlows roles, source repositories and integration boundaries.

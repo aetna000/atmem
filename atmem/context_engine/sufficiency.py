@@ -54,13 +54,11 @@ def decide_sufficiency(
         else:
             # Two different exact numeric or channel values supporting the same
             # need are a conflict, unless one explicitly marks itself a correction.
-            texts = [item.text for item in grounding_candidates]
-            values = {
-                match.group(0).casefold()
-                for text in texts
-                for match in re.finditer(r"(?:#\w[\w-]*|\b\d+(?:\.\d+)?\b)", text)
-            }
-            corrected = any("correction:" in text.casefold() or "replacing" in text.casefold() for text in texts)
+            # A second side can be returned as bounded supplementary evidence
+            # without carrying the primary obligation tag.  For an explicitly
+            # approval-sensitive question, include only retrieved statements
+            # that themselves use an approval term; otherwise a nearby date or
+            # unrelated number could manufacture a conflict.
             conflict_sensitive = any(
                 re.search(
                     r"^(?:what|which)\s+(?:is|was|are|were)\s+the\s+approved\b",
@@ -68,9 +66,27 @@ def decide_sufficiency(
                 )
                 for item in plan.obligations
             )
+            conflict_candidates = grounding_candidates
+            if conflict_sensitive:
+                conflict_candidates = tuple(dict.fromkeys(
+                    (*grounding_candidates, *(
+                        item for item in result.candidates
+                        if re.search(r"\bapprov(?:e|es|ed|ing)\b", item.text, re.IGNORECASE)
+                    ))
+                ))
+            texts = [item.text for item in conflict_candidates]
+            values = {
+                match.group(0).casefold()
+                for text in texts
+                for match in re.finditer(r"(?:#\w[\w-]*|\b\d+(?:\.\d+)?\b)", text)
+            }
+            corrected = any("correction:" in text.casefold() or "replacing" in text.casefold() for text in texts)
             if conflict_sensitive and len(values) > 1 and len(texts) > 1 and not corrected:
                 status = "conflicted"
-                conflicting = evidence_ids
+                conflicting = tuple(dict.fromkeys(
+                    item.unit_id for item in conflict_candidates
+                ))
+                evidence_ids = conflicting
                 reason_codes.append("distinct_source_values")
             else:
                 status = "sufficient"
