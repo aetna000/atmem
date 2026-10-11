@@ -63,7 +63,10 @@ def test_resolver_binds_inventory_model_questions_and_calibration(tmp_path: Path
 
 
 def test_laya_extra_is_optional_and_not_a_base_dependency() -> None:
-    import tomllib
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # Python 3.10 compatibility
+        import tomli as tomllib
     data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     assert not any("laya" in item.casefold() for item in data["project"]["dependencies"])
     extra = data["project"]["optional-dependencies"]["laya-formation"]
