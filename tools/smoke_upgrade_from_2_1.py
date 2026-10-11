@@ -93,9 +93,10 @@ def verify_upgrade(root: Path) -> None:
     manifest = json.loads((root / "fixture.json").read_text(encoding="utf-8"))
     metadata = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text()
     expected_atmem = re.search(r'^version = "([^"]+)"$', metadata, re.MULTILINE).group(1)
+    expected_atbot = re.search(r'"atmem-atbot==([^" ]+)"', metadata).group(1)
     expected_atflows = re.search(r'"atflows==([^" ]+)"', metadata).group(1)
     assert importlib.metadata.version("atmem") == expected_atmem
-    assert importlib.metadata.version("atmem-atbot") == "0.1.0"
+    assert importlib.metadata.version("atmem-atbot") == expected_atbot
     assert importlib.metadata.version("atflows") == expected_atflows
 
     database = root / "memory.db"

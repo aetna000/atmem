@@ -5,6 +5,15 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing immutable tag to recover; empty runs validation only
+        required: false
+        type: string
+      source_run_id:
+        description: Failed publish run containing exact tagged artifacts
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -474,6 +483,170 @@ jobs:
         with:
           body_path: docs/releases/${{ github.ref_name }}.md
           prerelease: ${{ steps.release-metadata.outputs.prerelease == 'true' }}
+          files: |
+            dist/*
+            docs/showcases/openclaw-memory-control-plane/atmem-openclaw-memory-control-plane.mp4
+
+  recover-validate:
+    name: Validate immutable recovery artifacts
+    if: inputs.release_tag != '' && inputs.source_run_id != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+          path: release-src
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-distributions
+          path: dist
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: atbot-release-distributions
+          path: atbot-dist
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+      - name: Require tag metadata and valid distributions
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          python release-src/tools/release_metadata.py --tag "$RELEASE_TAG"
+          python -m pip install --upgrade twine
+          python -m twine check dist/* atbot-dist/*
+
+  recover-upgrade-existing:
+    name: Recover upgrade gate from AtMem ${{ matrix.source-version }}
+    if: inputs.release_tag != '' && inputs.source_run_id != ''
+    needs: recover-validate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        source-version: ["2.1.0", "2.2.3", "2.2.4", "2.2.5", "2.2.6", "2.3.2", "2.3.4b1", "2.3.4", "2.3.5", "2.3.6", "2.3.7"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: recovery-src
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+          path: release-src
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-distributions
+          path: dist
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: atbot-release-distributions
+          path: atbot-dist
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+      - name: Create authentic persisted fixture
+        run: |
+          python -m venv "$RUNNER_TEMP/upgrade-env"
+          "$RUNNER_TEMP/upgrade-env/bin/python" -m pip install atmem==${{ matrix.source-version }}
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/upgrade-env/bin/python" "$GITHUB_WORKSPACE/release-src/tools/smoke_upgrade_from_2_1.py" create "$RUNNER_TEMP/upgrade-data"
+      - name: Upgrade with tagged artifacts and corrected verifier
+        run: |
+          "$RUNNER_TEMP/upgrade-env/bin/python" -m pip install --upgrade atbot-dist/*.whl dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/upgrade-env/bin/python" "$GITHUB_WORKSPACE/recovery-src/tools/smoke_upgrade_from_2_1.py" verify "$RUNNER_TEMP/upgrade-data"
+
+  recover-pypi:
+    name: Publish recovered artifacts to PyPI
+    if: inputs.release_tag != '' && inputs.source_run_id != ''
+    needs: recover-upgrade-existing
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/atmem
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-distributions
+          path: dist
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+
+  recover-npm:
+    name: Publish recovered OpenClaw plugin to npm
+    if: inputs.release_tag != '' && inputs.source_run_id != ''
+    needs: recover-pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: integrations/openclaw/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Resolve release channel
+        id: metadata
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python tools/release_metadata.py --tag "$RELEASE_TAG" --github-output >> "$GITHUB_OUTPUT"
+      - name: Publish exact tagged plugin unless present
+        working-directory: integrations/openclaw
+        env:
+          NPM_RELEASE_CHANNEL: ${{ steps.metadata.outputs.npm_tag }}
+        run: |
+          npm ci
+          version=$(node -p 'require("./package.json").version')
+          published=$(npm view "openclaw-memory-atmem@$version" version 2>/dev/null || true)
+          if [ "$published" = "$version" ]; then
+            echo "openclaw-memory-atmem@$version is already published"
+          else
+            npm publish --access public --provenance --tag "$NPM_RELEASE_CHANNEL"
+          fi
+
+  recover-release:
+    name: Create recovered GitHub release
+    if: inputs.release_tag != '' && inputs.source_run_id != ''
+    needs: [recover-pypi, recover-npm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-distributions
+          path: dist
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          body_path: docs/releases/${{ inputs.release_tag }}.md
+          prerelease: true
           files: |
             dist/*
             docs/showcases/openclaw-memory-control-plane/atmem-openclaw-memory-control-plane.mp4
