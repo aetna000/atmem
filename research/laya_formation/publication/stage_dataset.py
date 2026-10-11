@@ -9,9 +9,6 @@ import re
 import tempfile
 from typing import Any
 
-from huggingface_hub import HfApi, snapshot_download
-
-
 FORBIDDEN_SUFFIXES = {".pkl", ".pickle", ".joblib"}
 SECRET = re.compile(r"(?i)(?:api[_-]?key|password|secret|token)\s*[:=]\s*[A-Za-z0-9_./+-]{8,}")
 TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".txt"}
@@ -88,6 +85,8 @@ def validate_local(
 
 
 def main() -> int:
+    from huggingface_hub import HfApi, snapshot_download
+
     parser = argparse.ArgumentParser(description="Privately stage and verify the Spec 041 dataset")
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--env-file", type=Path, required=True)

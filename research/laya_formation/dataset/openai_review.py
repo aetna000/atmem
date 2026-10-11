@@ -4,13 +4,14 @@ import argparse
 from datetime import datetime, timezone
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from openai import OpenAI
-
 from .audit import build_review_template, sign_audit_review
+
+if TYPE_CHECKING:
+    from openai import OpenAI
 
 
 REVIEW_INSTRUCTIONS = """You are an independent dataset auditor. Review only the supplied
@@ -168,6 +169,8 @@ def review_packet(
 
 
 def main() -> int:
+    from openai import OpenAI
+
     parser = argparse.ArgumentParser(description="Run a firewalled OpenAI review of a blinded Spec 041 audit packet")
     parser.add_argument("--packet", type=Path, required=True)
     parser.add_argument("--env-file", type=Path, required=True)
