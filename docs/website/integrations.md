@@ -27,6 +27,7 @@ Provider delegation does not imply that the provider stores every agent session.
 ## Compatibility
 The 2.3.9b1 source candidate and OpenClaw bridge are aligned at
 2.3.9-beta.1; AtBot is 0.1.1b1 and AtFlows is pinned to 0.1.4b3. The locked OpenClaw
-conformance profile uses 2026.8.1, not a promise about every future host.
+conformance profile uses 2026.8.1, and the finite compatibility matrix has also
+reviewed 2026.10.1; this is not a promise about every future host.
 Framework exact-delivery support does not imply the same durable multimodal capture
 coverage as OpenClaw. See [release compatibility](../releases/v2.3.9b1.md).

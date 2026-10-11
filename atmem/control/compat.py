@@ -21,6 +21,10 @@ import re
 # added an optional input-commit guard. The parser fixture and full bridge
 # type, build and behavior suites pin the reviewed surface; the governed
 # identity fields and fail-closed absence contract are unchanged.
+# 2026.10.1 verification: the reviewed declaration adds optional memory-audience,
+# sandbox and ended-transcript fields. It still exposes no governed task identity;
+# sessionId, sessionKey and senderIsOwner remain declared and optional, so the
+# existing fail-closed absence rules continue to apply.
 TESTED_OPENCLAW_VERSIONS = (
     "2026.7.1-2",
     "2026.8.1",
@@ -30,6 +34,7 @@ TESTED_OPENCLAW_VERSIONS = (
     "2026.9.5",
     "2026.9.6",
     "2026.9.9",
+    "2026.10.1",
 )
 
 _VERSION_RE = re.compile(r"(?<!\d)(\d{4})\.(\d+)\.(\d+)(?:-(\d+))?(?!\d)")
