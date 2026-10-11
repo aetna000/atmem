@@ -174,6 +174,11 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             except PermissionError as exc:
                 self._json(HTTPStatus.FORBIDDEN, {"error": str(exc)})
             return
+        if path == "/api/formation/profile":
+            from atmem.laya_formation.setup import LayaProfileManager
+
+            self._json(HTTPStatus.OK, LayaProfileManager().status())
+            return
         if path == "/api/evidence/protection":
             self._json(
                 HTTPStatus.OK,

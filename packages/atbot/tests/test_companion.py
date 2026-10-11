@@ -172,6 +172,42 @@ class _CapturingProvider:
         )
 
 
+def test_formation_escalation_is_schema_bounded_and_non_authoritative(monkeypatch) -> None:
+    runtime = companion()
+
+    class Provider:
+        name = "test"
+        model = "formation-test"
+        egress_class = "local"
+        def complete(self, *, system, prompt, schema=None, max_output_tokens=None, timeout=None):
+            assert "not memory authority" in system
+            assert max_output_tokens == 32 and timeout == 3
+            payload = json.loads(prompt)
+            assert set(payload) == {
+                "format", "request_id", "reason", "question", "authorized_input", "candidate_ids"
+            }
+            value = {"selected_choice_id": "ADD", "confidence": 0.75}
+            return ProviderResult(
+                text=json.dumps(value), structured=value, provider=self.name, model=self.model,
+                egress_class=self.egress_class, input_tokens=80, output_tokens=8,
+            )
+
+    monkeypatch.setattr(runtime.router, "select", lambda **kwargs: Provider())
+    result = runtime.propose_formation_decision(
+        payload={
+            "format": "atmem-formation-escalation-request-v1", "request_id": "request-1",
+            "reason": "calibrated_low_confidence",
+            "question": {"question_id": "operation", "instructions": "Choose.", "choice_ids": ["ADD", "NOOP"]},
+            "authorized_input": {"authorized_ranges": [{"range_id": "r1", "text": "Alice"}]},
+            "candidate_ids": [],
+        },
+        remote=False, max_output_tokens=32, timeout_seconds=3,
+    )
+    assert result["selected_choice_id"] == "ADD"
+    assert result["authority_decision"] is None
+    assert result["canonical_storage"] is False
+
+
 def test_companion_forwards_only_bounded_opaque_support_signals(monkeypatch) -> None:
     runtime = companion()
     provider = _CapturingProvider()

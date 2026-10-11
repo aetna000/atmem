@@ -1,0 +1,35 @@
+{
+  "format": "atmem-laya-objective-selection-receipt-v1",
+  "selected_objective": "rlcd",
+  "selected_run_id": "rlcd-410239-20261010T152813Z",
+  "selection_file_sha256": "3529527cab165f662155b684774227d2668099783f405ee423df05be7cc858e0",
+  "selection_digest": "bbfaf2557e05465a7eaba9404dc6cdc88dfc7167e1904ccd5a2efa3621026db6",
+  "selection_policy_digest": "3ecd02585b5b38da61ae6c8adb4da66bdd6306b9d0f88c5f13efdff1c503e207",
+  "selected_model_sha256": "f2ba3dd7679da45aabab4cac30e9a079baeb2dc98229ff3b1618e6a06fc6d683",
+  "validation": {
+    "accuracy": 1.0,
+    "macro_f1": 1.0,
+    "nll": 0.0,
+    "brier": 0.0,
+    "ece": 0.0
+  },
+  "calibration": {
+    "accuracy": 1.0,
+    "macro_f1": 1.0,
+    "nll": 0.0,
+    "brier": 0.0,
+    "ece": 0.0,
+    "bundle_digest": "b165d4b7d554cdbda5a889baf7059c3f43ba2774d68754e4fa3aeb63f5f0e067"
+  },
+  "selection_basis": "predeclared objective-name ascending stable tie-break after exact validation/calibration metric tie",
+  "sealed_test_opened_for_selection": false,
+  "private_recovery": {
+    "repo_id": "atmem/atmem-laya-formation-model-v1",
+    "revision": "d4e46a5b8cf11c5808f9e745f19145c0a4fb5dfd",
+    "clean_redownload_verified": true
+  },
+  "limitations": [
+    "Metrics are from synthetic nonsealed validation and calibration splits.",
+    "This receipt does not establish real-world or Jev superiority."
+  ]
+}

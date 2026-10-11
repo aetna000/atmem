@@ -50,6 +50,9 @@ def test_companion_navigation_requires_login_and_sanitizes_target(tmp_path, monk
         assert retrieval["format"] == "atmem-retrieval-quality-status-v1"
         assert retrieval["activation"] == "explicit_v2_api"
         assert retrieval["injection_active"] is False
+        formation = json.loads(opener.open(base + "/api/formation/profile").read())
+        assert formation["format"] == "atmem-laya-formation-profile-status-v1"
+        assert formation["fallback_ready"] is True
         monkeypatch.setattr(atflows_service, "status", lambda: {"dashboard_url": "http://127.0.0.1:54001/"})
         assert json.loads(opener.open(base + "/api/companions").read())["atflows_dashboard_url"] == "http://127.0.0.1:54001/"
         monkeypatch.setattr(atflows_service, "status", lambda: {"dashboard_url": "http://attacker.example:54001/"})

@@ -1,0 +1,42 @@
+{
+  "format": "atmem-laya-installed-runtime-receipt-v1",
+  "captured_at": "2026-10-11",
+  "result": "pass",
+  "wheel": {
+    "filename": "atmem-2.3.8-py3-none-any.whl",
+    "sha256": "e870f75675a348ce09c171c6ef1983bc9687a6871dbf8ddf09d55429d0a0de32",
+    "note": "Development wheel built before the coordinated 2.3.9b1 version update; not a release artifact."
+  },
+  "environment": {
+    "python": "3.12",
+    "platform": "macOS",
+    "device": "cpu",
+    "laya": "0.4.2",
+    "installed_module": "/private/tmp/atmem-laya-clean-20261011/lib/python3.12/site-packages/atmem/__init__.py"
+  },
+  "bindings": {
+    "model_revision": "1698278c4b158fac30e4eb2fefd10ef8b8f873b3",
+    "model_sha256": "f2ba3dd7679da45aabab4cac30e9a079baeb2dc98229ff3b1618e6a06fc6d683",
+    "questions_digest": "7a3cd0e13d99db02a1e53e51a63fad921e754ac5bbc2376b8a888c1033900f0e",
+    "calibration_digest": "b165d4b7d554cdbda5a889baf7059c3f43ba2774d68754e4fa3aeb63f5f0e067"
+  },
+  "packer": {
+    "result": "pass",
+    "head_tokens": 42,
+    "state_tokens": 54,
+    "total_tokens": 97,
+    "overflow": false,
+    "state_digest": "sha256:5afcd47e779f445abd6f0528f7fb80a6b8aa39077ab50660fe7f164fdc78f85f",
+    "structural_sha256": "b77f1dce7cf1cb2e48efefe14899d699520a2868ea06d5eba0de4e86f88c0f85"
+  },
+  "inference": {
+    "result": "pass",
+    "latency_ms": 199.56120899951202,
+    "input_tokens": 97,
+    "truncated": false,
+    "abstained": false,
+    "selected_choice_ids": ["NOOP"],
+    "confidence": 1.0,
+    "content_safe_diagnostics": true
+  }
+}

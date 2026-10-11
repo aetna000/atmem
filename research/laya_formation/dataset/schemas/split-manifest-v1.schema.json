@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.ai/schemas/laya-split-manifest-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "seed", "group_keys", "splits", "training_allowed_splits", "sealed_label_path"],
+  "properties": {
+    "format": {"const": "atmem-laya-split-manifest-v1"},
+    "seed": {"type": "integer"},
+    "group_keys": {"const": ["fictional_identity_group", "template_family", "semantic_chain_id", "paraphrase_cluster_id"]},
+    "splits": {"type": "object", "required": ["train", "validation", "calibration", "sealed_test"]},
+    "training_allowed_splits": {"const": ["train", "validation", "calibration"]},
+    "sealed_label_path": {"const": "sealed/test-labels.jsonl"}
+  }
+}

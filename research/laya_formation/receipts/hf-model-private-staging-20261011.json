@@ -1,0 +1,22 @@
+{
+  "format": "atmem-laya-hf-model-private-staging-v1",
+  "repo_id": "atmem/atmem-laya-formation-model-v1",
+  "repo_type": "model",
+  "revision": "1698278c4b158fac30e4eb2fefd10ef8b8f873b3",
+  "private": true,
+  "hub_file_count": 13,
+  "hub_managed_files": [".gitattributes"],
+  "export_digest": "6f7d53c18431c27baa617ab95ebcc4cad669917a6508145fa001eb7c8e799900",
+  "verified_export_inventory_entries": 9,
+  "model_sha256": "f2ba3dd7679da45aabab4cac30e9a079baeb2dc98229ff3b1618e6a06fc6d683",
+  "model_card_verified": true,
+  "license": "Apache-2.0",
+  "license_verified": true,
+  "secret_findings": 0,
+  "clean_revision_redownload": true,
+  "clean_cpu_load": true,
+  "clean_cpu_inference_records": 10,
+  "visibility_change_ready": true,
+  "visibility_changed": false,
+  "publication_note": "Changing visibility is a separate owner-controlled T044 action followed by anonymous redownload and verification."
+}

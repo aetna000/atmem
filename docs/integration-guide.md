@@ -32,6 +32,7 @@ atmem mcp --db ~/.atmem/memories.db --subject user-1
 | `memory_recall` | Legacy diagnostic search; its ranking does not authorize prompt injection. |
 | `memory_recall_decision` | Return the shared governed retrieval decision and revalidated context package. |
 | `memory_form_episode` | Form source-linked typed proposals from digest-bound episode parts; normal governance and activation still apply. |
+| `memory_formation_profile_status` | Inspect the inactive/active optional Laya formation profile and its verified artifact identity without mutating it. |
 | `memory_get_record` | Read one canonical record by ID. |
 | `memory_get_source` | Read the source episode associated with a record. |
 | `memory_recall_block` | Render bounded recall for direct context injection. |
@@ -97,12 +98,12 @@ separate process and wheel so model-framework dependencies never enter AtMem's
 authority runtime:
 
 ```bash
-# 2.2 repository development
+# Repository development
 python -m pip install -e './packages/atbot' -e '.'
 atmem atbot setup
 ```
 
-The 2.2 AtMem distribution declares the exact AtBot version as a required
+The AtMem 2.3.9b1 distribution declares the exact AtBot version as a required
 dependency. There is no longer a separate AtBot opt-in extra; model selection
 and remote egress remain explicit user choices. The packages remain separate
 wheels and processes, and AtMem authority code does not import AtBot.

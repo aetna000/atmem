@@ -1,0 +1,36 @@
+{
+  "format": "atmem-laya-profile-e2e-receipt-v1",
+  "captured_at": "2026-10-11",
+  "result": "pass",
+  "environment": {
+    "python": "3.12",
+    "platform": "macOS",
+    "device": "cpu",
+    "laya": "0.4.2"
+  },
+  "artifact": {
+    "repo_id": "atmem/atmem-laya-formation-model-v1",
+    "revision": "1698278c4b158fac30e4eb2fefd10ef8b8f873b3",
+    "model_sha256": "f2ba3dd7679da45aabab4cac30e9a079baeb2dc98229ff3b1618e6a06fc6d683"
+  },
+  "steps": {
+    "preview_changed_state": false,
+    "setup_verified": true,
+    "setup_active": false,
+    "activation_explicit": true,
+    "activation_loaded_model": true,
+    "doctor_ready": true,
+    "doctor_active_healthy": true,
+    "rollback_restored_previous_bytes": true,
+    "rollback_record_consumed": true,
+    "final_active": false,
+    "fallback_ready": true
+  },
+  "final_profile_sha256": "c56fa6e3597d19cb972c11105a79ffa112972136c1ac63a6f83d91a43ee5b407",
+  "interfaces": {
+    "cli": ["preview", "setup", "activate", "status", "doctor", "rollback"],
+    "mcp_read_only_tool": "memory_formation_profile_status",
+    "dashboard_read_only_endpoint": "/api/formation/profile",
+    "dashboard_status_field": "formation_profile"
+  }
+}

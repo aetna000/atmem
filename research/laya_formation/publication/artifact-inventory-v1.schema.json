@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.ai/schemas/laya-artifact-inventory-v1.json",
+  "title": "AtMem Laya artifact inventory v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "artifact_kind", "repository", "revision", "license", "files"],
+  "properties": {
+    "format": {"const": "atmem-laya-artifact-inventory-v1"},
+    "artifact_kind": {"enum": ["dataset", "model"]},
+    "repository": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"},
+    "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "license": {"const": "apache-2.0"},
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "size", "sha256"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^(?!/)(?!.*\\.\\.).+$"},
+          "size": {"type": "integer", "minimum": 0},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.ai/schemas/training-run-manifest-v1.schema.json",
+  "title": "AtMem Laya Training Run Manifest V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "run_id", "created_at", "code_revision", "base_model", "laya", "dataset", "questions_digest", "environment", "objective", "hyperparameters", "seeds", "split_digests", "hardware", "checkpoints", "metrics", "calibration", "export_inventory", "parent_run", "reproducibility_tolerances"],
+  "properties": {
+    "format": {"const": "atmem-laya-training-run-v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "code_revision": {"type": "string", "minLength": 7},
+    "base_model": {"$ref": "#/$defs/revision"},
+    "laya": {"$ref": "#/$defs/revision"},
+    "dataset": {"$ref": "#/$defs/revision"},
+    "questions_digest": {"$ref": "#/$defs/sha256"},
+    "environment": {"type": "object"},
+    "objective": {"enum": ["soft-ce", "rlcd"]},
+    "hyperparameters": {"type": "object"},
+    "seeds": {"type": "object"},
+    "split_digests": {"type": "object"},
+    "hardware": {"type": "object"},
+    "checkpoints": {"type": "array", "items": {"type": "object"}},
+    "metrics": {"type": ["object", "null"]},
+    "calibration": {"type": ["object", "null"]},
+    "export_inventory": {"type": "array", "items": {"type": "object"}},
+    "parent_run": {"type": ["string", "null"]},
+    "reproducibility_tolerances": {
+      "type": "object",
+      "required": ["same_backend", "cross_backend"],
+      "properties": {
+        "same_backend": {"type": "object", "required": ["minimum_choice_agreement", "maximum_normalized_score_delta"]},
+        "cross_backend": {"type": "object", "required": ["minimum_choice_agreement", "maximum_primary_aggregate_delta_points"]}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "revision": {"type": "object", "required": ["repo_id", "revision"], "properties": {"repo_id": {"type": "string"}, "revision": {"type": "string"}}}
+  }
+}

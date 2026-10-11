@@ -24,6 +24,11 @@ QUERY_SCHEMA: dict[str, Any] = {
     },
 }
 
+_FORMATION_REASONS = {
+    "ambiguity", "coupled_mutations", "unsupported_normalized_value",
+    "input_overflow", "calibrated_low_confidence",
+}
+
 
 class CompanionRuntime:
     """Processes only work already scoped and authorized by AtMem."""
@@ -46,6 +51,7 @@ class CompanionRuntime:
                 "query_expansion": True,
                 "proposal_extraction": True,
                 "task_state_proposals": True,
+                "formation_decision_proposals": True,
             },
             "providers": self.router.status(),
         }
@@ -80,6 +86,117 @@ class CompanionRuntime:
             "provider": provider.name,
             "model": provider.model,
             "egress_class": provider.egress_class,
+        }
+
+    def propose_formation_decision(
+        self,
+        *,
+        payload: dict[str, object],
+        remote: bool = False,
+        max_input_tokens: int = 2_048,
+        max_output_tokens: int = 128,
+        timeout_seconds: float = 15.0,
+        max_cost_usd: float = 0.0,
+    ) -> dict[str, object]:
+        """Ask one provider for one finite proposal; retain no authority."""
+
+        expected_keys = {
+            "format", "request_id", "reason", "question", "authorized_input", "candidate_ids"
+        }
+        if set(payload) != expected_keys or payload.get("format") != "atmem-formation-escalation-request-v1":
+            raise ValueError("formation escalation request schema mismatch")
+        request_id = str(payload.get("request_id") or "")
+        reason = str(payload.get("reason") or "")
+        if not request_id or len(request_id) > 256 or reason not in _FORMATION_REASONS:
+            raise ValueError("formation escalation identity or reason is invalid")
+        question = payload.get("question")
+        if not isinstance(question, dict) or set(question) != {"question_id", "instructions", "choice_ids"}:
+            raise ValueError("formation escalation question schema mismatch")
+        choices = question.get("choice_ids")
+        if not isinstance(choices, list) or not 2 <= len(choices) <= 64:
+            raise ValueError("formation escalation requires bounded finite choices")
+        choices = [str(choice) for choice in choices]
+        if len(set(choices)) != len(choices) or any(not choice or len(choice) > 128 for choice in choices):
+            raise ValueError("formation escalation choices are invalid")
+        instructions = str(question.get("instructions") or "")
+        if not instructions or len(instructions) > 2_000:
+            raise ValueError("formation escalation instructions are invalid")
+        authorized = payload.get("authorized_input")
+        rows = authorized.get("authorized_ranges") if isinstance(authorized, dict) else None
+        if not isinstance(rows, list) or len(rows) > 64:
+            raise ValueError("formation escalation evidence is invalid")
+        if len(json.dumps(authorized, ensure_ascii=False).encode("utf-8")) > 100_000:
+            raise ValueError("formation escalation evidence is too large")
+        candidates = payload.get("candidate_ids")
+        if not isinstance(candidates, list) or len(candidates) > 64:
+            raise ValueError("formation escalation candidates are invalid")
+        if not 128 <= int(max_input_tokens) <= 8_192:
+            raise ValueError("formation escalation input budget is invalid")
+        if not 1 <= int(max_output_tokens) <= 512:
+            raise ValueError("formation escalation output budget is invalid")
+        if not 0 < float(timeout_seconds) <= 90:
+            raise ValueError("formation escalation timeout is invalid")
+        if not math.isfinite(float(max_cost_usd)) or float(max_cost_usd) < 0:
+            raise ValueError("formation escalation cost budget is invalid")
+
+        schema = {
+            "title": "AtBotFormationDecision",
+            "type": "object",
+            "required": ["selected_choice_id", "confidence"],
+            "properties": {
+                "selected_choice_id": {"type": "string", "enum": choices},
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            },
+            "additionalProperties": False,
+        }
+        provider = self.router.select(sensitivity="personal", remote=remote)
+        prompt = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+        system = (
+            "You are AtBot's bounded memory-formation reviewer. Select exactly one supplied "
+            "choice using only the supplied authorized input. You are not memory authority, "
+            "cannot add evidence or targets, and cannot commit storage."
+        )
+        estimated_input = max(1, (len(prompt.encode("utf-8")) + len(system.encode("utf-8")) + 3) // 4)
+        if estimated_input > int(max_input_tokens):
+            raise ValueError("formation escalation exceeds its input budget")
+        result = provider.complete(
+            system=system,
+            prompt=prompt, schema=schema, max_output_tokens=int(max_output_tokens),
+            timeout=float(timeout_seconds),
+        )
+        value = result.structured
+        if not isinstance(value, dict) or set(value) != {"selected_choice_id", "confidence"}:
+            raise ValueError("provider returned malformed formation output")
+        selected = str(value.get("selected_choice_id") or "")
+        confidence = float(value.get("confidence"))
+        if selected not in choices or not math.isfinite(confidence) or not 0 <= confidence <= 1:
+            raise ValueError("provider returned an invalid formation choice")
+        input_tokens = result.input_tokens
+        output_tokens = result.output_tokens
+        if input_tokens is None:
+            input_tokens = estimated_input
+        if output_tokens is None:
+            output_tokens = max(1, (len(result.text.encode("utf-8")) + 3) // 4)
+        if input_tokens > int(max_input_tokens):
+            raise ValueError("provider exceeded formation input budget")
+        if output_tokens > int(max_output_tokens):
+            raise ValueError("provider exceeded formation output budget")
+        if result.cost_usd is not None and float(result.cost_usd) > float(max_cost_usd):
+            raise ValueError("provider exceeded formation cost budget")
+        return {
+            "format": "atbot-formation-decision-proposal-v1",
+            "request_id": request_id,
+            "selected_choice_id": selected,
+            "confidence": confidence,
+            "authority_decision": None,
+            "canonical_storage": False,
+            "provider": result.provider,
+            "model": result.model,
+            "egress_class": result.egress_class,
+            "usage": {
+                "input_tokens": int(input_tokens), "output_tokens": int(output_tokens),
+                "cost_usd": result.cost_usd,
+            },
         }
 
     def expand_query(self, query: str) -> dict[str, object]:

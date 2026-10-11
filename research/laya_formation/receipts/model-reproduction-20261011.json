@@ -1,0 +1,37 @@
+{
+  "format": "atmem-laya-model-reproduction-receipt-v1",
+  "export_digest": "6f7d53c18431c27baa617ab95ebcc4cad669917a6508145fa001eb7c8e799900",
+  "model_sha256": "f2ba3dd7679da45aabab4cac30e9a079baeb2dc98229ff3b1618e6a06fc6d683",
+  "questions_digest": "7a3cd0e13d99db02a1e53e51a63fad921e754ac5bbc2376b8a888c1033900f0e",
+  "calibration_digest": "b165d4b7d554cdbda5a889baf7059c3f43ba2774d68754e4fa3aeb63f5f0e067",
+  "environment": {
+    "python": "3.12",
+    "laya": "0.4.2",
+    "laya_source_revision": "68804629e8ccd9d616d48a40e87de9fabbeae069",
+    "torch": "2.11.0",
+    "transformers": "4.57.1",
+    "safetensors": "0.6.2",
+    "huggingface_hub": "0.36.0",
+    "numpy": "2.2.3"
+  },
+  "sample_items": 100,
+  "cpu_reload_1_accuracy": 1.0,
+  "cpu_reload_2_accuracy": 1.0,
+  "mps_reload_accuracy": 1.0,
+  "same_backend": {
+    "choice_agreement": 1.0,
+    "maximum_normalized_score_delta": 0.0,
+    "minimum_choice_agreement": 0.999,
+    "maximum_allowed_normalized_score_delta": 0.0001,
+    "passed": true
+  },
+  "cross_backend": {
+    "choice_agreement": 1.0,
+    "maximum_normalized_score_delta": 7.202209016348514e-16,
+    "primary_aggregate_delta_points": 0.0,
+    "minimum_choice_agreement": 0.995,
+    "maximum_allowed_primary_aggregate_delta_points": 0.2,
+    "passed": true
+  },
+  "passed": true
+}

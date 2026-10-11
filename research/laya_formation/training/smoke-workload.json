@@ -1,0 +1,50 @@
+{
+  "format": "atmem-laya-smoke-workload-v1",
+  "seed": 410239,
+  "base_model": {
+    "repo_id": "convaiinnovations/laya",
+    "revision": "7b928d828b7b0e022f929d9bd2e44165aa270148"
+  },
+  "laya": {
+    "package": "laya==0.4.2",
+    "source_revision": "68804629e8ccd9d616d48a40e87de9fabbeae069"
+  },
+  "dataset": {
+    "repo_id": "atmem/atmem-laya-formation-v1",
+    "revision": "4436089b38cbe3a5374aaaa92c4c77703cdbf668",
+    "manifest_sha256": "d67d371c8c1d6de85a0293cded5aa5b3f7d078e92197130ce1f9edef68e863d4",
+    "train_path": "data/decisions-train.jsonl",
+    "calibration_path": "data/decisions-calibration.jsonl",
+    "full_train_items": 39600,
+    "full_calibration_items": 6700
+  },
+  "sample": {
+    "train_items": 10,
+    "calibration_items": 10,
+    "selection": "first-per-question-round-robin"
+  },
+  "training": {
+    "objectives": ["soft-ce", "rlcd"],
+    "steps_per_objective": 2,
+    "checkpoint_after_step": 1,
+    "micro_batch": 1,
+    "gradient_accumulation": 1,
+    "full_epochs": 4,
+    "encoder_lr": 0.000025,
+    "head_lr": 0.0001,
+    "weight_decay": 0.01,
+    "gradient_clip": 1.0,
+    "rl_samples": 4,
+    "max_len": 512,
+    "head_max_len": 192,
+    "freeze_encoder": false
+  },
+  "viability": {
+    "minimum_memory_headroom_fraction": 0.20,
+    "minimum_free_to_projected_storage_ratio": 3.0,
+    "maximum_projected_both_objectives_hours": 48.0,
+    "resume_loss_absolute_tolerance": 0.0001,
+    "reload_score_absolute_tolerance": 0.0001,
+    "reload_choice_agreement": 0.999
+  }
+}

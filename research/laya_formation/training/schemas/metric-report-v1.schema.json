@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.ai/schemas/metric-report-v1.schema.json",
+  "title": "AtMem Laya Metric Report V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "run_id", "objective", "split", "loss_history", "accuracy", "macro_f1", "nll", "brier", "ece", "class_distribution", "collapse", "truncation", "nonfinite"],
+  "properties": {
+    "format": {"const": "atmem-laya-metric-report-v1"},
+    "run_id": {"type": "string"},
+    "objective": {"enum": ["soft-ce", "rlcd"]},
+    "split": {"enum": ["train", "validation", "calibration", "sealed-test"]},
+    "loss_history": {"type": "array", "items": {"type": "number"}},
+    "accuracy": {"type": "number", "minimum": 0, "maximum": 1},
+    "macro_f1": {"type": "number", "minimum": 0, "maximum": 1},
+    "nll": {"type": "number", "minimum": 0},
+    "brier": {"type": "number", "minimum": 0},
+    "ece": {"type": "number", "minimum": 0, "maximum": 1},
+    "class_distribution": {"type": "object"},
+    "collapse": {"type": "object"},
+    "truncation": {"type": "object"},
+    "nonfinite": {"type": "boolean"}
+  }
+}

@@ -64,8 +64,18 @@ def test_initialize_and_tools_list() -> None:
         "memory_promote",
         "memory_audit",
         "memory_verify",
+        "memory_formation_profile_status",
         "memory_log_action",
     } <= names
+
+
+def test_formation_profile_status_tool_is_read_only(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "atmem.laya_formation.setup.LayaProfileManager.status",
+        lambda self: {"format": "atmem-laya-formation-profile-status-v1", "active": False},
+    )
+    result = _call(_server(), 22, "memory_formation_profile_status", {})
+    assert result == {"format": "atmem-laya-formation-profile-status-v1", "active": False}
 
 
 def test_typed_episode_formation_tool_is_digest_bound_and_fail_closed() -> None:

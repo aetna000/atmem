@@ -1,0 +1,361 @@
+{
+  "claim_decisions": {
+    "jev_comparison": "blocked_unresolved_concrete_identity",
+    "latency_gate_vs_qwen": "blocked_no_successful_paired_qwen_rows",
+    "production_superiority_claim": "blocked_synthetic_only_and_public_corpora_not_run",
+    "qwen_comparison": "inconclusive_infrastructure_error",
+    "synthetic_combined_finetuned_beats_deterministic": true,
+    "synthetic_formation_finetuned_beats_deterministic": true,
+    "synthetic_retrieval_finetuned_beats_deterministic": false,
+    "synthetic_retrieval_finetuned_ties_deterministic": true
+  },
+  "comparisons": {
+    "base-laya": {
+      "combined_sufficiency": {
+        "ci95_lower": 0.8481012658227848,
+        "ci95_upper": 0.9629629629629629,
+        "clusters": 79,
+        "difference": 0.9125,
+        "paired_cases": 80,
+        "repetitions": 10000
+      },
+      "comparator_valid": true,
+      "formation_exact_state": {
+        "ci95_lower": 0.5301204819277109,
+        "ci95_upper": 0.7407407407407407,
+        "clusters": 79,
+        "difference": 0.6375,
+        "paired_cases": 80,
+        "repetitions": 10000
+      },
+      "retrieval_mrr_at_5": {
+        "ci95_lower": 0.00546448087431694,
+        "ci95_upper": 0.1598360655737705,
+        "clusters": 61,
+        "difference": 0.08469945355191258,
+        "paired_cases": 61,
+        "repetitions": 10000
+      },
+      "status": "valid"
+    },
+    "deterministic-atmem": {
+      "combined_sufficiency": {
+        "ci95_lower": 0.8481012658227848,
+        "ci95_upper": 0.963855421686747,
+        "clusters": 79,
+        "difference": 0.9125,
+        "paired_cases": 80,
+        "repetitions": 10000
+      },
+      "comparator_valid": true,
+      "formation_exact_state": {
+        "ci95_lower": 0.46835443037974683,
+        "ci95_upper": 0.6835443037974683,
+        "clusters": 79,
+        "difference": 0.575,
+        "paired_cases": 80,
+        "repetitions": 10000
+      },
+      "retrieval_mrr_at_5": {
+        "ci95_lower": 0.0,
+        "ci95_upper": 0.0,
+        "clusters": 61,
+        "difference": 0.0,
+        "paired_cases": 61,
+        "repetitions": 10000
+      },
+      "status": "valid"
+    },
+    "pinned-current-qwen": {
+      "combined_sufficiency": null,
+      "comparator_valid": false,
+      "formation_exact_state": null,
+      "retrieval_mrr_at_5": null,
+      "status": "unavailable_error_arm"
+    },
+    "pinned-jev": {
+      "combined_sufficiency": null,
+      "comparator_valid": false,
+      "formation_exact_state": null,
+      "retrieval_mrr_at_5": null,
+      "status": "unavailable_error_arm"
+    }
+  },
+  "format": "atmem-laya-statistical-analysis-v1",
+  "gates": {
+    "fine_required_classes_noninferior_to_deterministic": true,
+    "identities": {
+      "base-laya": {
+        "arm": "base-laya",
+        "batching": "one",
+        "dtype": "float32",
+        "hardware": "Darwin-arm64-cpu",
+        "maximum_calls": 0,
+        "maximum_tokens": 2112,
+        "model": "convaiinnovations/laya",
+        "provider": "local",
+        "remote_egress": false,
+        "retries": 0,
+        "revision": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+        "timeout_seconds": 30
+      },
+      "deterministic-atmem": {
+        "arm": "deterministic-atmem",
+        "batching": "one",
+        "dtype": "rules",
+        "hardware": "Darwin-x86_64-cpu",
+        "maximum_calls": 0,
+        "maximum_tokens": 2112,
+        "model": "atmem-deterministic-formation",
+        "provider": "local",
+        "remote_egress": false,
+        "retries": 0,
+        "revision": "2.3.9b1",
+        "timeout_seconds": 30
+      },
+      "finetuned-laya": {
+        "arm": "finetuned-laya",
+        "batching": "one",
+        "dtype": "float32",
+        "hardware": "Darwin-arm64-cpu",
+        "maximum_calls": 0,
+        "maximum_tokens": 2112,
+        "model": "atmem/atmem-laya-formation-model-v1",
+        "provider": "local",
+        "remote_egress": false,
+        "retries": 0,
+        "revision": "1698278c4b158fac30e4eb2fefd10ef8b8f873b3",
+        "timeout_seconds": 30
+      },
+      "finetuned-laya-with-atbot-escalation": {
+        "arm": "finetuned-laya-with-atbot-escalation",
+        "batching": "one",
+        "dtype": "float32",
+        "hardware": "cpu",
+        "maximum_calls": 1,
+        "maximum_tokens": 2112,
+        "model": "atmem/atmem-laya-formation-model-v1",
+        "provider": "local-laya-plus-bounded-atbot",
+        "remote_egress": true,
+        "retries": 0,
+        "revision": "1698278c4b158fac30e4eb2fefd10ef8b8f873b3",
+        "timeout_seconds": 30
+      },
+      "pinned-current-qwen": {
+        "arm": "pinned-current-qwen",
+        "batching": "one",
+        "dtype": "bfloat16",
+        "hardware": "vast-rtx3090-cuda13",
+        "maximum_calls": 1,
+        "maximum_tokens": 2112,
+        "model": "Qwen/Qwen3.5-9B",
+        "provider": "self-hosted-vllm",
+        "remote_egress": true,
+        "retries": 0,
+        "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+        "timeout_seconds": 30
+      },
+      "pinned-jev": {
+        "arm": "pinned-jev",
+        "batching": "one",
+        "dtype": "bfloat16",
+        "hardware": "jev-managed",
+        "maximum_calls": 1,
+        "maximum_tokens": 2112,
+        "model": "jev-1.13.0",
+        "provider": "jev",
+        "remote_egress": true,
+        "retries": 0,
+        "revision": "unresolved",
+        "timeout_seconds": 30
+      }
+    },
+    "identity_valid": {
+      "base-laya": true,
+      "deterministic-atmem": true,
+      "finetuned-laya": true,
+      "finetuned-laya-with-atbot-escalation": true,
+      "pinned-current-qwen": true,
+      "pinned-jev": false
+    },
+    "jev_identity": "blocked",
+    "latency_gate": "blocked_no_successful_paired_qwen_rows",
+    "latency_ratio_effect": null,
+    "matchedness": true,
+    "qwen_identity": "verified_but_execution_failed",
+    "safety_violations": {
+      "base-laya": 3,
+      "deterministic-atmem": 19,
+      "finetuned-laya": 0,
+      "finetuned-laya-with-atbot-escalation": 0,
+      "pinned-current-qwen": 0,
+      "pinned-jev": 0
+    }
+  },
+  "per_class": {
+    "base-laya": {
+      "memory_class": {
+        "durable_fact": {
+          "cases": 16,
+          "rate": 0.125
+        },
+        "episode": {
+          "cases": 17,
+          "rate": 0.4117647058823529
+        },
+        "non_memory": {
+          "cases": 14,
+          "rate": 1.0
+        },
+        "procedure": {
+          "cases": 19,
+          "rate": 0.2631578947368421
+        },
+        "temporary_state": {
+          "cases": 14,
+          "rate": 0.07142857142857142
+        }
+      },
+      "operation": {
+        "ADD": {
+          "cases": 20,
+          "rate": 0.3
+        },
+        "NOOP": {
+          "cases": 12,
+          "rate": 0.25
+        },
+        "REJECT": {
+          "cases": 21,
+          "rate": 0.8571428571428571
+        },
+        "SUPERSEDE": {
+          "cases": 10,
+          "rate": 0.0
+        },
+        "UPDATE": {
+          "cases": 17,
+          "rate": 0.11764705882352941
+        }
+      }
+    },
+    "deterministic-atmem": {
+      "memory_class": {
+        "durable_fact": {
+          "cases": 16,
+          "rate": 0.625
+        },
+        "episode": {
+          "cases": 17,
+          "rate": 0.5882352941176471
+        },
+        "non_memory": {
+          "cases": 14,
+          "rate": 0.0
+        },
+        "procedure": {
+          "cases": 19,
+          "rate": 0.3157894736842105
+        },
+        "temporary_state": {
+          "cases": 14,
+          "rate": 0.5714285714285714
+        }
+      },
+      "operation": {
+        "ADD": {
+          "cases": 20,
+          "rate": 1.0
+        },
+        "NOOP": {
+          "cases": 12,
+          "rate": 1.0
+        },
+        "REJECT": {
+          "cases": 21,
+          "rate": 0.09523809523809523
+        },
+        "SUPERSEDE": {
+          "cases": 10,
+          "rate": 0.0
+        },
+        "UPDATE": {
+          "cases": 17,
+          "rate": 0.0
+        }
+      }
+    },
+    "finetuned-laya": {
+      "memory_class": {
+        "durable_fact": {
+          "cases": 16,
+          "rate": 1.0
+        },
+        "episode": {
+          "cases": 17,
+          "rate": 1.0
+        },
+        "non_memory": {
+          "cases": 14,
+          "rate": 1.0
+        },
+        "procedure": {
+          "cases": 19,
+          "rate": 1.0
+        },
+        "temporary_state": {
+          "cases": 14,
+          "rate": 1.0
+        }
+      },
+      "operation": {
+        "ADD": {
+          "cases": 20,
+          "rate": 1.0
+        },
+        "NOOP": {
+          "cases": 12,
+          "rate": 1.0
+        },
+        "REJECT": {
+          "cases": 21,
+          "rate": 1.0
+        },
+        "SUPERSEDE": {
+          "cases": 10,
+          "rate": 1.0
+        },
+        "UPDATE": {
+          "cases": 17,
+          "rate": 1.0
+        }
+      }
+    }
+  },
+  "protocol": {
+    "bootstrap_repetitions": 10000,
+    "confidence_level": 0.95,
+    "seed": 410239,
+    "unit": "scenario_cluster"
+  },
+  "source_sha256": {
+    "base-laya:combined": "d545c4b12e126772fd34b38900bcfc3c1264432143e8259b38000a74978e6649",
+    "base-laya:post-state": "dfe49f35d4ff653cfd069813f3a39e62edcc0bd3ef4567cea43e8f1cda438848",
+    "base-laya:retrieval": "332cbf1c16d00d669fa79d418bad8b3f5dea359bc120f9505cb37df052024647",
+    "deterministic-atmem:combined": "bb384c5cea47a7b6bf1b171d812bdead0acea3cda7a06456621c302f1f3aaddc",
+    "deterministic-atmem:post-state": "7495ad577d66aef8887be40400975301a7e608c697da8decfbf7f5254a0ad0e4",
+    "deterministic-atmem:retrieval": "9dc75eba9043036cf383de10b66aaaf9d3af1f5f343ac5988156643db3325e9d",
+    "finetuned-laya-with-atbot-escalation:combined": "977666871721e71ca102473681cbf7a838429e8b4533bb7315281ab5ce340c58",
+    "finetuned-laya-with-atbot-escalation:post-state": "ef165e7d4fcb188797f6675ab8c947d291c49b6d34bb55493f2455e07c27ac4b",
+    "finetuned-laya-with-atbot-escalation:retrieval": "52b4b5bbe54ff3bad9d37358b59573b61114588c01eb0fb783231b224e70df4c",
+    "finetuned-laya:combined": "ed1b1e5961751352019fb0e22dd8e00b120390d4bab4347be944b690f37c3d94",
+    "finetuned-laya:post-state": "ef165e7d4fcb188797f6675ab8c947d291c49b6d34bb55493f2455e07c27ac4b",
+    "finetuned-laya:retrieval": "06c288bf11a44cfe9a0be1a7868aaa9ca81bff301618b7d0cd6488d8353e47ad",
+    "pinned-current-qwen:combined": "9f2de25e3e73e2d30e85623d0dc3fa608c9cd813f9ab9c2321146579c46bad20",
+    "pinned-current-qwen:post-state": "d94c3aa86671095ebbefbfbe080a4ccd85e93b5440b8c6f7f1bd5517df7438ee",
+    "pinned-current-qwen:retrieval": "50d9e4e21a1d09c5008bcf5490656eb72dac6c2803055c47ed3a351087a5ecd1",
+    "pinned-jev:combined": "2e98cb86b89c19c4f17c7eb03bee5581a8da61779e0ffc1cbec5f33b1bc3d3c2",
+    "pinned-jev:post-state": "d94c3aa86671095ebbefbfbe080a4ccd85e93b5440b8c6f7f1bd5517df7438ee",
+    "pinned-jev:retrieval": "d048284bd968f8a54caf0883284efa8a232ac6f178bf35ec9995b32239a78624"
+  }
+}

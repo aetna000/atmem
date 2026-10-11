@@ -1,0 +1,63 @@
+{
+  "format": "atmem-laya-source-lock-v1",
+  "captured_at": "2026-10-10",
+  "license_policy": "Apache-2.0 only for the base model, source and derivative public artifacts",
+  "laya": {
+    "hub_repo": "convaiinnovations/laya",
+    "hub_revision": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+    "hub_license": "apache-2.0",
+    "source_repo": "https://github.com/NandhaKishorM/laya",
+    "source_revision": "68804629e8ccd9d616d48a40e87de9fabbeae069",
+    "package": "laya==0.4.2",
+    "python": ">=3.10",
+    "training_entrypoints": ["laya-train", "laya.train.finetune"],
+    "objectives": ["rlcd", "soft-ce"],
+    "devices": ["cuda", "mps", "cpu"],
+    "files": {
+      "config.json": {"sha256": "7add7c041b53f7091e65908553af79ab3f077946e5f2312d510ae13b17c7c134", "size": 160},
+      "README.md": {"sha256": "00355613796b3f5860b0d5b20392381d26580ec242e04a1fd150c7f116858602", "size": 23187, "role": "model_card_snapshot"},
+      "rl_agent_config.json": {"sha256": "ae287b56bbcf5f8c4f4541ae9dfd00c914c4c48b940b8398c3058af37ba92bbd", "size": 745},
+      "encoder/config.json": {"sha256": "bf3ab80598fdccf414855a2ce80f22859e4492d06ca8a62ddd1cfb63972f8979", "size": 2083},
+      "tokenizer/tokenizer_config.json": {"sha256": "50044de60daaa73df97d262e15a40d4faf0160e7d742df64b377877a1320dd12", "size": 308},
+      "tokenizer/tokenizer.json": {"sha256": "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30", "size": 3583228},
+      "model.safetensors": {"sha256": "891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c", "size": 842609210, "digest_source": "Hugging Face LFS oid"}
+    },
+    "source_files": {
+      "LICENSE": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
+      "laya/train.py": "c325941f275a90b486d00c3ca28dc4ee1ece795218fdaa7c67818d711ee79645",
+      "laya/train_cli.py": "c7dce37c946f994ee856dfa1dae3910b6a11f8a91e621f6725e4def0a726f007",
+      "docs/finetune.md": "3124d3c518fef299763e7197844ae53930a613d00b52272a73292eb1cfb8ef23"
+    },
+    "token_budget_evidence": {
+      "agent_max_len": 512,
+      "head_max_len": 192,
+      "tokenizer_model_max_length": 8192,
+      "encoder_max_position_embeddings": 8192,
+      "governing_limit": "agent_max_len",
+      "sequence_format": "[CLS] type instructions [SEP] [MASK] option ... [SEP] state [SEP]",
+      "state_room_formula": "max(0, 512 - exact_head_tokens - 1)",
+      "closing_sep_tokens_reserved": 1,
+      "probe": {
+        "loader": "transformers.PreTrainedTokenizerFast",
+        "vocab_size": 50280,
+        "empty_special_token_ids": [50281, 50282],
+        "five_operation_question_head_tokens": 51,
+        "one_range_state_tokens": 47,
+        "total_with_closing_sep": 99,
+        "result": "pass"
+      },
+      "policy": "Question and all options must fit the 192-token head and 512-token total; AtMem disables silent truncation and records whole-range evidence loss."
+    },
+    "snapshot_policy": "Immutable URLs plus byte sizes and SHA-256 digests are the retained source/card snapshot manifest; implementation fetches only these pinned revisions and verifies bytes before use."
+  },
+  "jev": {
+    "openapi_url": "https://api.typesafe.ai/openapi.json",
+    "openapi_version": "3.1.0",
+    "service_version": "0.2.0",
+    "openapi_sha256": "a191f8a7df6bd6fedced8120dd0fd106f88575d1d1c8360d08900a6c7c0360d5",
+    "paths": ["/v1/models", "/v1/systemone"],
+    "requested_model": "jev-1.13.0",
+    "moving_aliases": ["jev-latest"],
+    "identity_status": "requires_authenticated_preflight_at_evaluation_time"
+  }
+}

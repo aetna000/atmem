@@ -288,6 +288,65 @@ class AtBotCompanionClient:
         except (OSError, ValueError, TypeError, HTTPError, URLError, json.JSONDecodeError) as exc:
             return {**fallback, "companion": {**fallback["companion"], "reason": str(exc)}}
 
+    def propose_formation_decision(
+        self,
+        *,
+        payload: dict[str, Any],
+        max_input_tokens: int,
+        max_output_tokens: int,
+        timeout_seconds: float,
+        remote_egress_allowed: bool,
+        max_cost_usd: float,
+    ) -> dict[str, Any]:
+        """Request one schema-bounded proposal; never grant storage authority."""
+
+        fallback = {
+            "format": "atbot-formation-decision-fallback-v1",
+            "request_id": str(payload.get("request_id") or ""),
+            "authority_decision": None, "canonical_storage": False,
+            "companion": {"available": False, "fallback": True},
+        }
+        if set(payload) != {
+            "format", "request_id", "reason", "question", "authorized_input", "candidate_ids"
+        }:
+            return {**fallback, "reason": "request_schema_mismatch"}
+        from atmem.control.atbot_service import AtBotServiceManager
+
+        manager = AtBotServiceManager()
+        configured_remote = manager.configured_egress_class() == "remote"
+        if configured_remote and not remote_egress_allowed:
+            return {**fallback, "reason": "remote_egress_denied"}
+        health = self.health()
+        if not health.get("available"):
+            return {**fallback, "reason": "companion_unavailable"}
+        body = {
+            "payload": payload,
+            "remote": configured_remote and remote_egress_allowed,
+            "max_input_tokens": int(max_input_tokens),
+            "max_output_tokens": int(max_output_tokens),
+            "timeout_seconds": float(timeout_seconds),
+            "max_cost_usd": float(max_cost_usd),
+        }
+        try:
+            request = Request(
+                f"{self.endpoint}/api/companion/formation/propose",
+                data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+                headers={"Content-Type": "application/json", "X-AtBot-CSRF": str(health["csrf_token"])},
+                method="POST",
+            )
+            with urlopen(request, timeout=float(timeout_seconds)) as response:
+                value = json.loads(response.read())
+            if (
+                value.get("format") != "atbot-formation-decision-proposal-v1"
+                or value.get("authority_decision") is not None
+                or value.get("canonical_storage") is not False
+                or str(value.get("request_id")) != fallback["request_id"]
+            ):
+                raise ValueError("invalid AtBot formation proposal boundary")
+            return {**value, "companion": {"available": True, "fallback": False}}
+        except (OSError, ValueError, TypeError, HTTPError, URLError, json.JSONDecodeError):
+            return {**fallback, "reason": "provider_unavailable_or_invalid"}
+
 
 def _fallback(
     query: str, candidates: list[dict[str, Any]], health: dict[str, Any]

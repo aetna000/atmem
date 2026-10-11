@@ -9,13 +9,13 @@ and investigate the evidence a supported host captured.
 without an API key or a model download. Then [connect an agent](integrations.md)
 and review shadow mode before enabling context injection.
 
-## New in 2.3.8: source-linked context and Hermes setup
+## New in 2.3.9b1: optional local formation intelligence
 
-Typed formation, information-need routing, bounded evidence neighbourhoods and
-sufficiency receipts improve what supported agents receive without weakening
-scope or provenance. Hermes gains a reversible isolated-by-default installer.
-Read the [2.3.8 release evidence and limits](../releases/v2.3.8.md) and the
-[technical report](../releases/v2.3.7-to-v2.3.8-technical-report.md).
+The opt-in Laya profile proposes bounded formation decisions while AtMem retains
+authority, exact post-state checks and deterministic fallback. Ordinary upgrades
+download no model and change no default. Read the
+[2.3.9b1 release evidence and limits](../releases/v2.3.9b1.md) and the
+[formation setup guide](laya-formation.md).
 
 ## Explore the documentation
 - [Product portfolio](portfolio.md): AtMem, AtBots and AtFlows roles, source repositories and integration boundaries.

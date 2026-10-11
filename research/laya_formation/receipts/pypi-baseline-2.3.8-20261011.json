@@ -1,0 +1,34 @@
+{
+  "format": "atmem-pypi-upgrade-baseline-v1",
+  "captured_at": "2026-10-11",
+  "result": "pass",
+  "registry": "https://pypi.org/project/atmem/2.3.8/",
+  "distribution": "atmem",
+  "version": "2.3.8",
+  "wheel": {
+    "filename": "atmem-2.3.8-py3-none-any.whl",
+    "sha256": "05ca2c579be1af55de1da056ae257062417831b2e8eb4f2fda2a6413ba3ee923",
+    "size_bytes": 965700,
+    "tag": "py3-none-any",
+    "requires_python": ">=3.10",
+    "pinned_atbot": "atmem-atbot==0.1.0"
+  },
+  "source_distribution": {
+    "filename": "atmem-2.3.8.tar.gz",
+    "sha256": "82957864a2665dff409ec8a7d5a09c7838fed200f41d3f3c9cae9dfc5ea0b2cb"
+  },
+  "provenance": {
+    "trusted_publishing": true,
+    "repository": "github.com/aetna000/atmem",
+    "commit": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+    "workflow": ".github/workflows/publish.yml",
+    "verified_by": "PyPI"
+  },
+  "download_verification": {
+    "index": "https://pypi.org/simple",
+    "no_dependencies": true,
+    "binary_only": true,
+    "sha256_matches_registry": true,
+    "metadata_version_matches": true
+  }
+}

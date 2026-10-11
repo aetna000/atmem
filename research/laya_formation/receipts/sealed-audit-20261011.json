@@ -1,0 +1,19 @@
+{
+  "format": "atmem-laya-sealed-audit-receipt-v1",
+  "freeze_digest": "fe07a64028dcfdc9c362195965dee9d52ff5b3638bd1606c769ec32a36655f80",
+  "packet_sha256": "sha256:b21a7f19d8d52bdfbe292089ccd1562c9380cfed089b4b9f54ac62f887712df5",
+  "answer_key_sha256": "sha256:987cc303e83c3be3ab2e2d6635682a45caf87f83cbdca5bff3a51cf9f0c9c972",
+  "review_sha256": "sha256:dd18228a110cf5a90c360581b75e17861152fb515fceaa3a803bae67d420cbbc",
+  "sample_size": 400,
+  "per_question_sample_size": 80,
+  "reviewer": "openai:gpt-5.5:independent-audit-v1",
+  "different_from_nonsealed_reviewer": true,
+  "answer_key_accessed_by_reviewer": false,
+  "reviewed": 400,
+  "correct": 400,
+  "accuracy": 1.0,
+  "critical_findings": 0,
+  "signed_at": "2026-10-10T17:26:01.491971+00:00",
+  "signature_algorithm": "ed25519",
+  "passed": true
+}

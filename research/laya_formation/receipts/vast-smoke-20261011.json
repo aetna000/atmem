@@ -1,0 +1,128 @@
+{
+  "created_at": "2026-10-10T14:26:49.846041+00:00",
+  "decision": {
+    "reason_codes": [],
+    "state": "viable"
+  },
+  "device": "cuda",
+  "evidence": {
+    "error": null,
+    "free_storage_bytes": 85851987968,
+    "free_to_projected_storage_ratio": 8.482158409258428,
+    "memory_headroom_fraction": 0.7251540618426711,
+    "nonfinite": false,
+    "peak_memory_bytes": 9256828928,
+    "projected_both_objectives_hours": 37.91322765429504,
+    "projected_peak_run_storage_bytes": 10121478971,
+    "resume_verified": true,
+    "safetensors_reload_verified": true,
+    "total_memory_bytes": 33680064512
+  },
+  "format": "atmem-laya-compute-smoke-receipt-v1",
+  "objectives": [
+    {
+      "calibration_finite": true,
+      "calibration_items": 10,
+      "elapsed_seconds": 1.5599444698309526,
+      "export_bytes": 846217048,
+      "losses": [
+        1.5565600395202637,
+        1.9171650409698486
+      ],
+      "objective": "soft-ce",
+      "reload_choice_agreement": 1.0,
+      "reload_max_score_delta": 0.0,
+      "resume_choice_agreement": 1.0,
+      "resume_loss": 1.9171650409698486,
+      "resume_max_probability_delta": 1.946772061334201e-07,
+      "resume_verified": true,
+      "seconds_per_step": 0.7799722349154763
+    },
+    {
+      "calibration_finite": true,
+      "calibration_items": 10,
+      "elapsed_seconds": 0.16338405990973115,
+      "export_bytes": 846217048,
+      "losses": [
+        1.7903348207473755,
+        2.2416508197784424
+      ],
+      "objective": "rlcd",
+      "reload_choice_agreement": 1.0,
+      "reload_max_score_delta": 0.0,
+      "resume_choice_agreement": 1.0,
+      "resume_loss": 2.2416508197784424,
+      "resume_max_probability_delta": 5.454296432283456e-07,
+      "resume_verified": true,
+      "seconds_per_step": 0.08169202995486557
+    }
+  ],
+  "packages": {
+    "huggingface-hub": "0.36.0",
+    "laya": "0.4.2",
+    "numpy": "2.2.3",
+    "safetensors": "0.6.2",
+    "torch": "2.11.0+cu128",
+    "transformers": "4.57.1"
+  },
+  "platform": {
+    "machine": "x86_64",
+    "python": "3.12.3",
+    "release": "5.15.0-125-generic",
+    "system": "Linux"
+  },
+  "workload": {
+    "base_model": {
+      "repo_id": "convaiinnovations/laya",
+      "revision": "7b928d828b7b0e022f929d9bd2e44165aa270148"
+    },
+    "dataset": {
+      "calibration_path": "data/decisions-calibration.jsonl",
+      "full_calibration_items": 6700,
+      "full_train_items": 39600,
+      "manifest_sha256": "d67d371c8c1d6de85a0293cded5aa5b3f7d078e92197130ce1f9edef68e863d4",
+      "repo_id": "atmem/atmem-laya-formation-v1",
+      "revision": "4436089b38cbe3a5374aaaa92c4c77703cdbf668",
+      "train_path": "data/decisions-train.jsonl"
+    },
+    "format": "atmem-laya-smoke-workload-v1",
+    "laya": {
+      "package": "laya==0.4.2",
+      "source_revision": "68804629e8ccd9d616d48a40e87de9fabbeae069"
+    },
+    "sample": {
+      "calibration_items": 10,
+      "selection": "first-per-question-round-robin",
+      "train_items": 10
+    },
+    "seed": 410239,
+    "training": {
+      "checkpoint_after_step": 1,
+      "encoder_lr": 2.5e-05,
+      "freeze_encoder": false,
+      "full_epochs": 4,
+      "gradient_accumulation": 1,
+      "gradient_clip": 1.0,
+      "head_lr": 0.0001,
+      "head_max_len": 192,
+      "max_len": 512,
+      "micro_batch": 1,
+      "objectives": [
+        "soft-ce",
+        "rlcd"
+      ],
+      "rl_samples": 4,
+      "steps_per_objective": 2,
+      "weight_decay": 0.01
+    },
+    "viability": {
+      "maximum_projected_both_objectives_hours": 48.0,
+      "minimum_free_to_projected_storage_ratio": 3.0,
+      "minimum_memory_headroom_fraction": 0.2,
+      "reload_choice_agreement": 0.999,
+      "reload_score_absolute_tolerance": 0.0001,
+      "resume_loss_absolute_tolerance": 0.0001
+    }
+  },
+  "workload_sha256": "9e2c3c6fbd28282c41c722f11739ac29908c6f7c50d5e8645f0ccd83ab14ed5d"
+}

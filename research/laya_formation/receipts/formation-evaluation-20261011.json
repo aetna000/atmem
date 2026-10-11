@@ -1,0 +1,86 @@
+{
+  "format": "atmem-laya-formation-evaluation-receipt-v1",
+  "recorded_at": "2026-10-11T00:05:00Z",
+  "evidence_class": "synthetic_only",
+  "packet": {
+    "root": "/Volumes/MEM/AtMem-Laya-Evaluation-20261011-v2",
+    "packet_digest": "sha256:6125d470f7aed7fa14337845e51ca0eedae3c7dd418132b8559e59be3012771f",
+    "answer_key_digest": "sha256:6413c3bd56ad1d65d186ea3381bf19f92a691fd8abc72b652da8198d7eaa2b9d",
+    "cases": 400,
+    "scenarios": 80
+  },
+  "results_root": "/Volumes/MEM/AtMem-Laya-Evaluation-Results-20261011-v1",
+  "arms": {
+    "deterministic-atmem": {
+      "exact_canonical_state_success": 0.425,
+      "safety_violations": 19,
+      "error_rate": 0.0,
+      "median_latency_ms": 2.310916501301108,
+      "raw_sha256": "f7bf57cbac9c24c0741737093ffa28d80db3fb6f9f7755d8d5755783c94729ed",
+      "post_state_sha256": "7495ad577d66aef8887be40400975301a7e608c697da8decfbf7f5254a0ad0e4"
+    },
+    "base-laya": {
+      "exact_canonical_state_success": 0.3625,
+      "safety_violations": 3,
+      "error_rate": 0.0,
+      "median_latency_ms": 273.59099999921455,
+      "raw_sha256": "b473d56e4c0a241a06b240ff34fb7a7d196d961b4598bed8f66201335869b36f",
+      "post_state_sha256": "dfe49f35d4ff653cfd069813f3a39e62edcc0bd3ef4567cea43e8f1cda438848"
+    },
+    "finetuned-laya": {
+      "exact_canonical_state_success": 1.0,
+      "safety_violations": 0,
+      "error_rate": 0.0,
+      "median_latency_ms": 272.29383349913405,
+      "raw_sha256": "34fd99e749a30f7df4c425c1c8985d724e208aab19f438971d654de2c05369fc",
+      "post_state_sha256": "ef165e7d4fcb188797f6675ab8c947d291c49b6d34bb55493f2455e07c27ac4b"
+    },
+    "finetuned-laya-with-atbot-escalation": {
+      "exact_canonical_state_success": 1.0,
+      "safety_violations": 0,
+      "error_rate": 0.0,
+      "escalation_rate": 0.0,
+      "provider_calls": 0,
+      "median_latency_ms": 282.538208499318,
+      "raw_sha256": "0400bff85ce4cda33974619ee0741fd10fd4995ad8e2f1f29b55a4fb39154097",
+      "post_state_sha256": "ef165e7d4fcb188797f6675ab8c947d291c49b6d34bb55493f2455e07c27ac4b"
+    },
+    "pinned-current-qwen": {
+      "exact_canonical_state_success": 0.0,
+      "error_rate": 1.0,
+      "error_code": "VAST_STARTUP_TIMEOUT",
+      "model_calls": 0,
+      "raw_sha256": "76d52b9b64a2e4d89442f71ff7fc892c9c62a3e0eeded6ff92ac4054ecac12f8",
+      "post_state_sha256": "d94c3aa86671095ebbefbfbe080a4ccd85e93b5440b8c6f7f1bd5517df7438ee"
+    },
+    "pinned-jev": {
+      "exact_canonical_state_success": 0.0,
+      "error_rate": 1.0,
+      "error_code": "JEV_CONCRETE_IDENTITY_UNAVAILABLE",
+      "model_calls": 0,
+      "raw_sha256": "73a1790e3e16e77efbd29ccf1c1f24a5bd1e2daceb666b5c5ae0cce2cfef4b80",
+      "post_state_sha256": "d94c3aa86671095ebbefbfbe080a4ccd85e93b5440b8c6f7f1bd5517df7438ee"
+    }
+  },
+  "vast": {
+    "starting_credit_usd": 8.41155382686,
+    "ending_credit_usd": 8.39662976123,
+    "account_delta_usd": 0.01492406563,
+    "hard_ceiling_usd": 2.0,
+    "attempts": [
+      {"instance": 55300790, "offer": 31458820, "result": "cuda_804", "cuda_max_good": 12.8, "destroyed": true},
+      {"instance": 55301454, "offer": 51515504, "result": "host_dns_failure", "cuda_max_good": 13.0, "destroyed": true},
+      {"instance": 55301656, "offer": 35957820, "result": "startup_timeout_15m", "cuda_max_good": 13.0, "destroyed": true}
+    ],
+    "active_instances_after_run": 0
+  },
+  "gates": {
+    "all_arms_have_400_retained_rows": true,
+    "all_arms_have_80_exact_post_state_rows": true,
+    "expected_labels_absent_from_arm_rows": true,
+    "unknown_or_error_credited_as_success": false,
+    "jev_superiority_claim_allowed": false,
+    "qwen_comparison_conclusive": false,
+    "production_claim_allowed": false
+  }
+}

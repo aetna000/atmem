@@ -555,6 +555,9 @@ class ControlPlaneManager:
     def status(self) -> dict[str, Any]:
         state, warning = self.effective_state()
         result = state.public_status(warning=warning)
+        from atmem.laya_formation.setup import LayaProfileManager
+
+        result["formation_profile"] = LayaProfileManager().status()
         if warning or state.migration_id == "unavailable":
             result["evidence"] = None
             result["readiness"] = {

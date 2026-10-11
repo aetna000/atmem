@@ -47,6 +47,8 @@ class OpenAICompatibleProvider:
         system: str,
         prompt: str,
         schema: dict[str, Any] | None = None,
+        max_output_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> ProviderResult:
         headers = {"Content-Type": "application/json"}
         if self.api_key_env:
@@ -62,6 +64,8 @@ class OpenAICompatibleProvider:
             ],
             "temperature": 0,
         }
+        if max_output_tokens is not None:
+            payload["max_completion_tokens"] = int(max_output_tokens)
         if schema:
             payload["response_format"] = {
                 "type": "json_schema",
@@ -73,7 +77,7 @@ class OpenAICompatibleProvider:
             headers=headers,
             method="POST",
         )
-        with urlopen(request, timeout=self.timeout) as response:
+        with urlopen(request, timeout=self.timeout if timeout is None else float(timeout)) as response:
             value = json.loads(response.read())
         content = str(value["choices"][0]["message"]["content"])
         structured = None

@@ -1,0 +1,59 @@
+{
+  "format": "atmem-laya-compute-capability-v1",
+  "captured_at": "2026-10-10T11:27:51Z",
+  "candidate": "windows-ssh",
+  "state": "not_run",
+  "reason_codes": [
+    "representative_smoke_not_implemented",
+    "dataset_independent_audit_pending",
+    "pinned_laya_environment_absent"
+  ],
+  "connection": {
+    "endpoint": "user@192.168.0.87",
+    "strict_host_key_checking": true,
+    "authentication": "interactive-password-not-retained",
+    "host_key_fingerprints": {
+      "ed25519": "SHA256:3Y9IgdwLfYTaTWDoXDETYop/YFCqEiqxJxbC6QX/Ymo",
+      "rsa": "SHA256:qJ6sTO05ilyNLtT2YihbRpdqYg+XdLdtPEzvB/NLFno",
+      "ecdsa": "SHA256:7Zn8pNn68f1nmB795pferhZ5jPrvZbg0b50UygU4Y+8"
+    },
+    "post_quantum_key_exchange": false
+  },
+  "system": {
+    "computer": "DESKTOP-3FO00QL",
+    "manufacturer": "HP",
+    "model": "HP ZBook 15 G5",
+    "os": "Microsoft Windows 11 Pro",
+    "os_version": "10.0.26200",
+    "architecture": "64-bit",
+    "physical_memory_bytes": 68558548992,
+    "free_physical_memory_kib": 53218792,
+    "system_disk_bytes": 998877687808,
+    "system_disk_free_bytes": 330833440768
+  },
+  "accelerator": {
+    "name": "Quadro P2000",
+    "vram_bytes": 4294836224,
+    "vram_total_mib": 4096,
+    "vram_free_mib": 3596,
+    "driver_version": "573.71",
+    "nvcc_on_path": false
+  },
+  "python": {
+    "version": "3.12.6",
+    "executable": "C:\\Python312\\python.exe",
+    "torch": "2.7.1+cu118",
+    "torch_cuda_available": true,
+    "torch_cuda_version": "11.8",
+    "laya_installed": false,
+    "transformers_installed": true,
+    "safetensors_installed": true,
+    "datasets_installed": false,
+    "peft_installed": false,
+    "pinned_model_cached": false
+  },
+  "security_notes": [
+    "No password or token was placed in a command argument, environment variable, artifact, or shell history.",
+    "The SSH server did not negotiate a post-quantum key exchange algorithm."
+  ]
+}

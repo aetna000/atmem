@@ -1,0 +1,26 @@
+{
+  "format": "atmem-laya-packer-parity-fixture-v1",
+  "tokenizer_revision": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+  "question": {
+    "question_id": "operation",
+    "instructions": "Choose the only permitted memory formation operation.",
+    "choice_ids": ["ADD", "UPDATE", "SUPERSEDE", "NOOP", "REJECT"]
+  },
+  "ranges": [
+    {
+      "range_id": "range-1",
+      "source_id": "source-1",
+      "start": 0,
+      "end": 62,
+      "text": "The customer explicitly asked to remember the blue workspace theme."
+    }
+  ],
+  "expected": {
+    "head_tokens": 42,
+    "state_tokens": 54,
+    "total_tokens": 97,
+    "overflow": false,
+    "state_digest": "sha256:5afcd47e779f445abd6f0528f7fb80a6b8aa39077ab50660fe7f164fdc78f85f",
+    "structural_sha256": "b77f1dce7cf1cb2e48efefe14899d699520a2868ea06d5eba0de4e86f88c0f85"
+  }
+}

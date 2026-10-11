@@ -1,0 +1,13 @@
+{
+  "format": "atmem-laya-public-corpus-claim-gate-v1",
+  "recorded_at": "2026-10-11T00:55:00Z",
+  "candidate_model_revision": "1698278c4b158fac30e4eb2fefd10ef8b8f873b3",
+  "required_corpora": ["LoCoMo", "LongMemEval/store-to-retrieval"],
+  "separately_frozen_candidate_protocol_present": false,
+  "candidate_runs_present": false,
+  "prior_repository_results_reusable": false,
+  "reason": "Prior results evaluate other model/system configurations and were not frozen for this candidate.",
+  "production_superiority_claim": "blocked",
+  "general_customer_superiority_claim": "blocked",
+  "synthetic_results_may_be_reported_with_label": true
+}

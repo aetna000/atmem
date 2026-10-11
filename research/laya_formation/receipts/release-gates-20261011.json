@@ -1,0 +1,74 @@
+{
+  "format": "atmem-laya-release-gates-v1",
+  "recorded_at": "2026-10-11T04:30:00Z",
+  "result": "pass",
+  "versions": {
+    "atmem": "2.3.9b1",
+    "atbot": "0.1.1b1",
+    "atflows": "0.1.4b3",
+    "openclaw_bridge": "2.3.9-beta.1"
+  },
+  "candidate_artifacts": {
+    "atmem_wheel": {
+      "filename": "atmem-2.3.9b1-py3-none-any.whl",
+      "sha256": "4b7833ba3c22f0557b62b3c1b60ee818a110fe824dc4cb34e42a190ad4897721"
+    },
+    "atmem_sdist": {
+      "filename": "atmem-2.3.9b1.tar.gz",
+      "sha256": "54158a267488ed99cc6e00a23972ea2de133e2fe6f50df9d81dbc90c17de9299"
+    },
+    "atbot_wheel": {
+      "filename": "atmem_atbot-0.1.1b1-py3-none-any.whl",
+      "sha256": "c2e975ad7ec65aa4de2ef5206a687f80f83906df483858079d6d8e47af72e688"
+    },
+    "atbot_sdist": {
+      "filename": "atmem_atbot-0.1.1b1.tar.gz",
+      "sha256": "d9a88450e8ec3405b1bfde58490dcdb76536a54e7abb4cfb204520f206fb2b49"
+    },
+    "sdist_wheel_rebuild": "pass",
+    "twine_check": "pass"
+  },
+  "dependency_correction": {
+    "laya": "0.4.2",
+    "torch": ">=2.3,<3",
+    "reason": "Prevent the Python 3.12 Intel-macOS resolver from selecting Torch 2.2, which failed at runtime; unsupported Intel macOS now fails dependency resolution instead of partially activating.",
+    "uv_lock": "resolved_359_packages"
+  },
+  "gates": {
+    "python_full_suite": {
+      "passed": 2329,
+      "skipped": 83,
+      "failed": 0
+    },
+    "atbot_suite": {
+      "passed": 18,
+      "failed": 0
+    },
+    "website_inventory": {
+      "pages": 58,
+      "version": "2.3.9b1",
+      "result": "pass"
+    },
+    "release_metadata": "pass",
+    "openclaw_npm_ci": "pass",
+    "openclaw_typecheck": "pass",
+    "openclaw_build": "pass",
+    "openclaw_tests": "pass",
+    "openclaw_smoke": "pass",
+    "openclaw_pack_dry_run": "pass",
+    "git_diff_check": "pass",
+    "fresh_base_wheel_smoke": "pass",
+    "published_2_3_8_upgrade_smoke": "pass",
+    "persisted_record_recalled": true,
+    "forced_model_download": false,
+    "default_profile_unchanged": true,
+    "exact_profile_rollback": true,
+    "native_macos_arm64_optional_install": "pass",
+    "native_macos_arm64_cpu_inference_ms": 216.02291700037313,
+    "native_macos_arm64_pip_check": "pass"
+  },
+  "known_nonblocking_findings": {
+    "npm_audit": "8 advisories reported in the pinned upstream dependency graph: 2 moderate, 5 high, 1 critical; no automatic lockfile mutation was performed during release validation.",
+    "intel_macos_optional_profile": "not supported or claimed; base wheel remains supported and tested"
+  }
+}

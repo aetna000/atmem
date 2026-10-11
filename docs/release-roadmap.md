@@ -1,18 +1,16 @@
 # AtMem release roadmap
 
-**Status**: 2.3.7 is the published stable release. AtMem 2.3.8 and its
-matching OpenClaw bridge are the current stable release candidates; they are
-not published until the reviewed commit is merged, tagged and verified in the
-registries. The exact tested AtFlows companion remains `0.1.4b3`.
-**Release baseline**: AtMem `2.3.7`, OpenClaw bridge `2.3.7`, companion pins
-`atmem-atbot==0.1.0` and `atflows==0.1.3`. Publication status is recorded by
+**Status**: 2.3.8 is the published stable release. AtMem `2.3.9b1`, AtBot
+`0.1.1b1` and OpenClaw bridge `2.3.9-beta.1` are the coordinated beta release
+candidate. The exact tested AtFlows companion remains `0.1.4b3`.
+**Release baseline**: AtMem `2.3.8`, OpenClaw bridge `2.3.8`, companion pins
+`atmem-atbot==0.1.0` and `atflows==0.1.4b3`. Publication status is recorded by
 the matching GitHub release and registry artifacts, not this roadmap alone.
 
-**Next planned maintenance release:** AtMem/bridge `2.3.8`, with the governed
-context engine, first-class Hermes setup and bounded benchmark evidence described
-in [its release note](releases/v2.3.8.md). AtMem `2.3.7` remains the published
-stable baseline until the release workflow succeeds. Preserve opt-in continuity
-behavior and benchmark provenance; full held-out qualification stays open.
+**Next prerelease:** AtMem `2.3.9b1` with optional Laya formation intelligence,
+described in [its release note](releases/v2.3.9b1.md). AtMem `2.3.8` remains the
+published stable baseline until the beta workflow succeeds. Deterministic
+formation stays default and full held-out production qualification stays open.
 Official MCP Registry registration ([issue #8](https://github.com/aetna000/atmem/issues/8))
 and stable AtFlows `0.1.4` generic secret redaction
 ([AtFlows #6](https://github.com/aetna000/atflows/issues/6)) remain separately
@@ -151,6 +149,7 @@ The numbered capability targets below remain proposals, not execution priority.
 | **2.3.4b2** — AtFlows-installed review-lead beta | M4 preparation | AtMem installs the pinned AtFlows Python package by default; an explicitly started AtFlows instance can supply exact session-linked trace-error leads for a read-only local evidence review report. The versioned report can feed the 2.4.0 Memory Health queue after that queue exists | 020/028 evidence and access boundaries; future 026 consumer | Source candidate, not published. Installed AtFlows 0.1b6 handoff passes the local smoke gate. No automatic server start, shared login, Memory Health queue, automatic admission, raw-trace import, inferred run link or causal claim. AtMem works without a running AtFlows server. |
 | **2.3.4** — stable follow-up | Beta stabilization | Preserve verified retrieval scope, install AtFlows 0.1.1 by default, and offer optional AtMem-owned login plus read-only review leads | 031/035 and applicable 020/028/026 contracts | AtFlows remains separately started; standalone login remains compatible. No promotion of exploratory Jev results, automatic Memory Health, or causal telemetry claims. Stable release requires its own reviewed gates and notes. |
 | **2.3.6** — memory-integrity qualification | Canonical safety boundaries | Secret-bearing proposal refusal, direct-parent taint propagation, issued scoped procedure-review authority, portable locking, and frozen before/after public benchmark evidence | Benchmarking 001 and existing memory/evidence authority contracts | Stable. No schema migration; retrieval defaults and companion pins unchanged. Candidate result: 400 PASS and 300 NOT_REPRESENTABLE across 700 trials, with zero failures/errors; upstream placement remains pending. |
+| **2.3.9b1** — optional Laya formation intelligence beta | M4 preparation | Publish a synthetic, provenance-rich memory-decision dataset and an optional fine-tuned Laya System One model; add calibrated formation decisions with bounded generative escalation and matched store/retrieval evaluation against deterministic, Qwen, base-Laya and pinned Jev controls | 040 context-engine authority; 041 Laya formation model | Release candidate. Dataset and model are public and verified. Existing deterministic behavior remains default and upgrades do not download a model. Package release, website PR merge and live website deployment remain separate gates. Synthetic formation/combined gains are reported; retrieval ties deterministic AtMem, and Qwen/Jev/production comparisons are inconclusive or blocked. |
 | **2.4.0** — local memory health | M4 memory intelligence, local profile | Native single-owner memory gets time-valid recall, deterministic expiry and duplicate checks, a review queue, bounded opt-in background cycles and optional AtBot semantic proposals. Review works without a running AtFlows server or model | 001, 006, 008, 015, 026; applicable 020/022/028 local contracts | Ship only after local admission/lifecycle, scope, encrypted evidence, generation, deletion, restart and installed-artifact gates pass. Default disabled; first activation preview-only. No shared-space, external-provider propagation or automatic semantic changes claimed. |
 | **2.5.0** — multi-agent memory and access foundations | M1 | Agents use private and explicitly shared spaces with separate read/write/admin permissions, ownership, membership changes and provenance. Establish durable authenticated administration for supported production profiles; extend memory-health authorization to shared spaces | 006, 010, 012, 013, 015, applicable 017/019/022/026 consumers | Membership and credential subsystems pass their decomposed gates; no cross-space leaks, stale-grant delivery, hidden health-count leakage or revoked-key resurrection. Local 2.4 memory health remains available. |
 | **2.6.0** — governed provider connections | M1 | Native memory and external memory/knowledge share inspection and policy services; provider setup supports access preview, conditional approval, explicit activation and first-delivery monitoring. Complete the nine-destination workspace: Runs, Memory, Decisions, Tools and media, Audit, Policies, Tasks, Connections and Settings | 019, 022, 025, relevant 003/004/017/026 | Native plus one real external provider and declared authentication profiles pass. Preserve all three authority modes, exact delegated bytes and actual credential/delivery assurance. No claim of every authentication method or connector working. |

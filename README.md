@@ -1,15 +1,15 @@
 # AtMem
 
-[![Version 2.3.8](https://img.shields.io/badge/version-2.3.8-blue)](./docs/releases/v2.3.8.md)
+[![Version 2.3.9b1](https://img.shields.io/badge/version-2.3.9b1-blue)](./docs/releases/v2.3.9b1.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-> **AtMem 2.3.8:** Source-linked typed context, bounded evidence packing and
-> one-command Hermes setup extend the existing governed continuity surface. The
-> exact AtFlows companion is 0.1.4b3. See the [release note](./docs/releases/v2.3.8.md),
-> [technical report](./docs/releases/v2.3.7-to-v2.3.8-technical-report.md), and
-> [bounded evaluation evidence](./benchmarks/retrieval_quality/reports/five-percent-results-20261010.md).
+> **AtMem 2.3.9b1:** Optional local Laya formation improves bounded decisions
+> about what memory state to store while AtMem retains authority. Deterministic
+> behavior remains the default and upgrades download no model. See the
+> [release note](./docs/releases/v2.3.9b1.md) and
+> [synthetic evaluation](./research/laya_formation/reports/evaluation-report-20261011.md).
 > Previous benchmarks retain their tested-version provenance.
 > It records exact host-observed text and supported multimodal boundaries by default,
 > while keeping every claim limited to what the connected agent actually supplied.
@@ -47,7 +47,7 @@ results; absolute task accuracy is still low. See the
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --upgrade atmem==2.3.8
+python -m pip install --upgrade --pre atmem==2.3.9b1
 atmem atbot setup
 atmem atbot doctor
 atmem init
@@ -59,6 +59,21 @@ always-present local vector index. Do **not** install AtBot separately. During
 `atmem atbot setup`, choose local Ollama, a local OpenAI-compatible model, a
 hosted provider, or the safe deterministic fallback. API keys stay in
 environment variables; AtMem does not save them.
+
+To stage the optional local formation model without changing the default:
+
+```bash
+python -m pip install --upgrade --pre 'atmem[laya-formation]==2.3.9b1'
+atmem formation preview --download
+atmem formation setup --download --device auto --yes
+atmem formation doctor
+atmem formation activate --yes
+```
+
+The exact public model is checksum-verified before activation. Use
+`atmem formation rollback --yes` to restore the saved inactive profile. See the
+[2.3.9b1 release note](docs/releases/v2.3.9b1.md) for measured synthetic evidence,
+platform coverage and limitations.
 
 For encrypted local households, install the SQLCipher extra and verify the
 runtime before migration:
@@ -79,7 +94,7 @@ Stop every writer before migration. AtMem validates SQLite integrity,
 SQLCipher page integrity and per-table row counts before the atomic cutover;
 see [SaaS integration and recovery](docs/saas-integration.md#privacy-retention-and-deletion).
 
-In 2.3.8, `pip install atmem` installs the Python packages only; pip does not
+In 2.3.9b1, `pip install atmem` installs the Python packages only; pip does not
 run a post-install downloader. On the first `atmem init`, if compatible Bun is not
 already installed, AtMem clearly announces and downloads its pinned official
 Bun runtime for AtFlows, verifies the archive against a release-pinned SHA-256,
@@ -108,7 +123,7 @@ package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.8
+python -m pip install --upgrade --pre atmem==2.3.9b1
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -131,7 +146,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.3.8'
+python -m pip install --pre 'atmem[pydantic-ai]==2.3.9b1'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -156,7 +171,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.3.8'
+python -m pip install --pre 'atmem[langgraph]==2.3.9b1'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -324,7 +339,7 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install atmem==2.3.8
+python -m pip install --pre atmem==2.3.9b1
 atmem --version
 ```
 
@@ -334,7 +349,7 @@ embedding model, while the semantic extra adds local sentence-transformer
 choices:
 
 ```bash
-python -m pip install 'atmem[semantic]==2.3.8'
+python -m pip install --pre 'atmem[semantic]==2.3.9b1'
 ```
 
 For repository development, install both workspace packages:
@@ -522,7 +537,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.8
+python -m pip install --upgrade --pre atmem==2.3.9b1
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -655,6 +670,7 @@ atmem mcp --db ~/.atmem/memories.db --subject user-1
 
 MCP tools: `memory_remember`, `memory_observe`, `memory_recall`,
 `memory_recall_decision`, `memory_form_episode`,
+`memory_formation_profile_status`,
 `memory_get_record`, `memory_get_source`, `memory_recall_block`,
 `memory_persona`, `memory_context_pack`, `memory_capture`, `memory_list`,
 `memory_forget`, `memory_forget_artifact`, `memory_promote`, `memory_audit`,
@@ -755,11 +771,10 @@ npm test
 npm run smoke
 ```
 
-The current source candidate is **2.3.8** with matching OpenClaw bridge source
-**2.3.8**. Release validation requires exact Python/bridge alignment; AtBot
-retains its independent compatible version **0.1.0** and the tested AtFlows pin
-is **0.1.4b3**. The published package remains 2.3.7 until the candidate is
-reviewed, tagged and registry-verified.
+The current source candidate is **2.3.9b1** with matching OpenClaw bridge source
+**2.3.9-beta.1**. Release validation requires exact Python/bridge alignment;
+AtBot is **0.1.1b1** and the tested AtFlows pin is **0.1.4b3**. Published package,
+website PR and live website states remain separate until independently verified.
 
 ## License
 

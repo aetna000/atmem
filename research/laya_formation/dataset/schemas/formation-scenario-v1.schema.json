@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.ai/schemas/formation-scenario-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["scenario_id", "fictional_identity_group", "template_family", "semantic_chain_id", "paraphrase_cluster_id", "evidence_events", "initial_state", "expected_final_state", "scope_fixture", "difficulty", "safety_tags", "generator_version", "seed", "split", "license_provenance"],
+  "properties": {
+    "scenario_id": {"type": "string", "pattern": "^scenario-[0-9]{6}$"},
+    "fictional_identity_group": {"type": "string"},
+    "template_family": {"type": "string"},
+    "semantic_chain_id": {"type": "string"},
+    "paraphrase_cluster_id": {"type": "string"},
+    "evidence_events": {"type": "array", "minItems": 1, "items": {"type": "object"}},
+    "initial_state": {"type": "object"},
+    "expected_final_state": {"type": "object"},
+    "scope_fixture": {"type": "object"},
+    "difficulty": {"enum": ["easy", "medium", "hard"]},
+    "safety_tags": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "generator_version": {"type": "string"},
+    "seed": {"type": "integer"},
+    "split": {"enum": ["train", "validation", "calibration", "sealed_test"]},
+    "license_provenance": {"type": "string"}
+  }
+}

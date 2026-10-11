@@ -61,6 +61,8 @@ class AnthropicProvider:
         system: str,
         prompt: str,
         schema: dict[str, Any] | None = None,
+        max_output_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> ProviderResult:
         schema_instruction = ""
         if schema:
@@ -70,7 +72,7 @@ class AnthropicProvider:
             )
         payload = {
             "model": self.model,
-            "max_tokens": 2_048,
+            "max_tokens": 2_048 if max_output_tokens is None else int(max_output_tokens),
             "temperature": 0,
             "system": system + schema_instruction,
             "messages": [{"role": "user", "content": prompt}],
@@ -81,7 +83,7 @@ class AnthropicProvider:
             headers=self._headers(),
             method="POST",
         )
-        with urlopen(request, timeout=self.timeout) as response:
+        with urlopen(request, timeout=self.timeout if timeout is None else float(timeout)) as response:
             value = json.loads(response.read())
         text = "".join(
             str(block.get("text") or "")

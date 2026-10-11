@@ -1,0 +1,78 @@
+format: atmem-laya-formation-protocol-v1
+status: frozen_before_system_run
+claim_tiers:
+  synthetic:
+    label: Synthetic AtMem Formation benchmark
+    production_claim_allowed: false
+  production:
+    required_corpora: [locomo, longmemeval]
+    beam_applicable: false
+    beam_reason: No scheduling or large-workload advantage is claimed.
+arms:
+  - deterministic-atmem
+  - pinned-current-qwen
+  - base-laya
+  - finetuned-laya
+  - pinned-jev
+  - finetuned-laya-with-atbot-escalation
+matching:
+  required_equal: [case_ids, authorized_input_digest, option_digest, candidate_pool_digest, question_schema_digest]
+  disclose: [hardware, dtype, batching, provider, model_revision, prompt_digest, maximum_calls, maximum_tokens, timeout, retry]
+  candidate_pool_membership_must_not_change: true
+formation_store:
+  primary: exact_canonical_state_success
+  secondary: [operation_accuracy, class_accuracy, target_accuracy, support_accuracy, safety_violations, review_rate, escalation_rate, latency_ms, cost_usd, error_rate]
+retrieval:
+  primary: mrr_at_5
+  secondary: [recall_at_1, recall_at_5, recall_at_10, evidence_coverage, abstention_rate, latency_ms, cost_usd, error_rate]
+combined:
+  primary: future_query_sufficiency
+  stages: [source, formation, mutation, nomination, ranking, packing, delivery]
+statistics:
+  unit: scenario_cluster
+  bootstrap_repetitions: 10000
+  confidence_level: 0.95
+  seed: 410239
+  missing_or_error_is_success: false
+latency_gate:
+  comparison: finetuned-laya_vs_pinned-current-qwen
+  median_reduction_minimum: 0.25
+  paired_ratio_confidence_upper_bound_exclusive: 1.0
+jev_claim_gate:
+  model_must_be_concrete: true
+  matchedness_required: true
+  zero_safety_regressions_required: true
+  all_required_classes_noninferior: true
+  primary_difference_confidence_lower_bound_exclusive: 0.0
+budgets:
+  synthetic_remote_calls_allowed: true
+  live_provider_calls_require_explicit_egress_receipt: true
+  maximum_cost_usd: 2.0
+  maximum_calls: 800
+  maximum_tokens: 1689600
+  cases: 400
+  per_question_cases: 80
+  per_call_input_tokens: 2048
+  per_call_output_tokens: 64
+  qwen_calls: 400
+  atbot_escalation_calls: 400
+  jev_calls: 0
+  jev_reason: Authenticated model listing exposes only moving aliases; concrete identity gate blocks calls.
+  freeze_before_live_preflight: true
+hardware_classes:
+  - macos-mps
+  - macos-cpu
+  - windows-cuda
+  - windows-cpu
+  - linux-cuda
+  - linux-cpu
+failure_policy:
+  unresolved_model_identity: block_arm_and_claim
+  candidate_pool_mismatch: invalidate_comparison
+  missing_case: invalidate_comparison
+  provider_error: retain_as_error
+  safety_regression: block_superiority_claim
+outputs:
+  raw_results_schema: atmem-laya-evaluation-case-result-v1
+  retain_every_case: true
+  checksum_bound: true

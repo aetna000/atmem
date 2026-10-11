@@ -1,0 +1,54 @@
+{
+  "format": "atmem-laya-wheel-compatibility-receipt-v1",
+  "recorded_at": "2026-10-10T22:49:45Z",
+  "result": "pass",
+  "platform": {
+    "os": "macOS",
+    "python": "3.12.2",
+    "architecture": "x86_64"
+  },
+  "artifacts": {
+    "atmem": {
+      "filename": "atmem-2.3.9b1-py3-none-any.whl",
+      "sha256": "1a49f4ad564a1e7acec730ed90c53f51d5bc02fb2e76b49d15fa56501309a437"
+    },
+    "atbot": {
+      "filename": "atmem_atbot-0.1.1b1-py3-none-any.whl",
+      "sha256": "0eeec2c61549d0bcddb962e2424d66c5bac64da8b3484c34cfb0325209ad9b39"
+    }
+  },
+  "fresh_install": {
+    "result": "pass",
+    "atmem": "2.3.9b1",
+    "atbot": "0.1.1b1",
+    "atflows": "0.1.4b3",
+    "cryptography": "48.0.1",
+    "installed_wheel_smoke": true
+  },
+  "upgrade": {
+    "result": "pass",
+    "from_atmem": "2.3.8",
+    "from_atbot": "0.1.0",
+    "to_atmem": "2.3.9b1",
+    "to_atbot": "0.1.1b1",
+    "atflows_before_and_after": "0.1.4b3",
+    "persisted_record_recalled": true,
+    "forced_model_download": false,
+    "default_profile_unchanged": true,
+    "exact_profile_rollback": true
+  },
+  "contract_checks": {
+    "dependency_metadata_additive": true,
+    "optional_extra_present": "laya-formation",
+    "cli_additive": true,
+    "mcp_additive": true,
+    "atbot_protocol_unchanged": true,
+    "atbot_features_additive": true,
+    "openclaw_api_additive": true,
+    "atflows_version_unchanged": true
+  },
+  "dependency_guard": {
+    "constraint": "cryptography>=42,<49",
+    "reason": "Avoid the macOS loader failure reproduced with cryptography 50.0.2 while retaining the tested 48.0.1 line."
+  }
+}

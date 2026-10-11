@@ -2,8 +2,8 @@
 
 [AtFlows](https://github.com/aetna000/atflows) records local LLM traces, logs, metrics and cost information in its own database. AtMem stores governed memories and encrypted host evidence. Their roles stay distinct: telemetry can suggest what to inspect, while AtMem authorizes evidence and memory decisions.
 
-AtMem 2.3.8 installs the exact tested companion `atflows==0.1.4b3` alongside
-`atmem-atbot==0.1.0`. Installing the package alone does not run a server or
+AtMem 2.3.9b1 installs the exact tested companion `atflows==0.1.4b3` alongside
+`atmem-atbot==0.1.1b1`. Installing the package alone does not run a server or
 start collecting telemetry. Bun 1.1+ is needed to run AtFlows. If compatible
 Bun is absent, `atmem init` clearly announces and downloads AtMem's pinned
 official Bun runtime, verifies its release-pinned SHA-256, and stores it
@@ -52,4 +52,4 @@ atmem atflows review RUN_ID --session-id SESSION_ID \
   --base-url http://127.0.0.1:1337
 ```
 
-This is an explicit read-only investigation. AtMem requires authorized evidence access and checks an exact session link in the selected run. A delegated AtFlows dashboard uses the same AtMem account credentials; standalone AtFlows uses its Administrator password. The report contains bounded trace-error leads, not raw trace bodies or a causal claim. The [2.3.8 release note](../releases/v2.3.8.md) describes automatic Bun setup, compatibility and limits. Stable AtFlows 0.1.4 generic proxy/OTLP redaction remains a separate release track; 0.1.4b3 is the tested companion.
+This is an explicit read-only investigation. AtMem requires authorized evidence access and checks an exact session link in the selected run. A delegated AtFlows dashboard uses the same AtMem account credentials; standalone AtFlows uses its Administrator password. The report contains bounded trace-error leads, not raw trace bodies or a causal claim. The [2.3.9b1 release note](../releases/v2.3.9b1.md) describes compatibility and limits. Stable AtFlows 0.1.4 generic proxy/OTLP redaction remains a separate release track; 0.1.4b3 is the tested companion.

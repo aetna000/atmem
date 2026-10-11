@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.ai/schemas/typed-decision-example-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["example_id", "scenario_id", "question_id", "question_type", "authorized_input", "choice_ids", "expected_choice_ids", "allow_abstain", "oracle_receipt", "audit_rationale", "split", "content_digest"],
+  "properties": {
+    "example_id": {"type": "string"},
+    "scenario_id": {"type": "string"},
+    "question_id": {"enum": ["operation", "memory_class", "evidence_support", "target_selection", "retrieval_usefulness"]},
+    "question_type": {"enum": ["choice", "noul", "score"]},
+    "authorized_input": {"type": "object"},
+    "choice_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "expected_choice_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+    "allow_abstain": {"type": "boolean"},
+    "oracle_receipt": {"type": "object"},
+    "audit_rationale": {"type": "string"},
+    "split": {"enum": ["train", "validation", "calibration", "sealed_test"]},
+    "content_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

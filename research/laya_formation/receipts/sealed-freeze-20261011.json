@@ -1,0 +1,18 @@
+{
+  "format": "atmem-laya-sealed-freeze-receipt-v1",
+  "freeze_digest": "fe07a64028dcfdc9c362195965dee9d52ff5b3638bd1606c769ec32a36655f80",
+  "frozen_at": "2026-10-10T17:23:48.065125Z",
+  "selection_policy_digest": "3ecd02585b5b38da61ae6c8adb4da66bdd6306b9d0f88c5f13efdff1c503e207",
+  "selected_run_id": "rlcd-410239-20261010T152813Z",
+  "model_sha256": "f2ba3dd7679da45aabab4cac30e9a079baeb2dc98229ff3b1618e6a06fc6d683",
+  "training_manifest_sha256": "e5b16fb0d17e8bb1b2576207107bde48fcdc7e89b8e8aa15ae2130a98dd216dd",
+  "questions_digest": "7a3cd0e13d99db02a1e53e51a63fad921e754ac5bbc2376b8a888c1033900f0e",
+  "calibration_file_sha256": "b759105b836ee42ff8a2662bba4e467a0b4db6ac2f744f4cf5099e80aa3799da",
+  "calibration_bundle_digest": "b165d4b7d554cdbda5a889baf7059c3f43ba2774d68754e4fa3aeb63f5f0e067",
+  "analysis_code_sha256": "f3344d3bb899cf6b18d266e4a2de7e8bec8316929723ffb4713ac0030249060b",
+  "sealed_inputs_sha256": "79ee03d6a38468c39785c8a5c0b18d6423783a1fbc756e450b7afde51e84146e",
+  "sealed_labels_sha256": "3132af5f7d698e188515a2878849390b65da3fc30b36d36afef936ce0c97a8bc",
+  "sealed_jsonl_parsed_before_freeze": false,
+  "selection_or_tuning_from_sealed_results_allowed": false,
+  "evaluation_attempts": 1
+}

@@ -1,0 +1,24 @@
+{
+  "format": "atmem-laya-combined-evaluation-receipt-v1",
+  "recorded_at": "2026-10-11T00:35:00Z",
+  "evidence_class": "synthetic_only",
+  "cases_per_arm": 80,
+  "stages": ["source", "formation", "mutation", "nomination", "ranking", "packing", "delivery"],
+  "success_rule": "all stages pass and neither formation nor retrieval has an error",
+  "arms": {
+    "deterministic-atmem": {"future_query_sufficiency": 0.0875, "formation_pass_rate": 0.0875, "mutation_pass_rate": 0.425, "ranking_pass_rate": 1.0, "delivery_pass_rate": 1.0, "first_failure_formation": 73, "raw_sha256": "bb384c5cea47a7b6bf1b171d812bdead0acea3cda7a06456621c302f1f3aaddc"},
+    "base-laya": {"future_query_sufficiency": 0.0875, "formation_pass_rate": 0.0875, "mutation_pass_rate": 0.3625, "ranking_pass_rate": 0.825, "delivery_pass_rate": 0.825, "first_failure_formation": 73, "raw_sha256": "d545c4b12e126772fd34b38900bcfc3c1264432143e8259b38000a74978e6649"},
+    "finetuned-laya": {"future_query_sufficiency": 1.0, "formation_pass_rate": 1.0, "mutation_pass_rate": 1.0, "ranking_pass_rate": 1.0, "delivery_pass_rate": 1.0, "raw_sha256": "ed1b1e5961751352019fb0e22dd8e00b120390d4bab4347be944b690f37c3d94"},
+    "finetuned-laya-with-atbot-escalation": {"future_query_sufficiency": 1.0, "formation_pass_rate": 1.0, "mutation_pass_rate": 1.0, "ranking_pass_rate": 1.0, "delivery_pass_rate": 1.0, "provider_calls": 0, "raw_sha256": "977666871721e71ca102473681cbf7a838429e8b4533bb7315281ab5ce340c58"},
+    "pinned-current-qwen": {"future_query_sufficiency": 0.0, "error_cases": 80, "raw_sha256": "9f2de25e3e73e2d30e85623d0dc3fa608c9cd813f9ab9c2321146579c46bad20"},
+    "pinned-jev": {"future_query_sufficiency": 0.0, "error_cases": 80, "raw_sha256": "2e98cb86b89c19c4f17c7eb03bee5581a8da61779e0ffc1cbec5f33b1bc3d3c2"}
+  },
+  "gates": {
+    "unknown_or_error_credited_as_success": false,
+    "stage_attribution_complete": true,
+    "fine_tuned_laya_improves_over_deterministic_atmem": true,
+    "jev_comparison_conclusive": false,
+    "qwen_comparison_conclusive": false,
+    "production_claim_allowed": false
+  }
+}

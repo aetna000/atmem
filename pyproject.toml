@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atmem"
-version = "2.3.8"
+version = "2.3.9b1"
 description = "Host-neutral Agent Black Box and reversible memory control plane."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -27,9 +27,9 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-  "atmem-atbot==0.1.0",
+  "atmem-atbot==0.1.1b1",
   "atflows==0.1.4b3",
-  "cryptography>=42,<51",
+  "cryptography>=42,<49",
 ]
 
 [project.optional-dependencies]
@@ -56,6 +56,13 @@ encrypted = [
 ]
 mem0 = [
   "mem0ai>=2.0.20,<3",
+]
+laya-formation = [
+  "laya==0.4.2",
+  "torch>=2.3,<3",
+  "transformers>=4.57.1,<5",
+  "safetensors>=0.6.2,<1",
+  "huggingface-hub>=0.36,<1",
 ]
 langgraph-provider = [
   "langgraph>=1.1.5,<2",
@@ -105,6 +112,9 @@ storage-backends = [
 
 [project.scripts]
 atmem = "atmem.cli:main"
+
+[tool.uv.sources]
+atmem-atbot = { path = "packages/atbot" }
 
 [project.urls]
 Homepage = "https://github.com/aetna000/atmem"

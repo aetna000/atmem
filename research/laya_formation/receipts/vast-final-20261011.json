@@ -1,0 +1,26 @@
+{
+  "format": "atmem-laya-vast-final-v1",
+  "instance_id": 55225996,
+  "gpu": "RTX 5090",
+  "hourly_rate_usd_including_storage": 0.48111111111111116,
+  "starting_credit_usd": 10.0,
+  "final_credit_usd": 8.458178974500001,
+  "total_cost_usd": 1.541821025499999,
+  "selected_model_recovery": {
+    "repo_id": "atmem/atmem-laya-formation-model-v1",
+    "revision": "d4e46a5b8cf11c5808f9e745f19145c0a4fb5dfd",
+    "clean_redownload_verified": true,
+    "model_sha256": "f2ba3dd7679da45aabab4cac30e9a079baeb2dc98229ff3b1618e6a06fc6d683"
+  },
+  "training_archive": {
+    "repo_id": "atmem/atmem-laya-formation-training-artifacts-v1",
+    "repo_type": "dataset",
+    "revision": "32645ffceac7e3e02a469af2427c54e27fcf695e",
+    "file_count": 42,
+    "contains_selected_epoch_checkpoints": true,
+    "contains_retained_failures": true
+  },
+  "destroyed": true,
+  "active_instance_count_after_destroy": 0,
+  "recoverability": "remote instance data deleted; selected model and run evidence remain in private immutable Hugging Face revisions, with the soft-CE run and smoke checkpoint also retained on MEM"
+}

@@ -1,0 +1,27 @@
+{
+  "format": "atmem-laya-evaluation-report-receipt-v1",
+  "recorded_at": "2026-10-11T01:00:00Z",
+  "report": {
+    "path": "research/laya_formation/reports/evaluation-report-20261011.md",
+    "sha256": "fc2e9902d8c70185d1633785d245248febef43e520bf835b503f3920ac04fb9f"
+  },
+  "statistical_analysis": {
+    "path": "research/laya_formation/reports/statistical-analysis-20261011.json",
+    "sha256": "51ef92d6a1b3c28b47e8c81d5e7dfe117a90ba3462beffa912db6bd3492a8008"
+  },
+  "public_corpus_gate": {
+    "path": "research/laya_formation/receipts/public-corpus-claim-gate-20261011.json",
+    "sha256": "5ece6e74de835ce897f2c8d22ef9c9e511833a53001591d497db8877708412d4",
+    "production_claim": "blocked"
+  },
+  "claims": {
+    "synthetic_formation_vs_deterministic": "beats",
+    "synthetic_retrieval_vs_deterministic": "ties",
+    "synthetic_combined_vs_deterministic": "beats",
+    "formation_vs_jev": "inconclusive",
+    "retrieval_vs_jev": "inconclusive",
+    "combined_vs_jev": "inconclusive",
+    "qwen": "inconclusive",
+    "production": "blocked"
+  }
+}

@@ -52,6 +52,8 @@ class PydanticAIProvider:
         system: str,
         prompt: str,
         schema: dict[str, Any] | None = None,
+        max_output_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> ProviderResult:
         # Lazy imports keep AtBot diagnostics and deterministic fallback usable
         # even before the optional model framework has been installed.
@@ -70,10 +72,15 @@ class PydanticAIProvider:
                 "\nReturn only valid JSON matching this JSON Schema:\n"
                 + json.dumps(schema, separators=(",", ":"), sort_keys=True)
             )
+        settings: dict[str, Any] = {"temperature": 0}
+        if max_output_tokens is not None:
+            settings["max_tokens"] = int(max_output_tokens)
+        if timeout is not None:
+            settings["timeout"] = float(timeout)
         agent = Agent(
             model,
             system_prompt=system + schema_instruction,
-            model_settings={"temperature": 0},
+            model_settings=settings,
         )
         result = agent.run_sync(prompt)
         text = str(result.output)

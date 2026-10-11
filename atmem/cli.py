@@ -541,6 +541,39 @@ Run `atmem COMMAND --help` for command-specific examples.""",
             command_parser.add_argument("query")
             command_parser.add_argument("--limit", type=int, default=50)
 
+    formation_parser = subparsers.add_parser(
+        "formation",
+        help="Manage the optional pinned Laya memory-formation profile",
+    )
+    formation_commands = formation_parser.add_subparsers(dest="formation_command")
+    for name, help_text in (
+        ("preview", "Preview the profile without downloading or changing state"),
+        ("setup", "Verify and stage the pinned artifact without activating it"),
+        ("activate", "Explicitly activate the staged profile"),
+        ("status", "Show revision, device, calibration and fallback state"),
+        ("doctor", "Verify dependencies, artifact bindings and fallback"),
+        ("rollback", "Restore the exact state saved before activation"),
+    ):
+        command_parser = formation_commands.add_parser(name, help=help_text)
+        command_parser.add_argument("--json", action="store_true")
+        if name in {"preview", "setup"}:
+            command_parser.add_argument("--model-dir", default=None)
+            command_parser.add_argument(
+                "--device", default="auto", choices=("auto", "cpu", "mps", "cuda")
+            )
+            command_parser.add_argument(
+                "--download", action="store_true",
+                help="Explicitly allow the pinned Hugging Face download",
+            )
+            command_parser.add_argument(
+                "--escalation", action="store_true",
+                help="Stage bounded AtBot escalation; remote egress remains disabled",
+            )
+        if name in {"setup", "activate", "rollback"}:
+            command_parser.add_argument(
+                "--yes", action="store_true", help="Confirm this state change noninteractively"
+            )
+
     atbot_parser = subparsers.add_parser(
         "atbot",
         help="Choose and manage AtMem's pinned intelligence companion",
@@ -1879,6 +1912,13 @@ or input errors.""",
             openclaw_memory.print_help()
             return
         _run_openclaw(args)
+        return
+
+    if args.command == "formation":
+        if args.formation_command is None:
+            formation_parser.print_help()
+            return
+        _run_laya_formation(args, parser)
         return
 
     if args.command == "atbot":
@@ -4390,6 +4430,72 @@ def _print_cli_welcome(parser: argparse.ArgumentParser) -> None:
     print("     atmem status\n")
     print("AtMem starts safely: no memory injection is enabled until you explicitly activate it.")
     print("Run `atmem --help` for every command or `atmem atbot` for provider examples.")
+
+
+def _run_laya_formation(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    from atmem.laya_formation.setup import LayaProfileManager
+
+    manager = LayaProfileManager()
+    command = args.formation_command
+    try:
+        if command == "preview":
+            result = manager.preview(
+                local_dir=args.model_dir, device=args.device,
+                escalation_enabled=bool(args.escalation), allow_download=bool(args.download),
+            )
+        elif command == "setup":
+            preview = manager.preview(
+                local_dir=args.model_dir, device=args.device,
+                escalation_enabled=bool(args.escalation), allow_download=bool(args.download),
+            )
+            confirmed = bool(args.yes)
+            if not confirmed and sys.stdin.isatty():
+                print(json.dumps(preview["changes"], indent=2, sort_keys=True))
+                confirmed = input("Stage this inactive profile? [y/N] ").strip().casefold() in {"y", "yes"}
+            if not confirmed:
+                result = {**preview, "applied": False, "next_action": "Rerun with --yes to stage; activation is still separate."}
+            else:
+                result = manager.setup(
+                    local_dir=args.model_dir, allow_download=bool(args.download),
+                    device=args.device, escalation_enabled=bool(args.escalation),
+                )
+        elif command == "activate":
+            result = manager.activate(confirmed=bool(args.yes))
+        elif command == "rollback":
+            result = manager.rollback(confirmed=bool(args.yes))
+        elif command == "status":
+            result = manager.status()
+        elif command == "doctor":
+            result = manager.doctor()
+        else:  # pragma: no cover - argparse owns the command set
+            raise ValueError(f"unknown formation command: {command}")
+    except (OSError, RuntimeError, ValueError) as exc:
+        parser.exit(2, f"Laya formation {command} did not complete: {exc}\n")
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True, default=str))
+        return
+    if command == "preview" or (command == "setup" and result.get("applied") is False):
+        changes = result["changes"]
+        print("Laya formation preview (no changes applied)")
+        print(f"  Model: {changes['model_repo']}@{changes['model_revision']}")
+        print(f"  Device: {changes['device']}")
+        print(f"  Download: {'allowed' if changes['download_requested'] else 'not allowed'}")
+        print(f"  AtBot escalation: {'staged' if changes['escalation_enabled'] else 'disabled'}")
+        print("  Existing deterministic behavior remains active.")
+        return
+    if command == "doctor":
+        print("Laya formation doctor: " + ("ready" if result["ready_to_activate"] else "not ready"))
+        for name, passed in result["checks"].items():
+            print(f"  {name}: {'pass' if passed else 'fail'}")
+        return
+    print(f"Laya formation profile: {result.get('profile', 'laya-formation-v1')}")
+    print(f"  Active: {bool(result.get('active'))}")
+    print(f"  Revision: {result.get('model_revision')}")
+    print(f"  Device: {result.get('device') or 'not selected'}")
+    print(f"  Calibration: {result.get('calibration_state', 'not configured')}")
+    print(f"  Deterministic fallback ready: {bool(result.get('fallback_ready', True))}")
+    if command == "setup":
+        print("  Staged only. Run `atmem formation activate --yes` to opt in.")
 
 
 def _run_atbot(args: argparse.Namespace) -> None:

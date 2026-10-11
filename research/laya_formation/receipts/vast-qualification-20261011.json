@@ -1,0 +1,51 @@
+{
+  "format": "atmem-laya-vast-qualification-v1",
+  "created_at": "2026-10-11T02:00:00+11:00",
+  "approval": {
+    "owner_approved_paid_route": true,
+    "hard_ceiling_usd": 20.0,
+    "automatic_top_up": false
+  },
+  "local_candidates": {
+    "windows_receipt": "windows-smoke-20261011.json",
+    "windows_state": "infeasible",
+    "mac_receipt": "mac-smoke-20261011.json",
+    "mac_state": "infeasible"
+  },
+  "selection": {
+    "offer_id_at_creation": 54140765,
+    "instance_id": 55225996,
+    "rental_type": "on-demand",
+    "gpu": "RTX 5090",
+    "gpu_memory_mib": 32607,
+    "provider_reliability": 0.9991184,
+    "verified": true,
+    "vm_deverified": false,
+    "disk_gb": 100,
+    "hourly_total_usd": 0.48111111111111116,
+    "image": "pytorch/pytorch:2.11.0-cuda12.8-cudnn9-devel"
+  },
+  "smoke": {
+    "receipt": "vast-smoke-20261011.json",
+    "state": "viable",
+    "memory_headroom_fraction": 0.7251540618426711,
+    "resume_verified": true,
+    "safetensors_reload_verified": true
+  },
+  "off_instance_sync": {
+    "remote_relative_root": "output-warm/soft-ce/resume",
+    "owner_controlled_root": "/Volumes/MEM/AtMem-Laya-Formation/training/vast-smoke-55225996/soft-ce-resume",
+    "files": 10,
+    "manifest_sha256": "d396736d56abc1a5a4e07ad6b2fc1f41342c2e0c7ec8eee28ec52540473724fa",
+    "local_remote_match": true,
+    "includes_optimizer_safetensors": true,
+    "includes_model_safetensors": true
+  },
+  "spend_snapshot": {
+    "captured_at": "2026-10-11T02:00:00+11:00",
+    "initial_credit_usd": 10.0,
+    "remaining_credit_usd": 9.6632750255,
+    "spent_usd": 0.3367249745
+  },
+  "secrets_retained": false
+}

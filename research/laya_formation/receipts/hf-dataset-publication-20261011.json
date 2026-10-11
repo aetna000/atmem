@@ -1,0 +1,17 @@
+{
+  "format": "atmem-laya-hf-publication-receipt-v1",
+  "recorded_at": "2026-10-11T01:10:00Z",
+  "state": "public_verified",
+  "repo_id": "atmem/atmem-laya-formation-v1",
+  "repo_type": "dataset",
+  "revision": "4436089b38cbe3a5374aaaa92c4c77703cdbf668",
+  "url": "https://huggingface.co/datasets/atmem/atmem-laya-formation-v1/tree/4436089b38cbe3a5374aaaa92c4c77703cdbf668",
+  "private": false,
+  "anonymous_download": true,
+  "files_verified": 25,
+  "platform_managed_files": [".gitattributes"],
+  "scenario_count": 12000,
+  "decision_count": 60000,
+  "dataset_manifest_sha256": "d67d371c8c1d6de85a0293cded5aa5b3f7d078e92197130ce1f9edef68e863d4",
+  "schema_and_secret_scan": "passed"
+}

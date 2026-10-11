@@ -18,4 +18,6 @@ class ModelProvider(Protocol):
         system: str,
         prompt: str,
         schema: dict[str, Any] | None = None,
+        max_output_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> ProviderResult: ...

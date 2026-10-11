@@ -20,7 +20,7 @@ from atmem.processes import pid_is_running
 from urllib.parse import urlparse
 
 
-PINNED_ATBOT_VERSION = "0.1.0"
+PINNED_ATBOT_VERSION = "0.1.1b1"
 ATBOT_DISTRIBUTION = "atmem-atbot"
 ATBOT_PROTOCOL_VERSION = "1"
 DEFAULT_ROOT = compatible_home_path("config/atbot", "atbot")

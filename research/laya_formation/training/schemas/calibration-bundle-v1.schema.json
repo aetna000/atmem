@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atmem.ai/schemas/calibration-bundle-v1.schema.json",
+  "title": "AtMem Laya Calibration Bundle V1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "model_digest", "dataset_revision", "questions_digest", "split_digest", "method", "temperatures", "thresholds", "sample_counts", "reliability", "selection_procedure", "created_at", "digest"],
+  "properties": {
+    "format": {"const": "atmem-laya-calibration-bundle-v1"},
+    "model_digest": {"$ref": "#/$defs/sha256"},
+    "dataset_revision": {"type": "string"},
+    "questions_digest": {"$ref": "#/$defs/sha256"},
+    "split_digest": {"$ref": "#/$defs/sha256"},
+    "method": {"const": "per-question-temperature-and-abstention-v1"},
+    "temperatures": {"type": "object"},
+    "thresholds": {"type": "object"},
+    "sample_counts": {"type": "object"},
+    "reliability": {"type": "object"},
+    "selection_procedure": {"type": "object"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "digest": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+}

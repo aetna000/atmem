@@ -1,0 +1,132 @@
+{
+  "format": "atmem-laya-installed-compatibility-matrix-v1",
+  "recorded_at": "2026-10-10T23:08:50Z",
+  "result": "pass",
+  "candidate": {
+    "atmem": "2.3.9b1",
+    "atmem_wheel_sha256": "1a49f4ad564a1e7acec730ed90c53f51d5bc02fb2e76b49d15fa56501309a437",
+    "atbot": "0.1.1b1",
+    "atbot_wheel_sha256": "0eeec2c61549d0bcddb962e2424d66c5bac64da8b3484c34cfb0325209ad9b39",
+    "atflows": "0.1.4b3",
+    "laya": "0.4.2",
+    "cryptography": "48.0.1"
+  },
+  "artifact": {
+    "repo_id": "atmem/atmem-laya-formation-model-v1",
+    "revision": "1698278c4b158fac30e4eb2fefd10ef8b8f873b3",
+    "model_sha256": "f2ba3dd7679da45aabab4cac30e9a079baeb2dc98229ff3b1618e6a06fc6d683",
+    "questions_digest": "7a3cd0e13d99db02a1e53e51a63fad921e754ac5bbc2376b8a888c1033900f0e",
+    "calibration_digest": "b165d4b7d554cdbda5a889baf7059c3f43ba2774d68754e4fa3aeb63f5f0e067"
+  },
+  "python_wheel_matrix": [
+    {"os": "macOS", "python": "3.10.20", "arch": "arm64", "base_wheel_smoke": "pass"},
+    {"os": "macOS", "python": "3.11.16", "arch": "arm64", "base_wheel_smoke": "pass"},
+    {"os": "macOS", "python": "3.12.2", "arch": "x86_64", "base_wheel_smoke": "pass"},
+    {"os": "macOS", "python": "3.13.12", "arch": "arm64", "base_wheel_smoke": "pass"}
+  ],
+  "executed_device_profiles": [
+    {
+      "os": "macOS 26.5.2",
+      "python": "3.12.13",
+      "arch": "arm64",
+      "hardware": "Apple M2",
+      "torch": "2.14.1",
+      "transformers": "4.57.6",
+      "device": "cpu",
+      "inference_ms": 248.84533300064504,
+      "result": "pass"
+    },
+    {
+      "os": "macOS 26.5.2",
+      "python": "3.12.13",
+      "arch": "arm64",
+      "hardware": "Apple M2",
+      "torch": "2.14.1",
+      "transformers": "4.57.6",
+      "device": "mps",
+      "inference_ms": 1142.009125000186,
+      "result": "pass"
+    },
+    {
+      "os": "Windows 11 build 26200",
+      "python": "3.12.6",
+      "arch": "AMD64",
+      "hardware": "NVIDIA Quadro P2000 4096 MiB",
+      "torch": "2.7.1+cu118",
+      "transformers": "4.57.1",
+      "device": "cpu",
+      "inference_ms": 463.8334999908693,
+      "result": "pass"
+    },
+    {
+      "os": "Windows 11 build 26200",
+      "python": "3.12.6",
+      "arch": "AMD64",
+      "hardware": "NVIDIA Quadro P2000 4096 MiB",
+      "torch": "2.7.1+cu118",
+      "transformers": "4.57.1",
+      "device": "cuda",
+      "inference_ms": 296.192499998142,
+      "result": "pass"
+    },
+    {
+      "os": "Linux (Ubuntu 22.04 container)",
+      "python": "3.11.13",
+      "arch": "x86_64",
+      "hardware": "NVIDIA GeForce RTX 2070 SUPER 8192 MiB",
+      "driver": "595.84",
+      "torch": "2.7.1+cu118",
+      "transformers": "4.57.6",
+      "device": "cpu",
+      "inference_ms": 766.7226119665429,
+      "result": "pass"
+    },
+    {
+      "os": "Linux (Ubuntu 22.04 container)",
+      "python": "3.11.13",
+      "arch": "x86_64",
+      "hardware": "NVIDIA GeForce RTX 2070 SUPER 8192 MiB",
+      "driver": "595.84",
+      "torch": "2.7.1+cu118",
+      "transformers": "4.57.6",
+      "device": "cuda",
+      "inference_ms": 218.14496495062485,
+      "result": "pass"
+    }
+  ],
+  "unsupported_device_checks": [
+    {
+      "os": "macOS",
+      "requested": "cuda",
+      "diagnostic": "CUDA was explicitly requested but is unavailable",
+      "partial_activation": false,
+      "result": "pass"
+    },
+    {
+      "os": "Windows",
+      "requested": "mps",
+      "diagnostic": "MPS was explicitly requested but is unavailable",
+      "partial_activation": false,
+      "result": "pass"
+    },
+    {
+      "os": "Linux",
+      "requested": "mps",
+      "diagnostic": "MPS was explicitly requested but is unavailable",
+      "partial_activation": false,
+      "result": "pass"
+    }
+  ],
+  "vast_linux_execution": {
+    "offer_id": 54704959,
+    "instance_id": 55296393,
+    "gpu": "RTX 2070S",
+    "provider_reliability": 0.9980335,
+    "hourly_total_usd": 0.07222222222222222,
+    "account_delta_usd": 0.044360643940001054,
+    "destroyed": true,
+    "active_instance_count_after_destroy": 0
+  },
+  "claim_boundary": "Only the exact rows in executed_device_profiles and python_wheel_matrix were tested; no unlisted OS/Python/device cross-product is claimed.",
+  "runtime_note": "Laya emits a load warning for an unused choice:11+ calibration bucket. All shipped questions use 3-5 choices, and AtMem subsequently installs and verifies its checksum-bound calibration payload before inference."
+}

@@ -1,0 +1,113 @@
+{
+  "format": "atmem-laya-evaluation-preflight-v1",
+  "recorded_at": "2026-10-10T23:15:39Z",
+  "result": "pass_with_blocked_jev_arm",
+  "protocol": {
+    "path": "benchmarks/laya_formation/protocol-v1.yaml",
+    "sha256": "7bfb926dfeaa5c29fd6c1d8b52ec41e12807f6b3ea7bd88f7e472ecad067b373",
+    "frozen_before_model_decisions": true
+  },
+  "matched_cases": {
+    "root": "/Volumes/MEM/AtMem-Laya-Evaluation-20261011-v2",
+    "case_count": 400,
+    "scenario_count": 80,
+    "per_question": 80,
+    "seed": 410239,
+    "manifest_file_sha256": "a4e4ae22a39660b33052ea19df03e804cfbceaccfc6e7b5f98adea5285bd14f0",
+    "packet_file_sha256": "8c13adfb3ebb0fe59d8a0e5fa3bbebee12afa3dc90ab8989be78e2006b44d9d8",
+    "answer_key_file_sha256": "f49114c3b58bc69bba250214cadb807662d0f8981a58ad9c580fe89173ae89a8",
+    "packet_digest": "sha256:6125d470f7aed7fa14337845e51ca0eedae3c7dd418132b8559e59be3012771f",
+    "answer_key_digest": "sha256:6413c3bd56ad1d65d186ea3381bf19f92a691fd8abc72b652da8198d7eaa2b9d",
+    "authorized_input_set_digest": "sha256:d7220d2d89a7210db535d92e7c2f01de4991b807b7bcc3eaee6cc9c7d8162527",
+    "option_set_digest": "sha256:bb1f1ce4901434f040a66c5aa60b9d0685fea93c044e1bf912d62bb71eeda4ab",
+    "candidate_pool_set_digest": "sha256:ec930a97f47d281ae84e6a0f489c322eb124786235224884ddc87db74db3bf8c",
+    "question_schema_set_digest": "sha256:0c573309d97df7d131a9678fddf1b7cea3ffe605d1e2f68ecac92addd97ac1cd",
+    "cluster_completeness": "80 whole scenarios with all five typed questions",
+    "answers_excluded_from_model_packets": true
+  },
+  "artifacts": {
+    "deterministic_atmem": {
+      "version": "2.3.9b1",
+      "wheel_sha256": "1a49f4ad564a1e7acec730ed90c53f51d5bc02fb2e76b49d15fa56501309a437",
+      "verified": true
+    },
+    "base_laya": {
+      "repo": "convaiinnovations/laya",
+      "revision": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+      "model_sha256": "891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c",
+      "files_verified": 7,
+      "verified": true
+    },
+    "finetuned_laya": {
+      "repo": "atmem/atmem-laya-formation-model-v1",
+      "revision": "1698278c4b158fac30e4eb2fefd10ef8b8f873b3",
+      "model_sha256": "f2ba3dd7679da45aabab4cac30e9a079baeb2dc98229ff3b1618e6a06fc6d683",
+      "questions_digest": "7a3cd0e13d99db02a1e53e51a63fad921e754ac5bbc2376b8a888c1033900f0e",
+      "calibration_digest": "b165d4b7d554cdbda5a889baf7059c3f43ba2774d68754e4fa3aeb63f5f0e067",
+      "verified": true
+    },
+    "qwen": {
+      "repo": "Qwen/Qwen3.5-9B",
+      "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+      "hub_revision_resolved": true,
+      "provider_snapshot": "deepinfra",
+      "provider_status": "live",
+      "provider_quantization": "bfloat16",
+      "provider_input_usd_per_token": 0.0000001,
+      "provider_output_usd_per_token": 0.00000015,
+      "execution_route": "prepaid Vast self-hosted vLLM; provider pricing is retained only as a conservative cross-check",
+      "verified": true
+    }
+  },
+  "jev": {
+    "openapi_sha256": "a191f8a7df6bd6fedced8120dd0fd106f88575d1d1c8360d08900a6c7c0360d5",
+    "openapi_version": "3.1.0",
+    "service_version": "0.2.0",
+    "models_payload_digest": "sha256:aafa1d9049d16812b02dbd9f9b38509fe8699242f1631773d213e147bd9054e6",
+    "authenticated_models": ["jev-latest", "jev-preview"],
+    "requested_concrete_model": "jev-1.13.0",
+    "concrete_model_available": false,
+    "systemone_calls_authorized": 0,
+    "arm_state": "blocked_identity",
+    "claim_effect": "No Jev superiority claim is permitted; moving aliases are not called."
+  },
+  "egress_authorization": {
+    "owner_authorized_paid_execution": true,
+    "data_class": "fictional synthetic benchmark only",
+    "real_user_data_allowed": false,
+    "maximum_calls": 800,
+    "qwen_calls": 400,
+    "atbot_escalation_calls": 400,
+    "jev_calls": 0,
+    "per_call_input_tokens": 2048,
+    "per_call_output_tokens": 64,
+    "maximum_tokens": 1689600,
+    "maximum_cost_usd": 2.0,
+    "automatic_top_up": false,
+    "retries": 0
+  },
+  "cost_preflight": {
+    "vast_prepaid_credit_usd": 8.41155382686,
+    "selected_offer_at_preflight": 52272584,
+    "gpu": "RTX 3090",
+    "gpu_memory_mib": 24576,
+    "provider_reliability": 0.9981391,
+    "hourly_total_usd": 0.2008888888888889,
+    "maximum_rental_hours": 6.0,
+    "maximum_six_hour_compute_and_storage_usd": 1.2053333333333334,
+    "provider_token_cross_check_usd": 0.17152,
+    "hard_total_ceiling_usd": 2.0,
+    "active_vast_instances_before_run": 0,
+    "offer_is_ephemeral_and_must_be_revalidated": true
+  },
+  "qwen_runtime": {
+    "image": "vllm/vllm-openai:v0.29.0",
+    "image_manifest_digest": "sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1",
+    "amd64_image_digest": "sha256:082ca6f035279109041ffd3fe0695cb568b29bc580b35c4f297a66a08b216c1b",
+    "dtype": "bfloat16",
+    "max_model_len": 4096,
+    "batching": "vllm-continuous",
+    "response_schema": "one strict finite choice",
+    "temperature": 0
+  }
+}

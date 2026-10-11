@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.8",
+  "version": "2.3.9b1",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -11,6 +11,7 @@
     "releases": "Releases"
   },
   "pages": [
+    {"slug": "releases/2.3.9b1", "title": "AtMem 2.3.9b1 — Optional local Laya memory formation", "source": "docs/releases/v2.3.9b1.md"},
     {"slug": "releases/2.3.8", "title": "AtMem 2.3.8 — Governed context and one-command Hermes setup", "source": "docs/releases/v2.3.8.md"},
     {"slug": "releases/2.3.8-technical-report", "title": "AtMem 2.3.7 to 2.3.8 technical report", "source": "docs/releases/v2.3.7-to-v2.3.8-technical-report.md"},
     {"slug": "integrations/hermes", "title": "Hermes", "source": "docs/website/integrations/hermes.md"},
@@ -84,6 +85,11 @@
       "slug": "reference",
       "title": "Reference overview",
       "source": "docs/website/reference.md"
+    },
+    {
+      "slug": "reference/laya-formation",
+      "title": "Optional Laya formation",
+      "source": "docs/website/laya-formation.md"
     },
     {
       "slug": "reference/cli",

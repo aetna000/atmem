@@ -8,7 +8,7 @@
   "intelligence_companion": {
     "package": "atbot",
     "distribution": "atmem-atbot",
-    "pinned_version": "0.1.0",
+    "pinned_version": "0.1.1b1",
     "required_distribution_dependency": true,
     "separate_process": true,
     "loopback_protocol": "1",

@@ -1,0 +1,41 @@
+{
+  "format": "atmem-laya-retrieval-evaluation-receipt-v1",
+  "recorded_at": "2026-10-11T00:25:00Z",
+  "evidence_class": "synthetic_only",
+  "packet": {
+    "root": "/Volumes/MEM/AtMem-Laya-Retrieval-Evaluation-20261011-v1",
+    "cases": 80,
+    "positive_queries": 61,
+    "negative_queries": 19,
+    "pool_size": 10,
+    "packet_digest": "sha256:9c8b7e52950702fc2bdc8865414a57dbd45510f6f8890193fa4afabc27d1a806",
+    "answer_key_digest": "sha256:3fe20d35aed7f4cb035df8e8c41be45ff879f92041f54e69182aa3a9e73952b4",
+    "packet_file_sha256": "eeacbbaa93033cad551b91d39e48ce40294d93bc88f9f1587717c256843e3b1c",
+    "answer_key_file_sha256": "d17e7f3dbbd4a6f208354e1d01f06a8c927fba433bef0d790e2619d1dbf1030c"
+  },
+  "method": {
+    "candidate_membership": "frozen before retrieval execution and identical across arms",
+    "ranking": "AtMem 2.3.9b1 lexical recall with auto_vectors disabled",
+    "arm_effect": "only retained predicted canonical state changes candidate content or abstention",
+    "mrr_denominator": "61 evidence-bearing positive queries",
+    "negative_queries": "reported separately as abstention accuracy"
+  },
+  "arms": {
+    "deterministic-atmem": {"mrr_at_5": 0.37978142076502736, "recall_at_1": 0.08196721311475409, "recall_at_5": 1.0, "recall_at_10": 1.0, "evidence_coverage": 1.0, "abstention_rate": 0.2375, "error_rate": 0.0, "raw_sha256": "9dc75eba9043036cf383de10b66aaaf9d3af1f5f343ac5988156643db3325e9d"},
+    "base-laya": {"mrr_at_5": 0.29508196721311475, "recall_at_1": 0.08196721311475409, "recall_at_5": 0.7704918032786885, "recall_at_10": 0.7704918032786885, "evidence_coverage": 0.7704918032786885, "abstention_rate": 0.4125, "positive_abstention_errors": 14, "error_rate": 0.0, "raw_sha256": "332cbf1c16d00d669fa79d418bad8b3f5dea359bc120f9505cb37df052024647"},
+    "finetuned-laya": {"mrr_at_5": 0.37978142076502736, "recall_at_1": 0.08196721311475409, "recall_at_5": 1.0, "recall_at_10": 1.0, "evidence_coverage": 1.0, "abstention_rate": 0.2375, "error_rate": 0.0, "raw_sha256": "06c288bf11a44cfe9a0be1a7868aaa9ca81bff301618b7d0cd6488d8353e47ad"},
+    "finetuned-laya-with-atbot-escalation": {"mrr_at_5": 0.37978142076502736, "recall_at_1": 0.08196721311475409, "recall_at_5": 1.0, "recall_at_10": 1.0, "evidence_coverage": 1.0, "abstention_rate": 0.2375, "error_rate": 0.0, "provider_calls": 0, "raw_sha256": "52b4b5bbe54ff3bad9d37358b59573b61114588c01eb0fb783231b224e70df4c"},
+    "pinned-current-qwen": {"mrr_at_5": 0.0, "error_rate": 1.0, "raw_sha256": "50d9e4e21a1d09c5008bcf5490656eb72dac6c2803055c47ed3a351087a5ecd1"},
+    "pinned-jev": {"mrr_at_5": 0.0, "error_rate": 1.0, "raw_sha256": "d048284bd968f8a54caf0883284efa8a232ac6f178bf35ec9995b32239a78624"}
+  },
+  "gates": {
+    "candidate_pool_membership_matched": true,
+    "all_rows_retained": true,
+    "unknown_or_error_credited_as_success": false,
+    "fine_tuned_laya_beats_deterministic_atmem_on_mrr_at_5": false,
+    "fine_tuned_laya_ties_deterministic_atmem_on_mrr_at_5": true,
+    "jev_comparison_conclusive": false,
+    "qwen_comparison_conclusive": false,
+    "production_claim_allowed": false
+  }
+}

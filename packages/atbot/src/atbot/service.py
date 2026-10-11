@@ -100,6 +100,23 @@ def make_handler(companion: CompanionRuntime, token: str):
                         ),
                     )
                     return
+                if self.path == "/api/companion/formation/propose":
+                    allowed = {
+                        "payload", "remote", "max_input_tokens", "max_output_tokens", "timeout_seconds", "max_cost_usd"
+                    }
+                    if set(value) - allowed or not isinstance(value.get("payload"), dict):
+                        raise ValueError("formation proposal request schema mismatch")
+                    self._json(
+                        200,
+                        companion.propose_formation_decision(
+                            payload=value["payload"], remote=bool(value.get("remote", False)),
+                            max_input_tokens=int(value.get("max_input_tokens") or 0),
+                            max_output_tokens=int(value.get("max_output_tokens") or 0),
+                            timeout_seconds=float(value.get("timeout_seconds") or 0),
+                            max_cost_usd=float(value.get("max_cost_usd") or 0),
+                        ),
+                    )
+                    return
                 self._json(404, {"error": "not found"})
             except (TypeError, ValueError) as exc:
                 self._json(400, {"error": str(exc)})

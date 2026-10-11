@@ -27,7 +27,7 @@ try:
 
     SERVER_VERSION = _pkg_version("atmem")
 except Exception:  # not installed (e.g. run from a checkout)
-    SERVER_VERSION = "2.3.8"
+    SERVER_VERSION = "2.3.9b1"
 
 _SUBJECT_PROPERTY = {
     "subject_id": {
@@ -145,6 +145,7 @@ class MCPServer:
             "memory_audit": self._tool_audit,
             "memory_verify": self._tool_verify,
             "memory_graph_status": self._tool_graph_status,
+            "memory_formation_profile_status": self._tool_formation_profile_status,
             "memory_graph_merges": self._tool_graph_merges,
             "memory_graph_history": self._tool_graph_history,
             "memory_log_action": self._tool_log_action,
@@ -573,6 +574,13 @@ class MCPServer:
     def _tool_graph_status(self, arguments: dict[str, Any]) -> Any:
         return self.memory.inspect_graph(self._subject(arguments))
 
+    def _tool_formation_profile_status(self, arguments: dict[str, Any]) -> Any:
+        if arguments:
+            raise ValueError("formation profile status accepts no arguments")
+        from atmem.laya_formation.setup import LayaProfileManager
+
+        return LayaProfileManager().status()
+
     def _tool_graph_merges(self, arguments: dict[str, Any]) -> Any:
         return self.memory.list_graph_merge_proposals(
             self._subject(arguments), status=arguments.get("status")
@@ -982,6 +990,11 @@ class MCPServer:
                 "memory_graph_status",
                 "Inspect derived graph entities, edges, merge proposals, and archives.",
                 {**_SUBJECT_PROPERTY},
+            ),
+            _tool(
+                "memory_formation_profile_status",
+                "Read the optional Laya formation profile, immutable model revision, device, calibration and fallback status. This tool cannot activate or change the profile.",
+                {},
             ),
             _tool(
                 "memory_graph_merges",
