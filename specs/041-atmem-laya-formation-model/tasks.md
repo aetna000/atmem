@@ -215,7 +215,7 @@ authority; deterministic AtMem remains fully usable.
   update `docs/website/manifest.json`, affected guides/examples and run
   `python scripts/check_website_docs.py` plus all package, companion, bridge,
   build, metadata and installed-artifact gates (FR-037–FR-038).
-- [ ] T047 Prepare a separate owner-reviewed source-pin refresh PR in the private
+- [x] T047 Prepare a separate owner-reviewed source-pin refresh PR in the private
   website repository; do not merge it or claim deployment, and record website PR
   merged/live states separately (FR-027, FR-038).
 - [ ] T048 Commit and push the clean reviewed release changes. If AtBot changed,

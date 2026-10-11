@@ -338,6 +338,14 @@ upgrade/rollback journey passed. Final pre-publication artifact hashes and the
 honest Intel-macOS/npm-audit boundaries are recorded in
 `research/laya_formation/receipts/release-gates-20261011.json`.
 
+T047 prepared private AtMem.ai branch `docs/atmem-2.3.9b1` and owner-review
+PR 23. Its importer accepts bounded PEP 440 prerelease versions, the release
+metadata identifies this beta honestly, and the imported 58-page inventory
+includes the Laya setup and evidence pages. The private build produced 65 pages;
+all version, origin, claim, motif, brand and no-JavaScript gates passed, along
+with 29 documentation tests and 20 browser tests. The PR is deliberately
+unmerged and no Firebase deployment has occurred.
+
 ## External execution status
 
 `MEM` is mounted read-write and passed filesystem, partition-map and write/read
