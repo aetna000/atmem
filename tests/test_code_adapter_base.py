@@ -16,6 +16,10 @@ class _Adapter:
         self.version = "1.0"
 
     def probe(self) -> HostProbe:
+        return HostProbe("test", self.version, "test-os", False, False,
+                         "submitted", None)
+
+    def verify_installed(self) -> HostProbe:
         return HostProbe("test", self.version, "test-os", self.verified, self.verified,
                          "host_acknowledged", "a" * 64 if self.verified else None)
 
@@ -40,8 +44,9 @@ def test_exact_prior_config_is_restored(tmp_path) -> None:
 def test_unverified_or_changed_config_fails_closed(tmp_path) -> None:
     path = tmp_path / "host.json"
     path.write_bytes(b"prior")
-    with pytest.raises(RuntimeError, match="unverified"):
+    with pytest.raises(RuntimeError, match="did not verify"):
         HostConfigTransaction(_Adapter(path, verified=False)).apply()
+    assert path.read_bytes() == b"prior"
     transaction = HostConfigTransaction(_Adapter(path))
     path.write_bytes(b"changed")
     with pytest.raises(RuntimeError, match="changed"):

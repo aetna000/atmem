@@ -38,6 +38,7 @@ class HostAdapter(Protocol):
     host: str
 
     def probe(self) -> HostProbe: ...
+    def verify_installed(self) -> HostProbe: ...
     def configuration_path(self) -> Path: ...
     def planned_configuration(self, previous: bytes | None) -> bytes: ...
 
@@ -92,8 +93,6 @@ class HostConfigTransaction:
         probe = self.adapter.probe()
         if probe.version != self.initial_probe.version or probe.platform != self.initial_probe.platform:
             raise RuntimeError("host version or platform changed since preview")
-        if not probe.automatic:
-            raise RuntimeError("host automatic capture and context delivery are unverified")
         current = snapshot_configuration(self.before.path)
         if current.sha256 != self.before.sha256 or current.existed != self.before.existed:
             raise RuntimeError("host configuration changed since preview")
@@ -102,8 +101,19 @@ class HostConfigTransaction:
             raise ValueError("host configuration must be bounded bytes")
         _atomic_write(self.before.path, planned, self.before.mode or 0o600)
         self.after_digest = sha256(planned).hexdigest()
+        try:
+            verified = self.adapter.verify_installed()
+            if (verified.version != probe.version or verified.platform != probe.platform
+                    or not verified.automatic):
+                raise RuntimeError("installed host capture/context probe did not verify")
+        except BaseException:
+            # Explicit enable may briefly install the hook for its canary
+            # probe, but no failed probe may leave the config activated.
+            self.restore()
+            raise
         return {"applied": True, "path": str(self.before.path),
-                "before_sha256": self.before.sha256, "after_sha256": self.after_digest}
+                "before_sha256": self.before.sha256, "after_sha256": self.after_digest,
+                "probe_evidence_sha256": verified.evidence_digest}
 
     def restore(self) -> dict:
         if self.after_digest is None:
