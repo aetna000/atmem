@@ -29,7 +29,7 @@ The owner requested implementation of phases 0–8, including provider routing a
 
 ## Phase 3 — Guided setup and agent adapters
 
-- [ ] T013 Add Code as a flavour of normal AtMem onboarding, plus `atmem code setup/status/doctor/enable/disable`, in `atmem/cli.py` and `atmem/code/install.py`; installed package alone must remain non-influencing.
+- [ ] T013 Add Code as a flavour of normal AtMem onboarding, plus `atmem code setup/status/doctor/enable/disable/uninstall`, in `atmem/cli.py` and `atmem/code/install.py`; installed package alone must remain non-influencing. Disable pauses only automatic capture/injection; uninstall alone restores host configuration.
 - [x] T014 Implement a host-adapter interface and reversible configuration snapshot/probe contract in `atmem/code/adapters/base.py`; test failed install, exact restore and host upgrades in `tests/test_code_install.py` and `tests/test_code_adapter_base.py`.
 - [ ] T015 Implement and installed-version test the Muse Code adapter in `atmem/code/adapters/muse.py` and `tests/test_code_muse.py`.
 - [ ] T016 Implement and installed-version test the Claude Code adapter in `atmem/code/adapters/claude.py` and `tests/test_code_claude.py`.

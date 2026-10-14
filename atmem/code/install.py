@@ -66,6 +66,12 @@ class CodeInstall:
         existing = self.store.code_installation(subject_id, scope.project_id, host)
         if existing is not None and existing["enabled"]:
             raise RuntimeError("Code host is already enabled; setup cannot replace its restore record")
+        if existing is not None and existing["restore_json"]:
+            # A paused adapter already owns an exact restore snapshot. Setup
+            # must not erase that snapshot just because the user repeats it.
+            return {"applied": False, "ready": True, "host": readiness,
+                    "scope": scope.to_dict(), "enabled": False,
+                    "reason": "host already configured and paused"}
         self.store.put_code_installation(
             subject_id=subject_id, project_id=scope.project_id,
             host=host, enabled=False,
@@ -82,15 +88,16 @@ class CodeInstall:
             if binding else None
         )
         readiness = self.doctor(host)
-        if installation and installation["enabled"]:
+        if installation and installation["restore_json"]:
             try:
                 restore = json.loads(installation["restore_json"])
                 current = snapshot_configuration(restore["path"])
                 intact = current.sha256 == restore["installed_sha256"]
                 readiness.update({
-                    "automatic_verified": bool(intact and restore.get("probe_evidence_sha256")),
-                    "mode": "automatic" if intact else "degraded",
-                    "reason": "installed probe and config intact" if intact else "host configuration changed",
+                    "installed": True,
+                    "automatic_verified": bool(installation["enabled"] and intact and restore.get("probe_evidence_sha256")),
+                    "mode": ("automatic" if installation["enabled"] else "paused") if intact else "degraded",
+                    "reason": ("automatic memory active" if installation["enabled"] else "automatic memory paused") if intact else "host configuration changed",
                 })
             except (OSError, ValueError, TypeError, KeyError):
                 readiness.update({"automatic_verified": False, "mode": "degraded",
@@ -112,6 +119,18 @@ class CodeInstall:
         if row is None:
             raise ValueError("host is not configured for this project")
         if row["enabled"]:
+            return self.status(project=project, subject_id=subject_id, host=host)
+        if row["restore_json"]:
+            restore = json.loads(row["restore_json"])
+            if restore.get("format") != "atmem-code-host-restore-v1":
+                raise ValueError("invalid Code host restore record")
+            current = snapshot_configuration(restore["path"])
+            if current.sha256 != restore["installed_sha256"]:
+                raise RuntimeError("host configuration changed while paused; refusing activation")
+            self.store.set_code_installation_enabled(
+                subject_id=subject_id, project_id=binding["project_id"],
+                host=host, enabled=True,
+            )
             return self.status(project=project, subject_id=subject_id, host=host)
         if host not in self.adapters:
             raise RuntimeError(f"{host} automatic adapter is not yet verified; Code remains disabled")
@@ -145,7 +164,27 @@ class CodeInstall:
         row = self.store.code_installation(subject_id, binding["project_id"], host)
         if row is None:
             raise ValueError("host is not configured for this project")
+        # Keep the hook and restore snapshot in place. The hook's intake and
+        # context paths read this flag for every turn and become no-ops.
+        self.store.set_code_installation_enabled(
+            subject_id=subject_id, project_id=binding["project_id"],
+            host=host, enabled=False,
+        )
+        return self.status(project=project, subject_id=subject_id, host=host)
+
+    def uninstall(self, *, project: str | Path, subject_id: str, host: str) -> dict:
+        """Explicitly restore prior host configuration after a pause."""
+        from atmem.code.identity import repository_key
+
+        binding = self.store.code_project_binding(subject_id, repository_key(project))
+        if binding is None:
+            raise ValueError("project is not configured")
+        row = self.store.code_installation(subject_id, binding["project_id"], host)
+        if row is None:
+            raise ValueError("host is not configured for this project")
         if row["enabled"]:
+            raise RuntimeError("disable automatic Code memory before uninstall")
+        if row["restore_json"]:
             value = json.loads(row["restore_json"])
             if value.get("format") != "atmem-code-host-restore-v1":
                 raise ValueError("invalid Code host restore record")
@@ -156,8 +195,8 @@ class CodeInstall:
                 value["mode"], value["before_sha256"],
             )
             restore_configuration(before, value["installed_sha256"])
-        self.store.put_code_installation(
+        self.store.delete_code_installation(
             subject_id=subject_id, project_id=binding["project_id"],
-            host=host, enabled=False,
+            host=host,
         )
         return self.status(project=project, subject_id=subject_id, host=host)

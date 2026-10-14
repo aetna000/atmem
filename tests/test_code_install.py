@@ -64,7 +64,7 @@ class _VerifiedAdapter:
         return (previous or b"") + b"\nAtMem Code test hook\n"
 
 
-def test_explicit_enable_then_exact_disable_across_installer_instances(tmp_path) -> None:
+def test_disable_pauses_without_restoring_then_uninstall_restores(tmp_path) -> None:
     host_config = tmp_path / "host.json"
     host_config.write_bytes(b"owner settings\n")
     store = SQLiteStore()
@@ -82,12 +82,25 @@ def test_explicit_enable_then_exact_disable_across_installer_instances(tmp_path)
         second = CodeInstall(store, adapters={"codex": factory})
         stopped = second.disable(project=tmp_path, subject_id="user-1", host="codex")
         assert stopped["enabled"] is False
+        assert stopped["host"]["mode"] == "paused"
+        assert b"AtMem Code test hook" in host_config.read_bytes()
+        restore_json = store.code_installation("user-1", active["project_id"], "codex")["restore_json"]
+        assert restore_json
+        setup_again = second.setup(tmp_path, subject_id="user-1", profile_id="shared",
+                                   agent_id="codex", host="codex", apply=True)
+        assert setup_again["applied"] is False
+        assert store.code_installation("user-1", active["project_id"], "codex")["restore_json"] == restore_json
+        resumed = second.enable(project=tmp_path, subject_id="user-1", host="codex")
+        assert resumed["enabled"] is True
+        second.disable(project=tmp_path, subject_id="user-1", host="codex")
+        removed = second.uninstall(project=tmp_path, subject_id="user-1", host="codex")
+        assert removed["configured"] is False
         assert host_config.read_bytes() == b"owner settings\n"
     finally:
         store.close()
 
 
-def test_disable_refuses_to_overwrite_owner_change(tmp_path) -> None:
+def test_disable_is_safe_even_if_owner_changed_hook_config(tmp_path) -> None:
     host_config = tmp_path / "host.json"
     host_config.write_bytes(b"owner settings\n")
     store = SQLiteStore()
@@ -97,9 +110,12 @@ def test_disable_refuses_to_overwrite_owner_change(tmp_path) -> None:
                         agent_id="codex", host="codex", apply=True)
         installer.enable(project=tmp_path, subject_id="user-1", host="codex")
         host_config.write_bytes(b"owner changed this")
-        with pytest.raises(RuntimeError, match="changed after activation"):
-            installer.disable(project=tmp_path, subject_id="user-1", host="codex")
+        installer.disable(project=tmp_path, subject_id="user-1", host="codex")
         assert host_config.read_bytes() == b"owner changed this"
         assert installer.status(project=tmp_path, subject_id="user-1", host="codex")["host"]["mode"] == "degraded"
+        with pytest.raises(RuntimeError, match="changed while paused"):
+            installer.enable(project=tmp_path, subject_id="user-1", host="codex")
+        with pytest.raises(RuntimeError, match="changed after activation"):
+            installer.uninstall(project=tmp_path, subject_id="user-1", host="codex")
     finally:
         store.close()

@@ -1773,7 +1773,7 @@ or input errors.""",
 
     code_parser = subparsers.add_parser("code", help="Configure project-scoped coding memory")
     code_commands = code_parser.add_subparsers(dest="code_command")
-    for name in ("setup", "status", "doctor", "enable", "disable"):
+    for name in ("setup", "status", "doctor", "enable", "disable", "uninstall"):
         command_parser = code_commands.add_parser(name)
         command_parser.add_argument("--project", default=".")
         command_parser.add_argument("--db", default=DEFAULT_MCP_DB)
@@ -2020,8 +2020,10 @@ or input errors.""",
                 result = installer.status(project=args.project, subject_id=args.subject, host=args.host)
             elif args.code_command == "enable":
                 result = installer.enable(project=args.project, subject_id=args.subject, host=args.host)
-            else:
+            elif args.code_command == "disable":
                 result = installer.disable(project=args.project, subject_id=args.subject, host=args.host)
+            else:
+                result = installer.uninstall(project=args.project, subject_id=args.subject, host=args.host)
         finally:
             store.close()
         _print(result)

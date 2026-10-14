@@ -47,6 +47,15 @@ class CodeIntakeService:
         self.enabled = enabled
         self.max_pending = max_pending
 
+    def assert_active(self) -> None:
+        if not self.enabled:
+            raise PermissionError("Code intake is disabled")
+        row = self.store.code_installation(
+            self.scope.subject_id, self.scope.project_id, self.host,
+        )
+        if row is None or not row["enabled"]:
+            raise PermissionError("automatic Code memory is disabled for this project and host")
+
     def sign(self, observation: CodeObservation) -> str:
         """Adapter-side signing primitive; never expose it over a host API."""
         return hmac.new(
@@ -54,8 +63,6 @@ class CodeIntakeService:
         ).hexdigest()
 
     def submit(self, payload: dict[str, Any], signature: str) -> dict[str, Any]:
-        if not self.enabled:
-            raise PermissionError("Code intake is disabled")
         observation = CodeObservation.from_dict(payload)
         if (observation.scope != self.scope or observation.host != self.host
                 or observation.session_id != self.session_id):
@@ -64,6 +71,7 @@ class CodeIntakeService:
             self.sign(observation), signature
         ):
             raise PermissionError("Code intake signature invalid")
+        self.assert_active()
         screening = screen_content(
             observation.content, trusted=observation.kind == "user_turn"
         )
@@ -73,23 +81,24 @@ class CodeIntakeService:
                     "reason_codes": list(screening.reason_codes)}
         serialized = canonical_json(observation.to_dict())
         digest = sha256(serialized.encode("utf-8")).hexdigest()
-        inserted = self.store.put_code_observation(
-            event_id=observation.event_id,
-            subject_id=self.scope.subject_id,
-            project_id=self.scope.project_id,
-            profile_id=self.scope.profile_id,
-            agent_id=self.scope.agent_id,
-            session_id=observation.session_id,
-            turn_id=observation.turn_id,
-            payload_sha256=digest,
-            payload_json=serialized,
-            max_pending=self.max_pending,
-        )
+        with self.store.transaction():
+            self.assert_active()
+            inserted = self.store.put_code_observation(
+                event_id=observation.event_id,
+                subject_id=self.scope.subject_id,
+                project_id=self.scope.project_id,
+                profile_id=self.scope.profile_id,
+                agent_id=self.scope.agent_id,
+                session_id=observation.session_id,
+                turn_id=observation.turn_id,
+                payload_sha256=digest,
+                payload_json=serialized,
+                max_pending=self.max_pending,
+            )
         return {"event_id": observation.event_id, "accepted": True, "queued": inserted}
 
     def pending(self, limit: int = 100) -> list[CodeObservation]:
-        if not self.enabled:
-            raise PermissionError("Code intake is disabled")
+        self.assert_active()
         return [
             CodeObservation.from_dict(json.loads(row["payload_json"]))
             for row in self.store.list_code_observations(

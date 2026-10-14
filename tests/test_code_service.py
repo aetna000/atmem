@@ -19,6 +19,9 @@ def _observation(*, event_id: str = "event-1", scope: CodeScope | None = None) -
 
 
 def _service(store: SQLiteStore, *, enabled: bool = True, max_pending: int = 500) -> CodeIntakeService:
+    store.put_code_installation(
+        subject_id="subject-1", project_id="project-1", host="codex", enabled=True,
+    )
     return CodeIntakeService(
         store, scope=_observation().scope, host="codex", session_id="session-1",
         secret=b"a" * 32, enabled=enabled, max_pending=max_pending,

@@ -550,6 +550,31 @@ class SQLiteStore:
                 (subject_id, project_id, host, int(enabled), restore_json, utc_now()),
             )
 
+    def set_code_installation_enabled(
+        self, *, subject_id: str, project_id: str, host: str, enabled: bool,
+    ) -> None:
+        """Toggle automatic behavior without touching host restore metadata."""
+        with self.transaction():
+            cursor = self._conn.execute(
+                """UPDATE code_installations SET enabled = ?, updated_at = ?
+                   WHERE subject_id = ? AND project_id = ? AND host = ?""",
+                (int(enabled), utc_now(), subject_id, project_id, host),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("Code host is not configured")
+
+    def delete_code_installation(
+        self, *, subject_id: str, project_id: str, host: str,
+    ) -> None:
+        with self.transaction():
+            cursor = self._conn.execute(
+                """DELETE FROM code_installations
+                   WHERE subject_id = ? AND project_id = ? AND host = ? AND enabled = 0""",
+                (subject_id, project_id, host),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("Code host must be disabled before uninstall")
+
     def bind_code_project(
         self, *, subject_id: str, repository_key: str, project_id: str,
         remote_sha256: str | None,
@@ -5564,7 +5589,12 @@ class SQLiteStore:
                 self._ensure_column(
                     "context_view_generations", "revision", "INTEGER NOT NULL DEFAULT 0"
                 )
-            self._conn.executescript(script)
+            if identifier == "0424_code_installation_restore":
+                # Preserve the recorded migration while making interrupted
+                # upgrades safe when the column survived but the ledger did not.
+                self._ensure_column("code_installations", "restore_json", "TEXT")
+            else:
+                self._conn.executescript(script)
             self._conn.execute(
                 "INSERT OR IGNORE INTO schema_migrations(identifier, applied_at) "
                 "VALUES (?, ?)",
