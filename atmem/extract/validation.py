@@ -49,8 +49,13 @@ _INSTRUCTION_RE = re.compile(
 _SECRET_RE = re.compile(
     r"(?:-----BEGIN [A-Z ]*PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b"
     r"|\bsk-(?:[A-Za-z0-9]+-)*[A-Za-z0-9]{16,}\b"
+    r"|\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,}\b"
+    r"|\bAIza[0-9A-Za-z_-]{30,}\b"
+    r"|\b[a-z][a-z0-9+.-]*://[^/\s:@]+:[^@\s/]+@"
     r"|\b(?:password|passphrase|api[ _-]?key|secret|access token|bearer token)\b\s*"
-    r"(?:is|=|:)\s*\S+)",
+    r"(?:is|=|:)\s*\S+"
+    r"|\b(?:authorization|auth|credential|token)\b\s*(?:is|=|:)\s*"
+    r"(?:Bearer\s+)?[A-Za-z0-9_./+=-]{16,})",
     re.I,
 )
 _EXCLUSION_RE = re.compile(

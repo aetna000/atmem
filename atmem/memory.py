@@ -10,7 +10,7 @@ import secrets
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, Iterator, TypeVar
 import uuid
 
 from atmem.core.canonical import canonical_json, sha256_hex
@@ -57,6 +57,23 @@ _VECTOR_MUTATIONS = {
     "promote",
     "reject",
 }
+
+
+def _screenable_metadata(value: Any) -> Iterator[str]:
+    """Inspect caller metadata before it can enter an episode's raw JSON."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            label = str(key)
+            yield label
+            if isinstance(item, (str, int, float, bool)):
+                yield f"{label}: {item}"
+            else:
+                yield from _screenable_metadata(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            yield from _screenable_metadata(item)
+    elif isinstance(value, str):
+        yield value
 
 _RECORD_INTEGRITY_FIELDS = (
     "id",
@@ -3119,10 +3136,48 @@ class Memory:
             raise ValueError("remember() requires message or fact")
         turn = _turn_id(turn_id)
         source = source_type or classify_source(text)
+        if interpreted_fact is not None and source != "user_message":
+            raise ValueError("interpreted facts require a trusted user message")
+        screened_fields = [text]
+        if interpreted_fact is not None:
+            screened_fields.append(interpreted_fact)
+        if interpreted_fact_key is not None:
+            screened_fields.append(interpreted_fact_key)
+        screened_fields.extend(_screenable_metadata(raw or {}))
+        reasons = tuple(
+            dict.fromkeys(
+                reason
+                for index, field in enumerate(screened_fields)
+                for reason in screen_content(
+                    field,
+                    trusted=(source == "user_message" if index == 0 else True),
+                ).reason_codes
+            )
+        )
+        if reasons:
+            # This semantic API is not the privileged evidence recorder. Never
+            # write a secret-bearing raw episode before the admission check.
+            self.store.append_audit_event(
+                subject_id=subject_id,
+                event_type="memory.content_refused",
+                actor="system",
+                session_id=session_id,
+                turn_id=turn,
+                payload={
+                    "episode_id": None,
+                    "source_type": source,
+                    "reason_codes": list(reasons),
+                    "message_sha256": _sha256(text),
+                },
+            )
+            return {
+                "episode_id": None,
+                "records": [],
+                "duplicate_ids": [],
+                "refused": list(reasons),
+            }
         interpreted_candidate: CandidateFact | None = None
         if interpreted_fact is not None:
-            if source != "user_message":
-                raise ValueError("interpreted facts require a trusted user message")
             content = _explicit_note(interpreted_fact)
             if len(content) > 2_000:
                 raise ValueError("interpreted fact exceeds 2,000 characters")
@@ -3213,31 +3268,6 @@ class Memory:
                 },
             )
         else:
-            # Instruction-shaped, secret-bearing, and explicitly excluded
-            # content is refused before extraction so it never becomes a
-            # record to be reviewed later. The instruction screen is scoped to
-            # untrusted sources: a user's own "always do X" is a preference.
-            screening = screen_content(text, trusted=source == "user_message")
-            if not screening.admissible:
-                self.store.append_audit_event(
-                    subject_id=subject_id,
-                    event_type="memory.content_refused",
-                    actor="system",
-                    session_id=session_id,
-                    turn_id=turn,
-                    payload={
-                        "episode_id": episode_id,
-                        "source_type": source,
-                        "reason_codes": list(screening.reason_codes),
-                        "message_sha256": _sha256(text),
-                    },
-                )
-                return {
-                    "episode_id": episode_id,
-                    "records": [],
-                    "duplicate_ids": [],
-                    "refused": list(screening.reason_codes),
-                }
             candidates = extract_facts(text, source_type=source)
         if force and not candidates and source == "user_message":
             candidates = [

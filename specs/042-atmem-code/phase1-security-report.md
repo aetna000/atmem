@@ -1,0 +1,11 @@
+# Phase 1 semantic-intake security check
+
+**Scope:** The `Memory.remember()` semantic admission boundary in `atmem/memory.py`, not a claim that all host evidence surfaces or all possible secrets have been independently audited.
+
+Before the change, `remember()` inserted an episode before screening the message, and the trusted `interpreted_fact` path bypassed screening entirely. The new check screens the message, interpreted fact/key and nested raw metadata before duplicate lookup or episode creation. Refused input creates a reason-code and digest audit event but no raw episode or canonical record. This semantic API is not the privileged full-fidelity flight recorder; the existing encrypted evidence service retains exact captured host data under role-based access, as separately tested in `tests/test_evidence_protection.py`.
+
+The regression fixtures cover OpenAI-style, GitHub, Google, bearer-token, URL-userinfo, named token/password and private-key formats. A normal preference about using environment variables for API keys remains admissible. A disk-backed SQLite test checks that a refused fake key does not appear in the database bytes. Existing Hermes and memory-formation tests are run alongside the new fixtures. These are fixture results, not a universal secret-detection guarantee.
+
+**Known false-negative class:** An unlabeled, unfamiliar high-entropy value without a recognized prefix or key context can escape a pattern screen. A detector that rejects every random-looking string would also reject legitimate IDs and hashes; broader automatic Code capture needs additional field-aware detectors and a measured false-positive/false-negative corpus before it can claim complete secret exclusion. External provider egress remains disabled by default and must pass its own screening gate in Phase 6.
+
+**Verification on this worktree:** `tests/test_memory_secret_boundary.py`, `tests/test_memory.py`, `tests/test_hermes_install.py`, `tests/test_memory_formation.py`, and `tests/test_extract_contracts.py`: 89 passed. `tests/test_evidence_protection.py`: 20 passed, 1 skipped. The skipped evidence case is not counted as a pass. The task is complete for the identified `remember()` bypasses; whole-product secret safety remains a Phase 6–8 and release gate.
