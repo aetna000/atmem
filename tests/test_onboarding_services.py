@@ -44,12 +44,14 @@ def test_init_repairs_old_dashboard_and_starts_shared_flows(monkeypatch, capsys)
     monkeypatch.setattr(atflows_service, "ensure_started", lambda url: (
         passed_urls.append(url) or {"running": True, "dashboard_url": "http://127.0.0.1:1337/", "proxy_url": "http://127.0.0.1:8080/"}
     ))
-    cli._run_identity_init(Namespace(state=None, json=True, no_open=True, port=8766))
+    cli._run_identity_init(Namespace(state=None, json=True, no_open=True, port=8766, flavour="code"))
     report = json.loads(capsys.readouterr().out)
     assert actions == ["status", "restart"]
     assert passed_urls == ["http://127.0.0.1:8768/"]
     assert report["dashboard"]["atmem_version"] == "2.3.5"
     assert report["atflows"]["dashboard_url"] == "http://127.0.0.1:1337/"
+    assert report["code"]["enabled"] is False
+    assert report["code"]["next_action"].startswith("atmem code setup")
 
 
 def test_init_refuses_port_drift_and_does_not_start_companion(monkeypatch, capsys) -> None:

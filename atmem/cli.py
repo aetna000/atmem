@@ -437,6 +437,10 @@ Run `atmem COMMAND --help` for command-specific examples.""",
     )
     init_parser.add_argument("--state", default=None)
     init_parser.add_argument("--json", action="store_true")
+    init_parser.add_argument(
+        "--flavour", choices=("standard", "code"), default="standard",
+        help="Select the next onboarding path; Code remains disabled until explicitly configured and enabled",
+    )
     init_parser.add_argument("--port", type=int, default=None)
     init_parser.add_argument(
         "--no-open",
@@ -4817,6 +4821,12 @@ def _run_identity_init(args: argparse.Namespace) -> None:
               "dashboard": daemon, "atflows": flows,
               "atbot": {"running": bool(bot.get("running")), "available": bool(bot.get("available")), "fallback_selected": bool(bot.get("fallback_selected"))},
               "errors": service_errors}
+    if getattr(args, "flavour", "standard") == "code":
+        report["code"] = {
+            "enabled": False,
+            "next_action": "atmem code setup --project . --host codex",
+            "note": "Preview the target host, then configure and enable it explicitly; no hook was installed by init.",
+        }
     if args.json:
         _print(report)
         return
@@ -4836,6 +4846,8 @@ def _run_identity_init(args: argparse.Namespace) -> None:
         if not _open_default_browser(url):
             print("  ACTION             Browser did not open; use the AtMem URL above.")
     print("Run `atmem status` any time to check installed and running versions, URLs and next steps.")
+    if report.get("code"):
+        print("Code memory is off. Run `atmem code setup --project . --host codex` to preview one host.")
 
 
 def _bootstrap_dashboard_url(base: str, bootstrap: dict[str, Any]) -> str:
