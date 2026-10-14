@@ -549,6 +549,7 @@ Run `atmem COMMAND --help` for command-specific examples.""",
     for name, help_text in (
         ("preview", "Preview the profile without downloading or changing state"),
         ("setup", "Verify and stage the pinned artifact without activating it"),
+        ("qualify", "Record a verified non-influencing shadow qualification"),
         ("activate", "Explicitly activate the staged profile"),
         ("status", "Show revision, device, calibration and fallback state"),
         ("doctor", "Verify dependencies, artifact bindings and fallback"),
@@ -569,7 +570,19 @@ Run `atmem COMMAND --help` for command-specific examples.""",
                 "--escalation", action="store_true",
                 help="Stage bounded AtBot escalation; remote egress remains disabled",
             )
-        if name in {"setup", "activate", "rollback"}:
+        if name == "setup":
+            command_parser.add_argument(
+                "--profile",
+                choices=("deterministic", "laya", "laya-escalation"),
+                default=None,
+                help="Select deterministic formation, local Laya, or Laya with bounded AtBot escalation",
+            )
+        if name == "qualify":
+            command_parser.add_argument(
+                "--receipt", required=True,
+                help="Path to an atmem-laya-shadow-qualification-v2 JSON receipt",
+            )
+        if name in {"setup", "qualify", "activate", "rollback"}:
             command_parser.add_argument(
                 "--yes", action="store_true", help="Confirm this state change noninteractively"
             )
@@ -4444,21 +4457,68 @@ def _run_laya_formation(args: argparse.Namespace, parser: argparse.ArgumentParse
                 escalation_enabled=bool(args.escalation), allow_download=bool(args.download),
             )
         elif command == "setup":
-            preview = manager.preview(
-                local_dir=args.model_dir, device=args.device,
-                escalation_enabled=bool(args.escalation), allow_download=bool(args.download),
-            )
-            confirmed = bool(args.yes)
-            if not confirmed and sys.stdin.isatty():
-                print(json.dumps(preview["changes"], indent=2, sort_keys=True))
-                confirmed = input("Stage this inactive profile? [y/N] ").strip().casefold() in {"y", "yes"}
-            if not confirmed:
-                result = {**preview, "applied": False, "next_action": "Rerun with --yes to stage; activation is still separate."}
+            selected_profile = args.profile
+            if selected_profile is None and sys.stdin.isatty():
+                print("\nMemory formation setup")
+                print("1. Deterministic rules (fastest; no model download)")
+                print("2. AtMem Laya decision model (local; staged before activation)")
+                print("3. AtMem Laya with bounded AtBot escalation")
+                choice = input("Choose [1]: ").strip() or "1"
+                selected_profile = {
+                    "1": "deterministic", "2": "laya", "3": "laya-escalation",
+                }.get(choice)
+                if selected_profile is None:
+                    raise ValueError("choose 1, 2, or 3")
+            selected_profile = selected_profile or "laya"
+            if selected_profile == "deterministic":
+                confirmed = bool(args.yes)
+                if not confirmed and sys.stdin.isatty():
+                    confirmed = input("Select deterministic formation? [y/N] ").strip().casefold() in {"y", "yes"}
+                if not confirmed:
+                    result = {
+                        "format": "atmem-laya-formation-profile-preview-v1",
+                        "applied": False,
+                        "changes": {
+                            "model_repo": "none", "model_revision": "none",
+                            "device": "not required", "download_requested": False,
+                            "escalation_enabled": False,
+                        },
+                        "next_action": "Rerun with --yes to select deterministic formation.",
+                    }
+                else:
+                    result = {
+                        **manager.select_deterministic(confirmed=True),
+                        "selected_profile": "deterministic",
+                    }
             else:
-                result = manager.setup(
-                    local_dir=args.model_dir, allow_download=bool(args.download),
-                    device=args.device, escalation_enabled=bool(args.escalation),
+                escalation_enabled = bool(
+                    args.escalation or selected_profile == "laya-escalation"
                 )
+                preview = manager.preview(
+                    local_dir=args.model_dir, device=args.device,
+                    escalation_enabled=escalation_enabled,
+                    allow_download=bool(args.download),
+                )
+                confirmed = bool(args.yes)
+                if not confirmed and sys.stdin.isatty():
+                    print(json.dumps(preview["changes"], indent=2, sort_keys=True))
+                    confirmed = input("Stage this inactive profile? [y/N] ").strip().casefold() in {"y", "yes"}
+                if not confirmed:
+                    result = {**preview, "applied": False, "next_action": "Rerun with --yes to stage; activation is still separate."}
+                else:
+                    result = {
+                        **manager.setup(
+                            local_dir=args.model_dir, allow_download=bool(args.download),
+                            device=args.device, escalation_enabled=escalation_enabled,
+                        ),
+                        "selected_profile": selected_profile,
+                    }
+        elif command == "qualify":
+            receipt_path = Path(args.receipt).expanduser()
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            if not isinstance(receipt, dict):
+                raise ValueError("shadow qualification receipt must be a JSON object")
+            result = manager.qualify_shadow(receipt, confirmed=bool(args.yes))
         elif command == "activate":
             result = manager.activate(confirmed=bool(args.yes))
         elif command == "rollback":
@@ -4489,13 +4549,17 @@ def _run_laya_formation(args: argparse.Namespace, parser: argparse.ArgumentParse
             print(f"  {name}: {'pass' if passed else 'fail'}")
         return
     print(f"Laya formation profile: {result.get('profile', 'laya-formation-v1')}")
+    if result.get("selected_profile"):
+        print(f"  Selected: {result['selected_profile']}")
     print(f"  Active: {bool(result.get('active'))}")
+    print(f"  Mode: {result.get('mode') or 'deterministic'}")
+    print(f"  Shadow qualified: {bool(result.get('shadow_qualified'))}")
     print(f"  Revision: {result.get('model_revision')}")
     print(f"  Device: {result.get('device') or 'not selected'}")
     print(f"  Calibration: {result.get('calibration_state', 'not configured')}")
     print(f"  Deterministic fallback ready: {bool(result.get('fallback_ready', True))}")
     if command == "setup":
-        print("  Staged only. Run `atmem formation activate --yes` to opt in.")
+        print("  Staged only. Run shadow qualification, then explicitly activate.")
 
 
 def _run_atbot(args: argparse.Namespace) -> None:

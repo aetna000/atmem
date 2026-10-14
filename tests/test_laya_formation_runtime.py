@@ -10,14 +10,17 @@ from atmem.laya_formation.artifacts import ArtifactBundle
 from atmem.laya_formation.contracts import (
     CalibrationBinding,
     FormationDecisionRequest,
+    MODEL_HEAD_MAX_LEN,
+    MODEL_MAX_LEN,
     QuestionDefinitionV1,
+    SUPPORTED_QUESTIONS_DIGEST,
 )
 from atmem.laya_formation.packing import AuthorizedRange, pack_authorized_ranges
 from atmem.laya_formation.runtime import LayaDecisionEngine, select_device
 
 
 class ExactTestPacker:
-    revision = "7b928d828b7b0e022f929d9bd2e44165aa270148"
+    revision = "1720e3e3357cfe1e281542e223f8273b0890ca34"
 
     def head_token_count(self, question, head_max_len):
         return 40, len(question["crit"])
@@ -52,7 +55,8 @@ def _question() -> QuestionDefinitionV1:
         instructions="Choose the only permitted memory formation operation.",
         choice_ids=("ADD", "UPDATE", "SUPERSEDE", "NOOP", "REJECT"),
         allow_abstain=True, tokenizer_revision=ExactTestPacker.revision,
-        max_len=512, head_max_len=192, closing_tokens_reserved=1,
+        max_len=MODEL_MAX_LEN, head_max_len=MODEL_HEAD_MAX_LEN,
+        closing_tokens_reserved=1,
         overflow_policy="whole-authorized-ranges-or-review",
     )
 
@@ -60,7 +64,7 @@ def _question() -> QuestionDefinitionV1:
 def _calibration() -> CalibrationBinding:
     return CalibrationBinding(
         model_sha256="f2ba3dd7679da45aabab4cac30e9a079baeb2dc98229ff3b1618e6a06fc6d683",
-        questions_digest="7a3cd0e13d99db02a1e53e51a63fad921e754ac5bbc2376b8a888c1033900f0e",
+        questions_digest=SUPPORTED_QUESTIONS_DIGEST,
         calibration_digest="b165d4b7d554cdbda5a889baf7059c3f43ba2774d68754e4fa3aeb63f5f0e067",
         method="per-question-temperature-and-abstention-v1",
         temperatures=(1.0, 1.0, 1.0),
@@ -123,7 +127,9 @@ def test_bounded_inference_accepts_only_full_calibrated_choice_vector() -> None:
     response = engine(_request())
     assert response.selected_choice_ids == ("ADD",)
     assert response.abstained is False
-    assert agent.calls[0][2] == {"max_len": 512, "head_max_len": 192}
+    assert agent.calls[0][2] == {
+        "max_len": MODEL_MAX_LEN, "head_max_len": MODEL_HEAD_MAX_LEN,
+    }
     assert engine.diagnostics()["input_digest"] == _request().packed_input.state_digest
     assert "Alice" not in repr(engine.diagnostics())
 

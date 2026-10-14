@@ -1,0 +1,39 @@
+{
+  "corpus_sha256": "612181e0084e4ae847b8e84548f4fc989117b7ffaa1c9d2e587cd0a8ad2bc23d",
+  "counts": {
+    "DO_NOT_STORE": 20,
+    "DUPLICATE": 10,
+    "REVIEW": 30,
+    "STORE": 25,
+    "UPDATE": 15
+  },
+  "format": "atmem-openclaw-memory-corpus-v1",
+  "model": "gpt-5.5",
+  "provider": "openai",
+  "run_id": "dc3ff697-91b7-43ea-b8bf-d7216a6a4e4c",
+  "session_id": "ad99633a-792d-4c99-abf2-026f5d9e8f77",
+  "session_key": "agent:main:atmem-laya-100-corpus-20261012",
+  "stop_reason": "stop",
+  "transcript_database": "/Users/javadtaghia/.openclaw/agents/main/agent/openclaw-agent.sqlite",
+  "transcript_event_seq": 2,
+  "usage": {
+    "cacheRead": 5632,
+    "cacheWrite": 0,
+    "contextUsage": {
+      "promptTokens": 23350,
+      "state": "available",
+      "totalTokens": 30895
+    },
+    "cost": {
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "input": 0,
+      "output": 0,
+      "total": 0
+    },
+    "input": 17718,
+    "output": 7545,
+    "reasoningTokens": 157,
+    "totalTokens": 30895
+  }
+}

@@ -1,5 +1,9 @@
 # AtMem Laya formation evaluation — 2026-10-11
 
+> **Historical diagnostic only:** the evaluated checkpoint was trained and
+> tested on synthetic scenarios. This report cannot satisfy any current Spec 041
+> dataset, model, generalization, publication or release gate.
+
 ## Claim boundary
 
 This is a **synthetic AtMem Formation benchmark**. It uses deterministic,

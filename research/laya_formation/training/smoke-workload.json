@@ -2,21 +2,21 @@
   "format": "atmem-laya-smoke-workload-v1",
   "seed": 410239,
   "base_model": {
-    "repo_id": "convaiinnovations/laya",
-    "revision": "7b928d828b7b0e022f929d9bd2e44165aa270148"
+    "repo_id": "convaiinnovations/laya-multilingual",
+    "revision": "1720e3e3357cfe1e281542e223f8273b0890ca34"
   },
   "laya": {
     "package": "laya==0.4.2",
     "source_revision": "68804629e8ccd9d616d48a40e87de9fabbeae069"
   },
   "dataset": {
-    "repo_id": "atmem/atmem-laya-formation-v1",
-    "revision": "4436089b38cbe3a5374aaaa92c4c77703cdbf668",
-    "manifest_sha256": "d67d371c8c1d6de85a0293cded5aa5b3f7d078e92197130ce1f9edef68e863d4",
+    "repo_id": "atmem/atmem-laya-memory-decisions-v1",
+    "revision": "PENDING_AUTHENTIC_FINAL_MANIFEST",
+    "manifest_sha256": "PENDING_AUTHENTIC_FINAL_MANIFEST",
     "train_path": "data/decisions-train.jsonl",
     "calibration_path": "data/decisions-calibration.jsonl",
-    "full_train_items": 39600,
-    "full_calibration_items": 6700
+    "full_train_items": 0,
+    "full_calibration_items": 0
   },
   "sample": {
     "train_items": 10,
@@ -29,14 +29,14 @@
     "checkpoint_after_step": 1,
     "micro_batch": 1,
     "gradient_accumulation": 1,
-    "full_epochs": 4,
+    "full_epochs": 1,
     "encoder_lr": 0.000025,
     "head_lr": 0.0001,
     "weight_decay": 0.01,
     "gradient_clip": 1.0,
     "rl_samples": 4,
-    "max_len": 512,
-    "head_max_len": 192,
+    "max_len": 1024,
+    "head_max_len": 256,
     "freeze_encoder": false
   },
   "viability": {

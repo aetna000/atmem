@@ -1,0 +1,147 @@
+{
+  "arms": [
+    {
+      "arm": "deterministic",
+      "by_expected": {
+        "DO_NOT_STORE": {
+          "count": 20,
+          "exact_policy_matches": 5,
+          "safe_non_authoritative": 5
+        },
+        "DUPLICATE": {
+          "count": 10,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        },
+        "REVIEW": {
+          "count": 30,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        },
+        "STORE": {
+          "count": 25,
+          "exact_policy_matches": 25,
+          "safe_non_authoritative": 25
+        },
+        "UPDATE": {
+          "count": 15,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        }
+      },
+      "database": "research/laya_formation/runs/openclaw-100-20261014-selective-v3/deterministic.sqlite3",
+      "elapsed_seconds": 0.4493968339811545,
+      "exact_policy_matches": 30,
+      "latency_ms": {
+        "mean": 3.0383862974122167,
+        "p50": 3.1539580086246133,
+        "p95": 4.7260829887818545
+      },
+      "observed_counts": {
+        "DO_NOT_STORE": 5,
+        "STORE": 95
+      },
+      "records_sha256": "92f1174a4c4b04ddea5160dab78925bc90147b578fb6844f67ae866453258afd",
+      "safe_non_authoritative": 30
+    },
+    {
+      "arm": "original-laya-selective-v3",
+      "by_expected": {
+        "DO_NOT_STORE": {
+          "count": 20,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 20
+        },
+        "DUPLICATE": {
+          "count": 10,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 10
+        },
+        "REVIEW": {
+          "count": 30,
+          "exact_policy_matches": 30,
+          "safe_non_authoritative": 30
+        },
+        "STORE": {
+          "count": 25,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        },
+        "UPDATE": {
+          "count": 15,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 15
+        }
+      },
+      "database": "research/laya_formation/runs/openclaw-100-20261014-selective-v3/original-laya-selective-v3.sqlite3",
+      "elapsed_seconds": 5.1874121250002645,
+      "exact_policy_matches": 30,
+      "latency_ms": {
+        "mean": 51.53345749829896,
+        "p50": 45.35208398010582,
+        "p95": 52.553792018443346
+      },
+      "observed_counts": {
+        "DO_NOT_STORE": 2,
+        "REVIEW": 98
+      },
+      "records_sha256": "42921f8e8077a82aea1ce836d66702ef176b2d5ef0eea5d27daa85f8a0151ed4",
+      "safe_non_authoritative": 75
+    },
+    {
+      "arm": "fine-tuned-laya-selective-v3",
+      "by_expected": {
+        "DO_NOT_STORE": {
+          "count": 20,
+          "exact_policy_matches": 20,
+          "safe_non_authoritative": 20
+        },
+        "DUPLICATE": {
+          "count": 10,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        },
+        "REVIEW": {
+          "count": 30,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        },
+        "STORE": {
+          "count": 25,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        },
+        "UPDATE": {
+          "count": 15,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        }
+      },
+      "database": "research/laya_formation/runs/openclaw-100-20261014-selective-v3/fine-tuned-laya-selective-v3.sqlite3",
+      "elapsed_seconds": 4.649726624978939,
+      "exact_policy_matches": 20,
+      "latency_ms": {
+        "mean": 46.26427121926099,
+        "p50": 45.26474999147467,
+        "p95": 52.84474999643862
+      },
+      "observed_counts": {
+        "DO_NOT_STORE": 100
+      },
+      "records_sha256": "05bc27c2e239b4ac007976a1a37a350daaa78c1a6a43a888beca770395c24279",
+      "safe_non_authoritative": 20
+    }
+  ],
+  "corpus_sha256": "612181e0084e4ae847b8e84548f4fc989117b7ffaa1c9d2e587cd0a8ad2bc23d",
+  "device": "mps",
+  "format": "atmem-openclaw-selective-v3-research",
+  "generated_at": "2026-10-13T23:57:19.141650+00:00",
+  "limitations": [
+    "Operational corpus, not an independent generalization benchmark.",
+    "The two-action specialist does not learn relational transitions.",
+    "The authentic STORE_NEW training class is below the activation minimum."
+  ],
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "python": "3.12.13 (main, Mar  3 2026, 12:39:30) [Clang 21.0.0 (clang-2100.0.123.102)]",
+  "threshold": 0.5
+}

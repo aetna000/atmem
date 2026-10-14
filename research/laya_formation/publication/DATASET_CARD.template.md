@@ -1,17 +1,24 @@
 ---
-license: apache-2.0
+license: other
 task_categories: [text-classification]
-language: [en]
-tags: [atmem, synthetic, memory-formation, typed-decisions]
+tags: [atmem, authentic-conversation, memory-understanding, typed-decisions]
 ---
 
-# AtMem Laya Formation Dataset v1
+# AtMem Authentic Memory Understanding Dataset
 
-Synthetic-only typed decisions for governed memory formation and retrieval
-usefulness. This is not real user history and is not production-quality evidence.
+Exactly 100,000 source-licensed multilingual rows from actual human–AI
+interactions with human-authored user turns, plus Codex CLI weak-supervision
+labels and independent Claude CLI verification where authenticated allowance
+remained available. The exact labeling mode and coverage are disclosed. No generated
+dialogue, synthetic/hand-authored scenario, generated continuation, translated
+replica or LoCoMo row is eligible.
 
-Document the immutable generator revision, split/grouping method, counts and
-balance, oracle invariants, non-sealed and firewalled sealed audits, leakage and
-near-duplicate checks, license/provenance, intended use and limitations. Include
-exact reproduction and checksum verification commands. Do not publish before
-all placeholders are replaced from retained evidence.
+Show the real-row Dataset Viewer preview first. Document immutable source
+revisions and per-source licenses, collection provenance, language allocation,
+global duplicate graph, conversation/identity/cluster-disjoint splits, privacy
+gates, both judges' complete first passes, multi-view self-review convergence,
+comparison/adjudication and rejection counts. Describe machine labels as weak
+supervision, never human ground truth.
+
+Publish only from an `atmem-authentic-memory-decisions-manifest-v1` manifest
+whose required gates all pass and whose table has exactly 100,000 accepted rows.

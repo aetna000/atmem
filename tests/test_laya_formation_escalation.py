@@ -4,13 +4,16 @@ from pathlib import Path
 
 from atmem.contracts.models import AuthorityScope
 from atmem.laya_formation.artifacts import ArtifactBundle
-from atmem.laya_formation.contracts import CalibrationBinding, FormationDecisionRequest, QuestionDefinitionV1
+from atmem.laya_formation.contracts import (
+    CalibrationBinding, FormationDecisionRequest, MODEL_HEAD_MAX_LEN,
+    MODEL_MAX_LEN, QuestionDefinitionV1, SUPPORTED_QUESTIONS_DIGEST,
+)
 from atmem.laya_formation.escalation import AtBotFormationEscalator, EscalationPolicy
 from atmem.laya_formation.packing import AuthorizedRange, pack_authorized_ranges
 
 
 class Packer:
-    revision = "7b928d828b7b0e022f929d9bd2e44165aa270148"
+    revision = "1720e3e3357cfe1e281542e223f8273b0890ca34"
     def head_token_count(self, question, head_max_len): return 40, len(question["crit"])
     def serialize_and_encode_state(self, state):
         import json
@@ -21,11 +24,12 @@ class Packer:
 def request() -> FormationDecisionRequest:
     question = QuestionDefinitionV1(
         "operation", "1.0.0", "choice", "Choose operation.",
-        ("ADD", "UPDATE", "NOOP"), True, Packer.revision, 512, 192, 1,
+        ("ADD", "UPDATE", "NOOP"), True, Packer.revision,
+        MODEL_MAX_LEN, MODEL_HEAD_MAX_LEN, 1,
         "whole-authorized-ranges-or-review",
     )
     calibration = CalibrationBinding(
-        "f" * 64, "7a3cd0e13d99db02a1e53e51a63fad921e754ac5bbc2376b8a888c1033900f0e",
+        "f" * 64, SUPPORTED_QUESTIONS_DIGEST,
         "b165d4b7d554cdbda5a889baf7059c3f43ba2774d68754e4fa3aeb63f5f0e067",
         "per-question-temperature-and-abstention-v1", (1.0, 1.0, 1.0),
         {"choice:3-5": 1.0}, {"choice:3-5": 1.0},

@@ -548,6 +548,146 @@ class FormationManager:
                 rejected.append({"proposal": str(index), "reason": str(exc)})
         return {"producer_id": producer_id, "created_unit_ids": tuple(created), "rejected": tuple(rejected)}
 
+    def apply_laya_decisions(
+        self, source_id: str, generation_id: str,
+        decisions: tuple[dict[str, Any], ...],
+    ) -> dict[str, Any]:
+        """Apply only the safe, source-preserving subset of Laya proposals.
+
+        Laya never writes rows itself.  This validator requires a complete,
+        internally consistent decision set and can only narrow rebuildable view
+        membership for units already grounded in the retained source.  Exact
+        source ranges and raw-state coverage are always preserved.
+        """
+        generation = self.store._conn.execute(
+            "SELECT state FROM context_view_generations WHERE generation_id=?",
+            (generation_id,),
+        ).fetchone()
+        if generation is None or str(generation["state"]) != "building":
+            raise RuntimeError("Laya disposition requires a building generation")
+
+        def source_unit_ids() -> tuple[str, ...]:
+            rows = self.store._conn.execute(
+                """SELECT DISTINCT ur.unit_id
+                     FROM context_unit_ranges ur
+                     JOIN context_source_ranges r USING(range_id)
+                    WHERE ur.generation_id=? AND r.source_id=?
+                    ORDER BY ur.unit_id""",
+                (generation_id, source_id),
+            ).fetchall()
+            return tuple(str(row["unit_id"]) for row in rows)
+
+        def require_review(reason_code: str) -> dict[str, Any]:
+            """Preserve exact source while withholding unreviewed semantic views.
+
+            The model does not authorize this change.  A deterministic AtMem
+            fail-closed rule narrows already-grounded units to raw-state only
+            whenever the selected profile returns an incomplete, inconsistent,
+            or unsupported proposal.  Review can later rebuild semantic views
+            from the retained source bytes.
+            """
+            unit_ids = source_unit_ids()
+            if not unit_ids:
+                return {
+                    "status": "review_required", "reason_code": reason_code,
+                    "changed_unit_ids": (), "authorizes_mutation": False,
+                    "policy_withheld_semantic_views": False,
+                }
+            placeholders = ",".join("?" for _ in unit_ids)
+            with self.store.transaction():
+                self.store._conn.execute(
+                    f"DELETE FROM context_unit_views WHERE generation_id=? "
+                    f"AND unit_id IN ({placeholders})",
+                    (generation_id, *unit_ids),
+                )
+                self.store._conn.executemany(
+                    "INSERT OR IGNORE INTO context_unit_views"
+                    "(generation_id, unit_id, kind) VALUES (?, ?, 'raw_state')",
+                    ((generation_id, unit_id) for unit_id in unit_ids),
+                )
+            return {
+                "status": "review_required", "reason_code": reason_code,
+                "changed_unit_ids": unit_ids,
+                "authorized_views": ("raw_state",),
+                "authorizes_mutation": False,
+                "policy_withheld_semantic_views": True,
+            }
+
+        selected = {
+            str(row.get("question_id")): tuple(row.get("selected_choice_ids") or ())
+            for row in decisions
+        }
+        required = {
+            "operation", "memory_class", "evidence_support",
+            "target_selection", "retrieval_usefulness",
+        }
+        if set(selected) != required or any(len(selected[key]) != 1 for key in required):
+            return require_review("incomplete_or_abstained_decision_set")
+        choice = {key: selected[key][0] for key in required}
+        supported = choice["evidence_support"] == "SUPPORTED"
+        operation = choice["operation"]
+        memory_class = choice["memory_class"]
+        useful = choice["retrieval_usefulness"] == "USEFUL"
+        target = choice["target_selection"]
+        if not supported:
+            return require_review("model_did_not_find_supported_evidence")
+        if operation in {"UPDATE", "SUPERSEDE"}:
+            # The v1 model chooses a target class, not an opaque concrete unit.
+            # Until one exact target is independently resolved, mutation would
+            # be ambiguous and must remain a review case.
+            return require_review("concrete_update_target_not_resolved")
+        if operation == "ADD" and target != "target:none":
+            return require_review("add_operation_has_inconsistent_target")
+        unit_ids = source_unit_ids()
+        if not unit_ids:
+            return require_review("no_grounded_units")
+        class_view = {
+            "durable_fact": "fact",
+            "temporary_state": "transition",
+            "episode": "raw_state",
+            "procedure": "procedure",
+            "non_memory": "raw_state",
+        }.get(memory_class)
+        if class_view is None:
+            return require_review("unknown_memory_class")
+        source_only = (
+            operation in {"NOOP", "REJECT"}
+            or memory_class == "non_memory"
+            or not useful
+        )
+        allowed_views = {"raw_state"} if source_only else {"raw_state", class_view}
+        placeholders = ",".join("?" for _ in unit_ids)
+        with self.store.transaction():
+            self.store._conn.execute(
+                f"DELETE FROM context_unit_views WHERE generation_id=? "
+                f"AND unit_id IN ({placeholders})",
+                (generation_id, *unit_ids),
+            )
+            for unit_id in unit_ids:
+                existing = self.store._conn.execute(
+                    "SELECT kind FROM context_evidence_units "
+                    "WHERE generation_id=? AND unit_id=?",
+                    (generation_id, unit_id),
+                ).fetchone()
+                if existing is None:
+                    raise RuntimeError("grounded unit changed during Laya disposition")
+                for kind in sorted(allowed_views):
+                    self.store._conn.execute(
+                        "INSERT OR IGNORE INTO context_unit_views(generation_id, unit_id, kind) "
+                        "VALUES (?, ?, ?)",
+                        (generation_id, unit_id, kind),
+                    )
+        return {
+            "status": "authorized_mutation_committed",
+            "reason_code": (
+                "source_preserved_without_semantic_admission"
+                if source_only else "source_grounded_view_classification_committed"
+            ),
+            "changed_unit_ids": unit_ids,
+            "authorized_views": tuple(sorted(allowed_views)),
+            "authorizes_mutation": True,
+        }
+
     def form_with_extractor(
         self, source_id: str, generation_id: str, extractor: Any, *,
         producer_id: str, timeout_seconds: float = 5.0,

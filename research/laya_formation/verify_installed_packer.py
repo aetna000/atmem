@@ -32,7 +32,7 @@ def main() -> int:
         question_id=source["question_id"], semantic_version="1.0.0", kind="choice",
         instructions=source["instructions"], choice_ids=tuple(source["choice_ids"]),
         allow_abstain=True, tokenizer_revision=fixture["tokenizer_revision"],
-        max_len=512, head_max_len=192, closing_tokens_reserved=1,
+        max_len=1024, head_max_len=256, closing_tokens_reserved=1,
         overflow_policy="whole-authorized-ranges-or-review",
     )
     tokenizer = AutoTokenizer.from_pretrained(args.model_dir / "tokenizer")

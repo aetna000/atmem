@@ -10,7 +10,14 @@ from typing import Any, Mapping
 
 from .artifacts import ArtifactBundle, dependency_status
 from .contracts import FormationDecisionRequest, FormationDecisionResponse
-from .packing import LayaPackingAdapter, PackingAdapter
+from .contracts_v2 import (
+    project_laya_answer,
+    question_to_laya,
+    validate_evaluation_request,
+)
+from .packing import (
+    LayaPackingAdapter, PackingAdapter, pack_evaluation_request_v2,
+)
 
 
 _DEVICES = {"auto", "cpu", "cuda", "mps"}
@@ -88,9 +95,11 @@ class LayaDecisionEngine:
         if agent is None:
             status = dependency_status()
             if not status["available"]:
-                raise RuntimeError("install atmem[laya-formation] before activating the Laya profile")
-            if status["versions"].get("laya") != "0.4.2":
-                raise RuntimeError("Laya runtime version mismatch")
+                raise RuntimeError(
+                    "Laya runtime dependencies are missing or incompatible; run "
+                    f"`{status['repair_command']}`; details="
+                    f"{json.dumps(status['compatibility_errors'], sort_keys=True)}"
+                )
             from laya import Agent
 
             inventory = json.loads((bundle.root / "artifact-manifest.json").read_text(encoding="utf-8"))["inventory"]
@@ -244,3 +253,104 @@ class LayaDecisionEngine:
         exit_method = getattr(self.agent, "__exit__", None)
         if callable(exit_method):
             exit_method(None, None, None)
+
+
+class LayaTypedDecisionEngineV2:
+    """Run exactly one strict V2 Choice, Noul, or Score question.
+
+    The engine projects Laya's richer in-process answer onto the strict wire
+    contract. It never returns action metadata, generated text, or authority.
+    """
+
+    def __init__(
+        self, agent: Any, *, max_len: int = 1024, head_max_len: int = 256,
+        max_inference_ms: float = 30_000.0,
+        packing_adapter: PackingAdapter | None = None,
+        tokenizer_revision: str | None = None,
+    ) -> None:
+        if max_len <= 0 or head_max_len <= 0:
+            raise ValueError("token ceilings must be positive")
+        if not math.isfinite(float(max_inference_ms)) or max_inference_ms <= 0:
+            raise ValueError("max_inference_ms must be finite and positive")
+        self.agent = agent
+        self.max_len = int(max_len)
+        self.head_max_len = int(head_max_len)
+        self.max_inference_ms = float(max_inference_ms)
+        self.packing_adapter = packing_adapter
+        if self.packing_adapter is None and hasattr(agent, "tok"):
+            if not tokenizer_revision:
+                raise ValueError("tokenizer_revision is required for exact V2 packing")
+            self.packing_adapter = LayaPackingAdapter(
+                agent.tok, revision=tokenizer_revision,
+            )
+        self._last_diagnostics: dict[str, Any] = {"state": "not_run"}
+
+    def __call__(self, request: Mapping[str, Any]) -> dict[str, Any]:
+        validate_evaluation_request(request)
+        question = dict(request["question"])
+        question_id = str(question["question_id"])
+        model_state: Any = {
+            "observation": dict(request["observation"]),
+            "retrieved_memories": [
+                dict(item) for item in request["retrieved_memories"]
+            ],
+        }
+        packed = None
+        if self.packing_adapter is not None:
+            packed = pack_evaluation_request_v2(
+                adapter=self.packing_adapter, question=question,
+                observation=request["observation"],
+                retrieved_memories=request["retrieved_memories"],
+                max_len=self.max_len, head_max_len=self.head_max_len,
+            )
+            if packed.overflow:
+                raise ValueError("complete V2 state exceeds the tokenizer-exact budget")
+            model_state = packed.state
+        started = perf_counter()
+        try:
+            raw = self.agent.system_one(
+                model_state,
+                {question_id: question_to_laya(question)},
+                max_len=self.max_len,
+                head_max_len=self.head_max_len,
+            )
+            elapsed_ms = (perf_counter() - started) * 1_000.0
+            if elapsed_ms > self.max_inference_ms:
+                raise TimeoutError("bounded Laya inference exceeded its deadline")
+            if not isinstance(raw, Mapping):
+                raise ValueError("Laya result must be an object")
+            usage = raw.get("usage")
+            if not isinstance(usage, Mapping):
+                raise ValueError("Laya result has no usage receipt")
+            if usage.get("truncated") or int(usage.get("state_tokens_dropped", 0)) != 0:
+                raise ValueError("Laya truncated the complete state")
+            option_usage = usage.get("options")
+            if isinstance(option_usage, Mapping):
+                report = option_usage.get(question_id)
+                if isinstance(report, Mapping) and int(report.get("distinct", 0)) != int(report.get("total", 0)):
+                    raise ValueError("Laya collapsed one or more question options")
+            answers = raw.get("answers")
+            if not isinstance(answers, Mapping) or not isinstance(answers.get(question_id), Mapping):
+                raise ValueError("Laya result is missing the requested answer")
+            response = project_laya_answer(
+                answers[question_id], question, request_id=str(request["request_id"]),
+            )
+            self._last_diagnostics = {
+                "state": "answered", "request_id": request["request_id"],
+                "question_id": question_id, "question_type": question["type"],
+                "latency_ms": elapsed_ms,
+                "input_tokens": int(usage.get("input_tokens", 0)),
+                "output_tokens": int(usage.get("output_tokens", 0)),
+                "input_digest": packed.state_digest if packed is not None else None,
+            }
+            return response
+        except Exception as exc:
+            self._last_diagnostics = {
+                "state": "rejected", "request_id": request.get("request_id"),
+                "question_id": question_id, "question_type": question.get("type"),
+                "reason_code": type(exc).__name__,
+            }
+            raise
+
+    def diagnostics(self) -> dict[str, Any]:
+        return dict(self._last_diagnostics)

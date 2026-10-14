@@ -14,7 +14,9 @@ from .packing import PackedDecisionInput
 
 
 CONTRACT_VERSION = "1.0.0"
-SUPPORTED_QUESTIONS_DIGEST = "7a3cd0e13d99db02a1e53e51a63fad921e754ac5bbc2376b8a888c1033900f0e"
+SUPPORTED_QUESTIONS_DIGEST = "9ec69cf84eb887872a23b65ff0b8ba84d0c68267aa0993ce13ec0f3f20c3e500"
+MODEL_MAX_LEN = 1024
+MODEL_HEAD_MAX_LEN = 256
 _HEX = re.compile(r"^[0-9a-f]{64}$")
 _BOUND_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -58,7 +60,11 @@ class QuestionDefinitionV1:
             raise ValueError("choice identifiers must be finite, unique, and contain at least two choices")
         if any(not value.strip() or len(value) > 128 for value in self.choice_ids):
             raise ValueError("choice identifiers must be bounded and non-empty")
-        if self.max_len != 512 or self.head_max_len != 192 or self.closing_tokens_reserved != 1:
+        if (
+            self.max_len != MODEL_MAX_LEN
+            or self.head_max_len != MODEL_HEAD_MAX_LEN
+            or self.closing_tokens_reserved != 1
+        ):
             raise ValueError("question token limits differ from the pinned v1 contract")
         if self.overflow_policy != "whole-authorized-ranges-or-review":
             raise ValueError("unsupported overflow policy")

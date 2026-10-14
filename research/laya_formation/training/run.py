@@ -14,7 +14,6 @@ import subprocess
 import time
 from typing import Any, Iterable, Sequence
 
-from research.laya_formation.dataset.training_view import iter_training_rows
 from research.laya_formation.training.contracts import (
     CROSS_BACKEND_TOLERANCE,
     FORMAT_CALIBRATION,
@@ -32,10 +31,15 @@ from research.laya_formation.training.contracts import (
     write_json,
 )
 from research.laya_formation.training.smoke import (
-    QUESTION_INSTRUCTIONS,
     _verify_base_files,
     sha256_file,
-    to_laya_rows,
+)
+from research.laya_memory_evidence.training_view import (
+    V3_QUESTION_IDS,
+    V2_QUESTION_IDS,
+    option_ids as memory_option_ids,
+    question_definitions,
+    to_laya_rows as to_memory_evidence_laya_rows,
 )
 
 
@@ -44,8 +48,12 @@ def _utc_now() -> str:
 
 
 def _read_rows(path: Path, expected_split: str) -> list[dict[str, Any]]:
-    rows = list(iter_training_rows([path]))
-    wrong = sorted({row["split"] for row in rows} - {expected_split})
+    with path.open(encoding="utf-8") as stream:
+        rows = [json.loads(line) for line in stream if line.strip()]
+    accepted = {expected_split}
+    if expected_split == "test":
+        accepted.add("sealed_test")
+    wrong = sorted({row["partition"] for row in rows} - accepted)
     if wrong:
         raise ValueError(f"{path} contains unexpected splits: {wrong}")
     return rows
@@ -69,10 +77,10 @@ def _labels(rows: Sequence[dict[str, Any]], records: Sequence[tuple]) -> tuple[l
 
     expected, predicted = [], []
     for row, (_qtype, logits, target, count) in zip(rows, records):
-        choices = row["choice_ids"]
+        choices = memory_option_ids(row)
         gold = int(np.asarray(target[:count]).argmax())
         pred = int(np.asarray(logits[:count]).argmax())
-        qid = row["question_id"]
+        qid = row["request"]["question"]["question_id"]
         expected.append(f"{qid}:{choices[gold]}")
         predicted.append(f"{qid}:{choices[pred]}")
     return expected, predicted
@@ -87,7 +95,7 @@ def _truncation_rows(train: Any, tok: Any, items: Sequence[dict[str, Any]],
             tok, None, item["q"], max_len, head_max_len,
             state_ids=item["state_ids"], return_truncation_stats=True,
         )
-        records.append({"example_id": source["example_id"], **stats})
+        records.append({"example_id": source["transition_id"], **stats})
     return records
 
 
@@ -106,13 +114,69 @@ def _versions() -> dict[str, str]:
 
 
 def _question_digest(rows: Sequence[dict[str, Any]]) -> str:
-    definitions = {}
+    return canonical_digest(question_definitions(rows))
+
+
+def _hard_target(row: dict[str, Any]) -> str:
+    # V3 option IDs are deliberately opaque and position-dependent. Balance on
+    # the adjudicated semantic operation, never on an accidental option index.
+    if row.get("expected_operation"):
+        return str(row["expected_operation"])
+    response = row["expected_response"]
+    if response["type"] == "choice":
+        return str(response["choice"])
+    if response["type"] == "noul":
+        return "true" if float(response["noul"]) >= 0.5 else "false"
+    return str(int(float(response["score"])))
+
+
+def _balance_training_rows(
+    rows: Sequence[dict[str, Any]], *, seed: int, maximum_repeat: int = 8,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Bound class imbalance by resampling only authentic training examples."""
+
+    grouped: dict[str, dict[str, list[dict[str, Any]]]] = {}
     for row in rows:
-        definitions[row["question_id"]] = {
-            "instructions": QUESTION_INSTRUCTIONS[row["question_id"]],
-            "choice_ids": row["choice_ids"],
+        question_id = str(row["request"]["question"]["question_id"])
+        grouped.setdefault(question_id, {}).setdefault(_hard_target(row), []).append(row)
+    rng = random.Random(seed)
+    balanced: list[dict[str, Any]] = []
+    report: dict[str, Any] = {}
+    for question_id, classes in sorted(grouped.items()):
+        largest = max(len(items) for items in classes.values())
+        sampled_counts: dict[str, int] = {}
+        for label, items in sorted(classes.items()):
+            target = min(largest, len(items) * maximum_repeat)
+            selected = list(items)
+            while len(selected) < target:
+                selected.append(items[rng.randrange(len(items))])
+            rng.shuffle(selected)
+            balanced.extend(selected)
+            sampled_counts[label] = len(selected)
+        report[question_id] = {
+            "original": {label: len(items) for label, items in sorted(classes.items())},
+            "sampled": sampled_counts, "maximum_repeat": maximum_repeat,
         }
-    return canonical_digest(definitions)
+    rng.shuffle(balanced)
+    return balanced, report
+
+
+def _semantic_operation_coverage(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    trajectories: dict[str, set[str]] = {}
+    for row in rows:
+        operation = str(row.get("expected_operation") or _hard_target(row))
+        trajectories.setdefault(operation, set()).add(str(row["trajectory_id"]))
+    counts = {key: len(value) for key, value in sorted(trajectories.items())}
+    underpowered = {
+        key: value for key, value in counts.items()
+        if key not in {"REVIEW"} and value < 100
+    }
+    return {
+        "minimum_distinct_trajectories_per_operation": 100,
+        "distinct_trajectory_counts": counts,
+        "underpowered_operations": underpowered,
+        "sufficient": not underpowered,
+    }
 
 
 def _metric_report(run_id: str, objective: str, split: str, history: Sequence[float],
@@ -149,7 +213,8 @@ def _metric_report(run_id: str, objective: str, split: str, history: Sequence[fl
 
 
 def run(root: Path, output: Path, objective: str, device_name: str, micro_batch: int,
-        grad_accum: int, epochs: int, code_revision: str) -> dict[str, Any]:
+        grad_accum: int, epochs: int, code_revision: str,
+        research_only: bool = False) -> dict[str, Any]:
     import torch
     import laya
     import laya.train as train
@@ -161,8 +226,32 @@ def run(root: Path, output: Path, objective: str, device_name: str, micro_batch:
     if laya.__version__ != "0.4.2":
         raise RuntimeError(f"Laya version mismatch: {laya.__version__}")
     sources = json.loads((Path(__file__).parents[1] / "sources.json").read_text(encoding="utf-8"))
-    dataset_revision = "4436089b38cbe3a5374aaaa92c4c77703cdbf668"
-    dataset_manifest_sha = "d67d371c8c1d6de85a0293cded5aa5b3f7d078e92197130ce1f9edef68e863d4"
+    local_dataset_manifest = root / "manifest.json"
+    if not local_dataset_manifest.is_file():
+        raise ValueError(
+            "training requires a finalized authentic-conversation manifest; "
+            "the superseded Hugging Face v1 fallback is disabled"
+        )
+    dataset_metadata = json.loads(local_dataset_manifest.read_text(encoding="utf-8"))
+    if dataset_metadata.get("format") not in {
+        "atmem-stateful-memory-transitions-manifest-v2",
+        "atmem-stateful-memory-transitions-manifest-v3",
+    }:
+        raise ValueError(
+            "training is blocked: isolated-label manifests are superseded; "
+            "a verified stateful memory-transition v2 manifest is required"
+        )
+    if dataset_metadata.get("synthetic_conversation_rows") != 0 or dataset_metadata.get("locomo_rows") != 0:
+        raise ValueError("training dataset contains a prohibited source class")
+    dataset_revision = str(
+        dataset_metadata.get("manifest_digest")
+        or canonical_digest(dataset_metadata)
+    )
+    dataset_manifest_sha = sha256_file(local_dataset_manifest)
+    dataset_repo = str(
+        dataset_metadata.get("repo_id")
+        or "atmem/stateful-memory-transitions-10pct-v2"
+    )
     base = {
         "repo_id": sources["laya"]["hub_repo"],
         "revision": sources["laya"]["hub_revision"],
@@ -177,47 +266,144 @@ def run(root: Path, output: Path, objective: str, device_name: str, micro_batch:
     _verify_base_files(base_dir, sources)
 
     paths = {
-        name: root / "data" / f"decisions-{name}.jsonl"
+        name: root / "records" / f"decisions-{name}.jsonl"
         for name in ("train", "validation", "calibration")
     }
     rows = {name: _read_rows(path, name) for name, path in paths.items()}
-    question_digest = _question_digest(rows["train"] + rows["validation"] + rows["calibration"])
+    question_ids = {
+        row["request"]["question"]["question_id"]
+        for split_rows in rows.values() for row in split_rows
+    }
+    required_question_ids = {
+        "formation.context_sufficient.v2", "formation.is_durable.v2",
+        "formation.memory_class.v2", "formation.operation.v2",
+    }
+    if question_ids <= set(V2_QUESTION_IDS) and required_question_ids <= question_ids:
+        row_converter = to_memory_evidence_laya_rows
+        dataset_schema = "stateful-memory-transition-v2"
+    elif question_ids == set(V3_QUESTION_IDS):
+        row_converter = to_memory_evidence_laya_rows
+        dataset_schema = "stateful-memory-transition-selective-v3"
+    else:
+        raise ValueError(
+            "only the authentic memory-understanding question schema is training-eligible; "
+            f"found {sorted(question_ids)}"
+        )
+    all_nonsealed_rows = rows["train"] + rows["validation"] + rows["calibration"]
+    definitions = question_definitions(all_nonsealed_rows)
+    question_digest = canonical_digest(definitions)
     split_digests = {name: sha256_file(path) for name, path in paths.items()}
     seed = 410239
     random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
     device = train.resolve_device(device_name)
-    if device.type != "cuda":
-        raise RuntimeError("the paid training profile requires CUDA")
+    if device.type != "cuda" and not research_only:
+        raise RuntimeError("release-eligible training requires CUDA")
     # PyTorch's memory-efficient CUDA attention backward is explicitly
     # nondeterministic on this profile. Fail closed and force the math SDPA
     # implementation so a repeated seed is a meaningful control.
-    torch.use_deterministic_algorithms(True, warn_only=False)
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cuda.enable_flash_sdp(False)
-    torch.backends.cuda.enable_mem_efficient_sdp(False)
-    torch.backends.cuda.enable_math_sdp(True)
+    # RLCD's ordered-score reward uses CUDA cumsum. PyTorch 2.5 has no
+    # deterministic CUDA kernel for that operation, so strict mode would abort
+    # before the first optimizer update. Keep deterministic algorithms enabled
+    # and record the narrow warn-only exception for RLCD; soft-CE remains strict.
+    # MPS currently lacks deterministic scatter-reduce backward. Research-only
+    # Apple runs record the warning; release-eligible CUDA soft-CE stays strict.
+    deterministic_warn_only = objective == "rlcd" or device.type == "mps"
+    torch.use_deterministic_algorithms(True, warn_only=deterministic_warn_only)
+    if device.type == "cuda":
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cuda.enable_flash_sdp(False)
+        torch.backends.cuda.enable_mem_efficient_sdp(False)
+        torch.backends.cuda.enable_math_sdp(True)
 
     model, tok, base_cfg = train.load_checkpoint(str(base_dir))
     model.to(device)
-    max_len, head_max_len = 512, 192
+    max_len = int(base_cfg.get("max_len", 1024))
+    head_max_len = int(base_cfg.get("head_max_len", 256))
+    if (max_len, head_max_len) != (1024, 256):
+        raise RuntimeError(
+            f"multilingual base limits differ from the frozen profile: {(max_len, head_max_len)}"
+        )
     items = {}
     skipped = {}
     truncation = {}
     for name in ("train", "validation", "calibration"):
-        laya_rows = to_laya_rows(rows[name])
-        items[name], skipped[name] = train.items_from_rows(tok, laya_rows, max_len, head_max_len)
-        if skipped[name] or len(items[name]) != len(rows[name]):
+        laya_rows = row_converter(rows[name])
+        raw_items, skipped[name] = train.items_from_rows(
+            tok, laya_rows, max_len, head_max_len,
+        )
+        if skipped[name] or len(raw_items) != len(rows[name]):
             raise RuntimeError(f"{name} preprocessing skipped rows: {skipped[name]}")
-        truncation[name] = truncation_report(
-            _truncation_rows(train, tok, items[name], rows[name], max_len, head_max_len)
+        records = _truncation_rows(
+            train, tok, raw_items, rows[name], max_len, head_max_len,
+        )
+        keep = [index for index, record in enumerate(records) if not record["truncated"]]
+        report = truncation_report(records)
+        report.update({
+            "policy": "exclude-before-optimization-and-evaluation",
+            "retained_items": len(keep), "post_filter_truncated_items": 0,
+        })
+        truncation[name] = report
+        rows[name] = [rows[name][index] for index in keep]
+        items[name] = [raw_items[index] for index in keep]
+    semantic_coverage = _semantic_operation_coverage(rows["train"])
+    if dataset_schema == "stateful-memory-transition-selective-v3":
+        required = set(dataset_metadata.get("learned_operations") or ())
+        missing = required - set(semantic_coverage["distinct_trajectory_counts"])
+        if missing:
+            semantic_coverage["missing_operations"] = sorted(missing)
+            semantic_coverage["sufficient"] = False
+        if (
+            not semantic_coverage["sufficient"]
+            or any(report["truncated_items"] for report in truncation.values())
+        ) and not research_only:
+            raise RuntimeError(
+                "V3 data is not release-eligible after exact packing: "
+                f"coverage={semantic_coverage}, truncation={truncation}"
+            )
+    rows["train"], training_sampling = _balance_training_rows(
+        rows["train"], seed=seed,
+    )
+    train_rows = row_converter(rows["train"])
+    items["train"], train_skipped = train.items_from_rows(
+        tok, train_rows, max_len, head_max_len,
+    )
+    if train_skipped or len(items["train"]) != len(rows["train"]):
+        raise RuntimeError(f"balanced train preprocessing skipped rows: {train_skipped}")
+    calibration_counts = Counter(
+        row["request"]["question"]["question_id"]
+        for row in rows["calibration"]
+    )
+    power = calibration_power(calibration_counts)
+    if dataset_schema == "stateful-memory-transition-selective-v3":
+        question_count_sufficient = bool(power["sufficient"])
+        packing_overflow_counts = {
+            name: int(report["truncated_items"])
+            for name, report in truncation.items()
+        }
+        power.update({
+            "question_count_sufficient": question_count_sufficient,
+            "semantic_operation_coverage": semantic_coverage,
+            "packing_overflow_counts": packing_overflow_counts,
+            "sufficient": (
+                question_count_sufficient
+                and bool(semantic_coverage["sufficient"])
+                and not any(packing_overflow_counts.values())
+            ),
+        })
+    if not power["sufficient"] and not research_only:
+        raise RuntimeError(
+            "calibration underpowered before paid optimization: "
+            f"{power['underpowered_questions']}"
         )
 
     run_id = f"{objective}-{seed}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     output = output / run_id
     output.mkdir(parents=True, exist_ok=False)
+    write_json(output / "question-definitions.json", definitions)
     base_validation_records = train.calibration_records(
         model, tok, items["validation"], device, max_len, head_max_len, batch_size=micro_batch
     )
@@ -271,53 +457,54 @@ def run(root: Path, output: Path, objective: str, device_name: str, micro_batch:
     calibration_records = train.calibration_records(
         model, tok, items["calibration"], device, max_len, head_max_len, batch_size=micro_batch
     )
-    fitted = fit_temperature_map(calibration_records, compute_ece=True, seed=seed)
-    thresholds = fit_abstention_thresholds(
-        calibration_records, fitted["temperature"], fitted["temperature_by_options"],
-        target_error=0.10, min_bucket_n=100, conservative=True,
-    )
     calibration_metrics = _metric_report(
         run_id, objective, "calibration", history, rows["calibration"], calibration_records,
         truncation["calibration"], train,
     )
-    counts = Counter(row["question_id"] for row in rows["calibration"])
-    power = calibration_power(counts)
-    if not power["sufficient"]:
-        raise RuntimeError(f"calibration underpowered: {power['underpowered_questions']}")
-
     final_model = output / "model"
     train.save_checkpoint(model, tok, base_cfg, str(final_model))
     model_digest = sha256_file(final_model / "model.safetensors")
-    calibration_bundle = {
-        "format": FORMAT_CALIBRATION,
-        "model_digest": model_digest,
-        "dataset_revision": dataset_revision,
-        "questions_digest": question_digest,
-        "split_digest": split_digests["calibration"],
-        "method": "per-question-temperature-and-abstention-v1",
-        "temperatures": {
-            "by_type": fitted["temperature"],
-            "by_option_bucket": fitted["temperature_by_options"],
-        },
-        "thresholds": thresholds,
-        "sample_counts": power,
-        "reliability": {"fit_report": fitted["report"], "metrics": calibration_metrics},
-        "selection_procedure": {
-            "target_error": 0.10, "minimum_bucket_items": 100,
-            "conservative_pseudo_error": True, "sealed_test_opened": False,
-        },
-        "created_at": _utc_now(),
-    }
-    calibration_bundle["digest"] = canonical_digest(calibration_bundle)
-    write_json(output / "calibration-bundle.json", calibration_bundle)
+    calibration_bundle = None
+    if power["sufficient"]:
+        fitted = fit_temperature_map(calibration_records, compute_ece=True, seed=seed)
+        thresholds = fit_abstention_thresholds(
+            calibration_records, fitted["temperature"], fitted["temperature_by_options"],
+            target_error=0.10, min_bucket_n=100, conservative=True,
+        )
+        calibration_bundle = {
+            "format": FORMAT_CALIBRATION,
+            "model_digest": model_digest,
+            "dataset_revision": dataset_revision,
+            "questions_digest": question_digest,
+            "split_digest": split_digests["calibration"],
+            "method": "per-question-temperature-and-abstention-v1",
+            "temperatures": {
+                "by_type": fitted["temperature"],
+                "by_option_bucket": fitted["temperature_by_options"],
+            },
+            "thresholds": thresholds,
+            "sample_counts": power,
+            "reliability": {"fit_report": fitted["report"], "metrics": calibration_metrics},
+            "selection_procedure": {
+                "target_error": 0.10, "minimum_bucket_items": 100,
+                "conservative_pseudo_error": True, "sealed_test_opened": False,
+            },
+            "created_at": _utc_now(),
+        }
+        calibration_bundle["digest"] = canonical_digest(calibration_bundle)
+        write_json(output / "calibration-bundle.json", calibration_bundle)
+    write_json(output / "calibration-power.json", power)
     write_json(output / "calibration-metrics.json", calibration_metrics)
 
-    hardware = {
-        "platform": platform.platform(), "device": str(device),
-        "gpu_name": torch.cuda.get_device_name(device),
-        "gpu_memory_bytes": torch.cuda.get_device_properties(device).total_memory,
-        "peak_allocated_bytes": torch.cuda.max_memory_allocated(device),
-    }
+    hardware = {"platform": platform.platform(), "device": str(device)}
+    if device.type == "cuda":
+        hardware.update({
+            "gpu_name": torch.cuda.get_device_name(device),
+            "gpu_memory_bytes": torch.cuda.get_device_properties(device).total_memory,
+            "peak_allocated_bytes": torch.cuda.max_memory_allocated(device),
+        })
+    elif device.type == "mps":
+        hardware.update({"gpu_name": "Apple Metal Performance Shaders"})
     manifest = {
         "format": FORMAT_MANIFEST,
         "run_id": run_id,
@@ -326,13 +513,21 @@ def run(root: Path, output: Path, objective: str, device_name: str, micro_batch:
         "base_model": {"repo_id": base["repo_id"], "revision": base["revision"]},
         "laya": {"repo_id": sources["laya"]["source_repo"], "revision": sources["laya"]["source_revision"]},
         "dataset": {
-            "repo_id": "atmem/atmem-laya-formation-v1", "revision": dataset_revision,
+            "repo_id": dataset_repo, "revision": dataset_revision,
             "manifest_sha256": dataset_manifest_sha,
+            "schema": dataset_schema,
         },
         "questions_digest": question_digest,
         "environment": _versions(),
         "objective": objective,
-        "hyperparameters": {**config.__dict__, "train_seconds": train_seconds},
+        "hyperparameters": {
+            **config.__dict__, "train_seconds": train_seconds,
+            "research_only": research_only, "calibration_power": power,
+            "deterministic_algorithms": True,
+            "deterministic_warn_only": deterministic_warn_only,
+        },
+        "training_sampling": training_sampling,
+        "semantic_operation_coverage": semantic_coverage,
         "seeds": {"python": seed, "torch": seed, "cuda": seed, "calibration": seed},
         "split_digests": split_digests,
         "hardware": hardware,
@@ -342,7 +537,10 @@ def run(root: Path, output: Path, objective: str, device_name: str, micro_batch:
             "validation": "validation-metrics.json",
             "calibration": "calibration-metrics.json",
         },
-        "calibration": {"path": "calibration-bundle.json", "digest": calibration_bundle["digest"]},
+        "calibration": (
+            {"path": "calibration-bundle.json", "digest": calibration_bundle["digest"]}
+            if calibration_bundle is not None else None
+        ),
         "export_inventory": [],
         "parent_run": None,
         "reproducibility_tolerances": {
@@ -368,10 +566,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--grad-accum", type=int, default=8)
     parser.add_argument("--epochs", type=int, default=4)
     parser.add_argument("--code-revision", required=True)
+    parser.add_argument("--research-only", action="store_true")
     args = parser.parse_args(argv)
     result = run(
         args.root.resolve(), args.output.resolve(), args.objective, args.device,
         args.micro_batch, args.grad_accum, args.epochs, args.code_revision,
+        args.research_only,
     )
     print(json.dumps({"run_id": result["run_id"], "output": result["output"]}, sort_keys=True))
     return 0

@@ -56,6 +56,33 @@ class LayaProfileManager:
             raise ValueError("unsupported Laya formation profile state")
         return value
 
+    def active_profile(self) -> dict[str, Any] | None:
+        """Return the verified active runtime configuration, never a staged one."""
+        value = self._read()
+        if value is None or not value.get("active") or not value.get("verified"):
+            return None
+        return dict(value)
+
+    def select_deterministic(self, *, confirmed: bool) -> dict[str, Any]:
+        """Explicitly select deterministic formation without deleting staged Laya."""
+        if not confirmed:
+            raise ValueError("explicit confirmation is required to select deterministic formation")
+        current = self._read()
+        if current is None:
+            return self.status()
+        _write_private(
+            self.rollback_path,
+            {"format": "atmem-laya-formation-rollback-v1", "previous": current},
+        )
+        inactive = {
+            **current,
+            "active": False,
+            "deactivated_at": _now(),
+            "updated_at": _now(),
+        }
+        _write_private(self.config_path, inactive)
+        return self.status()
+
     def preview(
         self, *, local_dir: str | Path | None = None, device: str = "auto",
         escalation_enabled: bool = False, allow_download: bool = False,
@@ -65,7 +92,7 @@ class LayaProfileManager:
             "format": "atmem-laya-formation-profile-preview-v1",
             "current": self.status(),
             "changes": {
-                "profile": "laya-formation-v1", "active": False,
+                "profile": "laya-formation-v2", "active": False,
                 "model_repo": MODEL_REPO, "model_revision": MODEL_REVISION,
                 "model_dir": str(Path(local_dir).expanduser().resolve()) if local_dir else None,
                 "download_requested": bool(allow_download), "device": selected,
@@ -87,7 +114,8 @@ class LayaProfileManager:
         dependencies = self.dependency_probe()
         value = {
             "format": "atmem-laya-formation-profile-v1",
-            "profile": "laya-formation-v1", "active": False, "verified": True,
+            "profile": "laya-formation-v2", "active": False, "verified": True,
+            "mode": "staged", "shadow_qualified": False,
             "model_repo": bundle.repo_id, "model_revision": bundle.revision,
             "model_sha256": bundle.model_sha256,
             "questions_digest": bundle.questions_digest,
@@ -107,12 +135,55 @@ class LayaProfileManager:
         _write_private(self.config_path, value)
         return dict(value)
 
+    def qualify_shadow(
+        self, receipt: dict[str, Any], *, confirmed: bool,
+    ) -> dict[str, Any]:
+        """Accept a machine-verifiable non-influencing qualification receipt."""
+
+        if not confirmed:
+            raise ValueError("explicit confirmation is required to record shadow qualification")
+        current = self._read()
+        if current is None:
+            raise ValueError("run Laya formation setup before shadow qualification")
+        required = {
+            "format", "model_repo", "model_revision", "cases_total",
+            "cases_completed", "unsafe_mutations", "double_classifications",
+            "receipt_digest",
+        }
+        if set(receipt) != required or receipt.get("format") != "atmem-laya-shadow-qualification-v2":
+            raise ValueError("shadow qualification receipt has an unsupported schema")
+        if (
+            receipt["model_repo"] != current["model_repo"]
+            or receipt["model_revision"] != current["model_revision"]
+        ):
+            raise ValueError("shadow qualification receipt targets a different model")
+        total = int(receipt["cases_total"])
+        completed = int(receipt["cases_completed"])
+        if total < 1 or completed != total:
+            raise ValueError("shadow qualification must complete every declared case")
+        if int(receipt["unsafe_mutations"]) != 0 or int(receipt["double_classifications"]) != 0:
+            raise ValueError("shadow qualification found an authority violation")
+        digest = str(receipt["receipt_digest"])
+        if not digest.startswith("sha256:") or len(digest) != 71:
+            raise ValueError("shadow qualification receipt digest is invalid")
+        qualified = {
+            **current, "active": False, "mode": "shadow_qualified",
+            "shadow_qualified": True, "shadow_receipt_digest": digest,
+            "shadow_qualified_at": _now(), "updated_at": _now(),
+        }
+        _write_private(self.config_path, qualified)
+        return qualified
+
     def activate(self, *, confirmed: bool) -> dict[str, Any]:
         if not confirmed:
             raise ValueError("explicit confirmation is required to activate the Laya profile")
         current = self._read()
         if current is None:
             raise ValueError("run Laya formation setup before activation")
+        if not current.get("shadow_qualified"):
+            raise RuntimeError(
+                "run non-influencing shadow qualification before activation"
+            )
         dependencies = self.dependency_probe()
         if not dependencies.get("available"):
             raise RuntimeError("install atmem[laya-formation] before activation")
@@ -125,7 +196,10 @@ class LayaProfileManager:
             if callable(close):
                 close()
         _write_private(self.rollback_path, {"format": "atmem-laya-formation-rollback-v1", "previous": current})
-        active = {**current, "active": True, "device": actual_device, "activated_at": _now(), "updated_at": _now()}
+        active = {
+            **current, "active": True, "mode": "active", "device": actual_device,
+            "activated_at": _now(), "updated_at": _now(),
+        }
         _write_private(self.config_path, active)
         return active
 
@@ -151,12 +225,16 @@ class LayaProfileManager:
                 "model_repo": MODEL_REPO, "model_revision": MODEL_REVISION,
                 "device": None, "calibration_state": "not_configured",
                 "fallback_ready": True, "escalation_enabled": False,
+                "mode": "deterministic", "shadow_qualified": False,
+                "shadow_receipt_digest": None,
                 "setup_action": "Install the optional extra, then run `atmem formation setup`.",
             }
         return {
             "format": "atmem-laya-formation-profile-status-v1",
             "configured": True, "active": bool(value.get("active")),
-            "profile": value.get("profile"), "model_repo": value.get("model_repo"),
+            "profile": value.get("profile") if value.get("active") else "deterministic",
+            "configured_profile": value.get("profile"),
+            "model_repo": value.get("model_repo"),
             "model_revision": value.get("model_revision"), "model_sha256": value.get("model_sha256"),
             "questions_digest": value.get("questions_digest"),
             "calibration_digest": value.get("calibration_digest"),
@@ -164,18 +242,25 @@ class LayaProfileManager:
             "fallback_ready": bool(value.get("fallback_ready")),
             "escalation_enabled": bool((value.get("escalation") or {}).get("enabled")),
             "runtime_dependencies_available": bool(value.get("runtime_dependencies_available")),
+            "mode": value.get("mode", "active" if value.get("active") else "staged"),
+            "shadow_qualified": bool(value.get("shadow_qualified")),
+            "shadow_receipt_digest": value.get("shadow_receipt_digest"),
             "rollback_available": self.rollback_path.is_file(),
         }
 
     def doctor(self) -> dict[str, Any]:
         status = self.status()
+        dependencies = self.dependency_probe()
         checks: dict[str, bool] = {
             "configured": bool(status["configured"]),
             "fallback_ready": bool(status["fallback_ready"]),
-            "dependencies": bool(self.dependency_probe().get("available")),
+            "dependencies": bool(dependencies.get("available")),
+            "shadow_qualified": bool(status.get("shadow_qualified")),
             "artifact": False,
         }
-        error_code = None
+        error_code = (
+            None if checks["dependencies"] else "runtime_dependencies_incompatible"
+        )
         value = self._read()
         if value is not None:
             try:
@@ -185,7 +270,8 @@ class LayaProfileManager:
                     and bundle.calibration_digest == value["calibration_digest"]
                 )
             except (OSError, KeyError, TypeError, ValueError, RuntimeError):
-                error_code = "artifact_verification_failed"
+                if error_code is None:
+                    error_code = "artifact_verification_failed"
         ready = all(checks.values())
         return {
             "format": "atmem-laya-formation-doctor-v1", "status": status,
@@ -193,4 +279,10 @@ class LayaProfileManager:
             "active_healthy": ready and bool(status.get("active")),
             "calibration_state": "verified" if checks["artifact"] else "unverified",
             "fallback_ready": checks["fallback_ready"], "error_code": error_code,
+            "runtime_versions": dependencies.get("versions", {}),
+            "compatibility_errors": dependencies.get("compatibility_errors", {}),
+            "repair_command": dependencies.get(
+                "repair_command",
+                "python -m pip install --upgrade 'atmem[laya-formation]'",
+            ),
         }

@@ -1,0 +1,19 @@
+{
+  "format": "atmem-laya-superseded-artifacts-v1",
+  "effective_date": "2026-10-13",
+  "reason": "replacement model requires authentic human-origin conversation training only",
+  "artifacts": [
+    {
+      "kind": "dataset",
+      "repo_id": "atmem/atmem-laya-formation-v1",
+      "revision": "4436089b38cbe3a5374aaaa92c4c77703cdbf668",
+      "status": "superseded_not_training_eligible"
+    },
+    {
+      "kind": "model",
+      "repo_id": "atmem/atmem-laya-formation-model-v1",
+      "revision": "1698278c4b158fac30e4eb2fefd10ef8b8f873b3",
+      "status": "superseded_not_release_eligible"
+    }
+  ]
+}

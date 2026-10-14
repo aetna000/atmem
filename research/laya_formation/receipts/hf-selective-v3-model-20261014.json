@@ -1,0 +1,14 @@
+{
+  "format": "atmem-hugging-face-publication-receipt-v1",
+  "artifact": "rejected selective V3 Laya research checkpoint",
+  "repo_id": "atmem/laya-memory-decision-selective-v3-research",
+  "repo_type": "model",
+  "commit": "b219757c7d5f1297f46ace70693863c8477f3793",
+  "published_at": "2026-10-14",
+  "public_url": "https://huggingface.co/atmem/laya-memory-decision-selective-v3-research",
+  "weights_sha256": "93f1d0c623b956fbe9c92a25b57b4298a08ff8bf5e0b7f182635361d2c304104",
+  "activation_eligible": false,
+  "calibration_bundle_issued": false,
+  "release_created": false,
+  "reason": "matched operational replay regressed from 30/100 deterministic to 20/100 and predicted DO_NOT_STORE for all 100 cases"
+}

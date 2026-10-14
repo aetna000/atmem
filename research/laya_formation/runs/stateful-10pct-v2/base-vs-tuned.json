@@ -1,0 +1,1140 @@
+{
+  "base": {
+    "abstention_count": 2163,
+    "brier": 0.49573187121495327,
+    "completed_examples": 1974,
+    "duplicate_creation_count": 0,
+    "ece": 0.5653419354838709,
+    "exact_post_state_accuracy": 0.9414707353676839,
+    "failure_count": 1269,
+    "false_store_count": 2,
+    "fully_correct_rate": 0.18359179589794897,
+    "fully_correct_transitions": 367,
+    "latency_ms": {
+      "mean": 127.40501072241834,
+      "p50": 103.40656249900348,
+      "p95": 270.2199585037306
+    },
+    "operation_accuracy": 0.2511255627813907,
+    "operation_macro_f1": 0.09182581358524586,
+    "per_language": {
+      "albanian": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "arabic": {
+        "abstention_rate": 0.8849557522123894,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": 0.61795,
+        "fully_correct_rate": 0.07079646017699115,
+        "operation_macro_f1": 0.06442577030812324,
+        "transitions": 113
+      },
+      "armenian": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "azerbaijani": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "basque": {
+        "abstention_rate": 0.5,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.5,
+        "operation_macro_f1": 0.3333333333333333,
+        "transitions": 2
+      },
+      "bengali": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "bokmal": {
+        "abstention_rate": 0.6666666666666666,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.3333333333333333,
+        "operation_macro_f1": 0.25,
+        "transitions": 6
+      },
+      "bosnian": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "bulgarian": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "catalan": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "chinese": {
+        "abstention_rate": 0.8077858880778589,
+        "critical_false_store_count": 1,
+        "critical_false_store_rate": 0.0024330900243309003,
+        "ece": 0.6302666666666666,
+        "fully_correct_rate": 0.1411192214111922,
+        "operation_macro_f1": 0.07513202978076616,
+        "transitions": 411
+      },
+      "czech": {
+        "abstention_rate": 0.6666666666666666,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.3333333333333333,
+        "operation_macro_f1": 0.25,
+        "transitions": 3
+      },
+      "danish": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 2
+      },
+      "dutch": {
+        "abstention_rate": 0.5,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.5,
+        "operation_macro_f1": 1.0,
+        "transitions": 2
+      },
+      "english": {
+        "abstention_rate": 0.7247422680412371,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": 0.5412428571428571,
+        "fully_correct_rate": 0.2175257731958763,
+        "operation_macro_f1": 0.10225563909774438,
+        "transitions": 970
+      },
+      "esperanto": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "finnish": {
+        "abstention_rate": 0.5,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.5,
+        "operation_macro_f1": 0.3333333333333333,
+        "transitions": 2
+      },
+      "french": {
+        "abstention_rate": 0.6808510638297872,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.23404255319148937,
+        "operation_macro_f1": 0.1965174129353234,
+        "transitions": 94
+      },
+      "ganda": {
+        "abstention_rate": 0.3333333333333333,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.3333333333333333,
+        "operation_macro_f1": 0.4,
+        "transitions": 3
+      },
+      "german": {
+        "abstention_rate": 0.8018867924528302,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.16037735849056603,
+        "operation_macro_f1": 0.1326647475779243,
+        "transitions": 106
+      },
+      "greek": {
+        "abstention_rate": 0.6666666666666666,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.3333333333333333,
+        "operation_macro_f1": 0.25,
+        "transitions": 3
+      },
+      "hebrew": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 2
+      },
+      "hindi": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.25,
+        "transitions": 3
+      },
+      "hungarian": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.25,
+        "transitions": 3
+      },
+      "icelandic": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "indonesian": {
+        "abstention_rate": 0.6818181818181818,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.22727272727272727,
+        "operation_macro_f1": 0.14285714285714285,
+        "transitions": 22
+      },
+      "irish": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.3333333333333333,
+        "transitions": 2
+      },
+      "italian": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "japanese": {
+        "abstention_rate": 0.8095238095238095,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.14285714285714285,
+        "operation_macro_f1": 0.16,
+        "transitions": 21
+      },
+      "korean": {
+        "abstention_rate": 0.9166666666666666,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.08333333333333333,
+        "operation_macro_f1": 0.07692307692307693,
+        "transitions": 12
+      },
+      "latin": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 6
+      },
+      "latvian": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "macedonian": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "malay": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 3
+      },
+      "marathi": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 2
+      },
+      "mongolian": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "nynorsk": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "persian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "polish": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 3
+      },
+      "portuguese": {
+        "abstention_rate": 0.7,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.25,
+        "operation_macro_f1": 0.10869565217391305,
+        "transitions": 20
+      },
+      "romanian": {
+        "abstention_rate": 0.6666666666666666,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.25,
+        "transitions": 6
+      },
+      "russian": {
+        "abstention_rate": 0.7894736842105263,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": 0.571,
+        "fully_correct_rate": 0.10526315789473684,
+        "operation_macro_f1": 0.21176470588235294,
+        "transitions": 19
+      },
+      "serbian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "shona": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "slovene": {
+        "abstention_rate": 0.8,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.2,
+        "operation_macro_f1": 0.16666666666666669,
+        "transitions": 5
+      },
+      "somali": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "sotho": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 3
+      },
+      "spanish": {
+        "abstention_rate": 0.7547169811320755,
+        "critical_false_store_count": 1,
+        "critical_false_store_rate": 0.009433962264150943,
+        "ece": null,
+        "fully_correct_rate": 0.20754716981132076,
+        "operation_macro_f1": 0.12380952380952381,
+        "transitions": 106
+      },
+      "swahili": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "swedish": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "tagalog": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 2
+      },
+      "tswana": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "turkish": {
+        "abstention_rate": 0.6,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.2,
+        "operation_macro_f1": 0.2222222222222222,
+        "transitions": 5
+      },
+      "ukrainian": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 4
+      },
+      "urdu": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 2
+      },
+      "vietnamese": {
+        "abstention_rate": 0.8333333333333334,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.14285714285714285,
+        "transitions": 6
+      },
+      "welsh": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "yoruba": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 2
+      },
+      "zulu": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      }
+    },
+    "question_counts": {
+      "formation.context_sufficient.v2": 730,
+      "formation.future_utility.v2": 10,
+      "formation.is_durable.v2": 689,
+      "formation.memory_class.v2": 272,
+      "formation.operation.v2": 272,
+      "formation.target.v2": 1,
+      "runtime_failure": 1269
+    },
+    "target_accuracy": 0.0,
+    "transitions": 1999,
+    "typed_examples": 3243,
+    "unsafe_mutation_count": 10
+  },
+  "bootstrap_samples": 10000,
+  "format": "atmem-laya-paired-comparison-v2",
+  "interpretation": "agreement with blinded machine weak supervision; not human ground truth",
+  "paired_bootstrap_95ci": [
+    0.5317658829414708,
+    0.576288144072036
+  ],
+  "paired_transition_delta": 0.5542771385692846,
+  "tuned": {
+    "abstention_count": 240,
+    "brier": 0.18516850771774432,
+    "completed_examples": 3625,
+    "duplicate_creation_count": 0,
+    "ece": 0.4092129032258065,
+    "exact_post_state_accuracy": 0.9364682341170585,
+    "failure_count": 215,
+    "false_store_count": 15,
+    "fully_correct_rate": 0.7378689344672336,
+    "fully_correct_transitions": 1475,
+    "latency_ms": {
+      "mean": 15.553819209738666,
+      "p50": 15.281205502105877,
+      "p95": 17.87296248949133
+    },
+    "operation_accuracy": 0.8054027013506754,
+    "operation_macro_f1": 0.23365233504604244,
+    "per_language": {
+      "albanian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 1,
+        "critical_false_store_rate": 1.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "arabic": {
+        "abstention_rate": 0.017699115044247787,
+        "critical_false_store_count": 1,
+        "critical_false_store_rate": 0.008849557522123894,
+        "ece": null,
+        "fully_correct_rate": 0.8407079646017699,
+        "operation_macro_f1": 0.23842592592592593,
+        "transitions": 113
+      },
+      "armenian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "azerbaijani": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "basque": {
+        "abstention_rate": 0.5,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.3333333333333333,
+        "transitions": 2
+      },
+      "bengali": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "bokmal": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 6
+      },
+      "bosnian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "bulgarian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "catalan": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "chinese": {
+        "abstention_rate": 0.1192214111922141,
+        "critical_false_store_count": 5,
+        "critical_false_store_rate": 0.012165450121654502,
+        "ece": 0.33333333333333337,
+        "fully_correct_rate": 0.7372262773722628,
+        "operation_macro_f1": 0.4079269808857309,
+        "transitions": 411
+      },
+      "czech": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.6666666666666666,
+        "operation_macro_f1": 1.0,
+        "transitions": 3
+      },
+      "danish": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 2
+      },
+      "dutch": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.5,
+        "operation_macro_f1": 0.3333333333333333,
+        "transitions": 2
+      },
+      "english": {
+        "abstention_rate": 0.12061855670103093,
+        "critical_false_store_count": 3,
+        "critical_false_store_rate": 0.003092783505154639,
+        "ece": 0.4664315789473684,
+        "fully_correct_rate": 0.7381443298969073,
+        "operation_macro_f1": 0.19630291239701275,
+        "transitions": 970
+      },
+      "esperanto": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "finnish": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 2
+      },
+      "french": {
+        "abstention_rate": 0.0425531914893617,
+        "critical_false_store_count": 1,
+        "critical_false_store_rate": 0.010638297872340425,
+        "ece": null,
+        "fully_correct_rate": 0.8191489361702128,
+        "operation_macro_f1": 0.3123809523809524,
+        "transitions": 94
+      },
+      "ganda": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.3333333333333333,
+        "operation_macro_f1": 1.0,
+        "transitions": 3
+      },
+      "german": {
+        "abstention_rate": 0.3867924528301887,
+        "critical_false_store_count": 1,
+        "critical_false_store_rate": 0.009433962264150943,
+        "ece": null,
+        "fully_correct_rate": 0.5094339622641509,
+        "operation_macro_f1": 0.27353206865401986,
+        "transitions": 106
+      },
+      "greek": {
+        "abstention_rate": 0.3333333333333333,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.6666666666666666,
+        "operation_macro_f1": 0.4,
+        "transitions": 3
+      },
+      "hebrew": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 2
+      },
+      "hindi": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.6666666666666666,
+        "operation_macro_f1": 0.4,
+        "transitions": 3
+      },
+      "hungarian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.3333333333333333,
+        "operation_macro_f1": 0.4,
+        "transitions": 3
+      },
+      "icelandic": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "indonesian": {
+        "abstention_rate": 0.045454545454545456,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.8636363636363636,
+        "operation_macro_f1": 0.31746031746031744,
+        "transitions": 22
+      },
+      "irish": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.5,
+        "operation_macro_f1": 0.3333333333333333,
+        "transitions": 2
+      },
+      "italian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "japanese": {
+        "abstention_rate": 0.09523809523809523,
+        "critical_false_store_count": 1,
+        "critical_false_store_rate": 0.047619047619047616,
+        "ece": null,
+        "fully_correct_rate": 0.7619047619047619,
+        "operation_macro_f1": 0.30769230769230765,
+        "transitions": 21
+      },
+      "korean": {
+        "abstention_rate": 0.16666666666666666,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.8333333333333334,
+        "operation_macro_f1": 0.45454545454545453,
+        "transitions": 12
+      },
+      "latin": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.6666666666666666,
+        "operation_macro_f1": 0.45454545454545453,
+        "transitions": 6
+      },
+      "latvian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "macedonian": {
+        "abstention_rate": 1.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.0,
+        "transitions": 1
+      },
+      "malay": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.6666666666666666,
+        "operation_macro_f1": 1.0,
+        "transitions": 3
+      },
+      "marathi": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 2
+      },
+      "mongolian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "nynorsk": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "persian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "polish": {
+        "abstention_rate": 0.3333333333333333,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.6666666666666666,
+        "operation_macro_f1": 0.4,
+        "transitions": 3
+      },
+      "portuguese": {
+        "abstention_rate": 0.05,
+        "critical_false_store_count": 1,
+        "critical_false_store_rate": 0.05,
+        "ece": 0.33333333333333337,
+        "fully_correct_rate": 0.7,
+        "operation_macro_f1": 0.34558823529411764,
+        "transitions": 20
+      },
+      "romanian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.8333333333333334,
+        "operation_macro_f1": 1.0,
+        "transitions": 6
+      },
+      "russian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.7894736842105263,
+        "operation_macro_f1": 0.30476190476190473,
+        "transitions": 19
+      },
+      "serbian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "shona": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "slovene": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 5
+      },
+      "somali": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "sotho": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 3
+      },
+      "spanish": {
+        "abstention_rate": 0.07547169811320754,
+        "critical_false_store_count": 1,
+        "critical_false_store_rate": 0.009433962264150943,
+        "ece": 0.2750666666666667,
+        "fully_correct_rate": 0.7735849056603774,
+        "operation_macro_f1": 0.23036649214659685,
+        "transitions": 106
+      },
+      "swahili": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "swedish": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "tagalog": {
+        "abstention_rate": 0.5,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 0.3333333333333333,
+        "transitions": 2
+      },
+      "tswana": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 1.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "turkish": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.8,
+        "operation_macro_f1": 0.4444444444444445,
+        "transitions": 5
+      },
+      "ukrainian": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.75,
+        "operation_macro_f1": 1.0,
+        "transitions": 4
+      },
+      "urdu": {
+        "abstention_rate": 0.5,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.5,
+        "operation_macro_f1": 0.3333333333333333,
+        "transitions": 2
+      },
+      "vietnamese": {
+        "abstention_rate": 0.16666666666666666,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.6666666666666666,
+        "operation_macro_f1": 0.45454545454545453,
+        "transitions": 6
+      },
+      "welsh": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      },
+      "yoruba": {
+        "abstention_rate": 0.5,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.5,
+        "operation_macro_f1": 0.3333333333333333,
+        "transitions": 2
+      },
+      "zulu": {
+        "abstention_rate": 0.0,
+        "critical_false_store_count": 0,
+        "critical_false_store_rate": 0.0,
+        "ece": null,
+        "fully_correct_rate": 0.0,
+        "operation_macro_f1": 1.0,
+        "transitions": 1
+      }
+    },
+    "question_counts": {
+      "formation.context_sufficient.v2": 1784,
+      "formation.future_utility.v2": 25,
+      "formation.is_durable.v2": 1765,
+      "formation.memory_class.v2": 25,
+      "formation.operation.v2": 25,
+      "formation.target.v2": 1,
+      "runtime_failure": 215
+    },
+    "target_accuracy": 0.1,
+    "transitions": 1999,
+    "typed_examples": 3840,
+    "unsafe_mutation_count": 9
+  }
+}

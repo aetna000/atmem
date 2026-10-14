@@ -16,8 +16,9 @@ from research.laya_formation.training.smoke import (
 
 def test_fixed_workload_pins_full_training_and_both_objectives() -> None:
     workload = load_workload()
-    assert workload["base_model"]["revision"] == "7b928d828b7b0e022f929d9bd2e44165aa270148"
-    assert workload["dataset"]["revision"] == "4436089b38cbe3a5374aaaa92c4c77703cdbf668"
+    assert workload["base_model"]["repo_id"] == "convaiinnovations/laya-multilingual"
+    assert workload["base_model"]["revision"] == "1720e3e3357cfe1e281542e223f8273b0890ca34"
+    assert workload["dataset"]["revision"] == "PENDING_AUTHENTIC_FINAL_MANIFEST"
     assert workload["training"]["objectives"] == ["soft-ce", "rlcd"]
     assert workload["training"]["freeze_encoder"] is False
 

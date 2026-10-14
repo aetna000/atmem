@@ -1,0 +1,21 @@
+{
+  "format": "atmem-hugging-face-publication-receipt-v1",
+  "artifact": "authentic selective V3 state-transition research dataset",
+  "repo_id": "atmem/stateful-memory-transitions-selective-v3-research",
+  "repo_type": "dataset",
+  "commit": "f46cdcd23c189cacdaa68abd2ec780752227e9f4",
+  "published_at": "2026-10-14",
+  "public_url": "https://huggingface.co/datasets/atmem/stateful-memory-transitions-selective-v3-research",
+  "sealed_test_rows_included": 0,
+  "synthetic_conversation_rows": 0,
+  "locomo_rows": 0,
+  "files": {
+    "README.md": "sha256:cd73e83a47dfb7f5b8445328c2b2253f7599ee1682c770514cda28caf5d11f98",
+    "manifest.json": "sha256:94adbce4c495588a4e376a8b0f98efe30ed19516e34359f2f804c01222e85351",
+    "records/decisions-train.jsonl": "sha256:220e2667d6e857628faf6d44fac8aa4a385ff40152ff2837fb1cb5d6b55c863c",
+    "records/decisions-validation.jsonl": "sha256:e1189fdce39eede122ef08530504b052ca5d02300974bb58e3bc226747368d01",
+    "records/decisions-calibration.jsonl": "sha256:faf07054ebbe397b144e1a326a438b00b5e17ead751ad1c354c81c23246e10a5"
+  },
+  "activation_eligible": false,
+  "reason": "STORE_NEW has 60 distinct train trajectories; minimum is 100"
+}

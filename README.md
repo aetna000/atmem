@@ -5,11 +5,12 @@
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-> **AtMem 2.3.9b1:** Optional local Laya formation improves bounded decisions
-> about what memory state to store while AtMem retains authority. Deterministic
-> behavior remains the default and upgrades download no model. See the
-> [release note](./docs/releases/v2.3.9b1.md) and
-> [synthetic evaluation](./research/laya_formation/reports/evaluation-report-20261011.md).
+> **AtMem 2.3.9b1 development status:** the earlier synthetic-trained Laya
+> artifact is superseded and is not the beta deliverable. The replacement model
+> will be trained only on a verified 100,000-row authentic-conversation corpus
+> after independent Codex/Claude labeling and review. Deterministic behavior
+> remains the recommended default; see the
+> [blocked release note](./docs/releases/v2.3.9b1.md).
 > Previous benchmarks retain their tested-version provenance.
 > It records exact host-observed text and supported multimodal boundaries by default,
 > while keeping every claim limited to what the connected agent actually supplied.
@@ -60,20 +61,37 @@ always-present local vector index. Do **not** install AtBot separately. During
 hosted provider, or the safe deterministic fallback. API keys stay in
 environment variables; AtMem does not save them.
 
-To stage the optional local formation model without changing the default:
+The replacement optional local formation model is not yet available for staging.
+When its authentic-data and publication gates pass, the intended commands are:
 
 ```bash
 python -m pip install --upgrade --pre 'atmem[laya-formation]==2.3.9b1'
 atmem formation preview --download
-atmem formation setup --download --device auto --yes
+atmem formation setup
+# Noninteractive equivalent:
+atmem formation setup --profile laya --download --device auto --yes
 atmem formation doctor
 atmem formation activate --yes
 ```
 
-The exact public model is checksum-verified before activation. Use
+Intel macOS users should use Python 3.10-3.12 and install the compatible
+numerical stack before the optional extra:
+
+```bash
+python -m pip install --upgrade \
+  'numpy==1.26.4' 'scipy==1.13.1' 'scikit-learn==1.5.2'
+python -m pip install --upgrade --pre 'atmem[laya-formation]==2.3.9b1'
+```
+
+Guided setup offers deterministic, local Laya, and Laya with bounded escalation.
+After activation, ordinary CLI/API/MCP and Context Engine formation invoke the
+five pinned decisions, revalidate them through AtMem authority, and record
+receipts. Context Engine may apply only a validated source-grounded view
+disposition; an invalid or unavailable model keeps the deterministic path. The
+exact public model is checksum-verified before activation. Use
 `atmem formation rollback --yes` to restore the saved inactive profile. See the
-[2.3.9b1 release note](docs/releases/v2.3.9b1.md) for measured synthetic evidence,
-platform coverage and limitations.
+[2.3.9b1 release note](docs/releases/v2.3.9b1.md) for the current blocked status,
+historical diagnostics, platform coverage and limitations.
 
 For encrypted local households, install the SQLCipher extra and verify the
 runtime before migration:

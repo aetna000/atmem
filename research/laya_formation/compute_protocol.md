@@ -46,7 +46,8 @@ retained evidence.
 Verify the host key separately, then require `StrictHostKeyChecking=yes` and a
 specific known-hosts file. Do not use password command-line helpers, URLs,
 environment exports, shell history or logs. Prefer CUDA when the smoke verifies
-it; otherwise record the CPU result. Copy only public/synthetic inputs and verify
+it; otherwise record the CPU result. Copy only privacy-cleared source-licensed
+public authentic-conversation inputs and verify
 all returned files by digest.
 
 ## Mac candidate
@@ -66,10 +67,12 @@ machine is verified. Rank the remaining offers by:
 
 `expected_total = compute + continuous_storage + transfer + expected_retry_cost`
 
-The hard ceiling is USD 20 with no automatic top-up. Spending requires explicit
+The Vast.ai hard ceiling is USD 8 with no automatic top-up. A fallback Hugging
+Face run has a separate USD 11 existing-credit ceiling; it does not increase the
+Vast ceiling. Spending requires explicit
 owner approval. Interruptible capacity additionally requires a proven resume
 test and checksum-verified checkpoint synchronization to owner-controlled
-storage. Only public/synthetic data may leave local systems. After training,
+storage. Only privacy-cleared source-licensed public data may leave local systems. After training,
 recover and verify every retained artifact, record final cost, then destroy the
 instance and verify it no longer appears active.
 

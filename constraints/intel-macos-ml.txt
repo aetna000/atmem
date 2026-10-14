@@ -1,0 +1,8 @@
+# Intel macOS compatibility for the last PyTorch release that ships x86_64
+# wheels. Use this constraints file only on Intel macOS with Python 3.10-3.12.
+numpy==1.26.4
+scipy==1.13.1
+scikit-learn==1.5.2
+torch==2.2.2
+transformers==4.57.6
+huggingface-hub==0.36.0

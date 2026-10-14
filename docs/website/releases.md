@@ -2,11 +2,12 @@
 
 ## Beta release candidate: 2.3.9b1
 
-[AtMem 2.3.9b1](../releases/v2.3.9b1.md) adds an optional local Laya formation
-profile, public synthetic dataset/model artifacts and reversible setup. The
-reported formation gains are synthetic; retrieval ties deterministic AtMem and
-Jev/Qwen/production comparisons are inconclusive or blocked. The package remains
-a candidate until its reviewed commit is tagged and registry-verified.
+[AtMem 2.3.9b1](../releases/v2.3.9b1.md) is blocked while its optional local
+Laya profile is superseded with a model trained only on the verified
+100,000-row authentic-conversation dataset. The earlier synthetic dataset,
+model and scores are historical diagnostics and do not qualify the beta. The
+package remains a candidate until the replacement artifacts pass, its reviewed
+commit is tagged and registries are verified.
 
 ## Published stable release: 2.3.8
 

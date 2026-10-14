@@ -1,0 +1,109 @@
+{
+  "arms": [
+    {
+      "arm": "deterministic",
+      "by_expected": {
+        "DO_NOT_STORE": {
+          "count": 20,
+          "exact_policy_matches": 5,
+          "safe_non_authoritative": 5
+        },
+        "DUPLICATE": {
+          "count": 10,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        },
+        "REVIEW": {
+          "count": 30,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        },
+        "STORE": {
+          "count": 25,
+          "exact_policy_matches": 25,
+          "safe_non_authoritative": 25
+        },
+        "UPDATE": {
+          "count": 15,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        }
+      },
+      "database": "research/laya_formation/runs/openclaw-100-20261014-v2-research/deterministic.sqlite3",
+      "elapsed_seconds": 0.4407765420037322,
+      "exact_policy_matches": 30,
+      "latency_ms": {
+        "mean": 2.969877479481511,
+        "p50": 3.0853339994791895,
+        "p95": 4.47020900901407
+      },
+      "observed_counts": {
+        "DO_NOT_STORE": 5,
+        "STORE": 95
+      },
+      "records_sha256": "1ab63e23a5c44fc73186f0bd5e1780fe6006ec36c97287cb73957e3c41b57a2e",
+      "safe_non_authoritative": 30
+    },
+    {
+      "arm": "fine-tuned-laya-v2",
+      "by_expected": {
+        "DO_NOT_STORE": {
+          "count": 20,
+          "exact_policy_matches": 15,
+          "safe_non_authoritative": 15
+        },
+        "DUPLICATE": {
+          "count": 10,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        },
+        "REVIEW": {
+          "count": 30,
+          "exact_policy_matches": 1,
+          "safe_non_authoritative": 1
+        },
+        "STORE": {
+          "count": 25,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        },
+        "UPDATE": {
+          "count": 15,
+          "exact_policy_matches": 0,
+          "safe_non_authoritative": 0
+        }
+      },
+      "database": "research/laya_formation/runs/openclaw-100-20261014-v2-research/fine-tuned-laya-v2.sqlite3",
+      "elapsed_seconds": 14.37462424999103,
+      "exact_policy_matches": 16,
+      "latency_ms": {
+        "mean": 143.41910706076305,
+        "p50": 86.81920898379758,
+        "p95": 704.7275000077207
+      },
+      "observed_counts": {
+        "DO_NOT_STORE": 68,
+        "REVIEW": 1,
+        "STORE": 5,
+        "SYSTEM_FAILURE": 26
+      },
+      "records_sha256": "28b84842604d138274ef44a1def51057a34ffc6491cdecbcf0a481ae2ff8a412",
+      "safe_non_authoritative": 16
+    }
+  ],
+  "choice_threshold": 0.5,
+  "corpus_sha256": "612181e0084e4ae847b8e84548f4fc989117b7ffaa1c9d2e587cd0a8ad2bc23d",
+  "device": "mps",
+  "format": "atmem-openclaw-matched-v2-research",
+  "generated_at": "2026-10-13T21:53:56.952589+00:00",
+  "limitations": [
+    "The OpenClaw corpus is a synthetic operational policy challenge.",
+    "The expected dispositions were not independently annotated.",
+    "The fine-tuned checkpoint is research-only and uncalibrated.",
+    "The replay measures one Apple host and one ordered trajectory."
+  ],
+  "model_repo": "atmem/laya-memory-decision-v2",
+  "model_revision": "448e72bb3bc59b778c677ea51b79b6825a895cbd5b5cc6fd24a50a6167f25e9b",
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "python": "3.12.13 (main, Mar  3 2026, 12:39:30) [Clang 21.0.0 (clang-2100.0.123.102)]"
+}

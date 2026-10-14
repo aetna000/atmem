@@ -53,17 +53,24 @@ ax.text(.1,.42,"Added: evidence obligations and loss accounting; record-to-audit
 save(fig,"architecture")
 
 fig, axs=plt.subplots(1,2,figsize=(11,4.1),gridspec_kw={"width_ratios":[1.25,1]})
-for ax, names, counts, n in [(axs[0],["AtMem candidate","AgentRunbook-R*","Mem0 OSS*","No retrieval"],[5,4,1,1],23),
-                              (axs[1],["AtMem candidate","Mem0 OSS*"],[9,7],30)]:
-    colors=[TEAL]+[ORANGE if "Agent" in x else GRAY for x in names[1:]]
-    y=np.arange(len(names))
-    ax.barh(y,np.array(counts)/n*100,color=colors,height=.58)
-    ax.set_yticks(y,names); ax.invert_yaxis(); ax.set_xlim(0,40)
-    ax.set_xlabel("Cases passed (%)"); ax.grid(axis="x",alpha=.18); ax.set_axisbelow(True)
-    for yi,k in zip(y,counts): ax.text(k/n*100+.8,yi,f"{k}/{n} ({k/n:.1%})",va="center",fontsize=9)
-axs[0].set_title("LongMemEval-V2 | 23 / 451 questions",loc="left",fontsize=11,weight="bold")
-axs[1].set_title("DolphinBench | 30 / 600 tasks",loc="left",fontsize=11,weight="bold")
-fig.text(.02,.01,"*Local configurations, including hash embeddings; Mem0 infer=False. Development samples; no significance claim.",fontsize=9,color=GRAY)
+names=["No retrieval","AtMem context","Verified evidence"]
+counts=[1,5,19]
+colors=[GRAY,TEAL,ORANGE]
+y=np.arange(len(names))
+axs[0].barh(y,np.array(counts)/23*100,color=colors,height=.58)
+axs[0].set_yticks(y,names); axs[0].invert_yaxis(); axs[0].set_xlim(0,100)
+axs[0].set_xlabel("Questions correct (%)"); axs[0].grid(axis="x",alpha=.18); axs[0].set_axisbelow(True)
+for yi,k in zip(y,counts): axs[0].text(k/23*100+1.2,yi,f"{k}/23",va="center",fontsize=9)
+axs[0].annotate("14-question evidence-delivery gap",xy=(19/23*100,2),xytext=(42,1.45),
+                arrowprops={"arrowstyle":"->","color":ORANGE},fontsize=9,color=ORANGE)
+axs[0].set_title("LongMemEval-V2 evidence-delivery diagnostic",loc="left",fontsize=11,weight="bold")
+
+outcomes=[9,21]
+axs[1].bar(["Passed","Not passed"],np.array(outcomes)/30*100,color=[TEAL,"#d9e0e5"],width=.62)
+axs[1].set_ylim(0,100); axs[1].set_ylabel("Tasks (%)"); axs[1].grid(axis="y",alpha=.18); axs[1].set_axisbelow(True)
+for xi,k in enumerate(outcomes): axs[1].text(xi,k/30*100+2,f"{k}/30",ha="center",fontsize=9)
+axs[1].set_title("DolphinBench task-outcome diagnostic",loc="left",fontsize=11,weight="bold")
+fig.text(.02,.01,"Inspected partitions. These counts diagnose the system and do not estimate held-out generalization.",fontsize=9,color=GRAY)
 fig.tight_layout(rect=(0,.07,1,1)); save(fig,"results")
 
 fig, ax=plt.subplots(figsize=(10.5,3.6))
@@ -76,7 +83,7 @@ ax.tick_params(length=0)
 for i in range(4):
     for j in range(9): ax.text(j,i,"R" if vals[i,j] else "A",ha="center",va="center",color="white" if vals[i,j] else GRAY,weight="bold")
 ax.set_title("AGMI 0.6.3 | R = reported by audit; A = accepted",loc="left",weight="bold",pad=14)
-fig.text(.03,.01,"2.3.8: independently reproduced from the PyPI wheel on Linux and macOS. T9 requires a trusted external checkpoint.",fontsize=9,color=GRAY)
+fig.text(.03,.01,"2.3.8: third-party replication by the AGMI maintainer from the PyPI wheel. T9 requires a trusted external checkpoint.",fontsize=9,color=GRAY)
 fig.tight_layout(rect=(0,.08,1,1)); save(fig,"integrity")
 
 fig, ax=plt.subplots(figsize=(10.5,3.2))

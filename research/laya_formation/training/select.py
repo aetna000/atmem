@@ -42,7 +42,12 @@ def assess(run: Path) -> dict[str, Any]:
     base = _read(run / manifest["metrics"]["base_validation"])
     validation = _read(run / manifest["metrics"]["validation"])
     calibration = _read(run / manifest["metrics"]["calibration"])
-    bundle = _read(run / manifest["calibration"]["path"])
+    calibration_ref = manifest.get("calibration")
+    bundle = (
+        _read(run / calibration_ref["path"])
+        if isinstance(calibration_ref, Mapping) and calibration_ref.get("path")
+        else None
+    )
     vetoes = []
     for name, report in (("validation", validation), ("calibration", calibration)):
         if report["nonfinite"]:
@@ -53,7 +58,7 @@ def assess(run: Path) -> dict[str, Any]:
             vetoes.append(f"{name}_collapse")
         if report["collapse"]["missing_expected_classes"]:
             vetoes.append(f"{name}_missing_expected_class")
-    if not bundle["sample_counts"]["sufficient"]:
+    if bundle is None or not bundle["sample_counts"]["sufficient"]:
         vetoes.append("calibration_underpowered")
     if validation["accuracy"] + 0.002 < base["accuracy"]:
         vetoes.append("validation_accuracy_regression")
@@ -76,7 +81,7 @@ def assess(run: Path) -> dict[str, Any]:
         "eligible": not vetoes, "vetoes": vetoes, "rank": rank,
         "metrics": {"base_validation": base, "validation": validation, "calibration": calibration},
         "manifest_digest": canonical_digest(manifest),
-        "calibration_digest": bundle["digest"],
+        "calibration_digest": bundle["digest"] if bundle is not None else None,
     }
 
 
@@ -92,6 +97,12 @@ def select(runs: Sequence[Path]) -> dict[str, Any]:
     eligible.sort(key=lambda item: item["objective"])
     eligible.sort(key=lambda item: tuple(item["rank"]), reverse=True)
     selected = eligible[0] if eligible else None
+    # When production selection is blocked, preserve a deterministic research
+    # nomination based only on non-sealed validation/calibration metrics.  This
+    # is explicitly not an authorization or release qualification.
+    research_ranked = sorted(assessments, key=lambda item: item["objective"])
+    research_ranked.sort(key=lambda item: tuple(item["rank"]), reverse=True)
+    research_nomination = research_ranked[0] if research_ranked else None
     result = {
         "format": "atmem-laya-objective-selection-v1",
         "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -101,6 +112,12 @@ def select(runs: Sequence[Path]) -> dict[str, Any]:
         "assessments": assessments,
         "selected_objective": selected["objective"] if selected else None,
         "selected_run_id": selected["run_id"] if selected else None,
+        "research_nomination": ({
+            "objective": research_nomination["objective"],
+            "run_id": research_nomination["run_id"],
+            "production_eligible": False,
+            "basis": "non-sealed validation and calibration metrics only",
+        } if selected is None and research_nomination is not None else None),
         "state": "selected" if selected else "blocked",
     }
     result["digest"] = canonical_digest(result)

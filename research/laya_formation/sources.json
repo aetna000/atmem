@@ -3,8 +3,8 @@
   "captured_at": "2026-10-10",
   "license_policy": "Apache-2.0 only for the base model, source and derivative public artifacts",
   "laya": {
-    "hub_repo": "convaiinnovations/laya",
-    "hub_revision": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+    "hub_repo": "convaiinnovations/laya-multilingual",
+    "hub_revision": "1720e3e3357cfe1e281542e223f8273b0890ca34",
     "hub_license": "apache-2.0",
     "source_repo": "https://github.com/NandhaKishorM/laya",
     "source_revision": "68804629e8ccd9d616d48a40e87de9fabbeae069",
@@ -15,12 +15,12 @@
     "devices": ["cuda", "mps", "cpu"],
     "files": {
       "config.json": {"sha256": "7add7c041b53f7091e65908553af79ab3f077946e5f2312d510ae13b17c7c134", "size": 160},
-      "README.md": {"sha256": "00355613796b3f5860b0d5b20392381d26580ec242e04a1fd150c7f116858602", "size": 23187, "role": "model_card_snapshot"},
-      "rl_agent_config.json": {"sha256": "ae287b56bbcf5f8c4f4541ae9dfd00c914c4c48b940b8398c3058af37ba92bbd", "size": 745},
-      "encoder/config.json": {"sha256": "bf3ab80598fdccf414855a2ce80f22859e4492d06ca8a62ddd1cfb63972f8979", "size": 2083},
-      "tokenizer/tokenizer_config.json": {"sha256": "50044de60daaa73df97d262e15a40d4faf0160e7d742df64b377877a1320dd12", "size": 308},
-      "tokenizer/tokenizer.json": {"sha256": "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30", "size": 3583228},
-      "model.safetensors": {"sha256": "891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c", "size": 842609210, "digest_source": "Hugging Face LFS oid"}
+      "README.md": {"sha256": "e85d16c3fe35fe7094ef51a7cfa81144a5cc07558e5faddcff753a8153e38a0b", "size": 9346, "role": "model_card_snapshot"},
+      "rl_agent_config.json": {"sha256": "25061739243b617ad88d1219ba6f8a9c86c5881ca28df024fa2d9b3b2fcc30c6", "size": 472},
+      "encoder/config.json": {"sha256": "83f6916d13ef0f556ac461f28308dc2bffa7ebeadee8ec9e2db5812020ea5bb4", "size": 1938},
+      "tokenizer/tokenizer_config.json": {"sha256": "6c6b2d8e3c84ce0e671c129cd6b374b235d6f9863042a5836358d00a89bbb5a1", "size": 524},
+      "tokenizer/tokenizer.json": {"sha256": "609d8f4c067cd3950f88594c5a802616cea245823836ef5848ee4fc40aab5b6f", "size": 34363188},
+      "model.safetensors": {"sha256": "9d628fd971b700382ac6f65920a86f149777b2e748e0c955fb3b19695aa8f204", "size": 643835514, "digest_source": "downloaded pinned revision and recomputed SHA-256"}
     },
     "source_files": {
       "LICENSE": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
@@ -29,24 +29,30 @@
       "docs/finetune.md": "3124d3c518fef299763e7197844ae53930a613d00b52272a73292eb1cfb8ef23"
     },
     "token_budget_evidence": {
-      "agent_max_len": 512,
-      "head_max_len": 192,
+      "agent_max_len": 1024,
+      "head_max_len": 256,
       "tokenizer_model_max_length": 8192,
       "encoder_max_position_embeddings": 8192,
-      "governing_limit": "agent_max_len",
+      "governing_limit": "multilingual checkpoint rl_agent_config",
       "sequence_format": "[CLS] type instructions [SEP] [MASK] option ... [SEP] state [SEP]",
       "state_room_formula": "max(0, 512 - exact_head_tokens - 1)",
       "closing_sep_tokens_reserved": 1,
       "probe": {
         "loader": "transformers.PreTrainedTokenizerFast",
-        "vocab_size": 50280,
-        "empty_special_token_ids": [50281, 50282],
-        "five_operation_question_head_tokens": 51,
-        "one_range_state_tokens": 47,
-        "total_with_closing_sep": 99,
+        "vocab_size": 256000,
+        "empty_special_token_ids": [1, 2],
+        "replacement_question_head_tokens": {
+          "memory_disposition": 56,
+          "memory_class": 64,
+          "meaning_scope": 46,
+          "meaning_durability": 43,
+          "relation_to_prior": 58
+        },
+        "one_candidate_state_tokens": 37,
+        "maximum_probe_total_with_closing_sep": 102,
         "result": "pass"
       },
-      "policy": "Question and all options must fit the 192-token head and 512-token total; AtMem disables silent truncation and records whole-range evidence loss."
+      "policy": "Question and all options must fit the 256-token head and 1024-token total; AtMem disables silent truncation and records whole-range evidence loss."
     },
     "snapshot_policy": "Immutable URLs plus byte sizes and SHA-256 digests are the retained source/card snapshot manifest; implementation fetches only these pinned revisions and verifies bytes before use."
   },

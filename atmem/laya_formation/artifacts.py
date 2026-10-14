@@ -9,6 +9,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 from typing import Any
 
 from .contracts import CalibrationBinding, SUPPORTED_QUESTIONS_DIGEST
@@ -16,6 +17,12 @@ from .contracts import CalibrationBinding, SUPPORTED_QUESTIONS_DIGEST
 
 MODEL_REPO = "atmem/atmem-laya-formation-model-v1"
 MODEL_REVISION = "1698278c4b158fac30e4eb2fefd10ef8b8f873b3"
+MODEL_SUPERSEDED = True
+MODEL_SUPERSESSION_REASON = (
+    "the synthetic-trained v1 Laya artifact is superseded; the authentic-"
+    "conversation replacement has not been published, so explicit setup is "
+    "currently unavailable"
+)
 MODEL_SHA256 = "f2ba3dd7679da45aabab4cac30e9a079baeb2dc98229ff3b1618e6a06fc6d683"
 CALIBRATION_DIGEST = "b165d4b7d554cdbda5a889baf7059c3f43ba2774d68754e4fa3aeb63f5f0e067"
 EXPORT_DIGEST = "6f7d53c18431c27baa617ab95ebcc4cad669917a6508145fa001eb7c8e799900"
@@ -34,6 +41,42 @@ class ArtifactBundle:
     questions: dict[str, Any]
 
 
+_RUNTIME_BOUNDS = {
+    "torch": ((2, 3, 0), (3, 0, 0)),
+    "transformers": ((4, 57, 1), (5, 0, 0)),
+    "safetensors": ((0, 6, 2), (1, 0, 0)),
+    "huggingface_hub": ((0, 36, 0), (1, 0, 0)),
+}
+
+
+def _release_tuple(value: str) -> tuple[int, int, int] | None:
+    match = re.match(r"^(\d+)\.(\d+)(?:\.(\d+))?", str(value))
+    if match is None:
+        return None
+    return tuple(int(part or 0) for part in match.groups())
+
+
+def runtime_compatibility(versions: dict[str, str | None]) -> dict[str, str]:
+    """Return actionable incompatibilities for the pinned optional runtime."""
+    errors: dict[str, str] = {}
+    for name, value in versions.items():
+        if value is None:
+            errors[name] = "missing"
+    if versions.get("laya") not in (None, "0.4.2"):
+        errors["laya"] = f"requires ==0.4.2, found {versions['laya']}"
+    for name, (minimum, maximum) in _RUNTIME_BOUNDS.items():
+        value = versions.get(name)
+        if value is None:
+            continue
+        release = _release_tuple(value)
+        if release is None or not minimum <= release < maximum:
+            errors[name] = (
+                f"requires >={'.'.join(map(str, minimum))},"
+                f"<{'.'.join(map(str, maximum))}; found {value}"
+            )
+    return errors
+
+
 def dependency_status() -> dict[str, Any]:
     required = ("laya", "torch", "transformers", "safetensors", "huggingface_hub", "numpy")
     versions = {}
@@ -45,7 +88,13 @@ def dependency_status() -> dict[str, Any]:
                 versions[name] = importlib.metadata.version(name.replace("_", "-"))
             except importlib.metadata.PackageNotFoundError:
                 versions[name] = "installed-unversioned"
-    return {"available": all(value is not None for value in versions.values()), "versions": versions}
+    errors = runtime_compatibility(versions)
+    return {
+        "available": not errors,
+        "versions": versions,
+        "compatibility_errors": errors,
+        "repair_command": "python -m pip install --upgrade 'atmem[laya-formation]'",
+    }
 
 
 class LayaArtifactResolver:
@@ -59,6 +108,8 @@ class LayaArtifactResolver:
         self, *, local_dir: Path | None = None, allow_download: bool = False,
         token: str | None = None,
     ) -> ArtifactBundle:
+        if MODEL_SUPERSEDED:
+            raise RuntimeError(MODEL_SUPERSESSION_REASON)
         configured = local_dir or (Path(os.environ["ATMEM_LAYA_MODEL_DIR"]) if os.environ.get("ATMEM_LAYA_MODEL_DIR") else None)
         if configured is None:
             if not allow_download:
@@ -119,9 +170,15 @@ class LayaArtifactResolver:
         )
 
     def load_checkpoint(self, bundle: ArtifactBundle) -> tuple[Any, Any, Any]:
+        if MODEL_SUPERSEDED:
+            raise RuntimeError(MODEL_SUPERSESSION_REASON)
         status = dependency_status()
         if not status["available"]:
-            raise RuntimeError("install atmem[laya-formation] before loading the optional model")
+            raise RuntimeError(
+                "Laya runtime dependencies are missing or incompatible; run "
+                f"`{status['repair_command']}`; details="
+                f"{json.dumps(status['compatibility_errors'], sort_keys=True)}"
+            )
         if importlib.metadata.version("laya") != "0.4.2":
             raise RuntimeError("Laya runtime version mismatch")
         import laya.train as train

@@ -1,0 +1,104 @@
+{
+  "formation.context_sufficient.v2": {
+    "instructions": "Do the supplied authorized observation and retrieved memories contain enough relevant context to make a safe memory decision?",
+    "question_id": "formation.context_sufficient.v2",
+    "type": "noul"
+  },
+  "formation.future_utility.v2": {
+    "criteria": [
+      "No expected future usefulness",
+      "Limited future usefulness",
+      "Moderate future usefulness",
+      "High future usefulness",
+      "Very high recurring usefulness"
+    ],
+    "instructions": "Rate the likely future usefulness of retaining the proposed state.",
+    "question_id": "formation.future_utility.v2",
+    "type": "score"
+  },
+  "formation.is_durable.v2": {
+    "instructions": "Does the authorized observation express information likely to remain useful in future interactions?",
+    "question_id": "formation.is_durable.v2",
+    "type": "noul"
+  },
+  "formation.memory_class.v2": {
+    "instructions": "Classify the observation's supported memory type.",
+    "options": [
+      {
+        "description": "Standing user choice or desired assistant behavior.",
+        "id": "preference"
+      },
+      {
+        "description": "Stable fact likely useful in future interactions.",
+        "id": "durable_fact"
+      },
+      {
+        "description": "Repeatable workflow, instruction, or constraint.",
+        "id": "procedure"
+      },
+      {
+        "description": "Future obligation or promise with continuing relevance.",
+        "id": "commitment"
+      },
+      {
+        "description": "Durable interpersonal relationship information.",
+        "id": "relationship"
+      },
+      {
+        "description": "Past event worth retaining as an episode.",
+        "id": "episode"
+      },
+      {
+        "description": "Time-bounded state with short-lived usefulness.",
+        "id": "temporary_state"
+      },
+      {
+        "description": "Potentially durable information requiring stricter review.",
+        "id": "sensitive"
+      },
+      {
+        "description": "Content that should not become memory.",
+        "id": "non_memory"
+      }
+    ],
+    "question_id": "formation.memory_class.v2",
+    "type": "choice"
+  },
+  "formation.operation.v2": {
+    "instructions": "Select the one memory-state operation supported by the authorized evidence.",
+    "options": [
+      {
+        "description": "Create distinct durable memory not represented by current state.",
+        "id": "STORE_NEW"
+      },
+      {
+        "description": "Add compatible detail to one active memory.",
+        "id": "UPDATE_EXISTING"
+      },
+      {
+        "description": "Replace one active memory that is no longer current.",
+        "id": "SUPERSEDE_EXISTING"
+      },
+      {
+        "description": "The same meaning is already represented by one active memory.",
+        "id": "DUPLICATE"
+      },
+      {
+        "description": "Do not create persistent memory from this observation.",
+        "id": "DO_NOT_STORE"
+      },
+      {
+        "description": "Honor an explicit authorized request to retire one memory.",
+        "id": "FORGET_EXISTING"
+      }
+    ],
+    "question_id": "formation.operation.v2",
+    "type": "choice"
+  },
+  "formation.target.v2": {
+    "instructions": "Select the active memory targeted by the proposed operation.",
+    "options": "dynamic authorized opaque memory identifiers; 2-255",
+    "question_id": "formation.target.v2",
+    "type": "choice"
+  }
+}

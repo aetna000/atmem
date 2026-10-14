@@ -17,6 +17,8 @@ FILES = [
     "benchmarks/retrieval_quality/reports/benchmark-3pct-complete-20260930.md",
     "benchmarks/retrieval_quality/protocols/longmemeval-v2-development-5pct-v1.json",
     "benchmarks/retrieval_quality/protocols/dolphinbench-development-5pct-v1.json",
+    "benchmarks/retrieval_quality/protocols/longmemeval-v2-question-split-v1.json",
+    "benchmarks/retrieval_quality/protocols/dolphinbench-task-split-v1.json",
     "research/reference_parity/sources.json",
     "research/production_benchmarks/adapters/longmemeval_mem0.py",
     "research/production_benchmarks/prepare_longmem_memories.py",

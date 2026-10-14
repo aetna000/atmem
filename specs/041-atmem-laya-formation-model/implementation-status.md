@@ -1,8 +1,65 @@
 # Implementation Status
 
-**Updated**: 2026-10-11
-**Current phase**: Phase 6
-**State**: T001–T046 complete; website handoff and package publication next
+**Updated**: 2026-10-14
+**Current phase**: Phase 10 selective V3 experiment complete; remediation required
+**State**: V3 research data/model published; activation and beta release blocked
+
+The selective single-call V3 correction has now been implemented and measured.
+Its strict joint Choice contract, exact one-call receptor, deterministic exact-
+duplicate fast path, authentic transition projection and research trainer pass
+33 focused tests. The V3 data and rejected checkpoint are public:
+
+- `atmem/stateful-memory-transitions-selective-v3-research@f46cdcd23c189cacdaa68abd2ec780752227e9f4`
+- `atmem/laya-memory-decision-selective-v3-research@b219757c7d5f1297f46ace70693863c8477f3793`
+
+Exact packing removed 218 train, 49 validation and 58 calibration cases. Only
+50 token-safe `STORE_NEW` training trajectories remained, below the frozen
+minimum of 100, so no calibration bundle was issued. On 423 token-safe
+validation transitions, macro-F1 increased from 0.443 to 0.627, but durable-
+memory recall remained about 3/18. On the identical ordered 100-item
+operational replay, deterministic AtMem scored 30/100 at 3.15 ms median,
+original Laya scored 30/100 at 45.35 ms, and tuned V3 scored 20/100 at 45.26 ms
+while predicting `DO_NOT_STORE` for every case. V3 therefore fails FR-047 and
+must remain inactive. Full evidence is in
+`RandD/2026-10-14-laya-memory-decision-outcome.md` and
+`research/laya_formation/runs/openclaw-100-20261014-selective-v3/`.
+
+The 10%-scale authentic-conversation database and transition dataset are public
+at immutable revisions, and the independently usable research checkpoint is
+public and anonymously checksum-verified:
+
+- `atmem/stateful-memory-database-10pct-v2@1060cd09f04ecdbea791ca67d3af0bc23b2776ea`
+- `atmem/stateful-memory-transitions-10pct-v2@92a851b7f1811d3403f8d2282ac1275e6f957922`
+- `atmem/laya-memory-decision-v2@3e5f8525b8e627cc1688dc3241cc750c99830f2c`
+
+The frozen sealed set contains 1,999 transitions after privacy exclusions.
+Fine-tuned RLCD improved fully-correct transitions from 367 (18.36%) to 1,475
+(73.79%), operation accuracy from 25.11% to 80.54%, and macro-F1 from 9.18% to
+23.37%. The paired improvement is +55.43 percentage points (95% bootstrap CI
+53.18–57.63). These are agreement results against machine weak supervision,
+not human ground truth. The test is heavily imbalanced: a constant
+`DO_NOT_STORE` control scores 91.10% aggregate; the tuned model produced 15
+false stores, calibration is underpowered, and no sealed supersede/forget cases
+exist. The frozen selector therefore returned `blocked`. The published model is
+research-only and must not be activated for automatic mutation or shipped as
+the `2.3.9b1` beta model.
+
+**Resume/dependency pointer**: remediate T065 class/authority coverage, then
+repeat T071–T072 with powered calibration, relational sealed cases and
+sequential trajectories. Only after the selector passes may T072A and the
+release portion of T073 proceed. T067–T068 were completed early
+because their V2 contracts are prerequisites for stateful corpus construction.
+Task-number order is not execution order. T069 may close only after its full
+entry-point/parity suite passes, independently of corpus progress. T069 is now
+closed: V2 active/failure signaling, force-path delegation, shadow activation,
+single semantic classification and deterministic compatibility pass 33 focused
+governance tests plus 105 broader memory/MCP/OpenClaw/AtBot tests.
+
+> **Supersession notice:** T008–T026 and T036–T044 describe historical
+> synthetic-dataset work. Their artifacts remain reproducibility evidence only.
+> They do not satisfy the current authentic-conversation dataset, model,
+> evaluation, publication or release gates. Current work starts at T055 and is
+> governed by `research/laya_memory_evidence/AUTHENTIC_DATA_POLICY.md`.
 
 ## Completed
 
@@ -310,7 +367,7 @@ artifacts, matched metrics, paired intervals, costs, failures, reproduction
 commands and the end-user quality/latency/cost trade-off. Formation, retrieval
 and combined comparisons against Jev are each explicitly inconclusive. T042A
 records the production claim as blocked because no separately frozen candidate
-run exists for both LoCoMo and LongMemEval/store-to-retrieval; unrelated prior
+run exists for the required LongMemEval/store-to-retrieval workflow; unrelated prior
 repository results are not reused. Report:
 `research/laya_formation/reports/evaluation-report-20261011.md`; binding receipt:
 `research/laya_formation/receipts/evaluation-report-20261011.json`.
@@ -345,6 +402,21 @@ includes the Laya setup and evidence pages. The private build produced 65 pages;
 all version, origin, claim, motif, brand and no-JavaScript gates passed, along
 with 29 documentation tests and 20 browser tests. The PR is deliberately
 unmerged and no Firebase deployment has occurred.
+
+T051–T054 close a post-review integration gap: an activated profile is now
+consulted by the ordinary CLI/API/MCP `form_episode` path and the Context
+Engine path. Both reload captured source and in-scope active candidates, run
+all five artifact-bound questions through the exact packer, and append complete
+decision/fallback receipts. Ordinary formation retains Laya output as bounded
+proposals beside its existing authoritative admission. Context Engine may also
+narrow rebuildable view membership, but only after AtMem validates a complete,
+consistent, source-grounded decision set; unresolved update/supersede targets
+remain review cases and exact source/raw-state coverage is preserved. Guided
+setup now offers deterministic, Laya, and Laya-with-escalation choices with
+matching `--profile` automation. Seven new integration tests cover both live
+entry points, inactive parity, five-question invocation, authority disposition,
+audit evidence and runtime fallback. The updated full suite passed 2,338 tests
+with 83 optional skips on 12 October 2026; website inventory validation passed.
 
 ## External execution status
 

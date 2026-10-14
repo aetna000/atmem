@@ -18,13 +18,13 @@ hosts and rented compute are execution environments, not authority stores.
 | Deleted/revoked candidate races | Reload immediately before disposition | deletion/revocation race tests |
 | Silent tokenizer truncation changes evidence | Shared packer preserves question/choices and emits explicit range loss | byte-parity and overflow tests |
 | Malicious or corrupt model artifact | Immutable revision, file inventory, Safetensors-only, digest and clean-load gate | download/scan/reload receipt |
-| Training-data poisoning or oracle error | Executable oracle, independent validators, group splits and stratified audits | audit and invariant reports |
+| Training-data poisoning or weak-label error | Immutable source provenance, isolated dual judges, multi-view self-review, adjudication, group/cluster splits and stratified audits | audit and invariant reports |
 | Sealed-test leakage | Labels inaccessible to training; firewalled post-freeze audit; correction invalidates the version | split/access tests and signed review |
 | Credential exfiltration | Environment/interactive secret only; no values in arguments/logs/artifacts; secret scan | planted-secret regression |
 | Remote benchmark disclosure | Explicit egress approval and dataset-license check; minimum authorized payload | no-egress preflight and request digest |
 | Moving Jev identity | Reject alias-only snapshots and response-model mismatch | pinned-model preflight |
-| Rental persistence/data remanence | Synthetic/public inputs only, off-instance checkpoint sync, verified recovery and teardown | compute receipt |
-| Misleading synthetic claim | Claim tier is machine validated and synthetic reports are visibly labeled | report-schema tests |
+| Rental persistence/data remanence | Only privacy-cleared source-licensed public authentic data, off-instance checkpoint sync, verified recovery and teardown | compute receipt |
+| Superseded artifact promoted as current | Manifest allowlist rejects old dataset/model revisions; release/card lint distinguishes historical diagnostics | manifest and claim-schema tests |
 
 ## Logging policy
 

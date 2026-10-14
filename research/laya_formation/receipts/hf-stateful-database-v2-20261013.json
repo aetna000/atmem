@@ -1,0 +1,42 @@
+{
+  "created_at": "2026-10-13T11:17:45.989121Z",
+  "format": "atmem-hugging-face-publication-receipt-v2",
+  "inventory": [
+    {
+      "path": "README.md",
+      "sha256": "sha256:3f0b9243f9f55afe0384d7fdfeeb29e0a38c65d8ec934e0f8b08ab12ec8ead8a",
+      "size": 1242
+    },
+    {
+      "path": "atmem.sqlite3",
+      "sha256": "sha256:c2b631c803541bb03b4e44ef6cbe98bdd628438c45f4fd0dd0cae3acca562846",
+      "size": 7618560
+    },
+    {
+      "path": "atmem.vectors.sqlite3",
+      "sha256": "sha256:06049572be0f57189d12dfde1919c0a03cce62f54eee0cd56e6ab62e57077704",
+      "size": 1703936
+    },
+    {
+      "path": "publication-manifest.json",
+      "sha256": "sha256:a28cdc689eb2d09613910451d8a7418681bbe22ffcfd4a8e4f9a481291117b46",
+      "size": 1061
+    },
+    {
+      "path": "snapshot-manifest.json",
+      "sha256": "sha256:9e8663b70ae3ffafc917c6f33f1e868d80ea9c0dd41afcc88ce7d0875816c5f5",
+      "size": 3224
+    },
+    {
+      "path": "verify.py",
+      "sha256": "sha256:53428d36e0bc76851d45fd4837101300444796b44a93906d9651c1bab8192a09",
+      "size": 487
+    }
+  ],
+  "private_stage_verified": true,
+  "public_anonymous_redownload_verified": true,
+  "repo_id": "atmem/stateful-memory-database-10pct-v2",
+  "repo_type": "dataset",
+  "revision": "1060cd09f04ecdbea791ca67d3af0bc23b2776ea",
+  "url": "https://huggingface.co/datasets/atmem/stateful-memory-database-10pct-v2"
+}

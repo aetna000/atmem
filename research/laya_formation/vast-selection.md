@@ -1,5 +1,10 @@
 # Vast.ai selection worksheet
 
+> **Historical worksheet:** this selection belongs to the superseded synthetic
+> run and its USD 20 ceiling is not reusable. The replacement authentic-data
+> run has a total USD 8 ceiling, excludes RunPod and requires a fresh live offer
+> comparison.
+
 **Queried:** 2026-10-11 (live on-demand marketplace)
 **State:** selection prepared; authentication required before rental
 **Spend so far:** USD 0
@@ -34,7 +39,8 @@ For a conservative eight-hour 5090 allowance and 100 GB disk:
 - storage: approximately `8 * (100 * 0.333 / 720) = USD 0.37`;
 - transfer: reserve `USD 0.25` for synthetic inputs and recovered artifacts;
 - reliability/retry reserve: one additional eight-hour attempt, `USD 4.36`;
-- expected worst planned total: approximately `USD 8.72`.
+- expected worst planned total: MUST be at or below `USD 8.00`; an offer or
+  runtime projection above that amount is ineligible.
 
 This is below the USD 20 hard ceiling. There is no automatic top-up. The first
 rental must run the representative smoke, prove fresh-process restart, and copy

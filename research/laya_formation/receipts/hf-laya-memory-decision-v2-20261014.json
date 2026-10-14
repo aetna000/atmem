@@ -1,0 +1,20 @@
+{
+  "format": "atmem-hugging-face-model-publication-receipt-v2",
+  "created_at": "2026-10-14T08:31:00+11:00",
+  "repo_id": "atmem/laya-memory-decision-v2",
+  "repo_type": "model",
+  "revision": "3e5f8525b8e627cc1688dc3241cc750c99830f2c",
+  "url": "https://huggingface.co/atmem/laya-memory-decision-v2",
+  "publication_status": "research-only",
+  "private_stage_verified": true,
+  "public_anonymous_redownload_verified": true,
+  "model": {
+    "path": "model.safetensors",
+    "size": 643835524,
+    "sha256": "sha256:17c949572ecd43917ed8d0413c3e2c68252432ef1034623e57caf61d7920ada1"
+  },
+  "export_digest": "448e72bb3bc59b778c677ea51b79b6825a895cbd5b5cc6fd24a50a6167f25e9b",
+  "training_run": "rlcd-410239-20261013T203312Z",
+  "production_selector_state": "blocked",
+  "release_eligible": false
+}

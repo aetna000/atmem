@@ -1,5 +1,5 @@
-\documentclass[11pt]{article}
-\usepackage[letterpaper,margin=0.88in]{geometry}
+\documentclass[10pt,twocolumn]{article}
+\usepackage[letterpaper,top=0.62in,bottom=0.68in,left=0.62in,right=0.62in,columnsep=0.27in]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern,microtype}
 \usepackage{amsmath,amssymb,amsthm}
@@ -19,32 +19,52 @@
 \newcommand{\code}[1]{\texttt{\small #1}}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 \setlength{\emergencystretch}{2em}
-\setlength{\parskip}{3pt}
+\setlength{\parskip}{2pt}
 \setlist{nosep,leftmargin=*}
 \pagestyle{fancy}\fancyhf{}
-\fancyhead[L]{\small\color{navy}Governed Evidence Assembly}
+\fancyhead[L]{\small\color{navy}AtMem 2.3.8 Governed Evidence Assembly}
 \fancyhead[R]{}
 \fancyfoot[C]{\thepage}
 \setlength{\headheight}{14pt}
-\title{\vspace{-1.1cm}\textbf{Obligation-Guided Evidence Assembly\\and Governed Agent Memory}\\[0.35em]
-\large Architecture Evolution, Comparative Development Evidence,\\and Record-to-Audit Integrity}
-\author{Javad Taghia\\\small AtMem.Ai Lab\\\small\url{https://github.com/aetna000/atmem}}
-\date{10 October 2026}
+\title{\vspace{-0.9cm}\textbf{Governed Evidence Assembly for Agent Memory}\\[0.25em]
+\large System Design, Failure Analysis, and Record Integrity in AtMem 2.3.8}
+\author{Javad Taghia\\\small AtMem.Ai Lab\\\small\url{https://atmem.ai}}
+\date{11 October 2026}
 \begin{document}
+\twocolumn[{%
+\begin{@twocolumnfalse}
 \maketitle
 \begin{abstract}
-Persistent agent memory must recover useful evidence, preserve its authority, and expose when that evidence is incomplete or has been altered. We describe the evolution from AtMem 2.3.7, a governed record and execution-continuity system, to the 2.3.8 source-linked context engine. The new design connects immutable source ranges, typed evidence views, query-derived obligations, independent candidate pools, bounded neighbourhood expansion, coverage-aware context packing, and canonical revalidation at delivery. A separate integrity improvement reconciles current memory records with commitments stored in the audit chain. On a frozen 23-question LongMemEval-V2 development sample, the candidate answers 5 questions, compared with 4 for a local AgentRunbook-R configuration and 1 for a local Mem0 OSS configuration. On 30 DolphinBench development tasks, it passes 9 tasks compared with Mem0's 7. These comparisons use constrained local configurations, including hash embeddings and Mem0 ingestion with inference disabled; they do not reproduce the strongest published competitor configurations. An independent AGMI-maintainer reproduction of AGMI 0.6.3 from the published PyPI wheel reports 8 of 9 storage attacks with the audit chain alone and 9 of 9 with a trusted external checkpoint. We give conditional propositions for evidence coverage, authority confinement, and rollback detection; none is a proof of empirical superiority. The contribution is an inspectable integration of retrieval and governance, supported by bounded comparative evidence, explicit failure accounting, and a reproducible path toward stronger evaluation.
+Persistent agent memory must recover useful evidence, preserve its authority, and expose when evidence is incomplete or has been altered. We present the system design of AtMem 2.3.8, which connects immutable source ranges, typed evidence views, query-derived obligations, independent candidate pools, bounded neighbourhood expansion, coverage-aware packing, and canonical revalidation at delivery. A separate integrity mechanism reconciles live memory records with commitments in the audit chain. The primary contribution is an inspectable contract between evidence assembly and governed delivery, not a new retrieval primitive or a claim of benchmark superiority. We analyze frozen formative traces to characterize failure modes. AtMem answered 5 of 23 LongMemEval-V2 questions and passed 9 of 30 DolphinBench tasks; an evaluator-verified-evidence condition answered 19 of 23 LongMem questions, exposing a large unresolved evidence-delivery gap. Because these subsets were repeatedly inspected during system iteration, the utility results cannot estimate generalization or support significance claims. Local Mem0 and AgentRunbook-R runs are retained only as configuration-specific diagnostics, not competitive rankings. In a separate third-party replication, the AGMI benchmark maintainer ran the published AtMem wheel and observed audit reports for 8 of 9 fixed storage-attack classes with the chain alone and 9 of 9 with an external checkpoint. This establishes conformance on those cases, not universal read-path enforcement. We provide source-to-claim mappings, exact artifact identities, explicit non-claims, standard conditional analyses used as design checks, and a frozen confirmation protocol whose outcomes are not reported here.
 \end{abstract}
 \noindent\textbf{Keywords:} agent memory; evidence coverage; context assembly; memory governance; audit integrity; LongMemEval-V2; DolphinBench.
+\vspace{0.8em}
+\end{@twocolumnfalse}
+}]
 
 \section{Introduction}
 An agent asked to send a project update needs more than a relevant memory. It needs the correct recipient, the applicable date, the actual project outcome, and any qualification that changes what it is permitted to say. A retrieved passage can mention the project yet omit the outcome. A stored address can be exact yet belong to another workspace. An audit log can be internally valid while the memory table it supposedly explains has been modified. These are different failure modes, and improving nearest-neighbour retrieval alone cannot resolve all of them.
 
 AtMem treats memory as a governed source of context. Its purpose is to preserve reusable evidence and control its delivery across agent hosts. The 2.3.7 release already included scope checks, lifecycle management, context receipts, optional semantic and graph retrieval, and execution continuity. Version 2.3.8 extends this foundation with a new evidence representation and assembly path. It asks not only which memories resemble a request, but which retained source ranges cover the request's declared information needs, whether they fit the context budget, and whether they are still eligible at delivery time.
 
-The practical motivation came from poor results. An early 14-question LongMemEval-V2 run returned an average of 21,539 memory-context tokens and answered no questions correctly. The corresponding no-retrieval arm also answered none. More available text had not produced useful evidence. Development subsequently focused on preserving exact state, retaining action neighbours, separating comparison sides, and avoiding context dominated by transport details or loosely related sources. These changes preceded the final positive development comparisons reported here \citep{history,results}.
+The practical motivation came from failure. An early 14-question LongMemEval-V2 run returned an average of 21,539 memory-context tokens and answered no questions correctly. The corresponding no-retrieval arm also answered none. More available text had not produced useful evidence. Subsequent engineering focused on preserving exact state, retaining action neighbours, separating comparison sides, and avoiding context dominated by transport details or loosely related sources. Because those changes were guided by inspected examples, later scores on the same partition are diagnostic observations rather than confirmation evidence \citep{history,results}.
 
-The paper makes three contributions. First, it documents an architectural transition using the actual 2.3.7 and 2.3.8 source tags, rather than describing the previous system as an ungoverned vector database. Second, it formalizes the connection between source evidence, query obligations, packing, and canonical delivery, while identifying where implementation heuristics fall short of the formal model. Third, it reports both utility and integrity evidence with exact configuration boundaries. The reported outcome is a higher observed score on two local development samples and improved detection in a pinned integrity suite. It is not a state-of-the-art result on either complete memory benchmark.
+The paper makes three contributions. First, it documents an architectural transition using the actual 2.3.7 and 2.3.8 source tags, rather than describing the previous system as an ungoverned vector database. Second, it specifies the contract connecting source evidence, query obligations, packing, authority, and final delivery, including where implementation heuristics fail to satisfy the idealized model. Third, it provides a reproducible failure analysis: formative utility traces, a separately replicated integrity conformance result, exact configuration boundaries, and a confirmation protocol that was frozen before those confirmation outcomes were observed. The paper does not claim state-of-the-art performance, a significant benchmark advantage, or completed causal ablations.
+
+\begin{table*}[t]
+\centering\small
+\begin{tabularx}{\linewidth}{p{.26\linewidth}YY}
+\toprule
+Claim class & Supported here & Explicitly not claimed\\\midrule
+System design & Source-linked obligations are connected to packing, authority checks, canonical reload and receipts in the inspected 2.3.8 source & That every host or legacy read path enforces the receipt\\
+Formative utility & Exact counts and failures on two inspected subsets & Generalization, significance, state of the art, or strongest-baseline ranking\\
+Integrity & Third-party AGMI-maintainer replication on nine fixed attack classes & Complete lifecycle coverage, universal blocking, or security certification\\
+Causal mechanism & Testable hypotheses and a frozen ablation matrix & An effect size for any individual component\\
+Confirmation & Pre-existing disjoint confirmation partitions and a frozen execution protocol & Confirmation outcomes; none are reported in this paper\\\bottomrule
+\end{tabularx}
+\caption{Submission claim boundary. The manuscript treats absent evidence as absent rather than converting planned work into a result.}
+\label{tab:claims}
+\end{table*}
 
 \paragraph{How to read this paper.}
 Sections~\ref{sec:architecture}--\ref{sec:mechanisms} explain the system from the architecture down to its data flow. Section~\ref{sec:novelty} identifies the contribution relative to prior systems. Section~\ref{sec:formal} states conditional guarantees. Sections~\ref{sec:methods}--\ref{sec:results} distinguish measurement from interpretation. The appendices map claims to code and list the evidence needed for independent reproduction.
@@ -60,7 +80,7 @@ Mem0 extracts, consolidates, and retrieves salient conversational information; i
 LongMemEval-V2 introduces AgentRunbook-R, which uses separate pools for raw observations, events, and strategy knowledge, and AgentRunbook-C, which gathers evidence through a coding agent over stored trajectories \citep{lme2}. Typed pools and knowledge-specific retrieval are consequently not novel by themselves. Our closest architectural comparison is with AgentRunbook-R: AtMem adds explicit evidence obligations and an independently checked delivery boundary around its own formation and packing pipeline. We do not evaluate AgentRunbook-C in the final comparison and infer no result for it.
 
 \paragraph{Evaluation of memory.}
-LoCoMo examines long conversational histories \citep{locomo}; LongMemEval separates indexing, retrieval, and reading and evaluates multiple memory abilities \citep{lme}. DolphinBench tests whether remembered information produces correct tool actions, rather than only verbal recall \citep{dolphin}. The present work uses development subsets of LongMemEval-V2 and DolphinBench. Historical LoCoMo and other AtMem results are not relabelled as 2.3.8 results. Work on long-context utilization also shows that the placement of useful information can affect performance \citep{lost}; that motivates attention to packing without proving our packing method is better.
+LoCoMo examines long conversational histories \citep{locomo}; LongMemEval separates indexing, retrieval, and reading and evaluates multiple memory abilities \citep{lme}. DolphinBench tests whether remembered information produces correct tool actions, rather than only verbal recall \citep{dolphin}. The present work uses formative subsets of LongMemEval-V2 and DolphinBench. Historical LoCoMo and other AtMem results are not relabelled as 2.3.8 results. Work on long-context utilization also shows that the placement of useful information can affect performance \citep{lost}; that motivates attention to packing without proving our packing method is better.
 
 \paragraph{Integrity and coverage.}
 Secure audit logging has long distinguished protected evidence from attacker-controlled storage \citep{audit}. AGMI operationalizes storage-edit tests against memory systems \citep{agmi}. Our contribution here is the specific record-to-audit repair and its reproduction, not a new cryptographic primitive. Likewise, weighted evidence coverage has a classical submodular formulation \citep{submodular}. We use that formulation to explain complementary selection, while making no claim that the complete implementation inherits a classical greedy approximation guarantee.
@@ -69,11 +89,11 @@ Secure audit logging has long distinguished protected evidence from attacker-con
 \label{sec:architecture}
 Figure~\ref{fig:architecture} gives the high-level comparison. The release tags resolve to \code{cb1cf0f} for 2.3.7 and \code{267c5b3} for 2.3.8. Architectural statements below are source-derived; benchmark rows retain their own candidate identities.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering\includegraphics[width=\linewidth]{figures/architecture.pdf}
 \caption{Architecture evolution. The upper path summarizes the 2.3.7 record/context interfaces; it does not depict every legacy retrieval path. The lower path adds an explicit source-to-obligation-to-context representation. Scope checks, generation validation, canonical reload, audit receipts, and the checkpoint API have predecessors in 2.3.7.}
 \label{fig:architecture}
-\end{figure}
+\end{figure*}
 
 \subsection{The 2.3.7 foundation}
 The legacy \code{recall()} path retrieves bounded active record candidates through full-text search and can add graph-nominated records. It ranks and blends candidates, filters exclusions, and returns a limited result set. Semantic indexes and other retrieval interfaces also existed. The architecture already separated derived search structures from canonical records.
@@ -87,7 +107,7 @@ Version 2.3.8 introduces immutable source episodes and parts, exact ranges withi
 
 The governance service is outside the selection engine. It authorizes a request, gives the engine a manifest, validates the returned IDs and receipt, reloads the exact selection, checks scope, lifecycle and generation, applies the final byte ceiling, and records an audit event. A sufficient selection whose required evidence does not survive packing is downgraded. In this service, non-sufficient status yields an empty model-context string, while the receipt explains the missing or conflicting evidence.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering\small
 \begin{tabularx}{\linewidth}{p{.17\linewidth}YY}
 \toprule
@@ -102,7 +122,7 @@ Hosts & Existing memory and continuity adapters & Reversible native Hermes setup
 \end{tabularx}
 \caption{Verified architectural delta. ``Addition'' does not imply the corresponding general concept was absent from the wider literature.}
 \label{tab:delta}
-\end{table}
+\end{table*}
 
 \subsection{Deployment profiles and trust boundaries}
 The implementation defines three profiles: \code{legacy-control} for the inherited path, \code{context-fast} for deterministic assembly, and \code{context-navigate} for model-assisted navigation. Navigation requires a model. These are implementation profiles, not three separately scored winners. The final utility results are attached to the recorded candidate arm, not automatically to every profile.
@@ -131,7 +151,7 @@ The planner is concrete heuristic software. It uses request clauses, lexical cue
 
 For addressed actions, the planner separates content needs from the delivery address. Otherwise an exact email address can dominate retrieval even when the needed outcome appears in a different source episode. Content facets remain nominations rather than new mandatory obligations. This distinction matters: adding every query expansion as a required fact would cause unnecessary blocking.
 
-No claim of general semantic understanding follows from this planner. The source includes explicit workflow patterns, including ServiceNow Problem/Incident distinctions in option-field packing. These are application-specific heuristics introduced during development. They consume request and source text, rather than evaluator answers at runtime, but still create development adaptation and must be evaluated on unseen environments.
+No claim of general semantic understanding follows from this planner. The source includes explicit workflow patterns, including ServiceNow Problem/Incident distinctions in option-field packing. These are application-specific heuristics introduced during system iteration. They consume request and source text, rather than evaluator answers at runtime, but still create adaptation risk and must be evaluated on unseen environments.
 
 \subsection{Independent pools and bounded evidence expansion}
 The V3 pool definitions include raw state, transition, fact, entity, procedure, rule, gotcha, and premise. The inspected default candidate budget permits 32 nominations per pool and 200 total units. Candidate limits are separate from the delivered-context budget. More nomination breadth does not imply permission to deliver more bytes.
@@ -147,11 +167,11 @@ The packer prioritizes required evidence, complementary field coverage, and sour
 
 One implementation helper greedily prefers new option-field coverage per byte. Another orders action source groups and preserves their contiguous ranges. The implementation is consequently more specific than a generic ``top-$k$'' selector and less general than a globally optimal constrained coverage solver. The service subsequently uses the IDs that actually survived packing. It does not reload excluded candidates and accidentally reintroduce text that was deliberately removed to satisfy the budget.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering\includegraphics[width=\linewidth]{figures/evidence_flow.pdf}
 \caption{A conceptual request-to-evidence path. Runtime obligations come from the request; evaluator requirement annotations are reserved for diagnostics. A host must explicitly enforce the resulting status for missing evidence to prevent model or tool invocation.}
 \label{fig:evidence}
-\end{figure}
+\end{figure*}
 
 \subsection{Sufficiency is a typed decision, not a calibrated probability}
 The actual status vocabulary includes \code{sufficient}, \code{partial}, \code{conflicted}, \code{contradicted}, \code{stale}, \code{not\_found\_within\_budget}, and \code{withheld\_by\_policy}. Required obligations are covered by matched evidence IDs, minus obligations withheld because their source episode is incomplete. Missing required IDs prevent a sufficient result.
@@ -165,11 +185,11 @@ The selection engine operates under an authorized manifest. The governance servi
 
 This protects the context boundary against an erroneous or overreaching selector under the stated authorization assumptions. It does not imply that a host will obey the receipt, that arbitrary tools cannot bypass the host adapter, or that earlier context already observed by a model can be erased. The Dolphin adapter's pre-action gate is one explicit consumer of the status. A different integration needs its own enforcement and observation tests.
 
-\section{What Is Novel, and What Explains the Observed Lead?}
+\section{Contribution Scope and Mechanism Hypotheses}
 \label{sec:novelty}
 The simplest description of the proposed contribution is \emph{evidence obligations connected to governed delivery}. It is an engineering composition with inspectable contracts. It is not a claim to have invented typed memory, source attribution, graph retrieval, or a hash chain.
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering\small
 \begin{tabularx}{\linewidth}{p{.16\linewidth}YYY}
 \toprule
@@ -182,7 +202,7 @@ What is measured here? & Both utility samples; AGMI reproduction & Both utility 
 \end{tabularx}
 \caption{Configuration-specific comparison, not an exhaustive product feature matrix. Absence from an adapter does not establish absence from a competitor's other products or deployments.}
 \label{tab:systems}
-\end{table}
+\end{table*}
 
 \paragraph{Novel integration relative to the earlier AtMem.}
 The old context boundary proved eligibility of a selected record set. The new path adds an explicit explanation of what information is needed, which source ranges represent it, which parts are missing, and whether that support survived the packing budget. It extends existing canonical revalidation to typed evidence and selection receipts. This allows downstream hosts to distinguish evidence absence from a retrieval score below a threshold.
@@ -191,17 +211,17 @@ The old context boundary proved eligibility of a selected record set. The new pa
 AgentRunbook-R is the closest baseline for typed evidence retrieval. Our distinction is not ``structured versus unstructured memory.'' It is the additional connection between obligations, formation losses, source-range packing, and independently validated delivery. The final advantage over its local configuration is one question. That result is too small to isolate the value of the additional contracts or to establish a ranking against its published configuration.
 
 \paragraph{Relation to Mem0.}
-The evaluated raw Mem0 arm returned remembered strings through its real search API. AtMem's path additionally organizes and packs source evidence around a request's explicit needs. This is a plausible explanation for greater utility on tasks needing several related facts. But the comparison also changes representation and retrieval policy while using a constrained embedding route. The measured lead cannot be attributed solely to a superior memory abstraction, and it says nothing about the best achievable Mem0 configuration.
+The evaluated raw Mem0 arm returned remembered strings through its real search API. AtMem's path additionally organizes and packs source evidence around a request's explicit needs. This is a plausible explanation for greater utility on tasks needing several related facts. But the comparison also changes representation and retrieval policy while using a constrained embedding route. The observed difference cannot be attributed solely to the memory abstraction, and it says nothing about the best achievable Mem0 configuration.
 
-\paragraph{Mechanism hypotheses, stated precisely.}
-The development work suggests three hypotheses: preserving exact values and workflow identity increases availability of answer-bearing evidence; bounded expansion recovers necessary conditions and outcomes; and packing complete episodes reduces reader omissions. Historical diagnoses and code changes support these as explanations worth testing. No completed factorial ablation assigns an independent effect size to any of them. Governance and integrity address reliability dimensions that were not isolated as causes of the clean-data accuracy gains.
+\paragraph{Mechanism hypotheses, stated without causal credit.}
+The formative traces suggest three hypotheses: preserving exact values and workflow identity increases availability of answer-bearing evidence; bounded expansion recovers necessary conditions and outcomes; and packing complete episodes reduces reader omissions. Historical diagnoses and code changes support these as explanations worth testing. No completed factorial ablation assigns an independent effect size to any of them. Governance and integrity address reliability dimensions that were not isolated as causes of the clean-data accuracy changes.
 
-\paragraph{The claim that can be defended.}
-AtMem's candidate obtained higher observed scores on these two development samples while exposing a richer evidence and governance contract. To claim a new generally superior algorithm would require independent prior-art review, stronger baselines, held-out evaluation, and component ablations. We present the integration and the reproducible research questions rather than translating a narrow score lead into a universal claim.
+\paragraph{The claim defended in this paper.}
+AtMem 2.3.8 implements a source-linked evidence-assembly contract that can expose named formation, coverage, packing and governance failures before delivery. The inspected traces demonstrate that the contract is executable and diagnostically useful, but they do not establish that the system is more accurate than another memory architecture. The local competitor rows are retained to document the engineering environment and to prevent selective omission of completed runs. They are not used to rank products or assign causal credit.
 
-\section{Formal Model and Conditional Guarantees}
+\section{Design Invariants and Conditional Analysis}
 \label{sec:formal}
-The following statements explain the architecture. They are mathematical results under explicit assumptions, not formal verification of the Python implementation or proofs of benchmark superiority.
+The following statements are design-review instruments. The coverage result is a standard submodular-coverage fact, the authority and packing statements follow from explicit preconditions, and the rollback argument is a standard indistinguishability observation. We do not present them as algorithmic novelty. Their purpose is to identify the assumptions that implementation and evaluation must test; they are not formal verification of the Python code or evidence of benchmark superiority.
 
 \subsection{Authorized evidence and coverage}
 Let $U$ be the retained evidence units, $q$ a request, and $A(q)\subseteq U$ the units allowed by the current authority, lifecycle and generation checks. Let $O(q)=\{o_1,\ldots,o_m\}$ be declared obligations. Define $g(u,o)\in\{0,1\}$ as a fixed evidence-grounding relation. For nonnegative weights $w_o$, define
@@ -257,17 +277,19 @@ An external checkpoint containing a later chain position and hash provides such 
 \section{Experimental Method and Configuration Audit}
 \label{sec:methods}
 \subsection{Evidence scope and provenance}
-This paper analyzes retained reports and source; it does not run new paid experiments. The compact reports are available in the repository, while the heavy raw histories and run archives are referenced on an external volume that was not mounted during manuscript preparation. Counts are therefore verified against the retained compact records, not independently recomputed from every raw trajectory.
+This paper analyzes retained reports, source, and the mounted public benchmark corpora; it does not run new paid experiments. The LongMemEval-V2 question corpus was verified against the recorded SHA-256 value. Large trajectories are not redistributed in the arXiv bundle because they remain governed by their upstream distribution and are reproducible from the pinned dataset revision. Historical aggregate counts are verified against retained compact records. The manuscript does not claim that every earlier provider response or grading trace was independently regenerated.
 
-The stable architecture is read at tag \code{v2.3.8}. The utility measurements were made on development candidates, including artifacts retaining the \code{2.3.8b6} version. The final Dolphin candidate is \code{b97d35e}. The vendor AGMI candidate wheel was built from \code{fdc63de}; the AGMI maintainer independently reproduced its outcomes from the published PyPI wheel, whose installed package matches tag \code{v2.3.8}. Relative to \code{fdc63de}, the package differs only in a compatibility comment and tested OpenClaw version string. A single stable tag was not rerun across all utility rows. We use ``2.3.8 candidate'' for utility and keep AGMI's published 2.3.8 identity explicit.
+The stable architecture is read at tag \code{v2.3.8}. The utility measurements were made on pre-release candidate builds, including artifacts retaining the \code{2.3.8b6} version. The final Dolphin candidate is \code{b97d35e}. The vendor AGMI candidate wheel was built from \code{fdc63de}; the external AGMI maintainer performed a third-party replication from the published PyPI wheel, whose installed package matches tag \code{v2.3.8}. Relative to \code{fdc63de}, the package differs only in a compatibility comment and tested OpenClaw version string. A single stable tag was not rerun across all utility rows. We use ``2.3.8 candidate'' for utility and keep AGMI's published 2.3.8 identity explicit.
 
 \subsection{Samples and metric definitions}
-LongMemEval-V2 uses 23 of 451 questions, or 5.10\%. The sample retains all 14 historical pilot IDs and adds nine IDs selected by a salted hash from the remaining development partition. It is thus a nested development sample, not a fresh random test. DolphinBench uses 30 of 600 tasks, exactly 5\%, across the three personas. Historical ingestion processed all 13,539 released sessions; the small task fraction does not mean only 5\% of the history was ingested.
+The formative LongMemEval-V2 subset uses 23 of 451 questions, or 5.10\%. It retains all 14 historical pilot IDs and adds nine IDs selected by a salted hash from the remaining development partition. It is therefore an inspected nested sample, not a fresh test. The formative DolphinBench subset uses 30 of 600 tasks, exactly 5\%, across three personas. Historical ingestion processed all 13,539 released sessions; the small task fraction does not mean only 5\% of the history was ingested.
+
+Crucially, both benchmark protocols had already reserved disjoint confirmation partitions before the reported iterations. LongMemEval-V2 reserves 318 question IDs under split digest \code{8e5d5e2d...}; DolphinBench reserves 582 task IDs under its frozen task split. No confirmation outcome is opened or reported here. The existence of those partitions improves the feasibility of a future test but does not retroactively validate the formative results.
 
 LongMem accuracy is $\sum_i y_i/n$, with failed system executions retained in $n$. Dolphin task success requires the task's complete grading outcome; individual check success is a separate metric. The 97 checks are clustered within 30 tasks and are not 97 independent experimental units. AGMI reports detection outcomes for nine fixed attack classes; these are conformance cases, not an estimated probability of detecting arbitrary attacks.
 
 \subsection{Versions, models and comparator boundaries}
-\begin{table}[t]
+\begin{table*}[t]
 \centering\small
 \begin{tabularx}{\linewidth}{p{.23\linewidth}Y}
 \toprule
@@ -284,7 +306,7 @@ AGMI & 0.6.3, commit \code{115493a41a7b41952f92ec07e1ea0932926e194f}\\\bottomrul
 \end{tabularx}
 \caption{Configuration card. ``Matched'' means shared case IDs and reader/judge route within the recorded comparison; it does not mean equal architecture, equal formation cost, or strongest possible settings for every system.}
 \label{tab:config}
-\end{table}
+\end{table*}
 
 The pinned Mem0 source declares version 2.1.0 in its \code{pyproject.toml} \citep{mem0source}. The historical AGMI Mem0 row is separately versioned 2.0.20 and must not be used to label the utility comparator. The utility adapters explicitly import from the pinned checkout, so the source revision is more informative than a possibly different installed distribution's metadata. A fresh environment lock is still needed for exact reproduction.
 
@@ -297,52 +319,53 @@ The final Dolphin reader route was Hugging Face inference providers; LongMem use
 \subsection{Controls and failure accounting}
 LongMem includes no-retrieval and evaluator-verified evidence controls. The latter supplies privileged supporting evidence to the same reader; it is a diagnostic upper reference for that controlled input, not a deployable competitor or a universal accuracy ceiling. Its success indicates opportunity to improve evidence delivery or use, but not which pipeline stage is solely responsible.
 
-Dolphin removal controls remove evaluator-selected evidence after formation, then require a named missing obligation, no model invocation, and zero tool calls. Restoration is a positive control: an agent that always blocks must not receive a safety success. The recorded removal result is 30/30 and restored gate opening is 30/30; paired removal-and-positive controls are 29/30, with one provider failure. These controls belong to their recorded development attempt and are not silently relabelled as a fresh final-candidate control run.
+Dolphin removal controls remove evaluator-selected evidence after formation, then require a named missing obligation, no model invocation, and zero tool calls. Restoration is a positive control: an agent that always blocks must not receive a safety success. The recorded removal result is 30/30 and restored gate opening is 30/30; paired removal-and-positive controls are 29/30, with one provider failure. These controls belong to their recorded formative run and are not silently relabelled as a fresh final-candidate control run.
 
-\section{Results and Their Statistical Meaning}
+\section{Failure Analysis on Inspected Partitions}
 \label{sec:results}
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering\includegraphics[width=\linewidth]{figures/results.pdf}
-\caption{Final reported development counts. Bars start at zero. No error bars are fabricated: samples were used for development and paired raw outcomes were not re-audited for this manuscript. Comparator configurations are constrained as described in Section~\ref{sec:methods}.}
+\caption{Formative utility diagnostics. The left panel exposes the gap between product-supplied and evaluator-verified evidence; the right reports absolute AtMem task outcomes. These inspected partitions do not estimate held-out generalization.}
 \label{fig:results}
-\end{figure}
+\end{figure*}
 
-\begin{table}[t]
+\begin{table*}[t]
 \centering
-\begin{tabular}{lrrr}
+\begin{tabularx}{\linewidth}{p{.32\linewidth}p{.19\linewidth}Y}
 \toprule
-Metric & AtMem candidate & AgentRunbook-R & Mem0 OSS\\\midrule
-LongMem correct / 23 & 5 (21.7\%) & 4 (17.4\%) & 1 (4.3\%)\\
-LongMem system failures & 6 & 4 & 1\\
-Dolphin tasks / 30 & 9 (30.0\%) & Not tested & 7 (23.3\%)\\
-Dolphin checks / 97 & 32 (33.0\%) & Not tested & 27 (27.8\%)\\
-Dolphin system failures & 0 & Not tested & 0\\\bottomrule
-\end{tabular}
-\caption{Utility evidence from the frozen report. Counts include all selected cases in the denominator. No AgentRunbook-R Dolphin result is available.}
+Metric & Observed count & Diagnostic interpretation\\\midrule
+LongMem correct & 5 / 23 (21.7\%) & Product context remains far below verified evidence\\
+LongMem system failures & 6 / 23 & Operational reliability is part of the measured deficit\\
+LongMem verified-evidence control & 19 / 23 (82.6\%) & Reader can often answer when supplied correct support\\
+Dolphin tasks passed & 9 / 30 (30.0\%) & 21 complete tasks remain unsolved\\
+Dolphin checks passed & 32 / 97 (33.0\%) & Checks are clustered, not independent units\\
+Dolphin system failures & 0 / 30 & No recorded terminal system failure in this run\\\bottomrule
+\end{tabularx}
+\caption{Absolute formative outcomes and controls. All selected cases, including failures, remain in the denominator.}
 \label{tab:results}
-\end{table}
+\end{table*}
 
-\subsection{Observed comparative advantage}
-AtMem answers four more LongMem questions than local Mem0, a 17.4 percentage-point difference, and one more than local AgentRunbook-R, a 4.3-point difference. The ratio to Mem0 is five, but a ratio with only one baseline success is unstable and unhelpful as a headline. On Dolphin, the difference is two tasks, or 6.7 points, and five individual checks, or 5.2 points. These are actual observed advantages; the limited scope does not erase them, but it determines their interpretation.
-
-Absolute performance is still weak. AtMem fails to answer 18 of 23 LongMem questions correctly and does not fully pass 21 of 30 Dolphin tasks. Six LongMem cases are classified as system failures: three reader finalization failures at the 20,000-token completion cap and three governance rejections described in the report as outside the frozen selection. That wording needs case-level reconciliation before allocating terminal blame. All six remain in the denominator; we do not silently remove them to increase accuracy.
+\subsection{Absolute performance and failure accounting}
+AtMem fails to answer 18 of 23 LongMem questions correctly and does not fully pass 21 of 30 Dolphin tasks. Six LongMem cases are classified as system failures: three reader finalization failures at the 20,000-token completion cap and three governance rejections described in the report as outside the frozen selection. That wording requires case-level reconciliation before allocating terminal blame. All six remain in the denominator; we do not remove them to increase accuracy.
 
 \subsection{Evidence versus no memory}
-The no-retrieval LongMem arm answers 1/23, while evaluator-verified evidence yields 19/23. AtMem product context obtains 5/23. Thus product context has four more observed successes than the no-memory control, and a 14-question aggregate gap remains to the verified-evidence condition. These are aggregate differences, not claims that exactly four specific cases were rescued or that precisely 14 retrieval errors occurred. Case overlaps and controlled stage ledgers are needed for that attribution.
+The no-retrieval LongMem arm answers 1/23, while evaluator-verified evidence yields 19/23. AtMem product context obtains 5/23. Thus product context has four more observed successes than the no-memory control, while a 14-question aggregate gap remains to the verified-evidence condition. The central empirical observation is the unresolved gap, not the four-case increase. These are aggregate differences, not claims that exactly four specific cases were rescued or that precisely 14 retrieval errors occurred. Case overlaps and controlled stage ledgers are needed for that attribution.
 
-\subsection{What can be inferred from small paired counts?}
+\subsection{Why the local competitor rows do not establish a ranking}
+The retained report also contains local diagnostic arms: AgentRunbook-R answers 4 of 23 LongMem questions, Mem0 OSS answers 1 of 23, and Mem0 passes 7 of 30 Dolphin tasks. These arms use constrained configurations, including hash embeddings and disabled Mem0 inference, and no AgentRunbook-R Dolphin run exists. They are disclosed for completeness in Appendix~\ref{app:exploratory}, not promoted as a product comparison.
+
 Let $a$ and $b$ be successes of two systems on the same $n$ cases and $h$ the number both solve. Discordant counts are $a-h$ and $b-h$. Without paired outcomes, their overlap is unknown, but is bounded by
 \begin{equation}
  \max(0,a+b-n)\leq h\leq\min(a,b).
 \end{equation}
 For the conventional two-sided exact McNemar test, enumeration of all feasible overlaps gives minimum possible $p$ values of $0.125$ for LongMem AtMem versus Mem0, $1.0$ for AtMem versus AgentRunbook-R, and $0.5$ for Dolphin AtMem versus Mem0. Therefore, even the most favourable overlap consistent with the published counts would not yield significance at $0.05$ under that test. The accompanying script reproduces this calculation without inventing paired data.
 
-This is a sensitivity calculation, not a formal inferential test of a tuned development sample. Repeated development inspection and constrained baseline configurations already prevent interpreting these counts as an unbiased generalization estimate. We omit population confidence intervals, paired bootstrap intervals, and speed/cost superiority claims because the available evidence does not justify them.
+This is a sensitivity calculation, not a formal inferential test. Repeated inspection and constrained baseline configurations prevent interpreting these counts as an unbiased generalization estimate. We omit population confidence intervals, paired bootstrap intervals, and speed/cost superiority claims because the available evidence does not justify them.
 
 \subsection{Engineering trajectory, not causal ablation}
 The early LongMem pilot's 0/14 and final 5/23 use different sample sizes and evolving code; they cannot be subtracted as a clean treatment effect. A seven-question diagnostic briefly reached 4/7 after changing evidence projection and reader limits, followed by 3/7 on another confirmation. The retained negative results show why a peak intermediate score should not be selected as the release score \citep{history}.
 
-For the fixed Dolphin development sample, the earliest retained AtMem result is 2/30 tasks and 15/97 checks. The final result is 9/30 and 32/97 following action-evidence neighbourhood and identity-routing work. This association motivates the mechanism hypotheses, but model/provider effects, repeated attempts, and multiple code changes remain confounded. A valid ablation would freeze the same artifact, formation checkpoint, reader, provider, budgets, and repetition policy while removing one mechanism at a time.
+For the fixed Dolphin formative subset, the earliest retained AtMem result is 2/30 tasks and 15/97 checks. The final result is 9/30 and 32/97 following action-evidence neighbourhood and identity-routing work. This association motivates the mechanism hypotheses, but model/provider effects, repeated attempts, and multiple code changes remain confounded. A valid ablation would freeze the same artifact, formation checkpoint, reader, provider, budgets, and repetition policy while removing one mechanism at a time.
 
 \section{AGMI: From an Intact Audit Chain to Verifiable Memory Records}
 \label{sec:agmi}
@@ -351,11 +374,11 @@ The pinned upstream 2.3.7 AGMI result reports none of nine attacks for the chain
 
 Creation and quarantine events can carry a whole-row integrity digest. Verification collects commitments, known record IDs, and legitimate lifecycle changes, compares eligible live rows to their commitments, reports missing committed rows, and identifies non-tombstoned records with no recognized creation event. Checking content alone would miss attacks on ownership, trust, ordering-related metadata, or lifecycle state; the explicit projection broadens the bound fields.
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering\includegraphics[width=\linewidth]{figures/integrity.pdf}
-\caption{AGMI attack-class outcomes. ``Reported'' means the audit path reports a problem, not that every ordinary read API independently rejects it. The 2.3.8 rows were independently reproduced by the AGMI maintainer from the published PyPI wheel on Linux and macOS; the 2.3.7 rows are the retained upstream baseline.}
+\caption{AGMI attack-class outcomes. ``Reported'' means the audit path reports a problem, not that every ordinary read API independently rejects it. The 2.3.8 rows were replicated by the external AGMI maintainer from the published PyPI wheel on Linux and macOS; the 2.3.7 rows are the retained upstream baseline.}
 \label{fig:integrity}
-\end{figure}
+\end{figure*}
 
 \subsection{Measured result and operational interpretation}
 The installed 2.3.8 wheel reports T1--T8 under both profiles: tampering, truncation, middle deletion, reordering, forging, cross-context replay, record rollback replay, and metadata tampering. T9, whole-store snapshot rollback, is accepted without an external checkpoint and reported with one. The result is 8/9 and 9/9 respectively. A historical Mem0 2.0.20 local-Qdrant row in the same pinned upstream scorecard accepted all nine; it is a separate integrity configuration, not the utility run reused as an integrity experiment.
@@ -376,16 +399,16 @@ The durable value proposition is an inspectable contract across source retention
 These properties offer a credible reason for AtMem to compete alongside established memory systems. They are architectural reasons to invest in the system, not a prediction that the product must succeed. A deployment must still demonstrate acceptable latency, storage overhead, recall, operational reliability and host support on its own workload.
 
 \subsection{Threats to validity}
-The central limitation is development adaptation. The LongMem sample contains earlier inspected questions, and the Dolphin sample was reused while adding rules and selecting candidate code. Runtime separation from evaluator labels is necessary but does not remove tuning to a benchmark's vocabulary or failure modes. Application-specific branches in the packer are especially important to disclose.
+The central limitation is formative adaptation. The LongMem subset contains earlier inspected questions, and the Dolphin subset was reused while adding rules and selecting candidate code. Runtime separation from evaluator labels is necessary but does not remove tuning to a benchmark's vocabulary or failure modes. Application-specific branches in the packer are especially important to disclose.
 
 Comparator strength is another limitation. Hash embeddings omit semantic capability expected from modern learned encoders. Mem0 inference is disabled in both utility comparisons. AgentRunbook-R uses a local configuration rather than its published strongest setup. Equal question IDs and reader routes do not establish equal optimization budgets, equal formation cost, or equal modality handling. The final report's missing optional Mem0 extras further narrow its interpretation.
 
 Operational failures confound quality. The LongMem system-failure counts differ substantially across arms. The final Dolphin run has no recorded system failures, but stochastic readers and reused comparator artifacts still require symmetric repeated trials. The observed task advantage is small, and checks within a task are dependent. No uncertainty band should disguise these facts.
 
-Formal claims also have limits. The planner is not complete, grounding is not a sound general theorem prover, and the source does not establish constant-time or complete cross-scope noninterference. The integrity theorem assumes a trusted commitment; lifecycle exemptions and legacy rows need additional qualification. A nine-case suite cannot justify a complete security claim. Finally, independent raw-result regeneration was not possible from the mounted evidence during manuscript preparation.
+Formal analysis also has limits. The planner is not complete, grounding is not a sound general theorem prover, and the source does not establish constant-time or complete cross-scope noninterference. The integrity argument assumes a trusted commitment; lifecycle exemptions and legacy rows need additional qualification. A nine-case suite cannot justify a complete security claim. Public corpora and compact receipts are available, but historical provider responses and all case-level grading traces were not independently regenerated for this manuscript.
 
-\subsection{Experiments needed next}
-A stronger submission should freeze untouched confirmation IDs, pin every installed artifact, and run all compared systems under both a resource-matched profile and a documented strong configuration. It should include a learned-embedding Mem0 arm with normal extraction, preserve the current raw arm as an ablation, and reproduce AgentRunbook-R with its recommended retrieval and formation settings. AgentRunbook-R's absent Dolphin row must remain absent until an actual adapter and run exist.
+\subsection{Confirmation experiments}
+The repository already contains disjoint confirmation partitions frozen before the formative runs. A confirmation study must keep those outcomes sealed until the AtMem artifact, prompts, reader, judge, budgets, repetitions, exclusion rules and analysis code are hashed. It should run every compared system under both a resource-matched profile and a documented strong configuration. The strong comparison should include a learned-embedding Mem0 arm with normal extraction, preserve the current raw arm as an ablation, and reproduce AgentRunbook-R with its recommended retrieval and formation settings. AgentRunbook-R's absent Dolphin row remains absent until an actual adapter and run exist.
 
 Component ablations should remove typed formation, obligation routing, source-neighbour expansion, episode grouping, and sufficiency gating separately. The endpoint should include evidence-set recall, exact-value retention, action success, false blocking, and reader finalization. Ablation results must retain errors and failed admissions. A repeated-trial paired analysis on held-out tasks can then test which components contribute beyond chance and which merely fit inspected examples.
 
@@ -394,10 +417,10 @@ Governance qualification should examine concurrent invalidation, cross-scope sel
 \section{Conclusion}
 AtMem 2.3.8 advances the project from governed record selection toward explicit evidence assembly: retain source ranges, form typed views, state the information required, gather complementary support, preserve it within the budget, and validate the final selection before delivery. The integration extends a substantial 2.3.7 governance foundation. Whole-row audit commitments separately address the memory-table gap exposed by AGMI.
 
-The candidate leads the recorded local Mem0 and AgentRunbook-R arms on a 23-question LongMem development sample and the local Mem0 arm on 30 Dolphin tasks. The leads are small or configuration-sensitive, absolute accuracy remains low, and the counts cannot support conventional paired significance. The constructive research claim is nevertheless concrete: useful memory and accountable memory can be developed within one architecture, with failures exposed through source, obligation, delivery and integrity evidence. Establishing broad competitive superiority remains an empirical task.
+The evidence supports a narrower, constructive claim: source-grounded assembly and memory governance can be connected through inspectable contracts that expose formation loss, missing obligations, packing loss, authority failure and record-integrity mismatch. The formative utility study reveals a large evidence-delivery gap rather than a solved benchmark, while the separately replicated AGMI cases establish limited integrity conformance. Generalization, comparative ranking and component effect sizes remain open empirical questions reserved for the frozen confirmation protocol.
 
 \paragraph{Disclosure and authorship.}
-This is an AtMem-maintainer technical draft. Text, source inspection, formal exposition, and figure preparation were assisted by an AI coding assistant. The reported benchmark measurements predate this manuscript; no new benchmark scores were generated for it. Author review and independent reproduction are required before presenting it as a finalized scientific submission. No independent peer review or arXiv acceptance is implied.
+Javad Taghia designed and implemented the system and is responsible for the claims in this preprint. Text organization, source inspection support, and figure preparation used an AI coding assistant; all quantitative claims are tied to cited artifacts rather than generated by the assistant. The utility measurements predate the manuscript and were produced by the AtMem project. The AGMI 2.3.8 rerun was performed by the external AGMI benchmark maintainer from the published wheel. This manuscript has not undergone peer review.
 
 \bibliographystyle{plainnat}
 \bibliography{references}
@@ -406,9 +429,10 @@ This is an AtMem-maintainer technical draft. Text, source inspection, formal exp
 \section{Reproducibility and Source-to-Claim Map}
 The supplied source package includes the LaTeX manuscript, bibliography, original vector figures and PNG exports, a figure-generation script, descriptive-statistics calculations, and compact repository evidence. Compile with \code{tectonic atmem-2.3.8.tex}; the README gives the exact commands. The bundle contains no API keys, private histories, or fabricated raw cases.
 
-\begin{longtable}{>{\raggedright\arraybackslash}p{.29\linewidth}>{\raggedright\arraybackslash}p{.65\linewidth}}
+\begin{table*}[t]
+\centering\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{.27\textwidth}Y}
 \toprule Claim / mechanism & Source location at tag \code{v2.3.8}, unless noted\\\midrule
-\endhead
 Legacy scoped serialization & \path{atmem/memory.py}, \code{prepare\_context\_v1}; also inspect tag \code{v2.3.7}\\
 Legacy audit-only comparison & \path{atmem/memory.py}, \code{verify} at \code{v2.3.7}\\
 Typed contracts and loss receipts & \path{atmem/context_engine/contracts.py} and \path{formation.py} in that directory\\
@@ -422,17 +446,20 @@ LongMem formation / embeddings & \path{research/production_benchmarks/prepare_lo
 Dolphin Mem0 configuration & \path{research/production_benchmarks/dolphinbench.py}, \code{Mem0DolphinAdapter}\\
 Frozen utility summary & \path{benchmarks/retrieval_quality/baselines/five-percent-results-20261010.json}\\
 Final Dolphin summary & \path{benchmarks/retrieval_quality/baselines/dolphinbench-final-b97d35e.json}\\
+LongMem confirmation split & \path{benchmarks/retrieval_quality/protocols/longmemeval-v2-question-split-v1.json}\\
+Dolphin confirmation split & \path{benchmarks/retrieval_quality/protocols/dolphinbench-task-split-v1.json}\\
 AGMI installed artifact & \path{benchmarks/retrieval_quality/baselines/agmi-2.3.8-20261010.json}\\\bottomrule
-\end{longtable}
+\end{tabularx}
+\caption{Source-to-claim map for independent inspection.}
+\end{table*}
 
 The benchmark summary's top-level candidate identity is not a per-arm environment lock. The paper therefore does not infer an exact LongMem source commit from the final Dolphin commit. Similarly, the Dolphin summary contains a candidate-artifact hash and the report lists a wheel hash; these are retained as named fields without assuming they are the same object. Independent reproduction needs the underlying per-arm installed-identity receipt, dependency lock, checkpoint digest, provider settings, prompts, case traces and grading outputs.
 
-\clearpage
 \section{Evidence Inventory and Identity Boundaries}
-\begin{small}
-\begin{longtable}{>{\raggedright\arraybackslash}p{.26\linewidth}>{\raggedright\arraybackslash}p{.68\linewidth}}
+\begin{table*}[t]
+\centering\scriptsize
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{.24\textwidth}Y}
 \toprule Artifact & Recorded identity\\\midrule
-\endhead
 Stable architecture commit & \path{267c5b3ac08e8cac26dfee13c6eac2842d4bb876}\\
 2.3.7 source commit & \path{cb1cf0fc6e3e12dd0a52140bc0eda4797d2e887b}\\
 Final Dolphin candidate & \path{b97d35e1df7ee6ef435928bafb8189ac99a1856d}\\
@@ -445,8 +472,9 @@ Final Dolphin Mem0 evaluation SHA-256 & \path{2283f4b6c2c3ded66005171abeed395c26
 AGMI vendor-candidate wheel SHA-256 & \path{61cf17963177bd7e9c6a5e9fe18a3be30356cc0b2d4d6d373b215a9fe12266dd}\\
 AGMI published PyPI wheel SHA-256 & \path{05ca2c579be1af55de1da056ae257062417831b2e8eb4f2fda2a6413ba3ee923}\\
 AGMI runner output SHA-256 & \path{5498bedba335d6c7f40846e17e13413e22d25c298675aa34536c80315f60cceb}\\\bottomrule
-\end{longtable}
-\end{small}
+\end{tabularx}
+\caption{Artifact identities and digests. Hashes identify retained objects; they do not prove correctness.}
+\end{table*}
 Hashes identify retained artifacts; they do not prove correctness of their contents. This paper checks the compact inventory and code correspondence but does not claim access to all hashed raw files.
 
 \section{Algorithmic Specification for Review}
@@ -470,9 +498,8 @@ prepare_context(request):
     return context, decision, receipt
 \end{lstlisting}
 
-\clearpage
 \section{An Ablation Matrix That Would Test the Novelty Claim}
-\begin{table}[!ht]
+\begin{table*}[!t]
 \centering\small
 \begin{tabularx}{\linewidth}{p{.25\linewidth}YY}
 \toprule Intervention & Hold fixed & Question answered\\\midrule
@@ -484,6 +511,46 @@ Disable sufficiency gate & Retrieved package and task & What is the utility vers
 Disable audit enforcement under attacks & Seeded store and attack sequence & Does integrity checking prevent unsafe memory use?\\\bottomrule
 \end{tabularx}
 \caption{Proposed experiments, not completed results. Use untouched tasks and symmetric repetitions before assigning causal credit.}
-\end{table}
+\end{table*}
 These experiments should report success, incorrect action, safe block, false block, finalization failure, provider failure, and policy rejection separately. Releasing these outcomes and the exact paired cases would make the architectural contribution testable rather than dependent on aggregate launch claims.
+
+\section{Exploratory Local Comparator Runs}
+\label{app:exploratory}
+The following rows are preserved because omitting completed runs would create a selective record. They are not headline results and do not define a product ranking. Mem0 uses deterministic hash embeddings with inference disabled; AgentRunbook-R uses the recorded local route; no AgentRunbook-R Dolphin result exists.
+
+\begin{table*}[!t]
+\centering\small
+\begin{tabular}{lrrr}
+\toprule
+Metric & AtMem candidate & AgentRunbook-R & Mem0 OSS\\\midrule
+LongMem correct / 23 & 5 (21.7\%) & 4 (17.4\%) & 1 (4.3\%)\\
+LongMem system failures & 6 & 4 & 1\\
+Dolphin tasks / 30 & 9 (30.0\%) & Not run & 7 (23.3\%)\\
+Dolphin checks / 97 & 32 (33.0\%) & Not run & 27 (27.8\%)\\
+Dolphin system failures & 0 & Not run & 0\\\bottomrule
+\end{tabular}
+\caption{Configuration-specific formative observations. These inspected samples and constrained arms cannot support generalization, significance, or strongest-system claims.}
+\end{table*}
+
+\section{Frozen Confirmation Protocol}
+\label{app:confirmation}
+This appendix records the protocol that must be executed before any comparative or generalization claim replaces the formative language in this paper. It reports no outcome.
+
+\paragraph{Partitions and exclusion.}
+Use all 318 LongMemEval-V2 IDs in the pre-existing confirmation partition of \code{longmemeval-v2-question-split-v1.json} and all 582 DolphinBench IDs in the pre-existing confirmation partition of \code{dolphinbench-task-split-v1.json}. Exclude no case after opening an outcome. Infrastructure failures remain in the primary denominator and are also reported by failure class. If feasibility requires a smaller first-stage sample, its IDs must be selected by a published salted hash before any question, answer, evidence, trace or score is inspected; the remaining IDs stay sealed.
+
+\paragraph{Frozen arms.}
+Evaluate (i) AtMem 2.3.8 at the exact stable wheel and profile, (ii) Mem0 OSS with its recommended learned embedding and normal extraction, (iii) AgentRunbook-R with its recommended formation and retrieval configuration, (iv) resource-matched versions of all three under a shared local budget, and (v) no-retrieval and evaluator-verified-evidence controls where the benchmark defines them. A missing adapter is a missing result, never a zero. Model, revision, provider, prompt, context ceiling, retries, timeouts, hardware, dependency lock and monetary budget are fixed before execution.
+
+\paragraph{Primary endpoints.}
+LongMem's primary endpoint is question correctness over confirmation IDs. Dolphin's primary endpoint is complete task pass over confirmation IDs. Secondary endpoints are evidence-set recall, exact-value retention, check success, incorrect action, safe block, false block, finalization failure, provider failure, policy rejection, latency, tokens and cost. Check-level Dolphin outcomes are clustered within tasks and are never treated as independent samples.
+
+\paragraph{Repetition and inference.}
+Run three reader repetitions per case using identical seeds where the provider exposes them and identical repetition counts otherwise. The unit of paired inference is the question or task. Compare primary endpoints with paired exact tests and report paired bootstrap intervals over cases. Control the family-wise error rate across preregistered primary system contrasts using Holm correction. Report absolute outcomes and discordant pairs, not only relative improvements. No tuning, prompt change, retry-rule change or component selection may use confirmation outcomes.
+
+\paragraph{Ablations and integrity.}
+Run the interventions in the preceding ablation matrix against the frozen AtMem artifact. Treat them as secondary analyses and report every attempted component removal. Separately rerun AGMI from a clean environment by a party unaffiliated with AtMem, covering fresh records, legacy records, legitimate lifecycle changes followed by tampering, stale external checkpoints and host enforcement. Audit detection and read blocking remain separate endpoints.
+
+\paragraph{Release rule.}
+Before opening outcomes, publish the selected IDs, configuration manifests, container or lockfile digests, prompts, analysis script and empty result schema. After execution, publish case-level stage ledgers and signed aggregate receipts. Any post-outcome repair begins a new iteration cycle and requires a still-unopened confirmation partition for subsequent claims.
 \end{document}

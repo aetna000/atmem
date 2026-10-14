@@ -1,14 +1,11 @@
-AtMem 2.3.8 technical manuscript package
-======================================
+AtMem 2.3.8 systems paper package
+=================================
 
 Contents
   atmem-2.3.8.tex       Main LaTeX manuscript
   atmem-2.3.8.pdf       PDF compiled from that exact source
   references.bib       Bibliography with primary-source links
   figures/            Four original figures, vector PDF and shareable PNG
-  x-article.txt        Short X Article draft (plain text)
-  x-post.txt           Launch post draft, under 280 characters
-  huggingface-article.txt  Short Hugging Face article draft (plain text)
   build_figures.py     Figure and paired-count sensitivity calculations
   derived-statistics.json  Exact McNemar overlap sensitivity outputs
   evidence/           Compact reports and code exported from the stable source
@@ -16,6 +13,9 @@ Contents
   snapshot_evidence.py Evidence export and displayed-count checks
   requirements.txt    Pinned Python dependencies used for figure generation
   package_artifacts.py  Rebuild source and complete-package ZIP files
+
+Historical "atmem-only" and social-post draft files are not part of this revised
+submission and are excluded from the generated package manifests.
 
 Build
   python -m venv .venv
@@ -34,22 +34,34 @@ No nonstandard conference template is required. Do not upload the full evidence
 directory as arXiv TeX input; the separate source ZIP contains the manuscript,
 bibliography, PDF figures and build instructions.
 
+Submission scope and claim boundaries
+  The manuscript is positioned as a systems-design and formative-evaluation
+  paper. Its primary contribution is the inspectable connection between source
+  evidence, explicit obligations, packing, authority checks, delivery receipts,
+  and record-to-audit reconciliation. It does not claim a new general memory
+  algorithm or a benchmark ranking.
+
 Evidence and claim boundaries
   Architecture: stable v2.3.8, commit 267c5b3, compared with v2.3.7 cb1cf0f.
-  Utility: historical candidate artifacts, including 2.3.8b6; not all measured
-  on the stable release commit. The final Dolphin candidate is b97d35e.
-  Integrity: vendor candidate at fdc63de and independent Linux/macOS reproduction from the published 2.3.8 PyPI wheel using unchanged AGMI 0.6.3.
-  The manuscript is a technical preprint draft, not peer reviewed or submitted.
+  Utility: formative historical candidate artifacts, including 2.3.8b6; not all
+  measured on the stable release commit. The final Dolphin candidate is b97d35e.
+  These inspected subsets diagnose failures and do not estimate generalization.
+  Integrity: vendor candidate at fdc63de and third-party Linux/macOS replication
+  by the AGMI maintainer from the published 2.3.8 PyPI wheel using unchanged
+  AGMI 0.6.3. This is conformance evidence, not a security certification.
+  The manuscript is a preprint and has not undergone peer review.
   No new benchmark runs or paid model calls were made for this manuscript.
   The external raw benchmark volume was unavailable; compact results and
   implementation were inspected. Raw trajectories were not independently
   regraded. Source hashes identify artifacts, not correctness proofs.
   Mem0 uses infer=False with hash embeddings. AgentRunbook-R uses the local
   hash embedding route. These are not strongest-configuration comparisons.
-  No broad superiority or significant benchmark win is claimed.
-  Theorems are conditional architecture statements, not verified code proofs.
+  No broad superiority, significant benchmark win, or completed component
+  ablation is claimed. Mathematical statements are standard conditional design
+  checks, not claimed theoretical novelty or verified code proofs.
+  Disjoint confirmation partitions already exist and remain outcome-sealed in
+  this manuscript. Appendix E freezes the execution and analysis requirements.
 
-Before submission, the author should confirm authorship details, audit raw
-artifact identities and paired case outcomes, and review the disclosed
-configuration, lifecycle-integrity and development-adaptation limitations.
-The article drafts are supplied for editing and have not been published.
+Before submission, the author should confirm affiliation details and review the
+disclosed configuration, lifecycle-integrity, formative-adaptation and artifact
+limits. The article drafts are supplied for editing and have not been published.

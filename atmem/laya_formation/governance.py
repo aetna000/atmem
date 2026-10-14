@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from time import perf_counter
 from typing import Any, Callable, Mapping, Protocol
 
@@ -12,8 +13,15 @@ from atmem.core.canonical import canonical_json, sha256_hex
 from .contracts import (
     CalibrationBinding, DecisionReceiptV1, FormationDecisionRequest,
     FormationDecisionResponse, QuestionDefinitionV1,
+    MODEL_HEAD_MAX_LEN, MODEL_MAX_LEN,
 )
-from .packing import AuthorizedRange, PackingAdapter, pack_authorized_ranges
+from .packing import (
+    AuthorizedCandidate,
+    AuthorizedRange,
+    PackingAdapter,
+    build_authorized_state_v2,
+    pack_authorized_ranges,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +32,8 @@ class SourceRangeSnapshot:
     end: int
     text: str
     digest: str
+    source_type: str = "user_message"
+    binding_assurance: str = "host_authenticated"
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +42,8 @@ class CandidateSnapshot:
     generation_id: str
     lifecycle: str
     digest: str
+    kind: str = "fact"
+    content: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,7 +134,7 @@ class Spec040AuthorityGateway:
         candidates: dict[str, CandidateSnapshot] = {}
         for identity in intent.requested_candidate_ids:
             row = self.store._conn.execute(
-                """SELECT generation_id, unit_id, lifecycle, compact_sha256
+                """SELECT generation_id, unit_id, kind, lifecycle, compact_json, compact_sha256
                      FROM context_evidence_units
                     WHERE generation_id=? AND unit_id=?""",
                 (intent.generation_id, identity),
@@ -132,6 +144,7 @@ class Spec040AuthorityGateway:
             candidates[identity] = CandidateSnapshot(
                 candidate_id=identity, generation_id=str(row["generation_id"]),
                 lifecycle=str(row["lifecycle"]), digest=str(row["compact_sha256"]),
+                kind=str(row["kind"]), content=json.loads(str(row["compact_json"])),
             )
         return AuthoritySnapshot(
             scope=scope, generation_id=str(generation["generation_id"]),
@@ -177,6 +190,41 @@ class FormationGovernanceAdapter:
         self.packer = packing_adapter or _BoundedCanonicalAdapter(tokenizer_revision)
         self.model_repo = model_repo
         self.model_revision = model_revision
+
+    @staticmethod
+    def authorized_state_v2(
+        snapshot: AuthoritySnapshot,
+        ranges: list[SourceRangeSnapshot],
+        candidates: list[CandidateSnapshot],
+    ) -> dict[str, Any]:
+        """Translate reloaded authority into the exact v2 train/serve schema."""
+
+        return build_authorized_state_v2(
+            scope={
+                "subject_id": snapshot.scope.subject_id,
+                "agent_id": snapshot.scope.agent_id,
+                "workspace_id": snapshot.scope.workspace_id,
+            },
+            ranges=[
+                AuthorizedRange(
+                    range_id=row.range_id, source_id=row.source_id,
+                    start=row.start, end=row.end, text=row.text,
+                    source_type=row.source_type,
+                    binding_assurance=row.binding_assurance,
+                )
+                for row in ranges
+            ],
+            candidates=[
+                AuthorizedCandidate(
+                    candidate_id=row.candidate_id,
+                    lifecycle=row.lifecycle,
+                    kind=row.kind,
+                    content=dict(row.content or {}),
+                    digest="sha256:" + sha256_hex(canonical_json(dict(row.content or {}))),
+                )
+                for row in candidates
+            ],
+        )
 
     def _authorized(self, intent: FormationDecisionIntent, snapshot: AuthoritySnapshot) -> tuple[list[SourceRangeSnapshot], list[CandidateSnapshot]]:
         if intent.scope != snapshot.scope or intent.generation_id != snapshot.generation_id:
@@ -230,7 +278,8 @@ class FormationGovernanceAdapter:
                 tokenizer_revision=intent.question.tokenizer_revision,
                 state=empty[0], state_digest="sha256:" + sha256_hex(empty[0]),
                 included_range_ids=(), lost_range_ids=(), head_tokens=0,
-                state_tokens=len(empty[1]), max_len=512, head_max_len=192,
+                state_tokens=len(empty[1]), max_len=MODEL_MAX_LEN,
+                head_max_len=MODEL_HEAD_MAX_LEN,
                 closing_tokens_reserved=1, total_tokens=len(empty[1]) + 1, overflow=False,
             )
             request = FormationDecisionRequest(
@@ -301,7 +350,14 @@ class FormationGovernanceAdapter:
                 raw = engine(request)
                 response = raw if isinstance(raw, FormationDecisionResponse) else FormationDecisionResponse.from_dict(raw)
                 if response.abstained:
-                    response, escalation_disposition = run_escalation(response.reason_code)
+                    if escalator is None:
+                        # Preserve the calibrated score vector and confidence in
+                        # the audit receipt. Replacing a genuine model abstention
+                        # with an empty synthetic response destroys the evidence
+                        # needed to diagnose calibration and distribution shift.
+                        escalation_disposition = "review_required"
+                    else:
+                        response, escalation_disposition = run_escalation(response.reason_code)
             if response.request_id != request.request_id:
                 raise ValueError("response request identity mismatch")
             response.validate(request.question)

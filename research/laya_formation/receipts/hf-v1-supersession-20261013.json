@@ -1,0 +1,19 @@
+{
+  "format": "atmem-huggingface-supersession-receipt-v1",
+  "verified_at": "2026-10-13T05:26:21Z",
+  "artifacts": [
+    {
+      "repo_id": "atmem/atmem-laya-formation-v1",
+      "repo_type": "dataset",
+      "revision": "733e7f8cd5b3ee7f9c33f451665cf2441f814006",
+      "public_read_verified": true
+    },
+    {
+      "repo_id": "atmem/atmem-laya-formation-model-v1",
+      "repo_type": "model",
+      "revision": "cbb0cd220f80f7100cfb7a1a8008b083822be7e2",
+      "public_read_verified": true
+    }
+  ],
+  "notice": "V1 synthetic artifacts are superseded research evidence and are not the authentic stateful V2 release artifacts."
+}

@@ -1189,3 +1189,14 @@ def test_retrieval_quality_summary_is_bounded_and_content_free(tmp_path):
         assert "I am 45 years old." not in str(summary)
     finally:
         memory.close()
+
+
+def test_oversized_incidental_before_after_prose_does_not_crash_formation():
+    text = "Before setup. " + ("long incidental prose " * 180) + " returned done."
+    proposals = form_typed_proposals(
+        text,
+        scope=SCOPE,
+        source_id="source-oversized-transition",
+        formation_id="formation-oversized-transition",
+    )
+    assert isinstance(proposals, tuple)

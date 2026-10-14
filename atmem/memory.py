@@ -159,6 +159,7 @@ class Memory:
         auto_vectors: bool = True,
         review_authorities: tuple[dict[str, Any], ...] = (),
         allow_insecure_typed_development: bool = False,
+        formation_router: Any | None = None,
     ) -> None:
         self.policy = policy or HouseholdPolicy.load(path)
         self.store = SQLiteStore(path, policy=self.policy)
@@ -171,6 +172,7 @@ class Memory:
         self._allow_insecure_typed_development = bool(
             allow_insecure_typed_development
         )
+        self._formation_router = formation_router
         self._review_authority_secret = secrets.token_bytes(32)
         self._issued_review_authorizations: set[str] = set()
         self._review_authorities: dict[str, dict[str, Any]] = {}
@@ -209,7 +211,80 @@ class Memory:
                 for subject_id in sorted(self._vector_dirty_subjects):
                     self.sync_default_vectors(subject_id)
         finally:
-            self.store.close()
+            try:
+                close = getattr(self._formation_router, "close", None)
+                if callable(close):
+                    close()
+            finally:
+                self.store.close()
+
+    def _live_formation_router(self) -> Any:
+        if self._formation_router is None:
+            from atmem.laya_formation.integration import FormationProfileRouter
+
+            self._formation_router = FormationProfileRouter()
+        return self._formation_router
+
+    def _audit_live_formation_intelligence(
+        self, *, request: Any, source_id: str, generation_id: str,
+        intelligence: dict[str, Any],
+    ) -> None:
+        decisions = list(intelligence.get("decisions") or ())
+        if intelligence.get("format") == "atmem-live-formation-transition-v2":
+            self.store.append_audit_event(
+                subject_id=request.scope.subject_id,
+                event_type="memory.formation_transition_recorded",
+                actor="formation:laya",
+                session_id=request.session_id,
+                turn_id=_turn_id(request.turn_id),
+                payload={
+                    "format": "atmem-live-formation-transition-audit-v2",
+                    "workspace_id": request.scope.workspace_id,
+                    "agent_id": request.scope.agent_id,
+                    "source_id": source_id,
+                    "generation_id": generation_id,
+                    "authority_result": intelligence.get("authority_result"),
+                    "reason_code": intelligence.get("reason_code"),
+                    "receipt": intelligence.get("receipt"),
+                    "question_receipts": intelligence.get("question_receipts", []),
+                },
+            )
+            return
+        if decisions:
+            for decision in decisions:
+                self.store.append_audit_event(
+                    subject_id=request.scope.subject_id,
+                    event_type="memory.formation_decision_recorded",
+                    actor="formation:laya",
+                    session_id=request.session_id,
+                    turn_id=_turn_id(request.turn_id),
+                    payload={
+                        "format": "atmem-live-formation-decision-audit-v1",
+                        "workspace_id": request.scope.workspace_id,
+                        "agent_id": request.scope.agent_id,
+                        "source_id": source_id,
+                        "generation_id": generation_id,
+                        "question_id": decision["question_id"],
+                        "receipt": decision["receipt"],
+                    },
+                )
+        elif intelligence.get("active"):
+            self.store.append_audit_event(
+                subject_id=request.scope.subject_id,
+                event_type="memory.formation_model_fallback",
+                actor="formation:laya",
+                session_id=request.session_id,
+                turn_id=_turn_id(request.turn_id),
+                payload={
+                    "format": "atmem-live-formation-fallback-audit-v1",
+                    "workspace_id": request.scope.workspace_id,
+                    "agent_id": request.scope.agent_id,
+                    "source_id": source_id,
+                    "generation_id": generation_id,
+                    "reason_code": str(intelligence.get("reason_code") or "unknown"),
+                    "deterministic_fallback_ready": True,
+                },
+            )
 
     def materialize_protected_media(
         self, scope: Any, media_id: str, destination: str | Path
@@ -743,6 +818,7 @@ class Memory:
         review_confidence: float = 0.6,
         review_policy: Any = None,
         _resolution_context: Any = None,
+        _semantic_authority: str = "deterministic",
     ) -> dict[str, Any]:
         """Validate one typed proposal and commit it, or route it to review.
 
@@ -772,7 +848,10 @@ class Memory:
                     "proposal idempotency key was reused with a different payload"
                 )
             return {**_extraction_outcome(existing), "replayed": True}
-        proposal = self._reconcile_typed_proposal(proposal)
+        if _semantic_authority not in {"deterministic", "laya-v2", "laya-v3"}:
+            raise ValueError("unsupported semantic authority")
+        if _semantic_authority == "deterministic":
+            proposal = self._reconcile_typed_proposal(proposal)
         scope = proposal.scope
         subject_id = scope.subject_id
         turn = _turn_id(turn_id)
@@ -785,6 +864,8 @@ class Memory:
         if context.subject_id != subject_id or context.scope != scope:
             raise ValueError("resolution context does not match proposal authority")
         if (
+            _semantic_authority == "deterministic"
+            and
             proposal.unit is None
             and proposal.action is ProposalAction.ADD
             and proposal.fact_key
@@ -1616,6 +1697,7 @@ class Memory:
             (previous or {}).get("media_references") or ()
         )
         protected_media: list[dict[str, Any]] = []
+        formation_intelligence: list[dict[str, Any]] = []
         stage_started_at = utc_now()
         started = time.monotonic()
         for part in request.parts:
@@ -1759,6 +1841,26 @@ class Memory:
                     },
                 )
             processed_bytes += part_bytes
+            from atmem.extract.context import build_resolution_context
+            part_resolution_context = build_resolution_context(
+                self.store, request.scope.subject_id, scope=request.scope, window=64
+            )
+            live_router = self._live_formation_router()
+            if hasattr(live_router, "decide_protocol_transition_v2"):
+                intelligence = live_router.decide_protocol_transition_v2(
+                    store=self.store,
+                    scope=request.scope,
+                    source_id=source_id,
+                    text=part.content,
+                    retrieved_records=tuple(part_resolution_context.records),
+                )
+            else:
+                # Compatibility for pre-V2 injected routers. Their output is
+                # audit-only and cannot become semantic authority.
+                intelligence = live_router.decide_protocol_source(
+                    store=self.store, scope=request.scope,
+                    source_id=source_id, text=part.content,
+                )
             proposals = form_typed_proposals(
                 part.content,
                 scope=request.scope,
@@ -1770,9 +1872,65 @@ class Memory:
                     request.source_observation_granularity == "sentence"
                 ),
             ) if request.retain_body else ()
-            from atmem.extract.context import build_resolution_context
-            part_resolution_context = build_resolution_context(
-                self.store, request.scope.subject_id, scope=request.scope, window=64
+            semantic_authority = "deterministic"
+            if (
+                intelligence.get("active")
+                and intelligence.get("format") == "atmem-live-formation-transition-v2"
+            ):
+                semantic_authority = "laya-v2"
+                if intelligence.get("authority_result") != "AUTHORIZED_PROPOSAL":
+                    proposals = ()
+                else:
+                    from atmem.laya_formation.formation_v2 import (
+                        FormationRulingV2, apply_ruling_to_proposals,
+                    )
+
+                    raw_ruling = dict(intelligence["ruling"])
+                    raw_ruling.pop("format", None)
+                    ruling = FormationRulingV2(**raw_ruling)
+                    try:
+                        proposals = apply_ruling_to_proposals(
+                            ruling, proposals,
+                            authorized_targets=tuple(
+                                intelligence.get("authorized_target_records") or ()
+                            ),
+                        )
+                    except ValueError as exc:
+                        proposals = ()
+                        intelligence = {
+                            **intelligence, "authority_result": "REVIEW",
+                            "reason_code": f"laya_receptor_{type(exc).__name__}",
+                        }
+            elif (
+                intelligence.get("active")
+                and intelligence.get("format") == "atmem-live-formation-transition-v3"
+            ):
+                semantic_authority = "laya-v3"
+                ruling = dict(intelligence.get("ruling") or {})
+                operation = ruling.get("operation")
+                if intelligence.get("authority_result") != "AUTHORIZED_PROPOSAL":
+                    proposals = ()
+                elif operation == "DO_NOT_STORE":
+                    proposals = ()
+                elif operation != "STORE_NEW":
+                    proposals = ()
+                    intelligence = {
+                        **intelligence, "authority_result": "REVIEW",
+                        "reason_code": "laya_v3_receptor_unsupported_operation",
+                    }
+            formation_intelligence.append({
+                "part_id": part.part_id,
+                "source_id": source_id,
+                **intelligence,
+            })
+            self._audit_live_formation_intelligence(
+                request=request,
+                source_id=source_id,
+                generation_id=(
+                    f"records:{request.scope.subject_id}:"
+                    f"{self.store.record_generation(request.scope.subject_id)}"
+                ),
+                intelligence=intelligence,
             )
             if not proposals:
                 unrepresented.append({
@@ -1800,7 +1958,11 @@ class Memory:
             for proposal in proposals:
                 pending_ids = pending_by_part.get(part.part_id, set())
                 if previous is None or part.part_id in source_pending_parts:
-                    counts[proposal.unit.kind.value] = counts.get(proposal.unit.kind.value, 0) + 1
+                    proposal_kind = (
+                        proposal.unit.kind.value if proposal.unit is not None
+                        else "atomic_fact"
+                    )
+                    counts[proposal_kind] = counts.get(proposal_kind, 0) + 1
                 elif pending_ids and proposal.proposal_id not in pending_ids:
                     continue
                 deadline_exhausted = (
@@ -1825,6 +1987,8 @@ class Memory:
                     and (
                         part.kind in {"state", "tool"}
                         or (
+                            proposal.unit is not None
+                            and
                             proposal.unit.kind.value == "environment_state"
                             and getattr(proposal.unit.payload, "entity", None) == "episode"
                             and getattr(proposal.unit.payload, "relation", None) == "observed text"
@@ -1846,6 +2010,7 @@ class Memory:
                     )
                 if (
                     history_import_principal is not None
+                    and proposal.unit is not None
                     and proposal.unit.kind.value == "environment_state"
                     and getattr(proposal.unit.payload, "entity", None)
                     == "source episode"
@@ -1866,6 +2031,7 @@ class Memory:
                     actor=f"formation:{request.scope.agent_id}",
                     review_policy=review_policy,
                     _resolution_context=part_resolution_context,
+                    _semantic_authority=semantic_authority,
                 )
                 if (
                     outcome["review_state"] == "pending_review"
@@ -1874,7 +2040,7 @@ class Memory:
                     from atmem.extract.review import ReviewService
 
                     scopes = ["history_import:review"]
-                    if proposal.unit.kind.value in {
+                    if proposal.unit is not None and proposal.unit.kind.value in {
                         "durable_rule", "failure_gotcha", "procedure"
                     }:
                         scopes.append("procedure:review")
@@ -1992,7 +2158,12 @@ class Memory:
             output_count=admitted,
             reason_codes=receipt.reason_codes,
         )
-        return {"receipt": stored_receipt, "outcomes": outcomes, "replayed": False}
+        return {
+            "receipt": stored_receipt,
+            "outcomes": outcomes,
+            "formation_intelligence": formation_intelligence,
+            "replayed": False,
+        }
 
     def form_context_episode(
         self, request: Any, *, profile_id: str = "context-fast",
@@ -2054,6 +2225,45 @@ class Memory:
             source_id, str(generation["generation_id"]),
             range_granularity="sentence",
         )
+        intelligence = self._live_formation_router().decide_source(
+            store=self.store,
+            source_id=source_id,
+            generation_id=str(generation["generation_id"]),
+        )
+        decision_rows = list(intelligence.get("decisions") or ())
+        if decision_rows:
+            authority_disposition = manager.apply_laya_decisions(
+                source_id,
+                str(generation["generation_id"]),
+                tuple(decision_rows),
+            )
+            intelligence["authority_disposition"] = authority_disposition
+            final_disposition = str(authority_disposition["status"])
+            for decision in decision_rows:
+                retained = dict(decision["receipt"])
+                retained.pop("audit_digest", None)
+                retained["final_disposition"] = final_disposition
+                retained["authorizes_mutation"] = bool(
+                    authority_disposition["authorizes_mutation"]
+                )
+                retained["audit_digest"] = "sha256:" + sha256_hex(
+                    canonical_json(retained)
+                )
+                decision["receipt"] = retained
+            intelligence["decisions"] = decision_rows
+            self._audit_live_formation_intelligence(
+                request=request,
+                source_id=source_id,
+                generation_id=str(generation["generation_id"]),
+                intelligence=intelligence,
+            )
+        elif intelligence.get("active"):
+            self._audit_live_formation_intelligence(
+                request=request,
+                source_id=source_id,
+                generation_id=str(generation["generation_id"]),
+                intelligence=intelligence,
+            )
         self.store.append_audit_event(
             subject_id=request.scope.subject_id,
             event_type="memory.history_import_authorized",
@@ -2071,6 +2281,7 @@ class Memory:
         )
         return {
             **receipt.to_dict(),
+            "formation_intelligence": intelligence,
             "source_events_observed": len(parts),
             "admitted": receipt.units_created,
             "withheld": 0,
@@ -3117,6 +3328,52 @@ class Memory:
         text = message if message is not None else fact
         if text is None:
             raise ValueError("remember() requires message or fact")
+        live_router = self._live_formation_router()
+        v2_selected = getattr(live_router, "uses_v2_semantic_authority", None)
+        if (
+            callable(v2_selected) and v2_selected()
+        ):
+            from atmem.contracts import AuthorityScope, EpisodeIngestRequest, EpisodePart
+
+            metadata = raw or {}
+            scope = AuthorityScope(
+                subject_id,
+                str(metadata.get("agent_id") or "legacy-remember"),
+                str(metadata.get("workspace_id") or "legacy-default"),
+            )
+            identity = sha256_hex(canonical_json([
+                "remember-v2", scope.to_dict(), session_id, _turn_id(turn_id), text,
+            ]))[:24]
+            formed = self.form_episode(EpisodeIngestRequest(
+                episode_id=f"remember-{identity}",
+                idempotency_key=f"remember-{identity}", scope=scope,
+                session_id=session_id, turn_id=_turn_id(turn_id),
+                parts=(EpisodePart(
+                    part_id=f"part-{identity}", ordinal=0, kind="text",
+                    source_type=source_type or "user_message", content=text,
+                    content_sha256=f"sha256:{sha256_hex(text)}",
+                ),),
+            ))
+            record_ids = [
+                str(record_id)
+                for outcome in formed.get("outcomes", ())
+                for record_id in outcome.get("record_ids", ())
+            ]
+            records = [
+                record for record_id in record_ids
+                if (record := self.store.get_record(subject_id, record_id)) is not None
+            ]
+            return {
+                "episode_id": formed["receipt"].get("formation_id"),
+                "records": records, "duplicate_ids": [
+                    str(record_id)
+                    for outcome in formed.get("outcomes", ())
+                    if outcome.get("review_state") == "noop"
+                    for record_id in outcome.get("record_ids", ())
+                ],
+                "formation_receipt": formed["receipt"],
+                "formation_intelligence": formed.get("formation_intelligence", []),
+            }
         turn = _turn_id(turn_id)
         source = source_type or classify_source(text)
         interpreted_candidate: CandidateFact | None = None

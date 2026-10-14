@@ -11,12 +11,17 @@ from atmem.laya_formation.contracts import (
     FormationDecisionRequest,
     FormationDecisionResponse,
     QuestionDefinitionV1,
+    SUPPORTED_QUESTIONS_DIGEST,
 )
 from atmem.laya_formation.packing import AuthorizedRange, PackedDecisionInput
+from atmem.laya_formation.contracts_v2 import (
+    validate_evaluation_request as validate_evaluation_request_v2,
+    validate_typed_response as validate_typed_response_v2,
+)
 
 
 MODEL_SHA = "f2ba3dd7679da45aabab4cac30e9a079baeb2dc98229ff3b1618e6a06fc6d683"
-QUESTION_SHA = "7a3cd0e13d99db02a1e53e51a63fad921e754ac5bbc2376b8a888c1033900f0e"
+QUESTION_SHA = SUPPORTED_QUESTIONS_DIGEST
 CALIBRATION_SHA = "b165d4b7d554cdbda5a889baf7059c3f43ba2774d68754e4fa3aeb63f5f0e067"
 
 
@@ -26,7 +31,7 @@ def question() -> QuestionDefinitionV1:
         instructions="Choose the only permitted memory formation operation.",
         choice_ids=("ADD", "UPDATE", "SUPERSEDE", "NOOP", "REJECT"),
         allow_abstain=True, tokenizer_revision="7b928d828b7b0e022f929d9bd2e44165aa270148",
-        max_len=512, head_max_len=192, closing_tokens_reserved=1,
+        max_len=1024, head_max_len=256, closing_tokens_reserved=1,
         overflow_policy="whole-authorized-ranges-or-review",
     )
 
@@ -47,7 +52,7 @@ def packing(*, overflow: bool = False) -> PackedDecisionInput:
         state='{"authorized_ranges":[]}', state_digest="sha256:" + "a" * 64,
         included_range_ids=() if overflow else ("range-1",),
         lost_range_ids=("range-1",) if overflow else (), head_tokens=51,
-        state_tokens=10, max_len=512, head_max_len=192,
+        state_tokens=10, max_len=1024, head_max_len=256,
         closing_tokens_reserved=1, total_tokens=62, overflow=overflow,
     )
 
@@ -116,3 +121,85 @@ def test_receipt_separates_proposal_from_authoritative_disposition() -> None:
     assert receipt.proposed_choice_ids == ("ADD",)
     assert receipt.final_disposition == "policy_denied"
     assert receipt.authorizes_mutation is False
+
+
+def _v2_request(question: dict) -> dict:
+    digest = "sha256:" + "a" * 64
+    return {
+        "format": "laya-evaluation-request-v2",
+        "schema_version": "2.0.0",
+        "request_id": "request-v2",
+        "formation_plan_version": "memory-formation-plan-v2",
+        "scope_id": "scope-v2",
+        "canonical_generation": 3,
+        "observation": {
+            "id": "observation-v2", "content": "Remember this preference.",
+            "speaker_role": "user", "source_digest": digest,
+        },
+        "retrieved_memories": [],
+        "retrieval_receipt": {
+            "retriever_revision": "retriever-v2", "requested_top_k": 8,
+            "returned_count": 0, "complete": True, "truncated": False,
+            "result_digest": digest,
+        },
+        "question": question,
+    }
+
+
+def test_v2_choice_confidence_is_independent_from_winning_probability() -> None:
+    question = {
+        "question_id": "formation.operation.v2", "type": "choice",
+        "instructions": "Choose one operation.",
+        "options": [
+            {"id": "STORE_NEW", "description": "Store distinct durable state."},
+            {"id": "DO_NOT_STORE", "description": "Do not persist it."},
+        ],
+    }
+    request = _v2_request(question)
+    validate_evaluation_request_v2(request)
+    validate_typed_response_v2({
+        "format": "laya-choice-response-v2", "schema_version": "2.0.0",
+        "request_id": "request-v2", "question_id": "formation.operation.v2",
+        "type": "choice", "choice": "STORE_NEW",
+        "probabilities": {"STORE_NEW": 0.91, "DO_NOT_STORE": 0.09},
+        "confidence": 0.73,
+    }, question, request_id="request-v2")
+
+
+def test_v2_noul_has_no_separate_confidence_field() -> None:
+    question = {
+        "question_id": "formation.is_durable.v2", "type": "noul",
+        "instructions": "Is the observation durable?",
+    }
+    response = {
+        "format": "laya-noul-response-v2", "schema_version": "2.0.0",
+        "request_id": "request-v2", "question_id": "formation.is_durable.v2",
+        "type": "noul", "noul": 0.8,
+    }
+    validate_typed_response_v2(response, question, request_id="request-v2")
+    with pytest.raises(ValueError, match="unknown fields"):
+        validate_typed_response_v2(
+            {**response, "confidence": 0.8}, question, request_id="request-v2",
+        )
+
+
+def test_v2_score_requires_zero_based_probabilities_and_exact_legend() -> None:
+    question = {
+        "question_id": "formation.future_utility.v2", "type": "score",
+        "instructions": "Rate future utility.",
+        "criteria": ["none", "moderate", "high"],
+    }
+    response = {
+        "format": "laya-score-response-v2", "schema_version": "2.0.0",
+        "request_id": "request-v2", "question_id": "formation.future_utility.v2",
+        "type": "score", "score": 1.7,
+        "probabilities": {"0": 0.1, "1": 0.1, "2": 0.8},
+        "confidence": 0.79,
+        "legend": {"0": "none", "1": "moderate", "2": "high"},
+    }
+    validate_typed_response_v2(response, question, request_id="request-v2")
+    with pytest.raises(ValueError, match="legend"):
+        validate_typed_response_v2(
+            {**response, "legend": {"0": "high", "1": "moderate", "2": "none"}},
+            question, request_id="request-v2",
+        )

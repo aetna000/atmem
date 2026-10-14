@@ -13,6 +13,11 @@ tags:
 
 # AtMem Laya Formation Dataset v1
 
+> **Superseded research artifact:** this fictional synthetic dataset is not the
+> Spec 041 training dataset and cannot be used to train or substantiate the
+> replacement authentic-conversation model. It remains available only for
+> historical reproducibility.
+
 This dataset contains synthetic-only, fictional memory-formation scenarios and
 finite typed decisions for the optional AtMem Laya formation profile. It contains
 no real user history, production memory, credentials, private conversations, or

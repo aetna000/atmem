@@ -1,0 +1,259 @@
+{
+  "base_model": {
+    "repo_id": "convaiinnovations/laya-multilingual",
+    "revision": "1720e3e3357cfe1e281542e223f8273b0890ca34"
+  },
+  "calibration": null,
+  "checkpoints": [
+    {
+      "epoch": 1,
+      "mean_loss": 0.5215392731166077,
+      "model_sha256": "9a0286ef313ca35e6636ad0b7440fdff9ce6c69a05babc454b18560bff13aa2e",
+      "path": "checkpoints/epoch-1"
+    },
+    {
+      "epoch": 2,
+      "mean_loss": 0.05274760864994642,
+      "model_sha256": "15ee8446d2b7120376163fa3cbb8ad7a1b1e73b229197442d907fa66df6ab519",
+      "path": "checkpoints/epoch-2"
+    },
+    {
+      "epoch": 3,
+      "mean_loss": 0.009078987927090556,
+      "model_sha256": "1bd8a8a5b3c52d948a6208b0ea666d1f1e08f86373265bee7f3d034b8bef4ff3",
+      "path": "checkpoints/epoch-3"
+    },
+    {
+      "epoch": 4,
+      "mean_loss": 0.0011128575854382073,
+      "model_sha256": "0894d39af9ab4826bf2d17c9d3c3cf163e7632b73383cf2a5d457ed4c2c975a8",
+      "path": "checkpoints/epoch-4"
+    }
+  ],
+  "code_revision": "932cae1ba059027c820786075093c97b2165129066ea28bcc3c26496ec8e8eb8",
+  "created_at": "2026-10-13T11:56:37.288917Z",
+  "dataset": {
+    "manifest_sha256": "2cb6aac781b07f6734bbbc4a465260850363c77093e2a79c7ded4c98de2c4730",
+    "repo_id": "atmem/stateful-memory-transitions-10pct-v2",
+    "revision": "sha256:932cae1ba059027c820786075093c97b2165129066ea28bcc3c26496ec8e8eb8",
+    "schema": "stateful-memory-transition-v2"
+  },
+  "environment": {
+    "huggingface-hub": "0.36.2",
+    "laya": "0.4.2",
+    "numpy": "2.1.2",
+    "safetensors": "0.8.0",
+    "torch": "2.5.1+cu124",
+    "transformers": "4.57.6"
+  },
+  "export_inventory": [
+    {
+      "path": "encoder/config.json",
+      "sha256": "4e77bc88b6a00321ac44b5773f6b3e2fd2b31cd9e33cbd5fa3aec39fff48709a",
+      "size": 1973
+    },
+    {
+      "path": "model.safetensors",
+      "sha256": "0894d39af9ab4826bf2d17c9d3c3cf163e7632b73383cf2a5d457ed4c2c975a8",
+      "size": 643835524
+    },
+    {
+      "path": "rl_agent_config.json",
+      "sha256": "25061739243b617ad88d1219ba6f8a9c86c5881ca28df024fa2d9b3b2fcc30c6",
+      "size": 472
+    },
+    {
+      "path": "tokenizer/special_tokens_map.json",
+      "sha256": "501906df38f65ffa6f7b77b8650448e1b95f2cc6eded074fec6213bf8c951be4",
+      "size": 1032
+    },
+    {
+      "path": "tokenizer/tokenizer.json",
+      "sha256": "dbba919c6e5e492bc22beb80abb64e6fcc7e8744dc696e8388b8c977767afa4b",
+      "size": 34363285
+    },
+    {
+      "path": "tokenizer/tokenizer_config.json",
+      "sha256": "fbde3483bdffa2d869c7e8d45950efd8f1389ca986b604a38a0cef0b79b2c889",
+      "size": 46493
+    }
+  ],
+  "format": "atmem-laya-training-run-v1",
+  "hardware": {
+    "device": "cuda",
+    "gpu_memory_bytes": 25295257600,
+    "gpu_name": "NVIDIA GeForce RTX 3090",
+    "peak_allocated_bytes": 7761466880,
+    "platform": "Linux-5.15.0-191-generic-x86_64-with-glibc2.35"
+  },
+  "hyperparameters": {
+    "amp": true,
+    "calib_frac": 0.1,
+    "calib_max": 400,
+    "calib_seed": 20260922,
+    "calibration_power": {
+      "counts": {
+        "formation.context_sufficient.v2": 499,
+        "formation.future_utility.v2": 21,
+        "formation.is_durable.v2": 476,
+        "formation.memory_class.v2": 21,
+        "formation.operation.v2": 21
+      },
+      "minimum_items_per_question": 100,
+      "sufficient": false,
+      "underpowered_questions": [
+        "formation.future_utility.v2",
+        "formation.memory_class.v2",
+        "formation.operation.v2"
+      ]
+    },
+    "encoder_lr": 2.5e-05,
+    "epochs": 4,
+    "eval_data": null,
+    "freeze_encoder": false,
+    "grad_accum": 8,
+    "grad_clip": 1.0,
+    "gradient_checkpointing": true,
+    "head_lr": 0.0001,
+    "head_max_len": 256,
+    "instructions": null,
+    "label_column": "label",
+    "label_smoothing": 0.0,
+    "log_every": 250,
+    "loss": "soft-ce",
+    "max_len": 1024,
+    "micro_batch": 8,
+    "min_abstain_n": 10,
+    "min_lr": 1e-06,
+    "option_layout": null,
+    "question_id": "label",
+    "research_only": true,
+    "rl_samples": 4,
+    "seed": 410239,
+    "shuffle_options": [],
+    "sigma_end": 0.1,
+    "sigma_start": 0.4,
+    "target_error": 0.1,
+    "text_column": "text",
+    "train_seconds": 1763.4079468530254,
+    "w_rps": 1.0,
+    "w_sph": 0.75,
+    "weight_decay": 0.01
+  },
+  "laya": {
+    "repo_id": "https://github.com/NandhaKishorM/laya",
+    "revision": "68804629e8ccd9d616d48a40e87de9fabbeae069"
+  },
+  "metrics": {
+    "base_validation": "base-validation-metrics.json",
+    "calibration": "calibration-metrics.json",
+    "validation": "validation-metrics.json"
+  },
+  "objective": "soft-ce",
+  "parent_run": null,
+  "questions_digest": "544cb959f7132366a17ab32e7ed1fe7395d0a8c73ca6a72a1e1dbb8391929b3f",
+  "reproducibility_tolerances": {
+    "cross_backend": {
+      "maximum_primary_aggregate_delta_points": 0.2,
+      "minimum_choice_agreement": 0.995
+    },
+    "same_backend": {
+      "maximum_normalized_score_delta": 0.0001,
+      "minimum_choice_agreement": 0.999
+    }
+  },
+  "run_id": "soft-ce-410239-20261013T112557Z",
+  "seeds": {
+    "calibration": 410239,
+    "cuda": 410239,
+    "python": 410239,
+    "torch": 410239
+  },
+  "split_digests": {
+    "calibration": "5c6333d65d69bc64fab0a8c94376d5688f061382effc4920a49768396aa17bc9",
+    "train": "4b35cbf21bfcde39916e024cca75c9c4ff5a39f60e19d2e095e2b6f3b1ef9ed2",
+    "validation": "b682d1a22be72d9e8ec96e878cabdf4c0bf809723227d3a30286205c8b2ada4a"
+  },
+  "training_sampling": {
+    "formation.context_sufficient.v2": {
+      "maximum_repeat": 8,
+      "original": {
+        "false": 66,
+        "true": 1930
+      },
+      "sampled": {
+        "false": 528,
+        "true": 1930
+      }
+    },
+    "formation.future_utility.v2": {
+      "maximum_repeat": 8,
+      "original": {
+        "1": 2,
+        "2": 12,
+        "3": 39,
+        "4": 23
+      },
+      "sampled": {
+        "1": 16,
+        "2": 39,
+        "3": 39,
+        "4": 39
+      }
+    },
+    "formation.is_durable.v2": {
+      "maximum_repeat": 8,
+      "original": {
+        "false": 1852,
+        "true": 78
+      },
+      "sampled": {
+        "false": 1852,
+        "true": 624
+      }
+    },
+    "formation.memory_class.v2": {
+      "maximum_repeat": 8,
+      "original": {
+        "commitment": 1,
+        "durable_fact": 28,
+        "preference": 46,
+        "procedure": 2,
+        "sensitive": 1
+      },
+      "sampled": {
+        "commitment": 8,
+        "durable_fact": 46,
+        "preference": 46,
+        "procedure": 16,
+        "sensitive": 8
+      }
+    },
+    "formation.operation.v2": {
+      "maximum_repeat": 8,
+      "original": {
+        "DUPLICATE": 2,
+        "STORE_NEW": 60,
+        "UPDATE_EXISTING": 16
+      },
+      "sampled": {
+        "DUPLICATE": 16,
+        "STORE_NEW": 60,
+        "UPDATE_EXISTING": 60
+      }
+    },
+    "formation.target.v2": {
+      "maximum_repeat": 8,
+      "original": {
+        "rec_337e0802877b4684be85aec619ce3535": 1,
+        "rec_66542a97d9184ad49da563bf78329d80": 1,
+        "rec_925ab7f9bac34b90b991626953a161f3": 1
+      },
+      "sampled": {
+        "rec_337e0802877b4684be85aec619ce3535": 1,
+        "rec_66542a97d9184ad49da563bf78329d80": 1,
+        "rec_925ab7f9bac34b90b991626953a161f3": 1
+      }
+    }
+  }
+}

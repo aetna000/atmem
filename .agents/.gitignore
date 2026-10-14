@@ -4,3 +4,5 @@
 !.gitignore
 !skills/
 !skills/**
+!plugins/
+!plugins/marketplace.json

@@ -123,8 +123,11 @@ quality, retrieval accuracy, scale, latency, throughput, or model advantage.
 
 Any experiment described as production-level MUST use a legitimate, documented
 evaluation corpus or an approved production-like corpus at a representative
-scale. The initial memory-retrieval track MUST include LoCoMo for realistic
-conversation memory, LongMemEval for long-history behavior, and BEAM for large
+scale. When a feature claims performance on authentic conversation, its primary
+confirmation set MUST consist of held-out human-origin conversations with
+documented provenance; generated-dialogue benchmarks, including LoCoMo, MUST
+NOT substitute for that confirmation set. LongMemEval MAY be reported as a
+separate long-history benchmark when applicable, and BEAM MUST be used for large
 workload and scheduling behavior where applicable. Each benchmark MUST publish
 its dataset/license reference, immutable version or commit, split and leakage
 controls, task definition, baseline configuration, resource limits, seed,
@@ -268,10 +271,9 @@ reports and release notes must use the production-level label only when the
 corpus, held-out, baseline, quality, systems, and reproducibility gates pass.
 
 **Migration impact**: Benchmark harnesses must add dataset manifests and result
-schemas without changing canonical memory or persisted user data. The first
-approved corpus track is LoCoMo, followed by LongMemEval and BEAM where their
-tasks match the claim. Dataset licenses and external-egress decisions must be
-recorded before live model evaluation.
+schemas without changing canonical memory or persisted user data. Dataset
+licenses and external-egress decisions must be recorded before live model
+evaluation.
 
 **Required gates**: Tests and CI MUST reject or visibly downgrade reports that
 are missing an immutable corpus reference, held-out split, leakage check,
@@ -279,4 +281,25 @@ apples-to-apples baseline, raw machine-readable results, or p50/p95 latency,
 throughput, error/refusal, and resource measurements. A synthetic-only result
 MUST never be rendered as production quality evidence.
 
-**Version**: 2.2.0 | **Ratified**: 2026-09-01 | **Last Amended**: 2026-09-19
+### Amendment 2.3 — Authentic-conversation confirmation
+
+**Reason**: Generated conversations can measure selected memory mechanics but
+cannot establish performance on authentic human conversation. LoCoMo therefore
+must not be a mandatory or substitutive source of evidence for an
+authentic-conversation model.
+
+**Compatibility impact**: Historical LoCoMo results remain benchmark-specific
+research results. They are not invalidated, but they cannot satisfy an
+authentic-conversation confirmation gate. Features may exclude LoCoMo entirely.
+
+**Migration impact**: New authentic-conversation studies must inventory source
+provenance, keep evaluation identities and semantic clusters disjoint from
+training, and state separately any results from generated-dialogue benchmarks.
+
+**Required gates**: A production-level authentic-conversation claim requires a
+frozen, held-out, human-origin confirmation corpus, license and provenance
+evidence, identity/conversation/semantic-cluster leakage checks, reproducible
+baselines, repeated paired measurements, raw results, and quality plus systems
+metrics. Absence of such a corpus blocks the claim, not artifact publication.
+
+**Version**: 2.3.0 | **Ratified**: 2026-09-01 | **Last Amended**: 2026-10-13

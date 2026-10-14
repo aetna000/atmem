@@ -71,6 +71,39 @@ def test_evidence_token_can_come_from_environment_without_argv(
     ) == "fixture-token"
 
 
+def test_formation_setup_accepts_explicit_noninteractive_profile(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import atmem.laya_formation.setup
+
+    class Manager:
+        def select_deterministic(self, *, confirmed):
+            assert confirmed is True
+            return {
+                "format": "atmem-laya-formation-profile-status-v1",
+                "configured": True,
+                "active": False,
+                "profile": "deterministic",
+                "configured_profile": "laya-formation-v2",
+                "model_revision": "revision",
+                "device": "cpu",
+                "calibration_state": "verified",
+                "fallback_ready": True,
+            }
+
+    monkeypatch.setattr(atmem.laya_formation.setup, "LayaProfileManager", Manager)
+    monkeypatch.setattr(
+        sys, "argv",
+        ["atmem", "formation", "setup", "--profile", "deterministic", "--yes", "--json"],
+    )
+
+    cli.main()
+
+    result = json.loads(capsys.readouterr().out)
+    assert result["selected_profile"] == "deterministic"
+    assert result["active"] is False
+
+
 def test_openclaw_upgrade_preserves_mode_and_reports_verified_bridge(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

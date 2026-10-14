@@ -1,0 +1,72 @@
+{
+  "created_at": "2026-10-13T11:15:25.964159Z",
+  "format": "atmem-hugging-face-publication-receipt-v2",
+  "inventory": [
+    {
+      "path": "README.md",
+      "sha256": "sha256:2dafbc0c021ffbd7dc594d407368c9ae0eb02d4ea26ef71d3c6dfa403622d071",
+      "size": 6282
+    },
+    {
+      "path": "data/calibration.parquet",
+      "sha256": "sha256:bdb5401b4accd73f4d4ca610ea8e2d6727c927273430d36d2079d4a733fb6456",
+      "size": 1074445
+    },
+    {
+      "path": "data/holdback.parquet",
+      "sha256": "sha256:0177f28e77f1381e84d74624f13aa0b981ffa07cfad8d7b7508b09a996c74616",
+      "size": 2187871
+    },
+    {
+      "path": "data/test.parquet",
+      "sha256": "sha256:c5da0963e1d30810265819d28a0d3b025dc2a8383e6e0e2017a975a295a77660",
+      "size": 3290141
+    },
+    {
+      "path": "data/train.parquet",
+      "sha256": "sha256:ffb65941b0d1c4091f4ec2bba3858766edd0d8237978506cfb7ba1acf5d4f1e4",
+      "size": 3564705
+    },
+    {
+      "path": "data/validation.parquet",
+      "sha256": "sha256:6851f8163817733f1bf6aa9dd7af1c370d7b0a23404aad20e23512032d912ac9",
+      "size": 972978
+    },
+    {
+      "path": "manifest.json",
+      "sha256": "sha256:2cb6aac781b07f6734bbbc4a465260850363c77093e2a79c7ded4c98de2c4730",
+      "size": 20867
+    },
+    {
+      "path": "records/decisions-calibration.jsonl",
+      "sha256": "sha256:5c6333d65d69bc64fab0a8c94376d5688f061382effc4920a49768396aa17bc9",
+      "size": 8468217
+    },
+    {
+      "path": "records/decisions-test.jsonl",
+      "sha256": "sha256:70eb735973beb26bf9a1b907efbed69a09eac3c900b3111a6064fa4e656f3229",
+      "size": 27532933
+    },
+    {
+      "path": "records/decisions-train.jsonl",
+      "sha256": "sha256:4b35cbf21bfcde39916e024cca75c9c4ff5a39f60e19d2e095e2b6f3b1ef9ed2",
+      "size": 28305040
+    },
+    {
+      "path": "records/decisions-validation.jsonl",
+      "sha256": "sha256:b682d1a22be72d9e8ec96e878cabdf4c0bf809723227d3a30286205c8b2ada4a",
+      "size": 8031301
+    },
+    {
+      "path": "records/privacy-exclusions.jsonl",
+      "sha256": "sha256:8b5b36f514654c17b8df7a25237fc74bc4675c8113c5fc17f778c588e4144f0a",
+      "size": 1395
+    }
+  ],
+  "private_stage_verified": true,
+  "public_anonymous_redownload_verified": true,
+  "repo_id": "atmem/stateful-memory-transitions-10pct-v2",
+  "repo_type": "dataset",
+  "revision": "92a851b7f1811d3403f8d2282ac1275e6f957922",
+  "url": "https://huggingface.co/datasets/atmem/stateful-memory-transitions-10pct-v2"
+}

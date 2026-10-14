@@ -49,3 +49,26 @@ def test_collapse_is_a_veto_even_when_accuracy_would_win(tmp_path) -> None:
     assert result["selected_objective"] == "soft-ce"
     failed = next(item for item in result["assessments"] if item["objective"] == "rlcd")
     assert "validation_collapse" in failed["vetoes"]
+
+
+def test_underpowered_runs_block_production_but_receive_research_nomination(tmp_path) -> None:
+    soft = _run(tmp_path, "soft-ce", accuracy=0.8)
+    rlcd = _run(tmp_path, "rlcd", accuracy=0.9)
+    for run in (soft, rlcd):
+        manifest_path = run / "training-manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["calibration"] = None
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    result = select([soft, rlcd])
+    assert result["state"] == "blocked"
+    assert result["selected_objective"] is None
+    assert result["research_nomination"] == {
+        "objective": "rlcd",
+        "run_id": "rlcd",
+        "production_eligible": False,
+        "basis": "non-sealed validation and calibration metrics only",
+    }
+    assert all(
+        "calibration_underpowered" in item["vetoes"]
+        for item in result["assessments"]
+    )

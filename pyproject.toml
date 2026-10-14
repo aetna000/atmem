@@ -47,6 +47,10 @@ dev = [
 ]
 semantic = [
   "sentence-transformers>=5.0.0,<6.0.0",
+  "torch>=2.2.2,<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+  "torch>=2.3,<3; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+  "transformers>=4.57.1,<5",
+  "huggingface-hub>=0.36,<1",
 ]
 semantic-accelerated = [
   "numpy>=1.26,<3",
@@ -59,7 +63,8 @@ mem0 = [
 ]
 laya-formation = [
   "laya==0.4.2",
-  "torch>=2.3,<3",
+  "torch>=2.2.2,<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+  "torch>=2.3,<3; sys_platform != 'darwin' or platform_machine != 'x86_64'",
   "transformers>=4.57.1,<5",
   "safetensors>=0.6.2,<1",
   "huggingface-hub>=0.36,<1",

@@ -1,5 +1,9 @@
 # Hugging Face Publication Contract
 
+> The repository IDs and revisions below are superseded historical artifacts.
+> They cannot satisfy the current authentic-conversation dataset/model gates.
+> Replacement publication targets remain unset until final-manifest validation.
+
 ## Frozen repositories
 
 - Dataset: `atmem/atmem-laya-formation-v1`, repository type `dataset`,

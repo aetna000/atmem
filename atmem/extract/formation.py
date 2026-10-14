@@ -19,6 +19,7 @@ from atmem.extract.models import (
     FailureGotchaPayload,
     MemoryClass,
     MAX_STRUCTURED_STATE_CHARS,
+    MAX_TEXT_FIELD_CHARS,
     MemoryUnit,
     MemoryUnitKind,
     Polarity,
@@ -402,7 +403,11 @@ def form_typed_proposals(
         after = observed.group(3).strip()
         entity = (observed.group(4) or action).strip()
         corroborated_after = (observed.group(5) or after).strip()
-        if after.casefold() == corroborated_after.casefold():
+        fields = (entity, before, action, after)
+        if (
+            after.casefold() == corroborated_after.casefold()
+            and all(field and len(field) <= MAX_TEXT_FIELD_CHARS for field in fields)
+        ):
             candidates.append((
                 MemoryUnitKind.STATE_TRANSITION,
                 StateTransitionPayload(entity, "state", before, action, after),
@@ -745,6 +750,26 @@ def _materialize_candidates(
             observed_at=observed_at,
             event_at=observed_at if kind is MemoryUnitKind.STATE_TRANSITION else None,
         )
+        proposal_fact = (
+            str(getattr(payload, "value"))
+            if use_payload_value_for_fact
+            or (
+                kind is MemoryUnitKind.ENVIRONMENT_STATE
+                and getattr(payload, "entity", None) == "episode"
+                and getattr(payload, "relation", None) == "observed text"
+            )
+            else text
+        )
+        fact_limit = (
+            MAX_STRUCTURED_STATE_CHARS
+            if kind is MemoryUnitKind.ENVIRONMENT_STATE else 2_000
+        )
+        if len(proposal_fact) > fact_limit:
+            # A permissive regex may match one field inside a very long source.
+            # Never turn that into an invalid whole-source fact. The caller's
+            # uncovered-range pass will preserve the exact source in bounded,
+            # evidence-linked observation chunks.
+            continue
         proposals.append(ExtractionProposal(
             proposal_id=f"proposal-{suffix}",
             idempotency_key=f"formation-{suffix}",
@@ -754,16 +779,7 @@ def _materialize_candidates(
             confidence=confidence,
             reason_codes=("deterministic_typed_formation",),
             evidence=(item_evidence,),
-            fact=(
-                str(getattr(payload, "value"))
-                if use_payload_value_for_fact
-                or (
-                    kind is MemoryUnitKind.ENVIRONMENT_STATE
-                    and getattr(payload, "entity", None) == "episode"
-                    and getattr(payload, "relation", None) == "observed text"
-                )
-                else text
-            ),
+            fact=proposal_fact,
             fact_key=fact_key,
             unit=unit,
         ))

@@ -18,6 +18,16 @@ def publish_private(
     if not token:
         raise RuntimeError("a Hugging Face token is required on stdin")
     artifact_manifest = json.loads((export_root / "artifact-manifest.json").read_text(encoding="utf-8"))
+    training_manifest = json.loads((export_root / "training-manifest.json").read_text(encoding="utf-8"))
+    dataset = training_manifest.get("dataset", {})
+    if (
+        dataset.get("repo_id") != "atmem/stateful-memory-transitions-10pct-v2"
+        or dataset.get("schema") != "stateful-memory-transition-v2"
+    ):
+        raise ValueError(
+            "model publication requires the finalized authentic-conversation "
+            "dataset lineage; synthetic and mixed/generated checkpoints are superseded"
+        )
     for item in artifact_manifest["inventory"]:
         path = export_root / item["path"]
         if path.stat().st_size != item["size"] or sha256_file(path) != item["sha256"]:
@@ -46,7 +56,7 @@ def publish_private(
     ])
     commit = api.create_commit(
         repo_id=repo_id, repo_type="model", operations=operations,
-        commit_message="Publish private verified AtMem Laya formation candidate",
+        commit_message="Publish private verified portable Laya memory-understanding candidate",
     )
     return {
         "repo_id": repo_id, "revision": commit.oid, "url": commit.commit_url,

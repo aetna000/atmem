@@ -8,6 +8,7 @@ import math
 from typing import Any, Callable, Mapping
 
 from .contracts import FormationDecisionRequest, FormationDecisionResponse
+from .contracts_v2 import validate_evaluation_request, validate_typed_response
 
 
 ALLOWED_ESCALATION_REASONS = frozenset({
@@ -167,3 +168,104 @@ class AtBotFormationEscalator:
             )
         except (KeyError, TypeError, ValueError, RuntimeError, OSError, TimeoutError):
             return _abstain(request, "escalation_provider_unavailable_or_invalid", "review_required")
+
+    def decide_typed(
+        self, request: Mapping[str, Any], response: Mapping[str, Any], reason: str,
+    ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+        """Escalate one low-confidence V2 Choice without granting authority."""
+
+        validate_evaluation_request(request)
+        question = dict(request["question"])
+        validate_typed_response(
+            response, question, request_id=str(request["request_id"]),
+        )
+        policy = self.policy
+        receipt: dict[str, Any] = {
+            "format": "atmem-typed-escalation-receipt-v2",
+            "request_id": request["request_id"], "reason": reason,
+            "used": False, "disposition": "review_required",
+        }
+        if question["type"] != "choice":
+            return None, {**receipt, "reason_code": "typed_escalation_choice_only"}
+        if (
+            not policy.enabled or policy.max_calls == 0
+            or reason not in policy.allowed_reasons
+        ):
+            return None, {**receipt, "reason_code": "escalation_disabled_or_disallowed"}
+        serialized = json.dumps(
+            {
+                "observation": request["observation"],
+                "retrieved_memories": request["retrieved_memories"],
+            }, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        )
+        estimated_tokens = max(1, len(serialized.encode("utf-8")) // 4)
+        if estimated_tokens > policy.max_input_tokens:
+            return None, {**receipt, "reason_code": "escalation_input_budget_exceeded"}
+        try:
+            value = self.client.propose_formation_decision(
+                payload={
+                    "format": "atmem-formation-escalation-request-v2",
+                    "request_id": request["request_id"], "reason": reason,
+                    "question": question,
+                    "authorized_input": json.loads(serialized),
+                },
+                max_input_tokens=policy.max_input_tokens,
+                max_output_tokens=policy.max_output_tokens,
+                timeout_seconds=policy.timeout_seconds,
+                remote_egress_allowed=policy.remote_egress_allowed,
+                max_cost_usd=policy.max_cost_usd,
+            )
+            if not isinstance(value, Mapping):
+                raise ValueError("AtBot returned no typed proposal")
+            if value.get("authority_decision") is not None or value.get("canonical_storage") is not False:
+                raise ValueError("AtBot crossed the non-authoritative proposal boundary")
+            if str(value.get("request_id")) != str(request["request_id"]):
+                raise ValueError("AtBot changed the escalation request identity")
+            option_ids = [str(item["id"]) for item in question["options"]]
+            selected = str(value.get("selected_choice_id") or "")
+            if selected not in option_ids:
+                raise ValueError("AtBot selected an option outside the bounded schema")
+            confidence = float(value.get("confidence"))
+            if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
+                raise ValueError("AtBot returned invalid confidence")
+            usage = value.get("usage")
+            if not isinstance(usage, Mapping):
+                raise ValueError("AtBot omitted escalation usage")
+            egress = str(value.get("egress_class") or "")
+            if egress not in {"local", "remote"}:
+                raise ValueError("AtBot omitted a valid egress class")
+            if egress == "remote" and not policy.remote_egress_allowed:
+                raise ValueError("remote escalation egress is denied")
+            input_tokens = int(usage.get("input_tokens"))
+            output_tokens = int(usage.get("output_tokens"))
+            cost = float(usage.get("cost_usd") or 0.0)
+            if (
+                input_tokens < 0 or input_tokens > policy.max_input_tokens
+                or output_tokens < 0 or output_tokens > policy.max_output_tokens
+                or not math.isfinite(cost) or cost < 0 or cost > policy.max_cost_usd
+            ):
+                raise ValueError("AtBot exceeded an escalation budget")
+            result = {
+                "format": "laya-choice-response-v2", "schema_version": "2.0.0",
+                "request_id": request["request_id"],
+                "question_id": question["question_id"], "type": "choice",
+                "choice": selected,
+                "probabilities": {item: float(item == selected) for item in option_ids},
+                "confidence": confidence,
+            }
+            validate_typed_response(
+                result, question, request_id=str(request["request_id"]),
+            )
+            return result, {
+                **receipt, "used": True, "disposition": "escalated_proposal",
+                "provider": str(value.get("provider") or ""),
+                "model": str(value.get("model") or ""),
+                "egress_class": egress,
+                "input_tokens": input_tokens, "output_tokens": output_tokens,
+                "cost_usd": cost,
+            }
+        except (KeyError, TypeError, ValueError, RuntimeError, OSError, TimeoutError) as exc:
+            return None, {
+                **receipt,
+                "reason_code": f"escalation_provider_{type(exc).__name__}",
+            }

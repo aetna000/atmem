@@ -64,7 +64,8 @@ read-only, exact-session trace-error leads, not causal conclusions. See the
 
 ```bash
 atmem formation preview --download
-atmem formation setup --download --device auto --yes
+atmem formation setup
+atmem formation setup --profile laya --download --device auto --yes
 atmem formation doctor
 atmem formation activate --yes
 atmem formation status
@@ -72,7 +73,9 @@ atmem formation rollback --yes
 ```
 
 Setup stages an inactive checksum-verified profile. Activation and rollback are
-separate confirmed changes. See [optional Laya formation](laya-formation.md).
+separate confirmed changes. Guided setup lets the user choose deterministic,
+Laya, or Laya with bounded escalation; `--profile` provides the matching
+noninteractive selection. See [optional Laya formation](laya-formation.md).
 
 ## Upgrade and recovery
 Follow the [2.3.9b1 release commands](../releases/v2.3.9b1.md) and

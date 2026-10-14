@@ -1,0 +1,16 @@
+{
+  "counts": {
+    "formation.context_sufficient.v2": 499,
+    "formation.future_utility.v2": 21,
+    "formation.is_durable.v2": 476,
+    "formation.memory_class.v2": 21,
+    "formation.operation.v2": 21
+  },
+  "minimum_items_per_question": 100,
+  "sufficient": false,
+  "underpowered_questions": [
+    "formation.future_utility.v2",
+    "formation.memory_class.v2",
+    "formation.operation.v2"
+  ]
+}
