@@ -40,6 +40,11 @@ graph, portability and cross-platform work.
 - One existing AtMem package, encrypted SQLite authority and application
   boundary; the Code extra adds SQLCipher and PQ bundle crypto, not model
   downloads or a second memory authority.
+- Concurrent database initialization is serialized with the existing portable
+  process/thread lock. SQLite `executescript` commits its current transaction;
+  an outer BEGIN alone did not serialize the multi-script schema upgrade. A
+  16-initializer regression and concurrent audit-writer test cover this shared
+  coding-host startup boundary.
 - Project identity is explicitly bound. Shared profiles cross agent IDs;
   private profiles include the agent ID. Clone rebinding is explicit. Turning
   a previously unversioned directory into a Git repository changes its binding

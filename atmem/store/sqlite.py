@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -5061,6 +5061,17 @@ class SQLiteStore:
         self._conn.execute("PRAGMA optimize")
 
     def _migrate(self) -> None:
+        # executescript commits SQLite's current transaction, so BEGIN alone
+        # cannot serialize this multi-script initializer. Concurrent coding
+        # hosts must not race schema inspection/ALTER or invalidate prepared
+        # schema reads on another initializer.
+        from atmem.locking import ProcessFileLock
+        guard = (nullcontext() if self.path == ":memory:" else
+                 ProcessFileLock(str(Path(self.path).resolve()) + ".schema.lock", blocking=True))
+        with guard:
+            self._migrate_serialized()
+
+    def _migrate_serialized(self) -> None:
         with self.transaction():
             self._conn.executescript("""
                 CREATE TABLE IF NOT EXISTS episodes (

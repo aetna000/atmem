@@ -43,6 +43,7 @@ def main() -> int:
     shutil.copy2(source / "tests/conftest.py", test_root / "conftest.py")
     for test in (source / "tests").glob("test_code*.py"):
         shutil.copy2(test, test_root / test.name)
+    shutil.copy2(source / "tests/test_store_transactions.py", test_root / "test_store_transactions.py")
     (test_root / "integration").mkdir()
     for test in (source / "tests/integration").glob("test_code*.py"):
         shutil.copy2(test, test_root / "integration" / test.name)
