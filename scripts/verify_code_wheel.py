@@ -27,7 +27,7 @@ def main() -> int:
     if len(candidates) != 1:
         raise ValueError("select exactly one AtMem wheel")
     wheel = candidates[0]
-    workspace = Path(tempfile.mkdtemp(prefix="atmem-code-wheel-"))
+    workspace = Path(tempfile.mkdtemp(prefix="atmem-code-wheel-")).resolve()
     environment_path = Path(args.venv).resolve() if args.venv else workspace / "venv"
     if not args.venv:
         venv.EnvBuilder(with_pip=True).create(environment_path)
@@ -50,8 +50,8 @@ def main() -> int:
     identity = json.loads(subprocess.run([str(python), "-c", "import atmem,platform,json; print(json.dumps({'module_path':atmem.__file__,'python':platform.python_version()}))"], cwd=workspace,
                                         env=environment, text=True, capture_output=True, check=True).stdout)
     imported = identity["module_path"]
-    if not Path(imported).resolve().is_relative_to(environment_path):
-        raise RuntimeError("verification imported AtMem outside the selected wheel environment")
+    if not Path(imported).resolve().is_relative_to(environment_path.resolve()):
+        raise RuntimeError(f"verification imported {imported} outside the selected wheel environment {environment_path}")
     junit = workspace / "results.xml"
     result = subprocess.run([str(python), "-m", "pytest", "-q", "tests", "--tb=short", "--junitxml=" + str(junit)],
                             cwd=workspace, env=environment, check=False)
