@@ -150,9 +150,10 @@ def test_context_engine_migrations_are_append_only_and_ordered() -> None:
     identifiers = [item[0] for item in MIGRATION_REGISTRY]
     assert identifiers == sorted(identifiers)
     assert "0405_context_coverage_disposition_index" in identifiers
-    assert identifiers[-4:] == [
+    assert identifiers[-5:] == [
         "0420_code_observation_queue",
         "0421_code_project_identity",
         "0422_code_installation_state",
         "0423_code_scope_subjects",
+        "0424_code_installation_restore",
     ]

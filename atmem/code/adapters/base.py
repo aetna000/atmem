@@ -118,13 +118,20 @@ class HostConfigTransaction:
     def restore(self) -> dict:
         if self.after_digest is None:
             raise RuntimeError("host configuration was not applied by this transaction")
-        current = snapshot_configuration(self.before.path)
-        if current.sha256 != self.after_digest:
-            raise RuntimeError("host configuration changed after activation; refusing overwrite")
-        if self.before.existed:
-            assert self.before.content is not None and self.before.mode is not None
-            _atomic_write(self.before.path, self.before.content, self.before.mode)
-        else:
-            self.before.path.unlink()
-        return {"restored": True, "path": str(self.before.path),
-                "restored_sha256": self.before.sha256}
+        return restore_configuration(self.before, self.after_digest)
+
+
+def restore_configuration(before: ConfigSnapshot, installed_digest: str) -> dict:
+    """Restore a persisted snapshot only if installed bytes still match."""
+    current = snapshot_configuration(before.path)
+    if current.sha256 != installed_digest:
+        raise RuntimeError("host configuration changed after activation; refusing overwrite")
+    if before.existed:
+        assert before.content is not None and before.mode is not None
+        if sha256(before.content).hexdigest() != before.sha256:
+            raise ValueError("stored host configuration snapshot is corrupt")
+        _atomic_write(before.path, before.content, before.mode)
+    else:
+        before.path.unlink()
+    return {"restored": True, "path": str(before.path),
+            "restored_sha256": before.sha256}

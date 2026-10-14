@@ -536,15 +536,18 @@ class SQLiteStore:
 
     def put_code_installation(
         self, *, subject_id: str, project_id: str, host: str, enabled: bool = False,
+        restore_json: str | None = None,
     ) -> None:
         with self.transaction():
             self._conn.execute(
                 """INSERT INTO code_installations
-                   (subject_id, project_id, host, enabled, updated_at)
-                   VALUES (?, ?, ?, ?, ?)
+                   (subject_id, project_id, host, enabled, restore_json, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?)
                    ON CONFLICT(subject_id, project_id, host)
-                   DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at""",
-                (subject_id, project_id, host, int(enabled), utc_now()),
+                   DO UPDATE SET enabled = excluded.enabled,
+                                 restore_json = excluded.restore_json,
+                                 updated_at = excluded.updated_at""",
+                (subject_id, project_id, host, int(enabled), restore_json, utc_now()),
             )
 
     def bind_code_project(
@@ -7441,6 +7444,10 @@ MIGRATION_REGISTRY: tuple[tuple[str, str], ...] = (
         CREATE INDEX IF NOT EXISTS idx_code_scope_subjects_owner
           ON code_scope_subjects(owner_subject_id, project_id, profile_id, agent_id);
         """,
+    ),
+    (
+        "0424_code_installation_restore",
+        "ALTER TABLE code_installations ADD COLUMN restore_json TEXT;",
     ),
 )
 

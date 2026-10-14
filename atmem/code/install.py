@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+import base64
+import json
 import shutil
 import subprocess
+from typing import Callable
 
+from atmem.code.adapters.base import ConfigSnapshot, HostAdapter, HostConfigTransaction, restore_configuration, snapshot_configuration
 from atmem.code.identity import CodeIdentity
 from atmem.store.sqlite import SQLiteStore
 
@@ -17,9 +21,12 @@ HOST_BINARIES = {
 
 
 class CodeInstall:
-    def __init__(self, store: SQLiteStore) -> None:
+    def __init__(
+        self, store: SQLiteStore, *, adapters: dict[str, Callable[[], HostAdapter]] | None = None,
+    ) -> None:
         self.store = store
         self.identity = CodeIdentity(store)
+        self.adapters = adapters or {}
 
     def doctor(self, host: str) -> dict:
         if host not in HOST_BINARIES:
@@ -56,6 +63,9 @@ class CodeInstall:
             project, subject_id=subject_id, profile_id=profile_id,
             agent_id=agent_id,
         )
+        existing = self.store.code_installation(subject_id, scope.project_id, host)
+        if existing is not None and existing["enabled"]:
+            raise RuntimeError("Code host is already enabled; setup cannot replace its restore record")
         self.store.put_code_installation(
             subject_id=subject_id, project_id=scope.project_id,
             host=host, enabled=False,
@@ -71,15 +81,60 @@ class CodeInstall:
             self.store.code_installation(subject_id, binding["project_id"], host)
             if binding else None
         )
+        readiness = self.doctor(host)
+        if installation and installation["enabled"]:
+            try:
+                restore = json.loads(installation["restore_json"])
+                current = snapshot_configuration(restore["path"])
+                intact = current.sha256 == restore["installed_sha256"]
+                readiness.update({
+                    "automatic_verified": bool(intact and restore.get("probe_evidence_sha256")),
+                    "mode": "automatic" if intact else "degraded",
+                    "reason": "installed probe and config intact" if intact else "host configuration changed",
+                })
+            except (OSError, ValueError, TypeError, KeyError):
+                readiness.update({"automatic_verified": False, "mode": "degraded",
+                                  "reason": "host restore record cannot be verified"})
         return {"configured": installation is not None,
                 "enabled": bool(installation and installation["enabled"]),
                 "project_id": binding["project_id"] if binding else None,
-                "host": self.doctor(host)}
+                "host": readiness}
 
     def enable(self, *, project: str | Path, subject_id: str, host: str) -> dict:
-        # An installed package or hook file is not evidence of model-visible
-        # delivery. Adapters must register a versioned, tested probe first.
-        raise RuntimeError(f"{host} automatic adapter is not yet verified; Code remains disabled")
+        from atmem.code.identity import repository_key
+
+        if self.store.path != ":memory:" and self.store.policy.state != "encrypted":
+            raise RuntimeError("persistent Code enable requires encrypted AtMem storage")
+        binding = self.store.code_project_binding(subject_id, repository_key(project))
+        if binding is None:
+            raise ValueError("project is not configured")
+        row = self.store.code_installation(subject_id, binding["project_id"], host)
+        if row is None:
+            raise ValueError("host is not configured for this project")
+        if row["enabled"]:
+            return self.status(project=project, subject_id=subject_id, host=host)
+        if host not in self.adapters:
+            raise RuntimeError(f"{host} automatic adapter is not yet verified; Code remains disabled")
+        transaction = HostConfigTransaction(self.adapters[host]())
+        result = transaction.apply()
+        before = transaction.before
+        restore = {
+            "format": "atmem-code-host-restore-v1",
+            "path": str(before.path), "existed": before.existed,
+            "content_base64": base64.b64encode(before.content or b"").decode("ascii"),
+            "mode": before.mode, "before_sha256": before.sha256,
+            "installed_sha256": transaction.after_digest,
+            "probe_evidence_sha256": result["probe_evidence_sha256"],
+        }
+        try:
+            self.store.put_code_installation(
+                subject_id=subject_id, project_id=binding["project_id"],
+                host=host, enabled=True, restore_json=json.dumps(restore, sort_keys=True),
+            )
+        except BaseException:
+            transaction.restore()
+            raise
+        return self.status(project=project, subject_id=subject_id, host=host)
 
     def disable(self, *, project: str | Path, subject_id: str, host: str) -> dict:
         from atmem.code.identity import repository_key
@@ -87,6 +142,20 @@ class CodeInstall:
         binding = self.store.code_project_binding(subject_id, repository_key(project))
         if binding is None:
             raise ValueError("project is not configured")
+        row = self.store.code_installation(subject_id, binding["project_id"], host)
+        if row is None:
+            raise ValueError("host is not configured for this project")
+        if row["enabled"]:
+            value = json.loads(row["restore_json"])
+            if value.get("format") != "atmem-code-host-restore-v1":
+                raise ValueError("invalid Code host restore record")
+            content = base64.b64decode(value["content_base64"], validate=True)
+            before = ConfigSnapshot(
+                Path(value["path"]), bool(value["existed"]),
+                content if value["existed"] else None,
+                value["mode"], value["before_sha256"],
+            )
+            restore_configuration(before, value["installed_sha256"])
         self.store.put_code_installation(
             subject_id=subject_id, project_id=binding["project_id"],
             host=host, enabled=False,
