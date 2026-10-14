@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import pytest
 
 from atmem import Memory
 from atmem.code.contracts import CodeObservation, CodeScope
@@ -63,5 +64,28 @@ def test_owner_reset_clears_derived_code_subject() -> None:
         assert memory.list(derived)
         memory.reset_subject(event.scope.subject_id)
         assert memory.list(derived) == []
+    finally:
+        memory.close()
+
+
+@pytest.mark.parametrize("text,kind", [
+    ("Our project uses SQLite for local persistence.", "project_fact"),
+    ("We decided to keep the database local to avoid network dependency.", "decision"),
+    ("We always run unit tests before committing.", "workflow"),
+    ("We fixed the deadlock by acquiring locks in stable order.", "failure_fix"),
+])
+def test_explicit_project_assertions_form_without_memory_tool_or_remember_keyword(text, kind):
+    memory = Memory(":memory:", auto_vectors=False)
+    try:
+        event = _event(text)
+        formation = CodeFormation(memory)
+        assert formation.candidate(event).memory_class == kind
+        assert formation.form(event)["formed"]
+        record = memory.list(memory_subject_id(event.scope))[0]
+        assert record["content"] == text
+        origin = memory.store.code_document(event.scope.subject_id, event.scope.project_id, "origin", record["id"])
+        assert origin["code_memory_class"] == kind and origin["code_agent_id"] == "codex"
+        assert formation.candidate(replace(event, kind="tool_outcome")) is None
+        assert formation.candidate(replace(event, content="Please " + text)) is None
     finally:
         memory.close()

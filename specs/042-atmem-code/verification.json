@@ -1,0 +1,122 @@
+{
+  "format": "atmem-code-qualification-v1",
+  "date": "2026-10-14",
+  "branch": "feature/atmem-code-2.3.9",
+  "baseline_commit": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+  "published_release": false,
+  "wheel_sha256": "21e3eb043a85912cd37afff79acf2bee5f0b282652c24b9c51c118bd81345e7b",
+  "installed_core": [
+    {
+      "format": "atmem-code-installed-wheel-verification-v1",
+      "platform": "macOS-26.5.2-x86_64-i386-64bit",
+      "python": "3.12.2",
+      "wheel": "atmem-2.3.8-py3-none-any.whl",
+      "wheel_sha256": "21e3eb043a85912cd37afff79acf2bee5f0b282652c24b9c51c118bd81345e7b",
+      "module_path": "/private/tmp/atmem-code-verify.TtTLOV/mac-wheel/lib/python3.12/site-packages/atmem/__init__.py",
+      "atmem_imported_from_selected_environment": true,
+      "pytest_returncode": 0,
+      "totals": {
+        "tests": 68,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 7
+      },
+      "artifacts": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-code-wheel-oqy63c5j",
+      "host_probes": "separately qualified; not run by the portable core gate"
+    },
+    {
+      "format": "atmem-code-installed-wheel-verification-v1",
+      "platform": "Linux-6.8.0-117-generic-aarch64-with-glibc2.41",
+      "python": "3.12.15",
+      "wheel": "atmem-2.3.8-py3-none-any.whl",
+      "wheel_sha256": "21e3eb043a85912cd37afff79acf2bee5f0b282652c24b9c51c118bd81345e7b",
+      "module_path": "/tmp/atmem-code-wheel-e_9lfjbq/venv/lib/python3.12/site-packages/atmem/__init__.py",
+      "atmem_imported_from_selected_environment": true,
+      "pytest_returncode": 0,
+      "totals": {
+        "tests": 68,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 7
+      },
+      "artifacts": "/tmp/atmem-code-wheel-i79zpzdo",
+      "host_probes": "separately qualified; not run by the portable core gate"
+    },
+    {
+      "format": "atmem-code-installed-wheel-verification-v1",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "python": "3.12.6",
+      "wheel": "atmem-2.3.8-py3-none-any.whl",
+      "wheel_sha256": "21e3eb043a85912cd37afff79acf2bee5f0b282652c24b9c51c118bd81345e7b",
+      "module_path": "C:\\Users\\user\\AppData\\Local\\Temp\\atmem-code-verify-20261014\\venv\\Lib\\site-packages\\atmem\\__init__.py",
+      "atmem_imported_from_selected_environment": true,
+      "pytest_returncode": 0,
+      "totals": {
+        "tests": 68,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 7
+      },
+      "artifacts": "C:\\Users\\user\\AppData\\Local\\Temp\\atmem-code-wheel-awpah0c2",
+      "host_probes": "separately qualified; not run by the portable core gate"
+    }
+  ],
+  "skip_explanation": "Per platform: 61 passed; 7 intentionally skipped (six separately qualified installed-host cases and the opt-in interactive browser journey). Skips are not passes.",
+  "repository_suite": {
+    "state": "final run in progress",
+    "previous_completed": {
+      "passed": 2302,
+      "skipped": 89,
+      "failures": 0
+    },
+    "host_probes_disabled": true
+  },
+  "installed_host_probes": {
+    "state": "final run in progress",
+    "claude_version": "2.1.281",
+    "codex_version": "0.162.1",
+    "muse_version": "1.4.7-R6101.1",
+    "muse_probe_result": "two explicit expected failures; offline startup timeout and Meta-protocol endpoint received zero requests"
+  },
+  "browser": {
+    "state": "final run in progress",
+    "previous_completed": "one installed Chrome journey passed without page errors; search/settings/CLI parity/exact clear"
+  },
+  "static_checks": {
+    "javascript_syntax": "passed",
+    "website_docs": "56 pages; version 2.3.8; inventory valid",
+    "git_diff_check": "passed",
+    "wheel_build": "passed"
+  },
+  "ci": {
+    "state": "pending source push",
+    "matrix": {
+      "os": [
+        "ubuntu-latest",
+        "macos-latest",
+        "windows-latest"
+      ],
+      "python": [
+        "3.10",
+        "3.13"
+      ]
+    }
+  },
+  "open_tasks": [
+    "T015",
+    "T017",
+    "T018",
+    "T019",
+    "T033",
+    "T042"
+  ],
+  "blockers": [
+    "B01",
+    "B02",
+    "B03",
+    "B04",
+    "B05",
+    "B06"
+  ],
+  "phase9": "deferred by owner; no benchmark or release run"
+}

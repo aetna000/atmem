@@ -12,10 +12,13 @@ from atmem.store.sqlite import SQLiteStore
 
 
 def _git(root: Path, *args: str) -> str | None:
-    completed = subprocess.run(
-        ["git", "-C", str(root), *args], capture_output=True, text=True,
-        check=False, timeout=5,
-    )
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root), *args], capture_output=True, text=True,
+            check=False, timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
     return completed.stdout.strip() if completed.returncode == 0 else None
 
 

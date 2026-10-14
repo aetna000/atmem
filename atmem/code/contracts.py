@@ -104,7 +104,8 @@ class CodeObservation:
         _timestamp(self.observed_at)
         _text("source_ref", self.source_ref, 1_024)
         if self.git_revision is not None:
-            _id("git_revision", self.git_revision)
+            if not isinstance(self.git_revision, str) or not re.fullmatch(r"[0-9a-f]{7,64}", self.git_revision):
+                _id("git_revision", self.git_revision)
         if not isinstance(self.scope, CodeScope):
             raise ValueError("scope must be a CodeScope")
 

@@ -1,6 +1,6 @@
 # AtMem Code implementation plan
 
-**Status:** High-level plan; dependency-ordered work is in [tasks.md](tasks.md), pending SpecKit analysis and qualification. The release candidate version is not selected.
+**Status:** Phases 0–8 implemented to the qualified subset in [implementation-status.md](implementation-status.md); remaining host and evidence gates are explicit blockers in [tasks.md](tasks.md). The release candidate version is not selected.
 **Inputs:** [spec.md](spec.md), [market-research.md](market-research.md), AtMem Constitution, published 2.3.8 source.
 
 ## Technical context

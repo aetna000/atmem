@@ -1131,6 +1131,7 @@ def test_dashboard_references_only_known_api_endpoints() -> None:
         "/api/tasks/lifecycle",
         "/api/memory/review",
         "/api/memory/search",
+        "/api/code",
         "/api/memory/query",
         "/api/memory/sync",
         "/api/memory/record",

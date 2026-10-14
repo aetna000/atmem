@@ -8,10 +8,22 @@ import json
 import shutil
 import subprocess
 from typing import Callable
+from functools import wraps
 
 from atmem.code.adapters.base import ConfigSnapshot, HostAdapter, HostConfigTransaction, restore_configuration, snapshot_configuration
 from atmem.code.identity import CodeIdentity
 from atmem.store.sqlite import SQLiteStore
+from atmem.locking import ProcessFileLock
+
+
+def _configuration_lock(method):
+    @wraps(method)
+    def wrapped(self, *args, **kwargs):
+        if self.store.path == ":memory:":
+            return method(self, *args, **kwargs)
+        with ProcessFileLock(Path(str(self.store.path) + ".code-install.lock")):
+            return method(self, *args, **kwargs)
+    return wrapped
 
 
 HOST_BINARIES = {
@@ -52,13 +64,21 @@ class CodeInstall:
         agent_id: str, host: str, apply: bool = False,
     ) -> dict:
         readiness = self.doctor(host)
+        paths = {"muse": ".muse/hooks.json", "claude": ".claude/settings.local.json",
+                 "grok": ".grok/hooks/atmem-code.json", "copilot": ".github/hooks/atmem-code.json",
+                 "codex": ".codex/hooks.json"}
+        planned = {"configuration_path": str(Path(project).expanduser().resolve() / paths[host]),
+                   "database_path": str(self.store.path), "host_configuration_changed_by_setup": False,
+                   "activation": "explicit enable with installed-host probe", "first_activation_needs_new_host_session": True,
+                   "capture": "user turns and bounded tool outcomes", "capture_coverage": "partial",
+                   "reconstruction_status": "not_reconstructable", "model_download": False}
         if self.store.path != ":memory:" and self.store.policy.state != "encrypted":
             return {"applied": False, "ready": False, "reason": "encrypted AtMem household required",
                     "next_action": f"atmem household init {self.store.path} --encrypted",
-                    "host": readiness}
+                    "host": readiness, "planned_changes": planned}
         if not apply:
             return {"applied": False, "ready": True, "host": readiness,
-                    "project": str(Path(project).resolve()), "enabled": False}
+                    "project": str(Path(project).resolve()), "enabled": False, "planned_changes": planned}
         scope = self.identity.resolve(
             project, subject_id=subject_id, profile_id=profile_id,
             agent_id=agent_id,
@@ -76,8 +96,14 @@ class CodeInstall:
             subject_id=subject_id, project_id=scope.project_id,
             host=host, enabled=False,
         )
+        self.store.put_code_document(subject_id, scope.project_id, "host-scope", host,
+                                      {"profile_id": profile_id, "agent_id": agent_id})
+        from atmem.extract.validation import screen_content
+        label = Path(project).resolve().name
+        self.store.put_code_document(subject_id, scope.project_id, "project-info", "info",
+                                      {"name": label if screen_content(label, trusted=True).admissible else "Project"})
         return {"applied": True, "ready": True, "host": readiness,
-                "scope": scope.to_dict(), "enabled": False}
+                "scope": scope.to_dict(), "enabled": False, "planned_changes": planned}
 
     def status(self, *, project: str | Path, subject_id: str, host: str) -> dict:
         from atmem.code.identity import repository_key
@@ -93,6 +119,8 @@ class CodeInstall:
                 restore = json.loads(installation["restore_json"])
                 current = snapshot_configuration(restore["path"])
                 intact = current.sha256 == restore["installed_sha256"]
+                current_version = self.adapters[host]().probe().version if host in self.adapters else readiness["version"]
+                intact = intact and (not restore.get("host_version") or current_version == restore["host_version"])
                 readiness.update({
                     "installed": True,
                     "automatic_verified": bool(installation["enabled"] and intact and restore.get("probe_evidence_sha256")),
@@ -103,10 +131,13 @@ class CodeInstall:
                 readiness.update({"automatic_verified": False, "mode": "degraded",
                                   "reason": "host restore record cannot be verified"})
         return {"configured": installation is not None,
+                "capture_coverage": "partial", "reconstruction_status": "not_reconstructable",
                 "enabled": bool(installation and installation["enabled"]),
                 "project_id": binding["project_id"] if binding else None,
+                "scope": self.store.code_document(subject_id, binding["project_id"], "host-scope", host) if binding else None,
                 "host": readiness}
 
+    @_configuration_lock
     def enable(self, *, project: str | Path, subject_id: str, host: str) -> dict:
         from atmem.code.identity import repository_key
 
@@ -127,13 +158,24 @@ class CodeInstall:
             current = snapshot_configuration(restore["path"])
             if current.sha256 != restore["installed_sha256"]:
                 raise RuntimeError("host configuration changed while paused; refusing activation")
-            self.store.set_code_installation_enabled(
-                subject_id=subject_id, project_id=binding["project_id"],
-                host=host, enabled=True,
-            )
+            current_version = self.adapters[host]().probe().version if host in self.adapters else self.doctor(host)["version"]
+            if restore.get("host_version") and current_version != restore["host_version"]:
+                raise RuntimeError("host version changed; reinstall and verify the adapter before activation")
+            with self.store.transaction():
+                latest = self.store.code_installation(subject_id, binding["project_id"], host)
+                if latest is None or latest["updated_at"] != row["updated_at"]:
+                    raise RuntimeError("Code activation was cancelled by a concurrent setting change")
+                self.store.set_code_installation_enabled(
+                    subject_id=subject_id, project_id=binding["project_id"],
+                    host=host, enabled=True,
+                )
             return self.status(project=project, subject_id=subject_id, host=host)
         if host not in self.adapters:
-            raise RuntimeError(f"{host} automatic adapter is not yet verified; Code remains disabled")
+            if self.store.path == ":memory:":
+                raise RuntimeError(f"{host} automatic adapter is not yet verified; Code remains disabled")
+            from atmem.code.adapters.registry import verified_adapter
+            adapter = verified_adapter(self.store, subject=subject_id, project=binding["project_id"], root=str(project), host=host)
+            self.adapters[host] = lambda: adapter
         transaction = HostConfigTransaction(self.adapters[host]())
         result = transaction.apply()
         before = transaction.before
@@ -144,12 +186,18 @@ class CodeInstall:
             "mode": before.mode, "before_sha256": before.sha256,
             "installed_sha256": transaction.after_digest,
             "probe_evidence_sha256": result["probe_evidence_sha256"],
+            "host_version": transaction.initial_probe.version,
+            "host_platform": transaction.initial_probe.platform,
         }
         try:
-            self.store.put_code_installation(
-                subject_id=subject_id, project_id=binding["project_id"],
-                host=host, enabled=True, restore_json=json.dumps(restore, sort_keys=True),
-            )
+            with self.store.transaction():
+                latest = self.store.code_installation(subject_id, binding["project_id"], host)
+                if latest is None or latest["updated_at"] != row["updated_at"]:
+                    raise RuntimeError("Code activation was cancelled by a concurrent setting change")
+                self.store.put_code_installation(
+                    subject_id=subject_id, project_id=binding["project_id"],
+                    host=host, enabled=True, restore_json=json.dumps(restore, sort_keys=True),
+                )
         except BaseException:
             transaction.restore()
             raise
@@ -172,6 +220,7 @@ class CodeInstall:
         )
         return self.status(project=project, subject_id=subject_id, host=host)
 
+    @_configuration_lock
     def uninstall(self, *, project: str | Path, subject_id: str, host: str) -> dict:
         """Explicitly restore prior host configuration after a pause."""
         from atmem.code.identity import repository_key
@@ -199,4 +248,7 @@ class CodeInstall:
             subject_id=subject_id, project_id=binding["project_id"],
             host=host,
         )
+        for item in self.store.code_document_items(subject_id, binding["project_id"], "enrollment"):
+            if item["value"].get("host") == host:
+                self.store.delete_code_documents(subject_id, binding["project_id"], "enrollment", item["document_id"])
         return self.status(project=project, subject_id=subject_id, host=host)

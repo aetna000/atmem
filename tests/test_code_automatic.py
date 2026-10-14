@@ -153,3 +153,37 @@ def test_disable_pauses_previously_queued_formation() -> None:
         assert runtime.process_pending()[0]["formed"] is True
     finally:
         memory.close()
+
+
+def test_secret_prompt_never_reaches_context_receipts_or_turn_cache() -> None:
+    memory = Memory(":memory:")
+    try:
+        scope = CodeScope("user-1", "project-1", "shared", "codex")
+        intake = _intake(memory, scope)
+        event = _turn(scope, "event-secret", "My API key is sk-test-abcdefghijklmnop1234567890")
+        result = CodeRuntime(memory, intake).on_user_turn(
+            CodeContextRequest("request-secret", "session-1", "event-secret", event.content, 2048, scope),
+            event, intake.sign(event),
+        )
+        assert result["capture"]["accepted"] is False
+        assert result["context"].content == ""
+        assert memory.store._conn.execute("SELECT COUNT(*) FROM code_documents").fetchone()[0] == 0
+        assert memory.store._conn.execute("SELECT COUNT(*) FROM code_observations").fetchone()[0] == 0
+    finally:
+        memory.close()
+
+
+def test_forged_turn_cannot_recall_or_route_when_capture_is_off(code_env, monkeypatch):
+    env = code_env
+    env.app.settings(env.project, {"auto_capture": False, "context_tags": ["docs"]})
+    intake = _intake(env.memory, env.scope)
+    event = _turn(env.scope, "event-forged", "Which formatter should I use?")
+    def unexpected(*_args, **_kwargs):
+        pytest.fail("unauthenticated turn reached recall or external routing")
+    monkeypatch.setattr("atmem.code.providers.CodeRouter.prepare", unexpected)
+    monkeypatch.setattr(env.memory, "recall", unexpected)
+    with pytest.raises(PermissionError, match="signature"):
+        CodeRuntime(env.memory, intake).on_user_turn(
+            CodeContextRequest("request-forged", "session-1", event.turn_id, event.content, 2048, env.scope),
+            event, "forged-signature")
+    assert env.memory.store.code_documents("local", env.project, "exposure") == []

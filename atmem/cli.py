@@ -1776,18 +1776,8 @@ or input errors.""",
     onboarding_parser.add_argument("--json", action="store_true")
 
     code_parser = subparsers.add_parser("code", help="Configure project-scoped coding memory")
-    code_commands = code_parser.add_subparsers(dest="code_command")
-    for name in ("setup", "status", "doctor", "enable", "disable", "uninstall"):
-        command_parser = code_commands.add_parser(name)
-        command_parser.add_argument("--project", default=".")
-        command_parser.add_argument("--db", default=DEFAULT_MCP_DB)
-        command_parser.add_argument("--subject", default="local")
-        command_parser.add_argument("--profile", default="shared")
-        command_parser.add_argument("--agent", default="codex")
-        command_parser.add_argument("--host", choices=("muse", "claude", "grok", "copilot", "codex"), default="codex")
-        command_parser.add_argument("--json", action="store_true")
-        if name == "setup":
-            command_parser.add_argument("--apply", action="store_true", help="Record disabled setup after preview")
+    from atmem.code.cli import add_commands
+    add_commands(code_parser, default_db=DEFAULT_MCP_DB)
 
     args = parser.parse_args()
 
@@ -2007,29 +1997,11 @@ or input errors.""",
         if args.code_command is None:
             code_parser.print_help()
             return
-        from atmem.code.install import CodeInstall
-        from atmem.store.sqlite import SQLiteStore
-
-        store = SQLiteStore(":memory:" if args.code_command == "doctor" else args.db)
+        from atmem.code.cli import run
         try:
-            installer = CodeInstall(store)
-            if args.code_command == "doctor":
-                result = installer.doctor(args.host)
-            elif args.code_command == "setup":
-                result = installer.setup(
-                    args.project, subject_id=args.subject, profile_id=args.profile,
-                    agent_id=args.agent, host=args.host, apply=args.apply,
-                )
-            elif args.code_command == "status":
-                result = installer.status(project=args.project, subject_id=args.subject, host=args.host)
-            elif args.code_command == "enable":
-                result = installer.enable(project=args.project, subject_id=args.subject, host=args.host)
-            elif args.code_command == "disable":
-                result = installer.disable(project=args.project, subject_id=args.subject, host=args.host)
-            else:
-                result = installer.uninstall(project=args.project, subject_id=args.subject, host=args.host)
-        finally:
-            store.close()
+            result = run(args)
+        except (OSError, PermissionError, ValueError, RuntimeError) as exc:
+            parser.exit(1, f"AtMem Code: {exc}\n")
         _print(result)
         return
 

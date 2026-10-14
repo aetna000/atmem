@@ -1,0 +1,34 @@
+name: AtMem Code installed product
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/atmem-code-2.3.9]
+    paths: ['atmem/**', 'tests/**', 'scripts/verify_code_wheel.py', 'pyproject.toml', '.github/workflows/atmem-code.yml']
+  pull_request:
+    paths: ['atmem/**', 'tests/**', 'scripts/verify_code_wheel.py', 'pyproject.toml', '.github/workflows/atmem-code.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  installed-core:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ['3.10', '3.13']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install build
+      - run: python -m build --wheel
+      - run: python scripts/verify_code_wheel.py --report code-wheel-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: code-wheel-${{ matrix.os }}-${{ matrix.python }}
+          path: code-wheel-report.json

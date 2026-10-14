@@ -386,6 +386,44 @@
   </div>
 
   <div class="tabpanel" id="viewMemory">
+  <section class="card" id="codeMemoryCard">
+    <div class="eyebrow">Across coding agents</div><h2>Coding memory</h2>
+    <p class="sub">Search project knowledge, control automatic memory, and move a project between installations.</p>
+    <div class="memoryfilters">
+      <label>Owner subject<input id="codeSubject" value="local" autocomplete="off"></label>
+      <label>Project<select id="codeProject"><option value="">Load your projects</option></select></label>
+      <button id="codeRefresh" type="button">Load projects</button>
+    </div>
+    <p id="codeStatus" role="status"></p>
+    <details><summary>Project and coding agents</summary>
+      <div class="memoryfilters"><label>Repository directory<input id="codeRoot" placeholder="/path/to/project"></label><label>Agent<select id="codeHost"><option>codex</option><option>claude</option><option>muse</option><option>grok</option><option>copilot</option></select></label></div>
+      <label><input id="codeRemoteChanged" type="checkbox"> Confirm a changed Git remote when attaching this directory</label>
+      <div class="actions"><button id="codeProjectPreview" type="button">Preview setup</button><button id="codeProjectApply" type="button">Configure project</button><button id="codeProjectAttach" type="button">Attach directory to selected project</button><button id="codeHostStatus" type="button">Check agent</button><button id="codeHostEnable" type="button">Enable automatic memory</button><button id="codeHostDisable" type="button">Disable automatic memory</button><button id="codeHostUninstall" type="button">Uninstall hook</button></div>
+      <pre id="codeHostResult" class="codeoutput"></pre>
+    </details>
+    <div class="memoryfilters">
+      <label>Search<input id="codeQuery" placeholder="Formatter, architecture, past fixes…"></label>
+      <label>Profile<input id="codeProfile" placeholder="All profiles"></label>
+      <label>Agent<input id="codeAgent" placeholder="All agents"></label>
+      <label>Type<select id="codeType"><option value="">Any type</option><option>preference</option><option>project_fact</option><option>decision</option><option>workflow</option><option>failure_fix</option></select></label>
+      <label>Source contains<input id="codeSource"></label><label>Learned after<input id="codeAfter" type="datetime-local"></label><label>Learned before<input id="codeBefore" type="datetime-local"></label>
+    </div>
+    <div class="actions"><button class="primary" id="codeSearch" type="button">Search memories</button><button id="codeClearPreview" type="button">Preview clearing selection</button><button id="codeClearApply" type="button" disabled>Clear previewed selection</button></div>
+    <div id="codeResults" class="results"></div><p id="codeClearSummary" role="status"></p><details><summary>Clear receipt</summary><pre id="codeClearResult" class="codeoutput"></pre></details>
+    <details><summary>Automatic memory settings</summary><form id="codeSettings">
+      <div class="memoryfilters"><label><input type="checkbox" id="codeAutoCapture"> Automatically store useful memory</label><label><input type="checkbox" id="codeAutoRecall"> Automatically add relevant context</label><label><input type="checkbox" id="codeReview"> Optional review workflow</label><label><input type="checkbox" id="codeGraphEnabled"> Code structure index</label><label>Context budget (bytes)<input id="codeBudget" type="number" min="256" max="32768" value="4096"></label><label>Default context tags<input id="codeContextTags" placeholder="For example: docs"></label></div><button type="submit">Save settings</button>
+    </form><button id="codeReviewsLoad" type="button">Show pending reviews</button><div id="codeReviews"></div></details>
+    <details><summary>External context routes</summary>
+      <div class="memoryfilters"><label>Route name<input id="codeRouteId"></label><label>Registered provider<input id="codeRouteProvider" placeholder="provider:instance"></label><label>Tags<input id="codeRouteTags" placeholder="docs,external-memory"></label><label>Profiles<input id="codeRouteProfiles" value="shared"></label><label>Agents<input id="codeRouteAgents" value="codex,claude"></label><label>On provider failure<select id="codeRouteFallback"><option value="withhold">Withhold context</option><option value="native">Use AtMem memory</option></select></label><label><input id="codeRouteEgress" type="checkbox"> Allow this route to send queries</label></div>
+      <div class="actions"><button id="codeRouteSave" type="button">Save route</button><button id="codeRouteRemove" type="button">Remove route</button></div><pre id="codeRoutes" class="codeoutput"></pre>
+    </details>
+    <details><summary>Code structure</summary><p>Python definitions, imports and call references with source locations.</p><div class="actions"><button id="codeGraphIndex" type="button">Index repository</button><button id="codeGraphSearch" type="button">Search structure</button></div><pre id="codeGraphResult" class="codeoutput"></pre></details>
+    <details><summary>Portable project bundle</summary>
+      <p>Choose your key files to export or import an encrypted project bundle.</p><button id="codeKeygen" type="button">Generate and download bundle keys</button>
+      <div class="memoryfilters"><label>Recipient public key<input type="file" id="codeRecipientPublic"></label><label>Signing public key<input type="file" id="codeSigningPublic"></label><label>Signing secret key<input type="file" id="codeSigningSecret"></label><label>Encrypted bundle<input type="file" id="codeBundleFile"></label><label>Recipient secret key<input type="file" id="codeRecipientSecret"></label></div>
+      <div class="actions"><button id="codeExport" type="button">Export selected project</button><button id="codeImportPreview" type="button">Preview import into directory above</button><button id="codeImportApply" type="button" disabled>Import previewed bundle</button></div><pre id="codeBundleResult" class="codeoutput"></pre>
+    </details>
+  </section>
   <div class="pageheading"><div><div class="eyebrow">Retained knowledge</div><h1>Memory archive</h1><p>Browse what AtMem retains, where it came from, and how the canonical memory stores are organised.</p></div></div>
   <div class="settingsworkspace pageworkspace" id="memoryWorkspace"><nav class="settingsrail" id="memoryRail" aria-label="Memory sections"><div class="settingsrailtitle">Memory</div></nav><main class="settingsstage" id="memoryStage"></main></div>
   <nav class="sectionnav" aria-label="Memory archive sections"><a href="#mirrorCard"><span>01</span> Memory sources</a><a href="#recordBreakdownCard"><span>02</span> Searchable records</a><a href="#storageOverview"><span>03</span> Storage</a></nav>

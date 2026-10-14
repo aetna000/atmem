@@ -1,6 +1,6 @@
 # AtMem Code: automatic project memory for coding agents
 
-**Status:** Proposed high-level specification, 2026-10-14
+**Status:** Phases 0–8 implementation and qualification, 2026-10-14. See [implementation-status.md](implementation-status.md) for completed work and open acceptance blockers; the five-host product is not fully qualified.
 **Target:** AtMem 2.3.9 release track; final release number and date follow qualification.
 **Baseline:** Published AtMem 2.3.8. Work is isolated from `laya_changes`.
 

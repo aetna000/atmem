@@ -1,14 +1,38 @@
 # Coding-agent host capability matrix
 
-**Phase 0 inventory, 2026-10-14.** This is a design inventory, not an automatic-support claim. The local macOS versions below were discovered with `--version`; Copilot CLI is absent. Published hook documentation may describe a newer version than installed. Phase 3 must probe each installed host/OS combination before changing a cell to `automatic`.
+**Qualification inventory, 2026-10-14.** Tests and limitations are recorded in [implementation-status.md](implementation-status.md). Portable core results do not qualify a host. Copilot CLI is absent. Only the tested subset below may be advertised as automatic.
 
 | Host surface | Local version | Documented extension path | Candidate capture events | Candidate recall boundary | Current claim |
 | --- | --- | --- | --- | --- | --- |
-| [Muse Code](https://meta-models.github.io/muse-code-sdk/next/guides/extend/) | 1.0.2 | Project hooks and MCP; the [1.3.0 hook reference](https://meta-models.github.io/muse-code-sdk/next/guides/plugins/reference/hook-events/) must not be assumed to match 1.0.2 | `UserPromptSubmit` confirmed by an isolated offline `muse exec --provider echo` probe; other events unverified | The hook ran and emitted `additionalContext`, but echo output did not expose model input; the live model probe retried without a response | Manual MCP; automatic injection unverified |
-| [Claude Code](https://code.claude.com/docs/en/hooks) | 2.1.281 | Lifecycle hooks and MCP | User prompt, post-tool, stop and compaction hooks | Session or prompt hook with model-visible additional context, subject to installed-version probe | Unverified; manual MCP until probe |
-| [Grok CLI](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/10-hooks.md) | 1.0.13 | Session, prompt, tool and stop hooks; [MCP](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/07-mcp-servers.md) | `UserPromptSubmit`, `PostToolUse`, `Stop` where supported | Prompt hook only if the installed version can add model-visible context; `SessionStart` alone does not prove injection | Unverified; manual MCP until probe |
-| [GitHub Copilot CLI](https://docs.github.com/en/copilot/reference/hooks-reference) | Not installed | CLI hooks and [plugin/MCP](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference) | `userPromptSubmitted`, `postToolUse`, `sessionEnd` where supported | `sessionStart` can supply `additionalContext`; command/HTTP `userPromptSubmitted` output is dropped, so per-turn prompt-time recall cannot be claimed from that hook | Unverified; installation and probe required |
-| [Codex](https://developers.openai.com/plugins/build/plugins) | 0.162.1 | Trusted local plugin lifecycle hooks and MCP | `UserPromptSubmit`, `PostToolUse`, `Stop`, `PreCompact` if present in the installed version | Prompt hook or plugin context path only after actual model-boundary probe; installing a plugin does not trust its hooks | Unverified; manual MCP until probe |
+| [Muse Code](https://meta-models.github.io/muse-code-sdk/next/guides/extend/) | 1.4.7-R6101.1 (initial inventory: 1.0.2) | Project hooks and MCP; [hook reference](https://meta-models.github.io/muse-code-sdk/next/guides/plugins/reference/hook-events/) | A prior echo probe executed the prompt hook; subsequent startup also timed out | Echo `PreLLMCall` omitted the canary; isolated Meta-protocol endpoint received zero requests within 30 seconds | Blocked B01; no automatic activation |
+| [Claude Code](https://code.claude.com/docs/en/hooks) | 2.1.281 | Lifecycle hooks and MCP | Real user-prompt capture tested; tool outcome/flush contracts tested separately | Actual local Anthropic request contained the hook canary and, in a new session, recalled memory | Automatic prompt capture/recall on tested macOS; partial evidence coverage, not full flight reconstruction |
+| [Grok CLI](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/10-hooks.md) | 1.0.13 (5e9a58528b76) | Session, prompt, tool and stop hooks; [MCP](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/07-mcp-servers.md) | Configuration adapter and normalized intake exist; no real automatic capture qualification | Documented allowing `UserPromptSubmit` output discards `additionalContext`; a different delivery boundary is required | Blocked B02; no automatic activation |
+| [GitHub Copilot CLI](https://docs.github.com/en/copilot/reference/hooks-reference) | Not installed | CLI hooks and [plugin/MCP](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference) | Version-1 camelCase hook adapter exists; stable per-turn identity and real intake unverified | `sessionStart` can supply context, but prompt output is dropped; startup-only recall is not per-turn recall | Blocked B03; no automatic activation; editor/cloud also unqualified |
+| [Codex](https://learn.chatgpt.com/docs/hooks) | 0.162.1 | Trusted project `.codex/hooks.json`, lifecycle hooks and MCP | Actual prompt hook and AtMem capture passed in an isolated trusted fixture | Actual Responses request contained the canary; actual captured memory transferred to a Claude session | Controlled wire probe passed; default activation blocked B04 pending persistent user-trust onboarding |
+
+## Tested platform cells
+
+| Surface | macOS 26.5.2, Python 3.12.2 | Windows 11 26200, Python 3.12.6 | Linux aarch64, Python 3.12.15 |
+| --- | --- | --- | --- |
+| Encrypted Code core, CLI/HTTP settings and encrypted bundle round trip | Installed wheel passed | Installed wheel passed | Installed wheel passed |
+| Dashboard interactive browser journey | Chrome passed | Not run | Not run |
+| Claude 2.1.281 prompt capture/recall, enable/pause/restore | Passed | Unsupported automatic adapter | Unverified |
+| Codex 0.162.1 controlled model-boundary probe | Passed with fixture-only trust flag | Unverified | Unverified |
+| Muse, Grok, Copilot automatic adapters | Blocked as above | Unverified | Unverified |
+
+The Codex test does not approve the owner's hooks or change their trust store.
+It creates an isolated `CODEX_HOME`, persists project trust there, and permits
+only a vetted generated command for that invocation. CLI `-c` project trust
+and `--ignore-user-config` were insufficient for loading the project hooks in
+the first probes. Production does not add the bypass flag. The registry
+refuses default Codex activation rather than claiming normal sessions will run
+an untrusted hook.
+
+All automatic Code status and exposure receipts mark evidence coverage
+`partial` and reconstruction `not_reconstructable`. Host memory capture is not
+the separate full Agent Black Box evidence service. Actual task success,
+forced model compaction, every tool boundary, and media reconstruction have
+not been established by the local no-tool protocol probes.
 
 GitHub Copilot in an editor and GitHub's cloud coding agent are distinct host surfaces, not covered by the Copilot CLI row. Each host adapter must advertise explicit event availability, user trust/approval, input payload limits, output/context limits, timeouts, OS support, and the strongest observable delivery state: `submitted`, `host_acknowledged`, or `model_input_observed`. A hook response is not proof of model input unless the host exposes that boundary.
 

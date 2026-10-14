@@ -679,6 +679,7 @@ Official website documentation is maintained through the public
 Website publication follows a separate owner-reviewed, main-only deployment.
 
 - [Current implementation status](docs/current-status.md)
+- [AtMem Code source preview: automatic coding memory](docs/atmem-code.md) — feature branch, not a published release
 - [Generic runtime adapter](docs/generic-adapter.md)
 - [Delegated context-provider contract](docs/contracts/delegated-context-provider-v1.md)
 - [Agent Black Box](docs/agent-blackbox.md)

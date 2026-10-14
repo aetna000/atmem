@@ -33,6 +33,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+code = [
+  "sqlcipher3==0.6.2",
+  "pqcrypto>=1,<2",
+]
 atflows = [
   # Compatibility extra for existing atmem[atflows] install commands.
 ]

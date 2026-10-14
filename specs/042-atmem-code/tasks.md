@@ -1,6 +1,6 @@
 # AtMem Code: dependency-ordered tasks
 
-**Status:** Planning checklist; no task is complete merely because it appears here.
+**Status:** Implementation checklist, 2026-10-14. Completed tasks have executable verification; unchecked tasks have explicit remaining gates in [implementation-status.md](implementation-status.md). Phase 9 remains deferred.
 **Governing artifacts:** [spec.md](spec.md), [plan.md](plan.md), [market-research.md](market-research.md), `.specify/memory/constitution.md`.
 **Release target:** AtMem Code after the published 2.3.8 baseline; a new candidate must not reuse or move the historical `v2.3.9b1` Laya tag.
 
@@ -32,42 +32,48 @@ The owner requested implementation of phases 0–8, including provider routing a
 - [x] T013 Add Code as a flavour of normal AtMem onboarding, plus `atmem code setup/status/doctor/enable/disable/uninstall`, in `atmem/cli.py` and `atmem/code/install.py`; installed package alone must remain non-influencing. Disable pauses only automatic capture/injection; uninstall alone restores host configuration. `atmem init --flavour code` only directs the user to the non-influencing host preview; host-specific automatic enablement remains gated by T015–T020.
 - [x] T014 Implement a host-adapter interface and reversible configuration snapshot/probe contract in `atmem/code/adapters/base.py`; test failed install, exact restore and host upgrades in `tests/test_code_install.py` and `tests/test_code_adapter_base.py`.
 - [ ] T015 Implement and installed-version test the Muse Code adapter in `atmem/code/adapters/muse.py` and `tests/test_code_muse.py`.
-- [ ] T016 Implement and installed-version test the Claude Code adapter in `atmem/code/adapters/claude.py` and `tests/test_code_claude.py`.
+- [x] T016 Implement and installed-version test the Claude Code adapter in `atmem/code/adapters/claude.py` and `tests/test_code_claude.py`.
 - [ ] T017 Implement and installed-version test the Grok CLI adapter in `atmem/code/adapters/grok.py` and `tests/test_code_grok.py`.
 - [ ] T018 Implement and installed-version test the GitHub Copilot CLI adapter in `atmem/code/adapters/copilot.py` and `tests/test_code_copilot.py`; do not claim editor/cloud coverage from this test.
 - [ ] T019 Implement and installed-version test the Codex adapter in `atmem/code/adapters/codex.py` and `tests/test_code_codex.py`.
-- [ ] T020 Publish tested host/OS/version support and manual-only fallbacks in `specs/042-atmem-code/host-capabilities.md`; require the actual hook and context-submission probe before an automatic label.
+- [x] T020 Publish tested host/OS/version support and manual-only fallbacks in `specs/042-atmem-code/host-capabilities.md`; require the actual hook and context-submission probe before an automatic label.
 
 ## Phase 4 — Automatic formation, recall and cross-agent use
 
-- [ ] T021 Wire enabled host-turn events to one formation path in `atmem/code/service.py`; prove no agent-initiated `remember` call is needed in `tests/test_code_automatic.py`.
-- [ ] T022 Build bounded, source-linked, scope-authorized context packs in `atmem/code/context.py`; test stale-state exclusion, truncation and timeout behavior in `tests/test_code_context.py`.
-- [ ] T023 Record submitted bytes, host acknowledgement and independently observed model input as distinct assurance levels in `atmem/code/receipts.py`; test no overclaim of model delivery in `tests/test_code_receipts.py`.
-- [ ] T024 Run paired new-session and cross-agent handoffs for supported hosts in `tests/integration/test_code_handoff.py`, including private-lane isolation and idempotent replay.
+- [x] T021 Wire enabled host-turn events to one formation path in `atmem/code/service.py`; prove no agent-initiated `remember` call is needed in `tests/test_code_automatic.py`.
+- [x] T022 Build bounded, source-linked, scope-authorized context packs in `atmem/code/context.py`; test stale-state exclusion, truncation and timeout behavior in `tests/test_code_context.py`.
+- [x] T023 Record submitted bytes, host acknowledgement and independently observed model input as distinct assurance levels in `atmem/code/receipts.py`; test no overclaim of model delivery in `tests/test_code_receipts.py`.
+- [x] T024 Run paired new-session and cross-agent handoffs for supported hosts in `tests/integration/test_code_handoff.py`, including private-lane isolation and idempotent replay.
+
+  Actual installed Codex capture → Claude model-boundary recall is additionally tested in `tests/test_code_codex.py`. Codex uses an isolated, explicitly vetted fixture trust flag in this test; this does not close normal Codex onboarding T019. Private-lane and replay checks use the shared production hook boundary in the integration tests.
+
+- [ ] T042 Close the full-fidelity default evidence acceptance gate (FR-003/FR-008) for a host that exposes all required boundaries. Current Code hooks explicitly report partial coverage and `not_reconstructable`; they do not provide complete model/tool/media flight recording. Blocked B05; do not inherit the separate Agent Black Box claim.
 
 ## Phase 5 — Search, settings and scoped clearing
 
-- [ ] T025 Add `atmem code search`, inspect, correct, forget, config and clear/preview commands in `atmem/cli.py`, with machine-readable output and authorization tests in `tests/test_code_cli.py`.
-- [ ] T026 Add one Coding Memory dashboard view and the same supported settings in `atmem/dashboard/`; test CLI/dashboard state parity, source inspection and access control in `tests/test_code_dashboard.py`.
-- [ ] T027 Implement exact project/profile/agent deletion preview and verification across canonical and registered derived stores in `atmem/code/deletion.py`; test adjacent-scope preservation and partial remote-provider outcomes in `tests/test_code_deletion.py`.
+- [x] T025 Add `atmem code search`, inspect, correct, forget, config and clear/preview commands in `atmem/cli.py`, with machine-readable output and authorization tests in `tests/test_code_cli.py`.
+- [x] T026 Add one Coding Memory dashboard view and the same supported settings in `atmem/control/assets/` and `atmem/control/web.py`; test CLI/dashboard state parity, source inspection and access control in `tests/test_code_dashboard.py`.
+- [x] T027 Implement exact project/profile/agent deletion preview and verification across canonical and registered derived stores in `atmem/code/deletion.py`; test adjacent-scope preservation and partial remote-provider outcomes in `tests/test_code_deletion.py`.
 
 ## Phase 6 — External context providers
 
-- [ ] T028 Specify route selection, query authorization, external egress, provider authority mode, response validation and failure policy in `atmem/code/providers.py` and `specs/042-atmem-code/provider-contract.md`.
-- [ ] T029 Wire configured local RAG and Mem0 routes through the existing delegated-context boundary in `atmem/code/providers.py`; test native fallback, withholding, provenance and no unintended egress in `tests/test_code_providers.py`.
-- [ ] T030 Expose route configuration and provider status in both `atmem/cli.py` and `atmem/dashboard/`; test that a request tag cannot grant scope or network authority in `tests/test_code_provider_settings.py`.
+- [x] T028 Specify route selection, query authorization, external egress, provider authority mode, response validation and failure policy in `atmem/code/providers.py` and `specs/042-atmem-code/provider-contract.md`.
+- [x] T029 Wire configured local RAG and Mem0 routes through the existing delegated-context boundary in `atmem/code/providers.py`; test native fallback, withholding, provenance and no unintended egress in `tests/test_code_providers.py`.
+- [x] T030 Expose route configuration and provider status in both `atmem/cli.py` and `atmem/control/assets/`; test that a request tag cannot grant scope or network authority in `tests/test_code_provider_settings.py`.
 
 ## Phase 7 — Optional code graph
 
-- [ ] T031 Build an optional, encrypted-at-rest derived symbol/import/reference index with versioned source links in `atmem/code/graph.py`; keep canonical memory independent of the parser.
-- [ ] T032 Invalidate or rebuild graph slices after edits, branch changes and imports in `atmem/code/graph.py`; test unsupported-language fallback and stale-result labelling in `tests/test_code_graph.py`.
+- [x] T031 Build an optional, encrypted-at-rest derived symbol/import/reference index with versioned source links in `atmem/code/graph.py`; keep canonical memory independent of the parser.
+- [x] T032 Invalidate or rebuild graph slices after edits, branch changes and imports in `atmem/code/graph.py`; test unsupported-language fallback and stale-result labelling in `tests/test_code_graph.py`.
 - [ ] T033 Compare graph nomination against ordinary file exploration and a strong repository-map control in `specs/042-atmem-code/benchmark-protocol.md`; measure complete agent tokens, quality and indexing overhead, not query bytes alone.
+
+  Blocked B06 by the owner's exclusion of phase 9 task-outcome evaluation. Structure, freshness and automatic nomination are tested; no token-saving or task-quality claim is made.
 
 ## Phase 8 — Project portability and product parity
 
-- [ ] T034 Implement an encrypted, integrity-checked, project-scoped export manifest and bundle in `atmem/code/portable.py`; exclude machine credentials and host hook configuration.
-- [ ] T035 Implement authorized import preview, explicit identity rebinding, collision handling and derived-index rebuild in `atmem/code/portable.py`; test fresh-install search/lifecycle parity and cross-scope denial in `tests/test_code_portable.py`.
-- [ ] T036 Run installed-wheel onboarding, CLI/dashboard parity and bundle round-trip journeys on macOS, Windows and Linux where supported in `tests/integration/test_code_product_journey.py`; record untested host/OS combinations as unsupported.
+- [x] T034 Implement an encrypted, integrity-checked, project-scoped export manifest and bundle in `atmem/code/portable.py`; exclude machine credentials and host hook configuration.
+- [x] T035 Implement authorized import preview, explicit identity rebinding, collision handling and derived-index rebuild in `atmem/code/portable.py`; test fresh-install search/lifecycle parity and cross-scope denial in `tests/test_code_portable.py`.
+- [x] T036 Run installed-wheel onboarding, CLI/dashboard parity and bundle round-trip journeys on macOS, Windows and Linux where supported in `tests/integration/test_code_product_journey.py`; record untested host/OS combinations as unsupported.
 
 ## Phase 9 — Independent task evaluation and release gate (deferred; do not run in this request)
 

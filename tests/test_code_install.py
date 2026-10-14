@@ -4,6 +4,7 @@ import pytest
 
 from atmem.code.adapters.base import HostProbe
 from atmem.code.install import CodeInstall
+from atmem.code.identity import repository_key
 from atmem.store.sqlite import SQLiteStore
 
 
@@ -117,5 +118,25 @@ def test_disable_is_safe_even_if_owner_changed_hook_config(tmp_path) -> None:
             installer.enable(project=tmp_path, subject_id="user-1", host="codex")
         with pytest.raises(RuntimeError, match="changed after activation"):
             installer.uninstall(project=tmp_path, subject_id="user-1", host="codex")
+    finally:
+        store.close()
+
+
+def test_disable_during_activation_cancels_enable_and_restores_hook(tmp_path):
+    host_config = tmp_path / "host.json"
+    host_config.write_bytes(b"owner settings\n")
+    store = SQLiteStore()
+    try:
+        class CancellingAdapter(_VerifiedAdapter):
+            def verify_installed(self):
+                binding = store.code_project_binding("user-1", repository_key(tmp_path))
+                store.set_code_installation_enabled(subject_id="user-1", project_id=binding["project_id"], host="codex", enabled=False)
+                return super().verify_installed()
+        installer = CodeInstall(store, adapters={"codex": lambda: CancellingAdapter(host_config)})
+        installer.setup(tmp_path, subject_id="user-1", profile_id="shared", agent_id="codex", host="codex", apply=True)
+        with pytest.raises(RuntimeError, match="cancelled"):
+            installer.enable(project=tmp_path, subject_id="user-1", host="codex")
+        assert host_config.read_bytes() == b"owner settings\n"
+        assert installer.status(project=tmp_path, subject_id="user-1", host="codex")["enabled"] is False
     finally:
         store.close()

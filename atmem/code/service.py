@@ -62,8 +62,8 @@ class CodeIntakeService:
             self._secret, canonical_json(observation.to_dict()).encode("utf-8"), sha256
         ).hexdigest()
 
-    def submit(self, payload: dict[str, Any], signature: str) -> dict[str, Any]:
-        observation = CodeObservation.from_dict(payload)
+    def authenticate(self, observation: CodeObservation, signature: str) -> None:
+        """Validate the binding before recall, persistence, or external egress."""
         if (observation.scope != self.scope or observation.host != self.host
                 or observation.session_id != self.session_id):
             raise PermissionError("Code intake scope or session mismatch")
@@ -71,10 +71,18 @@ class CodeIntakeService:
             self.sign(observation), signature
         ):
             raise PermissionError("Code intake signature invalid")
+
+    def submit(self, payload: dict[str, Any], signature: str) -> dict[str, Any]:
+        observation = CodeObservation.from_dict(payload)
+        self.authenticate(observation, signature)
         self.assert_active()
         screening = screen_content(
             observation.content, trusted=observation.kind == "user_turn"
         )
+        from atmem.memory import _screenable_metadata
+        if any(not screen_content(value, trusted=True).admissible
+               for value in _screenable_metadata({key: value for key, value in observation.to_dict().items() if key != "content"})):
+            return {"event_id": observation.event_id, "accepted": False, "reason_codes": ["metadata_secret_screen"]}
         if not screening.admissible:
             # No raw observation is queued or logged on refusal.
             return {"event_id": observation.event_id, "accepted": False,

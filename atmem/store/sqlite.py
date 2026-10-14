@@ -169,6 +169,7 @@ class SQLiteStore:
             self._conn.execute(
                 "DELETE FROM code_installations WHERE subject_id = ?", (subject_id,)
             )
+            self._conn.execute("DELETE FROM code_documents WHERE subject_id = ?", (subject_id,))
             # Derived V3 state is deleted before its source ledger so every
             # range/link/vector row is removed by foreign-key cascade.
             if self._context_fts_enabled:
@@ -597,6 +598,57 @@ class SQLiteStore:
             "SELECT 1 FROM code_project_bindings WHERE subject_id = ? AND project_id = ? LIMIT 1",
             (subject_id, project_id),
         ).fetchone() is not None
+
+    def code_scopes(self, subject_id: str, project_id: str | None = None) -> list[dict[str, Any]]:
+        clause = " AND project_id = ?" if project_id is not None else ""
+        params = (subject_id, project_id) if project_id is not None else (subject_id,)
+        return [dict(row) for row in self._conn.execute(
+            "SELECT * FROM code_scope_subjects WHERE owner_subject_id = ?" + clause,
+            params,
+        ).fetchall()]
+
+    def code_projects(self, subject_id: str) -> list[str]:
+        return [str(row[0]) for row in self._conn.execute(
+            "SELECT DISTINCT project_id FROM code_project_bindings WHERE subject_id = ? ORDER BY project_id",
+            (subject_id,),
+        ).fetchall()]
+
+    def code_document(self, subject_id: str, project_id: str, kind: str, document_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT payload_json FROM code_documents WHERE subject_id=? AND project_id=? AND kind=? AND document_id=?",
+            (subject_id, project_id, kind, document_id),
+        ).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def code_documents(self, subject_id: str, project_id: str, kind: str) -> list[dict[str, Any]]:
+        return [json.loads(row[0]) for row in self._conn.execute(
+            "SELECT payload_json FROM code_documents WHERE subject_id=? AND project_id=? AND kind=? ORDER BY document_id",
+            (subject_id, project_id, kind),
+        ).fetchall()]
+
+    def code_document_items(self, subject_id: str, project_id: str, kind: str) -> list[dict[str, Any]]:
+        return [{"document_id": row[0], "value": json.loads(row[1])} for row in self._conn.execute(
+            "SELECT document_id,payload_json FROM code_documents WHERE subject_id=? AND project_id=? AND kind=? ORDER BY document_id",
+            (subject_id, project_id, kind),
+        ).fetchall()]
+
+    def put_code_document(self, subject_id: str, project_id: str, kind: str, document_id: str, value: dict[str, Any]) -> None:
+        encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+        if len(encoded.encode("utf-8")) > 16_000_000:
+            raise ValueError("Code document exceeds size limit")
+        with self.transaction():
+            self._conn.execute(
+                """INSERT INTO code_documents VALUES (?,?,?,?,?,?)
+                   ON CONFLICT(subject_id,project_id,kind,document_id)
+                   DO UPDATE SET payload_json=excluded.payload_json,updated_at=excluded.updated_at""",
+                (subject_id, project_id, kind, document_id, encoded, utc_now()),
+            )
+
+    def delete_code_documents(self, subject_id: str, project_id: str, kind: str, document_id: str | None = None) -> None:
+        with self.transaction():
+            clause = " AND document_id=?" if document_id is not None else ""
+            params = (subject_id, project_id, kind, document_id) if document_id is not None else (subject_id, project_id, kind)
+            self._conn.execute("DELETE FROM code_documents WHERE subject_id=? AND project_id=? AND kind=?" + clause, params)
 
     def register_code_scope_subject(
         self, *, owner_subject_id: str, derived_subject_id: str,
@@ -7478,6 +7530,20 @@ MIGRATION_REGISTRY: tuple[tuple[str, str], ...] = (
     (
         "0424_code_installation_restore",
         "ALTER TABLE code_installations ADD COLUMN restore_json TEXT;",
+    ),
+    (
+        "0425_code_documents",
+        """
+        CREATE TABLE IF NOT EXISTS code_documents (
+          subject_id TEXT NOT NULL,
+          project_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          document_id TEXT NOT NULL,
+          payload_json TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY(subject_id,project_id,kind,document_id)
+        );
+        """,
     ),
 )
 
