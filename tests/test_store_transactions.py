@@ -102,3 +102,31 @@ def test_concurrent_initializers_serialize_the_multi_script_migration(tmp_path, 
     with ThreadPoolExecutor(max_workers=8) as pool:
         list(pool.map(open_store, range(16)))
     assert maximum == 1
+
+
+def test_concurrent_vector_initializers_serialize_wal_and_schema(tmp_path, monkeypatch):
+    import threading
+    import time
+    from atmem.semantic import SemanticIndex
+    original = SemanticIndex._migrate
+    active = 0
+    maximum = 0
+    guard = threading.Lock()
+    def inspect(index):
+        nonlocal active, maximum
+        with guard:
+            active += 1
+            maximum = max(maximum, active)
+        try:
+            time.sleep(0.01)
+            return original(index)
+        finally:
+            with guard:
+                active -= 1
+    monkeypatch.setattr(SemanticIndex, "_migrate", inspect)
+    def open_index(_):
+        index = SemanticIndex(tmp_path / "vectors.db")
+        index.close()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(open_index, range(16)))
+    assert maximum == 1
