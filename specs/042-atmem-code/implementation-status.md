@@ -1,6 +1,6 @@
 # AtMem Code implementation and qualification
 
-Date: 2026-10-14. Branch: `feature/atmem-code-2.3.9`.
+Date: 2026-10-15 (Australia/Sydney). Branch: `feature/atmem-code-2.3.9`.
 
 The unblocked implementation work through phase 8 is built. The complete
 five-host product is **not fully qualified**. Unchecked tasks below remain
@@ -15,7 +15,7 @@ successful integrations. Phase 9 was not undertaken and no release is published.
 | 1 | Pre-write message/interpreted-fact/metadata secret boundary and persistence regression tests | Pattern detection is not universal secret recognition |
 | 2 | Typed contracts, authenticated intake, idempotent queues, shared/private lanes, additive migrations and conservative formation | No general-purpose multilingual semantic extractor is claimed |
 | 3 | Flavour onboarding, preview, reversible host configuration, pause/resume/restore, upgrade/concurrent-disable checks; Claude automatic prompt path | T015/T017/T018/T019: B01–B04 |
-| 4 | Recall-before-capture, optional review, replay handling, bounded context, distinct delivery receipts, real Codex→Claude handoff plus private-lane tests | T042: B05 full-fidelity evidence |
+| 4 | Recall-before-capture, optional review, replay handling, bounded context, distinct delivery receipts, controlled real Codex→Claude handoff plus private-lane tests | T024: B04 normal two-host onboarding; T042: B05 full-fidelity evidence |
 | 5 | Shared CLI/dashboard application, authenticated HTTP/CSRF/role checks, search/filter/source/correction/forget and exact clear preview | Remote-provider data is not claimed deleted by local clear |
 | 6 | Native/tagged signed RAG/Mem0-provider routing, scoped egress, response validation, replay protection, fallback and UI/CLI settings | No live third-party provider's task-quality result is claimed |
 | 7 | Optional encrypted Python syntax graph, file-level fallback, ignore/secret filters, source digests, edit/branch invalidation and bounded automatic nomination | T033: B06 task-level comparative evaluation |
@@ -28,12 +28,21 @@ successful integrations. Phase 9 was not undertaken and no release is published.
 | B01 / T015 | Muse 1.4.7: an earlier echo hook ran but `PreLLMCall` omitted its canary; subsequent echo startup timed out. The isolated Meta-protocol probe timed out with zero model requests after 30 seconds. | Adapter/configuration code exists, but automatic activation is refused. Requires a functioning, independently observable installed Muse model-input boundary. `tests/test_code_muse.py` preserves these probes as explicit expected failures. |
 | B02 / T017 | Grok 1.0.13 documents that an allowing prompt hook's `additionalContext` is discarded. The desired per-turn context boundary is not established. | Capture/configuration scaffolding exists; no automatic activation. Requires a supported alternate delivery integration and real capture/delivery test, not an invented hook output. |
 | B03 / T018 | Copilot CLI is absent here; its documented prompt hook drops output, and stable turn identity has not been established. SessionStart context alone is not per-turn recall. | Version-1 camelCase configuration and startup normalization exist, but activation is refused. Requires an installed supported host and verified event identity/delivery. Editor/cloud are separate unqualified surfaces. |
-| B04 / T019 | Codex 0.162.1 real project hooks, canary delivery and capture→Claude handoff pass only with a vetted fixture's per-invocation trust flag and isolated trusted project config. The product has no completed persistent user hook-trust onboarding. | Normal activation remains refused; production never adds the trust-bypass flag or changes the owner's trust store. Close with a host-supported, user-reviewed persistent-trust flow and a no-bypass activation test. |
+| B04 / T019, T024 | Codex 0.162.1 real project hooks, canary delivery and capture→Claude handoff pass only with a vetted fixture's per-invocation trust flag and isolated trusted project config. The product has no completed persistent user hook-trust onboarding, so normal two-host automatic handoff is not qualified. | Normal activation remains refused; production never adds the trust-bypass flag or changes the owner's trust store. Close with a host-supported, user-reviewed persistent-trust flow and a no-bypass activation/handoff test. |
 | B05 / T042 | Code lifecycle hooks do not expose complete model/tool/media execution evidence. A successful prompt probe cannot establish full flight reconstruction. | Setup/status and exposure rows explicitly say `capture_coverage=partial`, `reconstruction_status=not_reconstructable`. The existing evidence service is separate and is not silently claimed by Code. Requires actual host instrumentation for the missing boundaries. |
 | B06 / T033 | The graph comparison requires complete matched agent tasks and strong repository-map controls, overlapping the expressly excluded phase 9 evaluation. | No coding-quality or token-saving percentage is claimed. The protocol remains specified; execution is deferred rather than replaced by a misleading query-byte microbenchmark. |
 
 No blocker prevented finishing the independent CLI, dashboard, provider,
 graph, portability and cross-platform work.
+
+An additional existing repository-wide CI gate is blocked outside this feature:
+`openclaw@latest` resolves to `2026.10.3`, for which the hook-context matrix has
+no reviewed fixture. Its guard correctly fails; it was not bypassed or replaced
+with a fabricated fixture. This prevents calling the whole repository/release
+pipeline green, even when the dedicated Code matrix passes. OpenClaw's pinned
+minimum and lockfile cells, bridge build/tests and provider-extra jobs are
+reported separately in the CI record. Reviewing a new upstream bridge version
+is not claimed complete by these Code phases.
 
 ## Architecture and implementation boundaries
 
@@ -45,6 +54,9 @@ graph, portability and cross-platform work.
   an outer BEGIN alone did not serialize the multi-script schema upgrade. A
   16-initializer regression and concurrent audit-writer test cover this shared
   coding-host startup boundary.
+  The derived vector index also serializes WAL selection and schema startup;
+  a separate 16-initializer vector regression covers the macOS race exposed by
+  the installed-package CI, rather than disabling default vector behavior.
 - Project identity is explicitly bound. Shared profiles cross agent IDs;
   private profiles include the agent ID. Clone rebinding is explicit. Turning
   a previously unversioned directory into a Git repository changes its binding
@@ -90,6 +102,14 @@ graph, portability and cross-platform work.
 ## Verification
 
 The final machine-readable gate record is [verification.json](verification.json).
+The final local repository gate passed **2,305 tests** with 89 explicit skips.
+The identical installed wheel passed **66 tests on each of macOS, Windows and
+Linux**, with seven separately handled host/browser cases skipped per core run.
+Five installed host/browser journeys passed separately. The Code CI matrix
+passed all six OS/Python combinations; repository unit jobs passed Python
+3.10–3.13. The broader CI is still blocked by the existing unreviewed OpenClaw
+latest-version fixture, not described as green.
+
 It names the exact wheel hash, platform/Python versions, counts, skips and
 host assurance. Tests run from copies outside the checkout and assert that
 AtMem imports from the selected installed wheel environment. The wheel retains

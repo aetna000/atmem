@@ -1,27 +1,29 @@
 {
   "format": "atmem-code-qualification-v1",
-  "date": "2026-10-14",
+  "completed_date_local": "2026-10-15",
+  "timezone": "Australia/Sydney",
   "branch": "feature/atmem-code-2.3.9",
+  "executable_code_commit": "de0a98e2bd5e8b6bf7bf7b7f0ccda20a969d3aa5",
   "baseline_commit": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
   "published_release": false,
-  "wheel_sha256": "21e3eb043a85912cd37afff79acf2bee5f0b282652c24b9c51c118bd81345e7b",
+  "wheel_sha256": "5543dff8051d17020b04ffb7e4a71b8fae0991fa1dfa777c0eff07d2ca314c69",
   "installed_core": [
     {
       "format": "atmem-code-installed-wheel-verification-v1",
       "platform": "macOS-26.5.2-x86_64-i386-64bit",
       "python": "3.12.2",
       "wheel": "atmem-2.3.8-py3-none-any.whl",
-      "wheel_sha256": "21e3eb043a85912cd37afff79acf2bee5f0b282652c24b9c51c118bd81345e7b",
+      "wheel_sha256": "5543dff8051d17020b04ffb7e4a71b8fae0991fa1dfa777c0eff07d2ca314c69",
       "module_path": "/private/tmp/atmem-code-verify.TtTLOV/mac-wheel/lib/python3.12/site-packages/atmem/__init__.py",
       "atmem_imported_from_selected_environment": true,
       "pytest_returncode": 0,
       "totals": {
-        "tests": 68,
+        "tests": 73,
         "failures": 0,
         "errors": 0,
         "skipped": 7
       },
-      "artifacts": "/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-code-wheel-oqy63c5j",
+      "artifacts": "/private/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-code-wheel-ulgniri2",
       "host_probes": "separately qualified; not run by the portable core gate"
     },
     {
@@ -29,17 +31,17 @@
       "platform": "Linux-6.8.0-117-generic-aarch64-with-glibc2.41",
       "python": "3.12.15",
       "wheel": "atmem-2.3.8-py3-none-any.whl",
-      "wheel_sha256": "21e3eb043a85912cd37afff79acf2bee5f0b282652c24b9c51c118bd81345e7b",
+      "wheel_sha256": "5543dff8051d17020b04ffb7e4a71b8fae0991fa1dfa777c0eff07d2ca314c69",
       "module_path": "/tmp/atmem-code-wheel-e_9lfjbq/venv/lib/python3.12/site-packages/atmem/__init__.py",
       "atmem_imported_from_selected_environment": true,
       "pytest_returncode": 0,
       "totals": {
-        "tests": 68,
+        "tests": 73,
         "failures": 0,
         "errors": 0,
         "skipped": 7
       },
-      "artifacts": "/tmp/atmem-code-wheel-i79zpzdo",
+      "artifacts": "/tmp/atmem-code-wheel-b8wgr86r",
       "host_probes": "separately qualified; not run by the portable core gate"
     },
     {
@@ -47,69 +49,366 @@
       "platform": "Windows-11-10.0.26200-SP0",
       "python": "3.12.6",
       "wheel": "atmem-2.3.8-py3-none-any.whl",
-      "wheel_sha256": "21e3eb043a85912cd37afff79acf2bee5f0b282652c24b9c51c118bd81345e7b",
+      "wheel_sha256": "5543dff8051d17020b04ffb7e4a71b8fae0991fa1dfa777c0eff07d2ca314c69",
       "module_path": "C:\\Users\\user\\AppData\\Local\\Temp\\atmem-code-verify-20261014\\venv\\Lib\\site-packages\\atmem\\__init__.py",
       "atmem_imported_from_selected_environment": true,
       "pytest_returncode": 0,
       "totals": {
-        "tests": 68,
+        "tests": 73,
         "failures": 0,
         "errors": 0,
         "skipped": 7
       },
-      "artifacts": "C:\\Users\\user\\AppData\\Local\\Temp\\atmem-code-wheel-awpah0c2",
+      "artifacts": "C:\\Users\\user\\AppData\\Local\\Temp\\atmem-code-wheel-_dxu8hgs",
       "host_probes": "separately qualified; not run by the portable core gate"
     }
   ],
-  "skip_explanation": "Per platform: 61 passed; 7 intentionally skipped (six separately qualified installed-host cases and the opt-in interactive browser journey). Skips are not passes.",
-  "repository_suite": {
-    "state": "final run in progress",
-    "previous_completed": {
-      "passed": 2302,
-      "skipped": 89,
-      "failures": 0
-    },
-    "host_probes_disabled": true
+  "skip_explanation": "Per local platform: 66 passed and 7 intentionally skipped (six separately qualified installed-host cases and the opt-in interactive browser journey). Skips are not passes.",
+  "source_repository_suite": {
+    "state": "passed",
+    "tests": 2394,
+    "passed": 2305,
+    "skipped": 89,
+    "failures": 0,
+    "errors": 0,
+    "warnings": "Two existing SWIG deprecations; no failed tests",
+    "host_probes_disabled": true,
+    "command": "ATMEM_CODE_SKIP_HOST_PROBES=1 python -m pytest -q",
+    "junit_artifact": "/tmp/atmem-code-verify.TtTLOV/vector-fixed-repository-results.xml"
   },
-  "installed_host_probes": {
-    "state": "final run in progress",
+  "installed_host_and_browser": {
+    "state": "passed",
+    "wheel_sha256": "5543dff8051d17020b04ffb7e4a71b8fae0991fa1dfa777c0eff07d2ca314c69",
+    "passed": 5,
+    "failures": 0,
     "claude_version": "2.1.281",
     "codex_version": "0.162.1",
-    "muse_version": "1.4.7-R6101.1",
-    "muse_probe_result": "two explicit expected failures; offline startup timeout and Meta-protocol endpoint received zero requests"
+    "cases": [
+      "Claude prompt-hook canary observed in local model request",
+      "Claude default enable, ordinary capture, new-session recall, pause/resume and uninstall",
+      "Codex trusted-fixture hook canary observed in local model request",
+      "Controlled Codex capture to Claude new-session recall",
+      "Authenticated Chrome search, settings/CLI parity and exact clear"
+    ],
+    "assurance": "Local protocol-boundary observations, not paid inference or coding-task quality",
+    "codex_trust": "Per-invocation fixture-only bypass in isolated CODEX_HOME; normal production onboarding remains blocked",
+    "junit_artifact": "/tmp/atmem-code-verify.TtTLOV/verified-host-browser-results.xml",
+    "screenshot": "/tmp/atmem-code-verify.TtTLOV/verified-dashboard.png"
   },
-  "browser": {
-    "state": "final run in progress",
-    "previous_completed": "one installed Chrome journey passed without page errors; search/settings/CLI parity/exact clear"
+  "muse": {
+    "version": "1.4.7-R6101.1",
+    "state": "blocked",
+    "expected_failures": 2,
+    "result": "Echo-provider startup timed out; Meta-protocol endpoint received zero requests within 30 seconds",
+    "junit_artifact": "/tmp/atmem-code-verify.TtTLOV/frozen-host-results.xml"
   },
   "static_checks": {
     "javascript_syntax": "passed",
     "website_docs": "56 pages; version 2.3.8; inventory valid",
     "git_diff_check": "passed",
-    "wheel_build": "passed"
+    "wheel_build": "passed",
+    "installed_pip_check": "passed",
+    "wheel_package_files_match_worktree": true
   },
   "ci": {
-    "state": "pending source push",
-    "matrix": {
-      "os": [
-        "ubuntu-latest",
-        "macos-latest",
-        "windows-latest"
+    "code_matrix": {
+      "conclusion": "success",
+      "headSha": "de0a98e2bd5e8b6bf7bf7b7f0ccda20a969d3aa5",
+      "jobs": [
+        {
+          "conclusion": "success",
+          "name": "installed-core (windows-latest, 3.13)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "installed-core (ubuntu-latest, 3.10)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "installed-core (windows-latest, 3.10)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "installed-core (macos-latest, 3.13)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "installed-core (ubuntu-latest, 3.13)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "installed-core (macos-latest, 3.10)",
+          "status": "completed"
+        }
       ],
-      "python": [
-        "3.10",
-        "3.13"
-      ]
+      "status": "completed",
+      "url": "https://github.com/aetna000/atmem/actions/runs/38568466929"
+    },
+    "installed_reports": [
+      {
+        "format": "atmem-code-installed-wheel-verification-v1",
+        "platform": "macOS-26.6.2-arm64-arm-64bit",
+        "python": "3.10.11",
+        "wheel": "atmem-2.3.8-py3-none-any.whl",
+        "wheel_sha256": "d12e2195ed5f61508d6f0ee714c7897b3b4db025480b57d84c02d8d5b7bd1093",
+        "module_path": "/private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/atmem-code-wheel-bo7uuf8u/venv/lib/python3.10/site-packages/atmem/__init__.py",
+        "atmem_imported_from_selected_environment": true,
+        "pytest_returncode": 0,
+        "totals": {
+          "tests": 73,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 7
+        },
+        "artifacts": "/private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/atmem-code-wheel-bo7uuf8u",
+        "host_probes": "separately qualified; not run by the portable core gate"
+      },
+      {
+        "format": "atmem-code-installed-wheel-verification-v1",
+        "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+        "python": "3.10.22",
+        "wheel": "atmem-2.3.8-py3-none-any.whl",
+        "wheel_sha256": "094729fd582a90077f0d04b113cfff3dff5babafb9b069cddf104743e42dc5f8",
+        "module_path": "/tmp/atmem-code-wheel-wuj75k6n/venv/lib/python3.10/site-packages/atmem/__init__.py",
+        "atmem_imported_from_selected_environment": true,
+        "pytest_returncode": 0,
+        "totals": {
+          "tests": 73,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 7
+        },
+        "artifacts": "/tmp/atmem-code-wheel-wuj75k6n",
+        "host_probes": "separately qualified; not run by the portable core gate"
+      },
+      {
+        "format": "atmem-code-installed-wheel-verification-v1",
+        "platform": "Windows-10-10.0.26100-SP0",
+        "python": "3.10.11",
+        "wheel": "atmem-2.3.8-py3-none-any.whl",
+        "wheel_sha256": "daadaf065a44aeabd31de6a5195cbd8a32adc14471a50ba99f5eb2299c45f1c6",
+        "module_path": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\atmem-code-wheel-789og57_\\venv\\lib\\site-packages\\atmem\\__init__.py",
+        "atmem_imported_from_selected_environment": true,
+        "pytest_returncode": 0,
+        "totals": {
+          "tests": 73,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 7
+        },
+        "artifacts": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\atmem-code-wheel-789og57_",
+        "host_probes": "separately qualified; not run by the portable core gate"
+      },
+      {
+        "format": "atmem-code-installed-wheel-verification-v1",
+        "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+        "python": "3.13.15",
+        "wheel": "atmem-2.3.8-py3-none-any.whl",
+        "wheel_sha256": "8fb9f8d2e8e081f10b8c6b9f6cca9afae3884994fd2bb8a06ea508c40ce8157d",
+        "module_path": "/private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/atmem-code-wheel-_06vj1a1/venv/lib/python3.13/site-packages/atmem/__init__.py",
+        "atmem_imported_from_selected_environment": true,
+        "pytest_returncode": 0,
+        "totals": {
+          "tests": 73,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 7
+        },
+        "artifacts": "/private/var/folders/36/tjdph2t965j8snz9_vkdnw0r0000gn/T/atmem-code-wheel-_06vj1a1",
+        "host_probes": "separately qualified; not run by the portable core gate"
+      },
+      {
+        "format": "atmem-code-installed-wheel-verification-v1",
+        "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+        "python": "3.13.16",
+        "wheel": "atmem-2.3.8-py3-none-any.whl",
+        "wheel_sha256": "967cf98e70fcd17fdfcff08dca9a0641e545d5ace051197f9cf19801aa744e76",
+        "module_path": "/tmp/atmem-code-wheel-x0ilth3i/venv/lib/python3.13/site-packages/atmem/__init__.py",
+        "atmem_imported_from_selected_environment": true,
+        "pytest_returncode": 0,
+        "totals": {
+          "tests": 73,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 7
+        },
+        "artifacts": "/tmp/atmem-code-wheel-x0ilth3i",
+        "host_probes": "separately qualified; not run by the portable core gate"
+      },
+      {
+        "format": "atmem-code-installed-wheel-verification-v1",
+        "platform": "Windows-2025Server-10.0.26100-SP0",
+        "python": "3.13.15",
+        "wheel": "atmem-2.3.8-py3-none-any.whl",
+        "wheel_sha256": "a85e5acac03f0732374e2adf9865d6922f78d2e08f5fbccd30a914ee50d9128e",
+        "module_path": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\atmem-code-wheel-vbncmp86\\venv\\Lib\\site-packages\\atmem\\__init__.py",
+        "atmem_imported_from_selected_environment": true,
+        "pytest_returncode": 0,
+        "totals": {
+          "tests": 73,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 7
+        },
+        "artifacts": "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\atmem-code-wheel-vbncmp86",
+        "host_probes": "separately qualified; not run by the portable core gate"
+      }
+    ],
+    "repository": {
+      "conclusion": "failure",
+      "headSha": "de0a98e2bd5e8b6bf7bf7b7f0ccda20a969d3aa5",
+      "jobs": [
+        {
+          "conclusion": "success",
+          "name": "openclaw-plugin",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "atbot-tests (3.11)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "atbot-tests (3.12)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "openclaw-hook-context-matrix (lockfile, openclaw@2026.8.1)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Latest Pydantic AI and LangChain/LangGraph",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Context provider extra (langgraph-provider)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "unit-tests (3.13)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Context provider extra (mem0)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Context provider extra (pydantic-provider)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "failure",
+          "name": "openclaw-hook-context-matrix (latest, openclaw@latest)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "unit-tests (3.11)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "atbot-tests (3.13)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "unit-tests (3.10)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Windows core smoke (Python 3.14, no Bun or OpenClaw)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "unit-tests (3.12)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "openclaw-hook-context-matrix (min, openclaw@2026.7.1-2)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "atbot-tests (3.10)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "distribution",
+          "status": "completed"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "installed-atbot-wheel",
+          "status": "completed"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "installed-encrypted-wheel",
+          "status": "completed"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Installed Windows wheel and managed Bun bootstrap",
+          "status": "completed"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Installed wheel and managed Bun bootstrap (${{ matrix.label }})",
+          "status": "completed"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "installed-atflows-wheel",
+          "status": "completed"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "installed-wheel",
+          "status": "completed"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/aetna000/atmem/actions/runs/38568466907"
+    },
+    "repository_blocker": "openclaw@latest resolves to 2026.10.3 with no reviewed hook-context fixture. Distribution and dependent installed-release jobs skipped; Code matrix, unit Python 3.10–3.13, companion/framework/provider/bridge tests and Windows core smoke passed.",
+    "website_docs": {
+      "url": "https://github.com/aetna000/atmem/actions/runs/38568467091",
+      "conclusion": "success",
+      "publication": "inventory validation only; no live website publication"
     }
   },
-  "open_tasks": [
-    "T015",
-    "T017",
-    "T018",
-    "T019",
-    "T033",
-    "T042"
-  ],
+  "scoped_tasks": {
+    "total": 37,
+    "completed": 30,
+    "blocked": [
+      "T015",
+      "T017",
+      "T018",
+      "T019",
+      "T024",
+      "T042"
+    ],
+    "deferred_comparison": [
+      "T033"
+    ]
+  },
   "blockers": [
     "B01",
     "B02",
@@ -118,5 +417,6 @@
     "B05",
     "B06"
   ],
-  "phase9": "deferred by owner; no benchmark or release run"
+  "additional_repository_gate": "Unreviewed OpenClaw latest fixture, outside the Code feature scope",
+  "phase9": "T037–T041 deferred by owner; no coding benchmark or release run"
 }

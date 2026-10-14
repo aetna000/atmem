@@ -43,7 +43,7 @@ The owner requested implementation of phases 0–8, including provider routing a
 - [x] T021 Wire enabled host-turn events to one formation path in `atmem/code/service.py`; prove no agent-initiated `remember` call is needed in `tests/test_code_automatic.py`.
 - [x] T022 Build bounded, source-linked, scope-authorized context packs in `atmem/code/context.py`; test stale-state exclusion, truncation and timeout behavior in `tests/test_code_context.py`.
 - [x] T023 Record submitted bytes, host acknowledgement and independently observed model input as distinct assurance levels in `atmem/code/receipts.py`; test no overclaim of model delivery in `tests/test_code_receipts.py`.
-- [x] T024 Run paired new-session and cross-agent handoffs for supported hosts in `tests/integration/test_code_handoff.py`, including private-lane isolation and idempotent replay.
+- [ ] T024 Run paired new-session and cross-agent handoffs for supported hosts in `tests/integration/test_code_handoff.py`, including private-lane isolation and idempotent replay. Controlled handoff tests pass; normal two-host automatic onboarding remains blocked by B04/T019.
 
   Actual installed Codex capture → Claude model-boundary recall is additionally tested in `tests/test_code_codex.py`. Codex uses an isolated, explicitly vetted fixture trust flag in this test; this does not close normal Codex onboarding T019. Private-lane and replay checks use the shared production hook boundary in the integration tests.
 
