@@ -52,6 +52,33 @@ The qualified automatic adapter and outstanding host gates are listed in
 unqualified adapter refuses automatic enablement. An installed CLI binary or a
 successful configuration merge alone does not qualify it.
 
+### GitHub Copilot CLI
+
+The source preview supports Copilot CLI **1.0.98 on macOS**. First open
+`copilot` in your project and approve its workspace trust prompt, then exit.
+AtMem never grants that trust or overrides `disableAllHooks` for you.
+
+```sh
+atmem code setup --project /path/to/project --db /path/to/memory.db --host copilot --apply
+atmem code enable --project /path/to/project --db /path/to/memory.db --host copilot
+atmem code status --project /path/to/project --db /path/to/memory.db --host copilot
+```
+
+Enable runs an isolated offline CLI probe without provider credits. Start a
+new Copilot session afterwards. Ordinary prompts automatically recall earlier
+authorized memory before capturing eligible new facts; no memory-tool call is
+needed. Use `--host copilot` with the same disable, enable and uninstall commands
+below. Existing hook entries are preserved and uninstall restores their exact
+previous file bytes. A changed file is not overwritten on uninstall.
+
+This adapter uses a bounded, read-only lookup of the current event in Copilot's
+local session journal to obtain its stable invocation ID. It does not import
+the transcript as memory. Missing journals, an unqualified CLI version, or
+ambiguous event identity withhold capture/context. Keep the CLI's session
+journal accessible to the hook. Windows, Linux, VS Code Copilot and the cloud
+agent are not qualified by this Mac CLI result. See the
+[test report](../specs/042-atmem-code/copilot-cli-probe.md).
+
 Ordinary prompt events call the local AtMem hook runner. It retrieves earlier
 authorized memory before forming new memory from that turn. The agent does not
 need to choose a `remember` or `retrieve` tool. A shared profile is common across

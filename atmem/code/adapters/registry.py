@@ -2,6 +2,8 @@
 
 from hashlib import sha256
 import os
+import platform
+import re
 from pathlib import Path
 import shlex
 import sys
@@ -13,7 +15,7 @@ from atmem.evidence.crypto import load_existing_key
 
 
 def verified_adapter(store, *, subject: str, project: str, root: str, host: str):
-    if host != "claude" or os.name == "nt":
+    if host not in {"claude", "copilot"} or os.name == "nt" or (host == "copilot" and platform.system() != "Darwin"):
         raise RuntimeError(f"{host} automatic adapter is not yet verified on this platform")
     from atmem.code import hook
     directory = Path(store.path).resolve().parent / ".code-credentials"
@@ -24,11 +26,23 @@ def verified_adapter(store, *, subject: str, project: str, root: str, host: str)
                  host=host, credential_file=str(credential_file))
     command = shlex.join([sys.executable, str(Path(hook.__file__).resolve()), "--db", str(Path(store.path).resolve()),
                           "--subject", subject, "--project-id", project, "--credential-file", str(credential_file)])
-    adapter = ClaudeAdapter(root, command)
+    if host == "copilot":
+        from atmem.code.adapters.copilot import CopilotAdapter
+        from atmem.code.adapters.copilot_events import QUALIFIED_VERSION, require_workspace_trust
+        require_workspace_trust(root)
+        adapter = CopilotAdapter(root, command)
+    else:
+        adapter = ClaudeAdapter(root, command)
     initial = adapter.probe()
     if initial.version == "unavailable":
-        raise RuntimeError("Claude Code is not installed")
-    adapter.verifier = lambda: claude_probe(store=store, subject=subject, project=project,
+        raise RuntimeError(f"{host} is not installed")
+    verifier = claude_probe
+    if host == "copilot":
+        from atmem.code.adapters.copilot_probe import copilot_probe
+        if re.search(r"\b" + re.escape(QUALIFIED_VERSION) + r"\b", initial.version) is None:
+            raise RuntimeError("Copilot version is not qualified; expected " + QUALIFIED_VERSION)
+        verifier = copilot_probe
+    adapter.verifier = lambda: verifier(store=store, subject=subject, project=project,
                                             root=Path(root).resolve(), credential=load_existing_key(credential_file), initial=initial,
                                             command=command)
     return adapter

@@ -34,7 +34,7 @@ The owner requested implementation of phases 0–8, including provider routing a
 - [ ] T015 Implement and installed-version test the Muse Code adapter in `atmem/code/adapters/muse.py` and `tests/test_code_muse.py`.
 - [x] T016 Implement and installed-version test the Claude Code adapter in `atmem/code/adapters/claude.py` and `tests/test_code_claude.py`.
 - [ ] T017 Implement and installed-version test the Grok CLI adapter in `atmem/code/adapters/grok.py` and `tests/test_code_grok.py`.
-- [ ] T018 Implement and installed-version test the GitHub Copilot CLI adapter in `atmem/code/adapters/copilot.py` and `tests/test_code_copilot.py`; do not claim editor/cloud coverage from this test.
+- [x] T018 Implement and installed-version test the GitHub Copilot CLI adapter in `atmem/code/adapters/copilot.py` and `tests/test_code_copilot.py`; qualified for CLI 1.0.98 on macOS only. Explicit event dispatch, bounded journal-backed invocation identity, normal offline activation, new/resumed-session recall, pause/resume and exact owner-hook restoration pass; see `copilot-cli-probe.md`. No editor/cloud or full-fidelity evidence claim.
 - [ ] T019 Implement and installed-version test the Codex adapter in `atmem/code/adapters/codex.py` and `tests/test_code_codex.py`.
 - [x] T020 Publish tested host/OS/version support and manual-only fallbacks in `specs/042-atmem-code/host-capabilities.md`; require the actual hook and context-submission probe before an automatic label.
 
@@ -43,7 +43,7 @@ The owner requested implementation of phases 0–8, including provider routing a
 - [x] T021 Wire enabled host-turn events to one formation path in `atmem/code/service.py`; prove no agent-initiated `remember` call is needed in `tests/test_code_automatic.py`.
 - [x] T022 Build bounded, source-linked, scope-authorized context packs in `atmem/code/context.py`; test stale-state exclusion, truncation and timeout behavior in `tests/test_code_context.py`.
 - [x] T023 Record submitted bytes, host acknowledgement and independently observed model input as distinct assurance levels in `atmem/code/receipts.py`; test no overclaim of model delivery in `tests/test_code_receipts.py`.
-- [ ] T024 Run paired new-session and cross-agent handoffs for supported hosts in `tests/integration/test_code_handoff.py`, including private-lane isolation and idempotent replay. Controlled handoff tests pass; normal two-host automatic onboarding remains blocked by B04/T019.
+- [x] T024 Run paired new-session and cross-agent handoffs for supported hosts, including private-lane isolation and idempotent replay. `tests/test_code_copilot.py` now verifies normal Copilot/Claude onboarding and bidirectional capture → actual model-boundary recall on macOS, without activation bypasses. Shared-boundary private-lane/replay tests remain in `tests/integration/test_code_handoff.py` and `tests/test_code_copilot_events.py`. Other hosts remain unqualified under their own adapter tasks.
 
   Actual installed Codex capture → Claude model-boundary recall is additionally tested in `tests/test_code_codex.py`. Codex uses an isolated, explicitly vetted fixture trust flag in this test; this does not close normal Codex onboarding T019. Private-lane and replay checks use the shared production hook boundary in the integration tests.
 

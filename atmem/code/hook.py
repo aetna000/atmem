@@ -17,7 +17,6 @@ if __package__ in {None, ""}:
 
 from atmem.code.application import CodeApplication, digest
 from atmem.code.contracts import CodeContextRequest, CodeObservation, CodeScope
-from atmem.code.context import build_context
 from atmem.code.identity import repository_key, _git
 from atmem.code.receipts import CodeReceipts
 from atmem.code.runtime import CodeRuntime
@@ -66,17 +65,26 @@ def handle(app: CodeApplication, *, project: str, credential: bytes, payload: di
     scope = CodeScope.from_dict(enrollment["scope"])
     host = enrollment["host"]
     cwd = str(payload.get("cwd") or "")
-    if not cwd or repository_key(cwd) != enrollment["repository_key"]:
-        raise PermissionError("hook event came from another repository")
     challenge = app.store.code_document(app.subject_id, project, "probe", sha256(credential).hexdigest())
     if (challenge is not None and payload.get("prompt") == challenge["prompt"]
+            and cwd and repository_key(cwd) == challenge.get("repository_key", enrollment["repository_key"])
             and datetime.fromisoformat(challenge["expires_at"]) > datetime.now(timezone.utc)):
+        if host == "copilot":
+            from atmem.code.adapters.copilot_events import normalize_event
+            normalize_event(payload)
         challenge["hook_seen"] = True
         app.store.put_code_document(app.subject_id, project, "probe", sha256(credential).hexdigest(), challenge)
+        if host == "copilot":
+            return {"additionalContext": challenge["canary"]}
         return {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": challenge["canary"]}}
+    if not cwd or repository_key(cwd) != enrollment["repository_key"]:
+        raise PermissionError("hook event came from another repository")
     row = app.store.code_installation(app.subject_id, project, host)
     if row is None or not row["enabled"]:
         return {}
+    if host == "copilot":
+        from atmem.code.adapters.copilot_events import normalize_event
+        payload = normalize_event(payload)
     event = payload.get("hook_event_name") or payload.get("hookEventName") or payload.get("event")
     mapping = {"userPromptSubmitted": "UserPromptSubmit", "user_prompt_submit": "UserPromptSubmit",
                "postToolUse": "PostToolUse", "post_tool_use": "PostToolUse",
@@ -96,15 +104,8 @@ def handle(app: CodeApplication, *, project: str, credential: bytes, payload: di
             runtime.process_pending()
         return {}
     if event == "SessionStart":
-        task = payload.get("initialPrompt") or payload.get("initial_prompt")
-        if host != "copilot" or not isinstance(task, str) or not task.strip() or not settings["auto_recall"]:
-            return {}
-        turn = opaque("turn", str(payload.get("timestamp") or "startup"))
-        task_text = task.encode("utf-8")[:8192].decode("utf-8", errors="ignore")
-        request = CodeContextRequest(opaque("request", session + turn), session, turn, task_text, settings["max_context_bytes"], scope)
-        package = build_context(app.memory, request)
-        CodeReceipts(app.store).submitted(request, package, host=host)
-        return {"additionalContext": package.content} if package.content else {}
+        # Per-prompt recall already ran; startup recall would inject twice.
+        return {}
     if event not in {"UserPromptSubmit", "PostToolUse"}:
         return {}
     turn_raw = payload.get("turn_id") or payload.get("promptId") or payload.get("prompt_id")
@@ -138,9 +139,11 @@ def handle(app: CodeApplication, *, project: str, credential: bytes, payload: di
     request = CodeContextRequest(opaque("request", session + turn), session, turn, task_text, settings["max_context_bytes"], scope)
     result = runtime.on_user_turn(request, observation, intake.sign(observation), repository_root=cwd)
     package = result["context"]
-    if host in {"grok", "copilot"} or not package.content:
+    if host == "grok" or not package.content:
         return {}
     CodeReceipts(app.store).submitted(request, package, host=host)
+    if host == "copilot":
+        return {"additionalContext": package.content}
     return {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": package.content}}
 
 
@@ -150,6 +153,7 @@ def main() -> None:
     parser.add_argument("--subject", required=True)
     parser.add_argument("--project-id", required=True)
     parser.add_argument("--credential-file", required=True)
+    parser.add_argument("--host-event", choices=("userPromptSubmitted", "postToolUse", "sessionEnd"))
     args = parser.parse_args()
     memory = None
     try:
@@ -159,6 +163,10 @@ def main() -> None:
         payload = json.loads(raw)
         if not isinstance(payload, dict):
             raise ValueError("hook input must be an object")
+        if args.host_event:
+            if any(payload.get(key) not in (None, args.host_event) for key in ("event", "hook_event_name", "hookEventName")):
+                raise ValueError("host event argument conflicts with payload")
+            payload["event"] = args.host_event
         memory = Memory(args.db, auto_vectors=False)
         result = handle(CodeApplication(memory, subject_id=args.subject), project=args.project_id,
                         credential=load_existing_key(args.credential_file), payload=payload)

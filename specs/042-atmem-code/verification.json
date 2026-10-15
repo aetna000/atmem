@@ -1,5 +1,6 @@
 {
   "format": "atmem-code-qualification-v1",
+  "snapshot_note": "Historical qualification for executable_code_commit below, before the Copilot correction. Current Copilot follow-up and scoped task status are in copilot-verification.json; prior CI and cross-platform wheel results are not claimed for the newer code.",
   "completed_date_local": "2026-10-15",
   "timezone": "Australia/Sydney",
   "branch": "feature/atmem-code-2.3.9",
