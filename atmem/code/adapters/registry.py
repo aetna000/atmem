@@ -15,7 +15,8 @@ from atmem.evidence.crypto import load_existing_key
 
 
 def verified_adapter(store, *, subject: str, project: str, root: str, host: str):
-    if host not in {"claude", "copilot"} or os.name == "nt" or (host == "copilot" and platform.system() != "Darwin"):
+    if (host not in {"claude", "copilot"} or (host == "claude" and os.name == "nt")
+            or (host == "copilot" and platform.system() not in {"Darwin", "Windows"})):
         raise RuntimeError(f"{host} automatic adapter is not yet verified on this platform")
     from atmem.code import hook
     directory = Path(store.path).resolve().parent / ".code-credentials"
@@ -24,13 +25,14 @@ def verified_adapter(store, *, subject: str, project: str, root: str, host: str)
     credential_file = directory / (key + ".key")
     enroll_store(store, subject=subject, project=project, root=root, profile=lane["profile_id"], agent=lane["agent_id"],
                  host=host, credential_file=str(credential_file))
-    command = shlex.join([sys.executable, str(Path(hook.__file__).resolve()), "--db", str(Path(store.path).resolve()),
-                          "--subject", subject, "--project-id", project, "--credential-file", str(credential_file)])
+    argv = [sys.executable, str(Path(hook.__file__).resolve()), "--db", str(Path(store.path).resolve()),
+            "--subject", subject, "--project-id", project, "--credential-file", str(credential_file)]
+    command = shlex.join(argv)
     if host == "copilot":
         from atmem.code.adapters.copilot import CopilotAdapter
         from atmem.code.adapters.copilot_events import QUALIFIED_VERSION, require_workspace_trust
         require_workspace_trust(root)
-        adapter = CopilotAdapter(root, command)
+        adapter = CopilotAdapter(root, command, argv=argv)
     else:
         adapter = ClaudeAdapter(root, command)
     initial = adapter.probe()
@@ -44,5 +46,5 @@ def verified_adapter(store, *, subject: str, project: str, root: str, host: str)
         verifier = copilot_probe
     adapter.verifier = lambda: verifier(store=store, subject=subject, project=project,
                                             root=Path(root).resolve(), credential=load_existing_key(credential_file), initial=initial,
-                                            command=command)
+                                            command=command, **({"argv": argv} if host == "copilot" else {}))
     return adapter

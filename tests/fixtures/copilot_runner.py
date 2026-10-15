@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+from atmem.code.adapters.copilot import copilot_cli_argv
 
 
 def run_copilot(root, command, prompt, endpoint, *, configure=True, resume=None):
@@ -15,7 +16,8 @@ def run_copilot(root, command, prompt, endpoint, *, configure=True, resume=None)
         hooks = root / ".github/hooks"
         hooks.mkdir(parents=True, exist_ok=True)
         (hooks / "atmem-code.json").write_text(json.dumps({"version": 1, "hooks": {
-            event: [{"type": "command", "command": command, "timeoutSec": 10}]
+            event: [{"type": "command", **({"exec": command[0], "args": command[1:]} if isinstance(command, list)
+                                          else {"command": command}), "timeoutSec": 10}]
             for event in ("sessionStart", "userPromptSubmitted", "sessionEnd")
         }}))
     env = {key: value for key, value in os.environ.items()
@@ -23,7 +25,7 @@ def run_copilot(root, command, prompt, endpoint, *, configure=True, resume=None)
     env.update(COPILOT_HOME=str(home), COPILOT_OFFLINE="true",
                COPILOT_PROVIDER_BASE_URL=endpoint.url, COPILOT_PROVIDER_TYPE="openai",
                COPILOT_PROVIDER_WIRE_API="responses", COPILOT_MODEL="gpt-5.4")
-    return subprocess.run(["copilot", "-p", prompt, *(["--resume", resume] if resume else []), "--allow-all-tools", "--disable-builtin-mcps",
+    return subprocess.run([*copilot_cli_argv(), "-p", prompt, *(["--resume", resume] if resume else []), "--allow-all-tools", "--disable-builtin-mcps",
                            "--no-auto-update", "--no-custom-instructions", "--no-ask-user",
                            "--no-remote", "--no-remote-export", "--silent"],
                           cwd=root, env=env, text=True, capture_output=True, timeout=90)

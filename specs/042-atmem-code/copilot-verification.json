@@ -1,5 +1,6 @@
 {
   "format": "atmem-code-copilot-qualification-v1",
+  "snapshot_note": "Initial macOS qualification before Windows corrections. Current same-wheel macOS/Windows evidence is in copilot-windows-verification.json; these historical counts and wheel hash are not relabelled as current results.",
   "date_local": "2026-10-15",
   "timezone": "Australia/Sydney",
   "branch": "feature/atmem-code-2.3.9",

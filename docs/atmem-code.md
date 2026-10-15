@@ -54,8 +54,8 @@ successful configuration merge alone does not qualify it.
 
 ### GitHub Copilot CLI
 
-The source preview supports Copilot CLI **1.0.98 on macOS**. First open
-`copilot` in your project and approve its workspace trust prompt, then exit.
+The source preview supports Copilot CLI **1.0.98 on macOS and Windows 11**. First open
+`copilot` (`copilot.cmd` on Windows) in your project and approve its workspace trust prompt, then exit.
 AtMem never grants that trust or overrides `disableAllHooks` for you.
 
 ```sh
@@ -75,8 +75,12 @@ This adapter uses a bounded, read-only lookup of the current event in Copilot's
 local session journal to obtain its stable invocation ID. It does not import
 the transcript as memory. Missing journals, an unqualified CLI version, or
 ambiguous event identity withhold capture/context. Keep the CLI's session
-journal accessible to the hook. Windows, Linux, VS Code Copilot and the cloud
-agent are not qualified by this Mac CLI result. See the
+journal accessible to the hook. On Windows the npm CLI launcher is invoked
+through Node directly, and generated hooks use native executable/argument
+arrays; neither prompt text nor paths are shell-quoted. After upgrading this
+Windows preview, restart all AtMem clients so they use the corrected shared
+household lock. Migration still requires exclusive access. Linux, VS Code
+Copilot and the cloud agent remain unqualified. See the
 [test report](../specs/042-atmem-code/copilot-cli-probe.md).
 
 Ordinary prompt events call the local AtMem hook runner. It retrieves earlier

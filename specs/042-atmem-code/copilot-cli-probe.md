@@ -1,6 +1,6 @@
 # Copilot CLI integration qualification
 
-Date: 2026-10-15. Host: macOS. CLI: `@github/copilot` 1.0.98,
+Date: 2026-10-15. Hosts: macOS and Windows 11 build 26200. CLI: `@github/copilot` 1.0.98,
 installed globally using `npm install -g @github/copilot`.
 
 Tests use temporary Git repositories, isolated `COPILOT_HOME`, explicit fixture
@@ -54,7 +54,7 @@ python -m pytest tests/test_code_copilot.py tests/test_code_copilot_events.py -q
 
 The reference says command/HTTP prompt-hook output is dropped, but this exact
 installed version demonstrably injects top-level `additionalContext`. Production
-support is pinned to CLI 1.0.98 on macOS. Startup recall is omitted to avoid
+support is pinned to CLI 1.0.98 on the separately tested macOS/Windows cells. Startup recall is omitted to avoid
 duplicate injection; ordinary prompt recall precedes capture.
 
 Activation uses a clean temporary project and isolated Copilot configuration,
@@ -71,14 +71,50 @@ claimed. Sandbox policies that prevent journal/database access cause withholding
 AtMem does not widen sandbox grants. No release or phase 9 evaluation was run.
 
 Reference: [GitHub Copilot hooks](https://docs.github.com/en/copilot/reference/hooks-reference).
-These observations qualify CLI 1.0.98 on this Mac only, not VS Code or cloud agents.
+These observations do not qualify Linux, VS Code or cloud agents. Claude handoff
+is qualified only on macOS, not on Windows.
 
 ## Installed-artifact evidence
 
-The final local wheel passed 79 portable-core tests (10 host tests deliberately
+The initial macOS wheel passed 79 portable-core tests (10 host tests deliberately
 skipped there), followed by all 16 Copilot host/identity tests outside the source
 checkout. The latter includes actual Copilot↔Claude handoff. Machine-readable
 commands, artifact digest and scope are in [copilot-verification.json](copilot-verification.json).
 The package retains the baseline version for this local preview; no release was
 published. Earlier cross-platform and remote CI evidence is not relabelled as
 verification of this follow-up.
+
+## Windows follow-up and corrected shared locks
+
+On the user-provided Windows 11 machine (build 26200, Python 3.12.6, Node 22.11.0),
+Copilot CLI 1.0.98 was installed and tested in isolated temporary projects and
+configuration homes. Three Windows-specific issues were corrected:
+
+1. Python could not resolve the bare npm CLI name. The adapter now invokes the
+   installed Node loader directly, without `cmd.exe` or PowerShell parsing of
+   prompts. Generated hook entries use native `exec`/`args` on both OSes.
+2. The offline probe environment omitted Windows system variables, causing the
+   bundled runtime's random-number initialization to fail. Its allowlist now
+   preserves those OS variables without forwarding provider credentials.
+3. CRT byte locks were exclusive even when the household requested shared
+   runtime access. This prevented hook subprocesses opening a database already
+   held by setup/dashboard. `LockFileEx` now supplies genuine shared access and
+   retains exclusive migration exclusion on the same lock byte. See
+   [Microsoft's API contract](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex).
+
+The actual installed Windows wheel passes 31 host/identity/locking tests with
+one explicitly skipped Claude-on-Windows handoff. Encryption/storage regression
+tests pass 33/33. The same wheel's portable-core gate passes 81 tests with 10
+intentional host skips on both Windows and macOS. Full source and Mac host checks
+are separate from these Windows results; no benchmark claim is inferred.
+
+The Windows lifecycle test covers ordinary capture, new/resumed-session model
+input, disable/re-enable, paths with spaces, existing owner handlers, exact
+uninstall restoration and failed-probe rollback through normal activation.
+The four cross-process shared/exclusive lock combinations and release are
+tested; existing encryption tests still reject migration with active runtime
+holders. Restart all Windows AtMem clients after upgrading so older exclusive
+CRT locks are no longer held. No persisted-data format or schema changes.
+
+Commands, digest and exact tested scope are recorded in
+[copilot-windows-verification.json](copilot-windows-verification.json).

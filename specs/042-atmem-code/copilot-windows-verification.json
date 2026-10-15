@@ -1,0 +1,84 @@
+{
+  "format": "atmem-code-copilot-windows-qualification-v1",
+  "date_local": "2026-10-15",
+  "branch": "feature/atmem-code-2.3.9",
+  "base_commit": "7fd3145",
+  "main_unchanged_at": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+  "published_release": false,
+  "host_version": "GitHub Copilot CLI 1.0.98",
+  "windows": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.6",
+    "node": "22.11.0",
+    "test_root": "C:\\Users\\user\\AppData\\Local\\Temp\\atmem-copilot-20261015-ssh1",
+    "host_identity_and_locking": {
+      "command": "python -m pytest tests/test_code_copilot.py tests/test_code_copilot_events.py tests/test_code_host_adapters.py tests/test_locking.py -q -x --junitxml=windows-copilot-results.xml",
+      "passed": 31,
+      "skipped": 1,
+      "failed": 0,
+      "skip_reason": "Claude automatic activation is not qualified on Windows",
+      "local_junit_copy": "/tmp/atmem-copilot-windows-host-results.xml"
+    },
+    "encryption_and_storage": {
+      "command": "python -m pytest tests/test_encryption.py tests/test_locking.py tests/test_store_transactions.py -q -x --junitxml=windows-storage-results.xml",
+      "passed": 33,
+      "skipped": 0,
+      "failed": 0,
+      "local_junit_copy": "/tmp/atmem-copilot-windows-storage-results.xml"
+    },
+    "installed_core": {
+      "command": "python scripts/verify_code_wheel.py --wheel atmem-2.3.8-py3-none-any.whl --venv C:\\Users\\user\\AppData\\Local\\Temp\\atmem-code-verify-20261014\\venv --report windows-core-report.json",
+      "passed": 81,
+      "skipped": 10,
+      "failed": 0,
+      "imported_from_selected_wheel_environment": true,
+      "local_report_copy": "/tmp/atmem-copilot-windows-core-report.json"
+    }
+  },
+  "macos_same_wheel": {
+    "platform": "macOS-26.5.2-x86_64-i386-64bit",
+    "python": "3.12.2",
+    "installed_core": {"passed": 81, "skipped": 10, "failed": 0},
+    "installed_host_identity_and_adapter_tests": {"passed": 24, "skipped": 0, "failed": 0},
+    "installed_host_junit": "/tmp/atmem-copilot-crossplatform-mac-host.xml",
+    "installed_core_report": "/tmp/atmem-copilot-crossplatform-mac-report.json",
+    "source_copilot_install_and_locking_tests": {"passed": 37, "skipped": 0, "failed": 0},
+    "source_encryption_and_storage": {"passed": 32, "skipped": 1, "failed": 0},
+    "storage_skip_reason": "Windows-specific key-permission test"
+  },
+  "same_wheel": {
+    "name": "atmem-2.3.8-py3-none-any.whl",
+    "sha256": "1d2ab5e0abfced3a2dfb698712b23421f021d6dba88bb338f25d27d07579bded",
+    "local_path": "/tmp/atmem-copilot-windows-lock-wheel/atmem-2.3.8-py3-none-any.whl",
+    "note": "Local source preview, not a new published 2.3.8 release"
+  },
+  "corrections": [
+    "Copilot hook exec/args avoids platform shell quoting",
+    "Windows npm launcher resolved through Node and the installed npm loader",
+    "Windows OS environment retained in the isolated offline probe without forwarding provider credentials",
+    "Windows LockFileEx supplies real shared runtime locks and exclusive migration locks"
+  ],
+  "observed_windows_lifecycle": [
+    "normal workspace-trust-gated setup and enable with no activation bypass",
+    "ordinary prompt capture and new-session model-input recall",
+    "resumed-session context delivery",
+    "pause blocks capture and injection; re-enable restores recall",
+    "paths with spaces and native executable arguments",
+    "owner hook preservation, exact uninstall restoration and failed-probe rollback",
+    "shared/shared allowed; shared/exclusive, exclusive/shared and exclusive/exclusive blocked across processes",
+    "released kernel locks can be reacquired; active runtime blocks migration"
+  ],
+  "limitations": [
+    "No Windows Claude handoff qualification; that test is skipped explicitly",
+    "Linux, VS Code Copilot and cloud agents remain unqualified",
+    "Offline fixed-response boundary tests, not task-quality or latency benchmarks",
+    "Partial capture and not_reconstructable; no full flight or forced-compaction claim",
+    "Restart all Windows AtMem clients after upgrading to release old CRT exclusive locks",
+    "Previous remote CI and Linux results are not results for this followup",
+    "Phase 9 and release publication not performed"
+  ],
+  "schema_changes": false,
+  "owner_project_or_memory_used": false,
+  "external_model_cost": 0,
+  "website_inventory": "56 pages, version 2.3.8, valid; no deployment"
+}

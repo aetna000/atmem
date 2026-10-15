@@ -1,13 +1,13 @@
 # Coding-agent host capability matrix
 
-**Qualification inventory, updated 2026-10-15.** Tests and limitations are recorded in [implementation-status.md](implementation-status.md). Portable core results do not qualify a host. Copilot CLI 1.0.98 has now been probed on macOS; see [probe results](copilot-cli-probe.md). Only the tested subset below may be advertised as automatic.
+**Qualification inventory, updated 2026-10-15.** Tests and limitations are recorded in [implementation-status.md](implementation-status.md). Portable core results do not qualify a host. Copilot CLI 1.0.98 is now qualified separately on macOS and Windows 11; see [probe results](copilot-cli-probe.md). Only the tested subset below may be advertised as automatic.
 
 | Host surface | Local version | Documented extension path | Candidate capture events | Candidate recall boundary | Current claim |
 | --- | --- | --- | --- | --- | --- |
 | [Muse Code](https://meta-models.github.io/muse-code-sdk/next/guides/extend/) | 1.4.7-R6101.1 (initial inventory: 1.0.2) | Project hooks and MCP; [hook reference](https://meta-models.github.io/muse-code-sdk/next/guides/plugins/reference/hook-events/) | A prior echo probe executed the prompt hook; subsequent startup also timed out | Echo `PreLLMCall` omitted the canary; isolated Meta-protocol endpoint received zero requests within 30 seconds | Blocked B01; no automatic activation |
 | [Claude Code](https://code.claude.com/docs/en/hooks) | 2.1.281 | Lifecycle hooks and MCP | Real user-prompt capture tested; tool outcome/flush contracts tested separately | Actual local Anthropic request contained the hook canary and, in a new session, recalled memory | Automatic prompt capture/recall on tested macOS; partial evidence coverage, not full flight reconstruction |
 | [Grok CLI](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/10-hooks.md) | 1.0.13 (5e9a58528b76) | Session, prompt, tool and stop hooks; [MCP](https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/07-mcp-servers.md) | Configuration adapter and normalized intake exist; no real automatic capture qualification | Documented allowing `UserPromptSubmit` output discards `additionalContext`; a different delivery boundary is required | Blocked B02; no automatic activation |
-| [GitHub Copilot CLI](https://docs.github.com/en/copilot/reference/hooks-reference) | 1.0.98, macOS | CLI hooks and [plugin/MCP](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference) | Explicit event argument plus journal invocation identity; actual prompt capture, replay and scope gates tested | Ordinary prompt context observed in new and resumed CLI sessions; startup recall omitted to avoid duplication | Automatic prompt capture/recall on tested macOS, following workspace trust and offline activation probe; partial evidence only |
+| [GitHub Copilot CLI](https://docs.github.com/en/copilot/reference/hooks-reference) | 1.0.98, macOS and Windows 11 | CLI hooks and [plugin/MCP](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference) | Native executable/arguments, explicit event dispatch and journal invocation identity; actual prompt capture, replay and scope gates tested | Ordinary prompt context observed in new and resumed CLI sessions on each OS; startup recall omitted to avoid duplication | Automatic prompt capture/recall on both tested OSes following workspace trust and offline activation probe; partial evidence only |
 | [Codex](https://learn.chatgpt.com/docs/hooks) | 0.162.1 | Trusted project `.codex/hooks.json`, lifecycle hooks and MCP | Actual prompt hook and AtMem capture passed in an isolated trusted fixture | Actual Responses request contained the canary; actual captured memory transferred to a Claude session | Controlled wire probe passed; default activation blocked B04 pending persistent user-trust onboarding |
 
 ## Tested platform cells
@@ -18,7 +18,7 @@
 | Dashboard interactive browser journey | Chrome passed | Not run | Not run |
 | Claude 2.1.281 prompt capture/recall, enable/pause/restore | Passed | Unsupported automatic adapter | Unverified |
 | Codex 0.162.1 controlled model-boundary probe | Passed with fixture-only trust flag | Unverified | Unverified |
-| Copilot CLI 1.0.98 prompt capture/recall, enable/pause/restore | Passed | Unsupported automatic adapter | Unsupported automatic adapter |
+| Copilot CLI 1.0.98 prompt capture/recall, enable/pause/restore | Passed | Passed | Unsupported automatic adapter |
 | Muse, Grok automatic adapters | Blocked as above | Unverified | Unverified |
 
 The Codex test does not approve the owner's hooks or change their trust store.

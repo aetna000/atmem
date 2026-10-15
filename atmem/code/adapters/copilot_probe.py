@@ -12,12 +12,12 @@ import tempfile
 from threading import Thread
 
 from atmem.code.adapters.base import HostProbe
-from atmem.code.adapters.copilot import CopilotAdapter
+from atmem.code.adapters.copilot import CopilotAdapter, copilot_cli_argv
 from atmem.code.identity import repository_key
 from atmem.core.canonical import canonical_json
 
 
-def copilot_probe(*, store, subject, project, root, credential, initial, command):
+def copilot_probe(*, store, subject, project, root, credential, initial, command, argv=None):
     token = "ATMEM_CANARY_" + secrets.token_hex(16)
     prompt = "Reply probe complete. Reference " + secrets.token_hex(16)
     probe_id = sha256(credential).hexdigest()
@@ -62,7 +62,7 @@ def copilot_probe(*, store, subject, project, root, credential, initial, command
             home = base / "home"
             home.mkdir(mode=0o700)
             (home / "config.json").write_text(json.dumps({"trustedFolders": [str(probe_root.resolve())]}))
-            adapter = CopilotAdapter(probe_root, command)
+            adapter = CopilotAdapter(probe_root, command, argv=argv)
             path = adapter.configuration_path()
             path.parent.mkdir(parents=True)
             path.write_bytes(adapter.planned_configuration(None))
@@ -71,11 +71,12 @@ def copilot_probe(*, store, subject, project, root, credential, initial, command
                 "repository_key": repository_key(probe_root),
                 "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=45)).isoformat()})
             environment = {key: value for key, value in os.environ.items()
-                           if key in {"PATH", "HOME", "TMPDIR", "SHELL", "LANG", "SystemRoot"}}
+                           if key.upper() in {"PATH", "HOME", "TMPDIR", "TEMP", "TMP", "SHELL", "LANG",
+                                              "SYSTEMROOT", "COMSPEC", "USERPROFILE", "APPDATA", "LOCALAPPDATA"}}
             environment.update(COPILOT_HOME=str(home), COPILOT_OFFLINE="true", COPILOT_MODEL="gpt-4.1",
                                COPILOT_PROVIDER_BASE_URL=f"http://127.0.0.1:{server.server_port}/v1",
                                COPILOT_PROVIDER_TYPE="openai", COPILOT_PROVIDER_WIRE_API="completions")
-            run = subprocess.run(["copilot", "-p", prompt, "--allow-all-tools", "--disable-builtin-mcps",
+            run = subprocess.run([*copilot_cli_argv(), "-p", prompt, "--allow-all-tools", "--disable-builtin-mcps",
                                   "--no-auto-update", "--no-custom-instructions", "--no-ask-user",
                                   "--no-remote", "--no-remote-export", "--silent"],
                                  cwd=probe_root, env=environment, capture_output=True, text=True, timeout=40)

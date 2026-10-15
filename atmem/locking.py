@@ -52,23 +52,42 @@ def _is_windows() -> bool:
     return os.name == "nt"
 
 
+def _windows_range_lock(descriptor: int, *, unlock: bool = False, exclusive: bool = True, blocking: bool = False) -> None:
+    import ctypes
+    from ctypes import wintypes
+    import msvcrt
+
+    class Overlapped(ctypes.Structure):
+        _fields_ = [("Internal", ctypes.c_size_t), ("InternalHigh", ctypes.c_size_t),
+                    ("Offset", wintypes.DWORD), ("OffsetHigh", wintypes.DWORD), ("hEvent", wintypes.HANDLE)]
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    offset = Overlapped()
+    handle = msvcrt.get_osfhandle(descriptor)
+    if unlock:
+        operation = kernel.UnlockFileEx
+        operation.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(Overlapped)]
+        arguments = (handle, 0, 1, 0, ctypes.byref(offset))
+    else:
+        operation = kernel.LockFileEx
+        operation.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD,
+                              wintypes.DWORD, ctypes.POINTER(Overlapped)]
+        flags = (2 if exclusive else 0) | (0 if blocking else 1)
+        arguments = (handle, flags, 0, 1, 0, ctypes.byref(offset))
+    operation.restype = wintypes.BOOL
+    if not operation(*arguments):
+        error = ctypes.get_last_error()
+        if not unlock and error in {32, 33}:  # Sharing/lock violation, not an access-policy failure.
+            raise BlockingIOError(errno.EWOULDBLOCK, "another process holds the file lock")
+        raise ctypes.WinError(error)
+
+
 def _lock_descriptor(descriptor: int, *, exclusive: bool, blocking: bool) -> None:
     if _is_windows():
-        import msvcrt
-
-        # msvcrt locks a byte range from the current offset. Lock files must
-        # contain that byte, and every caller must seek to the same position.
-        if os.fstat(descriptor).st_size == 0:
-            os.write(descriptor, b"\0")
-            os.fsync(descriptor)
-        os.lseek(descriptor, 0, os.SEEK_SET)
-        operation = msvcrt.LK_LOCK if blocking else msvcrt.LK_NBLCK
-        try:
-            msvcrt.locking(descriptor, operation, 1)
-        except OSError as exc:
-            if exc.errno in {errno.EACCES, errno.EAGAIN, errno.EDEADLK}:
-                raise _contention(exc) from exc
-            raise
+        # CRT byte locks are exclusive even for its "read lock" constants.
+        # LockFileEx provides real shared runtime access and exclusive migration
+        # exclusion on the same byte, including beyond the end of an empty file.
+        _windows_range_lock(descriptor, exclusive=exclusive, blocking=blocking)
         return
 
     import fcntl
@@ -86,10 +105,7 @@ def _lock_descriptor(descriptor: int, *, exclusive: bool, blocking: bool) -> Non
 
 def _unlock_descriptor(descriptor: int) -> None:
     if _is_windows():
-        import msvcrt
-
-        os.lseek(descriptor, 0, os.SEEK_SET)
-        msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+        _windows_range_lock(descriptor, unlock=True)
         return
 
     import fcntl

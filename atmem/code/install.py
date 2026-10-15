@@ -47,13 +47,17 @@ class CodeInstall:
         version = None
         if executable:
             try:
+                argv = [executable]
+                if host == "copilot":
+                    from atmem.code.adapters.copilot import copilot_cli_argv
+                    argv = copilot_cli_argv()
                 result = subprocess.run(
-                    [executable, "--version"], capture_output=True, text=True,
+                    [*argv, "--version"], capture_output=True, text=True,
                     check=False, timeout=5,
                 )
                 if result.returncode == 0:
                     version = (result.stdout or result.stderr).strip()[:120]
-            except (OSError, subprocess.TimeoutExpired):
+            except (OSError, RuntimeError, subprocess.TimeoutExpired):
                 pass
         return {"host": host, "detected": executable is not None,
                 "version": version, "automatic_verified": False,

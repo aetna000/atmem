@@ -37,3 +37,32 @@ def test_hook_enrollment_capture_recall_pause_and_retry(code_env, tmp_path):
     assert handle(env.app, project=env.project, credential=credential, payload={**payload, "turn_id": "turn-3"}) == {}
     with pytest.raises(PermissionError):
         handle(env.app, project=env.project, credential=b"x" * 32, payload=payload)
+
+
+def test_copilot_native_exec_preserves_arguments_without_shell_quoting(tmp_path):
+    from atmem.code.adapters.copilot import CopilotAdapter
+    argv = [r"C:\Program Files\Python\python.exe", r"C:\project with spaces\hook.py",
+            "--db", r"C:\user's data\memory & notes.db", "--subject", "local"]
+    adapter = CopilotAdapter(tmp_path, "display-only command", argv=argv)
+    configured = adapter.planned_configuration(None)
+    for event, handlers in json.loads(configured)["hooks"].items():
+        handler = handlers[0]
+        assert handler["exec"] == argv[0]
+        assert handler["args"] == argv[1:] + ["--host-event", event]
+        assert not set(handler).intersection({"command", "bash", "powershell"})
+    assert adapter.planned_configuration(configured) == configured
+
+
+def test_copilot_windows_npm_launcher_never_uses_a_shell(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from atmem.code.adapters.copilot import copilot_cli_argv
+    shim = tmp_path / "copilot.cmd"
+    loader = tmp_path / "node_modules/@github/copilot/npm-loader.js"
+    loader.parent.mkdir(parents=True)
+    loader.write_text("// fixture")
+    monkeypatch.setattr("atmem.code.adapters.copilot.os", SimpleNamespace(name="nt"))
+    monkeypatch.setattr("atmem.code.adapters.copilot.shutil.which", lambda name: str(shim) if name == "copilot" else "node.exe")
+    assert copilot_cli_argv() == ["node.exe", str(loader)]
+    loader.unlink()
+    with pytest.raises(RuntimeError, match="repair"):
+        copilot_cli_argv()

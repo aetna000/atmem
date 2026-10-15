@@ -11,7 +11,7 @@ import sys
 
 import pytest
 
-pytestmark = pytest.mark.skipif(os.name == "nt" or os.environ.get("ATMEM_CODE_SKIP_HOST_PROBES") == "1",
+pytestmark = pytest.mark.skipif(os.environ.get("ATMEM_CODE_SKIP_HOST_PROBES") == "1",
                                 reason="Installed-host probes are qualified separately from the portable core")
 
 
@@ -22,7 +22,7 @@ def test_installed_copilot_startup_context_reaches_model(tmp_path):
     fixtures = Path(__file__).parent / "fixtures"
     endpoint_type = runpy.run_path(str(fixtures / "responses_endpoint.py"))["ResponsesEndpoint"]
     runner = runpy.run_path(str(fixtures / "copilot_runner.py"))["run_copilot"]
-    command = shlex.join([sys.executable, str(fixtures / "copilot_canary_hook.py")])
+    command = [sys.executable, str(fixtures / "copilot_canary_hook.py")]
     with endpoint_type() as endpoint:
         result = runner(tmp_path, command, "Reply probe complete.", endpoint)
         assert result.returncode == 0, result.stderr[-3000:] + result.stdout[-1000:]
@@ -47,7 +47,7 @@ def test_installed_copilot_capture_recall_pause_resume_uninstall(tmp_path, monke
     from atmem.memory import Memory
     from atmem.service.household import HouseholdApplication
 
-    root = tmp_path / "project"
+    root = tmp_path / "project with spaces"
     root.mkdir()
     subprocess.run(["git", "init", "-q", str(root)], check=True)
     database = tmp_path / "memory.db"
@@ -57,13 +57,13 @@ def test_installed_copilot_capture_recall_pause_resume_uninstall(tmp_path, monke
         installer = CodeInstall(memory.store)
         project = installer.setup(root, subject_id="local", profile_id="shared", agent_id="copilot",
                                   host="copilot", apply=True)["scope"]["project_id"]
-        home = tmp_path / "project-copilot-home"
+        home = tmp_path / "project with spaces-copilot-home"
         home.mkdir()
         monkeypatch.setenv("COPILOT_HOME", str(home))
         config_path = root / ".github/hooks/atmem-code.json"
         config_path.parent.mkdir(parents=True)
         original = json.dumps({"version": 1, "owner": "preserve", "hooks": {"userPromptSubmitted": [
-            {"type": "command", "command": shlex.join([sys.executable, "-c", "print('{}')"])}]}}).encode()
+            {"type": "command", "exec": sys.executable, "args": ["-c", "print('{}')"]}]}}).encode()
         config_path.write_bytes(original)
         with pytest.raises(RuntimeError, match="approve workspace trust"):
             installer.enable(project=root, subject_id="local", host="copilot")
@@ -123,6 +123,8 @@ def test_installed_copilot_capture_recall_pause_resume_uninstall(tmp_path, monke
 
 
 def test_installed_copilot_memory_is_available_to_claude(tmp_path, monkeypatch):
+    if os.name == "nt":
+        pytest.skip("Claude automatic activation is not qualified on Windows")
     if not shutil.which("copilot") or not shutil.which("claude"):
         pytest.skip("Both installed coding hosts are required")
     pytest.importorskip("sqlcipher3")

@@ -38,7 +38,7 @@ All phases 0–8 are in this development request. Graph and external routing rem
 
 ## Design decisions and risks
 
-- **Copilot CLI identity (T018):** Qualify CLI 1.0.98 on macOS. Configure an
+- **Copilot CLI identity (T018):** Qualify CLI 1.0.98 separately on macOS and Windows. Use native `exec`/`args` hook entries to avoid shell-quoting differences, and configure an
   explicit event argument because native hook payloads omit the event name.
   Resolve each event against its exact `hook.start` entry in the local,
   version-checked session journal and use `hookInvocationId`, not text or a
@@ -49,6 +49,12 @@ All phases 0–8 are in this development request. Graph and external routing rem
   version; omit startup recall to avoid injecting the same context twice.
   Activation requires existing user-approved workspace trust and an offline,
   isolated real-CLI probe; never modify the owner's trust configuration.
+  Windows npm shims are resolved to Node plus the installed CLI loader rather
+  than sending prompts through `cmd.exe`. Offline probe environments preserve
+  Windows system variables but exclude provider credentials. Windows runtime
+  household access uses true shared `LockFileEx` locks; migrations retain
+  exclusive locks on the same byte. Test the four cross-process shared/exclusive
+  combinations, release/reacquisition and encrypted migration rejection.
 
 - **Governance switch:** The user can disable optional review queues and approval workflow in the Code experience. Full-fidelity capture remains the default supported evidence profile; reduced capture requires an explicit, recorded `not_reconstructable` choice. Core authorization, scope, provenance, encryption, secret screening, lifecycle, deletion verification and required audit cannot be disabled under the constitution. A genuine zero-governance mode would require a constitutional/product-contract change before specification.
 - **Full-fidelity boundary:** The first coding adapters may verify memory capture and context delivery without covering every model/tool/media boundary. Status and release notes must say so. They cannot inherit the OpenClaw full Agent Black Box claim.
