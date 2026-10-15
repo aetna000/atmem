@@ -35,6 +35,12 @@ successful integrations. Phase 9 was not undertaken and no release is published.
 No blocker prevented finishing the independent CLI, dashboard, provider,
 graph, portability and cross-platform work.
 
+Claude/Codex were rerun on Mac and Windows on 2026-10-15; see
+[qualification evidence](claude-codex-qualification.md). Controlled capture,
+new-session model-boundary recall and pause pass on both OSes, while normal
+Windows Claude activation and normal Codex activation remain refused. These
+tests do not close B04 or promote the Windows Claude adapter to automatic.
+
 An additional existing repository-wide CI gate is blocked outside this feature:
 `openclaw@latest` resolves to `2026.10.3`, for which the hook-context matrix has
 no reviewed fixture. Its guard correctly fails; it was not bypassed or replaced

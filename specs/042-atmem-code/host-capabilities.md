@@ -16,10 +16,16 @@
 | --- | --- | --- | --- |
 | Encrypted Code core, CLI/HTTP settings and encrypted bundle round trip | Installed wheel passed | Installed wheel passed | Installed wheel passed |
 | Dashboard interactive browser journey | Chrome passed | Not run | Not run |
-| Claude 2.1.281 prompt capture/recall, enable/pause/restore | Passed | Unsupported automatic adapter | Unverified |
-| Codex 0.162.1 controlled model-boundary probe | Passed with fixture-only trust flag | Unverified | Unverified |
+| Claude 2.1.281 prompt capture/recall, enable/pause/restore | Passed | Controlled capture/recall/pause pass; normal activation and restore unqualified | Unverified |
+| Codex 0.162.1 controlled model-boundary probe | Capture/recall/pause pass with fixture-only trust flag | Capture/recall/pause pass with fixture-only trust flag; normal activation blocked | Unverified |
 | Copilot CLI 1.0.98 prompt capture/recall, enable/pause/restore | Passed | Passed | Unsupported automatic adapter |
 | Muse, Grok automatic adapters | Blocked as above | Unverified | Unverified |
+
+The 2026-10-15 [Claude/Codex rerun](claude-codex-qualification.md) passed eight
+installed-package Mac tests and four installed-package Windows tests. Controlled
+Windows wiring does not qualify normal activation or restore. Codex's paired
+trust test observes no canary without the fixture bypass and a canary with it on
+both OSes; production does not use that flag.
 
 The Codex test does not approve the owner's hooks or change their trust store.
 It creates an isolated `CODEX_HOME`, persists project trust there, and permits

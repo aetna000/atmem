@@ -1,0 +1,54 @@
+{
+  "format": "atmem-code-claude-codex-host-tests-v1",
+  "date_local": "2026-10-15",
+  "branch": "feature/atmem-code-2.3.9",
+  "runtime_commit": "f786f299bfbcbe73f7ce2134dd1e5939c29adb8f",
+  "runtime_wheel_sha256": "1d2ab5e0abfced3a2dfb698712b23421f021d6dba88bb338f25d27d07579bded",
+  "production_runtime_changed": false,
+  "versions": {"claude": "2.1.281", "codex": "0.162.1"},
+  "macos": {
+    "platform": "macOS 26.5.2",
+    "python": "3.12.2",
+    "cwd": "/tmp/atmem-cli-hosts-installed.cpDMis",
+    "command": "python -m pytest tests/test_code_claude.py tests/test_code_codex.py tests/test_code_host_sessions.py -q --tb=short --junitxml=/tmp/atmem-claude-codex-final-installed-mac.xml",
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0,
+    "normal_claude_activation": "verified",
+    "normal_codex_activation": "still blocked; persistent hook trust onboarding incomplete"
+  },
+  "windows": {
+    "platform": "Windows 11 build 26200",
+    "python": "3.12.6",
+    "cwd": "C:\\Users\\user\\AppData\\Local\\Temp\\atmem-claude-codex-20261015",
+    "command": "python -m pytest tests/test_code_host_sessions.py -q --tb=short --junitxml=windows-host-session-results.xml",
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "local_junit_copy": "/tmp/atmem-claude-codex-windows-final.xml",
+    "controlled_claude_capture_recall_pause": "passed",
+    "controlled_codex_capture_recall_pause": "passed",
+    "normal_claude_activation": "still blocked; production Windows adapter not qualified",
+    "normal_codex_activation": "still blocked; production Windows adapter and trust onboarding not qualified"
+  },
+  "controlled_fixture_mechanics": {
+    "fixture_only_installation_enable": true,
+    "codex_per_invocation_trust_bypass": "positive controlled cases only",
+    "codex_without_bypass": "canary absent on both platforms",
+    "codex_with_bypass": "same-format canary present on both platforms",
+    "windows_codex_home": "fresh test directory under LOCALAPPDATA/AtMemHostTests, not Windows Temp",
+    "model_endpoints": "loopback fixed-response Anthropic/Responses protocols",
+    "context_assurance_in_tests": "actual model request observed, not inferred from hook exit"
+  },
+  "limitations": [
+    "Controlled capture is not normal user onboarding qualification",
+    "Windows production enable and restore are not implemented or claimed by these tests",
+    "Codex production never uses the fixture trust-bypass flag",
+    "No real coding-quality, semantic-accuracy, latency, forced-compaction or full-flight evidence claim"
+  ],
+  "owner_project_or_memory_used": false,
+  "owner_hook_trust_modified": false,
+  "external_model_cost": 0,
+  "release_published": false,
+  "main_unchanged_at": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876"
+}
