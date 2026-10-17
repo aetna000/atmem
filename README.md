@@ -3,6 +3,8 @@
 [![Version 2.3.8](https://img.shields.io/badge/version-2.3.8-blue)](./docs/releases/v2.3.8.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
+![AtMem: the memory control plane under every agent. Your agent runtime perceives, plans, acts and reflects; AtMem returns governed context only when policy allows, records every model and tool event in the Agent Black Box, and admits memory candidates under its own authority, with shadow mode, activation and restore.](./docs/assets/atmem-memory-control-plane.png)
+
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
 > **AtMem 2.3.8:** Source-linked typed context, bounded evidence packing and
