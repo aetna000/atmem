@@ -1,0 +1,39 @@
+<section id="adapters" data-transition="fade" style="background:#F5F3EE;color:#1B2433;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#A65A12;font-weight:600">Agent frameworks</p>
+<h2 style="font-size:64px;font-weight:600;line-height:1.1;color:#14202E">Native adapters for your framework</h2>
+</div>
+<div style="display:flex;gap:24px">
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:24px">
+<h3 style="font-size:32px;font-weight:600;color:#14202E">OpenClaw</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5566">Fully managed: bridge, hooks, native-memory copy, freeze and restore</p>
+<div style="background:#1B2433;border-radius:12px;padding:20px 16px">
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:24px;line-height:1.45;letter-spacing:-1px;color:#E6EAF0">atmem openclaw install<br>atmem control verify<br><span style="color:#8FA3B8"># already on AtMem 2.1?</span><br>atmem openclaw upgrade<br>atmem control verify</p>
+</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:24px">
+<h3 style="font-size:32px;font-weight:600;color:#14202E">Pydantic AI</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5566">A native capability; pass atmem_task_id in run dependencies</p>
+<div style="background:#1B2433;border-radius:12px;padding:20px 16px">
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:24px;line-height:1.45;letter-spacing:-1px;color:#E6EAF0">cap = PydanticAIAtMemAdapter(<br>&#160;&#160;manager, identity<br>).capability()<br>agent = Agent(model,<br>&#160;&#160;capabilities=[cap])</p>
+</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:24px">
+<h3 style="font-size:32px;font-weight:600;color:#14202E">LangChain / LangGraph</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5566">Native middleware; task id through configurable</p>
+<div style="background:#1B2433;border-radius:12px;padding:20px 16px">
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:24px;line-height:1.45;letter-spacing:-1px;color:#E6EAF0">mw = create_langgraph_middleware(<br>&#160;&#160;manager, identity)<br>agent = create_agent(<br>&#160;&#160;model=model,<br>&#160;&#160;middleware=[mw])</p>
+</div>
+</div>
+</div>
+<p style="font-size:26px;line-height:1.4;color:#4A5566">Adapters automate capture, governed retrieval, injection, exposure proof and turn and tool evidence, without replacing your model, tools, conversation history or LangGraph checkpoints.</p>
+<aside>Let’s talk about the agent frameworks. AtMem isn’t a framework, it governs the one you already use.
+
+For OpenClaw the integration is fully managed. “atmem openclaw install” installs the matching npm bridge, discovers agents and workspaces, installs the hooks, starts in shadow mode, restarts the gateway and verifies the connection. If you were already on AtMem 2.1, “atmem openclaw upgrade” is idempotent and upgrades in place.
+
+For Pydantic AI there’s a native capability. You build an identity with agent, workspace and subject IDs from the control plane’s agent topology, wrap it in the AtMem adapter, and pass the capability to your Agent. A task ID can come through run dependencies.
+
+For LangChain and LangGraph there’s native middleware. Same identity, and you pass the middleware into create_agent. The task ID comes through configurable, and there’s guidance for async, multi-agent and low-level StateGraph integrations.
+
+In every case the hooks automate authenticated capture, governed retrieval, context injection, exposure proof and turn and tool evidence. They don’t replace your model, your tools, your conversation history or your LangGraph checkpoints. Anything else, a custom agent or a SaaS worker, uses the generic control MCP contract we saw earlier.</aside>
+</section>

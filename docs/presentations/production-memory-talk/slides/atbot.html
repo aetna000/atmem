@@ -1,0 +1,40 @@
+<section id="atbot" data-transition="fade" style="background:#13202F;color:#EEF1F4;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:center;gap:56px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#F0A35E;font-weight:600">The authority boundary</p>
+<h1 style="font-size:96px;font-weight:600;line-height:1.1;color:#EEF1F4">AtBot proposes. <span style="color:#F0A35E">AtMem decides.</span></h1>
+</div>
+<div style="display:flex;gap:20px;align-items:center">
+<div style="flex:1;display:flex;flex-direction:column;gap:10px;background:#1C2D40;border:2px dashed #F0A35E;border-radius:16px;padding:28px">
+<h3 style="font-size:28px;font-weight:600;color:#EEF1F4">AtBot</h3>
+<p style="font-size:24px;line-height:1.4;color:#B8C4D2">Ollama, local, hosted or deterministic</p>
+</div>
+<x-shape kind="arrow-right" style="width:48px;height:24px;background:#B8C4D2"></x-shape>
+<div style="flex:1;display:flex;flex-direction:column;gap:10px;background:#1C2D40;border:1px solid #3A4D63;border-radius:16px;padding:28px">
+<h3 style="font-size:28px;font-weight:600;color:#EEF1F4">Proposal</h3>
+<p style="font-size:24px;line-height:1.4;color:#B8C4D2">candidate, ranking or task change</p>
+</div>
+<x-shape kind="arrow-right" style="width:48px;height:24px;background:#B8C4D2"></x-shape>
+<div style="flex:1;display:flex;flex-direction:column;gap:10px;background:#1C2D40;border:2px solid #7DB3E8;border-radius:16px;padding:28px">
+<h3 style="font-size:28px;font-weight:600;color:#EEF1F4">AtMem revalidates</h3>
+<p style="font-size:24px;line-height:1.4;color:#B8C4D2">scope, policy and provenance</p>
+</div>
+<x-shape kind="arrow-right" style="width:48px;height:24px;background:#B8C4D2"></x-shape>
+<div style="flex:1;display:flex;flex-direction:column;gap:10px;background:#1C2D40;border:2px solid #7DB3E8;border-radius:16px;padding:28px">
+<h3 style="font-size:28px;font-weight:600;color:#EEF1F4">Commit or withhold</h3>
+<p style="font-size:24px;line-height:1.4;color:#B8C4D2">every decision gets a receipt</p>
+</div>
+</div>
+<div style="display:flex;gap:24px;align-items:center;border-top:1px solid #3A4D63;padding:32px 0 0 0">
+<x-icon name="Trust" style="color:#7DB3E8;width:44px;height:44px"></x-icon>
+<p style="font-size:28px;line-height:1.4;color:#B8C4D2">Model unavailable? Safe local capture and hybrid ranking continue. Memory authority never depends on a hosted model.</p>
+</div>
+<aside>If you remember one sentence from this talk, make it this one: AtBot proposes, AtMem decides.
+
+AtBot is AtMem’s private intelligence companion. It’s installed automatically and pinned to the exact AtMem version. It can use a local Ollama model, a local OpenAI-compatible server, a hosted provider, or a deterministic fallback with no model at all.
+
+AtBot’s job is to propose: extract a memory candidate, rank what might be relevant, or suggest a change to a task. But a proposal is just a proposal. AtMem revalidates every one of them against scope, policy and provenance, then either commits it with a receipt or withholds it.
+
+That separation matters for two reasons. First, security. A prompt injection that fools the model still can’t write memory or widen scope, because the model never holds that authority. Second, availability. If AtBot or its model is down, AtMem keeps going with safe local capture and hybrid ranking. Memory authority and agent operation never depend on a hosted model.
+
+AtBot isn’t an independent agent and it isn’t a second memory authority. It’s a headless component managed by AtMem.</aside>
+</section>

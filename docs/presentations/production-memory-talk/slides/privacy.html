@@ -1,0 +1,42 @@
+<section id="privacy" data-transition="fade" style="background:#F5F3EE;color:#1B2433;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#A65A12;font-weight:600">Privacy and evidence</p>
+<h2 style="font-size:64px;font-weight:600;line-height:1.1;color:#14202E">Privacy by construction: who sees what</h2>
+</div>
+<div style="display:flex;gap:48px;align-items:start">
+<div style="width:900px">
+<table style="font-size:26px;color:#1B2433">
+<tr style="background:#E8E4DB"><th style="width:40%;padding:16px 20px">Role</th><th style="width:60%">Can see</th></tr>
+<tr><td style="padding:16px 20px">Viewer</td><td>metadata and hashes only</td></tr>
+<tr style="background:#FCFBF8"><td>Investigator</td><td>view and play retained evidence inside AtMem</td></tr>
+<tr><td>Evidence collector</td><td>plus plaintext export</td></tr>
+<tr style="background:#FCFBF8"><td>Administrator</td><td>plus plaintext export and administration</td></tr>
+</table>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:20px">
+<div style="display:flex;flex-direction:column;gap:8px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:28px">
+<h3 style="font-size:28px;font-weight:600;color:#14202E">Encrypted capture</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5566">Exact evidence sits in a protected vault; data-off capture is not reconstructable.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:28px">
+<h3 style="font-size:28px;font-weight:600;color:#14202E">SQLCipher at rest</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5566">Integrity and row-count checks before an atomic cutover.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:28px">
+<h3 style="font-size:28px;font-weight:600;color:#14202E">Keys stay in the environment</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5566">Provider API keys are read from env variables, never saved.</p>
+</div>
+</div>
+</div>
+<aside>Next is privacy. When agents work with real users, sensitive data will show up in prompts, uploaded documents and tool results. So the question isn’t whether sensitive data exists, it’s who can see it and where it can travel.
+
+AtMem answers this with roles. A Viewer sees only metadata and hashes, never content. An Investigator can view and play retained evidence, but only inside AtMem. Evidence Collectors and Administrators can additionally export plaintext. You create these with “atmem users create” and check the vault with “atmem evidence status”.
+
+On the right are three storage guarantees. Exact evidence is kept in a protected, encrypted vault. If you turn data capture off, that capture is explicitly not reconstructable, and turning the recorder off captures no new evidence at all.
+
+For data at rest, AtMem supports SQLCipher-encrypted households. Migration validates SQLite integrity, SQLCipher page integrity and per-table row counts before an atomic cutover, and you stop every writer first.
+
+And provider API keys stay in environment variables; AtMem never writes them to disk.
+
+To be clear about the limits: AtMem doesn’t claim to automatically detect and redact every secret in free text. It limits who can see content, keeps the default projection to digests and counts, and encrypts the exact record. If you need pattern-based redaction before the model call, add it in your runtime ahead of the capture hook.</aside>
+</section>

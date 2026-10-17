@@ -1,0 +1,48 @@
+<section id="turn-contract" data-transition="fade" style="background:#F5F3EE;color:#1B2433;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:32px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#A65A12;font-weight:600">Runtime contract</p>
+<h2 style="font-size:64px;font-weight:600;line-height:1.1;color:#14202E">The per-turn contract every agent follows</h2>
+</div>
+<!-- headers 0/445/890/1324,0,340,80 ; lifelines x 170/615/1060/1494 y 80-650 ; messages y 150,222,294,366,438,510,582 -->
+<div style="position:relative;width:1664px;height:660px">
+<p style="position:absolute;left:0px;top:0px;width:340px;height:80px;font-size:26px;font-weight:600;text-align:center;line-height:1.2;background:#FCFBF8;border:1px solid #C9C4B8;border-radius:12px;padding:24px 16px">Agent runtime</p>
+<p style="position:absolute;left:445px;top:0px;width:340px;height:80px;font-size:26px;font-weight:600;text-align:center;line-height:1.2;background:#FBF1E6;border:2px solid #A65A12;border-radius:12px;padding:24px 16px">AtMem host MCP</p>
+<p style="position:absolute;left:890px;top:0px;width:340px;height:80px;font-size:26px;font-weight:600;text-align:center;line-height:1.2;background:#E6EDF6;border:2px solid #2563A8;border-radius:12px;padding:24px 16px">Memory authority</p>
+<p style="position:absolute;left:1324px;top:0px;width:340px;height:80px;font-size:26px;font-weight:600;text-align:center;line-height:1.2;background:#E6EDF6;border:2px solid #2563A8;border-radius:12px;padding:24px 16px">Black Box evidence</p>
+<x-connector x1="170" y1="80" x2="170" y2="650" head="none" style="color:#9AA3AE;border-width:2px;border-style:dashed"></x-connector>
+<x-connector x1="615" y1="80" x2="615" y2="650" head="none" style="color:#9AA3AE;border-width:2px;border-style:dashed"></x-connector>
+<x-connector x1="1060" y1="80" x2="1060" y2="650" head="none" style="color:#9AA3AE;border-width:2px;border-style:dashed"></x-connector>
+<x-connector x1="1494" y1="80" x2="1494" y2="650" head="none" style="color:#9AA3AE;border-width:2px;border-style:dashed"></x-connector>
+<x-connector x1="170" y1="150" x2="615" y2="150" style="color:#2563A8;border-width:3px"></x-connector>
+<x-connector x1="170" y1="222" x2="615" y2="222" style="color:#2563A8;border-width:3px"></x-connector>
+<x-connector x1="615" y1="294" x2="1060" y2="294" style="color:#2563A8;border-width:3px"></x-connector>
+<x-connector x1="615" y1="366" x2="170" y2="366" style="color:#A65A12;border-width:3px;border-style:dashed"></x-connector>
+<x-connector x1="170" y1="438" x2="615" y2="438" style="color:#2563A8;border-width:3px"></x-connector>
+<x-connector x1="615" y1="510" x2="1494" y2="510" style="color:#2563A8;border-width:3px"></x-connector>
+<x-connector x1="615" y1="582" x2="1494" y2="582" style="color:#2563A8;border-width:3px"></x-connector>
+<p style="position:absolute;left:186px;top:108px;width:413px;height:34px;font-size:24px;line-height:34px">1 · capture candidates</p>
+<p style="position:absolute;left:186px;top:180px;width:413px;height:34px;font-size:24px;line-height:34px">2 · control_prepare</p>
+<p style="position:absolute;left:631px;top:252px;width:413px;height:34px;font-size:24px;line-height:34px">3 · scoped recall + policy</p>
+<p style="position:absolute;left:186px;top:324px;width:413px;height:34px;font-size:24px;line-height:34px;color:#A65A12;font-weight:600">4 · context + inject flag</p>
+<p style="position:absolute;left:186px;top:396px;width:413px;height:34px;font-size:24px;line-height:34px">5 · confirm exact exposure</p>
+<p style="position:absolute;left:631px;top:468px;width:847px;height:34px;font-size:24px;line-height:34px">6 · record model input/output, each tool call, turn end</p>
+<p style="position:absolute;left:631px;top:540px;width:847px;height:34px;font-size:24px;line-height:34px">7 · bind an independent outcome receipt to the hash chain</p>
+</div>
+<aside>Now let’s look at what actually happens on every agent turn. This is the contract any runtime follows, whether it’s OpenClaw with automatic hooks or your own agent calling the control MCP directly.
+
+Before anything else, the runtime assigns stable agent, workspace, session, run and turn identifiers. Everything after this is scoped to them.
+
+Step one: capture. The runtime sends authenticated user memory candidates to AtMem’s host MCP. These are candidates, not facts.
+
+Step two: before the model request, the runtime calls control_prepare.
+
+Step three: AtMem’s memory authority does scoped recall and applies policy. Are we in shadow or active mode? Is this record in scope for this subject?
+
+Step four, highlighted in orange, is the critical rule. AtMem returns the context plus an inject flag, and the runtime injects that context only when inject is exactly true. In shadow mode it is never true.
+
+Step five: after building the model request, the runtime confirms the exact exposure, so we have proof of what the model was shown, not just what we intended to show.
+
+Step six: it records model input and output, every tool request and completion, and the end of the turn into the Black Box.
+
+And step seven: when an independent system can prove a real-world result, say a ticket was actually created, that outcome receipt is bound into the hash chain.</aside>
+</section>

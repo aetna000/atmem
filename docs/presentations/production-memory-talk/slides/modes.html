@@ -1,0 +1,44 @@
+<section id="modes" data-transition="fade" style="background:#F5F3EE;color:#1B2433;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#A65A12;font-weight:600">Modes</p>
+<h2 style="font-size:64px;font-weight:600;line-height:1.1;color:#14202E">Shadow first, active only on evidence</h2>
+</div>
+<div style="display:flex;gap:32px;align-items:center">
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:20px;padding:40px">
+<p style="font-size:24px;letter-spacing:2px;text-transform:uppercase;color:#2563A8;font-weight:600">Shadow mode</p>
+<h3 style="font-size:40px;font-weight:600;color:#14202E">The host keeps its memory</h3>
+<ul style="font-size:26px;line-height:1.5;color:#4A5566">
+<li>copies and mirrors native memory</li>
+<li>verifies, indexes and audits it</li>
+<li>shows what it would retrieve</li>
+<li>never injects model context</li>
+</ul>
+</div>
+<div style="width:280px;display:flex;flex-direction:column;gap:20px;align-items:center">
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:24px;text-align:center;color:#2563A8">control activate</p>
+<x-shape kind="arrow-right" style="width:120px;height:56px;background:#2563A8"></x-shape>
+<x-shape kind="arrow-left" style="width:120px;height:56px;background:#A65A12"></x-shape>
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:24px;text-align:center;color:#A65A12">control restore</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#13202F;border-radius:20px;padding:40px">
+<p style="font-size:24px;letter-spacing:2px;text-transform:uppercase;color:#F0A35E;font-weight:600">Active mode</p>
+<h3 style="font-size:40px;font-weight:600;color:#EEF1F4">AtMem governs memory</h3>
+<ul style="font-size:26px;line-height:1.5;color:#B8C4D2">
+<li>native memory frozen and protected</li>
+<li>governed search, get and capture</li>
+<li>bounded recall into context</li>
+<li>every injection proven per turn</li>
+</ul>
+</div>
+</div>
+<p style="font-size:26px;line-height:1.4;color:#4A5566">Activation runs a final sync, checks the loaded plugin and required tools, and switches only if every check passes. An interrupted activation is detected, never treated as complete.</p>
+<aside>This brings us to the most important operational idea in AtMem: shadow mode and active mode.
+
+Every integration starts in shadow mode. In shadow, the host stays the memory provider. AtMem copies and mirrors the native memory, including history from before AtMem was installed, records source paths, line ranges and digests, then verifies, indexes and audits it. It shows you what it would have retrieved, but it never injects anything into model context. So you can run it next to a production agent and compare, with zero influence on behaviour.
+
+When you’re satisfied, an operator runs “atmem control activate”. Now AtMem is the memory provider. Native supplemental memory is frozen and its paths are protected, and the host uses AtMem’s governed search, get and capture with bounded recall. Every injection is proven in the Black Box.
+
+Activation itself is careful. It runs a final sync, checks the loaded plugin and required tools, and only switches if every check passes. If activation is interrupted, that’s detected and must be recovered or restored. It’s never silently treated as complete.
+
+And “atmem control restore” takes you back. I’ll come back to how restore works in a few slides.</aside>
+</section>

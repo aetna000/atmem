@@ -1,0 +1,29 @@
+<section id="agenda" data-transition="fade" style="background:#F5F3EE;color:#1B2433;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:56px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#A65A12;font-weight:600">Agenda</p>
+<h2 style="font-size:64px;font-weight:600;line-height:1.1;color:#14202E">What we will cover</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:28px 64px">
+<div style="display:flex;gap:24px;align-items:baseline;border-top:2px solid #D9D5CC;padding:20px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#A65A12;font-weight:600">01</p><p style="font-size:32px;line-height:1.3">Why agent memory fails in production</p></div>
+<div style="display:flex;gap:24px;align-items:baseline;border-top:2px solid #D9D5CC;padding:20px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#A65A12;font-weight:600">05</p><p style="font-size:32px;line-height:1.3">Shadow vs active, and the AtBot boundary</p></div>
+<div style="display:flex;gap:24px;align-items:baseline;border-top:2px solid #D9D5CC;padding:20px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#A65A12;font-weight:600">02</p><p style="font-size:32px;line-height:1.3">The AtMem control plane at a glance</p></div>
+<div style="display:flex;gap:24px;align-items:baseline;border-top:2px solid #D9D5CC;padding:20px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#A65A12;font-weight:600">06</p><p style="font-size:32px;line-height:1.3">Adapters: OpenClaw, Pydantic AI, LangGraph</p></div>
+<div style="display:flex;gap:24px;align-items:baseline;border-top:2px solid #D9D5CC;padding:20px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#A65A12;font-weight:600">03</p><p style="font-size:32px;line-height:1.3">From laptop to production: the rollout path</p></div>
+<div style="display:flex;gap:24px;align-items:baseline;border-top:2px solid #D9D5CC;padding:20px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#A65A12;font-weight:600">07</p><p style="font-size:32px;line-height:1.3">Black Box, governed tasks, privacy, restore</p></div>
+<div style="display:flex;gap:24px;align-items:baseline;border-top:2px solid #D9D5CC;padding:20px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#A65A12;font-weight:600">04</p><p style="font-size:32px;line-height:1.3">The per-turn contract and two MCP surfaces</p></div>
+<div style="display:flex;gap:24px;align-items:baseline;border-top:2px solid #D9D5CC;padding:20px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#A65A12;font-weight:600">08</p><p style="font-size:32px;line-height:1.3">Proving quality, and key takeaways</p></div>
+</div>
+<aside>Here’s the agenda.
+
+First, the challenges: why agents with memory tend to fail once they reach production, and which controls are usually missing.
+
+Then the AtMem control plane at a glance, and the architecture behind it. After that, the rollout path: how you go from a laptop install to a production deployment without a big-bang switch.
+
+Next, the runtime contract every agent turn follows, and why AtMem exposes two very different MCP surfaces, one for agents and one for operators.
+
+Then two ideas that shape everything: shadow mode versus active mode, and the boundary between AtBot, which proposes, and AtMem, which decides.
+
+We’ll look at the framework adapters for OpenClaw, Pydantic AI and LangGraph, then at the Agent Black Box, governed task state, privacy and restore.
+
+Finally, how we measure memory quality honestly, and the key takeaways.</aside>
+</section>

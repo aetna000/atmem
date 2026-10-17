@@ -1,0 +1,47 @@
+<section id="challenges" data-transition="fade" style="background:#F5F3EE;color:#1B2433;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#A65A12;font-weight:600">The challenge</p>
+<h2 style="font-size:64px;font-weight:600;line-height:1.1;color:#14202E">Agent memory fails in production when its controls are missing</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px">
+<div style="display:flex;flex-direction:column;gap:12px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:36px">
+<h3 style="font-size:32px;font-weight:600;color:#14202E">No authority</h3>
+<p style="font-size:26px;line-height:1.4;color:#4A5566">Anything the model says can become a fact it recalls forever.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:36px">
+<h3 style="font-size:32px;font-weight:600;color:#14202E">No evidence</h3>
+<p style="font-size:26px;line-height:1.4;color:#4A5566">Nobody can show what context the model saw on a given turn.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:36px">
+<h3 style="font-size:32px;font-weight:600;color:#14202E">No isolation</h3>
+<p style="font-size:26px;line-height:1.4;color:#4A5566">Memory leaks across users, agents and workspaces.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:36px">
+<h3 style="font-size:32px;font-weight:600;color:#14202E">No way back</h3>
+<p style="font-size:26px;line-height:1.4;color:#4A5566">Switching memory systems is a one-way door with no restore.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:36px">
+<h3 style="font-size:32px;font-weight:600;color:#14202E">No privacy boundary</h3>
+<p style="font-size:26px;line-height:1.4;color:#4A5566">Raw transcripts and secrets land in plain logs and vector stores.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:36px">
+<h3 style="font-size:32px;font-weight:600;color:#14202E">No proof of quality</h3>
+<p style="font-size:26px;line-height:1.4;color:#4A5566">“It seems to remember” is not a release gate.</p>
+</div>
+</div>
+<aside>Let me start with the challenge. Plenty of agents work in a demo and fail in production, and memory is one of the most common reasons. Usually it isn’t because recall is weak. It’s because the foundational controls are missing.
+
+First, authority. In many stacks, whatever the model extracts becomes a stored “fact”, so a hallucination or a prompt injection turns into permanent memory.
+
+Second, evidence. When something goes wrong, can you show exactly what context was injected into the model on that turn? Most teams can’t.
+
+Third, isolation. Memory needs to be scoped to the exact user, agent and workspace. Without that, one tenant’s facts end up in another tenant’s context.
+
+Fourth, reversibility. Once you replace an agent’s native memory with a new system, there is often no tested way back.
+
+Fifth, privacy. Raw prompts, tool results and sometimes secrets end up in plain logs, traces and vector databases.
+
+And sixth, proof of quality. “It seems to remember things” is not something you can gate a release on.
+
+So I’m not going to build a cleverer agent today. I’ll show you the control plane that answers each of these.</aside>
+</section>

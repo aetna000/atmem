@@ -1,0 +1,38 @@
+<section id="blackbox" data-transition="fade" style="background:#F5F3EE;color:#1B2433;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#A65A12;font-weight:600">Agent Black Box</p>
+<h2 style="font-size:64px;font-weight:600;line-height:1.1;color:#14202E">What did the host actually observe?</h2>
+</div>
+<div style="display:flex;gap:48px;align-items:start">
+<div style="width:1000px">
+<table style="font-size:24px;color:#1B2433">
+<tr style="background:#E8E4DB"><th style="width:32%;padding:12px 18px">Flight event</th><th style="width:68%">Retained in the projection</th></tr>
+<tr><td style="padding:12px 18px">turn.input</td><td>prompt digest, character count, image and tool counts</td></tr>
+<tr style="background:#FCFBF8"><td>model.input</td><td>prompt, system and history digests; provider and model</td></tr>
+<tr><td>context.disposition</td><td>injected, empty, withheld or failed; envelope digest; candidate IDs</td></tr>
+<tr style="background:#FCFBF8"><td>tool.requested</td><td>tool name and kind, parameter digest and key names</td></tr>
+<tr><td>tool.completed</td><td>result digest, outcome, error category, duration</td></tr>
+<tr style="background:#FCFBF8"><td>model.output</td><td>output digest, provider and model, token usage</td></tr>
+<tr><td>turn.ended</td><td>message-bundle digest, success or cancel, reason</td></tr>
+</table>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:32px">
+<h3 style="font-size:32px;font-weight:600;color:#14202E">Hash-chained</h3>
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:24px;background:#E6EDF6;border:1px solid #9DB4D3;border-radius:10px;padding:14px 18px">#41 turn.input</p>
+<x-shape kind="arrow-down" style="width:24px;height:32px;background:#2563A8;align-self:center"></x-shape>
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:24px;background:#E6EDF6;border:1px solid #9DB4D3;border-radius:10px;padding:14px 18px">#42 model.input</p>
+<x-shape kind="arrow-down" style="width:24px;height:32px;background:#2563A8;align-self:center"></x-shape>
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:24px;background:#E6EDF6;border:1px solid #9DB4D3;border-radius:10px;padding:14px 18px">#43 context.disposition</p>
+<p style="font-size:24px;line-height:1.4;color:#4A5566">Each event links to the one before it. Exact content lives in the encrypted vault when capture is on.</p>
+</div>
+</div>
+<aside>Now the tracking side. The Agent Black Box answers one narrow operational question: what did the host observe the agent and its tools doing during this run?
+
+The table shows the flight events a runtime can emit. turn.input when a turn starts. model.input with prompt, system and history digests plus provider and model. context.disposition, which is the one I care about most: was memory injected, empty, withheld or failed, with the exact placement envelope digest and the candidate IDs that were considered. Then tool.requested and tool.completed for every tool call, model.output with token usage, and turn.ended with success or cancel and a reason.
+
+This table is the content-minimising projection: digests, counts and names. When full-fidelity capture is configured, the exact prompts, context, model exchanges, tool arguments and results, and supported multimodal originals are kept separately in an encrypted evidence vault.
+
+On the right: the timeline is appended to the control evidence store and protected by a hash chain scoped by migration and kind, so you can’t quietly delete or reorder an event.
+
+One honest caveat: digests are fingerprints, not encryption or anonymisation. A low-entropy value can be guessed and compared, so treat the evidence database and exports as sensitive records.</aside>
+</section>

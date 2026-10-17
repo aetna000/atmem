@@ -1,0 +1,55 @@
+<section id="architecture" data-transition="fade" style="background:#F5F3EE;color:#1B2433;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:32px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#A65A12;font-weight:600">Architecture</p>
+<h2 style="font-size:64px;font-weight:600;line-height:1.1;color:#14202E">One control plane for every agent</h2>
+</div>
+<!-- runtimes 0,89,260,482  adapter 340,0,300,470  atbot 340,530,300,130  CP 720,0,520,660  inner 748,{80,225,370,515},464,110  storage 1320,{80,225,370,515},344,110 -->
+<div style="position:relative;width:1664px;height:660px">
+<div style="position:absolute;left:0px;top:89px;width:260px;display:flex;flex-direction:column;gap:28px">
+<p style="font-size:24px;letter-spacing:2px;text-transform:uppercase;color:#A65A12;font-weight:600">Agent runtimes</p>
+<p style="font-size:26px;background:#FCFBF8;border:1px solid #C9C4B8;border-radius:12px;padding:24px 20px">OpenClaw</p>
+<p style="font-size:26px;background:#FCFBF8;border:1px solid #C9C4B8;border-radius:12px;padding:24px 20px">Pydantic AI</p>
+<p style="font-size:26px;background:#FCFBF8;border:1px solid #C9C4B8;border-radius:12px;padding:24px 20px">LangGraph</p>
+<p style="font-size:26px;background:#FCFBF8;border:1px solid #C9C4B8;border-radius:12px;padding:24px 20px">Custom agent</p>
+</div>
+<div style="position:absolute;left:340px;top:0px;width:300px;height:470px;display:flex;flex-direction:column;gap:14px;background:#FBF1E6;border:2px solid #A65A12;border-radius:16px;padding:24px">
+<h3 style="font-size:28px;font-weight:600;color:#14202E;line-height:1.2">Adapters + host MCP</h3>
+<p style="font-size:24px;color:#4A5566">capture</p>
+<p style="font-size:24px;color:#4A5566">prepare</p>
+<p style="font-size:24px;color:#4A5566">confirm exposure</p>
+<p style="font-size:24px;color:#4A5566">record events</p>
+<p style="font-size:24px;color:#4A5566">outcome receipts</p>
+</div>
+<div style="position:absolute;left:340px;top:530px;width:300px;height:130px;display:flex;flex-direction:column;gap:6px;background:#FCFBF8;border:2px dashed #A65A12;border-radius:16px;padding:20px 24px">
+<h3 style="font-size:28px;font-weight:600;color:#14202E">AtBot companion</h3>
+<p style="font-size:24px;color:#4A5566">proposes and ranks</p>
+</div>
+<div style="position:absolute;left:720px;top:0px;width:520px;height:660px;background:#E6EDF6;border:2px solid #2563A8;border-radius:20px;padding:24px 28px">
+<p style="font-size:28px;font-weight:600;color:#14365E">AtMem control plane</p>
+</div>
+<p style="position:absolute;left:748px;top:80px;width:464px;height:110px;font-size:24px;line-height:1.35;background:#FCFBF8;border:1px solid #9DB4D3;border-radius:12px;padding:20px"><b>Policy: shadow or active</b><br>gates every injection</p>
+<p style="position:absolute;left:748px;top:225px;width:464px;height:110px;font-size:24px;line-height:1.35;background:#FCFBF8;border:1px solid #9DB4D3;border-radius:12px;padding:20px"><b>Memory authority</b><br>admit · scope · delete</p>
+<p style="position:absolute;left:748px;top:370px;width:464px;height:110px;font-size:24px;line-height:1.35;background:#FCFBF8;border:1px solid #9DB4D3;border-radius:12px;padding:20px"><b>Agent Black Box</b><br>hash-chained flight log</p>
+<p style="position:absolute;left:748px;top:515px;width:464px;height:110px;font-size:24px;line-height:1.35;background:#FCFBF8;border:1px solid #9DB4D3;border-radius:12px;padding:20px"><b>Retrieval</b><br>hybrid ranking + recall</p>
+<p style="position:absolute;left:1320px;top:80px;width:344px;height:110px;font-size:24px;line-height:1.35;background:#ECEAE4;border:1px solid #C9C4B8;border-radius:12px;padding:20px"><b>Operators</b><br>CLI, MCP, dashboard</p>
+<p style="position:absolute;left:1320px;top:225px;width:344px;height:110px;font-size:24px;line-height:1.35;background:#ECEAE4;border:1px solid #C9C4B8;border-radius:12px;padding:20px"><b>Memory DB</b><br>SQLite or SQLCipher</p>
+<p style="position:absolute;left:1320px;top:370px;width:344px;height:110px;font-size:24px;line-height:1.35;background:#ECEAE4;border:1px solid #C9C4B8;border-radius:12px;padding:20px"><b>Evidence vault</b><br>encrypted originals</p>
+<p style="position:absolute;left:1320px;top:515px;width:344px;height:110px;font-size:24px;line-height:1.35;background:#ECEAE4;border:1px solid #C9C4B8;border-radius:12px;padding:20px"><b>Vector index</b><br>always-on, local</p>
+<x-connector x1="260" y1="330" x2="340" y2="330" style="color:#4A5566;border-width:3px"></x-connector>
+<x-connector x1="640" y1="235" x2="720" y2="235" style="color:#4A5566;border-width:3px"></x-connector>
+<x-connector x1="640" y1="595" x2="720" y2="595" style="color:#A65A12;border-width:3px;border-style:dashed"></x-connector>
+<x-connector x1="1320" y1="135" x2="1212" y2="135" style="color:#4A5566;border-width:3px"></x-connector>
+<x-connector x1="1212" y1="280" x2="1320" y2="280" style="color:#4A5566;border-width:3px"></x-connector>
+<x-connector x1="1212" y1="425" x2="1320" y2="425" style="color:#4A5566;border-width:3px"></x-connector>
+<x-connector x1="1212" y1="570" x2="1320" y2="570" head="both" style="color:#4A5566;border-width:3px"></x-connector>
+</div>
+<aside>Now let’s look at the architecture.
+
+On the left are the agent runtimes: OpenClaw, Pydantic AI, LangGraph, or your own custom agent or SaaS worker. AtMem doesn’t replace any of them. Each connects through an adapter, or through the generic host MCP, which does only five things: capture memory candidates, prepare context before a model call, confirm what was actually exposed, record model and tool events, and bind outcome receipts.
+
+In the middle is the AtMem control plane. The policy layer decides whether AtMem is in shadow or active mode, so it gates every single injection. The memory authority admits, scopes, corrects and deletes records. The Agent Black Box keeps a hash-chained flight log. And retrieval does hybrid ranking and bounded recall.
+
+Below the adapters is AtBot, AtMem’s intelligence companion. Notice the dashed line: AtBot sends proposals in, but it never writes memory directly.
+
+On the right is the storage and operator side: a canonical memory database, SQLite or SQLCipher-encrypted; an encrypted evidence vault for original content; an always-present local vector index; and the operator surfaces, meaning the CLI, the operator MCP and the dashboard. All of them call the same manager operations, so the dashboard is a view over the same state, not a second source of truth.</aside>
+</section>

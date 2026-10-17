@@ -1,0 +1,42 @@
+<section id="mcp-surfaces" data-transition="fade" style="background:#F5F3EE;color:#1B2433;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#A65A12;font-weight:600">MCP surfaces</p>
+<h2 style="font-size:64px;font-weight:600;line-height:1.1;color:#14202E">Two MCP surfaces, two trust levels</h2>
+</div>
+<div style="display:flex;gap:40px">
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:20px;padding:40px">
+<p style="font-size:24px;letter-spacing:2px;text-transform:uppercase;color:#2563A8;font-weight:600">For agents</p>
+<h3 style="font-size:40px;font-weight:600;color:#14202E">Host control MCP</h3>
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:24px;color:#2563A8">atmem control mcp</p>
+<ul style="font-size:26px;line-height:1.5;color:#4A5566">
+<li>capture memory candidates</li>
+<li>prepare context before a model call</li>
+<li>confirm exact context exposure</li>
+<li>record flight events</li>
+<li>adapter sync and status</li>
+</ul>
+<p style="font-size:26px;line-height:1.4;color:#A65A12;font-weight:600">Cannot approve memory, acknowledge findings or activate AtMem.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#13202F;border-radius:20px;padding:40px">
+<p style="font-size:24px;letter-spacing:2px;text-transform:uppercase;color:#F0A35E;font-weight:600">For trusted operators</p>
+<h3 style="font-size:40px;font-weight:600;color:#EEF1F4">Operator MCP</h3>
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:24px;color:#7DB3E8">atmem control operator-mcp</p>
+<ul style="font-size:26px;line-height:1.5;color:#B8C4D2">
+<li>approve or reject memory</li>
+<li>acknowledge findings</li>
+<li>configure agent scopes</li>
+<li>export evidence</li>
+<li>activate, or return to shadow</li>
+</ul>
+<p style="font-size:26px;line-height:1.4;color:#F0A35E;font-weight:600">Never expose it to an agent or an untrusted network.</p>
+</div>
+</div>
+<p style="font-size:26px;color:#4A5566">Dashboard: loopback only · local account · HttpOnly session · origin and CSRF checks on every change</p>
+<aside>A key design decision in AtMem is that there isn’t one MCP server, there are two, with very different trust levels. This is the same idea as putting a gateway in front of your tools: the agent should never hold the keys to its own governance.
+
+On the left is the host control MCP, started with “atmem control mcp”. This is what agents talk to. It’s deliberately non-administrative. It can capture memory candidates, prepare context before a model call, confirm the exact context exposure, record flight events, and report adapter sync and status. That’s all. An agent can’t approve its own memories, acknowledge its own findings or switch AtMem into active mode.
+
+On the right is the operator MCP, started with “atmem control operator-mcp”. That one can approve or reject memory, acknowledge findings, configure agent scopes, export evidence, and activate AtMem or return it to shadow. It’s meant for a trusted local operator client, a human, and you should never expose it to an agent or an untrusted network.
+
+The dashboard follows the same principle: it binds only to loopback, requires a local AtMem account, uses HttpOnly sessions, and checks origin and CSRF on every mutation. Don’t put it behind a public reverse proxy.</aside>
+</section>
