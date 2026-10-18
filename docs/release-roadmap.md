@@ -23,6 +23,21 @@ work are deferred. Official MCP Registry registration
 ([AtFlows #6](https://github.com/aetna000/atflows/issues/6)) remain separately
 verified publication tracks. This roadmap update does not authorize a release.
 
+**Pending Code expansion:** Spec 042 FR-017–FR-028 and T043–T060 now cover
+upstream-first repository knowledge, governed coding-attempt experiences,
+graph-independent applicability and the Memory Explorer. Historical phase 0–8
+qualification does not include these new capabilities. The code-first CK plan
+maps into this canonical task set; broader document/data connectors remain later
+explicit scope. No release version or publication is selected by this planning.
+
+**Separate evaluation workstream:** [Spec 043 Click historical replay](../specs/043-click-historical-replay/spec.md)
+plans five real historical tasks under four configurations and three repetitions.
+Experience B/D require Spec 042 T049–T051 and installed proof, structure C/D require
+the rich graph gates, and all runs require a T060 capability receipt, qualified
+agent integration and later explicit budget/egress authorization. It is not the
+deferred VibeMemBench campaign, does not close phase 9/T033, and does not claim
+Cognee parity or broad coding benefit. No real trial has run under this protocol.
+
 AtMem is an agent-neutral, standalone encrypted evidence authority for memory, context governance and execution investigation. Every release follows [PR-001–PR-008](../specs/product-requirements.md), including default full-fidelity multimodal capture, application-only privileged plaintext and store-only reconstruction after the agent and its logs are gone. Advertise only the host, provider, capture-boundary, cryptographic and deployment profiles actually verified for that release.
 
 ## Release overview

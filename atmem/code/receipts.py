@@ -54,6 +54,12 @@ class CodeReceipts:
             row = self.prepare(request, package, host=host)
             graph = row.get("graph_evidence")
             if graph:
+                if graph.get("knowledge_snapshot_id"):
+                    from atmem.knowledge.projections import CodeKnowledge
+                    knowledge = CodeKnowledge.from_store(self.store, request.scope)
+                    current_generation = knowledge.current(graph["root"])
+                    if current_generation is None or current_generation["snapshot_id"] != graph["knowledge_snapshot_id"]:
+                        raise PermissionError("rich structure changed before submission")
                 from atmem.code.identity import repository_key, _git
                 root = Path(graph["root"]).resolve(strict=True)
                 binding = self.store.code_project_binding(request.scope.subject_id, repository_key(root))

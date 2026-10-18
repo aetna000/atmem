@@ -9,7 +9,7 @@ description = "Host-neutral Agent Black Box and reversible memory control plane.
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "third_party/cognee/LICENSE", "third_party/cognee/NOTICE.md", "third_party/cognee/import-manifest.json"]
 authors = [{ name = "Javad Taghia", email = "taghia.javad@gmail.com" }]
 maintainers = [{ name = "Aetna / AtMem", email = "aetna000@gmail.com" }]
 keywords = ["agent-black-box", "agent-memory", "audit", "mcp", "provenance", "sqlite"]

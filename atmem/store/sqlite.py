@@ -614,28 +614,27 @@ class SQLiteStore:
         ).fetchall()]
 
     def code_document(self, subject_id: str, project_id: str, kind: str, document_id: str) -> dict[str, Any] | None:
+        from atmem.store.code_documents import decode_document
         row = self._conn.execute(
             "SELECT payload_json FROM code_documents WHERE subject_id=? AND project_id=? AND kind=? AND document_id=?",
             (subject_id, project_id, kind, document_id),
         ).fetchone()
-        return json.loads(row[0]) if row else None
+        return decode_document(row[0], subject=subject_id, project=project_id, kind=kind, identity=document_id) if row else None
 
     def code_documents(self, subject_id: str, project_id: str, kind: str) -> list[dict[str, Any]]:
-        return [json.loads(row[0]) for row in self._conn.execute(
-            "SELECT payload_json FROM code_documents WHERE subject_id=? AND project_id=? AND kind=? ORDER BY document_id",
-            (subject_id, project_id, kind),
-        ).fetchall()]
+        return [item['value'] for item in self.code_document_items(subject_id, project_id, kind)]
 
     def code_document_items(self, subject_id: str, project_id: str, kind: str) -> list[dict[str, Any]]:
-        return [{"document_id": row[0], "value": json.loads(row[1])} for row in self._conn.execute(
+        from atmem.store.code_documents import decode_document
+        return [{"document_id": row[0], "value": decode_document(row[1], subject=subject_id,
+                  project=project_id, kind=kind, identity=row[0])} for row in self._conn.execute(
             "SELECT document_id,payload_json FROM code_documents WHERE subject_id=? AND project_id=? AND kind=? ORDER BY document_id",
             (subject_id, project_id, kind),
         ).fetchall()]
 
     def put_code_document(self, subject_id: str, project_id: str, kind: str, document_id: str, value: dict[str, Any]) -> None:
-        encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
-        if len(encoded.encode("utf-8")) > 16_000_000:
-            raise ValueError("Code document exceeds size limit")
+        from atmem.store.code_documents import encode_document
+        encoded = encode_document(value, subject=subject_id, project=project_id, kind=kind, identity=document_id)
         with self.transaction():
             self._conn.execute(
                 """INSERT INTO code_documents VALUES (?,?,?,?,?,?)

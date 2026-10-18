@@ -4,6 +4,10 @@
 **Target:** AtMem 2.3.9 release track; final release number and date follow qualification.
 **Baseline:** Published AtMem 2.3.8. Work is isolated from `laya_changes`.
 
+**2026-10-17 expansion:** FR-017–FR-028 and SC-008–SC-013 below formalize the
+pending knowledge/experience/Memory Explorer workstream. Historical phase 0–8
+qualification does not cover it. Its runtime implementation is not completed.
+
 ## Overview
 
 AtMem Code is an installation flavour of the existing AtMem product, not a separate memory authority, service or repository. It carries useful project knowledge between coding sessions and agents without requiring the model to remember to call an MCP tool. It connects agent lifecycle events to one local memory service, supplies a bounded context pack at the next relevant boundary, and offers explicit search, correction, and deletion in both CLI and dashboard. A project memory can be exported as a portable, versioned bundle and restored for an authorized copy of the project.
@@ -69,3 +73,109 @@ Code structure is a separate, derived retrieval surface. An optional code graph 
 ## Scope boundary
 
 The 2.3.9 design does not require a trained Laya decision model, a hosted account, a mandatory graph parser in the base install, or automatic provider egress. Provider routing and code graph are user-optional features but are included in phases 0–8 of this development request. Live cross-user/machine sync is excluded; portable export/import is included. Phase 9 benchmark and release work is deferred by the owner's later instruction. Release notes, when release work is separately authorized, must identify the qualified subset exactly.
+
+## Pending expansion: maintained knowledge, experience and exploration
+
+This is a separately scoped workstream within Spec 042, not a second product or
+memory authority. It supplies product capabilities needed by [Click Spec 043](../043-click-historical-replay/spec.md).
+The source-incorporation architecture is in [code-knowledge-plan.md](code-knowledge-plan.md).
+Documents/structured-data expansion remains in the broader parent plan; this
+workstream's first acceptance surface is code. No document-format parity follows.
+
+### User scenarios
+
+1. A developer explores repository structure, follows a source-backed dependency
+   path and sees the extraction coverage without a hosted model.
+2. An enabled agent finishes an attempt. AtMem can form an attributed experience
+   linked to authorized intent, actions and observed test receipts. On a later
+   revision it recalls only the parts whose applicability is supported, including
+   relevant failed attempts; it does not invent a successful fix.
+3. A user browses one Memory Explorer to find a decision, inspect its source,
+   history and applicability, see its actual delivery receipt and safely correct
+   or forget it. No database query or copying technical IDs is necessary.
+
+### Functional requirements (all pending)
+
+- **FR-017 — Upstream-first parity.** Maintain a pinned source/dependency/license
+  and capability register. Reuse/adapt upstream implementation and tests before
+  replacement; record incompatibility and evidence for replacements. Differential
+  tests cover the frozen supported language/framework/platform envelope. Missing
+  cells remain gaps; source incorporation alone is not parity.
+- **FR-018 — Extraction.** Authorized immutable source snapshots feed a bounded,
+  isolated, pinned Enola or justified equivalent worker. Produce typed repository,
+  module, symbol, endpoint, resource, dependency and test-reference objects where
+  supported, with source anchors, hashes, assurance and extraction receipts.
+  Structural queries work without an LLM/embeddings. Do not execute repository
+  code, fetch dependencies or leak source through worker telemetry by default.
+- **FR-019 — Knowledge maintenance.** Derived projections are scope-checked,
+  encrypted, rebuildable and atomically generation-published. Edits, renames,
+  deletion, resolver/config changes and dependency effects invalidate affected
+  evidence; no mixed-generation traversal or deleted-data resurrection on restore.
+- **FR-020 — Structural queries.** Provide bounded component exploration,
+  dependencies/dependents, paths, potential impact, architecture overview and
+  snapshot differences. Return evidence/coverage/unresolved states, not fabricated
+  runtime guarantees; enforce authorization at intermediate edges and nodes.
+- **FR-021 — Experience formation.** Add a product-owned governed proposal path
+  for authorized coding attempts, distinct from existing user-assertion formation.
+  An experience records task intent, attempted action, affected source anchors,
+  observed outcome, applicability, provenance and uncertainty. Sources may be
+  authorized agent/tool observations, but remain observations rather than authority.
+  Only bound, validated execution receipts support an observed test outcome;
+  assistant text or exit code alone cannot prove a general successful fix. Each
+  receipt binds command, source/environment identity, execution identity and
+  captured result under an approved producer contract. Keep user assertions,
+  hypotheses, observed failures and verified bounded outcomes distinct. Intelligence
+  may propose, never directly write or authorize. No oracle lessons or training.
+- **FR-022 — Cross-revision applicability.** The product, not a benchmark bypass,
+  assesses experience against current authorized source/config/environment anchors.
+  Unchanged applicable experience can survive unrelated edits or commits. Changed
+  dependencies and unresolved applicability cause withholding/review; branch names
+  alone never authorize reuse. Worktrees remain distinct. This service must work
+  for experience-only use without the richer graph; source hashes and explicit
+  dependency declarations can support conservative decisions. Recheck at delivery.
+- **FR-023 — Unified context.** Existing qualified adapters use one authorized
+  planner to combine experience and optional structure within a shared byte/token
+  budget, deduplicate evidence and preserve truthful delivery assurance. Keep native
+  tools available. Model absence/failure cannot widen authority or change disabled
+  behavior; this work does not require Laya or double semantic classification.
+- **FR-024 — Memory Explorer.** Offer one readable search/browse/detail entry point
+  with optional timeline/source-tree/bounded-relationship views, source excerpts,
+  history, freshness, scope, applicability, formation decisions and exact use/
+  withholding receipts. Support correction/supersession, reindex and scoped clear
+  with previews. CLI/MCP/dashboard share authority. No whole-database browser dump,
+  invented reasoning, secret disclosure or confusing missing evidence with no use.
+- **FR-025 — Usability/accessibility.** Implement keyboard-complete, focus-preserving,
+  non-colour-only exploration with equivalent list access. Run the five formative
+  journeys and baseline-relative targets in the knowledge plan. This small study
+  does not replace the separate replicated investigation claim protocol in
+  `specs/usability-protocol.md` or establish population-level benefit.
+- **FR-026 — Lifecycle/portability.** Extend encrypted project bundles, migration,
+  inspection/export privileges and canonical/derived deletion to new objects,
+  experience and receipts; no plaintext auxiliary storage or credentials in bundles.
+- **FR-027 — Qualification.** Publish separate host/platform capability results for
+  prompt automation, observed task outcomes, compaction/flush and full reconstruction.
+  Existing prompt-only qualification does not imply any other tier. Exercise
+  installed artifacts on claimed platforms and preserve current 2.3.8 APIs/defaults.
+- **FR-028 — Pilot readiness.** Export a versioned product capability receipt for
+  Spec 043. On disjoint authentic attempts, prove formation from eligible non-user
+  evidence and appropriate later-revision recall/withholding before labelling B/D
+  experience-capable; zero formed memories must be reported, not hand-filled.
+  C/D additionally need the relevant rich extraction/query/assembly gates. Full
+  parity and human usability evaluation remain separate from minimal pilot readiness.
+
+### Success criteria (all pending)
+
+- **SC-008:** Frozen extraction/query coverage passes differential and independent
+  source-anchor tests for every claimed cell; unsupported cells are explicit.
+- **SC-009:** Disjoint product tests form source-bound experience from authorized
+  attempts, retain failed/unknown outcomes honestly and reject fabricated receipts.
+- **SC-010:** Unchanged anchored experiences survive unrelated changes; changed,
+  unauthorized, deleted or unresolved anchors are withheld across worktrees and
+  intervening edits at the final delivery boundary, including experience-only mode.
+- **SC-011:** All five Explorer journeys and the declared formative usability and
+  accessibility targets pass; sources, receipts and corrective effects are inspectable.
+- **SC-012:** Upgrade, encrypted bundle restore, role denial, deletion, worker crash
+  and installed-platform tests preserve canonical authority and old disabled behavior.
+- **SC-013:** Product capability receipts identify exact build/configuration and
+  remaining gaps; the Click harness cannot upgrade missing capabilities or declare
+  partial prompt capture to be full reconstruction.

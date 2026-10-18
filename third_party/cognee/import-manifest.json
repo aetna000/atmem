@@ -1,0 +1,20 @@
+{
+  "changes": [
+    "AST-selected pure helpers, snapshot and query methods",
+    "backend/TTL cache removed",
+    "exception base changed to ValueError",
+    "explicit snapshot execute boundary added",
+    "renderer retained",
+    "upstream insight conversion retained; open adapted to read-only in-memory artifact.open",
+    "AtMem wrapper must enforce scope, freshness, storage and budgets"
+  ],
+  "license": "Apache-2.0",
+  "parity_claim": false,
+  "revision": "f154b32a9e544dac73e7ddf2010327cf9988edcd",
+  "source_sha256": {
+    "cognee/modules/retrieval/code_graph_diagram.py": "86a887821c204840eb6f0d903524c8963121830c0edf61a701fa654b53774d49",
+    "cognee/modules/retrieval/code_retriever.py": "4515b6b87de35a38296007b3c3a990ab8ba4a5cc4a362ba2bf75e70a74585b3d",
+    "cognee/tasks/code_graph/enola.py": "3579970eebb1c51bf94453200723c2fed07e42687c053d9f70823e4f804cf199"
+  },
+  "upstream": "https://github.com/topoteretes/cognee"
+}

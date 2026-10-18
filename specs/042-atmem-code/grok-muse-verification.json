@@ -1,0 +1,71 @@
+{
+  "format": "atmem-code-grok-muse-host-tests-v1",
+  "date_local": "2026-10-15",
+  "branch": "feature/atmem-code-2.3.9",
+  "runtime_commit": "f786f299bfbcbe73f7ce2134dd1e5939c29adb8f",
+  "runtime_wheel_sha256": "1d2ab5e0abfced3a2dfb698712b23421f021d6dba88bb338f25d27d07579bded",
+  "production_runtime_changed": false,
+  "versions": {"muse": "1.4.8-R6256.1", "grok": "1.0.13 (5e9a58528b76)"},
+  "binaries": {
+    "mac_muse_sha256": "94ea8fd1c73664c22e5c6157d8706945b667b11bd1c7c51691811e79f17dfcf1",
+    "mac_grok_sha256": "8669e0fdadceec25b8c159c355f427ffbd82583525d774b6ab1522197ea83b80",
+    "windows_muse_sha256": "f9d7be3fce39eb23a1bdda019568e0ae7156514c75c408f54c8c4ddaa297800e",
+    "windows_muse_vendor_manifest_checksum_verified": true,
+    "windows_grok_sha256": "bf43dc75f5478a106eab1e86d422c963e4dbe9666cf14dab363733d27bf1e672",
+    "windows_grok_vendor_checksum_verified": false
+  },
+  "macos": {
+    "platform": "macOS 26.5.2 x86_64",
+    "python": "3.12.2",
+    "installed_package_cwd": "/tmp/atmem-grok-muse-installed.Fcb0pY",
+    "installed_junit": "/tmp/atmem-grok-muse-installed-mac.xml",
+    "repeat_junit": "/tmp/atmem-grok-muse-installed-mac-r2.xml",
+    "repeat_result": "2 passed in 16.33s",
+    "session_receipts_directory": "/tmp/atmem-grok-muse-installed-fixtures-20261015-r2",
+    "passed": 2,
+    "failed": 0,
+    "muse": {"canary_delivered": true, "capture": true, "fresh_session_recall": true, "pause": true},
+    "grok": {"canary_delivered": false, "capture": true, "fresh_session_recall": false, "pause": true}
+  },
+  "windows": {
+    "platform": "Windows 11 build 26200",
+    "python": "3.12.6",
+    "test_directory": "C:/Users/user/AppData/Local/AtMemHostTests/muse-grok-binaries",
+    "raw_assertion_run": {"passed": 1, "failed": 1, "failure": "Muse project hook wrapper never invoked; canonical memories=0"},
+    "final_regression_run": {"passed": 1, "xfailed": 1, "failed": 0, "seconds": 23.71, "xfail_is_qualification_pass": false},
+    "session_receipts_directory": "C:/Users/user/AppData/Local/AtMemHostTests/grok-muse-sessions-20261015",
+    "muse": {"local_model_request_completed": true, "canary_delivered": false, "capture": false, "fresh_session_recall": "blocked", "pause": "blocked"},
+    "grok": {"canary_delivered": false, "capture": true, "fresh_session_recall": false, "pause": true}
+  },
+  "fixture_only_installation_enable": true,
+  "grok_hooks": "global hooks in isolated GROK_HOME, not project-trust onboarding",
+  "muse_hooks": "generated trusted temporary project hooks; Windows also tried commandWindows and Git Bash",
+  "model_endpoints": "loopback fixed-response Responses protocol; no paid requests",
+  "normal_automatic_activation": {"muse": false, "grok": false},
+  "portable_code_regression": {"passed": 72, "skipped_host_probes": 15, "failed": 0},
+  "session_receipts": {
+    "mac_muse": [
+      {"stage": "capture", "returncode": 0, "model_requests": 1, "formatter_in_request": true, "canonical_memories": 1},
+      {"stage": "fresh_session_recall", "returncode": 0, "model_requests": 1, "formatter_in_request": true, "canonical_memories": 1},
+      {"stage": "paused", "returncode": 0, "model_requests": 1, "formatter_in_request": false, "canonical_memories": 1}
+    ],
+    "mac_grok": [
+      {"stage": "capture", "returncode": 0, "model_requests": 3, "formatter_in_request": true, "canonical_memories": 1},
+      {"stage": "fresh_session_recall", "returncode": 0, "model_requests": 3, "formatter_in_request": false, "canonical_memories": 1},
+      {"stage": "paused", "returncode": 0, "model_requests": 3, "formatter_in_request": false, "canonical_memories": 1}
+    ],
+    "windows_grok": [
+      {"stage": "capture", "returncode": 0, "model_requests": 3, "formatter_in_request": true, "canonical_memories": 1},
+      {"stage": "fresh_session_recall", "returncode": 0, "model_requests": 3, "formatter_in_request": false, "canonical_memories": 1},
+      {"stage": "paused", "returncode": 0, "model_requests": 3, "formatter_in_request": false, "canonical_memories": 1}
+    ],
+    "windows_muse": [
+      {"stage": "capture", "returncode": 0, "model_requests": 1, "formatter_in_request": true, "hook_invoked": false, "canonical_memories": 0}
+    ]
+  },
+  "owner_hook_trust_modified": false,
+  "owner_project_or_memory_used": false,
+  "external_model_cost": 0,
+  "release_published": false,
+  "main_unchanged_at": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876"
+}

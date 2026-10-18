@@ -135,7 +135,15 @@ class CodeApplication:
         from atmem.memory import _screenable_metadata
         if episode and any(not screen_content(value, trusted=True).admissible for value in _screenable_metadata(episode)):
             raise PermissionError("source contains protected secret material")
-        return {"record": record, "source": episode, "scope": lane}
+        result = {"record": record, "source": episode, "scope": lane}
+        origin = self.store.code_document(self.subject_id, project_id, "origin", record_id) or {}
+        if origin.get("experience_proposal_id"):
+            value = self.store.code_document(self.subject_id, project_id, "code-experience", origin["experience_proposal_id"])
+            if value:
+                result["experience"] = {"proposal": value["proposal"], "formation": value["formation"],
+                                        "snapshot": value["snapshot"], "receipt_ids": value["receipt_ids"],
+                                        "outcome_assurance": "authenticated_producer_report_not_independent_verification"}
+        return result
 
     def correct(self, project_id: str, record_id: str, text: str) -> dict:
         lane, old = self.exact(project_id, record_id)
@@ -148,7 +156,22 @@ class CodeApplication:
     def forget(self, project_id: str, record_id: str) -> dict:
         lane, _ = self.exact(project_id, record_id)
         with self.store.transaction():
+            origin = self.store.code_document(self.subject_id, project_id, "origin", record_id) or {}
             result = self.memory.forget_record(lane["derived_subject_id"], record_id, actor="user")
+            if origin.get("experience_proposal_id"):
+                proposal_id = origin["experience_proposal_id"]
+                self.store.put_code_document(self.subject_id, project_id, "experience-tombstone", proposal_id,
+                                             {"scope": CodeScope(self.subject_id, project_id, lane["profile_id"], lane["agent_id"]).to_dict(),
+                                              "proposal_id": proposal_id, "reason": "owner_forget"})
+                value = self.store.code_document(self.subject_id, project_id, "code-experience", proposal_id)
+                if value:
+                    for receipt_id in value.get("receipt_ids", []):
+                        # Receipts may support another experience; preserve only
+                        # those still referenced in that same authorized project.
+                        others = self.store.code_documents(self.subject_id, project_id, "code-experience")
+                        if not any(d.get("proposal", {}).get("proposal_id") != proposal_id and receipt_id in d.get("receipt_ids", []) for d in others):
+                            self.store.delete_code_documents(self.subject_id, project_id, "execution-receipt", receipt_id)
+                    self.store.delete_code_documents(self.subject_id, project_id, "code-experience", proposal_id)
             self.store.delete_code_documents(self.subject_id, project_id, "origin", record_id)
         return result
 
@@ -260,6 +283,49 @@ class CodeApplication:
             if action == "graph-index":
                 return graph.index(str(body.get("root") or ""))
             return graph.query(str(body.get("root") or ""), str(body.get("query") or ""), limit=int(body.get("limit", 20)))
+        if action in {"knowledge-index", "knowledge-query", "knowledge-status", "knowledge-source"}:
+            from atmem.knowledge.projections import CodeKnowledge
+            from atmem.knowledge.code.queries import query_current
+            scope = CodeScope(self.subject_id, project, str(body.get("profile") or "shared"), str(body.get("agent") or "codex"))
+            knowledge = CodeKnowledge(self, scope)
+            root = str(body.get("root") or "")
+            if action == "knowledge-index":
+                from atmem.knowledge.worker import ExtractionWorker
+                return knowledge.index(root, ExtractionWorker(body.get("image_id")))
+            if action == "knowledge-query":
+                result = query_current(knowledge, root, operation=body.get("operation", "query_facts"),
+                                       query=body.get("query", ""), config=body.get("options"))
+            elif action == "knowledge-source":
+                from atmem.knowledge.contracts import source_path
+                import base64
+                generation = knowledge.current(root)
+                if generation is None:
+                    return {"status": "not_current"}
+                name = source_path(body.get("path"))
+                if name not in generation["source_bytes"]:
+                    raise PermissionError("source is not in the current authorized generation")
+                start, count = body.get("start_line", 1), body.get("line_count", 30)
+                if type(start) is not int or start < 1 or type(count) is not int or not 1 <= count <= 100:
+                    raise ValueError("invalid source excerpt range")
+                from atmem.knowledge.source_text import source_text
+                lines = source_text(name, base64.b64decode(generation["source_bytes"][name], validate=True)).splitlines()
+                excerpt = "\n".join(lines[start - 1:start - 1 + count])
+                if len(excerpt.encode()) > 8192:
+                    raise ValueError("source excerpt exceeds byte budget")
+                result = {"status": "current", "path": name, "start_line": start, "content": excerpt,
+                          "snapshot_id": generation["snapshot_id"], "source_sha256": dict(generation["snapshot"]["files"])[name]}
+                latest = knowledge.current(root)
+                if latest is None or latest["snapshot_id"] != generation["snapshot_id"]:
+                    return {"status": "withheld", "reason": "source_changed_during_inspection"}
+            else:
+                generation = knowledge.current(root)
+                result = ({"status": "current", "snapshot_id": generation["snapshot_id"], "generation": generation["generation"],
+                           "object_count": len(generation["objects"]), "relation_count": len(generation["relations"]),
+                           "coverage": generation["coverage"], "receipt": generation["receipt"], "excluded_counts": generation["excluded_counts"]}
+                          if generation else {"status": "not_current"})
+            self.store.append_audit_event(subject_id=self.subject_id, event_type="code.knowledge_inspected", actor="user",
+                                          payload={"project_id": project, "operation": action, "status": result["status"]})
+            return result
         raise ValueError("unknown Code action")
 
 

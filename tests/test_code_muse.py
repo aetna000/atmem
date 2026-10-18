@@ -61,7 +61,7 @@ def test_installed_muse_meta_protocol_receives_hook_context(tmp_path):
             result = subprocess.run([binary, "exec", "--provider", "meta", "--model", "muse-spark-1.3", "--base-url", endpoint.url,
                                      "--api-key-stdin", "--trust-workspace", "--disable-reminders", "--no-foreign-personal-context",
                                      "--no-session-log", "--disable-web-tools", "--disable-shell", "--disable-write", "--max-model-steps", "1",
-                                     "--reasoning-effort", "none", "Reply probe complete."],
+                                     "--reasoning-effort", "minimal", "Reply probe complete."],
                                     input="offline-probe-not-a-provider-key\n", cwd=tmp_path, env=environment,
                                     capture_output=True, text=True, timeout=30, check=False)
         except subprocess.TimeoutExpired:

@@ -17,6 +17,7 @@ from atmem.memory import Memory
 COMMANDS = ("setup", "status", "doctor", "enable", "disable", "uninstall", "projects",
             "search", "inspect", "correct", "forget", "config", "clear", "routes", "route-set", "route-delete",
             "graph-index", "graph-search", "graph-status", "keygen", "export", "import", "enroll", "reviews", "review", "attach")
+COMMANDS += ("knowledge-index", "knowledge-query", "knowledge-status", "knowledge-source")
 
 
 def add_commands(parser, *, default_db: str) -> None:
@@ -35,6 +36,16 @@ def add_commands(parser, *, default_db: str) -> None:
             command.add_argument("--apply", action="store_true", help="Record disabled setup after preview")
         if name in {"search", "graph-search"}:
             command.add_argument("query", nargs="?", default="")
+        if name == "knowledge-index":
+            command.add_argument("--image-id", required=True, help="Explicit immutable local extractor image ID; never downloaded automatically")
+        if name == "knowledge-query":
+            command.add_argument("query", nargs="?", default="")
+            command.add_argument("--operation", default="query_facts", choices=("query_facts", "explore", "traverse", "find_path", "impact_analysis", "architecture", "delta", "insights"))
+            command.add_argument("--options", default="{}", help="JSON query filters/seed identifiers")
+        if name == "knowledge-source":
+            command.add_argument("path")
+            command.add_argument("--start-line", type=int, default=1)
+            command.add_argument("--line-count", type=int, default=30)
         if name == "search":
             command.add_argument("--type", dest="memory_class")
             command.add_argument("--source")
@@ -173,6 +184,14 @@ def run(args: argparse.Namespace) -> dict:
             body.update(event_id=args.event_id, decision=args.decision)
         elif command.startswith("graph-"):
             body.update(root=args.project, query=getattr(args, "query", ""))
+        elif command.startswith("knowledge-"):
+            body.update(root=args.project, profile=args.profile, agent=args.agent or args.host)
+            if command == "knowledge-index":
+                body["image_id"] = args.image_id
+            elif command == "knowledge-query":
+                body.update(query=args.query, operation=args.operation, options=json.loads(args.options))
+            elif command == "knowledge-source":
+                body.update(path=args.path, start_line=args.start_line, line_count=args.line_count)
         return app.dispatch(command, body)
     finally:
         memory.close()

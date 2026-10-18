@@ -405,7 +405,7 @@
       <label>Search<input id="codeQuery" placeholder="Formatter, architecture, past fixes…"></label>
       <label>Profile<input id="codeProfile" placeholder="All profiles"></label>
       <label>Agent<input id="codeAgent" placeholder="All agents"></label>
-      <label>Type<select id="codeType"><option value="">Any type</option><option>preference</option><option>project_fact</option><option>decision</option><option>workflow</option><option>failure_fix</option></select></label>
+      <label>Type<select id="codeType"><option value="">Any type</option><option>preference</option><option>project_fact</option><option>decision</option><option>workflow</option><option>failure_fix</option><option>coding_experience</option></select></label>
       <label>Source contains<input id="codeSource"></label><label>Learned after<input id="codeAfter" type="datetime-local"></label><label>Learned before<input id="codeBefore" type="datetime-local"></label>
     </div>
     <div class="actions"><button class="primary" id="codeSearch" type="button">Search memories</button><button id="codeClearPreview" type="button">Preview clearing selection</button><button id="codeClearApply" type="button" disabled>Clear previewed selection</button></div>
@@ -417,7 +417,19 @@
       <div class="memoryfilters"><label>Route name<input id="codeRouteId"></label><label>Registered provider<input id="codeRouteProvider" placeholder="provider:instance"></label><label>Tags<input id="codeRouteTags" placeholder="docs,external-memory"></label><label>Profiles<input id="codeRouteProfiles" value="shared"></label><label>Agents<input id="codeRouteAgents" value="codex,claude"></label><label>On provider failure<select id="codeRouteFallback"><option value="withhold">Withhold context</option><option value="native">Use AtMem memory</option></select></label><label><input id="codeRouteEgress" type="checkbox"> Allow this route to send queries</label></div>
       <div class="actions"><button id="codeRouteSave" type="button">Save route</button><button id="codeRouteRemove" type="button">Remove route</button></div><pre id="codeRoutes" class="codeoutput"></pre>
     </details>
-    <details><summary>Code structure</summary><p>Python definitions, imports and call references with source locations.</p><div class="actions"><button id="codeGraphIndex" type="button">Index repository</button><button id="codeGraphSearch" type="button">Search structure</button></div><pre id="codeGraphResult" class="codeoutput"></pre></details>
+    <details id="codeKnowledgeExplorer"><summary>Explore repository knowledge</summary>
+      <p>Browse current structure, follow relationships and inspect its source. Extraction coverage is shown separately from what a coding attempt reported.</p>
+      <form id="codeKnowledgeForm"><div class="memoryfilters">
+        <label>Find a component<input id="codeKnowledgeQuery" placeholder="Function, module or path"></label>
+        <label>View<select id="codeKnowledgeOperation"><option value="query_facts">Browse facts</option><option value="explore">Explore component</option><option value="traverse">Dependencies</option><option value="impact_analysis">Potential change impact</option><option value="architecture">Architecture overview</option><option value="delta">Snapshot changes</option></select></label>
+      </div><button type="submit">Explore knowledge</button><button id="codeKnowledgeCoverage" type="button">Extraction coverage</button></form>
+      <p id="codeKnowledgeStatus" role="status" aria-live="polite"></p>
+      <div id="codeKnowledgeResults" class="results" aria-label="Repository knowledge results"></div>
+      <section aria-labelledby="codeKnowledgeSourceTitle"><h3 id="codeKnowledgeSourceTitle">Source evidence</h3><pre id="codeKnowledgeSource" class="codeoutput" tabindex="0"></pre></section>
+      <details><summary>Query receipt and coverage details</summary><pre id="codeKnowledgeReceipt" class="codeoutput"></pre></details>
+      <details><summary>Build or update repository knowledge</summary><p>Enable the structure setting and explicitly supply a locally installed, immutable extractor image. No image or model is downloaded automatically.</p><label>Extractor image ID<input id="codeKnowledgeImage" placeholder="sha256:…"></label><button id="codeKnowledgeIndex" type="button">Build knowledge</button></details>
+    </details>
+    <details><summary>Basic syntax index (fallback)</summary><p>Python definitions, imports and syntax-only call references; not the richer extractor.</p><div class="actions"><button id="codeGraphIndex" type="button">Index repository</button><button id="codeGraphSearch" type="button">Search structure</button></div><pre id="codeGraphResult" class="codeoutput"></pre></details>
     <details><summary>Portable project bundle</summary>
       <p>Choose your key files to export or import an encrypted project bundle.</p><button id="codeKeygen" type="button">Generate and download bundle keys</button>
       <div class="memoryfilters"><label>Recipient public key<input type="file" id="codeRecipientPublic"></label><label>Signing public key<input type="file" id="codeSigningPublic"></label><label>Signing secret key<input type="file" id="codeSigningSecret"></label><label>Encrypted bundle<input type="file" id="codeBundleFile"></label><label>Recipient secret key<input type="file" id="codeRecipientSecret"></label></div>

@@ -7,6 +7,21 @@ five-host product is **not fully qualified**. Unchecked tasks below remain
 open; configuration scaffolding and expected failures are not counted as
 successful integrations. Phase 9 was not undertaken and no release is published.
 
+## Pending expansion — not covered by historical verification
+
+As of 2026-10-17, FR-017–FR-028 / SC-008–SC-013 and T043–T060 specify the
+Cognee/Enola-inspired knowledge engine, governed coding-attempt experiences,
+graph-independent cross-revision applicability and Memory Explorer. All expansion
+tasks are pending. Existing formation retains explicit user assertions, not
+automatically learned solver/tool outcomes. Existing whole-repository freshness
+is not the planned applicability service. Positive host results qualify prompt
+automation only, with other tiers recorded in `host-capabilities.md`.
+
+[Spec 043](../043-click-historical-replay/spec.md) is a separate five-task Click
+pilot protocol, not an executed benchmark. B/D need the new formation/applicability
+gates; C/D also need qualified rich structure. Historical test counts below are
+unchanged evidence for their exact builds, not verification of this expansion.
+
 ## Phase status
 
 | Phase | Completed work | Remaining gate |
@@ -25,8 +40,8 @@ successful integrations. Phase 9 was not undertaken and no release is published.
 
 | ID / tasks | Evidence and blocker | Safe current behavior / closure |
 | --- | --- | --- |
-| B01 / T015 | Muse 1.4.7: an earlier echo hook ran but `PreLLMCall` omitted its canary; subsequent echo startup timed out. The isolated Meta-protocol probe timed out with zero model requests after 30 seconds. | Adapter/configuration code exists, but automatic activation is refused. Requires a functioning, independently observable installed Muse model-input boundary. `tests/test_code_muse.py` preserves these probes as explicit expected failures. |
-| B02 / T017 | Grok 1.0.13 documents that an allowing prompt hook's `additionalContext` is discarded. The desired per-turn context boundary is not established. | Capture/configuration scaffolding exists; no automatic activation. Requires a supported alternate delivery integration and real capture/delivery test, not an invented hook output. |
+| B01 / T015 | Muse 1.4.8-R6256.1 now passes controlled Mac canary delivery, real capture, new-session recall and pause. Windows completes its local model request but never invokes the project hook wrapper, including with `commandWindows` and Git Bash. | Automatic activation still refused. Mac model boundary is established; normal activation verifier/restore and Windows hook execution remain unqualified. See [native-session evidence](grok-muse-qualification.md). |
+| B02 / T017 | Grok 1.0.13 real capture and pause pass on Mac and Windows using isolated global hooks. Fresh-session memory context and the separately emitted prompt canary are absent from model input on both systems. | No automatic activation. Requires a supported alternate delivery boundary and project-trust onboarding. A passing negative-recall regression does not qualify recall. See [native-session evidence](grok-muse-qualification.md). |
 | B03 / T018 — closed for macOS and Windows 11 CLI 1.0.98 | Explicit event dispatch and bounded journal invocation matching fix missing native identity fields. Native executable/arguments avoid shell quoting. Windows npm startup, isolated environment and genuine shared runtime locks are corrected. Normal enablement, capture, new/resumed-session model-boundary recall, pause/resume and exact restoration pass on both OSes. | Version/platform-qualified automatic prompt path is enabled after existing workspace trust and an isolated offline activation probe; see [Copilot report](copilot-cli-probe.md). Linux, editor/cloud and full-fidelity flight capture remain unqualified; Claude handoff is qualified only on macOS. |
 | B04 / T019 | Codex 0.162.1 real project hooks, canary delivery and capture→Claude handoff pass only with a vetted fixture's per-invocation trust flag and isolated trusted project config. Codex persistent user hook-trust onboarding is incomplete. Normal Copilot↔Claude handoff is now separately verified. | Normal Codex activation remains refused; production never adds the trust-bypass flag or changes the owner's trust store. Close with a host-supported, user-reviewed persistent-trust flow and a no-bypass activation/handoff test. |
 | B05 / T042 | Code lifecycle hooks do not expose complete model/tool/media execution evidence. A successful prompt probe cannot establish full flight reconstruction. | Setup/status and exposure rows explicitly say `capture_coverage=partial`, `reconstruction_status=not_reconstructable`. The existing evidence service is separate and is not silently claimed by Code. Requires actual host instrumentation for the missing boundaries. |

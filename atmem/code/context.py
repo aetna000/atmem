@@ -13,6 +13,28 @@ from atmem.memory import Memory
 def source_current(store, request: CodeContextRequest, record: dict, repository_root: str | None) -> bool:
     """Conservative freshness for code-dependent user assertions, not preferences."""
     origin = store.code_document(request.scope.subject_id, request.scope.project_id, "origin", record["id"]) or {}
+    if origin.get("code_memory_class") == "coding_experience":
+        if repository_root is None:
+            return False
+        from atmem.knowledge.projections import CodeKnowledge
+        from atmem.knowledge.contracts import SourceSnapshot, ExperienceProposal
+        from atmem.knowledge.code.applicability import assess
+        value = store.code_document(request.scope.subject_id, request.scope.project_id, "code-experience", origin["experience_proposal_id"])
+        if not value or record["id"] not in value["formation"]["record_ids"]:
+            return False
+        # Use the shared source reader, not an enabled/indexed graph. No graph
+        # is required to determine conservative source-anchor applicability.
+        proposal, baseline = ExperienceProposal.from_dict(value["proposal"]), SourceSnapshot.from_dict(value["snapshot"])
+        knowledge = CodeKnowledge.from_store(store, request.scope)
+        from atmem.knowledge.code.environment import environment_digest
+        environment = store.code_document(request.scope.subject_id, request.scope.project_id, "experience-environment", memory_subject_id(request.scope))
+        identity = (environment["environment_sha256"] if environment and environment.get("assurance") == "producer_declared_tool_environment"
+                    else environment_digest())
+        try:
+            current, _, _ = knowledge.capture(repository_root, identity, max_file_bytes=2_000_000, max_source_bytes=64_000_000)
+        except (FileNotFoundError, ValueError, UnicodeError):
+            return False
+        return assess(proposal, baseline, current).status == "applicable"
     if origin.get("code_memory_class") == "preference" or repository_root is None:
         return True
     from pathlib import Path

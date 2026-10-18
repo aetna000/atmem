@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 
 
-TASK = re.compile(r"^- \[( |x|X)\] \[(T[0-9]{3,}[a-z]*)\](?:\s|$)")
+TASK = re.compile(r"^- \[( |x|X)\] \[([TP][0-9]{3,}[a-zA-Z]*)\](?:\s|$)")
 CHECKBOX = re.compile(r"^- \[[ xX]\]")
 
 

@@ -45,6 +45,14 @@ class CodeFormation:
     def __init__(self, memory: Memory) -> None:
         self.memory = memory
 
+    def form_attempt(self, proposal, snapshot, *, producer_id, signature, producer_keys, environment_sha256=None):
+        """Distinct authenticated observation path, never a user-text disguise."""
+        from atmem.code.application import CodeApplication
+        from atmem.code.experience import CodeExperience
+        application = CodeApplication(self.memory, subject_id=proposal.scope.subject_id)
+        return CodeExperience(application, proposal.scope, producer_keys=producer_keys, environment_sha256=environment_sha256).form(
+            proposal, snapshot, producer_id=producer_id, signature=signature)
+
     def candidate(self, observation: CodeObservation) -> CodeMemoryCandidate | None:
         # Tool output and task summaries are useful evidence, but neither is
         # a user-authorized project fact by itself. Later attestation may add

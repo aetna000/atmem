@@ -118,8 +118,17 @@ class CodeRuntime:
             if settings["auto_recall"] and settings["graph_enabled"] and repository_root and (not route or route["authority"] in {"atmem", "atmem_fallback"}):
                 from atmem.code.graph import CodeGraph
                 from atmem.code.application import CodeApplication
-                graph_context = CodeGraph(CodeApplication(self.memory, subject_id=request.scope.subject_id), request.scope.project_id).context(
-                    repository_root, request.task, budget=bounded.max_context_bytes - len(context.content.encode()))
+                from atmem.knowledge.projections import CodeKnowledge
+                app = CodeApplication(self.memory, subject_id=request.scope.subject_id)
+                knowledge = CodeKnowledge(app, request.scope)
+                # Prefer the incorporated richer projection when current. The
+                # pre-existing syntax fallback remains explicitly labelled.
+                if knowledge.current(repository_root) is not None:
+                    graph_context = knowledge.context(repository_root, request.task,
+                                                      budget=bounded.max_context_bytes - len(context.content.encode()))
+                else:
+                    graph_context = CodeGraph(app, request.scope.project_id).context(
+                        repository_root, request.task, budget=bounded.max_context_bytes - len(context.content.encode()))
                 if graph_context["content"]:
                     content = context.content + graph_context["content"]
                     context = CodeContextPackage(context.request_id, content, sha256(content.encode()).hexdigest(), context.memory_ids)

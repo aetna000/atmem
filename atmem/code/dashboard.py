@@ -5,6 +5,7 @@ from atmem.memory import Memory
 
 
 READ_ACTIONS = {"projects", "search", "inspect", "routes", "hosts", "host-status", "graph-search", "graph-status", "reviews"}
+READ_ACTIONS |= {"knowledge-query", "knowledge-status", "knowledge-source"}
 
 
 def execute(manager, session: dict, body: dict, *, read_only: bool = False) -> dict:

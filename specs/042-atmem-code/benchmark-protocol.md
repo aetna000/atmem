@@ -2,6 +2,12 @@
 
 **Status:** Phase 0 protocol only. Phase 9 execution is deferred by the owner. No outcome, score or production benefit claim is authorized by this document.
 
+[Spec 043 Click replay](../043-click-historical-replay/spec.md) is a separate
+engineering pilot with its own requirements, capability gates and future
+budget/egress authorization. It neither replaces this campaign nor closes the
+strong-baseline/held-out gates of FR-013 or T033. The pending product expansion
+is Spec 042 FR-017–FR-028 / T043–T060; no feature is implemented by the harness.
+
 ## Source and availability gate
 
 The primary intended benchmark is [VibeMemBench, arXiv:2609.23570v1](https://arxiv.org/abs/2609.23570). The paper describes 111 executable coding targets from 90 repositories and 3,634 prior trajectories. Its targets were selected after an oracle-experience uplift check in a reference setting, so its result is conditional on useful prior experience being available; it cannot estimate average benefit on arbitrary coding work.

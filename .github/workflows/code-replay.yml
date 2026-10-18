@@ -1,0 +1,64 @@
+name: Code replay contracts and isolated control flow
+
+on:
+  pull_request:
+    paths: ['benchmarks/code_replay/**', 'atmem/knowledge/**', 'atmem/code/**', 'atmem/store/**', 'tests/test_code_replay*', 'tests/test_code_knowledge*', 'tests/test_knowledge*', 'tests/test_code_document_encoding.py', 'tests/test_code_bundle_transport.py', '.github/workflows/code-replay.yml']
+  push:
+    branches: [feature/atmem-code-2.3.9]
+    paths: ['benchmarks/code_replay/**', 'atmem/knowledge/**', 'atmem/code/**', 'atmem/store/**', 'tests/test_code_replay*', 'tests/test_code_knowledge*', 'tests/test_knowledge*', 'tests/test_code_document_encoding.py', 'tests/test_code_bundle_transport.py', '.github/workflows/code-replay.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.11', '3.12', '3.13']
+    env:
+      ATMEM_CODE_SKIP_HOST_PROBES: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e './packages/atbot' -e '.[dev,post-quantum]'
+      - name: No credentials, inference, upstream task download or GPU required
+        run: python -m pytest -q tests/test_code_replay_contracts.py tests/test_code_replay_selection.py tests/test_code_replay_preflight.py tests/test_code_replay_two_arm.py tests/test_code_replay_runner.py tests/test_code_replay_usage_audit.py tests/test_code_replay_appserver_probe.py tests/test_code_replay_failure_audit.py tests/test_code_replay_tool_use_audit.py tests/test_code_replay_evidence.py tests/test_code_replay_reporting.py tests/test_code_replay_archive.py tests/test_code_replay_control.py tests/test_code_replay_efficiency.py tests/test_code_replay_progressive.py tests/test_code_knowledge_mcp.py tests/test_knowledge_packing.py
+      - name: External metadata and source-boundary fixtures (no network or Docker)
+        run: python -m pytest -q tests/test_code_replay_external_catalog.py tests/test_code_replay_external_runtime.py tests/test_code_replay_source_policy.py tests/test_code_replay_source_capture.py tests/test_code_replay_external_qualification.py tests/test_code_replay_scratch_retention.py tests/test_code_replay_external_source_boundary.py tests/test_code_replay_external_solver_source.py tests/test_code_replay_public_proposal.py tests/test_code_replay_public_tests.py tests/test_code_replay_solver_proposal.py tests/test_code_replay_windows_transport.py tests/test_code_replay_windows_cohort.py tests/test_code_replay_public_test_bridge.py tests/test_knowledge_extraction.py
+      - name: Windows accounting, retained evidence and confirmation fixtures (no network or Docker)
+        run: python -m pytest -q tests/test_code_replay_windows_metrics.py tests/test_code_replay_windows_retain.py tests/test_code_replay_windows_archive.py tests/test_code_replay_confirmation_images.py tests/test_code_replay_confirmation_reference.py tests/test_code_replay_windows_omission_build.py tests/test_code_replay_eligibility_images.py tests/test_code_replay_eligibility_binding.py
+      - name: Paired cluster sensitivity fixtures (no inference or network)
+        run: python -m pytest -q tests/test_code_replay_windows_uncertainty.py
+      - name: Unexposed repository metadata selection (no network or inference)
+        run: python -m pytest -q tests/test_code_replay_unexposed_confirmation_preflight.py
+      - name: Descriptive all-case CLI trace audit (no inference or network)
+        run: python -m pytest -q tests/test_code_replay_confirmation_v3_trace_audit.py tests/test_code_replay_packing_replay_audit.py tests/test_code_replay_corrective_trace_audit.py
+      - name: Query layout ranking and complete static replay guards (no inference or network)
+        run: python -m pytest -q tests/test_knowledge_query_layout.py tests/test_knowledge_query_references.py tests/test_knowledge_query_locations.py tests/test_code_replay_corrective_layout_diagnostic.py tests/test_code_replay_nomination_diagnostic.py tests/test_code_replay_query_nomination_preview.py tests/test_code_replay_query_nomination_qualification.py tests/test_code_replay_query_nomination_installed_replay.py tests/test_code_replay_query_nomination_screen.py tests/test_code_replay_query_nomination_preparation.py tests/test_code_replay_query_nomination_execution.py tests/test_knowledge_packing.py
+      - name: Corrective one-file build binding (no inference or network)
+        run: python -m pytest -q tests/test_code_replay_corrective_build.py tests/test_code_replay_corrective_qualification.py tests/test_code_replay_corrective_staging.py tests/test_code_replay_corrective_controls.py tests/test_code_replay_corrective_execution.py tests/test_code_replay_corrective_archive.py tests/test_code_replay_corrective_transfer.py tests/test_code_replay_corrective_postprocess_recovery.py tests/test_code_replay_corrective_archive_recovery.py tests/test_code_replay_corrective_transfer_recovery.py
+      - name: Query nomination complete archive membership (no inference or network)
+        run: python -m pytest -q tests/test_code_replay_query_nomination_archive.py tests/test_code_replay_query_nomination_archive_waiter.py tests/test_code_replay_query_nomination_transfer.py tests/test_code_replay_query_nomination_trace_audit.py tests/test_code_replay_query_nomination_case_review.py
+      - name: Static literal bindings and exact source delta (no inference or network)
+        run: python -m pytest -q tests/test_knowledge_query_literals.py tests/test_code_replay_literal_anchor_diagnostic.py
+      - name: Installed literal profile and public selector guards (no inference or network)
+        run: python -m pytest -q tests/test_code_replay_literal_anchor_preview.py tests/test_code_replay_literal_anchor_controls.py tests/test_code_replay_public_selector_profile.py tests/test_code_replay_public_selector_audit.py tests/test_code_replay_literal_anchor_screen.py tests/test_code_replay_literal_anchor_study.py tests/test_code_replay_literal_anchor_archive.py tests/test_code_replay_public_selector_runtime.py
+      - name: Bounded lossless result transport (no inference or network)
+        run: python -m pytest -q tests/test_code_replay_result_transport.py tests/test_code_replay_runtime_fixtures.py tests/test_code_replay_runtime_projection_control.py tests/test_code_replay_registry_platform.py tests/test_code_replay_projection_evidence.py
+      - name: Per-run protection and amended cohort preparation (no inference or network)
+        run: python -m pytest -q tests/test_code_replay_run_evidence.py tests/test_code_replay_derived_runtime.py tests/test_code_replay_program_transport.py tests/test_code_replay_retained_control.py tests/test_code_replay_confirmation_public_git.py tests/test_code_replay_confirmation_issues.py tests/test_code_replay_confirmation_exports.py tests/test_code_replay_confirmation_checks.py tests/test_code_replay_confirmation_design.py tests/test_code_replay_confirmation_staging.py
+      - name: Installed bridge readiness control fixtures (no inference or network)
+        run: python -m pytest -q tests/test_code_replay_confirmation_bridge_readiness.py tests/test_code_replay_confirmation_runtime_access.py
+      - name: Declared source encodings preserve secrets and original byte identities
+        run: python -m pytest -q tests/test_knowledge_source_text.py tests/test_knowledge_lifecycle.py
+      - name: Complete confirmation archive closure (no inference or network)
+        run: python -m pytest -q tests/test_code_replay_confirmation_v3_archive.py tests/test_code_replay_confirmation_v3_transfer.py tests/test_code_replay_confirmation_v3_dispatch_audit.py tests/test_code_replay_windows_archive.py
+      - name: Confirmation isolation, stopped-source capture and exact grader binding
+        run: python -m pytest -q tests/test_code_replay_confirmation_v3_sandbox.py tests/test_code_replay_confirmation_v3_process_scope.py tests/test_code_replay_confirmation_v3_capture.py tests/test_code_replay_confirmation_v3_lock.py tests/test_code_replay_confirmation_v3_grade.py tests/test_code_replay_confirmation_v3_report.py tests/test_code_replay_confirmation_v3_finish.py
+      - name: Large generations, encrypted portability and exact-delta preview fixtures
+        run: python -m pytest -q tests/test_code_document_encoding.py tests/test_code_bundle_transport.py tests/test_code_portable.py tests/test_knowledge_portable.py tests/test_code_replay_compatibility_build.py tests/test_code_replay_compatibility_qualification.py tests/test_code_replay_confirmation_v3_staging.py tests/test_code_replay_confirmation_v3_readiness.py
