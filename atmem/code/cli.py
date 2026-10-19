@@ -44,7 +44,7 @@ def add_commands(parser, *, default_db: str) -> None:
         if name == "knowledge-config":
             command.add_argument("--image-id", help="Approve an immutable local extractor image ID")
         if name == "mcp-config":
-            command.add_argument("--tool-profile", choices=("expanded", "compact", "curated"), default="expanded",
+            command.add_argument("--tool-profile", choices=("expanded", "compact", "curated", "navigation"), default="expanded",
                                  help="Opt-in compact on-demand tool interface; retrieval and authority unchanged")
         if name == "knowledge-worker":
             command.add_argument("destination", help="New or empty directory for packaged worker build resources")

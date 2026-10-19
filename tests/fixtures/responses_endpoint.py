@@ -6,7 +6,7 @@ from threading import Thread
 
 
 class ResponsesEndpoint:
-    def __init__(self):
+    def __init__(self, *, tool_plan=None):
         self.requests = []
         parent = self
 
@@ -37,6 +37,23 @@ class ResponsesEndpoint:
                           {"type": "response.content_part.done", "output_index": 0, "item_id": item["id"], "content_index": 0, "part": part},
                           {"type": "response.output_item.done", "output_index": 0, "item": item},
                           {"type": "response.completed", "response": response}]
+                action = tool_plan(value, len(parent.requests) - 1) if tool_plan else None
+                if action:
+                    name, arguments = action
+                    call = {'id': 'fc_probe_' + str(len(parent.requests)), 'type': 'function_call',
+                        'name': name, 'call_id': 'call_probe_' + str(len(parent.requests)),
+                        'arguments': json.dumps(arguments), 'status': 'completed'}
+                    response['output'] = [call]
+                    events = [
+                        {'type': 'response.created', 'response': {**response, 'status': 'in_progress', 'output': []}},
+                        {'type': 'response.output_item.added', 'output_index': 0,
+                            'item': {**call, 'arguments': '', 'status': 'in_progress'}},
+                        {'type': 'response.function_call_arguments.delta', 'output_index': 0,
+                            'item_id': call['id'], 'delta': call['arguments']},
+                        {'type': 'response.function_call_arguments.done', 'output_index': 0,
+                            'item_id': call['id'], 'arguments': call['arguments']},
+                        {'type': 'response.output_item.done', 'output_index': 0, 'item': call},
+                        {'type': 'response.completed', 'response': response}]
                 self.send_response(200)
                 self.send_header("Content-Type", "text/event-stream")
                 self.end_headers()

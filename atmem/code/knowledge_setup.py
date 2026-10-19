@@ -40,7 +40,9 @@ def worker_context(destination):
 
 
 def mcp_configuration(application, scope, root, *, tool_profile='expanded'):
-    if tool_profile not in {'expanded', 'compact', 'curated'}:
+    from dataclasses import asdict
+    from atmem.code.discovery_hosts import unprobed_matrix
+    if tool_profile not in {'expanded', 'compact', 'curated', 'navigation'}:
         raise ValueError('unknown Code tool profile')
     knowledge = CodeKnowledge(application, scope)
     root = str(knowledge.graph._root(root))
@@ -49,13 +51,20 @@ def mcp_configuration(application, scope, root, *, tool_profile='expanded'):
         raise ValueError('MCP configuration requires an existing persistent encrypted household')
     args = ['-I', '-m', 'atmem.knowledge.code.mcp', '--db', str(Path(database).resolve()), '--root', root,
         '--subject', scope.subject_id, '--project-id', scope.project_id, '--profile', scope.profile_id,
-        '--agent', scope.agent_id, '--experience']
+        '--agent', scope.agent_id]
+    if tool_profile != 'navigation':
+        args.append('--experience')
     if tool_profile != 'expanded':
         args.extend(['--tool-profile', tool_profile])
     return {'format': 'atmem-code-mcp-config-v1', 'configuration': {'mcpServers': {
         'atmem_code': {'command': sys.executable, 'args': args}}},
         'automatic_host_configuration_changed': False, 'mode': 'explicit_read_only_tools',
         'tool_profile': tool_profile,
-        'tools': ['code_query'] if tool_profile != 'expanded' else
+        'automatic_recall_enabled': application.settings(scope.project_id)['auto_recall'],
+        'navigation_context_warning': ('Existing automatic recall is still enabled; explicitly disable auto_recall for a discovery-only session.'
+            if tool_profile == 'navigation' and application.settings(scope.project_id)['auto_recall'] else None),
+        'discovery_routing': 'unqualified_optional_tool_only' if tool_profile == 'navigation' else 'not_requested',
+        'discovery_hosts': [asdict(cell) for cell in unprobed_matrix()] if tool_profile == 'navigation' else [],
+        'tools': ['repository_discover'] if tool_profile == 'navigation' else ['code_query'] if tool_profile != 'expanded' else
                  ['code_context', 'code_search', 'code_explore', 'code_source', 'code_experience'],
         'graph_current': knowledge.current(root) is not None}

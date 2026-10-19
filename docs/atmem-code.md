@@ -488,6 +488,30 @@ formats, and no published package is upgraded by this source-branch change.
 
 ## Index-first context curation
 
+### Explicit discovery-only tool profile
+
+The source preview also offers `atmem code mcp-config --project /path/to/project
+--tool-profile navigation --json`. This generates configuration for one read-only
+`repository_discover` tool: ranked symbol locations, source digests and explicit
+non-exhaustive coverage, without source bodies or experience details. Continue
+reading selected original source with the agent's native tools. Exact text/regex
+search is a separate operation; navigation does not replace exhaustive grep.
+
+The dashboard's repository-knowledge section offers the same MCP profile selector.
+Neither interface installs or activates host configuration automatically. The
+profile does not silently disable an existing turn hook. For discovery-only use
+with already enabled automatic Code hooks, explicitly set
+`atmem code config --project /path/to/project --set '{"auto_recall":false}'`;
+automatic capture remains unchanged. The generated configuration warns when
+automatic recall is still enabled. The
+configuration reports separate discovery qualification for Claude, Codex,
+Copilot, Muse and Grok on each OS. All new discovery-routing cells start
+unprobed; earlier capture-hook support is not evidence of discovery replacement.
+An available MCP tool does not mean the host routes its own exploration through
+it. Host probes and the prospective native/Cognee/AtMem efficacy comparison are
+tracked in `specs/044-atmem-code-discovery-routing/`; no token-saving claim follows
+from this profile alone. Existing profiles/defaults remain unchanged.
+
 The source preview offers ranked discovery followed by selective evidence fetch.
 Fresh `atmem code setup --apply` projects select `context_mode=index` while
 remaining disabled until explicitly enabled. Existing projects keep their prior
