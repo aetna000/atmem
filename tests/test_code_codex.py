@@ -65,6 +65,8 @@ def test_installed_codex_capture_then_claude_new_session_recall(tmp_path):
             run = runner(root, command, "Remember that my preferred formatter is Ruff.", endpoint)
             assert run.returncode == 0, run.stderr[-2000:]
         app = CodeApplication(memory, subject_id="local")
+        # This test qualifies the retained explicit legacy content path.
+        app.settings(project, {'context_mode': 'content'})
         records = app.records(project)
         assert records, (root / "code-hook-input.json").read_text() + run.stderr[-2000:]
         assert "Ruff" in records[0]["content"]

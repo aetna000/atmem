@@ -19,7 +19,9 @@ DEFAULT_SETTINGS = {
     "auto_capture": True, "auto_recall": True, "review_workflow": False,
     "max_context_bytes": 4096, "graph_enabled": False,
     "context_tags": [],
+    "context_mode": "content", "index_limit": 3, "index_bytes": 1024,
 }
+CURATION_SETTINGS = {'context_mode', 'index_limit', 'index_bytes'}
 
 
 def _transaction(method):
@@ -52,7 +54,8 @@ class CodeApplication:
     @_transaction
     def settings(self, project_id: str, changes: dict[str, Any] | None = None) -> dict:
         self.authorize(project_id)
-        current = {**deepcopy(DEFAULT_SETTINGS), **(self.store.code_document(self.subject_id, project_id, "settings", "effective") or {})}
+        stored = self.store.code_document(self.subject_id, project_id, 'settings', 'effective') or {}
+        current = {**deepcopy(DEFAULT_SETTINGS), **stored}
         if changes is not None:
             if not isinstance(changes, dict) or set(changes) - set(DEFAULT_SETTINGS):
                 raise ValueError("unknown Code setting")
@@ -65,10 +68,21 @@ class CodeApplication:
                 elif key == "max_context_bytes":
                     if type(value) is not int or not 256 <= value <= 32768:
                         raise ValueError("max_context_bytes must be between 256 and 32768")
+                elif key == 'context_mode':
+                    if value not in ('index', 'content'):
+                        raise ValueError('context_mode must be index or content')
+                elif key in {'index_limit', 'index_bytes'}:
+                    minimum, maximum = (1, 8) if key == 'index_limit' else (256, 4096)
+                    if type(value) is not int or not minimum <= value <= maximum:
+                        raise ValueError('invalid Code index bound')
                 elif type(value) is not bool:
                     raise ValueError(f"{key} must be boolean")
             current.update(changes)
-            self.store.put_code_document(self.subject_id, project_id, "settings", "effective", current)
+            # Editing a legacy boolean setting must not silently migrate its
+            # persisted/export format to the curation configuration contract.
+            persisted = (current if CURATION_SETTINGS.intersection(stored) or CURATION_SETTINGS.intersection(changes)
+                         else {key: value for key, value in current.items() if key not in CURATION_SETTINGS})
+            self.store.put_code_document(self.subject_id, project_id, "settings", "effective", persisted)
             self.store.append_audit_event(subject_id=self.subject_id, event_type="code.settings_changed", actor="user",
                                           payload={"project_id": project_id, "changes": changes})
         return current
@@ -173,6 +187,13 @@ class CodeApplication:
                             self.store.delete_code_documents(self.subject_id, project_id, "execution-receipt", receipt_id)
                     self.store.delete_code_documents(self.subject_id, project_id, "code-experience", proposal_id)
             self.store.delete_code_documents(self.subject_id, project_id, "origin", record_id)
+            # New curation projections are retained evidence, not an independent
+            # memory authority. Forget removes their copies of this record too.
+            for item in self.store.code_document_items(self.subject_id, project_id, 'curation-exposure'):
+                value = item['value']
+                rows = value.get('response', {}).get('items', []) + value.get('delivered_response', {}).get('items', [])
+                if any(row.get('id') == 'exp:' + record_id for row in rows):
+                    self.store.delete_code_documents(self.subject_id, project_id, 'curation-exposure', item['document_id'])
         return result
 
     def dispatch(self, action: str, body: dict[str, Any]) -> dict:
@@ -203,6 +224,14 @@ class CodeApplication:
             return (portable.preview(value, root=body["root"]) if action == "bundle-preview" else
                     portable.restore(value, root=body["root"], preview_token=body["preview_token"]))
         self.authorize(project)
+        if action == 'experience-evidence':
+            from atmem.code.experience_view import execution_evidence
+            return execution_evidence(self, project, body.get('record_id'), body.get('receipt_id'))
+        if action in {'discover', 'fetch', 'changes', 'curation-capabilities'}:
+            from atmem.code.curation import Curation
+            scope = CodeScope(self.subject_id, project, body.get('profile') or 'shared', body.get('agent') or 'codex')
+            service = Curation(self, scope, str(body.get('root') or ''))
+            return service.prepare('capabilities' if action == 'curation-capabilities' else action, body.get('arguments', {}))
         if action == "project-attach":
             from atmem.code.identity import CodeIdentity
             scope = CodeIdentity(self.store).resolve(str(body.get("root") or ""), subject_id=self.subject_id,
@@ -283,6 +312,16 @@ class CodeApplication:
             if action == "graph-index":
                 return graph.index(str(body.get("root") or ""))
             return graph.query(str(body.get("root") or ""), str(body.get("query") or ""), limit=int(body.get("limit", 20)))
+        if action in {"knowledge-config", "mcp-config", "experiences"}:
+            scope = CodeScope(self.subject_id, project, str(body.get("profile") or "shared"), str(body.get("agent") or "codex"))
+            root = str(body.get("root") or "")
+            if action == "experiences":
+                from atmem.code.experience_view import experiences
+                return experiences(self, scope, root, query=body.get("query", ""),
+                                   limit=body.get("limit", 20), offset=body.get("offset", 0))
+            from atmem.code.knowledge_setup import configure, mcp_configuration
+            return (configure(self, scope, root, image_id=body.get("image_id")) if action == "knowledge-config"
+                    else mcp_configuration(self, scope, root, tool_profile=body.get('tool_profile', 'expanded')))
         if action in {"knowledge-index", "knowledge-query", "knowledge-status", "knowledge-source"}:
             from atmem.knowledge.projections import CodeKnowledge
             from atmem.knowledge.code.queries import query_current
@@ -291,7 +330,11 @@ class CodeApplication:
             root = str(body.get("root") or "")
             if action == "knowledge-index":
                 from atmem.knowledge.worker import ExtractionWorker
-                return knowledge.index(root, ExtractionWorker(body.get("image_id")))
+                approved = self.store.code_document(self.subject_id, project, "knowledge-runtime", "approved") or {}
+                image_id = body.get("image_id") or approved.get("image_id")
+                if not image_id:
+                    raise ValueError("configure a local extractor with knowledge-config --image-id first")
+                return knowledge.index(root, ExtractionWorker(image_id))
             if action == "knowledge-query":
                 result = query_current(knowledge, root, operation=body.get("operation", "query_facts"),
                                        query=body.get("query", ""), config=body.get("options"))

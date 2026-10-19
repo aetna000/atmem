@@ -1,0 +1,62 @@
+{
+  "format": "atmem-validation-profile-selection-v1",
+  "rule": "maximize full passes; minimize complete input; minimize measured setup plus solver; ties retain first declared candidate",
+  "confirmation_scores_consulted": false,
+  "candidates": [
+    {
+      "campaign": "/Users/javadtaghia/Library/Application Support/AtMem Benchmarks/swebench-threeway-validation-20261019",
+      "manifest_sha256": "4b5dac363ff849c1dd25e58f9d1ae6cf390b4a01ef2accd213418681e19a69e4",
+      "results_sha256": "920999aa59ccb608e24032a02bded92cea25e2d470f30f463cd6080304d2c911",
+      "score": {
+        "operational_full_passes": 5,
+        "complete_input_tokens": 128830,
+        "measured_setup_plus_solver_seconds": 604.6244170009159
+      },
+      "context_delivery": "optional",
+      "model_graph_tools": true,
+      "product_runtime": {
+        "python": "/home/user/atmem-swebench-20261019/candidate-bounded-graph-20261019/venv/bin/python",
+        "wheel_path": "/home/user/atmem-swebench-20261019/candidate-bounded-graph-20261019/atmem-2.3.8-py3-none-any.whl",
+        "wheel_sha256": "1314dc5a309cd19c7ac0e7704a4cc5d18a77d4596cffbb2fef0c6ae549d2629d",
+        "worker_image_id": "sha256:9fed0943365daedd9ee3e2e08de8341c9b04b08c6309b1dc2c08aaaaf2abfdf1"
+      }
+    },
+    {
+      "campaign": "/Users/javadtaghia/Library/Application Support/AtMem Benchmarks/swebench-automatic-adjacency-validation-20261019",
+      "manifest_sha256": "f46ee8c5660b0550f1857d2bf2cdde842e9b768d7ea9cc45a9480d1c3f23140d",
+      "results_sha256": "81003223a2905f75efa4377f7210e03a9588a361612ee5db0241816095316f3e",
+      "score": {
+        "operational_full_passes": 5,
+        "complete_input_tokens": 141912,
+        "measured_setup_plus_solver_seconds": 758.2457601669594
+      },
+      "context_delivery": "automatic",
+      "model_graph_tools": false,
+      "product_runtime": {
+        "python": "/home/user/atmem-swebench-20261019/candidate-adjacency-20261019/venv/bin/python",
+        "wheel_path": "/home/user/atmem-swebench-20261019/candidate-adjacency-20261019/atmem-2.3.8-py3-none-any.whl",
+        "wheel_sha256": "c7b4fb0256cf32e4f06461ad0dbf0200ee46401998f94c65f47cb14178012baa",
+        "worker_image_id": "sha256:9fed0943365daedd9ee3e2e08de8341c9b04b08c6309b1dc2c08aaaaf2abfdf1"
+      }
+    }
+  ],
+  "selected": {
+    "campaign": "/Users/javadtaghia/Library/Application Support/AtMem Benchmarks/swebench-threeway-validation-20261019",
+    "manifest_sha256": "4b5dac363ff849c1dd25e58f9d1ae6cf390b4a01ef2accd213418681e19a69e4",
+    "results_sha256": "920999aa59ccb608e24032a02bded92cea25e2d470f30f463cd6080304d2c911",
+    "score": {
+      "operational_full_passes": 5,
+      "complete_input_tokens": 128830,
+      "measured_setup_plus_solver_seconds": 604.6244170009159
+    },
+    "context_delivery": "optional",
+    "model_graph_tools": true,
+    "product_runtime": {
+      "python": "/home/user/atmem-swebench-20261019/candidate-bounded-graph-20261019/venv/bin/python",
+      "wheel_path": "/home/user/atmem-swebench-20261019/candidate-bounded-graph-20261019/atmem-2.3.8-py3-none-any.whl",
+      "wheel_sha256": "1314dc5a309cd19c7ac0e7704a4cc5d18a77d4596cffbb2fef0c6ae549d2629d",
+      "worker_image_id": "sha256:9fed0943365daedd9ee3e2e08de8341c9b04b08c6309b1dc2c08aaaaf2abfdf1"
+    }
+  },
+  "interpretation": "Validation selection is not confirmation of benefit or a superiority claim."
+}

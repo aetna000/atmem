@@ -11,7 +11,9 @@ from tests.test_code_replay_literal_anchor_diagnostic import previous_source
 
 
 def proofs():
-    candidate = Path('atmem/knowledge/code/packing.py').read_text()
+    # This is the archived October 18 build gate, not a gate for today's
+    # mutable product source. Keep its exact hash-bound candidate intact.
+    candidate = Path('tests/fixtures/code_replay/literal_anchor_packing_20261018.py.txt').read_text()
     baseline = previous_source(candidate)
     def event(kind, payload):
         return {'envelope': {'event_type': kind, 'payload': payload}}

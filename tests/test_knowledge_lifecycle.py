@@ -88,6 +88,58 @@ def test_omission_does_not_relax_aggregate_source_budget(code_env):
         knowledge.capture(str(env.root), 'a' * 64, max_file_bytes=200, max_source_bytes=150)
 
 
+def test_index_admits_worker_sized_repository_and_revalidates_same_envelope(code_env):
+    """A complete >6 MB graph is current, but strict identity stays bounded."""
+    env = code_env
+    init_repository(env)
+    for index in range(25):
+        (env.root / f'module_{index}.py').write_bytes(b'# ' + b'x' * 249998)
+    knowledge = CodeKnowledge(env.app, env.scope)
+    with pytest.raises(ValueError, match='generation budget'):
+        knowledge.capture(str(env.root), 'a' * 64)
+    class Checking(FixtureWorker):
+        def extract(self, snapshot, files, *, authorize):
+            assert len(files) == 26
+            assert sum(map(len, files.values())) > 6_000_000
+            return super().extract(snapshot, files, authorize=authorize)
+    assert knowledge.index(str(env.root), Checking())['status'] == 'published'
+    assert knowledge.current(str(env.root)) is not None
+    assert knowledge.index(str(env.root), Checking())['status'] == 'unchanged'
+    (env.root / 'module_0.py').write_text('def changed(): pass\n')
+    assert knowledge.current(str(env.root)) is None
+
+
+def test_non_source_assets_do_not_consume_eligible_file_budget(code_env, monkeypatch):
+    import atmem.knowledge.projections as projections
+    env = code_env
+    init_repository(env)
+    real_git = projections._git
+    def git(root, *args):
+        if args[0] == 'ls-files':
+            return '\0'.join(['main.py', *(f'images/asset_{i}.png' for i in range(5001))])
+        return real_git(root, *args)
+    monkeypatch.setattr(projections, '_git', git)
+    _, files, exclusions = CodeKnowledge(env.app, env.scope).capture(str(env.root), 'a' * 64)
+    assert set(files) == {'main.py'}
+    assert exclusions['unsupported_extension'] == 5001
+
+
+def test_eligible_and_discovery_file_limits_are_still_enforced(code_env, monkeypatch):
+    import atmem.knowledge.projections as projections
+    env = code_env
+    init_repository(env)
+    real_git = projections._git
+    monkeypatch.setattr(projections, 'INDEX_FILE_LIMIT', 1)
+    (env.root / 'second.py').write_text('def second(): pass\n')
+    knowledge = CodeKnowledge(env.app, env.scope)
+    with pytest.raises(ValueError, match='eligible repository file budget'):
+        knowledge.capture(str(env.root), 'a' * 64)
+    monkeypatch.setattr(projections, '_git', lambda root, *args:
+        '\0'.join(f'images/{i}.png' for i in range(50001)) if args[0] == 'ls-files' else real_git(root, *args))
+    with pytest.raises(ValueError, match='discovery file budget'):
+        knowledge.capture(str(env.root), 'a' * 64)
+
+
 def test_omission_change_during_worker_cannot_publish_wrong_coverage(code_env):
     env = code_env
     init_repository(env)
@@ -131,6 +183,16 @@ def test_worker_failure_never_publishes_partial_generation(code_env):
     stored = env.memory.store.code_documents("local", env.project, "knowledge-generation")
     assert len(stored) == 1 and stored[0]["generation"] == 1
     assert knowledge.current(str(env.root)) is None
+
+
+def test_unqueryable_projection_is_rejected_before_publication(code_env, monkeypatch):
+    from atmem.knowledge.code import queries
+    env = code_env
+    init_repository(env)
+    monkeypatch.setattr(queries, 'MAX_GRAPH_OBJECTS', 0)
+    with pytest.raises(ValueError, match='execution budget'):
+        CodeKnowledge(env.app, env.scope).index(str(env.root), FixtureWorker())
+    assert env.memory.store.code_documents('local', env.project, 'knowledge-generation') == []
 
 
 def test_racing_source_change_rejected_before_publication(code_env):

@@ -1,0 +1,210 @@
+{
+  "candidate_runtime": {
+    "python": "/home/user/atmem-swebench-20261019/candidate-bounded-graph-20261019/venv/bin/python",
+    "wheel_path": "/home/user/atmem-swebench-20261019/candidate-bounded-graph-20261019/atmem-2.3.8-py3-none-any.whl",
+    "wheel_sha256": "1314dc5a309cd19c7ac0e7704a4cc5d18a77d4596cffbb2fef0c6ae549d2629d",
+    "worker_image_id": "sha256:9fed0943365daedd9ee3e2e08de8341c9b04b08c6309b1dc2c08aaaaf2abfdf1"
+  },
+  "atmem_preparation": [
+    {
+      "repository": "sympy",
+      "status": "passed",
+      "receipt_path": "/home/user/atmem-swebench-20261019/large-repo-fix/sympy-cached/summary-recheck-c112014e50884619bc4b109f50d113ac.json",
+      "receipt_sha256": "7f6fec004393216c028a24700bd0cf809ce3db566d0202d3bbb200ba6be24a62",
+      "source_files": 1544,
+      "writer_facts": 25338,
+      "extraction_mode": "cached_artifact_revalidation",
+      "snapshot_id": "fcc03a414484f9d1859280be22a88b19063355f2ff7a890d4c60a53296b52b69",
+      "context_bytes": 3761,
+      "mcp": {
+        "context_status": "current",
+        "context_bytes": 3761,
+        "architecture_status": "current",
+        "server_python": "/home/user/atmem-swebench-20261019/candidate-bounded-graph-20261019/venv/bin/python",
+        "tools": [
+          "code_context",
+          "code_search",
+          "code_explore",
+          "code_source",
+          "code_experience"
+        ]
+      },
+      "error": null
+    },
+    {
+      "repository": "sphinx",
+      "status": "passed",
+      "receipt_path": "/home/user/atmem-swebench-20261019/index-fix-qualification-v2/sphinx/summary-recheck-33500c6b1827494c979300c92695959f.json",
+      "receipt_sha256": "357572f67cb6cbfa3390a50df6f290420b45e34986d39c1d247095d1a7a8ebf9",
+      "source_files": 993,
+      "writer_facts": 6566,
+      "extraction_mode": "existing_generation_revalidation",
+      "snapshot_id": "9a264e4aff459ce7698f8826f13ebae56e5c72c0bb33df8f9eb44b0c5906b2f6",
+      "context_bytes": 3838,
+      "mcp": {
+        "context_status": "current",
+        "context_bytes": 3838,
+        "architecture_status": "current",
+        "server_python": "/home/user/atmem-swebench-20261019/candidate-bounded-graph-20261019/venv/bin/python",
+        "tools": [
+          "code_context",
+          "code_search",
+          "code_explore",
+          "code_source",
+          "code_experience"
+        ]
+      },
+      "error": null
+    },
+    {
+      "repository": "matplotlib",
+      "status": "passed",
+      "receipt_path": "/home/user/atmem-swebench-20261019/index-fix-qualification-v2/matplotlib/summary-recheck-5abd7537fd7240f09b4f29f0a51f47b1.json",
+      "receipt_sha256": "fcac78c38609d5db0d5253e602d26c1c653c5304343d5d252c745f2df6045088",
+      "source_files": 1565,
+      "writer_facts": 14363,
+      "extraction_mode": "existing_generation_revalidation",
+      "snapshot_id": "6366880837e5735413c3d0f997a14e5f344e34569713af7c1f469d4461e9c0a7",
+      "context_bytes": 3880,
+      "mcp": {
+        "context_status": "current",
+        "context_bytes": 3880,
+        "architecture_status": "current",
+        "server_python": "/home/user/atmem-swebench-20261019/candidate-bounded-graph-20261019/venv/bin/python",
+        "tools": [
+          "code_context",
+          "code_search",
+          "code_explore",
+          "code_source",
+          "code_experience"
+        ]
+      },
+      "error": null
+    },
+    {
+      "repository": "django",
+      "status": "passed",
+      "receipt_path": "/home/user/atmem-swebench-20261019/index-fix-qualification-v2/django/summary-recheck-ce01af2a9c604e90bb3251967b7e50c8.json",
+      "receipt_sha256": "ef91e9c27874eb504463a0c842613dff7e584664921e477268e26a4717375912",
+      "source_files": 3353,
+      "writer_facts": 14011,
+      "extraction_mode": "existing_generation_revalidation",
+      "snapshot_id": "0d121c7c0d18079b0b985f40776adc9d4b6848e15b0d6361cd8767bc51a75217",
+      "context_bytes": 3787,
+      "mcp": {
+        "context_status": "current",
+        "context_bytes": 3787,
+        "architecture_status": "current",
+        "server_python": "/home/user/atmem-swebench-20261019/candidate-bounded-graph-20261019/venv/bin/python",
+        "tools": [
+          "code_context",
+          "code_search",
+          "code_explore",
+          "code_source",
+          "code_experience"
+        ]
+      },
+      "error": null
+    },
+    {
+      "repository": "scikit-learn",
+      "status": "passed",
+      "receipt_path": "/home/user/atmem-swebench-20261019/index-fix-qualification-v2/scikit-learn/summary-recheck-3c1800e6d5ef47c2a3798c5226e02239.json",
+      "receipt_sha256": "7d120f84d348635c12ff5e9a101ea956caebf824602c81e3382b450f7b52caaa",
+      "source_files": 931,
+      "writer_facts": 10362,
+      "extraction_mode": "existing_generation_revalidation",
+      "snapshot_id": "ac322093965313337edc8fc8d0d1e42e11584c4e4417710471458383967a393c",
+      "context_bytes": 3865,
+      "mcp": {
+        "context_status": "current",
+        "context_bytes": 3865,
+        "architecture_status": "current",
+        "server_python": "/home/user/atmem-swebench-20261019/candidate-bounded-graph-20261019/venv/bin/python",
+        "tools": [
+          "code_context",
+          "code_search",
+          "code_explore",
+          "code_source",
+          "code_experience"
+        ]
+      },
+      "error": null
+    }
+  ],
+  "windows_free_gib": 48.13277816772461,
+  "original_pilot": {
+    "status": "stopped",
+    "selected_tasks": 30,
+    "paired_terminal_tasks": 13,
+    "paired_runnable_tasks": 3,
+    "arms": {
+      "no_memory": {
+        "terminal_cells": 14,
+        "selected_tasks": 30,
+        "fully_resolved": 12,
+        "official_full_resolutions": 12,
+        "graded_cells": 13,
+        "product_preparation_failures": 0,
+        "environment_unavailable": 1,
+        "inference_attempts_with_receipts": 13,
+        "complete_usage_receipts": 13,
+        "paired_operational_resolutions": 12,
+        "paired_complete_input_tokens": 104248,
+        "paired_complete_output_tokens": 6633,
+        "paired_solver_seconds": 127.54168475099141,
+        "paired_median_solver_seconds": 42.67415845900541,
+        "paired_index_seconds": 0,
+        "observed_atmem_tool_calls": 0
+      },
+      "atmem_structure": {
+        "terminal_cells": 14,
+        "selected_tasks": 30,
+        "fully_resolved": 3,
+        "official_full_resolutions": 3,
+        "graded_cells": 3,
+        "product_preparation_failures": 10,
+        "environment_unavailable": 1,
+        "inference_attempts_with_receipts": 3,
+        "complete_usage_receipts": 3,
+        "paired_operational_resolutions": 3,
+        "paired_complete_input_tokens": 139140,
+        "paired_complete_output_tokens": 6670,
+        "paired_solver_seconds": 149.3358252509497,
+        "paired_median_solver_seconds": 47.30606116697891,
+        "paired_index_seconds": 72.39797805199993,
+        "observed_atmem_tool_calls": 0
+      }
+    },
+    "controller_error": "RuntimeError: Windows backing storage guard reached; existing files/images preserved",
+    "interpretation": "Preparation failures measure product availability, not model accuracy. Token/time totals compare only identical pairs with valid grades and complete usage. This is a cold-start structural pilot, not an experience-memory or full-suite score."
+  },
+  "original_results_sha256": "e0b05253753d383dde1a0603a3ebda48cf0868b6d74d75fee036953d470be17e",
+  "cognee_preparation": {
+    "provider": "actual_upstream_cognee",
+    "version": "1.6.4",
+    "module": "/private/tmp/atmem-click-cognee-upstream-20261018/lib/python3.12/site-packages/cognee/__init__.py",
+    "mode": "CODE_graph_only",
+    "index_vectors": false,
+    "dataset": "swe_sympy17139_20261019",
+    "query_only_recheck": true,
+    "extraction": "common_pinned_enola_snapshot",
+    "status": "passed",
+    "query": {
+      "bytes": 1787,
+      "sha256": "a7410302bf64df06c46eff5aa0ffc1d94933a6098a8719bd76edcaf3e9280599",
+      "contains_graph_items": true
+    },
+    "elapsed_seconds": 2.963858667004388,
+    "receipt_path": "/Users/javadtaghia/Library/Application Support/AtMem Benchmarks/cognee-swebench-source-20261019/cognee-state/summary-recheck-92b390d5df454443871202825bd57705.json",
+    "receipt_sha256": "b8421723100bb7e106259a50c9dd374d3905c8564acac6f150a1c4e9f29fd428"
+  },
+  "cognee_source_audit": {
+    "commit": "f154b32a9e544dac73e7ddf2010327cf9988edcd",
+    "source_dirty": false,
+    "version": "1.6.4",
+    "matched_python_files": 2663,
+    "mismatched_python_files": 0
+  },
+  "interpretation": "Preparation checks only; no new solver outcomes. AtMem runs on Windows/WSL and Cognee preparation on Mac; their load/query times are not a controlled head-to-head comparison. Original pilot outcomes unchanged. Cold indexing is not inferred from cached artifact or unchanged-generation rechecks."
+}

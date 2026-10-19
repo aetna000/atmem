@@ -1,0 +1,21 @@
+{
+  "format": "atmem-code-pruner-evidence-publication-v1",
+  "dataset_repo_id": "atmem/code-pruner-click-evidence-20261020",
+  "dataset_revision": "ef51972e4efa11d5c7c58f2e5720e1a9bfb16edc",
+  "dataset_url": "https://huggingface.co/datasets/atmem/code-pruner-click-evidence-20261020",
+  "public": true,
+  "uploaded_files_verified_by_download_and_sha256": 374,
+  "manifest_sha256": "de6e00ca746051d8f19a69badbfaf6110b993495f7959b902750e21596e55e60",
+  "manifest_inventory_bytes_excluding_manifest": 36058672,
+  "anonymous_trial_records_verified": 6,
+  "separate_protocols": ["click-pruner-fourway-20261020", "click-pruner-controlled-20261020"],
+  "encrypted_archives": [
+    {"path": "archives/click-pruner-fourway-20261020.encrypted.json", "sha256": "2e8fc1332b8216fe20d8f7ccdba79c7a3e7ccab882361c6c605f7428b2be316f"},
+    {"path": "archives/click-pruner-controlled-20261020.encrypted.json", "sha256": "0137c2e78bce2bc2021f22ac184a0f9f733da48d26352110d4501615c19d6431"}
+  ],
+  "secret_archive_keys_uploaded": false,
+  "model_attempts_added_for_publication": 0,
+  "github_repository": "https://github.com/aetna000/atmem",
+  "github_branch": "feature/atmem-code-2.3.9",
+  "package_release_requested": false
+}

@@ -4,6 +4,30 @@ import os
 from pathlib import Path
 import shutil
 import shlex
+import signal
+import subprocess
+
+
+def run_owned_cli(argv, *, cwd, env, timeout):
+    """Stop this fixture's POSIX descendants before temporary-home cleanup.
+
+    Some CLIs leave a background marketplace checkout after their main process
+    exits. A new session scopes cleanup to this exact test invocation, never
+    another running coding session. Windows preserves its existing runner.
+    """
+    if os.name == 'nt':
+        return subprocess.run(argv, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout, check=False)
+    process = subprocess.Popen(argv, cwd=cwd, env=env, stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, text=True, start_new_session=True)
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+        return subprocess.CompletedProcess(argv, process.returncode, stdout, stderr)
+    finally:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait(timeout=5)
 
 
 def cli_argv(host):

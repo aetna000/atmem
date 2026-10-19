@@ -1,5 +1,14 @@
 # AtMem Code implementation plan
 
+**2026-10-19 convergence:** the bounded product/packaging work in T112–T116
+implements the explicit local command producer (`atmem/code/execution.py`),
+experience inspection (`experience_view.py`), saved graph/MCP setup
+(`knowledge_setup.py`) and packaged worker resources. It reuses existing
+admission, scope, encrypted storage and source checks; no new model or canonical
+store. [Product readiness](product-readiness-20261019.md) records installed
+evidence and remaining host/platform, usability and release gates. An explicit
+command producer does not qualify ordinary host-tool interception.
+
 **Status:** Phases 0–8 implemented to the qualified subset in [implementation-status.md](implementation-status.md); remaining host and evidence gates are explicit blockers in [tasks.md](tasks.md). The release candidate version is not selected.
 **Inputs:** [spec.md](spec.md), [market-research.md](market-research.md), AtMem Constitution, published 2.3.8 source.
 
@@ -486,3 +495,100 @@ the current repair outcomes. It neither changes CD3 nor starts confirmation.
 Later confirmation still needs positive complete development selection,
 independent recovery, all forty eligibility results and an exact twenty-issue
 execution lock; missing qualification cannot silently shrink the design.
+
+## Construction-local query normalization correction (2026-10-19)
+
+T121 addresses repeated normalization and property-index serialization of the
+same extraction receipt across a generation's objects. The approved boundary is
+one already-authorized, fully validated query snapshot construction. Share only
+normalization/formatting work on explicitly supplied JSON metadata roots; keep
+all fields, property filters, edges and upstream query algorithms. Do not retain
+state across queries, subjects, generations, source changes or policy changes.
+Reset the construction scope before formatting public results, including on
+exceptions. Require old-versus-new results across all eight operations and
+caller-mutation/isolation checks. The licensed import generator must reproduce
+the change and preserve upstream notices. T120 continues on its exact frozen
+runtime; T121 gets its own installed and query-only evidence, not re-labelled
+coding outcomes or another adaptive coding candidate.
+
+## Compact on-demand tool interface (2026-10-19)
+
+Owner explicitly requests continuing token/time fixes after the frozen study.
+T122 adds an opt-in `compact` MCP tool profile, leaving `expanded` as the
+backward-compatible default. One `code_query` tool routes context, compact
+symbol search, source excerpts and the eight structural operations through
+the existing handlers; optional experience inspection stays explicitly enabled.
+Only the advertised interface changes: identical underlying requests retain
+identical output bytes, budgets, authorization, audit, source and delivery
+freshness checks. No smaller default context, hidden schema enforcement bypass,
+cross-request cache or automatic context injection is introduced.
+
+Measure initialize/tool-list bytes and, where a local tokenizer is available,
+name that tokenizer rather than presenting it as Claude billing. Interface
+reduction is not total-task token savings. Test every operation, invalid/scope
+arguments, stale delivery and generated CLI configuration. New coding evaluation
+must freeze a separate design and installation and label all previously observed
+tasks as reused; never replace T120's frozen candidate or tune against its
+confirmation while calling it held out. Existing study outcomes remain intact.
+
+## Full-query automatic retrieval correction (2026-10-19)
+
+T122 completes with a negative total-token result and zero natural provider
+queries. Inspection of the separate automatic delivery adapter finds a real
+input-loss boundary: it sends only the first 1000 UTF-8 bytes, rather than the
+complete task, to source retrieval. Four of five fixed validation statements
+are 1259–2145 bytes. No claim is made that this caused the previous failures.
+T123 adds an explicit full-query mode, preserving the original adapter default
+for historical replay. The public context query accepts up to 4000 UTF-8 bytes;
+an overlong full request refuses visibly instead of silently clipping it.
+Search/graph-query limits and the 4096-byte source-pack budget do not change.
+Require preservation of late identifiers and multibyte boundaries, default
+compatibility and installed actual-query controls before scoring. A new
+full-query screen uses separately frozen fresh native/candidate attempts on all
+five reused validation tasks; it is not untouched confirmation or a parameter
+search until a favorable repetition appears. Keep each negative result.
+
+## Index-first curation implementation 2026-10-19
+
+FR-029–034 and SC-014–018 extend existing services. No schema migration or new
+runtime dependencies. All projection/evidence storage uses encrypted Code
+documents and existing lifecycle controls; no SQLite FTS side store for now.
+Use a bounded in-memory lexical ranking projection rebuilt from authorized
+records, plus personalized graph proximity on the current existing generation.
+Scope filtering precedes ranking. Exact fetch rechecks and screens candidates.
+
+`atmem/code/curation.py` owns contracts, ranking, experience index/fetch,
+goal-focused exact excerpts, byte fitting, conservative labeled token estimates
+and final validation. `atmem/code/evidence_ledger.py` owns bounded ephemeral
+session/epoch delivery knowledge; only the MCP stream boundary records delivered
+versions. `atmem/code/history.py` offers a pure opt-in masking helper, not a
+native-host hook or a learned model. Native/learned capabilities stay unsupported.
+
+Add `curated` as a third tool profile, preserving expanded/compact profiles.
+`code_query` gains discover/fetch/changes/capabilities only in curated mode;
+experience operations require operator enablement. Shared application dispatch
+and CLI use the same service; dashboard read routes retain existing privileges.
+New Code setup seeds index mode only for a project without settings or existing
+installations. Missing/old settings retain content mode. Index mode bypasses
+automatic graph/delegated/content assembly; capture and explicit routing stay.
+
+Settings: context_mode, index_limit (1–8), index_bytes (256–4096). Automatic
+indices stay within the smaller configured/request budget and name the estimator.
+No recency or ranking score is a truth probability. Index metadata applicability
+is unchecked; selected detail fetch performs current applicability checks.
+
+The session ledger never substitutes a server write for model acknowledgement.
+Explicit `known` evidence references plus `references=true` opt into abbreviated
+responses; evidence must have been stream-written in the same session/epoch.
+No durable ledger or content cache means restart safely restores full responses.
+The caller can always fetch normally. Ledger metadata is bounded and scope-bound.
+
+Verification includes new contract/service/stream/runtime/CLI/role tests plus
+existing Code and knowledge regressions. Add a zero-model artifact-producing
+qualification and freeze a future cold/chronological paired efficacy protocol.
+No paid model dispatch, pretrained weights, release or upstream code copying.
+
+Full curation response evidence adds project bundle v3 when present, with
+unchanged v1/v2 readers and validated v3 scope/record links. No SQL migration;
+older clients must upgrade to import v3. Existing default settings validation
+and deletion/portable projections include the new fields/evidence kind.

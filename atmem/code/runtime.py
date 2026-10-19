@@ -101,21 +101,46 @@ class CodeRuntime:
                            is not None and record["status"] == "active" and source_current(self.memory.store, request, record, repository_root)
                            for record_id in saved["memory_ids"])
                 unchanged = previous.get("settings_sha256") == digest(settings)
+                # A graph-only package has no canonical record IDs. Checking
+                # only those IDs would accept stale structure on a retry.
+                graph = previous.get('exposure', {}).get('graph_evidence')
+                if graph:
+                    try:
+                        from atmem.code.receipts import graph_current
+                        graph_current(self.memory.store, request, graph)
+                    except (OSError, ValueError, PermissionError):
+                        live = False
                 context = (CodeContextPackage(saved["request_id"], saved["content"], saved["content_sha256"], tuple(saved["memory_ids"]))
                            if live and unchanged and settings["auto_recall"] else CodeContextPackage(request.request_id, "", sha256(b"").hexdigest(), ()))
                 return {"context": context, "capture": {**previous.get("capture", {}), "queued": False, "replayed": True},
-                        "formation": [], "exposure": previous["exposure"]}
+                        "formation": [], "exposure": (previous["exposure"] if live and unchanged and settings["auto_recall"] else
+                            {"state": "withheld", "assurance": None, "reason": "cached_context_no_longer_current"})}
             from dataclasses import replace
             bounded = replace(request, max_context_bytes=min(request.max_context_bytes, settings["max_context_bytes"]))
             route = None
-            if settings["auto_recall"] and effective_tags:
+            index_mode = settings['context_mode'] == 'index'
+            if settings["auto_recall"] and effective_tags and not index_mode:
                 from atmem.code.providers import CodeRouter
                 from atmem.code.application import CodeApplication
                 route = CodeRouter(CodeApplication(self.memory, subject_id=request.scope.subject_id)).prepare(bounded, tags=effective_tags, repository_root=repository_root)
-            context = ((route["package"] if route else build_context(self.memory, bounded, repository_root=repository_root)) if settings["auto_recall"] else
+            if settings['auto_recall'] and index_mode and repository_root:
+                from atmem.code.curation import Curation, encoded
+                from atmem.code.application import CodeApplication
+                service = Curation(CodeApplication(self.memory, subject_id=request.scope.subject_id), request.scope, repository_root)
+                index = (service.prepare('discover', {'query': request.task, 'kind': 'experience',
+                    'limit': settings['index_limit'], 'budget': min(bounded.max_context_bytes, settings['index_bytes'])})
+                    if len(request.task.encode()) <= 4000 else
+                    {'status': 'withheld', 'items': [], 'reason': 'query_budget'})
+                # Only index metadata, never full observation/command/source.
+                content = encoded(index).decode() if index.get('items') else ''
+                ids = tuple(item['id'][4:] for item in index.get('items', []))
+                indexed = CodeContextPackage(request.request_id, content, sha256(content.encode()).hexdigest(), ids)
+            else:
+                indexed = CodeContextPackage(request.request_id, '', sha256(b'').hexdigest(), ())
+            context = ((indexed if index_mode else route["package"] if route else build_context(self.memory, bounded, repository_root=repository_root)) if settings["auto_recall"] else
                        CodeContextPackage(request.request_id, "", sha256(b"").hexdigest(), ()))
             graph_evidence = None
-            if settings["auto_recall"] and settings["graph_enabled"] and repository_root and (not route or route["authority"] in {"atmem", "atmem_fallback"}):
+            if settings["auto_recall"] and not index_mode and settings["graph_enabled"] and repository_root and (not route or route["authority"] in {"atmem", "atmem_fallback"}):
                 from atmem.code.graph import CodeGraph
                 from atmem.code.application import CodeApplication
                 from atmem.knowledge.projections import CodeKnowledge
@@ -134,7 +159,7 @@ class CodeRuntime:
                     context = CodeContextPackage(context.request_id, content, sha256(content.encode()).hexdigest(), context.memory_ids)
                     graph_evidence = graph_context["evidence"]
             evidence = CodeReceipts(self.memory.store).prepare(bounded, context, host=self.intake.host, graph_evidence=graph_evidence,
-                                                              repository_root=repository_root)
+                                                              repository_root=repository_root, index_only=index_mode)
             capture = (self.intake.submit(observation.to_dict(), signature) if settings["auto_capture"] else
                        {"accepted": False, "reason": "auto_capture_disabled"})
             formation = self.process_pending() if capture["accepted"] else []

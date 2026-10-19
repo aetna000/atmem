@@ -81,6 +81,8 @@ def test_installed_claude_enable_pause_resume_and_uninstall(tmp_path):
     try:
         installer = CodeInstall(memory.store)
         installer.setup(root, subject_id="local", profile_id="shared", agent_id="claude", host="claude", apply=True)
+        from atmem.code.application import CodeApplication
+        CodeApplication(memory, subject_id='local').settings(installer.status(project=root, subject_id='local', host='claude')['project_id'], {'context_mode': 'content'})
         active = installer.enable(project=root, subject_id="local", host="claude")
         assert active["enabled"] and active["host"]["automatic_verified"]
         path = root / ".claude" / "settings.local.json"

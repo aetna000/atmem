@@ -127,6 +127,7 @@ include = ["atmem*"]
 "atmem.retrieve" = ["*.json"]
 "atmem.benchmark" = ["data/*.json"]
 "atmem.semantic" = ["models.json"]
+"atmem.knowledge" = ["runtime_resources/Dockerfile", "runtime_resources/entrypoint.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

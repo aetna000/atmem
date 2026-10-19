@@ -1,0 +1,46 @@
+{
+  "status": "stopped",
+  "selected_tasks": 30,
+  "paired_terminal_tasks": 13,
+  "paired_runnable_tasks": 3,
+  "arms": {
+    "no_memory": {
+      "terminal_cells": 14,
+      "selected_tasks": 30,
+      "fully_resolved": 12,
+      "official_full_resolutions": 12,
+      "graded_cells": 13,
+      "product_preparation_failures": 0,
+      "environment_unavailable": 1,
+      "inference_attempts_with_receipts": 13,
+      "complete_usage_receipts": 13,
+      "paired_operational_resolutions": 12,
+      "paired_complete_input_tokens": 104248,
+      "paired_complete_output_tokens": 6633,
+      "paired_solver_seconds": 127.54168475099141,
+      "paired_median_solver_seconds": 42.67415845900541,
+      "paired_index_seconds": 0,
+      "observed_atmem_tool_calls": 0
+    },
+    "atmem_structure": {
+      "terminal_cells": 14,
+      "selected_tasks": 30,
+      "fully_resolved": 3,
+      "official_full_resolutions": 3,
+      "graded_cells": 3,
+      "product_preparation_failures": 10,
+      "environment_unavailable": 1,
+      "inference_attempts_with_receipts": 3,
+      "complete_usage_receipts": 3,
+      "paired_operational_resolutions": 3,
+      "paired_complete_input_tokens": 139140,
+      "paired_complete_output_tokens": 6670,
+      "paired_solver_seconds": 149.3358252509497,
+      "paired_median_solver_seconds": 47.30606116697891,
+      "paired_index_seconds": 72.39797805199993,
+      "observed_atmem_tool_calls": 0
+    }
+  },
+  "controller_error": "RuntimeError: Windows backing storage guard reached; existing files/images preserved",
+  "interpretation": "Preparation failures measure product availability, not model accuracy. Token/time totals compare only identical pairs with valid grades and complete usage. This is a cold-start structural pilot, not an experience-memory or full-suite score."
+}

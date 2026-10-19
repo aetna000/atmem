@@ -258,3 +258,19 @@ def test_bound_errors_are_actionable_without_source_or_argument_echo(code_env):
     error = json.loads(response["result"]["content"][0]["text"])
     assert error["field"] == "line_count" and "1 to 100" in error["message"]
     assert "main.py" not in str(error) and "return 1" not in str(error)
+
+
+def test_context_query_preserves_a_late_symbol_after_the_previous_prefix_cap(code_env):
+    instance = server(code_env)
+    task = 'Unrelated description. ' * 70 + '\nInspect main()'
+    assert 1000 < len(task.encode()) < 4000
+    expected = instance.knowledge.context(str(code_env.root), task, budget=1024)
+    answer = instance.query('code_context', {'query': task, 'budget': 1024})
+    assert answer['status'] == 'current' and answer['content'] == expected['content']
+    assert 'def main()' in answer['content']
+    too_long = instance._call_tool(1, 'code_context', {'query': '界' * 1334})
+    assert too_long['result']['isError'] is True
+    error = json.loads(too_long['result']['content'][0]['text'])
+    assert error['field'] == 'query' and '4000 UTF-8 bytes' in error['message']
+    # The structural/compact-search query contract is not widened incidentally.
+    assert instance._call_tool(2, 'code_search', {'query': task})['result']['isError'] is True

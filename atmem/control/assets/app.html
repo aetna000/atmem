@@ -412,10 +412,23 @@
     <div id="codeResults" class="results"></div><p id="codeClearSummary" role="status"></p><details><summary>Clear receipt</summary><pre id="codeClearResult" class="codeoutput"></pre></details>
     <details><summary>Automatic memory settings</summary><form id="codeSettings">
       <div class="memoryfilters"><label><input type="checkbox" id="codeAutoCapture"> Automatically store useful memory</label><label><input type="checkbox" id="codeAutoRecall"> Automatically add relevant context</label><label><input type="checkbox" id="codeReview"> Optional review workflow</label><label><input type="checkbox" id="codeGraphEnabled"> Code structure index</label><label>Context budget (bytes)<input id="codeBudget" type="number" min="256" max="32768" value="4096"></label><label>Default context tags<input id="codeContextTags" placeholder="For example: docs"></label></div><button type="submit">Save settings</button>
+      <div class="memoryfilters"><label>Automatic context presentation<select id="codeContextMode"><option value="index">Experience index only</option><option value="content">Legacy full context</option></select></label><label>Index entries<input id="codeIndexLimit" type="number" min="1" max="8" value="3"></label><label>Index budget (UTF-8 bytes)<input id="codeIndexBytes" type="number" min="256" max="4096" value="1024"></label></div>
     </form><button id="codeReviewsLoad" type="button">Show pending reviews</button><div id="codeReviews"></div></details>
+    <details><summary>Ranked code and experience lookup</summary>
+      <form id="codeDiscoverForm"><label>Current question<input id="codeDiscoverQuery"></label><label>Evidence kind<select id="codeDiscoverKind"><option value="both">Code and experience</option><option value="code">Code</option><option value="experience">Experience</option></select></label><button type="submit">Find evidence index</button></form>
+      <div id="codeDiscoverResults" class="results"></div><p id="codeDiscoverStatus" role="status"></p><pre id="codeDiscoverDetail" class="codeoutput" tabindex="-1"></pre>
+    </details>
     <details><summary>External context routes</summary>
       <div class="memoryfilters"><label>Route name<input id="codeRouteId"></label><label>Registered provider<input id="codeRouteProvider" placeholder="provider:instance"></label><label>Tags<input id="codeRouteTags" placeholder="docs,external-memory"></label><label>Profiles<input id="codeRouteProfiles" value="shared"></label><label>Agents<input id="codeRouteAgents" value="codex,claude"></label><label>On provider failure<select id="codeRouteFallback"><option value="withhold">Withhold context</option><option value="native">Use AtMem memory</option></select></label><label><input id="codeRouteEgress" type="checkbox"> Allow this route to send queries</label></div>
       <div class="actions"><button id="codeRouteSave" type="button">Save route</button><button id="codeRouteRemove" type="button">Remove route</button></div><pre id="codeRoutes" class="codeoutput"></pre>
+    </details>
+    <details id="codeExperienceExplorer"><summary>Explore coding experience</summary>
+      <p>Inspect what was tried, the bounded observed outcome and whether the source anchors still apply. A passing command is not a verified fix.</p>
+      <form id="codeExperienceForm"><label>Find an experience<input id="codeExperienceQuery" placeholder="Task or observation"></label><button type="submit">Search experiences</button></form>
+      <p id="codeExperienceStatus" role="status" aria-live="polite"></p>
+      <div id="codeExperienceResults" class="results" aria-label="Coding experience results"></div>
+      <button id="codeExperienceMore" type="button" disabled>Next page</button>
+      <pre id="codeExperienceDetail" class="codeoutput" tabindex="0" aria-label="Experience source and execution evidence"></pre>
     </details>
     <details id="codeKnowledgeExplorer"><summary>Explore repository knowledge</summary>
       <p>Browse current structure, follow relationships and inspect its source. Extraction coverage is shown separately from what a coding attempt reported.</p>
@@ -427,7 +440,7 @@
       <div id="codeKnowledgeResults" class="results" aria-label="Repository knowledge results"></div>
       <section aria-labelledby="codeKnowledgeSourceTitle"><h3 id="codeKnowledgeSourceTitle">Source evidence</h3><pre id="codeKnowledgeSource" class="codeoutput" tabindex="0"></pre></section>
       <details><summary>Query receipt and coverage details</summary><pre id="codeKnowledgeReceipt" class="codeoutput"></pre></details>
-      <details><summary>Build or update repository knowledge</summary><p>Enable the structure setting and explicitly supply a locally installed, immutable extractor image. No image or model is downloaded automatically.</p><label>Extractor image ID<input id="codeKnowledgeImage" placeholder="sha256:…"></label><button id="codeKnowledgeIndex" type="button">Build knowledge</button></details>
+      <details><summary>Build or update repository knowledge</summary><p>Enable the structure setting and explicitly approve a locally installed, immutable extractor image once. Later builds can reuse it. No image or model is downloaded automatically.</p><label>Extractor image ID<input id="codeKnowledgeImage" placeholder="sha256:…"></label><button id="codeKnowledgeConfigure" type="button">Save extractor configuration</button><button id="codeKnowledgeIndex" type="button">Build knowledge</button><button id="codeMcpConfig" type="button">Show read-only MCP configuration</button></details>
     </details>
     <details><summary>Basic syntax index (fallback)</summary><p>Python definitions, imports and syntax-only call references; not the richer extractor.</p><div class="actions"><button id="codeGraphIndex" type="button">Index repository</button><button id="codeGraphSearch" type="button">Search structure</button></div><pre id="codeGraphResult" class="codeoutput"></pre></details>
     <details><summary>Portable project bundle</summary>

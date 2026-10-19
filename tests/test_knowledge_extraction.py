@@ -82,6 +82,19 @@ def test_same_name_different_files_never_collapses():
     assert len({obj.object_id for obj in mapped["objects"]}) == 2
 
 
+def test_mapping_computes_snapshot_identity_once_not_per_symbol(monkeypatch):
+    original = SourceSnapshot.snapshot_id.fget
+    calls = []
+    def measured(snapshot):
+        calls.append(snapshot)
+        return original(snapshot)
+    monkeypatch.setattr(SourceSnapshot, 'snapshot_id', property(measured))
+    rows = [fact(f'method_{i}') for i in range(30)]
+    mapped = map_facts(SNAPSHOT, rows, source_bytes={'main.py': DATA})
+    assert len(mapped['objects']) == 30 and len(calls) == 1
+    assert {obj.snapshot_id for obj in mapped['objects']} == {original(SNAPSHOT)}
+
+
 def test_root_module_is_directory_not_an_invented_file_anchor():
     row = fact(name=".", file=".", kind="module")
     mapped = map_facts(SNAPSHOT, parse_artifacts(artifacts([row]))[0])
@@ -101,6 +114,19 @@ def test_derived_module_rollup_can_name_authorized_package_without_anchor():
     location = mapped["source_locations"]["fact-" + row["id"]][0]
     assert location["path"] == "package/nodes" and location["kind"] == "directory"
     assert location["content_sha256"] is None and location["line"] is None
+
+
+def test_root_module_rollup_preserves_writer_identity_and_is_not_a_file_anchor():
+    row = fact(name='module-edge: . -> package', file='.', kind='dependency',
+        props={'coupling_kind': 'symbol-rollup', 'derived': 'symbol-rollup'})
+    parsed = parse_artifacts(artifacts([row]))[0]
+    mapped = map_facts(SNAPSHOT, parsed, source_bytes={'main.py': DATA})
+    assert mapped['objects'][0].object_id == 'fact-' + row['id']
+    assert mapped['objects'][0].anchors == ()
+    assert mapped['source_locations']['fact-' + row['id']][0]['kind'] == 'directory'
+    # A root path alone does not grant a dependency directory authority.
+    with pytest.raises(ValueError, match='outside'):
+        map_facts(SNAPSHOT, [fact(name='unproven', file='.', kind='dependency')])
 
 
 @pytest.mark.parametrize("change", ["unknown_directory", "symbol_claim", "not_derived", "untyped_name"])
@@ -175,3 +201,33 @@ def test_worker_has_no_host_mounts_network_or_credential_environment(monkeypatch
     assert "--log-driver=none" in command and "--cap-drop=ALL" in command
     assert not any(arg in command for arg in ("-v", "--volume", "--mount", "-e", "--env", "--privileged"))
     assert kwargs["timeout"] == 150
+
+
+def test_worker_failure_diagnostics_do_not_reflect_source_or_secret_stderr(monkeypatch):
+    marker = b'PRIVATE_SOURCE_MARKER'
+    monkeypatch.setattr(subprocess, 'run', lambda command, **kwargs:
+        subprocess.CompletedProcess(command, 1, b'', marker + b' invalid extraction output'))
+    with pytest.raises(RuntimeError, match='reason=artifact_envelope') as error:
+        ExtractionWorker('sha256:' + 'a' * 64).extract(SNAPSHOT, {'main.py': DATA}, authorize=lambda scope: None)
+    assert marker.decode() not in str(error.value)
+
+
+def test_large_insight_artifact_is_bounded_not_silently_discarded():
+    good = artifacts()
+    raw = json.dumps([{'title': 'Public structural finding', 'description': 'x' * 300000}]).encode()
+    _, _, insights = parse_artifacts(ExtractionArtifacts(good.facts_jsonl, good.receipt_json, raw))
+    assert insights[0]['description'] == 'x' * 300000
+    with pytest.raises(ValueError, match='insights'):
+        parse_artifacts(ExtractionArtifacts(good.facts_jsonl, good.receipt_json,
+            json.dumps([{'description': 'x' * 2_000_000}]).encode()))
+    with pytest.raises(ValueError, match='artifact budget'):
+        parse_artifacts(good, max_bytes=1)
+    with pytest.raises(ValueError, match='fact budget'):
+        parse_artifacts(artifacts([fact('one'), fact('two')]), max_facts=1)
+
+
+def test_high_fanout_fact_is_not_confused_with_unbounded_traversal():
+    relations = [{'kind': 'calls', 'target': f'public_api_{i}'} for i in range(2100)]
+    parsed, _, _ = parse_artifacts(artifacts([fact(relations=relations)]))
+    assert parsed[0]['relations'] == relations
+    assert map_facts(SNAPSHOT, parsed)['relations'][0].target_id is None

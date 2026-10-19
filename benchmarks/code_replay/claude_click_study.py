@@ -67,7 +67,8 @@ def credential():
     return json.loads(result.stdout)['claudeAiOauth']['accessToken']
 
 
-def main(*, resume_unstarted_preflight=False):
+def main(*, resume_unstarted_preflight=False, curated=False, require_graph_consult=True,
+         protocol_path=None, arms=('native', 'cognee', 'atmem'), source_reader=None):
     if ROOT.exists() and not resume_unstarted_preflight:
         raise ValueError('already started: retain evidence, do not silently repeat')
     ROOT.mkdir(mode=0o700, exist_ok=resume_unstarted_preflight)
@@ -93,7 +94,7 @@ def main(*, resume_unstarted_preflight=False):
     interpreter = Path(package['environment']['interpreter'])
     tools_source = Path(__file__).with_name('claude_click_tools.py').read_text()
     cognee_source = Path(__file__).with_name('cognee_click.py').read_text()
-    protocol = Path(__file__).parents[2] / 'specs/043-click-historical-replay/claude-three-arm-clean.md'
+    protocol = protocol_path or Path(__file__).parents[2] / 'specs/043-click-historical-replay/claude-three-arm-clean.md'
     save('comparison.preparation_started', {'task': task, 'protocol': protocol.read_text(),
         'driver_source': Path(__file__).read_text(), 'tools_source': tools_source,
         'cognee_source': cognee_source, 'wheel_sha256': WHEEL_SHA, 'model_calls': 0,
@@ -101,7 +102,8 @@ def main(*, resume_unstarted_preflight=False):
         'prior_comparison': 'v1-qualified: neither provider used; v2-consult: all passed but scratch/stdin/PATH runner faults; all retained without pooling'})
     cases, attempts, memories = [], [], []
     try:
-        for arm in ('native', 'cognee', 'atmem'):
+        for arm in arms:
+            provider_kind = 'atmem' if arm == 'atmem_pruner' else arm
             print(json.dumps({'arm': arm, 'state': 'preparing'}), flush=True)
             started = time.monotonic()
             session_root = RAM / ('claude-three-arm-clean-' + arm + '-20261018')
@@ -125,6 +127,8 @@ def main(*, resume_unstarted_preflight=False):
                 'permissions': permission_arguments((python.parent.parent, interpreter)),
                 'shell_environment': environment, 'provider_log': str(ROOT / (arm + '-provider.log')),
                 'audit': str(ROOT / (arm + '-qualification.jsonl')), 'provider': None}
+            if source_reader is not None:
+                config['source_reader'] = source_reader if arm == 'atmem_pruner' else {}
             # Real positive source read plus denial of evaluator, original Git,
             # operator evidence and network. No target model sees these probes.
             probes = [shell(config, 'head -c 20 src/click/core.py'),
@@ -144,7 +148,7 @@ def main(*, resume_unstarted_preflight=False):
             if controls['exit_code'] or controls['timed_out'] or 'RUNTIME_CONTROLS_OK' not in controls['output']:
                 raise RuntimeError('scratch/stdin/native-Git/Python controls failed: ' + repr(controls))
             index_ms = 0
-            if arm == 'cognee':
+            if provider_kind == 'cognee':
                 state = ROOT / 'cognee-state'
                 state.mkdir(mode=0o700)
                 env = worker_environment(state, COGNEE)
@@ -166,8 +170,8 @@ def main(*, resume_unstarted_preflight=False):
                     raise RuntimeError('upstream real index failed')
                 config['provider'] = {'command': [str(COGNEE), '-I', '-u', '-c', bootstrap, 'serve'],
                                       'cwd': str(state), 'environment': env}
-            elif arm == 'atmem':
-                database = ROOT / 'atmem-structure.db'
+            elif provider_kind == 'atmem':
+                database = ROOT / (arm + '-structure.db')
                 HouseholdApplication.initialize(database, encrypted=True)
                 memory = Memory(database, auto_vectors=False)
                 memories.append(memory)
@@ -182,7 +186,8 @@ def main(*, resume_unstarted_preflight=False):
                 bootstrap = 'import sys,runpy;sys.path.extend([' + repr(DEPS) + ']);runpy.run_module("atmem.knowledge.code.mcp",run_name="__main__")'
                 config['provider'] = {'command': [sys.executable, '-I', '-u', '-c', bootstrap,
                     '--db', str(database), '--root', str(workspace), '--subject', identity.subject_id,
-                    '--project-id', identity.project_id, '--profile', 'shared', '--agent', 'claude'],
+                    '--project-id', identity.project_id, '--profile', 'shared', '--agent', 'claude',
+                    *(['--tool-profile', 'curated'] if curated else [])],
                     'cwd': str(ROOT), 'environment': {'PATH': '/usr/bin:/bin', 'HOME': str(ROOT),
                         'ATMEM_HOME': os.environ['ATMEM_HOME'], 'PYTHONDONTWRITEBYTECODE': '1'}}
             boot = "import sys;exec(compile(" + repr(tools_source) + ",'<claude-click-tools>','exec'))"
@@ -194,8 +199,15 @@ def main(*, resume_unstarted_preflight=False):
                     'arguments': {'command': 'head -c 20 src/click/core.py'}}}]
             if arm != 'native':
                 requests.append({'jsonrpc': '2.0', 'id': 4, 'method': 'tools/call', 'params': {
-                    'name': 'code_search', 'arguments': {'operation': 'query_facts',
-                        'arguments': {'name': 'get_help_option', 'kinds': ['symbol'], 'limit': 10}}}})
+                    'name': 'code_query' if curated and provider_kind == 'atmem' else 'code_search',
+                    'arguments': ({'operation': 'discover', 'arguments': {
+                        'query': 'get_help_option', 'kind': 'code', 'limit': 3, 'budget': 4096}}
+                        if curated and provider_kind == 'atmem' else {'operation': 'query_facts',
+                        'arguments': {'name': 'get_help_option', 'kinds': ['symbol'], 'limit': 10}})}})
+            if source_reader is not None:
+                requests.append({'jsonrpc': '2.0', 'id': 5, 'method': 'tools/call', 'params': {
+                    'name': 'read_source', 'arguments': {'path': 'src/click/core.py', 'start': 1095, 'end': 1180,
+                        'goal': 'Find how the command constructs and caches its help option.'}}})
             checked = subprocess.run(command, input='\n'.join(map(json.dumps, requests)) + '\n',
                 text=True, capture_output=True, timeout=90, env={'PATH': '/usr/bin:/bin'})
             replies = [json.loads(line) for line in checked.stdout.splitlines()]
@@ -203,10 +215,12 @@ def main(*, resume_unstarted_preflight=False):
                 'stderr': checked.stderr, 'exit_code': checked.returncode, 'shell_probes': probes})
             if checked.returncode or len(replies) != len(requests) or any('error' in r for r in replies):
                 raise RuntimeError('MCP qualification failed: ' + checked.stderr[:1000])
-            if arm != 'native' and 'get_help_option' not in json.dumps(replies[-1]):
+            graph_reply = next((r for r in replies if r.get('id') == 4), {})
+            if arm != 'native' and 'get_help_option' not in json.dumps(graph_reply):
                 raise RuntimeError('indexed symbol not available through MCP')
             config['audit'] = str(ROOT / (arm + '-tools.jsonl'))
-            config['require_graph_consult'] = arm != 'native'
+            config['require_graph_consult'] = arm != 'native' and require_graph_consult
+            config['require_source_consult'] = bool(source_reader and source_reader.get('require_source_consult'))
             command[-1] = json.dumps(config)
             mcp = {'mcpServers': {'benchmark': {'command': command[0], 'args': command[1:],
                                                'env': {'PATH': '/usr/bin:/bin'}}}}
@@ -217,7 +231,22 @@ def main(*, resume_unstarted_preflight=False):
                 'for example code_search with operation=query_facts, arguments={name:get_help_option,kinds:[symbol],limit:10}. '
                 'Workspace commands are gated until a graph response succeeds in this explicit-consult experiment. '
                 'Native source takes precedence. No experience is supplied.')
+            if not require_graph_consult and arm != 'native':
+                context = ('Optional pre-change repository structure is available through '
+                    + ('code_query: discover ranks a compact index; fetch retrieves selected IDs with a goal. '
+                       if curated and provider_kind == 'atmem' else
+                       'code_search: query_facts searches symbol names; explore/traverse inspect relationships. ')
+                    + 'Use it when useful to replace redundant source exploration. Native tools remain available '
+                      'without a graph-consult gate. Current source takes precedence after edits. No experience is supplied.')
             prompt = prompt_for(task, python, context) + '\nUse workspace_command for all source reading, editing and tests. You have at most 30 total tool calls and 240 seconds.\n'
+            if source_reader is not None:
+                prompt = prompt_for(task, python, context) + (
+                    '\nUse read_source for reading Python implementations, with a precise task-specific goal and line range. '
+                    'Use workspace_command for symbol/file searches, edits and tests. Omitted code can be requested again with a different goal. '
+                    'You have at most 30 total tool calls and 240 seconds.\n')
+                if config['require_source_consult']:
+                    prompt += ('In this controlled source-reader experiment, you MUST first read relevant Python implementation with read_source. '
+                        'Workspace commands are gated until that read succeeds. Use code_query discover if you need to locate source symbols first.\n')
             cases.append({'arm': arm, 'root': str(workspace), 'mcp': mcp, 'prompt': prompt,
                 'index_ms': index_ms, 'setup_ms': int((time.monotonic() - started) * 1000),
                 'tools': replies[1]['result']['tools']})
@@ -225,6 +254,8 @@ def main(*, resume_unstarted_preflight=False):
             'source_sha256': digest_files(original), 'grader_sha256': digest_files(grader),
             'model': 'claude-opus-5-5', 'effort': 'medium', 'thinking_budget': 0,
             'caps': {'seconds': 240, 'tools': 30, 'audited_tokens': 500000},
+            'curated': curated, 'require_graph_consult': require_graph_consult,
+            'arms': list(arms), 'source_reader': source_reader,
             'cli': subprocess.check_output(['claude', '--version'], text=True).strip(),
             'classification': 'single_reused_task_diagnostic_not_generalization_evidence'})
         token = credential()  # Ephemeral subscription credential; never captured.
@@ -273,13 +304,15 @@ def main(*, resume_unstarted_preflight=False):
                                  interpreter_root=interpreter, test_paths=('tests/',))
             usage = parse_usage(events)
             calls = [e for e in audit if e['request']['method'] == 'tools/call']
-            graph = [e for e in calls if e['request']['params']['name'] != 'workspace_command']
+            graph = [e for e in calls if e['request']['params']['name'] not in {'workspace_command', 'read_source'}]
+            reads = [e for e in calls if e['request']['params']['name'] == 'read_source']
             functional = graded.summary()['passed'] and not violations
             row = {'arm': case['arm'], 'task': task['short'], 'grade': graded.summary(),
                 'grade_counts': summary_counts(graded.output), 'functional_pass': functional,
                 'usage': usage, 'solver_ms': elapsed, 'index_ms': case['index_ms'], 'setup_ms': case['setup_ms'],
                 'tool_calls': len(calls), 'graph_calls': len(graph), 'graph_errors': sum('error' in e['response'] or
                     e['response'].get('result', {}).get('isError', False) for e in graph),
+                'source_read_calls': len(reads), 'source_read_errors': sum('error' in e['response'] for e in reads),
                 'patch_violations': violations, 'stop_reason': stopped, 'exit_code': code,
                 'budget_pass': functional and usage['complete'] and not stopped and code == 0 and
                     usage['total_input_tokens'] + usage['output_tokens'] <= 500000 and len(calls) <= 30}

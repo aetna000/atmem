@@ -6,6 +6,9 @@ from atmem.memory import Memory
 
 READ_ACTIONS = {"projects", "search", "inspect", "routes", "hosts", "host-status", "graph-search", "graph-status", "reviews"}
 READ_ACTIONS |= {"knowledge-query", "knowledge-status", "knowledge-source"}
+READ_ACTIONS |= {"experiences", "mcp-config"}
+READ_ACTIONS |= {"experience-evidence"}
+READ_ACTIONS |= {"discover", "fetch", "changes", "curation-capabilities"}
 
 
 def execute(manager, session: dict, body: dict, *, read_only: bool = False) -> dict:
@@ -15,7 +18,8 @@ def execute(manager, session: dict, body: dict, *, read_only: bool = False) -> d
         raise PermissionError("memory access requires an investigator or administrator account")
     scope = account["scope"]
     action = str(body.get("action") or "projects")
-    read = action in READ_ACTIONS or action == "config" and "changes" not in body
+    read = (action in READ_ACTIONS or action == "config" and "changes" not in body
+            or action == "knowledge-config" and not body.get("image_id"))
     if read_only and not read:
         raise PermissionError("Code mutations require a CSRF-protected POST")
     if not read and role != "administrator":

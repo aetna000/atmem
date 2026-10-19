@@ -12,8 +12,12 @@ import re
 import zlib
 
 PHYSICAL_LIMIT = 16_000_000
-LOGICAL_LIMIT = 64_000_000
+# Rich-code projections retain original artifacts/source and normalized facts.
+# The encrypted physical-row cap remains unchanged; decoding is still bounded.
+LOGICAL_LIMIT = 256_000_000
 FORMAT = 'atmem-code-document-zlib-v1'
+XZ_FORMAT = 'atmem-code-document-xz-v1'
+XZ_MEMORY_LIMIT = 64_000_000
 COMPRESSIBLE_KIND = 'knowledge-generation'
 
 
@@ -50,6 +54,17 @@ def encode_document(value, *, subject, project, kind, identity):
         'payload_base64':base64.b64encode(zlib.compress(raw, level=6)).decode('ascii')}]
     encoded = _json(envelope)
     if len(encoded.encode('utf-8')) > PHYSICAL_LIMIT:
+        # Large graphs repeat scoped IDs across distances beyond zlib's small
+        # dictionary. A bounded standard-library codec can retain the complete
+        # original value without increasing the physical row or dropping facts.
+        try:
+            import lzma
+        except ImportError:
+            raise CodeDocumentEncodingError('large generation needs the standard-library lzma reader') from None
+        envelope[0] = XZ_FORMAT
+        envelope[1]['payload_base64'] = base64.b64encode(lzma.compress(raw, preset=3)).decode('ascii')
+        encoded = _json(envelope)
+    if len(encoded.encode('utf-8')) > PHYSICAL_LIMIT:
         raise CodeDocumentEncodingError('Code document exceeds physical size limit')
     return encoded
 
@@ -79,7 +94,7 @@ def decode_document(text, *, subject, project, kind, identity):
         if type(value) is dict:
             return value
         if (kind != COMPRESSIBLE_KIND or type(value) is not list or len(value) != 2
-                or value[0] != FORMAT or type(value[1]) is not dict):
+                or value[0] not in (FORMAT, XZ_FORMAT) or type(value[1]) is not dict):
             raise CodeDocumentEncodingError('Code document storage format is unsupported')
         header = value[1]
         if (set(header) != {'identity_sha256','raw_bytes','raw_sha256','payload_base64'}
@@ -91,9 +106,22 @@ def decode_document(text, *, subject, project, kind, identity):
                 or type(header['payload_base64']) is not str):
             raise CodeDocumentEncodingError('Code document storage binding or size is invalid')
         compressed = base64.b64decode(header['payload_base64'], validate=True)
-        decoder = zlib.decompressobj()
-        raw = decoder.decompress(compressed, header['raw_bytes'] + 1)
-        if (not decoder.eof or decoder.unused_data or decoder.unconsumed_tail
+        if value[0] == XZ_FORMAT:
+            try:
+                import lzma
+            except ImportError:
+                raise CodeDocumentEncodingError('large generation needs the standard-library lzma reader') from None
+            try:
+                decoder = lzma.LZMADecompressor(format=lzma.FORMAT_XZ, memlimit=XZ_MEMORY_LIMIT)
+                raw = decoder.decompress(compressed, max_length=header['raw_bytes'] + 1)
+            except lzma.LZMAError:
+                raise CodeDocumentEncodingError('Code document XZ stream or memory bound is invalid') from None
+            pending = False  # eof plus exact length detects pending XZ output.
+        else:
+            decoder = zlib.decompressobj()
+            raw = decoder.decompress(compressed, header['raw_bytes'] + 1)
+            pending = bool(decoder.unconsumed_tail)
+        if (not decoder.eof or decoder.unused_data or pending
                 or len(raw) != header['raw_bytes'] or sha256(raw).hexdigest() != header['raw_sha256']):
             raise CodeDocumentEncodingError('Code document compressed content is incomplete or invalid')
         value = _parse(raw.decode('utf-8', errors='strict'))

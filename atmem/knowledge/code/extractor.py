@@ -22,7 +22,7 @@ def insight_facts(insights):
     """
     from atmem.knowledge._vendor.enola_contract import _synthesize_insight_facts
     payload = json.dumps(insights, ensure_ascii=False, allow_nan=False)
-    text(payload, "insights", 262144)
+    text(payload, "insights", 2_000_000)
     class MemoryArtifact:
         def __truediv__(self, name):
             if name != "insights.json":
@@ -63,7 +63,7 @@ class ExtractionArtifacts:
     insights_json: bytes = b"[]"
 
 
-def parse_artifacts(artifacts: ExtractionArtifacts, *, max_bytes=16_000_000, max_facts=20000):
+def parse_artifacts(artifacts: ExtractionArtifacts, *, max_bytes=32_000_000, max_facts=50000):
     if not isinstance(artifacts, ExtractionArtifacts) or any(type(v) is not bytes for v in (
             artifacts.facts_jsonl, artifacts.receipt_json, artifacts.insights_json)):
         raise ValueError("artifact bytes required")
@@ -77,6 +77,7 @@ def parse_artifacts(artifacts: ExtractionArtifacts, *, max_bytes=16_000_000, max
     if receipt.get("providers"):
         raise ValueError("external extraction providers are not permitted")
     facts = []
+    relation_count = 0
     for line in artifacts.facts_jsonl.splitlines():
         if not line.strip():
             continue
@@ -92,21 +93,30 @@ def parse_artifacts(artifacts: ExtractionArtifacts, *, max_bytes=16_000_000, max
         file = fact.get("file", "")
         if not isinstance(file, str):
             raise ValueError("invalid fact source path")
-        if file and not (file == "." and fact["kind"] == "module"):
+        # Pinned Enola also uses '.' for derived root-module dependency
+        # rollups. Mapping still requires the explicit rollup properties and
+        # admitted directory evidence; it is never treated as a source file.
+        if file and not (file == "." and fact["kind"] in {"module", "dependency"}):
             source_path(file)
         identity = "\0".join((fact["repo"], fact["kind"], fact["name"], file))
         if sha256(identity.encode()).hexdigest()[:32] != fact["id"]:
             raise ValueError("writer identity mismatch")
         relations = fact.get("relations", [])
-        if not isinstance(relations, list) or len(relations) > 2048:
+        if not isinstance(relations, list):
             raise ValueError("invalid relations")
+        # Root modules and high-fan-out public APIs legitimately exceed 2,048
+        # relations on one writer fact. Bound the entire artifact instead;
+        # traversal depth/result bounds are still enforced at query time.
+        relation_count += len(relations)
+        if relation_count > 500_000:
+            raise ValueError("extraction relation budget exceeded")
         for relation in relations:
             if normalize_relation(relation) is None:
                 raise ValueError("invalid relation")
             if "target_id" in relation and not is_enola_id(relation["target_id"]):
                 raise ValueError("invalid resolved identity")
         # Screen all semantic fields, not only names; no props bypass.
-        text(json.dumps(fact, ensure_ascii=False), "fact", 131072)
+        text(json.dumps(fact, ensure_ascii=False), "fact", 4_000_000)
         facts.append(fact)
     if type(receipt.get("fact_count")) is not int or receipt["fact_count"] != len(facts):
         raise ValueError("extraction fact count mismatch")
@@ -121,5 +131,5 @@ def parse_artifacts(artifacts: ExtractionArtifacts, *, max_bytes=16_000_000, max
     if not isinstance(insights, list):
         raise ValueError("invalid insights artifact")
     text(json.dumps(receipt, ensure_ascii=False), "receipt", 262144)
-    text(json.dumps(insights, ensure_ascii=False), "insights", 262144)
+    text(json.dumps(insights, ensure_ascii=False), "insights", 2_000_000)
     return facts, receipt, insights

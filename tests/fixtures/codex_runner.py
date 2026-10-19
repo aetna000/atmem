@@ -28,9 +28,9 @@ def run_codex(root, command, prompt, endpoint, *, trust_bypass=True):
     with tempfile.TemporaryDirectory(prefix="atmem-codex-probe-", dir=home_parent) as home:
         (Path(home) / "config.toml").write_text('[projects.' + json.dumps(str(root)) + ']\ntrust_level="trusted"\n')
         environment["CODEX_HOME"] = home
-        return subprocess.run([*helpers["cli_argv"]("codex"), "exec", "--ignore-rules", "--ephemeral", "--skip-git-repo-check",
+        return helpers['run_owned_cli']([*helpers["cli_argv"]("codex"), "exec", "--ignore-rules", "--ephemeral", "--skip-git-repo-check",
             "--sandbox", "read-only", *(["--dangerously-bypass-hook-trust"] if trust_bypass else []), "-c", 'model="atmem-probe"',
             "-c", 'model_provider="atmem_probe"', "-c", 'model_providers.atmem_probe.name="AtMem local probe"',
             "-c", 'model_providers.atmem_probe.wire_api="responses"', "-c", 'model_providers.atmem_probe.requires_openai_auth=false',
             "-c", 'model_providers.atmem_probe.base_url="' + endpoint.url + '"', prompt],
-            cwd=root, env=environment, capture_output=True, text=True, timeout=40, check=False)
+            cwd=root, env=environment, timeout=40)

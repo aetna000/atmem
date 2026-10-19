@@ -6,6 +6,7 @@
     "explicit snapshot execute boundary added",
     "renderer retained",
     "upstream insight conversion retained; open adapted to read-only in-memory artifact.open",
+    "explicit shared metadata may reuse normalization/formatting during snapshot construction only; no cross-query cache",
     "AtMem wrapper must enforce scope, freshness, storage and budgets"
   ],
   "license": "Apache-2.0",

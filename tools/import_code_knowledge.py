@@ -54,7 +54,16 @@ def transform(raw: str) -> str:
         elif isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id in CONSTANTS for t in node.targets):
             body.append(node)
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in HELPERS:
-            body.append(node)
+            if node.name in {'_normalize_value', '_scalar_text'}:
+                # Preserve original conversion/formatting, adding an optional
+                # constructor-local memo only for explicitly shared metadata.
+                original = ast.get_source_segment(raw, node)
+                original = original.replace('def ' + node.name + '(', 'def ' + node.name + '_uncached(', 1)
+                adapter = 'normalize_shared' if node.name == '_normalize_value' else 'scalar_shared'
+                body.append(original + '\n\ndef ' + node.name + '(value):\n    return ' + adapter
+                            + '(value, ' + node.name + '_uncached)\n')
+            else:
+                body.append(node)
         elif isinstance(node, ast.ClassDef) and node.name == "_CodeGraphSnapshot":
             body.append(node)
         elif isinstance(node, ast.ClassDef) and node.name == "CodeRetriever":
@@ -64,8 +73,9 @@ def transform(raw: str) -> str:
                 "\n".join(raw.splitlines()[
                     min([m.lineno] + [d.lineno for d in getattr(m, "decorator_list", [])]) - 1:m.end_lineno])
                 for m in members) + '''
-    def execute(self, nodes, edges, query=""):
-        snapshot = _CodeGraphSnapshot(nodes, edges)
+    def execute(self, nodes, edges, query="", *, shared_metadata=()):
+        with shared_metadata_scope(shared_metadata):
+            snapshot = _CodeGraphSnapshot(nodes, edges)
         result = getattr(self, "_" + self.operation)(snapshot, query)
         if self.diagram_format is not None:
             result["diagram"] = render_result_diagram(result, self.diagram_format)
@@ -73,6 +83,7 @@ def transform(raw: str) -> str:
 ''')
     additions = '''
 from .code_graph_diagram import DIAGRAM_FORMATS, render_result_diagram
+from ..code.normalization import shared_metadata_scope, normalize_shared, scalar_shared
 class CodeSearchValidationError(ValueError):
     pass
 class CodeSeedNotFoundError(CodeSearchValidationError):
@@ -80,7 +91,7 @@ class CodeSeedNotFoundError(CodeSearchValidationError):
 '''
     insertion = next((i for i, node in enumerate(body) if not isinstance(node, (ast.Import, ast.ImportFrom))), len(body))
     body[insertion:insertion] = [additions]
-    result = HEADER + "\n\n".join(
+    result = HEADER + '# Additional AtMem adapter: construction-local shared-metadata work reuse; query algorithms unchanged.\n' + "\n\n".join(
         node if isinstance(node, str) else ast.get_source_segment(raw, node) for node in body) + "\n"
     ast.parse(result, feature_version=(3, 10))
     return result
@@ -126,6 +137,7 @@ def main() -> None:
         "changes": ["AST-selected pure helpers, snapshot and query methods", "backend/TTL cache removed",
                     "exception base changed to ValueError", "explicit snapshot execute boundary added",
                     "renderer retained", "upstream insight conversion retained; open adapted to read-only in-memory artifact.open",
+                    "explicit shared metadata may reuse normalization/formatting during snapshot construction only; no cross-query cache",
                     "AtMem wrapper must enforce scope, freshness, storage and budgets"],
         "parity_claim": False,
     }

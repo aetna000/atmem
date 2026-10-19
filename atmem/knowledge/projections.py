@@ -20,6 +20,13 @@ from atmem.extract.validation import screen_content
 from atmem.knowledge.source_text import source_text, SourceTextEncodingError
 from atmem.knowledge.code.source_policy import SOURCE_POLICY, eligible_source
 
+# Match the already sandboxed worker's input envelope. Strict identity captures
+# retain their smaller default; graph indexing admits a complete larger snapshot,
+# never an arbitrary prefix or a task-selected subset of a repository.
+INDEX_SOURCE_BYTES = 24_000_000
+INDEX_FILE_LIMIT = 5000
+DISCOVERY_FILE_LIMIT = 50_000
+
 
 def _omission_counts(counts):
     return tuple(counts.get(key, 0) for key in ('file_budget', 'source_encoding'))
@@ -96,9 +103,9 @@ class CodeKnowledge:
         path = self.graph._root(root)
         revision = _git(path, "rev-parse", "HEAD")
         names = sorted(set(_git(path, "ls-files", "-z", "--cached", "--others", "--exclude-standard").split("\0")) - {""})
-        if len(names) > 5000:
-            raise ValueError("repository file budget exceeded")
-        files, exclusions, total = {}, {}, 0
+        if len(names) > DISCOVERY_FILE_LIMIT:
+            raise ValueError("repository discovery file budget exceeded")
+        files, exclusions, total, eligible_count = {}, {}, 0, 0
         for name in names:
             relative = Path(name)
             if (any(part in _EXCLUDED or part.startswith(".") for part in relative.parts)
@@ -111,6 +118,9 @@ class CodeKnowledge:
             if not eligible_source(name) and target.name not in _CONFIG_NAMES:
                 exclusions["unsupported_extension"] = exclusions.get("unsupported_extension", 0) + 1
                 continue
+            eligible_count += 1
+            if eligible_count > INDEX_FILE_LIMIT:
+                raise ValueError("eligible repository file budget exceeded")
             if not target.exists() and not target.is_symlink():
                 exclusions["deleted_source"] = exclusions.get("deleted_source", 0) + 1
                 continue
@@ -155,7 +165,8 @@ class CodeKnowledge:
         if not self.app.settings(self.scope.project_id)["graph_enabled"]:
             raise PermissionError("enable project graph indexing first")
         configuration = stable_digest({"worker_image": worker.image_id, "source_policy": SOURCE_POLICY})
-        snapshot, files, exclusions = self.capture(root, configuration, omit_oversized_files=True, omit_invalid_text=True)
+        snapshot, files, exclusions = self.capture(root, configuration, max_source_bytes=INDEX_SOURCE_BYTES,
+                                                  omit_oversized_files=True, omit_invalid_text=True)
         key = self._key(snapshot)
         prior = self.app.store.code_document(self.app.subject_id, self.scope.project_id, "knowledge-generation", key)
         if (prior and prior["snapshot_id"] == snapshot.snapshot_id
@@ -183,9 +194,14 @@ class CodeKnowledge:
         from atmem.knowledge.code.delta import generation_delta
         value["repository"] = {"id": "repository-" + snapshot.worktree_id.removeprefix("worktree-"),
                                "name": "repository", "last_delta": generation_delta(prior, value)}
+        # A successfully published graph must fit the public query boundary.
+        # Never publish a generation which every subsequent query will reject.
+        from atmem.knowledge.code.queries import validate_graph_size
+        validate_graph_size(value)
         with self.app.store.transaction():
             self.authorize(self.scope)
-            current, _, current_exclusions = self.capture(root, configuration, omit_oversized_files=True, omit_invalid_text=True)
+            current, _, current_exclusions = self.capture(root, configuration, max_source_bytes=INDEX_SOURCE_BYTES,
+                                                         omit_oversized_files=True, omit_invalid_text=True)
             latest = self.app.store.code_document(self.app.subject_id, self.scope.project_id, "knowledge-generation", key)
             if (current != snapshot or _omission_counts(current_exclusions) != _omission_counts(exclusions)
                     or latest != prior):
@@ -214,7 +230,8 @@ class CodeKnowledge:
         if memory_subject_id(stored.scope) != memory_subject_id(self.scope):
             raise PermissionError("projection lane mismatch")
         try:
-            snapshot, _, exclusions = self.capture(root, value["configuration_sha256"], omit_oversized_files=True, omit_invalid_text=True)
+            snapshot, _, exclusions = self.capture(root, value["configuration_sha256"], max_source_bytes=INDEX_SOURCE_BYTES,
+                                                   omit_oversized_files=True, omit_invalid_text=True)
         except (FileNotFoundError, ValueError, UnicodeError):
             # Unreadable or racing admitted source never becomes current
             # evidence. Explicit graph omission counts are checked below.

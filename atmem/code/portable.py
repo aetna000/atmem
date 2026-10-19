@@ -8,7 +8,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 
-from atmem.code.application import CodeApplication, DEFAULT_SETTINGS, digest
+from atmem.code.application import CodeApplication, DEFAULT_SETTINGS, CURATION_SETTINGS, digest
 from atmem.code.contracts import CodeScope
 from atmem.code.formation import memory_subject_id
 from atmem.code.identity import repository_key, _git
@@ -19,6 +19,7 @@ from atmem.extract.validation import screen_content
 
 FORMAT = "atmem-code-project-bundle-v1"
 FORMAT_V2 = "atmem-code-project-bundle-v2"
+FORMAT_V3 = 'atmem-code-project-bundle-v3'
 TABLES = ("episodes", "records", "audit_log", "memory_proposals", "memory_reviews",
           "memory_lineage", "memory_lifecycle", "memory_lifecycle_transitions", "retrieval_exclusions")
 TABLES_V2 = TABLES + ("protocol_sources", "protocol_proposals", "typed_memory_units", "typed_unit_evidence",
@@ -27,6 +28,7 @@ TABLES_V2 = TABLES + ("protocol_sources", "protocol_proposals", "typed_memory_un
 _DOCUMENT_KINDS = {"settings", "origin", "exposure"}
 _DOCUMENT_KINDS_V2 = _DOCUMENT_KINDS | {"knowledge-generation", "knowledge-job", "code-experience",
                                         "execution-receipt", "experience-tombstone", "experience-environment"}
+_DOCUMENT_KINDS_V3 = _DOCUMENT_KINDS_V2 | {'curation-exposure'}
 
 
 class CodePortable:
@@ -36,10 +38,13 @@ class CodePortable:
     def export(self, project: str, *, recipient_public_key: bytes, signing_public_key: bytes,
                signing_secret_key: bytes) -> dict:
         self.app.authorize(project)
+        curated = (bool(self.app.store.code_documents(self.app.subject_id, project, 'curation-exposure'))
+                   or any(CURATION_SETTINGS.intersection(row) for row in self.app.store.code_documents(self.app.subject_id, project, 'settings')))
         extended = any(self.app.store.code_documents(self.app.subject_id, project, kind) for kind in (
                 "knowledge-generation", "code-experience", "execution-receipt", "experience-tombstone"))
+        extended = extended or curated
         table_names = TABLES_V2 if extended else TABLES
-        document_kinds = _DOCUMENT_KINDS_V2 if extended else _DOCUMENT_KINDS
+        document_kinds = _DOCUMENT_KINDS_V3 if curated else _DOCUMENT_KINDS_V2 if extended else _DOCUMENT_KINDS
         with self.app.store.transaction():
             lanes = self.app.store.code_scopes(self.app.subject_id, project)
             tables = {}
@@ -63,7 +68,7 @@ class CodePortable:
             ).fetchall()]
             documents = {kind: self.app.store.code_document_items(self.app.subject_id, project, kind) for kind in document_kinds}
             state = {"lanes": lanes, "tables": tables, "observations": observations, "documents": documents}
-            manifest = {"format": FORMAT_V2 if extended else FORMAT, "created_at": datetime.now(timezone.utc).isoformat(),
+            manifest = {"format": FORMAT_V3 if curated else FORMAT_V2 if extended else FORMAT, "created_at": datetime.now(timezone.utc).isoformat(),
                         "owner_subject_id": self.app.subject_id, "project_id": project,
                         "schema_migrations": self.app.store.applied_migrations(), "state_sha256": digest(state),
                         "index_policy": "rebuild lexical, memory graph and local hashing vectors; reindex source graph in new clone",
@@ -94,13 +99,13 @@ class CodePortable:
         if set(value) != {"manifest", "state"}:
             raise ValueError("bundle fields do not match the contract")
         manifest, state = value["manifest"], value["state"]
-        if manifest.get("format") not in {FORMAT, FORMAT_V2} or digest(state) != manifest.get("state_sha256"):
+        if manifest.get("format") not in {FORMAT, FORMAT_V2, FORMAT_V3} or digest(state) != manifest.get("state_sha256"):
             raise ValueError("project bundle integrity mismatch")
         if manifest.get("owner_subject_id") != self.app.subject_id:
             raise PermissionError("bundle belongs to another subject")
-        extended = manifest["format"] == FORMAT_V2
+        extended = manifest["format"] in {FORMAT_V2, FORMAT_V3}
         table_names = TABLES_V2 if extended else TABLES
-        document_kinds = _DOCUMENT_KINDS_V2 if extended else _DOCUMENT_KINDS
+        document_kinds = _DOCUMENT_KINDS_V3 if manifest['format'] == FORMAT_V3 else _DOCUMENT_KINDS_V2 if extended else _DOCUMENT_KINDS
         if set(state) != {"lanes", "tables", "observations", "documents"} or set(state["tables"]) != set(table_names):
             raise ValueError("unexpected bundle state tables")
         project = manifest["project_id"]
@@ -161,6 +166,13 @@ class CodePortable:
                 elif key == "max_context_bytes":
                     if type(setting) is not int or not 256 <= setting <= 32768:
                         raise ValueError("invalid portable context budget")
+                elif key == 'context_mode':
+                    if setting not in ('index', 'content'):
+                        raise ValueError('invalid portable context mode')
+                elif key in {'index_limit', 'index_bytes'}:
+                    low, high = (1, 8) if key == 'index_limit' else (256, 4096)
+                    if type(setting) is not int or not low <= setting <= high:
+                        raise ValueError('invalid portable index bound')
                 elif type(setting) is not bool:
                     raise ValueError("invalid portable setting")
         for item in state["documents"]["origin"]:
@@ -172,6 +184,16 @@ class CodePortable:
                 raise PermissionError("portable exposure scope mismatch")
         if extended:
             self._validate_extended(state, project, references)
+        for item in state['documents'].get('curation-exposure', []):
+            scope = CodeScope.from_dict(item['value']['scope'])
+            if scope.subject_id != self.app.subject_id or scope.project_id != project:
+                raise PermissionError('portable curation scope mismatch')
+            for response in ('response', 'delivered_response'):
+                for evidence in item['value'].get(response, {}).get('items', []):
+                    identity = evidence.get('id', '')
+                    if identity.startswith('exp:') and evidence.get('status') not in {'missing', 'withheld'}:
+                        if references['record_id'].get(identity[4:]) != memory_subject_id(scope):
+                            raise PermissionError('portable curation record mismatch')
         columns = {row[1] for row in self.app.store._conn.execute("PRAGMA table_info(code_observations)")}
         for row in state["observations"]:
             if set(row) != columns:

@@ -179,3 +179,66 @@ workstream's first acceptance surface is code. No document-format parity follows
 - **SC-013:** Product capability receipts identify exact build/configuration and
   remaining gaps; the Click harness cannot upgrade missing capabilities or declare
   partial prompt capture to be full reconstruction.
+
+## Context curation extension 2026-10-19
+
+Extend the existing Code flavor with index-first discovery and selective fetch,
+not another agent, Laya model or authority database. FR-029 refines FR-023:
+index mode replaces automatic full-content assembly, not full-fidelity capture.
+Existing benchmark outcomes and base 2.3.8 behavior remain unchanged.
+
+### User scenarios
+
+An enabled new Code project presents a small index of relevant experiences;
+the agent selects details to fetch. Code discovery returns ranked symbol/source
+pointers before bodies. Repeated evidence can become references only on explicit
+request and after delivery; compaction or a new epoch permits full fetch again.
+Existing installations keep content mode until the user explicitly changes it.
+New integrations remain non-influencing until enabled; no shadow runs are added.
+
+### Functional requirements
+
+- **FR-029:** Add `context_mode=index|content`, index for fresh Code setup and
+  content for existing/missing settings. Index mode emits only a bounded
+  experience index, never full memories, automatic source packs or delegated
+  content. Explicit delegated APIs remain unchanged. Rows contain ID, bounded
+  title, observed outcome, revision, unchecked applicability and estimated cost.
+  No automatic full experience or raw output; no fabricated entries or training.
+- **FR-030:** A versioned closed discover/fetch contract supports code,
+  experience or both, multiple query terms, structural ranking, exact IDs,
+  explicit coverage, byte budgets and labeled token estimates. Fetch rechecks
+  scope, lifecycle, source and secrets, including before stream delivery.
+  Unchecked index metadata must not imply current applicability.
+- **FR-031:** Bounded process-local delivery ledger keys scope/session/context
+  epoch/ID/version. References require explicit opt-in and evidence actually
+  written in the same session and epoch. Ordinary fetch returns full content.
+  Changed versions, epochs, restart and explicit refetch restore full retrieval;
+  no claim to observe native reads or model attention.
+- **FR-032:** Expose curation through an opt-in curated MCP profile and shared
+  CLI/dashboard application operations. Expose mode/index limits in settings.
+  Preserve existing expanded/compact tools. No new dependency, plaintext side
+  database, remote call or automatic model/worker download.
+- **FR-033:** Provide reversible observation masking only for explicit
+  prompt-owner integration, preserving original history, instructions and tool
+  pairing. Native CLI masking remains unsupported pending qualification. Local
+  goal-directed exact-source selection needs no trained model; pretrained
+  SWE-Pruner and Torch/CUDA remain unavailable optional future work.
+- **FR-034:** Test safety/default/disabled compatibility, stale delivery,
+  deletion, multibyte budgets, omissions and session epochs. Retain prepared/
+  delivered responses inside the encrypted evidence boundary. Add zero-model
+  qualification and a prospective efficacy protocol; no token-saving claim from
+  byte reductions, small fixtures or reused engineering tasks.
+
+### Success criteria
+
+- **SC-014:** Fresh setup is index-only; existing settings remain content;
+  disable emits nothing and changes no retained memory.
+- **SC-015:** MCP stream and CLI/dashboard dispatch enforce exact authorization,
+  source/lifecycle/secret checks and bounded labeled index/fetch responses.
+- **SC-016:** Duplicate references require same-session/epoch delivered versions;
+  full fetch, restart, compaction and changed-source controls pass.
+- **SC-017:** Masking keeps originals and protocol pairing; unsupported native
+  hosts and learned pruning are labeled. Base dependency set stays unchanged.
+- **SC-018:** Machine-readable boundary qualification retains exact artifacts;
+  efficacy protocol fixes tasks/model/budgets and measures quality, total tokens,
+  cache categories and complete latency. No new efficacy claim without execution.

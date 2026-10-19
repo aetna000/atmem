@@ -1,5 +1,135 @@
 # AtMem Code
 
+### Packaged Code preview: 2026-10-19
+
+The current branch adds packaged graph-worker resources, saved extractor
+configuration, generated read-only MCP configuration, an explicit local command
+producer and experience inspection. This is an unreleased preview, not a claim
+that every coding host automatically captures source-bound execution experience.
+The package metadata still uses the 2.3.8 base version; use a dedicated virtual
+environment and the supplied preview wheel, not a plain PyPI upgrade command.
+No Laya model, Cognee SDK, embedding model or GPU is required by these paths.
+
+#### Set up the richer graph once
+
+After the existing encrypted household and project setup described below:
+add `--db /path/to/memory.db` to commands if using a non-default household.
+
+```sh
+# Write the packaged build recipe; does not build, download or execute it.
+atmem code knowledge-worker ./atmem-extractor
+# Explicit network/build step, when you choose to install the optional worker:
+docker build -t atmem-code-extractor ./atmem-extractor
+docker image inspect --format '{{.Id}}' atmem-code-extractor
+
+# Paste the resulting immutable sha256 ID. Configuration does not enable hooks.
+atmem code knowledge-config --project /path/to/project --image-id sha256:YOUR_IMAGE_ID
+atmem code config --project /path/to/project --set '{"graph_enabled":true}'
+atmem code knowledge-index --project /path/to/project
+atmem code mcp-config --project /path/to/project
+```
+
+For a smaller optional MCP interface, generate configuration with
+`atmem code mcp-config --project /path/to/project --tool-profile compact`.
+This advertises one read-only `code_query` tool instead of the expanded tool
+catalog. Its `operation` selects `context`, `search`, `source`, the eight graph
+operations, or `experience` when enabled; `arguments` carries the existing
+operation parameters. For example, `{"operation":"context","arguments":{"query":"request routing"}}`
+or `{"operation":"source","arguments":{"path":"src/app.py","line_count":30}}`.
+Existing generated configurations remain expanded. Scope, source checks, result
+formats, default context budgets and stored evidence are unchanged. The compact
+catalog reduces interface size; total coding-token savings require separate
+agent evaluation and are not yet established.
+
+`code_context` accepts up to 4,000 UTF-8 query bytes and rejects larger input
+with an actionable error. It does not silently cut a long query to its first
+1,000 bytes. Compact symbol-search limits remain unchanged. Source-pack output
+budgets are separate from this input bound.
+
+Add the returned `configuration.mcpServers.atmem_code` entry to a compatible
+client's MCP configuration. This command does not modify the client. The server
+uses the installed interpreter in isolated mode, with fixed project/scope/root;
+tools cannot supply new database paths or execute commands. Its optional
+`code_experience` view is enabled in generated configurations. Existing four-tool
+server configurations remain unchanged unless `--experience` is supplied.
+Regenerate client configuration after moving environments or restoring a bundle.
+The machine-specific approved worker image is deliberately not a portable secret
+or silently downloaded dependency. Reconfigure it on the destination machine.
+
+The large-repository preview uses one consistent bounded envelope: at most
+5,000 eligible source candidates, 24 MB of admitted source, 256 KiB per file,
+32 MB of extraction artifacts and 50,000 writer facts. Unsupported assets do
+not consume the eligible-file allowance; discovery itself is capped at 50,000
+paths. Oversized/invalid-text files remain explicitly omitted, not truncated.
+Scope checks, secret screening, source freshness and atomic publication still
+apply. Derived graphs must fit the query envelope (60,000 objects / 500,000
+relations) before publication. Query response and traversal bounds are unchanged.
+Large protected generations may be losslessly compressed inside the same
+16 MB physical row limit, with a 256 MB bounded logical decode limit. The usual
+zlib envelope is retained; larger generations can use the versioned XZ fallback
+with a bounded decoder dictionary. It uses Python's standard-library `lzma`,
+not a model or a new ML dependency. Unsupported readers withhold the graph.
+
+If upgrading an older preview, generate a **new** worker build directory with
+`knowledge-worker`, explicitly build and inspect its image, then approve the
+new immutable ID with `knowledge-config` and reindex. Installing Python changes
+alone does not update an already approved Docker image. AtMem never silently
+replaces your pinned worker. Repositories outside these envelopes still fail
+explicitly; this is not an unlimited-indexing claim.
+
+An MCP-only client chooses whether to call these tools. It is not automatically
+injected context. Enabled, qualified turn-hook adapters use the automatic
+context path; simply registering MCP does not establish that a model used it.
+
+#### Record an actual command outcome
+
+```sh
+atmem code run --project /path/to/project --host claude \
+  --intent 'Check the parser regression' --anchor src/project/parser.py \
+  -- python -m pytest tests/test_parser.py -q
+atmem code experiences parser --project /path/to/project --host copilot
+atmem code experience-evidence RECORD_ID RECEIPT_ID --project /path/to/project
+```
+
+This explicit producer runs the supplied argument array with the user's normal
+permissions, no shell interpolation and closed stdin. It is **not a sandbox**:
+run only commands you authorize. It does not obtain commands from read-only MCP
+or the dashboard, does not retry, and does not select or download models. An agent
+can use this test-command prefix; ordinary host tools are not intercepted merely
+by installing it. Automatic user-assertion hooks and this richer command producer
+remain separate qualification tiers.
+
+Actual stdout/stderr, argv, exit status and source/environment identity are
+retained inside the existing encrypted store after screening. The default
+deadline is 300 seconds (maximum 1800), with a shared 500000-byte stdout/stderr
+limit. Timeouts, incomplete output and changing source yield `unknown`, not a
+successful fix. Recognized secret output is withheld without forming experience
+or returning the secret; this partial capture is not complete Black Box evidence.
+An optional `--note` remains an attributed user note. The CLI returns the child
+exit status after emitting its JSON receipt. Source anchors must be explicit
+admitted repository files. The environment check currently covers the local
+Python host/package set and repository configuration, not an exhaustive identity
+of arbitrary external tools or services.
+
+Shared-profile experiences can be recalled by another agent for that authorized
+project. Changed anchors/configuration or another worktree cause withholding;
+unrelated source edits do not automatically discard an unchanged anchored
+experience. `auto_capture=false` suppresses memory capture even if the user
+explicitly runs a command. This is a command/source-bound historical observation,
+never proof of a generally correct fix or an instruction to execute it again.
+
+#### Inspect and manage experience
+
+Memory → Coding memory → **Explore coding experience** searches task intent and
+observations, shows the bounded outcome and current applicability/withholding
+reasons, and lets an authorized user inspect exact captured command output.
+The CLI uses the same service. Ordinary `inspect`, `correct`, `forget` and scoped
+clear remain available. MCP summaries do not automatically include raw command
+output. The list is bounded to 1000 candidates, at most 50 entries per page and
+a 32768-byte response; an oversized response is explicitly withheld, not silently
+truncated. A five-person usability study and full host/platform qualification
+are still open gates.
+
 AtMem Code stores project knowledge in the existing AtMem database and makes it
 available across authorized coding-agent sessions. This guide describes the
 source preview on `feature/atmem-code-2.3.9`. It has not been published as a new
@@ -348,7 +478,100 @@ optional graph with a visible `source_encoding` count, never guessed or
 lossily decoded. Strict execution capture still rejects incomplete identities.
 Large rich generations can use bounded lossless storage inside the existing
 encrypted database; their physical row limit remains 16 MB and logical limit
-is 64 MB. Older previews do not understand those compressed derived rows:
+is 256 MB in the large-repository preview (64 MB in earlier previews).
+The independent 128 MB whole-project bundle limit has not been raised;
+an export exceeding it still fails explicitly. Older previews do not understand
+all larger compressed derived rows:
 export with a supported reader before downgrading, or explicitly rebuild the
 derived index. No canonical-memory migration is needed for these preview
 formats, and no published package is upgraded by this source-branch change.
+
+## Index-first context curation
+
+The source preview offers ranked discovery followed by selective evidence fetch.
+Fresh `atmem code setup --apply` projects select `context_mode=index` while
+remaining disabled until explicitly enabled. Existing projects keep their prior
+content behavior; adding another host or repeating setup does not migrate it.
+To switch an existing project explicitly:
+
+```sh
+atmem code config --project /path/to/project --set '{"context_mode":"index","index_limit":3,"index_bytes":1024}'
+atmem code mcp-config --project /path/to/project --tool-profile curated
+```
+
+Copy the generated MCP configuration into the coding client's configuration.
+Generation does not silently edit host configuration. Restart/reconnect the
+client as its configuration requires. Existing `expanded` and `compact` profiles
+are unchanged. `curated` advertises one read-only `code_query` tool:
+
+* `discover`: pass `query`, `kind` (`code`, `experience` or `both`), optional
+  `limit` (1–8) and `budget` (256–8192 UTF-8 bytes).
+* `fetch`: pass selected `ids` from discovery and optionally an immediate `goal`.
+  Code returns exact bounded source lines and explicit omissions. Experience
+  details recheck source/environment applicability and retain observed outcomes,
+  not claims of verified fixes. Raw command output remains a separate privileged
+  investigation operation.
+* `changes`: fetch selected IDs with optional known versions and reference mode.
+* `capabilities`: inspect supported behavior and integration limitations.
+
+Enabled automatic index mode presents only a small relevant experience index:
+bounded titles, IDs, observed outcomes, revision, unchecked applicability and
+estimated fetch costs. Full observations, commands/output, code source packs
+and delegated context are not automatically appended. No matching experiences
+means no automatic index. Code lookup and full experience details are on demand.
+Explicit delegated-provider APIs remain available; automatic tag routing requires
+legacy `context_mode=content`. Capture settings and retained full evidence do not
+change with presentation. Disable still stops automatic capture and recall.
+
+```sh
+atmem code discover 'authentication timeout' --project /path/to/project --kind both --json
+atmem code fetch code:ID_FROM_DISCOVERY --project /path/to/project --goal 'timeout handling' --json
+atmem code fetch exp:ID_FROM_DISCOVERY --project /path/to/project --json
+atmem code curation-capabilities --project /path/to/project --json
+```
+
+The dashboard exposes presentation mode and index limits under Automatic memory
+settings. Ranked code and experience lookup shows index entries first; selecting
+an entry fetches details through the same authorized service used by CLI/MCP.
+All displayed repository or memory text is untrusted evidence, not instructions.
+
+MCP reference mode requires `references:true`, caller-supplied opaque `session`
+and `epoch`, and `known:[{"id":"...","version":"..."}]` from prior fetches.
+Only unchanged evidence actually written by that MCP server in that session and
+epoch can return an abbreviated reference. Omit reference mode to fetch full
+content again. Change epoch after compaction. Restart clears the bounded
+process-local ledger. CLI/dashboard calls do not claim continuity with a running
+MCP process or knowledge of what the model remembers. Automatic hooks do not yet
+have qualified context-epoch acknowledgements, so they do not suppress indices
+on the assumption that a previous one remains visible.
+
+Budgets count serialized UTF-8 bytes. `utf8-byte-upper-bound-v1` labels conservative
+detail-token estimates; these are not provider billing measurements. Ranking uses
+multiple query terms and bounded graph-neighbor relevance; scores do not claim
+calibrated truth probabilities. Experience scanning returns at most 1000 active
+candidates. Index applicability is unchecked until a detail fetch validates it.
+
+The optional pure `atmem.code.history.mask_observations` helper is for applications
+that own prompt assembly and supply an authorized exact-output retention callback.
+It copies the history and masks eligible older tool output while preserving tool
+pairing and instructions. No native CLI history rewriting is qualified. Learned
+SWE-Pruner weights, synthetic training, Torch/CUDA and remote model calls are not
+included. Goal-directed source selection is deterministic and local.
+
+Full curation requests/responses and stream-delivery evidence remain inside the
+encrypted Code store. Project exports with curation settings or receipts use bundle v3; this
+reader still accepts v1/v2. Upgrade older readers before importing v3. Scoped
+clear and experience forgetting include affected curation copies; the ephemeral
+delivery ledger is not exported and never grants access to a deleted record.
+
+Zero-model qualification can exercise an already owned encrypted project:
+
+```sh
+python tools/qualify_code_curation.py --db /path/to/memory.db --project /path/to/project --project-id PROJECT_ID --query 'relevant symbol'
+```
+
+It retains exact response artifacts in encrypted `curation-exposure` documents
+and reports per-operation bytes/time. This is a boundary check, not measured
+coding quality, end-to-end token savings or universal host support. A separate
+prospective efficacy protocol is in
+`specs/042-atmem-code/context-curation-v1.md`; prior negative results are unchanged.

@@ -88,6 +88,16 @@ class CodeInstall:
             agent_id=agent_id,
         )
         existing = self.store.code_installation(subject_id, scope.project_id, host)
+        # Additive policy for genuinely fresh Code projects only. Repeating
+        # setup or adding another host must not change an existing policy.
+        installations = self.store._conn.execute(
+            'SELECT 1 FROM code_installations WHERE subject_id=? AND project_id=? LIMIT 1',
+            (subject_id, scope.project_id)).fetchone()
+        if not installations and self.store.code_document(subject_id, scope.project_id, 'settings', 'effective') is None:
+            self.store.put_code_document(subject_id, scope.project_id, 'settings', 'effective',
+                {'context_mode': 'index', 'index_limit': 3, 'index_bytes': 1024})
+            self.store.append_audit_event(subject_id=subject_id, actor='user', event_type='code.context_mode_initialized',
+                payload={'project_id': scope.project_id, 'context_mode': 'index'})
         if existing is not None and existing["enabled"]:
             raise RuntimeError("Code host is already enabled; setup cannot replace its restore record")
         if existing is not None and existing["restore_json"]:

@@ -34,6 +34,31 @@ def test_ordinary_and_marker_named_objects_keep_legacy_representation():
     assert codec.decode_document(wire,**BINDING)==value
 
 
+def test_bounded_xz_fallback_keeps_full_value_and_scope_binding(small_bounds, monkeypatch):
+    monkeypatch.setattr(codec.zlib, 'compress', lambda raw, level: b'x' * 10000)
+    value = {'source': 'unchanged source' * 180}
+    wire = codec.encode_document(value, **BINDING)
+    assert json.loads(wire)[0] == codec.XZ_FORMAT and len(wire.encode()) <= codec.PHYSICAL_LIMIT
+    assert codec.decode_document(wire, **BINDING) == value
+    with pytest.raises(codec.CodeDocumentEncodingError):
+        codec.decode_document(wire, **{**BINDING, 'project': 'other'})
+    for suffix in (b'extra', b'\x00'):
+        changed = json.loads(wire)
+        changed[1]['payload_base64'] = base64.b64encode(base64.b64decode(changed[1]['payload_base64']) + suffix).decode()
+        with pytest.raises(codec.CodeDocumentEncodingError):
+            codec.decode_document(json.dumps(changed), **BINDING)
+
+
+def test_xz_decoder_rejects_expansion_and_dictionary_bombs(small_bounds):
+    import lzma
+    for raw, declared, preset in ((b'x' * 100000, 1000, 3), (b'x' * 2000, 2000, 9)):
+        header = {'identity_sha256': codec._binding(**dict(subject='owner', project='project', kind='knowledge-generation', identity='generation-1')),
+                  'raw_bytes': declared, 'raw_sha256': sha256(raw).hexdigest(),
+                  'payload_base64': base64.b64encode(lzma.compress(raw, preset=preset)).decode()}
+        with pytest.raises(codec.CodeDocumentEncodingError):
+            codec.decode_document(json.dumps([codec.XZ_FORMAT, header]), **BINDING)
+
+
 def test_above_real_16mb_roundtrip_and_physical_row_bound():
     value={'source':'x'*16_000_010,'artifacts':{'original':'all bytes retained'}}
     wire=codec.encode_document(value,**BINDING)

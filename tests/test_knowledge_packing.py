@@ -33,6 +33,57 @@ def test_source_definitions_have_readable_references_and_byte_budget():
     assert pack_generation(value, "unrelated weather", budget=1024) == ""
 
 
+def test_packing_navigation_excludes_unused_metadata_without_changing_evidence(monkeypatch):
+    import atmem.knowledge.code.packing as module
+    value = example()
+    before = pack_generation(value, 'entry', budget=4096)
+    value['property_variants'].setdefault(value['objects'][0]['object_id'], [{}])
+    for variants in value['property_variants'].values():
+        variants[0]['large_navigation_irrelevant_property'] = ['retained original metadata'] * 100
+    calls = []
+    original = module.CodeRetriever.execute
+    def checked(self, nodes, edges, query=''):
+        assert all('fact_properties' not in node and 'extraction_receipt' not in node for _, node in nodes)
+        compact = original(self, nodes, edges, query)
+        from atmem.knowledge.code.queries import graph_input
+        full_nodes, full_edges = graph_input(value)
+        full = original(self, full_nodes, full_edges, query)
+        assert [(x['id'], x.get('depth')) for x in compact.get('nodes', [])] == [
+            (x['id'], x.get('depth')) for x in full.get('nodes', [])]
+        assert [(x['source_id'], x['target_id'], x['type']) for x in compact.get('edges', [])] == [
+            (x['source_id'], x['target_id'], x['type']) for x in full.get('edges', [])]
+        calls.append(True)
+        return compact
+    monkeypatch.setattr(module.CodeRetriever, 'execute', checked)
+    assert pack_generation(value, 'entry', budget=4096) == before
+    assert calls
+    assert any('large_navigation_irrelevant_property' in variants[0] for variants in value['property_variants'].values())
+
+
+def test_unfittable_candidates_do_not_rescan_every_graph_edge(monkeypatch):
+    import atmem.knowledge.code.packing as module
+    value = example()
+    original = list(value['objects'])
+    for index in range(40):
+        row = deepcopy(original[0])
+        row['object_id'] = 'extra-' + str(index)
+        value['objects'].append(row)
+    for index, row in enumerate(value['objects']):
+        row['name'] = 'package.entry_' + 'long_identifier_' * 8 + str(index)
+    real = module.graph_input
+    iterations = []
+    class CountedEdges(list):
+        def __iter__(self):
+            iterations.append(True)
+            return super().__iter__()
+    def checked(generation):
+        nodes, edges = real(generation)
+        return nodes, CountedEdges(edges)
+    monkeypatch.setattr(module, 'graph_input', checked)
+    assert module.pack_generation(value, 'entry', budget=200) == ''
+    assert len(iterations) <= 4
+
+
 def test_corrupt_source_or_scope_never_becomes_context():
     value = example()
     value["source_bytes"]["entry.py"] = base64.b64encode(b"CORRUPTED_SOURCE").decode()

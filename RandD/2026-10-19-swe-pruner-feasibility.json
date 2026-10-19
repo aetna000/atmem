@@ -1,0 +1,30 @@
+{
+  "status": "blocked_local_backend",
+  "reference": {
+    "status": "stopped_for_latency",
+    "stage": "unmodified CPU prune, 8192 padded positions for 5 code lines",
+    "seconds_since_loaded_log": 338.54934000968933,
+    "pid": 854
+  },
+  "padding_adaptation": {
+    "max_token_score_difference": 0.004032492637634277,
+    "document_score_difference": 0.0,
+    "reference_seconds": 10.148731029000032,
+    "trimmed_seconds": 4.598298230999944,
+    "threshold_flips": 0
+  },
+  "real_click_cases_executed": 0,
+  "trained_model_revision": "863cee3198c715c9df1faa422a3490e0832bb734",
+  "package": "swe-pruner==0.1.1",
+  "torch": "2.8.0+cpu",
+  "transformers": "4.57.1",
+  "code_changes_to_product": false,
+  "installed_package_file_sha256": {
+    "__init__.py": "2a5a3cb2b60e76a2c7a3e5e9c79a43b2cc198e703229725a1664f01cf40a0112",
+    "configuration.py": "49b06cc6d26a53db1abf36a614fd0cf8dec42d7b04717add56ab26ece6618621",
+    "model_structure.py": "a9985c6b45260b51a20d94afe087a7307753d0616e0a3a69cc52ce83440e911c",
+    "online_serving.py": "8a051a3e2abd8caa5abc33270e5e787ed7a475e637272c20c549d28ff1e6fd1d",
+    "prune_wrapper.py": "80cd0912af1b8eb7a98e5801aedfab82d811b5704f5e26b3f237b3f4092b9e67",
+    "swepruner.py": "b19d6e3136077e32e6a3b9b86e5ed43eb3803c7a4b9d34bcdf2038f39960d1a7"
+  }
+}

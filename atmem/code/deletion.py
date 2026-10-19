@@ -71,7 +71,7 @@ class CodeDeletion:
                     selected["agent"] is None or scope.get("agent_id") == selected["agent"])
             # Delete only affected derived copies. Adjacent private lanes keep
             # their own context history and caches.
-            for kind in ("exposure", "turn-result", "provider-receipt", "review", "hook-event"):
+            for kind in ("exposure", "turn-result", "provider-receipt", "review", "hook-event", 'curation-exposure'):
                 for item in self.app.store.code_document_items(self.app.subject_id, project, kind):
                     document = item["value"]
                     exposure = document.get("exposure", document)

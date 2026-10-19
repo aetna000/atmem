@@ -67,13 +67,23 @@ class ExtractionWorker:
             subprocess.run(["docker", "rm", "-f", container], capture_output=True, timeout=15)
             raise TimeoutError("isolated extractor deadline exceeded") from None
         if result.returncode:
-            raise RuntimeError("isolated extractor failed; no artifacts admitted")
-        if len(result.stdout) > 20_000_000:
+            # Never reflect worker stderr, which may contain source/secrets.
+            category = 'worker_exit'
+            for marker, code in ((b'invalid extraction output', 'artifact_envelope'),
+                                 (b'extraction result budget exceeded', 'artifact_envelope'),
+                                 (b'source expansion budget exceeded', 'source_envelope')):
+                if marker in result.stderr:
+                    category = code
+                    break
+            if result.returncode == 137:
+                category = 'worker_killed_possible_memory_limit'
+            raise RuntimeError(f"isolated extractor failed (exit={result.returncode}, reason={category}); no artifacts admitted")
+        if len(result.stdout) > 40_000_000:
             raise ValueError("extraction output budget exceeded")
         with tarfile.open(fileobj=io.BytesIO(result.stdout), mode="r:") as archive:
             members = archive.getmembers()
             if (len(members) != 3 or {m.name for m in members} != {"facts.jsonl", "receipt.json", "insights.json"}
-                    or any(not m.isfile() or m.size > 16_000_000 for m in members)):
+                    or any(not m.isfile() or m.size > 32_000_000 for m in members)):
                 raise ValueError("invalid extractor artifact envelope")
             parts = {m.name: archive.extractfile(m).read() for m in members}
         artifacts = ExtractionArtifacts(parts["facts.jsonl"], parts["receipt.json"], parts["insights.json"])

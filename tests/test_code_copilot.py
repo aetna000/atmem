@@ -71,6 +71,8 @@ def test_installed_copilot_capture_recall_pause_resume_uninstall(tmp_path, monke
         (home / "config.json").write_text(json.dumps({"trustedFolders": [str(root.resolve())]}))
         assert installer.enable(project=root, subject_id="local", host="copilot")["enabled"]
         app = CodeApplication(memory, subject_id="local")
+        # Fresh setup is index-first; full-content recall remains opt-in.
+        app.settings(project, {'context_mode': 'content'})
         fixtures = Path(__file__).parent / "fixtures"
         endpoint_type = runpy.run_path(str(fixtures / "responses_endpoint.py"))["ResponsesEndpoint"]
         runner = runpy.run_path(str(fixtures / "copilot_runner.py"))["run_copilot"]
@@ -155,6 +157,8 @@ def test_installed_copilot_memory_is_available_to_claude(tmp_path, monkeypatch):
         with endpoint_type() as endpoint:
             result = runner(root, None, "My preferred formatter is Ruff.", endpoint, configure=False)
             assert result.returncode == 0, result.stderr[-3000:]
+        from atmem.code.application import CodeApplication
+        CodeApplication(memory, subject_id='local').settings(project, {'context_mode': 'content'})
         installer.setup(root, subject_id="local", profile_id="shared", agent_id="claude", host="claude", apply=True)
         assert installer.enable(project=root, subject_id="local", host="claude")["enabled"]
         config = json.loads((root / ".claude/settings.local.json").read_text())

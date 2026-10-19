@@ -13,6 +13,16 @@ from atmem.knowledge.contracts import SourceAnchor, SourceSnapshot, StructuralOb
 
 def map_facts(snapshot: SourceSnapshot, facts: list[dict], *, source_bytes=None):
     files = dict(snapshot.files)
+    # These are properties of the snapshot, not of each fact. Recomputing a
+    # several-thousand-file digest (and splitting the same file) per symbol
+    # makes larger repositories needlessly quadratic.
+    snapshot_id = snapshot.snapshot_id
+    line_counts = {}
+    if source_bytes is not None:
+        for file, data in source_bytes.items():
+            if file not in files or sha256(data).hexdigest() != files[file]:
+                raise ValueError("source bytes do not match snapshot")
+            line_counts[file] = max(1, len(data.splitlines()))
     grouped = defaultdict(list)
     for fact in facts:
         grouped[fact["id"]].append(fact)
@@ -52,12 +62,12 @@ def map_facts(snapshot: SourceSnapshot, facts: list[dict], *, source_bytes=None)
                 if file not in files and not directory and not account and not virtual_rollup:
                     raise ValueError("fact source is outside the authorized snapshot")
                 if file in files:
-                    if source_bytes is not None and (file not in source_bytes or sha256(source_bytes[file]).hexdigest() != files[file]):
+                    if source_bytes is not None and file not in line_counts:
                         raise ValueError("source bytes do not match snapshot")
                     start = fact.get("line")
                     if start is not None:
                         anchor = SourceAnchor(file, files[file], start, fact.get("end_line", start))
-                        if source_bytes is not None and anchor.end_line > max(1, len(source_bytes[file].splitlines())):
+                        if source_bytes is not None and anchor.end_line > line_counts[file]:
                             raise ValueError("measured source span exceeds actual file")
                         anchors.add(anchor)
                     locations.setdefault("fact-" + writer_id, []).append({"path": file, "content_sha256": files[file],
@@ -73,7 +83,7 @@ def map_facts(snapshot: SourceSnapshot, facts: list[dict], *, source_bytes=None)
                 resolved = target in grouped
                 relations.append(StructuralRelation("fact-" + writer_id, "fact-" + target if resolved else None,
                                                     kind, name, "resolver" if resolved else "unresolved"))
-        obj = StructuralObject("fact-" + writer_id, snapshot.scope, snapshot.snapshot_id, row["kind"], row["name"],
+        obj = StructuralObject("fact-" + writer_id, snapshot.scope, snapshot_id, row["kind"], row["name"],
                                tuple(sorted(anchors, key=lambda a: (a.path, a.start_line, a.end_line))),
                                "declared" if row["kind"] in {"intent", "extraction"} else
                                "heuristic" if row["kind"] == "insight" else "syntax")

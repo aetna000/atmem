@@ -3,11 +3,19 @@ from atmem.knowledge._vendor.code_retriever import CodeRetriever, _TYPE_BY_KIND
 from atmem.knowledge.contracts import StructuralObject, StructuralRelation
 from atmem.core.canonical import canonical_json
 
+MAX_GRAPH_OBJECTS = 60_000
+MAX_GRAPH_RELATIONS = 500_000
+
+
+def validate_graph_size(generation):
+    if (len(generation['objects']) > MAX_GRAPH_OBJECTS
+            or len(generation['relations']) > MAX_GRAPH_RELATIONS):
+        raise ValueError('structural graph execution budget exceeded')
+
 
 def graph_input(generation, *, permitted_ids=None):
+    validate_graph_size(generation)
     objects = [StructuralObject.from_dict(o) for o in generation["objects"]]
-    if len(objects) > 10000 or len(generation["relations"]) > 50000:
-        raise ValueError("structural graph execution budget exceeded")
     permitted = {o.object_id for o in objects} if permitted_ids is None else set(permitted_ids)
     nodes = []
     for obj in objects:
@@ -51,7 +59,8 @@ def query_generation(generation, *, operation="query_facts", query="", config=No
         raise ValueError("invalid structural query")
     config = {} if config is None else dict(config)
     nodes, edges = graph_input(generation, permitted_ids=permitted_ids)
-    result = CodeRetriever(operation=operation, **config).execute(nodes, edges, query)
+    result = CodeRetriever(operation=operation, **config).execute(
+        nodes, edges, query, shared_metadata=(generation['receipt'],))
     envelope = {"status": "current", "snapshot_id": generation["snapshot_id"],
                 "generation": generation["generation"], "result": result,
                 "coverage": generation["coverage"], "excluded_counts": generation["excluded_counts"]}

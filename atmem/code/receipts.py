@@ -11,6 +11,25 @@ from atmem.code.contracts import CodeContextPackage, CodeContextRequest
 from atmem.code.formation import memory_subject_id
 
 
+def graph_current(store, request, graph):
+    """Pure source check shared by cached replay and final submission."""
+    if graph.get('knowledge_snapshot_id'):
+        from atmem.knowledge.projections import CodeKnowledge
+        generation = CodeKnowledge.from_store(store, request.scope).current(graph['root'])
+        if generation is None or generation['snapshot_id'] != graph['knowledge_snapshot_id']:
+            raise PermissionError('rich structure changed before submission')
+    from atmem.code.identity import repository_key, _git
+    root = Path(graph['root']).resolve(strict=True)
+    binding = store.code_project_binding(request.scope.subject_id, repository_key(root))
+    if binding is None or binding['project_id'] != request.scope.project_id or _git(root, 'rev-parse', 'HEAD') != graph['revision']:
+        raise PermissionError('code graph revision changed before submission')
+    for name, expected in graph['files'].items():
+        target = root / name
+        if (target.is_symlink() or not target.resolve().is_relative_to(root) or not target.is_file()
+                or target.stat().st_size > 262144 or sha256(target.read_bytes()).hexdigest() != expected):
+            raise PermissionError('code graph file changed before submission')
+
+
 class CodeReceipts:
     def __init__(self, store) -> None:
         if store.path != ":memory:" and store.policy.state != "encrypted":
@@ -18,7 +37,7 @@ class CodeReceipts:
         self.store = store
 
     def prepare(self, request: CodeContextRequest, package: CodeContextPackage, *, host: str, graph_evidence: dict | None = None,
-                repository_root: str | None = None) -> dict:
+                repository_root: str | None = None, index_only: bool = False) -> dict:
         if request.request_id != package.request_id:
             raise ValueError("context request binding mismatch")
         from atmem.extract.validation import screen_content
@@ -39,6 +58,8 @@ class CodeReceipts:
                "capture_coverage": "partial", "reconstruction_status": "not_reconstructable"}
         if graph_evidence is not None:
             row["graph_evidence"] = graph_evidence
+        if index_only:
+            row['presentation'] = 'unchecked_experience_index'
         if repository_root is not None:
             row["repository_root"] = str(Path(repository_root).resolve(strict=True))
         existing = self.store.code_document(request.scope.subject_id, request.scope.project_id, "exposure", request.request_id)
@@ -54,28 +75,13 @@ class CodeReceipts:
             row = self.prepare(request, package, host=host)
             graph = row.get("graph_evidence")
             if graph:
-                if graph.get("knowledge_snapshot_id"):
-                    from atmem.knowledge.projections import CodeKnowledge
-                    knowledge = CodeKnowledge.from_store(self.store, request.scope)
-                    current_generation = knowledge.current(graph["root"])
-                    if current_generation is None or current_generation["snapshot_id"] != graph["knowledge_snapshot_id"]:
-                        raise PermissionError("rich structure changed before submission")
-                from atmem.code.identity import repository_key, _git
-                root = Path(graph["root"]).resolve(strict=True)
-                binding = self.store.code_project_binding(request.scope.subject_id, repository_key(root))
-                if binding is None or binding["project_id"] != request.scope.project_id or _git(root, "rev-parse", "HEAD") != graph["revision"]:
-                    raise PermissionError("code graph revision changed before submission")
-                for name, expected in graph["files"].items():
-                    target = root / name
-                    if (target.is_symlink() or not target.resolve().is_relative_to(root) or not target.is_file()
-                            or target.stat().st_size > 262144 or sha256(target.read_bytes()).hexdigest() != expected):
-                        raise PermissionError("code graph file changed before submission")
+                graph_current(self.store, request, graph)
             for source in row["sources"]:
                 current = self.store.get_record(memory_subject_id(request.scope), source["id"])
                 if current is None or current["status"] != "active" or digest(current) != source["sha256"]:
                     raise PermissionError("context changed before submission")
                 from atmem.code.context import source_current
-                if not source_current(self.store, request, current, row.get("repository_root")):
+                if row.get('presentation') != 'unchecked_experience_index' and not source_current(self.store, request, current, row.get("repository_root")):
                     raise PermissionError("repository changed before context submission")
             if row["state"] == "prepared":
                 row.update(state="submitted", assurance="submitted")

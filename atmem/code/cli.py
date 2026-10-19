@@ -18,6 +18,9 @@ COMMANDS = ("setup", "status", "doctor", "enable", "disable", "uninstall", "proj
             "search", "inspect", "correct", "forget", "config", "clear", "routes", "route-set", "route-delete",
             "graph-index", "graph-search", "graph-status", "keygen", "export", "import", "enroll", "reviews", "review", "attach")
 COMMANDS += ("knowledge-index", "knowledge-query", "knowledge-status", "knowledge-source")
+COMMANDS += ("knowledge-config", "knowledge-worker", "mcp-config", "experiences", "run")
+COMMANDS += ("experience-evidence",)
+COMMANDS += ('discover', 'fetch', 'changes', 'curation-capabilities')
 
 
 def add_commands(parser, *, default_db: str) -> None:
@@ -37,7 +40,36 @@ def add_commands(parser, *, default_db: str) -> None:
         if name in {"search", "graph-search"}:
             command.add_argument("query", nargs="?", default="")
         if name == "knowledge-index":
-            command.add_argument("--image-id", required=True, help="Explicit immutable local extractor image ID; never downloaded automatically")
+            command.add_argument("--image-id", help="Explicit immutable local extractor image ID, or use configured image; never downloaded automatically")
+        if name == "knowledge-config":
+            command.add_argument("--image-id", help="Approve an immutable local extractor image ID")
+        if name == "mcp-config":
+            command.add_argument("--tool-profile", choices=("expanded", "compact", "curated"), default="expanded",
+                                 help="Opt-in compact on-demand tool interface; retrieval and authority unchanged")
+        if name == "knowledge-worker":
+            command.add_argument("destination", help="New or empty directory for packaged worker build resources")
+        if name == 'discover':
+            command.add_argument('query', nargs='?', default='')
+            command.add_argument('--kind', choices=('code', 'experience', 'both'), default='both')
+            command.add_argument('--limit', type=int, default=5)
+            command.add_argument('--budget', type=int, default=4096, help='Serialized UTF-8 byte ceiling, not billed tokens')
+        if name in {'fetch', 'changes'}:
+            command.add_argument('ids', nargs='+')
+            command.add_argument('--goal', default='')
+            command.add_argument('--budget', type=int, default=4096)
+        if name == "experiences":
+            command.add_argument("query", nargs="?", default="")
+            command.add_argument("--limit", type=int, default=20)
+            command.add_argument("--offset", type=int, default=0)
+        if name == 'experience-evidence':
+            command.add_argument('record_id')
+            command.add_argument('receipt_id')
+        if name == "run":
+            command.add_argument("--intent", required=True, help="Task intent, not an assertion that the command will succeed")
+            command.add_argument("--anchor", action="append", required=True, help="Relevant repository-relative source file; repeatable")
+            command.add_argument("--note", default="", help="Optional attributed user note, not verified evidence")
+            command.add_argument("--timeout", type=int, default=300)
+            command.add_argument("argv", nargs=argparse.REMAINDER, help="Explicit command argv after --; no shell interpolation")
         if name == "knowledge-query":
             command.add_argument("query", nargs="?", default="")
             command.add_argument("--operation", default="query_facts", choices=("query_facts", "explore", "traverse", "find_path", "impact_analysis", "architecture", "delta", "insights"))
@@ -115,6 +147,9 @@ def keygen(directory: str) -> dict:
 
 def run(args: argparse.Namespace) -> dict:
     command = args.code_command
+    if command == "knowledge-worker":
+        from atmem.code.knowledge_setup import worker_context
+        return worker_context(args.destination)
     if command == "keygen":
         return keygen(args.directory)
     if command == "doctor":
@@ -149,6 +184,29 @@ def run(args: argparse.Namespace) -> dict:
             raise ValueError("run atmem code setup --apply for this repository first")
         app.authorize(project)
         body = {"project_id": project}
+        if command in {'discover', 'fetch', 'changes', 'curation-capabilities'}:
+            arguments = ({'query': args.query, 'kind': args.kind, 'limit': args.limit, 'budget': args.budget}
+                         if command == 'discover' else
+                         {'ids': args.ids, 'goal': args.goal, 'budget': args.budget} if command in {'fetch', 'changes'} else {})
+            return app.dispatch(command, {**body, 'root': args.project, 'profile': args.profile or 'shared',
+                'agent': args.agent or args.host, 'arguments': arguments})
+        if command == 'experience-evidence':
+            return app.dispatch(command, {**body, 'record_id': args.record_id, 'receipt_id': args.receipt_id})
+        if command == "run":
+            from atmem.code.execution import run_command
+            from atmem.code.contracts import CodeScope
+            argv = args.argv[1:] if args.argv[:1] == ["--"] else args.argv
+            return run_command(app, CodeScope(args.subject, project, args.profile or "shared", args.agent or args.host),
+                args.project, argv, intent=args.intent, anchors=args.anchor, note=args.note, timeout=args.timeout)
+        if command in {"knowledge-config", "mcp-config", "experiences"}:
+            body.update(root=args.project, profile=args.profile or "shared", agent=args.agent or args.host)
+            if command == "knowledge-config":
+                body["image_id"] = args.image_id
+            elif command == "mcp-config":
+                body["tool_profile"] = args.tool_profile
+            elif command == "experiences":
+                body.update(query=args.query, limit=args.limit, offset=args.offset)
+            return app.dispatch(command, body)
         if command == "attach":
             return app.dispatch("project-attach", {**body, "root": args.project, "profile": args.profile or "shared",
                 "agent": args.agent or args.host, "confirm_remote_change": args.confirm_remote_change})

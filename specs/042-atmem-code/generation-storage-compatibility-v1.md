@@ -1,5 +1,11 @@
 # Bounded rich-generation storage — prospective preview correction
 
+Source-preview follow-up, 2026-10-19: the new bounded graph correction raises
+only the logical generation envelope to 256 MB and permits a versioned bounded
+XZ fallback when zlib cannot fit the unchanged physical row. See
+`swebench-preparation-corrections-20261019.md`. The protocol below and its frozen
+historical runs retain their original parameters and outcomes.
+
 2026-10-18. T085; FR-019/026, SC-012. The frozen nineteen-task staging
 candidate remains unchanged and its two PyVista-4853 failures remain failures.
 No solver output, score or token result informed this correction.

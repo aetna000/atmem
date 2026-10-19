@@ -3,6 +3,7 @@
 # Incorporated from Cognee f154b32a9e544dac73e7ddf2010327cf9988edcd; modified by AtMem.
 # Mechanical modifications: remove backend/cache/LLM integration and use an
 # explicitly supplied in-memory authorized snapshot. See third_party/cognee/.
+# Additional AtMem adapter: construction-local shared-metadata work reuse; query algorithms unchanged.
 from __future__ import annotations
 
 import asyncio
@@ -33,6 +34,7 @@ from uuid import UUID
 
 
 from .code_graph_diagram import DIAGRAM_FORMATS, render_result_diagram
+from ..code.normalization import shared_metadata_scope, normalize_shared, scalar_shared
 class CodeSearchValidationError(ValueError):
     pass
 class CodeSeedNotFoundError(CodeSearchValidationError):
@@ -131,7 +133,7 @@ _INTERNAL_EDGE_PROPERTIES = {
 def _json_key(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
-def _normalize_value(value: Any) -> Any:
+def _normalize_value_uncached(value: Any) -> Any:
     """Convert backend-specific UUID/JSON containers into plain JSON values."""
     if isinstance(value, UUID):
         return str(value)
@@ -150,6 +152,10 @@ def _normalize_value(value: Any) -> Any:
             except (TypeError, ValueError):
                 pass
     return value
+
+def _normalize_value(value):
+    return normalize_shared(value, _normalize_value_uncached)
+
 
 def _normalize_properties(value: Any) -> dict[str, Any]:
     """Flatten adapters which return user properties under ``properties``."""
@@ -231,7 +237,7 @@ def _node_types(value: Any, field: str = "node_types") -> set[str] | None:
     values = _as_strings(value, field)
     return {_node_type(item) for item in values} if values else None
 
-def _scalar_text(value: Any) -> str:
+def _scalar_text_uncached(value: Any) -> str:
     if value is True:
         return "true"
     if value is False:
@@ -241,6 +247,10 @@ def _scalar_text(value: Any) -> str:
     if isinstance(value, (dict, list)):
         return _json_key(value)
     return str(value)
+
+def _scalar_text(value):
+    return scalar_shared(value, _scalar_text_uncached)
+
 
 class _CodeGraphSnapshot:
     """Stable in-memory indexes and adjacency over one dataset-scoped graph."""
@@ -1352,8 +1362,9 @@ class CodeRetriever:
         if shown < total:
             prefix += f" (showing {shown})"
         return prefix + (" — " + "; ".join(groups) if groups else "")
-    def execute(self, nodes, edges, query=""):
-        snapshot = _CodeGraphSnapshot(nodes, edges)
+    def execute(self, nodes, edges, query="", *, shared_metadata=()):
+        with shared_metadata_scope(shared_metadata):
+            snapshot = _CodeGraphSnapshot(nodes, edges)
         result = getattr(self, "_" + self.operation)(snapshot, query)
         if self.diagram_format is not None:
             result["diagram"] = render_result_diagram(result, self.diagram_format)

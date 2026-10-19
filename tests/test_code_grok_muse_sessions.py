@@ -44,6 +44,8 @@ def test_controlled_capture_recall_and_pause(tmp_path, monkeypatch, host):
         # Explicit fixture bypass: preserve the production activation refusal.
         memory.store.set_code_installation_enabled(subject_id="local", project_id=project, host=host, enabled=True)
         app = CodeApplication(memory, subject_id="local")
+        # This host qualification retains the explicit full-content mode.
+        app.settings(project, {'context_mode': 'content'})
         credential = tmp_path / (host + ".credential")
         enroll(app, project=project, root=str(root), profile="shared", agent=host,
                host=host, credential_file=str(credential))

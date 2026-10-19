@@ -2003,6 +2003,9 @@ or input errors.""",
         except (OSError, PermissionError, ValueError, RuntimeError) as exc:
             parser.exit(1, f"AtMem Code: {exc}\n")
         _print(result)
+        if args.code_command == "run":
+            code = result.get("exit_code", 1)
+            parser.exit(code if 0 <= code <= 255 else 1)
         return
 
     if args.command == "index":

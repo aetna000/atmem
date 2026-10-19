@@ -44,12 +44,12 @@ output = io.BytesIO()
 with tarfile.open(fileobj=output, mode="w:") as archive:
     for name in ("facts.jsonl", "receipt.json", "insights.json"):
         target = root / ".enola" / name
-        if not target.is_file() or target.stat().st_size > 16_000_000:
+        if not target.is_file() or target.stat().st_size > 32_000_000:
             raise ValueError("invalid extraction output")
         data = target.read_bytes()
         member = tarfile.TarInfo(name)
         member.size = len(data)
         archive.addfile(member, io.BytesIO(data))
-if len(output.getvalue()) > 20_000_000:
+if len(output.getvalue()) > 40_000_000:
     raise ValueError("extraction result budget exceeded")
 sys.stdout.buffer.write(output.getvalue())

@@ -2,6 +2,13 @@
 
 **Status:** Phase 0 protocol only. Phase 9 execution is deferred by the owner. No outcome, score or production benefit claim is authorized by this document.
 
+**2026-10-19 scoped authorization:** The owner subsequently authorized the
+separate [SWE-bench Lite cold-start pilot](swebench-lite-pilot-20261019.md).
+That thirty-task native-versus-structure campaign is not a VibeMemBench run,
+does not resume the paused Click token-optimization goal, and cannot establish
+experience-memory efficacy. The earlier deferral remains applicable to the
+broader campaign below, not to this newly authorized pilot.
+
 [Spec 043 Click replay](../043-click-historical-replay/spec.md) is a separate
 engineering pilot with its own requirements, capability gates and future
 budget/egress authorization. It neither replaces this campaign nor closes the

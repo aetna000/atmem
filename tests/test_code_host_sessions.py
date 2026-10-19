@@ -36,6 +36,8 @@ def test_controlled_host_capture_new_session_recall_and_pause(tmp_path, host):
         project = installer.setup(root, subject_id="local", profile_id="shared", agent_id=host,
                                   host=host, apply=True)["scope"]["project_id"]
         app = CodeApplication(memory, subject_id="local")
+        # Index-first presentation is qualified separately; keep legacy recall.
+        app.settings(project, {'context_mode': 'content'})
         if host == "codex" or os.name == "nt":
             with pytest.raises(RuntimeError, match="not yet verified"):
                 installer.enable(project=root, subject_id="local", host=host)

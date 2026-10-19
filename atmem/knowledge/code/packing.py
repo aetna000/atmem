@@ -495,7 +495,25 @@ def pack_generation(generation, task, *, budget):
     # Validate every object/edge before any content is emitted. The caller owns
     # current-source authorization/revalidation before and after this pure step.
     nodes, edges = graph_input(generation)
+    # Packing traverses only exact IDs and calls edges, then reads node IDs and
+    # depths. Full properties/receipts remain in the validated generation and
+    # public graph queries. Avoid rebuilding upstream property indexes over
+    # repeated extraction receipts and large reference lists for navigation.
+    navigation_nodes = [(key, {field: value[field] for field in
+        ('type', 'name', 'repo', 'file_path', 'line', 'end_line') if field in value})
+        for key, value in nodes]
     available = {key: value for key, value in nodes}
+    # Preserve the first three outgoing hint edges in writer order, once.
+    # Scanning every edge for each candidate makes broad queries quadratic,
+    # particularly when a nearly full pack cannot fit the remaining candidates.
+    outgoing = {}
+    for source, target, kind, _ in edges:
+        if kind in {'declares', 'contains'} or target not in available:
+            continue
+        hints = outgoing.setdefault(source, [])
+        if len(hints) < 3:
+            other = available[target]
+            hints.append((target, f"{kind}: {other['name']} ({other.get('file_path', '')}:{other.get('line', '?')})"))
     terms = words(task)
     explicit = _references(task)
     if not terms or budget == 0:
@@ -576,7 +594,7 @@ def pack_generation(generation, task, *, budget):
         root = roots[0]
         priorities[root["id"]] = 12000
         related = CodeRetriever(operation="explore", id=root["id"], direction="both",
-                                relation_types=["calls"], max_depth=2, max_nodes=12).execute(nodes, edges)
+                                relation_types=["calls"], max_depth=2, max_nodes=12).execute(navigation_nodes, edges)
         for fact in related.get("nodes", []):
             if fact["id"] != root["id"]:
                 priorities[fact["id"]] = max(0, 9000 - 1000 * fact.get("depth", 1))
@@ -644,7 +662,7 @@ def pack_generation(generation, task, *, budget):
             for member in members[:2]:
                 priorities[member["id"]] = 10000 + min(500, lexical(member))
                 related = CodeRetriever(operation="explore", id=member["id"], direction="forward",
-                                        relation_types=["calls"], max_depth=1, max_nodes=6).execute(nodes, edges)
+                                        relation_types=["calls"], max_depth=1, max_nodes=6).execute(navigation_nodes, edges)
                 for fact in related.get("nodes", []):
                     if fact["id"] != member["id"]:
                         priorities[fact["id"]] = max(priorities.get(fact["id"], 0), 9500)
@@ -687,11 +705,7 @@ def pack_generation(generation, task, *, budget):
                 body = row["body"]
                 coverage = ("source anchor" if row["node"] is None else "bounded excerpt" if row["partial"] else
                             "implementation; docstring omitted" if row["omitted"] else "complete definition")
-            neighbors = []
-            for source, target, kind, _ in edges:
-                if source == row["id"] and kind not in {"declares", "contains"} and target in available and len(neighbors) < 3:
-                    other = available[target]
-                    neighbors.append((target, f"{kind}: {other['name']} ({other.get('file_path', '')}:{other.get('line', '?')})"))
+            neighbors = outgoing.get(row['id'], [])
             chunk = f"[AtMem structure {row['path']}:{row['start']}-{row['end']}; {row['name']}; {coverage}]\n{body}\n"
             chunk += _cleanup_sites(row["node"])
             # Keep allocation conservative: removing redundant navigation later
