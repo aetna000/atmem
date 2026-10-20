@@ -9,8 +9,14 @@ import statistics
 
 def report(root):
     rows = []
+    latency_exceptions = []
     for persona in ('morgan', 'alex', 'riley'):
         tests = [json.loads(p.read_text()) for p in sorted((root / 'tests' / persona).glob('*.json'))]
+        for test in tests:
+            for attempt in test.get('attempts', []):
+                if attempt.get('duration_basis'):
+                    latency_exceptions.append({'persona': persona, 'test_id': test['row']['test_id'],
+                        'basis': attempt['duration_basis']})
         grades = [json.loads(p.read_text()) for p in sorted((root / 'grades' / persona).glob('*.json'))]
         times = sorted(t['row']['duration_ms'] / 1000 for t in tests)
         usage = [m['usage'] for t in tests for m in t['row']['messages'] if 'usage' in m]
@@ -59,7 +65,8 @@ def report(root):
         'total_graded': sum(r['graded'] for r in rows), 'total_passed': sum(r['passed'] for r in rows),
         'complete': all(r['executed'] == r['graded'] for r in rows) and sum(r['graded'] for r in rows) == 600,
         'actual_api_costs_and_uncertain_bounds': costs,
-        'latency_includes_memory_preparation_and_execution_excludes_grading_and_cloud_backup': True,
+        'latency_includes_memory_preparation_and_execution_excludes_grading_and_cloud_backup': not latency_exceptions,
+        'latency_exceptions': latency_exceptions,
         'subscription_fees_not_allocated': True,
         'matched_mem0_run': False,
         'latest_verified_cloud_batch': index.get('verified_batches', [None])[-1]}
