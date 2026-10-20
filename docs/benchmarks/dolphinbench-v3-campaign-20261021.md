@@ -1,6 +1,40 @@
 # V3 full-campaign protocol — 2026-10-21
 
-## Current scored condition: wire-faithful one-shot API context
+## Current condition: authenticated product API without the desktop RPC deadline
+
+Run directory: `campaign-atmem-v3-product-api-full-20261021`. This condition
+retains the exact original frozen histories, research wheel, retrieval budgets,
+model settings, rendering, native execution and grading rules described below.
+Only preparation transport changes: the benchmark host calls the installed
+product's authenticated `HermesService.dispatch(..., "prepare-turn", ...)`
+in-process. The ordinary SDK response validator and native provider renderer
+still run; authorization and lifecycle remain product-owned. No context is
+generated or repacked by the controller. All elapsed preparation time is included
+in task latency. This is not a latency/reliability claim for desktop HTTP hooks.
+
+The preceding HTTP condition below is preserved, not combined into this result.
+Multiple ten-second `unavailable_or_denied` outcomes were network deadline
+failures, not semantically insufficient evidence. A read-only direct product
+diagnostic for blocked Morgan003 returned `authorized` with 32 candidates.
+The controller was interrupted at the ten-task checkpoint, before further model
+work. No prior task execution or grade is adopted into this new condition.
+The earlier errors, scores, raw traces and cloud copies remain available.
+This transport correction does not alter source facts, retrieval, grading or
+model instructions. Fourteen export/transport checks pass, including preservation
+of scoped authentication and SDK rejection of malformed in-process responses.
+
+```bash
+ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \
+TMPDIR=/Volumes/AtMemDolphin/tmp \
+TIKTOKEN_CACHE_DIR=/Volumes/AtMemDolphin/cache/tiktoken \
+/private/tmp/atmem-dolphin-controller-v3-20261021/bin/python -I -c \
+'import sys; sys.path.append("/Users/javadtaghia/gitlab/aetnamem-dolphinbench-2.3.9"); from benchmarks.dolphinbench.campaign_v3 import main; main()' \
+--output /Volumes/AtMemDolphin/campaign-atmem-v3-product-api-full-20261021 \
+--baseline-from /Volumes/AtMemDolphin/campaign-atmem-v3-full-r2-20261021 \
+--env-file /path/to/private.env --confirm-paid-grading
+```
+
+## Preserved HTTP condition: wire-faithful one-shot API context
 
 Run directory: `campaign-atmem-v3-system-full-20261021`. Adopt the cloud-verified
 13,539 history records and exact frozen product checkpoints from the earlier

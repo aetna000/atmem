@@ -26,7 +26,8 @@ from .recording import BudgetLedger
 def prior_exposure():
     roots = ('campaign-atmem-239', 'campaign-atmem-239-qualified',
              'campaign-atmem-239-full', 'campaign-atmem-239-frozen',
-             'atbot-semantic-diagnostic', 'sol-judge-qualification-20261021')
+             'atbot-semantic-diagnostic', 'sol-judge-qualification-20261021',
+             'campaign-atmem-v3-system-full-20261021')
     total = 0
     for name in roots:
         path = Path('/Volumes/AtMemDolphin') / name / 'budget.db'
@@ -91,7 +92,7 @@ def main():
         'formation': 'scoped administrator-authorized Memory.form_context_episode',
         'retrieval': 'Memory.prepare_context_v3; context-fast; 200 candidates; 32000 bytes',
         'pre_action_gate': 'product V3 sufficient status required before model invocation',
-        'memory_delivery': 'unchanged product prepare-turn context through native Hermes ephemeral_system_prompt; no user-side prefetch',
+        'memory_delivery': 'authenticated in-process product prepare-turn, unchanged SDK validation/rendering and native ephemeral_system_prompt; no user-side prefetch or desktop RPC deadline',
         'frozen_baseline_from': str(args.baseline_from.resolve()) if args.baseline_from else None,
         'ingestion': 'local source-episode import, no model calls, same mode as historical 5% run',
         'agent': {'model': 'openai/gpt-5.6-luna', 'reasoning': 'medium', 'max_turns': 20,
@@ -111,7 +112,7 @@ def main():
         'memory_engine': 'context-v3', 'ingestion_mode': 'source-episode',
         'app_python': '/private/tmp/atmem-dolphin-apps-v3-20261021/bin/python',
         'runtime_root': '/private/tmp/atmem-dolphin-runtime-v3-20261021',
-        'memory_delivery': 'native-ephemeral-system',
+        'memory_delivery': 'native-product-api',
         'subscription_endpoint': 'listener-pending'}
     if args.baseline_from:
         options['baseline_memory_root'] = str(args.baseline_from.resolve() / 'memory')
@@ -178,7 +179,7 @@ def main():
             save_new(root / ('resume-qualification-' + stamp + '.json' if args.resume else 'live-qualification.json'), {'passed': True, 'diagnostic_only': True,
                 'native_agent': 'Hermes', 'provider': 'OpenAI-Subscription', 'memory_engine': 'context-v3',
                 'exact_original_user_verified_by_upstream_runner': True,
-                'memory_delivery': 'native-ephemeral-system',
+                'memory_delivery': 'native-product-api',
                 'response': text, 'model_calls_have_actual_usage': True,
                 'simulated_tool_calls': observed_tools,
                 'tool_diagnostic_memory_gate': 'not applied to the separate transport-only read',

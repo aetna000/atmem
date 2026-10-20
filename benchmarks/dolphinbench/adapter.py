@@ -99,11 +99,12 @@ class AtMemAdapter:
         home = self.runtime.root / 'profiles' / profile
         home.mkdir(mode=0o700)
         host = self.host(request.persona)
-        governed_context = '' if self.options.get('memory_delivery') == 'native-ephemeral-system' else None
+        governed_context = '' if self.options.get('memory_delivery') in {'native-ephemeral-system', 'native-product-api'} else None
         if self.memory_engine == 'context-v3' and request.phase == 'tests' and self.options.get('pre_action_gate', True):
             if governed_context is not None:
                 ruling, governed_context = host.prepare_native_context(request.dated_message,
-                    home=home, session_id='gate-' + request.interaction_id, native_source=self.runtime.source)
+                    home=home, session_id='gate-' + request.interaction_id, native_source=self.runtime.source,
+                    in_process=self.options.get('memory_delivery') == 'native-product-api')
             else:
                 ruling = host.service.dispatch(host.credential, 'recall', {'query': request.dated_message,
                     'session_id': 'gate-' + request.interaction_id, 'turn_id': request.interaction_id})

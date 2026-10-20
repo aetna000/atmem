@@ -67,7 +67,7 @@ class AtMemHost:
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
 
-    def prepare_native_context(self, query, *, home, session_id, native_source):
+    def prepare_native_context(self, query, *, home, session_id, native_source, in_process=False):
         """Use the installed product provider's RPC, authorization and renderer.
 
         Observe the returned ruling, without changing it or implementing a
@@ -81,6 +81,14 @@ class AtMemHost:
 
         class ObservedClient(HermesRPCClient):
             prepared = None
+            def _call(client_self, operation, payload, *, timeout=None):
+                if in_process and operation == 'prepare-turn':
+                    # Same authenticated product endpoint, schema, governance,
+                    # retrieval and lifecycle. Avoid only the desktop RPC's
+                    # ten-second network deadline in this bulk-history study.
+                    return self.service.dispatch(self.credential, operation, payload)
+                return super()._call(operation, payload, timeout=timeout)
+
             def prepare_turn(self, *args, **kwargs):
                 self.prepared = super().prepare_turn(*args, **kwargs)
                 return self.prepared
