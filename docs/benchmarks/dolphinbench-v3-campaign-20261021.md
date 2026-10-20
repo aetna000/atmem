@@ -77,7 +77,8 @@ including the actual Sol replay diagnostic (US$0.001136). Combined ceiling: US$2
 Two external-workspace native binaries failed their wheel RECORD hashes/code
 signatures during preparation. They are infrastructure failures, not task scores.
 Executable runtimes now use isolated internal temporary directories with native
-RECORD verification; datasets, memory databases and evidence remain on MEM.
+RECORD verification; datasets and evidence remain on MEM. Working databases
+initially remained there, then were staged offline as documented below.
 No user runtime, global login, release installation or unrelated disk data was
 replaced. Only managed dependencies were staged, never user memory/auth files.
 The subsequent benchmark-only working-database staging is recorded below.
