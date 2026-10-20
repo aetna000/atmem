@@ -90,14 +90,23 @@ before full ingestion. `--resume` accepts only that exact condition and reuses
 completed interactions/grades; uncertain native generations are not blindly replayed.
 
 ```bash
-ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-product-home \
+ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \
 TMPDIR=/Volumes/AtMemDolphin/tmp \
 TIKTOKEN_CACHE_DIR=/Volumes/AtMemDolphin/cache/tiktoken \
 /private/tmp/atmem-dolphin-controller-v3-20261021/bin/python -I -c \
 'import sys; sys.path.append("/Users/javadtaghia/gitlab/aetnamem-dolphinbench-2.3.9"); from benchmarks.dolphinbench.campaign_v3 import main; main()' \
---output /Volumes/AtMemDolphin/campaign-atmem-v3-full-20261021 \
+--output /Volumes/AtMemDolphin/campaign-atmem-v3-full-r2-20261021 \
 --env-file /path/to/private.env --confirm-paid-grading
 ```
+
+Execution source: `e0c97a4`. The first launch completed its isolated live
+qualification but the upstream runner refused initialization because nested
+qualification receipts preceded `run.json`. No benchmark histories/tasks or
+Sol grading ran there. It remains archived separately. The controller correction
+creates the upstream identity first; the new `r2` directory is a fresh condition,
+not a retried or selected task result. Product wheel and model settings did not
+change. All final installed gates passed: 93 product/native contract tests and
+6 transport/replay tests (overlapping older reports are not summed).
 
 Raw requests, actual provider Responses bodies, normalized native exchanges,
 tool results, usage, rulings, costs and V3 source/evidence exports are archived to
