@@ -3,10 +3,42 @@
 The upstream append-only validator remains authoritative. Auxiliary calls are
 retained separately, never misrepresented as conversation turns.
 """
+import copy
 import json
 from pathlib import Path
 
 from .recording import fingerprint
+
+
+def normalize_dispatch_envelopes(messages):
+    """Export modern unary dispatch in the upstream-supported unary envelope.
+
+    Only the wrapper shape changes, not call IDs, arguments, tool results,
+    model text, ordering or usage. Retain reversible originals separately.
+    Native Hermes rejects multi-entry batches of these local MCP tools; leave
+    those rejected requests untouched rather than inventing dispatched calls.
+    """
+    result = copy.deepcopy(messages)
+    changes = []
+    for position, message in enumerate(result):
+        for index, call in enumerate(message.get('tool_calls', [])):
+            arguments = call.get('arguments', {})
+            if call.get('name') != 'tool_call' or set(arguments) != {'calls'}:
+                continue
+            entries = arguments['calls']
+            if not isinstance(entries, list) or len(entries) != 1:
+                continue
+            entry = entries[0]
+            if (not isinstance(entry, dict) or set(entry) != {'name', 'arguments'}
+                    or not isinstance(entry['name'], str)
+                    or not isinstance(entry['arguments'], dict)):
+                continue
+            changes.append({'message_position': position, 'tool_call_position': index,
+                            'original': copy.deepcopy(call)})
+            call['arguments'] = copy.deepcopy(entry)
+    return result, {'format': 'hermes-unary-envelope-export-v1',
+                    'original_messages_sha256': fingerprint(messages),
+                    'exported_messages_sha256': fingerprint(result), 'changes': changes}
 
 
 def assistant_response(response):
@@ -84,5 +116,6 @@ def export_interaction(calls_root, witness_path):
     if unmatched:
         raise ValueError('Native request has no exact gateway receipt')
     result = build_rollout(events)
+    result['messages'], result['dispatch_envelope_normalization'] = normalize_dispatch_envelopes(result['messages'])
     result['auxiliary_calls'] = auxiliary
     return result

@@ -79,7 +79,7 @@ def main():
     sys.path.append(str(upstream))
     from harness.adapter import Interaction
     from harness.runner import Runner, run_lock, digest, save
-    from harness.submission import read_release
+    from harness.submission import read_release, grading_calls
     from scripts.openrouter_azure_sol import load_key
     release = read_release(upstream)
     identity = {'format': 'atmem-dolphin-v3-campaign-v1',
@@ -169,6 +169,7 @@ def main():
                     'test': 'List my inbox using the provided application tools. Do not send or change anything.',
                     'narrative_anchor_date': first['narrative_date']})
                 observed_tools = [call['tool'] for call in tool_result['row'].get('app_calls', [])]
+                grading_calls(tool_result['row'], 'live tool-format qualification')
                 if 'list_inbox' not in observed_tools:
                     raise RuntimeError('The live subscription agent did not execute the simulated inbox read')
             finally:

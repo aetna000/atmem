@@ -25,6 +25,19 @@ Qualification uses the unmodified upstream `Runner._execute`, not just the
 adapter directly. It requires an exact original user message, actual provider
 instructions containing the complete native prologue, a recalled company answer,
 a real simulated inbox call and unchanged frozen product memory.
+It also applies the unmodified `grading_calls` validator to the independent
+application log. Modern Hermes unary `tool_call(calls=[entry])` envelopes are
+exported in the upstream-supported `tool_call(entry)` shape. IDs, arguments,
+model text, tool-result bytes, order and usage remain unchanged; reversible
+envelope receipts accompany exports and the original API bodies remain intact.
+Hermes rejects batches of multiple local MCP tools; those rejected requests are
+retained unchanged, never converted into fictitious executed actions.
+The first saved task stopped before grading on this serialization mismatch. Its
+recording is repaired reversibly by
+`scripts/reconcile_dolphin_unary_export_20261021.py`, without rerunning the model
+or its actions. Previous run identity, original task row and the exact two changed
+controller-source hashes are retained. No memory/model/rubric settings change.
+Thirteen export and native transport regression checks passed for this repair.
 The Hermes auxiliary converter ignored `developer` rows; the compatibility bridge
 now maps a homogeneous instruction prologue to Responses `instructions` and
 asserts exact equality before each provider call. Mixed instruction priorities
