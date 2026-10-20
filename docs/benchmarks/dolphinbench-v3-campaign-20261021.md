@@ -20,13 +20,24 @@ The controller was interrupted at the ten-task checkpoint, before further model
 work. No prior task execution or grade is adopted into this new condition.
 The earlier errors, scores, raw traces and cloud copies remain available.
 This transport correction does not alter source facts, retrieval, grading or
-model instructions. Fifteen export/transport checks pass, including preservation
+model instructions. Seventeen export/transport checks pass, including preservation
 of scoped authentication and SDK rejection of malformed in-process responses.
 The in-process response traverses an identical JSON serialization round trip
 before SDK validation (including tuples becoming arrays). An initial unscored
 qualification caught that missing conversion; its original identity and failure
 are retained. Resumption before baseline adoption preserves the existing cloud
 verification chain; no scored task was executed in that failed qualification.
+
+Effective-call export also represents omitted optional arguments whose defaults
+the actual application server logs explicitly. Defaults must be literal values
+proven from the pinned `mock_mcp/repair*.py` function signatures. The exporter
+may expand only those omitted defaults to match the independent backend log;
+it refuses changed explicit values, unknown/required fields and conflicting
+signatures. Model text, results, usage, original wire calls, app logs and grading
+inputs are untouched. Each expanded canonical call retains its reversible
+original and signature/source SHA provenance. Morgan005 stopped before grading
+on omitted `cc=None`; its saved execution is repaired without rerunning any action
+by `scripts/reconcile_dolphin_defaults_20261021.py`. Earlier grades stay fixed.
 
 ```bash
 ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \

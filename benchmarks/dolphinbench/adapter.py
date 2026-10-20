@@ -166,7 +166,11 @@ class AtMemAdapter:
                     'product_context_sha256': hashlib.sha256(governed_context.encode()).hexdigest()})
             elif not providers or any(p['name'] != 'atmem' or p['pending_writes'] != 0 or p['write_errors'] != 0 for p in providers):
                 raise RuntimeError('Native memory provider did not drain cleanly')
-            export = export_interaction(directory / 'calls', home / 'api-witness.jsonl')
+            from graders.mechanical import load_tool_calls
+            app_calls = load_tool_calls(Path(request.apps['env']['DOLPHINBENCH_LOG_PATH']))
+            export = export_interaction(directory / 'calls', home / 'api-witness.jsonl',
+                app_calls=app_calls,
+                default_source_paths=Path('/Volumes/AtMemDolphin/upstream/mock_mcp').glob('repair*.py'))
             if governed_context is not None:
                 if [m.get('content') for m in export['messages'] if m.get('role') == 'user'] != [request.dated_message]:
                     raise RuntimeError('Native system-context mode changed the original user boundary')

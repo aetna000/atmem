@@ -69,7 +69,7 @@ def assistant_response(response):
     return answer, usage
 
 
-def export_interaction(calls_root, witness_path):
+def export_interaction(calls_root, witness_path, *, app_calls=None, default_source_paths=()):
     from harness.submission import SETTINGS_FIELDS, clean_message
     from harness.submission_capture import build_rollout, chat_messages
 
@@ -117,5 +117,9 @@ def export_interaction(calls_root, witness_path):
         raise ValueError('Native request has no exact gateway receipt')
     result = build_rollout(events)
     result['messages'], result['dispatch_envelope_normalization'] = normalize_dispatch_envelopes(result['messages'])
+    if app_calls is not None:
+        from .tool_defaults import normalize_effective_arguments
+        result['messages'], result['application_default_normalization'] = normalize_effective_arguments(
+            result['messages'], app_calls, default_source_paths)
     result['auxiliary_calls'] = auxiliary
     return result
