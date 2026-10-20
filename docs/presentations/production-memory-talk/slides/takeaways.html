@@ -1,0 +1,27 @@
+<section id="takeaways" data-transition="fade" style="background:#13202F;color:#EEF1F4;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:56px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#F0A35E;font-weight:600">Key takeaways</p>
+<h2 style="font-size:64px;font-weight:600;line-height:1.1;color:#EEF1F4">Build the control plane, not just the agent</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:36px 64px">
+<div style="display:flex;gap:28px;align-items:baseline;border-top:1px solid #3A4D63;padding:24px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#F0A35E;font-weight:600">01</p><p style="font-size:32px;line-height:1.35">Put governance underneath before you ship the clever agent</p></div>
+<div style="display:flex;gap:28px;align-items:baseline;border-top:1px solid #3A4D63;padding:24px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#F0A35E;font-weight:600">02</p><p style="font-size:32px;line-height:1.35">One memory authority: models propose, AtMem decides</p></div>
+<div style="display:flex;gap:28px;align-items:baseline;border-top:1px solid #3A4D63;padding:24px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#F0A35E;font-weight:600">03</p><p style="font-size:32px;line-height:1.35">Start in shadow, activate on evidence, keep restore one command away</p></div>
+<div style="display:flex;gap:28px;align-items:baseline;border-top:1px solid #3A4D63;padding:24px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#F0A35E;font-weight:600">04</p><p style="font-size:32px;line-height:1.35">Every turn leaves a verifiable, hash-chained flight record</p></div>
+<div style="display:flex;gap:28px;align-items:baseline;border-top:1px solid #3A4D63;padding:24px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#F0A35E;font-weight:600">05</p><p style="font-size:32px;line-height:1.35">Keep agent and operator surfaces strictly apart</p></div>
+<div style="display:flex;gap:28px;align-items:baseline;border-top:1px solid #3A4D63;padding:24px 0 0 0"><p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#F0A35E;font-weight:600">06</p><p style="font-size:32px;line-height:1.35">Gate releases on measured, honestly reported quality</p></div>
+</div>
+<aside>So, the key takeaways.
+
+One: build the framework underneath, not just the agent. Don’t rush an agent with memory into production and discover later that you needed authority, evidence and a way back. Put those in place first.
+
+Two: have exactly one memory authority. Models, including AtBot, can propose. Only the control plane decides what is stored, scoped, injected, corrected or deleted.
+
+Three: start in shadow mode, activate only on evidence you’ve reviewed, and keep restore one command away, rehearsed with a drill.
+
+Four: every turn should leave a verifiable flight record: what memory was considered, what was injected, what the model saw, which tools ran, and how it ended, all hash-chained.
+
+Five: keep the agent-facing surface and the operator surface strictly apart. An agent should never be able to approve its own memory or switch its own governance on or off.
+
+And six: gate releases on measured quality, with safety required to be perfect, and report the numbers honestly, caveats included.</aside>
+</section>

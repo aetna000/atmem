@@ -1,0 +1,50 @@
+<section id="tasks" data-transition="fade" style="background:#F5F3EE;color:#1B2433;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#A65A12;font-weight:600">Governed task state</p>
+<h2 style="font-size:64px;font-weight:600;line-height:1.1;color:#14202E">Governing work in progress, not just memory</h2>
+</div>
+<div style="display:flex;gap:20px;align-items:center">
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#E6EDF6;border:2px solid #2563A8;border-radius:16px;padding:28px">
+<h3 style="font-size:30px;font-weight:600;color:#14202E">1 · Enable</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5566">off by default; one exact scope</p>
+</div>
+<x-shape kind="arrow-right" style="width:48px;height:24px;background:#2563A8"></x-shape>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#E6EDF6;border:2px solid #2563A8;border-radius:16px;padding:28px">
+<h3 style="font-size:30px;font-weight:600;color:#14202E">2 · Start</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5566">a goal plus required items</p>
+</div>
+<x-shape kind="arrow-right" style="width:48px;height:24px;background:#2563A8"></x-shape>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#E6EDF6;border:2px solid #2563A8;border-radius:16px;padding:28px">
+<h3 style="font-size:30px;font-weight:600;color:#14202E">3 · Progress</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5566">revisioned items and blockers</p>
+</div>
+<x-shape kind="arrow-right" style="width:48px;height:24px;background:#2563A8"></x-shape>
+<div style="flex:1;display:flex;flex-direction:column;gap:8px;background:#E6EDF6;border:2px solid #2563A8;border-radius:16px;padding:28px">
+<h3 style="font-size:30px;font-weight:600;color:#14202E">4 · Complete</h3>
+<p style="font-size:24px;line-height:1.4;color:#4A5566">only when completion is allowed</p>
+</div>
+</div>
+<div style="display:flex;gap:32px">
+<div style="flex:1;display:flex;flex-direction:column;gap:12px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:36px">
+<h3 style="font-size:32px;font-weight:600;color:#14202E">Never long-term memory</h3>
+<p style="font-size:26px;line-height:1.4;color:#4A5566">Temporary progress is a separate authority plane and never becomes personal memory.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:36px">
+<h3 style="font-size:32px;font-weight:600;color:#14202E">Exact task identity</h3>
+<p style="font-size:26px;line-height:1.4;color:#4A5566">AtMem never guesses a task from prompt text or picks among open tasks.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px;background:#FCFBF8;border:1px solid #E1DED6;border-radius:16px;padding:36px">
+<h3 style="font-size:32px;font-weight:600;color:#14202E">Proposals revalidated</h3>
+<p style="font-size:26px;line-height:1.4;color:#4A5566">AtBot may propose a task change; AtMem revalidates and commits it.</p>
+</div>
+</div>
+<aside>Memory is about what an agent knows. But production agents also need governance over what they are doing right now. That’s Governed Task State.
+
+It’s a separate, revisioned authority plane for the current task: what the agent is working on, what remains, what’s blocked, and whether completion is allowed. Think of it as the planning and approval part of an agent workflow, but with an audit trail.
+
+The lifecycle is simple. First, enable it for one exact scope; it’s disabled by default. Second, start a task with a goal and required items, for example “run release verification”. Third, as the agent works, items and blockers change, and every change is a new revision with a recorded decision. Fourth, the task can complete only when completion is allowed.
+
+Three properties matter. First, temporary task progress never turns into long-term personal memory; they’re separate planes. Second, AtMem needs an exact task identity. Pydantic AI passes it in run dependencies, LangGraph through configurable, and OpenClaw through the owner-authorised conversation binding. AtMem never guesses from prompt text or chooses among open tasks. Third, same rule as before: AtBot may propose a task change, but AtMem revalidates and commits it.
+
+The dashboard’s governed tasks card shows progress, blockers, recent decisions, the current revision and guarded lifecycle actions.</aside>
+</section>

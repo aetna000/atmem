@@ -1,0 +1,31 @@
+<section id="blackbox-demo" data-transition="fade" style="background:#13202F;color:#EEF1F4;font-family:'IBM Plex Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#F0A35E;font-weight:600">Walkthrough</p>
+<h2 style="font-size:64px;font-weight:600;line-height:1.1;color:#EEF1F4">Investigating a flight, step by step</h2>
+</div>
+<div style="display:flex;gap:48px;align-items:start">
+<div style="width:960px;background:#0C1622;border:1px solid #3A4D63;border-radius:16px;padding:40px">
+<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:26px;line-height:1.7;color:#E6EAF0"><span style="color:#8FA3B8"># 1. find recent runs</span><br>atmem blackbox runs --limit 50<br><span style="color:#8FA3B8"># 2. read one run as a story</span><br>atmem blackbox story RUN_ID<br><span style="color:#8FA3B8"># 3. prove the chain is intact</span><br>atmem blackbox verify RUN_ID<br><span style="color:#8FA3B8"># 4. hand evidence to a reviewer</span><br>atmem blackbox export RUN_ID --format json<br><span style="color:#8FA3B8"># 5. acknowledge a finding</span><br>atmem blackbox ack RUN_ID ATTENTION_CODE</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:28px">
+<h3 style="font-size:32px;font-weight:600;color:#EEF1F4">Dashboard flight nodes</h3>
+<div style="display:flex;gap:20px;align-items:center"><div style="width:28px;height:28px;background:#5CC08A;border-radius:50%"></div><p style="font-size:26px;color:#B8C4D2"><b style="color:#EEF1F4">Green:</b> no active finding</p></div>
+<div style="display:flex;gap:20px;align-items:center"><div style="width:28px;height:28px;background:#F0B44C;border-radius:50%"></div><p style="font-size:26px;color:#B8C4D2"><b style="color:#EEF1F4">Amber:</b> needs review</p></div>
+<div style="display:flex;gap:20px;align-items:center"><div style="width:28px;height:28px;background:#E56B6B;border-radius:50%"></div><p style="font-size:26px;color:#B8C4D2"><b style="color:#EEF1F4">Red:</b> failed run or incomplete evidence</p></div>
+<p style="font-size:26px;line-height:1.4;color:#B8C4D2;border-top:1px solid #3A4D63;padding:24px 0 0 0">Acknowledging a finding never deletes or rewrites evidence.</p>
+</div>
+</div>
+<aside>Let me walk you through how an investigation looks in practice.
+
+Say someone reports that the agent did something odd yesterday. Step one, find the run: “atmem blackbox runs” lists recent flights. Step two, “atmem blackbox story” with the run ID tells that run as a readable story: what came in, what memory was considered and injected, which tools were called, and how the turn ended.
+
+Step three, “atmem blackbox verify” proves the hash chain for that run is intact, so you know you’re looking at what was recorded and not something edited later.
+
+Step four, if a security or compliance reviewer needs the evidence, “atmem blackbox export” writes it as JSON or text.
+
+And step five, once you’ve dealt with a finding, “atmem blackbox ack” with its attention code acknowledges it.
+
+The dashboard shows the same thing visually. It opens with a concise action timeline. A flight node is green when no active finding remains, amber when it needs review, and red when the run failed or its evidence is incomplete. Select a node and you see the request and reply where a protected local reader can supply them, the memory used, tools and websites, model and provider, tokens, latency, risks, any blocking reason, outcome evidence and hashes.
+
+Most importantly, acknowledging a finding never deletes or rewrites evidence. The record stays.</aside>
+</section>

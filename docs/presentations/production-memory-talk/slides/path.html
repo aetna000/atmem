@@ -1,0 +1,49 @@
+<section id="path" data-transition="fade" style="display:flex; flex-direction:column; gap:32px; padding:128px; background:#f5f3ee">
+  <div style="display:flex; flex-direction:column; gap:12px">
+    <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#a65a12">Rollout path</p>
+    <h2 style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:64px; font-weight:600; line-height:1.1; color:#14202e">From laptop to production in six reviewed steps</h2>
+  </div>
+  <div style="display:flex; flex-direction:row; gap:20px; align-items:center">
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1; padding:28px 32px; background:#fcfbf8; border:1px solid #e1ded6; border-radius:16px">
+      <h3 style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:30px; font-weight:600; color:#14202e">1 · Install</h3>
+      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#2563a8">python -m pip install atmem</p>
+      <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4a5566">AtBot companion and vector index included</p>
+    </div>
+    <x-shape kind="arrow-right" style="width:48px; height:24px; background:#a65a12"></x-shape>
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1; padding:28px 32px; background:#fcfbf8; border:1px solid #e1ded6; border-radius:16px">
+      <h3 style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:30px; font-weight:600; color:#14202e">2 · Choose intelligence</h3>
+      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#2563a8">atmem atbot setup</p>
+      <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4a5566">Ollama, hosted, or deterministic fallback</p>
+    </div>
+    <x-shape kind="arrow-right" style="width:48px; height:24px; background:#a65a12"></x-shape>
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1; padding:28px 32px; background:#fcfbf8; border:1px solid #e1ded6; border-radius:16px">
+      <h3 style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:30px; font-weight:600; color:#14202e">3 · Initialize</h3>
+      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#2563a8">atmem init</p>
+      <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4a5566">Local accounts and portable Home</p>
+    </div>
+  </div>
+  <div style="display:flex; flex-direction:row; gap:20px; align-items:center">
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1; padding:28px 32px; background:#fcfbf8; border:1px solid #e1ded6; border-radius:16px">
+      <h3 style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:30px; font-weight:600; color:#14202e">4 · Connect in shadow</h3>
+      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#2563a8">atmem openclaw install</p>
+      <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4a5566">or atmem control shadow for any host</p>
+    </div>
+    <x-shape kind="arrow-right" style="width:48px; height:24px; background:#a65a12"></x-shape>
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1; padding:28px 32px; background:#fcfbf8; border:1px solid #e1ded6; border-radius:16px">
+      <h3 style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:30px; font-weight:600; color:#14202e">5 · Review</h3>
+      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#2563a8">atmem dashboard</p>
+      <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4a5566">See what AtMem would have injected</p>
+    </div>
+    <x-shape kind="arrow-right" style="width:48px; height:24px; background:#a65a12"></x-shape>
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1; padding:28px 32px; background:#fcfbf8; border:1px solid #e1ded6; border-radius:16px">
+      <h3 style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:30px; font-weight:600; color:#14202e">6 · Activate</h3>
+      <p style="font-family:'JetBrains Mono', 'Courier New', monospace; font-size:24px; color:#2563a8">atmem control activate</p>
+      <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4a5566">then atmem control verify</p>
+    </div>
+  </div>
+  <div style="display:flex; flex-direction:row; gap:24px; align-items:center; padding:28px 36px; background:#13202f; border-radius:16px">
+    <x-icon name="Lock" style="width:40px; height:40px; color:#f0a35e"></x-icon>
+    <p style="font-family:'IBM Plex Sans', Arial, sans-serif; font-size:28px; color:#eef1f4">Any time: <span style="color:#f0a35e">atmem control restore</span> returns the host to native memory.</p>
+  </div>
+  <aside>Let’s talk about the path from local development to production, because this is where most memory projects go wrong. They switch everything on at once. Step one, install. It’s a single Python package; the AtBot companion and a dependency-free local vector index come with it. Don’t install AtBot separately. Step two, choose memory intelligence with “atmem atbot setup”: a local Ollama model, a local OpenAI-compatible server, a hosted provider, or the safe deterministic fallback. API keys stay in environment variables; AtMem doesn’t save them. Step three, “atmem init” creates local sign-in accounts and the portable AtMem Home that holds config, identity, memory and evidence. Step four, connect your agent. For OpenClaw, “atmem openclaw install” does it all: it installs the matching bridge, discovers agents and workspaces, and starts in shadow mode. For any other host, run “atmem control shadow”. Step five, review. In shadow mode AtMem learns and shows you what it would have retrieved, but it can’t change model context. You review that in the dashboard. Step six, and only after review, you explicitly activate, then run “atmem control verify”. And at every point there’s a way back: “atmem control restore” returns the host to its native memory through a journaled, verified procedure.</aside>
+</section>

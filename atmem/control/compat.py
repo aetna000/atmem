@@ -21,6 +21,12 @@ import re
 # added an optional input-commit guard. The parser fixture and full bridge
 # type, build and behavior suites pin the reviewed surface; the governed
 # identity fields and fail-closed absence contract are unchanged.
+# 2026.10.4 verification: additive optional context fields only (memoryAudience
+# and assertMemoryAudienceCurrent on agent and tool contexts, memoryFlush on the
+# tool context, sandboxed on the agent context, endedTranscript on the session
+# context). Nothing was removed or made required, no task identity appeared,
+# and the hook-context premise check plus the full bridge build and test suite
+# pass against the recorded fixture.
 TESTED_OPENCLAW_VERSIONS = (
     "2026.7.1-2",
     "2026.8.1",
@@ -30,6 +36,7 @@ TESTED_OPENCLAW_VERSIONS = (
     "2026.9.5",
     "2026.9.6",
     "2026.9.9",
+    "2026.10.4",
 )
 
 _VERSION_RE = re.compile(r"(?<!\d)(\d{4})\.(\d+)\.(\d+)(?:-(\d+))?(?!\d)")
