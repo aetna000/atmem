@@ -13,12 +13,19 @@ def report(root):
         grades = [json.loads(p.read_text()) for p in sorted((root / 'grades' / persona).glob('*.json'))]
         times = sorted(t['row']['duration_ms'] / 1000 for t in tests)
         usage = [m['usage'] for t in tests for m in t['row']['messages'] if 'usage' in m]
+        auxiliary = []
+        for test in tests:
+            exported = root / 'native/tests' / persona / test['row']['test_id'] / 'export.json'
+            if exported.exists():
+                auxiliary.extend(a['usage'] for a in json.loads(exported.read_text()).get('auxiliary_calls', []))
+        usage += auxiliary
         rows.append({'persona': persona, 'executed': len(tests), 'graded': len(grades),
             'passed': sum(bool(g['checks']) and all(c['passed'] for c in g['checks']) for g in grades),
             'blocked_before_model': sum(any(a.get('gate_blocked') for a in t.get('attempts', [])) for t in tests),
             'model_responses': len([u for u in usage if u.get('prompt_tokens', u.get('input_tokens', 0))]),
             'input_tokens': sum(u.get('prompt_tokens', u.get('input_tokens', 0)) for u in usage),
             'output_tokens': sum(u.get('completion_tokens', u.get('output_tokens', 0)) for u in usage),
+            'auxiliary_calls_included_in_token_totals': len(auxiliary),
             'median_task_seconds': statistics.median(times) if times else None,
             'p95_task_seconds': times[max(0, (len(times) * 95 + 99) // 100 - 1)] if times else None})
     book = sqlite3.connect(f'{(root / "budget.db").as_uri()}?mode=ro', uri=True)
