@@ -22,7 +22,7 @@ model answers. Paid judge reservations cannot use that settlement path.
 Already completed task and grade files remain hash-identical. Alex024's recovered
 latency is the measured native CLI duration; its preparation overhead was not
 available and is not invented. Recovery receipts are under
-`repairs/subscription-timeout-terminal-20261021`. Thirty-five recording/transport
+`repairs/subscription-timeout-terminal-20261021`. Thirty-eight recording/transport
 regression checks pass. No product memory algorithm or grading condition changed.
 
 ## Current condition: published Luna reader settings, unchanged V3 memory
