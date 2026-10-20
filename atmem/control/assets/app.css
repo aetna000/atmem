@@ -576,3 +576,16 @@ pre.jsonlog{max-width:100%;box-sizing:border-box;margin:8px 0;padding:16px;overf
 .pageheading > div { gap: 10px; }
 .continuity-operation { margin: 10px 0; }
 .continuity-operation summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
+#codeMemoryCard details{margin-top:18px;padding-top:12px;border-top:1px solid var(--line,#ddd)}
+#codeMemoryCard summary{cursor:pointer;font-weight:600;margin-bottom:12px}
+#codeMemoryCard textarea{display:block;width:100%;min-height:70px;margin:10px 0;padding:10px;border:1px solid var(--line,#ddd);border-radius:8px;background:var(--card,#fff);color:inherit}
+#codeMemoryCard .codeoutput{white-space:pre-wrap;overflow-wrap:anywhere;max-height:400px;overflow:auto;font-size:12px}
+#codeMemoryCard .actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+#codeMemoryCard input[type="checkbox"]{width:auto}
+#codeMemoryCard button{font:inherit;font-size:13px;padding:9px 12px;border:1px solid var(--line,#aaa);border-radius:6px;background:var(--card,#fff);color:inherit;cursor:pointer}
+#codeMemoryCard button.primary{background:var(--ink,#141818);color:var(--paper,#fff)}
+#codeMemoryCard button:disabled{opacity:.5;cursor:default}
+#codeMemoryCard .memoryfilters{align-items:end;gap:14px}
+#codeMemoryCard .memoryfilters button{align-self:end;min-height:38px}
+#codeMemoryCard input:not([type="checkbox"]),#codeMemoryCard select{width:100%;min-width:0;box-sizing:border-box;font:inherit;font-size:13px;padding:9px 10px;border:1px solid var(--line,#aaa);border-radius:6px;background:var(--card,#fff);color:inherit}
+#codeMemoryCard label:has(input[type="checkbox"]){display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:normal;line-height:1.4;font-size:13px}

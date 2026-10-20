@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -146,6 +146,30 @@ class SQLiteStore:
 
     def reset_subject(self, subject_id: str) -> None:
         with self.transaction():
+            derived_subjects = [
+                str(row["derived_subject_id"])
+                for row in self._conn.execute(
+                    "SELECT derived_subject_id FROM code_scope_subjects WHERE owner_subject_id = ?",
+                    (subject_id,),
+                ).fetchall()
+            ]
+            for derived_subject_id in derived_subjects:
+                if derived_subject_id != subject_id:
+                    self.reset_subject(derived_subject_id)
+            self._conn.execute(
+                "DELETE FROM code_scope_subjects WHERE owner_subject_id = ? OR derived_subject_id = ?",
+                (subject_id, subject_id),
+            )
+            self._conn.execute(
+                "DELETE FROM code_observations WHERE subject_id = ?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM code_project_bindings WHERE subject_id = ?", (subject_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM code_installations WHERE subject_id = ?", (subject_id,)
+            )
+            self._conn.execute("DELETE FROM code_documents WHERE subject_id = ?", (subject_id,))
             # Derived V3 state is deleted before its source ledger so every
             # range/link/vector row is removed by foreign-key cascade.
             if self._context_fts_enabled:
@@ -453,6 +477,247 @@ class SQLiteStore:
                 ),
             )
         return episode_id
+
+    def put_code_observation(
+        self,
+        *,
+        event_id: str,
+        subject_id: str,
+        project_id: str,
+        profile_id: str,
+        agent_id: str,
+        session_id: str,
+        turn_id: str,
+        payload_sha256: str,
+        payload_json: str,
+        max_pending: int = 500,
+    ) -> bool:
+        """Queue one authenticated observation, rejecting conflicting retries."""
+        with self.transaction():
+            existing = self._conn.execute(
+                "SELECT payload_sha256 FROM code_observations WHERE event_id = ?",
+                (event_id,),
+            ).fetchone()
+            if existing is not None:
+                if str(existing["payload_sha256"]) != payload_sha256:
+                    raise ValueError("code observation idempotency conflict")
+                return False
+            count = self._conn.execute(
+                """SELECT COUNT(*) AS n FROM code_observations
+                   WHERE subject_id = ? AND project_id = ? AND profile_id = ?
+                     AND state = 'pending'""",
+                (subject_id, project_id, profile_id),
+            ).fetchone()
+            if int(count["n"]) >= max_pending:
+                raise OverflowError("code observation queue is full")
+            self._conn.execute(
+                """INSERT INTO code_observations
+                   (event_id, subject_id, project_id, profile_id, agent_id,
+                    session_id, turn_id, payload_sha256, payload_json, state, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)""",
+                (event_id, subject_id, project_id, profile_id, agent_id,
+                 session_id, turn_id, payload_sha256, payload_json, utc_now()),
+            )
+        return True
+
+    def code_project_binding(self, subject_id: str, repository_key: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM code_project_bindings WHERE subject_id = ? AND repository_key = ?",
+            (subject_id, repository_key),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def code_installation(self, subject_id: str, project_id: str, host: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            """SELECT * FROM code_installations
+               WHERE subject_id = ? AND project_id = ? AND host = ?""",
+            (subject_id, project_id, host),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def put_code_installation(
+        self, *, subject_id: str, project_id: str, host: str, enabled: bool = False,
+        restore_json: str | None = None,
+    ) -> None:
+        with self.transaction():
+            self._conn.execute(
+                """INSERT INTO code_installations
+                   (subject_id, project_id, host, enabled, restore_json, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(subject_id, project_id, host)
+                   DO UPDATE SET enabled = excluded.enabled,
+                                 restore_json = excluded.restore_json,
+                                 updated_at = excluded.updated_at""",
+                (subject_id, project_id, host, int(enabled), restore_json, utc_now()),
+            )
+
+    def set_code_installation_enabled(
+        self, *, subject_id: str, project_id: str, host: str, enabled: bool,
+    ) -> None:
+        """Toggle automatic behavior without touching host restore metadata."""
+        with self.transaction():
+            cursor = self._conn.execute(
+                """UPDATE code_installations SET enabled = ?, updated_at = ?
+                   WHERE subject_id = ? AND project_id = ? AND host = ?""",
+                (int(enabled), utc_now(), subject_id, project_id, host),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("Code host is not configured")
+
+    def delete_code_installation(
+        self, *, subject_id: str, project_id: str, host: str,
+    ) -> None:
+        with self.transaction():
+            cursor = self._conn.execute(
+                """DELETE FROM code_installations
+                   WHERE subject_id = ? AND project_id = ? AND host = ? AND enabled = 0""",
+                (subject_id, project_id, host),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("Code host must be disabled before uninstall")
+
+    def bind_code_project(
+        self, *, subject_id: str, repository_key: str, project_id: str,
+        remote_sha256: str | None,
+    ) -> None:
+        with self.transaction():
+            existing = self.code_project_binding(subject_id, repository_key)
+            if existing is not None:
+                if existing["project_id"] != project_id:
+                    raise ValueError("repository is already bound to another project")
+                return
+            self._conn.execute(
+                """INSERT INTO code_project_bindings
+                   (subject_id, repository_key, project_id, remote_sha256, created_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (subject_id, repository_key, project_id, remote_sha256, utc_now()),
+            )
+
+    def code_project_exists(self, subject_id: str, project_id: str) -> bool:
+        return self._conn.execute(
+            "SELECT 1 FROM code_project_bindings WHERE subject_id = ? AND project_id = ? LIMIT 1",
+            (subject_id, project_id),
+        ).fetchone() is not None
+
+    def code_scopes(self, subject_id: str, project_id: str | None = None) -> list[dict[str, Any]]:
+        clause = " AND project_id = ?" if project_id is not None else ""
+        params = (subject_id, project_id) if project_id is not None else (subject_id,)
+        return [dict(row) for row in self._conn.execute(
+            "SELECT * FROM code_scope_subjects WHERE owner_subject_id = ?" + clause,
+            params,
+        ).fetchall()]
+
+    def code_projects(self, subject_id: str) -> list[str]:
+        return [str(row[0]) for row in self._conn.execute(
+            "SELECT DISTINCT project_id FROM code_project_bindings WHERE subject_id = ? ORDER BY project_id",
+            (subject_id,),
+        ).fetchall()]
+
+    def code_document(self, subject_id: str, project_id: str, kind: str, document_id: str) -> dict[str, Any] | None:
+        from atmem.store.code_documents import decode_document
+        row = self._conn.execute(
+            "SELECT payload_json FROM code_documents WHERE subject_id=? AND project_id=? AND kind=? AND document_id=?",
+            (subject_id, project_id, kind, document_id),
+        ).fetchone()
+        return decode_document(row[0], subject=subject_id, project=project_id, kind=kind, identity=document_id) if row else None
+
+    def code_documents(self, subject_id: str, project_id: str, kind: str) -> list[dict[str, Any]]:
+        return [item['value'] for item in self.code_document_items(subject_id, project_id, kind)]
+
+    def code_document_items(self, subject_id: str, project_id: str, kind: str) -> list[dict[str, Any]]:
+        from atmem.store.code_documents import decode_document
+        return [{"document_id": row[0], "value": decode_document(row[1], subject=subject_id,
+                  project=project_id, kind=kind, identity=row[0])} for row in self._conn.execute(
+            "SELECT document_id,payload_json FROM code_documents WHERE subject_id=? AND project_id=? AND kind=? ORDER BY document_id",
+            (subject_id, project_id, kind),
+        ).fetchall()]
+
+    def put_code_document(self, subject_id: str, project_id: str, kind: str, document_id: str, value: dict[str, Any]) -> None:
+        from atmem.store.code_documents import encode_document
+        encoded = encode_document(value, subject=subject_id, project=project_id, kind=kind, identity=document_id)
+        with self.transaction():
+            self._conn.execute(
+                """INSERT INTO code_documents VALUES (?,?,?,?,?,?)
+                   ON CONFLICT(subject_id,project_id,kind,document_id)
+                   DO UPDATE SET payload_json=excluded.payload_json,updated_at=excluded.updated_at""",
+                (subject_id, project_id, kind, document_id, encoded, utc_now()),
+            )
+
+    def delete_code_documents(self, subject_id: str, project_id: str, kind: str, document_id: str | None = None) -> None:
+        with self.transaction():
+            clause = " AND document_id=?" if document_id is not None else ""
+            params = (subject_id, project_id, kind, document_id) if document_id is not None else (subject_id, project_id, kind)
+            self._conn.execute("DELETE FROM code_documents WHERE subject_id=? AND project_id=? AND kind=?" + clause, params)
+
+    def register_code_scope_subject(
+        self, *, owner_subject_id: str, derived_subject_id: str,
+        project_id: str, profile_id: str, agent_id: str,
+    ) -> None:
+        if owner_subject_id == derived_subject_id:
+            raise ValueError("derived Code subject must differ from owner")
+        with self.transaction():
+            existing = self._conn.execute(
+                "SELECT * FROM code_scope_subjects WHERE derived_subject_id = ?",
+                (derived_subject_id,),
+            ).fetchone()
+            if existing is not None:
+                if (existing["owner_subject_id"], existing["project_id"],
+                    existing["profile_id"], existing["agent_id"]) != (
+                    owner_subject_id, project_id, profile_id, agent_id,
+                ):
+                    raise ValueError("derived Code subject collision")
+                return
+            self._conn.execute(
+                """INSERT INTO code_scope_subjects
+                   (owner_subject_id, derived_subject_id, project_id, profile_id, agent_id)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (owner_subject_id, derived_subject_id, project_id, profile_id, agent_id),
+            )
+
+    def confirm_code_remote_change(
+        self, *, subject_id: str, repository_key: str, project_id: str,
+        remote_sha256: str | None,
+    ) -> None:
+        with self.transaction():
+            cursor = self._conn.execute(
+                """UPDATE code_project_bindings SET remote_sha256 = ?
+                   WHERE subject_id = ? AND repository_key = ? AND project_id = ?""",
+                (remote_sha256, subject_id, repository_key, project_id),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("repository binding changed during remote confirmation")
+
+    def list_code_observations(
+        self, *, subject_id: str, project_id: str, profile_id: str,
+        agent_id: str | None = None, state: str = "pending", limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        if state not in {"pending", "formed", "refused"} or not 1 <= limit <= 500:
+            raise ValueError("invalid code observation query")
+        if agent_id is None:
+            rows = self._conn.execute(
+                """SELECT * FROM code_observations
+                   WHERE subject_id = ? AND project_id = ? AND profile_id = ? AND state = ?
+                   ORDER BY created_at, event_id LIMIT ?""",
+                (subject_id, project_id, profile_id, state, limit),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                """SELECT * FROM code_observations
+                   WHERE subject_id = ? AND project_id = ? AND profile_id = ?
+                     AND agent_id = ? AND state = ?
+                   ORDER BY created_at, event_id LIMIT ?""",
+                (subject_id, project_id, profile_id, agent_id, state, limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def set_code_observation_state(self, event_id: str, state: str) -> None:
+        if state not in {"formed", "refused"}:
+            raise ValueError("invalid code observation state")
+        with self.transaction():
+            self._conn.execute(
+                "UPDATE code_observations SET state = ? WHERE event_id = ? AND state = 'pending'",
+                (state, event_id),
+            )
 
     def insert_record(
         self,
@@ -4795,6 +5060,17 @@ class SQLiteStore:
         self._conn.execute("PRAGMA optimize")
 
     def _migrate(self) -> None:
+        # executescript commits SQLite's current transaction, so BEGIN alone
+        # cannot serialize this multi-script initializer. Concurrent coding
+        # hosts must not race schema inspection/ALTER or invalidate prepared
+        # schema reads on another initializer.
+        from atmem.locking import ProcessFileLock
+        guard = (nullcontext() if self.path == ":memory:" else
+                 ProcessFileLock(str(Path(self.path).resolve()) + ".schema.lock", blocking=True))
+        with guard:
+            self._migrate_serialized()
+
+    def _migrate_serialized(self) -> None:
         with self.transaction():
             self._conn.executescript("""
                 CREATE TABLE IF NOT EXISTS episodes (
@@ -5375,7 +5651,12 @@ class SQLiteStore:
                 self._ensure_column(
                     "context_view_generations", "revision", "INTEGER NOT NULL DEFAULT 0"
                 )
-            self._conn.executescript(script)
+            if identifier == "0424_code_installation_restore":
+                # Preserve the recorded migration while making interrupted
+                # upgrades safe when the column survived but the ledger did not.
+                self._ensure_column("code_installations", "restore_json", "TEXT")
+            else:
+                self._conn.executescript(script)
             self._conn.execute(
                 "INSERT OR IGNORE INTO schema_migrations(identifier, applied_at) "
                 "VALUES (?, ?)",
@@ -7192,6 +7473,86 @@ MIGRATION_REGISTRY: tuple[tuple[str, str], ...] = (
         """
         CREATE INDEX IF NOT EXISTS idx_context_coverage_disposition
           ON context_coverage(generation_id, disposition, range_id);
+        """,
+    ),
+    (
+        "0420_code_observation_queue",
+        """
+        CREATE TABLE IF NOT EXISTS code_observations (
+          event_id TEXT PRIMARY KEY,
+          subject_id TEXT NOT NULL,
+          project_id TEXT NOT NULL,
+          profile_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL,
+          session_id TEXT NOT NULL,
+          turn_id TEXT NOT NULL,
+          payload_sha256 TEXT NOT NULL,
+          payload_json TEXT NOT NULL,
+          state TEXT NOT NULL CHECK(state IN ('pending','formed','refused')),
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_code_observations_scope_state
+          ON code_observations(subject_id, project_id, profile_id, state, created_at);
+        """,
+    ),
+    (
+        "0421_code_project_identity",
+        """
+        CREATE TABLE IF NOT EXISTS code_project_bindings (
+          subject_id TEXT NOT NULL,
+          repository_key TEXT NOT NULL,
+          project_id TEXT NOT NULL,
+          remote_sha256 TEXT,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(subject_id, repository_key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_code_project_bindings_project
+          ON code_project_bindings(subject_id, project_id);
+        """,
+    ),
+    (
+        "0422_code_installation_state",
+        """
+        CREATE TABLE IF NOT EXISTS code_installations (
+          subject_id TEXT NOT NULL,
+          project_id TEXT NOT NULL,
+          host TEXT NOT NULL,
+          enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY(subject_id, project_id, host)
+        );
+        """,
+    ),
+    (
+        "0423_code_scope_subjects",
+        """
+        CREATE TABLE IF NOT EXISTS code_scope_subjects (
+          owner_subject_id TEXT NOT NULL,
+          derived_subject_id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          profile_id TEXT NOT NULL,
+          agent_id TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_code_scope_subjects_owner
+          ON code_scope_subjects(owner_subject_id, project_id, profile_id, agent_id);
+        """,
+    ),
+    (
+        "0424_code_installation_restore",
+        "ALTER TABLE code_installations ADD COLUMN restore_json TEXT;",
+    ),
+    (
+        "0425_code_documents",
+        """
+        CREATE TABLE IF NOT EXISTS code_documents (
+          subject_id TEXT NOT NULL,
+          project_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          document_id TEXT NOT NULL,
+          payload_json TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY(subject_id,project_id,kind,document_id)
+        );
         """,
     ),
 )

@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
@@ -16,7 +20,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e "./packages/atbot" -e ".[dev]"
+      - run: pip install -e "./packages/atbot" -e ".[dev,code]"
       - run: pytest -q
 
   windows-core-smoke:
@@ -242,7 +246,7 @@ jobs:
       - name: Exercise installed artifact outside checkout
         working-directory: ${{ runner.temp }}
         run: |
-          python -c "import importlib.util; from importlib.metadata import version; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None; assert version('atflows') == '0.1.4b3'"
+          python -c "import importlib.util; from importlib.metadata import version; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None; assert version('atflows') == '0.1.4'"
           python "${{ github.workspace }}/tools/smoke_installed_package.py"
           python "${{ github.workspace }}/tools/smoke_delegated_package.py"
           python "${{ github.workspace }}/tools/smoke_delegated_transport.py"
@@ -358,7 +362,8 @@ jobs:
       matrix:
         include:
           - label: Debian Bookworm
-            image: public.ecr.aws/docker/library/debian:bookworm-slim
+            # Same Docker Hub official index, pinned through Google's cache.
+            image: mirror.gcr.io/library/debian@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
             setup: >-
               apt-get update &&
               DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends

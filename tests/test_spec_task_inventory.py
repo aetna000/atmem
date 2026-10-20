@@ -26,6 +26,20 @@ def test_unbracketed_task_is_rejected():
         parse_tasks("- [ ] T006 Invalid", "fixture")
 
 
+def test_existing_uppercase_suffix_and_product_ids_are_preserved():
+    rows = parse_tasks(
+        "- [x] [T005A] Existing\n- [ ] [T005a] Distinct\n- [x] [P000] Product",
+        "fixture",
+    )
+    assert [row["id"] for row in rows] == ["T005A", "T005a", "P000"]
+    assert [row["completed"] for row in rows] == [True, False, True]
+
+
+def test_legacy_product_duplicate_is_rejected():
+    with pytest.raises(ValueError, match="duplicate task ID P000"):
+        parse_tasks("- [ ] [P000] First\n- [x] [P000] Duplicate", "fixture")
+
+
 def test_feature_scoping_and_actionable_counts(tmp_path):
     for name in ("001-example", "002-example"):
         folder = tmp_path / name
@@ -36,3 +50,12 @@ def test_feature_scoping_and_actionable_counts(tmp_path):
     assert result["unchecked"] == 4
     assert result["unchecked_rollups"] == 2
     assert result["actionable_unchecked"] == 2
+
+
+@pytest.mark.parametrize("relative_root", ["specs", "specs/benchmarking"])
+def test_repository_task_inventories_parse(relative_root):
+    root = Path(__file__).resolve().parents[1] / relative_root
+    result = inventory(root)
+    assert result["feature_count"] > 0
+    assert result["task_count"] > 0
+    assert result["completed"] + result["unchecked"] == result["task_count"]

@@ -1,0 +1,312 @@
+{
+  "rows": [
+    {
+      "backend": "native",
+      "discovery_calls": 1,
+      "discovery_errors": 0,
+      "discovery_ms": 15,
+      "exit_code": 0,
+      "functional_pass": true,
+      "grade": {
+        "elapsed_ms": 3457,
+        "environment_error": false,
+        "exit_code": 0,
+        "output_sha256": "2e3a7601210256498744c4e21e8da1f411d360f25c054bd181ed8266dafef010",
+        "passed": true
+      },
+      "grade_counts": {
+        "deselected": 31001,
+        "passed": 1868,
+        "skipped": 25
+      },
+      "host": "claude",
+      "index_ms": 0,
+      "response_bytes": 2055,
+      "run": "b67832c-claude-native",
+      "setup_ms": 492,
+      "solver_ms": 61550,
+      "source_read_coverage": "exact_shell_commands_retained_ranges_not_inferred",
+      "stop": null,
+      "task": "b67832c",
+      "tool_calls": 9,
+      "treatment_used": true,
+      "usage": {
+        "cached_input_tokens": 72381,
+        "complete": true,
+        "input_tokens": 82935,
+        "models": {
+          "claude-opus-5-5": {
+            "cacheCreationInputTokens": 10534,
+            "cacheReadInputTokens": 72381,
+            "canonicalModel": "claude-opus-5-5",
+            "contextWindow": 1000000,
+            "costBasis": "list",
+            "costUSD": 0.1895482,
+            "inputTokens": 20,
+            "maxOutputTokens": 128000,
+            "outputTokens": 4536,
+            "provider": "firstParty",
+            "thinkingTokens": 828,
+            "webSearchRequests": 0
+          }
+        },
+        "output_tokens": 4536,
+        "semantics": "anthropic_uncached_plus_creation_plus_read",
+        "terminal": "success"
+      },
+      "discovery_attempts": 1,
+      "ready_discovery_responses": 1,
+      "nonempty_discovery_responses": 1,
+      "usage_scope": "total_model_input_including_cache_not_unique_source_tokens"
+    },
+    {
+      "backend": "cognee",
+      "discovery_calls": 1,
+      "discovery_errors": 0,
+      "discovery_ms": 2665,
+      "exit_code": 0,
+      "functional_pass": true,
+      "grade": {
+        "elapsed_ms": 3430,
+        "environment_error": false,
+        "exit_code": 0,
+        "output_sha256": "2c49e5e3f518f5a2e1ef299091b3b504d20ccc42b2cdab8727a33c3072231f84",
+        "passed": true
+      },
+      "grade_counts": {
+        "deselected": 31001,
+        "passed": 1868,
+        "skipped": 25
+      },
+      "host": "claude",
+      "index_ms": 7293,
+      "response_bytes": 844,
+      "run": "b67832c-claude-cognee",
+      "setup_ms": 10233,
+      "solver_ms": 39502,
+      "source_read_coverage": "exact_shell_commands_retained_ranges_not_inferred",
+      "stop": null,
+      "task": "b67832c",
+      "tool_calls": 7,
+      "treatment_used": true,
+      "usage": {
+        "cached_input_tokens": 50417,
+        "complete": true,
+        "input_tokens": 57230,
+        "models": {
+          "claude-opus-5-5": {
+            "cacheCreationInputTokens": 6797,
+            "cacheReadInputTokens": 50417,
+            "canonicalModel": "claude-opus-5-5",
+            "contextWindow": 1000000,
+            "costBasis": "list",
+            "costUSD": 0.1282434,
+            "inputTokens": 16,
+            "maxOutputTokens": 128000,
+            "outputTokens": 3186,
+            "provider": "firstParty",
+            "thinkingTokens": 672,
+            "webSearchRequests": 0
+          }
+        },
+        "output_tokens": 3186,
+        "semantics": "anthropic_uncached_plus_creation_plus_read",
+        "terminal": "success"
+      },
+      "discovery_attempts": 1,
+      "ready_discovery_responses": 1,
+      "nonempty_discovery_responses": 1,
+      "usage_scope": "total_model_input_including_cache_not_unique_source_tokens"
+    },
+    {
+      "backend": "atmem",
+      "discovery_calls": 1,
+      "discovery_errors": 0,
+      "discovery_ms": 1326,
+      "exit_code": 0,
+      "functional_pass": true,
+      "grade": {
+        "elapsed_ms": 3444,
+        "environment_error": false,
+        "exit_code": 0,
+        "output_sha256": "f6c7a4501c5e4713895d39924e5d79066e9cc18b58b10fae55e52084b98d9a75",
+        "passed": true
+      },
+      "grade_counts": {
+        "deselected": 31001,
+        "passed": 1868,
+        "skipped": 25
+      },
+      "host": "claude",
+      "index_ms": 1576,
+      "response_bytes": 1271,
+      "run": "b67832c-claude-atmem",
+      "setup_ms": 3466,
+      "solver_ms": 87268,
+      "source_read_coverage": "exact_shell_commands_retained_ranges_not_inferred",
+      "stop": null,
+      "task": "b67832c",
+      "tool_calls": 10,
+      "treatment_used": true,
+      "usage": {
+        "cached_input_tokens": 86983,
+        "complete": true,
+        "input_tokens": 98706,
+        "models": {
+          "claude-opus-5-5": {
+            "cacheCreationInputTokens": 11701,
+            "cacheReadInputTokens": 86983,
+            "canonicalModel": "claude-opus-5-5",
+            "contextWindow": 1000000,
+            "costBasis": "list",
+            "costUSD": 0.20451260000000002,
+            "inputTokens": 22,
+            "maxOutputTokens": 128000,
+            "outputTokens": 4671,
+            "provider": "firstParty",
+            "thinkingTokens": 559,
+            "webSearchRequests": 0
+          }
+        },
+        "output_tokens": 4671,
+        "semantics": "anthropic_uncached_plus_creation_plus_read",
+        "terminal": "success"
+      },
+      "discovery_attempts": 1,
+      "ready_discovery_responses": 1,
+      "nonempty_discovery_responses": 1,
+      "usage_scope": "total_model_input_including_cache_not_unique_source_tokens"
+    },
+    {
+      "backend": "cognee",
+      "discovery_calls": 1,
+      "discovery_errors": 1,
+      "discovery_ms": 0,
+      "exit_code": 0,
+      "functional_pass": true,
+      "grade": {
+        "elapsed_ms": 3448,
+        "environment_error": false,
+        "exit_code": 0,
+        "output_sha256": "f6c7a4501c5e4713895d39924e5d79066e9cc18b58b10fae55e52084b98d9a75",
+        "passed": true
+      },
+      "grade_counts": {
+        "deselected": 31001,
+        "passed": 1868,
+        "skipped": 25
+      },
+      "host": "codex",
+      "index_ms": 6733,
+      "response_bytes": 100,
+      "run": "b67832c-codex-cognee",
+      "setup_ms": 9840,
+      "solver_ms": 65137,
+      "source_read_coverage": "exact_shell_commands_retained_ranges_not_inferred",
+      "stop": null,
+      "task": "b67832c",
+      "tool_calls": 20,
+      "treatment_used": false,
+      "usage": {
+        "cached_input_tokens": 603904,
+        "complete": true,
+        "input_tokens": 647156,
+        "output_tokens": 3543,
+        "semantics": "codex_input_already_includes_cached"
+      },
+      "discovery_attempts": 1,
+      "ready_discovery_responses": 0,
+      "nonempty_discovery_responses": 0,
+      "usage_scope": "total_model_input_including_cache_not_unique_source_tokens"
+    },
+    {
+      "backend": "atmem",
+      "discovery_calls": 1,
+      "discovery_errors": 0,
+      "discovery_ms": 1371,
+      "exit_code": 0,
+      "functional_pass": true,
+      "grade": {
+        "elapsed_ms": 3427,
+        "environment_error": false,
+        "exit_code": 0,
+        "output_sha256": "fb425917732bf4adad7c6fea8c9a5893620a42b25fae76f297942540b1efe169",
+        "passed": true
+      },
+      "grade_counts": {
+        "deselected": 31001,
+        "passed": 1868,
+        "skipped": 25
+      },
+      "host": "codex",
+      "index_ms": 1692,
+      "response_bytes": 420,
+      "run": "b67832c-codex-atmem",
+      "setup_ms": 3632,
+      "solver_ms": 37830,
+      "source_read_coverage": "exact_shell_commands_retained_ranges_not_inferred",
+      "stop": null,
+      "task": "b67832c",
+      "tool_calls": 12,
+      "treatment_used": false,
+      "usage": {
+        "cached_input_tokens": 267648,
+        "complete": true,
+        "input_tokens": 305446,
+        "output_tokens": 2557,
+        "semantics": "codex_input_already_includes_cached"
+      },
+      "discovery_attempts": 1,
+      "ready_discovery_responses": 1,
+      "nonempty_discovery_responses": 0,
+      "usage_scope": "total_model_input_including_cache_not_unique_source_tokens"
+    },
+    {
+      "backend": "native",
+      "discovery_calls": 1,
+      "discovery_errors": 1,
+      "discovery_ms": 0,
+      "exit_code": 0,
+      "functional_pass": false,
+      "grade": {
+        "elapsed_ms": 3439,
+        "environment_error": false,
+        "exit_code": 1,
+        "output_sha256": "a681509812bb344101b719069541c7879e87725153c37ec3cc2d3c7dfc470257",
+        "passed": false
+      },
+      "grade_counts": {
+        "deselected": 31001,
+        "failed": 3,
+        "passed": 1865,
+        "skipped": 25
+      },
+      "host": "codex",
+      "index_ms": 0,
+      "response_bytes": 100,
+      "run": "b67832c-codex-native",
+      "setup_ms": 515,
+      "solver_ms": 42457,
+      "source_read_coverage": "exact_shell_commands_retained_ranges_not_inferred",
+      "stop": null,
+      "task": "b67832c",
+      "tool_calls": 14,
+      "treatment_used": false,
+      "usage": {
+        "cached_input_tokens": 402944,
+        "complete": true,
+        "input_tokens": 445804,
+        "output_tokens": 1751,
+        "semantics": "codex_input_already_includes_cached"
+      },
+      "discovery_attempts": 1,
+      "ready_discovery_responses": 0,
+      "nonempty_discovery_responses": 0,
+      "usage_scope": "total_model_input_including_cache_not_unique_source_tokens"
+    }
+  ],
+  "planned_cells": 45,
+  "executed_cells": 6,
+  "classification": "click_diagnostic",
+  "rental_spend_usd": 0
+}

@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import errno
 import os
 from pathlib import Path
 import subprocess
 import sys
-from types import SimpleNamespace
 
 import pytest
 
@@ -63,24 +61,36 @@ raise SystemExit(1)
         parent.close()
 
 
-def test_windows_denied_lock_is_reported_as_contention(
-    tmp_path: Path, monkeypatch
-) -> None:
-    def deny(_descriptor: int, _operation: int, _length: int) -> None:
-        raise PermissionError(errno.EACCES, "denied")
-
-    fake_msvcrt = SimpleNamespace(
-        LK_LOCK=1,
-        LK_NBLCK=2,
-        LK_UNLCK=3,
-        locking=deny,
-    )
-    monkeypatch.setitem(sys.modules, "msvcrt", fake_msvcrt)
+def test_windows_descriptor_preserves_requested_lock_mode(tmp_path: Path, monkeypatch) -> None:
+    events = []
+    monkeypatch.setattr(locking, "_windows_range_lock", lambda descriptor, **kwargs: events.append(kwargs))
     monkeypatch.setattr(locking, "_is_windows", lambda: True)
     descriptor = os.open(tmp_path / "windows.lock", os.O_CREAT | os.O_RDWR, 0o600)
     try:
-        with pytest.raises(BlockingIOError) as caught:
-            locking._lock_descriptor(descriptor, exclusive=False, blocking=False)
-        assert caught.value.errno == errno.EWOULDBLOCK
+        locking._lock_descriptor(descriptor, exclusive=False, blocking=False)
+        locking._lock_descriptor(descriptor, exclusive=True, blocking=True)
+        locking._unlock_descriptor(descriptor)
+        assert events == [{"exclusive": False, "blocking": False}, {"exclusive": True, "blocking": True}, {"unlock": True}]
     finally:
         os.close(descriptor)
+
+
+@pytest.mark.parametrize("parent_exclusive,child_exclusive,allowed", [(False, False, True), (False, True, False),
+                                                                     (True, False, False), (True, True, False)])
+def test_cross_process_shared_and_exclusive_matrix(tmp_path, parent_exclusive, child_exclusive, allowed):
+    path = tmp_path / "shared.lock"
+    with locking.ProcessFileLock(path, exclusive=parent_exclusive):
+        program = """
+import sys
+from atmem.locking import ProcessFileLock
+try:
+    with ProcessFileLock(sys.argv[1], exclusive=sys.argv[2] == 'True'):
+        pass
+except BlockingIOError:
+    raise SystemExit(9)
+"""
+        result = subprocess.run([sys.executable, "-c", program, str(path), str(child_exclusive)], timeout=10)
+        assert result.returncode == (0 if allowed else 9)
+    # Releasing the parent must actually release the kernel lock.
+    result = subprocess.run([sys.executable, "-c", program, str(path), "True"], timeout=10)
+    assert result.returncode == 0

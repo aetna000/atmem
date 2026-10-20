@@ -67,9 +67,20 @@ class SemanticIndex:
         self._conn.row_factory = row_factory_for(self.policy)
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.execute("PRAGMA busy_timeout = 5000")
-        self._conn.execute("PRAGMA journal_mode = WAL")
-        self._conn.execute("PRAGMA secure_delete = ON")
-        self._migrate()
+        from atmem.locking import ProcessFileLock
+        try:
+            with ProcessFileLock(self.path + ".schema.lock", blocking=True):
+                # Multiple hosts can first-open the same derived index. WAL
+                # selection and the multi-script migration are one startup
+                # operation, not competing schema writers.
+                if str(self._conn.execute("PRAGMA journal_mode").fetchone()[0]).lower() != "wal":
+                    self._conn.execute("PRAGMA journal_mode = WAL")
+                self._conn.execute("PRAGMA secure_delete = ON")
+                self._migrate()
+        except BaseException:
+            self._conn.close()
+            self._household_lock.close()
+            raise
 
     def close(self) -> None:
         self._matrix_cache.clear()

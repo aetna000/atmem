@@ -1,0 +1,18 @@
+{
+  "format": "atmem-code-installed-wheel-verification-v1",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.6",
+  "wheel": "atmem-2.3.9-py3-none-any.whl",
+  "wheel_sha256": "a664e93c69120fb99bcdd539427e3911ad56d99c3c2b618d03ab42318ea90dd4",
+  "atmem_imported_from_selected_environment": true,
+  "pytest_returncode": 1,
+  "totals": {
+    "tests": 351,
+    "failures": 110,
+    "errors": 67,
+    "skipped": 22
+  },
+  "host_probes": "separately qualified; not run by the portable core gate",
+  "candidate_only": true,
+  "dependencies": "AtFlows 0.1.4 supplied as local unreleased wheel"
+}

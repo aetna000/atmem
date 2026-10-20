@@ -1,0 +1,80 @@
+{
+  "format": "atmem-code-copilot-qualification-v1",
+  "snapshot_note": "Initial macOS qualification before Windows corrections. Current same-wheel macOS/Windows evidence is in copilot-windows-verification.json; these historical counts and wheel hash are not relabelled as current results.",
+  "date_local": "2026-10-15",
+  "timezone": "Australia/Sydney",
+  "branch": "feature/atmem-code-2.3.9",
+  "host": "GitHub Copilot CLI 1.0.98",
+  "platform": "macOS 26.5.2 x86_64",
+  "python": "3.12.2",
+  "published_release": false,
+  "main_unchanged_at": "267c5b3ac08e8cac26dfee13c6eac2842d4bb876",
+  "wheel": {
+    "name": "atmem-2.3.8-py3-none-any.whl",
+    "note": "Local source-preview artifact; version constants unchanged, not a new published 2.3.8 release",
+    "sha256": "9098ca07e6db13a1de4ef6558439ffa5610d61fe5f41b462c9dcbf3a05ce8818",
+    "path": "/tmp/atmem-copilot-complete-wheel-20261015/atmem-2.3.8-py3-none-any.whl"
+  },
+  "source_regression": {
+    "command": "python -m pytest tests/test_code*.py tests/integration/test_code*.py tests/test_memory_secret_boundary.py -q --tb=short --junitxml=/tmp/atmem-copilot-complete-source-tests.xml",
+    "passed": 93,
+    "skipped": 1,
+    "expected_failures": 2,
+    "failures": 0,
+    "errors": 0,
+    "note": "Existing Muse installed-host failures remain explicit expected failures, not qualified integrations",
+    "junit": "/tmp/atmem-copilot-complete-source-tests.xml"
+  },
+  "installed_core": {
+    "command": "python scripts/verify_code_wheel.py --wheel /tmp/atmem-copilot-complete-wheel-20261015/atmem-2.3.8-py3-none-any.whl --venv /tmp/atmem-code-verify.TtTLOV/mac-wheel --report /tmp/atmem-copilot-complete-wheel-report.json",
+    "passed": 79,
+    "skipped": 10,
+    "failures": 0,
+    "errors": 0,
+    "imported_from_selected_wheel_environment": true,
+    "report": "/tmp/atmem-copilot-complete-wheel-report.json"
+  },
+  "installed_host_and_identity": {
+    "command": "python -m pytest tests/test_code_copilot.py tests/test_code_copilot_events.py -q -x --junitxml=/tmp/atmem-copilot-complete-installed-host-results.xml",
+    "cwd": "/private/var/folders/yq/hy4_t8650sl77vkh7zvv97rc0000gn/T/atmem-code-wheel-5v2c9k7m",
+    "passed": 16,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0,
+    "junit": "/tmp/atmem-copilot-complete-installed-host-results.xml",
+    "checks": [
+      "normal setup and enable without an activation bypass",
+      "workspace trust refusal without rewriting owner trust",
+      "ordinary prompt capture and new-session model-input recall",
+      "identical question in resumed session",
+      "pause blocks capture and injection; re-enable restores recall",
+      "existing owner handler preserved and exact bytes restored by uninstall",
+      "failed verifier rolls back reinstallation",
+      "Copilot-managed JSONC settings remain readable",
+      "normal bidirectional Copilot-Claude memory sharing at model-input boundaries",
+      "replay, distinct identical prompts, bounded journal and unavailable/ambiguous identities",
+      "wrong version/session, path traversal and symlink refusal",
+      "secret and cross-repository refusal",
+      "tool observation does not automatically become a canonical fact"
+    ]
+  },
+  "website_inventory": "56 pages, version 2.3.8, valid; no website deployment",
+  "current_phase0_to8_tasks": {
+    "total": 37,
+    "completed": 32,
+    "closed_by_this_followup": ["T018", "T024"],
+    "blocked": ["T015", "T017", "T019", "T042"],
+    "deferred_comparison": ["T033"]
+  },
+  "limits": [
+    "Mac CLI 1.0.98 only; no Windows, Linux, editor or cloud qualification",
+    "fixed-response offline integration probes, not coding-quality or latency benchmarks",
+    "partial capture, not_reconstructable; no full flight reconstruction or forced-compaction claim",
+    "runtime receipts say submitted; controlled tests independently observe model input",
+    "journal/database access must be allowed by the owner's sandbox policy",
+    "prior remote CI and cross-platform results remain historical, not results for this followup",
+    "phase 9 and release publication not performed"
+  ],
+  "external_model_cost": 0,
+  "owner_data_used": false
+}

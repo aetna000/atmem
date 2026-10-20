@@ -1,0 +1,15 @@
+{
+  "state": "completed",
+  "removed_directories": 111,
+  "remaining_workspaces": [],
+  "archived_file_bytes": 5218136910,
+  "archive": "/Volumes/MEM/AtMem-SWEbench-Threeway-20261019/windows-source-workspaces/sources.tar.gz.aesgcm",
+  "cipher": "AES-256-GCM",
+  "plaintext_archive": {
+    "sha256": "32249c72506f0a42cd03ab1fd347048eeb1fd15e63ab6e08f08f979933620c44",
+    "bytes": 2932696226,
+    "resumed_complete_gzip_verified": true
+  },
+  "results_deleted": false,
+  "manifest": "/Volumes/MEM/AtMem-SWEbench-Threeway-20261019/windows-source-workspaces/manifest.json"
+}

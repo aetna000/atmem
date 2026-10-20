@@ -1,20 +1,19 @@
 # AtMem
 
-[![Version 2.3.8](https://img.shields.io/badge/version-2.3.8-blue)](./docs/releases/v2.3.8.md)
+[![Version 2.3.9](https://img.shields.io/badge/version-2.3.9-blue)](./docs/releases/v2.3.9.md)
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 ![AtMem: the memory control plane under every agent. Your agent runtime perceives, plans, acts and reflects; AtMem returns governed context only when policy allows, records every model and tool event in the Agent Black Box, and admits memory candidates under its own authority, with shadow mode, activation and restore.](./docs/assets/atmem-memory-control-plane.png)
 
 **AtMem is a host-neutral Agent Black Box and reversible memory control plane.**
 
-> **AtMem 2.3.8:** Source-linked typed context, bounded evidence packing and
-> one-command Hermes setup extend the existing governed continuity surface. The
-> exact AtFlows companion is 0.1.4b3. See the [release note](./docs/releases/v2.3.8.md),
-> [technical report](./docs/releases/v2.3.7-to-v2.3.8-technical-report.md), and
-> [bounded evaluation evidence](./benchmarks/retrieval_quality/reports/five-percent-results-20261010.md).
-> Previous benchmarks retain their tested-version provenance.
-> It records exact host-observed text and supported multimodal boundaries by default,
-> while keeping every claim limited to what the connected agent actually supplied.
+> **AtMem 2.3.9 adds optional AtMem Code:** share project memory across coding
+> agents, explore source-backed structure, and inspect recorded coding experience.
+> Start with the [simple Code guide](./docs/atmem-code.md),
+> [release note](./docs/releases/v2.3.9.md), or
+> [public comparison results](https://huggingface.co/datasets/atmem/code-discovery-benchmark-evidence-20261020/viewer/trials/test).
+> Ordinary AtMem memory remains available without enabling Code. Earlier benchmarks
+> retain their original tested-version provenance.
 
 Created and maintained by [Javad Taghia](https://github.com/javadtaghia)
 ([@JavadTaghia](https://x.com/JavadTaghia)).
@@ -29,7 +28,7 @@ authorizes, stores, scopes, injects, corrects, and deletes memory.
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --upgrade atmem==2.3.8
+python -m pip install --upgrade atmem==2.3.9
 atmem atbot setup
 atmem atbot doctor
 atmem init
@@ -61,7 +60,7 @@ Stop every writer before migration. AtMem validates SQLite integrity,
 SQLCipher page integrity and per-table row counts before the atomic cutover;
 see [SaaS integration and recovery](docs/saas-integration.md#privacy-retention-and-deletion).
 
-In 2.3.8, `pip install atmem` installs the Python packages only; pip does not
+In 2.3.9, `pip install atmem` installs the Python packages only; pip does not
 run a post-install downloader. On the first `atmem init`, if compatible Bun is not
 already installed, AtMem clearly announces and downloads its pinned official
 Bun runtime for AtFlows, verifies the archive against a release-pinned SHA-256,
@@ -90,7 +89,7 @@ package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.8
+python -m pip install --upgrade atmem==2.3.9
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -113,7 +112,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.3.8'
+python -m pip install 'atmem[pydantic-ai]==2.3.9'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -138,7 +137,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.3.8'
+python -m pip install 'atmem[langgraph]==2.3.9'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -306,7 +305,7 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install atmem==2.3.8
+python -m pip install atmem==2.3.9
 atmem --version
 ```
 
@@ -316,7 +315,7 @@ embedding model, while the semantic extra adds local sentence-transformer
 choices:
 
 ```bash
-python -m pip install 'atmem[semantic]==2.3.8'
+python -m pip install 'atmem[semantic]==2.3.9'
 ```
 
 For repository development, install both workspace packages:
@@ -504,7 +503,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.8
+python -m pip install --upgrade atmem==2.3.9
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -681,6 +680,7 @@ Official website documentation is maintained through the public
 Website publication follows a separate owner-reviewed, main-only deployment.
 
 - [Current implementation status](docs/current-status.md)
+- [AtMem Code: shared project memory](docs/atmem-code.md) — optional structure and experience for coding agents
 - [Generic runtime adapter](docs/generic-adapter.md)
 - [Delegated context-provider contract](docs/contracts/delegated-context-provider-v1.md)
 - [Agent Black Box](docs/agent-blackbox.md)
@@ -737,11 +737,12 @@ npm test
 npm run smoke
 ```
 
-The current source candidate is **2.3.8** with matching OpenClaw bridge source
-**2.3.8**. Release validation requires exact Python/bridge alignment; AtBot
+This release line is **2.3.9** with matching OpenClaw bridge source
+**2.3.9**. Release validation requires exact Python/bridge alignment; AtBot
 retains its independent compatible version **0.1.0** and the tested AtFlows pin
-is **0.1.4b3**. The published package remains 2.3.7 until the candidate is
-reviewed, tagged and registry-verified.
+is **0.1.4**. Use the [release note](docs/releases/v2.3.9.md) for exact upgrade
+commands and the [release page](https://github.com/aetna000/atmem/releases/tag/v2.3.9)
+for publication artifacts.
 
 ## License
 

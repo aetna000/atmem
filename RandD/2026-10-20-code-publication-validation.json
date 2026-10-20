@@ -1,0 +1,36 @@
+{
+  "format": "atmem-code-source-publication-validation-v1",
+  "scope": "Pending AtMem Code implementation, benchmark tooling and October 20 evidence publication; not a package release",
+  "targeted_regression": {
+    "test_selection": "35 changed or newly added tests/test_*.py files from the Git index",
+    "passed": 350,
+    "failed": 0,
+    "elapsed_seconds": 151.44,
+    "python": "CPython 3.12.12 arm64",
+    "environment": "Fresh isolated environment with the verification wheel and code/dev extras installed",
+    "benchmark_model_attempts_added": 0
+  },
+  "focused_evidence_and_transport_checks": {"passed": 20, "failed": 0, "elapsed_seconds": 1.00, "overlap_with_targeted_regression": true},
+  "python_310_syntax": {"files_checked": 114, "failures": 0},
+  "website_inventory": {"pages": 56, "version": "2.3.8", "valid": true},
+  "pinned_cognee_import_check": "passed against f154b32a9e544dac73e7ddf2010327cf9988edcd",
+  "wheel_build": {
+    "passed": true,
+    "filename": "atmem-2.3.8-py3-none-any.whl",
+    "sha256": "149332a7a1cfcd57d4641507408724072ac1add5827346139105df504d76f4d6",
+    "purpose": "Publication-time build check, not the original scored benchmark artifact",
+    "installed_code_help_smoke": "passed",
+    "vendored_licenses_included": true,
+    "runtime_resource_files_included": 2
+  },
+  "git_diff_check": "passed",
+  "full_suite_pass_claimed": false,
+  "interrupted_broad_checks": [
+    {"environment": "Existing Intel Python under Rosetta", "passed_before_interruption": 471, "skipped": 47, "elapsed_seconds": 408.57},
+    {"environment": "Fresh native arm64 environment", "passed_before_interruption": 522, "skipped": 47, "elapsed_seconds": 187.50}
+  ],
+  "environment_preflight": "An existing minimal native benchmark environment lacked PyYAML, numpy and jsonschema during broad collection. Validation was moved to the fresh code/dev environment; that minimal environment was not modified.",
+  "dataset_file_verification": "All 374 uploaded files downloaded and hash-checked; anonymous trial data and manifest also checked",
+  "dataset_viewer_at_check": "Hugging Face datasets-server returned HTTP 500 busy/not-ready; dataset card, files and anonymous downloads are available",
+  "main_or_release_tags_modified": false
+}

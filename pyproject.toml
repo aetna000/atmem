@@ -4,17 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atmem"
-version = "2.3.8"
+version = "2.3.9"
 description = "Host-neutral Agent Black Box and reversible memory control plane."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "third_party/cognee/LICENSE", "third_party/cognee/NOTICE.md", "third_party/cognee/import-manifest.json"]
 authors = [{ name = "Javad Taghia", email = "taghia.javad@gmail.com" }]
 maintainers = [{ name = "Aetna / AtMem", email = "aetna000@gmail.com" }]
 keywords = ["agent-black-box", "agent-memory", "audit", "mcp", "provenance", "sqlite"]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",
@@ -28,11 +28,15 @@ classifiers = [
 ]
 dependencies = [
   "atmem-atbot==0.1.0",
-  "atflows==0.1.4b3",
+  "atflows==0.1.4",
   "cryptography>=42,<49",
 ]
 
 [project.optional-dependencies]
+code = [
+  "sqlcipher3==0.6.2",
+  "pqcrypto>=1,<2",
+]
 atflows = [
   # Compatibility extra for existing atmem[atflows] install commands.
 ]
@@ -123,6 +127,7 @@ include = ["atmem*"]
 "atmem.retrieve" = ["*.json"]
 "atmem.benchmark" = ["data/*.json"]
 "atmem.semantic" = ["models.json"]
+"atmem.knowledge" = ["runtime_resources/Dockerfile", "runtime_resources/entrypoint.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

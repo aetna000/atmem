@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.8",
+  "version": "2.3.9",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -11,6 +11,9 @@
     "releases": "Releases"
   },
   "pages": [
+    {"slug": "releases/2.3.9", "title": "AtMem 2.3.9 — Shared coding memory", "source": "docs/releases/v2.3.9.md"},
+    {"slug": "integrations/code", "title": "AtMem Code: start here", "source": "docs/atmem-code.md"},
+    {"slug": "reference/code-structure", "title": "Code structure, MCP and portable memory", "source": "docs/atmem-code-structure.md"},
     {"slug": "releases/2.3.8", "title": "AtMem 2.3.8 — Governed context and one-command Hermes setup", "source": "docs/releases/v2.3.8.md"},
     {"slug": "releases/2.3.8-technical-report", "title": "AtMem 2.3.7 to 2.3.8 technical report", "source": "docs/releases/v2.3.7-to-v2.3.8-technical-report.md"},
     {"slug": "integrations/hermes", "title": "Hermes", "source": "docs/website/integrations/hermes.md"},

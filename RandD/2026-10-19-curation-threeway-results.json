@@ -1,0 +1,231 @@
+{
+  "format": "atmem-curation-threeway-diagnostic-v1",
+  "rows": [
+    {
+      "arm": "native",
+      "budget_pass": true,
+      "exit_code": 0,
+      "functional_pass": true,
+      "grade": {
+        "elapsed_ms": 5254,
+        "environment_error": false,
+        "exit_code": 0,
+        "output_sha256": "d133a9f6ad7028ec29ae71b14e60743925750a082e4ac5d6981b6aeb2ffae2b1",
+        "passed": true
+      },
+      "grade_counts": {
+        "deselected": 31001,
+        "passed": 1868,
+        "skipped": 25
+      },
+      "graph_calls": 0,
+      "graph_errors": 0,
+      "index_ms": 0,
+      "patch_violations": [],
+      "setup_ms": 1192,
+      "solver_ms": 47960,
+      "stop_reason": null,
+      "task": "b67832c",
+      "tool_calls": 7,
+      "usage": {
+        "cache_creation_input_tokens": 7774,
+        "cache_read_input_tokens": 33179,
+        "complete": true,
+        "input_tokens": 16,
+        "models": {
+          "claude-opus-5-5": {
+            "cacheCreationInputTokens": 7774,
+            "cacheReadInputTokens": 33179,
+            "canonicalModel": "claude-opus-5-5",
+            "contextWindow": 1000000,
+            "costBasis": "list",
+            "costUSD": 0.1393118,
+            "inputTokens": 16,
+            "maxOutputTokens": 128000,
+            "outputTokens": 3521,
+            "provider": "firstParty",
+            "thinkingTokens": 489,
+            "webSearchRequests": 0
+          }
+        },
+        "output_tokens": 3521,
+        "permission_denials": [],
+        "subtype": "success",
+        "thinking_tokens": 489,
+        "total_input_tokens": 40969
+      }
+    },
+    {
+      "arm": "cognee",
+      "budget_pass": true,
+      "exit_code": 0,
+      "functional_pass": true,
+      "grade": {
+        "elapsed_ms": 5246,
+        "environment_error": false,
+        "exit_code": 0,
+        "output_sha256": "d133a9f6ad7028ec29ae71b14e60743925750a082e4ac5d6981b6aeb2ffae2b1",
+        "passed": true
+      },
+      "grade_counts": {
+        "deselected": 31001,
+        "passed": 1868,
+        "skipped": 25
+      },
+      "graph_calls": 0,
+      "graph_errors": 0,
+      "index_ms": 13553,
+      "patch_violations": [],
+      "setup_ms": 22204,
+      "solver_ms": 69283,
+      "stop_reason": null,
+      "task": "b67832c",
+      "tool_calls": 9,
+      "usage": {
+        "cache_creation_input_tokens": 10249,
+        "cache_read_input_tokens": 52729,
+        "complete": true,
+        "input_tokens": 20,
+        "models": {
+          "claude-opus-5-5": {
+            "cacheCreationInputTokens": 10249,
+            "cacheReadInputTokens": 52729,
+            "canonicalModel": "claude-opus-5-5",
+            "contextWindow": 1000000,
+            "costBasis": "list",
+            "costUSD": 0.1832378,
+            "inputTokens": 20,
+            "maxOutputTokens": 128000,
+            "outputTokens": 4531,
+            "provider": "firstParty",
+            "thinkingTokens": 977,
+            "webSearchRequests": 0
+          }
+        },
+        "output_tokens": 4531,
+        "permission_denials": [],
+        "subtype": "success",
+        "thinking_tokens": 977,
+        "total_input_tokens": 62998
+      }
+    },
+    {
+      "arm": "atmem",
+      "budget_pass": true,
+      "exit_code": 0,
+      "functional_pass": true,
+      "grade": {
+        "elapsed_ms": 5329,
+        "environment_error": false,
+        "exit_code": 0,
+        "output_sha256": "f4caa67e92ed97d6b2238a187f51486a088e30639b4343ebd2e8291b78dba1c0",
+        "passed": true
+      },
+      "grade_counts": {
+        "deselected": 31001,
+        "passed": 1868,
+        "skipped": 25
+      },
+      "graph_calls": 0,
+      "graph_errors": 0,
+      "index_ms": 3191,
+      "patch_violations": [],
+      "setup_ms": 7571,
+      "solver_ms": 58855,
+      "stop_reason": null,
+      "task": "b67832c",
+      "tool_calls": 8,
+      "usage": {
+        "cache_creation_input_tokens": 10332,
+        "cache_read_input_tokens": 51530,
+        "complete": true,
+        "input_tokens": 18,
+        "models": {
+          "claude-opus-5-5": {
+            "cacheCreationInputTokens": 10332,
+            "cacheReadInputTokens": 51530,
+            "canonicalModel": "claude-opus-5-5",
+            "contextWindow": 1000000,
+            "costBasis": "list",
+            "costUSD": 0.18035400000000001,
+            "inputTokens": 18,
+            "maxOutputTokens": 128000,
+            "outputTokens": 4366,
+            "provider": "firstParty",
+            "thinkingTokens": 896,
+            "webSearchRequests": 0
+          }
+        },
+        "output_tokens": 4366,
+        "permission_denials": [],
+        "subtype": "success",
+        "thinking_tokens": 896,
+        "total_input_tokens": 61880
+      }
+    }
+  ],
+  "uptake": [
+    {
+      "arm": "native",
+      "actual_model": "claude-opus-5-5",
+      "actual_tools": [
+        "mcp__benchmark__workspace_command"
+      ],
+      "mcp_servers": [
+        {
+          "name": "benchmark",
+          "status": "connected",
+          "source": "dynamic"
+        }
+      ],
+      "graph_calls": 0,
+      "changed_paths": [
+        "src/click/core.py",
+        "tests/test_options.py"
+      ]
+    },
+    {
+      "arm": "cognee",
+      "actual_model": "claude-opus-5-5",
+      "actual_tools": [
+        "mcp__benchmark__code_search",
+        "mcp__benchmark__workspace_command"
+      ],
+      "mcp_servers": [
+        {
+          "name": "benchmark",
+          "status": "connected",
+          "source": "dynamic"
+        }
+      ],
+      "graph_calls": 0,
+      "changed_paths": [
+        "src/click/core.py",
+        "tests/test_options.py"
+      ]
+    },
+    {
+      "arm": "atmem",
+      "actual_model": "claude-opus-5-5",
+      "actual_tools": [
+        "mcp__benchmark__code_query",
+        "mcp__benchmark__workspace_command"
+      ],
+      "mcp_servers": [
+        {
+          "name": "benchmark",
+          "status": "connected",
+          "source": "dynamic"
+        }
+      ],
+      "graph_calls": 0,
+      "changed_paths": [
+        "src/click/core.py",
+        "tests/test_commands.py"
+      ]
+    }
+  ],
+  "interpretation": "single reused task; no observed provider uptake; no general savings claim",
+  "archive": "/Volumes/MEM/AtMem-SWEbench-Threeway-20261019/click-curation-threeway/click-curation-threeway-20261019.encrypted.json",
+  "archive_sha256": "78f2822dd06bf1d5f61a32d5155581231b8a71b3d2e05f356c2a17f47c4f8916"
+}

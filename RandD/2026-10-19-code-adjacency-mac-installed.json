@@ -1,0 +1,11 @@
+{
+  "wheel_sha256": "c7b4fb0256cf32e4f06461ad0dbf0200ee46401998f94c65f47cb14178012baa",
+  "installed_package": "/private/tmp/atmem-code-adjacency-mac-20261019/lib/python3.12/site-packages/atmem/__init__.py",
+  "python": "3.12.12 (main, Feb 12 2026, 00:42:34) [Clang 21.1.4 ]",
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "files_verified": 346,
+  "mismatches": [],
+  "python_310_grammar_files": 290,
+  "grammar_is_not_runtime_qualification": true,
+  "product_control": "/Users/javadtaghia/Library/Application Support/AtMem Builds/code-adjacency-mac-20261019/qualification.json"
+}

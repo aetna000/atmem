@@ -1,0 +1,10 @@
+{
+  "format": "atmem-code-installed-reader-correction-v1",
+  "wheel_sha256": "2e9f89a36513f5f60bd94ebb97703f903a01e2f10e502ad600e7f5c638ce6dde",
+  "windows": {"python": "3.12.6", "tests": 358, "passed": 335, "skipped": 23, "failures": 0, "errors": 0},
+  "macos": {"python": "3.12.13", "tests": 358, "passed": 331, "skipped": 27, "failures": 0, "errors": 0},
+  "installed_imports_verified": true,
+  "browser": {"passed": true, "javascript_errors": 0, "owner_data_opened": false},
+  "host_probes": "Separate qualification, not proof of universal host support",
+  "historical_failed_candidate_retained": true
+}

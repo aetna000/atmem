@@ -1,0 +1,293 @@
+{
+  "format": "atmem-swe-pruner-controlled-v1",
+  "rows": [
+    {
+      "arm": "atmem",
+      "budget_pass": false,
+      "exit_code": 0,
+      "functional_pass": false,
+      "grade": {
+        "elapsed_ms": 5111,
+        "environment_error": false,
+        "exit_code": 1,
+        "output_sha256": "d1b0cf7a515c747c5dd62ba19ff57c36bc6cd9358779c7e5b90cd82286345639",
+        "passed": false
+      },
+      "grade_counts": {
+        "deselected": 31001,
+        "failed": 1,
+        "passed": 1867,
+        "skipped": 25
+      },
+      "graph_calls": 1,
+      "graph_errors": 0,
+      "index_ms": 2721,
+      "patch_violations": [],
+      "setup_ms": 6554,
+      "solver_ms": 57365,
+      "source_read_calls": 1,
+      "source_read_errors": 0,
+      "stop_reason": null,
+      "task": "b67832c",
+      "tool_calls": 9,
+      "usage": {
+        "cache_creation_input_tokens": 9405,
+        "cache_read_input_tokens": 65753,
+        "complete": true,
+        "input_tokens": 20,
+        "models": {
+          "claude-opus-5-5": {
+            "cacheCreationInputTokens": 9405,
+            "cacheReadInputTokens": 65753,
+            "canonicalModel": "claude-opus-5-5",
+            "contextWindow": 1000000,
+            "costBasis": "list",
+            "costUSD": 0.16685059999999996,
+            "inputTokens": 20,
+            "maxOutputTokens": 128000,
+            "outputTokens": 3919,
+            "provider": "firstParty",
+            "thinkingTokens": 563,
+            "webSearchRequests": 0
+          }
+        },
+        "output_tokens": 3919,
+        "permission_denials": [],
+        "subtype": "success",
+        "thinking_tokens": 563,
+        "total_input_tokens": 75178
+      }
+    },
+    {
+      "arm": "atmem_pruner",
+      "budget_pass": true,
+      "exit_code": 0,
+      "functional_pass": true,
+      "grade": {
+        "elapsed_ms": 5202,
+        "environment_error": false,
+        "exit_code": 0,
+        "output_sha256": "07218c2bc4280b802bf2856063a237639e941132d25b34ad558d1eed0a817c2d",
+        "passed": true
+      },
+      "grade_counts": {
+        "deselected": 31001,
+        "passed": 1868,
+        "skipped": 25
+      },
+      "graph_calls": 1,
+      "graph_errors": 0,
+      "index_ms": 2718,
+      "patch_violations": [],
+      "setup_ms": 15724,
+      "solver_ms": 76306,
+      "source_read_calls": 2,
+      "source_read_errors": 0,
+      "stop_reason": null,
+      "task": "b67832c",
+      "tool_calls": 11,
+      "usage": {
+        "cache_creation_input_tokens": 10084,
+        "cache_read_input_tokens": 78446,
+        "complete": true,
+        "input_tokens": 22,
+        "models": {
+          "claude-opus-5-5": {
+            "cacheCreationInputTokens": 10084,
+            "cacheReadInputTokens": 78446,
+            "canonicalModel": "claude-opus-5-5",
+            "contextWindow": 1000000,
+            "costBasis": "list",
+            "costUSD": 0.1922692,
+            "inputTokens": 22,
+            "maxOutputTokens": 128000,
+            "outputTokens": 4791,
+            "provider": "firstParty",
+            "thinkingTokens": 786,
+            "webSearchRequests": 0
+          }
+        },
+        "output_tokens": 4791,
+        "permission_denials": [],
+        "subtype": "success",
+        "thinking_tokens": 786,
+        "total_input_tokens": 88552
+      }
+    }
+  ],
+  "source_reads": {
+    "atmem": {
+      "calls": [
+        {
+          "request": {
+            "end": 1185,
+            "goal": "see get_params, get_help_option_names, get_help_option implementation",
+            "path": "src/click/core.py",
+            "start": 1095
+          },
+          "input_bytes": 3356,
+          "returned_code_bytes": 3356,
+          "omitted": false,
+          "gpu_seconds": 0,
+          "original_skimmer_tokens": null,
+          "remaining_skimmer_tokens": null,
+          "tool_seconds": 0.064
+        }
+      ],
+      "actual_model": "claude-opus-5-5",
+      "successful_reads": 1,
+      "pruned_reads": 0,
+      "input_bytes": 3356,
+      "returned_code_bytes": 3356,
+      "gpu_seconds": 0
+    },
+    "atmem_pruner": {
+      "calls": [
+        {
+          "request": {
+            "end": 1185,
+            "goal": "How the automatic help option is created and its name",
+            "path": "src/click/core.py",
+            "start": 1130
+          },
+          "input_bytes": 2142,
+          "returned_code_bytes": 661,
+          "omitted": true,
+          "gpu_seconds": 0.6647473396733403,
+          "original_skimmer_tokens": 444,
+          "remaining_skimmer_tokens": 145,
+          "tool_seconds": 1.032
+        },
+        {
+          "request": {
+            "end": 660,
+            "goal": "help_option decorator param_decls defaults and callback",
+            "path": "src/click/decorators.py",
+            "start": 590
+          },
+          "input_bytes": 1314,
+          "returned_code_bytes": 513,
+          "omitted": true,
+          "gpu_seconds": 0.49060794338583946,
+          "original_skimmer_tokens": 318,
+          "remaining_skimmer_tokens": 135,
+          "tool_seconds": 0.847
+        }
+      ],
+      "actual_model": "claude-opus-5-5",
+      "successful_reads": 2,
+      "pruned_reads": 2,
+      "input_bytes": 3456,
+      "returned_code_bytes": 1174,
+      "gpu_seconds": 1.1553552830591798
+    }
+  },
+  "gpu_qualification": {
+    "runtime": {
+      "model_revision": "863cee3198c715c9df1faa422a3490e0832bb734",
+      "backbone_config_revision": "e61197ed45024b0ed8a2d74b80b4d909f1255473",
+      "gpu": "NVIDIA RTX A4000",
+      "torch": "2.8.0+cu128",
+      "dtype": "torch.float32",
+      "attention": "flash_attention_2",
+      "package": "0.1.1",
+      "flash_attention": "2.8.3.post2",
+      "transformers": "4.57.1",
+      "load_seconds": 32.37487184628844,
+      "adaptations": [],
+      "threshold": 0.5
+    },
+    "cases": [
+      {
+        "id": "click-core-help-window",
+        "pruned_code": "(filtered 8 lines)\n        if help_option is not None:\n            params = [*params, help_option]\n\n        if __debug__:\n(filtered 2 lines)\n            opts = [opt for param in params for opt in param.opts]\n            opts_counter = Counter(opts)\n            duplicate_opts = (opt for opt, count in opts_counter.items() if count > 1)\n\n            for duplicate_opt in duplicate_opts:\n                warnings.warn(\n                    (\n                        f\"The parameter {duplicate_opt} is used more than once. \"\n                        \"Remove its duplicate as parameters should be unique.\"\n                    ),\n                    stacklevel=3,\n                )\n(filtered 24 lines)\n        all_names = set(ctx.help_option_names)\n        for param in self.params:\n            all_names.difference_update(param.opts)\n            all_names.difference_update(param.secondary_opts)\n(filtered 2 lines)\n    def get_help_option(self, ctx: Context) -> Option | None:\n        \"\"\"Returns the help option object.\n(filtered 4 lines)\n            The help option is now cached to avoid creating it multiple times.\n        \"\"\"\n        help_option_names = self.get_help_option_names(ctx)\n\n        if not help_option_names or not self.add_help_option:\n            return None\n\n        # Cache the help option object in private _help_option attribute to\n        # avoid creating it multiple times. Not doing this will break the\n(filtered 2 lines)\n        if self._help_option is None:\n            # Avoid circular import.\n(filtered 2 lines)\n            # Apply help_option decorator and pop resulting option\n            help_option(*help_option_names)(self)\n            self._help_option = self.params.pop()  # type: ignore[assignment]\n\n        return self._help_option\n(filtered 4 lines)",
+        "kept_frags": [
+          9,
+          10,
+          11,
+          12,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          51,
+          52,
+          53,
+          54,
+          57,
+          58,
+          63,
+          64,
+          65,
+          66,
+          67,
+          68,
+          69,
+          70,
+          71,
+          74,
+          75,
+          78,
+          79,
+          80,
+          81,
+          82
+        ],
+        "origin_token_cnt": 642,
+        "left_token_cnt": 353,
+        "model_input_token_cnt": 743,
+        "score": 0.9983385801315308,
+        "seconds": 0.6511842664331198,
+        "source_sha256": "836b7ced68c62a7fb40ee1823fafd63fe84e0a8168ce40e6ea3e1751e7f90c0f"
+      },
+      {
+        "id": "click-help-decorator",
+        "pruned_code": "def help_option(*param_decls: str, **kwargs: t.Any) -> t.Callable[[FC], FC]:\n    \"\"\"Pre-configured ``--help`` option which immediately prints the help page\n    and exits the program.\n\n    :param param_decls: One or more option names. Defaults to the single\n        value ``\"--help\"``.\n    :param kwargs: Extra arguments are passed to :func:`option`.\n    \"\"\"\n\n    def show_help(ctx: Context, param: Parameter, value: bool) -> None:\n        \"\"\"Callback that print the help page on ``<stdout>`` and exits.\"\"\"\n        if value and not ctx.resilient_parsing:\n            echo(ctx.get_help(), color=ctx.color)\n            ctx.exit()\n\n    if not param_decls:\n        param_decls = (\"--help\",)\n\n    kwargs.setdefault(\"is_flag\", True)\n    kwargs.setdefault(\"expose_value\", False)\n    kwargs.setdefault(\"is_eager\", True)\n    kwargs.setdefault(\"help\", _(\"Show this message and exit.\"))\n    kwargs.setdefault(\"callback\", show_help)\n\n    return option(*param_decls, **kwargs)",
+        "kept_frags": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25
+        ],
+        "origin_token_cnt": 234,
+        "left_token_cnt": 234,
+        "model_input_token_cnt": 322,
+        "score": 0.9987257122993469,
+        "seconds": 0.4774604132398963,
+        "source_sha256": "841212357da6fb8857b28da805cc48d2f2198b866316a1e6692e58dd46099390"
+      }
+    ]
+  },
+  "limits": "one reused task; fixed order; controlled source reader; no general savings claim",
+  "archive": "/Volumes/MEM/AtMem-SWEbench-Threeway-20261019/click-pruner-controlled-20261020-gpu-complete/click-pruner-controlled-20261020.encrypted.json",
+  "archive_sha256": "0137c2e78bce2bc2021f22ac184a0f9f733da48d26352110d4501615c19d6431"
+}

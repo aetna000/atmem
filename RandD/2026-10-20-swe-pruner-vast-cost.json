@@ -1,0 +1,30 @@
+{
+  "budget_usd": 3,
+  "observed_credit_decrease_usd": 0.049352086810000806,
+  "rentals": [
+    {
+      "id": 56734124,
+      "gpu": "RTX A4000",
+      "hourly_offer_usd": 0.11555555555555556,
+      "destroyed": true,
+      "elapsed_seconds": 350.21685218811035
+    },
+    {
+      "id": 56735197,
+      "gpu": "RTX 4060 Ti",
+      "hourly_offer_usd": 0.15555555555555556,
+      "destroyed": true,
+      "elapsed_seconds": 617.3894672393799
+    },
+    {
+      "id": 56736670,
+      "gpu": "RTX A4000",
+      "hourly_offer_usd": 0.16592592592592592,
+      "destroyed": true,
+      "elapsed_seconds": 1081.057519197464
+    }
+  ],
+  "remaining_owned_instances": 0,
+  "active_account_instance_count": 0,
+  "billing_note": "Observed account-credit delta, not a final settled invoice"
+}

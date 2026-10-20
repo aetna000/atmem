@@ -1,0 +1,22 @@
+{
+  "format": "atmem-discovery-evidence-publication-v1",
+  "repo_id": "atmem/code-discovery-benchmark-evidence-20261020",
+  "repo_type": "dataset",
+  "revision": "9baad0c281cd2eb7a4cbfb1488a45099ce6d80f1",
+  "visibility": "public_verified",
+  "viewer_last_check": {"status": "ready", "configs": ["trials", "traces"], "trial_rows": 18, "pending_jobs": 0, "failed_jobs": 0},
+  "uploaded_files_verified": 34,
+  "verification": "Every uploaded file downloaded at the immutable revision and SHA256 compared with staging; remote membership checked",
+  "coding_attempts": {"click_optional": 6, "click_requested_consultation": 6, "verified_qualification": 6},
+  "coverage": "diagnostic only; not the full Click or Verified matrix",
+  "click_encrypted_exports_verified": 23,
+  "private_swe_exports_verified": 20,
+  "standalone_recovery": "Fresh process recovered original event hashes with original EvidenceService initialization denied",
+  "public_swe_content": "metrics_only",
+  "rental_spend_usd": 0,
+  "rental_cap_usd": 6,
+  "new_cloud_instances": 0,
+  "campaign_containers_after_teardown": 0,
+  "code_release": "none",
+  "branch": "feature/atmem-code-2.3.9"
+}

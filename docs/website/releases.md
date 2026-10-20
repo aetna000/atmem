@@ -1,14 +1,21 @@
 # Releases and upgrades
 
-## Release candidate: 2.3.8
+## Current release source: 2.3.9
+
+[AtMem 2.3.9](../releases/v2.3.9.md) adds optional shared coding memory,
+source-backed structure, inspectable experience and portable project bundles.
+Use the [Code integration guide](../atmem-code.md). Package and website
+publication are verified separately from the source version.
+
+## Previous stable release: 2.3.8
 
 [AtMem 2.3.8](../releases/v2.3.8.md) adds source-linked typed context,
 obligation-aware bounded evidence packing, first-class reversible Hermes setup,
 and stronger AGMI checkpoint verification. The recorded 5% development samples
 are bounded engineering evidence, not official leaderboard results. The package
-remains a candidate until its reviewed commit is tagged and registry-verified.
+was published separately from its website documentation refresh.
 
-## Published stable release: 2.3.7
+## Earlier stable release: 2.3.7
 
 [AtMem 2.3.7](../releases/v2.3.7.md) adds opt-in product-owned continuity:
 reuse saved results, reconcile supported destinations after a lost receipt,

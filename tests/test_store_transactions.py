@@ -73,3 +73,60 @@ def test_concurrent_connections_cannot_fork_audit_head(tmp_path: Path) -> None:
     memory = Memory(path)
     assert len(memory.store.list_audit_events("user-1")) == 60
     assert memory.store.verify_audit_chain("user-1") is True
+
+
+def test_concurrent_initializers_serialize_the_multi_script_migration(tmp_path, monkeypatch):
+    import threading
+    import time
+    from atmem.store.sqlite import SQLiteStore
+    original = SQLiteStore._apply_bootstrap_migrations
+    active = 0
+    maximum = 0
+    guard = threading.Lock()
+    def inspect(store):
+        nonlocal active, maximum
+        with guard:
+            active += 1
+            maximum = max(maximum, active)
+        try:
+            time.sleep(0.01)
+            return original(store)
+        finally:
+            with guard:
+                active -= 1
+    monkeypatch.setattr(SQLiteStore, "_apply_bootstrap_migrations", inspect)
+    path = tmp_path / "concurrent.db"
+    def open_store(_):
+        store = SQLiteStore(path)
+        store.close()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(open_store, range(16)))
+    assert maximum == 1
+
+
+def test_concurrent_vector_initializers_serialize_wal_and_schema(tmp_path, monkeypatch):
+    import threading
+    import time
+    from atmem.semantic import SemanticIndex
+    original = SemanticIndex._migrate
+    active = 0
+    maximum = 0
+    guard = threading.Lock()
+    def inspect(index):
+        nonlocal active, maximum
+        with guard:
+            active += 1
+            maximum = max(maximum, active)
+        try:
+            time.sleep(0.01)
+            return original(index)
+        finally:
+            with guard:
+                active -= 1
+    monkeypatch.setattr(SemanticIndex, "_migrate", inspect)
+    def open_index(_):
+        index = SemanticIndex(tmp_path / "vectors.db")
+        index.close()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(open_index, range(16)))
+    assert maximum == 1

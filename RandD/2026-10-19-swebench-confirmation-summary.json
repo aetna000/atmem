@@ -1,0 +1,270 @@
+{
+  "scheduled_task_clusters": 5,
+  "repetitions": 2,
+  "availability": {
+    "no_memory": {
+      "scheduled_attempts": 10,
+      "operational_full_passes": 10,
+      "preparation_failures": 0,
+      "environment_unavailable": 0,
+      "complete_usage_receipts": 10
+    },
+    "atmem_structure": {
+      "scheduled_attempts": 10,
+      "operational_full_passes": 10,
+      "preparation_failures": 0,
+      "environment_unavailable": 0,
+      "complete_usage_receipts": 10
+    },
+    "cognee_structure": {
+      "scheduled_attempts": 10,
+      "operational_full_passes": 8,
+      "preparation_failures": 2,
+      "environment_unavailable": 0,
+      "complete_usage_receipts": 8
+    }
+  },
+  "comparisons": {
+    "three_way": {
+      "identical_task_ids_in_both_repeats": [
+        "scikit-learn__scikit-learn-13439",
+        "sphinx-doc__sphinx-7975",
+        "matplotlib__matplotlib-23476",
+        "django__django-15781"
+      ],
+      "task_clusters": 4,
+      "arms": {
+        "no_memory": {
+          "paired_attempts": 8,
+          "full_passes": 8,
+          "input_tokens": 103065,
+          "output_tokens": 10727,
+          "median_solver_seconds": 30.39693577052094,
+          "p95_solver_seconds": 131.51709987502545,
+          "median_measured_setup_plus_solver_seconds": 49.54026912449626,
+          "total_index_seconds": 0,
+          "provider_tool_requests": 0
+        },
+        "atmem_structure": {
+          "paired_attempts": 8,
+          "full_passes": 8,
+          "input_tokens": 178321,
+          "output_tokens": 10861,
+          "median_solver_seconds": 36.13453320847475,
+          "p95_solver_seconds": 121.27161316596903,
+          "median_measured_setup_plus_solver_seconds": 116.98442222946323,
+          "total_index_seconds": 249.02537951699878,
+          "provider_tool_requests": 1
+        },
+        "cognee_structure": {
+          "paired_attempts": 8,
+          "full_passes": 8,
+          "input_tokens": 115087,
+          "output_tokens": 9781,
+          "median_solver_seconds": 38.83323177098646,
+          "p95_solver_seconds": 65.76345558301546,
+          "median_measured_setup_plus_solver_seconds": 377.3702001454949,
+          "total_index_seconds": 2313.107132476999,
+          "provider_tool_requests": 0
+        }
+      }
+    },
+    "native_vs_atmem": {
+      "identical_task_ids_in_both_repeats": [
+        "scikit-learn__scikit-learn-13439",
+        "sympy__sympy-12236",
+        "sphinx-doc__sphinx-7975",
+        "matplotlib__matplotlib-23476",
+        "django__django-15781"
+      ],
+      "task_clusters": 5,
+      "arms": {
+        "no_memory": {
+          "paired_attempts": 10,
+          "full_passes": 10,
+          "input_tokens": 161853,
+          "output_tokens": 15106,
+          "median_solver_seconds": 34.41331116601941,
+          "p95_solver_seconds": 131.51709987502545,
+          "median_measured_setup_plus_solver_seconds": 53.559976958465995,
+          "total_index_seconds": 0,
+          "provider_tool_requests": 0
+        },
+        "atmem_structure": {
+          "paired_attempts": 10,
+          "full_passes": 10,
+          "input_tokens": 523105,
+          "output_tokens": 22100,
+          "median_solver_seconds": 51.5634570629627,
+          "p95_solver_seconds": 135.79343908303417,
+          "median_measured_setup_plus_solver_seconds": 139.6642152084678,
+          "total_index_seconds": 366.91277262399853,
+          "provider_tool_requests": 1
+        }
+      }
+    }
+  },
+  "per_repetition": [
+    {
+      "status": "completed",
+      "selected_tasks": 5,
+      "paired_terminal_tasks": 5,
+      "paired_runnable_tasks": 4,
+      "arms": {
+        "no_memory": {
+          "terminal_cells": 5,
+          "selected_tasks": 5,
+          "fully_resolved": 5,
+          "official_full_resolutions": 5,
+          "graded_cells": 5,
+          "product_preparation_failures": 0,
+          "environment_unavailable": 0,
+          "inference_attempts_with_receipts": 5,
+          "complete_usage_receipts": 5,
+          "paired_operational_resolutions": 5,
+          "paired_complete_input_tokens": 51645,
+          "paired_complete_output_tokens": 5361,
+          "paired_solver_seconds": 164.9305464560166,
+          "paired_median_solver_seconds": 34.41331116601941,
+          "paired_p95_solver_seconds": 79.0509667909937,
+          "paired_median_cold_seconds": 52.23415268701501,
+          "paired_p95_cold_seconds": 110.56637070799479,
+          "paired_index_seconds": 0,
+          "automatic_context_cells": 0,
+          "observed_atmem_tool_calls": 0,
+          "observed_provider_tool_calls": 0
+        },
+        "atmem_structure": {
+          "terminal_cells": 5,
+          "selected_tasks": 5,
+          "fully_resolved": 5,
+          "official_full_resolutions": 5,
+          "graded_cells": 5,
+          "product_preparation_failures": 0,
+          "environment_unavailable": 0,
+          "inference_attempts_with_receipts": 5,
+          "complete_usage_receipts": 5,
+          "paired_operational_resolutions": 5,
+          "paired_complete_input_tokens": 106693,
+          "paired_complete_output_tokens": 5784,
+          "paired_solver_seconds": 270.91731012496166,
+          "paired_median_solver_seconds": 66.12077164600487,
+          "paired_p95_solver_seconds": 121.27161316596903,
+          "paired_median_cold_seconds": 137.0278299789934,
+          "paired_p95_cold_seconds": 203.88275387499016,
+          "paired_index_seconds": 125.01280175900001,
+          "automatic_context_cells": 0,
+          "observed_atmem_tool_calls": 1,
+          "observed_provider_tool_calls": 1
+        },
+        "cognee_structure": {
+          "terminal_cells": 5,
+          "selected_tasks": 5,
+          "fully_resolved": 4,
+          "official_full_resolutions": 4,
+          "graded_cells": 4,
+          "product_preparation_failures": 1,
+          "environment_unavailable": 0,
+          "inference_attempts_with_receipts": 4,
+          "complete_usage_receipts": 4,
+          "paired_operational_resolutions": 4,
+          "paired_complete_input_tokens": 63965,
+          "paired_complete_output_tokens": 5110,
+          "paired_solver_seconds": 160.12549274996854,
+          "paired_median_solver_seconds": 38.83323177098646,
+          "paired_p95_solver_seconds": 65.76345558301546,
+          "paired_median_cold_seconds": 377.3702001454949,
+          "paired_p95_cold_seconds": 597.7616610829718,
+          "paired_index_seconds": 1160.611145122999,
+          "automatic_context_cells": 0,
+          "observed_atmem_tool_calls": 0,
+          "observed_provider_tool_calls": 0
+        }
+      },
+      "controller_error": null,
+      "interpretation": "Preparation failures measure product availability, not model accuracy. Token/time totals compare only identical pairs with valid grades and complete usage. This is a cold-start structural pilot, not an experience-memory or full-suite score."
+    },
+    {
+      "status": "completed",
+      "selected_tasks": 5,
+      "paired_terminal_tasks": 5,
+      "paired_runnable_tasks": 4,
+      "arms": {
+        "no_memory": {
+          "terminal_cells": 5,
+          "selected_tasks": 5,
+          "fully_resolved": 5,
+          "official_full_resolutions": 5,
+          "graded_cells": 5,
+          "product_preparation_failures": 0,
+          "environment_unavailable": 0,
+          "inference_attempts_with_receipts": 5,
+          "complete_usage_receipts": 5,
+          "paired_operational_resolutions": 5,
+          "paired_complete_input_tokens": 51420,
+          "paired_complete_output_tokens": 5366,
+          "paired_solver_seconds": 206.08577845798573,
+          "paired_median_solver_seconds": 27.662106874980964,
+          "paired_p95_solver_seconds": 131.51709987502545,
+          "paired_median_cold_seconds": 47.60986810395843,
+          "paired_p95_cold_seconds": 163.06471350003267,
+          "paired_index_seconds": 0,
+          "automatic_context_cells": 0,
+          "observed_atmem_tool_calls": 0,
+          "observed_provider_tool_calls": 0
+        },
+        "atmem_structure": {
+          "terminal_cells": 5,
+          "selected_tasks": 5,
+          "fully_resolved": 5,
+          "official_full_resolutions": 5,
+          "graded_cells": 5,
+          "product_preparation_failures": 0,
+          "environment_unavailable": 0,
+          "inference_attempts_with_receipts": 5,
+          "complete_usage_receipts": 5,
+          "paired_operational_resolutions": 5,
+          "paired_complete_input_tokens": 71628,
+          "paired_complete_output_tokens": 5077,
+          "paired_solver_seconds": 153.4103566679405,
+          "paired_median_solver_seconds": 34.88584237548639,
+          "paired_p95_solver_seconds": 65.18518858397147,
+          "paired_median_cold_seconds": 96.31061758397846,
+          "paired_p95_cold_seconds": 175.31348587502725,
+          "paired_index_seconds": 124.01257775799877,
+          "automatic_context_cells": 0,
+          "observed_atmem_tool_calls": 0,
+          "observed_provider_tool_calls": 0
+        },
+        "cognee_structure": {
+          "terminal_cells": 5,
+          "selected_tasks": 5,
+          "fully_resolved": 4,
+          "official_full_resolutions": 4,
+          "graded_cells": 4,
+          "product_preparation_failures": 1,
+          "environment_unavailable": 0,
+          "inference_attempts_with_receipts": 4,
+          "complete_usage_receipts": 4,
+          "paired_operational_resolutions": 4,
+          "paired_complete_input_tokens": 51122,
+          "paired_complete_output_tokens": 4671,
+          "paired_solver_seconds": 162.42868175002513,
+          "paired_median_solver_seconds": 39.95691452099709,
+          "paired_p95_solver_seconds": 65.47607408300973,
+          "paired_median_cold_seconds": 382.70398587550153,
+          "paired_p95_cold_seconds": 594.6445173330139,
+          "paired_index_seconds": 1152.4959873540001,
+          "automatic_context_cells": 0,
+          "observed_atmem_tool_calls": 0,
+          "observed_provider_tool_calls": 0
+        }
+      },
+      "controller_error": null,
+      "interpretation": "Preparation failures measure product availability, not model accuracy. Token/time totals compare only identical pairs with valid grades and complete usage. This is a cold-start structural pilot, not an experience-memory or full-suite score."
+    }
+  ],
+  "interpretation": "Two attempts per task are clustered, not ten independent tasks. Token/time comparisons use identical complete task sets in BOTH repetitions. Unavailable or incomplete receipts are not zero. No population superiority or knowledge-use attribution.",
+  "projection_matches_protected_completed_receipts": true,
+  "independent_archive_recovery_verified": true
+}

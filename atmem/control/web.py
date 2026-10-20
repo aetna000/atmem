@@ -77,6 +77,19 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         if path == "/api/auth/status":
             self._json(HTTPStatus.OK, self.server.application.local_auth_status(self._session_token()))
             return
+        if path == "/api/code":
+            try:
+                from atmem.code.dashboard import execute
+                session = self._require_identity_session()
+                body = {key: values[0] for key, values in parse_qs(parsed.query).items()}
+                if "limit" in body:
+                    body["limit"] = int(body["limit"])
+                self._json(HTTPStatus.OK, execute(self.server.manager, session, body, read_only=True))
+            except PermissionError as exc:
+                self._json(HTTPStatus.FORBIDDEN, {"error": str(exc)})
+            except (ValueError, OSError, RuntimeError) as exc:
+                self._json(HTTPStatus.CONFLICT, {"error": str(exc)})
+            return
         if path == "/api/home":
             try:
                 self._require_identity_session()
@@ -614,8 +627,12 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.FORBIDDEN, {"error": "CSRF check failed"})
             return
         try:
-            body = self._body()
+            body = self._body(maximum=180_000_000 if path == "/api/code" else 1_000_000)
             path = _canonical_api_path(urlparse(self.path).path)
+            if path == "/api/code":
+                from atmem.code.dashboard import execute
+                self._json(HTTPStatus.OK, execute(self.server.manager, self._require_identity_session(), body))
+                return
             if path == "/api/evidence/capture-mode":
                 from atmem.evidence import CaptureMode
 
@@ -1472,12 +1489,12 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             f"localhost:{self.server.server_port}",
         }
 
-    def _body(self) -> dict[str, Any]:
+    def _body(self, *, maximum: int = 1_000_000) -> dict[str, Any]:
         try:
             size = int(self.headers.get("Content-Length", "0"))
         except ValueError as exc:
             raise ValueError("invalid Content-Length") from exc
-        if size < 0 or size > 1_000_000:
+        if size < 0 or size > maximum:
             raise ValueError("request body is too large")
         value = json.loads(self.rfile.read(size) or b"{}")
         if not isinstance(value, dict):

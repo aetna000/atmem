@@ -1,0 +1,63 @@
+{
+  "format": "atmem-actual-query-packing-qualification-v1",
+  "candidate_wheel_sha256": "c7b4fb0256cf32e4f06461ad0dbf0200ee46401998f94c65f47cb14178012baa",
+  "previous_navigation_wheel_sha256": "ffa14c304463f592c6ae4a3996d06be9ea967fc483f1f7cb58fe77c1d7e0bfd1",
+  "interpretation": "Actual public validation issue queries, retained encrypted snapshots, exact rendered byte equality and independently installed MCP requests; not coding-task or end-user latency improvement.",
+  "rows": [
+    {
+      "identity": "django__django-16229",
+      "status": "passed",
+      "exact_pack_equal": true,
+      "bytes": 4066,
+      "content_sha256": "cddd8c2380b3e0e9ca71b09720d62277e6d87e7e8ff97a860bc984afbb18f021",
+      "old_pack_seconds": 24.71953577300019,
+      "new_pack_seconds": 12.769435067000131,
+      "actual_mcp_stage_seconds": 31.78433799200002,
+      "installed_package_files_verified": 346
+    },
+    {
+      "identity": "matplotlib__matplotlib-24970",
+      "status": "passed",
+      "exact_pack_equal": true,
+      "bytes": 3809,
+      "content_sha256": "bfa15cf6df64fb405167779635933e1ca9cdda3e32de21c8d7a6091d6ed7597d",
+      "old_pack_seconds": 24.21723364699983,
+      "new_pack_seconds": 7.393437547999838,
+      "actual_mcp_stage_seconds": 19.821100169000147,
+      "installed_package_files_verified": 346
+    },
+    {
+      "identity": "scikit-learn__scikit-learn-12471",
+      "status": "passed",
+      "exact_pack_equal": true,
+      "bytes": 3996,
+      "content_sha256": "8165a7c300ebf8e00030733de60609b588f3eaa01e031e3521a351e2074a8396",
+      "old_pack_seconds": 11.946418671999936,
+      "new_pack_seconds": 6.352801638000074,
+      "actual_mcp_stage_seconds": 15.675210713999832,
+      "installed_package_files_verified": 346
+    },
+    {
+      "identity": "sphinx-doc__sphinx-8595",
+      "status": "passed",
+      "exact_pack_equal": true,
+      "bytes": 3999,
+      "content_sha256": "c0086bcabb717af3c17e0ad3b5b6ecadc6984e98122eb0f589d6c1e01b7797e8",
+      "old_pack_seconds": 6.1616673579999315,
+      "new_pack_seconds": 3.4128792469998643,
+      "actual_mcp_stage_seconds": 9.4466862459999,
+      "installed_package_files_verified": 346
+    },
+    {
+      "identity": "sympy__sympy-17139",
+      "status": "passed",
+      "exact_pack_equal": true,
+      "bytes": 4085,
+      "content_sha256": "d19b5d55bb72eb16bba419c1b00fbc18f8a8373eab39301ffa4eeeb022a019c9",
+      "old_pack_seconds": 135.37584378299994,
+      "new_pack_seconds": 30.937580285999957,
+      "actual_mcp_stage_seconds": 51.67787393200001,
+      "installed_package_files_verified": 346
+    }
+  ]
+}

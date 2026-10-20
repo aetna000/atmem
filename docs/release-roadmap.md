@@ -1,27 +1,58 @@
 # AtMem release roadmap
 
-**Status**: 2.3.7 is the published stable release. AtMem 2.3.8 and its
-matching OpenClaw bridge are the current stable release candidates; they are
-not published until the reviewed commit is merged, tagged and verified in the
-registries. The exact tested AtFlows companion remains `0.1.4b3`.
-**Release baseline**: AtMem `2.3.7`, OpenClaw bridge `2.3.7`, companion pins
-`atmem-atbot==0.1.0` and `atflows==0.1.3`. Publication status is recorded by
-the matching GitHub release and registry artifacts, not this roadmap alone.
+**Status**: AtMem 2.3.8 is the published stable release; the
+[GitHub release](https://github.com/aetna000/atmem/releases/tag/v2.3.8) and
+[PyPI artifact](https://pypi.org/project/atmem/2.3.8/) are available. Its
+release note records the exact tested AtFlows companion as `0.1.4b3`.
+**Release baseline**: AtMem `2.3.8` and its matching source bridge version;
+verify companion and npm artifacts separately for an actual coordinated release.
+Publication status is recorded by GitHub and registry artifacts, not this
+roadmap alone.
 
-**Next planned maintenance release:** AtMem/bridge `2.3.8`, with the governed
-context engine, first-class Hermes setup and bounded benchmark evidence described
-in [its release note](releases/v2.3.8.md). AtMem `2.3.7` remains the published
-stable baseline until the release workflow succeeds. Preserve opt-in continuity
-behavior and benchmark provenance; full held-out qualification stays open.
-Official MCP Registry registration ([issue #8](https://github.com/aetna000/atmem/issues/8))
-and stable AtFlows `0.1.4` generic secret redaction
+**Next development track:** [Spec 042 AtMem Code](../specs/042-atmem-code/spec.md)
+is the proposed 2.3.9 product scope: automatic project memory shared across
+supported coding agents, searchable and portable project bundles, configured
+external context and optional code graph. The pre-existing `v2.3.9b1` Laya
+prerelease remains historical and immutable; its features are not implied by
+AtMem Code. The actual next candidate version is chosen only during separate
+release preparation. The current development request covers phases 0–8 of
+[the plan](../specs/042-atmem-code/plan.md); Phase 9 benchmarking and release
+work are deferred. Official MCP Registry registration
+([issue #8](https://github.com/aetna000/atmem/issues/8)) and stable AtFlows
+`0.1.4` generic secret redaction
 ([AtFlows #6](https://github.com/aetna000/atflows/issues/6)) remain separately
-verified publication tracks and are not implied by the AtMem candidate. This
-roadmap update schedules work; it does not authorize publication.
+verified publication tracks. This roadmap update does not authorize a release.
+
+**Pending Code expansion:** Spec 042 FR-017–FR-028 and T043–T060 now cover
+upstream-first repository knowledge, governed coding-attempt experiences,
+graph-independent applicability and the Memory Explorer. Historical phase 0–8
+qualification does not include these new capabilities. The code-first CK plan
+maps into this canonical task set; broader document/data connectors remain later
+explicit scope. No release version or publication is selected by this planning.
+
+**Separate evaluation workstream:** [Spec 043 Click historical replay](../specs/043-click-historical-replay/spec.md)
+plans five real historical tasks under four configurations and three repetitions.
+Experience B/D require Spec 042 T049–T051 and installed proof, structure C/D require
+the rich graph gates, and all runs require a T060 capability receipt, qualified
+agent integration and later explicit budget/egress authorization. It is not the
+deferred VibeMemBench campaign, does not close phase 9/T033, and does not claim
+Cognee parity or broad coding benefit. No real trial has run under this protocol.
 
 AtMem is an agent-neutral, standalone encrypted evidence authority for memory, context governance and execution investigation. Every release follows [PR-001–PR-008](../specs/product-requirements.md), including default full-fidelity multimodal capture, application-only privileged plaintext and store-only reconstruction after the agent and its logs are gone. Advertise only the host, provider, capture-boundary, cryptographic and deployment profiles actually verified for that release.
 
 ## Release overview
+
+### AtMem Code: proposed 2.3.9 development track
+
+Spec 042 uses the existing AtMem package and canonical memory service, with
+explicitly enabled Muse Code, Claude Code, Grok CLI, GitHub Copilot CLI and
+Codex adapters only where installed-version probes support automatic capture
+and recall. Mem0 Code's hook-driven first-prompt recall, completed-work
+capture, compaction flush and explicit-search pattern informs the design;
+AtMem remains local-first with scoped authority and portable project bundles.
+Provider routing and a derived code graph are user-optional but included in
+the phase 0–8 engineering request. No benchmark advantage, five-host support
+or 2.3.9 publication is claimed before its separate gates pass.
 
 ### Planned host integration: Hermes and DolphinBench qualification
 
@@ -151,6 +182,8 @@ The numbered capability targets below remain proposals, not execution priority.
 | **2.3.4b2** — AtFlows-installed review-lead beta | M4 preparation | AtMem installs the pinned AtFlows Python package by default; an explicitly started AtFlows instance can supply exact session-linked trace-error leads for a read-only local evidence review report. The versioned report can feed the 2.4.0 Memory Health queue after that queue exists | 020/028 evidence and access boundaries; future 026 consumer | Source candidate, not published. Installed AtFlows 0.1b6 handoff passes the local smoke gate. No automatic server start, shared login, Memory Health queue, automatic admission, raw-trace import, inferred run link or causal claim. AtMem works without a running AtFlows server. |
 | **2.3.4** — stable follow-up | Beta stabilization | Preserve verified retrieval scope, install AtFlows 0.1.1 by default, and offer optional AtMem-owned login plus read-only review leads | 031/035 and applicable 020/028/026 contracts | AtFlows remains separately started; standalone login remains compatible. No promotion of exploratory Jev results, automatic Memory Health, or causal telemetry claims. Stable release requires its own reviewed gates and notes. |
 | **2.3.6** — memory-integrity qualification | Canonical safety boundaries | Secret-bearing proposal refusal, direct-parent taint propagation, issued scoped procedure-review authority, portable locking, and frozen before/after public benchmark evidence | Benchmarking 001 and existing memory/evidence authority contracts | Stable. No schema migration; retrieval defaults and companion pins unchanged. Candidate result: 400 PASS and 300 NOT_REPRESENTABLE across 700 trials, with zero failures/errors; upstream placement remains pending. |
+| **2.3.8** — governed context engine | Stable baseline | Source-linked typed context, bounded evidence packing, first-class Hermes setup and bounded benchmark evidence | 037, 040 and [release note](releases/v2.3.8.md) | Published; historical development gates elsewhere in this roadmap do not supersede the release note. |
+| **2.3.9 proposed** — AtMem Code | Coding-agent project memory | One package flavour, automatic capture/recall on qualified coding-agent hosts, shared local project memory, CLI/dashboard search and settings, portable project bundle, configured delegated context, optional graph | [Spec 042](../specs/042-atmem-code/spec.md) | Development phases 0–8 requested. Historical Laya `v2.3.9b1` is not this feature. Version, benchmark and publication remain unselected/deferred. |
 | **2.4.0** — local memory health | M4 memory intelligence, local profile | Native single-owner memory gets time-valid recall, deterministic expiry and duplicate checks, a review queue, bounded opt-in background cycles and optional AtBot semantic proposals. Review works without a running AtFlows server or model | 001, 006, 008, 015, 026; applicable 020/022/028 local contracts | Ship only after local admission/lifecycle, scope, encrypted evidence, generation, deletion, restart and installed-artifact gates pass. Default disabled; first activation preview-only. No shared-space, external-provider propagation or automatic semantic changes claimed. |
 | **2.5.0** — multi-agent memory and access foundations | M1 | Agents use private and explicitly shared spaces with separate read/write/admin permissions, ownership, membership changes and provenance. Establish durable authenticated administration for supported production profiles; extend memory-health authorization to shared spaces | 006, 010, 012, 013, 015, applicable 017/019/022/026 consumers | Membership and credential subsystems pass their decomposed gates; no cross-space leaks, stale-grant delivery, hidden health-count leakage or revoked-key resurrection. Local 2.4 memory health remains available. |
 | **2.6.0** — governed provider connections | M1 | Native memory and external memory/knowledge share inspection and policy services; provider setup supports access preview, conditional approval, explicit activation and first-delivery monitoring. Complete the nine-destination workspace: Runs, Memory, Decisions, Tools and media, Audit, Policies, Tasks, Connections and Settings | 019, 022, 025, relevant 003/004/017/026 | Native plus one real external provider and declared authentication profiles pass. Preserve all three authority modes, exact delegated bytes and actual credential/delivery assurance. No claim of every authentication method or connector working. |

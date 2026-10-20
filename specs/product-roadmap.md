@@ -1,6 +1,6 @@
 # AtMem unified product roadmap
 
-**Updated**: 2026-10-01
+**Updated**: 2026-10-17
 **Status**: Implementation backlog; product capabilities below require their acceptance gates.
 
 **Numbered releases**: [Release roadmap — proposed 2.3 beta through 2.10 model-unlearning research preview](../docs/release-roadmap.md). Its Work group column maps the non-chronological M0–M4 dependency/scope groupings to independently sequenced releases; version numbers are planning targets, not publication claims.
@@ -10,6 +10,23 @@
 AtMem helps agents remember, controls the context they receive, and independently preserves what happened. The AtMem evidence store—not the agent, host logs or an external provider—is the investigation system of record.
 
 ## Product requirements that govern every feature
+
+### Current Code and Click planning tracks
+
+[Spec 042](042-atmem-code/spec.md) separates the implemented/qualified subset of
+automatic project memory from its pending FR-017–FR-028 / T043–T060 expansion:
+upstream-first code knowledge, governed attempt-based experience, anchored
+applicability and a Memory Explorer within the existing product shell. Existing
+user-assertion formation and Python syntax indexing are not this richer feature.
+The detailed [CK plan](042-atmem-code/code-knowledge-plan.md) maps to that task set;
+it does not grant new authority or replace the wider cross-source backlog.
+
+[Spec 043](043-click-historical-replay/spec.md) is a separately frozen, unexecuted
+five-task historical Click pilot. It depends on the exact product capability
+gates, normal agent integration and explicit future budget/egress authorization.
+It is distinct from Spec 042 phase 9/VibeMemBench and is not representative
+production benchmark evidence. Pilot-specific benefit/harm may be measured;
+general coding claims, parity and release publication keep their separate gates.
 
 ### 2.3.8 context-engine quality direction
 

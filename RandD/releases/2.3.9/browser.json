@@ -1,0 +1,16 @@
+{
+  "format": "atmem-code-browser-check-v1",
+  "passed": true,
+  "checks": [
+    "administrator login",
+    "project selector",
+    "shared memory search",
+    "pause capture/recall settings",
+    "scoped clear preview",
+    "verified deletion"
+  ],
+  "javascript_errors": [],
+  "owner_data_opened": false,
+  "candidate_only": true,
+  "dependencies": "AtFlows 0.1.4 supplied as local unreleased wheel"
+}
