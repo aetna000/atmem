@@ -27,6 +27,10 @@ class OpenAICompatibleProvider:
         self.name = name
         self.model = model
         self.endpoint = endpoint.rstrip("/")
+        # Profiles use both server origins and OpenAI-style /v1 base URLs.
+        # Keep exactly one /v1 when constructing the compatibility endpoints.
+        if self.endpoint.endswith("/v1"):
+            self.endpoint = self.endpoint[:-3]
         self.api_key_env = api_key_env
         self.egress_class = egress_class
         self.timeout = timeout
@@ -65,7 +69,10 @@ class OpenAICompatibleProvider:
         if schema:
             payload["response_format"] = {
                 "type": "json_schema",
-                "json_schema": {"name": "atbot_output", "schema": schema},
+                # Preserve the existing optional/open-object schema contract.
+                # Strict-mode compilation would require a different schema;
+                # normal AtBot validation and AtMem admission remain mandatory.
+                "json_schema": {"name": "atbot_output", "schema": schema, "strict": False},
             }
         request = Request(
             f"{self.endpoint}/v1/chat/completions",

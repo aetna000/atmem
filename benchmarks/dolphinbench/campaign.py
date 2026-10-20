@@ -31,6 +31,13 @@ def main():
         parser.error('Execution requires --confirm-paid-calls')
     if args.pilot_sessions < 0:
         parser.error('Pilot limit cannot be negative')
+    if args.pilot_sessions == 0:
+        parser.error(
+            'Full paid execution is blocked: this private adapter has not qualified '
+            'the historical V3 formation/retrieval path or official judge transport. '
+            'Do not resume preparation stores as a submission run. '
+            'Only an explicitly bounded --pilot-sessions diagnostic is available.'
+        )
     root = args.output.resolve()
     if not root.is_relative_to(Path('/Volumes/AtMemDolphin')):
         parser.error('Campaign data must stay on the external benchmark workspace')

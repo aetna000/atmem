@@ -1,7 +1,11 @@
 # Private DolphinBench campaign — 2026-10-21
 
-Status at this checkpoint: chronological ingestion is running. **No new final
-task-accuracy score is available.** The user's total spending ceiling is
+Status: the fallback ingestion condition was stopped at 101 completed exported
+interactions after its memory path was found to differ from the historical V3
+configuration. **No new final task-accuracy score is available.** Full paid
+execution is now blocked pending qualification; see the
+[configuration and readiness audit](../../../docs/benchmarks/dolphinbench-readiness-20261021.md).
+The user's total spending ceiling is
 US$250; no paid infrastructure is provisioned.
 
 ## Frozen inputs
@@ -46,7 +50,7 @@ Earlier attempts are preparation evidence, not accuracy results:
 | `campaign-atmem-239` | Main pilot responses saved; background title request lacked completion evidence; conservative reservation retained |
 | `campaign-atmem-239-qualified` | One paid ingestion completed for US$0.003617; controller-only export repair preserved prior identities and resumed without another model call |
 | `campaign-atmem-239-full` | Three interactions exported; a longer fourth exposed native background skill review; all 15 API calls and US$0.017835 cost saved |
-| `campaign-atmem-239-frozen` | Empty separate memory baseline, fixed settings above; full ingestion in progress |
+| `campaign-atmem-239-frozen` | Fallback preparation stopped after 101 exported interactions; US$0.415165 in completed API calls, no scored tasks; not the historical V3 memory condition |
 
 All preparation batches and gate reports have been committed to the private
 [AtMem evidence repository](https://huggingface.co/datasets/atmem/dolphinbench-evidence-20261020)
