@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e "./packages/atbot" -e ".[dev]"
+      - run: pip install -e "./packages/atbot" -e ".[dev,code]"
       - run: pytest -q
 
   windows-core-smoke:
