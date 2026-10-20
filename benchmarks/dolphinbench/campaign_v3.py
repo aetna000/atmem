@@ -191,7 +191,9 @@ def main():
             print(json.dumps({'qualification_passed': True, 'full_run_started': False}), flush=True)
             return
         with run_lock(root):
-            if args.baseline_from and not args.resume:
+            if args.baseline_from and not (root / 'repairs/frozen-baseline-adoption.json').exists():
+                if list((root / 'ingestion').glob('*/*.json')):
+                    raise ValueError('Partial baseline adoption requires reconciliation, not source regeneration')
                 from .baseline import adopt
                 adopt(args.baseline_from, root, release, adapter)
             # Each persona remains chronological. Batches join before exports,

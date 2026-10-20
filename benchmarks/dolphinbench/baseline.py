@@ -32,8 +32,15 @@ def adopt(source, destination, release, adapter):
     cost = json.loads((source / 'costs/ingestion.json').read_text())
     assert cost['total_cost_usd'] == 0
     save_new(destination / 'costs/ingestion.json', cost)
-    save_new(destination / 'archive-index.json', {'files': adopted,
-        'verified_batches': previous_archive['verified_batches'],
+    index_path = destination / 'archive-index.json'
+    target_archive = json.loads(index_path.read_text()) if index_path.exists() else {'files': {}, 'verified_batches': []}
+    # A qualification-only failure may already have archived run metadata.
+    # Retain that verified recovery chain while adopting source-only artifacts.
+    if index_path.exists():
+        save_new(destination / 'repairs/pre-adoption-archive-index.json', target_archive)
+    from .driver import private_json
+    private_json(index_path, {'files': {**target_archive['files'], **adopted},
+        'verified_batches': previous_archive['verified_batches'] + target_archive['verified_batches'],
         'adopted_prefixes': ['ingestion/', 'native/ingestion/'], 'baseline_origin': str(source)})
     save_new(destination / 'repairs/frozen-baseline-adoption.json', {
         'source_run': str(source), 'original_manifest_sha256': hashlib.sha256((source / 'run.json').read_bytes()).hexdigest(),

@@ -47,7 +47,7 @@ def test_in_process_preparation_keeps_authentication_and_sdk_validation(tmp_path
     host.credential = 'hermes_fixture-only'
     host.server = SimpleNamespace(server_port=12345)
     seen = []
-    response = {'context': 'original product context', 'candidate_ids': ['evidence-1'],
+    response = {'context': 'original product context', 'candidate_ids': ('evidence-1',),
                 'reason': 'authorized', 'lifecycle_recorded': True,
                 'profile': 'authorized-at-recall-context-v3'}
 

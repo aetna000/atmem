@@ -86,7 +86,10 @@ class AtMemHost:
                     # Same authenticated product endpoint, schema, governance,
                     # retrieval and lifecycle. Avoid only the desktop RPC's
                     # ten-second network deadline in this bulk-history study.
-                    return self.service.dispatch(self.credential, operation, payload)
+                    value = self.service.dispatch(self.credential, operation, payload)
+                    # Preserve the HTTP JSON boundary too: product tuples
+                    # become JSON arrays before ordinary SDK validation.
+                    return json.loads(json.dumps(value, allow_nan=False))
                 return super()._call(operation, payload, timeout=timeout)
 
             def prepare_turn(self, *args, **kwargs):

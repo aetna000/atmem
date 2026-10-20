@@ -20,8 +20,13 @@ The controller was interrupted at the ten-task checkpoint, before further model
 work. No prior task execution or grade is adopted into this new condition.
 The earlier errors, scores, raw traces and cloud copies remain available.
 This transport correction does not alter source facts, retrieval, grading or
-model instructions. Fourteen export/transport checks pass, including preservation
+model instructions. Fifteen export/transport checks pass, including preservation
 of scoped authentication and SDK rejection of malformed in-process responses.
+The in-process response traverses an identical JSON serialization round trip
+before SDK validation (including tuples becoming arrays). An initial unscored
+qualification caught that missing conversion; its original identity and failure
+are retained. Resumption before baseline adoption preserves the existing cloud
+verification chain; no scored task was executed in that failed qualification.
 
 ```bash
 ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \
