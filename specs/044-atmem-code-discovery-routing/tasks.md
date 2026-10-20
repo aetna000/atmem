@@ -35,7 +35,7 @@ pass; independent work may proceed where no failed prerequisite is bypassed.
 
 ## Phase 4 — Comparable discovery benchmark machinery
 
-- [ ] T018 Implement controlled native lexical, actual pinned upstream Cognee and AtMem navigation backends in `benchmarks/code_replay/discovery_study.py`, with common source policy and no experience/pruning. Covers FR-012, FR-013, SC-005, SC-006.
+- [x] T018 Implement controlled native lexical, actual pinned upstream Cognee and AtMem navigation backends in `benchmarks/code_replay/discovery_study.py`, with common source policy and no experience/pruning. Covers FR-012, FR-013, SC-005, SC-006. Exercised through real Click trials and a Verified qualification pilot; not stock-native CLI or full-product comparison.
 - [ ] T019 Implement exact request/result/read-range capture, usage reconciliation, fallback/non-use, repeated-read coverage and paired metrics in `benchmarks/code_replay/discovery_metrics.py`. Covers FR-009, FR-016, SC-005, SC-006, SC-008.
 - [ ] T020 Add tests for missing usage, duplicate/omitted attempts, native-vs-controlled separation, source isolation and comparator identity in `tests/test_discovery_study.py`. Covers FR-012–FR-016, SC-005, SC-006.
 - [ ] T021 Freeze task/host/backend ordering, artifacts/prompts/caps and standalone encrypted evidence recovery via `tools/freeze_discovery_campaign.py`. Covers FR-009, FR-012–FR-016, SC-005, SC-006, SC-008.
@@ -43,7 +43,7 @@ pass; independent work may proceed where no failed prerequisite is bypassed.
 ## Phase 5 — Click diagnostic matrix
 
 - [ ] T022 Freeze five actual historical task/grader/source snapshots under 043 controls in `specs/044-atmem-code-discovery-routing/click-manifest.json`; no future/reference history in solvers. Covers FR-014, SC-005.
-- [ ] T023 Run one predeclared Click task for all qualified scoring host/backend cells and retain failures/non-use/usage in encrypted campaign evidence. Covers FR-012–FR-014, FR-016, SC-005.
+- [x] T023 Run one predeclared Click task for all qualified scoring host/backend cells and retain failures/non-use/usage in encrypted campaign evidence. Covers FR-012–FR-014, FR-016, SC-005. Six optional cells completed; three Copilot cells blocked by actual account policy. Separate six-cell requested-consultation diagnostic also retained, never pooled.
 - [ ] T024 Complete remaining Click cells without score-guided retries; generate exact native/Cognee/AtMem per-host comparison via `tools/report_discovery_campaign.py`. Covers FR-012–FR-014, FR-016, SC-005.
 
 ## Phase 6 — SWE-bench freeze and resource gates
@@ -63,3 +63,19 @@ pass; independent work may proceed where no failed prerequisite is bypassed.
 - [ ] T031 Report per-host native/Cognee/AtMem quality, total tokens, latency, discovery adoption, fallback/redundant reads, paired uncertainty and missing cells using `tools/report_discovery_campaign.py`. Covers FR-013–FR-018, SC-005–SC-008.
 - [ ] T032 Verify encrypted standalone recovery and privacy/licensing; publish large artifacts to AtMem Hugging Face with immutable hashes and private keys excluded. Covers FR-009, FR-018, SC-008.
 - [ ] T033 Verify product/install/compatibility/doc gates and push code/specs/small evidence to `feature/atmem-code-2.3.9`; no main/tag/release change. Covers FR-010, FR-011, FR-018, SC-004, SC-008.
+
+## Executed checkpoint — 2026-10-20
+
+See `RandD/2026-10-20-discovery-benchmark-results.md`. Twelve real Click attempts
+in two distinct conditions and six real Verified qualification attempts are
+complete. This is not completion of the full task matrix or all implementation
+phases. Host transport/auth receipts exist for benchmark-only Claude/Codex;
+production routed adapters, Muse/Grok routing and complete OS support remain
+open. Copilot's actual account policy blocks third-party MCP. T019/T020 have
+usage/delivery projections and tests, but no complete source-range accounting.
+T025 has a pinned 500-ID candidate manifest, not a completed exposure/license
+audit. T026 has passing base/reference grader controls on one qualification
+task, not full-target eligibility/quota qualification. T027 rental safeguards
+remain unbuilt and no rental was started. T029's full campaign remains gated.
+Full-source traces and preparation failures remain retained; an interrupted SWE
+setup stream is explicitly incomplete rather than presented as full capture.

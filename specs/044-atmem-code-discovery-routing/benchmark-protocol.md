@@ -78,6 +78,17 @@ Primary efficacy target: no lower aggregate executable resolution and lower
 paired total input tokens on untouched confirmation, with uncertainty shown.
 No guaranteed savings percentage. A losing result is valid and publishable.
 
+### Separately named requested-consultation diagnostic
+
+The first six-cell optional Click screen on 2026-10-20 observed zero discovery
+calls in every arm. Retain it as the adoption result. A new engineering condition
+may ask every backend arm to begin navigation with a self-selected discovery
+query, while leaving original source commands available with no deny/retry gate.
+Freeze the changed prompt before dispatch; label this condition `requested`,
+never pool it with `optional`, and report compliance/non-use. It measures
+consultation under instruction, not spontaneous adoption or a stock-native CLI.
+The same exposed task may be reused only as a diagnostic, not confirmation.
+
 ## Gates, money and scheduling
 
 Gate A: strict contract/security tests and installed-artifact compatibility.
