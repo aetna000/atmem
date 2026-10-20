@@ -108,6 +108,16 @@ not a retried or selected task result. Product wheel and model settings did not
 change. All final installed gates passed: 93 product/native contract tests and
 6 transport/replay tests (overlapping older reports are not summed).
 
+After 3,040 histories, an operator-only helper opened one idle encrypted database
+connection per persona and set each helper connection to SQLite `query_only`.
+It holds no read transaction and issues no queries during the run. This avoids
+checkpointing the WAL on every last-connection close. Commit synchronization,
+encryption, episode formation, chronological order and retrieval are unchanged;
+all databases remain on MEM. The exact start count and helper identity are saved
+in `repairs/idle-database-connections-20261021.json` and archived. Ingestion timing
+before/after this storage operation must be reported separately; no homogeneous
+full-ingestion latency claim is made. The helper closes when the controller exits.
+
 Raw requests, actual provider Responses bodies, normalized native exchanges,
 tool results, usage, rulings, costs and V3 source/evidence exports are archived to
 the private [AtMem evidence repository](https://huggingface.co/datasets/atmem/dolphinbench-evidence-20261020).
