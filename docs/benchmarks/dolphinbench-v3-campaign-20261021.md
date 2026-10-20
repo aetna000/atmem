@@ -1,6 +1,43 @@
 # V3 full-campaign protocol — 2026-10-21
 
-## Current condition: authenticated product API without the desktop RPC deadline
+## Current condition: published Luna reader settings, unchanged V3 memory
+
+Run directory: `campaign-atmem-v3-matched-luna-high-20261021`.
+The published Hermes/Luna/Mem0 configuration in the pinned upstream release uses
+`reasoning_effort=high`, `max_turns=60`, `context_length=1050000`.
+The initial medium/20-turn condition was not reader-matched and was stopped at
+70 graded Morgan tasks (33 passes), with its remaining in-flight evidence
+preserved. Its complete raw traces and scores are cloud-archived and excluded
+from the new condition; no task result is selected or adopted.
+
+The full 600-task condition now matches those three published reader settings.
+The actual Responses request is checked for `reasoning.effort=high` before
+network I/O. The judge remains fixed Sol-medium/8000. Memory formation,
+retrieval, source snapshots, scope isolation, rendering and governance are
+unchanged. This is a correction to the comparator protocol, not a memory change
+selected from task failures. It does not make the public benchmark a sealed
+test, and no untouched-test or causal matched-Mem0-rerun claim is made.
+
+Published reference: Mem0 424/600, with 37.7-second median latency; Morgan
+156/200, Alex 132/200, Riley 136/200. The reference is the published run, not a
+fresh control run. The agent transport differs (our subscription versus its
+Azure Foundry) and costs cannot be compared as equivalent API charges.
+Configuration JSON and its SHA are included in the new run identity. Eighteen
+transport/export regression checks pass, including both reader configurations.
+
+```bash
+ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \
+TMPDIR=/Volumes/AtMemDolphin/tmp \
+TIKTOKEN_CACHE_DIR=/Volumes/AtMemDolphin/cache/tiktoken \
+/private/tmp/atmem-dolphin-controller-v3-20261021/bin/python -I -c \
+'import sys; sys.path.append("/Users/javadtaghia/gitlab/aetnamem-dolphinbench-2.3.9"); from benchmarks.dolphinbench.campaign_v3 import main; main()' \
+--output /Volumes/AtMemDolphin/campaign-atmem-v3-matched-luna-high-20261021 \
+--baseline-from /Volumes/AtMemDolphin/campaign-atmem-v3-full-r2-20261021 \
+--reader-reasoning high --reader-max-turns 60 --reader-context-length 1050000 \
+--env-file /path/to/private.env --confirm-paid-grading
+```
+
+## Preserved medium/20 condition: product API without the desktop RPC deadline
 
 Run directory: `campaign-atmem-v3-product-api-full-20261021`. This condition
 retains the exact original frozen histories, research wheel, retrieval budgets,

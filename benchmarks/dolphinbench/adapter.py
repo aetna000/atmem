@@ -133,9 +133,12 @@ class AtMemAdapter:
             with bridge(request.apps, socket):
                 client = home / 'app_client.py'
                 stage_client('/Volumes/AtMemDolphin/upstream', client, socket)
+                reader = self.campaign_identity.get('agent', {'reasoning': 'medium', 'max_turns': 20})
                 host.configure_profile(home, base_url=gateway.base_url, local_token=gateway.local_token,
                     mcp={'command': str(self.runtime.python), 'args': ['-I', str(client)]},
-                    governed_context=governed_context)
+                    governed_context=governed_context,
+                    reader_reasoning=reader['reasoning'], reader_max_turns=reader['max_turns'],
+                    reader_context_length=reader.get('context_length', 1000000))
                 if subscription:
                     from .driver import private_json
                     config = json.loads((home / 'config.yaml').read_text())
@@ -144,7 +147,8 @@ class AtMemAdapter:
                     private_json(home / 'config.yaml', config)
                 witness = home / 'shutdown-witness.jsonl'
                 process = self.runtime.invoke(profile,
-                    ['chat', '-q', request.dated_message, '-Q', '--yolo', '--format', 'stream-json', '--max-turns', '20'],
+                    ['chat', '-q', request.dated_message, '-Q', '--yolo', '--format', 'stream-json',
+                     '--max-turns', str(reader['max_turns'])],
                     ports=[gateway.server_port, host.server.server_port], sockets=[socket], timeout=43200 if subscription else 600,
                     environment={'CUSTOM_API_KEY': gateway.local_token,
                         'ATMEM_BENCH_OBSERVER': str(self.observer), 'ATMEM_BENCH_WITNESS': str(witness)})

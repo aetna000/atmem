@@ -40,6 +40,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--listener-file', type=Path)
+    parser.add_argument('--reasoning-effort', choices=('medium', 'high'), default='medium')
     args = parser.parse_args()
     root = args.output.resolve()
     root.relative_to(Path('/Volumes/AtMemDolphin'))
@@ -57,6 +58,8 @@ def main():
         if urlparse(str(request.url)).hostname != 'chatgpt.com':
             raise RuntimeError('Subscription credential cannot be sent to another host')
         body = json.loads(request.content)
+        if body.get('reasoning', {}).get('effort') != args.reasoning_effort:
+            raise RuntimeError('Actual provider reasoning differs from frozen reader settings')
         if local.expected_instructions is not None and body.get('instructions') != local.expected_instructions:
             raise RuntimeError('Actual provider instructions differ from the native instruction prologue')
         save_new(local.attempt / 'provider-request.json', {'url': str(request.url),
@@ -117,9 +120,9 @@ def main():
                             'model', 'stream', 'stream_options', 'provider', 'n'}}
                         kwargs['messages'], local.expected_instructions = preserve_instructions(kwargs['messages'])
                         extra = dict(kwargs.pop('extra_body', {}) or {})
-                        effort = kwargs.pop('reasoning_effort', 'medium') or 'medium'
-                        if effort != 'medium':
-                            raise ValueError('Subscription agent reasoning differs from the frozen medium configuration')
+                        effort = kwargs.pop('reasoning_effort', args.reasoning_effort) or args.reasoning_effort
+                        if effort != args.reasoning_effort:
+                            raise ValueError('Subscription agent reasoning differs from the frozen configuration')
                         extra['reasoning'] = {'effort': effort}
                         result = client.chat.completions.create(model=model, **kwargs,
                             extra_body=extra, timeout=180)

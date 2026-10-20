@@ -109,7 +109,11 @@ class AtMemHost:
         finally:
             provider.shutdown()
 
-    def configure_profile(self, home, *, base_url, local_token, mcp=None, governed_context=None):
+    def configure_profile(self, home, *, base_url, local_token, mcp=None, governed_context=None,
+                          reader_reasoning='medium', reader_max_turns=20, reader_context_length=1000000):
+        if (reader_reasoning not in {'medium', 'high'} or reader_max_turns not in {20, 60}
+                or reader_context_length not in {1000000, 1050000}):
+            raise ValueError('Unsupported frozen reader configuration')
         home = Path(home).resolve()
         home.mkdir(parents=True, exist_ok=True, mode=0o700)
         home.chmod(0o700)
@@ -135,11 +139,11 @@ class AtMemHost:
         config = {
             'model': {'provider': 'custom', 'default': 'openai/gpt-5.6-luna',
                       'base_url': base_url, 'api_mode': 'chat_completions',
-                      'context_length': 1000000, 'max_tokens': 4096},
+                      'context_length': reader_context_length, 'max_tokens': 4096},
             'memory': {'provider': 'atmem', 'memory_enabled': True, 'user_profile_enabled': True},
             'toolsets': toolsets, 'platform_toolsets': {'cli': toolsets},
             'agent': {'api_max_retries': 2, 'retry_rate_limits_until_success': False,
-                      'reasoning_effort': 'medium', 'max_turns': 20},
+                      'reasoning_effort': reader_reasoning, 'max_turns': reader_max_turns},
             # Ordinary supported Hermes setting: retain derived titles without
             # spawning an unrelated, lossy background title-generation request.
             'auxiliary': {'title_generation': {'model_upgrade_enabled': False},

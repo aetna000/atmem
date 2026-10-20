@@ -57,7 +57,7 @@ def report(root):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path,
-        default=Path('/Volumes/AtMemDolphin/campaign-atmem-v3-product-api-full-20261021'))
+        default=Path('/Volumes/AtMemDolphin/campaign-atmem-v3-matched-luna-high-20261021'))
     parser.add_argument('--require-complete', action='store_true')
     args = parser.parse_args()
     result = report(args.root.resolve())

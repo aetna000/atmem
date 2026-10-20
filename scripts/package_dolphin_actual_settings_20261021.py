@@ -12,7 +12,7 @@ from pathlib import Path
 import sys
 import zipfile
 
-ROOT = Path('/Volumes/AtMemDolphin/campaign-atmem-v3-product-api-full-20261021')
+ROOT = Path('/Volumes/AtMemDolphin/campaign-atmem-v3-matched-luna-high-20261021')
 UPSTREAM = Path('/Volumes/AtMemDolphin/upstream')
 sys.path.append(str(UPSTREAM))
 from harness.submission import read_release, read_zip, write_zip
@@ -49,7 +49,7 @@ def main():
         requests = sorted(response.parent.glob('attempt-*/provider-request.json'))
         body = json.loads(requests[-1].read_text())['body']
         assert body['model'] == 'gpt-5.6-luna'
-        assert body.get('reasoning', {}).get('effort') == 'medium'
+        assert body.get('reasoning', {}).get('effort') == 'high'
         assert not any(field in body for field in CAPS), 'An actual applied cap must not be removed'
         observed += 1
     assert observed, 'Actual provider request evidence is required'

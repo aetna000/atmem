@@ -89,7 +89,7 @@ def main():
     parser.add_argument('--watch-pid', type=int)
     parser.add_argument('--env-file', type=Path, required=True)
     args = parser.parse_args()
-    root = Path('/Volumes/AtMemDolphin/campaign-atmem-v3-product-api-full-20261021')
+    root = Path('/Volumes/AtMemDolphin/campaign-atmem-v3-matched-luna-high-20261021')
     if args.watch_pid:
         while True:
             try:

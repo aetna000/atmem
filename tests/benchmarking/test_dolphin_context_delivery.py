@@ -2,10 +2,12 @@
 import json
 from pathlib import Path
 import sys
+import pytest
 from types import SimpleNamespace
 
 
-def test_system_context_preserves_payload_and_disables_second_injection(tmp_path, monkeypatch):
+@pytest.mark.parametrize('effort,turns', [('medium', 20), ('high', 60)])
+def test_system_context_preserves_payload_and_disables_second_injection(tmp_path, monkeypatch, effort, turns):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     from benchmarks.dolphinbench import driver
     monkeypatch.setattr(driver, 'install', lambda *_a, **_k: None)
@@ -14,10 +16,16 @@ def test_system_context_preserves_payload_and_disables_second_injection(tmp_path
     host.credential = 'fixture-scoped-credential'
     host.server = SimpleNamespace(server_port=12345)
     context = 'Authorized product context: 中文\nunchanged'
+    context_length = 1050000 if effort == 'high' else 1000000
     host.configure_profile(tmp_path / 'profile', base_url='http://127.0.0.1:1/v1',
-                           local_token='fixture-local', governed_context=context)
+                           local_token='fixture-local', governed_context=context,
+                           reader_reasoning=effort, reader_max_turns=turns,
+                           reader_context_length=context_length)
     config = json.loads((tmp_path / 'profile/config.yaml').read_text())
     assert config['agent']['system_prompt'] == context
+    assert config['agent']['reasoning_effort'] == effort
+    assert config['agent']['max_turns'] == turns
+    assert config['model']['context_length'] == context_length
     assert config['memory']['provider'] == ''
     assert config['memory']['memory_enabled'] is False
     assert set(config['agent']['disabled_toolsets']) == {'memory', 'delegation'}

@@ -27,7 +27,8 @@ def prior_exposure():
     roots = ('campaign-atmem-239', 'campaign-atmem-239-qualified',
              'campaign-atmem-239-full', 'campaign-atmem-239-frozen',
              'atbot-semantic-diagnostic', 'sol-judge-qualification-20261021',
-             'campaign-atmem-v3-system-full-20261021')
+             'campaign-atmem-v3-system-full-20261021',
+             'campaign-atmem-v3-product-api-full-20261021')
     total = 0
     for name in roots:
         path = Path('/Volumes/AtMemDolphin') / name / 'budget.db'
@@ -48,6 +49,9 @@ def main():
     parser.add_argument('--env-file', type=Path, required=True)
     parser.add_argument('--confirm-paid-grading', action='store_true')
     parser.add_argument('--qualification-only', action='store_true')
+    parser.add_argument('--reader-reasoning', choices=('medium', 'high'), default='medium')
+    parser.add_argument('--reader-max-turns', choices=(20, 60), type=int, default=20)
+    parser.add_argument('--reader-context-length', choices=(1000000, 1050000), type=int, default=1000000)
     parser.add_argument('--resume', action='store_true', help='Resume only the exact frozen condition; never replay uncertain model interactions')
     parser.add_argument('--baseline-from', type=Path, help='Adopt only cloud-verified histories and frozen checkpoints, never prior task outputs')
     args = parser.parse_args()
@@ -95,7 +99,8 @@ def main():
         'memory_delivery': 'authenticated in-process product prepare-turn, unchanged SDK validation/rendering and native ephemeral_system_prompt; no user-side prefetch or desktop RPC deadline',
         'frozen_baseline_from': str(args.baseline_from.resolve()) if args.baseline_from else None,
         'ingestion': 'local source-episode import, no model calls, same mode as historical 5% run',
-        'agent': {'model': 'openai/gpt-5.6-luna', 'reasoning': 'medium', 'max_turns': 20,
+        'agent': {'model': 'openai/gpt-5.6-luna', 'reasoning': args.reader_reasoning, 'max_turns': args.reader_max_turns,
+            'context_length': args.reader_context_length,
             'transport': 'native Hermes Chat Completions over Hermes Codex OAuth compatibility bridge',
             'completion_cap': 'Codex OAuth ignores unsupported max_output_tokens; provider native behavior'},
         'judge': {'model': 'gpt-5.6-sol', 'reasoning': 'medium', 'max_completion_tokens': 8000,
@@ -105,6 +110,16 @@ def main():
         'native_qualification_sha256': hashlib.sha256(proof_path.read_bytes()).hexdigest()}
     if sol_path.exists():
         identity['sol_qualification_sha256'] = hashlib.sha256(sol_path.read_bytes()).hexdigest()
+    reference_path = upstream / 'results/hermes/gpt-5.6-luna/mem0/configuration.json'
+    reference = json.loads(reference_path.read_text())
+    identity['published_mem0_reader_reference'] = {
+        'configuration_sha256': hashlib.sha256(reference_path.read_bytes()).hexdigest(),
+        'configuration': reference, 'fresh_matched_mem0_run': False,
+        'reader_reasoning_turn_and_context_settings_match': (
+            args.reader_reasoning == reference['runtime']['reasoning_effort']
+            and args.reader_max_turns == reference['runtime']['max_turns']
+            and args.reader_context_length == reference['runtime']['context_length']),
+        'transport_difference': 'subscription reader versus published Azure Foundry; costs not directly comparable'}
     # The upstream runner must establish identity before *any* nested JSON
     # evidence, including listener/qualification receipts, exists. A placeholder
     # selects the subscription transport identity only; it is never called.
@@ -131,7 +146,7 @@ def main():
     process = subprocess.Popen([
         '/Users/javadtaghia/.hermes/tools/python-3.14.7+20260901-darwin-arm64/bin/python3.14', '-I',
         str(Path(__file__).with_name('subscription_service.py')), '--output', str(subscription_root),
-        '--listener-file', str(listener)],
+        '--listener-file', str(listener), '--reasoning-effort', args.reader_reasoning],
         cwd='/Volumes/AtMemDolphin/tmp', env=child_env, stdout=log, stderr=subprocess.STDOUT)
     try:
         for _ in range(180):
