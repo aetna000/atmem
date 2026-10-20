@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
@@ -358,7 +362,8 @@ jobs:
       matrix:
         include:
           - label: Debian Bookworm
-            image: public.ecr.aws/docker/library/debian:bookworm-slim
+            # Same Docker Hub official index, pinned through Google's cache.
+            image: mirror.gcr.io/library/debian@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
             setup: >-
               apt-get update &&
               DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends
