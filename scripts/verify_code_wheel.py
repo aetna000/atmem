@@ -42,12 +42,24 @@ def main() -> int:
     test_root.mkdir()
     shutil.copy2(source / "tests/conftest.py", test_root / "conftest.py")
     for test in (source / "tests").glob("test_code*.py"):
+        # Replay harnesses are repository research tools, not wheel contents.
+        # They run in the source regression suite, not the installed product gate.
+        if test.name.startswith("test_code_replay"):
+            continue
         shutil.copy2(test, test_root / test.name)
+    shutil.copy2(source / "tests/test_knowledge_lifecycle.py", test_root / "test_knowledge_lifecycle.py")
+    shutil.copy2(source / "tests/test_knowledge_portable.py", test_root / "test_knowledge_portable.py")
     shutil.copy2(source / "tests/test_store_transactions.py", test_root / "test_store_transactions.py")
     (test_root / "integration").mkdir()
     for test in (source / "tests/integration").glob("test_code*.py"):
         shutil.copy2(test, test_root / "integration" / test.name)
     shutil.copytree(source / "tests/fixtures", test_root / "fixtures")
+    # Supporting test fixtures/scripts are copied, never the atmem package.
+    # All product imports must still resolve to the installed wheel below.
+    (workspace / "tools").mkdir()
+    shutil.copy2(source / "tools/qualify_discovery_hosts.py", workspace / "tools/qualify_discovery_hosts.py")
+    shutil.copy2(source / "tools/qualify_code_curation.py", workspace / "tools/qualify_code_curation.py")
+    shutil.copytree(source / "tools/code-extractor", workspace / "tools/code-extractor")
     identity = json.loads(subprocess.run([str(python), "-c", "import atmem,platform,json; print(json.dumps({'module_path':atmem.__file__,'python':platform.python_version()}))"], cwd=workspace,
                                         env=environment, text=True, capture_output=True, check=True).stdout)
     imported = identity["module_path"]

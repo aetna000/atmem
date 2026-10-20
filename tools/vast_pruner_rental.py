@@ -21,7 +21,7 @@ IMAGE = 'vastai/pytorch@sha256:4f5768d796e2c30a966ae4f54a7870a012e4b13a3d899fb46
 
 def api(method, path, payload=None):
     values = {}
-    for line in Path('/Users/javadtaghia/gitlab/aetnamem/.env.atmem-c709e').read_text().splitlines():
+    for line in Path(os.environ.get('ATMEM_PUBLISH_ENV', str(Path(__file__).resolve().parents[1] / '.env.atmem-c709e'))).read_text().splitlines():
         if '=' in line and not line.lstrip().startswith('#'):
             name, value = line.split('=', 1)
             parts = shlex.split(value, comments=True)

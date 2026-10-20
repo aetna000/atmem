@@ -13,6 +13,7 @@ import base64
 from collections import Counter
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import re
 import shlex
@@ -24,7 +25,7 @@ LOCAL = Path('/Users/javadtaghia/Library/Application Support/AtMem Benchmarks')
 MEM = Path('/Volumes/MEM/AtMem-SWEbench-Threeway-20261019')
 REPO_ID = 'atmem/code-pruner-click-evidence-20261020'
 RUNS = ('click-pruner-fourway-20261020', 'click-pruner-controlled-20261020')
-ENV = Path('/Users/javadtaghia/gitlab/aetnamem/.env.atmem-c709e')
+ENV = Path(os.environ.get('ATMEM_PUBLISH_ENV', str(REPO / '.env.atmem-c709e')))
 GPU_NAMES = {'qualification.json', 'last-runtime.json', 'inference-audit.jsonl',
              'install.log', 'qualification.log', 'server.py', 'cases.json'}
 SECRET_PATTERNS = (

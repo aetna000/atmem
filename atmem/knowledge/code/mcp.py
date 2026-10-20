@@ -8,6 +8,7 @@ import argparse
 import json
 from hashlib import sha256
 from pathlib import Path
+from uuid import uuid4
 
 from atmem.code.application import CodeApplication
 from atmem.code.contracts import CodeScope
@@ -194,13 +195,10 @@ class CodeKnowledgeMCP(MCPServer):
         if self.tool_profile == 'navigation':
             return [{'name': 'repository_discover', 'description': NAVIGATION_GUIDANCE,
                 'inputSchema': {'type': 'object', 'additionalProperties': False,
-                    'properties': {'format': {'type': 'string', 'const': 'atmem-repository-discovery-request-v1'},
-                        'request_id': {'type': 'string', 'maxLength': 128},
-                        'turn_id': {'type': 'string', 'maxLength': 128},
-                        'query': {'type': 'string', 'minLength': 1, 'maxLength': 4000},
+                    'properties': {'query': {'type': 'string', 'minLength': 1, 'maxLength': 4000},
                         'limit': {'type': 'integer', 'minimum': 1, 'maximum': 8},
                         'budget': {'type': 'integer', 'minimum': 512, 'maximum': 8192}},
-                    'required': ['format', 'request_id', 'turn_id', 'query', 'limit', 'budget']},
+                    'required': ['query']},
                 'annotations': {'readOnlyHint': True, 'destructiveHint': False, 'openWorldHint': False}}]
         if self.tool_profile == 'curated':
             return [{'name': 'code_query', 'description':
@@ -274,6 +272,21 @@ class CodeKnowledgeMCP(MCPServer):
         if self.tool_profile == 'navigation':
             if name != 'repository_discover':
                 raise CodeArgumentError('name', 'select repository_discover')
+            if not isinstance(args, dict):
+                raise CodeArgumentError('arguments', 'supply an object containing query')
+            # Keep the original portable envelope accepted for existing clients.
+            # New model-facing calls delegate bookkeeping to this bound server.
+            if 'format' not in args:
+                if set(args) - {'query', 'limit', 'budget'}:
+                    raise CodeArgumentError('arguments', 'supply query and optional limit and budget only')
+                query = args.get('query')
+                if not isinstance(query, str) or not query.strip() or len(query.encode('utf-8')) > 4000:
+                    raise CodeArgumentError('query', 'query must contain 1 to 4000 UTF-8 bytes')
+                args = {'format': 'atmem-repository-discovery-request-v1',
+                    'request_id': 'req-' + uuid4().hex, 'turn_id': 'turn-' + uuid4().hex,
+                    'query': query,
+                    'limit': self._integer(args, 'limit', 5, 1, 8),
+                    'budget': self._integer(args, 'budget', 4096, 512, 8192)}
             return self.navigation.prepare(args)
         if self.tool_profile == 'curated':
             if name != 'code_query' or not isinstance(args, dict) or set(args) - {'operation', 'arguments'}:

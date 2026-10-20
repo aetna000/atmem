@@ -102,6 +102,44 @@ def test_small_budget_and_max_ids_are_bounded(discovery):
     assert len(encoded(result)) <= 512
 
 
+def test_small_budget_projects_before_discarding_candidate_metadata(discovery):
+    _, service = discovery
+    result = service.prepare(request(budget=1000))
+    assert result['items'] and result['freshness'] == 'current_at_preparation'
+    assert len(encoded(result)) <= 1000
+    assert service.for_delivery(result) == result
+
+
+def test_mcp_shapes_query_only_request_and_keeps_portable_contract(discovery):
+    env, _ = discovery
+    server = CodeKnowledgeMCP(env.app, env.scope, str(env.root), tool_profile='navigation')
+    schema = server._tool_definitions()[0]['inputSchema']
+    assert schema['required'] == ['query']
+    assert set(schema['properties']) == {'query', 'limit', 'budget'}
+    result = server.query('repository_discover', {'query': 'main', 'budget': 1000})
+    assert result['items'] and len(encoded(result)) <= 1000
+    assert result['request_id'] and result['turn_id']
+    legacy = server.query('repository_discover', request())
+    assert legacy['request_id'] == 'request-01'
+
+
+@pytest.mark.parametrize('arguments,field', [
+    ({'query': 'main', 'budget': 3}, 'budget'),
+    ({'query': 'main', 'limit': True}, 'limit'),
+    ({'query': ''}, 'query'),
+    ({'query': 'main', 'root': '/etc'}, 'arguments'),
+])
+def test_mcp_navigation_errors_are_actionable_and_do_not_echo_values(discovery, monkeypatch, arguments, field):
+    env, _ = discovery
+    server = CodeKnowledgeMCP(env.app, env.scope, str(env.root), tool_profile='navigation')
+    monkeypatch.setattr(server.navigation, 'prepare', lambda *a: pytest.fail('invalid call reached backend'))
+    reply = server._call_tool(1, 'repository_discover', arguments)['result']
+    assert reply['isError']
+    error = json.loads(reply['content'][0]['text'])
+    assert error['field'] == field and error['error'] == 'invalid_argument'
+    assert '/etc' not in reply['content'][0]['text']
+
+
 def test_pending_duplicate_does_not_repeat_backend(discovery, monkeypatch):
     _, service = discovery
     service.prepare(request())

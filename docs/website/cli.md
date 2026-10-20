@@ -1,5 +1,9 @@
 # CLI operations
 
+For coding projects, start with the [AtMem Code guide](../atmem-code.md): setup,
+agent connections, source structure, memory search and deletion. See the
+[Code structure reference](../atmem-code-structure.md) for advanced interfaces.
+
 Use `atmem --help` and `atmem COMMAND --help` for the installed version's
 complete argument reference. Commands below are local operations; they do not
 contact the documentation website.
@@ -51,16 +55,16 @@ atmem atflows review RUN_ID --session-id SESSION_ID \
   --base-url http://127.0.0.1:1337
 ```
 
-AtFlows 0.1.4b3 is installed with AtMem 2.3.8. `atmem init` starts its local server, while trace collection and review are opt-in.
+AtFlows 0.1.4 is installed with AtMem 2.3.9. `atmem init` starts its local server, while trace collection and review are opt-in.
 Confirm AtFlows is running before reviewing a run. The command
 requires an authorized AtMem evidence token from `ATMEM_EVIDENCE_TOKEN` or an
 interactive prompt. Standalone AtFlows asks for its Administrator password;
 delegated AtFlows asks for an AtMem username and password. It prints a versioned JSON report by
 default; add `--human` for a concise terminal view. The report contains
 read-only, exact-session trace-error leads, not causal conclusions. See the
-[2.3.8 release note](../releases/v2.3.8.md) for limits and setup.
+[2.3.9 release note](../releases/v2.3.9.md) for limits and setup.
 
 ## Upgrade and recovery
-Follow the [2.3.8 release commands](../releases/v2.3.8.md) and
+Follow the [2.3.9 release commands](../releases/v2.3.9.md) and
 [portable Home recovery](../data-storage-and-backup.md).
 Run `atmem users --help` for account administration and local recovery commands.

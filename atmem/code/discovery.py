@@ -104,7 +104,10 @@ class Discovery:
             raise ValueError('discovery request already pending')
         # Exactly one selected backend entry, no competing/provider fallback call.
         original = self.curation.prepare('discover', {'query': request.query,
-            'kind': 'code', 'limit': request.limit, 'budget': max(256, request.budget - 256)})
+            # Candidate metadata is larger than the navigation projection. Do
+            # not discard an authorized location before projecting it into the
+            # caller's byte budget. Delivery still revalidates the same receipt.
+            'kind': 'code', 'limit': request.limit, 'budget': 8192})
         try:
             response = self._project(request, original)
             self._retain(original, navigation_request=request.to_dict(), navigation_prepared=response)
