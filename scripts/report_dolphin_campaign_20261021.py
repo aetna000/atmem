@@ -1,5 +1,6 @@
 """Read-only progress/results from saved executions, grades and actual costs."""
 import argparse
+from collections import Counter
 import json
 from pathlib import Path
 import sqlite3
@@ -14,14 +15,20 @@ def report(root):
         times = sorted(t['row']['duration_ms'] / 1000 for t in tests)
         usage = [m['usage'] for t in tests for m in t['row']['messages'] if 'usage' in m]
         auxiliary = []
+        preparation = Counter()
         for test in tests:
-            exported = root / 'native/tests' / persona / test['row']['test_id'] / 'export.json'
+            native = root / 'native/tests' / persona / test['row']['test_id']
+            ruling = native / 'pre-action-ruling.json'
+            if ruling.exists():
+                preparation[json.loads(ruling.read_text())['reason']] += 1
+            exported = native / 'export.json'
             if exported.exists():
                 auxiliary.extend(a['usage'] for a in json.loads(exported.read_text()).get('auxiliary_calls', []))
         usage += auxiliary
         rows.append({'persona': persona, 'executed': len(tests), 'graded': len(grades),
             'passed': sum(bool(g['checks']) and all(c['passed'] for c in g['checks']) for g in grades),
             'blocked_before_model': sum(any(a.get('gate_blocked') for a in t.get('attempts', [])) for t in tests),
+            'product_preparation_rulings': dict(preparation),
             'model_responses': len([u for u in usage if u.get('prompt_tokens', u.get('input_tokens', 0))]),
             'input_tokens': sum(u.get('prompt_tokens', u.get('input_tokens', 0)) for u in usage),
             'output_tokens': sum(u.get('completion_tokens', u.get('output_tokens', 0)) for u in usage),
