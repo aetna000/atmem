@@ -44,6 +44,13 @@ Five resume-scheduling regression checks bring the current export/transport
 suite to 23 passing tests. The amendment is recorded by
 `scripts/reconcile_dolphin_resume_20261021.py`, including SHA proofs that every
 saved execution and grade remains unchanged.
+At the 130-task checkpoint, a read-only delivery audit found every declared
+application tool present in the actual native model tool surface for all 128
+model-invoked cases; two cases were blocked before inference. It checks supplied
+`active_tools`, not gold actions or expected answers. The audit changes no
+actor input, result or setting and is saved under `repairs/` by
+`scripts/audit_dolphin_tool_catalog_20261021.py`. This rules out missing declared
+tools in those cases; it does not establish why their semantic decisions failed.
 
 ```bash
 ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \
