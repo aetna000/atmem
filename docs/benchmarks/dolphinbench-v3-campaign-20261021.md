@@ -51,6 +51,13 @@ model-invoked cases; two cases were blocked before inference. It checks supplied
 actor input, result or setting and is saved under `repairs/` by
 `scripts/audit_dolphin_tool_catalog_20261021.py`. This rules out missing declared
 tools in those cases; it does not establish why their semantic decisions failed.
+At 150 graded tasks, Morgan137's `unavailable_or_denied` result was reproduced
+through read-only product calls as `GovernanceViolation: engine returned duplicate
+evidence identifiers`. It is a product fail-closed validation failure, not the
+earlier desktop RPC deadline. The diagnostic verifies the same frozen canonical
+checkpoint and makes no model/tool call. Its failed task result is retained
+unchanged; the engine is not patched mid-condition. The metadata receipt is
+`repairs/read-only-preparation-diagnostic-137.json`.
 
 ```bash
 ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \
