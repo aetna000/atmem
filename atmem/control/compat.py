@@ -27,6 +27,8 @@ import re
 # context). Nothing was removed or made required, no task identity appeared,
 # and the hook-context premise check plus the full bridge build and test suite
 # pass against the recorded fixture.
+# 2026.10.5 verification: declaration shape is identical to 2026.10.4; the
+# full bridge build, typecheck, behavior and Python-backed smoke suites pass.
 TESTED_OPENCLAW_VERSIONS = (
     "2026.7.1-2",
     "2026.8.1",
@@ -37,6 +39,7 @@ TESTED_OPENCLAW_VERSIONS = (
     "2026.9.6",
     "2026.9.9",
     "2026.10.4",
+    "2026.10.5",
 )
 
 _VERSION_RE = re.compile(r"(?<!\d)(\d{4})\.(\d+)\.(\d+)(?:-(\d+))?(?!\d)")
