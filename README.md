@@ -60,7 +60,7 @@ Stop every writer before migration. AtMem validates SQLite integrity,
 SQLCipher page integrity and per-table row counts before the atomic cutover;
 see [SaaS integration and recovery](docs/saas-integration.md#privacy-retention-and-deletion).
 
-In 2.3.8, `pip install atmem` installs the Python packages only; pip does not
+In 2.3.9, `pip install atmem` installs the Python packages only; pip does not
 run a post-install downloader. On the first `atmem init`, if compatible Bun is not
 already installed, AtMem clearly announces and downloads its pinned official
 Bun runtime for AtFlows, verifies the archive against a release-pinned SHA-256,
@@ -737,11 +737,12 @@ npm test
 npm run smoke
 ```
 
-The current stable-release target is **2.3.9** with matching OpenClaw bridge source
+This release line is **2.3.9** with matching OpenClaw bridge source
 **2.3.9**. Release validation requires exact Python/bridge alignment; AtBot
 retains its independent compatible version **0.1.0** and the tested AtFlows pin
-is **0.1.4**. The published stable package remains 2.3.8 until this target is
-reviewed, tagged and registry-verified.
+is **0.1.4**. Use the [release note](docs/releases/v2.3.9.md) for exact upgrade
+commands and the [release page](https://github.com/aetna000/atmem/releases/tag/v2.3.9)
+for publication artifacts.
 
 ## License
 

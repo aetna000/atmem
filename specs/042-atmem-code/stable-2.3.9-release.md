@@ -28,8 +28,9 @@ canonical schema change, extraction bypass or security-policy relaxation.
 - [x] Align package, installer, bridge, website source and companion target versions.
 - [x] Prepare a simple Code quickstart plus advanced reference, capability
       matrix and links to the immutable published benchmark evidence.
-- [ ] Pass Python, AtBot, Code, integrity, OpenClaw, docs and metadata gates.
-- [ ] Verify the built wheel on Windows and macOS, browser project navigation,
+- [x] Pass local Python, AtBot, Code, integrity, OpenClaw, docs and metadata gates.
+      Hosted CI must independently pass before merge.
+- [x] Verify the built wheel on Windows and macOS, browser project navigation,
       installed MCP, disable/search/delete and upgrade from published 2.3.8.
 - [ ] Open/review/merge public PRs; tag only a clean passing reviewed commit.
 - [ ] Verify GitHub release, PyPI clean installation and matching npm bridge.
