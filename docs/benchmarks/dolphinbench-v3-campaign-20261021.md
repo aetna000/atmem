@@ -48,6 +48,15 @@ and automatic background skill review remain disabled through supported settings
 The supported host spill threshold is 33,000 characters so it does not replace
 the product's bounded V3 context with a truncated preview/file pointer.
 
+Export policy, fixed before scored results: preserve the original native-request
+ZIP, and produce a separate actual-provider-settings ZIP. The latter omits only
+Luna completion-cap fields that the actual archived Responses requests prove were
+not forwarded. Model, applied medium effort, prompts, tools, outputs, usage,
+grades and the fixed Sol judge settings are unchanged. The transformation is
+reversible against an explicit receipt and both artifacts pass the unmodified
+upstream validator/replay. An unsupported requested cap is not presented as an
+applied provider limit. See `scripts/package_dolphin_actual_settings_20261021.py`.
+
 Subscription access is not described as free or unlimited. Operator accounting
 records zero incremental agent API charges, actual provider-reported tokens,
 and any unreported failed attempts separately; subscription fees are not allocated
