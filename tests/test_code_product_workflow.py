@@ -1,6 +1,7 @@
 """Product-boundary fixtures, not task-quality or benchmark evidence."""
 from dataclasses import replace
 from pathlib import Path
+import os
 import sys
 
 import pytest
@@ -31,7 +32,7 @@ def test_real_command_forms_source_bound_experience_and_cross_agent_recall(ready
     result = execute(env)
     assert result['exit_code'] == 0 and result['formation']['formed'], result
     assert result['outcome'] == 'observed_pass'
-    assert result['stdout'] == 'bounded command result\n'
+    assert result['stdout'] == 'bounded command result' + os.linesep
     other = replace(env.scope, agent_id='claude')
     listed = experiences(env.app, other, str(env.root))
     assert listed['items'][0]['applicability']['status'] == 'applicable'
@@ -39,7 +40,7 @@ def test_real_command_forms_source_bound_experience_and_cross_agent_recall(ready
     assert 'stdout' not in str(listed)
     evidence = env.app.dispatch('experience-evidence', {'project_id': env.project,
         'record_id': result['formation']['record_ids'][0], 'receipt_id': result['experience_id']})
-    assert evidence['stdout'] == 'bounded command result\n'
+    assert evidence['stdout'] == 'bounded command result' + os.linesep
     assert evidence['result']['source_stable']
     with pytest.raises(PermissionError):
         env.app.dispatch('experience-evidence', {'project_id': env.project,

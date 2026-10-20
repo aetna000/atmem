@@ -4,6 +4,7 @@ from copy import deepcopy
 from dataclasses import replace
 from io import StringIO
 import json
+import os
 import shutil
 import sys
 
@@ -369,6 +370,8 @@ def test_v3_bundle_preserves_curation_evidence_and_no_delivery_cache(curated, tm
         target.close()
 
 
+@pytest.mark.skipif(os.name == 'nt' or os.environ.get('ATMEM_CODE_SKIP_HOST_PROBES') == '1',
+                   reason='actual Claude hook qualification is separate from portable core; Windows automatic hook is unsupported')
 def test_installed_claude_receives_experience_index_without_detail(tmp_path):
     """Actual host + local fixture endpoint, not a paid/model efficacy run."""
     if not shutil.which('claude'):

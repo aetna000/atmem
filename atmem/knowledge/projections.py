@@ -39,6 +39,10 @@ class SourceFileBudgetExceeded(ValueError):
 def read_authorized_file(root: Path, name: str, maximum: int) -> bytes:
     """Descriptor-relative no-follow reads; never traverse a swapped symlink."""
     source_path(name)
+    if os.name == 'nt':
+        from atmem.knowledge.windows_source import open_source
+        with open_source(root, name) as descriptor:
+            return _read_source_descriptor(descriptor, maximum)
     if os.open not in os.supports_dir_fd or not hasattr(os, "O_NOFOLLOW"):
         raise NotImplementedError("rich source capture requires a qualified no-follow file reader on this platform")
     directory = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
@@ -50,22 +54,27 @@ def read_authorized_file(root: Path, name: str, maximum: int) -> bytes:
             directory = child
         descriptor = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=directory)
         try:
-            before = os.fstat(descriptor)
-            if not stat.S_ISREG(before.st_mode):
-                raise ValueError("eligible source is not regular")
-            if before.st_size > maximum:
-                raise SourceFileBudgetExceeded("eligible source exceeds file budget")
-            with os.fdopen(os.dup(descriptor), "rb") as stream:
-                data = stream.read(maximum + 1)
-            after = os.fstat(descriptor)
-            if (len(data) > maximum or before.st_size != len(data) or
-                    (before.st_ino, before.st_mtime_ns, before.st_size) != (after.st_ino, after.st_mtime_ns, after.st_size)):
-                raise ValueError("source changed during authorized read")
-            return data
+            return _read_source_descriptor(descriptor, maximum)
         finally:
             os.close(descriptor)
     finally:
         os.close(directory)
+
+
+def _read_source_descriptor(descriptor, maximum):
+    before = os.fstat(descriptor)
+    if not stat.S_ISREG(before.st_mode):
+        raise ValueError("eligible source is not regular")
+    if before.st_size > maximum:
+        raise SourceFileBudgetExceeded("eligible source exceeds file budget")
+    with os.fdopen(os.dup(descriptor), "rb") as stream:
+        data = stream.read(maximum + 1)
+    after = os.fstat(descriptor)
+    if (len(data) > maximum or before.st_size != len(data) or
+            (before.st_dev, before.st_ino, before.st_mtime_ns, before.st_size) !=
+            (after.st_dev, after.st_ino, after.st_mtime_ns, after.st_size)):
+        raise ValueError("source changed during authorized read")
+    return data
 
 
 class CodeKnowledge:

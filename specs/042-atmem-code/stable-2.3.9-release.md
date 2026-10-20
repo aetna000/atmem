@@ -10,6 +10,17 @@ Versions: AtMem/OpenClaw 2.3.9, AtFlows 0.1.4, existing stable AtBot 0.1.0.
 No Laya, learned skimmer, default Code activation or compulsory model download.
 Preserve existing 2.3.8 deterministic memory, integrity and authority behavior.
 
+## Windows source-reader correction
+
+Use handle-relative Windows native file opens for each single path component,
+pinning the authorized root and directories. Refuse every reparse point, device,
+alternate stream and non-regular source; never fall back to a path-based read.
+Use bounded reads with before/after file identity checks and close every owned
+handle on failure. Keep the POSIX reader unchanged. Qualify Unicode, nested
+paths, budgets, denied traversal, directory junctions and parent replacement on
+real Windows, then rerun the installed-product suite. This adds no dependency,
+canonical schema change, extraction bypass or security-policy relaxation.
+
 - [x] Fix model-facing discovery bookkeeping and premature budget filtering;
       preserve the strict portable envelope and freshness/authority checks.
 - [ ] Verify stable AtFlows security prerequisites, tests, build and clean install;
