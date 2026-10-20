@@ -101,6 +101,20 @@ def main():
         'native_qualification_sha256': hashlib.sha256(proof_path.read_bytes()).hexdigest()}
     if sol_path.exists():
         identity['sol_qualification_sha256'] = hashlib.sha256(sol_path.read_bytes()).hexdigest()
+    # The upstream runner must establish identity before *any* nested JSON
+    # evidence, including listener/qualification receipts, exists. A placeholder
+    # selects the subscription transport identity only; it is never called.
+    options = {'campaign_identity': identity, 'env_file': str(args.env_file),
+        'memory_engine': 'context-v3', 'ingestion_mode': 'source-episode',
+        'app_python': '/private/tmp/atmem-dolphin-apps-v3-20261021/bin/python',
+        'runtime_root': '/private/tmp/atmem-dolphin-runtime-v3-20261021',
+        'subscription_endpoint': 'listener-pending'}
+    adapter = AtMemAdapter(options, root)
+    with run_lock(root):
+        runner = Runner(release, root, adapter, identity=adapter.identity(),
+            release_root=upstream, allow_paid=False)
+        runner.allow_paid = True
+        BudgetLedger(adapter.ledger, cap_usd=identity['cap_usd'], identity=identity).close()
     os.environ['ATMEM_SUBSCRIPTION_PROXY_TOKEN'] = secrets.token_urlsafe(32)
     child_env = {**os.environ, 'HERMES_HOME': '/Users/javadtaghia/.hermes', 'PYTHONDONTWRITEBYTECODE': '1'}
     subscription_root = root / 'subscription-transport'
@@ -112,11 +126,6 @@ def main():
         str(Path(__file__).with_name('subscription_service.py')), '--output', str(subscription_root),
         '--listener-file', str(listener)],
         cwd='/Volumes/AtMemDolphin/tmp', env=child_env, stdout=log, stderr=subprocess.STDOUT)
-    options = {'campaign_identity': identity, 'env_file': str(args.env_file),
-        'memory_engine': 'context-v3', 'ingestion_mode': 'source-episode',
-        'app_python': '/private/tmp/atmem-dolphin-apps-v3-20261021/bin/python',
-        'runtime_root': '/private/tmp/atmem-dolphin-runtime-v3-20261021'}
-    adapter = None
     try:
         for _ in range(180):
             if process.poll() is not None:
@@ -176,10 +185,6 @@ def main():
             print(json.dumps({'qualification_passed': True, 'full_run_started': False}), flush=True)
             return
         with run_lock(root):
-            adapter = AtMemAdapter(options, root)
-            BudgetLedger(adapter.ledger, cap_usd=identity['cap_usd'], identity=identity).close()
-            runner = Runner(release, root, adapter, identity=adapter.identity(), release_root=upstream, allow_paid=False)
-            runner.allow_paid = True
             # Each persona remains chronological. Batches join before exports,
             # so a backup cannot observe a half-written interaction.
             positions = {persona: 0 for persona in release}
