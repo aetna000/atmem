@@ -36,6 +36,7 @@ def main():
     assert grading_calls(updated['row'], 'retained first execution') == original['row']['app_calls']
     save_new(repairs / 'original-run.json', run)
     save_new(repairs / 'original-test-morgan-001.json', original)
+    save_new(repairs / 'normalized-test-morgan-001.json', updated)
     save_new(repairs / 'receipt.json', {'format': 'recording-only-reconciliation-v1',
         'changes': normalization, 'source_changes': sorted(changed),
         'original_test_sha256': fingerprint(original), 'updated_test_sha256': fingerprint(updated),
