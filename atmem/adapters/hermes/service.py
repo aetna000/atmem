@@ -150,9 +150,9 @@ class HermesService:
                 continue
 
     @contextmanager
-    def _locked(self):
+    def _locked(self, lock_name: str = ".hermes.lock"):
         state = self.manager.state()
-        lock = ProcessFileLock(Path(state.control_dir) / ".hermes.lock")
+        lock = ProcessFileLock(Path(state.control_dir) / lock_name)
         deadline = time.monotonic() + 2.0
         while True:
             try:
@@ -248,6 +248,63 @@ class HermesService:
             influence=row.get("influence", row["enabled"]),
             max_context_chars=row["max_context_chars"],
         )
+
+    def _canonical_checkpoint(self, row: dict[str, Any]) -> dict[str, Any]:
+        from atmem.memory import Memory
+
+        identity = row["identity"]
+        scope, path = self.manager._memory_authority_scope(
+            self.manager.state(), subject_id=identity["subject_id"],
+            agent_id=identity["agent_id"],
+        )
+        if scope.workspace_id != identity["workspace_id"]:
+            raise PermissionError("checkpoint workspace changed")
+        memory = Memory(path, retain_query_text=False)
+        try:
+            return memory.memory_checkpoint(scope)
+        finally:
+            memory.close()
+
+    def freeze_memory(self, principal: APIPrincipal, binding_id: str) -> dict[str, Any]:
+        """Privileged monotonic freeze; callers must drain the host queue first."""
+        self._admin(principal)
+        # The separate barrier drains accepted observes without locking revoke
+        # during slow extraction. A busy barrier fails rather than claiming freeze.
+        with self._locked(".hermes-memory-write.lock"):
+            with self._locked():
+                row = self._load(_identifier(binding_id, "binding_id"))
+                self._owner(principal, row)
+                self._binding(row)._scope()
+                if row["revoked"] or row["expires_at"] <= time.time():
+                    raise PermissionError("cannot freeze a revoked or expired binding")
+                if row.get("memory_checkpoint") is not None:
+                    if self._canonical_checkpoint(row) != row["memory_checkpoint"]["canonical"]:
+                        raise ValueError("frozen canonical memory changed")
+                    return copy.deepcopy(row["memory_checkpoint"])
+                checkpoint = {
+                    "format": "atmem-hermes-memory-checkpoint-v1",
+                    "binding_id": row["binding_id"], "profile_id": row["profile_id"],
+                    "canonical": self._canonical_checkpoint(row),
+                    "frozen_at": _event_time(),
+                }
+                row["memory_frozen"] = True
+                row["memory_checkpoint"] = checkpoint
+                row["generation"] += 1
+                self._save(row)
+                return copy.deepcopy(checkpoint)
+
+    def verify_memory_checkpoint(self, principal: APIPrincipal, binding_id: str,
+                                 checkpoint: dict[str, Any]) -> None:
+        self._admin(principal)
+        with self._locked(".hermes-memory-write.lock"):
+            with self._locked():
+                row = self._load(_identifier(binding_id, "binding_id"))
+                self._owner(principal, row)
+                self._binding(row)._scope()
+                if (not row.get("memory_frozen") or
+                        row.get("memory_checkpoint") != checkpoint or
+                        self._canonical_checkpoint(row) != checkpoint.get("canonical")):
+                    raise ValueError("frozen canonical memory checkpoint mismatch")
 
     def provision(self, principal: APIPrincipal, *, profile_id: str,
                   agent_id: str, workspace_id: str, user_id: str | None = None,
@@ -418,6 +475,7 @@ class HermesService:
             if operation == "status":
                 return {**binding.status(), "binding_id": row["binding_id"],
                         "generation": row["generation"], "expires_at": row["expires_at"],
+                        "memory_frozen": row.get("memory_frozen", False),
                         "reconstructable": False}
             if not binding.enabled:
                 raise APIError("inactive", "Hermes memory is not activated", status=403)
@@ -485,7 +543,17 @@ class HermesService:
             self._schedule_spool(spool)
             value["lifecycle_recorded"] = True
         elif operation == "observe":
-            value = binding.observe_user(**body)
+            with self._locked(".hermes-memory-write.lock"):
+                with self._locked():
+                    current = self._authenticate(token)
+                    if not current["enabled"]:
+                        raise APIError("inactive", "Hermes memory is not activated", status=403)
+                    if current.get("memory_frozen"):
+                        return {"captured": False, "reason": "memory_frozen",
+                                "memory_mutated": False}
+                    binding = self._binding(current)
+                    binding._scope()
+                value = binding.observe_user(**body)
         elif operation == "event":
             spool = self._spool_path(binding.profile_id, body["session_id"], body["turn_id"])
             self._write_spool(
