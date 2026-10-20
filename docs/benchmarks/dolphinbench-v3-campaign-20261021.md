@@ -35,6 +35,15 @@ imports every grader module, checks Markdown behavior, and validates all 600
 released check configurations without inference. Both controller and finalizer
 preflight receipts are retained under the run's `repairs/` directory. Resume
 reuses the saved execution and all completed grades verbatim.
+Resume also skips duplicate ten-task backups for already-saved grades, while
+retaining source-memory verification. Newly graded boundaries still trigger the
+ordinary checkpoint. This changes recovery overhead only, not model calls,
+grades, task latency records or the ten-task cadence for new results. Previous
+source identity and the amendment receipt are retained under `repairs/`.
+Five resume-scheduling regression checks bring the current export/transport
+suite to 23 passing tests. The amendment is recorded by
+`scripts/reconcile_dolphin_resume_20261021.py`, including SHA proofs that every
+saved execution and grade remains unchanged.
 
 ```bash
 ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \

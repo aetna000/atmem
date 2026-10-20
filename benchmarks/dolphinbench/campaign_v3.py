@@ -23,6 +23,11 @@ from .judge import openrouter_judge
 from .recording import BudgetLedger
 
 
+def checkpoint_due(test_id, *, reused_grade):
+    """Do not regenerate an already-verified ten-task backup on resume."""
+    return int(test_id) % 10 == 0 and not reused_grade
+
+
 def prior_exposure():
     roots = ('campaign-atmem-239', 'campaign-atmem-239-qualified',
              'campaign-atmem-239-full', 'campaign-atmem-239-frozen',
@@ -257,7 +262,8 @@ def main():
                         for spec in data['tests']:
                             evidence = runner._execute('tests', persona, spec)
                             grade_path = runner._path('grades', persona, str(spec['id']).zfill(3))
-                            if grade_path.exists():
+                            reused_grade = grade_path.exists()
+                            if reused_grade:
                                 grade = json.loads(grade_path.read_text())
                             else:
                                 grade = runner._grade(spec, evidence)
@@ -270,8 +276,9 @@ def main():
                                 book.close()
                             print(json.dumps({'phase': 'tests', 'persona': persona, 'id': spec['id'],
                                 'passed': all(check['passed'] for check in grade['checks']),
+                                'reused_saved_execution_and_grade': reused_grade,
                                 'budget': totals}), flush=True)
-                            if int(spec['id']) % 10 == 0:
+                            if checkpoint_due(spec['id'], reused_grade=reused_grade):
                                 adapter.archive()
                 runner._collect_cost('tests')
             finally:
