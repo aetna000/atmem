@@ -147,9 +147,9 @@ new comparator/receipt/handshake/publication regression cases. These test counts
 are separate from the 18 real coding attempts. Dashboard JavaScript syntax,
 diff whitespace and the 56-page website-doc inventory checks passed; no website
 was deployed. Product code is byte-identical to the earlier verified wheel.
-The public files/card are available. Hugging Face's interactive dataset viewer
-was still building both configurations at the last check (`pending`, no failed
-jobs); viewer readiness is not claimed by the upload verification.
+The public files/card and interactive dataset viewer are available. Both
+`trials` and `traces` test splits finished building with no pending/failed jobs;
+the live trials endpoint returned all 18 rows as its total.
 
 ## Remaining scope and money
 
