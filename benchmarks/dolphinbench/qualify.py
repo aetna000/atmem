@@ -54,6 +54,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=Path('/Volumes/AtMemDolphin/qualification-native'))
     parser.add_argument('--apps', action='store_true', help='Qualify the real upstream simulated app MCP bridge')
+    parser.add_argument('--memory-engine', choices=('control', 'context-v3'), default='control')
+    parser.add_argument('--runtime-root', type=Path, default=Path('/Volumes/AtMemDolphin/runtime-home'))
     args = parser.parse_args()
     root = args.output.resolve()
     if not root.is_relative_to(Path('/Volumes/AtMemDolphin')):
@@ -71,7 +73,7 @@ def main():
         persona = next(iter(release))
         apps = runner._apps('ingestion', persona, '000000', release[persona]['sessions'][0])
         apps['command'] = '/Volumes/AtMemDolphin/venv/bin/python'
-    runtime = NativeRuntime('/Volumes/AtMemDolphin/runtime-home',
+    runtime = NativeRuntime(args.runtime_root,
         source='/Users/javadtaghia/.hermes/hermes-agent',
         python='/Users/javadtaghia/.hermes/tools/python-3.14.7+20260901-darwin-arm64/bin/python3',
         dependency_facts='/Users/javadtaghia/.hermes/installs/7f16443560343fb8/facts.json')
@@ -82,9 +84,22 @@ def main():
     fixture = ThreadingHTTPServer(('127.0.0.1', 0), Fixture)
     thread = threading.Thread(target=fixture.serve_forever, daemon=True)
     thread.start()
-    host = AtMemHost(root / 'atmem', 'qualification')
+    host = AtMemHost(root / 'atmem', 'qualification', memory_engine=args.memory_engine)
+    messages = ('My preferred editor is Neovim.', 'What is my preferred editor?')
+    expected = 'Neovim'
+    if args.memory_engine == 'context-v3':
+        import yaml
+        path = upstream / 'registry/personas/morgan/life_sim.yaml'
+        manifest = json.loads((upstream / 'manifest.json').read_text())
+        import hashlib
+        if hashlib.sha256(path.read_bytes()).hexdigest() != manifest['files']['registry/personas/morgan/life_sim.yaml']:
+            raise ValueError('Public history changed')
+        first = yaml.load(path.read_text(), Loader=yaml.CSafeLoader)['sessions'][0]
+        messages = (f"[{first['narrative_date']}] {first['messages'][0].strip()}",
+                    'What company did I start with Devon?')
+        expected = 'Scaffold'
     try:
-        for number, message in enumerate(('My preferred editor is Neovim.', 'What is my preferred editor?')):
+        for number, message in enumerate(messages):
             profile_name = f'{root.name}-{number}'
             home = runtime.root / 'profiles' / profile_name
             gateway = Gateway(key='offline-not-a-real-key', output=root / f'calls-{number}',
@@ -131,17 +146,22 @@ def main():
                 if number == 0:
                     checkpoint = host.freeze()
                     save_new(root / 'checkpoint.json', checkpoint)
-                    if checkpoint['canonical']['record_count'] == 0:
+                    count = (checkpoint['canonical']['context_engine']['tables']['context_source_episodes']['rows']
+                             if args.memory_engine == 'context-v3' else checkpoint['canonical']['record_count'])
+                    if count == 0:
                         raise RuntimeError('Ordinary active product capture stored no canonical memory')
                 else:
                     host.verify_checkpoint(checkpoint)
                     requests = list((root / f'calls-{number}').rglob('request.json'))
-                    if not any('Neovim' in path.read_text() for path in requests):
+                    if not any(expected in json.dumps(json.loads(path.read_text())['messages'])
+                               and '<atmem-subject' in json.dumps(json.loads(path.read_text())['messages'])
+                               for path in requests):
                         raise RuntimeError('New-session request did not contain recalled memory')
             finally:
                 gateway.stop()
         save_new(root / 'result.json', {'passed': True, 'paid_provider_calls': 0,
             'fixture_only': True, 'native_provider': 'atmem', 'new_process_recall': True,
+            'memory_engine': args.memory_engine,
             'frozen_memory_unchanged': True, 'upstream_app_tools': args.apps})
         print(json.dumps({'passed': True, 'fixture_only': True, 'evidence': str(root)}), flush=True)
     finally:

@@ -1,5 +1,12 @@
 # Tasks — Hermes integration
 
+## J. V3 episode correction — 2026-10-21
+
+- [x] [T039] Add admin-selected V3 episode binding using existing public core APIs; retain legacy defaults and test scope, source identity, secret screening and profile persistence.
+- [x] [T040] Extend product freeze/checkpoint to scoped V3 source/evidence content; test blocked capture, restart, tampering and unchanged reads, with no administrative unfreeze.
+- [x] [T041] Extend versioned RPC context bounds and test full V3 delivery without legacy truncation or unknown-profile budget widening.
+- [x] [T042] Select the V3 product profile in new benchmark hosts only; build/install a hashed research wheel, qualify native Hermes on original history-only inputs, and document exact equivalence and remaining submission/transport gates. No paid full run or release is implied.
+
 Core implementation is underway under the user-approved `authorized-at-recall-v1`
 profile in `contracts.md`; per-model-call revalidation is deferred, not blocking.
 Follow phase order. Do not start paid work

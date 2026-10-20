@@ -66,7 +66,8 @@ class Gateway(ThreadingHTTPServer):
 
     def __init__(self, *, key, output, ledger_path, campaign_identity, cap_usd,
                  phase, model, input_per_million, output_per_million, endpoint=ENDPOINT,
-                 output_token_cap=4096, required_tool_catalog=None):
+                 output_token_cap=4096, required_tool_catalog=None, provider_name='Azure',
+                 upstream_timeout=300):
         if endpoint != ENDPOINT and not endpoint.startswith('http://127.0.0.1:'):
             raise ValueError('Only OpenRouter or an explicit local offline fixture is supported')
         self.endpoint = endpoint
@@ -74,6 +75,12 @@ class Gateway(ThreadingHTTPServer):
             raise ValueError('Invalid declared output-token cap')
         self.output_token_cap = output_token_cap
         self.required_tool_catalog = required_tool_catalog
+        if provider_name not in {'Azure', 'OpenAI-Subscription'}:
+            raise ValueError('Unsupported declared transport provider')
+        if provider_name == 'OpenAI-Subscription' and not endpoint.startswith('http://127.0.0.1:'):
+            raise ValueError('Subscription transport requires the qualified local Hermes bridge')
+        self.provider_name = provider_name
+        self.upstream_timeout = upstream_timeout
         self.key, self.output = key, Path(output)
         self.ledger_path, self.campaign_identity = ledger_path, campaign_identity
         self.cap_usd, self.phase, self.model = cap_usd, phase, model
@@ -123,7 +130,7 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             if body.get('model') != server.model:
                 raise ValueError('Model differs from frozen campaign configuration')
-            if server.required_tool_catalog and body.get('tools') and server.required_tool_catalog not in json.dumps(body['tools']):
+            if server.required_tool_catalog and server.required_tool_catalog not in json.dumps(body.get('tools', [])):
                 raise ValueError('Required simulated app tools were not discovered; refusing a paid request')
             # Some Hermes CLI routes omit their configured cap. Enforce the
             # declared transport cap explicitly; retain this adjustment, never
@@ -140,7 +147,10 @@ class Handler(BaseHTTPRequestHandler):
             # Routing is declared in the campaign; semantic prompts and messages are untouched.
             if 'provider' in body and body['provider'] != expected_routing:
                 raise ValueError('Caller attempted to override the declared Azure-only routing')
-            body['provider'] = expected_routing
+            if server.provider_name == 'Azure':
+                body['provider'] = expected_routing
+            elif 'provider' in body:
+                raise ValueError('Subscription requests cannot override provider routing')
             bound = reservation(body, input_per_million=server.input_price,
                                 output_per_million=server.output_price)
             call_id = uuid.uuid4().hex
@@ -157,7 +167,7 @@ class Handler(BaseHTTPRequestHandler):
                 'Authorization': 'Bearer ' + server.key, 'Content-Type': 'application/json',
                 'X-Title': 'AtMem DolphinBench disclosed Azure-only OpenRouter transport'})
             try:
-                with urllib.request.urlopen(req, timeout=300) as response:
+                with urllib.request.urlopen(req, timeout=server.upstream_timeout) as response:
                     raw = response.read(64 * 1024 * 1024 + 1)
                     if len(raw) > 64 * 1024 * 1024:
                         raise ValueError('Response size outside bounds; cost remains reserved')
@@ -170,9 +180,9 @@ class Handler(BaseHTTPRequestHandler):
             save_new(directory / 'response.json', {'response': decoded,
                                                    'elapsed_seconds': time.monotonic() - started})
             records = decoded if isinstance(decoded, list) else [decoded]
-            if any(r.get('provider') and r['provider'].lower() != 'azure' for r in records):
+            if any(r.get('provider') and r['provider'].lower() != server.provider_name.lower() for r in records):
                 raise ValueError('Unexpected upstream provider; quarantine response and stop')
-            if not any(r.get('provider', '').lower() == 'azure' for r in records):
+            if not any(r.get('provider', '').lower() == server.provider_name.lower() for r in records):
                 raise ValueError('Missing upstream provider attestation')
             if not usage or 'cost' not in usage:
                 raise ValueError('Missing API cost/usage; reservation retained')

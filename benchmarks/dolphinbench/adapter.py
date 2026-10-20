@@ -5,6 +5,7 @@ both. The upstream runner controls order, app resets and grading boundaries.
 """
 import json
 import hashlib
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -25,12 +26,20 @@ class AtMemAdapter:
 
     def __init__(self, options, work_dir):
         self.options, self.work = options, Path(work_dir)
+        self.memory_engine = options.get('memory_engine', 'control')
+        self.ingestion_mode = options.get('ingestion_mode', 'native-agent')
+        if options.get('app_python'):
+            self.app_python = options['app_python']
+            self.app_native_dependency = Path(self.app_python).parent.parent / 'lib/python3.12/site-packages/pydantic_core/_pydantic_core.cpython-312-darwin.so'
+        if self.ingestion_mode == 'source-episode' and self.memory_engine != 'context-v3':
+            raise ValueError('Episode ingestion requires the qualified V3 product binding')
         self.hosts = {}
-        self.runtime = NativeRuntime('/Volumes/AtMemDolphin/runtime-home',
+        self.runtime = NativeRuntime(options.get('runtime_root', '/Volumes/AtMemDolphin/runtime-home'),
             source='/Users/javadtaghia/.hermes/hermes-agent',
             python='/Users/javadtaghia/.hermes/tools/python-3.14.7+20260901-darwin-arm64/bin/python3',
             dependency_facts='/Users/javadtaghia/.hermes/installs/7f16443560343fb8/facts.json')
         self.runtime_identity = self.runtime.stage()
+        self.native_inventory = self.runtime.verify_native_dependencies()
         self.observer = self.runtime.root / 'observers/observe_native.py'
         if self.observer.read_bytes() != Path(__file__).with_name('observe_native.py').read_bytes():
             raise ValueError('Native observer differs from the qualified runtime')
@@ -40,21 +49,41 @@ class AtMemAdapter:
 
     def identity(self):
         return {'runtime': self.runtime_identity, 'campaign': self.campaign_identity,
-                'integration': 'installed AtMem provider; patched product freeze',
+                'integration': {'memory_engine': self.memory_engine, 'ingestion_mode': self.ingestion_mode,
+                    'provider': 'installed AtMem', 'freeze': 'product-owned monotonic freeze'},
                 'boundary': 'macOS sandbox-exec, not upstream Docker runner',
-                'transport': 'OpenRouter Azure-only, official acceptance unconfirmed',
+                'transport': 'Hermes Codex OAuth compatibility bridge' if self.options.get('subscription_endpoint') else 'OpenRouter Azure-only, official acceptance unconfirmed',
                 'app_pydantic_core_version': '2.50.1',
+                'app_python': self.app_python,
                 'app_pydantic_core_sha256': self.app_native_sha256,
+                'native_dependency_sha256': self.native_inventory,
                 'adapter_source': {p.name: fingerprint(p.read_text()) for p in Path(__file__).parent.glob('*.py')}}
 
     def host(self, persona):
         if persona not in self.hosts:
-            self.hosts[persona] = AtMemHost(self.work / 'memory', persona)
+            self.hosts[persona] = AtMemHost(self.work / 'memory', persona, memory_engine=self.memory_engine)
         return self.hosts[persona]
 
     def run_interaction(self, request):
         from harness.adapter import InteractionRecord
         from scripts.openrouter_azure_sol import load_key
+        if request.phase == 'ingestion' and self.ingestion_mode == 'source-episode':
+            started = time.monotonic()
+            host = self.host(request.persona)
+            capture = host.service.dispatch(host.credential, 'observe', {
+                'text': request.dated_message, 'session_id': request.interaction_id,
+                'observation_id': request.interaction_id})
+            directory = self.work / 'native' / request.phase / request.persona / request.interaction_id
+            save_new(directory / 'product-observe.json', capture)
+            if capture.get('captured') and not capture['formation']['processing_complete']:
+                raise RuntimeError('Product episode processing did not complete; preserve the receipt')
+            return InteractionRecord(settings={'model': 'atmem-local-history-ingestion'},
+                messages=[{'role': 'user', 'content': request.dated_message},
+                    {'role': 'assistant', 'content': 'History recorded.' if capture.get('captured') else
+                        'History observation refused by source policy.',
+                     'usage': {'input_tokens': 0, 'output_tokens': 0}}],
+                duration_ms=(time.monotonic() - started) * 1000,
+                attempts=[{'cost_usd': 0.0, 'provider_calls': 0, 'product_receipt': capture}], app_calls=[])
         if hashlib.sha256(self.app_native_dependency.read_bytes()).hexdigest() != self.app_native_sha256:
             raise RuntimeError('Simulated app dependency integrity changed; refusing new paid work')
         started = time.monotonic()
@@ -67,10 +96,26 @@ class AtMemAdapter:
         home = self.runtime.root / 'profiles' / profile
         home.mkdir(mode=0o700)
         host = self.host(request.persona)
-        gateway = Gateway(key=load_key(self.options['env_file']), output=directory / 'calls',
+        if self.memory_engine == 'context-v3' and request.phase == 'tests' and self.options.get('pre_action_gate', True):
+            ruling = host.service.dispatch(host.credential, 'recall', {'query': request.dated_message,
+                'session_id': 'gate-' + request.interaction_id, 'turn_id': request.interaction_id})
+            save_new(directory / 'pre-action-ruling.json', ruling)
+            if ruling['reason'] != 'authorized':
+                return InteractionRecord(settings={'model': 'openai/gpt-5.6-luna'},
+                    messages=[{'role': 'user', 'content': request.dated_message},
+                        {'role': 'assistant', 'content': 'Blocked before model invocation: ' + ruling['reason'],
+                         'usage': {'input_tokens': 0, 'output_tokens': 0}}],
+                    duration_ms=(time.monotonic() - started) * 1000,
+                    attempts=[{'cost_usd': 0.0, 'provider_calls': 0, 'gate_blocked': True}], app_calls=[])
+        if self.runtime.verify_native_dependencies() != self.native_inventory:
+            raise RuntimeError('Native dependency inventory changed after qualification')
+        subscription = self.options.get('subscription_endpoint')
+        gateway_options = ({'endpoint': subscription, 'provider_name': 'OpenAI-Subscription',
+            'upstream_timeout': 36000} if subscription else {})
+        gateway = Gateway(key=os.environ['ATMEM_SUBSCRIPTION_PROXY_TOKEN'] if subscription else load_key(self.options['env_file']), output=directory / 'calls',
             ledger_path=self.ledger, campaign_identity=self.campaign_identity, cap_usd=self.cap_usd,
             phase=request.phase, model='openai/gpt-5.6-luna', input_per_million=1,
-            output_per_million=5, required_tool_catalog='mcp__dolphinbench_apps__').start()
+            output_per_million=5, required_tool_catalog='mcp__dolphinbench_apps__', **gateway_options).start()
         try:
             socket = directory / 'apps.sock'
             # Unix socket paths have a strict OS length bound. Keep the actual
@@ -81,10 +126,16 @@ class AtMemAdapter:
                 stage_client('/Volumes/AtMemDolphin/upstream', client, socket)
                 host.configure_profile(home, base_url=gateway.base_url, local_token=gateway.local_token,
                     mcp={'command': str(self.runtime.python), 'args': ['-I', str(client)]})
+                if subscription:
+                    from .driver import private_json
+                    config = json.loads((home / 'config.yaml').read_text())
+                    config['providers']['custom'].update(request_timeout_seconds=36000, stale_timeout_seconds=36000)
+                    config['agent']['api_max_retries'] = 0
+                    private_json(home / 'config.yaml', config)
                 witness = home / 'shutdown-witness.jsonl'
                 process = self.runtime.invoke(profile,
                     ['chat', '-q', request.dated_message, '-Q', '--yolo', '--format', 'stream-json', '--max-turns', '20'],
-                    ports=[gateway.server_port, host.server.server_port], sockets=[socket], timeout=600,
+                    ports=[gateway.server_port, host.server.server_port], sockets=[socket], timeout=43200 if subscription else 600,
                     environment={'CUSTOM_API_KEY': gateway.local_token,
                         'ATMEM_BENCH_OBSERVER': str(self.observer), 'ATMEM_BENCH_WITNESS': str(witness)})
             save_new(directory / 'process.json', {'exit_code': process.returncode,
@@ -117,7 +168,10 @@ class AtMemAdapter:
         book = BudgetLedger(self.ledger, cap_usd=self.cap_usd, identity=self.campaign_identity)
         try:
             totals = book.totals()
-            if any(row['reserved_usd'] for row in totals.values()):
+            uncertain = (totals.get(phase, {}).get('reserved_usd', 0)
+                         if self.memory_engine == 'context-v3' else
+                         sum(row['reserved_usd'] for row in totals.values()))
+            if uncertain:
                 raise ValueError('Unreconciled API cost reservations')
             return totals.get(phase, {}).get('actual_usd', 0)
         finally:

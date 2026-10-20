@@ -4,6 +4,8 @@ Only dependency/runtime metadata is copied from the user's installation. No
 personal config, memories, OAuth state, profiles or provider keys are copied.
 """
 import hashlib
+import base64
+import csv
 import json
 import os
 from pathlib import Path
@@ -21,6 +23,29 @@ class NativeRuntime:
         self.python = Path(python).resolve()
         self.dependency_facts = Path(dependency_facts).resolve()
         self.install_key = hashlib.sha256(str(self.source).encode()).hexdigest()[:16]
+
+    def verify_native_dependencies(self):
+        """Reject corrupt staged binaries before a model request is possible."""
+        facts = json.loads((self.root / 'installs' / self.install_key / 'facts.json').read_text())
+        environment = Path(facts['packages']['venv']['environment'])
+        sites = list((environment / 'lib').glob('python*/site-packages'))
+        if len(sites) != 1:
+            raise ValueError('Cannot unambiguously locate the staged dependency inventory')
+        result = {}
+        for record in sites[0].glob('*.dist-info/RECORD'):
+            with record.open() as source:
+                for relative, expected, _size in csv.reader(source):
+                    if not relative.endswith('.so') or not expected.startswith('sha256='):
+                        continue
+                    path = (sites[0] / relative).resolve()
+                    path.relative_to(sites[0].resolve())
+                    digest = hashlib.sha256(path.read_bytes()).digest()
+                    if base64.urlsafe_b64encode(digest).decode().rstrip('=') != expected[7:]:
+                        raise RuntimeError('Staged native dependency differs from its wheel RECORD; refusing inference')
+                    result[relative] = digest.hex()
+        if not result:
+            raise ValueError('Native dependency integrity inventory is empty')
+        return result
 
     def stage(self):
         marker = self.root / 'runtime-identity.json'

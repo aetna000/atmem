@@ -247,6 +247,8 @@ class HermesService:
             profile_id=row["profile_id"], enabled=row["enabled"],
             influence=row.get("influence", row["enabled"]),
             max_context_chars=row["max_context_chars"],
+            memory_engine=row.get("memory_engine", "control"),
+            history_import_authorized=row.get("history_import_authorized", False),
         )
 
     def _canonical_checkpoint(self, row: dict[str, Any]) -> dict[str, Any]:
@@ -261,7 +263,10 @@ class HermesService:
             raise PermissionError("checkpoint workspace changed")
         memory = Memory(path, retain_query_text=False)
         try:
-            return memory.memory_checkpoint(scope)
+            checkpoint = memory.memory_checkpoint(scope)
+            if row.get("memory_engine") == "context-v3":
+                checkpoint["context_engine"] = self._binding(row).v3().checkpoint()
+            return checkpoint
         finally:
             memory.close()
 
@@ -281,6 +286,8 @@ class HermesService:
                     if self._canonical_checkpoint(row) != row["memory_checkpoint"]["canonical"]:
                         raise ValueError("frozen canonical memory changed")
                     return copy.deepcopy(row["memory_checkpoint"])
+                if row.get("memory_engine") == "context-v3":
+                    self._binding(row).v3().freeze()
                 checkpoint = {
                     "format": "atmem-hermes-memory-checkpoint-v1",
                     "binding_id": row["binding_id"], "profile_id": row["profile_id"],
@@ -306,10 +313,31 @@ class HermesService:
                         self._canonical_checkpoint(row) != checkpoint.get("canonical")):
                     raise ValueError("frozen canonical memory checkpoint mismatch")
 
+    def export_context_memory(self, principal: APIPrincipal, binding_id: str, destination) -> dict[str, Any]:
+        """Admin-authorized V3 source/evidence export; no credentials or keys."""
+        self._admin(principal)
+        with self._locked(".hermes-memory-write.lock"):
+            with self._locked():
+                row = self._load(_identifier(binding_id, "binding_id"))
+                self._owner(principal, row)
+                binding = self._binding(row)
+                binding._scope()
+                if row["revoked"] or row["expires_at"] <= time.time():
+                    raise PermissionError("cannot export a revoked or expired binding")
+            return binding.v3().export(destination, actor=principal.principal_id)
+
     def provision(self, principal: APIPrincipal, *, profile_id: str,
                   agent_id: str, workspace_id: str, user_id: str | None = None,
-                  accept_reduced_capture: bool = False) -> dict[str, Any]:
+                  accept_reduced_capture: bool = False,
+                  memory_engine: str = "control",
+                  authorize_history_import: bool = False) -> dict[str, Any]:
         self._admin(principal)
+        if memory_engine not in {"control", "context-v3"}:
+            raise ValueError("unsupported Hermes memory engine")
+        if memory_engine == "context-v3" and authorize_history_import is not True:
+            raise PermissionError("V3 requires explicit administrator history-import authority")
+        if authorize_history_import and memory_engine != "context-v3":
+            raise ValueError("history-import authority requires the V3 engine")
         if accept_reduced_capture is not True:
             raise ValueError("this Hermes profile requires explicit acceptance of memory-only capture")
         profile_id = _identifier(profile_id, "profile_id")
@@ -321,6 +349,15 @@ class HermesService:
             framework="hermes",
         )
         self._owner(principal, {"identity": asdict(identity)})
+        if memory_engine == "context-v3":
+            from atmem.service.household import HouseholdApplication
+            scope, path = self.manager._memory_authority_scope(
+                self.manager.state(), subject_id=identity.subject_id, agent_id=identity.agent_id)
+            if scope.workspace_id != identity.workspace_id:
+                raise PermissionError("V3 workspace does not match the authority scope")
+            status = HouseholdApplication.status(path)
+            if status["state"] != "encrypted" or not status["encrypted_header"]:
+                raise PermissionError("V3 binding requires an initialized encrypted household")
         with self._locked():
             self._binding({"identity": asdict(identity), "profile_id": profile_id,
                            "enabled": False, "max_context_chars": 4096})._scope()
@@ -344,6 +381,8 @@ class HermesService:
                 "token_digest": hashlib.sha256(token.encode()).hexdigest(),
                 "generation": 1, "enabled": False, "revoked": False,
                 "influence": False,
+                "memory_engine": memory_engine,
+                "history_import_authorized": memory_engine == "context-v3",
                 "expires_at": int(time.time()) + 90 * 86400,
                 "max_context_chars": 4096, "capture_coverage": "memory_operations_only",
                 "reconstructable": False, "reduced_capture_accepted": True,

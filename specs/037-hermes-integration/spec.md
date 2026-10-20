@@ -7,6 +7,28 @@
 
 ## Outcome
 
+### V3 episode correction — approved 2026-10-21
+
+The user requests parity with the V3 memory path behind the historical 30-task
+DolphinBench result. Add an explicitly administrator-authorized `context-v3`
+Hermes binding profile: exact authenticated user observations enter the existing
+`Memory.form_context_episode` API with scope-bound history-import authority;
+frozen retrieval uses `Memory.prepare_context_v3`, `context-fast`, 200 candidates
+and 32,000 context bytes. Do not replace these with control-plane fact extraction
+or legacy recall, and do not duplicate either pipeline. Existing bindings retain
+their previous path unless this profile is explicitly selected at provisioning.
+
+Source identity conflicts, secret screening, encrypted storage, inactive/shadow
+delivery, cross-scope denial, revocation and monotonic freeze remain enforced.
+Checkpoint identity must include the actual V3 source bytes and evidence state,
+not only legacy record counts. The client must accept the versioned V3 byte
+budget without silently truncating it to the legacy 4,096-character limit.
+
+Qualify from an installed research wheel with native Hermes, original public
+history observations and no paid inference. Do not change stopped run identities
+or present a changed agent/judge as a replication of the historical score.
+No package publication or release-version change is authorized by this correction.
+
 A Hermes user can connect AtMem, explicitly activate governed memory, remember
 across sessions, inspect what was returned, and restore their previous provider.
 They do not need Mem0 or a benchmark checkout. DolphinBench then tests the same

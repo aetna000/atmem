@@ -29,7 +29,7 @@ def test_native_hooks_recall_and_capture_only_user(provider):
     value.on_turn_start(1, "My editor is Neovim")
     recalled = value.prefetch("editor", session_id="session")
     assert "authorized memory" in recalled
-    assert "first-person questions" in recalled
+    assert "first-person question" in recalled
     assert "authorized for this turn" in recalled
     assert "user's name or initials" in recalled
     assert "do not refuse merely because the fact is personal" in recalled
@@ -90,7 +90,7 @@ def test_local_tui_uses_the_same_scoped_provider(provider, tmp_path):
     value.on_turn_start(1, "How old am I?", model="local-model")
     recalled = value.prefetch("How old am I?", session_id="tui-session")
     assert "authorized memory" in recalled
-    assert "current user's scope" in recalled
+    assert "authenticated current user" in recalled
     assert '<atmem-subject role="current_user">' in recalled
     assert manager.calls[-1][1]["agent_id"] == "agent"
 

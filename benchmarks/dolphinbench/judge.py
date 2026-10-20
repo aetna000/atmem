@@ -6,6 +6,7 @@ identity, API cost and complete requests are retained by the controller gateway.
 from contextlib import contextmanager
 import json
 import time
+import urllib.error
 import urllib.request
 
 
@@ -30,9 +31,23 @@ def openrouter_judge(gateway):
             data=json.dumps(body).encode(), headers={
                 'Authorization': 'Bearer ' + gateway.local_token, 'Content-Type': 'application/json'})
         start = time.monotonic()
-        with urllib.request.urlopen(request, timeout=max(timeout or 120, 310)) as response:
-            raw = json.load(response)
-        record_response({k: v for k, v in body.items() if k != 'messages'}, body['messages'],
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(request, timeout=max(timeout or 120, 310)) as response:
+                    raw = json.load(response)
+                break
+            except urllib.error.HTTPError as exc:
+                # Only infrastructure failures retry. The gateway retains each
+                # paid/uncertain attempt; completed verdicts are never rerolled.
+                if exc.code not in {429, 500, 502, 503, 504} or attempt == 2:
+                    raise
+                time.sleep(15 * (attempt + 1))
+        # OpenRouter requires its provider-prefixed routing alias. The upstream
+        # fixed schema uses the bare Sol name; retain the exact original wire
+        # body/response in the gateway and normalize only this documented alias.
+        canonical = {k: v for k, v in body.items() if k != 'messages'}
+        canonical['model'] = 'gpt-5.6-sol'
+        record_response(canonical, body['messages'],
                         raw, (time.monotonic() - start) * 1000)
         choice = raw['choices'][0]
         if choice.get('finish_reason') != 'stop':

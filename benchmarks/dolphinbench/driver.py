@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import threading
+import time
 
 from atmem.adapters.hermes.service import HermesService
 from atmem.control import ControlPlaneManager
@@ -25,10 +26,16 @@ def private_json(path, value):
 
 
 class AtMemHost:
-    def __init__(self, root, persona):
+    def __init__(self, root, persona, *, memory_engine="control"):
         self.root = Path(root).resolve() / persona
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         state_path = self.root / 'state.json'
+        if memory_engine == 'context-v3' and not state_path.exists():
+            from atmem.service.household import HouseholdApplication
+            database = self.root / 'memory.db'
+            if database.exists():
+                raise ValueError('Refusing to replace an existing unconfigured memory database')
+            HouseholdApplication.initialize(database, encrypted=True, backend='file')
         self.manager = ControlPlaneManager(state_path) if state_path.exists() else ControlPlaneManager.start(
             host='generic', state_path=state_path, control_root=self.root / 'control',
             memory_db=self.root / 'memory.db', subject_id='dolphin-' + persona)
@@ -40,10 +47,13 @@ class AtMemHost:
             if len(grants) != 1 or grants[0]['profile_id'] != 'dolphin-' + persona:
                 raise ValueError('Unexpected prior Hermes bindings')
             self.binding = grants[0]
+            if self.binding.get('memory_engine', 'control') != memory_engine:
+                raise ValueError('Memory engine changed; create a fresh condition, not a migrated run')
             self.credential = (self.root / 'scoped-credential').read_text().strip()
         else:
             grant = self.service.provision(self.admin, profile_id='dolphin-' + persona,
-                agent_id='main', workspace_id=workspace['workspace_id'], accept_reduced_capture=True)
+                agent_id='main', workspace_id=workspace['workspace_id'], accept_reduced_capture=True,
+                memory_engine=memory_engine, authorize_history_import=memory_engine == 'context-v3')
             self.binding, self.credential = grant['binding'], grant['credential']
             fd = os.open(self.root / 'scoped-credential', os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             with os.fdopen(fd, 'w') as output:
@@ -94,6 +104,10 @@ class AtMemHost:
             'mcp_servers': {'dolphinbench-apps': mcp} if mcp else {},
             'providers': {'custom': {'api': base_url, 'api_key': local_token}},
         }
+        if self.binding.get('memory_engine') == 'context-v3':
+            # Supported host setting: the product already bounds V3 at 32,000
+            # bytes. A second 10k-char spill would change the delivered context.
+            config['hooks'] = {'output_spill': {'enabled': True, 'max_chars': 33_000}}
         private_json(home / 'config.yaml', config)  # JSON is valid YAML.
 
     def freeze(self):
@@ -104,6 +118,11 @@ class AtMemHost:
         self.service.verify_memory_checkpoint(self.admin, self.binding['binding_id'], checkpoint)
 
     def portable_export(self, destination):
+        if self.binding.get('memory_engine') == 'context-v3':
+            destination = Path(destination)
+            # Incremental checkpoints preserve the previously verified export.
+            destination = destination.with_name(destination.stem + '-' + str(time.time_ns()) + destination.suffix)
+            return self.service.export_context_memory(self.admin, self.binding['binding_id'], destination)
         from atmem.memory import Memory
         from atmem.interchange import ScopeMap, export_archive
         scope, path = self.manager._memory_authority_scope(self.manager.state(),

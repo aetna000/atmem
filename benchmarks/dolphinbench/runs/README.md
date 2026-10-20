@@ -1,5 +1,18 @@
 # Private DolphinBench campaign — 2026-10-21
 
+## V3 correction — current condition
+
+The V3 product bridge and installed native/OAuth/tool/Sol replay qualifications
+have passed. A fresh full condition is defined in the
+[V3 campaign protocol](../../../docs/benchmarks/dolphinbench-v3-campaign-20261021.md):
+local V3 ingestion, subscription-backed Luna agent, fixed Sol-medium judging,
+13,539 histories and 600 tasks. Its separate output is
+`/Volumes/AtMemDolphin/campaign-atmem-v3-full-20261021`. No final score exists yet.
+It does not reuse the fallback stores below. The old private entry point remains
+blocked; `campaign_v3` requires the qualified artifact and starts a fresh condition.
+
+## Earlier fallback preparation — stopped
+
 Status: the fallback ingestion condition was stopped at 101 completed exported
 interactions after its memory path was found to differ from the historical V3
 configuration. **No new final task-accuracy score is available.** Full paid

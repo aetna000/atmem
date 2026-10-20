@@ -29,7 +29,7 @@ def main():
                 value = value[1:-1]
             values[match[1]] = value
     token = values['HF_TOKEN']
-    secret_bytes = [v.encode() for k, v in values.items() if len(v) >= 16 and re.search('KEY|TOKEN|PASSWORD|SECRET', k)]
+    secret_bytes = [v.encode() for k, v in values.items() if len(v) >= 16 and (re.search('KEY|TOKEN|PASSWORD|SECRET', k) or k == 'OPEN_ROUTER')]
     repo = 'atmem/dolphinbench-evidence-20261020'
     api = HfApi(token=token)
     if not api.repo_info(repo, repo_type='dataset').private:
@@ -37,7 +37,9 @@ def main():
     state_path = root / 'archive-index.json'
     old = json.loads(state_path.read_text()) if state_path.exists() else {'files': {}, 'verified_batches': []}
     candidates = [root / 'run.json']
-    for name in ('ingestion', 'tests', 'grades', 'costs', 'checkpoints', 'native', 'portable-memory', 'repairs'):
+    candidates.extend(root.glob('controller-error-*.json'))
+    candidates.extend(root / name for name in ('private-result.json', 'live-qualification.json', 'submission.zip'))
+    for name in ('ingestion', 'tests', 'grades', 'costs', 'checkpoints', 'native', 'portable-memory', 'repairs', 'subscription-transport'):
         candidates.extend(sorted((root / name).rglob('*.json')))
         if name in {'portable-memory', 'native'}:
             candidates.extend(sorted((root / name).rglob('*.jsonl')))

@@ -1,6 +1,42 @@
 # Hermes qualification evidence — 2026-09-26
 
-## DolphinBench preparation and ongoing run — 2026-10-21
+## V3 correction qualification — 2026-10-21
+
+Final installed artifact gates: **93 passed, zero skipped** in 51.76 seconds,
+using `scripts/test_installed_v3.py` with the pinned native Hermes source.
+The earlier report retains three failures: two stale provider wording assertions
+were corrected to the existing product wording; a concurrency test passed both
+in isolation and in the complete rerun without a product or timeout change.
+Final judge/gateway transport gates: **6 passed** in 1.74 seconds. The separate
+19-test controller gate is also retained, not added to these overlapping counts.
+Actual Sol diagnostic cost: US$0.001136; replay matched. Live subscription Luna
+used V3 company evidence and executed the simulated read-only inbox tool.
+Read-only subscription status reported access available, 11% weekly usage and
+zero credit balance. No paid agent API fallback or billing change was made.
+T039–T042 are complete for this bounded research integration; older unchecked
+feature tasks are not implied complete. The 600-task result is still pending.
+
+The installed research artifact SHA-256 is
+`8a7e972c03bea5cc7eb143daeb6b57c4e13b1baff4613df00d32fa2ff49df345`.
+The opt-in binding uses the original public V3 history/context APIs and historical
+budgets, while legacy bindings stay unchanged. Installed native qualification
+retained an original public history message, delivered memory to a fresh Hermes
+process, executed an actual simulated app read, and verified unchanged frozen
+memory. A subsequent actual OAuth native agent answered from that context and
+executed `list_inbox` in a separate read-only transport diagnostic. Actual
+Sol-medium recording/replay also passed, costing US$0.001136.
+
+Earlier pytest `-I` commands still applied the repo's `pythonpath=["."]` option;
+their reports are source regressions. `scripts/test_installed_v3.py` now explicitly
+preloads the installed AtMem/service and disables that option. Native-process
+qualifications were already installed-artifact tests and are not relabelled.
+
+The [V3 protocol](../../docs/benchmarks/dolphinbench-v3-campaign-20261021.md)
+records the artifact, two infrastructure failures before scale, preserved security
+boundaries, separate subscription/API accounting, fresh stores and publication
+states. No stable release or completed benchmark score is claimed here.
+
+## Earlier DolphinBench fallback preparation — stopped 2026-10-21
 
 The stable 2.3.9 baseline and a separately built research wheel with a
 product-owned Hermes freeze were tested in isolated installed environments.
@@ -13,8 +49,8 @@ gates, not benchmark accuracy results or full cross-platform certification.
 The user increased the total benchmark ceiling to **US$250**. The current
 private campaign has fixed agent/judge settings, a durable cost ledger and
 incremental independently verified Hugging Face recovery archives. It is
-processing 13,539 distributed single-message history interactions before the
-600 tasks. It uses explicitly disclosed Azure-only OpenRouter routing, not an
+stopped after 101 exported interactions; it did not score tasks. It used
+explicitly disclosed Azure-only OpenRouter routing, not an
 unmodified direct-Azure runner; official acceptance remains unconfirmed.
 Preparation failures, costs and controller-only repairs are preserved rather
 than omitted. The complete run index, artifact hashes, source pins, scope,

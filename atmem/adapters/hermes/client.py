@@ -8,6 +8,15 @@ from types import SimpleNamespace
 from urllib.parse import urlsplit
 
 
+def _valid_context(context, profile):
+    if not isinstance(context, str):
+        return False
+    if profile == "authorized-at-recall-context-v3":
+        return len(context.encode("utf-8")) <= 32_000
+    # Unknown profiles never widen the legacy contract.
+    return profile == "authorized-at-recall-v1" and len(context) <= 4096
+
+
 class HermesRPCError(RuntimeError):
     def __init__(self, status, code):
         self.status, self.code = status, code
@@ -102,7 +111,8 @@ class HermesRPCClient:
             reason = value.get("reason", "")
             exposure_id = value.get("exposure_id")
             context_receipt_id = value.get("context_receipt_id")
-            if (not isinstance(context, str) or len(context) > 4096 or
+            profile = value.get("profile", "authorized-at-recall-v1")
+            if (not _valid_context(context, profile) or
                     not isinstance(reason, str) or len(reason) > 128 or
                     not isinstance(candidates, list) or len(candidates) > 1024 or
                     any(not isinstance(candidate, str) or len(candidate) > 512 for candidate in candidates) or
@@ -111,7 +121,7 @@ class HermesRPCClient:
                 raise ValueError("invalid context")
             return SimpleNamespace(context=context, candidate_ids=candidates, reason=reason,
                                    exposure_id=exposure_id,
-                                   context_receipt_id=context_receipt_id)
+                                   context_receipt_id=context_receipt_id, profile=profile)
         except (RuntimeError, ValueError):
             return SimpleNamespace(context="", candidate_ids=[], reason="unavailable_or_denied",
                                    exposure_id=None, context_receipt_id=None)
@@ -130,7 +140,8 @@ class HermesRPCClient:
             reason = value.get("reason", "")
             exposure_id = value.get("exposure_id")
             context_receipt_id = value.get("context_receipt_id")
-            if (not isinstance(context, str) or len(context) > 4096 or
+            profile = value.get("profile", "authorized-at-recall-v1")
+            if (not _valid_context(context, profile) or
                     not isinstance(reason, str) or len(reason) > 128 or
                     not isinstance(candidates, list) or len(candidates) > 1024 or
                     any(not isinstance(candidate, str) or len(candidate) > 512
@@ -140,6 +151,7 @@ class HermesRPCClient:
                 context=context, candidate_ids=candidates, reason=reason,
                 exposure_id=exposure_id, context_receipt_id=context_receipt_id,
                 lifecycle_recorded=value.get("lifecycle_recorded") is True,
+                profile=profile,
             )
         except (RuntimeError, ValueError):
             return SimpleNamespace(
