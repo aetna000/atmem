@@ -80,6 +80,7 @@ Executable runtimes now use isolated internal temporary directories with native
 RECORD verification; datasets, memory databases and evidence remain on MEM.
 No user runtime, global login, release installation or unrelated disk data was
 replaced. Only managed dependencies were staged, never user memory/auth files.
+The subsequent benchmark-only working-database staging is recorded below.
 
 ## Execution and recovery
 
@@ -116,7 +117,27 @@ encryption, episode formation, chronological order and retrieval are unchanged;
 all databases remain on MEM. The exact start count and helper identity are saved
 in `repairs/idle-database-connections-20261021.json` and archived. Ingestion timing
 before/after this storage operation must be reported separately; no homogeneous
-full-ingestion latency claim is made. The helper closes when the controller exits.
+full-ingestion latency claim is made. The helper was stopped before offline SSD
+staging; it is not part of the scored task phase.
+
+At Morgan history `001215`, the controller received `observation_uncertain` and
+stopped before any scored task. Its original in-flight marker and failure archive
+were preserved. The source's deterministic episode identity was absent from the
+database; the exact original observation subsequently succeeded through the same
+scoped, idempotent product API. No model inference was replayed. The wrapper did
+not expose the underlying original exception, so its precise cause is unconfirmed.
+
+A live relocation attempt refused to move any file because database handles
+remained open. Only after controller exit were the three encrypted working
+databases staged to a private internal SSD directory. Raw file checksums, SQLCipher
+`quick_check`, V3 row counts and the ordinary product constructor all passed;
+originals remain on MEM. Existing logical database paths point to the working
+copies. Product authority/configuration, source order, synchronization and model
+settings are unchanged. `repairs/ssd-working-databases-20261021.json` and
+`repairs/history-001215-reconciliation.json` record the operations. All 600 scored
+tasks use the post-staging condition. Evidence/archives remain on MEM and Hugging
+Face; full-ingestion timing is not a homogeneous storage comparison. The same
+run resumes without replaying previously completed histories or task answers.
 
 Raw requests, actual provider Responses bodies, normalized native exchanges,
 tool results, usage, rulings, costs and V3 source/evidence exports are archived to
