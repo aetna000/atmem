@@ -31,6 +31,8 @@ def main():
         parser.error('Execution requires --confirm-paid-calls')
     if args.pilot_sessions < 0:
         parser.error('Pilot limit cannot be negative')
+    if args.pilot_sessions > 25:
+        parser.error('Unqualified diagnostics are limited to 25 ingestion interactions')
     if args.pilot_sessions == 0:
         parser.error(
             'Full paid execution is blocked: this private adapter has not qualified '
