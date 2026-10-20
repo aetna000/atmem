@@ -36,22 +36,44 @@ def main():
         raise ValueError('Recovery repository must remain private')
     state_path = root / 'archive-index.json'
     old = json.loads(state_path.read_text()) if state_path.exists() else {'files': {}, 'verified_batches': []}
+    # Once every original history/receipt has independently round-tripped and
+    # all personas are frozen, those append-only inputs need not be walked on
+    # every ten-task checkpoint. Their original cloud copies remain authoritative.
+    frozen_inputs = ((root / 'costs/ingestion.json').is_file()
+        and all((root / 'checkpoints' / (p + '.json')).is_file() for p in ('morgan', 'alex', 'riley'))
+        and all(f'ingestion/{p}/{i:06d}.json' in old['files']
+            and f'native/ingestion/{p}/{i:06d}/product-observe.json' in old['files']
+            for p, count in (('morgan', 3400), ('alex', 5011), ('riley', 5128))
+            for i in range(1, count + 1)))
     candidates = [root / 'run.json']
     candidates.extend(root.glob('controller-error-*.json'))
     candidates.extend(root / name for name in ('private-result.json', 'live-qualification.json', 'submission.zip'))
     for name in ('ingestion', 'tests', 'grades', 'costs', 'checkpoints', 'native', 'portable-memory', 'repairs', 'subscription-transport'):
-        candidates.extend(sorted((root / name).rglob('*.json')))
+        if name == 'ingestion' and frozen_inputs:
+            continue
+        directory = root / name / 'tests' if name == 'native' and frozen_inputs else root / name
+        candidates.extend(sorted(directory.rglob('*.json')))
+        if name == 'tests':
+            candidates.extend(sorted(directory.rglob('*.returned')))
+            candidates.extend(sorted(directory.rglob('*.inflight')))
         if name in {'portable-memory', 'native'}:
-            candidates.extend(sorted((root / name).rglob('*.jsonl')))
+            candidates.extend(sorted(directory.rglob('*.jsonl')))
     selected = {}
     for path in candidates:
         if not path.is_file() or path.is_symlink():
             continue
         path.resolve().relative_to(root)
+        name = str(path.relative_to(root))
+        immutable = (name.startswith(('ingestion/', 'tests/', 'grades/', 'native/',
+                                     'subscription-transport/', 'repairs/'))
+                     or name.endswith('.jsonl'))
+        if immutable and name in old['files']:
+            # Completed artifacts use unique names/O_EXCL. Preserve their first
+            # verified cloud copy; mutable run/receipt metadata is still rehashed.
+            continue
         data = path.read_bytes()
         if any(secret in data for secret in secret_bytes):
             raise ValueError('Secret screen failed; no archive uploaded')
-        name = str(path.relative_to(root))
         digest = hashlib.sha256(data).hexdigest()
         if old['files'].get(name) != digest:
             selected[name] = {'sha256': digest, 'size_bytes': len(data)}
@@ -67,6 +89,8 @@ def main():
         budget_bytes = (temporary / 'budget.db').read_bytes()
         selected['accounting/budget.db'] = {'sha256': hashlib.sha256(budget_bytes).hexdigest(), 'size_bytes': len(budget_bytes)}
         manifest = {'format': 'atmem-private-benchmark-batch-v1', 'campaign': root.name,
+                    'archive_implementation_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                    'frozen_ingestion_already_cloud_verified': frozen_inputs,
                     'files': selected, 'previous_verified_batches': old['verified_batches'],
                     'memory_backup': 'neutral product export, not bit-exact encrypted database restore'}
         (temporary / 'manifest.json').write_text(json.dumps(manifest, indent=2))

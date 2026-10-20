@@ -12,7 +12,7 @@ from pathlib import Path
 import sys
 import zipfile
 
-ROOT = Path('/Volumes/AtMemDolphin/campaign-atmem-v3-full-r2-20261021')
+ROOT = Path('/Volumes/AtMemDolphin/campaign-atmem-v3-system-full-20261021')
 UPSTREAM = Path('/Volumes/AtMemDolphin/upstream')
 sys.path.append(str(UPSTREAM))
 from harness.submission import read_release, read_zip, write_zip

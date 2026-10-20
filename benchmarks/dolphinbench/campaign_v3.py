@@ -48,6 +48,7 @@ def main():
     parser.add_argument('--confirm-paid-grading', action='store_true')
     parser.add_argument('--qualification-only', action='store_true')
     parser.add_argument('--resume', action='store_true', help='Resume only the exact frozen condition; never replay uncertain model interactions')
+    parser.add_argument('--baseline-from', type=Path, help='Adopt only cloud-verified histories and frozen checkpoints, never prior task outputs')
     args = parser.parse_args()
     if not args.confirm_paid_grading:
         parser.error('The operator must explicitly confirm the existing run-specific budget')
@@ -90,6 +91,8 @@ def main():
         'formation': 'scoped administrator-authorized Memory.form_context_episode',
         'retrieval': 'Memory.prepare_context_v3; context-fast; 200 candidates; 32000 bytes',
         'pre_action_gate': 'product V3 sufficient status required before model invocation',
+        'memory_delivery': 'unchanged product prepare-turn context through native Hermes ephemeral_system_prompt; no user-side prefetch',
+        'frozen_baseline_from': str(args.baseline_from.resolve()) if args.baseline_from else None,
         'ingestion': 'local source-episode import, no model calls, same mode as historical 5% run',
         'agent': {'model': 'openai/gpt-5.6-luna', 'reasoning': 'medium', 'max_turns': 20,
             'transport': 'native Hermes Chat Completions over Hermes Codex OAuth compatibility bridge',
@@ -108,7 +111,10 @@ def main():
         'memory_engine': 'context-v3', 'ingestion_mode': 'source-episode',
         'app_python': '/private/tmp/atmem-dolphin-apps-v3-20261021/bin/python',
         'runtime_root': '/private/tmp/atmem-dolphin-runtime-v3-20261021',
+        'memory_delivery': 'native-ephemeral-system',
         'subscription_endpoint': 'listener-pending'}
+    if args.baseline_from:
+        options['baseline_memory_root'] = str(args.baseline_from.resolve() / 'memory')
     adapter = AtMemAdapter(options, root)
     with run_lock(root):
         runner = Runner(release, root, adapter, identity=adapter.identity(),
@@ -141,32 +147,28 @@ def main():
             raise RuntimeError('Subscription service startup deadline elapsed')
         # Live transport/memory diagnostic is isolated from the full condition.
         qualification = root / ('resume-qualification-' + stamp if args.resume else 'live-qualification')
-        test_adapter = AtMemAdapter(options, qualification)
+        qualification_options = {k: v for k, v in options.items() if k != 'baseline_memory_root'}
+        test_adapter = AtMemAdapter(qualification_options, qualification)
         try:
             first = release['morgan']['sessions'][0]
-            controller = Runner(release, qualification / 'controller', None,
-                identity={'diagnostic_only': True}, release_root=upstream)
-            apps = controller._apps('ingestion', 'morgan', '000000', first)
-            apps['command'] = options['app_python']
-            observation = Interaction('morgan', 'ingestion', '000001', first['messages'][0].strip(),
-                first['narrative_date'], apps, qualification)
-            test_adapter.run_interaction(observation)
+            controller = Runner({'morgan': {'sessions': [first], 'tests': []}}, qualification, test_adapter,
+                identity={'diagnostic_only': True, 'user_boundary_gate': 'unmodified Runner._execute'}, release_root=upstream)
+            controller._execute('ingestion', 'morgan', first)
             checkpoint = test_adapter.freeze('morgan')
-            diagnostic = Interaction('morgan', 'tests', 'diagnostic',
-                'What company did I start with Devon?', first['narrative_date'], apps, qualification)
-            result = test_adapter.run_interaction(diagnostic)
-            text = '\n'.join(str(m.get('content', '')) for m in result.messages if m.get('role') == 'assistant')
-            if 'Scaffold' not in text or any(a.get('gate_blocked') for a in result.attempts):
+            result = controller._execute('tests', 'morgan', {'id': 'diagnostic',
+                'test': 'What company did I start with Devon?', 'narrative_anchor_date': first['narrative_date']})
+            text = '\n'.join(str(m.get('content', '')) for m in result['row']['messages'] if m.get('role') == 'assistant')
+            if 'Scaffold' not in text or any(a.get('gate_blocked') for a in result['attempts']):
                 raise RuntimeError('Live subscription agent did not use V3 memory; do not scale this condition')
             # Separate read-only tool transport diagnostic, not a memory-quality
             # case. It does not require a personal-memory sufficiency ruling.
-            tool_adapter = AtMemAdapter({**options, 'pre_action_gate': False}, qualification)
+            tool_adapter = AtMemAdapter({**qualification_options, 'pre_action_gate': False}, qualification)
             try:
-                tool_result = tool_adapter.run_interaction(Interaction('morgan', 'tests', 'diagnostic-tools',
-                    'List my inbox using the provided application tools. Do not send or change anything.',
-                    first['narrative_date'], apps, qualification))
-                from graders.mechanical import load_tool_calls
-                observed_tools = [call['tool'] for call in load_tool_calls(Path(apps['env']['DOLPHINBENCH_LOG_PATH']))]
+                controller.adapter = tool_adapter
+                tool_result = controller._execute('tests', 'morgan', {'id': 'diagnostic-tools',
+                    'test': 'List my inbox using the provided application tools. Do not send or change anything.',
+                    'narrative_anchor_date': first['narrative_date']})
+                observed_tools = [call['tool'] for call in tool_result['row'].get('app_calls', [])]
                 if 'list_inbox' not in observed_tools:
                     raise RuntimeError('The live subscription agent did not execute the simulated inbox read')
             finally:
@@ -174,6 +176,8 @@ def main():
             test_adapter.verify_checkpoint('morgan', checkpoint)
             save_new(root / ('resume-qualification-' + stamp + '.json' if args.resume else 'live-qualification.json'), {'passed': True, 'diagnostic_only': True,
                 'native_agent': 'Hermes', 'provider': 'OpenAI-Subscription', 'memory_engine': 'context-v3',
+                'exact_original_user_verified_by_upstream_runner': True,
+                'memory_delivery': 'native-ephemeral-system',
                 'response': text, 'model_calls_have_actual_usage': True,
                 'simulated_tool_calls': observed_tools,
                 'tool_diagnostic_memory_gate': 'not applied to the separate transport-only read',
@@ -185,6 +189,9 @@ def main():
             print(json.dumps({'qualification_passed': True, 'full_run_started': False}), flush=True)
             return
         with run_lock(root):
+            if args.baseline_from and not args.resume:
+                from .baseline import adopt
+                adopt(args.baseline_from, root, release, adapter)
             # Each persona remains chronological. Batches join before exports,
             # so a backup cannot observe a half-written interaction.
             positions = {persona: 0 for persona in release}

@@ -1,5 +1,60 @@
 # V3 full-campaign protocol — 2026-10-21
 
+## Current scored condition: wire-faithful one-shot API context
+
+Run directory: `campaign-atmem-v3-system-full-20261021`. Adopt the cloud-verified
+13,539 history records and exact frozen product checkpoints from the earlier
+`campaign-atmem-v3-full-r2-20261021` baseline; do not adopt any task execution.
+Source ingestion is inherited, not represented as an independent rerun.
+
+The native prefetch preparation attempt stopped on the first task because Hermes
+attached context to the user field, violating the benchmark's exact-user boundary.
+Its full execution remains archived and ungraded. It contributes no selected
+outcome to this condition. No task answer was used to tune retrieval or memory.
+
+For each fresh one-shot Hermes session, the installed AtMem native product
+provider performs its ordinary scoped RPC, sufficiency decision and rendering.
+The returned context is forwarded unchanged through Hermes's supported
+`ephemeral_system_prompt` setting. Native user-side prefetch and built-in memory
+are disabled to avoid duplicate injection; delegation is disabled because the
+submission format represents one conversation. Native agent execution, session
+search and simulated app tools remain in use. This is an **API-context delivery
+condition**, not a score for the ordinary native-prefetch hook.
+
+Qualification uses the unmodified upstream `Runner._execute`, not just the
+adapter directly. It requires an exact original user message, actual provider
+instructions containing the complete native prologue, a recalled company answer,
+a real simulated inbox call and unchanged frozen product memory.
+The Hermes auxiliary converter ignored `developer` rows; the compatibility bridge
+now maps a homogeneous instruction prologue to Responses `instructions` and
+asserts exact equality before each provider call. Mixed instruction priorities
+fail explicitly. This follows the [official instruction/message mapping](https://developers.openai.com/api/docs/guides/text#message-roles-and-instruction-following).
+Earlier failed qualifications and their raw bodies are retained, not counted as
+accuracy results. No benchmark prompt, rubric, source fact or expected answer is
+added by the bridge.
+
+Already uploaded immutable history/case artifacts retain their first independently
+verified cloud copies. Further checkpoints upload new artifacts and rehash mutable
+manifests, instead of rereading all prior full exports. History traversal is skipped
+only once all original history and observation-receipt paths are verified and all
+three product checkpoints are frozen. New payloads still undergo secret screening,
+upload and exact-revision download verification.
+
+```bash
+ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \
+TMPDIR=/Volumes/AtMemDolphin/tmp \
+TIKTOKEN_CACHE_DIR=/Volumes/AtMemDolphin/cache/tiktoken \
+/private/tmp/atmem-dolphin-controller-v3-20261021/bin/python -I -c \
+'import sys; sys.path.append("/Users/javadtaghia/gitlab/aetnamem-dolphinbench-2.3.9"); from benchmarks.dolphinbench.campaign_v3 import main; main()' \
+--output /Volumes/AtMemDolphin/campaign-atmem-v3-system-full-20261021 \
+--baseline-from /Volumes/AtMemDolphin/campaign-atmem-v3-full-r2-20261021 \
+--env-file /path/to/private.env --confirm-paid-grading
+```
+
+The sections below retain the earlier preparation and storage history. Where a
+delivery description differs, the current scored-condition definition above is
+the governing configuration. The product wheel and V3 engine are unchanged.
+
 ## Memory path and release identity
 
 This condition uses the memory APIs behind the historical **AtMem 9/30 versus

@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+import sys
 import threading
 import time
 
@@ -66,7 +67,38 @@ class AtMemHost:
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
 
-    def configure_profile(self, home, *, base_url, local_token, mcp=None):
+    def prepare_native_context(self, query, *, home, session_id, native_source):
+        """Use the installed product provider's RPC, authorization and renderer.
+
+        Observe the returned ruling, without changing it or implementing a
+        second retrieval/renderer in the benchmark. Only its delivery channel
+        differs from Hermes's normal user-message attachment.
+        """
+        if str(native_source) not in sys.path:
+            sys.path.insert(0, str(native_source))
+        from atmem.adapters.hermes.client import HermesRPCClient
+        from atmem.adapters.hermes.provider import create_provider
+
+        class ObservedClient(HermesRPCClient):
+            prepared = None
+            def prepare_turn(self, *args, **kwargs):
+                self.prepared = super().prepare_turn(*args, **kwargs)
+                return self.prepared
+
+        client = ObservedClient(f'http://127.0.0.1:{self.server.server_port}', self.credential,
+            profile_id=self.binding['profile_id'], timeout=10)
+        provider = create_provider(client, hermes_home=str(home))
+        try:
+            provider.initialize(session_id, hermes_home=str(home), platform='cli')
+            provider.on_turn_start(1, query, model='openai/gpt-5.6-luna')
+            rendered = provider.prefetch(query, session_id=session_id)
+            if client.prepared is None:
+                raise RuntimeError('Installed native provider did not prepare a context')
+            return vars(client.prepared), rendered
+        finally:
+            provider.shutdown()
+
+    def configure_profile(self, home, *, base_url, local_token, mcp=None, governed_context=None):
         home = Path(home).resolve()
         home.mkdir(parents=True, exist_ok=True, mode=0o700)
         home.chmod(0o700)
@@ -108,6 +140,16 @@ class AtMemHost:
             # Supported host setting: the product already bounds V3 at 32,000
             # bytes. A second 10k-char spill would change the delivered context.
             config['hooks'] = {'output_spill': {'enabled': True, 'max_chars': 33_000}}
+        if governed_context is not None:
+            # A fresh one-shot native session: preserve the original user bytes
+            # and forward the product-rendered context through Hermes's supported
+            # ephemeral system prompt. Do not also run native user-side prefetch.
+            config['memory'] = {'provider': '', 'memory_enabled': False, 'user_profile_enabled': False}
+            toolsets.remove('memory')
+            config['agent']['system_prompt'] = governed_context
+            # The submission format is one conversation, not a graph of child
+            # agents. Keep native session search and app tools, not delegation.
+            config['agent']['disabled_toolsets'] = ['memory', 'delegation']
         private_json(home / 'config.yaml', config)  # JSON is valid YAML.
 
     def freeze(self):

@@ -17,6 +17,22 @@ import uuid
 from urllib.parse import urlparse
 
 
+def preserve_instructions(messages):
+    """The Hermes auxiliary converter recognizes system, not developer roles.
+
+    Map a homogeneous native instruction prologue to Responses instructions
+    without dropping content. Mixed-priority instruction roles fail explicitly.
+    """
+    instructions = [m for m in messages if m.get('role') in {'system', 'developer'}]
+    if len({m['role'] for m in instructions}) > 1:
+        raise ValueError('Mixed system/developer priority cannot be flattened silently')
+    if any(not isinstance(m.get('content'), str) for m in instructions):
+        raise ValueError('Non-text instructions require a separately qualified converter')
+    expected = '\n\n'.join(m['content'] for m in instructions)
+    remaining = [m for m in messages if m.get('role') not in {'system', 'developer'}]
+    return ([{'role': 'system', 'content': expected}] + remaining if instructions else remaining), expected if instructions else None
+
+
 def main():
     # Bootstrap can re-exec: do it before creating files or opening listeners.
     sys.path.insert(0, '/Users/javadtaghia/.hermes/hermes-agent')
@@ -40,8 +56,12 @@ def main():
     def request_hook(request):
         if urlparse(str(request.url)).hostname != 'chatgpt.com':
             raise RuntimeError('Subscription credential cannot be sent to another host')
+        body = json.loads(request.content)
+        if local.expected_instructions is not None and body.get('instructions') != local.expected_instructions:
+            raise RuntimeError('Actual provider instructions differ from the native instruction prologue')
         save_new(local.attempt / 'provider-request.json', {'url': str(request.url),
-            'body': json.loads(request.content), 'authorization_headers_saved': False})
+            'body': body, 'authorization_headers_saved': False,
+            'native_instruction_prologue_preserved': True})
 
     def response_hook(response):
         # The native Hermes converter consumes the same cached SSE bytes.
@@ -95,6 +115,7 @@ def main():
                     try:
                         kwargs = {k: v for k, v in body.items() if k not in {
                             'model', 'stream', 'stream_options', 'provider', 'n'}}
+                        kwargs['messages'], local.expected_instructions = preserve_instructions(kwargs['messages'])
                         extra = dict(kwargs.pop('extra_body', {}) or {})
                         effort = kwargs.pop('reasoning_effort', 'medium') or 'medium'
                         if effort != 'medium':

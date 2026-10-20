@@ -2,6 +2,10 @@
 
 ## J. V3 episode correction — 2026-10-21
 
+- [x] [T043] Preserve the original user-message boundary in a separately identified one-shot benchmark condition: use the installed native product provider's authorized RPC and renderer, then the supported Hermes ephemeral system channel; disable duplicate prefetch/delegation. Default user integration remains unchanged.
+- [x] [T044] Qualify through unmodified upstream Runner._execute; verify actual provider instructions retain the entire native developer prologue, not merely gateway messages. Reject unsupported mixed instruction priorities. Retain incompatible preparation attempts ungraded.
+- [ ] [T045] Adopt only cloud-verified histories and exact frozen product checkpoints into the corrected condition; never adopt prior task outputs. Validate immutable incremental archives and finish all 600 tasks without score-dependent selection.
+
 - [x] [T039] Add admin-selected V3 episode binding using existing public core APIs; retain legacy defaults and test scope, source identity, secret screening and profile persistence.
 - [x] [T040] Extend product freeze/checkpoint to scoped V3 source/evidence content; test blocked capture, restart, tampering and unchanged reads, with no administrative unfreeze.
 - [x] [T041] Extend versioned RPC context bounds and test full V3 delivery without legacy truncation or unknown-profile budget widening.

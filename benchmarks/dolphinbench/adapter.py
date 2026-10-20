@@ -50,6 +50,8 @@ class AtMemAdapter:
     def identity(self):
         return {'runtime': self.runtime_identity, 'campaign': self.campaign_identity,
                 'integration': {'memory_engine': self.memory_engine, 'ingestion_mode': self.ingestion_mode,
+                    'memory_delivery': self.options.get('memory_delivery', 'native-prefetch'),
+                    'frozen_baseline_root': self.options.get('baseline_memory_root'),
                     'provider': 'installed AtMem', 'freeze': 'product-owned monotonic freeze'},
                 'boundary': 'macOS sandbox-exec, not upstream Docker runner',
                 'transport': 'Hermes Codex OAuth compatibility bridge' if self.options.get('subscription_endpoint') else 'OpenRouter Azure-only, official acceptance unconfirmed',
@@ -61,7 +63,8 @@ class AtMemAdapter:
 
     def host(self, persona):
         if persona not in self.hosts:
-            self.hosts[persona] = AtMemHost(self.work / 'memory', persona, memory_engine=self.memory_engine)
+            self.hosts[persona] = AtMemHost(self.options.get('baseline_memory_root', self.work / 'memory'),
+                                          persona, memory_engine=self.memory_engine)
         return self.hosts[persona]
 
     def run_interaction(self, request):
@@ -96,9 +99,14 @@ class AtMemAdapter:
         home = self.runtime.root / 'profiles' / profile
         home.mkdir(mode=0o700)
         host = self.host(request.persona)
+        governed_context = '' if self.options.get('memory_delivery') == 'native-ephemeral-system' else None
         if self.memory_engine == 'context-v3' and request.phase == 'tests' and self.options.get('pre_action_gate', True):
-            ruling = host.service.dispatch(host.credential, 'recall', {'query': request.dated_message,
-                'session_id': 'gate-' + request.interaction_id, 'turn_id': request.interaction_id})
+            if governed_context is not None:
+                ruling, governed_context = host.prepare_native_context(request.dated_message,
+                    home=home, session_id='gate-' + request.interaction_id, native_source=self.runtime.source)
+            else:
+                ruling = host.service.dispatch(host.credential, 'recall', {'query': request.dated_message,
+                    'session_id': 'gate-' + request.interaction_id, 'turn_id': request.interaction_id})
             save_new(directory / 'pre-action-ruling.json', ruling)
             if ruling['reason'] != 'authorized':
                 return InteractionRecord(settings={'model': 'openai/gpt-5.6-luna'},
@@ -125,7 +133,8 @@ class AtMemAdapter:
                 client = home / 'app_client.py'
                 stage_client('/Volumes/AtMemDolphin/upstream', client, socket)
                 host.configure_profile(home, base_url=gateway.base_url, local_token=gateway.local_token,
-                    mcp={'command': str(self.runtime.python), 'args': ['-I', str(client)]})
+                    mcp={'command': str(self.runtime.python), 'args': ['-I', str(client)]},
+                    governed_context=governed_context)
                 if subscription:
                     from .driver import private_json
                     config = json.loads((home / 'config.yaml').read_text())
@@ -142,13 +151,31 @@ class AtMemAdapter:
                 'stdout': process.stdout, 'stderr': process.stderr})
             if process.returncode != 0:
                 raise RuntimeError('Native interaction failed; no automatic paid replay')
-            shutdown = [json.loads(line) for line in witness.read_text().splitlines()]
+            if governed_context is None and not witness.exists():
+                raise RuntimeError('Native provider shutdown witness is missing')
+            shutdown = [json.loads(line) for line in witness.read_text().splitlines()] if witness.exists() else []
             providers = [p for event in shutdown for p in event['providers']]
-            if not providers or any(p['name'] != 'atmem' or p['pending_writes'] != 0 or p['write_errors'] != 0 for p in providers):
+            if governed_context is not None:
+                if providers:
+                    raise RuntimeError('One-shot API context must not also load a native memory provider')
+                save_new(directory / 'context-delivery.json', {
+                    'mode': 'installed AtMem API to native ephemeral_system_prompt',
+                    'native_memory_provider': 'disabled, so no provider shutdown hook applies',
+                    'actual_native_process_exit_code': process.returncode,
+                    'product_context_sha256': hashlib.sha256(governed_context.encode()).hexdigest()})
+            elif not providers or any(p['name'] != 'atmem' or p['pending_writes'] != 0 or p['write_errors'] != 0 for p in providers):
                 raise RuntimeError('Native memory provider did not drain cleanly')
             export = export_interaction(directory / 'calls', home / 'api-witness.jsonl')
+            if governed_context is not None:
+                if [m.get('content') for m in export['messages'] if m.get('role') == 'user'] != [request.dated_message]:
+                    raise RuntimeError('Native system-context mode changed the original user boundary')
+                if governed_context and not any(governed_context in str(m.get('content', ''))
+                    for m in export['messages'] if m.get('role') in {'system', 'developer'}):
+                    raise RuntimeError('Product context is missing from the actual native system/developer input')
             save_new(directory / 'export.json', export)
             for name in ('api-witness.jsonl', 'shutdown-witness.jsonl', 'app_client.provenance.json'):
+                if name == 'shutdown-witness.jsonl' and governed_context is not None and not (home / name).exists():
+                    continue
                 shutil.copyfile(home / name, directory / name)
             save_new(directory / 'profile.json', {'profile_name': profile,
                 'campaign_root': str(self.work), 'ephemeral': True})
