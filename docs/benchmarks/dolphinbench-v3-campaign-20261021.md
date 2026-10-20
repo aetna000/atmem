@@ -25,6 +25,17 @@ Azure Foundry) and costs cannot be compared as equivalent API charges.
 Configuration JSON and its SHA are included in the new run identity. Eighteen
 transport/export regression checks pass, including both reader configurations.
 
+Morgan090 was executed and saved before a lazy grader import found missing
+`markdown_it` in the isolated controller. The declared upstream requirement is
+`markdown-it-py>=3.0,<5`; installing 4.2.0 (and mdurl 0.1.2) resolves it without
+changing a rubric or rerunning an action. The separate finalizer uses the same
+parser version. `scripts/check_dolphin_grader_environment_20261021.py` verifies
+the declared participant dependencies across the split controller/app runtimes,
+imports every grader module, checks Markdown behavior, and validates all 600
+released check configurations without inference. Both controller and finalizer
+preflight receipts are retained under the run's `repairs/` directory. Resume
+reuses the saved execution and all completed grades verbatim.
+
 ```bash
 ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \
 TMPDIR=/Volumes/AtMemDolphin/tmp \
