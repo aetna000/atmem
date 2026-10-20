@@ -23,7 +23,7 @@ canonical schema change, extraction bypass or security-policy relaxation.
 
 - [x] Fix model-facing discovery bookkeeping and premature budget filtering;
       preserve the strict portable envelope and freshness/authority checks.
-- [ ] Verify stable AtFlows security prerequisites, tests, build and clean install;
+- [x] Verify stable AtFlows security prerequisites, tests, build and clean install;
       publish it before merging the new exact AtMem dependency pin.
 - [x] Align package, installer, bridge, website source and companion target versions.
 - [x] Prepare a simple Code quickstart plus advanced reference, capability
