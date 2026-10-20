@@ -79,6 +79,16 @@ def main():
             'sse_utf8': raw.decode(), 'authorization_headers_saved': False})
 
     client._real_client._client.event_hooks = {'request': [request_hook], 'response': [response_hook]}
+    def fresh_client():
+        # Hermes's timeout watchdog may close its HTTP client. Never reuse that
+        # poisoned client for the next request; no completed answer is retried.
+        replacement, replacement_model = _build_codex_client('gpt-5.6-luna')
+        if (replacement is None or replacement_model != model
+                or urlparse(str(replacement.base_url)).hostname != 'chatgpt.com'):
+            raise RuntimeError('Qualified subscription transport unavailable')
+        replacement._real_client.max_retries = 0
+        replacement._real_client._client.event_hooks = {'request': [request_hook], 'response': [response_hook]}
+        return replacement
     token = os.environ['ATMEM_SUBSCRIPTION_PROXY_TOKEN']
     lock = threading.Lock()
 
@@ -95,6 +105,7 @@ def main():
             self.wfile.write(b'{"ready":true,"provider":"OpenAI-Subscription"}')
 
         def do_POST(self):
+            nonlocal client
             if self.path != '/v1/chat/completions' or not hmac.compare_digest(
                     self.headers.get('Authorization', ''), 'Bearer ' + token):
                 self.send_error(403)
@@ -108,6 +119,8 @@ def main():
                 self.send_error(400)
                 return
             with lock:
+                if client._real_client._client.is_closed:
+                    client = fresh_client()
                 directory = root / 'calls' / uuid.uuid4().hex
                 save_new(directory / 'request.json', body)
                 # Each attempt preserves its provider response. Only transient

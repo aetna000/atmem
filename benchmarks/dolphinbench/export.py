@@ -69,15 +69,17 @@ def assistant_response(response):
     return answer, usage
 
 
-def export_interaction(calls_root, witness_path, *, app_calls=None, default_source_paths=()):
+def export_interaction(calls_root, witness_path, *, app_calls=None, default_source_paths=(), terminal_failure=None):
     from harness.submission import SETTINGS_FIELDS, clean_message
     from harness.submission_capture import build_rollout, chat_messages
 
     witnesses = [json.loads(line) for line in Path(witness_path).read_text().splitlines()]
-    pending, completed = {}, set()
+    pending, completed, failed = {}, set(), set()
     for event in witnesses:
         key = event.get('api_request_id')
         if event['event'].startswith('pre_'):
+            if (key in failed and key not in completed and pending.get(key) == event):
+                continue  # Native retry reuses its request identity, identical input.
             if not key or key in pending:
                 raise ValueError('Missing or duplicate native request identity')
             pending[key] = event
@@ -86,17 +88,30 @@ def export_interaction(calls_root, witness_path, *, app_calls=None, default_sour
                 raise ValueError('Incomplete native request lifecycle')
             completed.add(key)
         elif event['event'] == 'api_request_error':
-            raise ValueError('Native API attempt failed; retain evidence for reconciliation')
-    if set(pending) != completed:
+            if key not in pending or key in completed:
+                raise ValueError('Unmatched native API failure')
+            failed.add(key)
+    if failed - completed and terminal_failure is None:
+        raise ValueError('Native API attempt failed; retain evidence for reconciliation')
+    if set(pending) != completed | failed:
         raise ValueError('Native API completion witness missing')
-    unmatched = list(pending.values())
+    unmatched = [e for key, e in pending.items() if key in completed]
     directories = sorted(Path(calls_root).rglob('transport.json'),
         key=lambda p: json.loads(p.read_text())['started_ns'])
-    events, auxiliary = [], []
+    events, auxiliary, failed_attempts = [], [], []
     for transport in directories:
         directory = transport.parent
         request = json.loads((directory / 'request.json').read_text())
         digest = fingerprint(request['messages'])
+        if not (directory / 'response.json').exists():
+            if (not (directory / 'error.json').exists()
+                    or not any(pending[k].get('messages_sha256') == digest for k in failed)):
+                raise ValueError('Unreconciled missing gateway response')
+            failed_attempts.append({'call_directory': str(directory),
+                'messages_sha256': digest, 'usage': None,
+                'response_delivered': False,
+                'request_messages': chat_messages(request['messages'])})
+            continue
         matches = [e for e in unmatched if e.get('messages_sha256') == digest]
         if len(matches) != 1:
             raise ValueError('Outgoing request cannot be uniquely matched to native lifecycle')
@@ -116,6 +131,29 @@ def export_interaction(calls_root, witness_path, *, app_calls=None, default_sour
     if unmatched:
         raise ValueError('Native request has no exact gateway receipt')
     result = build_rollout(events)
+    result['failed_transport_attempts'] = [{k: v for k, v in a.items() if k != 'request_messages'}
+        for a in failed_attempts]
+    if terminal_failure is not None:
+        # The CLI's actual terminal error is runtime output, NOT model text.
+        # Preserve tool results from the exact next request; no model/tool replay.
+        from harness.submission_capture import _plain
+        if not failed_attempts or not terminal_failure.get('error') or terminal_failure.get('exit_code') != 1:
+            raise ValueError('Native terminal failure proof missing')
+        tail = failed_attempts[0]['request_messages']
+        if (len(tail) < len(result['messages']) or
+                [_plain(m) for m in tail[:len(result['messages'])]] != [_plain(m) for m in result['messages']] or
+                any(m['role'] != 'tool' for m in tail[len(result['messages']):]) or
+                any(a['request_messages'] != tail for a in failed_attempts)):
+            raise ValueError('Failed attempts changed conversation state')
+        result['messages'].extend(copy.deepcopy(tail[len(result['messages']):]))
+        result['messages'].append({'role': 'assistant', 'content': terminal_failure['text'],
+            'usage': {'input_tokens': 0, 'output_tokens': 0}})
+        result['native_terminal_failure'] = {'native_result': terminal_failure,
+            'terminal_message_origin': 'verbatim native CLI error, not a model completion',
+            'terminal_message_tokens': 'zero model tokens for runtime-generated error only',
+            'failed_provider_usage': 'unknown, excluded from reported token lower bounds',
+            'failed_attempts': [{k: v for k, v in a.items() if k != 'request_messages'} for a in failed_attempts],
+            'model_or_tool_replay': False}
     result['messages'], result['dispatch_envelope_normalization'] = normalize_dispatch_envelopes(result['messages'])
     if app_calls is not None:
         from .tool_defaults import normalize_effective_arguments

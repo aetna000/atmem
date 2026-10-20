@@ -15,6 +15,7 @@ def report(root):
         times = sorted(t['row']['duration_ms'] / 1000 for t in tests)
         usage = [m['usage'] for t in tests for m in t['row']['messages'] if 'usage' in m]
         auxiliary = []
+        terminal_failures, unknown_usage_attempts = 0, 0
         preparation = Counter()
         for test in tests:
             native = root / 'native/tests' / persona / test['row']['test_id']
@@ -23,10 +24,20 @@ def report(root):
                 preparation[json.loads(ruling.read_text())['reason']] += 1
             exported = native / 'export.json'
             if exported.exists():
-                auxiliary.extend(a['usage'] for a in json.loads(exported.read_text()).get('auxiliary_calls', []))
+                data = json.loads(exported.read_text())
+                auxiliary.extend(a['usage'] for a in data.get('auxiliary_calls', []))
+                failure = data.get('native_terminal_failure')
+                unknown_usage_attempts += len(data.get('failed_transport_attempts', []))
+                if failure:
+                    terminal_failures += 1
+                    if 'failed_transport_attempts' not in data:
+                        unknown_usage_attempts += len(failure['failed_attempts'])
         usage += auxiliary
         rows.append({'persona': persona, 'executed': len(tests), 'graded': len(grades),
             'passed': sum(bool(g['checks']) and all(c['passed'] for c in g['checks']) for g in grades),
+            'native_transport_terminal_failures': terminal_failures,
+            'failed_attempts_with_unknown_token_usage': unknown_usage_attempts,
+            'token_totals_are_lower_bounds': bool(unknown_usage_attempts),
             'blocked_before_model': sum(any(a.get('gate_blocked') for a in t.get('attempts', [])) for t in tests),
             'product_preparation_rulings': dict(preparation),
             'model_responses': len([u for u in usage if u.get('prompt_tokens', u.get('input_tokens', 0))]),

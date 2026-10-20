@@ -81,3 +81,28 @@ def test_provider_overrun_retained_and_stops_future_calls(tmp_path):
     assert book.totals()['judge']['actual_usd'] == 1.1
     with pytest.raises(PermissionError):
         reserve(book, 'two', 0.01)
+
+
+def test_subscription_failure_is_not_a_completed_zero_token_answer(tmp_path):
+    import json
+    book = ledger(tmp_path)
+    request = {'model': 'openai/gpt-5.6-luna', 'messages': []}
+    book.reserve('sub', phase='tests', request=request, maximum_usd=0.2)
+    proof = {'provider': 'OpenAI-Subscription', 'response_delivered': False}
+    book.settle_subscription_failure('sub', request=request, failure_receipt=proof)
+    state, bound, actual, usage = book.connection.execute(
+        'SELECT state,reserved,actual,usage_json FROM calls').fetchone()
+    assert state == 'subscription_failure_usage_unknown' and bound == 200000 and actual == 0
+    assert json.loads(usage)['token_usage'] is None
+    assert book.totals()['tests']['reserved_usd'] == 0
+    with pytest.raises(ValueError):
+        book.settle_subscription_failure('sub', request=request, failure_receipt=proof)
+
+
+def test_subscription_failure_cannot_release_paid_api_reservation(tmp_path):
+    book = ledger(tmp_path)
+    reserve(book, 'paid', 0.2)
+    with pytest.raises(ValueError):
+        book.settle_subscription_failure('paid', request={'model': 'openai/gpt-5.6-sol'},
+            failure_receipt={'provider': 'Azure', 'response_delivered': False})
+    assert book.totals()['judge']['reserved_usd'] == 0.2

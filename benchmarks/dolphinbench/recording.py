@@ -108,6 +108,23 @@ class BudgetLedger:
             if cursor.rowcount != 1:
                 raise ValueError('No outstanding reservation')
 
+    def settle_subscription_failure(self, call_id, *, request, failure_receipt):
+        """Known subscription API bill is zero; generation/token usage is unknown.
+
+        This never applies to a paid API request and never marks it completed.
+        Keep the original reservation bound and separate immutable failure proof.
+        """
+        if (request.get('model') != 'openai/gpt-5.6-luna' or 'provider' in request
+                or failure_receipt.get('provider') != 'OpenAI-Subscription'
+                or failure_receipt.get('response_delivered') is not False):
+            raise ValueError('Qualified subscription failure proof required')
+        with self.transaction():
+            row = self.connection.execute('SELECT request_sha256,state FROM calls WHERE call_id=?', (call_id,)).fetchone()
+            if row != (fingerprint(request), 'reserved'):
+                raise ValueError('Outstanding exact request required')
+            self.connection.execute("UPDATE calls SET state='subscription_failure_usage_unknown',actual=0,usage_json=? WHERE call_id=?",
+                (json.dumps({'token_usage': None, 'failure_receipt': failure_receipt}), call_id))
+
     def totals(self):
         result = {}
         for phase, state, reserved, actual in self.connection.execute('SELECT phase,state,reserved,actual FROM calls'):

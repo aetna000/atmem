@@ -1,5 +1,30 @@
 # V3 full-campaign protocol — 2026-10-21
 
+## Subscription timeout recovery (after 223 grades)
+
+Alex024 received four real model responses and executed its document-creation
+action, then a subscription call timed out. The native transport watchdog closed
+its shared HTTP client; subsequent retries failed and the native CLI exited 1.
+The task was **not rerun**. Its exact observed tool results and verbatim CLI
+terminal error are retained, with runtime-error provenance explicitly separate
+from model-generated responses. The final runtime error uses zero model tokens
+only for that local error message; failed generation usage is unknown. Therefore
+reported model token totals are lower bounds. The upstream conversation and
+application-call validators accept the retained record; official acceptance of
+this transport/error representation is not asserted.
+
+Transport recovery recreates a closed HTTP client before a subsequent request,
+without changing model parameters, context, application state or memory. Exact
+failed requests, native retry witnesses and original reservation bounds remain
+archived. Subscription-only failures have zero incremental API charges under the
+declared subscription route, but are never represented as completed zero-token
+model answers. Paid judge reservations cannot use that settlement path.
+Already completed task and grade files remain hash-identical. Alex024's recovered
+latency is the measured native CLI duration; its preparation overhead was not
+available and is not invented. Recovery receipts are under
+`repairs/subscription-timeout-terminal-20261021`. Thirty-five recording/transport
+regression checks pass. No product memory algorithm or grading condition changed.
+
 ## Current condition: published Luna reader settings, unchanged V3 memory
 
 Run directory: `campaign-atmem-v3-matched-luna-high-20261021`.

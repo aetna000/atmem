@@ -175,6 +175,13 @@ class Handler(BaseHTTPRequestHandler):
             except urllib.error.HTTPError as exc:
                 save_new(directory / 'error.json', {'http_status': exc.code, 'cost_status': 'reserved_uncertain',
                                                     'elapsed_seconds': time.monotonic() - started})
+                if server.provider_name == 'OpenAI-Subscription':
+                    receipt = {'provider': server.provider_name, 'response_delivered': False,
+                        'http_status': exc.code, 'usage': None,
+                        'incremental_api_charge_usd': 0,
+                        'billing_basis': 'subscription, not paid API; generation outcome unknown'}
+                    save_new(directory / 'subscription-failure.json', receipt)
+                    book.settle_subscription_failure(call_id, request=body, failure_receipt=receipt)
                 return self.error_response(exc.code, 'Upstream request failed; reservation retained for reconciliation')
             decoded, usage = decode_usage(raw, bool(body.get('stream')))
             save_new(directory / 'response.json', {'response': decoded,

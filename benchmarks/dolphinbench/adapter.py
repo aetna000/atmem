@@ -154,8 +154,14 @@ class AtMemAdapter:
                         'ATMEM_BENCH_OBSERVER': str(self.observer), 'ATMEM_BENCH_WITNESS': str(witness)})
             save_new(directory / 'process.json', {'exit_code': process.returncode,
                 'stdout': process.stdout, 'stderr': process.stderr})
+            terminal_failure = None
             if process.returncode != 0:
-                raise RuntimeError('Native interaction failed; no automatic paid replay')
+                results = [json.loads(line) for line in process.stdout.splitlines() if line.startswith('{')]
+                results = [r for r in results if r.get('type') == 'result' and r.get('exit_code') == 1]
+                if (not subscription or len(results) != 1 or not results[0].get('error')
+                        or 'HTTP 502' not in results[0]['error']):
+                    raise RuntimeError('Native interaction failed; no automatic paid replay')
+                terminal_failure = results[0]
             if governed_context is None and not witness.exists():
                 raise RuntimeError('Native provider shutdown witness is missing')
             shutdown = [json.loads(line) for line in witness.read_text().splitlines()] if witness.exists() else []
@@ -174,7 +180,8 @@ class AtMemAdapter:
             app_calls = load_tool_calls(Path(request.apps['env']['DOLPHINBENCH_LOG_PATH']))
             export = export_interaction(directory / 'calls', home / 'api-witness.jsonl',
                 app_calls=app_calls,
-                default_source_paths=Path('/Volumes/AtMemDolphin/upstream/mock_mcp').glob('repair*.py'))
+                default_source_paths=Path('/Volumes/AtMemDolphin/upstream/mock_mcp').glob('repair*.py'),
+                terminal_failure=terminal_failure)
             if governed_context is not None:
                 if [m.get('content') for m in export['messages'] if m.get('role') == 'user'] != [request.dated_message]:
                     raise RuntimeError('Native system-context mode changed the original user boundary')
