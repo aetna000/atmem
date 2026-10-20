@@ -1,5 +1,27 @@
 # Hermes qualification evidence — 2026-09-26
 
+## DolphinBench preparation and ongoing run — 2026-10-21
+
+The stable 2.3.9 baseline and a separately built research wheel with a
+product-owned Hermes freeze were tested in isolated installed environments.
+The final focused installed/controller suite passed **55 tests**; the upstream
+offline MCP/submission suite passed **35 tests**. Native no-cost fixtures
+verified capture/drain, cross-process recall, monotonic canonical freeze,
+simulated app calls, and exact gateway-request recording. These are integration
+gates, not benchmark accuracy results or full cross-platform certification.
+
+The user increased the total benchmark ceiling to **US$250**. The current
+private campaign has fixed agent/judge settings, a durable cost ledger and
+incremental independently verified Hugging Face recovery archives. It is
+processing 13,539 distributed single-message history interactions before the
+600 tasks. It uses explicitly disclosed Azure-only OpenRouter routing, not an
+unmodified direct-Azure runner; official acceptance remains unconfirmed.
+Preparation failures, costs and controller-only repairs are preserved rather
+than omitted. The complete run index, artifact hashes, source pins, scope,
+host-background isolation and storage boundaries are recorded in
+`benchmarks/dolphinbench/runs/README.md`. No full result, matched baseline,
+leaderboard submission or release completion is claimed by this addendum.
+
 ## Live browser-path acceptance — 2026-09-27
 
 This section supersedes older statements below that the user's Hermes plugin
