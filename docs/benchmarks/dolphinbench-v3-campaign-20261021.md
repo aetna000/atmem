@@ -2,7 +2,7 @@
 
 ## Full 600-task result
 
-All 13,539 original histories were ingested chronologically into three isolated,
+All 13,539 original dated history messages were ingested chronologically into three isolated,
 frozen V3 memories. All 600 tasks were executed and graded. The unmodified
 upstream packager and saved-judge replay reproduce **192/600 passes (32.0%)**.
 This configuration did **not** beat the published Hermes/Luna/Mem0 reference.

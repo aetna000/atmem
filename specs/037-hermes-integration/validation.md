@@ -2,7 +2,7 @@
 
 ## Completed 600-task research campaign — 2026-10-21
 
-T045 is complete: all 13,539 original histories and all 600 tasks are covered.
+T045 is complete: all 13,539 original history messages and all 600 tasks are covered.
 The tested V3/Hermes/Luna configuration passed **192/600 (32.0%)**: Morgan 82,
 Alex 62, Riley 48. It did not beat the published Mem0 reference (424/600);
 no fresh matched Mem0 arm or causal improvement is claimed.
