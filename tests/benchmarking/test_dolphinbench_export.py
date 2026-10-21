@@ -30,6 +30,24 @@ def test_multiple_response_choices_are_rejected():
         export.assistant_response([{'choices': [{'index': 1, 'delta': {}}]}])
 
 
+def test_identical_duplicate_argument_keys_are_reversible_not_repaired():
+    raw = '{"title":"same","title":"same","missing_name":true}'
+    original = {'tool_calls': [{'function': {'name': 'tool_call', 'arguments': raw}}]}
+    normalized, changes = export.normalize_identical_argument_keys(original)
+    assert original['tool_calls'][0]['function']['arguments'] == raw
+    assert changes[0]['original_arguments'] == raw
+    assert changes[0]['identical_duplicate_keys'] == ['title']
+    assert json.loads(normalized['tool_calls'][0]['function']['arguments']) == {
+        'title': 'same', 'missing_name': True}
+    assert 'name' not in json.loads(normalized['tool_calls'][0]['function']['arguments'])
+
+
+@pytest.mark.parametrize('raw', ['{"title":"one","title":"two"}', '{"n":1,"n":true}'])
+def test_conflicting_duplicate_argument_keys_are_never_selected(raw):
+    with pytest.raises(ValueError, match='Conflicting duplicate'):
+        export.normalize_identical_argument_keys({'tool_calls': [{'function': {'arguments': raw}}]})
+
+
 @pytest.fixture
 def failed_transport_capture(tmp_path, monkeypatch):
     """Test recording mechanics, not benchmark or training observations."""

@@ -22,8 +22,19 @@ model answers. Paid judge reservations cannot use that settlement path.
 Already completed task and grade files remain hash-identical. Alex024's recovered
 latency is the measured native CLI duration; its preparation overhead was not
 available and is not invented. Recovery receipts are under
-`repairs/subscription-timeout-terminal-20261021`. Thirty-eight recording/transport
+`repairs/subscription-timeout-terminal-20261021`. Forty-one recording/transport
 regression checks pass. No product memory algorithm or grading condition changed.
+
+Alex128 completed natively but export encountered an identical duplicate `title`
+key in a model argument string. Export now coalesces only repeated keys with
+JSON-identical values, retaining the exact wire string and reversible receipt.
+Conflicting duplicate values remain rejected, including `1` versus `true`.
+No missing arguments are repaired and no value, action, application result or
+completed grade is changed. The saved execution was exported without a model,
+tool or judge rerun; all 654 previously saved task/grade files remain hash-identical.
+Receipts: `repairs/identical-argument-keys-20261021`. This recovered task's latency
+also uses its measured native CLI duration with unavailable preparation overhead
+disclosed in the final report.
 
 ## Current condition: published Luna reader settings, unchanged V3 memory
 

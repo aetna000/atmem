@@ -10,6 +10,38 @@ from pathlib import Path
 from .recording import fingerprint
 
 
+def normalize_identical_argument_keys(answer):
+    """Collapse only identical repeated JSON keys, retaining exact wire strings.
+
+    Native JSON decoding already coalesces these. Conflicting values must never
+    be selected by this recorder. This does not repair missing/invalid arguments.
+    """
+    result, changes = copy.deepcopy(answer), []
+    for position, call in enumerate(result.get('tool_calls', [])):
+        function = call.get('function', {})
+        raw = function.get('arguments')
+        if not isinstance(raw, str):
+            continue
+        duplicates = []
+
+        def identical_pairs(pairs):
+            values = {}
+            for key, value in pairs:
+                if key in values:
+                    if fingerprint(values[key]) != fingerprint(value):
+                        raise ValueError('Conflicting duplicate model argument keys cannot be normalized')
+                    duplicates.append(key)
+                values[key] = value
+            return values
+
+        parsed = json.loads(raw, object_pairs_hook=identical_pairs)
+        if duplicates:
+            function['arguments'] = json.dumps(parsed, ensure_ascii=False, allow_nan=False)
+            changes.append({'tool_call_position': position, 'original_arguments': raw,
+                'identical_duplicate_keys': duplicates, 'normalized_arguments': function['arguments']})
+    return result, changes
+
+
 def normalize_dispatch_envelopes(messages):
     """Export modern unary dispatch in the upstream-supported unary envelope.
 
@@ -98,7 +130,7 @@ def export_interaction(calls_root, witness_path, *, app_calls=None, default_sour
     unmatched = [e for key, e in pending.items() if key in completed]
     directories = sorted(Path(calls_root).rglob('transport.json'),
         key=lambda p: json.loads(p.read_text())['started_ns'])
-    events, auxiliary, failed_attempts = [], [], []
+    events, auxiliary, failed_attempts, argument_keys = [], [], [], []
     for transport in directories:
         directory = transport.parent
         request = json.loads((directory / 'request.json').read_text())
@@ -123,6 +155,9 @@ def export_interaction(calls_root, witness_path, *, app_calls=None, default_sour
             auxiliary.append({'native': native, 'call_directory': str(directory), 'usage': usage})
             continue
         settings = {k: v for k, v in request.items() if k in SETTINGS_FIELDS and v is not None}
+        answer, keys = normalize_identical_argument_keys(answer)
+        if keys:
+            argument_keys.append({'call_directory': str(directory), 'changes': keys})
         message = clean_message(answer)
         message['duration_ms'] = recorded['elapsed_seconds'] * 1000
         message['usage'] = usage
@@ -131,6 +166,7 @@ def export_interaction(calls_root, witness_path, *, app_calls=None, default_sour
     if unmatched:
         raise ValueError('Native request has no exact gateway receipt')
     result = build_rollout(events)
+    result['identical_argument_key_normalization'] = argument_keys
     result['failed_transport_attempts'] = [{k: v for k, v in a.items() if k != 'request_messages'}
         for a in failed_attempts]
     if terminal_failure is not None:
