@@ -1,5 +1,68 @@
 # V3 full-campaign protocol — 2026-10-21
 
+## Full 600-task result
+
+All 13,539 original histories were ingested chronologically into three isolated,
+frozen V3 memories. All 600 tasks were executed and graded. The unmodified
+upstream packager and saved-judge replay reproduce **192/600 passes (32.0%)**.
+This configuration did **not** beat the published Hermes/Luna/Mem0 reference.
+
+| Persona | AtMem research profile (new run) | Published Mem0 reference |
+| --- | ---: | ---: |
+| Morgan | 82/200 (41.0%) | 156/200 (78.0%) |
+| Alex | 62/200 (31.0%) | 132/200 (66.0%) |
+| Riley | 48/200 (24.0%) | 136/200 (68.0%) |
+| Total | 192/600 (32.0%) | 424/600 (70.7%) |
+
+Reference: [pinned upstream Mem0 result](https://github.com/mem0ai/dolphinbench/blob/81cb6f8405b40a9e76089cef650806a80af06ea2/results/hermes/gpt-5.6-luna/mem0/README.md).
+This is a published reference, **not a newly executed matched Mem0 arm**.
+Reader reasoning/turn/context knobs match; runtime, transport and ingestion
+method differ. Neither causal superiority nor leaderboard acceptance is claimed.
+The historical 9/30 versus 7/30 comparison used a different reader, judge and
+Mem0 configuration and does not predict this result.
+
+Measured task median: **31.870 s**; p95: **80.347 s**. These exclude judge and
+cloud-backup time. Two recovered Alex tasks have native-duration-only timings,
+with unavailable preparation overhead explicitly identified in `final-summary.json`.
+Recorded reader usage: **69,511,078 input tokens** (including **10,832,128 cached**)
+and **1,090,591 output tokens**. These are lower bounds because failed transport
+attempts on Alex024 have unknown token usage. The reader made 4,875 completed
+API calls. Upstream's 4,897 execution-message count also includes 21 local gate
+responses and one native runtime error; those are not additional model calls.
+Ingestion receipts are local product operations, not language-model responses.
+
+Current-run paid judge cost: **$2.498132**, across 425 completed calls. Known prior
+preparation cost: **$0.701891**; combined recorded API spend **$3.200023** of the
+authorized $250 ceiling. Reader incremental API charge is zero on the declared
+subscription route; subscription fees are unallocated, so this is not a claim
+that inference is free or cheaper than the reference under matched billing.
+
+All 21 product pre-action blocks and the native transport failure remain in the
+600-task denominator. The read-only complete tool audit found **zero omitted
+declared tool names across 579 model-invoked tasks**. It does not prove the agent
+used each tool correctly. Memory algorithms, checkpoints, task inputs, grading
+criteria and completed model outcomes were not tuned or replaced using scores.
+
+Final cloud packaging and the offline return of temporary SSD databases are
+tracked by separate immutable receipts; their completion is not implied by a
+local ZIP alone. Evidence destination:
+[private recovery dataset](https://huggingface.co/datasets/atmem/dolphinbench-evidence-20261020).
+
+### Judge export canonicalization
+
+The native judge recorder retained OpenRouter API extensions (`refusal`,
+`reasoning`, `reasoning_details`) that the strict submission-message schema
+excludes. The final packager uses **unmodified upstream `clean_message`** on
+export copies only. All original grade files and raw responses remain unchanged;
+removed null fields and reasoning metadata are retained in reversible receipts.
+Judge verdict content, prompts, usage, duration, settings, check IDs and Boolean
+outcomes are unchanged. A non-null refusal or an unreviewed extension is rejected.
+No model, tool or judge was rerun. The unmodified packager and saved-verdict replay
+then validated all 600 tasks and reproduced the same 192 passes.
+Receipt: `repairs/judge-canonical-export-20261021/receipt.json`.
+The recording/export regression suite has **44 passing tests**; the separate
+installed-product/native contract gate has **93 passing tests**.
+
 ## Subscription timeout recovery (after 223 grades)
 
 Alex024 received four real model responses and executed its document-creation
@@ -22,7 +85,7 @@ model answers. Paid judge reservations cannot use that settlement path.
 Already completed task and grade files remain hash-identical. Alex024's recovered
 latency is the measured native CLI duration; its preparation overhead was not
 available and is not invented. Recovery receipts are under
-`repairs/subscription-timeout-terminal-20261021`. Forty-one recording/transport
+`repairs/subscription-timeout-terminal-20261021`. Forty-four recording/transport
 regression checks pass. No product memory algorithm or grading condition changed.
 
 Alex128 completed natively but export encountered an identical duplicate `title`
