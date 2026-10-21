@@ -43,10 +43,32 @@ declared tool names across 579 model-invoked tasks**. It does not prove the agen
 used each tool correctly. Memory algorithms, checkpoints, task inputs, grading
 criteria and completed model outcomes were not tuned or replaced using scores.
 
-Final cloud packaging and the offline return of temporary SSD databases are
-tracked by separate immutable receipts; their completion is not implied by a
-local ZIP alone. Evidence destination:
+Both complete ZIP representations passed unmodified upstream validation,
+saved-judge replay and ZIP round-trip checks. The original native-request-settings
+ZIP is retained alongside the provider-settings ZIP, which removes only an
+unsupported completion cap that the subscription backend did not receive.
+Actual provider settings were checked against 4,900 successful wire responses,
+including isolated unscored qualifications; only 4,875 belong to scored tasks.
+
+[Complete package archive (private)](https://huggingface.co/datasets/atmem/dolphinbench-evidence-20261020/resolve/594b0d25e0c1315b60aa9ecf7eb097e1c90bba76/campaigns/campaign-atmem-v3-matched-luna-high-20261021/final/075e47162be2415fb87dd84db86378a3.tar.gz)
+was uploaded and independently downloaded with matching SHA-256
+`1fe7bc504bad97b5d08a2e4696a41163d92d9c3cdc0d4d5bf9a49459cb8775af`.
+The original ZIP SHA-256 is
+`1bfcb1b598f9ade6e4fb77be3374fdafa97d33801a5868e9b658143229be9714`;
+the actual-provider-settings ZIP SHA-256 is
+`f3ca8a7db4b8dcc58ae3c8c9fe6c14cd8d60e78ed1fd597630354e5ddf14b58f`.
+Evidence destination:
 [private recovery dataset](https://huggingface.co/datasets/atmem/dolphinbench-evidence-20261020).
+The three stopped SQLite and vector databases were returned from temporary SSD
+symlinks to regular files on MEM. File hashes, canonical-table counts and encrypted
+`quick_check` results match. Original SSD working copies and pre-staging external
+backups remain retained. Receipt: `repairs/ssd-return-to-mem-20261021.json`.
+The supplementary raw-evidence bundle includes all per-task application state,
+tool configuration and app logs, all paid-judge wire receipts, the final three
+authorized portable-memory exports, repair receipts and the incremental coverage
+index. Its manifest and download-verification receipt are separate from the ZIP
+archive. Credentials, runtime profiles and storage encryption keys are excluded.
+No live database move or public leaderboard submission was performed.
 
 ### Judge export canonicalization
 
