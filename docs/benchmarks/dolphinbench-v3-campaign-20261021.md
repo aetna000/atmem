@@ -70,6 +70,20 @@ index. Its manifest and download-verification receipt are separate from the ZIP
 archive. Credentials, runtime profiles and storage encryption keys are excluded.
 No live database move or public leaderboard submission was performed.
 
+The supplementary bundle was independently downloaded and verified at commit
+`b03e29ad966587924682e369edd706c70ec94be1`: **4,907 archive entries**, 118,496,390
+compressed bytes, SHA-256
+`861a78e0322f164d74a752da4e07b3795bdbe098e3361c040e94f076d472d530`.
+It contains 4,906 payload files plus its manifest, including raw application and
+judge transport evidence and the final portable memory exports. Direct links:
+
+- [Readable campaign report](https://huggingface.co/datasets/atmem/dolphinbench-evidence-20261020/blob/b03e29ad966587924682e369edd706c70ec94be1/campaigns/campaign-atmem-v3-matched-luna-high-20261021/README.md)
+- [Supplemental raw-evidence bundle](https://huggingface.co/datasets/atmem/dolphinbench-evidence-20261020/resolve/b03e29ad966587924682e369edd706c70ec94be1/campaigns/campaign-atmem-v3-matched-luna-high-20261021/final/raw-artifacts-7182f1aab6c544eab7e07d4622de7974.tar.gz)
+- [Per-file integrity manifest](https://huggingface.co/datasets/atmem/dolphinbench-evidence-20261020/blob/b03e29ad966587924682e369edd706c70ec94be1/campaigns/campaign-atmem-v3-matched-luna-high-20261021/final/raw-artifacts-manifest.json)
+
+These archives remain private. Their hashes and successful local replay are
+maintainer verification, not an independent third-party reproduction.
+
 ### Judge export canonicalization
 
 The native judge recorder retained OpenRouter API extensions (`refusal`,

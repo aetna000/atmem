@@ -1,5 +1,27 @@
 # Hermes qualification evidence — 2026-09-26
 
+## Completed 600-task research campaign — 2026-10-21
+
+T045 is complete: all 13,539 original histories and all 600 tasks are covered.
+The tested V3/Hermes/Luna configuration passed **192/600 (32.0%)**: Morgan 82,
+Alex 62, Riley 48. It did not beat the published Mem0 reference (424/600);
+no fresh matched Mem0 arm or causal improvement is claimed.
+The original grade files and completed task outcomes remain unchanged.
+The unmodified upstream packager, saved-judge replay and ZIP round-trip checks
+validate both complete ZIP representations. Provider API extension metadata is
+canonicalized only in judge export copies using upstream `clean_message`;
+raw responses and reversible receipts remain retained. Installed/native product
+gates: 93 passed; current recording/export gates: 44 passed.
+
+Both the final ZIP archive and supplementary raw app/judge/portable-memory bundle
+were uploaded and independently downloaded with matching checksums. Final archive
+commit: `594b0d25e0c1315b60aa9ecf7eb097e1c90bba76`; raw-evidence commit:
+`b03e29ad966587924682e369edd706c70ec94be1` in the private recovery dataset.
+The three stopped SQLite/vector databases were returned to regular files on MEM,
+with matching hashes, table counts and encrypted quick checks. SSD originals remain.
+No stable package release or public leaderboard acceptance is implied.
+See the [complete protocol and results](../../docs/benchmarks/dolphinbench-v3-campaign-20261021.md).
+
 ## V3 correction qualification — 2026-10-21
 
 Final installed artifact gates: **93 passed, zero skipped** in 51.76 seconds,
@@ -14,7 +36,7 @@ used V3 company evidence and executed the simulated read-only inbox tool.
 Read-only subscription status reported access available, 11% weekly usage and
 zero credit balance. No paid agent API fallback or billing change was made.
 T039–T042 are complete for this bounded research integration; older unchecked
-feature tasks are not implied complete. The 600-task result is still pending.
+feature tasks are not implied complete. The later 600-task result is recorded above.
 
 The installed research artifact SHA-256 is
 `8a7e972c03bea5cc7eb143daeb6b57c4e13b1baff4613df00d32fa2ff49df345`.
@@ -34,7 +56,8 @@ qualifications were already installed-artifact tests and are not relabelled.
 The [V3 protocol](../../docs/benchmarks/dolphinbench-v3-campaign-20261021.md)
 records the artifact, two infrastructure failures before scale, preserved security
 boundaries, separate subscription/API accounting, fresh stores and publication
-states. No stable release or completed benchmark score is claimed here.
+states. The later full result supersedes the earlier pending-campaign status;
+no stable release or official leaderboard acceptance is claimed.
 
 ## Earlier DolphinBench fallback preparation — stopped 2026-10-21
 
@@ -46,9 +69,9 @@ verified capture/drain, cross-process recall, monotonic canonical freeze,
 simulated app calls, and exact gateway-request recording. These are integration
 gates, not benchmark accuracy results or full cross-platform certification.
 
-The user increased the total benchmark ceiling to **US$250**. The current
-private campaign has fixed agent/judge settings, a durable cost ledger and
-incremental independently verified Hugging Face recovery archives. It is
+The user increased the total benchmark ceiling to **US$250**. The earlier private
+fallback condition had fixed agent/judge settings, a durable cost ledger and
+incremental independently verified Hugging Face recovery archives. It was
 stopped after 101 exported interactions; it did not score tasks. It used
 explicitly disclosed Azure-only OpenRouter routing, not an
 unmodified direct-Azure runner; official acceptance remains unconfirmed.
