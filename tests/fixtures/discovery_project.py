@@ -1,5 +1,6 @@
 """Isolated encrypted product repository for installed-agent protocol fixtures."""
 from pathlib import Path
+import os
 import sys
 from types import SimpleNamespace
 
@@ -49,13 +50,14 @@ def navigation_plan(value, index, *, native_root=None):
             return 'view', {'path': str(source)}
         if index == 3 and 'edit' in by_name:
             return 'edit', {'path': str(source), 'old_str': 'return 1', 'new_str': 'return 2'}
+        python = ("& '"+sys.executable.replace("'","''")+"'" if os.name=='nt' else 'python3')
         command = ({
-            2: "python3 -c \"from pathlib import Path; print(Path('main.py').read_text())\"",
-            3: "python3 -c \"from pathlib import Path; p=Path('main.py'); p.write_text(p.read_text().replace('return 1','return 2'))\"",
-            4: "python3 -c \"from pathlib import Path; assert 'return 2' in Path('main.py').read_text(); print('discovery-native-test-ok')\"",
+            2: python+" -c \"from pathlib import Path; print(Path('main.py').read_text())\"",
+            3: python+" -c \"from pathlib import Path; p=Path('main.py'); p.write_text(p.read_text().replace('return 1','return 2'))\"",
+            4: python+" -c \"from pathlib import Path; assert 'return 2' in Path('main.py').read_text(); print('discovery-native-test-ok')\"",
         }).get(index)
         if command:
-            for native_name in ('bash', 'exec_command', 'shell_command', 'shell'):
+            for native_name in ('bash', 'exec_command', 'shell_command', 'shell', 'powershell'):
                 definition = by_name.get(native_name)
                 if not definition:
                     continue

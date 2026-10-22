@@ -13,6 +13,10 @@ def _valid_context(context, profile):
         return False
     if profile == "authorized-at-recall-context-v3":
         return len(context.encode("utf-8")) <= 32_000
+    if profile == "authorized-at-recall-context-v3-initial-source-state-v1":
+        return len(context.encode("utf-8")) <= 40_000
+    if profile == "authorized-source-dossier-v1":
+        return len(context.encode("utf-8")) <= 16_000
     # Unknown profiles never widen the legacy contract.
     return profile == "authorized-at-recall-v1" and len(context) <= 4096
 

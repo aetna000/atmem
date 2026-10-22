@@ -23,6 +23,7 @@ from atmem.locking import ProcessFileLock
 from atmem.service import APIError, APIPrincipal
 
 from .binding import HermesMemoryBinding, _identifier
+from .discovery_host import DiscoveryHost
 
 _HERMES_EVENT_TYPES = frozenset({
     "turn.input", "context.disposition", "model.input", "model.output", "turn.ended",
@@ -51,15 +52,37 @@ def _write_events(binding: Any, events: list[dict[str, Any]]) -> bool:
     return True
 
 
-class HermesService:
+class HermesService(DiscoveryHost):
     """Transport never accepts caller-selected scope or a shared dashboard token.
 
     Bindings use the existing encrypted identity-key custody, separately from
     the execution store so a slow model call cannot lock out revocation.
     """
 
-    def __init__(self, manager: Any):
+    def __init__(self, manager: Any, *, context_engine_factory=None,state_assessor=None,source_time_frames=False,source_bundles=False,
+                 initial_state_assessor=None, allow_remote_initial_assessment=False,
+                 initial_state_presentation='annotated-source'):
+        if context_engine_factory is not None and not callable(context_engine_factory):
+            raise TypeError('context engine factory must be application-owned callable')
         self.manager = manager
+        self.context_engine_factory = context_engine_factory
+        if state_assessor is not None and not callable(state_assessor):raise TypeError('state assessor must be application-owned')
+        self.state_assessor=state_assessor
+        if type(source_time_frames) is not bool:raise TypeError('explicit temporal frame selection required')
+        self.source_time_frames=source_time_frames
+        if type(source_bundles) is not bool:raise TypeError('explicit source bundle selection required')
+        self.source_bundles=source_bundles
+        if type(allow_remote_initial_assessment) is not bool:
+            raise TypeError('explicit initial-assessment egress selection required')
+        if initial_state_assessor is not None and (
+                not callable(initial_state_assessor) or not allow_remote_initial_assessment):
+            raise ValueError('initial assessor requires application ownership and explicit egress')
+        self.initial_state_assessor=initial_state_assessor
+        if initial_state_presentation not in {'annotated-source','dossier'}:
+            raise ValueError('unknown initial source presentation')
+        if initial_state_presentation=='dossier' and initial_state_assessor is None:
+            raise ValueError('source dossier requires an explicitly configured assessor')
+        self.initial_state_presentation=initial_state_presentation
         self._recover_spools()
 
     @staticmethod
@@ -239,7 +262,7 @@ class HermesService:
 
     @staticmethod
     def _public(row: dict[str, Any]) -> dict[str, Any]:
-        return {key: value for key, value in row.items() if key != "token_digest"}
+        return {key: value for key, value in row.items() if key not in {"token_digest","discovery_leases"}}
 
     def _binding(self, row: dict[str, Any]) -> HermesMemoryBinding:
         return HermesMemoryBinding(
@@ -249,7 +272,20 @@ class HermesService:
             max_context_chars=row["max_context_chars"],
             memory_engine=row.get("memory_engine", "control"),
             history_import_authorized=row.get("history_import_authorized", False),
+            context_engine_factory=self.context_engine_factory,
+            initial_state_assessor=self.initial_state_assessor,
+            initial_state_presentation=self.initial_state_presentation,
+            initial_state_authorize=lambda:self._initial_state_authority(
+                row['binding_id'],row['generation']),
         )
+
+    def _initial_state_authority(self, binding_id, generation):
+        with self._locked():
+            row=self._load(binding_id)
+            if row['generation'] != generation:
+                return False
+            self._discovery_authority(row)
+            return True
 
     def _canonical_checkpoint(self, row: dict[str, Any]) -> dict[str, Any]:
         from atmem.memory import Memory
@@ -471,6 +507,8 @@ class HermesService:
         return row
 
     def dispatch(self, token: str, operation: str, body: dict[str, Any]) -> dict[str, Any]:
+        if operation in {'discovery-search','discovery-inspect'}:
+            return self.dispatch_discovery(token,operation,body)
         allowed = {"status": set(), "recall": {"query", "session_id", "turn_id"},
                    "prepare-turn": {"query", "session_id", "turn_id", "model",
                                     "platform", "prompt_sha256", "prompt_chars"},

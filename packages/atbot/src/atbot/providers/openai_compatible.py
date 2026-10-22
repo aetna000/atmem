@@ -21,6 +21,8 @@ class OpenAICompatibleProvider:
         api_key_env: str | None = None,
         egress_class: str = "local",
         timeout: float = 90.0,
+        reasoning_effort: str | None = None,
+        strict_schema: bool = False,
     ) -> None:
         if not endpoint.startswith(("http://127.0.0.1", "http://localhost", "https://")):
             raise ValueError("provider endpoint must be loopback HTTP or HTTPS")
@@ -34,6 +36,9 @@ class OpenAICompatibleProvider:
         self.api_key_env = api_key_env
         self.egress_class = egress_class
         self.timeout = timeout
+        if reasoning_effort not in {None,'low','medium','high'}:raise ValueError('invalid reasoning effort')
+        self.reasoning_effort=reasoning_effort
+        self.strict_schema=strict_schema
 
     def available(self) -> bool:
         if self.api_key_env and not os.environ.get(self.api_key_env):
@@ -72,8 +77,11 @@ class OpenAICompatibleProvider:
                 # Preserve the existing optional/open-object schema contract.
                 # Strict-mode compilation would require a different schema;
                 # normal AtBot validation and AtMem admission remain mandatory.
-                "json_schema": {"name": "atbot_output", "schema": schema, "strict": False},
+                "json_schema": {"name": "atbot_output", "schema": schema, "strict": self.strict_schema},
             }
+        if self.reasoning_effort is not None:
+            payload.pop('temperature',None)
+            payload['reasoning']={'effort':self.reasoning_effort}
         request = Request(
             f"{self.endpoint}/v1/chat/completions",
             data=json.dumps(payload).encode("utf-8"),

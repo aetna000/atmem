@@ -158,7 +158,7 @@ def test_detect_reports_unknown_memory_when_sysconf_is_unavailable(monkeypatch) 
     def unavailable(_name):
         raise AttributeError("sysconf is not available on this platform")
 
-    monkeypatch.setattr("atmem.semantic.health.os.sysconf", unavailable)
+    monkeypatch.setattr("atmem.semantic.health.os.sysconf", unavailable,raising=False)
 
     profile = HardwareProfile.detect()
 

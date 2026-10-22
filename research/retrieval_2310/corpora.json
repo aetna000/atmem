@@ -1,0 +1,32 @@
+{
+  "format": "atmem-retrieval-corpora-v1",
+  "training_authorized": false,
+  "corpora": [
+    {
+      "id": "rhelm",
+      "repository": "microsoft/RHELM",
+      "revision": "5e170da7a2db96b4d222620a2aaaddb031cb8098",
+      "provenance": "published-generated-evaluation",
+      "repository_license": "MIT",
+      "prefixes": ["data/QA_final/", "data/conversations/", "data/attachments/", "data/emails/"],
+      "max_download_bytes": 65000000,
+      "development_clusters": ["David_Reyes"],
+      "dispatch_qualified": false
+    },
+    {
+      "id": "realtalk",
+      "repository": "danny911kr/REALTALK",
+      "revision": "48b3ab884a34baf659243d3188df478dd401a70a",
+      "provenance": "human-messaging-evaluation",
+      "repository_license": "Apache-2.0",
+      "prefixes": ["data/Chat_"],
+      "max_download_bytes": 4000000,
+      "development_clusters": ["Emi", "Elise", "Kevin", "Paola"],
+      "dispatch_qualified": false
+    }
+  ],
+  "conditional": {
+    "personamem-v3": "Deferred: CC-BY-NC-4.0 data review; MIT code license is not data permission.",
+    "current-mem0": "Comparison configuration must be pinned and qualified before paid dispatch."
+  }
+}

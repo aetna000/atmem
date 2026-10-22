@@ -40,7 +40,7 @@ from benchmarks.code_replay.windows_transport import FRAMED_LOADER, framed_input
 def test_length_framing_finishes_without_parent_stdin_eof():
     process = subprocess.Popen([sys.executable, '-I', '-c', FRAMED_LOADER], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     try:
-        process.stdin.write(framed_input({'program': "print('FRAMED_OK')"})); process.stdin.flush()
+        process.stdin.write(framed_input({'program': "import sys;sys.stdout.buffer.write(b'FRAMED_OK\\n')"})); process.stdin.flush()
         assert process.wait(timeout=3) == 0
         assert process.stdout.read() == b'FRAMED_OK\n'
         assert not process.stdin.closed
@@ -56,7 +56,7 @@ def test_local_wsl_transport_is_explicit_and_does_not_require_nested_ssh(monkeyp
     import benchmarks.code_replay.windows_transport as transport
     monkeypatch.setenv("ATMEM_BENCHMARK_LOCAL_WSL", "1")
     monkeypatch.setattr(transport.sys, "platform", "linux")
-    monkeypatch.setattr(Path, "is_dir", lambda self: str(self) == "/mnt/c")
+    monkeypatch.setattr(Path, "is_dir", lambda self: self.as_posix() == "/mnt/c")
     args = framed_command()
     assert args == [sys.executable, "-I", "-S", "-c", FRAMED_LOADER]
     monkeypatch.setattr(transport.sys, "platform", "darwin")

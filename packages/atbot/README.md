@@ -6,11 +6,17 @@ The PyPI distribution is named `atmem-atbot` to keep its ownership explicit.
 It intentionally installs the shorter `atbot` Python package and CLI command:
 
 ```bash
-python -m pip install atmem-atbot==0.1.0
+python -m pip install atmem-atbot==0.1.1
 atbot --version
 ```
 
 > AtBot proposes and ranks; AtMem authorizes and stores.
+
+The 0.1.1 candidate adds bounded action-review, quoted source dossiers and
+memory-state assessment interfaces for explicitly configured hosts. Existing
+proposal/ranking endpoints remain compatible. Providers and remote egress
+remain opt-in; these interpretations never authorize canonical mutations.
+AtMem 2.3.10b1 pins this version; stable AtMem 2.3.9 keeps its own 0.1.0 pin.
 
 AtBot provides model-backed memory inference, entity and relationship
 proposals, query expansion, reranking, and bounded memory maintenance. It is

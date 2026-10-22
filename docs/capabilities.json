@@ -1,14 +1,14 @@
 {
   "product": "memory_control_plane",
-  "version": "2.3.2",
+  "version": "2.3.10b1",
   "development_target": null,
-  "release_status": "stable",
+  "release_status": "prerelease",
   "engine": "model_agnostic",
   "canonical_authority": "atmem_only",
   "intelligence_companion": {
     "package": "atbot",
     "distribution": "atmem-atbot",
-    "pinned_version": "0.1.0",
+    "pinned_version": "0.1.1",
     "required_distribution_dependency": true,
     "separate_process": true,
     "loopback_protocol": "1",

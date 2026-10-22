@@ -6,6 +6,17 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from benchmarks.dolphinbench.subscription_service import preserve_instructions
+from benchmarks.dolphinbench.subscription_service import subscription_reader_model
+
+
+@pytest.mark.parametrize('family',['luna','sol'])
+def test_reader_family_is_explicit_and_not_upgraded(family):
+    assert subscription_reader_model('openai/gpt-5.6-'+family)=='gpt-5.6-'+family
+
+
+@pytest.mark.parametrize('model',['gpt-5.6-sol','openai/gpt-5.6','openai/unknown',None])
+def test_reader_alias_or_unknown_family_fails_without_fallback(model):
+    with pytest.raises(ValueError):subscription_reader_model(model)
 
 
 def test_developer_instruction_bytes_and_user_boundary_are_preserved():

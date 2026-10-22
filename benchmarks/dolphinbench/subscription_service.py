@@ -17,6 +17,24 @@ import uuid
 from urllib.parse import urlparse
 
 
+READER_MODELS=('openai/gpt-5.6-luna','openai/gpt-5.6-sol')
+
+
+def subscription_reader_model(value):
+    """Explicit qualified family, never an alias or automatic model upgrade."""
+    if value not in READER_MODELS:
+        raise ValueError('unsupported explicitly selected subscription reader')
+    return value.removeprefix('openai/')
+
+
+def private_output_root(path):
+    root=Path(path).resolve()
+    if not any(root.is_relative_to(p) for p in
+               (Path('/Volumes/AtMemDolphin'),Path('/Volumes/AtMemBenchRuntime'))):
+        raise ValueError('subscription evidence requires a dedicated private benchmark volume')
+    return root
+
+
 def preserve_instructions(messages):
     """The Hermes auxiliary converter recognizes system, not developer roles.
 
@@ -41,15 +59,19 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--listener-file', type=Path)
     parser.add_argument('--reasoning-effort', choices=('medium', 'high'), default='medium')
+    parser.add_argument('--max-transport-attempts', type=int, default=120)
+    parser.add_argument('--model', choices=READER_MODELS,default=READER_MODELS[0])
     args = parser.parse_args()
-    root = args.output.resolve()
-    root.relative_to(Path('/Volumes/AtMemDolphin'))
+    if not 1 <= args.max_transport_attempts <= 120:
+        raise ValueError('transport attempts must be 1..120')
+    root = private_output_root(args.output)
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     sys.path.append(str(Path(__file__).resolve().parents[2]))
     from benchmarks.dolphinbench.gateway import save_new
     from agent.auxiliary_client import _build_codex_client
-    client, model = _build_codex_client('gpt-5.6-luna')
-    if client is None or model != 'gpt-5.6-luna' or urlparse(str(client.base_url)).hostname != 'chatgpt.com':
+    selected_model=subscription_reader_model(args.model)
+    client, model = _build_codex_client(selected_model)
+    if client is None or model != selected_model or urlparse(str(client.base_url)).hostname != 'chatgpt.com':
         raise RuntimeError('The existing Hermes ChatGPT OAuth route is unavailable; no API fallback')
     client._real_client.max_retries = 0
     local = threading.local()
@@ -58,6 +80,8 @@ def main():
         if urlparse(str(request.url)).hostname != 'chatgpt.com':
             raise RuntimeError('Subscription credential cannot be sent to another host')
         body = json.loads(request.content)
+        if body.get('model')!=selected_model:
+            raise RuntimeError('Actual provider model differs from the selected reader')
         if body.get('reasoning', {}).get('effort') != args.reasoning_effort:
             raise RuntimeError('Actual provider reasoning differs from frozen reader settings')
         if local.expected_instructions is not None and body.get('instructions') != local.expected_instructions:
@@ -82,7 +106,7 @@ def main():
     def fresh_client():
         # Hermes's timeout watchdog may close its HTTP client. Never reuse that
         # poisoned client for the next request; no completed answer is retried.
-        replacement, replacement_model = _build_codex_client('gpt-5.6-luna')
+        replacement, replacement_model = _build_codex_client(selected_model)
         if (replacement is None or replacement_model != model
                 or urlparse(str(replacement.base_url)).hostname != 'chatgpt.com'):
             raise RuntimeError('Qualified subscription transport unavailable')
@@ -115,7 +139,7 @@ def main():
                 self.send_error(413)
                 return
             body = json.loads(self.rfile.read(size))
-            if body.get('model') != 'openai/gpt-5.6-luna':
+            if body.get('model') != args.model:
                 self.send_error(400)
                 return
             with lock:
@@ -125,7 +149,7 @@ def main():
                 save_new(directory / 'request.json', body)
                 # Each attempt preserves its provider response. Only transient
                 # transport/rate errors retry, never a completed model answer.
-                for attempt in range(120):
+                for attempt in range(args.max_transport_attempts):
                     local.attempt = directory / f'attempt-{attempt:02d}'
                     local.events = []
                     try:
@@ -144,13 +168,13 @@ def main():
                             raise RuntimeError('Missing completed provider response; do not manufacture a finalization')
                         actual_model = completed[-1]['response'].get('model', '')
                         if actual_model != model and not actual_model.startswith(model + '-20'):
-                            raise RuntimeError('Actual provider model differs from the requested Luna family')
+                            raise RuntimeError('Actual provider model differs from the selected reader family')
                         break
                     except Exception as exc:
                         status = getattr(exc, 'status_code', None)
                         save_new(local.attempt / 'error.json', {'error_type': type(exc).__name__,
                             'http_status': status, 'usage': None, 'paid_api_fallback': False})
-                        if status not in {429, 500, 502, 503, 504} or attempt == 119:
+                        if status not in {429, 500, 502, 503, 504} or attempt == args.max_transport_attempts-1:
                             self.send_error(502, 'Subscription request failed; evidence retained')
                             return
                         # Respect rate limiting; no looping completed generations.

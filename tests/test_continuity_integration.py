@@ -5,7 +5,7 @@ from urllib.error import HTTPError
 
 import pytest
 
-from test_continuity_http import running
+from tests.test_continuity_http import running
 from atmem.continuity.client import ContinuityClient, RecoveryBlocked, Tool
 from atmem.continuity.integrations import GovernedToolRunner, RegisteredTool, governed_langgraph_tools
 from atmem.evidence import EvidenceRole, EvidenceScope

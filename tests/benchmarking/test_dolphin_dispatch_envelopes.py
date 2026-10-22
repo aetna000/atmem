@@ -2,12 +2,14 @@
 import copy
 from pathlib import Path
 import sys
+import os
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-sys.path.insert(0, '/Volumes/AtMemDolphin/upstream')
+sys.path.insert(0, os.environ.get('DOLPHINBENCH_UPSTREAM', '/Volumes/AtMemDolphin/upstream'))
 
 from benchmarks.dolphinbench.export import normalize_dispatch_envelopes
-from harness.submission import grading_calls
+grading_calls = pytest.importorskip('harness.submission', reason='requires the separately pinned public DolphinBench harness').grading_calls
 
 
 def conversation(entries):

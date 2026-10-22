@@ -674,7 +674,8 @@ def test_evidence_cli_creates_accounts_and_enforces_plaintext_export(tmp_path: P
     )
     assert exported["exported"] is True
     assert b"PLANTED-PROMPT-ALPHA" in (tmp_path / "collector.json").read_bytes()
-    assert (tmp_path / "collector.json").stat().st_mode & 0o077 == 0
+    from atmem.private_paths import private_path
+    assert private_path(tmp_path/'collector.json')
 
 
 def test_interrupted_plaintext_stream_records_denial_and_leaves_cleanup_to_surface(tmp_path: Path) -> None:

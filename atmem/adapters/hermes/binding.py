@@ -49,7 +49,9 @@ class HermesMemoryBinding:
     def __init__(self, manager: Any, identity: AtMemAdapterIdentity, *,
                  profile_id: str, enabled: bool = False, influence: bool | None = None,
                  max_context_chars: int = 4096, memory_engine: str = "control",
-                 history_import_authorized: bool = False):
+                 history_import_authorized: bool = False, context_engine_factory=None,
+                 initial_state_assessor=None, initial_state_authorize=None,
+                 initial_state_presentation='annotated-source'):
         self.manager = manager
         self.identity = replace(identity, framework="hermes")
         self.profile_id = _identifier(profile_id, "profile_id")
@@ -67,6 +69,10 @@ class HermesMemoryBinding:
         if memory_engine == "context-v3" and history_import_authorized is not True:
             raise PermissionError("V3 requires explicit administrator history-import authority")
         self.memory_engine = memory_engine
+        self.context_engine_factory = context_engine_factory
+        self.initial_state_assessor = initial_state_assessor
+        self.initial_state_authorize = initial_state_authorize
+        self.initial_state_presentation=initial_state_presentation
         self.application = AtMemApplication(manager)
 
     def v3(self):
@@ -74,7 +80,11 @@ class HermesMemoryBinding:
             raise PermissionError("V3 memory was not selected for this binding")
         self._scope()
         from .v3 import V3HistoryBinding
-        return V3HistoryBinding(self.manager, self.identity, self.profile_id)
+        return V3HistoryBinding(self.manager, self.identity, self.profile_id,
+                                context_engine_factory=self.context_engine_factory,
+                                initial_state_assessor=self.initial_state_assessor,
+                                initial_state_authorize=self.initial_state_authorize,
+                                initial_state_presentation=self.initial_state_presentation)
 
     def _scope(self) -> None:
         """Topology, not request content, binds agent/subject/workspace."""

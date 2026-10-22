@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from atmem.adapters.hermes.provider import create_provider
-from test_hermes_binding import Manager, binding
+from tests.test_hermes_binding import Manager, binding
 
 
 @pytest.fixture

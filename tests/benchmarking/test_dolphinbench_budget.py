@@ -83,10 +83,11 @@ def test_provider_overrun_retained_and_stops_future_calls(tmp_path):
         reserve(book, 'two', 0.01)
 
 
-def test_subscription_failure_is_not_a_completed_zero_token_answer(tmp_path):
+@pytest.mark.parametrize('reader_model',['openai/gpt-5.6-luna','openai/gpt-5.6-sol'])
+def test_subscription_failure_is_not_a_completed_zero_token_answer(tmp_path,reader_model):
     import json
     book = ledger(tmp_path)
-    request = {'model': 'openai/gpt-5.6-luna', 'messages': []}
+    request = {'model':reader_model, 'messages': []}
     book.reserve('sub', phase='tests', request=request, maximum_usd=0.2)
     proof = {'provider': 'OpenAI-Subscription', 'response_delivered': False}
     book.settle_subscription_failure('sub', request=request, failure_receipt=proof)
@@ -106,3 +107,38 @@ def test_subscription_failure_cannot_release_paid_api_reservation(tmp_path):
         book.settle_subscription_failure('paid', request={'model': 'openai/gpt-5.6-sol'},
             failure_receipt={'provider': 'Azure', 'response_delivered': False})
     assert book.totals()['judge']['reserved_usd'] == 0.2
+
+
+def test_subscription_cash_zero_still_requires_actual_token_usage(tmp_path):
+    book = ledger(tmp_path, cap=0.001)
+    request = {'model': 'openai/gpt-5.6-sol', 'messages': []}
+    book.reserve_subscription('sub', phase='tests', request=request)
+    with pytest.raises(ValueError, match='unknown is not zero'):
+        book.complete('sub', actual_usd=0, usage={}, response={})
+    book.complete('sub', actual_usd=0,
+                  usage={'prompt_tokens': 25000, 'completion_tokens': 900}, response={'id': 'sub'})
+    row = book.connection.execute('SELECT reserved,actual,state,usage_json FROM calls').fetchone()
+    assert row[:3] == (0, 0, 'completed')
+    assert '25000' in row[3]
+    with pytest.raises(ValueError):
+        book.reserve('paid', phase='tests', request=request, maximum_usd=0)
+
+
+def test_subscription_unexpected_cash_is_retained_as_overrun(tmp_path):
+    book = ledger(tmp_path)
+    request = {'model': 'openai/gpt-5.6-sol'}
+    book.reserve_subscription('sub', phase='tests', request=request)
+    with pytest.raises(RuntimeError, match='exceeded reservation'):
+        book.complete('sub', actual_usd=0.01,
+                      usage={'prompt_tokens': 12, 'completion_tokens': 5}, response={})
+    assert book.totals()['tests']['actual_usd'] == 0.01
+    with pytest.raises(PermissionError):
+        book.reserve_subscription('next', phase='tests', request=request)
+
+
+@pytest.mark.parametrize('payload', [
+    {'model': 'unknown'}, {'model': 'openai/gpt-5.6-sol', 'provider': {}},
+])
+def test_subscription_does_not_accept_paid_routing_or_unknown_model(tmp_path, payload):
+    with pytest.raises(ValueError):
+        ledger(tmp_path).reserve_subscription('sub', phase='tests', request=payload)

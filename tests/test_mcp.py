@@ -213,7 +213,7 @@ def test_scored_recall_and_audited_exact_record_read() -> None:
 
 def test_digest_verified_frozen_openclaw_source_read(tmp_path: Path) -> None:
     source = tmp_path / "MEMORY.md"
-    source.write_text("# Memory\n\n- Prefer TypeScript.\n", encoding="utf-8")
+    source.write_bytes(b"# Memory\n\n- Prefer TypeScript.\n")
     digest = hashlib.sha256(source.read_bytes()).hexdigest()
     server = _server()
     server.memory.remember(

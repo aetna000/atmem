@@ -46,9 +46,18 @@ class CompanionRuntime:
                 "query_expansion": True,
                 "proposal_extraction": True,
                 "task_state_proposals": True,
+                "source_state_assessment": True,
             },
             "providers": self.router.status(),
         }
+
+    def assess_memory_state(self, query: str, evidence: list[dict[str, str]], *, remote: bool = False):
+        from atbot.state_assessment import assess_state, validate_input
+        validate_input(query,evidence)
+        if type(remote) is not bool:
+            raise ValueError('remote must be a boolean')
+        provider=self.router.select(sensitivity='personal',remote=remote)
+        return assess_state(provider,query,evidence)
 
     def propose_task_state(
         self,

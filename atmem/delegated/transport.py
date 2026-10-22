@@ -6,7 +6,7 @@ See docs/contracts/delegated-request-auth-v1.md for the interoperable byte forma
 from __future__ import annotations
 
 import base64
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 import hashlib
 import hmac
 import json
@@ -21,6 +21,7 @@ import time
 from typing import Any, Iterator, Mapping
 
 from atmem.locking import ProcessFileLock, portable_open_flags
+from atmem.private_paths import private_path, protect_private_path
 
 PROFILE = "atmem-hmac-sha256-v1"
 MAX_LIFETIME = 30
@@ -36,11 +37,11 @@ class AuthenticationError(ValueError):
     """Safe, content-free transport failure."""
 
 
-def _private_owner(info: os.stat_result) -> bool:
+def _private_owner(info: os.stat_result, path: Path | None = None) -> bool:
     """Apply POSIX owner/mode checks where those concepts are available."""
 
     if os.name == "nt":
-        return True
+        return path is not None and private_path(path)
     return not info.st_mode & 0o077 and info.st_uid == os.getuid()
 
 
@@ -52,7 +53,7 @@ def private_read(path: str | Path, limit: int = 65536) -> bytes:
         fd = os.open(path, portable_open_flags(os.O_RDONLY, nonblocking=True))
         with os.fdopen(fd, "rb") as stream:
             info = os.fstat(stream.fileno())
-            if not stat.S_ISREG(info.st_mode) or not _private_owner(info) or info.st_nlink != 1:
+            if not stat.S_ISREG(info.st_mode) or not _private_owner(info, path) or info.st_nlink != 1:
                 raise ValueError()
             raw = stream.read(limit + 1)
             if len(raw) > limit:
@@ -75,7 +76,7 @@ def load_secret(path: str | Path) -> bytes:
 
 def _private_directory(path: Path) -> None:
     info = path.lstat()
-    if not stat.S_ISDIR(info.st_mode) or not _private_owner(info):
+    if not stat.S_ISDIR(info.st_mode) or not _private_owner(info, path):
         raise AuthenticationError("request authentication directory must be owner-only")
 
 
@@ -85,6 +86,7 @@ def _atomic_json(path: Path, value: Any) -> None:
         raise AuthenticationError("unsafe request authentication configuration")
     fd, name = tempfile.mkstemp(prefix=".auth-", dir=path.parent)
     try:
+        if os.name == 'nt':protect_private_path(Path(name))
         with os.fdopen(fd, "w") as stream:
             json.dump(value, stream, sort_keys=True)
             stream.write("\n")
@@ -101,7 +103,7 @@ def _keyring_lock(path: Path) -> Iterator[None]:
     _private_directory(path.parent)
     def validate(fd: int) -> None:
         info = os.fstat(fd)
-        if not stat.S_ISREG(info.st_mode) or not _private_owner(info):
+        if not stat.S_ISREG(info.st_mode) or not _private_owner(info, Path(str(path)+'.lock')):
             raise AuthenticationError("unsafe authentication lock")
 
     lock = ProcessFileLock(str(path) + ".lock", blocking=True, validate=validate).acquire()
@@ -116,6 +118,7 @@ def _new_key(root: Path) -> dict[str, Any]:
     path = root / (key_id + ".key")
     fd = os.open(path, portable_open_flags(os.O_WRONLY | os.O_CREAT | os.O_EXCL), 0o600)
     with os.fdopen(fd, "wb") as stream:
+        if os.name == 'nt':protect_private_path(path)
         stream.write(base64.b64encode(secrets.token_bytes(32)) + b"\n")
         stream.flush()
         os.fsync(stream.fileno())
@@ -155,6 +158,7 @@ def load_keyring(path: Path) -> dict[str, Any]:
 def configure_keyring(path: Path, *, provider_id: str, instance_id: str,
                       rotate: bool = False, overlap_seconds: int = 30) -> dict[str, Any]:
     path = path.absolute()
+    if os.name == 'nt' and not rotate and not path.exists():protect_private_path(path.parent)
     if not _ID.fullmatch(provider_id) or not _ID.fullmatch(instance_id):
         raise ValueError("invalid transport identity")
     if type(overlap_seconds) is not int or not 0 <= overlap_seconds <= MAX_OVERLAP:
@@ -229,7 +233,7 @@ class ReplayLedger:
             fd = os.open(self.path, portable_open_flags(os.O_RDWR, nonblocking=True))
         try:
             info = os.fstat(fd)
-            if not stat.S_ISREG(info.st_mode) or not _private_owner(info) or info.st_nlink != 1:
+            if not stat.S_ISREG(info.st_mode) or not _private_owner(info, self.path) or info.st_nlink != 1:
                 raise AuthenticationError("unsafe request replay storage")
         finally:
             os.close(fd)
@@ -239,7 +243,7 @@ class ReplayLedger:
             "nonce_expiry": "CREATE INDEX nonce_expiry ON nonces(expires)",
         }
         try:
-            with sqlite3.connect(self.path.as_uri() + "?mode=rw", uri=True) as db:
+            with closing(sqlite3.connect(self.path.as_uri() + "?mode=rw", uri=True)) as db, db:
                 if created:
                     db.execute("BEGIN IMMEDIATE")
                     for statement in schema.values():
@@ -261,7 +265,7 @@ class ReplayLedger:
 
     def reserve(self, scope: str, nonce: str, expires: int, now: int) -> None:
         try:
-            with sqlite3.connect(self.path.as_uri() + "?mode=rw", uri=True, timeout=2) as db:
+            with closing(sqlite3.connect(self.path.as_uri() + "?mode=rw", uri=True, timeout=2)) as db, db:
                 db.execute("BEGIN IMMEDIATE")
                 previous = db.execute("SELECT highwater FROM clock WHERE id=1").fetchone()
                 if previous and now < previous[0]:

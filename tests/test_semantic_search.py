@@ -540,7 +540,9 @@ def test_custom_index_is_registered_and_missing_sidecar_blocks_false_purge(
 
 def test_cli_index_build_hybrid_search_and_verify(tmp_path: Path) -> None:
     db = str(tmp_path / "mem.db")
-    environment = {"PYTHONPATH": str(ROOT)}
+    import os
+    environment = {"PYTHONPATH": str(ROOT), **{key:os.environ[key] for key in
+        ('USERPROFILE','SYSTEMROOT','WINDIR') if key in os.environ}}
 
     def run(*arguments: str) -> subprocess.CompletedProcess:
         return subprocess.run(

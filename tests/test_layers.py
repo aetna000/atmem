@@ -57,7 +57,13 @@ def test_persona_respects_char_budget() -> None:
     assert 0 < persona["count"] < 3
 
 
-def test_scenes_group_by_session_with_provenance() -> None:
+def test_scenes_group_by_session_with_provenance(monkeypatch) -> None:
+    from datetime import datetime,timedelta,timezone
+    from itertools import count
+    ticks=count()
+    origin=datetime(2026,1,1,tzinfo=timezone.utc)
+    monkeypatch.setattr('atmem.store.sqlite.utc_now',lambda:
+        (origin+timedelta(microseconds=next(ticks))).isoformat(timespec='microseconds'))
     memory = _seeded()
     scenes = memory.scenes("u1")
 

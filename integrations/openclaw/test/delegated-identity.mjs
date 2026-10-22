@@ -35,8 +35,10 @@ const { join } = await import("node:path");
 const privateRoot = mkdtempSync(join(tmpdir(), "atmem-local-identity-"));
 try {
   const mapping = { ...local, localOperator: { ...local.localOperator, stateDir: privateRoot } };
-  const runtime = { argv: ["agent", "--local"], stateDir: privateRoot, uid: process.getuid() };
-  assert.equal(isolatedCliProcess(mapping, {}, runtime), true);
+  const runtime = { argv: ["agent", "--local"], stateDir: privateRoot, uid: process.getuid?.() };
+  const posixIsolation = process.platform !== "win32" && typeof runtime.uid === "number";
+  assert.equal(isolatedCliProcess(mapping, {}, runtime), posixIsolation);
+  if (!posixIsolation) assert.equal(isolatedCliProcess(mapping, {}, { ...runtime, uid: 0 }), false);
   assert.equal(isolatedCliProcess(mapping, { channels: { discord: { enabled: false } } }, runtime), false);
   for (const argv of [["gateway"], ["agent"], ["agent", "--local", "--deliver"], ["agent", "--local", "--channel=discord"]]) {
     assert.equal(isolatedCliProcess(mapping, {}, { ...runtime, argv }), false);

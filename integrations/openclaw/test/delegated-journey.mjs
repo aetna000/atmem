@@ -119,5 +119,5 @@ try {
     provider.once("exit", () => { clearTimeout(timer); resolve(); });
   });
   lines.close();
-  rmSync(root, { recursive: true, force: true });
+  rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 }

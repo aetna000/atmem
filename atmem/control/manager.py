@@ -4,6 +4,7 @@ from dataclasses import replace
 from fnmatch import fnmatchcase
 import getpass
 import json
+import os
 from pathlib import Path
 import re
 import shlex
@@ -658,23 +659,29 @@ class ControlPlaneManager:
         selected_subject = subject_id or state.subject_id
         memory = Memory(memory_path, retain_query_text=False, auto_vectors=False)
         registered = memory.store.semantic_index_paths(selected_subject)
+        from atmem.context_engine.cache_lifecycle import is_part_cache
+        context_caches = [row for row in registered if is_part_cache(row)]
+        cache_health = ({'context_retrieval_caches': [
+            {'index_path_sha256': row['index_path_sha256'],
+             'present': Path(row['index_path']).is_file(), 'kind': 'source-part-native-exact-v1'}
+            for row in context_caches]} if context_caches else {})
         candidates = [
             Path(str(row["index_path"])).expanduser()
             for row in registered
-            if row.get("index_path")
+            if row.get("index_path") and not is_part_cache(row)
         ]
         candidates.append(default_index_path(memory_path))
         index_path = next((path for path in candidates if path.exists()), None)
         if index_path is None:
             memory.close()
-            return evaluate_semantic_health(
+            return {**evaluate_semantic_health(
                 selected_subject, active_epoch=None
-            ).to_dict()
+            ).to_dict(), **cache_health}
         index = SemanticIndex(index_path, policy=memory.policy)
         try:
-            return inspect_semantic_health(
+            return {**inspect_semantic_health(
                 index, memory, selected_subject
-            ).to_dict()
+            ).to_dict(), **cache_health}
         finally:
             index.close()
             memory.close()
@@ -898,13 +905,15 @@ class ControlPlaneManager:
                 except (OSError, ValueError):
                     vector_row["ready"] = False
             if not vector_row["ready"]:
-                memory_arg = shlex.quote(str(canonical_path))
-                python_arg = shlex.quote(sys.executable)
+                def quote(value):
+                    return "'"+value.replace("'","''")+"'" if os.name=='nt' else shlex.quote(value)
+                memory_arg = quote(str(canonical_path))
+                python_arg = ('& ' if os.name=='nt' else '')+quote(sys.executable)
                 commands = [
                     f'{python_arg} -m pip install "sentence-transformers>=5.0.0,<6.0.0"'
                 ]
                 for subject_id in vector_subjects:
-                    subject_arg = shlex.quote(subject_id)
+                    subject_arg = quote(subject_id)
                     commands.extend(
                         [
                             (
@@ -3414,6 +3423,9 @@ class ControlPlaneManager:
                     ),
                 ).fetchone() is not None
                 for registry in memory.store.semantic_index_paths(action_subject):
+                    from atmem.context_engine.cache_lifecycle import is_part_cache
+                    if is_part_cache(registry):
+                        continue  # V3 source IDs are not legacy record IDs.
                     index_path = Path(str(registry.get("index_path") or ""))
                     if not index_path.is_file():
                         continue

@@ -1,6 +1,13 @@
 # Releases and upgrades
 
-## Current release source: 2.3.9
+## Beta preparation: 2.3.10b1
+
+[AtMem 2.3.10b1](../releases/v2.3.10b1.md) prepares opt-in bounded evidence
+discovery while retaining stable defaults. See its
+[qualification report](../releases/v2.3.10b1-qualification.md) for completed and
+pending gates. A source candidate is not a published package or live website.
+
+## Current stable release: 2.3.9
 
 [AtMem 2.3.9](../releases/v2.3.9.md) adds optional shared coding memory,
 source-backed structure, inspectable experience and portable project bundles.

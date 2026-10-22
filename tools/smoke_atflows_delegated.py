@@ -18,13 +18,25 @@ from atmem.control.manager import ControlPlaneManager
 from atmem.control.web import ControlDashboardServer
 
 
+class FixtureDirectory(tempfile.TemporaryDirectory):
+    def cleanup(self):
+        if os.name=='nt' and not self.name.startswith('\\\\?\\'):
+            absolute=os.path.abspath(self.name)
+            self.name=('\\\\?\\UNC\\'+absolute[2:] if absolute.startswith('\\\\') else '\\\\?\\'+absolute)
+        for attempt in range(20):
+            try:return super().cleanup()
+            except OSError as exc:
+                if os.name!='nt' or getattr(exc,'winerror',None) not in {5,32,145} or attempt==19:raise
+                time.sleep(0.1)
+
+
 def free_port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         return int(sock.getsockname()[1])
 
 
-with tempfile.TemporaryDirectory(prefix="atmem-atflows-shared-login-") as root:
+with FixtureDirectory(prefix="atmem-atflows-shared-login-") as root:
     root_path = Path(root)
     manager = ControlPlaneManager.start(host="generic", state_path=root_path / "state.json", control_root=root_path / "control", subject_id="fixture-subject")
     manager.record_blackbox_event(
@@ -49,6 +61,7 @@ with tempfile.TemporaryDirectory(prefix="atmem-atflows-shared-login-") as root:
         "DASHBOARD_PORT": str(dashboard_port),
         "PROXY_PORT": str(free_port()),
         "ATFLOWS_ATMEM_AUTH_URL": atmem_origin,
+        "ATFLOWS_STATE_DIR": str(root_path / 'instances'),
     })
     env["ATFLOW_RUNTIME_DIR"] = str(root_path / "runtime")
     log_path = root_path / "atflows.log"
@@ -106,11 +119,15 @@ with tempfile.TemporaryDirectory(prefix="atmem-atflows-shared-login-") as root:
             assert not (root_path / "atflows" / "admin-auth.json").exists()
             print("AtMem-owned login, role, delegated CLI review, protected AtFlows API, disabled local users, and shared logout passed")
         finally:
-            process.terminate()
+            if os.name=='nt' and process.poll() is None:
+                subprocess.run(['taskkill.exe','/PID',str(process.pid),'/T','/F'],
+                    stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=True,timeout=10)
+            elif process.poll() is None:process.terminate()
             try:
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
+            if os.name=='nt':time.sleep(0.2)
             atmem.shutdown()
             atmem.server_close()

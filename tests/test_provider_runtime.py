@@ -65,9 +65,10 @@ def test_context_builder_never_slices_an_item() -> None:
 
 
 def test_key_permissions_fail_closed(tmp_path: Path) -> None:
+    from tests.test_private_paths import make_public
     private, public = tmp_path / "private.key", tmp_path / "public.key"
     generate_keypair(private, public)
-    private.chmod(0o644)
+    make_public(private)
     with pytest.raises(ValueError, match="0600"):
         load_private_key(private)
 

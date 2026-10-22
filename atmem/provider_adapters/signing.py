@@ -16,6 +16,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from atmem.delegated.canonical import canonical_json_bytes, expected_idempotency_key, signed_payload_sha256, signing_bytes
 from atmem.delegated.contracts import RESULT_CONTRACT_ID, SIGNATURE_PROFILE
 from .models import ProviderProposal, ProviderRequest, ProviderRuntimeIdentity
+from atmem.private_paths import private_path, protect_private_path
 
 
 RECEIPT_CONTRACT_ID = "atmem.context-provider-receipt.v1"
@@ -25,22 +26,24 @@ def generate_keypair(private_path: Path, public_path: Path) -> str:
     if private_path.exists() or private_path.is_symlink() or public_path.exists() or public_path.is_symlink():
         raise ValueError("provider signing key already exists")
     private_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    os.chmod(private_path.parent, 0o700)
+    protect_private_path(private_path.parent)
     key = Ed25519PrivateKey.generate()
     raw_private = key.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption())
     raw_public = key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
-    private_path.write_bytes(raw_private)
-    os.chmod(private_path, 0o600)
+    descriptor=os.open(private_path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+    with os.fdopen(descriptor,'wb') as output:
+        protect_private_path(private_path)
+        output.write(raw_private)
     public = base64.b64encode(raw_public).decode("ascii")
     public_path.write_text(public + "\n", encoding="utf-8")
-    os.chmod(public_path, 0o600)
+    protect_private_path(public_path)
     return public
 
 
 def load_private_key(path: Path) -> Ed25519PrivateKey:
     if path.is_symlink() or not path.is_file():
         raise ValueError("provider private key must be a regular non-symlink file")
-    if path.stat().st_mode & 0o077:
+    if not private_path(path):
         raise ValueError("provider private key permissions must be 0600")
     if hasattr(os, "getuid") and path.stat().st_uid != os.getuid():
         raise ValueError("provider private key must be owned by the current user")

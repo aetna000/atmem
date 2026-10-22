@@ -199,7 +199,7 @@ ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \
 TMPDIR=/Volumes/AtMemDolphin/tmp \
 TIKTOKEN_CACHE_DIR=/Volumes/AtMemDolphin/cache/tiktoken \
 /private/tmp/atmem-dolphin-controller-v3-20261021/bin/python -I -c \
-'import sys; sys.path.append("/Users/javadtaghia/gitlab/aetnamem-dolphinbench-2.3.9"); from benchmarks.dolphinbench.campaign_v3 import main; main()' \
+'import sys; sys.path.append("/path/to/atmem-source-checkout"); from benchmarks.dolphinbench.campaign_v3 import main; main()' \
 --output /Volumes/AtMemDolphin/campaign-atmem-v3-matched-luna-high-20261021 \
 --baseline-from /Volumes/AtMemDolphin/campaign-atmem-v3-full-r2-20261021 \
 --reader-reasoning high --reader-max-turns 60 --reader-context-length 1050000 \
@@ -250,7 +250,7 @@ ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \
 TMPDIR=/Volumes/AtMemDolphin/tmp \
 TIKTOKEN_CACHE_DIR=/Volumes/AtMemDolphin/cache/tiktoken \
 /private/tmp/atmem-dolphin-controller-v3-20261021/bin/python -I -c \
-'import sys; sys.path.append("/Users/javadtaghia/gitlab/aetnamem-dolphinbench-2.3.9"); from benchmarks.dolphinbench.campaign_v3 import main; main()' \
+'import sys; sys.path.append("/path/to/atmem-source-checkout"); from benchmarks.dolphinbench.campaign_v3 import main; main()' \
 --output /Volumes/AtMemDolphin/campaign-atmem-v3-product-api-full-20261021 \
 --baseline-from /Volumes/AtMemDolphin/campaign-atmem-v3-full-r2-20261021 \
 --env-file /path/to/private.env --confirm-paid-grading
@@ -314,7 +314,7 @@ ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \
 TMPDIR=/Volumes/AtMemDolphin/tmp \
 TIKTOKEN_CACHE_DIR=/Volumes/AtMemDolphin/cache/tiktoken \
 /private/tmp/atmem-dolphin-controller-v3-20261021/bin/python -I -c \
-'import sys; sys.path.append("/Users/javadtaghia/gitlab/aetnamem-dolphinbench-2.3.9"); from benchmarks.dolphinbench.campaign_v3 import main; main()' \
+'import sys; sys.path.append("/path/to/atmem-source-checkout"); from benchmarks.dolphinbench.campaign_v3 import main; main()' \
 --output /Volumes/AtMemDolphin/campaign-atmem-v3-system-full-20261021 \
 --baseline-from /Volumes/AtMemDolphin/campaign-atmem-v3-full-r2-20261021 \
 --env-file /path/to/private.env --confirm-paid-grading
@@ -429,7 +429,7 @@ ATMEM_HOME=/Volumes/AtMemDolphin/v3-full-r2-product-home \
 TMPDIR=/Volumes/AtMemDolphin/tmp \
 TIKTOKEN_CACHE_DIR=/Volumes/AtMemDolphin/cache/tiktoken \
 /private/tmp/atmem-dolphin-controller-v3-20261021/bin/python -I -c \
-'import sys; sys.path.append("/Users/javadtaghia/gitlab/aetnamem-dolphinbench-2.3.9"); from benchmarks.dolphinbench.campaign_v3 import main; main()' \
+'import sys; sys.path.append("/path/to/atmem-source-checkout"); from benchmarks.dolphinbench.campaign_v3 import main; main()' \
 --output /Volumes/AtMemDolphin/campaign-atmem-v3-full-r2-20261021 \
 --env-file /path/to/private.env --confirm-paid-grading
 ```

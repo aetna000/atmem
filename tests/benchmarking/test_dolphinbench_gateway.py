@@ -36,6 +36,71 @@ def test_streaming_usage_and_missing_terminator():
         gateway.decode_usage(raw.replace(b'data: [DONE]', b''), True)
 
 
+@pytest.mark.parametrize('endpoint', [
+    'http://127.0.0.1:123@evil.example/v1/chat/completions',
+    'http://127.0.0.1:123/v1/chat/completions?redirect=evil',
+    'http://127.0.0.1:123/v1/chat/completions#other',
+    'http://127.0.0.1:123.evil.example/v1/chat/completions',
+    'https://127.0.0.1:123/v1/chat/completions',
+    'http://127.0.0.1:0/v1/chat/completions',
+])
+def test_subscription_rejects_lookalike_loopback_endpoints(tmp_path, endpoint):
+    with pytest.raises(ValueError):
+        gateway.Gateway(key='fixture-only', output=tmp_path / 'calls',
+            ledger_path=tmp_path / 'ledger.db', campaign_identity={'test': True}, cap_usd=1,
+            phase='tests', model='openai/gpt-5.6-sol', input_per_million=5,
+            output_per_million=30, provider_name='OpenAI-Subscription', endpoint=endpoint)
+
+
+@pytest.mark.parametrize('provider, expected_code', [('Azure', 402), ('OpenAI-Subscription', 200)])
+def test_only_qualified_subscription_avoids_hypothetical_paid_reservation(tmp_path, provider, expected_code):
+    received = []
+    class Fixture(BaseHTTPRequestHandler):
+        def log_message(self, *_args):
+            pass
+        def do_POST(self):
+            received.append(json.loads(self.rfile.read(int(self.headers['Content-Length']))))
+            raw = json.dumps({'provider': provider, 'model': 'openai/gpt-5.6-sol',
+                'choices': [{'message': {'role': 'assistant', 'content': 'fixture'}}],
+                'usage': {'prompt_tokens': 25000, 'completion_tokens': 200, 'cost': 0}}).encode()
+            self.send_response(200)
+            self.send_header('Content-Length', str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+    fixture = ThreadingHTTPServer(('127.0.0.1', 0), Fixture)
+    thread = threading.Thread(target=fixture.serve_forever, daemon=True)
+    thread.start()
+    server = gateway.Gateway(key='fixture-only', output=tmp_path / 'calls',
+        ledger_path=tmp_path / 'ledger.db', campaign_identity={'test': True}, cap_usd=0.001,
+        phase='tests', model='openai/gpt-5.6-sol', input_per_million=5, output_per_million=30,
+        endpoint=f'http://127.0.0.1:{fixture.server_port}/v1/chat/completions',
+        provider_name=provider).start()
+    try:
+        req = urllib.request.Request(server.base_url + '/chat/completions',
+            data=json.dumps({'model': server.model, 'max_completion_tokens': 1000,
+                             'messages': [{'role': 'user', 'content': 'x' * 25000}]}).encode(),
+            headers={'Authorization': 'Bearer ' + server.local_token})
+        if expected_code == 402:
+            with pytest.raises(urllib.error.HTTPError) as error:
+                urllib.request.urlopen(req, timeout=5)
+            assert error.value.code == 402 and not received
+            receipt = json.loads(next((tmp_path / 'calls').rglob('guard-denial.json')).read_text())
+            assert receipt['forwarding_started'] is False and receipt['outcome'] == 'proven_unsent'
+            assert receipt['ledger_state'] is None
+        else:
+            with urllib.request.urlopen(req, timeout=5) as response:
+                assert json.load(response)['usage']['prompt_tokens'] == 25000
+            assert len(received) == 1
+            book = gateway.BudgetLedger(tmp_path / 'ledger.db', cap_usd=0.001, identity={'test': True})
+            assert book.connection.execute('SELECT reserved,actual,state FROM calls').fetchone() == (0, 0, 'completed')
+            book.close()
+    finally:
+        server.stop()
+        fixture.shutdown()
+        fixture.server_close()
+        thread.join(5)
+
+
 def test_gateway_rejects_bad_credentials_and_model_before_network(tmp_path, monkeypatch):
     real_urlopen = urllib.request.urlopen
     def local_only(request, *args, **kwargs):
@@ -57,6 +122,23 @@ def test_gateway_rejects_bad_credentials_and_model_before_network(tmp_path, monk
         assert not (tmp_path / 'ledger.db').exists()
     finally:
         server.stop()
+
+
+def test_missing_host_identity_is_rejected_before_spend_or_forwarding(tmp_path):
+    server=gateway.Gateway(key='fixture-only',output=tmp_path/'calls',
+        ledger_path=tmp_path/'ledger.db',campaign_identity={'test':True},cap_usd=1,
+        phase='qualification',model='openai/gpt-5.6-luna',input_per_million=1,
+        output_per_million=5,required_instruction_text='Configured identity for Hana.').start()
+    try:
+        for messages in [[{'role':'user','content':'Configured identity for Hana.'}],
+                         [{'role':'developer','content':'Unrelated identity.'}]]:
+            request=urllib.request.Request(server.base_url+'/chat/completions',
+                data=json.dumps({'model':server.model,'messages':messages,'max_completion_tokens':10}).encode(),
+                headers={'Authorization':'Bearer '+server.local_token})
+            with pytest.raises(urllib.error.HTTPError) as error:urllib.request.urlopen(request,timeout=3)
+            assert error.value.code==400
+        assert not (tmp_path/'ledger.db').exists()
+    finally:server.stop()
 
 
 def test_gateway_retains_receipt_and_declares_missing_token_cap(tmp_path):

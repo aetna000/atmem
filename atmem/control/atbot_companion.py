@@ -40,6 +40,49 @@ class AtBotCompanionClient:
 
         return AtBotServiceManager().ensure_running()
 
+    def assess_memory_state(
+        self, query: str, evidence: list[dict[str, str]], *, remote: bool = False
+    ) -> dict[str, Any]:
+        """Interpret already-authorized sources; caller owns egress audit/permission.
+
+        No automatic startup, remote fallback, semantic substitution or mutation.
+        Errors propagate to the caller's explicit assessment-degraded receipt.
+        """
+        from atmem.context_engine.state_assessment import validate_state_assessment
+
+        if type(remote) is not bool:
+            raise ValueError("remote must be a boolean")
+        if not isinstance(query, str) or not query.strip() or len(query.encode()) > 8192:
+            raise ValueError("bounded question required")
+        if not isinstance(evidence, list) or not 1 <= len(evidence) <= 32:
+            raise ValueError("1..32 source records required")
+        if any(not isinstance(row, dict) or not {"unit_id", "text"} <= set(row)
+               or set(row) - {"unit_id", "text", "source_range"}
+               or ("source_range" in row and not isinstance(row["source_range"], dict))
+               or not isinstance(row["unit_id"], str) or not 1 <= len(row["unit_id"]) <= 256
+               or not isinstance(row["text"], str) or not row["text"] for row in evidence):
+            raise ValueError("source records require bounded IDs and original text only")
+        if len({row["unit_id"] for row in evidence}) != len(evidence):
+            raise ValueError("unique evidence IDs required")
+        body = json.dumps({"query": query, "evidence": evidence}, ensure_ascii=False,
+                          separators=(",", ":"))
+        if len(body.encode()) > 50000:
+            raise ValueError("state assessment input too large")
+        health = self.health()
+        if (not health.get("available")
+                or health.get("features", {}).get("source_state_assessment") is not True):
+            raise ValueError("source-state assessment companion unavailable")
+        request = Request(
+            f"{self.endpoint}/api/companion/source-state/assess",
+            data=json.dumps({"query": query, "evidence": evidence, "remote": remote},
+                            ensure_ascii=False).encode(),
+            headers={"Content-Type": "application/json", "X-AtBot-CSRF": str(health["csrf_token"])},
+            method="POST",
+        )
+        with urlopen(request, timeout=self.timeout) as response:
+            value = json.loads(response.read())
+        return validate_state_assessment(value, evidence)
+
     def query(self, query: str, candidates: list[dict[str, Any]]) -> dict[str, Any]:
         from atmem.control.atbot_service import AtBotServiceManager
 

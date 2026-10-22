@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 
 from atmem.delegated.canonical import public_key_fingerprint, strict_base64
 from atmem.delegated.contracts import MAX_CONTEXT_BYTES
+from atmem.private_paths import private_path, protect_private_path
 
 
 DEFAULT_CONFIG_PATH = compatible_home_path("config/delegated-context.json", "delegated-context.json")
@@ -112,7 +113,7 @@ class DelegatedConfigStore:
             return []
         if self.path.is_symlink() or not stat.S_ISREG(self.path.stat().st_mode):
             raise ValueError("delegated configuration must be a regular file")
-        if self.path.stat().st_mode & 0o077:
+        if not private_path(self.path):
             raise ValueError("delegated configuration permissions must be 0600")
         value = json.loads(self.path.read_text(encoding="utf-8"))
         if not isinstance(value, dict) or set(value) != {"format", "registrations"} or value.get("format") != "atmem-delegated-context-config-v1":
@@ -224,6 +225,7 @@ class DelegatedConfigStore:
             raise ValueError("delegated configuration path cannot be a symlink")
         if not stat.S_ISDIR(self.path.parent.stat().st_mode):
             raise ValueError("delegated configuration parent must be a directory")
+        if os.name == 'nt':protect_private_path(self.path.parent)
         value = {
             "format": "atmem-delegated-context-config-v1",
             "registrations": [
@@ -234,14 +236,14 @@ class DelegatedConfigStore:
         descriptor, temporary = tempfile.mkstemp(prefix=".delegated-context.", suffix=".tmp", dir=self.path.parent)
         temporary_path = Path(temporary)
         try:
-            os.fchmod(descriptor, 0o600)
+            protect_private_path(temporary_path)
             with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
                 json.dump(value, handle, indent=2, sort_keys=True)
                 handle.write("\n")
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temporary_path, self.path)
-            os.chmod(self.path, 0o600)
+            protect_private_path(self.path)
         finally:
             temporary_path.unlink(missing_ok=True)
 

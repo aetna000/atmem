@@ -65,11 +65,28 @@ class BudgetLedger:
             raise
 
     def reserve(self, call_id, *, phase, request, maximum_usd):
-        if phase not in {'ingestion', 'tests', 'judge', 'qualification'}:
-            raise ValueError('invalid cost phase')
         bound = micros(maximum_usd)
-        if bound <= 0 or not isinstance(call_id, str) or not call_id:
-            raise ValueError('A unique call ID and positive request cost bound are required')
+        if bound <= 0:
+            raise ValueError('A positive paid request cost bound is required')
+        self._reserve(call_id, phase=phase, request=request, bound=bound)
+
+    def reserve_subscription(self, call_id, *, phase, request):
+        """Controller-qualified subscription: zero incremental API cash, not tokens.
+
+        Only the controller may select this method after qualifying the local
+        bridge. A request field cannot switch a paid transport to this mode.
+        Completion still requires actual provider usage and zero reported cash;
+        any nonzero charge is retained as an overrun and stops subsequent work.
+        """
+        if request.get('model') not in {'openai/gpt-5.6-luna', 'openai/gpt-5.6-sol'} or 'provider' in request:
+            raise ValueError('Qualified subscription model without provider override required')
+        self._reserve(call_id, phase=phase, request=request, bound=0)
+
+    def _reserve(self, call_id, *, phase, request, bound):
+        if phase not in {'ingestion', 'tests', 'judge', 'qualification', 'state-assessment', 'initial-state-assessment', 'action-review'}:
+            raise ValueError('invalid cost phase')
+        if not isinstance(call_id, str) or not call_id:
+            raise ValueError('A unique call ID is required')
         with self.transaction():
             if self.connection.execute("SELECT 1 FROM calls WHERE state='overrun' LIMIT 1").fetchone():
                 raise PermissionError('Provider overrun requires reconciliation before any new call')
@@ -114,7 +131,8 @@ class BudgetLedger:
         This never applies to a paid API request and never marks it completed.
         Keep the original reservation bound and separate immutable failure proof.
         """
-        if (request.get('model') != 'openai/gpt-5.6-luna' or 'provider' in request
+        # Keep this accounting utility importable independently of the server.
+        if (request.get('model') not in {'openai/gpt-5.6-luna','openai/gpt-5.6-sol'} or 'provider' in request
                 or failure_receipt.get('provider') != 'OpenAI-Subscription'
                 or failure_receipt.get('response_delivered') is not False):
             raise ValueError('Qualified subscription failure proof required')

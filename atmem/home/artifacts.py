@@ -107,7 +107,7 @@ class ArtifactVault:
             "format": "atmem-artifact-reference-v1",
             "plaintext_sha256": digest,
             "plaintext_bytes": byte_count,
-            "relative_path": str(path.relative_to(self.root.parent.parent)),
+            "relative_path": path.relative_to(self.root.parent.parent).as_posix(),
             "cipher_suite": SUITE,
             "replayed": replayed,
         }

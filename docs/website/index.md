@@ -9,7 +9,15 @@ and investigate the evidence a supported host captured.
 without an API key or a model download. Then [connect an agent](integrations.md)
 and review shadow mode before enabling context injection.
 
-## New in 2.3.9: shared coding memory
+## Optional beta: bounded evidence discovery
+
+The 2.3.10b1 candidate adds source-backed, read-only discovery for explicitly
+configured SDK/host integrations. Start with the
+[beta guide](../evidence-discovery.md) and
+[qualification status](../releases/v2.3.10b1-qualification.md).
+It does not change stable install commands or automatically enable agent tools.
+
+## Stable 2.3.9: shared coding memory
 
 Optional AtMem Code connects source-backed project structure with searchable
 coding experience. Share authorized project memory across agents, inspect what
@@ -33,5 +41,5 @@ is not independent proof that a purchase or message succeeded externally.
 Missing historical content cannot be reconstructed from a hash.
 Read [evidence and roles](evidence.md) before choosing a capture profile.
 
-These are latest-stable guides. For older installations, read that version's release
+Guides describe stable behavior unless marked beta. For older installations, read that version's release
 notes and upgrade instructions; full historic guide sets are not published here.

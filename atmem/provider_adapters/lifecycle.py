@@ -15,6 +15,7 @@ import time
 from typing import Any
 
 from atmem.processes import pid_is_running
+from atmem.private_paths import private_path, protect_private_path
 from urllib.request import Request, build_opener
 from atmem.delegated.client import _NoRedirect
 from atmem.delegated.transport import (PROFILE, RequestAuthenticator, configure_keyring,
@@ -74,7 +75,7 @@ def initialize(
     )
     config_path = root / "config.json"
     config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.chmod(config_path, 0o600)
+    protect_private_path(config_path)
     configure_keyring(root / "request-auth.json", provider_id=config["provider_id"], instance_id=instance)
     result = status(instance)
     result["public_key_file"] = str(public_path)
@@ -87,9 +88,9 @@ def load_config(instance: str) -> tuple[Path, dict[str, Any]]:
     path = root / "config.json"
     if root.is_symlink() or path.is_symlink() or not path.is_file():
         raise ValueError("provider configuration was not found or is unsafe")
-    if root.stat().st_mode & 0o077:
+    if not private_path(root):
         raise ValueError("provider instance directory permissions must be 0700")
-    if path.stat().st_mode & 0o077:
+    if not private_path(path):
         raise ValueError("provider configuration permissions must be 0600")
     if hasattr(os, "getuid") and (root.stat().st_uid != os.getuid() or path.stat().st_uid != os.getuid()):
         raise ValueError("provider configuration must be owned by the current user")
@@ -224,7 +225,8 @@ def doctor(instance: str) -> dict[str, Any]:
     root, config = load_config(instance)
     checks: list[dict[str, Any]] = []
     for name, path, mode in (("configuration", root / "config.json", 0o600), ("private_key", root / "private.key", 0o600)):
-        checks.append({"check": name, "ok": path.is_file() and not path.is_symlink() and path.stat().st_mode & 0o777 == mode})
+        checks.append({"check": name, "ok": path.is_file() and not path.is_symlink()
+            and (private_path(path) if os.name=='nt' else path.stat().st_mode & 0o777 == mode)})
     try:
         build_runtime(instance)
         runtime_check = {"check": "runtime_configuration", "ok": True}
@@ -293,6 +295,12 @@ def _pid_exists(pid: int) -> bool:
 
 
 def _pid_command(pid: int) -> str:
+    if os.name=='nt':
+        if type(pid) is not int or not 1<pid<=0xFFFFFFFF:return ''
+        return subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',
+            "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
+            f"(Get-CimInstance Win32_Process -Filter 'ProcessId = {pid}').CommandLine"],
+            capture_output=True,text=True,encoding='utf-8',check=False,timeout=5).stdout
     proc_path = Path(f"/proc/{pid}/cmdline")
     try:
         if proc_path.is_file():

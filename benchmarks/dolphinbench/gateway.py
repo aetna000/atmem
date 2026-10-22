@@ -13,11 +13,25 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 import uuid
 
-from .recording import BudgetLedger
+from .recording import BudgetLedger, fingerprint
 
 ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
+
+
+def local_bridge_endpoint(endpoint):
+    """Reject user-info/fragment/query and lookalike loopback URL prefixes."""
+    try:
+        parsed = urlsplit(endpoint)
+        return (parsed.scheme == 'http' and parsed.hostname == '127.0.0.1'
+                and parsed.username is None and parsed.password is None
+                and parsed.port is not None and 1 <= parsed.port <= 65535
+                and not parsed.query and not parsed.fragment
+                and parsed.path in {'', '/', '/chat/completions', '/v1/chat/completions'})
+    except (ValueError, TypeError):
+        return False
 
 
 def save_new(path, value):
@@ -67,18 +81,24 @@ class Gateway(ThreadingHTTPServer):
     def __init__(self, *, key, output, ledger_path, campaign_identity, cap_usd,
                  phase, model, input_per_million, output_per_million, endpoint=ENDPOINT,
                  output_token_cap=4096, required_tool_catalog=None, provider_name='Azure',
-                 upstream_timeout=300):
-        if endpoint != ENDPOINT and not endpoint.startswith('http://127.0.0.1:'):
+                 upstream_timeout=300, required_instruction_text=None):
+        if endpoint != ENDPOINT and not local_bridge_endpoint(endpoint):
             raise ValueError('Only OpenRouter or an explicit local offline fixture is supported')
         self.endpoint = endpoint
         if type(output_token_cap) is not int or not 1 <= output_token_cap <= 16000:
             raise ValueError('Invalid declared output-token cap')
         self.output_token_cap = output_token_cap
         self.required_tool_catalog = required_tool_catalog
+        if required_instruction_text is not None and (not isinstance(required_instruction_text,str)
+                or not required_instruction_text.strip() or len(required_instruction_text.encode())>4096):
+            raise ValueError('bounded required host instruction text needed')
+        self.required_instruction_text=required_instruction_text
         if provider_name not in {'Azure', 'OpenAI-Subscription'}:
             raise ValueError('Unsupported declared transport provider')
-        if provider_name == 'OpenAI-Subscription' and not endpoint.startswith('http://127.0.0.1:'):
+        if provider_name == 'OpenAI-Subscription' and not local_bridge_endpoint(endpoint):
             raise ValueError('Subscription transport requires the qualified local Hermes bridge')
+        if provider_name == 'OpenAI-Subscription' and model not in {'openai/gpt-5.6-luna', 'openai/gpt-5.6-sol'}:
+            raise ValueError('Unsupported qualified subscription model')
         self.provider_name = provider_name
         self.upstream_timeout = upstream_timeout
         self.key, self.output = key, Path(output)
@@ -123,6 +143,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.error_response(401, 'Invalid local transport credential')
         book = None
         body = None
+        directory = None
+        forwarding_started = False
         try:
             length = int(self.headers.get('Content-Length', '0'))
             if not 1 <= length <= 16 * 1024 * 1024:
@@ -132,6 +154,11 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError('Model differs from frozen campaign configuration')
             if server.required_tool_catalog and server.required_tool_catalog not in json.dumps(body.get('tools', [])):
                 raise ValueError('Required simulated app tools were not discovered; refusing a paid request')
+            if server.required_instruction_text is not None and not any(
+                    server.required_instruction_text.strip() in message.get('content','')
+                    for message in body.get('messages',[]) if message.get('role') in {'system','developer'}
+                    and isinstance(message.get('content'),str)):
+                raise ValueError('Configured native host identity is missing; request not forwarded')
             # Some Hermes CLI routes omit their configured cap. Enforce the
             # declared transport cap explicitly; retain this adjustment, never
             # pretend the original CLI supplied it.
@@ -160,13 +187,19 @@ class Handler(BaseHTTPRequestHandler):
             save_new(directory / 'request.json', body)
             save_new(directory / 'transport.json', {'call_id': call_id, 'phase': server.phase,
                                                     'started_ns': time.time_ns(),
+                                                    'provider': server.provider_name,
+                                                    'cash_reservation_usd': 0 if server.provider_name == 'OpenAI-Subscription' else bound,
                                                     'parameter_adjustments': adjustments})
-            book.reserve(call_id, phase=server.phase, request=body, maximum_usd=bound)
+            if server.provider_name == 'OpenAI-Subscription':
+                book.reserve_subscription(call_id, phase=server.phase, request=body)
+            else:
+                book.reserve(call_id, phase=server.phase, request=body, maximum_usd=bound)
             started = time.monotonic()
             req = urllib.request.Request(server.endpoint, data=json.dumps(body).encode(), headers={
                 'Authorization': 'Bearer ' + server.key, 'Content-Type': 'application/json',
                 'X-Title': 'AtMem DolphinBench disclosed Azure-only OpenRouter transport'})
             try:
+                forwarding_started = True
                 with urllib.request.urlopen(req, timeout=server.upstream_timeout) as response:
                     raw = response.read(64 * 1024 * 1024 + 1)
                     if len(raw) > 64 * 1024 * 1024:
@@ -202,7 +235,18 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(raw)
         except PermissionError:
-            self.error_response(402, 'Campaign budget guard stopped this request before forwarding')
+            if directory is not None:
+                row = book.connection.execute('SELECT state FROM calls WHERE call_id=?', (call_id,)).fetchone()
+                save_new(directory / 'guard-denial.json', {
+                    'call_id': call_id, 'request_sha256': fingerprint(body),
+                    'forwarding_started': forwarding_started,
+                    'ledger_state': row[0] if row else None,
+                    'provider_usage': None if forwarding_started else {'prompt_tokens': 0, 'completion_tokens': 0},
+                    'outcome': 'requires_reconciliation' if forwarding_started else 'proven_unsent',
+                })
+            message = ('Campaign budget guard stopped this request after forwarding; reconciliation required'
+                       if forwarding_started else 'Campaign budget guard stopped this request before forwarding')
+            self.error_response(402, message)
         except (ValueError, KeyError, TypeError, OSError, RuntimeError) as exc:
             # Keep a bounded diagnostic for failed configuration gates. These are
             # outgoing request bodies, never authentication headers.

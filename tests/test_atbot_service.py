@@ -71,7 +71,8 @@ def test_configure_is_private_local_first_and_has_no_authority_fields(tmp_path: 
     result = manager.configure()
     value = json.loads(Path(result["config_path"]).read_text(encoding="utf-8"))
 
-    assert stat.S_IMODE(Path(result["config_path"]).stat().st_mode) == 0o600
+    from atmem.private_paths import private_path
+    assert private_path(Path(result['config_path']))
     assert value["remote_egress_allowed"] is False
     assert value["providers"][0]["endpoint"] == "http://127.0.0.1:11434"
     assert not ({"memory_path", "subject_id", "workspace_id", "agent_id"} & set(value))

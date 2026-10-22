@@ -665,7 +665,7 @@ def test_local_benchmark_resources_are_bounded(monkeypatch) -> None:
     )
 
     monkeypatch.setattr("platform.system", lambda: "Darwin")
-    monkeypatch.setattr("os.nice", lambda increment: 10 + increment)
+    monkeypatch.setattr("os.nice", lambda increment: 10 + increment,raising=False)
     receipt = configure_local_resource_limits()
     assert receipt == {
         "case_concurrency": 1,
