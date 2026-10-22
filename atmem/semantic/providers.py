@@ -65,7 +65,11 @@ class OllamaEmbedder:
         model_version: str = "unverified",
         dimensions: int | None = None,
         timeout: float = 120.0,
+        truncate: bool | None = None,
     ) -> None:
+        if truncate is not None and type(truncate) is not bool:
+            raise ValueError('truncate must be boolean or unspecified')
+        self.truncate = truncate
         self.model = model
         self.endpoint = _safe_endpoint(endpoint)
         self.timeout = timeout
@@ -98,6 +102,7 @@ class OllamaEmbedder:
             "normalization": "l2",
             "distance": "cosine",
             **self.profile,
+            **({"truncate": self.truncate} if self.truncate is not None else {}),
         }
 
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
@@ -121,6 +126,7 @@ class OllamaEmbedder:
                     "endpoint": self.endpoint,
                     "model_digest": self.model_digest,
                     "profile": self.profile,
+                    "truncate": self.truncate,
                     "scope": cache_scope,
                     "query_sha256": sha256(query_text.encode("utf-8")).hexdigest(),
                 },
@@ -148,7 +154,8 @@ class OllamaEmbedder:
     def _embed(self, texts: list[str]) -> list[list[float]]:
         response = _post_json(
             f"{self.endpoint}/api/embed",
-            {"model": self.model, "input": texts},
+            {"model": self.model, "input": texts,
+             **({"truncate": self.truncate} if self.truncate is not None else {})},
             timeout=self.timeout,
         )
         embeddings = response.get("embeddings")

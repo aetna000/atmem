@@ -146,6 +146,8 @@ class SQLiteStore:
 
     def reset_subject(self, subject_id: str) -> None:
         with self.transaction():
+            from atmem.context_engine.cache_lifecycle import purge_registered_part_caches
+            purge_registered_part_caches(self, subject_id)
             derived_subjects = [
                 str(row["derived_subject_id"])
                 for row in self._conn.execute(

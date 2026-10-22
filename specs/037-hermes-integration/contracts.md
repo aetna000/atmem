@@ -135,3 +135,26 @@ usage, redaction, retry deduplication, bounded export and installed qualificatio
 Release ordering is AtFlows 0.1.4b3 first, followed by the exact AtMem 2.3.8b6
 pin. The AtFlows artifact is verified before the AtMem candidate pins it. This
 is the coordinated prerelease checkpoint.
+
+## Benchmark checkpoint qualification addendum — 2026-10-20
+
+T012 is being implemented on the dedicated benchmark branch, not asserted as a
+capability of the published 2.3.9 wheel. A server-owned, persisted Hermes binding
+freeze denies `observe` at dispatch while retaining authorized fresh recall and
+append-only lifecycle evidence. A memory-write barrier serializes accepted
+observations and freeze across processes without holding the administrative
+revocation lock during slow extraction. Unknown client queues cannot be declared
+drained by the server: the driver must first require the ordinary provider's
+successful flush. Any subsequently submitted capture is explicitly rejected.
+
+The privileged local `HermesService.freeze_memory` method produces a
+`atmem-hermes-memory-checkpoint-v1` receipt containing the binding identity and
+the existing `atmem-canonical-memory-checkpoint-v1` content/generation identity.
+`verify_memory_checkpoint` reopens canonical storage and compares the identity.
+The receipt does not contain a database backup or secret material. The driver
+must separately preserve the encrypted database and its recovery dependencies.
+Only an authenticated administrator may freeze; agent RPC bodies cannot select,
+clear or override the freeze. Freeze is monotonic for that binding, including
+mode changes and credential rotation. A new ingestion uses a fresh isolated
+Home, not an undocumented unfreeze operation. Administrative out-of-band edits
+are not blocked, but checkpoint verification must detect canonical changes.

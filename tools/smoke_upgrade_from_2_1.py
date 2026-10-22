@@ -80,6 +80,7 @@ def create_fixture(root: Path) -> None:
         "2.3.6",
         "2.3.7",
         "2.3.8",
+        "2.3.9",
     }
     assert manifest["mode"] == "shadow"
     assert manifest["candidate_ids"]
@@ -96,7 +97,8 @@ def verify_upgrade(root: Path) -> None:
     expected_atmem = re.search(r'^version = "([^"]+)"$', metadata, re.MULTILINE).group(1)
     expected_atflows = re.search(r'"atflows==([^" ]+)"', metadata).group(1)
     assert importlib.metadata.version("atmem") == expected_atmem
-    assert importlib.metadata.version("atmem-atbot") == "0.1.0"
+    expected_atbot = re.search(r'"atmem-atbot==([^" ]+)"', metadata).group(1)
+    assert importlib.metadata.version("atmem-atbot") == expected_atbot
     assert importlib.metadata.version("atflows") == expected_atflows
 
     database = root / "memory.db"

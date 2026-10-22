@@ -131,7 +131,11 @@ def test_development_docs_match_companion_packaging() -> None:
     assert companion["required_distribution_dependency"] is True
     assert companion["separate_process"] is True
     assert companion["canonical_storage"] is False
-    assert capabilities["release_status"] == "stable"
+    package_version = re.search(r'^version = "([^"]+)"$', root_metadata, flags=re.MULTILINE).group(1)
+    assert capabilities["version"] == package_version
+    assert capabilities["release_status"] == (
+        "prerelease" if re.search(r"(?:a|b|rc)\d+$", package_version) else "stable"
+    )
 
     active_guides = (
         ROOT / "README.md",

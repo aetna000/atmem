@@ -136,6 +136,11 @@ process running as the same OS user. Never configure it on a shared gateway.
 Missing scope or unverified process origin fails closed. `requireOwner: false`
 and the complete mapping are both required; the default owner gate is unchanged.
 
+This origin-metadata-absent exception requires POSIX ownership and permissions.
+It is unavailable on Windows, where these bits do not prove ACL isolation.
+Windows integrations must supply authenticated owner metadata or an explicitly
+supported host-origin binding; absence continues to withhold delegated context.
+
 Logs distinguish identity failures from provider authentication failures.
 Real Mem0/Claude CLI acceptance passes on OpenClaw 2026.9.2 and 2026.9.3; see the
 [compatibility matrix](context-provider-adapters.md#226-delegated-host-compatibility).

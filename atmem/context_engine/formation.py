@@ -695,13 +695,15 @@ class FormationManager:
     def discard_generation(self, generation_id: str) -> None:
         with self.store.transaction():
             row = self.store._conn.execute(
-                "SELECT state FROM context_view_generations WHERE generation_id=?",
+                "SELECT state,subject_id FROM context_view_generations WHERE generation_id=?",
                 (generation_id,),
             ).fetchone()
             if row is None:
                 return
             if row["state"] == "active":
                 raise RuntimeError("active generation must be retired before deletion")
+            from .cache_lifecycle import purge_registered_part_caches
+            purge_registered_part_caches(self.store, str(row['subject_id']), generation_ids=(generation_id,))
             self.store._delete_context_fts_generation(generation_id)
             self.store._conn.execute(
                 "DELETE FROM context_view_generations WHERE generation_id=?",
@@ -865,6 +867,8 @@ class FormationManager:
             ).fetchall()
         )
         with self.store.transaction():
+            from .cache_lifecycle import purge_registered_part_caches
+            cache_cleanup = purge_registered_part_caches(self.store, str(source['subject_id']), generation_ids=generations)
             for generation_id in generations:
                 self.store._delete_context_fts_generation(generation_id)
                 self.store._conn.execute(
@@ -878,4 +882,5 @@ class FormationManager:
             "deleted": True,
             "source_id": source_id,
             "invalidated_generations": generations,
+            **({"semantic_cache_cleanup": cache_cleanup} if cache_cleanup else {}),
         }

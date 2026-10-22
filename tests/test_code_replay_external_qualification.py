@@ -133,7 +133,7 @@ def test_cleanup_failure_never_discards_worker_output(monkeypatch, cleanup_kind)
         return SimpleNamespace(returncode=1 if cleanup_kind == "nonzero" else 0, stdout=b"")
 
     monkeypatch.setattr(module.subprocess, "run", cleanup)
-    result = execute_worker([sys.executable, "-c", 'print("{\\"fixture\\": true}")'], {}, "fixture-no-container")
+    result = execute_worker([sys.executable, "-c", 'import sys; sys.stdout.buffer.write(b\'{"fixture": true}\\n\')'], {}, "fixture-no-container")
     assert base64.b64decode(result["raw_output_base64"]) == b'{"fixture": true}\n'
     assert result["raw_output_truncated"] is False
     if cleanup_kind in {"success", "already_removed"}:

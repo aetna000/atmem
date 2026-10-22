@@ -1,5 +1,6 @@
 """Independent graph boundary tests and optional pinned-source differentials."""
 import ast
+import os
 from copy import deepcopy
 from pathlib import Path
 import subprocess
@@ -76,7 +77,7 @@ def test_pinned_original_methods_differential():
     Source checkout is optional for distributed unit suites. Qualification on the
     maintainer machine must run this test without skipping it.
     """
-    checkout = Path("/tmp/atmem-code-research.yKNuul/cognee")
+    checkout = Path(os.environ.get("ATMEM_COGNEE_CHECKOUT", "/tmp/atmem-code-research.yKNuul/cognee"))
     if not checkout.is_dir():
         pytest.skip("pinned upstream source checkout not present")
     pin = "f154b32a9e544dac73e7ddf2010327cf9988edcd"

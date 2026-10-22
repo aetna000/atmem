@@ -441,9 +441,24 @@ for line in sys.stdin:
     print(json.dumps({"jsonrpc":"2.0","id":request.get("id"),"result":result}, separators=(",", ":")), flush=True)
 `);
   chmodSync(delegatedServer, 0o700);
+  let delegatedCommand = delegatedServer;
+  if (process.platform === "win32") {
+    // Windows CreateProcess does not execute a POSIX Python shebang. Build
+    // the same fixture as a native console launcher, using pip's distlib.
+    const launcher = spawnSync("python", ["-c", `
+import pathlib, sys
+from pip._vendor.distlib.scripts import ScriptMaker
+source = pathlib.Path(sys.argv[1])
+maker = ScriptMaker(None, str(source.parent))
+maker.executable = sys.executable
+maker._write_script([source.stem], maker._get_shebang("utf-8"), source.read_bytes(), [], "py")
+`, delegatedServer], { encoding: "utf8" });
+    assert.equal(launcher.status, 0, launcher.stderr);
+    delegatedCommand = delegatedServer.replace(/\.py$/, ".exe");
+  }
   const delegatedRuntime = fakeApi({
     ...base,
-    command: delegatedServer,
+    command: delegatedCommand,
     controlPlane: { enabled: true, statePath: path.join(dataDir, "unused-state.json") },
     agentWorkspaces: { main: path.join(dataDir, "delegated-workspace") },
     delegatedContext: { userId: "owner", requireOwner: true },
@@ -656,7 +671,7 @@ for line in sys.stdin:
   assert.ok(delegatedRuntime.logs.some(line => line.includes("delegated_sender_not_owner")));
   const localWorkspace = path.join(dataDir, "delegated-workspace");
   const localRuntime = fakeApi({
-    ...base, command: delegatedServer,
+    ...base, command: delegatedCommand,
     controlPlane: { enabled: true, statePath: path.join(dataDir, "unused-state.json") },
     agentWorkspaces: { main: localWorkspace },
     delegatedContext: { userId: "owner", requireOwner: false, localOperator: {

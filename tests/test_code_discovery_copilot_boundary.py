@@ -29,8 +29,12 @@ def test_installed_copilot_discovery_tool_reaches_local_model_input(tmp_path, mo
                 '--additional-mcp-config', json.dumps({'mcpServers': {'nav': mcp_server(env)}}),
                 '--allow-tool', 'nav(repository_discover)', '--disable-builtin-mcps', '--no-auto-update',
                 '--allow-tool', 'write', '--allow-tool', 'shell(python3:*)',
+                '--allow-tool', 'shell',
                 '--no-custom-instructions', '--no-ask-user', '--no-remote', '--no-remote-export',
                 '--output-format', 'json', '--silent'], cwd=env.root, env=environment, timeout=75)
+        (tmp_path/'provider-observations.json').write_text(json.dumps({
+            'requests':endpoint.requests,'stdout':result.stdout,'stderr':result.stderr},
+            ensure_ascii=False),encoding='utf-8')
         assert result.returncode == 0, result.stderr[-2000:] + result.stdout[-2000:]
         assert len(endpoint.requests) >= 6, json.dumps(endpoint.requests[0].get('tools', []))[:1500]
         wire = json.dumps(endpoint.requests)

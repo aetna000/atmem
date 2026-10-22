@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -338,7 +339,8 @@ def test_cli_observe_and_forget_artifact(tmp_path) -> None:
     envelope_path = tmp_path / "observation.json"
     envelope = _envelope()
     envelope_path.write_text(json.dumps(envelope), encoding="utf-8")
-    environment = {"PYTHONPATH": str(ROOT)}
+    environment = {"PYTHONPATH": str(ROOT), **{key:os.environ[key] for key in
+        ('USERPROFILE','SYSTEMROOT','WINDIR') if key in os.environ}}
 
     observed = subprocess.run(
         [

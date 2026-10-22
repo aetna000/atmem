@@ -13,6 +13,24 @@ from .contracts import QueryPlan
 from .planner import _action_content_facets, targeted_facets
 from .pools import POOL_KINDS, PoolBudget
 
+
+# A source-local lookup must start from its nominated source, not enumerate
+# every generation member before filtering r.source_id. This is the same
+# access-order boundary used by atomic source bundles. No row/policy changes.
+SOURCE_RAW_ROWS_SQL = """SELECT u.unit_id, r.part_id, r.start_offset, r.end_offset,
+                  p.content_bytes
+           FROM context_source_ranges r INDEXED BY idx_context_source_ranges_order
+           CROSS JOIN context_unit_ranges ur INDEXED BY idx_context_unit_ranges_range
+             ON ur.range_id=r.range_id AND ur.generation_id=?
+           CROSS JOIN context_evidence_units u
+             ON u.generation_id=ur.generation_id AND u.unit_id=ur.unit_id
+           CROSS JOIN context_unit_views v
+             ON v.generation_id=u.generation_id AND v.unit_id=u.unit_id
+           CROSS JOIN context_source_parts p
+             ON p.source_id=r.source_id AND p.part_id=r.part_id
+           WHERE r.source_id=? AND u.lifecycle='active' AND v.kind='raw_state'
+           ORDER BY p.ordinal, r.start_offset, r.end_offset, u.unit_id"""
+
 _STOP = {
     "a", "an", "and", "as", "be", "does", "do", "for", "how", "in", "is", "of",
     "the", "to", "what", "when", "where", "which", "why", "on", "with", "my",
@@ -151,9 +169,11 @@ class RetrievalResult:
 
 
 class DeterministicRetriever:
-    def __init__(self, store: SQLiteStore, *, budget: PoolBudget | None = None) -> None:
+    def __init__(self, store: SQLiteStore, *, budget: PoolBudget | None = None,
+                 balanced_pools: bool = False) -> None:
         self.store = store
         self.budget = budget or PoolBudget()
+        self.balanced_pools = balanced_pools
         self._cache: dict[tuple[object, ...], RetrievalResult] = {}
         self.cache_hits = 0
 
@@ -338,19 +358,7 @@ class DeterministicRetriever:
     ) -> tuple[RetrievedCandidate, ...]:
         """Return exact adjacent raw-state ranges around a nominated head."""
         rows = self.store._conn.execute(
-            """SELECT u.unit_id, r.part_id, r.start_offset, r.end_offset,
-                      p.content_bytes
-               FROM context_evidence_units u
-               JOIN context_unit_views v
-                 ON v.generation_id=u.generation_id AND v.unit_id=u.unit_id
-               JOIN context_unit_ranges ur
-                 ON ur.generation_id=u.generation_id AND ur.unit_id=u.unit_id
-               JOIN context_source_ranges r USING(range_id)
-               JOIN context_source_parts p
-                 ON p.source_id=r.source_id AND p.part_id=r.part_id
-               WHERE u.generation_id=? AND r.source_id=?
-                 AND u.lifecycle='active' AND v.kind='raw_state'
-               ORDER BY p.ordinal, r.start_offset, r.end_offset, u.unit_id""",
+            SOURCE_RAW_ROWS_SQL,
             (generation_id, head.source_id),
         ).fetchall()
         position = next(
@@ -381,19 +389,7 @@ class DeterministicRetriever:
     ) -> RetrievedCandidate:
         """Choose the exact range in one nominated source best aligned to the request."""
         rows = self.store._conn.execute(
-            """SELECT u.unit_id, r.part_id, r.start_offset, r.end_offset,
-                      p.content_bytes
-               FROM context_evidence_units u
-               JOIN context_unit_views v
-                 ON v.generation_id=u.generation_id AND v.unit_id=u.unit_id
-               JOIN context_unit_ranges ur
-                 ON ur.generation_id=u.generation_id AND ur.unit_id=u.unit_id
-               JOIN context_source_ranges r USING(range_id)
-               JOIN context_source_parts p
-                 ON p.source_id=r.source_id AND p.part_id=r.part_id
-               WHERE u.generation_id=? AND r.source_id=?
-                 AND u.lifecycle='active' AND v.kind='raw_state'
-               ORDER BY p.ordinal, r.start_offset, r.end_offset, u.unit_id""",
+            SOURCE_RAW_ROWS_SQL,
             (generation_id, seed.source_id),
         ).fetchall()
         query_terms = set(_fts_terms(query))
@@ -435,6 +431,7 @@ class DeterministicRetriever:
             generation_id, str(generation["state"]), int(generation["revision"]),
             plan.query_sha256, plan.plan_id, max_sources, allowed_digest,
             self.budget.per_pool, self.budget.total_units,
+            self.balanced_pools,
         )
         cached = self._cache.get(cache_key)
         if cached is not None:
@@ -456,7 +453,29 @@ class DeterministicRetriever:
             else 0
         )
         nomination_limit = self.budget.total_units - identity_navigation_reserve
-        for pool in POOL_KINDS:
+        active = [(pool, tuple(plan.pool_queries.get(pool) or ())) for pool in POOL_KINDS
+                  if plan.pool_queries.get(pool)]
+        if self.balanced_pools:
+            # Reserve nomination opportunity across evidence views before
+            # revisiting additional query variants. A verbose first pool must
+            # not spend the whole request budget before facts/rules are tried.
+            jobs = [(pool, queries[i]) for i in range(max((len(q) for _,q in active), default=0))
+                    for pool,queries in active if i < len(queries)]
+            for position,(pool,pool_query) in enumerate(jobs):
+                remaining = nomination_limit-scanned
+                if remaining <= 0:
+                    break
+                fair_limit = min(self.budget.per_pool, max(1, remaining//(len(jobs)-position)))
+                rows = self._pool(generation_id,pool,pool_query,allowed_unit_ids,result_limit=fair_limit)
+                by_pool_query[(pool,pool_query)] = rows
+                scanned += len(rows)
+                merged = {item.unit_id:item for item in by_pool.get(pool,())}
+                for item in rows:
+                    prior = merged.get(item.unit_id)
+                    if prior is None or item.score > prior.score:
+                        merged[item.unit_id] = item
+                by_pool[pool] = sorted(merged.values(), key=lambda item:(-item.score,item.source_id,item.unit_id))
+        for pool in (() if self.balanced_pools else POOL_KINDS):
             queries = plan.pool_queries.get(pool) or ()
             if not queries:
                 continue

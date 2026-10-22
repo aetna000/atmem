@@ -268,7 +268,10 @@ try {
       "reset withholds -> revoke withholds; counters agree",
   );
 } finally {
+  const closed = child.exitCode !== null || child.signalCode !== null
+    ? Promise.resolve() : new Promise(resolve => child.once("close", resolve));
   child.stdin.end();
   child.kill();
-  rmSync(dataDir, { recursive: true, force: true });
+  await closed;
+  rmSync(dataDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 }

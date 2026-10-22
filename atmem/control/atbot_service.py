@@ -13,14 +13,16 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from typing import Any
 
 from atmem.processes import pid_is_running
+from atmem.private_paths import protect_private_path
 from urllib.parse import urlparse
 
 
-PINNED_ATBOT_VERSION = "0.1.0"
+PINNED_ATBOT_VERSION = "0.1.1"
 ATBOT_DISTRIBUTION = "atmem-atbot"
 ATBOT_PROTOCOL_VERSION = "1"
 DEFAULT_ROOT = compatible_home_path("config/atbot", "atbot")
@@ -111,10 +113,16 @@ def _utc_now() -> str:
 
 def _write_private_json(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    temporary.chmod(0o600)
-    temporary.replace(path)
+    if os.name=='nt':protect_private_path(path.parent)
+    descriptor,name=tempfile.mkstemp(prefix='.atbot-',suffix='.tmp',dir=path.parent)
+    temporary=Path(name)
+    try:
+        with os.fdopen(descriptor,'w',encoding='utf-8') as output:
+            protect_private_path(temporary)
+            json.dump(value,output,indent=2,sort_keys=True)
+            output.write('\n');output.flush();os.fsync(output.fileno())
+        temporary.replace(path)
+    finally:temporary.unlink(missing_ok=True)
 
 
 class AtBotServiceManager:

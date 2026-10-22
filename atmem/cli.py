@@ -5527,6 +5527,8 @@ def _run_evidence(args: argparse.Namespace) -> None:
         descriptor = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         try:
             with os.fdopen(descriptor, "wb") as handle:
+                from atmem.private_paths import protect_private_path
+                protect_private_path(output)
                 for chunk in service.iter_plaintext_export(
                     principal, args.run_id, confirmation=args.confirm
                 ):

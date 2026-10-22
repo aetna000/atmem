@@ -35,7 +35,20 @@ research/jev_lab/results/
 # Raw benchmark outputs may contain licensed questions, answers and prompts.
 benchmarks/longmemeval_v2/results/
 
+# Private retrieval-development material: never stage benchmark prompts, task
+# selections, labels, model exchanges, tuning records or generated score tables.
+research/retrieval_2310/private/
+research/retrieval_2310/runs/
+research/retrieval_2310/evidence/
+research/retrieval_2310/archives/
+research/retrieval_2310/dolphin-working-*/
+research/retrieval_2310/dolphin-development-*/
+benchmarks/dolphinbench/runs/*
+!benchmarks/dolphinbench/runs/README.md
+specs/046-retrieval-performance-2310/validation.md
+
 # Node (OpenClaw plugin)
 node_modules/
+integrations/openclaw/node_modules
 integrations/openclaw/dist/
 integrations/openclaw/*.tgz

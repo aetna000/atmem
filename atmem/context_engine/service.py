@@ -26,15 +26,25 @@ from .contracts import (
 class StoredContextEngine:
     """Deterministic V3 engine over one verified derived generation."""
 
-    def __init__(self, store: object, *, generation_id: str) -> None:
+    def __init__(self, store: object, *, generation_id: str, candidate_budget: int | None = None,
+                 balanced_pools: bool = False) -> None:
         self.store = store
         self.generation_id = generation_id
+        if candidate_budget is not None and (type(candidate_budget) is not int or candidate_budget < 1):
+            raise ValueError('candidate budget must be positive')
+        self.candidate_budget = candidate_budget
+        self.balanced_pools = balanced_pools
+
+    @property
+    def identity(self):
+        return {'engine':'stored-v3', 'balanced_pools':self.balanced_pools}
 
     def select(
         self, request: ContextRequestV3, manifest: AuthorizedManifest
     ) -> EngineSelection:
         from .packing import derive_action_constraints, pack_context
         from .planner import DeterministicPlanner
+        from .pools import PoolBudget
         from .retrieval import DeterministicRetriever
         from .sufficiency import decide_sufficiency
 
@@ -44,7 +54,11 @@ class StoredContextEngine:
             if manifest.all_generation_units_authorized
             else frozenset(manifest.authorized_unit_ids)
         )
-        result = DeterministicRetriever(self.store).retrieve(
+        result = DeterministicRetriever(
+            self.store,
+            budget=PoolBudget(total_units=self.candidate_budget) if self.candidate_budget is not None else None,
+            balanced_pools=self.balanced_pools,
+        ).retrieve(
             generation_id=self.generation_id,
             query=request.query,
             plan=plan,
@@ -61,6 +75,8 @@ class StoredContextEngine:
         # would reload and expose evidence the packer explicitly excluded.
         selected = packed.included_unit_ids
         reason_codes = list(decision.reason_codes)
+        if self.balanced_pools:
+            reason_codes.append('pool_interleaving_v1')
         if decision.status == "sufficient" and not packed.complete:
             covered = {
                 obligation_id
@@ -101,6 +117,11 @@ class StoredContextEngine:
             ),
             reason_codes=tuple(reason_codes),
         )
+
+
+def balanced_context_engine(store, generation_id):
+    """Explicit application-selected engine; no changed default or authority."""
+    return StoredContextEngine(store,generation_id=generation_id,balanced_pools=True)
 
 
 def stored_manifest(

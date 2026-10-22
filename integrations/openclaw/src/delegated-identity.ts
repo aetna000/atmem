@@ -23,6 +23,9 @@ export function isolatedCliProcess(
   hostConfig: Record<string, unknown> | undefined,
   runtime = { argv: process.argv.slice(2), stateDir: process.env.OPENCLAW_STATE_DIR, uid: process.getuid?.() },
 ): boolean {
+  // POSIX ownership/mode bits cannot establish Windows ACL isolation. The
+  // normal authenticated-owner path remains available on every platform.
+  if (process.platform === "win32" || typeof runtime.uid !== "number") return false;
   const local = config.localOperator;
   if (!local?.isolated || !local.stateDir || !runtime.stateDir || !hostConfig) return false;
   if (!runtime.argv.includes("agent") || !runtime.argv.includes("--local")) return false;

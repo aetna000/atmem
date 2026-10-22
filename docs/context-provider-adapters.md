@@ -15,6 +15,19 @@ Installing or starting an adapter does not enable it. The safe sequence is:
 
 Disable the registration to return immediately to native AtMem authority.
 
+## Windows file privacy in the 2.3.10b1 candidate
+
+Provider setup protects signing keys, HMAC credentials and configuration using
+native owner-only Windows ACLs. macOS/Linux retain their private owner/mode
+checks. Reads reject broadly accessible files, reparse points and unverifiable
+ACLs rather than treating Windows mode bits as POSIX permissions. The current
+account and trusted OS authorities (SYSTEM/local Administrators) are the Windows
+boundary; this cannot protect against an administrator controlling the machine.
+Existing unsafe files require deliberate permission repair or isolated provider
+reinitialization, not a silent read-time repair. Unsupported ACL filesystems fail
+closed. The implementation uses the documented
+[Windows security descriptor API](https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-getnamedsecurityinfow).
+
 ## Mem0
 
 Use Mem0 OSS locally:

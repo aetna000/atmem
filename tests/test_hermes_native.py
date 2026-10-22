@@ -8,6 +8,8 @@ import pytest
 
 from atmem.hermes_install import install, inspect_install
 
+pytestmark=pytest.mark.skipif(os.name=='nt',reason='native Hermes installer explicitly qualifies macOS/Linux only; Windows service/RPC paths are tested separately')
+
 
 def native(home, mode):
     runtime = os.environ.get("HERMES_PYTHON")

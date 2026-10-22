@@ -23,6 +23,13 @@ class ControlDashboardServer(ThreadingHTTPServer):
         manager: ControlPlaneManager,
         *,
         html: str,
+        context_engine_factory=None,
+        state_assessor=None,
+        source_time_frames=False,
+        source_bundles=False,
+        initial_state_assessor=None,
+        allow_remote_initial_assessment=False,
+        initial_state_presentation='annotated-source',
     ) -> None:
         host, _ = address
         if host not in {"127.0.0.1", "::1", "localhost"}:
@@ -34,7 +41,10 @@ class ControlDashboardServer(ThreadingHTTPServer):
         self.application = AtMemApplication(manager)
         from atmem.adapters.hermes.service import HermesService
 
-        self.hermes_service = HermesService(manager)
+        self.hermes_service = HermesService(manager,context_engine_factory=context_engine_factory,state_assessor=state_assessor,source_time_frames=source_time_frames,source_bundles=source_bundles,
+            initial_state_assessor=initial_state_assessor,
+            allow_remote_initial_assessment=allow_remote_initial_assessment,
+            initial_state_presentation=initial_state_presentation)
         self.html = html
         self.csrf_token = secrets.token_urlsafe(32)
         self.hermes_requests = BoundedSemaphore(4)

@@ -30,10 +30,17 @@ from atmem.provider_adapters.models import ContextItem, ProviderProposal, Provid
 from atmem.provider_adapters.runtime import ProviderRuntime
 from atmem.provider_adapters.server import create_server
 from atmem.provider_adapters.signing import generate_keypair, load_private_key
+from atmem.private_paths import protect_private_path
+from tests.test_private_paths import make_public
 
 VECTOR_PATH = Path(__file__).parents[1] / "docs/contracts/delegated-request-auth-v1.json"
 VECTOR = json.loads(VECTOR_PATH.read_text())
 BINDING = DelegatedBinding("run", "turn", "session", "agent", "user", "workspace")
+
+
+@pytest.fixture(autouse=True)
+def private_fixture_directory(tmp_path):
+    protect_private_path(tmp_path)
 
 
 def message(headers: dict[str, str]) -> Message:
@@ -337,7 +344,7 @@ def test_secret_permissions_symlinks_and_key_separation(tmp_path):
     link.symlink_to(path)
     with pytest.raises(AuthenticationError):
         load_secret(link)
-    path.chmod(0o644)
+    make_public(path)
     with pytest.raises(AuthenticationError):
         load_secret(path)
 

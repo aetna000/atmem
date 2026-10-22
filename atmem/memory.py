@@ -2273,8 +2273,14 @@ class Memory:
             "audit_event_id": event_id,
         }
 
-    def prepare_context_v3(self, request: Any) -> Any:
-        """Prepare governed V3 context from the active compact generation."""
+    def prepare_context_v3(self, request: Any, *, engine: Any = None) -> Any:
+        """Prepare governed V3 context from the active compact generation.
+
+        An explicitly supplied host-neutral engine may nominate evidence; the
+        same canonical authority, egress, lifecycle, budget and audit validation
+        still applies. Omitting it preserves the existing deterministic engine.
+        This is a trusted application extension, not a model-callable parameter.
+        """
         from atmem.context_engine.contracts import ContextRequestV3
         from atmem.context_engine.formation import FormationManager
         from atmem.context_engine.service import (
@@ -2311,6 +2317,9 @@ class Memory:
                     "status": selection.status,
                     "selected_count": len(canonical),
                     "content_retained": False,
+                    **({"explicit_engine": type(engine).__name__,
+                        "engine_identity": getattr(engine, "identity", None)}
+                       if engine is not None else {}),
                 },
             ),
             expires_at=lambda: (
@@ -2318,8 +2327,57 @@ class Memory:
             ).isoformat(),
         )
         return service.prepare(
-            request, StoredContextEngine(self.store, generation_id=generation_id)
+            request, engine if engine is not None else StoredContextEngine(self.store, generation_id=generation_id)
         )
+
+    def open_evidence_discovery(self, request: Any, *, authorize: Any,
+                                budget: Any, semantic_nominate: Any = None,
+                                source_bundles: bool = False) -> Any:
+        """Open an application-authorized read-only investigative session.
+
+        The caller must hold this Memory instance open for the session lifetime.
+        ``authorize(request)`` must recheck the authenticated principal and return
+        exactly True. It is invoked before nomination and before disclosure.
+        Neither it nor optional nomination is supplied through model arguments.
+        This does not enable automatic injection/capture or assert sufficiency.
+        """
+        from atmem.context_engine.contracts import ContextRequestV3
+        from atmem.context_engine.discovery import EvidenceDiscoverySession
+        from atmem.context_engine.formation import FormationManager
+        from atmem.context_engine.navigator import NavigationBudget
+        from atmem.context_engine.service import GovernanceViolation, stored_manifest
+
+        if not isinstance(request, ContextRequestV3) or not isinstance(budget, NavigationBudget):
+            raise TypeError('typed context request and navigation budget required')
+        if not callable(authorize):
+            raise TypeError('discovery requires an application authorization callback')
+        if authorize(request) is not True:
+            raise PermissionError('discovery principal is not authorized')
+        if self.store.policy.state != 'encrypted':
+            raise PermissionError('discovery audit requires an encrypted memory store')
+        manager = FormationManager(self.store)
+        generation = manager.active_generation(request.scope)
+        if generation is None or int(generation['canonical_generation']) != request.generation:
+            raise GovernanceViolation('discovery request does not match active source')
+        generation_id = str(generation['generation_id'])
+
+        def live_manifest(value):
+            if authorize(value) is not True:
+                raise PermissionError('discovery principal authorization was revoked')
+            active = manager.active_generation(value.scope)
+            if (active is None or str(active['generation_id']) != generation_id
+                    or int(active['canonical_generation']) != value.generation):
+                raise GovernanceViolation('discovery active generation changed')
+            return stored_manifest(self.store,value,generation_id=generation_id)
+
+        return EvidenceDiscoverySession(self.store,generation_id=generation_id,
+            request=request,authorize=live_manifest,budget=budget,
+            semantic_nominate=semantic_nominate,source_bundles=source_bundles,
+            audit=lambda response:self.store.append_audit_event(
+                subject_id=request.scope.subject_id,event_type='context.discovery.prepared',
+                actor=request.scope.agent_id,turn_id=_turn_id(request.turn_id),
+                payload={'format':'atmem-discovery-audit-v1','response':response,
+                         'delivery_assurance':'prepared_only'}))
 
     def memory_lineage(
         self, subject_id: str, record_id: str | None = None
@@ -4286,6 +4344,10 @@ class Memory:
             cleanup_results: list[dict[str, Any]] = []
             for path_text, registry in sorted(registered_by_path.items()):
                 index_path = Path(path_text)
+                from atmem.context_engine.cache_lifecycle import is_part_cache, purge_part_cache
+                if is_part_cache(registry):
+                    cleanup_results.append(purge_part_cache(self.store, registry, subject_id))
+                    continue
                 if not index_path.exists():
                     raise RuntimeError(
                         "registered semantic index is missing; deletion cannot "

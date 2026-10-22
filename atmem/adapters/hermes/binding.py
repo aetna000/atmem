@@ -48,7 +48,10 @@ class HermesMemoryBinding:
 
     def __init__(self, manager: Any, identity: AtMemAdapterIdentity, *,
                  profile_id: str, enabled: bool = False, influence: bool | None = None,
-                 max_context_chars: int = 4096):
+                 max_context_chars: int = 4096, memory_engine: str = "control",
+                 history_import_authorized: bool = False, context_engine_factory=None,
+                 initial_state_assessor=None, initial_state_authorize=None,
+                 initial_state_presentation='annotated-source'):
         self.manager = manager
         self.identity = replace(identity, framework="hermes")
         self.profile_id = _identifier(profile_id, "profile_id")
@@ -61,7 +64,27 @@ class HermesMemoryBinding:
         self.enabled = bool(enabled)
         self.influence = self.enabled if influence is None else bool(influence)
         self.max_context_chars = max_context_chars
+        if memory_engine not in {"control", "context-v3"}:
+            raise ValueError("unsupported Hermes memory engine")
+        if memory_engine == "context-v3" and history_import_authorized is not True:
+            raise PermissionError("V3 requires explicit administrator history-import authority")
+        self.memory_engine = memory_engine
+        self.context_engine_factory = context_engine_factory
+        self.initial_state_assessor = initial_state_assessor
+        self.initial_state_authorize = initial_state_authorize
+        self.initial_state_presentation=initial_state_presentation
         self.application = AtMemApplication(manager)
+
+    def v3(self):
+        if self.memory_engine != "context-v3":
+            raise PermissionError("V3 memory was not selected for this binding")
+        self._scope()
+        from .v3 import V3HistoryBinding
+        return V3HistoryBinding(self.manager, self.identity, self.profile_id,
+                                context_engine_factory=self.context_engine_factory,
+                                initial_state_assessor=self.initial_state_assessor,
+                                initial_state_authorize=self.initial_state_authorize,
+                                initial_state_presentation=self.initial_state_presentation)
 
     def _scope(self) -> None:
         """Topology, not request content, binds agent/subject/workspace."""
@@ -146,6 +169,11 @@ class HermesMemoryBinding:
             session = self._session(session_id)
             turn = _identifier(turn_id, "turn_id")
             run_id = self._run_id(session_id, turn)
+            if self.memory_engine == "context-v3":
+                state, warning = self.manager.effective_state()
+                if warning or not state.mode.influences_agent:
+                    return RecallResult("", "withheld")
+                return RecallResult(**self.v3().recall(query, turn_id=turn))
             prepared = self.manager.prepare(
                 query, allow_delegation=False, session_id=session,
                 host_run_id=run_id, turn_id=turn,
@@ -187,6 +215,14 @@ class HermesMemoryBinding:
             raise ValueError("user text must contain 1–65536 characters")
         session = self._session(session_id)
         observation = _identifier(observation_id, "observation_id")
+        if self.memory_engine == "context-v3":
+            state, warning = self.manager.effective_state()
+            if warning or not state.mode.captures:
+                return {"captured": False, "reason": "migration is off"}
+            try:
+                return self.v3().observe(text, session_id=session, observation_id=observation)
+            except Exception:
+                raise APIError("observation_uncertain", "inspect the observation outcome before retrying", status=409) from None
         key = hashlib.sha256(canonical_json([session, observation]).encode()).hexdigest()
         principal = APIPrincipal(
             principal_id=self.profile_id, role="agent",
@@ -204,7 +240,9 @@ class HermesMemoryBinding:
 
     def status(self) -> dict[str, Any]:
         return {
-            "profile": PROFILE, "enabled": self.enabled,
+            "profile": "authorized-at-recall-context-v3" if self.memory_engine == "context-v3" else PROFILE,
+            "enabled": self.enabled,
+            "memory_engine": self.memory_engine,
             "mode": "active" if self.enabled and self.influence else
                     "shadow" if self.enabled else "inactive",
             "profile_id": self.profile_id, "agent_id": self.identity.agent_id,

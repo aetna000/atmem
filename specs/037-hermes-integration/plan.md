@@ -5,6 +5,26 @@ implementation must resolve its gates before activation or paid evaluation.
 
 ## Technical context and ownership
 
+### V3 correction implementation slice — 2026-10-21
+
+Keep formation, planning, selection and packing in the existing V3 core. Add a
+product-owned `atmem/adapters/hermes/v3.py` bridge, selected by a persisted,
+admin-only provisioning option. Reuse scoped RPCs, native provider lifecycle,
+encrypted binding records and write barrier. Never monkeypatch the manager or
+implement memory semantics in the benchmark. Legacy provisioning stays default.
+
+Extend product freeze to activate the V3 generation and fingerprint scoped source
+bytes, generation configuration, units, ranges, relationships, coverage and
+vectors. Preserve read-only retrieval telemetry outside this identity. Add
+versioned client response bounds for 32,000-byte V3 context and keep old limits
+unchanged for legacy replies. Benchmark host selects the product profile only
+for a new explicitly named condition; stopped stores cannot migrate implicitly.
+
+Run direct public-API equivalence, negative authority/idempotency/secret/freeze
+tests, existing Hermes/V3 regressions, then build/install an explicit patched
+research wheel and run native history-only qualification. A future customer
+release must separately publish this changed integration; no current tag moves.
+
 AtMem is Python 3.10–3.13 with a local service, canonical storage, encrypted
 evidence, framework adapters and a dashboard. Hermes is an independently managed
 agent runtime. Use a profile-local directory provider with minimal host-side

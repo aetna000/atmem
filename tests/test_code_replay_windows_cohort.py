@@ -31,7 +31,7 @@ def test_adapters_preserve_caps_auth_cleanup_and_source_isolation():
 
 
 def test_stage_case_descriptors_keep_real_atmem_database_and_home():
-    from pathlib import Path
+    from pathlib import PurePosixPath as Path  # this AST executes in the Linux/WSL worker
     tree = ast.parse(stage_program())
     node = next(n for n in ast.walk(tree) if isinstance(n, ast.Assign)
         and any(isinstance(t, ast.Subscript) and isinstance(t.value, ast.Name) and t.value.id == 'cases' for t in n.targets))

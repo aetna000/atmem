@@ -51,6 +51,17 @@ def make_handler(companion: CompanionRuntime, token: str):
                 return
             try:
                 value = self._body()
+                if self.path == "/api/companion/source-state/assess":
+                    if set(value) - {"query", "evidence", "remote"}:
+                        raise ValueError("source-state assessment contains unknown fields")
+                    from atbot.state_assessment import validate_input
+                    query, evidence = value.get("query"), value.get("evidence")
+                    validate_input(query, evidence)
+                    remote = value.get("remote", False)
+                    if type(remote) is not bool:
+                        raise ValueError("remote must be a boolean")
+                    self._json(200, companion.assess_memory_state(query, evidence, remote=remote))
+                    return
                 if self.path == "/api/companion/expand-query":
                     if set(value) - {"query"}:
                         raise ValueError("query expansion accepts query only")

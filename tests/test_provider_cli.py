@@ -26,8 +26,9 @@ def test_provider_init_is_private_and_does_not_enable_authority(tmp_path: Path, 
     root = tmp_path / "providers" / "memories"
     assert result["startup_enabled_authority"] is False
     assert result["authority_activation"] == "separate_atmem_delegated_registration"
-    assert root.joinpath("config.json").stat().st_mode & 0o777 == 0o600
-    assert root.joinpath("private.key").stat().st_mode & 0o777 == 0o600
+    from atmem.private_paths import private_path
+    assert private_path(root.joinpath("config.json"))
+    assert private_path(root.joinpath("private.key"))
     assert "--workspace YOUR_WORKSPACE --agent YOUR_AGENT --user YOUR_USER" in result["registration_command"]
     assert "enable" not in result["registration_command"]
 

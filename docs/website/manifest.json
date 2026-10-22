@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.9",
+  "version": "2.3.10b1",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -11,6 +11,10 @@
     "releases": "Releases"
   },
   "pages": [
+    {"slug": "releases/2.3.10b1", "title": "AtMem 2.3.10b1 — Bounded evidence discovery (beta)", "source": "docs/releases/v2.3.10b1.md"},
+    {"slug": "reference/release-qualification", "title": "2.3.10b1 release qualification", "source": "docs/releases/v2.3.10b1-qualification.md"},
+    {"slug": "integrations/evidence-discovery", "title": "Evidence discovery: opt-in beta", "source": "docs/evidence-discovery.md"},
+    {"slug": "reference/evidence-discovery", "title": "Evidence discovery contract", "source": "docs/contracts/evidence-discovery-v1.md"},
     {"slug": "releases/2.3.9", "title": "AtMem 2.3.9 — Shared coding memory", "source": "docs/releases/v2.3.9.md"},
     {"slug": "integrations/code", "title": "AtMem Code: start here", "source": "docs/atmem-code.md"},
     {"slug": "reference/code-structure", "title": "Code structure, MCP and portable memory", "source": "docs/atmem-code-structure.md"},

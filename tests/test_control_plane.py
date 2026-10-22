@@ -140,11 +140,13 @@ def test_status_lists_local_storage_paths_and_shared_graph_store(tmp_path: Path)
     assert storages["vectors"]["exists"] is True
     assert storages["vectors"]["ready"] is False
     setup = "\n".join(storages["vectors"]["setup_commands"])
+    import os
+    memory_token=("'"+str(memory_db.resolve()).replace("'","''")+"'") if os.name=='nt' else str(memory_db.resolve())
     assert '-m pip install "sentence-transformers>=5.0.0,<6.0.0"' in setup
-    assert f"-m atmem.cli index build {memory_db.resolve()}" in setup
-    assert "--subject local-user" in setup
+    assert f"-m atmem.cli index build {memory_token}" in setup
+    assert ("--subject 'local-user'" if os.name=='nt' else '--subject local-user') in setup
     assert "--embedder sentence-transformers --model all-MiniLM-L6-v2" in setup
-    assert f"-m atmem.cli index verify {memory_db.resolve()}" in setup
+    assert f"-m atmem.cli index verify {memory_token}" in setup
     assert storages["evidence"]["exists"] is True
     assert Path(storages["evidence"]["path"]).name == "evidence.db"
 
@@ -710,7 +712,7 @@ def test_dashboard_is_direct_on_loopback_and_uses_csrf_for_mutations(
         ]
         product = json.loads(opener.open(f"{base}/api/product").read())
         assert product["atmem_pip_version"]
-        assert product["atmem_npm_version"] == "2.3.9"
+        assert product["atmem_npm_version"] == atmem.openclaw_install.OPENCLAW_PLUGIN_VERSION
         assert product["x_url"] == "https://x.com/AtMemX"
         profiles = json.loads(opener.open(f"{base}/api/companion/profiles").read())
         assert {"local-ollama", "openai", "anthropic"} <= set(profiles["providers"])

@@ -19,6 +19,18 @@ from atmem.evidence import EvidencePrincipal, EvidenceRole, EvidenceScope
 from atmem.integrations.atflows import fetch_traces, review_leads
 
 
+class FixtureDirectory(tempfile.TemporaryDirectory):
+    def cleanup(self):
+        if os.name=='nt' and not self.name.startswith('\\\\?\\'):
+            absolute=os.path.abspath(self.name)
+            self.name=('\\\\?\\UNC\\'+absolute[2:] if absolute.startswith('\\\\') else '\\\\?\\'+absolute)
+        for attempt in range(20):
+            try:return super().cleanup()
+            except OSError as exc:
+                if os.name!='nt' or getattr(exc,'winerror',None) not in {5,32,145} or attempt==19:raise
+                time.sleep(0.1)  # terminated Bun file handles may close asynchronously
+
+
 def _free_port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -30,7 +42,7 @@ def main() -> None:
     atflows_version = subprocess.check_output([atflows_bin, "--version"], text=True).strip()
     if version("atflows") != "0.1.4" or atflows_version != "atflows 0.1.4":
         raise RuntimeError("AtFlows installed version does not match the pinned handoff")
-    with tempfile.TemporaryDirectory(prefix="atmem-atflows-smoke-") as root:
+    with FixtureDirectory(prefix="atmem-atflows-smoke-") as root:
         root_path = Path(root)
         port = _free_port()
         environment = os.environ.copy()
@@ -39,6 +51,8 @@ def main() -> None:
             "DASHBOARD_PORT": str(port),
             "PROXY_PORT": str(_free_port()),
             "ATFLOWS_ADMIN_PASSWORD": "fixture-password-long-enough",
+            "ATFLOWS_STATE_DIR": str(root_path / 'instances'),
+            "ATFLOW_RUNTIME_DIR": str(root_path / 'runtime'),
         })
         origin = f"http://127.0.0.1:{port}"
         with (root_path / "server.log").open("wb") as log:
@@ -116,12 +130,18 @@ def main() -> None:
                     raise RuntimeError("AtMem human review did not preserve the handoff or redaction boundary")
                 print(f"{atflows_version} + AtMem local handoff passed: {len(report['leads'])} lead")
             finally:
-                process.terminate()
+                if os.name=='nt' and process.poll() is None:
+                    subprocess.run(['taskkill.exe','/PID',str(process.pid),'/T','/F'],
+                        stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=True,timeout=10)
+                elif process.poll() is None:process.terminate()
                 try:
                     process.wait(timeout=10)
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=5)
+                if os.name=='nt':
+                    # Windows may release child SQLite handles after the parent.
+                    time.sleep(0.2)
 
 
 if __name__ == "__main__":

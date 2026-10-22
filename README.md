@@ -1,6 +1,12 @@
 # AtMem
 
-[![Version 2.3.9](https://img.shields.io/badge/version-2.3.9-blue)](./docs/releases/v2.3.9.md)
+[![Version 2.3.10b1 candidate](https://img.shields.io/badge/version-2.3.10b1-orange)](./docs/releases/v2.3.10b1.md)
+
+> **Beta preparation: 2.3.10b1** adds opt-in, bounded source-evidence discovery.
+> Read the [beta guide](./docs/evidence-discovery.md) and
+> [qualification report](./docs/releases/v2.3.10b1-qualification.md).
+> The stable install examples below remain pinned to 2.3.9; a candidate source
+> version does not mean the beta has been published.
 [![CI](https://github.com/aetna000/atmem/actions/workflows/ci.yml/badge.svg)](https://github.com/aetna000/atmem/actions/workflows/ci.yml)
 
 ![AtMem: the memory control plane under every agent. Your agent runtime perceives, plans, acts and reflects; AtMem returns governed context only when policy allows, records every model and tool event in the Agent Black Box, and admits memory candidates under its own authority, with shadow mode, activation and restore.](./docs/assets/atmem-memory-control-plane.png)
@@ -737,12 +743,11 @@ npm test
 npm run smoke
 ```
 
-This release line is **2.3.9** with matching OpenClaw bridge source
-**2.3.9**. Release validation requires exact Python/bridge alignment; AtBot
-retains its independent compatible version **0.1.0** and the tested AtFlows pin
-is **0.1.4**. Use the [release note](docs/releases/v2.3.9.md) for exact upgrade
-commands and the [release page](https://github.com/aetna000/atmem/releases/tag/v2.3.9)
-for publication artifacts.
+This candidate source line is **2.3.10b1**, with OpenClaw bridge
+**2.3.10-beta.1**, AtBot **0.1.1**, and unchanged AtFlows **0.1.4**.
+Use the [beta release note](docs/releases/v2.3.10b1.md) for opt-in commands and
+the [qualification report](docs/releases/v2.3.10b1-qualification.md) for status.
+Stable users can retain **2.3.9** and its matching bridge/AtBot pins.
 
 ## License
 

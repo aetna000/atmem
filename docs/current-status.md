@@ -1,14 +1,17 @@
 # Current status
 
-**Stable release line:** AtMem `2.3.6`, OpenClaw bridge `2.3.6`, AtBot
-`0.1.0`, and pinned AtFlows `0.1.2`. AtMem `2.3.7b2` and OpenClaw bridge
-`2.3.7-beta.2` are the Windows concurrency and durability prerelease line; AtBot
-and AtFlows remain unchanged. See the
-[2.3.7b2 prerelease note](releases/v2.3.7b2.md), the
-[2.3.6 release notes](releases/v2.3.6.md), the historical
-[2.3.6b1 prerelease note](releases/v2.3.6b1.md), and the
-[Memory Integrity Benchmark report](benchmarks/memory-integrity.md).
-The stable 2.3.6 wheel has a checksum-verified 700-trial evidence package in
+**Stable release line:** AtMem `2.3.9`, OpenClaw bridge `2.3.9`, AtBot
+`0.1.0`, and pinned AtFlows `0.1.4`. See the
+[2.3.9 release note](releases/v2.3.9.md).
+
+**Prepared candidate:** AtMem `2.3.10b1`, OpenClaw bridge `2.3.10-beta.1`,
+AtBot `0.1.1`, AtFlows `0.1.4`. New evidence discovery is opt-in SDK/host
+functionality; ordinary memory and Code defaults remain unchanged.
+Qualification, publication and the planned full benchmark are separate gates;
+see the [candidate qualification report](releases/v2.3.10b1-qualification.md).
+No full-benchmark superiority is claimed by preparing this version.
+
+**Historical integrity evidence:** the stable 2.3.6 wheel has a checksum-verified 700-trial evidence package in
 [upstream PR #1](https://github.com/iluxu/memory-integrity-benchmark/pull/1):
 400 `PASS`, 300 `NOT_REPRESENTABLE`, and no failures or errors. Placement
 remains provisional until upstream review completes.
@@ -23,8 +26,8 @@ and [graph implementation and four-profile results](implementation-evidence/031/
 for the measured results behind both, and the
 [continuing retrieval research](../specs/031-mem0-head-to-head-retrieval/spec.md).
 
-AtMem 2.3.6 is the stable local encrypted Agent Black Box and governed-memory
-release. It adds canonical secret refusal, direct-parent taint propagation,
+The 2.3.6 Agent Black Box and governed-memory foundation remains in the current
+release. It introduced canonical secret refusal, direct-parent taint propagation,
 issued procedure-review authority, and portable Windows-safe locking. The
 package records exact host-observed text, URLs, tool arguments and
 results plus supported image, audio, video and document bytes when capture mode is
@@ -72,6 +75,6 @@ streams and deduplicates content. Post-quantum recipient export activates when
 its optional cryptographic backend is installed; local at-rest payload encryption
 uses the documented authenticated symmetric profile.
 
-See the [2.3.6 release notes](releases/v2.3.6.md) for upgrade and migration commands,
+See the [2.3.9 release notes](releases/v2.3.9.md) for stable upgrade and migration commands,
 and the [implementation evidence index](implementation-evidence/README.md) for the
 recorded gates.

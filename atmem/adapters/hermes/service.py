@@ -23,6 +23,7 @@ from atmem.locking import ProcessFileLock
 from atmem.service import APIError, APIPrincipal
 
 from .binding import HermesMemoryBinding, _identifier
+from .discovery_host import DiscoveryHost
 
 _HERMES_EVENT_TYPES = frozenset({
     "turn.input", "context.disposition", "model.input", "model.output", "turn.ended",
@@ -51,15 +52,37 @@ def _write_events(binding: Any, events: list[dict[str, Any]]) -> bool:
     return True
 
 
-class HermesService:
+class HermesService(DiscoveryHost):
     """Transport never accepts caller-selected scope or a shared dashboard token.
 
     Bindings use the existing encrypted identity-key custody, separately from
     the execution store so a slow model call cannot lock out revocation.
     """
 
-    def __init__(self, manager: Any):
+    def __init__(self, manager: Any, *, context_engine_factory=None,state_assessor=None,source_time_frames=False,source_bundles=False,
+                 initial_state_assessor=None, allow_remote_initial_assessment=False,
+                 initial_state_presentation='annotated-source'):
+        if context_engine_factory is not None and not callable(context_engine_factory):
+            raise TypeError('context engine factory must be application-owned callable')
         self.manager = manager
+        self.context_engine_factory = context_engine_factory
+        if state_assessor is not None and not callable(state_assessor):raise TypeError('state assessor must be application-owned')
+        self.state_assessor=state_assessor
+        if type(source_time_frames) is not bool:raise TypeError('explicit temporal frame selection required')
+        self.source_time_frames=source_time_frames
+        if type(source_bundles) is not bool:raise TypeError('explicit source bundle selection required')
+        self.source_bundles=source_bundles
+        if type(allow_remote_initial_assessment) is not bool:
+            raise TypeError('explicit initial-assessment egress selection required')
+        if initial_state_assessor is not None and (
+                not callable(initial_state_assessor) or not allow_remote_initial_assessment):
+            raise ValueError('initial assessor requires application ownership and explicit egress')
+        self.initial_state_assessor=initial_state_assessor
+        if initial_state_presentation not in {'annotated-source','dossier'}:
+            raise ValueError('unknown initial source presentation')
+        if initial_state_presentation=='dossier' and initial_state_assessor is None:
+            raise ValueError('source dossier requires an explicitly configured assessor')
+        self.initial_state_presentation=initial_state_presentation
         self._recover_spools()
 
     @staticmethod
@@ -150,9 +173,9 @@ class HermesService:
                 continue
 
     @contextmanager
-    def _locked(self):
+    def _locked(self, lock_name: str = ".hermes.lock"):
         state = self.manager.state()
-        lock = ProcessFileLock(Path(state.control_dir) / ".hermes.lock")
+        lock = ProcessFileLock(Path(state.control_dir) / lock_name)
         deadline = time.monotonic() + 2.0
         while True:
             try:
@@ -239,7 +262,7 @@ class HermesService:
 
     @staticmethod
     def _public(row: dict[str, Any]) -> dict[str, Any]:
-        return {key: value for key, value in row.items() if key != "token_digest"}
+        return {key: value for key, value in row.items() if key not in {"token_digest","discovery_leases"}}
 
     def _binding(self, row: dict[str, Any]) -> HermesMemoryBinding:
         return HermesMemoryBinding(
@@ -247,12 +270,110 @@ class HermesService:
             profile_id=row["profile_id"], enabled=row["enabled"],
             influence=row.get("influence", row["enabled"]),
             max_context_chars=row["max_context_chars"],
+            memory_engine=row.get("memory_engine", "control"),
+            history_import_authorized=row.get("history_import_authorized", False),
+            context_engine_factory=self.context_engine_factory,
+            initial_state_assessor=self.initial_state_assessor,
+            initial_state_presentation=self.initial_state_presentation,
+            initial_state_authorize=lambda:self._initial_state_authority(
+                row['binding_id'],row['generation']),
         )
+
+    def _initial_state_authority(self, binding_id, generation):
+        with self._locked():
+            row=self._load(binding_id)
+            if row['generation'] != generation:
+                return False
+            self._discovery_authority(row)
+            return True
+
+    def _canonical_checkpoint(self, row: dict[str, Any]) -> dict[str, Any]:
+        from atmem.memory import Memory
+
+        identity = row["identity"]
+        scope, path = self.manager._memory_authority_scope(
+            self.manager.state(), subject_id=identity["subject_id"],
+            agent_id=identity["agent_id"],
+        )
+        if scope.workspace_id != identity["workspace_id"]:
+            raise PermissionError("checkpoint workspace changed")
+        memory = Memory(path, retain_query_text=False)
+        try:
+            checkpoint = memory.memory_checkpoint(scope)
+            if row.get("memory_engine") == "context-v3":
+                checkpoint["context_engine"] = self._binding(row).v3().checkpoint()
+            return checkpoint
+        finally:
+            memory.close()
+
+    def freeze_memory(self, principal: APIPrincipal, binding_id: str) -> dict[str, Any]:
+        """Privileged monotonic freeze; callers must drain the host queue first."""
+        self._admin(principal)
+        # The separate barrier drains accepted observes without locking revoke
+        # during slow extraction. A busy barrier fails rather than claiming freeze.
+        with self._locked(".hermes-memory-write.lock"):
+            with self._locked():
+                row = self._load(_identifier(binding_id, "binding_id"))
+                self._owner(principal, row)
+                self._binding(row)._scope()
+                if row["revoked"] or row["expires_at"] <= time.time():
+                    raise PermissionError("cannot freeze a revoked or expired binding")
+                if row.get("memory_checkpoint") is not None:
+                    if self._canonical_checkpoint(row) != row["memory_checkpoint"]["canonical"]:
+                        raise ValueError("frozen canonical memory changed")
+                    return copy.deepcopy(row["memory_checkpoint"])
+                if row.get("memory_engine") == "context-v3":
+                    self._binding(row).v3().freeze()
+                checkpoint = {
+                    "format": "atmem-hermes-memory-checkpoint-v1",
+                    "binding_id": row["binding_id"], "profile_id": row["profile_id"],
+                    "canonical": self._canonical_checkpoint(row),
+                    "frozen_at": _event_time(),
+                }
+                row["memory_frozen"] = True
+                row["memory_checkpoint"] = checkpoint
+                row["generation"] += 1
+                self._save(row)
+                return copy.deepcopy(checkpoint)
+
+    def verify_memory_checkpoint(self, principal: APIPrincipal, binding_id: str,
+                                 checkpoint: dict[str, Any]) -> None:
+        self._admin(principal)
+        with self._locked(".hermes-memory-write.lock"):
+            with self._locked():
+                row = self._load(_identifier(binding_id, "binding_id"))
+                self._owner(principal, row)
+                self._binding(row)._scope()
+                if (not row.get("memory_frozen") or
+                        row.get("memory_checkpoint") != checkpoint or
+                        self._canonical_checkpoint(row) != checkpoint.get("canonical")):
+                    raise ValueError("frozen canonical memory checkpoint mismatch")
+
+    def export_context_memory(self, principal: APIPrincipal, binding_id: str, destination) -> dict[str, Any]:
+        """Admin-authorized V3 source/evidence export; no credentials or keys."""
+        self._admin(principal)
+        with self._locked(".hermes-memory-write.lock"):
+            with self._locked():
+                row = self._load(_identifier(binding_id, "binding_id"))
+                self._owner(principal, row)
+                binding = self._binding(row)
+                binding._scope()
+                if row["revoked"] or row["expires_at"] <= time.time():
+                    raise PermissionError("cannot export a revoked or expired binding")
+            return binding.v3().export(destination, actor=principal.principal_id)
 
     def provision(self, principal: APIPrincipal, *, profile_id: str,
                   agent_id: str, workspace_id: str, user_id: str | None = None,
-                  accept_reduced_capture: bool = False) -> dict[str, Any]:
+                  accept_reduced_capture: bool = False,
+                  memory_engine: str = "control",
+                  authorize_history_import: bool = False) -> dict[str, Any]:
         self._admin(principal)
+        if memory_engine not in {"control", "context-v3"}:
+            raise ValueError("unsupported Hermes memory engine")
+        if memory_engine == "context-v3" and authorize_history_import is not True:
+            raise PermissionError("V3 requires explicit administrator history-import authority")
+        if authorize_history_import and memory_engine != "context-v3":
+            raise ValueError("history-import authority requires the V3 engine")
         if accept_reduced_capture is not True:
             raise ValueError("this Hermes profile requires explicit acceptance of memory-only capture")
         profile_id = _identifier(profile_id, "profile_id")
@@ -264,6 +385,15 @@ class HermesService:
             framework="hermes",
         )
         self._owner(principal, {"identity": asdict(identity)})
+        if memory_engine == "context-v3":
+            from atmem.service.household import HouseholdApplication
+            scope, path = self.manager._memory_authority_scope(
+                self.manager.state(), subject_id=identity.subject_id, agent_id=identity.agent_id)
+            if scope.workspace_id != identity.workspace_id:
+                raise PermissionError("V3 workspace does not match the authority scope")
+            status = HouseholdApplication.status(path)
+            if status["state"] != "encrypted" or not status["encrypted_header"]:
+                raise PermissionError("V3 binding requires an initialized encrypted household")
         with self._locked():
             self._binding({"identity": asdict(identity), "profile_id": profile_id,
                            "enabled": False, "max_context_chars": 4096})._scope()
@@ -287,6 +417,8 @@ class HermesService:
                 "token_digest": hashlib.sha256(token.encode()).hexdigest(),
                 "generation": 1, "enabled": False, "revoked": False,
                 "influence": False,
+                "memory_engine": memory_engine,
+                "history_import_authorized": memory_engine == "context-v3",
                 "expires_at": int(time.time()) + 90 * 86400,
                 "max_context_chars": 4096, "capture_coverage": "memory_operations_only",
                 "reconstructable": False, "reduced_capture_accepted": True,
@@ -375,6 +507,8 @@ class HermesService:
         return row
 
     def dispatch(self, token: str, operation: str, body: dict[str, Any]) -> dict[str, Any]:
+        if operation in {'discovery-search','discovery-inspect'}:
+            return self.dispatch_discovery(token,operation,body)
         allowed = {"status": set(), "recall": {"query", "session_id", "turn_id"},
                    "prepare-turn": {"query", "session_id", "turn_id", "model",
                                     "platform", "prompt_sha256", "prompt_chars"},
@@ -418,6 +552,7 @@ class HermesService:
             if operation == "status":
                 return {**binding.status(), "binding_id": row["binding_id"],
                         "generation": row["generation"], "expires_at": row["expires_at"],
+                        "memory_frozen": row.get("memory_frozen", False),
                         "reconstructable": False}
             if not binding.enabled:
                 raise APIError("inactive", "Hermes memory is not activated", status=403)
@@ -485,7 +620,17 @@ class HermesService:
             self._schedule_spool(spool)
             value["lifecycle_recorded"] = True
         elif operation == "observe":
-            value = binding.observe_user(**body)
+            with self._locked(".hermes-memory-write.lock"):
+                with self._locked():
+                    current = self._authenticate(token)
+                    if not current["enabled"]:
+                        raise APIError("inactive", "Hermes memory is not activated", status=403)
+                    if current.get("memory_frozen"):
+                        return {"captured": False, "reason": "memory_frozen",
+                                "memory_mutated": False}
+                    binding = self._binding(current)
+                    binding._scope()
+                value = binding.observe_user(**body)
         elif operation == "event":
             spool = self._spool_path(binding.profile_id, body["session_id"], body["turn_id"])
             self._write_spool(

@@ -1,5 +1,86 @@
 # Hermes qualification evidence — 2026-09-26
 
+## Completed 600-task research campaign — 2026-10-21
+
+T045 is complete: all 13,539 original history messages and all 600 tasks are covered.
+The tested V3/Hermes/Luna configuration passed **192/600 (32.0%)**: Morgan 82,
+Alex 62, Riley 48. It did not beat the published Mem0 reference (424/600);
+no fresh matched Mem0 arm or causal improvement is claimed.
+The original grade files and completed task outcomes remain unchanged.
+The unmodified upstream packager, saved-judge replay and ZIP round-trip checks
+validate both complete ZIP representations. Provider API extension metadata is
+canonicalized only in judge export copies using upstream `clean_message`;
+raw responses and reversible receipts remain retained. Installed/native product
+gates: 93 passed; current recording/export gates: 44 passed.
+
+Both the final ZIP archive and supplementary raw app/judge/portable-memory bundle
+were uploaded and independently downloaded with matching checksums. Final archive
+commit: `594b0d25e0c1315b60aa9ecf7eb097e1c90bba76`; raw-evidence commit:
+`b03e29ad966587924682e369edd706c70ec94be1` in the private recovery dataset.
+The three stopped SQLite/vector databases were returned to regular files on MEM,
+with matching hashes, table counts and encrypted quick checks. SSD originals remain.
+No stable package release or public leaderboard acceptance is implied.
+See the [complete protocol and results](../../docs/benchmarks/dolphinbench-v3-campaign-20261021.md).
+
+## V3 correction qualification — 2026-10-21
+
+Final installed artifact gates: **93 passed, zero skipped** in 51.76 seconds,
+using `scripts/test_installed_v3.py` with the pinned native Hermes source.
+The earlier report retains three failures: two stale provider wording assertions
+were corrected to the existing product wording; a concurrency test passed both
+in isolation and in the complete rerun without a product or timeout change.
+Final judge/gateway transport gates: **6 passed** in 1.74 seconds. The separate
+19-test controller gate is also retained, not added to these overlapping counts.
+Actual Sol diagnostic cost: US$0.001136; replay matched. Live subscription Luna
+used V3 company evidence and executed the simulated read-only inbox tool.
+Read-only subscription status reported access available, 11% weekly usage and
+zero credit balance. No paid agent API fallback or billing change was made.
+T039–T042 are complete for this bounded research integration; older unchecked
+feature tasks are not implied complete. The later 600-task result is recorded above.
+
+The installed research artifact SHA-256 is
+`8a7e972c03bea5cc7eb143daeb6b57c4e13b1baff4613df00d32fa2ff49df345`.
+The opt-in binding uses the original public V3 history/context APIs and historical
+budgets, while legacy bindings stay unchanged. Installed native qualification
+retained an original public history message, delivered memory to a fresh Hermes
+process, executed an actual simulated app read, and verified unchanged frozen
+memory. A subsequent actual OAuth native agent answered from that context and
+executed `list_inbox` in a separate read-only transport diagnostic. Actual
+Sol-medium recording/replay also passed, costing US$0.001136.
+
+Earlier pytest `-I` commands still applied the repo's `pythonpath=["."]` option;
+their reports are source regressions. `scripts/test_installed_v3.py` now explicitly
+preloads the installed AtMem/service and disables that option. Native-process
+qualifications were already installed-artifact tests and are not relabelled.
+
+The [V3 protocol](../../docs/benchmarks/dolphinbench-v3-campaign-20261021.md)
+records the artifact, two infrastructure failures before scale, preserved security
+boundaries, separate subscription/API accounting, fresh stores and publication
+states. The later full result supersedes the earlier pending-campaign status;
+no stable release or official leaderboard acceptance is claimed.
+
+## Earlier DolphinBench fallback preparation — stopped 2026-10-21
+
+The stable 2.3.9 baseline and a separately built research wheel with a
+product-owned Hermes freeze were tested in isolated installed environments.
+The final focused installed/controller suite passed **55 tests**; the upstream
+offline MCP/submission suite passed **35 tests**. Native no-cost fixtures
+verified capture/drain, cross-process recall, monotonic canonical freeze,
+simulated app calls, and exact gateway-request recording. These are integration
+gates, not benchmark accuracy results or full cross-platform certification.
+
+The user increased the total benchmark ceiling to **US$250**. The earlier private
+fallback condition had fixed agent/judge settings, a durable cost ledger and
+incremental independently verified Hugging Face recovery archives. It was
+stopped after 101 exported interactions; it did not score tasks. It used
+explicitly disclosed Azure-only OpenRouter routing, not an
+unmodified direct-Azure runner; official acceptance remains unconfirmed.
+Preparation failures, costs and controller-only repairs are preserved rather
+than omitted. The complete run index, artifact hashes, source pins, scope,
+host-background isolation and storage boundaries are recorded in
+`benchmarks/dolphinbench/runs/README.md`. No full result, matched baseline,
+leaderboard submission or release completion is claimed by this addendum.
+
 ## Live browser-path acceptance — 2026-09-27
 
 This section supersedes older statements below that the user's Hermes plugin

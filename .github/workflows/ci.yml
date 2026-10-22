@@ -109,7 +109,11 @@ jobs:
       - run: python -m pytest -q tests/test_provider_runtime.py ${{ matrix.test }}
 
   openclaw-plugin:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     defaults:
       run:
         working-directory: integrations/openclaw
@@ -142,6 +146,24 @@ jobs:
             exit "$status"
           fi
       - run: npm run smoke
+
+  context-retrieval:
+    name: Encrypted context retrieval (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ./packages/atbot -e ".[dev,code,context-retrieval]"
+      - run: python -m pip check
+      - name: No implicit Torch or embedding-model installation
+        run: python -c "import importlib.util; assert importlib.util.find_spec('torch') is None; assert importlib.util.find_spec('sentence_transformers') is None"
+      - run: python -m pytest -q tests/test_private_paths.py tests/test_provider_runtime.py tests/test_provider_server.py tests/test_provider_integration.py tests/test_delegated_transport.py tests/test_delegated_context.py tests/test_context_cache_lifecycle.py tests/test_context_engine_discovery.py tests/test_context_engine_semantic.py tests/test_context_engine_source_lookup.py tests/test_context_engine_temporal_frames.py tests/test_hermes_v3.py tests/test_hermes_discovery_host.py tests/test_mcp_strict_proxy.py tests/test_initial_state.py tests/test_source_dossier.py tests/test_state_assessment.py tests/test_action_review.py
 
   openclaw-hook-context-matrix:
     # Spec 007 Amendment A, T058. The bridge's peer range is open-ended, so
@@ -336,11 +358,16 @@ jobs:
         with:
           name: distributions
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: atbot-distributions
+          path: atbot-dist
       - name: Install wheel and initialize without system Bun
         shell: pwsh
         run: |
           $wheel = Get-ChildItem dist\atmem-*.whl | Select-Object -First 1
-          python -m pip install $wheel.FullName
+          $atbot = Get-ChildItem atbot-dist\atmem_atbot-*.whl | Select-Object -First 1
+          python -m pip install $atbot.FullName $wheel.FullName
           python -m pip check
           $env:ATMEM_HOME = Join-Path $env:RUNNER_TEMP "atmem-windows-home"
           $env:Path = (($env:Path -split ';') | Where-Object { $_ -and -not (Test-Path (Join-Path $_ 'bun.exe')) }) -join ';'
@@ -383,6 +410,10 @@ jobs:
         with:
           name: distributions
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: atbot-distributions
+          path: atbot-dist
       - name: Install wheel and initialize without system Bun
         shell: sh
         run: |
@@ -393,7 +424,7 @@ jobs:
           fi
           python3 -m venv /tmp/atmem-wheel-env
           . /tmp/atmem-wheel-env/bin/activate
-          python -m pip install dist/atmem-*.whl
+          python -m pip install atbot-dist/atmem_atbot-*.whl dist/atmem-*.whl
           python -m pip check
           export ATMEM_HOME=/tmp/atmem-home
           atmem init --json --no-open >/tmp/atmem-init.json

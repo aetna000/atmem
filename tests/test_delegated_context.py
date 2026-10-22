@@ -158,7 +158,8 @@ def test_config_is_native_default_scoped_and_hides_public_key(tmp_path: Path) ->
     assert config.match(workspace_id="workspace-demo", agent_id="agent-main", user_id="user-opaque-001")
     with pytest.raises(ValueError, match="authenticated user"):
         config.match(workspace_id="workspace-demo", agent_id="agent-main", user_id=None)
-    assert oct(config.path.stat().st_mode & 0o777) == "0o600"
+    from atmem.private_paths import private_path
+    assert private_path(config.path)
 
 
 def test_registration_cannot_enable_authority_and_overlapping_scopes_fail(tmp_path: Path) -> None:
@@ -210,10 +211,12 @@ def test_config_rejects_symlinks_and_loose_permissions(tmp_path: Path) -> None:
     real = tmp_path / "real.json"
     config = DelegatedConfigStore(real)
     config.register(_registration(enabled=False))
-    real.chmod(0o644)
+    from tests.test_private_paths import make_public
+    from atmem.private_paths import protect_private_path
+    make_public(real)
     with pytest.raises(ValueError, match="permissions"):
         config.registrations()
-    real.chmod(0o600)
+    protect_private_path(real)
     linked = tmp_path / "linked.json"
     linked.symlink_to(real)
     with pytest.raises(ValueError, match="regular file"):
@@ -275,6 +278,9 @@ def test_loopback_transport_sends_closed_request_and_retains_response_bytes() ->
 def test_loopback_transport_rejects_redirects_and_oversized_results() -> None:
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
+            # Drain the request before closing; Windows otherwise may reset
+            # the socket before the redirect headers reach the client.
+            self.rfile.read(int(self.headers.get('Content-Length','0')))
             if self.path == "/redirect":
                 self.send_response(307)
                 self.send_header("Location", "/result")
