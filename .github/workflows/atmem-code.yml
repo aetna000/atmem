@@ -26,7 +26,8 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m pip install build
       - run: python -m build --wheel
-      - run: python scripts/verify_code_wheel.py --report code-wheel-report.json
+      - run: python -m build --wheel packages/atbot --outdir atbot-dist
+      - run: python scripts/verify_code_wheel.py --atbot-wheel-dir atbot-dist --report code-wheel-report.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

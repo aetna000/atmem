@@ -19,6 +19,7 @@ import xml.etree.ElementTree as ET
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--wheel")
+    parser.add_argument("--atbot-wheel-dir", help="Directory containing the same-source companion wheel for prepublication qualification")
     parser.add_argument("--venv", help="Reuse only an explicitly selected verification environment")
     parser.add_argument("--report")
     args = parser.parse_args()
@@ -36,6 +37,11 @@ def main() -> int:
     environment.pop("PYTHONPATH", None)
     environment.pop("PYTEST_ADDOPTS", None)
     environment["ATMEM_CODE_SKIP_HOST_PROBES"] = "1"
+    if args.atbot_wheel_dir:
+        companions = list(Path(args.atbot_wheel_dir).resolve().glob("atmem_atbot-*.whl"))
+        if len(companions) != 1:
+            raise ValueError("select exactly one companion wheel")
+        subprocess.run([str(python), "-m", "pip", "install", "--disable-pip-version-check", str(companions[0])], check=True, env=environment)
     subprocess.run([str(python), "-m", "pip", "install", "--disable-pip-version-check", "--no-deps", "--force-reinstall", str(wheel)], check=True, env=environment)
     subprocess.run([str(python), "-m", "pip", "install", "--disable-pip-version-check", str(wheel) + "[code]", "pytest>=8,<10"], check=True, env=environment)
     test_root = workspace / "tests"

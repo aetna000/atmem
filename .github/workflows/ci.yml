@@ -358,11 +358,16 @@ jobs:
         with:
           name: distributions
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: atbot-distributions
+          path: atbot-dist
       - name: Install wheel and initialize without system Bun
         shell: pwsh
         run: |
           $wheel = Get-ChildItem dist\atmem-*.whl | Select-Object -First 1
-          python -m pip install $wheel.FullName
+          $atbot = Get-ChildItem atbot-dist\atmem_atbot-*.whl | Select-Object -First 1
+          python -m pip install $atbot.FullName $wheel.FullName
           python -m pip check
           $env:ATMEM_HOME = Join-Path $env:RUNNER_TEMP "atmem-windows-home"
           $env:Path = (($env:Path -split ';') | Where-Object { $_ -and -not (Test-Path (Join-Path $_ 'bun.exe')) }) -join ';'
@@ -405,6 +410,10 @@ jobs:
         with:
           name: distributions
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: atbot-distributions
+          path: atbot-dist
       - name: Install wheel and initialize without system Bun
         shell: sh
         run: |
@@ -415,7 +424,7 @@ jobs:
           fi
           python3 -m venv /tmp/atmem-wheel-env
           . /tmp/atmem-wheel-env/bin/activate
-          python -m pip install dist/atmem-*.whl
+          python -m pip install atbot-dist/atmem_atbot-*.whl dist/atmem-*.whl
           python -m pip check
           export ATMEM_HOME=/tmp/atmem-home
           atmem init --json --no-open >/tmp/atmem-init.json
