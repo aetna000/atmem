@@ -14,8 +14,6 @@ import zipfile
 
 ROOT = Path('/Volumes/AtMemDolphin/campaign-atmem-v3-matched-luna-high-20261021')
 UPSTREAM = Path('/Volumes/AtMemDolphin/upstream')
-sys.path.append(str(UPSTREAM))
-from harness.submission import read_release, read_zip, write_zip
 
 CAPS = ('max_tokens', 'max_completion_tokens', 'max_output_tokens')
 MODEL = 'openai/gpt-5.6-luna'
@@ -41,6 +39,11 @@ def normalize(tests):
 
 
 def main():
+    # Pure normalization must remain importable without the external harness.
+    # Only actual archive packaging requires the separately installed upstream.
+    sys.path.append(str(UPSTREAM))
+    from harness.submission import read_release, read_zip, write_zip
+
     original = ROOT / 'submission.zip'
     output = ROOT / 'submission-actual-provider-settings.zip'
     assert original.exists() and not output.exists()
