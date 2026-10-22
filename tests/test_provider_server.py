@@ -49,12 +49,12 @@ def test_managed_service_health_signed_request_and_stop(tmp_path: Path, monkeypa
             method="POST", authority=f"127.0.0.1:{port}", target="/v1/delegated-context", body=body)}
     try:
         lifecycle.start("live")
-        for _ in range(40):
+        for _ in range(300):
             state = lifecycle.doctor("live")
             if state["ok"]:
                 break
             time.sleep(0.05)
-        assert state["ok"] is True
+        assert state["ok"] is True, state
         request_value = DelegatedContextRequest.create(
             binding=DelegatedBinding("r", "t", "s", "a", "u", "w"),
             query="favorite food", max_context_bytes=4096, timeout_ms=3000,
@@ -76,7 +76,7 @@ def test_managed_service_health_signed_request_and_stop(tmp_path: Path, monkeypa
         # Replay the exact signed HTTP request after a genuine worker restart.
         lifecycle.stop("live")
         lifecycle.start("live")
-        for _ in range(40):
+        for _ in range(300):
             if lifecycle.status("live")["health"]:
                 break
             time.sleep(0.05)

@@ -141,12 +141,43 @@ def test_optional_native_exact_backend_reuses_vectors_without_approximation(gene
     exact = SQLiteExactSemanticIndex(store, generation_id=gen,
         model_identity={'model': 'fixture-embedding', 'revision': 'fixed'},
         dimensions=3, tables=4, bits=3)
+    if not callable(getattr(store._conn, 'enable_load_extension', None)):
+        with pytest.raises(ValueError, match='SQLite runtime cannot load extensions'):
+            exact.nominate([1, 0, 0], allowed_unit_ids=frozenset(ids))
+        return
     hits = exact.nominate([1, 0, 0], allowed_unit_ids=frozenset(ids))
     assert hits[0].unit_id == ids[0]
     assert hits[0].score == pytest.approx(1.)
     assert [h.unit_id for h in exact.nominate([1, 0, 0], allowed_unit_ids=frozenset([ids[1]]))] == [ids[1]]
     with pytest.raises(ValueError, match='capacity exceeded'):
         exact.nominate([1, 0, 0], allowed_unit_ids=frozenset(ids), max_index_vectors=1)
+
+
+def test_native_exact_backend_on_encrypted_sqlcipher(tmp_path):
+    pytest.importorskip('sqlcipher3')
+    pytest.importorskip('sqlite_vec')
+    from atmem.memory import Memory
+    from atmem.service.household import HouseholdApplication
+    database = tmp_path / 'native.db'
+    HouseholdApplication.initialize(database, encrypted=True, backend='file')
+    memory = Memory(database, auto_vectors=False)
+    try:
+        manager = FormationManager(memory.store)
+        scope = AuthorityScope(subject_id='owner', agent_id='agent', workspace_id='workspace')
+        gen = manager.begin_generation(scope, profile_id='context-fast')
+        source = manager.retain_source(SourceEpisode(episode_id='source', scope=scope,
+            parts=(SourcePart('p', 0, 'text', 'text/plain', b'Encrypted native evidence.'),)))
+        manager.form_source(source, gen, range_granularity='sentence')
+        unit = memory.store._conn.execute('SELECT unit_id FROM context_evidence_units WHERE generation_id=? LIMIT 1', (gen,)).fetchone()[0]
+        semantic = index(memory.store, gen)
+        semantic.build([(unit, [1, 0, 0])], allowed_unit_ids=frozenset([unit]))
+        exact = SQLiteExactSemanticIndex(memory.store, generation_id=gen,
+            model_identity={'model': 'fixture-embedding', 'revision': 'fixed'},
+            dimensions=3, tables=4, bits=3)
+        hits = exact.nominate([1, 0, 0], allowed_unit_ids=frozenset([unit]))
+        assert hits[0].unit_id == unit and hits[0].score == pytest.approx(1.)
+    finally:
+        memory.close()
 
 
 def test_balanced_pool_nomination_visits_views_before_second_query(generation,monkeypatch):

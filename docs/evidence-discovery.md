@@ -96,6 +96,10 @@ python -m pip install --pre "atmem[encrypted,context-retrieval]==2.3.10b1"
 ```
 
 `context-retrieval` pins `sqlite-vec==0.1.9`; it is not an embedding model.
+The selected connection must support SQLite extension loading. Some macOS
+Python builds omit that capability; use the encrypted SQLCipher backend shown
+here or an extension-enabled Python build. An unsupported runtime fails with
+an explicit capability error, without silently changing retrieval backends.
 `SemanticIndex` provides a bounded persistent LSH index inside the encrypted
 canonical database. `SQLiteExactSemanticIndex` is a separately selected exact
 backend capped at 100,000 vectors. Build the former only in a building generation,

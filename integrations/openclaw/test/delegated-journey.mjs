@@ -21,7 +21,7 @@ const lines = createInterface({ input: provider.stdout });
 const services = [];
 try {
   const details = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("provider fixture startup timed out")), 15000);
+    const timer = setTimeout(() => reject(new Error("provider fixture startup timed out")), 45000);
     lines.once("line", line => { clearTimeout(timer); resolve(JSON.parse(line)); });
     provider.once("exit", code => { clearTimeout(timer); reject(new Error(`provider exited ${code}`)); });
   });

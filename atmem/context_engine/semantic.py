@@ -210,6 +210,8 @@ class SQLiteExactSemanticIndex(SemanticIndex):
                 import sqlite_vec
             except ImportError as missing:
                 raise ValueError('optional sqlite-vec backend is not installed') from missing
+            if not callable(getattr(self.store._conn, 'enable_load_extension', None)):
+                raise ValueError('selected SQLite runtime cannot load extensions; use the encrypted SQLCipher backend or an extension-enabled Python build')
             self.store._conn.enable_load_extension(True)
             try:
                 sqlite_vec.load(self.store._conn)
