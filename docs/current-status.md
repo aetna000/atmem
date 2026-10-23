@@ -1,15 +1,14 @@
 # Current status
 
-**Stable release line:** AtMem `2.3.9`, OpenClaw bridge `2.3.9`, AtBot
-`0.1.0`, and pinned AtFlows `0.1.4`. See the
-[2.3.9 release note](releases/v2.3.9.md).
+**Stable release line:** AtMem `2.3.10`, OpenClaw bridge `2.3.10`, AtBot
+`0.1.1`, and pinned AtFlows `0.1.4`. See the
+[2.3.10 release note](releases/v2.3.10.md).
 
-**Prepared candidate:** AtMem `2.3.10b1`, OpenClaw bridge `2.3.10-beta.1`,
-AtBot `0.1.1`, AtFlows `0.1.4`. New evidence discovery is opt-in SDK/host
-functionality; ordinary memory and Code defaults remain unchanged.
-Qualification, publication and the planned full benchmark are separate gates;
-see the [candidate qualification report](releases/v2.3.10b1-qualification.md).
-No full-benchmark superiority is claimed by preparing this version.
+Evidence discovery remains opt-in SDK/host functionality; ordinary memory and
+Code defaults are unchanged. The [completed DolphinBench run](https://huggingface.co/datasets/atmem/atmem-2.3.10b1-dolphinbench)
+passed 390/600 tasks (65.0%) using the tested 2.3.10b1 artifact. Its
+[submission PR](https://github.com/mem0ai/dolphinbench/pull/10) is self-tested and
+awaiting maintainer review. See the [promotion report](releases/v2.3.10-qualification.md).
 
 **Historical integrity evidence:** the stable 2.3.6 wheel has a checksum-verified 700-trial evidence package in
 [upstream PR #1](https://github.com/iluxu/memory-integrity-benchmark/pull/1):
@@ -75,6 +74,6 @@ streams and deduplicates content. Post-quantum recipient export activates when
 its optional cryptographic backend is installed; local at-rest payload encryption
 uses the documented authenticated symmetric profile.
 
-See the [2.3.9 release notes](releases/v2.3.9.md) for stable upgrade and migration commands,
+See the [2.3.10 release notes](releases/v2.3.10.md) for stable upgrade and migration commands,
 and the [implementation evidence index](implementation-evidence/README.md) for the
 recorded gates.

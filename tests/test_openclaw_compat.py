@@ -87,3 +87,12 @@ def test_an_unlisted_host_is_refused_rather_than_assumed() -> None:
     # A patch inside a tested minor is distinguishable from a wholly new line,
     # so the two can be handled differently without conflating them.
     assert evaluate_host_version("2026.9.7") == "untested_patch"
+
+
+def test_declaration_only_probe_does_not_expand_native_authorization() -> None:
+    probes = FIXTURES.parent / 'hook-context-probes'
+    for path in probes.glob('*.json'):
+        value = json.loads(path.read_text(encoding='utf-8'))
+        assert value['label'] == 'upstream-probe'
+        assert value['version'] not in TESTED_OPENCLAW_VERSIONS
+        assert evaluate_host_version(value['version']) != 'tested'

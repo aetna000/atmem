@@ -15,7 +15,7 @@ Installing or starting an adapter does not enable it. The safe sequence is:
 
 Disable the registration to return immediately to native AtMem authority.
 
-## Windows file privacy in the 2.3.10b1 candidate
+## Windows file privacy
 
 Provider setup protects signing keys, HMAC credentials and configuration using
 native owner-only Windows ACLs. macOS/Linux retain their private owner/mode

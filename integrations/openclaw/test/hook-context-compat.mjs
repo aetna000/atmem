@@ -53,7 +53,10 @@ import {
 
 const shape = readHookContextShape();
 const fixtureDir = path.join(import.meta.dirname, "fixtures", "hook-context");
-const fixturePath = path.join(fixtureDir, `${shape.version}.json`);
+const supportedFixture = path.join(fixtureDir, `${shape.version}.json`);
+const probeFixture = path.join(import.meta.dirname, "fixtures", "hook-context-probes", `${shape.version}.json`);
+const declarationOnly = !existsSync(supportedFixture) && existsSync(probeFixture);
+const fixturePath = declarationOnly ? probeFixture : supportedFixture;
 
 console.log(`[hook-context] resolved openclaw ${shape.version}`);
 
@@ -108,6 +111,10 @@ assert.deepEqual(
 // surfaced for review rather than absorbed.
 const recorded = JSON.parse(readFileSync(fixturePath, "utf8"));
 const { label, ...recordedShape } = recorded;
+if (declarationOnly) {
+  assert.equal(label, "upstream-probe", "An unapproved host must be explicitly marked declaration-only");
+  console.log("[hook-context] declaration-only upstream probe; native compatibility/authorization matrix is unchanged");
+}
 assert.deepEqual(
   recordedShape,
   shape,

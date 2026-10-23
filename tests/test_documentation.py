@@ -62,6 +62,7 @@ def test_integration_json_files_parse() -> None:
 
 def test_readme_puts_supported_quick_starts_front_and_center() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    version = re.search(r'^version = "([^"]+)"$', (ROOT / 'pyproject.toml').read_text(), re.MULTILINE).group(1)
     quick_start = readme.index("## Start here")
     details = readme.index("## Installation details")
     opening = readme[quick_start:details]
@@ -70,9 +71,9 @@ def test_readme_puts_supported_quick_starts_front_and_center() -> None:
     assert "atmem atbot setup" in opening
     assert "atmem openclaw install" in opening
     assert "atmem openclaw upgrade" in opening
-    assert "atmem[pydantic-ai]==2.3.9" in opening
+    assert f"atmem[pydantic-ai]=={version}" in opening
     assert "PydanticAIAtMemAdapter" in opening
-    assert "atmem[langgraph]==2.3.9" in opening
+    assert f"atmem[langgraph]=={version}" in opening
     assert "atmem delegated register --help" in opening
     assert "create_langgraph_middleware" in opening
     assert "atmem control activate" in opening

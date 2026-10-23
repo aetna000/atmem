@@ -15,7 +15,7 @@ Check `git --version` first. On macOS or Linux:
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade "atmem[code]==2.3.9"
+python -m pip install --upgrade "atmem[code]==2.3.10"
 ```
 
 On Windows PowerShell:
@@ -23,7 +23,7 @@ On Windows PowerShell:
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade "atmem[code]==2.3.9"
+python -m pip install --upgrade "atmem[code]==2.3.10"
 ```
 
 The Code extra adds encrypted storage and portable-bundle cryptography, not a

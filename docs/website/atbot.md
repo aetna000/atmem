@@ -9,10 +9,9 @@ atmem atbot setup
 atmem atbot --help
 ```
 
-AtMem 2.3.9 depends on the separately packaged AtBot 0.1.0.
-The optional 2.3.10b1 candidate pins AtBot 0.1.1, adding explicit source-state
+AtMem 2.3.10 pins the stable AtBot 0.1.1 package, including explicit source-state
 assessment interfaces. It does not activate a provider or remote egress.
-See the [beta guide](../evidence-discovery.md).
+See the [evidence discovery guide](../evidence-discovery.md).
 Choose the model provider deliberately. A remote provider can receive authorized
 content needed for its work and may charge for requests; local models have their own
 hardware and download requirements. The base memory exercise needs neither.
