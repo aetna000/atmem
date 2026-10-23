@@ -1,5 +1,5 @@
 {
-  "label": "latest",
+  "label": "upstream-probe",
   "version": "2026.10.6",
   "hookContexts": {
     "before_prompt_build": "PluginHookAgentContext",
