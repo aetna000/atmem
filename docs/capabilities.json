@@ -2,7 +2,7 @@
   "product": "memory_control_plane",
   "version": "2.3.10",
   "development_target": null,
-  "release_status": "prerelease",
+  "release_status": "stable",
   "engine": "model_agnostic",
   "canonical_authority": "atmem_only",
   "intelligence_companion": {

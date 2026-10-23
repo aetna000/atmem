@@ -65,7 +65,7 @@ Stop every writer before migration. AtMem validates SQLite integrity,
 SQLCipher page integrity and per-table row counts before the atomic cutover;
 see [SaaS integration and recovery](docs/saas-integration.md#privacy-retention-and-deletion).
 
-In 2.3.9, `pip install atmem` installs the Python packages only; pip does not
+In 2.3.10, `pip install atmem` installs the Python packages only; pip does not
 run a post-install downloader. On the first `atmem init`, if compatible Bun is not
 already installed, AtMem clearly announces and downloads its pinned official
 Bun runtime for AtFlows, verifies the archive against a release-pinned SHA-256,
@@ -94,7 +94,7 @@ package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.9
+python -m pip install --upgrade atmem==2.3.10
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -117,7 +117,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.3.9'
+python -m pip install 'atmem[pydantic-ai]==2.3.10'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -142,7 +142,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.3.9'
+python -m pip install 'atmem[langgraph]==2.3.10'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -310,7 +310,7 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install atmem==2.3.9
+python -m pip install atmem==2.3.10
 atmem --version
 ```
 
@@ -320,7 +320,7 @@ embedding model, while the semantic extra adds local sentence-transformer
 choices:
 
 ```bash
-python -m pip install 'atmem[semantic]==2.3.9'
+python -m pip install 'atmem[semantic]==2.3.10'
 ```
 
 For repository development, install both workspace packages:
@@ -508,7 +508,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.9
+python -m pip install --upgrade atmem==2.3.10
 atmem openclaw upgrade
 atmem control verify
 ```
