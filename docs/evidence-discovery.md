@@ -1,45 +1,44 @@
-# Evidence discovery in 2.3.10b1
+# Evidence discovery in 2.3.10
 
 Give an agent a bounded way to look up missing details instead of assuming the
 first memory packet is complete. The new read-only tools return original,
 scoped source passages and provenance. The agent still interprets the evidence
 and chooses its actions; AtMem controls access and memory state.
 
-This is an **opt-in beta SDK/host integration**, not a change to ordinary
+This is an **opt-in SDK/host integration**, not a change to ordinary
 `remember`/`recall`, Code hooks, OpenClaw setup, or the default retrieval profile.
-Stable users can stay on [2.3.9](releases/v2.3.9.md).
+See the [stable release note](releases/v2.3.10.md) for upgrade and compatibility.
 
 ## 1. Install in a separate environment
 
-These commands apply once 2.3.10b1 is published; source preparation alone does
-not make the beta available from a package registry.
+Use the stable package versions below; no prerelease installation flag is needed.
 
 Use Python 3.10–3.13. On macOS/Linux:
 
 ```sh
-python3 -m venv .venv-beta
-source .venv-beta/bin/activate
-python -m pip install --upgrade --pre "atmem[encrypted]==2.3.10b1"
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade "atmem[encrypted]==2.3.10"
 atmem --version
 ```
 
 On Windows PowerShell:
 
 ```powershell
-py -3.12 -m venv .venv-beta
-.\.venv-beta\Scripts\Activate.ps1
-python -m pip install --upgrade --pre "atmem[encrypted]==2.3.10b1"
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade "atmem[encrypted]==2.3.10"
 atmem --version
 ```
 
-The beta pins AtBot 0.1.1 and AtFlows 0.1.4. It does not install Torch, download
+The release pins stable AtBot 0.1.1 and AtFlows 0.1.4. It does not install Torch, download
 a model, enable remote calls, or activate agent injection. Platforms without a
 SQLCipher wheel need its compiler/development prerequisites.
 
 ## 2. Run a model-free example
 
 Download [the example](../examples/evidence_discovery.py) from this release's
-source tree. Run it from any directory with the beta environment active:
+source tree. Run it from any directory with the release environment active:
 
 ```sh
 python evidence_discovery.py --database ./discovery-demo.db --text "Our deployment channel is #engineering." --query "deployment channel"
@@ -92,7 +91,7 @@ See the [wire/authority contract](contracts/evidence-discovery-v1.md).
 For the explicitly configured native vector backend, add:
 
 ```sh
-python -m pip install --pre "atmem[encrypted,context-retrieval]==2.3.10b1"
+python -m pip install "atmem[encrypted,context-retrieval]==2.3.10"
 ```
 
 `context-retrieval` pins `sqlite-vec==0.1.9`; it is not an embedding model.
@@ -136,7 +135,7 @@ separate host-selected options, not the default or an accepted quality claim.
 - Existing 2.3.8/2.3.9 data uses the normal schema migration path. Optional cache
   registration reuses the existing registry; there is no mandatory embedding rebuild
   for an installation that never enabled semantic discovery.
-- Restore the preserved pre-beta copy when rolling back to 2.3.9. Keep original
+- Restore the preserved pre-upgrade copy when rolling back to 2.3.9. Keep original
   evidence and keys together; optional caches are disposable, not memory authority.
 - Invalid schema, revoked scope, stale generation, budget exhaustion or unavailable
   providers produce explicit errors/degradation. They do not widen access.

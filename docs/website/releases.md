@@ -1,13 +1,15 @@
 # Releases and upgrades
 
-## Beta preparation: 2.3.10b1
+## Current stable: 2.3.10
 
-[AtMem 2.3.10b1](../releases/v2.3.10b1.md) prepares opt-in bounded evidence
-discovery while retaining stable defaults. See its
-[qualification report](../releases/v2.3.10b1-qualification.md) for completed and
-pending gates. A source candidate is not a published package or live website.
+[AtMem 2.3.10](../releases/v2.3.10.md) promotes opt-in bounded evidence
+discovery while retaining ordinary memory and Code defaults. AtBot 0.1.1,
+AtFlows 0.1.4 and OpenClaw bridge 2.3.10 are stable versions. See the
+[promotion report](../releases/v2.3.10-qualification.md).
+The [DolphinBench evidence](https://huggingface.co/datasets/atmem/atmem-2.3.10b1-dolphinbench)
+remains identified as the tested 2.3.10b1 artifact: 390/600 (65.0%).
 
-## Current stable release: 2.3.9
+## Previous stable release: 2.3.9
 
 [AtMem 2.3.9](../releases/v2.3.9.md) adds optional shared coding memory,
 source-backed structure, inspectable experience and portable project bundles.
