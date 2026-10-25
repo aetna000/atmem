@@ -1,0 +1,85 @@
+{
+  "schema": "dolphin-execution-diagnostic-pilot-v1",
+  "groups": {
+    "failed_notes_route_35": [
+      "alex/014",
+      "alex/041",
+      "alex/117",
+      "alex/120",
+      "alex/132",
+      "alex/149",
+      "alex/191",
+      "morgan/016",
+      "morgan/135",
+      "morgan/141",
+      "morgan/144",
+      "morgan/148",
+      "morgan/157",
+      "morgan/158",
+      "morgan/159",
+      "morgan/162",
+      "morgan/164",
+      "morgan/166",
+      "morgan/174",
+      "morgan/178",
+      "morgan/181",
+      "morgan/188",
+      "morgan/195",
+      "morgan/196",
+      "morgan/200",
+      "riley/009",
+      "riley/011",
+      "riley/028",
+      "riley/032",
+      "riley/039",
+      "riley/053",
+      "riley/054",
+      "riley/069",
+      "riley/194",
+      "riley/195"
+    ],
+    "failed_github_route_6": [
+      "alex/062",
+      "alex/102",
+      "morgan/058",
+      "morgan/114",
+      "morgan/152",
+      "morgan/172"
+    ],
+    "fixture_negative_controls_2": [
+      "morgan/085",
+      "morgan/130"
+    ],
+    "already_recovered_notes_passes_5": [
+      "morgan/180",
+      "riley/015",
+      "riley/019",
+      "riley/087",
+      "riley/196"
+    ],
+    "other_no_trace_controls_4": [
+      "riley/125",
+      "riley/029",
+      "riley/085",
+      "morgan/129"
+    ],
+    "other_traced_failures_4": [
+      "alex/139",
+      "riley/095",
+      "morgan/023",
+      "alex/020"
+    ],
+    "other_passes_4": [
+      "riley/158",
+      "riley/037",
+      "riley/047",
+      "riley/153"
+    ]
+  },
+  "selection_seed": "dolphin-execution-pilot-20261025",
+  "tasks": 60,
+  "submission_sha256": "78788ad3455d04407c037706d3ff129d56eafff89beaac101f2a461cb58d7538",
+  "upstream_commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
+  "post_hoc_diagnostic_not_holdout": true,
+  "actor_must_not_receive_evaluator_labels_or_group_membership": true
+}
