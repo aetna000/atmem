@@ -80,3 +80,23 @@ After sign-in, revalidate source/receipt freshness and use a **new output folder
 Then finish exactly the fixed 60 tasks, report outcomes/costs/fixture limits and
 regressions. Full remains blocked until that live report passes. No full 600 run
 is authorized by this implementation task.
+
+## Model identity double-check requested by owner
+
+Re-read all **6,048 actual provider requests**: every request names
+`gpt-5.6-luna`, reasoning `high`, and the ChatGPT subscription endpoint. Zero
+parse failures. Three sampled completed provider responses independently return
+Luna/high (default service tier). This is stronger evidence than launcher labels;
+it is not an inspection of provider-internal weights. The public exported
+conversation contains 6,047 assistant completions; one extra ledger call is not
+a published completion. No `light` model or reasoning setting appeared in the
+request identity fields. The owner's observed light label is not yet identified.
+
+Checked current upstream participant guide, reference example and evaluation
+docs. Own reader models/harnesses are allowed; the Hermes Luna reference example
+is also high reasoning, through Azure Foundry. Ours uses the subscription route,
+so it is not an identical reference-provider condition. Azure Sol/medium is the
+published judge; our OpenRouter Azure-only adaptation remains disclosed and
+independent acceptance/equivalence remains unverified. Full evidence/recovery and
+fixed-memory requirements still apply; the 60 pilot cannot replace the 600 score.
+See `docs/benchmarks/evidence/dolphin-execution-readiness-20261026/model-route-recheck.json`.
