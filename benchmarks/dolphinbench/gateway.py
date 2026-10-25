@@ -81,7 +81,9 @@ class Gateway(ThreadingHTTPServer):
     def __init__(self, *, key, output, ledger_path, campaign_identity, cap_usd,
                  phase, model, input_per_million, output_per_million, endpoint=ENDPOINT,
                  output_token_cap=4096, required_tool_catalog=None, provider_name='Azure',
-                 upstream_timeout=300, required_instruction_text=None):
+                 upstream_timeout=300, required_instruction_text=None, execution_profile=None, readiness_options=None):
+        self.execution_profile = execution_profile
+        self.readiness_options = readiness_options
         if endpoint != ENDPOINT and not local_bridge_endpoint(endpoint):
             raise ValueError('Only OpenRouter or an explicit local offline fixture is supported')
         self.endpoint = endpoint
@@ -150,6 +152,24 @@ class Handler(BaseHTTPRequestHandler):
             if not 1 <= length <= 16 * 1024 * 1024:
                 raise ValueError('Request size outside bounds')
             body = json.loads(self.rfile.read(length))
+            if server.readiness_options is not None:
+                from .readiness import require_options
+                require_options(server.readiness_options)
+            if server.execution_profile is not None:
+                from .execution_profile import PROFILE, validate_request
+                if server.execution_profile != PROFILE:
+                    raise ValueError('Unknown execution profile')
+                validate_request(body)
+                if body.get('reasoning_effort') != 'high' or any(k in body for k in ('temperature', 'top_p', 'seed')):
+                    raise ValueError('Actual reader inference settings differ from frozen baseline')
+                caps = [body[k] for k in ('max_tokens', 'max_completion_tokens') if k in body]
+                if caps and caps != [4096]:
+                    raise ValueError('Actual reader completion cap differs from frozen baseline')
+            if server.phase == 'judge':
+                if (body.get('reasoning_effort') != 'medium' or body.get('max_completion_tokens') != 8000
+                        or body.get('response_format') != {'type': 'json_object'}
+                        or any(k in body for k in ('temperature', 'top_p', 'seed'))):
+                    raise ValueError('Actual judge inference settings differ from frozen baseline')
             if body.get('model') != server.model:
                 raise ValueError('Model differs from frozen campaign configuration')
             if server.required_tool_catalog and server.required_tool_catalog not in json.dumps(body.get('tools', [])):

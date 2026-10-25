@@ -93,6 +93,11 @@ class AtMemAdapter:
         return self.hosts[persona]
 
     def run_interaction(self, request):
+        if request.phase == 'tests':
+            from .readiness import require_options
+            require_options(self.options, request=request)
+        if request.phase == 'ingestion' and self.ingestion_mode != 'source-episode':
+            raise ValueError('Native model ingestion is disabled; baseline history import must remain local')
         from harness.adapter import InteractionRecord
         from scripts.openrouter_azure_sol import load_key
         if request.phase == 'ingestion' and self.ingestion_mode == 'source-episode':
@@ -150,13 +155,18 @@ class AtMemAdapter:
         subscription = self.options.get('subscription_endpoint')
         gateway_options = ({'endpoint': subscription, 'provider_name': 'OpenAI-Subscription',
             'upstream_timeout': 36000} if subscription else {})
+        from .safe_runner import InteractionJournal
+        journal = InteractionJournal(directory / 'app-evidence', request.apps)
         gateway = Gateway(key=os.environ['ATMEM_SUBSCRIPTION_PROXY_TOKEN'] if subscription else load_key(self.options['env_file']), output=directory / 'calls',
             ledger_path=self.ledger, campaign_identity=self.campaign_identity, cap_usd=self.cap_usd,
             phase=request.phase, model=self.reader_model,
             input_per_million=5 if self.reader_model.endswith('-sol') else 1,
             output_per_million=30 if self.reader_model.endswith('-sol') else 5,
             required_tool_catalog='mcp__dolphinbench_apps__',
-            required_instruction_text=getattr(host,'native_soul',None), **gateway_options).start()
+            required_instruction_text=getattr(host,'native_soul',None),
+            execution_profile=self.options.get('execution_profile'),
+            readiness_options=self.options if request.phase == 'tests' else None, **gateway_options).start()
+        completed = False
         try:
             socket = directory / 'apps.sock'
             # Unix socket paths have a strict OS length bound. Keep the actual
@@ -164,7 +174,7 @@ class AtMemAdapter:
             socket = self.runtime.root / 'scratch' / (profile + '.sock')
             with bridge(request.apps, socket):
                 client = home / 'app_client.py'
-                stage_client('/Volumes/AtMemDolphin/upstream', client, socket)
+                stage_client(self.options.get('upstream_root', '/Volumes/AtMemDolphin/upstream'), client, socket)
                 reader = self.campaign_identity.get('agent', {'reasoning': 'medium', 'max_turns': 20})
                 host.configure_profile(home, base_url=gateway.base_url, local_token=gateway.local_token,
                     mcp={'command': str(self.runtime.python), 'args': ['-I', str(client)]},
@@ -178,6 +188,13 @@ class AtMemAdapter:
                     application_workflow=self.options.get('application_workflow',False),
                     strict_application_contracts=self.options.get('strict_application_contracts',False),
                     initial_status=ruling['reason'] if 'ruling' in locals() else 'authorized')
+                if self.options.get('execution_profile'):
+                    from .execution_profile import isolated_profile
+                    config = json.loads((home / 'config.yaml').read_text())
+                    config = isolated_profile(config, skill_roots=(self.runtime.source / 'skills',
+                        Path.home() / '.hermes/skills', self.runtime.root / 'skills'))
+                    from .driver import private_json
+                    private_json(home / 'config.yaml', config)
                 if subscription:
                     from .driver import private_json
                     config = json.loads((home / 'config.yaml').read_text())
@@ -219,7 +236,7 @@ class AtMemAdapter:
             app_calls = load_tool_calls(Path(request.apps['env']['DOLPHINBENCH_LOG_PATH']))
             export = export_interaction(directory / 'calls', home / 'api-witness.jsonl',
                 app_calls=app_calls,
-                default_source_paths=Path('/Volumes/AtMemDolphin/upstream/mock_mcp').glob('repair*.py'),
+                default_source_paths=(Path(self.options['upstream_root']) / 'mock_mcp').glob('repair*.py'),
                 terminal_failure=terminal_failure)
             if governed_context is not None:
                 if [m.get('content') for m in export['messages'] if m.get('role') == 'user'] != [request.dated_message]:
@@ -234,11 +251,15 @@ class AtMemAdapter:
                 shutil.copyfile(home / name, directory / name)
             save_new(directory / 'profile.json', {'profile_name': profile,
                 'campaign_root': str(self.work), 'ephemeral': True})
+            completed = True
             return InteractionRecord(settings=export['settings'], messages=export['messages'],
                 duration_ms=(time.monotonic() - started) * 1000,
                 attempts=[{'auxiliary_calls': export['auxiliary_calls']}])
         finally:
-            gateway.stop()
+            try:
+                journal.snapshot(completed=completed)
+            finally:
+                gateway.stop()
 
     def freeze(self, persona):
         return self.host(persona).freeze()

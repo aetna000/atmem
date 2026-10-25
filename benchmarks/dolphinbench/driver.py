@@ -128,7 +128,7 @@ class AtMemHost:
                           reader_reasoning='medium', reader_max_turns=20, reader_context_length=1000000,
                           discovery_query=None,application_workflow=False,initial_status='authorized',
                           discovery_python=None,strict_application_contracts=False,
-                          reader_model='openai/gpt-5.6-luna'):
+                          reader_model='openai/gpt-5.6-luna', execution_profile=None):
         from .subscription_service import subscription_reader_model
         subscription_reader_model(reader_model)
         if (reader_reasoning not in {'medium', 'high'} or reader_max_turns not in {20, 60}
@@ -223,6 +223,12 @@ class AtMemHost:
             config['mcp_servers']['dolphinbench-apps']={**mcp,
                 'command':discovery_python or mcp['command'],
                 'args':['-I',str(private/'application_contract.py'),'--',mcp['command'],*mcp.get('args',[])]}
+        if execution_profile is not None:
+            from .execution_profile import PROFILE, isolated_profile
+            if execution_profile != PROFILE:
+                raise ValueError('Unknown execution profile')
+            config = isolated_profile(config, skill_roots=(
+                Path.home() / '.hermes/skills', Path(__file__).parents[2] / 'skills'))
         private_json(home / 'config.yaml', config)  # JSON is valid YAML.
 
     def freeze(self):

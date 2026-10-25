@@ -15,16 +15,17 @@ Updated: 2026-10-26. Scope: the recorded AtMem 2.3.10b1 600-task run.
    a previous chat assertion, a checked box, or a cached process as a passed gate.
 4. Resume the first incomplete readiness task before starting scored work.
 
-The Spec Kit feature-directory choice is currently pending: the specify skill
-requires the user to provide that path before creating a feature. The proposed
-directory is `specs/048-dolphin-execution-readiness`; it is not yet an approved
-or completed spec. Do not mark the spec/plan/tasks complete until they exist.
+The accepted feature is [048 — execution readiness](../../specs/048-dolphin-execution-readiness/spec.md).
+Read its [frozen local/API runbook](../../specs/048-dolphin-execution-readiness/runbook.md),
+[role policy](../../specs/048-dolphin-execution-readiness/routes.json),
+[tasks](../../specs/048-dolphin-execution-readiness/tasks.md) and
+[verification](../../specs/048-dolphin-execution-readiness/verification.md).
 
-**Current readiness: NOT READY for a new full scored campaign.** The historical
-audit is complete. Runtime repairs, synthetic app round trips, crash qualification,
-paired pilot and an executable launch guard have not been implemented or run by
-this audit. The instruction to wait is a repository policy; a machine-enforced
-guard must still be wired into the actual launch entry points.
+**Current readiness: NOT READY for a new full scored campaign.** The runtime
+guard, isolated profile, synthetic persisted writes and crash checks are
+implemented. Original MEM checkpoints were recovered and verified in an isolated
+copy; the original image is read-only. Live pilot completion and reviewed
+promotion evidence are tracked in verification, not inferred from these notes.
 
 ## Lessons we must retain
 
@@ -98,6 +99,15 @@ guard must still be wired into the actual launch entry points.
   source of truth. Temporary paths, chat summaries, live processes and model
   memory are optional conveniences. Remote Git publication is reported separately
   from a local commit or merge to main.
+
+- **L21 — Identify the completed campaign by evidence.** Published 600 used
+  subscription Luna/high and API Sol/medium judging, with both state assessors
+  disabled. Abandoned similarly named Sol-reader campaigns are different conditions.
+  Never reuse their launcher as the published baseline.
+- **L22 — Freeze execution routes as well as model names.** Storage, retrieval
+  and exact-digest Ollama embeddings remain local. A local failure stops work;
+  it never enables paid inference. Sampling defaults and unsupported native
+  output caps must be disclosed. Every setting change needs new qualification.
 
 ## Before starting the next full run
 
