@@ -1,0 +1,15 @@
+{
+  "private_parent_bundle": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/recovery-parent-v4",
+  "parent_condition_snapshot": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/recovery-parent-v4/condition-pilot20-v4.json",
+  "source_snapshots": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/recovery-parent-v4/source-snapshots.json",
+  "parent_artifact_inventory": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/recovery-parent-v4/parent-artifacts.json",
+  "budget_backup": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/recovery-parent-v4/budget-snapshot.db",
+  "witness_snapshots": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/recovery-parent-v4/witness-snapshots.json",
+  "native129_home_witness": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/recovery-parent-v4/witnesses/db-cd89eed1c463254da5515e55/api-witness.jsonl",
+  "native129_process_result_duration_ms": 41748,
+  "context_mode": "installed AtMem API to native ephemeral_system_prompt; no native shutdown provider expected",
+  "policy": "Owner authorizes bounded harness repair, fresh epoch qualifications and non-replaying continuation of remaining17; original20 results retained.",
+  "historical_bundle": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/recovery-parent-v4/historical-bundle.json",
+  "proofs_129": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/recovery-parent-v4/proofs-129.json",
+  "root_reconciliation": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/recovery-parent-v4/root-reconciliation-check.json"
+}

@@ -2,6 +2,7 @@
 from __future__ import annotations
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 import secrets
@@ -29,6 +30,10 @@ def report(condition_path, directory, *, receipt_output=None, stage='pilot'):
     recorded_identity = read(directory / 'execution-condition.json')
     if recorded_identity != condition:
         raise ValueError('Pilot ran under a different frozen configuration')
+    epoch = None
+    if (directory / 'epoch-transition.json').exists():
+        from .pilot_recovery import verify_epoch
+        epoch = verify_epoch(directory, condition_path)
     paths = [p for p in (directory / 'tests').glob('*/*.json') if not p.name.startswith('._')]
     if {p.parent.name + '/' + p.stem for p in paths} != expected or len(paths) != count:
         raise ValueError('Run must contain exactly the fixed selected executions')
@@ -54,6 +59,9 @@ def report(condition_path, directory, *, receipt_output=None, stage='pilot'):
                      'original_cohort': ('pass' if original[key]['passed'] else
                          'untraced_zero' if not original[key]['independent_app_trace'] else
                          'traced_zero' if original[key]['checks_passed'] == 0 else 'traced_partial')})
+        if epoch is not None:
+            rows[-1]['execution_condition_sha256'] = epoch['execution_conditions'].get(key, identity(condition))
+            rows[-1]['grade_condition_sha256'] = epoch['grade_conditions'].get(key, identity(condition))
         native = directory / 'native/tests' / key
         ruling = native / 'pre-action-ruling.json'
         blocked = any(a.get('gate_blocked') is True for a in data.get('attempts', []))
@@ -63,7 +71,8 @@ def report(condition_path, directory, *, receipt_output=None, stage='pilot'):
             artifacts.append(ruling)
         else:
             outcome = native / 'app-evidence/outcome.json'
-            if not outcome.exists() or read(outcome).get('completed') is not True:
+            recovered = epoch is not None and key == epoch['reconstructed_id']
+            if not outcome.exists() or (read(outcome).get('completed') is not True and not recovered):
                 raise ValueError('Missing completed interaction journal: ' + key)
             if not list((native / 'calls/tests').glob('*/request.json')):
                 raise ValueError('Per-task provider request evidence absent: ' + key)
@@ -88,18 +97,42 @@ def report(condition_path, directory, *, receipt_output=None, stage='pilot'):
             or not 0 <= accounting['actual_usd'] <= condition['budget']['caps_usd'][stage]):
         raise ValueError('Unreconciled or invalid pilot cost accounting')
     artifacts.append(directory / 'pilot-accounting.json')
+    if epoch is not None:
+        from .pilot_recovery import verify_inherited_budget
+        campaign = {**read(condition['inputs']['options']['path'])['campaign_identity'], 'cap_usd': 10}
+        spent = verify_inherited_budget(epoch['inherited_budget']['path'], directory / 'budget.db', campaign)
+        if not math.isclose(accounting['actual_usd'], spent / 1_000_000, abs_tol=1e-9, rel_tol=0):
+            raise ValueError('Report accounting differs from cumulative inherited/new ledger')
     result = {'schema': 'dolphin-fixed-pilot-report-v1' if stage == 'pilot' else 'dolphin-full-report-v1', 'condition_sha256': identity(condition),
               'post_hoc_diagnostic_not_holdout': True, 'tasks': count, 'rows': rows,
               'passed': sum(r['passed'] for r in rows), 'regressions': [r['id'] for r in rows if r['regressed']],
               'recoveries': [r['id'] for r in rows if r['recovered']], 'accounting': accounting,
               'fixture_limitations': ['morgan/085', 'morgan/130'], 'full_600_score': None,
               'self_tested_unverified': True, 'official_submission': False, 'original_score_unchanged': '390/600'}
-    save(directory / ('pilot-report.json' if stage == 'pilot' else 'full-result.json'), result)
+    if epoch is not None:
+        result['epoch_lineage'] = epoch
+        result['limitations'] = [epoch['lineage'],
+            '390/517 = 75.4% remains conditional, not a full score',
+            read(directory / 'recovery-129.json')['duration_basis']]
+        artifacts.extend([directory / 'epoch-transition.json', directory / 'recovery-129.json'])
+    report_path = directory / ('pilot-report.json' if stage == 'pilot' else 'full-result.json')
+    if report_path.exists():
+        if read(report_path) != result:
+            raise ValueError('Existing report differs; preserve and reconcile')
+    else:
+        save(report_path, result)
     if receipt_output is not None:
         if result['regressions']:
             raise ValueError('Regressed controls require investigation; report retained, full launch blocked')
-        receipt(condition_path, 'pilot', {k: True for k in CHECKS['pilot']},
-                [directory / 'pilot-report.json', *artifacts], receipt_output)
+        if Path(receipt_output).exists():
+            existing = read(receipt_output)
+            if (existing.get('kind') != 'pilot' or existing.get('condition_sha256') != identity(condition)
+                    or not existing.get('artifacts') or existing['artifacts'][0] != pin(directory / 'pilot-report.json')):
+                raise ValueError('Existing pilot receipt differs; preserve and reconcile')
+            admit(condition_path, Path(receipt_output).parent, 'full')
+        else:
+            receipt(condition_path, 'pilot', {k: True for k in CHECKS['pilot']},
+                    [directory / 'pilot-report.json', *artifacts], receipt_output)
     return result
 
 
@@ -107,6 +140,7 @@ def verify_forwarded_routes(condition, directory):
     from urllib.parse import urlsplit
     directory = Path(directory)
     paths = list((directory / 'subscription').glob('calls/*/attempt-*/provider-request.json'))
+    paths += list((directory / 'launches').glob('*/subscription/calls/*/attempt-*/provider-request.json'))
     if not paths:
         raise ValueError('Actual subscription provider request evidence absent')
     for path in paths:
@@ -116,7 +150,9 @@ def verify_forwarded_routes(condition, directory):
                 or body.get('model') != condition['routes']['reader']['model']
                 or body.get('reasoning', {}).get('effort') != condition['routes']['reader']['reasoning']):
             raise ValueError('Actual subscription route differs from frozen reader')
-    for path in (directory / 'judge-calls').glob('judge/*/request.json'):
+    judge_paths = list((directory / 'judge-calls').glob('judge/*/request.json'))
+    judge_paths += list((directory / 'launches').glob('*/judge-calls/judge/*/request.json'))
+    for path in judge_paths:
         body = read(path)
         route = condition['routes']['judge']
         if (body.get('model') != route['model'] or body.get('reasoning_effort') != route['reasoning']
@@ -137,7 +173,24 @@ def _regressions(directory):
                   and not all(c['passed'] for c in read(p)['checks']))
 
 
-def run_pilot(condition_path, receipts, options_path, output, env_file, *, stage='pilot'):
+def run_pilot(condition_path, receipts, options_path, output, env_file, *, stage='pilot', resume_epoch=False):
+    if resume_epoch:
+        from .pilot_recovery import epoch_lock, verify_epoch
+        if stage != 'pilot':
+            raise ValueError('Recovery is limited to the fixed20 pilot')
+        verify_epoch(output, condition_path)
+        with epoch_lock(output):
+            condition = admit(condition_path, receipts, 'pilot')
+            expected = selection(condition)
+            if all((Path(output) / 'tests' / (k + '.json')).exists() and
+                   (Path(output) / 'grades' / (k + '.json')).exists() for k in expected):
+                return report(condition_path, output, receipt_output=Path(receipts) / 'pilot.json')
+            return _run_pilot(condition_path, receipts, options_path, output, env_file,
+                              stage=stage, resume_epoch=True)
+    return _run_pilot(condition_path, receipts, options_path, output, env_file, stage=stage)
+
+
+def _run_pilot(condition_path, receipts, options_path, output, env_file, *, stage='pilot', resume_epoch=False):
     # Admission and immutable input checks precede output creation and provider startup.
     condition = admit(condition_path, receipts, stage)
     if (Path(sys.executable).resolve() != Path(condition['bindings']['product_python']).resolve()
@@ -150,7 +203,7 @@ def run_pilot(condition_path, receipts, options_path, output, env_file, *, stage
         raise ValueError('Pilot options file differs from frozen condition')
     bindings = condition['bindings']
     output = Path(output).resolve()
-    if output.exists():
+    if output.exists() and not resume_epoch:
         raise ValueError('Fresh pilot output required; reconcile uncertain runs explicitly')
     from .readiness import require_options
     options.update({'readiness_condition': str(Path(condition_path).resolve()),
@@ -158,6 +211,11 @@ def run_pilot(condition_path, receipts, options_path, output, env_file, *, stage
                     'execution_profile': PROFILE, 'env_file': str(env_file)})
     cap = condition['budget']['caps_usd'][stage]
     options['campaign_identity']['cap_usd'] = cap
+    if resume_epoch:
+        from .pilot_recovery import budget_status, verify_epoch, preflight_resume
+        verify_epoch(output, condition_path)
+        budget_status(output / 'budget.db', options['campaign_identity'])
+        preflight_resume(output, condition)
     require_options(options)
     import atmem
     with zipfile.ZipFile(condition['inputs']['wheel']['path']) as archive:
@@ -181,27 +239,32 @@ def run_pilot(condition_path, receipts, options_path, output, env_file, *, stage
     # Only slice IDs; never add required tool/check information to user inputs.
     sliced = {p: {**entry, 'tests': [s for s in entry['tests'] if p + '/' + str(s['id']).zfill(3) in selected]}
               for p, entry in release.items()}
-    output.mkdir(parents=True)
-    save(output / 'execution-condition.json', condition)
+    if not resume_epoch:
+        output.mkdir(parents=True)
+        save(output / 'execution-condition.json', condition)
     kinds = ('profile', 'apps', 'recovery') + (('pilot',) if stage == 'full' else ())
-    lease = output / 'launch-admission.json'
-    save(lease, {'schema': 'dolphin-launch-admission-v1', 'pid': os.getpid(),
+    launch = output / 'launches' / secrets.token_hex(16) if resume_epoch else output
+    lease = launch / 'launch-admission.json'
+    lease_value = {'schema': 'dolphin-launch-admission-v1', 'pid': os.getpid(),
         'stage': stage, 'run_root': str(output), 'created_at': time.time(),
         'condition_sha256': identity(condition),
-        'receipt_files': [pin(Path(receipts) / (kind + '.json')) for kind in kinds]})
+        'receipt_files': [pin(Path(receipts) / (kind + '.json')) for kind in kinds]}
+    if resume_epoch:
+        lease_value['recovery_transition'] = pin(output / 'epoch-transition.json')
+    save(lease, lease_value)
     options['readiness_admission'] = str(lease)
     options['subscription_endpoint'] = 'http://127.0.0.1:1/v1/chat/completions'
     os.environ['ATMEM_SUBSCRIPTION_PROXY_TOKEN'] = secrets.token_urlsafe(32)
-    listener = output / 'subscription/listener.json'
+    listener = launch / 'subscription/listener.json'
     server = judge = adapter = None
-    with (output / 'subscription-service.log').open('x') as log:
+    with (launch / 'subscription-service.log').open('x') as log:
         try:
             adapter = AtMemAdapter(options, output)
             runner = protected_runner_class(Runner)(sliced, output, adapter,
                 identity=adapter.identity(), release_root=Path(bindings['upstream_root']))
             runner.allow_paid = True
             server = subprocess.Popen([bindings['subscription_python'], '-I',
-                str(Path(__file__).with_name('subscription_service.py')), '--output', str(output / 'subscription'),
+                str(Path(__file__).with_name('subscription_service.py')), '--output', str(launch / 'subscription'),
                 '--listener-file', str(listener), '--reasoning-effort', condition['routes']['reader']['reasoning'],
                 '--model', condition['settings']['reader']['model']],
                 env={**os.environ, 'HERMES_HOME': str(Path.home() / '.hermes')},
@@ -224,17 +287,26 @@ def run_pilot(condition_path, receipts, options_path, output, env_file, *, stage
                 for persona in release:
                     checkpoint = read(condition['inputs']['memory:' + persona]['path'])
                     adapter.verify_checkpoint(persona, checkpoint)
-                    save(output / 'checkpoints' / (persona + '.json'), checkpoint)
-                judge = Gateway(key=load_key(env_file), output=output / 'judge-calls', ledger_path=adapter.ledger,
+                    checkpoint_path = output / 'checkpoints' / (persona + '.json')
+                    if checkpoint_path.exists():
+                        if read(checkpoint_path) != checkpoint:
+                            raise ValueError('Saved checkpoint differs')
+                    else:
+                        save(checkpoint_path, checkpoint)
+                judge = Gateway(key=load_key(env_file), output=launch / 'judge-calls', ledger_path=adapter.ledger,
                     campaign_identity=options['campaign_identity'], cap_usd=cap,
                     phase='judge', model='openai/gpt-5.6-sol', input_per_million=5,
                     output_per_million=30, output_token_cap=8000, readiness_options=options).start()
                 with openrouter_judge(judge):
                     for persona, entry in sliced.items():
                         for spec in entry['tests']:
-                            evidence = runner._execute('tests', persona, spec)
-                            save(output / 'grades' / persona / (str(spec['id']).zfill(3) + '.json'),
-                                 runner._grade(spec, evidence))
+                            from .pilot_recovery import execute_once
+                            def boundary():
+                                admit(condition_path, receipts, stage)
+                                if resume_epoch:
+                                    verify_epoch(output, condition_path)
+                                    budget_status(output / 'budget.db', options['campaign_identity'])
+                            execute_once(runner, output, persona, spec, boundary=boundary)
                             adapter.verify_checkpoint(persona, read(condition['inputs']['memory:' + persona]['path']))
                             print(json.dumps({'pilot_completed': persona + '/' + str(spec['id']).zfill(3)}), flush=True)
                 book = BudgetLedger(adapter.ledger, cap_usd=cap, identity=options['campaign_identity'])
@@ -274,6 +346,7 @@ def main():
     parser.add_argument('--options', type=Path)
     parser.add_argument('--env-file', type=Path)
     parser.add_argument('--report-only', action='store_true')
+    parser.add_argument('--resume-epoch', action='store_true')
     parser.add_argument('--stage', choices=('pilot', 'full'), default='pilot')
     args = parser.parse_args()
     if args.report_only:
@@ -281,7 +354,8 @@ def main():
     else:
         if not args.options or not args.env_file:
             parser.error('Pilot execution requires frozen options and private env-file path')
-        result = run_pilot(args.condition, args.receipts, args.options, args.output, args.env_file, stage=args.stage)
+        result = run_pilot(args.condition, args.receipts, args.options, args.output, args.env_file,
+                           stage=args.stage, resume_epoch=args.resume_epoch)
     print(json.dumps({'tasks': result['tasks'], 'passed': result['passed'], 'regressions': result['regressions']}))
 
 

@@ -163,3 +163,21 @@ Use `pilot-selection-20-20261026.json`, the new private20 condition and
 and superseded for new dispatch. Do not retry the stopped60-task AtSys job.
 The exact-command worker keeps the benchmark agent sandbox unchanged.
 See the feature verification and AtSys runbook for current evidence and state.
+
+
+## Bounded exporter recovery amendment — 2026-10-26
+
+The owner authorizes reviewed harness/export/recovery repair and an evidence-
+preserving continuation of the same20. Prior no-repair/inspect-only restrictions
+are superseded within this scope; the original parent remains read-only.023/085
+executions and grades are preserved;129 must be reconstructed offline or remain
+blocked, never replayed. Root owns review, fresh source-bound zero-call ARM
+qualification, new freeze/epoch and remaining17 dispatch. The implementation
+worker must not launch scored work or commit/push. Read
+[the recovery contract and CLI](../../specs/048-dolphin-execution-readiness/recovery-implementation.md)
+before any continuation. Full600 remains unauthorized and NO GO.
+
+The active **automatic** trusted-parent policy and exact task IDs are in
+[Automatic recovery](../../specs/048-dolphin-execution-readiness/atsys/AUTOMATIC-RECOVERY.md).
+The trusted parent performs qualification/freeze/continuation without a human
+issuing each retry. The coding repair worker retains workspace scope.

@@ -319,6 +319,16 @@ def require_options(options, *, request=None):
             raise ValueError('Admitted condition changed')
         for artifact in lease['receipt_files']:
             verify_pin(artifact)
+        epoch_path = Path(lease['run_root']) / 'epoch-transition.json'
+        if epoch_path.exists() or 'recovery_transition' in lease:
+            if lease.get('recovery_transition') != pin(epoch_path):
+                raise ValueError('Recovery admission lacks the immutable epoch transition')
+            from .pilot_recovery import verify_epoch
+            # Startup/between-task checks remain strict. During this admitted
+            # process, simultaneous primary/auxiliary reservations are live;
+            # retain their full bounds and reject any pre-launch uncertainty.
+            verify_epoch(lease['run_root'], options['readiness_condition'],
+                         inflight_since=lease['created_at'])
     else:
         condition = admit(options.get('readiness_condition', ''), options.get('readiness_receipts', ''), stage)
     campaign = options.get('campaign_identity', {})

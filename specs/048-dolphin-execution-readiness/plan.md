@@ -42,7 +42,7 @@ operator control is trusted; claims do not imply third-party attestation.
    call/output creation without readiness.
 6. Claude Opus 5.5 medium review; fix findings; commit/push exact results and blockers.
 
-## Operational constraint
+## Historical operational constraint (superseded for the current repair)
 
 The original `/Volumes/AtMemDolphin` workspace is currently unmounted. Code,
 synthetic qualification and pilot tooling can be completed. Live memory-backed
@@ -50,3 +50,21 @@ pilot/frozen run config require the authentic checkpoint/key material; missing
 material is an explicit blocker, not a passing receipt. No full run is launched.
 
 Owner amendment: new 20 selection and source-bound AtSys exact-command launcher; no changes to reader60-turn cap, memory, retrieval or judge. Old condition/receipts are retained and invalidated for the new pilot.
+
+
+## Bounded recovery amendment — current implementation scope
+
+`pilot_recovery.py` independently verifies retained historical bytes, reconstructs
+129 without dispatch, creates immutable epoch/condition transitions, imports
+completed executions/grades, carries SQLite accounting via a disposable staged
+copy and backup, and enforces persistent intent/lock boundaries. `readiness.py`
+keeps normal admission and additionally checks inherited evidence at forwarding.
+`pilot_readiness.py` skips saved executions/grades and validates recovery receipts
+in reports. `recovery_supervisor.py` verifies bounded coding/test/qualification
+handoffs without executing workload commands. Root performs private/MEM writes
+outside the workspace coding sandbox. The historical read-only/no-repair retry
+policy is superseded within this amendment; scientific configuration is fixed.
+No product, grader, fixtures, upstream or model-setting changes occur.
+Tests use real upstream export/validation on synthetic and retained evidence;
+root performs installed ARM product qualification after review. See
+[recovery-implementation.md](recovery-implementation.md) for current limits and CLI.

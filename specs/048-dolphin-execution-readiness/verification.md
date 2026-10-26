@@ -1,3 +1,20 @@
+## Current operational status — 2026-10-26 automatic recovery
+
+This entry supersedes older0/20 and workspace/OAuth blocker summaries below.
+The implementation task completed. The trusted parent passed183 focused tests
+and real retained-task reconstruction, then fresh native/app/crash qualification.
+Its first SQLite publication fault was diagnosed and repaired automatically by
+AtSys; original evidence and charges were preserved. The parent requalified the
+changed source and resumed the same20 without replaying saved actions.
+
+Active task: `task-fde52452-dc80-484c-875c-2e732bb6d5e2`.
+At this observation:3 executions saved (023/085 preserved,129 reconstructed),
+2 prior grades preserved; continuation is running. This is not20-task completion.
+Live persisted state and `launch-*.json` are authoritative for later progress.
+Full600 remains unauthorized and NO GO.
+
+[Automatic repair policy and durable pointers](atsys/AUTOMATIC-RECOVERY.md).
+
 # Verification — 2026-10-26
 
 **Full-run decision: NO GO. Active live pilot: 0/20, blocked before reader/judge calls.**

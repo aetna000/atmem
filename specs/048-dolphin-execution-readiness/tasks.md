@@ -17,7 +17,7 @@
 
 - [x] T006 Implement and run actual synthetic upstream MCP bridge/state/log qualification in `benchmarks/dolphinbench/qualify_execution.py` (FR-002–003).
 - [x] T007 Implement fixed-pilot verification/reporting and run entry in `benchmarks/dolphinbench/pilot_readiness.py`; test 19/20, wrong IDs, costs/regressions/cohorts (FR-004).
-- [ ] T008 Obtain original frozen checkpoints/private runtime configuration; freeze candidate JSON and run the actual 20-task pilot; retain output under a new run identity (FR-004–005). Original volume now mounted read-only; isolated checkpoint copies verified. Pilot attempted with frozen configuration; 0/20. OAuth now verified and MEM restored. BLOCKED on AtSys worker scoped filesystem access; no scored pilot started. See verification.md and remediation-status.md.
+- [ ] T008 Obtain original frozen checkpoints/private runtime configuration; freeze candidate JSON and run the actual 20-task pilot; retain output under a new run identity (FR-004–005). Original checkpoints recovered and verified. Fixed20 is continuing under the qualified automatic parent; two grades preserved and129 reconstructed offline. All20 completion remains pending; see verification.md and atsys/AUTOMATIC-RECOVERY.md.
 - [x] T009 Wire gate into existing campaign and adapter dispatch boundaries and prove failure before provider calls on missing/changed receipts (FR-006).
 
 ## Review and completion
@@ -31,3 +31,36 @@
 - [x] T014 Freeze exactly 20 stratified diagnostic IDs, update all guard/report/validator cardinalities, preserve original 60 evidence, and test19/20 plus stale-condition refusal.
 - [x] T015 Prepare a separately versioned AtSys exact-command task with inspect-only retries; pin its command/validator, preserve the old blocked task, and verify its schema.
 - [x] T016 Generate the new frozen condition and fresh native/app/crash qualification. Record readiness without claiming new pilot accuracy.
+
+
+## Owner amendment — bounded repair, separate recovery epoch
+
+Earlier no-repair/inspect-only retry restrictions are historical and superseded
+within this scope. T008's old0/20 filesystem blocker is historical:023/085 and
+their grades exist;129 executed but export failed. Parent is read-only evidence;
+no workload is launched by this implementation worker.
+
+- [x] T017 Implement exact finite recursive numeric export; preserve raw calls
+  and default provenance, reject true differences, bool/string/nonfinite and
+  unsafe ordering/targets (FR-010).
+- [x] T018 Implement historical byte verifier, offline129 recovery receipt,
+  immutable epoch lineage and exact completed execution/grade import (FR-011–012).
+- [x] T019 Implement cumulative SQLite budget inheritance, exclusive intents,
+  per-run lock, saved-grade skipping and actual resume/forward/report guards
+  without weakening ordinary admission (FR-013).
+- [x] T020 Add bounded supervisor repair template and executable handoff checks;
+  parent execution remains separate from workspace coding repair (FR-014).
+- [x] T021 Add focused numeric/offline recovery/import/crash/cost/entry/report
+  acceptance tests and document exact commands and limitations.
+- [x] T022 Root reviews implementation with Claude, resolves findings, performs
+  fresh installed ARM zero-call qualification, freezes a new condition and
+  prepares the real recovery epoch. No implementation-worker workload/commit.
+- [ ] T023 Root wires and launches supervised remaining17 only; grade recovered
+  evidence once if needed, retain original grades, report all20 and regressions.
+  Full600 remains blocked pending separately authorized readiness/promotion.
+
+## Automatic parent verification — 2026-10-26
+
+- [x] T024 Implement and pin trusted automatic parent, independent source/science/ledger/result guards and safe qualification/epoch retries; five parent guard tests pass.
+- [x] T025 Enable bounded AtSys repair, verify an actual SQLite repair and automatic retry, and pass183 focused tests plus fresh zero-model qualification.
+- [ ] T026 Complete independent20-task report/validation; retain fixture failures and any control regressions. Full600 remains unauthorized.
