@@ -1,0 +1,28 @@
+{
+  "schema": "dolphin-atsys-preparation-v1",
+  "submitted": false,
+  "scope": "fixed60-pilot-only",
+  "config": {
+    "path": ".atsys/tasks/dolphin-readiness-pilot.json",
+    "sha256": "3f138dfcf3e57bc9e24c14ebd3d84c05917bf6791381ca5fee390a32b212ab20"
+  },
+  "validator": {
+    "path": "specs/048-dolphin-execution-readiness/atsys/validate_pilot.py",
+    "sha256": "8262f8dc77077d8cf748da8542d506bc755d47866eb391f20591891e8b041d2f"
+  },
+  "worker": {
+    "model": "gpt-6.1-sol",
+    "effort": "medium"
+  },
+  "supervisor": {
+    "model": "gpt-6.1-sol",
+    "effort": "high",
+    "max_calls": 2
+  },
+  "automatic_repair": false,
+  "max_supervision_retries": 2,
+  "max_benchmark_launches": 1,
+  "attempt_timeout_seconds": 43200,
+  "task_timeout_seconds": 86400,
+  "benchmark_condition": "32d9caadf3a84b211bab01bceec2444595e0eafc481a25ed35f51b3a77f36932"
+}
