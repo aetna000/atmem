@@ -76,3 +76,29 @@ cannot qualify promotion. Full 600 is not authorized or launched.
 Original result remains 390/600; 75.4% remains conditional. The fixed 20 selection
 is post hoc and cannot establish a new600 score. Recovered129 latency is the
 recorded native duration, excluding controller overhead, and is labelled as such.
+
+## Recovery exercised on 2026-10-26
+
+The automatic parent diagnosed and repaired SQLite publication to ExFAT, then
+independently passed 183 tests, real retained129 reconstruction and fresh zero-call
+app/profile/crash qualification before retrying. The next startup failed before
+provider calls because imported evidence lacked the new epoch's upstream run
+identity. Its second bounded repair now publishes the exact upstream identity
+exclusively under the epoch lock after provenance, science, budget and uncertainty
+verification. The actual upstream constructor is covered without model/app calls.
+
+MEM disconnected during that repair's acceptance. AtSys reported `fixed:false`
+rather than claiming validation. macOS completed its automatic ExFAT check at
+15:23:21 Australia/Sydney, reporting that MEM appears OK. The operator verified
+volume UUID `43E06C6D-2164-3BC4-856D-3F0F34412E97` and restored
+`/Volumes/AtMemDolphin` read-only. Independent acceptance then passed **194 tests**
+and real retained129 offline reconstruction. The same parent task was retried
+within its existing worker retry limit, with no configuration change or extra
+coding repair allowance. Live task/launch records remain authoritative for progress.
+
+At that retry, three executions and two original grades were retained; task129
+still required grading and 17 tasks were untouched. No prior action was replayed.
+Local incident evidence is retained outside MEM at
+`~/.local/share/atmem-dolphin-readiness-20261026/mem-disconnect-20261026T041353Z.json`.
+A physical disconnection requires volume restoration; it is not permission to
+bypass evidence checks, rerun actions or change the benchmark configuration.

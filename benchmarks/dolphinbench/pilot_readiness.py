@@ -260,8 +260,12 @@ def _run_pilot(condition_path, receipts, options_path, output, env_file, *, stag
     with (launch / 'subscription-service.log').open('x') as log:
         try:
             adapter = AtMemAdapter(options, output)
+            configuration = adapter.identity()
+            if resume_epoch:
+                from .pilot_recovery import initialize_run_identity
+                initialize_run_identity(output, condition_path, sliced, configuration)
             runner = protected_runner_class(Runner)(sliced, output, adapter,
-                identity=adapter.identity(), release_root=Path(bindings['upstream_root']))
+                identity=configuration, release_root=Path(bindings['upstream_root']))
             runner.allow_paid = True
             server = subprocess.Popen([bindings['subscription_python'], '-I',
                 str(Path(__file__).with_name('subscription_service.py')), '--output', str(launch / 'subscription'),

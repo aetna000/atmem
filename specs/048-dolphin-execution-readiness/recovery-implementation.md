@@ -316,3 +316,49 @@ parent command worker; it does not require a human to type each qualification,
 freeze or continuation command. Unknown side effects or charges still block
 replay. The former handoff-only template is historical; use the active
 `.atsys/tasks/dolphin-pilot20-qualified-recovery.json` configuration.
+
+## Bounded recovery startup identity repair — 2026-10-26
+
+Preparation intentionally imports evidence without `run.json`. The upstream
+Runner correctly refuses unidentified evidence, so recovery startup now publishes
+the new epoch's identity before calling the unchanged Runner constructor or
+starting providers. Under the entry point's epoch lock, it re-verifies provenance,
+unchanged science, inherited budget accounting and uncertainty preflight. The
+fingerprint is exactly `{version: 1, release: harness.runner.digest(sliced_release),
+configuration: adapter.identity()}` using the full upstream release, including
+runtime metadata. Publication uses exclusive creation and file/directory fsync;
+an existing record must match and is never overwritten. Preparation still leaves
+`run.json` absent and never copies the parent's identity.
+
+Offline integration exercises the actual upstream Runner through the recovery
+entry point with a simulated adapter and blocked provider startup. It checks new
+and matching identities, mismatched identity refusal, ordinary unidentified-
+evidence refusal, epoch locking, unchanged saved executions/grades and rejection
+of uncertain dispatch, grading, inflight/returned work, app state, budget, proof
+or scientific configuration before identity publication or adapter startup.
+
+The launched `b22530562659f6020aaa` epoch, its source archive and launch record
+remain unchanged. This repair requires the trusted parent's next immutable epoch,
+fresh qualification and source freeze. It does not authorize rebinding the old
+launch, replaying actions, rerunning completed grades or launching full600.
+The coding sandbox denies `/bin/ps`; the unchanged process-group test remains
+required in the trusted parent. No pilot workload is launched by this repair.
+
+Restricted-worker verification: **192 passed, 1 failed, 1 deselected in 196.56s**
+across the independent validator's eight focused test files, with
+`PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`, `PYTHONDONTWRITEBYTECODE=1` and
+`DOLPHINBENCH_UPSTREAM=/Users/javadtaghia/gitlab/benchmark-sources/dolphinbench`.
+The unchanged process-group test was deselected for the parent. All new startup
+integration cases passed. The sole failure is the unchanged actual retained
+023/085/129 check: `/Volumes/MEM` disappeared during verification, making the
+pinned wheel unavailable. A separate actual129 reconstruction attempt also failed
+on its missing original `process.json`. Neither check is waived or reported as
+passing; this repair is not certified until the same retained volume is restored
+and the required checks pass. Do not substitute evidence or change pins.
+
+Before the volume disappeared, read-only checks passed trusted controller and
+validator pins, allowed source scope, archived epoch provenance, uncertainty
+preflight and inherited budget reconciliation (USD0.002728 settled). Available
+local archived/control bytes remain unchanged, and `git diff --check` passes.
+No original/private evidence was written. Fresh parent qualification, source
+freeze, a new immutable epoch and actual continuation remain pending.

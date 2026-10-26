@@ -486,6 +486,166 @@ def test_real_epoch_preparation_preserves_grades_old_condition_and_incomplete_ou
         recovery.prepare_epoch(e.bundle, e.path, e.receipts, e.parent, e.output, e.path.parent / 'proofs.json')
 
 
+@pytest.fixture
+def actual_runner_modules(actual_harness):
+    # Other focused tests may already have imported the upstream package from
+    # a volume alias. Load this integration's real constructor from its pinned
+    # checkout, then restore the caller's module cache without leaking imports.
+    def upstream_module(name):
+        return name.split('.')[0] in {'harness', 'graders'}
+
+    previous = {name: value for name, value in sys.modules.items() if upstream_module(name)}
+    for name in previous:
+        del sys.modules[name]
+    try:
+        from harness import runner, submission
+        assert Path(runner.__file__).resolve() == (actual_harness / 'harness/runner.py').resolve()
+        yield runner, submission
+    finally:
+        for name in list(sys.modules):
+            if upstream_module(name):
+                del sys.modules[name]
+        sys.modules.update(previous)
+
+
+@pytest.mark.parametrize('existing', [None, 'matching', 'mismatched'])
+def test_recovery_startup_uses_actual_upstream_runner_identity(epoch, actual_runner_modules, monkeypatch, existing):
+    from contextlib import nullcontext
+    from benchmarks.dolphinbench import adapter as adapter_module
+    from benchmarks.dolphinbench import pilot_readiness as pilot
+    upstream, submission = actual_runner_modules
+
+    e = epoch
+    cfg = gate.read(e.path)
+    # Fingerprint the full upstream release, including runtime/tool metadata;
+    # recovery._release intentionally projects only the offline proof fields.
+    release = submission.read_release(Path(cfg['bindings']['upstream_root']))
+    selected = pilot.selection(cfg)
+    sliced = {p: {**entry, 'tests': [s for s in entry['tests']
+        if p + '/' + str(s['id']).zfill(3) in selected]} for p, entry in release.items()}
+    configuration = {'offline_adapter': 'current epoch', 'campaign': {'cap_usd': 10}}
+    expected = {'version': 1, 'release': upstream.digest(sliced), 'configuration': configuration}
+    run_path = e.output / 'run.json'
+    events = []
+
+    class OfflineAdapter:
+        def __init__(self, *_args):
+            events.append('adapter')
+
+        def identity(self):
+            return deepcopy(configuration)
+
+        def total_cost_usd(self, _phase):
+            raise AssertionError('offline initialization queried provider cost')
+
+        def stop(self):
+            events.append('stop')
+
+    # Preserve ordinary upstream refusal of unidentified imported evidence.
+    with pytest.raises(ValueError, match='Existing evidence has no run identity'):
+        upstream.Runner(sliced, e.output, OfflineAdapter(), identity=configuration)
+    events.clear()
+    if existing:
+        value = deepcopy(expected)
+        if existing == 'mismatched':
+            value['configuration']['offline_adapter'] = 'another epoch'
+        gate.save(run_path, value)
+        if existing == 'mismatched':
+            with pytest.raises(ValueError, match='Run inputs changed'):
+                upstream.Runner(sliced, e.output, OfflineAdapter(), identity=configuration)
+            events.clear()
+    before = run_path.read_bytes() if existing else None
+    inherited = {str(p): p.read_bytes() for folder in ('tests', 'grades')
+                 for p in (e.output / folder).glob('*/*.json')}
+
+    # Product/runtime setup is orthogonal to this regression. Admission, epoch
+    # provenance, science, ledger, uncertainty and the upstream constructor run
+    # unchanged; the offline adapter and empty wheel avoid product/model calls.
+    monkeypatch.syspath_prepend(cfg['bindings']['controller_site'])
+    monkeypatch.setattr(gate, 'require_options', lambda *_a, **_kw: cfg)
+    monkeypatch.setattr(pilot.zipfile, 'ZipFile',
+        lambda *_a, **_kw: nullcontext(SimpleNamespace(namelist=lambda: [])))
+    monkeypatch.setattr(adapter_module, 'AtMemAdapter', OfflineAdapter)
+    actual_init = upstream.Runner.__init__
+
+    def observed_init(self, *args, **kwargs):
+        # Identity publication and the real Runner constructor share the entry
+        # point's exclusive epoch lock, before any provider startup.
+        with pytest.raises(ValueError, match='already running'):
+            with recovery.epoch_lock(e.output):
+                pass
+        assert gate.read(run_path) == expected
+        actual_init(self, *args, **kwargs)
+        events.append('actual Runner accepted')
+
+    monkeypatch.setattr(upstream.Runner, '__init__', observed_init)
+
+    class ReachedProviderBoundary(Exception):
+        pass
+
+    def no_provider(*_a, **_kw):
+        assert events == ['adapter', 'actual Runner accepted']
+        events.append('provider blocked')
+        raise ReachedProviderBoundary
+
+    monkeypatch.setattr(subprocess, 'Popen', no_provider)
+    if existing == 'mismatched':
+        with pytest.raises(ValueError, match='Run inputs changed'):
+            pilot.run_pilot(e.path, e.receipts, cfg['inputs']['options']['path'],
+                e.output, e.path.parent / 'private-not-read', resume_epoch=True)
+        assert events == ['adapter', 'stop']
+    else:
+        with pytest.raises(ReachedProviderBoundary):
+            pilot.run_pilot(e.path, e.receipts, cfg['inputs']['options']['path'],
+                e.output, e.path.parent / 'private-not-read', resume_epoch=True)
+        assert events == ['adapter', 'actual Runner accepted', 'provider blocked', 'stop']
+        assert gate.read(run_path) == expected
+    if existing:
+        assert run_path.read_bytes() == before
+    assert all(Path(p).read_bytes() == data for p, data in inherited.items())
+
+
+@pytest.mark.parametrize('failure', ['dispatch', 'grade', 'inflight', 'returned',
+                                    'workspace', 'budget', 'proof', 'science'])
+def test_recovery_startup_rejects_uncertainty_before_identity_or_providers(epoch, monkeypatch, failure):
+    from benchmarks.dolphinbench import adapter as adapter_module
+    from benchmarks.dolphinbench.pilot_readiness import run_pilot, selection
+
+    e = epoch
+    cfg = gate.read(e.path)
+    key = next(k for k in sorted(selection(cfg)) if k not in recovery.IMPORTED | {recovery.RECOVERED})
+    if failure in ('dispatch', 'grade'):
+        gate.save(e.output / (failure + '-intents') / (key + '.json'), {'unknown': True})
+    if failure in ('inflight', 'returned'):
+        gate.save(e.output / 'tests' / (key + '.' + failure), {'unknown': True})
+    if failure == 'workspace':
+        gate.save(e.output / 'apps' / key / 'state.json', {'unknown': True})
+    if failure == 'budget':
+        campaign = {**gate.read(cfg['inputs']['options']['path'])['campaign_identity'], 'cap_usd': 10}
+        book = BudgetLedger(e.output / 'budget.db', cap_usd=10, identity=campaign)
+        try:
+            book.reserve('uncertain', phase='judge', request={}, maximum_usd=1)
+        finally:
+            book.close()
+    if failure == 'proof':
+        proof = gate.read(e.output / 'recovery-129.json')['proofs'][0]
+        Path(proof['path']).write_text('{}')
+    if failure == 'science':
+        cfg['settings']['reader']['reasoning'] = 'medium'
+        e.path.write_text(json.dumps(cfg))
+
+    def forbidden(*_a, **_kw):
+        raise AssertionError('unsafe epoch reached adapter/provider startup')
+
+    monkeypatch.syspath_prepend(cfg['bindings']['controller_site'])
+    monkeypatch.setattr(adapter_module, 'AtMemAdapter', forbidden)
+    monkeypatch.setattr(subprocess, 'Popen', forbidden)
+    with pytest.raises(ValueError):
+        run_pilot(e.path, e.receipts, cfg['inputs']['options']['path'], e.output,
+                  e.path.parent / 'private-not-read', resume_epoch=True)
+    assert not (e.output / 'run.json').exists()
+
+
 @pytest.mark.parametrize('mutation', ['copied-grade', 'original-snapshot', 'recovery-receipt', 'new-condition'])
 def test_inherited_tamper_blocks_real_epoch_before_dispatch(epoch, mutation):
     e = epoch

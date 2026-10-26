@@ -689,6 +689,30 @@ def preflight_resume(output, condition):
             raise ValueError('Uncertain app workspace cannot be reset: ' + key)
 
 
+def initialize_run_identity(output, condition_path, sliced_release, configuration):
+    """Bind imported evidence to this epoch before Runner/provider startup.
+
+    The recovery entry point holds epoch_lock throughout initialization and
+    execution. Preparation deliberately leaves run.json absent: its identity
+    must describe the new sliced release and actual executing adapter, never
+    the parent's harness. Ordinary Runner initialization remains unchanged.
+    """
+    output = Path(output)
+    verify_epoch(output, condition_path)  # Includes science and inherited accounting.
+    condition = load_condition(condition_path)
+    preflight_resume(output, condition)
+    from harness.runner import digest
+    fingerprint = {'version': 1, 'release': digest(sliced_release), 'configuration': configuration}
+    path = output / 'run.json'
+    if path.is_symlink():
+        raise ValueError('Recovery run identity must be a regular local record')
+    if path.exists():
+        if read(path) != fingerprint:
+            raise ValueError('Run inputs changed; use a new output directory')
+    else:
+        save(path, fingerprint)  # O_EXCL, file fsync and directory fsync; never replace.
+
+
 def execute_once(runner, output, persona, spec, *, boundary):
     """Intent persists across crash; a saved execution is never sent to _apps."""
     output = Path(output)
