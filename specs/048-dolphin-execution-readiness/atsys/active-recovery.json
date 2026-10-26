@@ -1,16 +1,22 @@
 {
   "active_task": "task-fde52452-dc80-484c-875c-2e732bb6d5e2",
   "implementation_task": "task-70330e3b-d52c-403b-838f-dae99c5e0e94",
-  "condition_path": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/condition-pilot20-recovery-b22530562659f6020aaa.json",
-  "receipts": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/pilot20-recovery-b22530562659f6020aaa/receipts",
-  "output": "/Volumes/MEM/atmem-dolphinbench-20261020/readiness-pilot20-recovered-20261026-b22530562659f6020aaa",
-  "parent_record": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/parent-recovery-v2/launch-00001.json",
+  "condition_path": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/condition-pilot20-recovery-6f7753bf37b73a6fa08b.json",
+  "receipts": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/pilot20-recovery-6f7753bf37b73a6fa08b/receipts",
+  "output": "/Volumes/MEM/atmem-dolphinbench-20261020/readiness-pilot20-recovered-20261026-6f7753bf37b73a6fa08b",
+  "parent_record": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/parent-recovery-v2/launch-00002.json",
   "parent_contract": {
     "path": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/parent-recovery-contract-v2.json",
     "sha256": "785a7ff30ed15a6636d74ff07dfb61beacfd317d6f627e53329356ba84f20154"
   },
-  "tests_passed": 183,
+  "tests_passed": 194,
   "automatic_repairs_completed": 1,
   "pilot_completed": false,
-  "full600_authorized": false
+  "full600_authorized": false,
+  "second_repair": "code implemented automatically; independently validated after MEM restoration; same-task operator retry",
+  "observed_at_utc": "2026-10-26T04:34:52.020967+00:00",
+  "executions_completed": 3,
+  "grades_completed": 3,
+  "task_in_progress": "morgan/130",
+  "status": "running"
 }
