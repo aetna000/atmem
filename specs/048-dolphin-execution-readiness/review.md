@@ -67,3 +67,16 @@ The final review preceded a CLI alias correction: service CLI accepts prefixed
 That failed startup made no task/model calls and was retained. Qualification was
 rerun under new source/condition identities. Full launch remains NO GO until the
 live pilot and every operational gate pass.
+
+## Fixed20 amendment review
+
+`review/opus-5.5-medium-pilot20.json` records Claude Opus 5.5 medium reviewing the
+20-ID cardinality change and exact-command worker. It found no scored-retry or
+false-success path. Receipt freshness is addressed by immediate fresh issuance
+and the 12h worker limit (still fail closed after 24h). Installed AtSys only sends
+termination to its immediate child, so the new direct Python command worker
+propagates stop to an isolated workload process group and checks parent liveness.
+A synthetic real descendant-process test passed. AtSys snapshots config into its
+operations store, not the pinned source JSON; goalMonitoring=false prevents
+automatic progress-file/deadline injection.68 focused tests and fresh actual
+profile/app/crash qualification passed. The20 pilot is not an estimate for600.

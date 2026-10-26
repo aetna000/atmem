@@ -3,7 +3,7 @@
 ## Overview
 
 Implement the six readiness requirements accepted on 2026-10-26. Preserve the
-original 390/600 record and failure cohorts 83/84/43. The 60-case selection is a
+original 390/200 record and failure cohorts 83/84/43. The 20-case selection is a
 post hoc diagnostic, not a holdout. Improve the host with memory held fixed.
 
 ## User stories and functional requirements
@@ -17,7 +17,7 @@ post hoc diagnostic, not a holdout. Improve the host with memory held fixed.
   data with no reader/judge calls. Preserve sandbox/credential isolation.
 - **FR-003 / P1:** On crash/resume preserve original state/logs and uncertain
   interaction markers. Refuse destructive setup or duplicate action execution.
-- **FR-004 / P1:** Execute exactly the frozen 60 pilot IDs, separating original
+- **FR-004 / P1:** Execute exactly the frozen 20 pilot IDs, separating original
   traced-zero and traced-partial cases and passed controls. Retain original
   grades, actual usage/cost uncertainty, regressions and fixture limitations.
   Missing original checkpoints/configuration blocks live execution, not coding.
@@ -48,7 +48,7 @@ post hoc diagnostic, not a holdout. Improve the host with memory held fixed.
 2. A synthetic create/read/mutate operation has matching result/state/log after
    reconnect. A crash after mutation preserves that single action and refuses replay.
 3. Editing a pinned checkpoint or receipt artifact, expiring a receipt, using a
-   receipt from a different configuration or completing 59 pilot tasks blocks launch.
+   receipt from a different configuration or completing 19 pilot tasks blocks launch.
 4. Known fixture mismatches are documented evaluator-side; actor inputs never
    receive expected action names, check labels or reference answers.
 5. Missing MEM storage leaves the live pilot explicitly incomplete and full
@@ -58,7 +58,7 @@ post hoc diagnostic, not a holdout. Improve the host with memory held fixed.
 
 - **SC-001:** FR-001–003 and FR-006 positive/negative boundary tests pass.
 - **SC-002:** Reproduce actual upstream app and crash checks with zero model calls.
-- **SC-003:** Pilot report reconciles exactly 60 unique selected tasks, historical
+- **SC-003:** Pilot report reconciles exactly 20 unique selected tasks, historical
   regressions, current grades, trace status and costs before it can authorize full.
 - **SC-004:** Claude review and remaining operational blockers are retained.
 
@@ -70,3 +70,18 @@ Owner-authored local receipts provide accidental-staleness protection, not
 adversarial attestation against the operator controlling files and source code.
 Research qualification files contain public simulated content; production AtMem
 evidence encryption/authority contracts remain unchanged.
+
+## Owner amendment — 2026-10-26
+
+The owner reduced the unstarted diagnostic to exactly 20 tasks. Use the immutable
+`pilot-selection-20-20261026.json` revision3; preserve the original 60 selection
+as historical evidence. Reader max_turns remains 60; it is not the pilot size.
+The new condition and fresh qualification supersede the old unstarted 60 condition.
+The smaller pilot is a post hoc execution diagnostic, with fewer routing/control
+examples and wider uncertainty. It does not estimate a new 600 accuracy.
+
+Use an AtSys exact-command worker for this benchmark execution, with independent
+validation and read-only supervisor diagnosis. This removes the accidental
+Codex workspace-only controller restriction; the benchmark's native agent
+sandbox, tool allowlist and credential isolation must stay enforced. Retries use
+an inspect-only command and may not start another scored attempt.

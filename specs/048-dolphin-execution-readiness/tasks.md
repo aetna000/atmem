@@ -16,8 +16,8 @@
 - [x] T013 Freeze and enforce per-role routes/settings in `routes.json`, `readiness.py`, `gateway.py` and `runbook.md`; verify against completed 600-task provider records and reject drift (FR-009). Required before T008.
 
 - [x] T006 Implement and run actual synthetic upstream MCP bridge/state/log qualification in `benchmarks/dolphinbench/qualify_execution.py` (FR-002–003).
-- [x] T007 Implement fixed-pilot verification/reporting and run entry in `benchmarks/dolphinbench/pilot_readiness.py`; test 59/60, wrong IDs, costs/regressions/cohorts (FR-004).
-- [ ] T008 Obtain original frozen checkpoints/private runtime configuration; freeze candidate JSON and run the actual 60-task pilot; retain output under a new run identity (FR-004–005). Original volume now mounted read-only; isolated checkpoint copies verified. Pilot attempted with frozen configuration; 0/60. OAuth now verified and MEM restored. BLOCKED on AtSys worker scoped filesystem access; no scored pilot started. See verification.md and remediation-status.md.
+- [x] T007 Implement fixed-pilot verification/reporting and run entry in `benchmarks/dolphinbench/pilot_readiness.py`; test 19/20, wrong IDs, costs/regressions/cohorts (FR-004).
+- [ ] T008 Obtain original frozen checkpoints/private runtime configuration; freeze candidate JSON and run the actual 20-task pilot; retain output under a new run identity (FR-004–005). Original volume now mounted read-only; isolated checkpoint copies verified. Pilot attempted with frozen configuration; 0/20. OAuth now verified and MEM restored. BLOCKED on AtSys worker scoped filesystem access; no scored pilot started. See verification.md and remediation-status.md.
 - [x] T009 Wire gate into existing campaign and adapter dispatch boundaries and prove failure before provider calls on missing/changed receipts (FR-006).
 
 ## Review and completion
@@ -25,3 +25,9 @@
 - [x] T010 Run focused integration/negative tests and retain qualified receipts plus explicit not-ready status where live gates remain incomplete (FR-001–007).
 - [x] T011 Request Claude Opus 5.5 medium read-only review, address findings and retain review metadata in `specs/048-dolphin-execution-readiness/review.md` (FR-008).
 - [x] T012 Commit/push implementation and update durable runbook/checklist with exact verification and blockers (FR-007–008).
+
+## Owner amendment — 20-task pilot
+
+- [x] T014 Freeze exactly 20 stratified diagnostic IDs, update all guard/report/validator cardinalities, preserve original 60 evidence, and test19/20 plus stale-condition refusal.
+- [x] T015 Prepare a separately versioned AtSys exact-command task with inspect-only retries; pin its command/validator, preserve the old blocked task, and verify its schema.
+- [x] T016 Generate the new frozen condition and fresh native/app/crash qualification. Record readiness without claiming new pilot accuracy.

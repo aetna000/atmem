@@ -11,7 +11,7 @@ import time
 import zipfile
 
 from .execution_profile import PROFILE, validate_request
-from .readiness import CHECKS, admit, identity, load_condition, pin, read, receipt, save, sha
+from .readiness import PILOT_COUNT, CHECKS, admit, identity, load_condition, pin, read, receipt, save, sha
 from .safe_runner import protected_runner_class
 
 
@@ -25,7 +25,7 @@ def report(condition_path, directory, *, receipt_output=None, stage='pilot'):
     ledger = Path(__file__).parents[2] / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/task-ledger.jsonl'
     original = {r['id']: r for r in map(json.loads, ledger.read_text().splitlines())}
     expected = selection(condition) if stage == 'pilot' else set(original)
-    count = 60 if stage == 'pilot' else 600
+    count = PILOT_COUNT if stage == 'pilot' else 600
     recorded_identity = read(directory / 'execution-condition.json')
     if recorded_identity != condition:
         raise ValueError('Pilot ran under a different frozen configuration')

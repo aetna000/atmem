@@ -18,7 +18,7 @@ and honest synthetic-vs-benchmark claims. No authority/schema migration occurs.
 - `qualify_execution.py`: real upstream bridge/SDK synthetic mutation and crash
   qualification; produce raw durable evidence and bound qualification receipts.
 - `pilot_readiness.py`: verify selection, report original/new scores and regressions
-  and create pilot evidence only when all 60 rows and accounting are available.
+  and create pilot evidence only when all 20 rows and accounting are available.
 - Existing adapter, gateway and launch entry points invoke the common gate; no
   receipt-less legacy path may dispatch scored cases.
 
@@ -48,3 +48,5 @@ The original `/Volumes/AtMemDolphin` workspace is currently unmounted. Code,
 synthetic qualification and pilot tooling can be completed. Live memory-backed
 pilot/frozen run config require the authentic checkpoint/key material; missing
 material is an explicit blocker, not a passing receipt. No full run is launched.
+
+Owner amendment: new 20 selection and source-bound AtSys exact-command launcher; no changes to reader60-turn cap, memory, retrieval or judge. Old condition/receipts are retained and invalidated for the new pilot.

@@ -154,3 +154,12 @@ The regenerated summary must reconcile 600 tasks, 390 passes, failure cohorts
 83/84/43, 35 untraced Notes errors, six untraced GitHub-auth errors, and two
 catalog/rubric mismatches. The archived ledger itself remains readable with no
 runtime or dependency installation at all.
+
+## Active pilot size amendment
+
+On2026-10-26 the owner reduced the unstarted diagnostic from60 to20 tasks.
+Use `pilot-selection-20-20261026.json`, the new private20 condition and
+`.atsys/tasks/dolphin-readiness-pilot-20.json`; original60 artifacts are retained
+and superseded for new dispatch. Do not retry the stopped60-task AtSys job.
+The exact-command worker keeps the benchmark agent sandbox unchanged.
+See the feature verification and AtSys runbook for current evidence and state.

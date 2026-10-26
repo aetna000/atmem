@@ -12,11 +12,13 @@ import time
 from .execution_profile import PROFILE
 
 SCHEMA = 'dolphin-execution-condition-v1'
+PILOT_COUNT = 20
+PILOT_SELECTION = Path(__file__).parents[2] / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/pilot-selection-20-20261026.json'
 MAX_AGE = 24 * 3600
 CHECKS = {'profile': {'mcp_only', 'eager_tools', 'skills_disabled'},
           'apps': {'result_state_log_agree'},
           'recovery': {'uncertain_replay_refused', 'evidence_preserved'},
-          'pilot': {'all_60_graded', 'no_unsupported_routes', 'no_unresolved_costs', 'regressions_reported'}}
+          'pilot': {'all_20_graded', 'no_unsupported_routes', 'no_unresolved_costs', 'regressions_reported'}}
 ROLES = {'wheel', 'upstream_manifest', 'source_manifest', 'selection', 'options',
          'memory:morgan', 'memory:alex', 'memory:riley'}
 MEMORY_OPTIONS = {'context_engine_variant': 'source-coherent-v1', 'read_only_discovery': True,
@@ -106,17 +108,20 @@ def load_condition(path):
     required |= {Path(__file__).parents[2] / 'research/retrieval_2310/dolphin_stage.py'}
     required.add(routes_path)
     required |= {Path(__file__).parents[2] / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025' / n
-                 for n in ('task-ledger.jsonl', 'pilot-selection.json')}
+                 for n in ('task-ledger.jsonl', 'pilot-selection.json', 'pilot-selection-20-20261026.json')}
     required |= {Path(__file__).parents[2] / p for p in ('scripts/openrouter_azure_sol.py',
-        'scripts/launch_dolphin_readiness.py', 'specs/048-dolphin-execution-readiness/runbook.md')}
+        'scripts/launch_dolphin_readiness.py', 'specs/048-dolphin-execution-readiness/runbook.md',
+        'specs/048-dolphin-execution-readiness/atsys/run_pilot.py',
+        'specs/048-dolphin-execution-readiness/atsys/validate_pilot.py',
+        '.atsys/tasks/dolphin-readiness-pilot-20.json')}
     if not {p.resolve() for p in required} <= covered:
         raise ValueError('Source manifest omits executing orchestration')
     selection = read(inputs['selection']['path'])
     groups = selection.get('groups', {})
     ids = [item for group in groups.values() for item in group]
-    if len(ids) != 60 or len(set(ids)) != 60 or not selection.get('post_hoc_diagnostic_not_holdout'):
-        raise ValueError('Exactly 60 frozen diagnostic IDs required')
-    canonical = Path(__file__).parents[2] / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/pilot-selection.json'
+    if len(ids) != PILOT_COUNT or len(set(ids)) != PILOT_COUNT or selection.get('tasks') != PILOT_COUNT or not selection.get('post_hoc_diagnostic_not_holdout'):
+        raise ValueError('Exactly 20 frozen diagnostic IDs required')
+    canonical = PILOT_SELECTION
     if selection != read(canonical):
         raise ValueError('Pilot selection differs from the fixed diagnostic')
     budget = value.get('budget', {})
@@ -167,7 +172,12 @@ def receipt(condition_path, kind, checks, artifacts, output):
 
 
 def qualification_sources():
-    return [pin(p) for p in sorted(Path(__file__).parent.glob('*.py'))]
+    root = Path(__file__).parents[2]
+    paths = [*Path(__file__).parent.glob('*.py'),
+             root / 'specs/048-dolphin-execution-readiness/atsys/run_pilot.py',
+             root / 'specs/048-dolphin-execution-readiness/atsys/validate_pilot.py',
+             root / '.atsys/tasks/dolphin-readiness-pilot-20.json']
+    return [pin(p) for p in sorted(paths)]
 
 
 def issue_qualifications(condition_path, profile_directory, apps_directory, receipts):
@@ -229,8 +239,8 @@ def admit(condition_path, receipts, stage, *, now=None):
             report = read(item['artifacts'][0]['path'])
             wanted = {i for group in read(condition['inputs']['selection']['path'])['groups'].values() for i in group}
             rows = report.get('rows', [])
-            if (report.get('schema') != 'dolphin-fixed-pilot-report-v1' or report.get('tasks') != 60
-                    or report.get('condition_sha256') != identity(condition) or len(rows) != 60
+            if (report.get('schema') != 'dolphin-fixed-pilot-report-v1' or report.get('tasks') != PILOT_COUNT
+                    or report.get('condition_sha256') != identity(condition) or len(rows) != PILOT_COUNT
                     or {r.get('id') for r in rows} != wanted or report.get('regressions') != []
                     or any(type(r.get('passed')) is not bool for r in rows)
                     or report.get('accounting', {}).get('uncertain_usd') != 0
@@ -251,10 +261,13 @@ def freeze(descriptor, output):
     source = [*Path(__file__).parent.glob('*.py'), * (root / 'research/retrieval_2310').glob('*.py'),
               root / 'specs/048-dolphin-execution-readiness/routes.json']
     source.extend(root / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025' / n
-                  for n in ('task-ledger.jsonl', 'pilot-selection.json'))
+                  for n in ('task-ledger.jsonl', 'pilot-selection.json', 'pilot-selection-20-20261026.json'))
     source.extend(Path(descriptor['bindings']['controller_site']).glob('*.dist-info/RECORD'))
     source.extend(root / p for p in ('scripts/openrouter_azure_sol.py', 'scripts/launch_dolphin_readiness.py',
-                                     'specs/048-dolphin-execution-readiness/runbook.md'))
+                                     'specs/048-dolphin-execution-readiness/runbook.md',
+                                     'specs/048-dolphin-execution-readiness/atsys/run_pilot.py',
+                                     'specs/048-dolphin-execution-readiness/atsys/validate_pilot.py',
+                                     '.atsys/tasks/dolphin-readiness-pilot-20.json'))
     hermes = Path.home() / '.hermes/hermes-agent'
     source.extend(hermes / name for name in ['run_agent.py', 'model_tools.py', 'toolsets.py',
         'agent/prompt_builder.py', 'agent/skill_utils.py', 'tools/tool_search.py',
@@ -360,7 +373,7 @@ def require_options(options, *, request=None):
         selection = read(condition['inputs']['selection']['path'])
         allowed = {key for group in selection['groups'].values() for key in group}
         if request.persona + '/' + request.interaction_id not in allowed:
-            raise ValueError('Task outside the fixed 60-case pilot')
+            raise ValueError('Task outside the fixed 20-case pilot')
     return condition
 
 

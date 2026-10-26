@@ -57,7 +57,7 @@ work is disabled. No automatic model upgrade is permitted.
 - [ ] Reader/judge identities, inference controls, original host identity and
   local memory options pinned; no assessor or paid retrieval route added.
 - [ ] Local Ollama digest matches `routes.json`.
-- [ ] The 60-ID selection revision 2 is pinned; historical 83/84/43 cohorts and
+- [ ] The 20-ID selection revision 3 is pinned; historical 83/84/43 cohorts and
   passed controls remain identified evaluator-side, not disclosed to the actor.
 - [ ] Fixture policy retains Morgan/085 and Morgan/130 as unavailable operations
   in the denominator; no grader-derived tool repair.
@@ -98,7 +98,7 @@ published product before orchestration imports and checks executed wheel bytes.
 
 6. The pilot evaluates every fixed ID under the original rubric, then records
    actual costs, unresolved calls (including zero-cash unknown subscription usage), per-case outcomes, recoveries, regressions and
-   cohort membership. A 59-case pilot cannot authorize a full run. Regressions
+   cohort membership. A 19-case pilot cannot authorize a full run. Regressions
    block promotion for investigation; a failed report remains retained.
 7. A full run additionally requires a complete passing pilot receipt and explicit
    `--stage full --confirm-full-run`. No full 600 run is authorized by this task.
@@ -162,3 +162,31 @@ admit("/private/benchmark/condition.json", "/private/benchmark/NEW-receipts", "p
 Do not copy an expired receipt to a new timestamp. Re-run qualification. On a new
 machine, provision identical artifacts first; changed absolute bindings require a
 new condition and qualification, not editing the old condition in place.
+
+## Owner-requested 20-task amendment
+
+The active selection is `pilot-selection-20-20261026.json`:6 Notes failures,
+3 GitHub failures,2 fixture limitations,2 recovered-Notes passed controls,
+2 other missing-action/log cases,2 traced-zero failures,2 traced-partial failures
+and 1 other passed control. It is a deterministic post hoc subset of the preserved
+60-task revision2 selection, not a representative20/600 sample. Reader max_turns
+stays 60. Do not confuse reader turns with pilot task count.
+
+The private descriptor is `candidate-descriptor-pilot20-v1.json`; condition is
+`condition-pilot20-v3.json`; fresh qualification lives under `pilot20-v3/`.
+Old60-task conditions/receipts cannot admit under the new source and selection.
+The completed historical 390/600 record is unaffected.
+
+Use the new AtSys config `.atsys/tasks/dolphin-readiness-pilot-20.json`, not the
+old blocked60-task task. This command worker runs only the pinned launcher under
+the controller's normal account permissions. The native benchmark agent remains
+sandboxed. Automatic recovery uses an inspect-only command, never scored replay.
+No silent 10-minute progress deadline is added: goalMonitoring=false and explicit
+zero activity/progress deadlines; heartbeat and 12-hour attempt/24-hour task bounds
+remain. Model-based read-only supervision is bounded to two calls. No automatic
+repair or full600 launch is authorized.
+
+The exact-command worker propagates stop/timeout signals to its isolated benchmark
+process group and detects loss of its AtSys parent. Interrupted provider calls
+remain uncertain and cannot be automatically replayed. Fresh receipts are issued
+immediately before launch; handoff/validation must remain within their24h window.

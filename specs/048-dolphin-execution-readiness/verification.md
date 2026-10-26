@@ -1,6 +1,6 @@
 # Verification — 2026-10-26
 
-**Full-run decision: NO GO. Live pilot: 0/60, blocked before reader/judge calls.**
+**Full-run decision: NO GO. Active live pilot: 0/20, blocked before reader/judge calls.**
 Original published result remains **390/600 (65.0%)**. No new accuracy claim.
 
 ## Frozen roles: verified against completed 600-run evidence
@@ -125,3 +125,37 @@ rerun qualification/admission as required, execute the fixed 60 pilot, then revi
 recoveries/regressions/cohorts/costs before any separately authorized full 600.
 See [remediation status](remediation-status.md). Existing controls are implemented
 and synthetically qualified; benchmark improvements are not yet demonstrated.
+
+## Active owner amendment: fixed20 pilot
+
+Owner reduced the unstarted pilot to exactly 20 tasks on 2026-10-26. The original
+60-task selection and stopped AtSys task are retained. New selection revision3
+is a deterministic subset with 6 Notes failures,3 GitHub failures,2 known fixture
+limitations,2 recovered-Notes passes,2 missing-action/log cases,2 traced-zero
+failures,2 traced-partial failures and 1 other passed control. Only three passed
+controls remain, so this is a narrower diagnostic with wider uncertainty.
+Reader max_turns remains 60, not 20.
+
+Active condition: `~/.local/share/atmem-dolphin-readiness-20261026/condition-pilot20-v3.json`.
+Identity: `a20a1ce7c9209c684036dd59e7a2dea323c5e1da7ed74354eec1ee0bfa172d87`.
+Fresh qualified profile/apps/crash artifacts and receipts: `pilot20-v3/`.
+MEM backup: `/Volumes/MEM/atmem-dolphinbench-20261020/readiness-qualification-pilot20-20261026-v3/`.
+The old 60 condition fails its source/selection checks; no old receipt was reused.
+
+68 focused tests passed, including19/20,21-case rejection, stale60 selection,
+inspect-only recovery and real synthetic process-group termination. Fresh native
+profile and real upstream app/crash qualification passed with zero model calls.
+Claude Opus 5.5 medium reviewed the amendment; findings/confirmations retained in
+`review/opus-5.5-medium-pilot20.json`.
+
+The new AtSys task is `.atsys/tasks/dolphin-readiness-pilot-20.json`, an exact
+command worker with inspect-only recovery. It avoids the old Codex controller's
+workspace-only write restriction while retaining the benchmark Hermes sandbox.
+The wrapper propagates termination to an isolated workload group and watches
+parent liveness. Supervision is read-only; repairs/full600 remain unauthorized.
+Fresh receipts were issued immediately before launch preparation; the 12h attempt
+limit keeps expected handoff inside the 24h window. AtSys copies task definitions
+to its durable store rather than updating the source JSON; the source is pinned.
+Task acceptance still requires complete 20 evidence, cost reconciliation and no
+regressed controls. Prepared facts are recorded in `atsys/preparation20.json`;
+submission/runtime facts must be recorded separately. No new score is claimed.

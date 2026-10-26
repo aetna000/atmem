@@ -23,15 +23,19 @@ def condition(tmp_path):
     source = [* (root / 'benchmarks/dolphinbench').glob('*.py'), root / 'research/retrieval_2310/dolphin_stage.py',
               root / 'specs/048-dolphin-execution-readiness/routes.json',
               root / 'scripts/openrouter_azure_sol.py', root / 'scripts/launch_dolphin_readiness.py',
-              root / 'specs/048-dolphin-execution-readiness/runbook.md', Path(sys.executable).resolve(),
+              root / 'specs/048-dolphin-execution-readiness/runbook.md',
+              root / 'specs/048-dolphin-execution-readiness/atsys/run_pilot.py',
+              root / 'specs/048-dolphin-execution-readiness/atsys/validate_pilot.py',
+              root / '.atsys/tasks/dolphin-readiness-pilot-20.json', Path(sys.executable).resolve(),
               root / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/task-ledger.jsonl',
-              root / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/pilot-selection.json']
+              root / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/pilot-selection.json',
+              root / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/pilot-selection-20-20261026.json']
     gate.save(tmp_path / 'source.json', [gate.pin(p) for p in source])
     inputs = {'wheel': gate.pin(tmp_path / 'wheel'),
               'options': gate.pin(tmp_path / 'options'),
               'upstream_manifest': gate.pin(tmp_path / 'manifest.json'),
               'source_manifest': gate.pin(tmp_path / 'source.json'),
-              'selection': gate.pin(root / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/pilot-selection.json'),
+              'selection': gate.pin(root / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/pilot-selection-20-20261026.json'),
               **{'memory:' + p: gate.pin(tmp_path / p) for p in ['morgan', 'alex', 'riley']}}
     cfg = {'schema': gate.SCHEMA, 'profile': PROFILE, 'inputs': inputs,
            'routes': gate.read(root / 'specs/048-dolphin-execution-readiness/routes.json'),
@@ -116,7 +120,7 @@ def test_partial_pilot_cannot_be_promoted_with_true_check_flags(condition):
     selected = gate.read(gate.read(path)['inputs']['selection']['path'])
     ids = [i for group in selected['groups'].values() for i in group]
     raw = path.parent / 'pilot.json'
-    gate.save(raw, {'schema': 'dolphin-fixed-pilot-report-v1', 'tasks': 60,
+    gate.save(raw, {'schema': 'dolphin-fixed-pilot-report-v1', 'tasks': 20,
                    'condition_sha256': gate.identity(gate.read(path)), 'regressions': [],
                    'rows': [{'id': i, 'passed': True} for i in ids[:-1]], 'accounting': {'uncertain_usd': 0}})
     gate.receipt(path, 'pilot', {k: True for k in gate.CHECKS['pilot']}, [raw], receipts / 'pilot.json')
@@ -201,16 +205,16 @@ def test_complete_pilot_and_cohorts(pilot_evidence):
     from benchmarks.dolphinbench.pilot_readiness import report
     path, directory, ids = pilot_evidence
     result = report(path, directory)
-    assert result['tasks'] == 60 and result['full_600_score'] is None
+    assert result['tasks'] == 20 and result['full_600_score'] is None
     assert {r['original_cohort'] for r in result['rows']} == {'pass', 'untraced_zero', 'traced_zero', 'traced_partial'}
 
 
-@pytest.mark.parametrize('mutation', ['59', 'wrong_id', 'inflight', 'cost', 'journal', 'request'])
+@pytest.mark.parametrize('mutation', ['19', 'wrong_id', 'inflight', 'cost', 'journal', 'request'])
 def test_pilot_missing_evidence_blocks(pilot_evidence, mutation):
     from benchmarks.dolphinbench.pilot_readiness import report
     path, directory, ids = pilot_evidence
     task = directory / 'tests' / (ids[0] + '.json')
-    if mutation == '59': task.unlink()
+    if mutation == '19': task.unlink()
     if mutation == 'wrong_id': task.rename(task.with_name('999.json'))
     if mutation == 'inflight': task.with_suffix('.inflight').touch()
     if mutation == 'cost':
@@ -292,3 +296,53 @@ def test_http_boundary_rejects_drift_before_forwarding(tmp_path, monkeypatch, mu
         assert not forwarded and not (tmp_path / 'budget.db').exists()
     finally:
         gateway.stop()
+
+
+def test_superseded_sixty_case_selection_cannot_admit(condition):
+    path, _ = condition
+    cfg = gate.read(path)
+    original = Path(__file__).parents[2] / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/pilot-selection.json'
+    cfg['inputs']['selection'] = gate.pin(original)
+    path.write_text(json.dumps(cfg))
+    with pytest.raises(ValueError, match='Exactly 20'):
+        gate.load_condition(path)
+    assert cfg['settings']['reader']['max_turns'] == 60
+
+
+def test_twenty_one_cases_cannot_pass_pilot(pilot_evidence):
+    from benchmarks.dolphinbench.pilot_readiness import report
+    path, directory, _ = pilot_evidence
+    gate.save(directory / 'tests/alex/999.json', {'row': {}, 'attempts': []})
+    with pytest.raises(ValueError, match='fixed selected'):
+        report(path, directory)
+
+
+def test_atsys_recovery_is_inspection_only_before_any_dispatch(tmp_path):
+    import subprocess
+    root = Path(__file__).parents[2]
+    output = tmp_path / 'unstarted'
+    result = subprocess.run([sys.executable, str(root / 'specs/048-dolphin-execution-readiness/atsys/run_pilot.py'),
+        '--condition', str(tmp_path / 'absent-condition'), '--receipts', str(tmp_path / 'absent-receipts'),
+        '--output', str(output), '--env-file', str(tmp_path / 'absent-private-env'),
+        '--handoff', str(tmp_path / 'absent-handoff'), '--reconcile-only'], capture_output=True, text=True)
+    assert result.returncode == 1 and 'No workload started' in result.stderr
+    assert not output.exists() and not (tmp_path / 'absent-receipts').exists()
+
+
+def test_atsys_stop_terminates_isolated_benchmark_descendants():
+    import importlib.util, subprocess, os, signal
+    root = Path(__file__).parents[2]
+    spec = importlib.util.spec_from_file_location('atsys_pilot_worker', root / 'specs/048-dolphin-execution-readiness/atsys/run_pilot.py')
+    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+    code = 'import subprocess,sys,time; p=subprocess.Popen([sys.executable,"-c","import time;time.sleep(30)"]);print(p.pid,flush=True);time.sleep(30)'
+    process = subprocess.Popen([sys.executable, '-c', code], start_new_session=True, stdout=subprocess.PIPE, text=True)
+    try:
+        descendant = int(process.stdout.readline())
+        module.stop_group(process)
+        assert process.poll() is not None
+        state = subprocess.run(['ps', '-p', str(descendant), '-o', 'stat='], capture_output=True, text=True).stdout.strip()
+        assert not state or state.startswith('Z')
+    finally:
+        try: os.killpg(process.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError): pass
+        process.wait()

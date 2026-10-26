@@ -1,87 +1,63 @@
-# AtSys pilot supervision
+# AtSys — fixed 20-task pilot
 
-Prepared task: `.atsys/tasks/dolphin-readiness-pilot.json` (repository tracked).
-**Prepared only, not submitted.** This task cannot authorize a full 600 run.
-Original full-run readiness remains NO GO until the fixed pilot passes.
+The owner reduced the unstarted 60-task pilot to exactly 20 on 2026-10-26.
+The old selection, task configuration and failed attempt are retained.
+Active config: `.atsys/tasks/dolphin-readiness-pilot-20.json`.
 
-## Objective already included in the task
+## Execution and isolation
 
-> Qualify and execute the fixed 60-task pilot using the frozen AtMem 2.3.10b1
-> condition. Preserve local/subscription/API routes and all settings. Retain
-> independent app evidence, report costs/regressions and stop for unresolved
-> actions. Validate real evidence before reporting readiness. Do not launch 600.
+- Worker: an exact command, not an AI coding worker. It runs the frozen pipeline
+  with the controller account's existing private/MEM access. The previous Codex
+  worker's workspace-only sandbox blocked those paths before benchmark launch.
+- Benchmark agent: native Hermes remains sandboxed with the qualified MCP-only
+  profile. Reader is Luna/high subscription; judge Sol/medium OpenRouter Azure-only;
+  memory/retrieval/embeddings local. Reader max_turns stays 60.
+- Independent validator: `validate_pilot.py` requires20 matching real outcomes,
+  receipts/artifacts, reconciled costs, no control regressions and matching handoff.
+- Supervisor: read-only Codex gpt-6.1-sol/high, at most two calls; repair disabled.
+- Retries: at most two inspect-only invocations; `resumeArgv` cannot dispatch
+  another benchmark. A durable one-launch intent prevents repeated launch.
+- Time bounds:12-hour attempt,24-hour task,120-second heartbeat. Activity/progress
+  deadlines are disabled explicitly; goalMonitoring=false avoids automatic 600s
+  milestone deadline injection. Task counts are in saved pipeline logs/evidence.
+- Pilot incremental API cap US$10. Supervision/subscription economics are separate.
 
-## Pinned orchestration settings
+## Selection
 
-| Role | Model | Reasoning | Limits |
-| --- | --- | --- | --- |
-| AtSys Codex worker | `gpt-6.1-sol` | medium | 12-hour attempt; 24-hour task |
-| Read-only supervisor | `gpt-6.1-sol` | high | At most two supervisor calls |
-| Benchmark reader | `gpt-5.6-luna` | high | Existing subscription, frozen original settings |
-| Benchmark judge | `gpt-5.6-sol` | medium | OpenRouter Azure-only; US$10 pilot incremental API cap |
+6 Notes-routing failures +3 GitHub-routing failures +2 fixture limitations
++2 recovered-Notes passes +2 other missing-action/log cases +2 traced-zero failures
++2 traced-partial failures +1 other passed control =20.
 
-AtSys/worker/supervisor billing is separate from the benchmark ledger. Do not
-claim the benchmark cap covers orchestration or that subscription usage is free.
-`preparation.json` records task/validator hashes. AtSys records task configuration
-and execution state. Do not change configuration/validator during an active task.
+The20 is post hoc and smaller than the original 60, with only three passed
+controls; it is not an accuracy estimate for 600 or proof of broad generalisation.
 
-The watchdog is installed/loaded. Automatic repairs are off. Two supervised
-worker recovery attempts permit inspection and reattachment, not another paid
-pilot. Only one benchmark launch is permitted, at the fixed fresh output path
-specified by the configuration. Existing output/inflight markers stop relaunch.
-A legitimate long provider wait is not grounds to create another scored attempt.
-No per-output-silence timeout is set; liveness and the overall deadlines remain.
+## Launch after fresh preparation
 
-## Start
-
-1. Sign Hermes in explicitly (do not copy Codex refresh tokens into Hermes):
-
-```sh
-hermes auth add openai-codex --type oauth
-```
-
-2. Submit once from the implementation worktree:
+The new source requires a new condition and fresh zero-model-call qualification.
+See verification.md for actual completion status; do not infer it from this guide.
+The intended private condition is
+`~/.local/share/atmem-dolphin-readiness-20261026/condition-pilot20-v3.json`,
+with fresh receipts under `pilot20-v3/receipts`.
 
 ```sh
 cd /Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025
-atsys service status
-atsys task submit --config .atsys/tasks/dolphin-readiness-pilot.json
+atsys task submit --config .atsys/tasks/dolphin-readiness-pilot-20.json
 ```
 
-3. Save the returned task ID. Inspect the new task's actual state and heartbeat:
+Submit once, save its task ID and inspect it with `atsys task show TASK_ID` or
+`atsys ui`. If output is lost use `atsys task list`, not another submission.
+Do not retry the old 60-task task. Do not run a full600 without a separate owner
+decision after reviewing the pilot. All20 must be graded; known fixture failures
+remain in the denominator and not all 20 must pass.
 
-```sh
-atsys task show TASK_ID
-atsys ui
-```
+## Immutable outputs
 
-If submit output is lost, use `atsys task list` before doing anything else.
-Do not resubmit the same task to get a new ID. The old 20-task experiments in
-AtSys are unrelated and do not establish readiness for this pilot.
+- Pilot: `/Volumes/MEM/atmem-dolphinbench-20261020/readiness-pilot20-atsys-20261026-v1`.
+- Handoff: `specs/048-dolphin-execution-readiness/atsys/pilot20-handoff.json`.
+- Retries inspect the same output and never choose a new scored attempt.
+- Benchmark result remains 390/600 until an actual new full run establishes another.
 
-## What it does and what acceptance means
-
-The worker reads the durable Spec Kit artifacts, checks mounted inputs and local
-Ollama, reruns zero-model-call native profile/app/crash qualification under the
-existing frozen condition, and issues fresh evidence-bound receipts. It then
-invokes the installed-product guarded launcher for exactly the fixed 60 IDs.
-Failed authentication, changed artifacts or an existing uncertain run require
-operator attention; no cloud fallback, receipt fabrication or in-place repair.
-
-Its independent command validator verifies full-admission evidence (no execution):
-exact 60 IDs, original condition, preserved artifact hashes, reconciled costs,
-no control regressions and a handoff matching the real pilot report. All60 tasks
-must be graded; not all tasks must pass. Known fixture failures remain included.
-A worker's success message and a zero shell exit alone cannot establish success.
-
-Expected outputs:
-
-- New pilot directory:
-  `/Volumes/MEM/atmem-dolphinbench-20261020/readiness-pilot-atsys-20261026-v1`.
-- Fresh private receipts:
-  `~/.local/share/atmem-dolphin-readiness-20261026/receipts-atsys-v1/`.
-- Matching handoff: `specs/048-dolphin-execution-readiness/atsys/pilot-handoff.json`.
-
-After a passing pilot, review recoveries, regressions, cohort results, latency,
-costs and fixture limitations. A fresh 600 needs its own owner authorization and
-separate AtSys task/configuration; this pilot task stops after the handoff.
+The exact-command worker propagates stop/timeout signals to its isolated benchmark
+process group and detects loss of its AtSys parent. Interrupted provider calls
+remain uncertain and cannot be automatically replayed. Fresh receipts are issued
+immediately before launch; handoff/validation must remain within their24h window.
