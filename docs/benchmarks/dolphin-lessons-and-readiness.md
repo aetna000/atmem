@@ -181,3 +181,9 @@ The active **automatic** trusted-parent policy and exact task IDs are in
 [Automatic recovery](../../specs/048-dolphin-execution-readiness/atsys/AUTOMATIC-RECOVERY.md).
 The trusted parent performs qualification/freeze/continuation without a human
 issuing each retry. The coding repair worker retains workspace scope.
+
+## Fixed20 final outcome — 2026-10-26
+
+[Final pilot report](dolphin-pilot20-20261026-report.md):20 executed/graded,13 passed,7 failed;10 recoveries,zero control regressions. Independent final validation passed and recorded the handoff digest. Recorded cumulative API cost USD0.083317; supervisor/subscription costs remain separate. The completed workflow is not a20/20 task pass. Full600 remains unauthorized; do not infer a new full score from this post hoc selection.
+
+Future supervised work must include an explicit goal, success criteria, meaningful progress/observer signals and a human-readable final outcome report as part of the launch contract. Raw logs and a successful process exit do not provide that handoff. The general AtSys correction is tracked in its specs/007-goal-workflow; do not alter frozen benchmark configuration to retrofit reporting.

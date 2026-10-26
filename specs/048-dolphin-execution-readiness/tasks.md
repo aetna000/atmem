@@ -17,7 +17,7 @@
 
 - [x] T006 Implement and run actual synthetic upstream MCP bridge/state/log qualification in `benchmarks/dolphinbench/qualify_execution.py` (FR-002–003).
 - [x] T007 Implement fixed-pilot verification/reporting and run entry in `benchmarks/dolphinbench/pilot_readiness.py`; test 19/20, wrong IDs, costs/regressions/cohorts (FR-004).
-- [ ] T008 Obtain original frozen checkpoints/private runtime configuration; freeze candidate JSON and run the actual 20-task pilot; retain output under a new run identity (FR-004–005). Original checkpoints recovered and verified. Fixed20 is continuing under the qualified automatic parent; two grades preserved and129 reconstructed offline. All20 completion remains pending; see verification.md and atsys/AUTOMATIC-RECOVERY.md.
+- [x] T008 Original checkpoints/configuration recovered, fixed20 frozen, executed and independently validated. Result:20 graded,13 passed,7 failed;10 recoveries,0 regressions. See docs/benchmarks/dolphin-pilot20-20261026-report.md. Full600 remains unauthorized.
 - [x] T009 Wire gate into existing campaign and adapter dispatch boundaries and prove failure before provider calls on missing/changed receipts (FR-006).
 
 ## Review and completion
@@ -55,7 +55,7 @@ no workload is launched by this implementation worker.
 - [x] T022 Root reviews implementation with Claude, resolves findings, performs
   fresh installed ARM zero-call qualification, freezes a new condition and
   prepares the real recovery epoch. No implementation-worker workload/commit.
-- [ ] T023 Root wires and launches supervised remaining17 only; grade recovered
+- [x] T023 Root wires and launches supervised remaining17 only; grade recovered
   evidence once if needed, retain original grades, report all20 and regressions.
   Full600 remains blocked pending separately authorized readiness/promotion.
 
@@ -63,4 +63,4 @@ no workload is launched by this implementation worker.
 
 - [x] T024 Implement and pin trusted automatic parent, independent source/science/ledger/result guards and safe qualification/epoch retries; five parent guard tests pass.
 - [x] T025 Enable bounded AtSys repair, verify an actual SQLite repair and automatic retry, and pass183 focused tests plus fresh zero-model qualification.
-- [ ] T026 Complete independent20-task report/validation; retain fixture failures and any control regressions. Full600 remains unauthorized.
+- [x] T026 Complete independent20-task report/validation; retain fixture failures and any control regressions. Full600 remains unauthorized.
