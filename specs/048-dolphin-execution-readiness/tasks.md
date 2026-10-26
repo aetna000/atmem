@@ -17,7 +17,7 @@
 
 - [x] T006 Implement and run actual synthetic upstream MCP bridge/state/log qualification in `benchmarks/dolphinbench/qualify_execution.py` (FR-002–003).
 - [x] T007 Implement fixed-pilot verification/reporting and run entry in `benchmarks/dolphinbench/pilot_readiness.py`; test 59/60, wrong IDs, costs/regressions/cohorts (FR-004).
-- [ ] T008 Obtain original frozen checkpoints/private runtime configuration; freeze candidate JSON and run the actual 60-task pilot; retain output under a new run identity (FR-004–005). Original volume now mounted read-only; isolated checkpoint copies verified. Pilot attempted with frozen configuration; 0/60. BLOCKED on owner Hermes subscription OAuth sign-in; see verification.md.
+- [ ] T008 Obtain original frozen checkpoints/private runtime configuration; freeze candidate JSON and run the actual 60-task pilot; retain output under a new run identity (FR-004–005). Original volume now mounted read-only; isolated checkpoint copies verified. Pilot attempted with frozen configuration; 0/60. OAuth now verified and MEM restored. BLOCKED on AtSys worker scoped filesystem access; no scored pilot started. See verification.md and remediation-status.md.
 - [x] T009 Wire gate into existing campaign and adapter dispatch boundaries and prove failure before provider calls on missing/changed receipts (FR-006).
 
 ## Review and completion

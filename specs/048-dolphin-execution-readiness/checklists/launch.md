@@ -10,4 +10,4 @@
 
 Current full-run decision: **NO GO** until every operational requirement has evidence.
 
-Live pilot blocked at subscription OAuth startup; 0/60, no new score. See verification.md.
+Live pilot remains 0/60. OAuth bridge was subsequently verified and MEM recovered. Current blocker: AtSys worker sandbox excludes required external filesystem paths. See verification.md and remediation-status.md.

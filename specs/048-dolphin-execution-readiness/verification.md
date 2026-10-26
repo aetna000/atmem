@@ -100,3 +100,28 @@ published judge; our OpenRouter Azure-only adaptation remains disclosed and
 independent acceptance/equivalence remains unverified. Full evidence/recovery and
 fixed-memory requirements still apply; the 60 pilot cannot replace the 600 score.
 See `docs/benchmarks/evidence/dolphin-execution-readiness-20261026/model-route-recheck.json`.
+
+## Current operational status after authentication and MEM recovery
+
+The earlier OAuth startup blocker was cleared: the exact Luna/high subscription
+bridge created its listener successfully, with zero provider requests. MEM then
+completed its active macOS ExFAT check and mounted successfully at 12:19:21 local
+time on 2026-10-26. Basic read/write/fsync succeeded, the original submission ZIP
+hash still matches, archived qualification configuration hashes match, and
+load_condition validated the frozen identity. Workspace image restored read-only.
+Private recovery record: `~/.local/share/atmem-dolphin-readiness-20261026/mem-mount-recovery-20261026.json`.
+
+AtSys task `task-de8cc9f7-22ed-412c-9497-d1beafe73064` is needs_attention.
+Worker evidence confirmed MEM mounted during its attempt, but its workspace-write
+sandbox denied the Hermes install lock and required private/MEM output roots.
+The independent validator rejected absent pilot evidence; supervisor escalation
+confirmed scoped execution authority is missing. This is a supervisor/worker
+launch configuration gap, not evidence that the routing repair failed or a new
+OAuth sign-in is required. Pilot remains 0/60; no benchmark launch occurred.
+
+Next required work: reconcile and correct scoped AtSys execution authority through
+a supported runner mechanism, preserve the blocked attempt and fixed output,
+rerun qualification/admission as required, execute the fixed 60 pilot, then review
+recoveries/regressions/cohorts/costs before any separately authorized full 600.
+See [remediation status](remediation-status.md). Existing controls are implemented
+and synthetically qualified; benchmark improvements are not yet demonstrated.
