@@ -36,8 +36,8 @@ controls; it is not an accuracy estimate for 600 or proof of broad generalisatio
 The new source requires a new condition and fresh zero-model-call qualification.
 See verification.md for actual completion status; do not infer it from this guide.
 The intended private condition is
-`~/.local/share/atmem-dolphin-readiness-20261026/condition-pilot20-v3.json`,
-with fresh receipts under `pilot20-v3/receipts`.
+`~/.local/share/atmem-dolphin-readiness-20261026/condition-pilot20-v4.json`,
+with fresh receipts under `pilot20-v4/receipts`.
 
 ```sh
 cd /Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025
@@ -52,7 +52,7 @@ remain in the denominator and not all 20 must pass.
 
 ## Immutable outputs
 
-- Pilot: `/Volumes/MEM/atmem-dolphinbench-20261020/readiness-pilot20-atsys-20261026-v1`.
+- Pilot: `/Volumes/MEM/atmem-dolphinbench-20261020/readiness-pilot20-atsys-20261026-v2`.
 - Handoff: `specs/048-dolphin-execution-readiness/atsys/pilot20-handoff.json`.
 - Retries inspect the same output and never choose a new scored attempt.
 - Benchmark result remains 390/600 until an actual new full run establishes another.
@@ -61,3 +61,9 @@ The exact-command worker propagates stop/timeout signals to its isolated benchma
 process group and detects loss of its AtSys parent. Interrupted provider calls
 remain uncertain and cannot be automatically replayed. Fresh receipts are issued
 immediately before launch; handoff/validation must remain within their24h window.
+
+The controller and qualification now share a private short Unix socket under
+`/private/tmp`, independent of runtime/output path length. ExFAT AppleDouble
+`._` sidecar files are excluded from task/marker enumeration; actual task files
+and inflight markers remain enforced. The first20 startup failed before any
+model/app call at socket bind; its empty app log and raw evidence are retained.

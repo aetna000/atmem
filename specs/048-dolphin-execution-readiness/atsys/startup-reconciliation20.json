@@ -1,0 +1,15 @@
+{
+  "schema": "dolphin-pilot-startup-reconciliation-v1",
+  "previous_task": "task-75714bb8-2fb9-4830-8008-4a459e21792e",
+  "previous_status": "stopped",
+  "error": "AF_UNIX path too long before NativeRuntime.invoke/provider forwarding",
+  "scored_tasks_completed": 0,
+  "model_calls": 0,
+  "judge_calls": 0,
+  "previous_output_preserved": true,
+  "fix": "Shared private short socket directory; ignore ExFAT AppleDouble metadata",
+  "tests_passed": 70,
+  "fresh_condition_sha256": "84f216d533d76a58d3490cecccab4f80d93f764f22f03e61ad381866a7011760",
+  "fresh_condition_path": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/condition-pilot20-v4.json",
+  "full600_authorized": false
+}

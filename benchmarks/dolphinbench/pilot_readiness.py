@@ -29,10 +29,10 @@ def report(condition_path, directory, *, receipt_output=None, stage='pilot'):
     recorded_identity = read(directory / 'execution-condition.json')
     if recorded_identity != condition:
         raise ValueError('Pilot ran under a different frozen configuration')
-    paths = list((directory / 'tests').glob('*/*.json'))
+    paths = [p for p in (directory / 'tests').glob('*/*.json') if not p.name.startswith('._')]
     if {p.parent.name + '/' + p.stem for p in paths} != expected or len(paths) != count:
         raise ValueError('Run must contain exactly the fixed selected executions')
-    if list((directory / 'tests').rglob('*.inflight')):
+    if any(not p.name.startswith('._') for p in (directory / 'tests').rglob('*.inflight')):
         raise ValueError('Uncertain pilot interactions require reconciliation')
     historical = Path(__file__).parents[2] / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/task-ledger.jsonl'
     original = {r['id']: r for r in (json.loads(line) for line in historical.read_text().splitlines())}
@@ -133,7 +133,7 @@ def _regressions(directory):
     historical = Path(__file__).parents[2] / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/task-ledger.jsonl'
     previous = {r['id']: r for r in map(json.loads, historical.read_text().splitlines())}
     return sorted(p.parent.name + '/' + p.stem for p in (directory / 'grades').glob('*/*.json')
-                  if previous[p.parent.name + '/' + p.stem]['passed']
+                  if not p.name.startswith('._') and previous[p.parent.name + '/' + p.stem]['passed']
                   and not all(c['passed'] for c in read(p)['checks']))
 
 

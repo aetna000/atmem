@@ -346,3 +346,23 @@ def test_atsys_stop_terminates_isolated_benchmark_descendants():
         try: os.killpg(process.pid, signal.SIGKILL)
         except (ProcessLookupError, PermissionError): pass
         process.wait()
+
+
+def test_exfat_appledouble_files_are_not_tasks_or_inflight(pilot_evidence):
+    from benchmarks.dolphinbench.pilot_readiness import report
+    path, directory, ids = pilot_evidence
+    task = directory / 'tests' / (ids[0] + '.json')
+    task.with_name('._' + task.name).write_bytes(b'AppleDouble metadata, not JSON')
+    task.with_name('._' + task.stem + '.inflight').write_bytes(b'metadata')
+    assert report(path, directory)['tasks'] == 20
+
+
+def test_private_app_socket_is_short_and_binds():
+    import socket, os
+    from benchmarks.dolphinbench.app_bridge import short_socket
+    with short_socket() as path:
+        assert len(os.fsencode(path)) < 104
+        assert path.parent.stat().st_mode & 0o777 == 0o700
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
+            server.bind(str(path))
+    assert not path.parent.exists()

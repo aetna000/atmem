@@ -5,10 +5,9 @@ import json
 from pathlib import Path
 import secrets
 import sys
-import tempfile
 import threading
 
-from .app_bridge import bridge, stage_client
+from .app_bridge import bridge, stage_client, short_socket
 from .execution_profile import isolated_profile, validate_request
 from .readiness import qualification_sources, save, read, pin
 from .runtime import NativeRuntime
@@ -60,8 +59,7 @@ def qualify(upstream, app_python, runtime_root, output, *, options_path):
     adapter = AtMemAdapter(options, output)
     host = adapter.host('morgan')
     try:
-        with tempfile.TemporaryDirectory(prefix='dp-', dir='/private/tmp') as short:
-            socket = Path(short) / 'a.sock'
+        with short_socket() as socket:
             with bridge(apps, socket):
                 stage_client(upstream, home / 'app_client.py', socket)
                 host.configure_profile(home,

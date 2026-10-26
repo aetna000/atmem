@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import time
 
-from .app_bridge import bridge, stage_client
+from .app_bridge import bridge, stage_client, short_socket
 from .driver import AtMemHost
 from .export import export_interaction
 from .gateway import Gateway, save_new
@@ -168,11 +168,7 @@ class AtMemAdapter:
             readiness_options=self.options if request.phase == 'tests' else None, **gateway_options).start()
         completed = False
         try:
-            socket = directory / 'apps.sock'
-            # Unix socket paths have a strict OS length bound. Keep the actual
-            # socket under the external root, without exposing controller files.
-            socket = self.runtime.root / 'scratch' / (profile + '.sock')
-            with bridge(request.apps, socket):
+            with short_socket() as socket, bridge(request.apps, socket):
                 client = home / 'app_client.py'
                 stage_client(self.options.get('upstream_root', '/Volumes/AtMemDolphin/upstream'), client, socket)
                 reader = self.campaign_identity.get('agent', {'reasoning': 'medium', 'max_turns': 20})

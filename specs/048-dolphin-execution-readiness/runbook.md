@@ -173,7 +173,7 @@ and 1 other passed control. It is a deterministic post hoc subset of the preserv
 stays 60. Do not confuse reader turns with pilot task count.
 
 The private descriptor is `candidate-descriptor-pilot20-v1.json`; condition is
-`condition-pilot20-v3.json`; fresh qualification lives under `pilot20-v3/`.
+`condition-pilot20-v4.json`; fresh qualification lives under `pilot20-v4/`.
 Old60-task conditions/receipts cannot admit under the new source and selection.
 The completed historical 390/600 record is unaffected.
 
@@ -190,3 +190,9 @@ The exact-command worker propagates stop/timeout signals to its isolated benchma
 process group and detects loss of its AtSys parent. Interrupted provider calls
 remain uncertain and cannot be automatically replayed. Fresh receipts are issued
 immediately before launch; handoff/validation must remain within their24h window.
+
+The controller and qualification now share a private short Unix socket under
+`/private/tmp`, independent of runtime/output path length. ExFAT AppleDouble
+`._` sidecar files are excluded from task/marker enumeration; actual task files
+and inflight markers remain enforced. The first20 startup failed before any
+model/app call at socket bind; its empty app log and raw evidence are retained.

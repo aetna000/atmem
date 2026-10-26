@@ -66,7 +66,7 @@ def handoff(args):
     if Path(receipt['artifacts'][0]['path']).resolve() != report_path.resolve():
         raise ValueError('Pilot receipt belongs to another output')
     report = read(report_path)
-    durations = [read(p)['row']['duration_ms'] for p in (args.output / 'tests').glob('*/*.json')]
+    durations = [read(p)['row']['duration_ms'] for p in (args.output / 'tests').glob('*/*.json') if not p.name.startswith('._')]
     cohorts = {}
     for row in report['rows']:
         cohort = cohorts.setdefault(row['original_cohort'], {'tasks': 0, 'passed': 0, 'recoveries': 0})

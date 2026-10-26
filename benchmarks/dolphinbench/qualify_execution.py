@@ -6,9 +6,8 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-import tempfile
 
-from .app_bridge import bridge, stage_client
+from .app_bridge import bridge, stage_client, short_socket
 from .readiness import qualification_sources, CHECKS, pin, read, receipt, save, sha
 from .safe_runner import InteractionJournal, protected_runner_class
 from .sandbox import policy, run
@@ -72,8 +71,7 @@ def qualify(upstream, output, *, python=sys.executable):
                         'DOLPHINBENCH_STATE_PATH': str(state), 'DOLPHINBENCH_LOG_PATH': str(log),
                         'DOLPHINBENCH_TOOL_CONFIG_PATH': str(case / 'tools.json')}}
         journal = InteractionJournal(case / 'journal', apps)
-        with tempfile.TemporaryDirectory(prefix='dq-', dir='/private/tmp') as socket_root:
-            sock = Path(socket_root) / 'a.sock'
+        with short_socket() as sock:
             with bridge(apps, sock):
                 client = case / 'app_client.py'
                 stage_client(upstream, client, sock)
