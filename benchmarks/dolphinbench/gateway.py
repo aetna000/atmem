@@ -156,10 +156,8 @@ class Handler(BaseHTTPRequestHandler):
                 from .readiness import require_options
                 require_options(server.readiness_options)
             if server.execution_profile is not None:
-                from .execution_profile import PROFILE, validate_request
-                if server.execution_profile != PROFILE:
-                    raise ValueError('Unknown execution profile')
-                validate_request(body)
+                from .execution_profile import validate
+                validate(server.execution_profile, body)
                 if body.get('reasoning_effort') != 'high' or any(k in body for k in ('temperature', 'top_p', 'seed')):
                     raise ValueError('Actual reader inference settings differ from frozen baseline')
                 caps = [body[k] for k in ('max_tokens', 'max_completion_tokens') if k in body]

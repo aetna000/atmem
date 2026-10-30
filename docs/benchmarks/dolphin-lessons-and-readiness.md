@@ -187,3 +187,14 @@ issuing each retry. The coding repair worker retains workspace scope.
 [Final pilot report](dolphin-pilot20-20261026-report.md):20 executed/graded,13 passed,7 failed;10 recoveries,zero control regressions. Independent final validation passed and recorded the handoff digest. Recorded cumulative API cost USD0.083317; supervisor/subscription costs remain separate. The completed workflow is not a20/20 task pass. Full600 remains unauthorized; do not infer a new full score from this post hoc selection.
 
 Future supervised work must include an explicit goal, success criteria, meaningful progress/observer signals and a human-readable final outcome report as part of the launch contract. Raw logs and a successful process exit do not provide that handoff. The general AtSys correction is tracked in its specs/007-goal-workflow; do not alter frozen benchmark configuration to retrofit reporting.
+
+## Product action guard — 2026-10-31
+
+Branch `feat/dolphin-action-routing` adds a product-side router, completion check,
+route memory and commit checkpoint as a Hermes plugin, plus a separate
+`dolphin-routed-v1` condition that keeps the ordinary tool inventory. Offline replay
+over the published 600 transcripts refuses the first detour in all 35 Notes and all
+6 GitHub-auth untraced failures and flags 0 passing tasks as not completed; 37 passing
+tasks would see a refused detour. Not qualified, piloted or scored; launch admission
+remains bound to `dolphin-mcp-only-v1`. See
+[the action guard report](dolphin-action-guard-20261031.md).

@@ -185,9 +185,10 @@ class AtMemAdapter:
                     strict_application_contracts=self.options.get('strict_application_contracts',False),
                     initial_status=ruling['reason'] if 'ruling' in locals() else 'authorized')
                 if self.options.get('execution_profile'):
-                    from .execution_profile import isolated_profile
+                    from .execution_profile import apply_profile
                     config = json.loads((home / 'config.yaml').read_text())
-                    config = isolated_profile(config, skill_roots=(self.runtime.source / 'skills',
+                    config = apply_profile(self.options['execution_profile'], config, home=home,
+                        skill_roots=(self.runtime.source / 'skills',
                         Path.home() / '.hermes/skills', self.runtime.root / 'skills'))
                     from .driver import private_json
                     private_json(home / 'config.yaml', config)

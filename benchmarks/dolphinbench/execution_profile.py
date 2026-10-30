@@ -1,5 +1,6 @@
 """Supported isolated Hermes profile; validate actual provider-bound tools."""
 from copy import deepcopy
+import json
 from pathlib import Path
 import re
 
@@ -65,3 +66,54 @@ def validate_request(body):
             if match.group(1).strip():
                 raise ValueError('Readiness profile: operational skill catalog still visible')
     return sorted(names)
+
+
+# Routed profile: the ordinary inventory (terminal, skills, deferred tool search)
+# stays visible and the AtMem action guard plugin refuses detours instead. It is
+# a separate experimental condition; launch admission remains bound to PROFILE
+# until this profile has its own qualification receipts.
+ROUTED_PROFILE = 'dolphin-routed-v1'
+PROFILES = (PROFILE, ROUTED_PROFILE)
+
+
+def routed_profile(config, *, home):
+    """Return a fresh config that stages and enables the action guard in ``home``."""
+    from atmem.adapters.hermes.action_guard_plugin import PLUGIN, stage
+    if 'dolphinbench-apps' not in config['toolsets']:
+        raise ValueError('Execution profile requires simulated application tools')
+    value = deepcopy(config)
+    stage(home)
+    plugins = value.setdefault('plugins', {})
+    plugins['enabled'] = sorted(set(plugins.get('enabled', [])) | {PLUGIN})
+    value['execution_profile'] = ROUTED_PROFILE
+    return value
+
+
+def apply_profile(name, config, *, home, skill_roots=()):
+    if name == PROFILE:
+        return isolated_profile(config, skill_roots=skill_roots)
+    if name == ROUTED_PROFILE:
+        return routed_profile(config, home=home)
+    raise ValueError('Unknown execution profile')
+
+
+def validate_routed_request(body):
+    """The routed profile keeps local tools; it still needs the app surface, once each."""
+    tools = body.get('tools')
+    if not isinstance(tools, list) or not tools:
+        raise ValueError('Routed profile: empty model-visible tool array')
+    names = [d.get('function', {}).get('name', '') for d in tools]
+    if len(names) != len(set(names)):
+        raise ValueError('Routed profile: duplicate model-visible tools')
+    visible = ' '.join(names) + json.dumps(body.get('messages', []))[-200000:]
+    if not any(n.startswith(APP) for n in names) and 'tool_search' not in names and APP not in visible:
+        raise ValueError('Routed profile: missing application surface')
+    return sorted(names)
+
+
+def validate(name, body):
+    if name == PROFILE:
+        return validate_request(body)
+    if name == ROUTED_PROFILE:
+        return validate_routed_request(body)
+    raise ValueError('Unknown execution profile')

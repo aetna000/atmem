@@ -224,10 +224,8 @@ class AtMemHost:
                 'command':discovery_python or mcp['command'],
                 'args':['-I',str(private/'application_contract.py'),'--',mcp['command'],*mcp.get('args',[])]}
         if execution_profile is not None:
-            from .execution_profile import PROFILE, isolated_profile
-            if execution_profile != PROFILE:
-                raise ValueError('Unknown execution profile')
-            config = isolated_profile(config, skill_roots=(
+            from .execution_profile import apply_profile
+            config = apply_profile(execution_profile, config, home=home, skill_roots=(
                 Path.home() / '.hermes/skills', Path(__file__).parents[2] / 'skills'))
         private_json(home / 'config.yaml', config)  # JSON is valid YAML.
 
