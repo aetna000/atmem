@@ -1,0 +1,9 @@
+{
+  "history_import": {"execution": "local", "method": "source-episode", "model_calls": 0},
+  "memory_storage": {"execution": "local", "artifact": "atmem-2.3.10b1", "paid_classifier": false},
+  "retrieval": {"execution": "local", "engine": "source-coherent-v1", "paid_reranker": false},
+  "embedding": {"execution": "local", "endpoint": "http://127.0.0.1:11434", "model": "nomic-embed-text:latest", "digest": "sha256:0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f", "truncate": false},
+  "state_assessment": {"execution": "disabled", "initial": false, "followup": false, "model_calls": 0},
+  "reader": {"execution": "subscription", "endpoint_host": "chatgpt.com", "model": "gpt-5.6-luna", "reasoning": "high", "max_turns": 60, "context_length": 1050000, "chat_completion_cap": 4096, "provider_output_cap": "unsupported-native-provider-behavior", "temperature": "omitted", "top_p": "omitted", "seed": "omitted", "api_fallback": false},
+  "judge": {"execution": "api", "endpoint": "https://openrouter.ai/api/v1/chat/completions", "model": "openai/gpt-5.6-sol", "provider_only": "azure", "allow_fallbacks": false, "reasoning": "medium", "max_completion_tokens": 8000, "response_format": "json_object", "temperature": "omitted", "top_p": "omitted", "seed": "omitted"}
+}

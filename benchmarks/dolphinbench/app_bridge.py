@@ -3,6 +3,7 @@ from contextlib import contextmanager
 import os
 from pathlib import Path
 import threading
+import tempfile
 
 
 @contextmanager
@@ -43,3 +44,16 @@ def stage_client(upstream_root, target, socket_path):
         'source': str(source), 'sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
         'modification': 'Unix socket path and stderr-only connection diagnostics; forwarding unchanged',
         'adapted_sha256': hashlib.sha256(target.read_bytes()).hexdigest()})
+
+
+@contextmanager
+def short_socket():
+    """Use a private, short socket path independent of the benchmark run root."""
+    # /private/tmp is macOS-specific; /tmp is short on both macOS and Linux.
+    base = Path('/tmp') if Path('/tmp').is_dir() else Path(tempfile.gettempdir())
+    with tempfile.TemporaryDirectory(prefix='am-app-', dir=base) as directory:
+        os.chmod(directory, 0o700)
+        path = Path(directory) / 'a.sock'
+        if len(os.fsencode(path)) >= 104:
+            raise ValueError('App socket exceeds portable macOS Unix path limit')
+        yield path

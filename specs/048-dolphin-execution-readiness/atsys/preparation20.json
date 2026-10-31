@@ -1,0 +1,337 @@
+{
+  "schema": "dolphin-atsys-preparation-v2",
+  "scope": "owner-requested-fixed20",
+  "submitted": false,
+  "condition_sha256": "a20a1ce7c9209c684036dd59e7a2dea323c5e1da7ed74354eec1ee0bfa172d87",
+  "condition_path": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/condition-pilot20-v3.json",
+  "task_config_sha256": "75ca79af40789c5f06608c7d61d032f7ab8f3ed1e4202aee7d0463c6a4572444",
+  "worker": "exact-command",
+  "supervisor": {
+    "model": "gpt-6.1-sol",
+    "effort": "high",
+    "max_calls": 2
+  },
+  "repairs": false,
+  "retry": "inspect-only",
+  "tasks": 20,
+  "tests_passed": 68,
+  "profile_qualification": {
+    "actual_native_request": true,
+    "app_python": {
+      "path": "/Users/javadtaghia/.local/share/atmem-benchmark-runtime-v7-20261022/python/bin/python3.12",
+      "sha256": "3874a935f7242b660e652d35c25a1b87415fcfea3ee191ff262fcca5c50102c5"
+    },
+    "eager_tools": true,
+    "mcp_only": true,
+    "model_calls": 0,
+    "options": {
+      "path": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/candidate-options-v1.json",
+      "sha256": "5cfe8a6d17c53556c10e5c7e672a021848abe9001b695ad92d2ef2a3eef67a0e"
+    },
+    "provider_forwarding_exists": false,
+    "same_adapter_profile_builder": true,
+    "skills_disabled": true,
+    "source": [
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/.atsys/tasks/dolphin-readiness-pilot-20.json",
+        "sha256": "75ca79af40789c5f06608c7d61d032f7ab8f3ed1e4202aee7d0463c6a4572444"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/adapter.py",
+        "sha256": "ab7fdab70a4354b05c0c7577323752d43b6d25538ed94aeaf7b9c28e2185ed00"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/app_bridge.py",
+        "sha256": "c150e8faf8c0d366c90c2dc9a577f97c013ca6f0da9f8f072452341df100c67a"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/archive.py",
+        "sha256": "6b2a4bc05fb0a01dd32044547b77aad1ed8deda9550530f4a49947c5407bbffb"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/baseline.py",
+        "sha256": "590ca8691c37b7542e60a7115ea9c2fbb6f10521dd0306c06c0a782f15da3894"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/campaign.py",
+        "sha256": "7b620046e3ab6739a44aacc394a9c33de88f3435f0650bfa8320e0a5f88ae160"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/campaign_v3.py",
+        "sha256": "a90766bdc0fee02e86c394da53aa6c0f2b8f917e3e5708c54e9e3c5a7b2c2b5c"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/driver.py",
+        "sha256": "f538f46674583b6176395b388108780c048d2cddc38442d442d7ec294457e7c9"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/execution_profile.py",
+        "sha256": "cfbe3b0c17f43e188a50e971d162cf735fa725bbbff376f5a2ab353eabd2ca5e"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/export.py",
+        "sha256": "ad8604a1a70e14f9feb4fba72489cd2cdd4d7a69a09c98c245a8bd34a4288aa5"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/gateway.py",
+        "sha256": "aea9bc69381e7cd48d55693b2b0792eb174fc642497457c8341bfc655656c6fd"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/judge.py",
+        "sha256": "ded17f85c4713e4ecbbecb5407aeca7a38901aa435ad61766549a8e490c482b8"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/observe_native.py",
+        "sha256": "e8bef109635d442a88932b4fc1b7e5b0d0d54e00c9f277928695e59b54ab6750"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/pilot_readiness.py",
+        "sha256": "effbcb9c0ab74ad95420399231a683070e936c0faffa68cfe44fd3f573c27738"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/python_runtime.py",
+        "sha256": "95b6c20fb54dd7cc03570280c7ae36cc1fd77501ee48b74359d83499783dfabf"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/qualify.py",
+        "sha256": "fcd881cf386b441be9023f4ea8ecf9d58c1958da3a819745be79b8d3dc4bb8df"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/qualify_execution.py",
+        "sha256": "5e77356c2f13f4ab59d9eabe83c7bb5f5724898a49c790cd5b124cf39f1e1de6"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/qualify_profile.py",
+        "sha256": "3a19c2598d3cd0273511fc5c30b90179bd898de9cde99d6bea420dd01c47b307"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/readiness.py",
+        "sha256": "d3b99ba9a9279d663da25ade7b7d2b540b6dbc5d8156ebd3bbb19b3d8f425341"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/recording.py",
+        "sha256": "fccb08308e3ceb0682a34553cf072e1c96d7a55c8eb134a5d292072752e820a4"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/runtime.py",
+        "sha256": "756613d684909c0db3990cab2a44127b423ac6b55e6aacfaa34c4d051bc4fa6a"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/safe_runner.py",
+        "sha256": "5ec58b94d69ccbdc7ec6c2cdf020736eff99c6f9c8d89948fee92966925e146a"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/sandbox.py",
+        "sha256": "cc83c12da71a4993f0f6296494d9cf40b96068f7446ee55c7bba0103ddc7340a"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/stage_readiness.py",
+        "sha256": "7efaedb0345fd3659f812ea328d0c64e571f42332092b4ffb106f7f2a4a7b8df"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/subscription_service.py",
+        "sha256": "ba24013286ec7eb4d226564a5ce0ca0df91d423a4239137d3e277800e24f2b1e"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/tool_defaults.py",
+        "sha256": "c202c52c26fcd2f5f0592d166c4f930e509310a86ea1cf09325c011934734379"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/specs/048-dolphin-execution-readiness/atsys/run_pilot.py",
+        "sha256": "223e871ab096a0d4bf005639ab4abf81c94b1f7f46935149f2f7f2b5a412c903"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/specs/048-dolphin-execution-readiness/atsys/validate_pilot.py",
+        "sha256": "511ea767ffa3fd82fc1c757d074cd8a6e7035da4d4b77738f169f30b466c0aae"
+      }
+    ],
+    "tools": [
+      "mcp__atmem_discovery__memory_inspect",
+      "mcp__atmem_discovery__memory_search",
+      "mcp__dolphinbench_apps__create_doc",
+      "mcp__dolphinbench_apps__get_prompt",
+      "mcp__dolphinbench_apps__list_prompts",
+      "mcp__dolphinbench_apps__list_resources",
+      "mcp__dolphinbench_apps__read_resource",
+      "session_search"
+    ],
+    "upstream_manifest": {
+      "path": "/Users/javadtaghia/gitlab/benchmark-sources/dolphinbench/manifest.json",
+      "sha256": "40107f293243a6cb3941c16e75ce2e3495ed31c68a1015b8537efeb8dfec2ae9"
+    }
+  },
+  "apps_crash_qualification": {
+    "app_python": {
+      "path": "/Users/javadtaghia/.local/share/atmem-benchmark-runtime-v7-20261022/python/bin/python3.12",
+      "sha256": "3874a935f7242b660e652d35c25a1b87415fcfea3ee191ff262fcca5c50102c5"
+    },
+    "evidence_preserved": true,
+    "model_calls": 0,
+    "outcomes": [
+      {
+        "artifacts": [
+          {
+            "path": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/pilot20-v3/apps/apps/state.json",
+            "sha256": "9ad2c4a17d1d3f595130feff6579588e5e39bcf52cca7fca5bd9d45da0c6c9cf"
+          },
+          {
+            "path": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/pilot20-v3/apps/apps/calls.jsonl",
+            "sha256": "111c4eca156dfe643633709eb5196c6d4fe131d8968a2caa565ab3f8055c9d3d"
+          },
+          {
+            "path": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/pilot20-v3/apps/apps/process.json",
+            "sha256": "148ce077a27caa861e5030f64e37ea20989e401c0e41632d36d82de9b28a6b5d"
+          }
+        ],
+        "calls": 3,
+        "name": "apps",
+        "returncode": 0
+      },
+      {
+        "artifacts": [
+          {
+            "path": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/pilot20-v3/apps/crash/state.json",
+            "sha256": "505267f9300a8c39105b61748623f41cf977e63c4da7eec75ae14c4d12c841e2"
+          },
+          {
+            "path": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/pilot20-v3/apps/crash/calls.jsonl",
+            "sha256": "04a23bff1245981408b245d17c94189a9db9c83429dceaca13cc79d17dadf61c"
+          },
+          {
+            "path": "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/pilot20-v3/apps/crash/process.json",
+            "sha256": "6960a3544af2a9a0e744ce08c7a12b78f69edfec02527bf532f3c0afee6ff842"
+          }
+        ],
+        "calls": 1,
+        "name": "crash",
+        "returncode": 73
+      }
+    ],
+    "result_state_log_agree": true,
+    "same_macos_sandbox_and_upstream_bridge": true,
+    "schema": "dolphin-synthetic-app-qualification-v1",
+    "source": [
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/.atsys/tasks/dolphin-readiness-pilot-20.json",
+        "sha256": "75ca79af40789c5f06608c7d61d032f7ab8f3ed1e4202aee7d0463c6a4572444"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/adapter.py",
+        "sha256": "ab7fdab70a4354b05c0c7577323752d43b6d25538ed94aeaf7b9c28e2185ed00"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/app_bridge.py",
+        "sha256": "c150e8faf8c0d366c90c2dc9a577f97c013ca6f0da9f8f072452341df100c67a"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/archive.py",
+        "sha256": "6b2a4bc05fb0a01dd32044547b77aad1ed8deda9550530f4a49947c5407bbffb"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/baseline.py",
+        "sha256": "590ca8691c37b7542e60a7115ea9c2fbb6f10521dd0306c06c0a782f15da3894"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/campaign.py",
+        "sha256": "7b620046e3ab6739a44aacc394a9c33de88f3435f0650bfa8320e0a5f88ae160"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/campaign_v3.py",
+        "sha256": "a90766bdc0fee02e86c394da53aa6c0f2b8f917e3e5708c54e9e3c5a7b2c2b5c"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/driver.py",
+        "sha256": "f538f46674583b6176395b388108780c048d2cddc38442d442d7ec294457e7c9"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/execution_profile.py",
+        "sha256": "cfbe3b0c17f43e188a50e971d162cf735fa725bbbff376f5a2ab353eabd2ca5e"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/export.py",
+        "sha256": "ad8604a1a70e14f9feb4fba72489cd2cdd4d7a69a09c98c245a8bd34a4288aa5"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/gateway.py",
+        "sha256": "aea9bc69381e7cd48d55693b2b0792eb174fc642497457c8341bfc655656c6fd"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/judge.py",
+        "sha256": "ded17f85c4713e4ecbbecb5407aeca7a38901aa435ad61766549a8e490c482b8"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/observe_native.py",
+        "sha256": "e8bef109635d442a88932b4fc1b7e5b0d0d54e00c9f277928695e59b54ab6750"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/pilot_readiness.py",
+        "sha256": "effbcb9c0ab74ad95420399231a683070e936c0faffa68cfe44fd3f573c27738"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/python_runtime.py",
+        "sha256": "95b6c20fb54dd7cc03570280c7ae36cc1fd77501ee48b74359d83499783dfabf"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/qualify.py",
+        "sha256": "fcd881cf386b441be9023f4ea8ecf9d58c1958da3a819745be79b8d3dc4bb8df"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/qualify_execution.py",
+        "sha256": "5e77356c2f13f4ab59d9eabe83c7bb5f5724898a49c790cd5b124cf39f1e1de6"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/qualify_profile.py",
+        "sha256": "3a19c2598d3cd0273511fc5c30b90179bd898de9cde99d6bea420dd01c47b307"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/readiness.py",
+        "sha256": "d3b99ba9a9279d663da25ade7b7d2b540b6dbc5d8156ebd3bbb19b3d8f425341"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/recording.py",
+        "sha256": "fccb08308e3ceb0682a34553cf072e1c96d7a55c8eb134a5d292072752e820a4"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/runtime.py",
+        "sha256": "756613d684909c0db3990cab2a44127b423ac6b55e6aacfaa34c4d051bc4fa6a"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/safe_runner.py",
+        "sha256": "5ec58b94d69ccbdc7ec6c2cdf020736eff99c6f9c8d89948fee92966925e146a"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/sandbox.py",
+        "sha256": "cc83c12da71a4993f0f6296494d9cf40b96068f7446ee55c7bba0103ddc7340a"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/stage_readiness.py",
+        "sha256": "7efaedb0345fd3659f812ea328d0c64e571f42332092b4ffb106f7f2a4a7b8df"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/subscription_service.py",
+        "sha256": "ba24013286ec7eb4d226564a5ce0ca0df91d423a4239137d3e277800e24f2b1e"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/benchmarks/dolphinbench/tool_defaults.py",
+        "sha256": "c202c52c26fcd2f5f0592d166c4f930e509310a86ea1cf09325c011934734379"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/specs/048-dolphin-execution-readiness/atsys/run_pilot.py",
+        "sha256": "223e871ab096a0d4bf005639ab4abf81c94b1f7f46935149f2f7f2b5a412c903"
+      },
+      {
+        "path": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/specs/048-dolphin-execution-readiness/atsys/validate_pilot.py",
+        "sha256": "511ea767ffa3fd82fc1c757d074cd8a6e7035da4d4b77738f169f30b466c0aae"
+      }
+    ],
+    "synthetic_only": true,
+    "uncertain_replay_refused": true,
+    "upstream_manifest": {
+      "path": "/Users/javadtaghia/gitlab/benchmark-sources/dolphinbench/manifest.json",
+      "sha256": "40107f293243a6cb3941c16e75ce2e3495ed31c68a1015b8537efeb8dfec2ae9"
+    }
+  },
+  "source_and_selection_change_invalidates_old60": true,
+  "scored_pilot_tasks_completed": 0,
+  "full_600_authorized": false
+}

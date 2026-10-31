@@ -1,0 +1,65 @@
+{
+  "status": "needs_attention",
+  "recorded_at": "2026-10-26T00:34:12.685681+00:00",
+  "task_id": "task-de8cc9f7-22ed-412c-9497-d1beafe73064",
+  "condition_sha256": "32d9caadf3a84b211bab01bceec2444595e0eafc481a25ed35f51b3a77f36932",
+  "condition_file_sha256": "7209c5c9a9cc5da944962513f6def8f74b55cd56571abbfd05754bed71c92c1a",
+  "pilot_output": "/Volumes/MEM/atmem-dolphinbench-20261020/readiness-pilot-atsys-20261026-v1",
+  "requested_tasks": 60,
+  "scored_tasks_completed": 0,
+  "benchmark_launches": 0,
+  "checks": {
+    "load_condition": "passed: all eight input pins, source manifest entries and upstream payload validated",
+    "MEM_mount": "mounted exfat",
+    "original_mount": "/Volumes/AtMemDolphin mounted read-only",
+    "ollama": "nomic-embed-text:latest digest 0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f matches",
+    "existing_attempt": "fixed output and profile-atsys-v1/synthetic-atsys-v1/receipts-atsys-v1 absent on inspection",
+    "memory_checkpoints": "all three copied checkpoint file hashes validated; installed API verification not performed",
+    "auth": "unverified; hermes auth --help failed before command dispatch",
+    "admission": "blocked: receipts-atsys-v1/profile.json absent",
+    "independent_validator": {
+      "exit_code": 1,
+      "output": "Pilot report or handoff missing; readiness is incomplete."
+    }
+  },
+  "blockers": [
+    {
+      "kind": "worker_filesystem_permissions",
+      "detail": "Active workspace-write sandbox permits writes only in repository and temporary roots. Required private qualification/receipt/runtime paths, Hermes installation lock and /Volumes/MEM output are outside writable roots. Approval policy is never; no escalation or policy change attempted.",
+      "observed_error": "hermes: [Errno 1] Operation not permitted: '/Users/javadtaghia/.hermes/installs/7f16443560343fb8/.install.lock'; run `hermes pm repair`",
+      "repair_attempted": false
+    },
+    {
+      "kind": "auth_unverified",
+      "detail": "Owner OAuth sign-in cannot be confirmed through blocked Hermes CLI. No token reads/copies, login, refresh attempt or API substitution performed."
+    }
+  ],
+  "qualification": {
+    "new_profile": false,
+    "new_apps_crash": false,
+    "receipts_issued": false
+  },
+  "cohorts": {
+    "original_untraced_zero": 83,
+    "original_traced_zero": 84,
+    "original_traced_partial": 43,
+    "passed_controls": "not executed; regressions unknown"
+  },
+  "original_result": {
+    "passed": 390,
+    "tasks": 600
+  },
+  "fixture_limits": [
+    "morgan/085",
+    "morgan/130"
+  ],
+  "pilot_outcomes": null,
+  "latency": null,
+  "pilot_actual_usd": null,
+  "accounting": {
+    "benchmark": "No scored dispatch or benchmark provider call initiated by this worker; no pilot ledger exists. No inferred successful-run cost.",
+    "atsys": "Contract reports workers=1, supervisors=0. No supervision calls made by this worker. Token and monetary supervision accounting unavailable in this session; separate from benchmark costs, not asserted free."
+  },
+  "decision": "needs_attention_full_launch_not_authorized",
+  "reconciliation": "No scored attempt to replay. Required external writable roots and owner OAuth status need operator reconciliation before zero-call qualification and the single authorized pilot attempt. No successful handoff written."
+}

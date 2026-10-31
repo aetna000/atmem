@@ -1,0 +1,176 @@
+{
+  "schema": "atmem-dolphin-execution-audit-v1",
+  "submission_sha256": "78788ad3455d04407c037706d3ff129d56eafff89beaac101f2a461cb58d7538",
+  "upstream_commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
+  "rows_sha256": "10b0f46ac097cbf44890e9ccd85870ad702befe20a4b1d95f05cd2a700135424",
+  "all": {
+    "tasks": 600,
+    "passed": 390,
+    "memo_notes_and_os_error": 40,
+    "github_runtime_unauthenticated": 32
+  },
+  "without_trace": {
+    "tasks": 83,
+    "passed": 0,
+    "memo_notes_and_os_error": 35,
+    "github_runtime_unauthenticated": 6
+  },
+  "with_trace": {
+    "tasks": 517,
+    "passed": 390,
+    "memo_notes_and_os_error": 5,
+    "github_runtime_unauthenticated": 26
+  },
+  "traced_zero_check_failures": {
+    "tasks": 84,
+    "passed": 0,
+    "memo_notes_and_os_error": 0,
+    "github_runtime_unauthenticated": 3
+  },
+  "traced_partial_check_failures": {
+    "tasks": 43,
+    "passed": 0,
+    "memo_notes_and_os_error": 0,
+    "github_runtime_unauthenticated": 5
+  },
+  "failed_tasks_zero_checks": 167,
+  "traced_failures_one_check_short": 0,
+  "without_trace_create_requests": 61,
+  "without_trace_zero_checks": 83,
+  "without_trace_judge_response_recorded": 0,
+  "other_no_trace_tasks": 42,
+  "other_no_trace_with_create_doc_advertised": 33,
+  "other_no_trace_create_requests_without_loaded_skills": 26,
+  "workflow_guidance_present_tasks": 600,
+  "expected_tools_not_advertised": [
+    {
+      "id": "morgan/085",
+      "expected_tools_not_advertised": [
+        "send_email"
+      ],
+      "advertised_app_tools": [
+        "archive_email",
+        "get_prompt",
+        "list_inbox",
+        "list_prompts",
+        "list_resources",
+        "read_resource"
+      ]
+    },
+    {
+      "id": "morgan/130",
+      "expected_tools_not_advertised": [
+        "send_slack_dm"
+      ],
+      "advertised_app_tools": [
+        "get_prompt",
+        "list_crm_rows",
+        "list_prompts",
+        "list_resources",
+        "read_resource",
+        "update_crm_row"
+      ]
+    }
+  ],
+  "graded_tools_not_advertised": [
+    {
+      "id": "morgan/085",
+      "graded_tools_not_advertised": [
+        "send_email"
+      ],
+      "advertised_app_tools": [
+        "archive_email",
+        "get_prompt",
+        "list_inbox",
+        "list_prompts",
+        "list_resources",
+        "read_resource"
+      ]
+    },
+    {
+      "id": "morgan/130",
+      "graded_tools_not_advertised": [
+        "send_slack_dm"
+      ],
+      "advertised_app_tools": [
+        "get_prompt",
+        "list_crm_rows",
+        "list_prompts",
+        "list_resources",
+        "read_resource",
+        "update_crm_row"
+      ]
+    }
+  ],
+  "no_trace_memo_errors_with_create_doc_advertised": 35,
+  "no_trace_gh_errors_with_all_expected_advertised": 6,
+  "memo_error_task_ids_that_passed": [
+    "morgan/180",
+    "riley/015",
+    "riley/019",
+    "riley/087",
+    "riley/196"
+  ],
+  "github_error_task_ids_that_passed": [
+    "morgan/019",
+    "morgan/021",
+    "morgan/059",
+    "morgan/072",
+    "morgan/093",
+    "morgan/103",
+    "morgan/108",
+    "morgan/140",
+    "morgan/170",
+    "morgan/190",
+    "alex/052",
+    "alex/083",
+    "alex/096",
+    "alex/105",
+    "alex/134",
+    "alex/142",
+    "alex/195",
+    "alex/199"
+  ],
+  "traced_failures_with_github_error": [
+    "morgan/066",
+    "morgan/136",
+    "morgan/165",
+    "morgan/167",
+    "alex/031",
+    "alex/042",
+    "alex/099",
+    "alex/101"
+  ],
+  "no_trace_skill_frequencies": {
+    "apple/apple-notes": 7,
+    "apple:imessage": 1,
+    "github": 13,
+    "apple-notes": 28,
+    "computer-use": 3,
+    "xlsx": 1,
+    "software-development/github": 4,
+    "autonomous-ai-agents/computer-use": 1,
+    "google-workspace": 4
+  },
+  "interpretation": "Post hoc execution evidence only; no causal recovery estimate and no score changes.",
+  "model_calls": 0,
+  "app_calls_executed": 0,
+  "published_reference_descriptive_only": {
+    "source_commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
+    "file_sha256": {
+      "results/hermes/gpt-5.6-luna/mem0/morgan/tests.json": "ef40ee16e4531fde20037ef26238530acfd02c2e0b9b14cdbd658c0b02bfb0d0",
+      "results/hermes/gpt-5.6-luna/mem0/alex/tests.json": "5d0fa3a6fcc2eb152288f3fdcca56901a95915abd1c7920d97bcc582ec15b8b4",
+      "results/hermes/gpt-5.6-luna/mem0/riley/tests.json": "48d7dced9cdc8f8ca6917e1068b98ee796081021d6b8480691ff6d905dbc5f16"
+    },
+    "all_600_request_texts_match_after_date_prefix_removal": true,
+    "reference_passed": 424,
+    "reference_passes_on_our_83_no_trace_tasks": 58,
+    "reference_passes_on_our_35_no_trace_memo_errors": 24,
+    "reference_passes_on_our_6_no_trace_github_errors": 5,
+    "reference_outcomes_on_two_fixture_mismatches": {
+      "morgan/085": false,
+      "morgan/130": false
+    },
+    "matched_runtime_or_memory_only_causal_comparison": false
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-26",
+  "scope": "completed published AtMem 2.3.10b1 390/600 campaign",
+  "method": "all provider-request JSON records scanned; only three completed provider responses sampled",
+  "provider_request_count": 6048,
+  "parse_failures": 0,
+  "request_identity_counts": [
+    {
+      "model": "gpt-5.6-luna",
+      "reasoning_effort": "high",
+      "reasoning_summary": "auto",
+      "url": "https://chatgpt.com/backend-api/codex/responses",
+      "count": 6048
+    }
+  ],
+  "sampled_completed_responses": [
+    {
+      "path": "/Volumes/MEM/atmem-dolphinbench-20261020/campaign-atmem-2310b1-judge-only-20261022/subscription-transport/calls/0010d88ecb3d4484aef0784a676d7a5e/attempt-00/provider-response.json",
+      "sha256": "794d39a9d7e3b49578b8b678190efc763a2b7165e0f2666e7568acfb94b1e28c",
+      "model": "gpt-5.6-luna",
+      "reasoning": {
+        "effort": "high",
+        "summary": "detailed",
+        "context": "all_turns",
+        "mode": "standard"
+      },
+      "service_tier": "default",
+      "status": "completed"
+    },
+    {
+      "path": "/Volumes/MEM/atmem-dolphinbench-20261020/campaign-atmem-2310b1-judge-only-20261022/subscription-transport/calls/7e2831a5c6b74834b90daba17e83652f/attempt-00/provider-response.json",
+      "sha256": "42ff7bd704ced94a26850d8b987d03bdcb5b50c1cc749bbca9b602bab8c9e338",
+      "model": "gpt-5.6-luna",
+      "reasoning": {
+        "effort": "high",
+        "summary": "detailed",
+        "context": "all_turns",
+        "mode": "standard"
+      },
+      "service_tier": "default",
+      "status": "completed"
+    },
+    {
+      "path": "/Volumes/MEM/atmem-dolphinbench-20261020/campaign-atmem-2310b1-judge-only-20261022/subscription-transport/calls/fffdcdbbd9414557bbb6a96b4463cb6b/attempt-00/provider-response.json",
+      "sha256": "43d5b96e464dc4a8fd1ee3a2f39a62d92d8e33528d6a9f30beb39dd993f4c1a1",
+      "model": "gpt-5.6-luna",
+      "reasoning": {
+        "effort": "high",
+        "summary": "detailed",
+        "context": "all_turns",
+        "mode": "standard"
+      },
+      "service_tier": "default",
+      "status": "completed"
+    }
+  ],
+  "public_submission_assistant_completions": 6047,
+  "interpretation": "Luna high via subscription is evidenced; no light model/effort in request identity fields. Provider internal weights are not independently inspectable.",
+  "upstream_requirements": {
+    "participant_model": "Own model/harness allowed; paper reference settings are not universal reader requirements.",
+    "reference_example": {
+      "model": "gpt-5.6-luna",
+      "reasoning_effort": "high",
+      "provider": "azure-foundry",
+      "max_turns": 60,
+      "context_length": 1050000
+    },
+    "judge": "Azure gpt-5.6-sol medium; our OpenRouter Azure-only path is a disclosed transport adaptation, not verified direct-endpoint equivalence.",
+    "execution": "chronological history, independent persona stores, frozen completed memory, fresh conversation/app state, no task/fact/grade leakage, actual tools/usage/cost and complete600 evidence",
+    "sources": [
+      "https://github.com/mem0ai/dolphinbench/blob/main/docs/DRIVER_CONTRACT.md",
+      "https://github.com/mem0ai/dolphinbench/blob/main/examples/reference/hermes-builtin.json",
+      "https://github.com/mem0ai/dolphinbench/blob/main/docs/CANONICAL_EVALUATION.md",
+      "https://github.com/mem0ai/dolphinbench/blob/main/reference/README.md"
+    ]
+  },
+  "judge_request_identity_counts": [
+    {
+      "model": "openai/gpt-5.6-sol",
+      "reasoning_effort": "medium",
+      "provider_only": [
+        "azure"
+      ],
+      "allow_fallbacks": false,
+      "max_completion_tokens": 8000,
+      "count": 514
+    }
+  ]
+}

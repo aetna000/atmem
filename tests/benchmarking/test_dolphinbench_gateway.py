@@ -190,3 +190,89 @@ def test_gateway_retains_receipt_and_declares_missing_token_cap(tmp_path):
         fixture.shutdown()
         fixture.server_close()
         thread.join(5)
+
+
+def test_embedded_upstream_504_is_retryable_and_keeps_reservation(tmp_path):
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    import threading
+    import urllib.error
+    import urllib.request
+    class TimeoutFixture(BaseHTTPRequestHandler):
+        def log_message(self, *_args): pass
+        def do_POST(self):
+            self.rfile.read(int(self.headers['Content-Length']))
+            raw = json.dumps({'id': 'gen-fixture', 'error': {'code': 504, 'message': 'idle timeout'}}).encode()
+            self.send_response(200); self.send_header('Content-Length', str(len(raw)))
+            self.end_headers(); self.wfile.write(raw)
+    fixture = ThreadingHTTPServer(('127.0.0.1', 0), TimeoutFixture)
+    thread = threading.Thread(target=fixture.serve_forever, daemon=True); thread.start()
+    server = gateway.Gateway(key='fixture-only', output=tmp_path/'calls', ledger_path=tmp_path/'ledger.db',
+        campaign_identity={'test': True}, cap_usd=1, phase='tests', model='openai/gpt-5.6-sol',
+        input_per_million=5, output_per_million=30,
+        endpoint=f'http://127.0.0.1:{fixture.server_port}/v1/chat/completions', provider_name='Azure').start()
+    try:
+        req=urllib.request.Request(server.base_url+'/chat/completions',data=json.dumps({
+            'model':server.model,'max_completion_tokens':10,'messages':[{'role':'user','content':'fixture'}]}).encode(),
+            headers={'Authorization':'Bearer '+server.local_token})
+        with pytest.raises(urllib.error.HTTPError) as error: urllib.request.urlopen(req,timeout=5)
+        assert error.value.code == 504
+        book=gateway.BudgetLedger(tmp_path/'ledger.db',cap_usd=1,identity={'test':True})
+        try:
+            state,reserved,actual=book.connection.execute('SELECT state,reserved,actual FROM calls').fetchone()
+            assert state == 'reserved' and reserved > 0 and actual is None
+        finally: book.close()
+        assert json.loads(next((tmp_path/'calls').rglob('response.json')).read_text())['response']['error']['code'] == 504
+    finally:
+        server.stop(); fixture.shutdown(); fixture.server_close(); thread.join(5)
+
+
+@pytest.mark.parametrize('wrapped', [False, True])
+def test_upstream_socket_timeout_propagates_504_and_keeps_reservation(tmp_path, monkeypatch, wrapped):
+    import urllib.error
+    import urllib.request
+    real_open=urllib.request.urlopen
+    def fake_open(req, *args, **kwargs):
+        if req.full_url.startswith('http://127.0.0.1:1/'):
+            error = TimeoutError('fixture idle timeout')
+            raise urllib.error.URLError(error) if wrapped else error
+        return real_open(req,*args,**kwargs)
+    monkeypatch.setattr(urllib.request,'urlopen',fake_open)
+    server=gateway.Gateway(key='fixture-only',output=tmp_path/'calls',ledger_path=tmp_path/'ledger.db',
+        campaign_identity={'test':True},cap_usd=1,phase='tests',model='openai/gpt-5.6-sol',
+        input_per_million=5,output_per_million=30,endpoint='http://127.0.0.1:1/v1/chat/completions',provider_name='Azure').start()
+    try:
+        req=urllib.request.Request(server.base_url+'/chat/completions',data=json.dumps({
+            'model':server.model,'max_completion_tokens':10,'messages':[{'role':'user','content':'fixture'}]}).encode(),
+            headers={'Authorization':'Bearer '+server.local_token})
+        with pytest.raises(urllib.error.HTTPError) as error: urllib.request.urlopen(req,timeout=5)
+        assert error.value.code == 504
+        book=gateway.BudgetLedger(tmp_path/'ledger.db',cap_usd=1,identity={'test':True})
+        try:
+            state,reserved,actual=book.connection.execute('SELECT state,reserved,actual FROM calls').fetchone()
+            assert state=='reserved' and reserved>0 and actual is None
+        finally: book.close()
+    finally: server.stop()
+
+
+def test_full_report_accepts_only_attested_transient_reservations(tmp_path):
+    from benchmarks.dolphinbench.recording import verify_transient_reservations
+    identity = {'campaign': 'offline'}
+    book = gateway.BudgetLedger(tmp_path / 'budget.db', cap_usd=1, identity=identity)
+    call_id = 'a' * 32
+    request = {'model': 'openai/gpt-5.6-sol'}
+    try:
+        book.reserve(call_id, phase='judge', request=request, maximum_usd=0.3)
+    finally:
+        book.close()
+    path = tmp_path / 'judge-calls/judge' / call_id
+    path.mkdir(parents=True)
+    (path / 'transport.json').write_text(json.dumps({'call_id': call_id, 'phase': 'judge', 'provider': 'Azure'}))
+    (path / 'request.json').write_text(json.dumps(request))
+    (path / 'response.json').write_text(json.dumps({'response': {'error': {'code': 504}}}))
+    result = verify_transient_reservations(tmp_path / 'budget.db', tmp_path / 'judge-calls',
+        cap_usd=1, identity=identity)
+    assert result['uncertain_usd'] == 0.3 and result['unresolved_calls'] == 1
+    (path / 'response.json').write_text(json.dumps({'response': {'error': {'code': 400}}}))
+    with pytest.raises(ValueError, match='not transient'):
+        verify_transient_reservations(tmp_path / 'budget.db', tmp_path / 'judge-calls',
+            cap_usd=1, identity=identity)

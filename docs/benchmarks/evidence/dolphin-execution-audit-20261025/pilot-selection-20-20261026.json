@@ -1,0 +1,56 @@
+{
+  "schema": "dolphin-execution-diagnostic-pilot-v1",
+  "selection_revision": 3,
+  "revision_date": "2026-10-26",
+  "revision_reason": "Owner reduced the unstarted live diagnostic from60 to20 tasks on2026-10-26; preserve routing/cohort/fixture/control coverage.",
+  "groups": {
+    "failed_notes_route_6": [
+      "alex/120",
+      "alex/132",
+      "morgan/162",
+      "morgan/157",
+      "riley/009",
+      "riley/069"
+    ],
+    "failed_github_route_3": [
+      "alex/102",
+      "morgan/172",
+      "morgan/152"
+    ],
+    "fixture_negative_controls_2": [
+      "morgan/085",
+      "morgan/130"
+    ],
+    "already_recovered_notes_passes_2": [
+      "morgan/180",
+      "riley/019"
+    ],
+    "other_no_trace_controls_2": [
+      "riley/125",
+      "morgan/129"
+    ],
+    "other_traced_zero_check_failures_2": [
+      "riley/095",
+      "morgan/023"
+    ],
+    "other_traced_partial_failures_2": [
+      "alex/139",
+      "riley/156"
+    ],
+    "other_passes_1": [
+      "riley/037"
+    ]
+  },
+  "selection_seed": "dolphin-execution-pilot20-20261026",
+  "tasks": 20,
+  "submission_sha256": "78788ad3455d04407c037706d3ff129d56eafff89beaac101f2a461cb58d7538",
+  "upstream_commit": "81cb6f8405b40a9e76089cef650806a80af06ea2",
+  "post_hoc_diagnostic_not_holdout": true,
+  "actor_must_not_receive_evaluator_labels_or_group_membership": true,
+  "parent_selection_sha256": "61716c3f78595088bc53bbd47fb7bc19151eabc382416aa59b5e558a0e1554f9",
+  "limitations": [
+    "Post hoc diagnostic, not a holdout or an accuracy estimate for600.",
+    "Only a subset of the35 Notes and six GitHub routing failures is tested.",
+    "The original60-task selection is preserved unchanged."
+  ]
+}

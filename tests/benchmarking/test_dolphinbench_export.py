@@ -92,6 +92,66 @@ def test_conflicting_keys_reject_unproven_or_changed_native_witness(mutation):
 
 
 @pytest.fixture
+def duplicate_inspection_capture(monkeypatch):
+    """A model emits two equivalent reads; the host records one result."""
+    import copy
+    from types import ModuleType
+    submission = ModuleType('harness.submission')
+    def clean(message):
+        value = {k: copy.deepcopy(v) for k, v in message.items() if v is not None}
+        if value.get('tool_calls'):
+            value['tool_calls'] = [{'id': c['id'], 'name': c.get('function', c)['name'],
+                'arguments': json.loads(c.get('function', c)['arguments'])
+                if isinstance(c.get('function', c)['arguments'], str)
+                else c.get('function', c)['arguments']} for c in value['tool_calls']]
+        return value
+    capture = ModuleType('harness.submission_capture')
+    capture.chat_messages = lambda messages: [clean(m) for m in messages]
+    capture._plain = clean
+    submission.clean_message = clean
+    monkeypatch.setitem(sys.modules, 'harness.submission', submission)
+    monkeypatch.setitem(sys.modules, 'harness.submission_capture', capture)
+    function = {'name': 'mcp__atmem_discovery__memory_inspect', 'arguments': '{"id":"fixture"}'}
+    calls = [{'id': 'kept', 'function': copy.deepcopy(function)},
+             {'id': 'suppressed', 'function': copy.deepcopy(function)}]
+    request = [{'role': 'user', 'content': 'fixture task'}]
+    answer = {'role': 'assistant', 'content': None, 'tool_calls': calls}
+    following = copy.deepcopy(request) + [{'role': 'assistant', 'tool_calls': [copy.deepcopy(calls[0])]},
+                           {'role': 'tool', 'tool_call_id': 'kept', 'content': 'result'}]
+    return request, answer, following
+
+
+def test_duplicate_read_is_normalized_only_with_native_history_and_result(duplicate_inspection_capture):
+    request, answer, following = duplicate_inspection_capture
+    result, changes = export.normalize_witnessed_duplicate_inspections(answer, request, following)
+    assert [c['id'] for c in result['tool_calls']] == ['kept']
+    assert [c['id'] for c in answer['tool_calls']] == ['kept', 'suppressed']
+    assert changes[0]['suppressed_calls'][0]['id'] == 'suppressed'
+    assert changes[0]['next_request_messages_sha256'] == export.fingerprint(following)
+    assert changes[0]['model_or_tool_replay'] is False
+
+
+@pytest.mark.parametrize('mutation', ['missing_witness', 'changed_history', 'changed_arguments',
+    'changed_call_id', 'missing_result', 'extra_result', 'changed_answer', 'write_tool', 'duplicate_id'])
+def test_duplicate_suppression_refuses_unproven_or_changed_history(duplicate_inspection_capture, mutation):
+    request, answer, following = duplicate_inspection_capture
+    if mutation == 'missing_witness': following = None
+    elif mutation == 'changed_history': following[0]['content'] = 'different task'
+    elif mutation == 'changed_arguments': answer['tool_calls'][1]['function']['arguments'] = '{"id":"other"}'
+    elif mutation == 'changed_call_id': following[1]['tool_calls'][0]['id'] = 'different'
+    elif mutation == 'missing_result': following.pop()
+    elif mutation == 'extra_result': following.append({'role': 'tool', 'tool_call_id': 'suppressed', 'content': 'result'})
+    elif mutation == 'changed_answer': following[1]['content'] = 'different answer'
+    elif mutation == 'write_tool':
+        for call in answer['tool_calls'] + following[1]['tool_calls']:
+            call['function']['name'] = 'mcp__dolphinbench_apps__create_doc'
+    elif mutation == 'duplicate_id': answer['tool_calls'][1]['id'] = 'kept'
+    result, changes = export.normalize_witnessed_duplicate_inspections(answer, request, following)
+    assert result == answer
+    assert changes == []
+
+
+@pytest.fixture
 def failed_transport_capture(tmp_path, monkeypatch):
     """Test recording mechanics, not benchmark or training observations."""
     import copy

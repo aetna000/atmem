@@ -140,6 +140,62 @@ def normalize_identical_argument_keys(answer, *, observed_next_messages=None):
     return result, changes
 
 
+def normalize_witnessed_duplicate_inspections(answer, request_messages, next_messages):
+    """Represent host-suppressed duplicate reads only when the next request proves them.
+
+    The original model response remains in the gateway evidence. This changes
+    neither executed tool results nor an application action, and never guesses
+    what an absent or contradictory next request might have contained.
+    """
+    from harness.submission import clean_message
+    from harness.submission_capture import _plain, chat_messages
+
+    if not isinstance(next_messages, list):
+        return copy.deepcopy(answer), []
+    prior = chat_messages(request_messages)
+    following = chat_messages(next_messages)
+    position = len(prior)
+    if (len(following) <= position or
+            [_plain(m) for m in following[:position]] != [_plain(m) for m in prior]):
+        return copy.deepcopy(answer), []
+    observed = following[position]
+    original = clean_message(answer)
+    original_calls = original.get('tool_calls', [])
+    observed_calls = observed.get('tool_calls', [])
+    if observed.get('role') != 'assistant' or not original_calls or not observed_calls:
+        return copy.deepcopy(answer), []
+    old_ids = [call.get('id') for call in original_calls]
+    kept_ids = [call.get('id') for call in observed_calls]
+    if (any(not isinstance(i, str) or not i for i in old_ids + kept_ids)
+            or len(set(old_ids)) != len(old_ids) or len(set(kept_ids)) != len(kept_ids)
+            or not set(kept_ids) < set(old_ids)):
+        return copy.deepcopy(answer), []
+    kept = [call for call in original_calls if call['id'] in set(kept_ids)]
+    if kept != observed_calls:
+        return copy.deepcopy(answer), []
+    dropped = [call for call in original_calls if call['id'] not in set(kept_ids)]
+    for call in dropped:
+        matches = [item for item in kept if item['name'] == call['name']
+                   and fingerprint(item['arguments']) == fingerprint(call['arguments'])]
+        if (call.get('name') != 'mcp__atmem_discovery__memory_inspect'
+                or len(matches) != 1 or old_ids.index(matches[0]['id']) >= old_ids.index(call['id'])):
+            return copy.deepcopy(answer), []
+    candidate = copy.deepcopy(answer)
+    candidate['tool_calls'] = [call for call in candidate['tool_calls'] if call['id'] in set(kept_ids)]
+    if _plain(clean_message(candidate)) != _plain(observed):
+        return copy.deepcopy(answer), []
+    results = following[position + 1:]
+    if (len(results) != len(kept_ids)
+            or any(item.get('role') != 'tool' for item in results)
+            or [item.get('tool_call_id') for item in results] != kept_ids):
+        return copy.deepcopy(answer), []
+    return candidate, [{'basis': 'next_native_request_with_matching_read_results',
+        'original_response_sha256': fingerprint(answer),
+        'next_request_messages_sha256': fingerprint(next_messages),
+        'suppressed_calls': copy.deepcopy(dropped),
+        'retained_call_ids': kept_ids, 'model_or_tool_replay': False}]
+
+
 def normalize_dispatch_envelopes(messages):
     """Export modern unary dispatch in the upstream-supported unary envelope.
 
@@ -256,7 +312,7 @@ def export_interaction(calls_root, witness_path, *, app_calls=None, default_sour
     unmatched = [e for key, e in pending.items() if key in completed]
     directories = sorted(Path(calls_root).rglob('transport.json'),
         key=lambda p: json.loads(p.read_text())['started_ns'])
-    events, auxiliary, failed_attempts, argument_keys = [], [], [], []
+    events, auxiliary, failed_attempts, argument_keys, duplicate_inspections = [], [], [], [], []
     requests = [json.loads((p.parent / 'request.json').read_text()) for p in directories]
     for directory_index, transport in enumerate(directories):
         directory = transport.parent
@@ -307,6 +363,10 @@ def export_interaction(calls_root, witness_path, *, app_calls=None, default_sour
             observed_next_messages=next_messages)
         if keys:
             argument_keys.append({'call_directory': str(directory), 'changes': keys})
+        answer, suppressed = normalize_witnessed_duplicate_inspections(
+            answer, request['messages'], next_messages)
+        if suppressed:
+            duplicate_inspections.append({'call_directory': str(directory), 'changes': suppressed})
         message = clean_message(answer)
         message['duration_ms'] = recorded['elapsed_seconds'] * 1000
         message['usage'] = usage
@@ -315,6 +375,7 @@ def export_interaction(calls_root, witness_path, *, app_calls=None, default_sour
     if unmatched:
         raise ValueError('Native request has no exact gateway receipt')
     result = build_rollout(events)
+    result['witnessed_duplicate_inspection_suppression'] = duplicate_inspections
     result['identical_argument_key_normalization'] = [
         {'call_directory': entry['call_directory'],
          'changes': [c for c in entry['changes'] if 'conflicting_duplicate_keys' not in c]}

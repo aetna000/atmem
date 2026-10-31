@@ -1,0 +1,28 @@
+{
+  "name": "DolphinBench bounded workspace repair and verified resume handoff",
+  "worker": "codex",
+  "cwd": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025",
+  "objective": "Repair only reviewed Dolphin harness/export/recovery code and its focused tests/docs. Never launch scored work from the coding sandbox. Run focused tests, retain exact evidence, and give the trusted parent a verified recovery handoff. Unknown actions/charges, true argument mismatches, missing/tampered proofs or scientific changes require escalation. Do not submit nested AtSys tasks.",
+  "argv": [],
+  "resumeArgv": [
+    "/Users/javadtaghia/miniconda3/bin/python", "-m", "benchmarks.dolphinbench.recovery_supervisor", "handoff",
+    "--contract", "specs/048-dolphin-execution-readiness/atsys/recovery-task-template.json",
+    "--request", "specs/048-dolphin-execution-readiness/atsys/recovery-request.json",
+    "--output", "specs/048-dolphin-execution-readiness/atsys/recovery-handoffs"
+  ],
+  "validator": "command",
+  "validationArgv": [
+    "/Users/javadtaghia/miniconda3/bin/python", "-m", "pytest", "-q",
+    "tests/benchmarking/test_dolphin_pilot_recovery.py",
+    "tests/benchmarking/test_execution_readiness.py",
+    "tests/benchmarking/test_dolphinbench_campaign_gate.py",
+    "tests/benchmarking/test_dolphin_campaign_resume.py",
+    "tests/benchmarking/test_dolphinbench_gateway.py"
+  ],
+  "allowRepair": true,
+  "maxRetries": 2,
+  "maxSupervisorCalls": 3,
+  "repairTimeoutSeconds": 1800,
+  "networkAccess": true,
+  "plan": "Coding repair has workspace-write scope only. The parent executes trusted fixed commands for private/MEM writes outside the coding sandbox after review. Before each retry: tests on executing source, fresh real zero-model-call profile/app/crash qualification, new frozen condition and immutable evidence epoch. Ordinary load_condition/admission remains enforced. resumeArgv verifies and writes a command handoff only; it cannot launch providers or apps. Root supplies recovery-request.json after review; missing inputs fail closed. Never change graders, models/settings, memory/retrieval, upstream, fixtures, old results, budget caps, secrets or AtSys control policy. Never silently update hashes or ignore a gate. Do not reset apps, replay uncertain actions, regenerate completed grades or start full600. Bounded2 repairs do not authorize arbitrary code execution or autonomous approval. Read recovery-implementation.md for request schema and escalation rules. This is a template only, not a submitted task."
+}

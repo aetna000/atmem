@@ -159,3 +159,61 @@ class BudgetLedger:
 
     def close(self):
         self.connection.close()
+
+
+def verify_transient_reservations(ledger, judge_calls, *, cap_usd, identity):
+    """Read-only proof that every unsettled paid call was a transient judge error."""
+    from .readiness import read
+    import re
+    ledger = Path(ledger).resolve(strict=True)
+    judge_calls = Path(judge_calls).resolve(strict=True)
+    connection = sqlite3.connect(ledger.as_uri() + '?mode=ro', uri=True)
+    try:
+        if connection.execute('PRAGMA integrity_check').fetchall() != [('ok',)]:
+            raise ValueError('Budget ledger integrity failed')
+        if connection.execute('SELECT cap,identity FROM campaign WHERE singleton=1').fetchone() != (
+                micros(cap_usd), fingerprint(identity)):
+            raise ValueError('Budget campaign identity/cap differs')
+        rows = connection.execute('SELECT call_id,phase,request_sha256,reserved,actual,state FROM calls').fetchall()
+    finally:
+        connection.close()
+    actual, reserved, unresolved = 0, 0, []
+    for call_id, phase, request_hash, maximum, charge, state in rows:
+        if state == 'completed':
+            if type(charge) is not int or charge < 0:
+                raise ValueError('Completed charge is invalid')
+            actual += charge
+            continue
+        if state == 'unsent':
+            continue
+        if (state != 'reserved' or phase != 'judge' or charge is not None or type(maximum) is not int
+                or maximum <= 0 or not isinstance(call_id, str) or re.fullmatch('[0-9a-f]{32}', call_id) is None):
+            raise ValueError('Non-transient or unproved budget uncertainty')
+        call = judge_calls / 'judge' / call_id
+        if call.is_symlink() or not call.resolve(strict=True).is_relative_to(judge_calls):
+            raise ValueError('Untrusted judge call evidence path')
+        transport, request = read(call / 'transport.json'), read(call / 'request.json')
+        if (transport.get('call_id') != call_id or transport.get('phase') != 'judge'
+                or transport.get('provider') != 'Azure' or fingerprint(request) != request_hash):
+            raise ValueError('Unsettled judge transport/request mismatch')
+        response_path, error_path = call / 'response.json', call / 'error.json'
+        if response_path.exists() == error_path.exists():
+            raise ValueError('Exactly one transient judge failure record required')
+        if response_path.exists():
+            response = read(response_path).get('response')
+            if not isinstance(response, dict) or not isinstance(response.get('error'), dict) or 'choices' in response:
+                raise ValueError('Unsettled judge response contains no proven transient error')
+            code = response['error'].get('code')
+        else:
+            error = read(error_path)
+            if error.get('cost_status') != 'reserved_uncertain':
+                raise ValueError('Unsettled judge error lost cost uncertainty')
+            code = error.get('http_status')
+        if type(code) is not int or code not in {429, 500, 502, 503, 504}:
+            raise ValueError('Unsettled judge error is not transient')
+        reserved += maximum
+        unresolved.append(call_id)
+    if actual + reserved > micros(cap_usd):
+        raise ValueError('Campaign exposure exceeds budget cap')
+    return {'actual_usd': actual / 1_000_000, 'uncertain_usd': reserved / 1_000_000,
+            'unresolved_calls': len(unresolved), 'call_ids': unresolved}

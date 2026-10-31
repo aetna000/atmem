@@ -1,0 +1,52 @@
+{
+  "name": "Dolphin fixed20 qualified recovery parent",
+  "objective": "Automatically qualify bounded Dolphin harness repair and continue the same fixed20 pilot without action replay",
+  "cwd": "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025",
+  "worker": "command",
+  "argv": [
+    "/Users/javadtaghia/miniconda3/bin/python",
+    "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/specs/048-dolphin-execution-readiness/atsys/run_recovery_epoch.py",
+    "--contract",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/parent-recovery-contract-v2.json"
+  ],
+  "resumeArgv": [
+    "/Users/javadtaghia/miniconda3/bin/python",
+    "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/specs/048-dolphin-execution-readiness/atsys/run_recovery_epoch.py",
+    "--contract",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/parent-recovery-contract-v2.json"
+  ],
+  "model": "gpt-6.1-sol",
+  "reasoningEffort": "medium",
+  "validator": "command",
+  "validationArgv": [
+    "/Users/javadtaghia/miniconda3/bin/python",
+    "/Users/javadtaghia/gitlab/atmem-dolphin-execution-audit-20261025/specs/048-dolphin-execution-readiness/atsys/run_recovery_epoch.py",
+    "--contract",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/parent-recovery-contract-v2.json",
+    "--validate"
+  ],
+  "validationTimeoutSeconds": 600,
+  "requiredArtifacts": [
+    "specs/048-dolphin-execution-readiness/atsys/pilot20-recovered-handoff.json"
+  ],
+  "activityTimeoutSeconds": 0,
+  "plan": "Owner authorizes bounded harness self-repair and automatic safe continuation of fixed20. This command parent waits for separately supervised implementation acceptance, tests actual retained evidence, freezes new harness revision, runs fresh zero-model-call native/app/crashqualification, validates unchanged science, imports completed grades/settledbudget, reconstructs129 offline and continues untouchedtasks automatically. No coding worker privatepathwrites are needed. Benchmark remains Luna/high subscription; judge Sol/medium Azure-onlyOpenRouter; memory/retrieval/Ollama local; cumulative10USDcap. Supervisor/repair use gpt-6.1-sol (supervisorhigh, repairmedium), subscription billing separate. No600.\n\nAt failure diagnose and REPAIR routine harness/export/recovery defects before retry when retained evidence proves a safe continuation. Do not stop merely because an export type representation differed. Max2 repairs. Allowed paths: benchmarks/dolphinbench/{tool_defaults,pilot_readiness,pilot_recovery,recovery_supervisor,readiness}.py, scripts/launch_dolphin_readiness.py and their focused tests/SpecKit prose. Controller verifies original/newscience and sourceallowlist and independently requalifies. Do not modify trusted parent run_recovery_epoch.py, independent validators, parentcontract, taskpolicy, private source/evidence bundles, originalresults/grades, fixtureinputs, upstream, installedproduct, model/routes/options, memory, actorcontext, checkpoints, or budgetcap. Never weaken/change acceptance tests toforcepass. No sourceedits while benchmarkchildalive. Rootcontroller trustpins protect its own code/validator. Do not launch workloads from repair sandbox or create nestedAtSys tasks; return fixed:true then exactresumeArgv parentperforms requiredchecks andlaunch.\n\nRetry same coordinator contract; never oldfreshlauncher or a newoutput chosen by model. Alreadylaunchedsourceepoch cannot be silentlyrebound to changedcode. Completedexecutions/grades must be reused, notrerun; actualunknownsideeffect, unresolvedcharge, trueargumentmismatch, missing/tamperedproof, sourcebeyondallowlist or need for newmodel/cap => concreteescalation. Inspect proof and durableintent before classifying unknown. If newepoch needed after alreadylaunchedtask, preservecurrentoutput and require verifiedoffline reconciliation; never duplicatebookings or rerollgradedtasks. Do not keepretrying an authorization block.\n\nCompletion requires independentvalidate_pilot all20 exactIDs/evidence/costs/fullchecks plushand-off; regressions producecomplete diagnostic but blockpromotion, neverrerolltoclearregression. Full600remainsunauthorized;390/600unchanged,75.4conditional. Readspec048/recovery-implementation.md, recovery-inputs.json and trustedparentcontract. AtSys retries commandcontroller, codingrepair edits workspaceonly. Parentautomation is implemented; no manualhumanhandoff needed between successfulrepair and provedcontinuation.\nTrustedparent also independently enforces source/science/receipts/budget/copychecks, archives executingsource beforelaunch, renews stale qualifications on retries and requalifies safe source changes across settledcompletedwork. Routine pre-dispatch/export-report faults can be automatically repaired. A new incompleteaction or judgeintent after first129 recovery is unsupported without completeofflineproof: do not mislabel it as a permissionproblem, do notdeleteintent; escalateconcretely. This is boundedqualifiedrecovery, not arbitrary all-crash replay. Parentcontroller andindependentvalidator are pinned and OUTSIDErepair scope.",
+  "artifact": "",
+  "progressFile": "",
+  "timeoutSeconds": 43200,
+  "taskTimeoutSeconds": 86400,
+  "heartbeatTimeoutSeconds": 120,
+  "progressTimeoutSeconds": 0,
+  "recovery": "supervised",
+  "maxRetries": 2,
+  "backoffSeconds": 10,
+  "supervisorModel": "gpt-6.1-sol",
+  "supervisorEffort": "high",
+  "supervisorTimeoutSeconds": 300,
+  "maxSupervisorCalls": 3,
+  "allowRepair": true,
+  "repairTimeoutSeconds": 1800,
+  "networkAccess": true,
+  "goalMonitoring": false,
+  "hooks": []
+}

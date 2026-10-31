@@ -30,7 +30,8 @@ def subscription_reader_model(value):
 def private_output_root(path):
     root=Path(path).resolve()
     if not any(root.is_relative_to(p) for p in
-               (Path('/Volumes/AtMemDolphin'),Path('/Volumes/AtMemBenchRuntime'))):
+               (Path('/Volumes/AtMemDolphin'),Path('/Volumes/AtMemBenchRuntime'),
+                Path('/Volumes/MEM/atmem-dolphinbench-20261020'))):
         raise ValueError('subscription evidence requires a dedicated private benchmark volume')
     return root
 
