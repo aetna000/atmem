@@ -74,8 +74,15 @@ def validate_request(body):
 # difference from that profile is that local tools remain available. A separate
 # experimental condition with its own qualification receipts.
 ROUTED_PROFILE = 'dolphin-routed-v2'
-PROFILES = (PROFILE, ROUTED_PROFILE)
-ROUTED_SETTINGS = {'checkpoint': False, 'route_context': False, 'completion_notice': False}
+# Same routed inventory plus the commit checkpoint: the first call to each connected
+# write tool is held once for a remembered-constraints check.
+CHECKPOINT_PROFILE = 'dolphin-routed-v3'
+ROUTED_PROFILES = {
+    ROUTED_PROFILE: {'checkpoint': False, 'route_context': False, 'completion_notice': False},
+    CHECKPOINT_PROFILE: {'checkpoint': True, 'route_context': False, 'completion_notice': False},
+}
+ROUTED_SETTINGS = ROUTED_PROFILES[ROUTED_PROFILE]
+PROFILES = (PROFILE, *ROUTED_PROFILES)
 ROUTE_NOTE_MARKER = 'AtMem action routing:'
 
 
@@ -91,15 +98,16 @@ def _load_repo_module(relative, name):
     return module
 
 
-def route_note(request, app_tools):
+def route_note(request, app_tools, *, checkpoint=False):
     """Request-specific routing note naming the connected write tools, or ''."""
     policy = _load_repo_module('atmem/action_guard.py', 'dolphin_guard_policy')
-    guard = policy.ActionGuard(checkpoint=False)
-    guard.begin_turn('profile', request, {APP + t for t in app_tools})
+    guard = policy.ActionGuard(checkpoint=checkpoint)
+    visible = {APP + t for t in app_tools} | ({MEMORY + 'memory_search'} if checkpoint else set())
+    guard.begin_turn('profile', request, visible)
     return guard.turn_context('profile')
 
 
-def routed_profile(config, *, home, request=None, app_tools=()):
+def routed_profile(config, *, home, request=None, app_tools=(), name=ROUTED_PROFILE):
     """Return a fresh config that stages and enables the action guard in ``home``."""
     module = _load_repo_module('atmem/adapters/hermes/action_guard_plugin.py', 'dolphin_guard_stage')
     if 'dolphinbench-apps' not in config['toolsets']:
@@ -108,23 +116,24 @@ def routed_profile(config, *, home, request=None, app_tools=()):
     # The harness requires the native user turn to equal the dataset request and
     # grades the agent's own final answer, so the plugin must not inject the route
     # note or append completion notices; the note goes into the system prompt instead.
-    module.stage(home, settings=ROUTED_SETTINGS)
+    settings = ROUTED_PROFILES[name]
+    module.stage(home, settings=settings)
     plugins = value.setdefault('plugins', {})
     plugins['enabled'] = sorted(set(plugins.get('enabled', [])) | {module.PLUGIN})
     value.setdefault('tools', {})['tool_search'] = {'enabled': 'off'}
-    note = route_note(request, app_tools) if request else ''
+    note = route_note(request, app_tools, checkpoint=settings['checkpoint']) if request else ''
     if note:
         agent = value.setdefault('agent', {})
         agent['system_prompt'] = '\n\n'.join(filter(None, (agent.get('system_prompt', ''), note)))
-    value['execution_profile'] = ROUTED_PROFILE
+    value['execution_profile'] = name
     return value
 
 
 def apply_profile(name, config, *, home, skill_roots=(), request=None, app_tools=()):
     if name == PROFILE:
         return isolated_profile(config, skill_roots=skill_roots)
-    if name == ROUTED_PROFILE:
-        return routed_profile(config, home=home, request=request, app_tools=app_tools)
+    if name in ROUTED_PROFILES:
+        return routed_profile(config, home=home, request=request, app_tools=app_tools, name=name)
     raise ValueError('Unknown execution profile')
 
 
@@ -145,6 +154,6 @@ def validate_routed_request(body):
 def validate(name, body):
     if name == PROFILE:
         return validate_request(body)
-    if name == ROUTED_PROFILE:
+    if name in ROUTED_PROFILES:
         return validate_routed_request(body)
     raise ValueError('Unknown execution profile')

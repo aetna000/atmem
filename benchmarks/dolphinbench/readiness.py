@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 import time
 
-from .execution_profile import PROFILE, ROUTED_PROFILE, PROFILES
+from .execution_profile import PROFILE, ROUTED_PROFILE, ROUTED_PROFILES, CHECKPOINT_PROFILE, PROFILES
 
 SCHEMA = 'dolphin-execution-condition-v1'
 PILOT_COUNT = 20
@@ -26,6 +26,7 @@ MEMORY_OPTIONS = {'context_engine_variant': 'source-coherent-v1', 'read_only_dis
     'source_time_frames': False, 'source_bundles': False, 'initial_state_presentation': 'annotated-source'}
 ROUTED_CHECKS = {'ordinary_inventory', 'plugin_loaded', 'checkpoint_disabled',
                  'native_write_state_log_agree', 'local_detour_refused', 'user_boundary_unchanged', 'route_note_in_system_prompt'}
+CHECKPOINT_CHECKS = (ROUTED_CHECKS - {'checkpoint_disabled'}) | {'checkpoint_held_once'}
 ROUTED_SOURCES = ('atmem/action_guard.py', 'atmem/adapters/hermes/action_guard_plugin.py',
                   'specs/048-dolphin-execution-readiness/atsys/run_routed.py',
                   '.atsys/tasks/dolphin-routed-fixed20.json',
@@ -33,7 +34,9 @@ ROUTED_SOURCES = ('atmem/action_guard.py', 'atmem/adapters/hermes/action_guard_p
 
 
 def checks_for(condition, kind):
-    return ROUTED_CHECKS if kind == 'profile' and condition['profile'] == ROUTED_PROFILE else CHECKS[kind]
+    if kind == 'profile' and condition['profile'] == CHECKPOINT_PROFILE:
+        return CHECKPOINT_CHECKS
+    return ROUTED_CHECKS if kind == 'profile' and condition['profile'] in ROUTED_PROFILES else CHECKS[kind]
 
 
 _VERIFIED_FILES = {}
@@ -128,10 +131,10 @@ def load_condition(path):
         '.atsys/tasks/dolphin-readiness-pilot-20.json')}
     if not {p.resolve() for p in required} <= covered:
         raise ValueError('Source manifest omits executing orchestration')
-    if value['profile'] == ROUTED_PROFILE:
+    if value['profile'] in ROUTED_PROFILES:
         if not {Path(__file__).parents[2] / p for p in ROUTED_SOURCES} <= covered:
             raise ValueError('Routed plugin/worker source not pinned')
-        if read(inputs['options']['path']).get('execution_profile') != ROUTED_PROFILE:
+        if read(inputs['options']['path']).get('execution_profile') != value['profile']:
             raise ValueError('Routed options/profile mismatch')
     selection = read(inputs['selection']['path'])
     groups = selection.get('groups', {})
@@ -218,9 +221,9 @@ def issue_qualifications(condition_path, profile_directory, apps_directory, rece
             or any(profile.get(k) is not True for k in checks_for(condition, 'profile'))):
         raise ValueError('Actual frozen-profile qualification missing')
     names = validate(condition['profile'], read(profile_directory / 'model-request.json'))
-    if condition['profile'] == ROUTED_PROFILE:
+    if condition['profile'] in ROUTED_PROFILES:
         from .qualify_routed import verify_evidence
-        if (profile.get('profile') != ROUTED_PROFILE
+        if (profile.get('profile') != condition['profile']
                 or profile.get('runtime_root') != condition['bindings']['runtime_root']
                 or profile.get('native_python') != pin(Path(condition['bindings']['subscription_python']).resolve())):
             raise ValueError('Routed native runtime differs from frozen condition')
@@ -232,7 +235,7 @@ def issue_qualifications(condition_path, profile_directory, apps_directory, rece
             or [(r['name'], r['returncode'], r['calls']) for r in apps['outcomes']] != [('apps', 0, 3), ('crash', 73, 1)]):
         raise ValueError('Incomplete real bridge/crash qualification')
     profile_artifacts = (sorted(p for p in profile_directory.iterdir() if p.is_file())
-                         if condition['profile'] == ROUTED_PROFILE
+                         if condition['profile'] in ROUTED_PROFILES
                          else list(profile_directory.glob('*.json')))
     raw = []
     for outcome in apps['outcomes']:

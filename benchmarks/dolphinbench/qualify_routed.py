@@ -8,14 +8,14 @@ import sys
 import threading
 
 from .app_bridge import bridge, stage_client, short_socket
-from .execution_profile import APP, ROUTED_PROFILE, ROUTED_SETTINGS, ROUTE_NOTE_MARKER, apply_profile, validate
+from .execution_profile import APP, MEMORY, ROUTED_PROFILE, ROUTED_PROFILES, ROUTE_NOTE_MARKER, apply_profile, validate
 
 QUESTION = 'Create a document with synthetic routing qualification text.'
 from .readiness import qualification_sources, save, read, pin
 from .runtime import NativeRuntime
 
 
-def qualify(upstream, app_python, runtime_root, output, *, options_path):
+def qualify(upstream, app_python, runtime_root, output, *, options_path, profile=ROUTED_PROFILE):
     upstream, output = Path(upstream).resolve(), Path(output).resolve()
     sys.path.insert(0, str(upstream))
     output.mkdir(parents=True, exist_ok=False)
@@ -38,11 +38,12 @@ def qualify(upstream, app_python, runtime_root, output, *, options_path):
                 save(capture, body)
             index = len(list(output.glob('request-*.json')))
             save(output / f'request-{index:02}.json', body)
-            scripted = [
-                ('terminal', {'command': 'memo notes -a'}),
-                ('mcp__dolphinbench_apps__create_doc',
-                    {'title': 'Synthetic routing qualification', 'body': 'Synthetic durable routing text'}),
-            ]
+            write = ('mcp__dolphinbench_apps__create_doc',
+                     {'title': 'Synthetic routing qualification', 'body': 'Synthetic durable routing text'})
+            scripted = [('terminal', {'command': 'memo notes -a'}), write]
+            if ROUTED_PROFILES[profile]['checkpoint']:
+                # Held once, then a remembered-constraints search, then the same write again.
+                scripted += [(MEMORY + 'memory_search', {'query': 'synthetic routing preference'}), write]
             message = {'role': 'assistant', 'content': 'Synthetic qualification complete.'}
             finish = 'stop'
             if index < len(scripted):
@@ -99,7 +100,7 @@ def qualify(upstream, app_python, runtime_root, output, *, options_path):
                     reader_max_turns=60, reader_context_length=1050000,
                     discovery_query='Synthetic qualification', discovery_python=str(runtime.python),
                     application_workflow=True, strict_application_contracts=True, initial_status='authorized')
-                config = apply_profile(ROUTED_PROFILE, read(home / 'config.yaml'), home=home,
+                config = apply_profile(profile, read(home / 'config.yaml'), home=home,
                     request=QUESTION, app_tools=['create_doc'],
                     skill_roots=(runtime.source / 'skills', Path.home() / '.hermes/skills', runtime.root / 'skills'))
                 config['providers']['custom'].update(request_timeout_seconds=36000, stale_timeout_seconds=36000)
@@ -115,7 +116,7 @@ def qualify(upstream, app_python, runtime_root, output, *, options_path):
                                       'stdout': process.stdout, 'stderr': process.stderr})
         if not capture.exists():
             raise ValueError('Native Hermes made no request; inspect process.json')
-        names = validate(ROUTED_PROFILE, read(capture))
+        names = validate(profile, read(capture))
         plugin = home / 'plugins/atmem-action-guard'
         for filename in ('settings.json', '__init__.py', 'action_guard.py', 'plugin.yaml'):
             (output / ('staged-' + filename)).write_bytes((plugin / filename).read_bytes())
@@ -123,7 +124,7 @@ def qualify(upstream, app_python, runtime_root, output, *, options_path):
         (output / 'guard-outcomes.jsonl').write_bytes(records.read_bytes())
         evidence = verify_evidence(output)
         save(output / 'qualification.json', {**evidence, 'actual_native_request': True,
-            'profile': ROUTED_PROFILE, 'runtime_root': str(runtime.root),
+            'profile': profile, 'runtime_root': str(runtime.root),
             'native_python': pin(runtime.python), 'source': qualification_sources(), 'model_calls': 0,
             'provider_forwarding_exists': False, 'tools': names,
             'options': pin(options_path), 'upstream_manifest': pin(upstream / 'manifest.json'),
@@ -147,8 +148,12 @@ def verify_evidence(output):
             raise ValueError('Native plugin payload differs from pinned source')
     settings = read(output / 'staged-settings.json')
     config = read(output / 'profile.json')
-    names = validate(ROUTED_PROFILE, read(output / 'model-request.json'))
-    if (settings != {**ROUTED_SETTINGS}
+    profile = config.get('execution_profile', ROUTED_PROFILE)
+    if profile not in ROUTED_PROFILES:
+        raise ValueError('Unknown routed profile in qualification evidence')
+    checkpoint = ROUTED_PROFILES[profile]['checkpoint']
+    names = validate(profile, read(output / 'model-request.json'))
+    if (settings != {**ROUTED_PROFILES[profile]}
             or config.get('plugins', {}).get('enabled') != ['atmem-action-guard']
             or not {'terminal', 'skill_view', APP + 'create_doc'} <= set(names)
             or config.get('tools', {}).get('tool_search', {}).get('enabled') != 'off'):
@@ -177,10 +182,15 @@ def verify_evidence(output):
     if ROUTE_NOTE_MARKER not in system or APP + 'create_doc' not in system:
         raise ValueError('Route note missing from the actual native system prompt')
     # Guard outcome and the next actual request must both witness the refused detour.
-    if (not outcomes[0].get('decisions') or outcomes[0].get('memory_query_count') != 0
-            or len(requests) != 3 or read(output / 'process.json')['returncode'] != 0):
+    routes = [d.get('route', '') for d in outcomes[0].get('decisions', [])]
+    if (not any(r.startswith('command:') for r in routes)
+            or outcomes[0].get('memory_query_count') != (1 if checkpoint else 0)
+            or len(requests) != (5 if checkpoint else 3) or read(output / 'process.json')['returncode'] != 0):
         raise ValueError('Native plugin did not record a refused local detour')
-    return {k: True for k in ('ordinary_inventory', 'plugin_loaded', 'checkpoint_disabled', 'user_boundary_unchanged', 'route_note_in_system_prompt',
+    if checkpoint and (routes.count('checkpoint:' + APP + 'create_doc') != 1 or 'Held once' not in system):
+        raise ValueError('Commit checkpoint was not held exactly once and stated in the system prompt')
+    return {k: True for k in ('ordinary_inventory', 'plugin_loaded', 'checkpoint_held_once' if checkpoint else 'checkpoint_disabled',
+                              'user_boundary_unchanged', 'route_note_in_system_prompt',
                               'native_write_state_log_agree', 'local_detour_refused')}
 
 
@@ -191,8 +201,10 @@ def main():
     parser.add_argument('--runtime-root', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--options', type=Path, required=True)
+    parser.add_argument('--profile', default=ROUTED_PROFILE, choices=sorted(ROUTED_PROFILES))
     args = parser.parse_args()
-    names = qualify(args.upstream, args.app_python, args.runtime_root, args.output, options_path=args.options)
+    names = qualify(args.upstream, args.app_python, args.runtime_root, args.output, options_path=args.options,
+                    profile=args.profile)
     print(json.dumps({'qualified': True, 'model_calls': 0, 'tools': names}))
 
 

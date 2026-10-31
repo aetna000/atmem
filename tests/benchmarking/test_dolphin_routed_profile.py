@@ -74,7 +74,7 @@ def test_routed_raw_evidence_is_recomputed(tmp_path, mutation):
     put('staged-settings.json', {'checkpoint': False, 'route_context': False, 'completion_notice': False})
     put('profile.json', {'plugins': {'enabled': ['atmem-action-guard']}, 'tools': {'tool_search': {'enabled': 'off'}}})
     put('model-request.json', request('terminal', 'skill_view', 'mcp__dolphinbench_apps__create_doc'))
-    outcome = {'verdict': {'status': 'completed'}, 'decisions': [{'action': 'block'}], 'memory_query_count': 0}
+    outcome = {'verdict': {'status': 'completed'}, 'decisions': [{'action': 'block', 'route': 'command:memo'}], 'memory_query_count': 0}
     (tmp_path / 'guard-outcomes.jsonl').write_text(json.dumps(outcome) + '\n')
     (tmp_path / 'calls.jsonl').write_text(json.dumps({'tool': 'create_doc', 'result': {'ok': True}}) + '\n')
     put('state.json', {'docs': [{'body': 'Synthetic durable routing text'}]})
@@ -98,3 +98,45 @@ def test_routed_raw_evidence_is_recomputed(tmp_path, mutation):
         with pytest.raises(ValueError): verify_evidence(tmp_path)
     else:
         assert set(verify_evidence(tmp_path)) == gate.ROUTED_CHECKS
+
+
+def test_checkpoint_profile_stages_the_hold_and_states_it_in_the_system_prompt(tmp_path):
+    from benchmarks.dolphinbench.execution_profile import CHECKPOINT_PROFILE
+    base = {**BASE, 'agent': {'system_prompt': 'ctx'}}
+    config = apply_profile(CHECKPOINT_PROFILE, base, home=tmp_path, request='Email vendorops@northwind.example a reply.',
+                           app_tools=['send_email'])
+    settings = json.loads((tmp_path / 'plugins/atmem-action-guard/settings.json').read_text())
+    assert settings['checkpoint'] is True and config['execution_profile'] == CHECKPOINT_PROFILE
+    assert 'Held once' in config['agent']['system_prompt'] and 'send_email' in config['agent']['system_prompt']
+    assert gate.checks_for({'profile': CHECKPOINT_PROFILE}, 'profile') == gate.CHECKPOINT_CHECKS
+    assert 'checkpoint_held_once' in gate.CHECKPOINT_CHECKS and 'checkpoint_disabled' not in gate.CHECKPOINT_CHECKS
+
+
+@pytest.mark.parametrize('mutation', [None, 'not_held', 'no_search'])
+def test_checkpoint_evidence_requires_one_hold_and_one_search(tmp_path, mutation):
+    from pathlib import Path
+    from benchmarks.dolphinbench.execution_profile import CHECKPOINT_PROFILE, ROUTED_PROFILES
+    from benchmarks.dolphinbench.qualify_routed import QUESTION, verify_evidence
+    root = Path(__file__).parents[2]
+    (tmp_path / 'staged-__init__.py').write_bytes((root / 'atmem/adapters/hermes/action_guard_plugin.py').read_bytes())
+    (tmp_path / 'staged-action_guard.py').write_bytes((root / 'atmem/action_guard.py').read_bytes())
+    def put(name, value): (tmp_path / name).write_text(json.dumps(value))
+    put('staged-settings.json', ROUTED_PROFILES[CHECKPOINT_PROFILE])
+    put('profile.json', {'plugins': {'enabled': ['atmem-action-guard']}, 'tools': {'tool_search': {'enabled': 'off'}},
+                         'execution_profile': CHECKPOINT_PROFILE})
+    put('model-request.json', request('terminal', 'skill_view', 'mcp__dolphinbench_apps__create_doc'))
+    decisions = [{'action': 'block', 'route': 'command:memo'},
+                 {'action': 'block', 'route': 'checkpoint:mcp__dolphinbench_apps__create_doc'}]
+    if mutation == 'not_held': decisions = decisions[:1]
+    outcome = {'verdict': {'status': 'completed'}, 'decisions': decisions, 'memory_query_count': 0 if mutation == 'no_search' else 1}
+    (tmp_path / 'guard-outcomes.jsonl').write_text(json.dumps(outcome) + '\n')
+    (tmp_path / 'calls.jsonl').write_text(json.dumps({'tool': 'create_doc', 'result': {'ok': True}}) + '\n')
+    put('state.json', {'docs': [{'body': 'Synthetic durable routing text'}]})
+    user = {'role': 'user', 'content': QUESTION}
+    system = {'role': 'system', 'content': 'AtMem action routing: mcp__dolphinbench_apps__create_doc ... "Held once" ...'}
+    for i in range(5): put(f'request-{i:02}.json', {'messages': [system, user, {'role': 'tool', 'content': 'Not run: memo; use create_doc'}]})
+    put('process.json', {'returncode': 0})
+    if mutation:
+        with pytest.raises(ValueError): verify_evidence(tmp_path)
+    else:
+        assert set(verify_evidence(tmp_path)) == gate.CHECKPOINT_CHECKS
