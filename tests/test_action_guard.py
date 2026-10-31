@@ -351,3 +351,14 @@ def test_two_creates_in_one_destination_stay_distinct_and_send_retries_match():
     send.after_call('s', APP + 'send_email', {'to': 'bob@example.com', 'subject': 'Draft'}, {'ok': False})
     send.after_call('s', APP + 'send_email', {'to': 'bob@example.com', 'subject': 'Update'}, {'ok': True, 'id': 'm1'})
     assert send.verdict('s')['status'] == 'completed'
+
+
+def test_record_numbers_are_repo_scoped_and_parent_ids_keep_creations_distinct():
+    value = guard('Update issue 12 in both repos.', {APP + 'update_issue'})
+    value.after_call('s', APP + 'update_issue', {'repo': 'org/one', 'issue_number': 12, 'title': 'a'}, {'ok': False})
+    value.after_call('s', APP + 'update_issue', {'repo': 'org/two', 'issue_number': 12, 'title': 'a'}, {'ok': True, 'id': 12})
+    assert value.verdict('s')['status'] == 'partial'
+    slides = guard('Add intro and results slides to the deck.', {APP + 'add_slide'})
+    slides.after_call('s', APP + 'add_slide', {'deck_id': 'd1', 'title': 'Intro'}, {'ok': False})
+    slides.after_call('s', APP + 'add_slide', {'deck_id': 'd1', 'title': 'Results'}, {'ok': True, 'id': 's2'})
+    assert slides.verdict('s')['status'] == 'partial'

@@ -116,7 +116,10 @@ single `&` background separator and title-sensitive keys for updates with a
 stable record id; both were fixed with tests, replay unchanged. A fifth review found that
 two creates in one shared destination (same repo) collapsed; operation identity now
 separates record ids (updates), destinations plus identifying fields (creates) and
-destinations alone (sends, so corrected messages still match). Replay unchanged.
+destinations alone (sends, so corrected messages still match). Replay unchanged. A sixth review found
+repo-scoped issue numbers and parent-scoped creations (`add_slide` in one deck)
+colliding; record ids are now scoped by repository and creations combine parent,
+destination and item identity. Replay unchanged.
 
 ## Limitations
 

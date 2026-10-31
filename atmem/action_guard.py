@@ -361,15 +361,17 @@ RECORD_KEYS = ('doc_id', 'event_id', 'row_id', 'deck_id', 'slide', 'pr', 'pr_num
                'comment_id', 'message_id', 'record_id')
 DESTINATION_KEYS = ('to', 'recipient', 'recipients', 'channel', 'user', 'user_id', 'phone', 'number', 'email', 'repo')
 IDENTITY_KEYS = ('title', 'name', 'summary', 'start', 'date', 'when', 'path', 'filename')
+SCOPE_KEYS = ('repo', 'owner', 'project')
 CREATE_PREFIX = re.compile(r'^(create|add|book|schedule|place|upload)_')
 
 
 def operation_key(name, arguments):
     """Tool plus the fields that identify what it acts on.
 
-    An existing record id identifies an update by itself, so a corrected title on
-    retry still matches. A create is identified by its destination plus its
-    identifying fields, so two items in one repo or folder stay distinct. A send or
+    An existing record id (scoped by its repository) identifies an update, so a
+    corrected title on retry still matches. A create is identified by its parent
+    record and destination plus its identifying fields, so two items in one repo,
+    deck or folder stay distinct. A send or
     post is identified by its destination; free text is excluded so a corrected
     message to the same recipient still clears the earlier failure.
     """
@@ -378,11 +380,14 @@ def operation_key(name, arguments):
     def pick(keys):
         return {k: arguments[k] for k in keys if arguments.get(k) not in (None, '', [])}
 
-    identity = pick(RECORD_KEYS)
-    if not identity:
-        identity = pick(DESTINATION_KEYS)
-        if CREATE_PREFIX.match(split_name(name)[1]) or not identity:
-            identity.update(pick(IDENTITY_KEYS))
+    if CREATE_PREFIX.match(split_name(name)[1]):
+        # A created item: its parent record and destination plus its own identity.
+        identity = {**pick(RECORD_KEYS), **pick(DESTINATION_KEYS), **pick(IDENTITY_KEYS)}
+    elif pick(RECORD_KEYS):
+        # An existing record, scoped by its repository (issue/PR numbers are per repo).
+        identity = {**pick(RECORD_KEYS), **pick(SCOPE_KEYS)}
+    else:
+        identity = pick(DESTINATION_KEYS) or pick(IDENTITY_KEYS)
     if not identity:
         # No identifying field: distinguish by the full arguments rather than merging
         # every targetless call of this tool into one operation.
