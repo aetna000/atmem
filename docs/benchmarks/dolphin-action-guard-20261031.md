@@ -35,9 +35,9 @@ showed three separate failure modes that hiding does not address:
 | Component | File | Behavior |
 | --- | --- | --- |
 | Policy | `atmem/action_guard.py` | Stdlib-only. Classifies the request text, unwraps `tool_call` wrappers, decides allow/block, records attempted/accepted/failed connected writes and produces a completion verdict. |
-| Router | same | Refuses a local route (`skill_view` of apple-notes/github/notion/google-workspace/…, `memo`, `gh`, `osascript`, `imsg`, `open -a`, document `write_file`) when a configured connected application has a write tool for that destination. Explicit local requests ("in Apple Notes") are allowed. The refusal names the routed tool. Bounded to 6 refusals per turn so it cannot loop. |
+| Router | same | For an action request only, refuses a local route (`skill_view` of apple-notes/github/notion/google-workspace/…, `memo`, `gh`, `osascript`, `imsg`, `open -a`, document `write_file`) when a configured connected application has a write tool for the requested destination; reads (`gh pr list` for a question) and unrelated skills stay allowed. Explicit local requests ("in Apple Notes") are allowed. The refusal names the routed tool. Bounded to 6 refusals per turn so it cannot loop. |
 | Route memory | same (`RouteMemory`) | Records a local route only after an actual tool result shows a sandbox/permission/auth failure, with the result hash and excerpt; later sessions refuse that route even without a connected alternative. Owner-only JSON per Hermes profile. |
-| Completion check | same | `not_completed` unless a connected write was accepted (decoded `isError`/`ok:false`/non-zero exit are failures; host untrusted-data envelopes are unwrapped). |
+| Completion check | same | Each write result is accepted, failed or unconfirmed; acceptance needs an affirmative marker (`ok:true`, an id, exit 0) at a result/structuredContent/MCP-text layer, and several writes in one wrapper need an itemised result. `completed` needs an accepted write matching any destination the request names explicitly; a mix of accepted and unconfirmed writes is `partial`. Explicit local requests are reported as `completed_local`/`unverified_local` without a warning. Finished turns are released; sessions are capped. |
 | Commit checkpoint | same | When memory tools are visible, the first call to each connected write tool is held once (nothing is sent) with an action-specific memory query built from the call's own arguments (recipient, title, weekday from ISO dates). The retry passes. |
 | Hermes plugin | `atmem/adapters/hermes/action_guard_plugin.py` | `stage(home)` writes `plugins/atmem-action-guard`; enable with `plugins.enabled`. Uses `pre_llm_call` (request-specific route note, injected into the user turn), `pre_tool_call` (block directive), `post_tool_call`, `transform_llm_output` (appends `NOT COMPLETED` and writes `.atmem/action-guard/outcomes.jsonl`). |
 | Benchmark condition | `benchmarks/dolphinbench/execution_profile.py` | `dolphin-routed-v1`: the ordinary inventory (terminal, skills, deferred tool search) plus the staged guard. Dispatched by driver/adapter/gateway via `apply_profile` / `validate`. |
@@ -52,10 +52,10 @@ commit checkpoint is disabled in replay (it holds every first write by design).
 
 | Original cohort | Tasks | First detour refused | Flagged NOT COMPLETED |
 | --- | ---: | ---: | ---: |
-| pass | 390 | 37 | **0** |
+| pass | 390 | 36 | **0** |
 | traced partial | 43 | 11 | 8 |
 | traced zero | 84 | 7 | 2 |
-| untraced zero | 83 | 46 | 82 |
+| untraced zero | 83 | 45 | 82 |
 
 - **Notes:** 35/35 untraced Notes-error failures are refused at their first
   detour (`skill:apple-notes`) and redirected to `create_doc`.
@@ -65,7 +65,9 @@ commit checkpoint is disabled in replay (it holds every first write by design).
   but whose backend log was lost (L13), which is the correct verdict.
 - **Traced flags are correct:** all 10 traced tasks flagged NOT COMPLETED only
   read data and never made the required write (e.g. `get_pr` without `review_pr`).
-- **Regression risk:** 37 passing tasks would have had a detour refused, mostly
+- **No false notices:** every passing task is `completed` (355) or
+  `no_action_requested` (35); none receives a NOT COMPLETED or PARTIALLY COMPLETED notice.
+- **Regression risk:** 36 passing tasks would have had a detour refused, mostly
   `skill:github` (23). They passed after eventually using the connected tool, so
   the refusal removes a detour, but a live pilot must confirm no control regresses.
 
@@ -91,6 +93,14 @@ turn. Smoke-test hazard: running `hermes` with a fresh `HERMES_HOME` triggers it
 first-run update, which rewrote the shared launchers under
 `~/.hermes/hermes-agent/.hermes/bin/` to that home's toolchain. They were
 restored; future smoke tests should use the harness runtime invocation instead.
+
+## Independent review
+
+Codex `gpt-6.1-sol` (medium) reviewed the first commit read-only and requested
+changes: affirmative-acceptance tri-state results (P1), destination-matched
+completion and partial reporting (P1), no false warning for explicit local
+actions (P2), no redirect of reads/unrelated skills (P2) and session lifecycle
+bounds (P2). All five were fixed with regression tests and the replay re-run.
 
 ## Limitations
 

@@ -56,7 +56,7 @@ def test_notes_detour_is_refused_and_redirected_to_the_connected_document_tool()
                             ('terminal', {'command': 'EDITOR=true memo notes -a'}),
                             ('terminal', {'command': 'osascript -e \'tell application "Notes" to make new note\''})):
         decision = value.before_call('s', name, arguments)
-        assert decision.action == 'block' and decision.routed_tools == (APP + 'create_doc',)
+        assert decision.action == 'block' and decision.routed_tools == (APP + 'create_doc', APP + 'list_docs')
         assert APP + 'create_doc' in decision.message
     assert value.before_call('s', 'tool_call', {'name': APP + 'create_doc', 'arguments': {}}).action == 'allow'
     assert 'create_doc' in value.turn_context('s')
@@ -73,7 +73,8 @@ def test_detours_are_allowed_without_a_matching_connected_tool_or_when_requested
 def test_github_skill_and_cli_are_redirected_to_connected_review_tools():
     value = guard('[2028-01-01] Inspect lantern#1602 and review its chronology changes.',
                   {APP + 'get_pr', APP + 'review_pr', APP + 'list_open_prs'})
-    assert value.before_call('s', 'skill_view', {'name': 'software-development/github'}).routed_tools == (APP + 'review_pr',)
+    assert value.before_call('s', 'skill_view', {'name': 'software-development/github'}).routed_tools == (
+        APP + 'review_pr', APP + 'get_pr', APP + 'list_open_prs')
     assert value.before_call('s', 'terminal', {'command': 'gh pr view 1602'}).action == 'block'
 
 
@@ -192,3 +193,68 @@ def test_staged_hermes_plugin_enforces_the_hook_sequence(tmp_path, monkeypatch):
     assert [r['verdict']['status'] for r in records] == ['not_completed', 'completed']
     assert records[0]['decisions'][0]['route'] == 'skill:apple-notes'
     assert stat.S_IMODE((home / '.atmem/action-guard/outcomes.jsonl').stat().st_mode) == 0o600
+
+
+@pytest.mark.parametrize('result, status', [
+    ({'ok': False, 'error': 'quota'}, g.FAILED),
+    (None, g.UNCONFIRMED),
+    ('Local tools cannot be batched.', g.FAILED),
+    ('done', g.UNCONFIRMED),
+    ({'content': [{'type': 'text', 'text': '{"ok": true, "id": "d1"}'}]}, g.ACCEPTED),
+    ('{"result": "{\\"id\\": \\"evt_1\\", \\"title\\": \\"Brunch\\"}"}', g.ACCEPTED),
+    ({'content': [{'type': 'text', 'text': 'saved'}]}, g.UNCONFIRMED),
+    ({'output': 'ok', 'exit_code': 0}, g.ACCEPTED),
+])
+def test_acceptance_needs_an_affirmative_marker(result, status):
+    assert g.result_status(result) == status
+
+
+def test_wrapper_with_several_writes_and_one_result_is_unconfirmed():
+    value = guard(NOTES_REQUEST, {APP + 'create_doc', APP + 'post_doc_comment'})
+    call = {'calls': [{'name': APP + 'create_doc', 'arguments': {}}, {'name': APP + 'post_doc_comment', 'arguments': {}}]}
+    value.before_call('s', 'tool_call', call)
+    value.after_call('s', 'tool_call', call, '{"result": "{\\"ok\\": true}"}')
+    assert value.record('s')['accepted_writes'] == [] and value.verdict('s')['status'] == 'not_completed'
+    itemised = guard(NOTES_REQUEST, {APP + 'create_doc', APP + 'post_doc_comment'})
+    itemised.after_call('s', 'tool_call', call, {'results': [{'ok': True}, {'ok': False}]})
+    assert itemised.record('s')['accepted_writes'] == [APP + 'create_doc']
+
+
+def test_unrelated_accepted_write_does_not_complete_and_mixed_outcomes_are_partial():
+    tools = {APP + 'create_doc', APP + 'send_email'}
+    value = guard('Send this email to ops@example.com about the outage.', tools)
+    value.after_call('s', APP + 'create_doc', {}, {'ok': True})
+    value.after_call('s', APP + 'send_email', {}, {'ok': False})
+    assert value.verdict('s')['status'] == 'not_completed' and 'did not match' in value.verdict('s')['reason']
+    both = guard('Create a doc for the outage and email ops@example.com the link.', tools)
+    both.after_call('s', APP + 'create_doc', {}, {'ok': True})
+    both.after_call('s', APP + 'send_email', {}, 'Local tools cannot be batched.')
+    assert both.verdict('s')['status'] == 'partial' and 'PARTIALLY COMPLETED' in both.completion_notice('s')
+    both.after_call('s', APP + 'send_email', {}, {'ok': True, 'id': 'm1'})  # a successful retry clears it
+    assert both.verdict('s')['status'] == 'completed'
+
+
+def test_successful_explicit_local_action_gets_no_false_warning():
+    value = guard('Create a note in Apple Notes about Q2', {APP + 'create_doc', 'terminal'})
+    command = {'command': 'memo notes -a'}
+    assert value.before_call('s', 'terminal', command).action == 'allow'
+    value.after_call('s', 'terminal', command, {'output': 'Note added', 'exit_code': 0})
+    assert value.verdict('s')['status'] == 'completed_local' and value.completion_notice('s') == ''
+    assert guard('Create a note in Apple Notes about Q2', {APP + 'create_doc'}).completion_notice('s') == ''
+
+
+def test_reads_and_unrelated_skills_are_not_redirected_to_write_tools():
+    review = {APP + 'review_pr', APP + 'get_pr', APP + 'send_email'}
+    assert guard('List my open GitHub PRs', review).before_call('s', 'terminal', {'command': 'gh pr list'}).action == 'allow'
+    assert guard('Create a note about the Q2 plan', review).before_call(
+        's', 'skill_view', {'name': 'google-workspace'}).action == 'allow'
+    redirected = guard('Inspect lantern#1602 and review it', review).before_call('s', 'terminal', {'command': 'gh pr view 1602'})
+    assert redirected.routed_tools == (APP + 'review_pr', APP + 'get_pr')
+
+
+def test_finished_and_abandoned_sessions_are_released():
+    value = g.ActionGuard(checkpoint=False, max_sessions=3)
+    for index in range(5):
+        value.begin_turn(f's{index}', NOTES_REQUEST, {APP + 'create_doc'})
+    assert list(value.turns) == ['s2', 's3', 's4']
+    assert value.finish('s4')['verdict']['status'] == 'not_completed' and 's4' not in value.turns

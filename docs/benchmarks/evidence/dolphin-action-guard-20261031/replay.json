@@ -2,7 +2,7 @@
  "cohorts": {
   "pass": {
    "action_intent": 355,
-   "detour_blocked": 37,
+   "detour_blocked": 36,
    "flagged_not_completed": 0,
    "github_auth_blocked": 18,
    "github_auth_tasks": 18,
@@ -34,7 +34,7 @@
   },
   "untraced_zero": {
    "action_intent": 83,
-   "detour_blocked": 46,
+   "detour_blocked": 45,
    "flagged_not_completed": 82,
    "github_auth_blocked": 6,
    "github_auth_tasks": 6,
@@ -74,16 +74,11 @@
   {
    "cohort": "pass",
    "route": "skill:google-workspace",
-   "tasks": 5
+   "tasks": 4
   },
   {
    "cohort": "traced_zero",
    "route": "skill:github",
-   "tasks": 3
-  },
-  {
-   "cohort": "untraced_zero",
-   "route": "skill:google-workspace",
    "tasks": 3
   },
   {
@@ -112,6 +107,11 @@
    "tasks": 1
   },
   {
+   "cohort": "untraced_zero",
+   "route": "file:write_file",
+   "tasks": 1
+  },
+  {
    "cohort": "traced_partial",
    "route": "skill:apple-reminders",
    "tasks": 1
@@ -130,6 +130,11 @@
    "cohort": "traced_zero",
    "route": "skill:apple-notes",
    "tasks": 1
+  },
+  {
+   "cohort": "untraced_zero",
+   "route": "skill:google-workspace",
+   "tasks": 1
   }
  ],
  "format": "atmem-action-guard-dolphin-replay-v1",
@@ -139,7 +144,8 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -149,7 +155,8 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -159,7 +166,8 @@
    "first_block": {
     "route": "skill:powerpoint",
     "routed_tools": [
-     "mcp__dolphinbench_apps__update_deck_slide"
+     "mcp__dolphinbench_apps__update_deck_slide",
+     "mcp__dolphinbench_apps__list_decks"
     ],
     "tool": "skill_view"
    },
@@ -169,7 +177,8 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -179,7 +188,8 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -189,7 +199,8 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -209,7 +220,8 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -219,7 +231,8 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -229,7 +242,8 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -239,7 +253,8 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -249,7 +264,8 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -269,7 +285,8 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -279,7 +296,9 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -289,7 +308,9 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -299,7 +320,9 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -309,7 +332,9 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -329,7 +354,9 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -339,7 +366,9 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -349,7 +378,9 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -359,7 +390,9 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -369,7 +402,9 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -379,7 +414,9 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -389,7 +426,9 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -399,7 +438,9 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
@@ -477,16 +518,6 @@
   },
   {
    "first_block": {
-    "route": "skill:google-workspace",
-    "routed_tools": [
-     "mcp__dolphinbench_apps__create_doc"
-    ],
-    "tool": "skill_view"
-   },
-   "id": "riley/136"
-  },
-  {
-   "first_block": {
     "route": "skill:apple-notes",
     "routed_tools": [
      "mcp__dolphinbench_apps__create_doc"
@@ -515,6 +546,7 @@
    "id": "morgan/001",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "d4a507c4a300081a44fa31d11910ed6c491df843a8e8f1bdda2ec2100376254c"
@@ -529,6 +561,9 @@
    "id": "morgan/002",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -545,6 +580,9 @@
    "id": "morgan/003",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat",
      "docs"
@@ -562,6 +600,7 @@
    "id": "morgan/004",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "sms"
     ],
@@ -578,7 +617,11 @@
    "id": "morgan/005",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
+     "docs",
      "email"
     ],
     "explicit_local": false,
@@ -594,6 +637,9 @@
    "id": "morgan/006",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -610,6 +656,7 @@
    "id": "morgan/007",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -626,6 +673,9 @@
    "id": "morgan/008",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat",
      "docs"
@@ -643,7 +693,11 @@
    "id": "morgan/009",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
+     "docs",
      "email"
     ],
     "explicit_local": false,
@@ -659,6 +713,9 @@
    "id": "morgan/010",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -673,6 +730,7 @@
    "id": "morgan/011",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -689,6 +747,9 @@
    "id": "morgan/012",
    "intent": {
     "action": false,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -705,6 +766,7 @@
    "id": "morgan/013",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "10a9ab1451413040bca8ad4709b7ebe01e91585c79bd136ceeac7d65bd03f929"
@@ -719,6 +781,9 @@
    "id": "morgan/014",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -735,6 +800,7 @@
    "id": "morgan/015",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "crm"
     ],
@@ -755,6 +821,7 @@
    "id": "morgan/016",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -771,6 +838,7 @@
    "id": "morgan/017",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "dbfb5955a6a67051273065226b536257ae9b7babdfc918171727bacabb5d2722"
@@ -785,6 +853,9 @@
    "id": "morgan/018",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -800,13 +871,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/019",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -823,7 +898,10 @@
    "id": "morgan/020",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "ae4e6bd923b3d7d3a7e3b432ec8b8b833d58240ef5c1bad70389059c0a5693ef"
    },
@@ -836,13 +914,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/021",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -859,6 +941,9 @@
    "id": "morgan/022",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "calendar",
      "email"
@@ -876,6 +961,9 @@
    "id": "morgan/023",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -892,6 +980,9 @@
    "id": "morgan/024",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -908,6 +999,9 @@
    "id": "morgan/025",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -924,6 +1018,7 @@
    "id": "morgan/026",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "sms"
     ],
@@ -940,7 +1035,11 @@
    "id": "morgan/027",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
+     "docs",
      "sms"
     ],
     "explicit_local": false,
@@ -956,6 +1055,9 @@
    "id": "morgan/028",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat",
      "docs"
@@ -973,6 +1075,7 @@
    "id": "morgan/029",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "b8381b39d1dfa0a750909ed9660e7b7c007fe366de5c453c15b549929b9751c0"
@@ -987,6 +1090,7 @@
    "id": "morgan/030",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -1003,6 +1107,9 @@
    "id": "morgan/031",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1019,6 +1126,7 @@
    "id": "morgan/032",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -1035,6 +1143,9 @@
    "id": "morgan/033",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "docs",
      "email"
@@ -1052,6 +1163,9 @@
    "id": "morgan/034",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1068,6 +1182,9 @@
    "id": "morgan/035",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "docs",
      "email"
@@ -1085,6 +1202,9 @@
    "id": "morgan/036",
    "intent": {
     "action": false,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -1101,6 +1221,9 @@
    "id": "morgan/037",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1117,6 +1240,7 @@
    "id": "morgan/038",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "calendar"
     ],
@@ -1133,6 +1257,9 @@
    "id": "morgan/039",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -1149,6 +1276,7 @@
    "id": "morgan/040",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "docs",
      "slides"
@@ -1166,6 +1294,9 @@
    "id": "morgan/041",
    "intent": {
     "action": true,
+    "destinations": [
+     "calendar"
+    ],
     "domains": [
      "calendar"
     ],
@@ -1182,6 +1313,9 @@
    "id": "morgan/042",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1198,6 +1332,7 @@
    "id": "morgan/043",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "slides"
     ],
@@ -1214,6 +1349,9 @@
    "id": "morgan/044",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1230,6 +1368,9 @@
    "id": "morgan/045",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1246,6 +1387,9 @@
    "id": "morgan/046",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -1266,6 +1410,7 @@
    "id": "morgan/047",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "sms"
     ],
@@ -1282,6 +1427,9 @@
    "id": "morgan/048",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -1298,6 +1446,9 @@
    "id": "morgan/049",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1314,6 +1465,9 @@
    "id": "morgan/050",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1330,6 +1484,9 @@
    "id": "morgan/051",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1346,6 +1503,7 @@
    "id": "morgan/052",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "docs",
      "email"
@@ -1363,6 +1521,9 @@
    "id": "morgan/053",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat",
      "docs"
@@ -1380,7 +1541,11 @@
    "id": "morgan/054",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
+     "docs",
      "email"
     ],
     "explicit_local": false,
@@ -1396,6 +1561,9 @@
    "id": "morgan/055",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1411,13 +1579,15 @@
    "first_block": {
     "route": "skill:powerpoint",
     "routed_tools": [
-     "mcp__dolphinbench_apps__update_deck_slide"
+     "mcp__dolphinbench_apps__update_deck_slide",
+     "mcp__dolphinbench_apps__list_decks"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/056",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "slides"
     ],
@@ -1434,6 +1604,9 @@
    "id": "morgan/057",
    "intent": {
     "action": true,
+    "destinations": [
+     "calendar"
+    ],
     "domains": [
      "calendar"
     ],
@@ -1447,13 +1620,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/058",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -1469,13 +1646,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/059",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review",
      "docs"
@@ -1493,6 +1674,7 @@
    "id": "morgan/060",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -1509,6 +1691,9 @@
    "id": "morgan/061",
    "intent": {
     "action": false,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -1525,6 +1710,7 @@
    "id": "morgan/062",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "sms"
     ],
@@ -1541,6 +1727,9 @@
    "id": "morgan/063",
    "intent": {
     "action": false,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -1557,6 +1746,7 @@
    "id": "morgan/064",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -1573,6 +1763,9 @@
    "id": "morgan/065",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1588,13 +1781,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/066",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review",
      "docs"
@@ -1612,6 +1809,9 @@
    "id": "morgan/067",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -1628,6 +1828,7 @@
    "id": "morgan/068",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "9ae26ef1fa50a0184fb4d6ad9dc2f7677fc72728e528e54affd43e4f69179159"
@@ -1642,6 +1843,9 @@
    "id": "morgan/069",
    "intent": {
     "action": false,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -1658,6 +1862,7 @@
    "id": "morgan/070",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "b476cf39f19ca74b127dc14ba5953f34748b6cf76794296481fea23a60fe3bd6"
@@ -1671,13 +1876,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/071",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -1693,13 +1902,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/072",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -1716,6 +1929,9 @@
    "id": "morgan/073",
    "intent": {
     "action": true,
+    "destinations": [
+     "calendar"
+    ],
     "domains": [
      "calendar"
     ],
@@ -1732,6 +1948,9 @@
    "id": "morgan/074",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -1748,6 +1967,9 @@
    "id": "morgan/075",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -1764,6 +1986,9 @@
    "id": "morgan/076",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat",
      "docs"
@@ -1781,6 +2006,9 @@
    "id": "morgan/077",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -1797,6 +2025,9 @@
    "id": "morgan/078",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -1813,6 +2044,9 @@
    "id": "morgan/079",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1829,6 +2063,9 @@
    "id": "morgan/080",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1845,6 +2082,7 @@
    "id": "morgan/081",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "slides"
     ],
@@ -1861,6 +2099,9 @@
    "id": "morgan/082",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -1877,6 +2118,9 @@
    "id": "morgan/083",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1893,6 +2137,9 @@
    "id": "morgan/084",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1906,13 +2153,17 @@
    "first_block": {
     "route": "skill:email-inbox-triage",
     "routed_tools": [
-     "mcp__dolphinbench_apps__archive_email"
+     "mcp__dolphinbench_apps__archive_email",
+     "mcp__dolphinbench_apps__list_inbox"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/085",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "docs",
      "email"
@@ -1930,6 +2181,7 @@
    "id": "morgan/086",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar"
     ],
@@ -1946,6 +2198,9 @@
    "id": "morgan/087",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "docs",
      "email"
@@ -1963,6 +2218,9 @@
    "id": "morgan/088",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -1985,6 +2243,9 @@
    "id": "morgan/089",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -2001,6 +2262,7 @@
    "id": "morgan/090",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -2017,6 +2279,9 @@
    "id": "morgan/091",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -2033,6 +2298,9 @@
    "id": "morgan/092",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -2048,13 +2316,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/093",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -2071,6 +2343,9 @@
    "id": "morgan/094",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -2087,6 +2362,9 @@
    "id": "morgan/095",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "docs",
      "email"
@@ -2104,6 +2382,9 @@
    "id": "morgan/096",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -2120,6 +2401,7 @@
    "id": "morgan/097",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -2136,6 +2418,9 @@
    "id": "morgan/098",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat",
      "docs"
@@ -2153,6 +2438,7 @@
    "id": "morgan/099",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "sms"
     ],
@@ -2169,6 +2455,7 @@
    "id": "morgan/100",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs",
      "email",
@@ -2187,6 +2474,9 @@
    "id": "morgan/101",
    "intent": {
     "action": false,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -2203,6 +2493,9 @@
    "id": "morgan/102",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -2218,13 +2511,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/103",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -2241,8 +2538,10 @@
    "id": "morgan/104",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
-     "crm"
+     "crm",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "aba1a56377d9e8120826ff518894a438c40ae55adac4447cf4dbe5e73860e892"
@@ -2257,6 +2556,7 @@
    "id": "morgan/105",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -2273,6 +2573,9 @@
    "id": "morgan/106",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -2289,7 +2592,11 @@
    "id": "morgan/107",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
+     "docs",
      "sms"
     ],
     "explicit_local": false,
@@ -2304,13 +2611,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/108",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -2327,8 +2638,10 @@
    "id": "morgan/109",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
-     "crm"
+     "crm",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "ceb6a769146ae9d561bee72445c9ee49ee82be7dcdc31ee978c8600110dab8d9"
@@ -2343,6 +2656,9 @@
    "id": "morgan/110",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -2359,6 +2675,9 @@
    "id": "morgan/111",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -2375,6 +2694,9 @@
    "id": "morgan/112",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -2391,6 +2713,9 @@
    "id": "morgan/113",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -2404,15 +2729,20 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/114",
    "intent": {
     "action": true,
-    "domains": [
+    "destinations": [
      "code_review"
+    ],
+    "domains": [
+     "code_review",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "f37975fa41ce47ee5f3bf05c37ff9e60aa50451b707e6d70b9784f356ab4f2af"
@@ -2427,6 +2757,7 @@
    "id": "morgan/115",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "79ba9fab8dfb6d6ba6d9935945cda942fc24fb005d7cbf4bfef75da81cceb8e2"
@@ -2441,6 +2772,9 @@
    "id": "morgan/116",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -2457,6 +2791,9 @@
    "id": "morgan/117",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -2473,6 +2810,9 @@
    "id": "morgan/118",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -2489,6 +2829,9 @@
    "id": "morgan/119",
    "intent": {
     "action": false,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -2503,6 +2846,7 @@
    "id": "morgan/120",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -2519,6 +2863,9 @@
    "id": "morgan/121",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -2535,6 +2882,7 @@
    "id": "morgan/122",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -2551,6 +2899,9 @@
    "id": "morgan/123",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -2567,6 +2918,7 @@
    "id": "morgan/124",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "sms"
     ],
@@ -2583,6 +2935,9 @@
    "id": "morgan/125",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -2597,6 +2952,9 @@
    "id": "morgan/126",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -2613,6 +2971,9 @@
    "id": "morgan/127",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -2629,6 +2990,7 @@
    "id": "morgan/128",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -2646,6 +3008,7 @@
    "id": "morgan/129",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar"
     ],
@@ -2660,6 +3023,9 @@
    "id": "morgan/130",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -2676,7 +3042,11 @@
    "id": "morgan/131",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
+     "docs",
      "email"
     ],
     "explicit_local": false,
@@ -2692,6 +3062,7 @@
    "id": "morgan/132",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "slides"
     ],
@@ -2708,6 +3079,9 @@
    "id": "morgan/133",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "docs",
      "email"
@@ -2725,6 +3099,7 @@
    "id": "morgan/134",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "crm"
     ],
@@ -2745,6 +3120,7 @@
    "id": "morgan/135",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -2760,13 +3136,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/136",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -2783,6 +3163,7 @@
    "id": "morgan/137",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -2799,6 +3180,9 @@
    "id": "morgan/138",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "docs",
      "email"
@@ -2814,6 +3198,7 @@
    "id": "morgan/139",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -2829,13 +3214,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/140",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "calendar",
      "code_review"
@@ -2857,6 +3246,7 @@
    "id": "morgan/141",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -2873,6 +3263,7 @@
    "id": "morgan/142",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -2890,6 +3281,9 @@
    "id": "morgan/143",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -2910,6 +3304,7 @@
    "id": "morgan/144",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -2926,6 +3321,7 @@
    "id": "morgan/145",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -2942,7 +3338,10 @@
    "id": "morgan/146",
    "intent": {
     "action": false,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "a8058134b044052534aa6dd74e1f826c59ca8d5539e8fbbf4a76f47a1d00f9ba"
    },
@@ -2954,6 +3353,9 @@
    "id": "morgan/147",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review",
      "docs"
@@ -2975,6 +3377,7 @@
    "id": "morgan/148",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -2991,6 +3394,7 @@
    "id": "morgan/149",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "slides"
     ],
@@ -3007,6 +3411,9 @@
    "id": "morgan/150",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -3023,6 +3430,7 @@
    "id": "morgan/151",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3036,13 +3444,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/152",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "calendar",
      "code_review"
@@ -3060,7 +3472,11 @@
    "id": "morgan/153",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
+     "docs",
      "email"
     ],
     "explicit_local": false,
@@ -3076,6 +3492,7 @@
    "id": "morgan/154",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3092,6 +3509,7 @@
    "id": "morgan/155",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "slides"
     ],
@@ -3106,6 +3524,7 @@
    "id": "morgan/156",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3126,6 +3545,7 @@
    "id": "morgan/157",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3146,6 +3566,7 @@
    "id": "morgan/158",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3166,6 +3587,7 @@
    "id": "morgan/159",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3182,6 +3604,7 @@
    "id": "morgan/160",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3198,6 +3621,7 @@
    "id": "morgan/161",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3218,6 +3642,7 @@
    "id": "morgan/162",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3232,7 +3657,10 @@
    "id": "morgan/163",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "2f6fd3bd8b8edf28dc72353295d8c1249d1f1a5e589d2fad7f7b518a4af7fc56"
    },
@@ -3250,6 +3678,7 @@
    "id": "morgan/164",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs",
      "slides"
@@ -3266,13 +3695,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/165",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review",
      "docs"
@@ -3294,6 +3727,7 @@
    "id": "morgan/166",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3309,13 +3743,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/167",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review",
      "docs"
@@ -3333,6 +3771,7 @@
    "id": "morgan/168",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "caffb0d9907d25e4a3ce2651c09ad176046bf1a78886807f971912edf07ddcee"
@@ -3347,6 +3786,9 @@
    "id": "morgan/169",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -3362,13 +3804,17 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/170",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review",
      "docs"
@@ -3386,6 +3832,7 @@
    "id": "morgan/171",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "2b3c2b7f03c6acc90809917439b437be26ac2e6e29fc3d72c96159009f640d81"
@@ -3397,15 +3844,20 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/172",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review",
+     "docs",
      "slides"
     ],
     "explicit_local": false,
@@ -3421,7 +3873,9 @@
    "id": "morgan/173",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
+     "docs",
      "slides"
     ],
     "explicit_local": false,
@@ -3441,6 +3895,7 @@
    "id": "morgan/174",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3457,6 +3912,7 @@
    "id": "morgan/175",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3473,6 +3929,9 @@
    "id": "morgan/176",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -3489,6 +3948,7 @@
    "id": "morgan/177",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "slides"
     ],
@@ -3509,6 +3969,7 @@
    "id": "morgan/178",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3525,8 +3986,10 @@
    "id": "morgan/179",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
-     "calendar"
+     "calendar",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "5c3c99be7dd86607eb96f8102f7533b83ad6af120bce13bfd705d4063b9d5326"
@@ -3547,6 +4010,7 @@
    "id": "morgan/180",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3567,6 +4031,7 @@
    "id": "morgan/181",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -3582,6 +4047,7 @@
    "id": "morgan/182",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3598,6 +4064,7 @@
    "id": "morgan/183",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "crm",
      "docs"
@@ -3615,6 +4082,7 @@
    "id": "morgan/184",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "123dc5383aeab36103ae986131ddea6379d0c9e714ad6f5f49ade75068ffaa3f"
@@ -3629,6 +4097,9 @@
    "id": "morgan/185",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -3645,6 +4116,7 @@
    "id": "morgan/186",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "slides"
     ],
@@ -3661,6 +4133,7 @@
    "id": "morgan/187",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "slides"
     ],
@@ -3681,6 +4154,7 @@
    "id": "morgan/188",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -3698,6 +4172,7 @@
    "id": "morgan/189",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "crm",
      "docs"
@@ -3714,15 +4189,20 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "morgan/190",
    "intent": {
     "action": true,
-    "domains": [
+    "destinations": [
      "code_review"
+    ],
+    "domains": [
+     "code_review",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "9b128d73209b7ff52e3511da1c6c8795566c8fbf6ffeb8e864d35d97cb1ee7ca"
@@ -3737,6 +4217,7 @@
    "id": "morgan/191",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "slides"
     ],
@@ -3753,6 +4234,7 @@
    "id": "morgan/192",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "crm",
      "docs"
@@ -3770,6 +4252,9 @@
    "id": "morgan/193",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -3786,6 +4271,7 @@
    "id": "morgan/194",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3806,6 +4292,7 @@
    "id": "morgan/195",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3826,6 +4313,7 @@
    "id": "morgan/196",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3842,7 +4330,9 @@
    "id": "morgan/197",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
+     "docs",
      "email"
     ],
     "explicit_local": false,
@@ -3858,6 +4348,7 @@
    "id": "morgan/198",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3874,6 +4365,7 @@
    "id": "morgan/199",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3894,6 +4386,7 @@
    "id": "morgan/200",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3910,6 +4403,7 @@
    "id": "alex/001",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "b8697fe544fe726ccd3476ef02b27f8eee34e37c8d6a02c5ca3110c758455650"
@@ -3924,6 +4418,7 @@
    "id": "alex/002",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "911bf28a66838f6c4afa434f3379b4504c4cbf10516dcef4e6d216676c3e95f1"
@@ -3939,6 +4434,9 @@
    "id": "alex/003",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -3955,6 +4453,7 @@
    "id": "alex/004",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3971,6 +4470,7 @@
    "id": "alex/005",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -3987,6 +4487,9 @@
    "id": "alex/006",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -4003,6 +4506,7 @@
    "id": "alex/007",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4019,6 +4523,9 @@
    "id": "alex/008",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -4035,6 +4542,7 @@
    "id": "alex/009",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4051,6 +4559,9 @@
    "id": "alex/010",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -4067,6 +4578,9 @@
    "id": "alex/011",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -4083,6 +4597,7 @@
    "id": "alex/012",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4099,6 +4614,7 @@
    "id": "alex/013",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -4119,7 +4635,10 @@
    "id": "alex/014",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "fdba81ebbc23efd18b7103229d5e7d87dc182ba9ce465d5bf28a28a559f7db08"
    },
@@ -4133,6 +4652,7 @@
    "id": "alex/015",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4149,6 +4669,7 @@
    "id": "alex/016",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4165,6 +4686,9 @@
    "id": "alex/017",
    "intent": {
     "action": false,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -4179,6 +4703,7 @@
    "id": "alex/018",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "00ad5c5f825087a546d251182c93efbeb12ff7820f38ed5069fe7a622b0e75b6"
@@ -4193,6 +4718,7 @@
    "id": "alex/019",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "15fa8b5d248d85675fa0d18ebe55a3593bd45f8306166932ecabcbf19c3d05bb"
@@ -4207,6 +4733,7 @@
    "id": "alex/020",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -4224,6 +4751,7 @@
    "id": "alex/021",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4240,6 +4768,9 @@
    "id": "alex/022",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review",
      "docs"
@@ -4257,6 +4788,7 @@
    "id": "alex/023",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4273,6 +4805,7 @@
    "id": "alex/024",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4289,6 +4822,7 @@
    "id": "alex/025",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -4305,6 +4839,9 @@
    "id": "alex/026",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -4321,6 +4858,7 @@
    "id": "alex/027",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -4337,6 +4875,7 @@
    "id": "alex/028",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "d585b75138e84b64d43b82c54ef223c1c8fcbd4f15eea34e27d44c2168b4447b"
@@ -4351,6 +4890,7 @@
    "id": "alex/029",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -4367,6 +4907,9 @@
    "id": "alex/030",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -4382,13 +4925,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/031",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -4405,6 +4953,9 @@
    "id": "alex/032",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -4421,6 +4972,7 @@
    "id": "alex/033",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4437,6 +4989,9 @@
    "id": "alex/034",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -4453,6 +5008,7 @@
    "id": "alex/035",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4469,6 +5025,7 @@
    "id": "alex/036",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "c26b56d85174bc93f24975e2a85814ffb17b0a0cf84b6e13d7318062a9d031c6"
@@ -4483,6 +5040,9 @@
    "id": "alex/037",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -4499,6 +5059,7 @@
    "id": "alex/038",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "c2770cadf1c1378e4d81cfd96e62dd1356e54e621b2e93b609d5f408b59ceb07"
@@ -4513,6 +5074,9 @@
    "id": "alex/039",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -4529,7 +5093,10 @@
    "id": "alex/040",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "81b51148dab53ccb880a68df396dc0f92b90fc0381318c667ecb0e3a007abb73"
    },
@@ -4547,6 +5114,7 @@
    "id": "alex/041",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4562,13 +5130,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/042",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -4585,6 +5158,9 @@
    "id": "alex/043",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -4601,6 +5177,7 @@
    "id": "alex/044",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "chat"
     ],
@@ -4617,6 +5194,7 @@
    "id": "alex/045",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "chat"
     ],
@@ -4633,6 +5211,7 @@
    "id": "alex/046",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4649,6 +5228,9 @@
    "id": "alex/047",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -4665,6 +5247,9 @@
    "id": "alex/048",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -4675,11 +5260,20 @@
   },
   {
    "accepted_writes": [],
-   "first_block": null,
+   "first_block": {
+    "route": "file:write_file",
+    "routed_tools": [
+     "mcp__dolphinbench_apps__create_doc"
+    ],
+    "tool": "write_file"
+   },
    "id": "alex/049",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "e54e11f4eb841f48b5412f3d4288ba8c12317346cc840315a903be4fd7febdda"
    },
@@ -4693,6 +5287,9 @@
    "id": "alex/050",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -4709,6 +5306,9 @@
    "id": "alex/051",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -4724,13 +5324,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/052",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -4745,6 +5350,7 @@
    "id": "alex/053",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4761,6 +5367,7 @@
    "id": "alex/054",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -4777,7 +5384,11 @@
    "id": "alex/055",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
+     "docs",
      "email"
     ],
     "explicit_local": false,
@@ -4793,6 +5404,7 @@
    "id": "alex/056",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4809,6 +5421,7 @@
    "id": "alex/057",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4823,6 +5436,7 @@
    "id": "alex/058",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "f796b9f11ca4b2b8d90c437cd82eb23e4bc094eec21c6c8a22309cb7d698fcce"
@@ -4835,6 +5449,7 @@
    "id": "alex/059",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "c54dfbbdd26ac8679b20f5bac9d5085364f6318fbec8627f52f3bdf78ef622ae"
@@ -4849,6 +5464,7 @@
    "id": "alex/060",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar"
     ],
@@ -4865,6 +5481,7 @@
    "id": "alex/061",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4878,13 +5495,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/062",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -4901,6 +5523,9 @@
    "id": "alex/063",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -4917,6 +5542,7 @@
    "id": "alex/064",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4933,6 +5559,7 @@
    "id": "alex/065",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4949,7 +5576,10 @@
    "id": "alex/066",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "017d1fd6f8a1e8b3a01ca69063eaa8df2145cf23358158642f2d77d0e14dde08"
    },
@@ -4963,7 +5593,10 @@
    "id": "alex/067",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "6bfa4beb4f3d79c82c37d93ed96fcb8cf7c9cb27c23c4b62654673c86f450cc4"
    },
@@ -4977,6 +5610,7 @@
    "id": "alex/068",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -4993,6 +5627,7 @@
    "id": "alex/069",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -5009,6 +5644,7 @@
    "id": "alex/070",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "96784a42dc2254a35b2985998d5740768d3c745efb00c4709cdc813048674d60"
@@ -5023,6 +5659,9 @@
    "id": "alex/071",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5039,6 +5678,9 @@
    "id": "alex/072",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -5055,6 +5697,7 @@
    "id": "alex/073",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "d6abd836f3d91817248676fb4aace04939791e69663b692c328d862306dcd291"
@@ -5069,6 +5712,7 @@
    "id": "alex/074",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -5083,6 +5727,9 @@
    "id": "alex/075",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5096,15 +5743,21 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/076",
    "intent": {
     "action": true,
-    "domains": [
+    "destinations": [
      "code_review"
+    ],
+    "domains": [
+     "code_review",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "615f6015f41f1745213c95b1cb614dda33d448261891c19b0e05814f06d593cf"
@@ -5119,6 +5772,7 @@
    "id": "alex/077",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -5135,6 +5789,7 @@
    "id": "alex/078",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "57efeb9ae4484fbf19ae05bca2cc4997a2769935bbb3d933fa45c0e7ac01eaac"
@@ -5149,6 +5804,9 @@
    "id": "alex/079",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -5165,6 +5823,7 @@
    "id": "alex/080",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "78a36a0d14590a40db0d9f99a53d2bc22809fae3bfbedb10957b40e98e658ffe"
@@ -5177,6 +5836,9 @@
    "id": "alex/081",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5193,6 +5855,9 @@
    "id": "alex/082",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5208,13 +5873,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/083",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5229,6 +5899,7 @@
    "id": "alex/084",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -5245,6 +5916,7 @@
    "id": "alex/085",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -5261,6 +5933,7 @@
    "id": "alex/086",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "9224a68588f36924c68822a656c9f6f3a802f9cf65b032301e2cd7770e97b77c"
@@ -5275,6 +5948,9 @@
    "id": "alex/087",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -5291,6 +5967,9 @@
    "id": "alex/088",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5307,9 +5986,13 @@
    "id": "alex/089",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "calendar",
-     "code_review"
+     "code_review",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "2c2f9a626b6aa2f1749ed4717d5612f7c8d06e2af6f5ded3429ad20e17e02364"
@@ -5322,6 +6005,9 @@
    "id": "alex/090",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5336,6 +6022,7 @@
    "id": "alex/091",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -5352,6 +6039,7 @@
    "id": "alex/092",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -5368,6 +6056,7 @@
    "id": "alex/093",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -5384,6 +6073,9 @@
    "id": "alex/094",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5400,6 +6092,7 @@
    "id": "alex/095",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "email"
@@ -5416,13 +6109,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/096",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5439,6 +6137,9 @@
    "id": "alex/097",
    "intent": {
     "action": true,
+    "destinations": [
+     "sms"
+    ],
     "domains": [
      "sms"
     ],
@@ -5455,6 +6156,9 @@
    "id": "alex/098",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5468,13 +6172,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/099",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5491,6 +6200,7 @@
    "id": "alex/100",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -5505,13 +6215,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/101",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5525,13 +6240,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/102",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5548,6 +6268,7 @@
    "id": "alex/103",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -5564,8 +6285,12 @@
    "id": "alex/104",
    "intent": {
     "action": true,
-    "domains": [
+    "destinations": [
      "code_review"
+    ],
+    "domains": [
+     "code_review",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "7c992e4ff3582141b2f1d112f9f403978c37b5bac4b74cbd7e2e3bb3e8a96c85"
@@ -5579,13 +6304,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/105",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5601,13 +6331,15 @@
    "first_block": {
     "route": "skill:apple-reminders",
     "routed_tools": [
-     "mcp__dolphinbench_apps__create_calendar_event"
+     "mcp__dolphinbench_apps__create_calendar_event",
+     "mcp__dolphinbench_apps__list_calendar_events"
     ],
     "tool": "skill_view"
    },
    "id": "alex/106",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -5625,6 +6357,9 @@
    "id": "alex/107",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5641,6 +6376,9 @@
    "id": "alex/108",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5657,6 +6395,7 @@
    "id": "alex/109",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -5673,6 +6412,9 @@
    "id": "alex/110",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -5687,8 +6429,12 @@
    "id": "alex/111",
    "intent": {
     "action": true,
-    "domains": [
+    "destinations": [
      "code_review"
+    ],
+    "domains": [
+     "code_review",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "1f5c1e20bc7f117397d1b4d95a74fe0057f4a3a0e2b7ec4a73054a948ac60a4a"
@@ -5703,6 +6449,7 @@
    "id": "alex/112",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -5719,7 +6466,9 @@
    "id": "alex/113",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
+     "docs",
      "email"
     ],
     "explicit_local": false,
@@ -5735,8 +6484,12 @@
    "id": "alex/114",
    "intent": {
     "action": true,
-    "domains": [
+    "destinations": [
      "code_review"
+    ],
+    "domains": [
+     "code_review",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "417bf6604863f7d588e6ad46e1fbad5afcbd5bbf0285151147653c86c451270a"
@@ -5751,6 +6504,7 @@
    "id": "alex/115",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -5768,6 +6522,9 @@
    "id": "alex/116",
    "intent": {
     "action": false,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -5788,6 +6545,7 @@
    "id": "alex/117",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -5804,6 +6562,7 @@
    "id": "alex/118",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs",
      "email"
@@ -5827,6 +6586,7 @@
    "id": "alex/119",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -5847,6 +6607,7 @@
    "id": "alex/120",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -5863,6 +6624,7 @@
    "id": "alex/121",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "e0bf4d32995c8b5a497d6e23972476e694cae8dd4746c8010f6e46ce4e4902a6"
@@ -5877,6 +6639,7 @@
    "id": "alex/122",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "f016c78e8573579291bafeca9813bc333f65e0ec4ae0bf5aeb6687dcc371d65b"
@@ -5890,13 +6653,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/123",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review",
      "docs"
@@ -5914,6 +6682,9 @@
    "id": "alex/124",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -5928,6 +6699,7 @@
    "id": "alex/125",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -5944,8 +6716,12 @@
    "id": "alex/126",
    "intent": {
     "action": true,
-    "domains": [
+    "destinations": [
      "code_review"
+    ],
+    "domains": [
+     "code_review",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "89cd0af5829afda5de3a1de8a51c2fec6e2cb2ce200b0d99f9d7766c0b185103"
@@ -5960,6 +6736,9 @@
    "id": "alex/127",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -5976,6 +6755,7 @@
    "id": "alex/128",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -5992,6 +6772,7 @@
    "id": "alex/129",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -6008,6 +6789,7 @@
    "id": "alex/130",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -6024,6 +6806,9 @@
    "id": "alex/131",
    "intent": {
     "action": false,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "chat",
      "code_review"
@@ -6045,6 +6830,7 @@
    "id": "alex/132",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -6061,6 +6847,7 @@
    "id": "alex/133",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "email"
@@ -6077,13 +6864,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/134",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6100,6 +6892,9 @@
    "id": "alex/135",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -6115,13 +6910,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/136",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6138,6 +6938,7 @@
    "id": "alex/137",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -6153,13 +6954,15 @@
    "first_block": {
     "route": "skill:email-inbox-triage",
     "routed_tools": [
-     "mcp__dolphinbench_apps__send_email"
+     "mcp__dolphinbench_apps__send_email",
+     "mcp__dolphinbench_apps__list_inbox"
     ],
     "tool": "skill_view"
    },
    "id": "alex/138",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "email"
@@ -6175,6 +6978,9 @@
    "id": "alex/139",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6191,6 +6997,7 @@
    "id": "alex/140",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -6207,6 +7014,7 @@
    "id": "alex/141",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "chat"
     ],
@@ -6222,13 +7030,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/142",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6245,6 +7058,7 @@
    "id": "alex/143",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "3ce67cf06cb2f08d77b0f714f4238806d3f8f0d52bf2a7b61aa5090978dd48a6"
@@ -6259,6 +7073,9 @@
    "id": "alex/144",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -6275,6 +7092,9 @@
    "id": "alex/145",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6291,6 +7111,7 @@
    "id": "alex/146",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -6307,6 +7128,7 @@
    "id": "alex/147",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -6323,6 +7145,7 @@
    "id": "alex/148",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -6344,6 +7167,7 @@
    "id": "alex/149",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -6359,13 +7183,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/150",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6381,15 +7210,21 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/151",
    "intent": {
     "action": true,
-    "domains": [
+    "destinations": [
      "code_review"
+    ],
+    "domains": [
+     "code_review",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "8c2c31bd881506298afad32b94f962f5adc68d9dc1889a24a8029bcbd5991234"
@@ -6404,6 +7239,7 @@
    "id": "alex/152",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "a24dbd4e230eeed12558cefb254af7990b3c67ae321b25d4ec37f3946c85d5b0"
@@ -6418,6 +7254,7 @@
    "id": "alex/153",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "098ae523df38016f816c5828a455298d2861c060b6e15c0b833d359dbf0cc96f"
@@ -6432,6 +7269,7 @@
    "id": "alex/154",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "60054bb4498a873522f4bbaaacde88f1ed401d0fc5e1dc9040c0e99ad12d4d88"
@@ -6446,6 +7284,7 @@
    "id": "alex/155",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "07b6419ea374192e24bbc79f445a5388dbba63e36dd70f42f3b93ae5418eb795"
@@ -6459,13 +7298,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/156",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review",
      "docs"
@@ -6483,6 +7327,9 @@
    "id": "alex/157",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6499,6 +7346,7 @@
    "id": "alex/158",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "1cb32f8cb65b4b9fbfcca60fa70a8e8cbf1e02d0ac521c546102ecb7787936cd"
@@ -6513,6 +7361,7 @@
    "id": "alex/159",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -6529,6 +7378,7 @@
    "id": "alex/160",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -6545,6 +7395,7 @@
    "id": "alex/161",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs",
@@ -6563,6 +7414,9 @@
    "id": "alex/162",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6579,6 +7433,7 @@
    "id": "alex/163",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "chat"
     ],
@@ -6595,6 +7450,7 @@
    "id": "alex/164",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -6611,6 +7467,7 @@
    "id": "alex/165",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -6627,6 +7484,7 @@
    "id": "alex/166",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -6644,6 +7502,7 @@
    "id": "alex/167",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -6660,6 +7519,7 @@
    "id": "alex/168",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -6674,6 +7534,7 @@
    "id": "alex/169",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -6688,7 +7549,10 @@
    "id": "alex/170",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "8a7889d2e7c03230223032cee88a74fb5febcb5f0c4dc8a008503d3de44d0745"
    },
@@ -6702,6 +7566,9 @@
    "id": "alex/171",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6718,6 +7585,7 @@
    "id": "alex/172",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -6734,6 +7602,7 @@
    "id": "alex/173",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -6749,13 +7618,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/174",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6772,6 +7646,7 @@
    "id": "alex/175",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -6788,6 +7663,9 @@
    "id": "alex/176",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -6804,6 +7682,7 @@
    "id": "alex/177",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -6821,6 +7700,7 @@
    "id": "alex/178",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "376a179025aea649c69a8e1eaa70bd35962c22ea22d29084cb3403740cc0ab71"
@@ -6835,6 +7715,7 @@
    "id": "alex/179",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "46aeabd510363646157b3f1bb689f328fbd70ccb7f24d342bf6e30cc891e51fe"
@@ -6847,6 +7728,9 @@
    "id": "alex/180",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6863,6 +7747,9 @@
    "id": "alex/181",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6879,6 +7766,9 @@
    "id": "alex/182",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -6895,6 +7785,7 @@
    "id": "alex/183",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "chat"
     ],
@@ -6909,6 +7800,9 @@
    "id": "alex/184",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review",
      "docs"
@@ -6926,6 +7820,9 @@
    "id": "alex/185",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6941,13 +7838,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/186",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -6965,6 +7867,7 @@
    "id": "alex/187",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "ccca838d56935fc94bad697c0a994e738f624cdbd9aaa1f584b1c40f7b5effe0"
@@ -6979,6 +7882,9 @@
    "id": "alex/188",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -6996,6 +7902,7 @@
    "id": "alex/189",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -7012,6 +7919,7 @@
    "id": "alex/190",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -7032,6 +7940,7 @@
    "id": "alex/191",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7048,6 +7957,9 @@
    "id": "alex/192",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -7064,6 +7976,9 @@
    "id": "alex/193",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -7080,6 +7995,7 @@
    "id": "alex/194",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7095,13 +8011,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/195",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -7116,8 +8037,12 @@
    "id": "alex/196",
    "intent": {
     "action": true,
-    "domains": [
+    "destinations": [
      "code_review"
+    ],
+    "domains": [
+     "code_review",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "6948b303f535646d847ab67886b13296d25de48f67bbb3de45827abf06914449"
@@ -7131,13 +8056,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__review_pr"
+     "mcp__dolphinbench_apps__review_pr",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/197",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -7154,6 +8084,9 @@
    "id": "alex/198",
    "intent": {
     "action": true,
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
@@ -7169,13 +8102,18 @@
    "first_block": {
     "route": "skill:github",
     "routed_tools": [
-     "mcp__dolphinbench_apps__post_pr_comment"
+     "mcp__dolphinbench_apps__post_pr_comment",
+     "mcp__dolphinbench_apps__get_pr",
+     "mcp__dolphinbench_apps__list_open_prs"
     ],
     "tool": "skill_view"
    },
    "id": "alex/199",
    "intent": {
     "action": true,
+    "destinations": [
+     "code_review"
+    ],
     "domains": [
      "code_review"
     ],
@@ -7192,6 +8130,7 @@
    "id": "alex/200",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar"
     ],
@@ -7208,8 +8147,10 @@
    "id": "riley/001",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
-     "calendar"
+     "calendar",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "69093f84c3158de109265933841067317832d8a35eb722f9a41b29fc4590c9b9"
@@ -7225,6 +8166,7 @@
    "id": "riley/002",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -7242,6 +8184,7 @@
    "id": "riley/003",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7258,7 +8201,10 @@
    "id": "riley/004",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "d88b356d5aeef00e5d78ed5b243ed873f757360e0cdfad6e5ab3424a1443b2ba"
    },
@@ -7272,7 +8218,10 @@
    "id": "riley/005",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "91e804a02aed9bea3007d810a972b78231bc2e59e93efb58ca85a6829be1ef86"
    },
@@ -7286,6 +8235,7 @@
    "id": "riley/006",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "b9425280c03381adea7b6bb9238599992d7250140d1e32d84af69a1504660263"
@@ -7298,6 +8248,7 @@
    "id": "riley/007",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "7590da8904155cfd2075e19d77e742403b2a32026cbac28a5bc3269afefcd1cf"
@@ -7312,6 +8263,7 @@
    "id": "riley/008",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7332,7 +8284,10 @@
    "id": "riley/009",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "6f2b75dd8e8d8f95f9d39e8087311741c8374d4bfc7ee29d17892a9630216b0f"
    },
@@ -7346,6 +8301,7 @@
    "id": "riley/010",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7366,6 +8322,7 @@
    "id": "riley/011",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7382,7 +8339,10 @@
    "id": "riley/012",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "fcfaa6b5231808c01f3e0654e6ebecfb8ed4828f10a11f242d959320f02b88db"
    },
@@ -7396,6 +8356,7 @@
    "id": "riley/013",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7412,7 +8373,10 @@
    "id": "riley/014",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "ad3a97a59cc8886253056151b13f018c6dae49d3eb7732c97c47dc05f4469497"
    },
@@ -7433,6 +8397,7 @@
    "id": "riley/015",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs",
      "sms"
@@ -7450,8 +8415,10 @@
    "id": "riley/016",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
-     "chat"
+     "chat",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "ab2069006e1d424f4a85ffa0b3c26e1ef28be3cd21713fe797896d1b9c1bf381"
@@ -7466,6 +8433,7 @@
    "id": "riley/017",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7482,7 +8450,10 @@
    "id": "riley/018",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "8cf5f12188c6565a5c79bf7b777bf6bb131f3ae150c629973aa1dc21ce4582a6"
    },
@@ -7502,7 +8473,10 @@
    "id": "riley/019",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "f1a42e0aa2facf32683f07093c1b427a1d3076844dcedfe3b1e963b3c690a48c"
    },
@@ -7519,6 +8493,7 @@
    "id": "riley/020",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "a2e8c34f9b315d8867b0dfe778836ad1e28442d07fa8e5b59d95884f0a642b19"
@@ -7533,6 +8508,7 @@
    "id": "riley/021",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7549,6 +8525,7 @@
    "id": "riley/022",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "1ba5d0ce0a58ee8add333946d7bbfedd1404c7e6282f26f664ea2bc8c84b3017"
@@ -7563,6 +8540,7 @@
    "id": "riley/023",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "54df45fa76acfccad2df937e3298a187e786e44f8b9c9cf8ebe2ff5cfb94fea9"
@@ -7577,6 +8555,7 @@
    "id": "riley/024",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7593,6 +8572,7 @@
    "id": "riley/025",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7609,6 +8589,7 @@
    "id": "riley/026",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7623,6 +8604,7 @@
    "id": "riley/027",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7643,6 +8625,7 @@
    "id": "riley/028",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7657,6 +8640,7 @@
    "id": "riley/029",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7679,6 +8663,7 @@
    "id": "riley/030",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7695,6 +8680,7 @@
    "id": "riley/031",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7715,6 +8701,7 @@
    "id": "riley/032",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7737,7 +8724,10 @@
    "id": "riley/033",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "d53b8603f6cdb5df818ee62569c6f946a45627e82b7a5e64a10c56f57024e458"
    },
@@ -7752,6 +8742,7 @@
    "id": "riley/034",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7774,6 +8765,7 @@
    "id": "riley/035",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7790,6 +8782,7 @@
    "id": "riley/036",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7807,8 +8800,10 @@
    "id": "riley/037",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
-     "chat"
+     "chat",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "86dfeb9ee0658e100eee4c2900af949acc191a0c2c1ad7501e0353dd75313812"
@@ -7823,6 +8818,7 @@
    "id": "riley/038",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs",
      "email"
@@ -7844,6 +8840,7 @@
    "id": "riley/039",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7860,6 +8857,7 @@
    "id": "riley/040",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7876,6 +8874,7 @@
    "id": "riley/041",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -7899,6 +8898,7 @@
    "id": "riley/042",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7915,6 +8915,7 @@
    "id": "riley/043",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7931,6 +8932,7 @@
    "id": "riley/044",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -7947,7 +8949,10 @@
    "id": "riley/045",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "04e47fe13ef6d1cb4312dfdfac4fff2886217bf8044406621e26f74dd5a0bc23"
    },
@@ -7961,6 +8966,7 @@
    "id": "riley/046",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs",
      "email"
@@ -7978,6 +8984,7 @@
    "id": "riley/047",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "chat",
      "docs"
@@ -7995,6 +9002,7 @@
    "id": "riley/048",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8009,7 +9017,10 @@
    "id": "riley/049",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "c41927aa70adad3f092067a03ee964348ecabbbcad3b7b989e6e5f2b6d908073"
    },
@@ -8021,6 +9032,7 @@
    "id": "riley/050",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8037,6 +9049,7 @@
    "id": "riley/051",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs",
      "slides"
@@ -8054,6 +9067,7 @@
    "id": "riley/052",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8074,6 +9088,7 @@
    "id": "riley/053",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8094,6 +9109,7 @@
    "id": "riley/054",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -8111,6 +9127,7 @@
    "id": "riley/055",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8127,6 +9144,7 @@
    "id": "riley/056",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8143,6 +9161,7 @@
    "id": "riley/057",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8159,6 +9178,7 @@
    "id": "riley/058",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8175,7 +9195,10 @@
    "id": "riley/059",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "028371fb70e20258d50a329ebb6e9ea2856a0acb30040583bcb8342d5d4d7b05"
    },
@@ -8195,7 +9218,10 @@
    "id": "riley/060",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "5dfdd6048ba62b5bc2087d09fee733f36db37dbdfdd9b09195275a4e58763fc9"
    },
@@ -8209,6 +9235,7 @@
    "id": "riley/061",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8225,6 +9252,7 @@
    "id": "riley/062",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "b1fc8bb95d696a519e31e5010d2c940a1567428a7d9f980f1d3f0fe7a6bcac3a"
@@ -8239,6 +9267,7 @@
    "id": "riley/063",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "1dd8425a102f387ce1ebcf18d135c446f7cb9ec5539ba36a662b072866b94c2b"
@@ -8253,7 +9282,10 @@
    "id": "riley/064",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "52072cb2f850d41d0d0ea823a6295a5b8d91388436670ad4a31e1023d0856e16"
    },
@@ -8267,6 +9299,7 @@
    "id": "riley/065",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8283,6 +9316,7 @@
    "id": "riley/066",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8299,6 +9333,7 @@
    "id": "riley/067",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8315,6 +9350,7 @@
    "id": "riley/068",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8335,6 +9371,7 @@
    "id": "riley/069",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8352,6 +9389,7 @@
    "id": "riley/070",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "chat",
      "docs"
@@ -8369,6 +9407,7 @@
    "id": "riley/071",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "53fbe8491020182a6f027ed21f77ef5be4f5e4015f2241adbdbb9b486c3f2f84"
@@ -8383,6 +9422,7 @@
    "id": "riley/072",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8399,6 +9439,7 @@
    "id": "riley/073",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8415,6 +9456,9 @@
    "id": "riley/074",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -8425,16 +9469,11 @@
   },
   {
    "accepted_writes": [],
-   "first_block": {
-    "route": "skill:google-workspace",
-    "routed_tools": [
-     "mcp__dolphinbench_apps__create_doc"
-    ],
-    "tool": "skill_view"
-   },
+   "first_block": null,
    "id": "riley/075",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "ad46bc67ec50d137998b686f58b2db3750bf9bf85cfa0f3b50f647a4d89f52c0"
@@ -8449,6 +9488,7 @@
    "id": "riley/076",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8465,6 +9505,7 @@
    "id": "riley/077",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8481,6 +9522,7 @@
    "id": "riley/078",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8497,6 +9539,7 @@
    "id": "riley/079",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8519,6 +9562,7 @@
    "id": "riley/080",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8535,6 +9579,7 @@
    "id": "riley/081",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8551,6 +9596,7 @@
    "id": "riley/082",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -8568,6 +9614,7 @@
    "id": "riley/083",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8586,6 +9633,9 @@
    "id": "riley/084",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat",
      "docs"
@@ -8597,16 +9647,11 @@
   },
   {
    "accepted_writes": [],
-   "first_block": {
-    "route": "skill:google-workspace",
-    "routed_tools": [
-     "mcp__dolphinbench_apps__create_doc"
-    ],
-    "tool": "skill_view"
-   },
+   "first_block": null,
    "id": "riley/085",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "f0d203add3baa3a6d188e2ed2d2e3f8e636ee0937c2924fc10bfc6f5bd335ef7"
@@ -8621,6 +9666,7 @@
    "id": "riley/086",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "email"
@@ -8644,6 +9690,7 @@
    "id": "riley/087",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8660,7 +9707,10 @@
    "id": "riley/088",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "0b14264df15c806dc0c7511824b17febd4500d23ddc08ddff306446d2c4381c1"
    },
@@ -8672,6 +9722,7 @@
    "id": "riley/089",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8688,7 +9739,9 @@
    "id": "riley/090",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
+     "docs",
      "email"
     ],
     "explicit_local": false,
@@ -8704,6 +9757,7 @@
    "id": "riley/091",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8720,6 +9774,7 @@
    "id": "riley/092",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -8738,6 +9793,7 @@
    "id": "riley/093",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "chat"
     ],
@@ -8754,7 +9810,10 @@
    "id": "riley/094",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "80b2c0602ce417b7b357cdde8251dee48a1795c316282d921c8aed5e65b79feb"
    },
@@ -8775,6 +9834,7 @@
    "id": "riley/095",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs",
      "sms"
@@ -8793,6 +9853,7 @@
    "id": "riley/096",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "docs",
      "email"
@@ -8810,6 +9871,7 @@
    "id": "riley/097",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8826,6 +9888,7 @@
    "id": "riley/098",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8843,6 +9906,7 @@
    "id": "riley/099",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8859,6 +9923,9 @@
    "id": "riley/100",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -8875,6 +9942,7 @@
    "id": "riley/101",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8891,6 +9959,7 @@
    "id": "riley/102",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "711da3b9ff144a87abf1cebbc0b705f03cffd9f48397c346742045719fe6f5cb"
@@ -8905,6 +9974,7 @@
    "id": "riley/103",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8919,7 +9989,10 @@
    "id": "riley/104",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "804db77dec5710b64bbc53cfa6851c180caa15c757d614811f32c238e463b4b3"
    },
@@ -8933,8 +10006,12 @@
    "id": "riley/105",
    "intent": {
     "action": true,
-    "domains": [
+    "destinations": [
      "chat"
+    ],
+    "domains": [
+     "chat",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "290c1d9f39af2f02c23ee0ad036d8bd76368a716b5102e931791be4659d9d6c5"
@@ -8949,6 +10026,7 @@
    "id": "riley/106",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -8965,6 +10043,7 @@
    "id": "riley/107",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs",
      "email"
@@ -8982,7 +10061,10 @@
    "id": "riley/108",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "a102e9ce8de0e426d6fb8c5fa7659c43c9957e53fd7cb9b805ab8213fb270e8e"
    },
@@ -8996,8 +10078,10 @@
    "id": "riley/109",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
-     "chat"
+     "chat",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "9786312dc6d9d4f5cf30b4141fc3448d61f41b6421fc9ca7b9cdb79e1a5f637a"
@@ -9010,6 +10094,7 @@
    "id": "riley/110",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9026,7 +10111,10 @@
    "id": "riley/111",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "092fd237c388753b3ed44dee7fba57a93f81026beac8af4d1abd59f57804dbb1"
    },
@@ -9040,6 +10128,7 @@
    "id": "riley/112",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs",
@@ -9058,6 +10147,7 @@
    "id": "riley/113",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9072,6 +10162,7 @@
    "id": "riley/114",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "ae268effb1b911eb73df00f7b52973075061634cb249239349c429dee448ebf3"
@@ -9084,6 +10175,7 @@
    "id": "riley/115",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "68b0476aac125b66f3ab8bcdd924120bda227e6464d801f114596009d30834f3"
@@ -9098,7 +10190,10 @@
    "id": "riley/116",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "1cd6521d46e3d0ff471034b088621f5ca442720e122d6084fc99ef9eb381d372"
    },
@@ -9110,6 +10205,7 @@
    "id": "riley/117",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9126,6 +10222,7 @@
    "id": "riley/118",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs",
      "slides"
@@ -9143,6 +10240,7 @@
    "id": "riley/119",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9159,7 +10257,10 @@
    "id": "riley/120",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "d521bd1d793c1ad1f0094dc8cd1c8495b15ef386081028b2a4f5531a993766e8"
    },
@@ -9174,6 +10275,7 @@
    "id": "riley/121",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "email"
     ],
@@ -9191,6 +10293,7 @@
    "id": "riley/122",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9208,6 +10311,9 @@
    "id": "riley/123",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat",
      "docs"
@@ -9225,8 +10331,10 @@
    "id": "riley/124",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
-     "calendar"
+     "calendar",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "349ce4b8e9e0f5fc32514e40f0f4b0ca113b90acf6779b1289e12446019b1df4"
@@ -9239,7 +10347,10 @@
    "id": "riley/125",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "06a1648875d899929e0ca4a60f2beeabf408d765082e35229a6eee0941f3eb6a"
    },
@@ -9254,6 +10365,9 @@
    "id": "riley/126",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat",
      "docs"
@@ -9271,6 +10385,7 @@
    "id": "riley/127",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9287,7 +10402,10 @@
    "id": "riley/128",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "d13e59f1784c818c0c818f6a2f830f6d3d2e29384281a8a02c4091c0e9e45a4a"
    },
@@ -9301,7 +10419,10 @@
    "id": "riley/129",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "90216e843823650f4cdbaecb63ac209f1b109b990f4cc8a9f5517e29a9e12f35"
    },
@@ -9315,6 +10436,7 @@
    "id": "riley/130",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9332,6 +10454,7 @@
    "id": "riley/131",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "2a4143cf5809a437856efa844ab5ba83e61d2c8c3b0bd5a2e580cb75c7de1d11"
@@ -9346,7 +10469,10 @@
    "id": "riley/132",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "b74706d0a074c726cc70b49c61ae642f98ca052ace5ad74e7f4d27939c5d7cb7"
    },
@@ -9360,6 +10486,7 @@
    "id": "riley/133",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9376,6 +10503,7 @@
    "id": "riley/134",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9392,7 +10520,10 @@
    "id": "riley/135",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "febedab99a4a9d171eeb825e8d3538f91f5b6f374c306782cdbb8045aa228914"
    },
@@ -9402,16 +10533,11 @@
    "accepted_writes": [
     "mcp__dolphinbench_apps__create_doc"
    ],
-   "first_block": {
-    "route": "skill:google-workspace",
-    "routed_tools": [
-     "mcp__dolphinbench_apps__create_doc"
-    ],
-    "tool": "skill_view"
-   },
+   "first_block": null,
    "id": "riley/136",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "8a70d761d6b7b17266636dc8113556996a4b24ae807e3a053da6a157878c606f"
@@ -9433,8 +10559,10 @@
    "id": "riley/137",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
-     "calendar"
+     "calendar",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "97d087ea3b25a9f5292b1f4008eb13f4919b37a0065d12f78a790323d2a8322d"
@@ -9449,6 +10577,7 @@
    "id": "riley/138",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9465,6 +10594,7 @@
    "id": "riley/139",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9481,6 +10611,7 @@
    "id": "riley/140",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9497,6 +10628,7 @@
    "id": "riley/141",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -9514,6 +10646,7 @@
    "id": "riley/142",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9530,7 +10663,10 @@
    "id": "riley/143",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "93d22926c060e2473dd6ce64c8c614ad82e9e05d731b24f19d944ec68f7b2ce8"
    },
@@ -9544,6 +10680,7 @@
    "id": "riley/144",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9560,6 +10697,7 @@
    "id": "riley/145",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9576,6 +10714,7 @@
    "id": "riley/146",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "calendar"
     ],
@@ -9592,6 +10731,7 @@
    "id": "riley/147",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "e8d0b8fc0b64d5f6920b0571adb4d8fd07f6585c08e28d173f60ec3bb1a4bbfa"
@@ -9606,7 +10746,10 @@
    "id": "riley/148",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "0f563dd98561ed8991f68fcbef670ca8123a9ec1d3a83f356a48baf6e1020ddc"
    },
@@ -9620,8 +10763,10 @@
    "id": "riley/149",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
-     "chat"
+     "chat",
+     "docs"
     ],
     "explicit_local": false,
     "request_sha256": "bbdbc4ad4eef8ee6a2ddb0c7f68bf78c2a39708d715228fe3c5aacd5b50402c9"
@@ -9636,6 +10781,7 @@
    "id": "riley/150",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar"
     ],
@@ -9650,7 +10796,10 @@
    "id": "riley/151",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "8c1a65dcba5234d39437ed47bc3a7edf07dba5d36287045bdbea0f383000577e"
    },
@@ -9665,6 +10814,7 @@
    "id": "riley/152",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs",
      "email"
@@ -9682,7 +10832,10 @@
    "id": "riley/153",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "386cad0909357c0343957d8ac4257c5f76779454387815ed2a84c88956764fc7"
    },
@@ -9696,7 +10849,10 @@
    "id": "riley/154",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "03e391a98295f6feaf0e6f959a42789f96888201b909fa6aff2bc099fc393e99"
    },
@@ -9710,6 +10866,7 @@
    "id": "riley/155",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9726,6 +10883,9 @@
    "id": "riley/156",
    "intent": {
     "action": true,
+    "destinations": [
+     "calendar"
+    ],
     "domains": [
      "calendar"
     ],
@@ -9743,6 +10903,9 @@
    "id": "riley/157",
    "intent": {
     "action": false,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat",
      "docs"
@@ -9760,6 +10923,7 @@
    "id": "riley/158",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9776,6 +10940,7 @@
    "id": "riley/159",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9792,7 +10957,10 @@
    "id": "riley/160",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "5d7b8e3bedb48581e275ea20a8578fdd5c8b763d466d6016a7d4979ce104d07f"
    },
@@ -9806,7 +10974,10 @@
    "id": "riley/161",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "07c2d84867727bb8392a1fb97064675ad82ec86c1d8031aeefd29c914ec62d1d"
    },
@@ -9820,6 +10991,7 @@
    "id": "riley/162",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9836,6 +11008,7 @@
    "id": "riley/163",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "f84418c3350675b516856c7d11e024846a6cc70432457b7f55ed829b2621b463"
@@ -9850,6 +11023,7 @@
    "id": "riley/164",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9864,6 +11038,7 @@
    "id": "riley/165",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9880,6 +11055,7 @@
    "id": "riley/166",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "calendar"
     ],
@@ -9896,6 +11072,7 @@
    "id": "riley/167",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9912,6 +11089,7 @@
    "id": "riley/168",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9928,6 +11106,9 @@
    "id": "riley/169",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat",
      "docs"
@@ -9945,7 +11126,10 @@
    "id": "riley/170",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "ff8c9e11bd47794a4881bdf4eb79eafadb56c53538878bfcb843c8b6003d9fb6"
    },
@@ -9959,6 +11143,7 @@
    "id": "riley/171",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -9975,6 +11160,7 @@
    "id": "riley/172",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "34b94bdca4fc20c3eb86d64555b97761e95943534fca090282e222d0b687fc9e"
@@ -9989,6 +11175,7 @@
    "id": "riley/173",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "075fdd92ee68cadfa03e883e8dd9bd25bcc6aedfce7291a0f23ad116ba3ac4ec"
@@ -10003,6 +11190,7 @@
    "id": "riley/174",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "a311d47dedadb29267d859c38f1ce0f108bb36210682f3a9cc14f850e27365ab"
@@ -10017,6 +11205,7 @@
    "id": "riley/175",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "08971a9a533aa64a5e126d53fa5ee11ba16eb7a3ca0daf3a5c617bd7be8bfff1"
@@ -10031,6 +11220,7 @@
    "id": "riley/176",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -10047,7 +11237,10 @@
    "id": "riley/177",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "efef18dfbfc90f8ba98cf714b172b7db6952222ac7a89931fc54f7602043b7b0"
    },
@@ -10061,6 +11254,9 @@
    "id": "riley/178",
    "intent": {
     "action": true,
+    "destinations": [
+     "chat"
+    ],
     "domains": [
      "chat"
     ],
@@ -10077,6 +11273,7 @@
    "id": "riley/179",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "0d9ec2a6390947379ece59250f3af7515ca0a4b5c9c7fa469e47caebad3d0fe4"
@@ -10091,6 +11288,7 @@
    "id": "riley/180",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -10107,6 +11305,7 @@
    "id": "riley/181",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -10124,6 +11323,7 @@
    "id": "riley/182",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "9aa8c67e7d4ba821b7f6ddf1c9b46536839fb4240cecc42620335c6d135eea75"
@@ -10138,6 +11338,7 @@
    "id": "riley/183",
    "intent": {
     "action": false,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -10154,7 +11355,10 @@
    "id": "riley/184",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "ccf60095c2143545c68bd94c18909783b7bdfe481a9bc953e2cf22b1716be293"
    },
@@ -10172,7 +11376,10 @@
    "id": "riley/185",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "49ef7c9d8055c155c3a3c2f5aa4a728d27dd9ed7acbd969ae192bfc14bfd840a"
    },
@@ -10186,6 +11393,7 @@
    "id": "riley/186",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "chat"
     ],
@@ -10202,6 +11410,7 @@
    "id": "riley/187",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "394c837c7905f2e3c728112da043bcfed387987e4d61cefa9e9aa64dbb7a8f5c"
@@ -10216,6 +11425,7 @@
    "id": "riley/188",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "d4fef7a54fc786a4fd80f088ae9d84c520826bfd8ff66a6cee5c2a16ea1f4822"
@@ -10230,7 +11440,10 @@
    "id": "riley/189",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "699e303fa3277ce8c1bc125c5f9cb7ddc37524b26c79ff627bdecf650e62f1a8"
    },
@@ -10244,7 +11457,10 @@
    "id": "riley/190",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "ac799734d8b75dea03a67b4f337bc48e981aa1b332b711730d946de4ce65d690"
    },
@@ -10258,7 +11474,10 @@
    "id": "riley/191",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "88ce7ec684e4b9ef7a9a900bfd4913cc6f111a070836c1d50a667c4476f972f0"
    },
@@ -10270,7 +11489,10 @@
    "id": "riley/192",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "8d827f6a6588575999843e026eac6c740aeeb37e68245754d131cf39e77bf2d5"
    },
@@ -10282,6 +11504,7 @@
    "id": "riley/193",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "a1a096c6624cafc4e8b1f9771ceb21ada70bf170ef65c908fb34e253f633e5fd"
@@ -10300,6 +11523,7 @@
    "id": "riley/194",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -10320,6 +11544,7 @@
    "id": "riley/195",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "calendar",
      "docs"
@@ -10344,7 +11569,10 @@
    "id": "riley/196",
    "intent": {
     "action": true,
-    "domains": [],
+    "destinations": [],
+    "domains": [
+     "docs"
+    ],
     "explicit_local": false,
     "request_sha256": "aef085d5d9aa8d36635249ccadf29e57bdd9c12becd3a5a6824f3c7955470552"
    },
@@ -10358,6 +11586,7 @@
    "id": "riley/197",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -10374,6 +11603,7 @@
    "id": "riley/198",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [],
     "explicit_local": false,
     "request_sha256": "b37d0eb17755740fbf0c6b5e5c9a4ffa066f32e901c279000a350b16c419a1da"
@@ -10388,6 +11618,7 @@
    "id": "riley/199",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],
@@ -10404,6 +11635,7 @@
    "id": "riley/200",
    "intent": {
     "action": true,
+    "destinations": [],
     "domains": [
      "docs"
     ],

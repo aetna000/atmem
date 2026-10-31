@@ -194,7 +194,7 @@ Branch `feat/dolphin-action-routing` adds a product-side router, completion chec
 route memory and commit checkpoint as a Hermes plugin, plus a separate
 `dolphin-routed-v1` condition that keeps the ordinary tool inventory. Offline replay
 over the published 600 transcripts refuses the first detour in all 35 Notes and all
-6 GitHub-auth untraced failures and flags 0 passing tasks as not completed; 37 passing
+6 GitHub-auth untraced failures and gives 0 passing tasks a completion notice; 36 passing
 tasks would see a refused detour. Not qualified, piloted or scored; launch admission
 remains bound to `dolphin-mcp-only-v1`. See
 [the action guard report](dolphin-action-guard-20261031.md).

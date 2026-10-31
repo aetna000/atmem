@@ -94,7 +94,8 @@ class _Binding:
         self.guard.after_call(session_id, tool_name, args or {}, result)
 
     def transform_llm_output(self, response_text='', session_id='', turn_id='', **_):
-        record = self.guard.record(session_id)
+        notice = self.guard.completion_notice(session_id)
+        record = self.guard.finish(session_id)  # releases the finalized turn state
         record.update(session_id=session_id, turn_id=turn_id)
         try:
             self.records.parent.mkdir(parents=True, exist_ok=True)
@@ -103,7 +104,6 @@ class _Binding:
                 output.write(json.dumps(record, sort_keys=True) + '\n')
         except OSError:
             pass
-        notice = self.guard.completion_notice(session_id)
         return (response_text.rstrip() + '\n\n' + notice) if notice and response_text else None
 
 

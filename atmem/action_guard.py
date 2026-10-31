@@ -10,6 +10,7 @@ asks the agent to consult remembered constraints before an external write.
 """
 from __future__ import annotations
 
+import collections
 import datetime
 import hashlib
 import json
@@ -71,7 +72,8 @@ ACTION_ANYWHERE = re.compile(
     r'comment|approve|request changes|send|post|update|create|schedule)\b'
     r'|\btext\s+\S+(?:\s+at\s+\+?[\d\s()-]+)?\s+back\b', re.I | re.M)
 DOMAIN_WORDS = {
-    'docs': r'\b(note|notes|doc|docs|document|page|memo|runbook|archive note|write-?up|summary doc)\b',
+    'docs': (r'\b(note|notes|doc|docs|document|page|memo|runbook|write-?up|summary|brief|card|tracker|'
+             r'checklist|portfolio|entry|report|outline|journal|log|record|archive)\b'),
     'email': r'\b(e-?mail|reply to .*@|@\S+\.\w+|inbox)\b',
     'chat': r'\b(slack|discord|channel|dm)\b|(?<![\w#])#[a-z][\w-]*',
     'sms': r'\b(text|sms|imessage)\b',
@@ -79,6 +81,15 @@ DOMAIN_WORDS = {
     'code_review': r'\b(pr|pull request|github|repo)\b|[\w./-]+#\d+',
     'slides': r'\b(deck|slide|slides|presentation)\b',
     'crm': r'\b(crm)\b',
+}
+# Destinations the request names explicitly. Only these are used to decide that an
+# accepted write went to the wrong place; topic words are too noisy for that.
+EXPLICIT_DESTINATIONS = {
+    'email': r'^\W*(?:\[[^\]]*\]\s*)?(?:please\s+)?e-?mail\b|\b(?:send|reply|write)\b[^.?!]{0,40}\be-?mail\b',
+    'sms': r'^\W*(?:\[[^\]]*\]\s*)?(?:please\s+)?text\b|\b(?:sms|imessage|text message)\b',
+    'chat': r'\b(?:slack|discord)\b|^\W*(?:\[[^\]]*\]\s*)?(?:please\s+)?dm\b',
+    'calendar': r'\bto\s+(?:my|the|our)\s+calendar\b|\bcalendar (?:event|invite|hold)\b',
+    'code_review': r'\b(?:pull request|pr)\b|[\w./-]+#\d+',
 }
 EXPLICIT_LOCAL = re.compile(r'\b(apple notes|notes app|local file|save (?:it )?(?:to|as) (?:a )?file|'
                             r'on my (?:mac|desktop|disk)|in (?:the )?terminal|with gh|gh cli|memo cli|'
@@ -136,9 +147,10 @@ class Intent:
     domains: frozenset
     explicit_local: bool
     request_sha256: str
+    destinations: frozenset = frozenset()
 
     def to_json(self):
-        return {'action': self.action, 'domains': sorted(self.domains),
+        return {'action': self.action, 'domains': sorted(self.domains), 'destinations': sorted(self.destinations),
                 'explicit_local': self.explicit_local, 'request_sha256': self.request_sha256}
 
 
@@ -148,8 +160,9 @@ def classify(request):
     lowered = text.lower()
     domains = frozenset(d for d, pattern in DOMAIN_WORDS.items() if re.search(pattern, lowered))
     action = bool(ACTION_VERB.search(text) or ACTION_ANYWHERE.search(text))
+    destinations = frozenset(d for d, pattern in EXPLICIT_DESTINATIONS.items() if re.search(pattern, text, re.I))
     return Intent(action, domains, bool(EXPLICIT_LOCAL.search(text)),
-                  hashlib.sha256(text.encode()).hexdigest())
+                  hashlib.sha256(text.encode()).hexdigest(), destinations)
 
 
 def local_route(name, arguments):
@@ -230,36 +243,81 @@ class RouteMemory:
         os.replace(temporary, self.path)
 
 
+ACCEPTED, FAILED, UNCONFIRMED = 'accepted', 'failed', 'unconfirmed'
+ERROR_WORDS = re.compile(r'\b(error|errors|cannot|can\'t|failed|failure|denied|invalid|not allowed|refused)\b', re.I)
+ID_KEYS = ('id', 'message_id', 'event_id', 'doc_id', 'comment_id', 'review_id', 'order_id')
+
+
 def _decode_result(text):
-    """JSON object of a result, also when a host wrapped it in an untrusted-data envelope."""
-    for candidate in (text, text[text.find('{'):text.rfind('}') + 1] if '{' in text else ''):
+    """JSON value of a result, also when a host wrapped it in an untrusted-data envelope."""
+    candidates = [text]
+    for opening, closing in (('{', '}'), ('[', ']')):
+        if opening in text:
+            candidates.append(text[text.find(opening):text.rfind(closing) + 1])
+    for candidate in candidates:
         try:
             value = json.loads(candidate)
         except (TypeError, ValueError):
             continue
-        if isinstance(value, dict):
+        if isinstance(value, (dict, list)):
             return value
     return None
 
 
-def _result_failed(result):
+def _layers(value, depth=0):
+    """Result objects nested in result/structuredContent/MCP text content."""
+    if depth > 4:
+        return []
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            return []
+    if not isinstance(value, dict):
+        return []
+    found = [value]
+    for key in ('result', 'structuredContent'):
+        if key in value:
+            found += _layers(value[key], depth + 1)
+    content = value.get('content')
+    for item in content if isinstance(content, list) else []:
+        if isinstance(item, dict) and item.get('type') == 'text':
+            found += _layers(item.get('text'), depth + 1)
+    return found
+
+
+def result_status(result):
+    """accepted / failed / unconfirmed. Acceptance needs an affirmative marker."""
+    if result is None:
+        return UNCONFIRMED
     text = result if isinstance(result, str) else json.dumps(result, default=str)
-    value = _decode_result(text)
-    if isinstance(value, dict):
-        inner = value.get('result')
-        if isinstance(inner, str):
-            try:
-                inner = json.loads(inner)
-            except ValueError:
-                pass
-        if value.get('isError') or value.get('error') or (isinstance(value.get('exit_code'), int) and value['exit_code'] != 0):
-            return True
-        if isinstance(inner, dict) and (inner.get('ok') is False or inner.get('error')):
-            return True
-        # A decoded result without an error marker is a success; its payload
-        # (message bodies, document text) is user content, not a failure signal.
-        return False
-    return bool(FAILURE_TEXT.search(text))
+    value = result if isinstance(result, (dict, list)) else _decode_result(text)
+    layers = _layers(value) if isinstance(value, dict) else []
+    if not layers:
+        return FAILED if FAILURE_TEXT.search(text) or ERROR_WORDS.search(text) else UNCONFIRMED
+    for layer in layers:
+        if (layer.get('isError') is True or layer.get('ok') is False or layer.get('success') is False
+                or layer.get('error') or (isinstance(layer.get('exit_code'), int) and layer['exit_code'] != 0)):
+            return FAILED
+    for layer in layers:
+        if layer.get('ok') is True or layer.get('success') is True or layer.get('exit_code') == 0:
+            return ACCEPTED
+        if any(isinstance(layer.get(k), (str, int)) and layer.get(k) not in ('', None) for k in ID_KEYS):
+            return ACCEPTED
+    return UNCONFIRMED
+
+
+def _per_call_status(result, count):
+    """Statuses for each call of a wrapper; only an itemised result can confirm several."""
+    overall = result_status(result)
+    if count == 1:
+        return [overall]
+    text = result if isinstance(result, str) else json.dumps(result, default=str)
+    value = result if isinstance(result, (dict, list)) else _decode_result(text)
+    items = value.get('results') if isinstance(value, dict) else value
+    if isinstance(items, list) and len(items) == count:
+        return [result_status(item) for item in items]
+    return [FAILED if overall == FAILED else UNCONFIRMED] * count
 
 
 @dataclass
@@ -270,24 +328,35 @@ class TurnState:
     attempts: list = field(default_factory=list)
     accepted: list = field(default_factory=list)
     failed: list = field(default_factory=list)
+    unconfirmed: list = field(default_factory=list)
+    local_accepted: list = field(default_factory=list)
     memory_queries: list = field(default_factory=list)
     checkpointed: set = field(default_factory=set)
 
 
 class ActionGuard:
-    """Per-session policy state. Hosts call the four event methods."""
+    """Per-session policy state. Hosts call the event methods, then ``finish``."""
 
-    def __init__(self, *, route_memory=None, checkpoint=True, max_blocks=6):
+    def __init__(self, *, route_memory=None, checkpoint=True, max_blocks=6, max_sessions=256):
         self.route_memory = route_memory or RouteMemory()
         self.checkpoint = checkpoint
         self.max_blocks = max_blocks
-        self.turns = {}
+        self.max_sessions = max_sessions
+        self.turns = collections.OrderedDict()
 
     # -- events -----------------------------------------------------------------
     def begin_turn(self, session_id, request, visible_tools=()):
         state = TurnState(classify(request), set(visible_tools))
+        self.turns.pop(session_id, None)
         self.turns[session_id] = state
+        self._evict()
         return state
+
+    def finish(self, session_id):
+        """Release a finalized turn; returns its record."""
+        record = self.record(session_id)
+        self.turns.pop(session_id, None)
+        return record
 
     def observe_visible(self, session_id, names):
         self._state(session_id).visible.update(names)
@@ -302,7 +371,7 @@ class ActionGuard:
                 return decision
         for effective, effective_arguments in unwrap(name, arguments):
             if is_memory_tool(effective):
-                state.memory_queries.append(str(effective_arguments.get('query', '')))
+                state.memory_queries.append(str(effective_arguments.get('query', ''))[:200])
             elif is_write(effective):
                 state.attempts.append(effective)
         decision = Decision('allow', 'no policy applies')
@@ -311,22 +380,45 @@ class ActionGuard:
 
     def after_call(self, session_id, name, arguments, result):
         state = self._state(session_id)
-        failed = _result_failed(result)
-        for effective, effective_arguments in unwrap(name, arguments):
+        calls = unwrap(name, arguments)
+        for (effective, effective_arguments), status in zip(calls, _per_call_status(result, len(calls))):
             route = local_route(effective, effective_arguments)
-            if route and failed and FAILURE_TEXT.search(str(result)):
+            if route and status == FAILED and FAILURE_TEXT.search(str(result)):
                 self.route_memory.record_failure(route[0], result, session_id=session_id)
+            if route and status == ACCEPTED:
+                state.local_accepted.append(route[0])
             if is_write(effective):
-                (state.failed if failed else state.accepted).append(effective)
+                {ACCEPTED: state.accepted, FAILED: state.failed, UNCONFIRMED: state.unconfirmed}[status].append(effective)
 
     def verdict(self, session_id):
         state = self._state(session_id)
-        if not state.intent.action:
+        intent = state.intent
+        if not intent.action:
             return {'status': 'no_action_requested', 'accepted': state.accepted}
+        if intent.explicit_local:
+            # Local operations are the user's chosen route; only report what is known.
+            done = state.local_accepted or state.accepted
+            return {'status': 'completed_local' if done else 'unverified_local', 'accepted': done}
+
+        def requested(name):
+            domains = tool_domains(name)
+            return not intent.destinations or not domains or bool(domains & intent.destinations)
+
+        matched = [n for n in state.accepted if requested(n)]
+        if matched:
+            missing = sorted(set(state.failed + state.unconfirmed) - set(state.accepted))
+            if missing:
+                return {'status': 'partial', 'accepted': matched, 'missing': missing,
+                        'reason': 'not confirmed: ' + ', '.join(missing)}
+            return {'status': 'completed', 'accepted': matched}
         if state.accepted:
-            return {'status': 'completed', 'accepted': state.accepted}
-        if state.attempts:
-            return {'status': 'not_completed', 'reason': 'connected application rejected or did not confirm the write',
+            return {'status': 'not_completed', 'accepted': state.accepted,
+                    'reason': 'accepted writes did not match the requested destination'}
+        if state.unconfirmed:
+            return {'status': 'not_completed', 'reason': 'connected application did not confirm the write',
+                    'unconfirmed': state.unconfirmed}
+        if state.failed:
+            return {'status': 'not_completed', 'reason': 'connected application rejected the write',
                     'failed': state.failed}
         return {'status': 'not_completed', 'reason': 'no connected application write was attempted'}
 
@@ -335,7 +427,8 @@ class ActionGuard:
         return {'format': FORMAT, 'intent': state.intent.to_json(), 'verdict': self.verdict(session_id),
                 'decisions': [d.to_json() for d in state.decisions if d.action == 'block'],
                 'attempted_writes': state.attempts, 'accepted_writes': state.accepted,
-                'failed_writes': state.failed, 'memory_query_count': len(state.memory_queries)}
+                'failed_writes': state.failed, 'unconfirmed_writes': state.unconfirmed,
+                'local_accepted': state.local_accepted, 'memory_query_count': len(state.memory_queries)}
 
     # -- text the host shows the model -------------------------------------------
     def turn_context(self, session_id):
@@ -358,16 +451,17 @@ class ActionGuard:
 
     def completion_notice(self, session_id):
         verdict = self.verdict(session_id)
-        if verdict['status'] != 'not_completed':
-            return ''
-        return ('[AtMem completion check: NOT COMPLETED — ' + verdict['reason'] +
-                '. Nothing above should be read as a confirmed application action.]')
+        if verdict['status'] == 'not_completed':
+            return ('[AtMem completion check: NOT COMPLETED — ' + verdict['reason'] +
+                    '. Nothing above should be read as a confirmed application action.]')
+        if verdict['status'] == 'partial':
+            return ('[AtMem completion check: PARTIALLY COMPLETED — ' + verdict['reason'] +
+                    '. Only the confirmed operations above took effect.]')
+        return ''
 
     def routed_tools(self, state):
-        connected = sorted(n for n in state.visible if is_connected(n))
-        domains = state.intent.domains
-        matched = [n for n in connected if tool_domains(n) & domains and is_write(n)]
-        return tuple(matched or ([n for n in connected if is_write(n)] if state.intent.action and domains else []))
+        return tuple(sorted(n for n in state.visible
+                            if is_write(n) and tool_domains(n) & state.intent.domains))
 
     # -- policy -------------------------------------------------------------------
     def _decide(self, state, name, arguments):
@@ -376,10 +470,15 @@ class ActionGuard:
         route = local_route(name, arguments)
         if route and not state.intent.explicit_local:
             signature, domain = route
-            connected = [n for n in state.visible if is_connected(n)]
-            candidates = sorted(n for n in connected if is_write(n) and (domain == '*' or domain in tool_domains(n)))
-            if signature.startswith('file:') and not (state.intent.action and 'docs' in state.intent.domains):
-                candidates = []
+            requested = state.intent.domains
+            targets = set(requested) if domain == '*' else {domain} & requested
+            candidates = []
+            if state.intent.action and targets:
+                # Redirect only when a connected application can perform the requested
+                # operation for that destination; reads and unrelated skills stay allowed.
+                domain_tools = [n for n in state.visible if is_connected(n) and tool_domains(n) & targets]
+                if any(is_write(n) for n in domain_tools):
+                    candidates = sorted(domain_tools, key=lambda n: (not is_write(n), n))
             if candidates:
                 return Decision('block', 'connected application covers this destination', signature, tuple(candidates),
                     f'Not run: {signature} is a local detour. This profile has a configured connected '
@@ -407,7 +506,12 @@ class ActionGuard:
     def _state(self, session_id):
         if session_id not in self.turns:
             self.turns[session_id] = TurnState(classify(''))
+            self._evict()
         return self.turns[session_id]
+
+    def _evict(self):
+        while len(self.turns) > self.max_sessions:
+            self.turns.popitem(last=False)
 
 
 def recall_query(name, arguments):
