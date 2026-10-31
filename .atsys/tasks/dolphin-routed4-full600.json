@@ -1,0 +1,128 @@
+{
+  "name": "DolphinBench routed-v4 FULL 600 (verified standing facts)",
+  "objective": "Run all 600 DolphinBench tasks once under the validated dolphin-routed-v4 condition (verified standing facts, routing guard, commit checkpoint), grade with the original checks, and deliver an independently validated full result and human-readable report. Self-tested; never replay; never patch fixtures.",
+  "cwd": "/Users/javadtaghia/gitlab/atmem-action-routing-i3",
+  "worker": "command",
+  "argv": [
+    "/opt/homebrew/bin/python3",
+    "/Users/javadtaghia/gitlab/atmem-action-routing-i3/specs/048-dolphin-execution-readiness/atsys/run_full_routed.py",
+    "--condition",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/condition-routed4-fixed20-20261031-i3.json",
+    "--receipts",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/routed4-fixed20-20261031-i3/receipts",
+    "--output",
+    "/Volumes/MEM/atmem-dolphinbench-20261020/routed4-full600-20261031",
+    "--env-file",
+    "/Users/javadtaghia/gitlab/aetnamem/.env.atmem-c709e",
+    "--summary",
+    "/Users/javadtaghia/gitlab/atmem-action-routing-i3/specs/048-dolphin-execution-readiness/atsys/routed4-full600-summary.json"
+  ],
+  "resumeArgv": [
+    "/opt/homebrew/bin/python3",
+    "/Users/javadtaghia/gitlab/atmem-action-routing-i3/specs/048-dolphin-execution-readiness/atsys/run_full_routed.py",
+    "--condition",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/condition-routed4-fixed20-20261031-i3.json",
+    "--receipts",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/routed4-fixed20-20261031-i3/receipts",
+    "--output",
+    "/Volumes/MEM/atmem-dolphinbench-20261020/routed4-full600-20261031",
+    "--env-file",
+    "/Users/javadtaghia/gitlab/aetnamem/.env.atmem-c709e",
+    "--summary",
+    "/Users/javadtaghia/gitlab/atmem-action-routing-i3/specs/048-dolphin-execution-readiness/atsys/routed4-full600-summary.json",
+    "--reconcile-only"
+  ],
+  "model": "",
+  "reasoningEffort": "medium",
+  "validator": "command",
+  "validationArgv": [
+    "/opt/homebrew/bin/python3",
+    "/Users/javadtaghia/gitlab/atmem-action-routing-i3/specs/048-dolphin-execution-readiness/atsys/validate_full_routed.py",
+    "--condition",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/condition-routed4-fixed20-20261031-i3.json",
+    "--receipts",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/routed4-fixed20-20261031-i3/receipts",
+    "--output",
+    "/Volumes/MEM/atmem-dolphinbench-20261020/routed4-full600-20261031",
+    "--summary",
+    "/Users/javadtaghia/gitlab/atmem-action-routing-i3/specs/048-dolphin-execution-readiness/atsys/routed4-full600-summary.json"
+  ],
+  "validationTimeoutSeconds": 600,
+  "requiredArtifacts": [
+    "specs/048-dolphin-execution-readiness/atsys/routed4-full600-summary.json",
+    "specs/048-dolphin-execution-readiness/atsys/routed4-full600-report.md"
+  ],
+  "activityTimeoutSeconds": 0,
+  "plan": "Owner authorization 2026-10-31 (Javad): run the full 600 under the validated dolphin-routed-v4 condition after the fixed20 pilot passed independent validation at 17/20 with 0 regressions. Exact-command worker; one durable launch intent; the launcher path --stage full --confirm-full-run with the frozen condition, receipts (re-admitted at every task boundary, 24h window) and $20 cap. Reader Luna/high via subscription, judge Sol/medium OpenRouter Azure-only, local memory/Ollama, state assessors disabled, all unchanged. Recovery is inspect-only (resumeArgv --reconcile-only); never relaunch scored work, reset app state, delete evidence or invent charges. A $0 subscription transport failure may be reconciled only with the owner-authorized scripts/reconcile_subscription_failures.py, preserving the original accounting. The result is self-tested and not an official submission; the published 390/600 is unchanged until reviewed. The independent validator decides acceptance.",
+  "artifact": "",
+  "progressFile": "specs/048-dolphin-execution-readiness/atsys/routed4-full600-progress.json",
+  "timeoutSeconds": 86400,
+  "taskTimeoutSeconds": 86400,
+  "heartbeatTimeoutSeconds": 120,
+  "progressTimeoutSeconds": 0,
+  "recovery": "supervised",
+  "maxRetries": 2,
+  "backoffSeconds": 10,
+  "supervisorModel": "gpt-6.1-sol",
+  "supervisorEffort": "high",
+  "supervisorTimeoutSeconds": 300,
+  "maxSupervisorCalls": 2,
+  "allowRepair": false,
+  "repairTimeoutSeconds": 600,
+  "networkAccess": true,
+  "goalMonitoring": false,
+  "hooks": [],
+  "outcomeFile": "specs/048-dolphin-execution-readiness/atsys/routed4-fixed20-i3-outcome.json",
+  "outcomeRequired": true,
+  "goalContract": {
+    "version": 1,
+    "successCriteria": [
+      "Exactly20 frozen IDs executed and graded with original full checks, preserved app state/logs and reconciled spend <=USD10.",
+      "Independent validation matches handoff and reports recoveries and any control regressions.",
+      "Human-readable final report and machine outcome record; no full600 dispatch."
+    ],
+    "deliverables": [
+      "Immutable MEM run evidence, pilot-report.json and receipts",
+      "Workspace routed-fixed20 handoff, progress, outcome and Markdown report"
+    ],
+    "constraints": [
+      "Luna/high subscription through Hermes; Sol/medium Azure-only judging; unchanged frozen memory/retrieval/Ollama/max_turns/grading.",
+      "dolphin-routed-v1 ordinary inventory with staged guard checkpoint=false; retain sandbox and real-account isolation.",
+      "One durable scored launch only; inspect-only retries; no repair/full600."
+    ],
+    "assumptions": [
+      "Fixed20 is post hoc diagnostic; fixture limitations remain failures in denominator."
+    ],
+    "unresolvedDecisions": [],
+    "stages": [
+      "Execute exactly20 frozen tasks once",
+      "Grade20 outcomes and reconcile costs",
+      "Independently validate evidence and publish terminal report"
+    ],
+    "planSource": "/Users/javadtaghia/gitlab/atmem-action-routing-i3/specs/048-dolphin-execution-readiness/runbook.md",
+    "observers": [
+      {
+        "signal": "heartbeat",
+        "cadenceSeconds": 120,
+        "rationale": "AtSys runner liveness within existing heartbeat bound."
+      },
+      {
+        "signal": "progress",
+        "cadenceSeconds": 30,
+        "rationale": "Count saved executions and original grades out of40 work units; quiet native calls may take hours, so no progress deadline."
+      },
+      {
+        "signal": "validator",
+        "cadenceSeconds": 600,
+        "rationale": "Independent retained-evidence acceptance after exit, bounded to600s."
+      }
+    ],
+    "recoveryScope": "At most2 inspect-only retries and2 read-only Sol/high supervisor calls; no source repair or scored replay.",
+    "escalationConditions": [
+      "Qualification/admission/source drift or missing local services",
+      "Uncertain action/charge, missing app evidence, disconnected volume or failed control",
+      "Budget exhausted, missing report or failed validation"
+    ],
+    "budget": "USD10 incremental API ceiling; subscription and supervision separate and unknown in benchmark ledger."
+  }
+}
