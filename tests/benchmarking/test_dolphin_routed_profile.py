@@ -19,6 +19,7 @@ def test_routed_profile_keeps_ordinary_inventory_and_enables_the_staged_guard(tm
     assert config['plugins']['enabled'] == ['atmem-action-guard']
     assert config['execution_profile'] == ROUTED_PROFILE and 'plugins' not in BASE
     assert (tmp_path / 'plugins/atmem-action-guard/action_guard.py').is_file()
+    assert json.loads((tmp_path / 'plugins/atmem-action-guard/settings.json').read_text())['checkpoint'] is False
     with pytest.raises(FileExistsError):
         apply_profile(ROUTED_PROFILE, BASE, home=tmp_path)
 
@@ -43,6 +44,37 @@ def test_routed_request_validation_allows_local_tools_but_needs_an_app_surface()
         validate(PROFILE, request('terminal', 'mcp__dolphinbench_apps__create_doc'))
 
 
-def test_launch_admission_stays_bound_to_the_qualified_profile():
-    # The routed condition needs its own qualification receipts before any scored dispatch.
-    assert gate.PROFILE == PROFILE != ROUTED_PROFILE
+def test_profile_checks_are_separate():
+    assert gate.checks_for({'profile': PROFILE}, 'profile') == gate.CHECKS['profile']
+    assert gate.checks_for({'profile': ROUTED_PROFILE}, 'profile') == gate.ROUTED_CHECKS
+    assert gate.CHECKS['profile'] == {'mcp_only', 'eager_tools', 'skills_disabled'}
+
+
+@pytest.mark.parametrize('mutation', [None, 'plugin', 'checkpoint', 'detour', 'state', 'log', 'runtime'])
+def test_routed_raw_evidence_is_recomputed(tmp_path, mutation):
+    from pathlib import Path
+    from benchmarks.dolphinbench.qualify_routed import verify_evidence
+    root = Path(__file__).parents[2]
+    (tmp_path / 'staged-__init__.py').write_bytes((root / 'atmem/adapters/hermes/action_guard_plugin.py').read_bytes())
+    (tmp_path / 'staged-action_guard.py').write_bytes((root / 'atmem/action_guard.py').read_bytes())
+    def put(name, value): (tmp_path / name).write_text(json.dumps(value))
+    put('staged-settings.json', {'checkpoint': False, 'route_context': True})
+    put('profile.json', {'plugins': {'enabled': ['atmem-action-guard']}})
+    put('model-request.json', request('terminal', 'skill_view', 'tool_search', 'tool_call'))
+    outcome = {'verdict': {'status': 'completed'}, 'decisions': [{'action': 'block'}], 'memory_query_count': 0}
+    (tmp_path / 'guard-outcomes.jsonl').write_text(json.dumps(outcome) + '\n')
+    (tmp_path / 'calls.jsonl').write_text(json.dumps({'tool': 'create_doc', 'result': {'ok': True}}) + '\n')
+    put('state.json', {'docs': [{'body': 'Synthetic durable routing text'}]})
+    for i in range(3): put(f'request-{i:02}.json', {'messages': [{'role': 'tool', 'content': 'Not run: memo; use create_doc'}]})
+    put('process.json', {'returncode': 0})
+    if mutation == 'plugin': (tmp_path / 'staged-action_guard.py').write_text('changed')
+    if mutation == 'checkpoint': put('staged-settings.json', {'checkpoint': True, 'route_context': True})
+    if mutation == 'detour':
+        outcome['decisions'] = []; (tmp_path / 'guard-outcomes.jsonl').write_text(json.dumps(outcome) + '\n')
+    if mutation == 'state': put('state.json', {'docs': []})
+    if mutation == 'log': (tmp_path / 'calls.jsonl').write_text('')
+    if mutation == 'runtime': put('process.json', {'returncode': 1})
+    if mutation:
+        with pytest.raises(ValueError): verify_evidence(tmp_path)
+    else:
+        assert set(verify_evidence(tmp_path)) == gate.ROUTED_CHECKS

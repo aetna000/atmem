@@ -35,14 +35,13 @@ provides_hooks:
 
 def stage(home, *, settings=None):
     """Write the plugin into a Hermes home; returns its directory. Never overwrites."""
-    from atmem import action_guard
     target = Path(home) / 'plugins' / PLUGIN
     if target.exists():
         raise FileExistsError('AtMem action guard plugin is already staged: ' + str(target))
     target.mkdir(parents=True)
     (target / 'plugin.yaml').write_text(MANIFEST)
     shutil.copyfile(__file__, target / '__init__.py')
-    shutil.copyfile(action_guard.__file__, target / 'action_guard.py')
+    shutil.copyfile(Path(__file__).parents[2] / 'action_guard.py', target / 'action_guard.py')
     (target / 'settings.json').write_text(json.dumps({'checkpoint': True, 'route_context': True,
                                                      **(settings or {})}, sort_keys=True))
     return target

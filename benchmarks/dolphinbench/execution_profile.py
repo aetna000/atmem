@@ -70,19 +70,25 @@ def validate_request(body):
 
 # Routed profile: the ordinary inventory (terminal, skills, deferred tool search)
 # stays visible and the AtMem action guard plugin refuses detours instead. It is
-# a separate experimental condition; launch admission remains bound to PROFILE
-# until this profile has its own qualification receipts.
+# a separate experimental condition with its own qualification receipts.
 ROUTED_PROFILE = 'dolphin-routed-v1'
 PROFILES = (PROFILE, ROUTED_PROFILE)
 
 
 def routed_profile(config, *, home):
     """Return a fresh config that stages and enables the action guard in ``home``."""
-    from atmem.adapters.hermes.action_guard_plugin import PLUGIN, stage
+    # The frozen installed memory product predates this execution-only plugin.
+    # Load its pinned staging code without replacing the installed AtMem package.
+    import importlib.util
+    path = Path(__file__).parents[2] / 'atmem/adapters/hermes/action_guard_plugin.py'
+    spec = importlib.util.spec_from_file_location('dolphin_guard_stage', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    PLUGIN, stage = module.PLUGIN, module.stage
     if 'dolphinbench-apps' not in config['toolsets']:
         raise ValueError('Execution profile requires simulated application tools')
     value = deepcopy(config)
-    stage(home)
+    stage(home, settings={'checkpoint': False})
     plugins = value.setdefault('plugins', {})
     plugins['enabled'] = sorted(set(plugins.get('enabled', [])) | {PLUGIN})
     value['execution_profile'] = ROUTED_PROFILE

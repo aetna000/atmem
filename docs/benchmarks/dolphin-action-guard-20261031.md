@@ -148,3 +148,22 @@ destination and item identity. Replay unchanged.
 4. Investigate fragmentary `memory_search` results (morgan/023) as a retrieval
    issue under a frozen execution profile.
 5. Obtain the owner's explicit decision before any full 600 run.
+
+## Owner-authorized routed fixed20 preparation — 2026-10-31
+
+The launch gate now selects profile-specific checks. MCP-only retains its
+original eager-tools/disabled-skills checks. Routed admission requires a fresh
+native scripted endpoint capture (zero model calls), ordinary terminal/skills/
+deferred inventory, the actual staged plugin payload with `checkpoint:false`,
+a refused `memo notes` detour and one synthetic connected document write with
+persisted state and independent log. Existing app/crash/recovery checks remain
+mandatory. The installed 2.3.10b1 memory product is unchanged; staging loads only
+the repository-pinned execution plugin without replacing that installed package.
+
+New task configuration: `.atsys/tasks/dolphin-routed-fixed20.json`. It uses a
+separate private `routed-fixed20-20261031-v1` condition and MEM output directory,
+a USD10 incremental API ceiling, one durable launch intent and inspect-only
+retries. The wrapper counts saved executions and grades and writes a Markdown
+terminal report plus a machine outcome, including partial/failure outcomes.
+Independent validation still rejects missing evidence or control regressions.
+Preparation is not submission or a new score. Full600 remains unauthorized.

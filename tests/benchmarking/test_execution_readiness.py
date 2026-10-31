@@ -366,3 +366,65 @@ def test_private_app_socket_is_short_and_binds():
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
             server.bind(str(path))
     assert not path.parent.exists()
+
+
+@pytest.fixture
+def routed_condition(condition):
+    from benchmarks.dolphinbench.execution_profile import ROUTED_PROFILE
+    path, receipts = condition
+    cfg = gate.read(path)
+    cfg['profile'] = ROUTED_PROFILE
+    (path.parent / 'options').write_text(json.dumps({'execution_profile': ROUTED_PROFILE}))
+    cfg['inputs']['options'] = gate.pin(path.parent / 'options')
+    root = Path(__file__).parents[2]
+    source_path = Path(cfg['inputs']['source_manifest']['path'])
+    source = gate.read(source_path) + [gate.pin(root / p) for p in gate.ROUTED_SOURCES]
+    source_path.write_text(json.dumps(source))
+    cfg['inputs']['source_manifest'] = gate.pin(source_path)
+    path.write_text(json.dumps(cfg))
+    return path, receipts
+
+
+def test_routed_requires_own_receipt_checks(routed_condition):
+    path, receipts = routed_condition
+    raw = path.parent / 'raw.json'; gate.save(raw, {})
+    with pytest.raises(ValueError, match='Incomplete qualification'):
+        gate.receipt(path, 'profile', {k: True for k in gate.CHECKS['profile']}, [raw], receipts / 'profile.json')
+    for kind in ('profile', 'apps', 'recovery'):
+        gate.receipt(path, kind, {k: True for k in gate.checks_for(gate.read(path), kind)}, [raw], receipts / (kind + '.json'))
+    assert gate.admit(path, receipts, 'pilot')['profile'] == 'dolphin-routed-v1'
+
+
+@pytest.mark.parametrize('mutation', ['expired', 'checkpoint', 'identity', 'source', 'raw'])
+def test_routed_drift_or_stale_receipt_blocks(routed_condition, mutation):
+    path, receipts = routed_condition
+    raw = path.parent / 'raw.json'; gate.save(raw, {})
+    for kind in ('profile', 'apps', 'recovery'):
+        gate.receipt(path, kind, {k: True for k in gate.checks_for(gate.read(path), kind)}, [raw], receipts / (kind + '.json'))
+    p = receipts / 'profile.json'; item = gate.read(p)
+    if mutation == 'expired': item['created_at'] = time.time() - gate.MAX_AGE - 1
+    if mutation == 'checkpoint': item['checks']['checkpoint_disabled'] = False
+    if mutation == 'identity': item['condition_sha256'] = '0' * 64
+    if mutation == 'source':
+        cfg = gate.read(path); cfg['profile'] = 'unqualified'; path.write_text(json.dumps(cfg))
+    if mutation == 'raw': raw.write_text('changed')
+    p.write_text(json.dumps(item))
+    with pytest.raises(ValueError): gate.admit(path, receipts, 'pilot')
+
+
+def test_routed_issuer_rejects_mcp_only_native_evidence(routed_condition, tmp_path):
+    path, receipts = routed_condition
+    cfg = gate.read(path)
+    common = {'model_calls': 0, 'upstream_manifest': cfg['inputs']['upstream_manifest'],
+              'app_python': gate.pin(Path(cfg['bindings']['app_python']).resolve()),
+              'source': gate.qualification_sources()}
+    # Use the actual executing source inventory, as the issuer requires.
+    src = Path(cfg['inputs']['source_manifest']['path'])
+    src.write_text(json.dumps(gate.read(src) + [p for p in common['source'] if p not in gate.read(src)]))
+    cfg['inputs']['source_manifest'] = gate.pin(src); path.write_text(json.dumps(cfg))
+    gate.save(tmp_path / 'profile/qualification.json', {**common, 'options': cfg['inputs']['options'],
+              'same_adapter_profile_builder': True, 'provider_forwarding_exists': False,
+              **{k: True for k in gate.CHECKS['profile']}})
+    gate.save(tmp_path / 'apps/qualification.json', common)
+    with pytest.raises(ValueError, match='frozen-profile'):
+        gate.issue_qualifications(path, tmp_path / 'profile', tmp_path / 'apps', receipts)

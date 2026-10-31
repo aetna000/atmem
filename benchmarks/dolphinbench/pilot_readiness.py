@@ -11,7 +11,7 @@ import sys
 import time
 import zipfile
 
-from .execution_profile import PROFILE, validate_request
+from .execution_profile import validate
 from .readiness import PILOT_COUNT, CHECKS, admit, identity, load_condition, pin, read, receipt, save, sha
 from .safe_runner import protected_runner_class
 
@@ -87,7 +87,7 @@ def report(condition_path, directory, *, receipt_output=None, stage='pilot'):
     if not requests:
         raise ValueError('Actual model-visible pilot request evidence is absent')
     for path in requests:
-        validate_request(read(path))
+        validate(condition['profile'], read(path))
     artifacts.extend(requests)
     artifacts.extend(verify_forwarded_routes(condition, directory))
     accounting = read(directory / 'pilot-accounting.json')
@@ -208,7 +208,7 @@ def _run_pilot(condition_path, receipts, options_path, output, env_file, *, stag
     from .readiness import require_options
     options.update({'readiness_condition': str(Path(condition_path).resolve()),
                     'readiness_receipts': str(Path(receipts).resolve()), 'readiness_stage': stage,
-                    'execution_profile': PROFILE, 'env_file': str(env_file)})
+                    'execution_profile': condition['profile'], 'env_file': str(env_file)})
     cap = condition['budget']['caps_usd'][stage]
     options['campaign_identity']['cap_usd'] = cap
     if resume_epoch:

@@ -176,3 +176,39 @@ to its durable store rather than updating the source JSON; the source is pinned.
 Task acceptance still requires complete 20 evidence, cost reconciliation and no
 regressed controls. Prepared facts are recorded in `atsys/preparation20.json`;
 submission/runtime facts must be recorded separately. No new score is claimed.
+
+## Routed fixed20 admission and qualification — 2026-10-31
+
+Owner scope: a new post hoc fixed20 diagnostic through AtSys, with ordinary
+Hermes inventory plus the staged guard, checkpoint disabled. Full600 remains
+unauthorized. Historical390/600 and fixed20 13/20 are unchanged.
+
+- Profile-specific launch checks implemented without changing the MCP-only check
+  set; dispatch and final request validation select the frozen condition profile.
+- Final focused suites:141 passed,1 skipped (guard, profiles, admission, campaign
+  gate, gateway, resume and dispatch). Additional routed raw-evidence tests cover
+  changed plugin/checkpoint, absent detour/state/log and failed native runtime.
+- Broader Dolphin suites:311 passed,3 skipped initially; the one source-pinning
+  failure from editing runbook during that test passed after source was stable.
+  Two Intel/Rosetta sandbox failures passed under the existing ARM QA interpreter
+  (all3 sandbox tests passed). No sandbox policy was relaxed.
+- AtSys `doctor` passed for `.atsys/tasks/dolphin-routed-fixed20.json`; launchd
+  watchdog is installed and loaded with a live daemon heartbeat.
+- Actual native Hermes qualification passed, using `NativeRuntime.invoke` and
+  the frozen installed-product bootstrap. Actual tool array retains terminal,
+  skill_view and deferred discovery. Plugin refused `command:memo`, redirected to
+  `mcp__dolphinbench_apps__create_doc`, recorded one accepted write and zero memory
+  queries. Persisted synthetic document and independent app log agree.
+- Separate real upstream app/crash qualification passed:3 synthetic writes and
+  crash exit73 with1 preserved write; uncertain replay/reset refused. Both
+  qualification reports record zero model calls; no provider forwarding exists.
+- Fresh profile/apps/recovery receipts issued and pilot admission plus effective
+  options/local Ollama digest verification passed. No old receipt was reused.
+
+Private base: `~/.local/share/atmem-dolphin-readiness-20261026/`.
+Condition: `condition-routed-fixed20-20261031-v1.json`.
+Identity: `f549474efd75e6b7ad0f2ab8bfa6ec8a60d87012eaaf590f70cfc322ba99a78e`.
+Raw evidence and receipts: `routed-fixed20-20261031-v1/{profile,apps,receipts}`.
+New output: `/Volumes/MEM/atmem-dolphinbench-20261020/routed-fixed20-20261031-v1`.
+New task config pins that condition/output and the separate routed report/handoff.
+Submission is a separate operation; this entry establishes qualification only.
