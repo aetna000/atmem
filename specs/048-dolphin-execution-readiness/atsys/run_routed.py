@@ -9,6 +9,7 @@ import run_pilot
 
 ROOT = run_pilot.ROOT
 ARTIFACTS = ROOT / 'specs/048-dolphin-execution-readiness/atsys'
+ARTIFACT_PREFIX = 'routed-fixed20'
 
 
 def atomic(path, value):
@@ -20,7 +21,7 @@ def atomic(path, value):
 def observe(output):
     executions = len([p for p in (output / 'tests').glob('*/*.json') if not p.name.startswith('._')])
     grades = len([p for p in (output / 'grades').glob('*/*.json') if not p.name.startswith('._')])
-    atomic(ARTIFACTS / 'routed-fixed20-progress.json', {
+    atomic(ARTIFACTS / f'{ARTIFACT_PREFIX}-progress.json', {
         'completed': executions + grades, 'total': 40,
         'checkpoint': f'{executions}/20 executions, {grades}/20 grades'})
 
@@ -36,7 +37,7 @@ def write_outcome(output, error=None):
                    'Subscription and supervision costs separate from benchmark API ledger.']
     if error:
         limitations.append(str(error)[:2000])
-    atomic(ARTIFACTS / 'routed-fixed20-outcome.json', {
+    atomic(ARTIFACTS / f'{ARTIFACT_PREFIX}-outcome.json', {
         'version': 1, 'summary': summary,
         'results': [{'name': 'fixed20 routed diagnostic', 'status': status,
                      'detail': summary, 'evidence': [str(output / 'pilot-report.json')]}],
@@ -48,13 +49,20 @@ def write_outcome(output, error=None):
         for row in report['rows']:
             text += '| ' + ' | '.join(str(row[k]) for k in ('id', 'original_cohort', 'passed', 'recovered', 'regressed')) + ' |\n'
     text += '\n' + '\n'.join('- ' + item for item in limitations) + '\n'
-    (ARTIFACTS / 'routed-fixed20-report.md').write_text(text)
+    (ARTIFACTS / f'{ARTIFACT_PREFIX}-report.md').write_text(text)
 
 
 def main():
+    global ARTIFACTS
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--handoff', type=Path, required=True)
     args, _ = parser.parse_known_args()
+    ARTIFACTS = args.handoff.parent
+    prefix = args.handoff.stem.removesuffix('-handoff')
+    # Keep each attempt's progress and terminal evidence beside its own handoff.
+    global ARTIFACT_PREFIX
+    ARTIFACT_PREFIX = prefix
     stop = threading.Event()
     def monitor():
         while not stop.is_set():

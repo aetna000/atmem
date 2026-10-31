@@ -230,3 +230,31 @@ remain), and `qualify_routed` now requires every actual native request to carry
 the original user message byte for byte (`user_boundary_unchanged`). A fresh run
 identity (v2) with fresh simulated app state and fresh receipts is required; v1
 receipts are not reused and v1 is reported as a failed attempt, not merged.
+
+
+## Routed fixed20 v2 fresh qualification and submission preparation — 2026-10-31
+
+Owner-authorized fix-and-rerun of the failed v1 attempt, exactly the same20 IDs,
+frozen reader/judge/memory/grading and USD10 API cap. No v1 state, receipts or
+results are reused or replayed. The v2 MEM output must remain absent until the
+one-launch worker creates fresh simulated app state.
+
+Fresh native routed qualification passed with zero model calls, including
+`user_boundary_unchanged` across all3 actual native requests, refused detour,
+staged plugin settings checkpoint=false/route_context=false/completion_notice=false,
+and matching synthetic write/state/log. Separate real app/crash qualification
+passed with zero model calls. Fresh identity-bound receipts and pilot admission
+passed; effective frozen options and local Ollama digest verified.
+
+Private condition: `condition-routed-fixed20-20261031-v2.json` under the existing
+private readiness base. Identity:
+`82a71383628d81a6dedc5e78915f06776d06ffd6596e5f65e69ed3fa60094154`.
+Raw evidence and receipts: `routed-fixed20-20261031-v2/{profile,apps,receipts}`.
+New output: `/Volumes/MEM/atmem-dolphinbench-20261020/routed-fixed20-20261031-v2`.
+New config: `.atsys/tasks/dolphin-routed-fixed20-v2.json`. The wrapper derives
+progress/outcome/report names from its handoff, preserving v1 workspace artifacts;
+the new config is included in the frozen source manifest.68 focused tests passed
+and a local wrapper check verified versioned artifacts without workload dispatch.
+AtSys doctor and exactly one submission follow the commit/push; their persisted
+results belong in the private v2 evidence directory and AtSys durable store.
+This entry records qualification, not completed execution or new benchmark scores.
