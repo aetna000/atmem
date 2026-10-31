@@ -176,3 +176,108 @@ to its durable store rather than updating the source JSON; the source is pinned.
 Task acceptance still requires complete 20 evidence, cost reconciliation and no
 regressed controls. Prepared facts are recorded in `atsys/preparation20.json`;
 submission/runtime facts must be recorded separately. No new score is claimed.
+
+## Routed fixed20 admission and qualification — 2026-10-31
+
+Owner scope: a new post hoc fixed20 diagnostic through AtSys, with ordinary
+Hermes inventory plus the staged guard, checkpoint disabled. Full600 remains
+unauthorized. Historical390/600 and fixed20 13/20 are unchanged.
+
+- Profile-specific launch checks implemented without changing the MCP-only check
+  set; dispatch and final request validation select the frozen condition profile.
+- Final focused suites:141 passed,1 skipped (guard, profiles, admission, campaign
+  gate, gateway, resume and dispatch). Additional routed raw-evidence tests cover
+  changed plugin/checkpoint, absent detour/state/log and failed native runtime.
+- Broader Dolphin suites:311 passed,3 skipped initially; the one source-pinning
+  failure from editing runbook during that test passed after source was stable.
+  Two Intel/Rosetta sandbox failures passed under the existing ARM QA interpreter
+  (all3 sandbox tests passed). No sandbox policy was relaxed.
+- AtSys `doctor` passed for `.atsys/tasks/dolphin-routed-fixed20.json`; launchd
+  watchdog is installed and loaded with a live daemon heartbeat.
+- Actual native Hermes qualification passed, using `NativeRuntime.invoke` and
+  the frozen installed-product bootstrap. Actual tool array retains terminal,
+  skill_view and deferred discovery. Plugin refused `command:memo`, redirected to
+  `mcp__dolphinbench_apps__create_doc`, recorded one accepted write and zero memory
+  queries. Persisted synthetic document and independent app log agree.
+- Separate real upstream app/crash qualification passed:3 synthetic writes and
+  crash exit73 with1 preserved write; uncertain replay/reset refused. Both
+  qualification reports record zero model calls; no provider forwarding exists.
+- Fresh profile/apps/recovery receipts issued and pilot admission plus effective
+  options/local Ollama digest verification passed. No old receipt was reused.
+
+Private base: `~/.local/share/atmem-dolphin-readiness-20261026/`.
+Condition: `condition-routed-fixed20-20261031-v1.json`.
+Identity: `f549474efd75e6b7ad0f2ab8bfa6ec8a60d87012eaaf590f70cfc322ba99a78e`.
+Raw evidence and receipts: `routed-fixed20-20261031-v1/{profile,apps,receipts}`.
+New output: `/Volumes/MEM/atmem-dolphinbench-20261020/routed-fixed20-20261031-v1`.
+New task config pins that condition/output and the separate routed report/handoff.
+Submission is a separate operation; this entry establishes qualification only.
+
+## Routed fixed20 v1 failed attempt and fix — 2026-10-31
+
+AtSys task `task-9c6556c0-b774-4229-bcf5-fa6287db737f` (run
+`routed-fixed20-20261031-v1`) stopped on its first task. The guard's
+`pre_llm_call` route note was appended to morgan/023's native user turn; the
+adapter's governed user-boundary check (`adapter.py`) correctly refused to save
+the execution. One simulated `send_email` was persisted (it accepts the Friday
+call, i.e. the known content failure); 0 executions and 0 grades were saved.
+The v1 output and app state are retained untouched and are never replayed.
+
+Cause: the zero-model-call native qualification did not compare the actual user
+turn with the request. Fix: the routed profile stages the plugin with
+`route_context=false` and `completion_notice=false` (refusals and outcome records
+remain), and `qualify_routed` now requires every actual native request to carry
+the original user message byte for byte (`user_boundary_unchanged`). A fresh run
+identity (v2) with fresh simulated app state and fresh receipts is required; v1
+receipts are not reused and v1 is reported as a failed attempt, not merged.
+
+
+## Routed fixed20 v2 fresh qualification and submission preparation — 2026-10-31
+
+Owner-authorized fix-and-rerun of the failed v1 attempt, exactly the same20 IDs,
+frozen reader/judge/memory/grading and USD10 API cap. No v1 state, receipts or
+results are reused or replayed. The v2 MEM output must remain absent until the
+one-launch worker creates fresh simulated app state.
+
+Fresh native routed qualification passed with zero model calls, including
+`user_boundary_unchanged` across all3 actual native requests, refused detour,
+staged plugin settings checkpoint=false/route_context=false/completion_notice=false,
+and matching synthetic write/state/log. Separate real app/crash qualification
+passed with zero model calls. Fresh identity-bound receipts and pilot admission
+passed; effective frozen options and local Ollama digest verified.
+
+Private condition: `condition-routed-fixed20-20261031-v2.json` under the existing
+private readiness base. Identity:
+`82a71383628d81a6dedc5e78915f06776d06ffd6596e5f65e69ed3fa60094154`.
+Raw evidence and receipts: `routed-fixed20-20261031-v2/{profile,apps,receipts}`.
+New output: `/Volumes/MEM/atmem-dolphinbench-20261020/routed-fixed20-20261031-v2`.
+New config: `.atsys/tasks/dolphin-routed-fixed20-v2.json`. The wrapper derives
+progress/outcome/report names from its handoff, preserving v1 workspace artifacts;
+the new config is included in the frozen source manifest.68 focused tests passed
+and a local wrapper check verified versioned artifacts without workload dispatch.
+AtSys doctor and exactly one submission follow the commit/push; their persisted
+results belong in the private v2 evidence directory and AtSys durable store.
+This entry records qualification, not completed execution or new benchmark scores.
+
+## Routed fixed20 v2 incomplete attempt and fix — 2026-10-31
+
+AtSys task `task-38c351be-2276-4502-a563-24c38e9dd9ce` (run
+`routed-fixed20-20261031-v2`) saved 7 executions and 7 grades, then stopped at
+morgan/172 during export. With the ordinary inventory, Hermes's deferred
+`tool_call` wrapper rejected two app calls before dispatch (argument validation
+`status: null`, and a multi-entry batch). The exporter treated a refused call as
+an application call and could not match it to the backend log. v2 is closed as
+incomplete; its evidence is retained and never replayed or merged.
+
+Fix: `tool_defaults.normalize_effective_arguments` pairs every call with its
+result and retains, but never matches, calls that Hermes deferred-call validation
+(`tool_call …` errors) or the strict argument proxy provably refused; it also
+expands the single-entry `{"calls": [...]}` form. An unlogged call that was not
+refused still fails closed. Offline reproduction on the retained native data:
+the old exporter fails only morgan/172 (matching the live run) and the new one
+exports all retained v1/v2 interactions; on the 600 published transcripts the
+new exporter fails only morgan/129 (known lost backend log).
+
+A `--canary TASK` option runs one frozen-selection task through the identical
+pilot admission and pipeline into its own output (no pilot receipt, never merged).
+v3 must pass a canary on morgan/172 before any AtSys submission.

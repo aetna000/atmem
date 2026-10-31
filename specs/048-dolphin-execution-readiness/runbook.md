@@ -196,3 +196,20 @@ The controller and qualification now share a private short Unix socket under
 `._` sidecar files are excluded from task/marker enumeration; actual task files
 and inflight markers remain enforced. The first20 startup failed before any
 model/app call at socket bind; its empty app log and raw evidence are retained.
+
+## Separate routed fixed20 condition — 2026-10-31
+
+Owner-authorized `dolphin-routed-v1` retains the ordinary Hermes inventory and
+stages the pinned action guard with checkpoint disabled. Use `qualify_routed`
+instead of `qualify_profile` for this condition: its local scripted endpoint
+exercises the actual native hooks, refuses a local detour and performs one
+synthetic connected write, without contacting any model. `qualify_execution`
+still supplies the separate real bridge/crash evidence. All original model,
+memory, isolation, receipt freshness and immutable-input checks apply.
+
+The separate AtSys config is `.atsys/tasks/dolphin-routed-fixed20.json`.
+`atsys/run_routed.py` wraps the existing one-launch worker, emits saved execution
+and grade counts every30 seconds and writes human-readable and JSON terminal
+outcomes. The existing12h/24h attempt/task bounds,120s heartbeat, zero activity/
+progress deadlines, two inspect-only retries and two read-only supervisor calls
+are retained. No automatic coding repair or full600 launch is authorized.

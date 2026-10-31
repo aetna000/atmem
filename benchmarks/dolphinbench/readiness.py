@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 import time
 
-from .execution_profile import PROFILE
+from .execution_profile import PROFILE, ROUTED_PROFILE, ROUTED_PROFILES, CHECKPOINT_PROFILE, FACTS_PROFILE, PROFILES
 
 SCHEMA = 'dolphin-execution-condition-v1'
 PILOT_COUNT = 20
@@ -24,6 +24,28 @@ ROLES = {'wheel', 'upstream_manifest', 'source_manifest', 'selection', 'options'
 MEMORY_OPTIONS = {'context_engine_variant': 'source-coherent-v1', 'read_only_discovery': True,
     'application_workflow': True, 'strict_application_contracts': True,
     'source_time_frames': False, 'source_bundles': False, 'initial_state_presentation': 'annotated-source'}
+ROUTED_CHECKS = {'ordinary_inventory', 'plugin_loaded', 'checkpoint_disabled',
+                 'native_write_state_log_agree', 'local_detour_refused', 'user_boundary_unchanged', 'route_note_in_system_prompt'}
+CHECKPOINT_CHECKS = (ROUTED_CHECKS - {'checkpoint_disabled'}) | {'checkpoint_held_once', 'pending_reminder_shown'}
+FACTS_CHECKS = CHECKPOINT_CHECKS | {'standing_profile_in_system_prompt', 'fact_search_visible'}
+ROUTED_SOURCES = ('atmem/action_guard.py', 'atmem/adapters/hermes/action_guard_plugin.py',
+                  'specs/048-dolphin-execution-readiness/atsys/run_routed.py',
+                  '.atsys/tasks/dolphin-routed-fixed20.json',
+                  '.atsys/tasks/dolphin-routed-fixed20-v2.json', '.atsys/tasks/dolphin-routed-fixed20-v3.json',
+                  'atmem/standing_facts.py', 'atmem/facts_stdio.py',
+                  'benchmarks/dolphinbench/standing_facts/morgan.json',
+                  'benchmarks/dolphinbench/standing_facts/alex.json',
+                  'benchmarks/dolphinbench/standing_facts/riley.json')
+
+
+def checks_for(condition, kind):
+    if kind == 'profile' and condition['profile'] == FACTS_PROFILE:
+        return FACTS_CHECKS
+    if kind == 'profile' and condition['profile'] == CHECKPOINT_PROFILE:
+        return CHECKPOINT_CHECKS
+    return ROUTED_CHECKS if kind == 'profile' and condition['profile'] in ROUTED_PROFILES else CHECKS[kind]
+
+
 _VERIFIED_FILES = {}
 
 
@@ -87,7 +109,7 @@ def verify_pin(entry):
 
 def load_condition(path):
     value = read(path)
-    if value.get('schema') != SCHEMA or value.get('profile') != PROFILE:
+    if value.get('schema') != SCHEMA or value.get('profile') not in PROFILES:
         raise ValueError('Frozen execution condition/profile required')
     routes_path = Path(__file__).parents[2] / 'specs/048-dolphin-execution-readiness/routes.json'
     if value.get('routes') != read(routes_path):
@@ -116,6 +138,11 @@ def load_condition(path):
         '.atsys/tasks/dolphin-readiness-pilot-20.json')}
     if not {p.resolve() for p in required} <= covered:
         raise ValueError('Source manifest omits executing orchestration')
+    if value['profile'] in ROUTED_PROFILES:
+        if not {Path(__file__).parents[2] / p for p in ROUTED_SOURCES} <= covered:
+            raise ValueError('Routed plugin/worker source not pinned')
+        if read(inputs['options']['path']).get('execution_profile') != value['profile']:
+            raise ValueError('Routed options/profile mismatch')
     selection = read(inputs['selection']['path'])
     groups = selection.get('groups', {})
     ids = [item for group in groups.values() for item in group]
@@ -160,7 +187,7 @@ def load_condition(path):
 
 def receipt(condition_path, kind, checks, artifacts, output):
     condition = load_condition(condition_path)
-    if kind not in CHECKS or set(checks) != CHECKS[kind] or not all(v is True for v in checks.values()):
+    if kind not in CHECKS or set(checks) != checks_for(condition, kind) or not all(v is True for v in checks.values()):
         raise ValueError('Incomplete qualification checks')
     if not artifacts:
         raise ValueError('Raw qualification artifacts required')
@@ -177,12 +204,13 @@ def qualification_sources():
              root / 'specs/048-dolphin-execution-readiness/atsys/run_pilot.py',
              root / 'specs/048-dolphin-execution-readiness/atsys/validate_pilot.py',
              root / '.atsys/tasks/dolphin-readiness-pilot-20.json']
+    paths.extend(root / p for p in ROUTED_SOURCES)
     return [pin(p) for p in sorted(paths)]
 
 
 def issue_qualifications(condition_path, profile_directory, apps_directory, receipts):
     """Issue receipts only from retained native/bridge qualification evidence."""
-    from .execution_profile import validate_request
+    from .execution_profile import validate
     condition = load_condition(condition_path)
     pinned_source = read(condition['inputs']['source_manifest']['path'])
     profile_directory, apps_directory = Path(profile_directory), Path(apps_directory)
@@ -197,22 +225,32 @@ def issue_qualifications(condition_path, profile_directory, apps_directory, rece
     if (profile.get('options') != condition['inputs']['options']
             or profile.get('same_adapter_profile_builder') is not True
             or profile.get('provider_forwarding_exists') is not False
-            or any(profile.get(k) is not True for k in CHECKS['profile'])):
+            or any(profile.get(k) is not True for k in checks_for(condition, 'profile'))):
         raise ValueError('Actual frozen-profile qualification missing')
-    names = validate_request(read(profile_directory / 'model-request.json'))
+    names = validate(condition['profile'], read(profile_directory / 'model-request.json'))
+    if condition['profile'] in ROUTED_PROFILES:
+        from .qualify_routed import verify_evidence
+        if (profile.get('profile') != condition['profile']
+                or profile.get('runtime_root') != condition['bindings']['runtime_root']
+                or profile.get('native_python') != pin(Path(condition['bindings']['subscription_python']).resolve())):
+            raise ValueError('Routed native runtime differs from frozen condition')
+        verify_evidence(profile_directory)
     if names != profile['tools'] or not names:
         raise ValueError('Captured model-visible profile differs')
     if (apps.get('synthetic_only') is not True or apps.get('same_macos_sandbox_and_upstream_bridge') is not True
             or any(apps.get(k) is not True for k in CHECKS['apps'] | CHECKS['recovery'])
             or [(r['name'], r['returncode'], r['calls']) for r in apps['outcomes']] != [('apps', 0, 3), ('crash', 73, 1)]):
         raise ValueError('Incomplete real bridge/crash qualification')
+    profile_artifacts = (sorted(p for p in profile_directory.iterdir() if p.is_file())
+                         if condition['profile'] in ROUTED_PROFILES
+                         else list(profile_directory.glob('*.json')))
     raw = []
     for outcome in apps['outcomes']:
         raw.extend(verify_pin(a) for a in outcome['artifacts'])
-    for kind, artifacts in [('profile', list(profile_directory.glob('*.json'))),
+    for kind, artifacts in [('profile', profile_artifacts),
                             ('apps', [apps_directory / 'qualification.json', *raw]),
                             ('recovery', [apps_directory / 'qualification.json', *raw])]:
-        receipt(condition_path, kind, {k: True for k in CHECKS[kind]}, artifacts,
+        receipt(condition_path, kind, {k: True for k in checks_for(condition, kind)}, artifacts,
                 Path(receipts) / (kind + '.json'))
 
 
@@ -230,7 +268,7 @@ def admit(condition_path, receipts, stage, *, now=None):
                 or item.get('status') != 'passed' or item.get('condition_sha256') != identity(condition)
                 or type(stamp) not in (int, float) or not math.isfinite(stamp)
                 or stamp > now + 5 or now - stamp > MAX_AGE
-                or set(item.get('checks', {})) != CHECKS[kind]
+                or set(item.get('checks', {})) != checks_for(condition, kind)
                 or any(v is not True for v in item['checks'].values()) or not item.get('artifacts')):
             raise ValueError('Missing, stale, failed or mismatched readiness: ' + kind)
         for artifact in item['artifacts']:
@@ -268,6 +306,7 @@ def freeze(descriptor, output):
                                      'specs/048-dolphin-execution-readiness/atsys/run_pilot.py',
                                      'specs/048-dolphin-execution-readiness/atsys/validate_pilot.py',
                                      '.atsys/tasks/dolphin-readiness-pilot-20.json'))
+    source.extend(root / p for p in ROUTED_SOURCES)
     hermes = Path.home() / '.hermes/hermes-agent'
     source.extend(hermes / name for name in ['run_agent.py', 'model_tools.py', 'toolsets.py',
         'agent/prompt_builder.py', 'agent/skill_utils.py', 'tools/tool_search.py',
@@ -288,7 +327,7 @@ def freeze(descriptor, output):
         temporary_source = Path(temporary) / 'source.json'
         save(temporary_source, records)
         inputs = {**descriptor['inputs'], 'source_manifest': str(temporary_source)}
-        value = {**descriptor, 'schema': SCHEMA, 'profile': PROFILE,
+        value = {**descriptor, 'schema': SCHEMA, 'profile': descriptor.get('profile', PROFILE),
                  'inputs': {k: pin(p) for k, p in inputs.items()}}
         test = Path(temporary) / 'condition.json'
         save(test, value)
@@ -344,7 +383,7 @@ def require_options(options, *, request=None):
     agent = campaign.get('agent', {})
     if {k: agent.get(k) for k in condition['settings']['reader']} != condition['settings']['reader']:
         raise ValueError('Actual reader differs from frozen condition')
-    if options.get('execution_profile') != PROFILE:
+    if options.get('execution_profile') != condition['profile']:
         raise ValueError('Actual profile differs from frozen condition')
     if options.get('memory_engine') != 'context-v3':
         raise ValueError('Frozen V3 memory required')

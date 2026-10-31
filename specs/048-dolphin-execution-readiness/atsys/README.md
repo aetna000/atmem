@@ -67,3 +67,17 @@ The controller and qualification now share a private short Unix socket under
 `._` sidecar files are excluded from task/marker enumeration; actual task files
 and inflight markers remain enforced. The first20 startup failed before any
 model/app call at socket bind; its empty app log and raw evidence are retained.
+
+## Separate routed condition — 2026-10-31
+
+Owner-authorized new diagnostic config:
+`.atsys/tasks/dolphin-routed-fixed20.json` in `atmem-action-routing`.
+Private condition: `condition-routed-fixed20-20261031-v1.json` under the same
+private readiness base; evidence/receipts under `routed-fixed20-20261031-v1/`.
+New MEM output is `routed-fixed20-20261031-v1`, separate from all prior pilots.
+Actual native plugin/app/crash qualification passed with zero model calls.
+Ordinary inventory remains visible; checkpoint=false. The new wrapper writes
+`routed-fixed20-{progress,outcome}.json` and `routed-fixed20-report.md` in this
+folder, in addition to the independently validated handoff. Existing supervision
+and time bounds remain; recovery is inspect-only and cannot launch scored work.
+Submit once only; inspect persisted AtSys state for the resulting ID/status.

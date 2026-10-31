@@ -18,7 +18,10 @@ def main():
     parser.add_argument('--stage', choices=('pilot', 'full'), default='pilot')
     parser.add_argument('--confirm-full-run', action='store_true')
     parser.add_argument('--resume-epoch', action='store_true')
+    parser.add_argument('--canary', help='run one frozen-selection task (pilot admission) into a fresh output')
     args = parser.parse_args()
+    if args.canary and (args.stage != 'pilot' or args.resume_epoch):
+        parser.error('A canary uses pilot admission and a fresh output')
     if args.stage == 'full' and not args.confirm_full_run:
         parser.error('A full 600-task campaign requires explicit --confirm-full-run')
     condition = admit(args.condition, args.receipts, args.stage)
@@ -38,7 +41,8 @@ def main():
                     '--condition', str(args.condition.resolve()), '--receipts', str(args.receipts.resolve()),
                     '--output', str(args.output.resolve()), '--env-file', str(args.env_file.resolve()),
                     '--options', condition['inputs']['options']['path'], '--stage', args.stage,
-                    *(['--resume-epoch'] if args.resume_epoch else [])],
+                    *(['--resume-epoch'] if args.resume_epoch else []),
+                    *(['--canary', args.canary] if args.canary else [])],
                    check=True, env=environment, cwd=root)
 
 

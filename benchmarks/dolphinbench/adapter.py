@@ -185,9 +185,13 @@ class AtMemAdapter:
                     strict_application_contracts=self.options.get('strict_application_contracts',False),
                     initial_status=ruling['reason'] if 'ruling' in locals() else 'authorized')
                 if self.options.get('execution_profile'):
-                    from .execution_profile import isolated_profile
+                    from .execution_profile import apply_profile
                     config = json.loads((home / 'config.yaml').read_text())
-                    config = isolated_profile(config, skill_roots=(self.runtime.source / 'skills',
+                    tool_config = Path(request.apps['env']['DOLPHINBENCH_TOOL_CONFIG_PATH'])
+                    app_tools = json.loads(tool_config.read_text()).get('active_tools', []) if tool_config.exists() else []
+                    config = apply_profile(self.options['execution_profile'], config, home=home,
+                        request=request.dated_message, app_tools=app_tools, persona=request.persona,
+                        skill_roots=(self.runtime.source / 'skills',
                         Path.home() / '.hermes/skills', self.runtime.root / 'skills'))
                     from .driver import private_json
                     private_json(home / 'config.yaml', config)

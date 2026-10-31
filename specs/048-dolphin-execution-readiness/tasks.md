@@ -64,3 +64,14 @@ no workload is launched by this implementation worker.
 - [x] T024 Implement and pin trusted automatic parent, independent source/science/ledger/result guards and safe qualification/epoch retries; five parent guard tests pass.
 - [x] T025 Enable bounded AtSys repair, verify an actual SQLite repair and automatic retry, and pass183 focused tests plus fresh zero-model qualification.
 - [x] T026 Complete independent20-task report/validation; retain fixture failures and any control regressions. Full600 remains unauthorized.
+
+## Owner amendment — routed fixed20 diagnostic, 2026-10-31
+
+- [x] T027 Extend admission/dispatch/report validation for separately qualified
+  `dolphin-routed-v1`; preserve MCP-only checks and frozen science; checkpoint=false.
+- [x] T028 Test negative receipt/raw evidence cases; qualify actual native plugin,
+  provider-bound inventory, refused detour, simulated write/state/log and crash
+  recovery with zero model calls; issue fresh identity-bound receipts.
+- [x] T029 Prepare separate exact-command AtSys task with USD10 cap,40-unit saved
+  execution/grade progress, one-launch intent, inspect-only retries and terminal
+  human-readable report. Submission/runtime status is persisted by AtSys.
