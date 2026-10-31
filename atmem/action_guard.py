@@ -357,22 +357,32 @@ def _per_call_status(result, count):
     return [FAILED if overall == FAILED else UNCONFIRMED] * count
 
 
-TARGET_KEYS = ('to', 'recipient', 'recipients', 'channel', 'user', 'user_id', 'phone', 'number', 'email',
-               'repo', 'pr', 'pr_number', 'number_id', 'doc_id', 'event_id', 'row_id', 'deck_id', 'slide')
-
-
-IDENTITY_KEYS = ('title', 'name', 'subject', 'summary', 'start', 'date', 'when', 'path', 'filename')
+RECORD_KEYS = ('doc_id', 'event_id', 'row_id', 'deck_id', 'slide', 'pr', 'pr_number', 'issue_number',
+               'comment_id', 'message_id', 'record_id')
+DESTINATION_KEYS = ('to', 'recipient', 'recipients', 'channel', 'user', 'user_id', 'phone', 'number', 'email', 'repo')
+IDENTITY_KEYS = ('title', 'name', 'summary', 'start', 'date', 'when', 'path', 'filename')
+CREATE_PREFIX = re.compile(r'^(create|add|book|schedule|place|upload)_')
 
 
 def operation_key(name, arguments):
-    """Tool plus the fields that identify what it acts on: a retry to the same
-    target clears a failure; a different recipient, record or created item does not.
-    Free text (bodies, messages) is excluded so a corrected retry still matches."""
+    """Tool plus the fields that identify what it acts on.
+
+    An existing record id identifies an update by itself, so a corrected title on
+    retry still matches. A create is identified by its destination plus its
+    identifying fields, so two items in one repo or folder stay distinct. A send or
+    post is identified by its destination; free text is excluded so a corrected
+    message to the same recipient still clears the earlier failure.
+    """
     arguments = arguments if isinstance(arguments, dict) else {}
-    # A stable target (recipient, record id) identifies the operation by itself, so a
-    # corrected title on retry still matches; creation fields apply only without one.
-    identity = ({k: arguments[k] for k in TARGET_KEYS if arguments.get(k) not in (None, '', [])}
-                or {k: arguments[k] for k in IDENTITY_KEYS if arguments.get(k) not in (None, '', [])})
+
+    def pick(keys):
+        return {k: arguments[k] for k in keys if arguments.get(k) not in (None, '', [])}
+
+    identity = pick(RECORD_KEYS)
+    if not identity:
+        identity = pick(DESTINATION_KEYS)
+        if CREATE_PREFIX.match(split_name(name)[1]) or not identity:
+            identity.update(pick(IDENTITY_KEYS))
     if not identity:
         # No identifying field: distinguish by the full arguments rather than merging
         # every targetless call of this tool into one operation.

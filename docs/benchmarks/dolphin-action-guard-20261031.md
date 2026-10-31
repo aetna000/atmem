@@ -113,7 +113,10 @@ needs every command component to read, and Hermes wrapper-validation rejections
 (`tool_call …`, never dispatched) are classified `undispatched` rather than as
 failed operations. Replay numbers are unchanged. A fourth review found the
 single `&` background separator and title-sensitive keys for updates with a
-stable record id; both were fixed with tests, replay unchanged.
+stable record id; both were fixed with tests, replay unchanged. A fifth review found that
+two creates in one shared destination (same repo) collapsed; operation identity now
+separates record ids (updates), destinations plus identifying fields (creates) and
+destinations alone (sends, so corrected messages still match). Replay unchanged.
 
 ## Limitations
 

@@ -340,3 +340,14 @@ def test_update_retry_with_corrected_title_matches_the_same_record():
     value.after_call('s', APP + 'update_doc', {'doc_id': 'd1', 'title': 'Rejected title'}, {'ok': False})
     value.after_call('s', APP + 'update_doc', {'doc_id': 'd1', 'title': 'Corrected title'}, {'ok': True, 'id': 'd1'})
     assert value.verdict('s')['status'] == 'completed'
+
+
+def test_two_creates_in_one_destination_stay_distinct_and_send_retries_match():
+    value = guard('Create issues for the login and logout bugs in org/app.', {APP + 'create_issue'})
+    value.after_call('s', APP + 'create_issue', {'repo': 'org/app', 'title': 'Fix login'}, {'ok': False})
+    value.after_call('s', APP + 'create_issue', {'repo': 'org/app', 'title': 'Fix logout'}, {'ok': True, 'id': 'i2'})
+    assert value.verdict('s')['status'] == 'partial'
+    send = guard('Email Bob the update.', {APP + 'send_email'})
+    send.after_call('s', APP + 'send_email', {'to': 'bob@example.com', 'subject': 'Draft'}, {'ok': False})
+    send.after_call('s', APP + 'send_email', {'to': 'bob@example.com', 'subject': 'Update'}, {'ok': True, 'id': 'm1'})
+    assert send.verdict('s')['status'] == 'completed'
