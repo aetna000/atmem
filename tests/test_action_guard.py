@@ -176,7 +176,7 @@ def test_staged_hermes_plugin_enforces_the_hook_sequence(tmp_path, monkeypatch):
     binding = module.register(ctx)
     assert binding.policy.__file__.startswith(str(directory))  # host needs no AtMem import
     hooks = ctx.hooks
-    assert set(hooks) == {'pre_llm_call', 'pre_tool_call', 'post_tool_call', 'transform_llm_output'}
+    assert set(hooks) == {'pre_llm_call', 'pre_tool_call', 'post_tool_call', 'transform_tool_result', 'transform_llm_output'}
     assert 'create_doc' in hooks['pre_llm_call'](session_id='a', user_message=NOTES_REQUEST)['context']
     blocked = hooks['pre_tool_call'](tool_name='skill_view', args={'name': 'apple/apple-notes'}, session_id='a')
     assert blocked['action'] == 'block' and APP + 'create_doc' in blocked['message']
@@ -386,3 +386,17 @@ def test_travel_bookings_have_a_destination():
                   {APP + 'book_flight', APP + 'book_hotel'})
     assert 'travel' in g.classify('book the flight and hotel').domains
     assert value.routed_tools(value.turns['s']) == (APP + 'book_flight', APP + 'book_hotel')
+
+
+def test_pending_reminder_follows_reads_until_the_write_is_accepted():
+    value = guard('[2028-01-01] Inspect metrics-router#1318 and review its queue-control changes.',
+                  {APP + 'get_pr', APP + 'review_pr', MEMORY})
+    note = value.pending_reminder('s', APP + 'get_pr', {'pr_id': 'metrics-router#1318'})
+    assert 'still pending' in note and APP + 'review_pr' in note
+    assert value.pending_reminder('s', 'terminal', {'command': 'ls'}) == ''       # not a read of the app or memory
+    assert value.pending_reminder('s', MEMORY, {'query': 'x'})
+    value.after_call('s', APP + 'review_pr', {'pr_id': 'metrics-router#1318'}, {'ok': True, 'id': 'r1'})
+    assert value.pending_reminder('s', APP + 'get_pr', {}) == ''                 # completed: no more reminders
+    bounded = guard('Inspect repo#1 and review it.', {APP + 'get_pr', APP + 'review_pr'})
+    assert [bool(bounded.pending_reminder('s', APP + 'get_pr', {})) for _ in range(4)] == [True, True, True, False]
+    assert guard('What did repo#1 change?', {APP + 'get_pr', APP + 'review_pr'}).pending_reminder('s', APP + 'get_pr', {}) == ''

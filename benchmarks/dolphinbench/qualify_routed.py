@@ -189,7 +189,10 @@ def verify_evidence(output):
         raise ValueError('Native plugin did not record a refused local detour')
     if checkpoint and (routes.count('checkpoint:' + APP + 'create_doc') != 1 or 'Held once' not in system):
         raise ValueError('Commit checkpoint was not held exactly once and stated in the system prompt')
-    return {k: True for k in ('ordinary_inventory', 'plugin_loaded', 'checkpoint_held_once' if checkpoint else 'checkpoint_disabled',
+    if checkpoint and not any('[AtMem: still pending' in str(m.get('content')) for m in tool_messages):
+        raise ValueError('Pending-action reminder did not reach the model')
+    extra = ('checkpoint_held_once', 'pending_reminder_shown') if checkpoint else ('checkpoint_disabled',)
+    return {k: True for k in ('ordinary_inventory', 'plugin_loaded', *extra,
                               'user_boundary_unchanged', 'route_note_in_system_prompt',
                               'native_write_state_log_agree', 'local_detour_refused')}
 

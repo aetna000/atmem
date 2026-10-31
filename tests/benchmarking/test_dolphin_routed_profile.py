@@ -71,7 +71,7 @@ def test_routed_raw_evidence_is_recomputed(tmp_path, mutation):
     (tmp_path / 'staged-__init__.py').write_bytes((root / 'atmem/adapters/hermes/action_guard_plugin.py').read_bytes())
     (tmp_path / 'staged-action_guard.py').write_bytes((root / 'atmem/action_guard.py').read_bytes())
     def put(name, value): (tmp_path / name).write_text(json.dumps(value))
-    put('staged-settings.json', {'checkpoint': False, 'route_context': False, 'completion_notice': False})
+    put('staged-settings.json', {'checkpoint': False, 'route_context': False, 'completion_notice': False, 'pending_reminder': False})
     put('profile.json', {'plugins': {'enabled': ['atmem-action-guard']}, 'tools': {'tool_search': {'enabled': 'off'}}})
     put('model-request.json', request('terminal', 'skill_view', 'mcp__dolphinbench_apps__create_doc'))
     outcome = {'verdict': {'status': 'completed'}, 'decisions': [{'action': 'block', 'route': 'command:memo'}], 'memory_query_count': 0}
@@ -83,7 +83,7 @@ def test_routed_raw_evidence_is_recomputed(tmp_path, mutation):
     for i in range(3): put(f'request-{i:02}.json', {'messages': [system, user, {'role': 'tool', 'content': 'Not run: memo; use create_doc'}]})
     put('process.json', {'returncode': 0})
     if mutation == 'plugin': (tmp_path / 'staged-action_guard.py').write_text('changed')
-    if mutation == 'checkpoint': put('staged-settings.json', {'checkpoint': True, 'route_context': False, 'completion_notice': False})
+    if mutation == 'checkpoint': put('staged-settings.json', {'checkpoint': True, 'route_context': False, 'completion_notice': False, 'pending_reminder': False})
     if mutation == 'note':
         put('request-00.json', {'messages': [{'role': 'system', 'content': 'ctx'}, user, {'role': 'tool', 'content': 'Not run: memo; use create_doc'}]})
     if mutation == 'boundary':
@@ -112,7 +112,7 @@ def test_checkpoint_profile_stages_the_hold_and_states_it_in_the_system_prompt(t
     assert 'checkpoint_held_once' in gate.CHECKPOINT_CHECKS and 'checkpoint_disabled' not in gate.CHECKPOINT_CHECKS
 
 
-@pytest.mark.parametrize('mutation', [None, 'not_held', 'no_search'])
+@pytest.mark.parametrize('mutation', [None, 'not_held', 'no_search', 'no_reminder'])
 def test_checkpoint_evidence_requires_one_hold_and_one_search(tmp_path, mutation):
     from pathlib import Path
     from benchmarks.dolphinbench.execution_profile import CHECKPOINT_PROFILE, ROUTED_PROFILES
@@ -134,7 +134,10 @@ def test_checkpoint_evidence_requires_one_hold_and_one_search(tmp_path, mutation
     put('state.json', {'docs': [{'body': 'Synthetic durable routing text'}]})
     user = {'role': 'user', 'content': QUESTION}
     system = {'role': 'system', 'content': 'AtMem action routing: mcp__dolphinbench_apps__create_doc ... "Held once" ...'}
-    for i in range(5): put(f'request-{i:02}.json', {'messages': [system, user, {'role': 'tool', 'content': 'Not run: memo; use create_doc'}]})
+    reminder = {'role': 'tool', 'content': 'evidence\n\n[AtMem: still pending — ...]'}
+    for i in range(5):
+        tools = [{'role': 'tool', 'content': 'Not run: memo; use create_doc'}] + ([reminder] if mutation != 'no_reminder' else [])
+        put(f'request-{i:02}.json', {'messages': [system, user, *tools]})
     put('process.json', {'returncode': 0})
     if mutation:
         with pytest.raises(ValueError): verify_evidence(tmp_path)

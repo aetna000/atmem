@@ -31,6 +31,7 @@ provides_hooks:
   - pre_tool_call
   - post_tool_call
   - transform_llm_output
+  - transform_tool_result
 '''
 
 
@@ -44,6 +45,7 @@ def stage(home, *, settings=None):
     shutil.copyfile(__file__, target / '__init__.py')
     shutil.copyfile(Path(__file__).parents[2] / 'action_guard.py', target / 'action_guard.py')
     (target / 'settings.json').write_text(json.dumps({'checkpoint': True, 'route_context': True, 'completion_notice': True,
+                                                     'pending_reminder': True,
                                                      **(settings or {})}, sort_keys=True))
     return target
 
@@ -75,6 +77,7 @@ class _Binding:
         # Hosts that require byte-identical user turns or unmodified final answers
         # (benchmark exports) disable these two; refusals and outcome records remain.
         self.notice = settings.get('completion_notice', True)
+        self.reminder = settings.get('pending_reminder', True)
         self.policy = policy
         self.guard = policy.ActionGuard(route_memory=policy.RouteMemory(settings.get('route_memory')
                                         or state / 'route-memory.json'), checkpoint=settings.get('checkpoint', True))
@@ -96,6 +99,12 @@ class _Binding:
     def post_tool_call(self, tool_name='', args=None, result=None, session_id='', **_):
         self.guard.after_call(session_id, tool_name, args or {}, result)
 
+    def transform_tool_result(self, tool_name='', args=None, result=None, session_id='', **_):
+        if not self.reminder or not isinstance(result, str):
+            return None
+        note = self.guard.pending_reminder(session_id, tool_name, args or {})
+        return (result + '\n\n' + note) if note else None
+
     def transform_llm_output(self, response_text='', session_id='', turn_id='', **_):
         notice = self.guard.completion_notice(session_id)
         record = self.guard.finish(session_id)  # releases the finalized turn state
@@ -114,6 +123,6 @@ class _Binding:
 
 def register(ctx):
     binding = _Binding(Path(__file__).resolve().parent, _load_policy())
-    for hook in ('pre_llm_call', 'pre_tool_call', 'post_tool_call', 'transform_llm_output'):
+    for hook in ('pre_llm_call', 'pre_tool_call', 'post_tool_call', 'transform_tool_result', 'transform_llm_output'):
         ctx.register_hook(hook, getattr(binding, hook))
     return binding

@@ -78,8 +78,10 @@ ROUTED_PROFILE = 'dolphin-routed-v2'
 # write tool is held once for a remembered-constraints check.
 CHECKPOINT_PROFILE = 'dolphin-routed-v3'
 ROUTED_PROFILES = {
-    ROUTED_PROFILE: {'checkpoint': False, 'route_context': False, 'completion_notice': False},
-    CHECKPOINT_PROFILE: {'checkpoint': True, 'route_context': False, 'completion_notice': False},
+    ROUTED_PROFILE: {'checkpoint': False, 'route_context': False, 'completion_notice': False,
+                     'pending_reminder': False},
+    CHECKPOINT_PROFILE: {'checkpoint': True, 'route_context': False, 'completion_notice': False,
+                         'pending_reminder': True},
 }
 ROUTED_SETTINGS = ROUTED_PROFILES[ROUTED_PROFILE]
 PROFILES = (PROFILE, *ROUTED_PROFILES)
