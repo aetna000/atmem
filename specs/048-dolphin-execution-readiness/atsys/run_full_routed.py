@@ -44,6 +44,7 @@ def summarize(args, prefix, error=None):
         value = {'condition_sha256': result['condition_sha256'], 'output': str(args.output), 'tasks': result['tasks'],
                  'passed': result['passed'], 'recoveries': len(result['recoveries']),
                  'regressions': len(result['regressions']), 'actual_usd': result['accounting']['actual_usd'],
+                 'uncertain_usd': result['accounting'].get('uncertain_usd', 0),
                  'result': pin(result_path), 'self_tested_unverified': True, 'official_submission': False}
         atomic(args.summary, value)
     else:
@@ -58,7 +59,8 @@ def summarize(args, prefix, error=None):
                         'evidence': [str(result_path)]}], 'limitations': limitations})
     text = summary + '\n\nCondition: dolphin-routed-v4 (verified standing facts, routing guard, checkpoint).\n\n'
     if result:
-        text += f"API cost: USD {result['accounting']['actual_usd']}.\n\n"
+        text += (f"Paid API settled: USD {result['accounting']['actual_usd']}; "
+                 f"uncertain up to USD {result['accounting'].get('uncertain_usd', 0)}.\n\n")
         cohorts = {}
         for row in result['rows']:
             c = cohorts.setdefault(row['original_cohort'], [0, 0])

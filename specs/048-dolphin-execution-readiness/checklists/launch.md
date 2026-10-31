@@ -10,6 +10,13 @@
 
 Current full-run decision: **NO GO** until every operational requirement has evidence.
 
+For the separately owner-authorized fresh full campaign with
+`full_admission_policy: fresh-full-transport-qualified-v1`, the owner removed a
+new 20-task pilot. Its full launch requires fresh profile, app/crash and local
+transport receipts bound to the new source, a new output, unchanged science and
+the finite campaign budget. The historical pilot checklist above still applies
+to prior conditions and is not evidence for this new condition.
+
 **Historical status (superseded):** Live pilot remained 0/20. OAuth bridge was subsequently verified and MEM recovered. Current blocker: AtSys worker sandbox excludes required external filesystem paths. See verification.md and remediation-status.md.
 
 

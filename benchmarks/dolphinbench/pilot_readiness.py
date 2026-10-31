@@ -92,9 +92,23 @@ def report(condition_path, directory, *, receipt_output=None, stage='pilot'):
     artifacts.extend(verify_forwarded_routes(condition, directory))
     accounting = read(directory / 'pilot-accounting.json')
     if (accounting.get('condition_sha256') != identity(condition)
-            or accounting.get('uncertain_usd') != 0 or accounting.get('complete') is not True
             or type(accounting.get('actual_usd')) not in (int, float)
             or not 0 <= accounting['actual_usd'] <= condition['budget']['caps_usd'][stage]):
+        raise ValueError('Unreconciled or invalid pilot cost accounting')
+    full_transport = stage == 'full' and condition.get('full_admission_policy') == 'fresh-full-transport-qualified-v1'
+    if full_transport:
+        from .recording import verify_transient_reservations
+        proof = verify_transient_reservations(directory / 'budget.db', directory / 'judge-calls',
+            cap_usd=condition['budget']['caps_usd']['full'],
+            identity={**read(condition['inputs']['options']['path'])['campaign_identity'],
+                      'cap_usd': condition['budget']['caps_usd']['full']})
+        if (any(not math.isclose(accounting.get(k, -1), proof[k], rel_tol=0, abs_tol=1e-9)
+                for k in ('actual_usd', 'uncertain_usd'))
+                or accounting.get('unresolved_calls') != proof['unresolved_calls']):
+            raise ValueError('Accounted amounts differ from proven transient reservations')
+        if accounting.get('complete') is not (proof['unresolved_calls'] == 0):
+            raise ValueError('Accounting completeness flag differs from ledger')
+    elif accounting.get('uncertain_usd') != 0 or accounting.get('complete') is not True:
         raise ValueError('Unreconciled or invalid pilot cost accounting')
     artifacts.append(directory / 'pilot-accounting.json')
     if epoch is not None:
@@ -107,7 +121,8 @@ def report(condition_path, directory, *, receipt_output=None, stage='pilot'):
               'post_hoc_diagnostic_not_holdout': True, 'tasks': count, 'rows': rows,
               'passed': sum(r['passed'] for r in rows), 'regressions': [r['id'] for r in rows if r['regressed']],
               'recoveries': [r['id'] for r in rows if r['recovered']], 'accounting': accounting,
-              'fixture_limitations': ['morgan/085', 'morgan/130'], 'full_600_score': None,
+              'fixture_limitations': ['morgan/085', 'morgan/130'],
+              'full_600_score': sum(r['passed'] for r in rows) if stage == 'full' else None,
               'self_tested_unverified': True, 'official_submission': False, 'original_score_unchanged': '390/600'}
     if epoch is not None:
         result['epoch_lineage'] = epoch
@@ -269,7 +284,8 @@ def _run_pilot(condition_path, receipts, options_path, output, env_file, *, stag
     if not resume_epoch:
         output.mkdir(parents=True)
         save(output / 'execution-condition.json', condition)
-    kinds = ('profile', 'apps', 'recovery') + (('pilot',) if stage == 'full' else ())
+    full_gate = ('transport',) if condition.get('full_admission_policy') == 'fresh-full-transport-qualified-v1' else ('pilot',)
+    kinds = ('profile', 'apps', 'recovery') + (full_gate if stage == 'full' else ())
     launch = output / 'launches' / secrets.token_hex(16) if resume_epoch else output
     lease = launch / 'launch-admission.json'
     lease_value = {'schema': 'dolphin-launch-admission-v1', 'pid': os.getpid(),

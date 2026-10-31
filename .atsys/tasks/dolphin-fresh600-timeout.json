@@ -1,0 +1,129 @@
+{
+  "name": "DolphinBench routed-v4 fresh FULL 600 with timeout retry",
+  "objective": "Execute all 600 DolphinBench tasks once in a fresh run under routed-v4 with qualified transport timeout retries, original grading and preserved evidence. No new 20-task pilot. Self-tested, not official.",
+  "cwd": "/Users/javadtaghia/gitlab/atmem-dolphin-fresh600",
+  "worker": "command",
+  "argv": [
+    "/opt/homebrew/bin/python3",
+    "/Users/javadtaghia/gitlab/atmem-dolphin-fresh600/specs/048-dolphin-execution-readiness/atsys/run_full_routed.py",
+    "--condition",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/condition-routed4-full600-20261031-fresh-timeout-v1.json",
+    "--receipts",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/routed4-full600-20261031-fresh-timeout-v1/receipts",
+    "--output",
+    "/Volumes/MEM/atmem-dolphinbench-20261020/routed4-full600-20261031-fresh-timeout-v1",
+    "--env-file",
+    "/Users/javadtaghia/gitlab/aetnamem/.env.atmem-c709e",
+    "--summary",
+    "/Users/javadtaghia/gitlab/atmem-dolphin-fresh600/specs/048-dolphin-execution-readiness/atsys/routed4-full600-20261031-fresh-timeout-v1-summary.json"
+  ],
+  "resumeArgv": [
+    "/opt/homebrew/bin/python3",
+    "/Users/javadtaghia/gitlab/atmem-dolphin-fresh600/specs/048-dolphin-execution-readiness/atsys/run_full_routed.py",
+    "--condition",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/condition-routed4-full600-20261031-fresh-timeout-v1.json",
+    "--receipts",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/routed4-full600-20261031-fresh-timeout-v1/receipts",
+    "--output",
+    "/Volumes/MEM/atmem-dolphinbench-20261020/routed4-full600-20261031-fresh-timeout-v1",
+    "--env-file",
+    "/Users/javadtaghia/gitlab/aetnamem/.env.atmem-c709e",
+    "--summary",
+    "/Users/javadtaghia/gitlab/atmem-dolphin-fresh600/specs/048-dolphin-execution-readiness/atsys/routed4-full600-20261031-fresh-timeout-v1-summary.json",
+    "--reconcile-only"
+  ],
+  "model": "",
+  "reasoningEffort": "medium",
+  "validator": "command",
+  "validationArgv": [
+    "/opt/homebrew/bin/python3",
+    "/Users/javadtaghia/gitlab/atmem-dolphin-fresh600/specs/048-dolphin-execution-readiness/atsys/validate_full_routed.py",
+    "--condition",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/condition-routed4-full600-20261031-fresh-timeout-v1.json",
+    "--receipts",
+    "/Users/javadtaghia/.local/share/atmem-dolphin-readiness-20261026/routed4-full600-20261031-fresh-timeout-v1/receipts",
+    "--output",
+    "/Volumes/MEM/atmem-dolphinbench-20261020/routed4-full600-20261031-fresh-timeout-v1",
+    "--summary",
+    "/Users/javadtaghia/gitlab/atmem-dolphin-fresh600/specs/048-dolphin-execution-readiness/atsys/routed4-full600-20261031-fresh-timeout-v1-summary.json"
+  ],
+  "validationTimeoutSeconds": 600,
+  "requiredArtifacts": [
+    "specs/048-dolphin-execution-readiness/atsys/routed4-full600-20261031-fresh-timeout-v1-summary.json",
+    "specs/048-dolphin-execution-readiness/atsys/routed4-full600-20261031-fresh-timeout-v1-report.md"
+  ],
+  "activityTimeoutSeconds": 0,
+  "plan": "Owner authorized a new 600-task run from task 1 with timeout retry and explicitly removed the new 20-task pilot. Full-only admission requires fresh routed profile, simulated app/crash and six-scenario local transport receipts bound to the source. One new output, one launch. Reader Luna/high subscription; judge Sol/medium Azure-only OpenRouter; memory and grading fixed; USD20 cap with uncertain calls reserved. Retries are limited by campaign budget and AtSys deadline. No action replay, evidence deletion, fixture edits or real-account access. Hugging Face evidence backup remains private.",
+  "artifact": "",
+  "progressFile": "specs/048-dolphin-execution-readiness/atsys/routed4-full600-20261031-fresh-timeout-v1-progress.json",
+  "timeoutSeconds": 86400,
+  "taskTimeoutSeconds": 86400,
+  "heartbeatTimeoutSeconds": 120,
+  "progressTimeoutSeconds": 0,
+  "recovery": "supervised",
+  "maxRetries": 2,
+  "backoffSeconds": 10,
+  "supervisorModel": "gpt-6.1-sol",
+  "supervisorEffort": "high",
+  "supervisorTimeoutSeconds": 300,
+  "maxSupervisorCalls": 2,
+  "allowRepair": false,
+  "repairTimeoutSeconds": 600,
+  "networkAccess": true,
+  "goalMonitoring": false,
+  "hooks": [],
+  "outcomeFile": "specs/048-dolphin-execution-readiness/atsys/routed4-full600-20261031-fresh-timeout-v1-outcome.json",
+  "outcomeRequired": true,
+  "goalContract": {
+    "version": 1,
+    "successCriteria": [
+      "600 unique tasks executed and graded exactly once under the new frozen condition and original scoring.",
+      "Independent validator accepts task, source, cost and evidence integrity.",
+      "Per-action report and self-tested limitations are recorded."
+    ],
+    "deliverables": [
+      "Fresh immutable MEM run evidence and full-result.json",
+      "Independent AtSys validator result, outcome record and report",
+      "Private Hugging Face evidence batches and per-action breakdown"
+    ],
+    "constraints": [
+      "No new 20-task pilot; full-only source-bound profile, app/crash and transport qualifications required.",
+      "Keep frozen product, memory, routes, models, grading, simulated app isolation and USD20 cap.",
+      "No replay of uncertain app actions, no deletion of prior evidence, no invented costs."
+    ],
+    "assumptions": [
+      "Owner explicitly waived a new behavioral pilot; this is a self-tested campaign."
+    ],
+    "unresolvedDecisions": [],
+    "stages": [
+      "Qualify frozen full-only condition with zero model calls",
+      "Execute 600 tasks once with transient judge retry",
+      "Validate and report all results and costs"
+    ],
+    "planSource": "/Users/javadtaghia/gitlab/atmem-dolphin-fresh600/specs/048-dolphin-execution-readiness/runbook.md",
+    "observers": [
+      {
+        "signal": "heartbeat",
+        "cadenceSeconds": 120,
+        "rationale": "Check AtSys runner liveness."
+      },
+      {
+        "signal": "progress",
+        "cadenceSeconds": 60,
+        "rationale": "Read saved executions and grades out of 1200 units."
+      },
+      {
+        "signal": "validator",
+        "cadenceSeconds": 600,
+        "rationale": "Independently validate complete 600 evidence after worker exit."
+      }
+    ],
+    "recoveryScope": "At most two inspect-only retries and two read-only supervisor calls. No scored relaunch.",
+    "escalationConditions": [
+      "Failed source/qualification/transport admission",
+      "Uncertain action or charge requiring reconciliation",
+      "Budget, disk, credential, endpoint or evidence failure"
+    ],
+    "budget": "USD20 incremental paid API cap. Subscription and supervision charges separate and unknown."
+  }
+}

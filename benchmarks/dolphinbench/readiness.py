@@ -18,7 +18,20 @@ MAX_AGE = 24 * 3600
 CHECKS = {'profile': {'mcp_only', 'eager_tools', 'skills_disabled'},
           'apps': {'result_state_log_agree'},
           'recovery': {'uncertain_replay_refused', 'evidence_preserved'},
+          'transport': {'embedded_timeout_retried', 'socket_timeout_retried',
+                        'uncertain_charge_reserved', 'judge_success_after_retry'},
           'pilot': {'all_20_graded', 'no_unsupported_routes', 'no_unresolved_costs', 'regressions_reported'}}
+FULL_WITHOUT_PILOT = 'fresh-full-transport-qualified-v1'
+TRANSPORT_TESTS = ('tests/benchmarking/test_dolphinbench_gateway.py',
+                   'tests/benchmarking/test_dolphinbench_judge.py')
+TRANSPORT_CASES = {
+    'test_embedded_upstream_504_is_retryable_and_keeps_reservation',
+    'test_upstream_socket_timeout_propagates_504_and_keeps_reservation[False]',
+    'test_upstream_socket_timeout_propagates_504_and_keeps_reservation[True]',
+    'test_transient_http_504_retries_without_rerunning_actions',
+    'test_gateway_embedded_timeout_then_judge_success',
+    'test_full_report_accepts_only_attested_transient_reservations',
+}
 ROLES = {'wheel', 'upstream_manifest', 'source_manifest', 'selection', 'options',
          'memory:morgan', 'memory:alex', 'memory:riley'}
 MEMORY_OPTIONS = {'context_engine_variant': 'source-coherent-v1', 'read_only_discovery': True,
@@ -111,6 +124,8 @@ def load_condition(path):
     value = read(path)
     if value.get('schema') != SCHEMA or value.get('profile') not in PROFILES:
         raise ValueError('Frozen execution condition/profile required')
+    if value.get('full_admission_policy', 'pilot') not in {'pilot', FULL_WITHOUT_PILOT}:
+        raise ValueError('Unknown full admission policy')
     routes_path = Path(__file__).parents[2] / 'specs/048-dolphin-execution-readiness/routes.json'
     if value.get('routes') != read(routes_path):
         raise ValueError('Local/subscription/API role policy differs from the frozen baseline')
@@ -143,6 +158,12 @@ def load_condition(path):
             raise ValueError('Routed plugin/worker source not pinned')
         if read(inputs['options']['path']).get('execution_profile') != value['profile']:
             raise ValueError('Routed options/profile mismatch')
+    if value.get('full_admission_policy') == FULL_WITHOUT_PILOT and not {
+            (Path(__file__).parents[2] / p).resolve() for p in (*TRANSPORT_TESTS,
+            'specs/048-dolphin-execution-readiness/atsys/run_full_routed.py',
+            'specs/048-dolphin-execution-readiness/atsys/validate_full_routed.py',
+            '.atsys/tasks/dolphin-fresh600-timeout.json')} <= covered:
+        raise ValueError('Fresh full transport tests or launch paths are not pinned')
     selection = read(inputs['selection']['path'])
     groups = selection.get('groups', {})
     ids = [item for group in groups.values() for item in group]
@@ -254,6 +275,39 @@ def issue_qualifications(condition_path, profile_directory, apps_directory, rece
                 Path(receipts) / (kind + '.json'))
 
 
+def issue_transport_qualification(condition_path, receipts):
+    """Run the pinned local timeout scenarios before issuing a full-only receipt."""
+    import subprocess
+    import sys
+    condition = load_condition(condition_path)
+    if condition.get('full_admission_policy') != FULL_WITHOUT_PILOT:
+        raise ValueError('Transport-only full admission was not selected')
+    root = Path(__file__).parents[2]
+    output = Path(receipts) / 'transport-qualification.xml'
+    if output.exists() or (Path(receipts) / 'transport.json').exists():
+        raise FileExistsError('Transport qualification already exists')
+    selectors = (TRANSPORT_TESTS[0] + '::test_embedded_upstream_504_is_retryable_and_keeps_reservation',
+                 TRANSPORT_TESTS[0] + '::test_upstream_socket_timeout_propagates_504_and_keeps_reservation',
+                 TRANSPORT_TESTS[1] + '::test_transient_http_504_retries_without_rerunning_actions',
+                 TRANSPORT_TESTS[1] + '::test_gateway_embedded_timeout_then_judge_success',
+                 TRANSPORT_TESTS[0] + '::test_full_report_accepts_only_attested_transient_reservations')
+    command = [sys.executable, '-m', 'pytest', '-q', *selectors, '--junitxml', str(output)]
+    completed = subprocess.run(command, cwd=root, capture_output=True, text=True, timeout=120)
+    if completed.returncode != 0 or not output.is_file():
+        raise ValueError('Local transport qualification failed: ' + completed.stdout[-1000:] + completed.stderr[-1000:])
+    verify_transport_qualification(output)
+    receipt(condition_path, 'transport', {k: True for k in CHECKS['transport']}, [output],
+            Path(receipts) / 'transport.json')
+
+
+def verify_transport_qualification(path):
+    import xml.etree.ElementTree as ET
+    cases = list(ET.parse(path).getroot().iter('testcase'))
+    if ({case.attrib.get('name') for case in cases} != TRANSPORT_CASES or len(cases) != len(TRANSPORT_CASES)
+            or any(any(child.tag in {'failure', 'error', 'skipped'} for child in case) for case in cases)):
+        raise ValueError('Transport qualification did not pass all six pinned scenarios')
+
+
 def admit(condition_path, receipts, stage, *, now=None):
     if stage not in {'pilot', 'full'}:
         raise ValueError('Unknown readiness stage')
@@ -261,7 +315,8 @@ def admit(condition_path, receipts, stage, *, now=None):
         raise ValueError('Frozen execution condition and readiness receipts required before scored dispatch')
     condition = load_condition(condition_path)
     now = time.time() if now is None else now
-    for kind in ('profile', 'apps', 'recovery') + (('pilot',) if stage == 'full' else ()):
+    full_gate = ('transport',) if condition.get('full_admission_policy') == FULL_WITHOUT_PILOT else ('pilot',)
+    for kind in ('profile', 'apps', 'recovery') + (full_gate if stage == 'full' else ()):
         item = read(Path(receipts) / (kind + '.json'))
         stamp = item.get('created_at')
         if (item.get('schema') != 'dolphin-readiness-receipt-v1' or item.get('kind') != kind
@@ -273,6 +328,11 @@ def admit(condition_path, receipts, stage, *, now=None):
             raise ValueError('Missing, stale, failed or mismatched readiness: ' + kind)
         for artifact in item['artifacts']:
             verify_pin(artifact)
+        if kind == 'transport':
+            if len(item['artifacts']) != 1 or Path(item['artifacts'][0]['path']).resolve() != (
+                    Path(receipts) / 'transport-qualification.xml').resolve():
+                raise ValueError('Transport qualification artifact location differs')
+            verify_transport_qualification(item['artifacts'][0]['path'])
         if kind == 'pilot':
             report = read(item['artifacts'][0]['path'])
             wanted = {i for group in read(condition['inputs']['selection']['path'])['groups'].values() for i in group}
@@ -307,6 +367,11 @@ def freeze(descriptor, output):
                                      'specs/048-dolphin-execution-readiness/atsys/validate_pilot.py',
                                      '.atsys/tasks/dolphin-readiness-pilot-20.json'))
     source.extend(root / p for p in ROUTED_SOURCES)
+    if descriptor.get('full_admission_policy') == FULL_WITHOUT_PILOT:
+        source.extend(root / p for p in (*TRANSPORT_TESTS,
+            'specs/048-dolphin-execution-readiness/atsys/run_full_routed.py',
+            'specs/048-dolphin-execution-readiness/atsys/validate_full_routed.py',
+            '.atsys/tasks/dolphin-fresh600-timeout.json'))
     hermes = Path.home() / '.hermes/hermes-agent'
     source.extend(hermes / name for name in ['run_agent.py', 'model_tools.py', 'toolsets.py',
         'agent/prompt_builder.py', 'agent/skill_utils.py', 'tools/tool_search.py',

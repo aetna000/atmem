@@ -213,3 +213,23 @@ and grade counts every30 seconds and writes human-readable and JSON terminal
 outcomes. The existing12h/24h attempt/task bounds,120s heartbeat, zero activity/
 progress deadlines, two inspect-only retries and two read-only supervisor calls
 are retained. No automatic coding repair or full600 launch is authorized.
+
+## Owner amendment: fresh full run without a new 20-task pilot — 2026-10-31
+
+The owner removed the new 20-task pilot from the next full campaign. This
+applies only to a newly frozen condition with
+`full_admission_policy: fresh-full-transport-qualified-v1`. Historical
+conditions still require their condition-matched pilot receipt. The fresh
+condition requires current native profile, simulated app/crash and local
+transport receipts. The transport qualifier executes six pinned, local-only
+timeout scenarios, including judge success after repeated 504 responses,
+without contacting a model. Admission checks those raw results and source hashes
+at launch and task boundaries.
+
+The new campaign starts all 600 tasks in a new output directory. It keeps the
+same product wheel, memories, fixtures, model identities, routes and grading.
+OpenRouter timeout responses retain their full possible charge; the judge waits
+and retries known transient 429/500/502/503/504 failures until a response or the
+finite campaign budget or task deadline stops it. No uncertain charge is assumed
+zero. This policy has less live behavioral evidence before the full launch than
+the earlier pilot-based policy; report that limitation with the final result.

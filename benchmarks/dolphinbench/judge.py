@@ -31,17 +31,19 @@ def openrouter_judge(gateway):
             data=json.dumps(body).encode(), headers={
                 'Authorization': 'Bearer ' + gateway.local_token, 'Content-Type': 'application/json'})
         start = time.monotonic()
-        for attempt in range(3):
+        attempt = 0
+        while True:
             try:
-                with urllib.request.urlopen(request, timeout=max(timeout or 120, 310)) as response:
+                with urllib.request.urlopen(request, timeout=max(timeout or 120, 1800)) as response:
                     raw = json.load(response)
                 break
             except urllib.error.HTTPError as exc:
                 # Only infrastructure failures retry. The gateway retains each
                 # paid/uncertain attempt; completed verdicts are never rerolled.
-                if exc.code not in {429, 500, 502, 503, 504} or attempt == 2:
+                if exc.code not in {429, 500, 502, 503, 504}:
                     raise
-                time.sleep(15 * (attempt + 1))
+                attempt += 1
+                time.sleep(min(15 * attempt, 120))
         # OpenRouter requires its provider-prefixed routing alias. The upstream
         # fixed schema uses the bare Sol name; retain the exact original wire
         # body/response in the gateway and normalize only this documented alias.

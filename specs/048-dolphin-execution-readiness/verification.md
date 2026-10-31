@@ -13,6 +13,19 @@ At this observation:3 executions saved (023/085 preserved,129 reconstructed),
 Live persisted state and `launch-*.json` are authoritative for later progress.
 Full600 remains unauthorized and NO GO.
 
+## Fresh full campaign preparation — 2026-10-31
+
+The owner authorized a new 600-task campaign from task 1, with the OpenRouter
+timeout retry fix, and explicitly removed a new 20-task pilot. The new condition
+uses `fresh-full-transport-qualified-v1`; earlier conditions and receipts remain
+unchanged. Full admission now requires fresh source-bound routed profile,
+simulated app/crash and six-scenario local transport qualification receipts.
+The transport qualification makes zero model calls. The timeout path preserves
+the full possible charge for every uncertain retry and retains the USD20 cap.
+This amendment reduces live behavioral evidence before the full run. Its exact
+condition, receipts, AtSys task ID and result belong to the new private evidence
+and task state; this entry records the policy and preparation, not a launch.
+
 [Automatic repair policy and durable pointers](atsys/AUTOMATIC-RECOVERY.md).
 
 # Verification — 2026-10-26

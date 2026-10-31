@@ -234,10 +234,27 @@ class Handler(BaseHTTPRequestHandler):
                     save_new(directory / 'subscription-failure.json', receipt)
                     book.settle_subscription_failure(call_id, request=body, failure_receipt=receipt)
                 return self.error_response(exc.code, 'Upstream request failed; reservation retained for reconciliation')
+            except TimeoutError:
+                save_new(directory / 'error.json', {'http_status': 504, 'cost_status': 'reserved_uncertain',
+                                                    'elapsed_seconds': time.monotonic() - started})
+                return self.error_response(504, 'Upstream timed out; reservation retained for reconciliation')
+            except urllib.error.URLError as exc:
+                if not isinstance(exc.reason, TimeoutError):
+                    raise
+                save_new(directory / 'error.json', {'http_status': 504, 'cost_status': 'reserved_uncertain',
+                                                    'elapsed_seconds': time.monotonic() - started})
+                return self.error_response(504, 'Upstream timed out; reservation retained for reconciliation')
             decoded, usage = decode_usage(raw, bool(body.get('stream')))
             save_new(directory / 'response.json', {'response': decoded,
                                                    'elapsed_seconds': time.monotonic() - started})
             records = decoded if isinstance(decoded, list) else [decoded]
+            # OpenRouter can return HTTP 200 with an embedded upstream timeout.
+            # Retain the response and full reservation; propagate only known
+            # transient failures so the judge's bounded retry can handle them.
+            if isinstance(decoded, dict) and isinstance(decoded.get('error'), dict):
+                code = decoded['error'].get('code')
+                if type(code) is int and code in {429, 500, 502, 503, 504} and 'choices' not in decoded:
+                    return self.error_response(code, 'Upstream transient failure; reservation retained')
             if any(r.get('provider') and r['provider'].lower() != server.provider_name.lower() for r in records):
                 raise ValueError('Unexpected upstream provider; quarantine response and stop')
             if not any(r.get('provider', '').lower() == server.provider_name.lower() for r in records):

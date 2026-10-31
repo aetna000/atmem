@@ -98,6 +98,37 @@ def test_pilot_admission_and_full_requires_complete_pilot(condition):
         gate.admit(*condition, 'full')
 
 
+def test_explicit_full_transport_policy_requires_own_fresh_receipt(condition):
+    path, receipts = condition
+    source_path = path.parent / 'source.json'
+    sources = gate.read(source_path)
+    sources.extend(gate.pin(Path(__file__).parents[2] / p) for p in (*gate.TRANSPORT_TESTS,
+        'specs/048-dolphin-execution-readiness/atsys/run_full_routed.py',
+        'specs/048-dolphin-execution-readiness/atsys/validate_full_routed.py',
+        '.atsys/tasks/dolphin-fresh600-timeout.json'))
+    source_path.write_text(json.dumps(sources))
+    value = gate.read(path)
+    value['inputs']['source_manifest'] = gate.pin(source_path)
+    value['full_admission_policy'] = gate.FULL_WITHOUT_PILOT
+    path.write_text(json.dumps(value))
+    qualify(condition)
+    with pytest.raises(FileNotFoundError):
+        gate.admit(path, receipts, 'full')
+    raw = receipts / 'transport-qualification.xml'
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    raw.write_text('<testsuite>' + ''.join('<testcase name="' + name + '" />'
+                   for name in sorted(gate.TRANSPORT_CASES)) + '</testsuite>')
+    gate.receipt(path, 'transport', {k: True for k in gate.CHECKS['transport']},
+                 [raw], receipts / 'transport.json')
+    assert gate.admit(path, receipts, 'full')['full_admission_policy'] == gate.FULL_WITHOUT_PILOT
+    raw.write_text('<testsuite><testcase name="wrong" /></testsuite>')
+    with pytest.raises(ValueError):
+        gate.admit(path, receipts, 'full')
+    (receipts / 'transport.json').unlink()
+    with pytest.raises(FileNotFoundError):
+        gate.admit(path, receipts, 'full')
+
+
 @pytest.mark.parametrize('mutation', ['expired', 'future', 'failed', 'different', 'artifact', 'checkpoint'])
 def test_bad_receipt_or_input_blocks(condition, mutation):
     qualify(condition)
