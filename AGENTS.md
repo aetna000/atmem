@@ -45,3 +45,37 @@ For every release created by an agent:
 If credentials, protected-environment approval, or a failed external workflow
 prevents completion, stop and report that exact blocker. Do not claim the
 release exists merely because its source commit is in the repository.
+
+## DolphinBench restart and launch prerequisites
+
+Before preparing, optimizing, resuming, or launching another DolphinBench run,
+read `docs/benchmarks/dolphin-lessons-and-readiness.md`, the linked audit evidence,
+and the execution-readiness Spec Kit spec, plan, tasks, and launch checklist.
+These repository artifacts are the durable source of truth; do not rely on
+Codex context, cache, temporary files, or a remembered GO decision.
+
+If this checkout predates those files, recover them from Git branch
+`research/dolphin-execution-audit-20261025` (or its `origin/` tracking ref), starting
+with `git show research/dolphin-execution-audit-20261025:docs/benchmarks/dolphin-lessons-and-readiness.md`.
+Do not infer that a different active `.specify/feature.json` supersedes the
+benchmark prerequisites.
+
+Keep the original 390/600 result and the 83 untraced/zero-check,
+84 traced/zero-check, and 43 traced/partial failure cohorts distinct.
+First qualify execution with memory held fixed. Preserve OS/credential isolation;
+use simulated app tools rather than real Notes, GitHub, or Google accounts.
+Do not launch a full scored campaign until the readiness tasks and fresh,
+identity-bound qualification receipts pass. A documented checklist is not an
+implemented launch guard: verify that the actual entry point enforces it.
+
+## Lesson from the failed learning work
+
+The agent mishandled the learning effort: it spent excessive time, disk space,
+and tokens on repeated development runs and code that did not demonstrate a
+reliable improvement over native behavior. This was a failure, not an
+achievement. Never repeat this pattern: establish the real user outcome and
+native baseline first; run a small, controlled, cost-bounded test before
+expanding; stop and reassess approaches that add cost without measured benefit;
+track and clean up temporary artifacts; and report failures, uncertainty, and
+resource use plainly. Never present memory retrieval, lesson exposure, a
+model-generated score, or repeated runs as proof that an agent learned.
