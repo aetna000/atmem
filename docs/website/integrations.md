@@ -26,8 +26,9 @@ the request, verifies the signed response and records authorization/delivery.
 Provider delegation does not imply that the provider stores every agent session.
 
 ## Compatibility
-The 2.3.9 source candidate and OpenClaw bridge are aligned at 2.3.9; AtBot
-remains 0.1.0 and AtFlows is pinned to 0.1.4. The locked OpenClaw
+Stable AtMem 2.3.10 uses OpenClaw bridge 2.3.10, AtBot 0.1.1 and AtFlows 0.1.4.
+The 2.3.11b1 prerelease uses bridge 2.3.11-beta.1, AtBot 0.1.1 and AtFlows 0.1.5b1.
+The locked OpenClaw
 conformance profile uses 2026.8.1, not a promise about every future host.
 Framework exact-delivery support does not imply the same durable multimodal capture
-coverage as OpenClaw. See [release compatibility](../releases/v2.3.9.md).
+coverage as OpenClaw. See [release compatibility](../releases/v2.3.11b1.md).
