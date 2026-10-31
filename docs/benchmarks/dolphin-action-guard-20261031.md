@@ -111,7 +111,9 @@ two more: distinct created items merged into one outcome, and compound commands
 items are now keyed by identifying fields (or full arguments), the read exemption
 needs every command component to read, and Hermes wrapper-validation rejections
 (`tool_call …`, never dispatched) are classified `undispatched` rather than as
-failed operations. Replay numbers are unchanged.
+failed operations. Replay numbers are unchanged. A fourth review found the
+single `&` background separator and title-sensitive keys for updates with a
+stable record id; both were fixed with tests, replay unchanged.
 
 ## Limitations
 

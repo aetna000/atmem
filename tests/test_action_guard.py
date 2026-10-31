@@ -312,6 +312,7 @@ def test_distinct_created_items_keep_separate_outcomes():
     ('gh pr diff 12', True), ('cd repo && gh pr diff 12', True),
     ('gh pr diff 12 && gh pr review 12 --approve', False), ('gh pr view 12; gh pr merge 12', False),
     ('gh pr view $(gh pr merge 12)', False), ('memo notes | cat', True), ('pwd', False),
+    ('gh pr diff 12 & gh pr merge 12', False),
 ])
 def test_read_exemption_requires_every_command_component_to_read(command, read):
     assert g.is_read_route('terminal', {'command': command}) is read
@@ -331,4 +332,11 @@ def test_host_rejected_wrapper_is_undispatched_not_a_failed_operation():
     value.after_call('s', 'tool_call', bad, '{"error": "tool_call takes exactly one entry for local tools; you sent 2."}')
     assert value.verdict('s')['reason'] == 'the host rejected the write call before dispatch'
     value.after_call('s', APP + 'create_doc', {'title': 'Board review'}, {'ok': True, 'id': 'd1'})
+    assert value.verdict('s')['status'] == 'completed'
+
+
+def test_update_retry_with_corrected_title_matches_the_same_record():
+    value = guard('Update the launch doc title.', {APP + 'update_doc'})
+    value.after_call('s', APP + 'update_doc', {'doc_id': 'd1', 'title': 'Rejected title'}, {'ok': False})
+    value.after_call('s', APP + 'update_doc', {'doc_id': 'd1', 'title': 'Corrected title'}, {'ok': True, 'id': 'd1'})
     assert value.verdict('s')['status'] == 'completed'

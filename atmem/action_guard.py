@@ -205,7 +205,7 @@ def is_read_route(name, arguments):
     command = ' '.join(str(arguments.get(k, '')) for k in ('command', 'cmd'))
     if not command.strip() or re.search(r'[`]|\$\(', command):
         return False
-    components = [c for c in re.split(r'&&|\|\||[;|\n]', command) if c.strip()]
+    components = [c for c in re.split(r'&&|\|\||[;&|\n]', command) if c.strip()]
     for component in components:
         if WRITE_COMMAND.search(component):
             return False
@@ -369,7 +369,10 @@ def operation_key(name, arguments):
     target clears a failure; a different recipient, record or created item does not.
     Free text (bodies, messages) is excluded so a corrected retry still matches."""
     arguments = arguments if isinstance(arguments, dict) else {}
-    identity = {k: arguments[k] for k in TARGET_KEYS + IDENTITY_KEYS if arguments.get(k) not in (None, '', [])}
+    # A stable target (recipient, record id) identifies the operation by itself, so a
+    # corrected title on retry still matches; creation fields apply only without one.
+    identity = ({k: arguments[k] for k in TARGET_KEYS if arguments.get(k) not in (None, '', [])}
+                or {k: arguments[k] for k in IDENTITY_KEYS if arguments.get(k) not in (None, '', [])})
     if not identity:
         # No identifying field: distinguish by the full arguments rather than merging
         # every targetless call of this tool into one operation.
