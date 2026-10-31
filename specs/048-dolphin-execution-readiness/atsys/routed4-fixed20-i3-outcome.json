@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "summary": "Routed fixed20 diagnostic: 17/20 passed; ['alex/102', 'alex/120', 'alex/132', 'morgan/023', 'morgan/129', 'morgan/152', 'morgan/157', 'morgan/162', 'morgan/172', 'riley/009', 'riley/069', 'riley/095', 'riley/125', 'riley/156'] recoveries; 0 control regressions.",
+  "results": [
+    {
+      "name": "fixed20 routed diagnostic",
+      "status": "passed",
+      "detail": "Routed fixed20 diagnostic: 17/20 passed; ['alex/102', 'alex/120', 'alex/132', 'morgan/023', 'morgan/129', 'morgan/152', 'morgan/157', 'morgan/162', 'morgan/172', 'riley/009', 'riley/069', 'riley/095', 'riley/125', 'riley/156'] recoveries; 0 control regressions.",
+      "evidence": [
+        "/Volumes/MEM/atmem-dolphinbench-20261020/routed4-fixed20-20261031-i3/pilot-report.json"
+      ]
+    }
+  ],
+  "limitations": [
+    "Post hoc diagnostic; published 390/600 and prior fixed20 13/20 unchanged.",
+    "Checkpoint disabled; full600 unauthorized.",
+    "Subscription and supervision costs separate from benchmark API ledger."
+  ]
+}

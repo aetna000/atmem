@@ -1,0 +1,59 @@
+{
+  "actual_usd": 0.095708,
+  "cohorts": {
+    "pass": {
+      "passed": 3,
+      "recoveries": 0,
+      "tasks": 3
+    },
+    "traced_partial": {
+      "passed": 1,
+      "recoveries": 1,
+      "tasks": 2
+    },
+    "traced_zero": {
+      "passed": 2,
+      "recoveries": 2,
+      "tasks": 3
+    },
+    "untraced_zero": {
+      "passed": 11,
+      "recoveries": 11,
+      "tasks": 12
+    }
+  },
+  "condition_sha256": "f0df51b0194394a9fb7a8fc9f09646f7dcdad7932e7118a1f632b2879dd83e08",
+  "decision": "pilot_passed_full_launch_requires_owner_authorization",
+  "fixture_limitations": [
+    "morgan/085",
+    "morgan/130"
+  ],
+  "full_600_launched": false,
+  "median_task_ms": 42423.552207998,
+  "orchestration": {
+    "atsys_task_id": "task-a4560b4a-0fab-4515-aa72-b76713efa446",
+    "supervision_cost": "not available in benchmark ledger; separately accounted",
+    "worker": "exact-command"
+  },
+  "passed": 17,
+  "pilot_output": "/Volumes/MEM/atmem-dolphinbench-20261020/routed4-fixed20-20261031-i3",
+  "post_hoc_diagnostic_not_holdout": true,
+  "recoveries": [
+    "alex/102",
+    "alex/120",
+    "alex/132",
+    "morgan/023",
+    "morgan/129",
+    "morgan/152",
+    "morgan/157",
+    "morgan/162",
+    "morgan/172",
+    "riley/009",
+    "riley/069",
+    "riley/095",
+    "riley/125",
+    "riley/156"
+  ],
+  "regressions": [],
+  "tasks": 20
+}
