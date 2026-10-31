@@ -1,0 +1,31 @@
+{
+  "tasks": 600,
+  "passed": 479,
+  "action_groups": 727,
+  "trace_constraints": 4,
+  "checks": 1920,
+  "actions_by_kind": {
+    "read": {
+      "passed": 98,
+      "failed": 2
+    },
+    "write": {
+      "passed": 504,
+      "failed": 123
+    }
+  },
+  "trace_constraints_passed": 3,
+  "failed_writes_by_class": {
+    "wording_or_precision": 20,
+    "wrong_value": 25,
+    "no_call": 8,
+    "missing_required_fact": 68,
+    "missing_remembered_fact": 2
+  },
+  "remembered_rule_not_in_write": {
+    "confirmed": 2,
+    "not_established": 121
+  },
+  "validation": "unchanged upstream offline judge replay; zero new model calls",
+  "submission_sha256": "4e3130b5be2ba2aab4fa23570c69867fe1cfa1289be735f782a658170e559a05"
+}

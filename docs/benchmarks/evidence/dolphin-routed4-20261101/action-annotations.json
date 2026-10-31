@@ -1,0 +1,50 @@
+{
+  "schema": "dolphin-posthoc-action-annotations-v1",
+  "method": "Post-hoc review of saved judge reasons; descriptive error labels, not causal memory diagnoses or new grades. Overrides resolve otherwise ambiguous rule-based labels.",
+  "overrides_by_task": {
+    "alex/005": "wrong_value",
+    "alex/027": "wrong_value",
+    "alex/053": "wrong_value",
+    "alex/097": "wrong_value",
+    "alex/098": "wrong_value",
+    "alex/148": "wrong_value",
+    "alex/149": "wrong_value",
+    "alex/176": "wrong_value",
+    "morgan/030": "wrong_value",
+    "riley/084": "wrong_value",
+    "riley/110": "wrong_value",
+    "riley/113": "wrong_value",
+    "riley/140": "wrong_value",
+    "alex/020": "missing_required_fact",
+    "alex/072": "missing_required_fact",
+    "alex/095": "missing_required_fact",
+    "alex/134": "missing_required_fact",
+    "morgan/133": "missing_required_fact",
+    "morgan/150": "missing_required_fact",
+    "morgan/169": "missing_required_fact",
+    "riley/045": "missing_required_fact",
+    "riley/050": "missing_required_fact",
+    "riley/099": "missing_required_fact",
+    "riley/141": "missing_required_fact",
+    "riley/190": "missing_required_fact",
+    "morgan/060": "wording_or_precision",
+    "morgan/066": "wording_or_precision",
+    "morgan/105": "wording_or_precision",
+    "riley/062": "wording_or_precision",
+    "riley/078": "wording_or_precision"
+  },
+  "delivered_rule_omissions": {
+    "morgan/026": {
+      "message_index": 5,
+      "source_session": "001429",
+      "quote": "Kibo only gets pre-portioned food and treats Jamie or I have already approved. No samples, no substitute treats, and no label-guessing in the moment",
+      "interpretation": "The memory tool delivered the named-approver rule before the write; the saved judge says the SMS did not name the required approvers."
+    },
+    "morgan/010": {
+      "message_index": 3,
+      "source_session": "001452",
+      "quote": "any invoice/payment over $5,000 stays on manual review before payment.",
+      "interpretation": "The memory tool delivered the payment/manual-review rule before the write; the saved judge says the email failed to clearly state the required broader payment boundary and every-time review."
+    }
+  }
+}
