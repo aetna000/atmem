@@ -83,6 +83,12 @@ ROUTED_PROFILES = {
     CHECKPOINT_PROFILE: {'checkpoint': True, 'route_context': False, 'completion_notice': False,
                          'pending_reminder': True},
 }
+# Checkpoint profile plus verified standing facts: a compact profile in the system
+# prompt and a read-only fact_search tool over all verified facts for the persona.
+FACTS_PROFILE = 'dolphin-routed-v4'
+ROUTED_PROFILES[FACTS_PROFILE] = {**ROUTED_PROFILES[CHECKPOINT_PROFILE], 'standing_facts': True}
+FACTS_SERVER = 'atmem-facts'
+PROFILE_MARKER = 'AtMem standing profile'
 ROUTED_SETTINGS = ROUTED_PROFILES[ROUTED_PROFILE]
 PROFILES = (PROFILE, *ROUTED_PROFILES)
 ROUTE_NOTE_MARKER = 'AtMem action routing:'
@@ -100,16 +106,17 @@ def _load_repo_module(relative, name):
     return module
 
 
-def route_note(request, app_tools, *, checkpoint=False):
+def route_note(request, app_tools, *, checkpoint=False, facts=False):
     """Request-specific routing note naming the connected write tools, or ''."""
     policy = _load_repo_module('atmem/action_guard.py', 'dolphin_guard_policy')
     guard = policy.ActionGuard(checkpoint=checkpoint)
     visible = {APP + t for t in app_tools} | ({MEMORY + 'memory_search'} if checkpoint else set())
+    visible |= {'mcp__atmem_facts__fact_search'} if facts else set()
     guard.begin_turn('profile', request, visible)
     return guard.turn_context('profile')
 
 
-def routed_profile(config, *, home, request=None, app_tools=(), name=ROUTED_PROFILE):
+def routed_profile(config, *, home, request=None, app_tools=(), name=ROUTED_PROFILE, persona=None):
     """Return a fresh config that stages and enables the action guard in ``home``."""
     module = _load_repo_module('atmem/adapters/hermes/action_guard_plugin.py', 'dolphin_guard_stage')
     if 'dolphinbench-apps' not in config['toolsets']:
@@ -123,19 +130,54 @@ def routed_profile(config, *, home, request=None, app_tools=(), name=ROUTED_PROF
     plugins = value.setdefault('plugins', {})
     plugins['enabled'] = sorted(set(plugins.get('enabled', [])) | {module.PLUGIN})
     value.setdefault('tools', {})['tool_search'] = {'enabled': 'off'}
-    note = route_note(request, app_tools, checkpoint=settings['checkpoint']) if request else ''
-    if note:
+    facts = bool(settings.get('standing_facts'))
+    profile = stage_standing_facts(value, home, persona, request) if facts else ''
+    note = route_note(request, app_tools, checkpoint=settings['checkpoint'], facts=facts) if request else ''
+    if note or profile:
         agent = value.setdefault('agent', {})
-        agent['system_prompt'] = '\n\n'.join(filter(None, (agent.get('system_prompt', ''), note)))
+        agent['system_prompt'] = '\n\n'.join(filter(None, (agent.get('system_prompt', ''), profile, note)))
     value['execution_profile'] = name
     return value
 
 
-def apply_profile(name, config, *, home, skill_roots=(), request=None, app_tools=()):
+def standing_facts_store(persona):
+    path = Path(__file__).parent / 'standing_facts' / (str(persona) + '.json')
+    if not path.is_file():
+        raise ValueError('No verified standing-fact store for persona: ' + str(persona))
+    return path
+
+
+def stage_standing_facts(config, home, persona, request=None):
+    """Stage the persona's verified store and the read-only fact_search server; return the profile."""
+    import shutil
+    store_path = standing_facts_store(persona)
+    target = Path(home) / 'facts'
+    target.mkdir(exist_ok=False)
+    root = Path(__file__).parents[2] / 'atmem'
+    for source in (root / 'standing_facts.py', root / 'facts_stdio.py', store_path):
+        shutil.copyfile(source, target / source.name)
+    apps = config.get('mcp_servers', {}).get('dolphinbench-apps', {})
+    command = apps.get('command')
+    if not command:
+        raise ValueError('Standing facts need the application MCP interpreter')
+    config.setdefault('mcp_servers', {})[FACTS_SERVER] = {
+        'command': command, 'args': ['-I', str(target / 'facts_stdio.py'), str(target / store_path.name)]}
+    for key in ('toolsets',):
+        if FACTS_SERVER not in config[key]:
+            config[key] = [*config[key], FACTS_SERVER]
+    cli = config.setdefault('platform_toolsets', {}).get('cli')
+    if isinstance(cli, list) and FACTS_SERVER not in cli:
+        config['platform_toolsets']['cli'] = [*cli, FACTS_SERVER]
+    policy = _load_repo_module('atmem/standing_facts.py', 'dolphin_standing_facts')
+    store = json.loads(store_path.read_text())
+    return '\n\n'.join(filter(None, (policy.profile_text(store), policy.prefetch_text(store, request))))
+
+
+def apply_profile(name, config, *, home, skill_roots=(), request=None, app_tools=(), persona=None):
     if name == PROFILE:
         return isolated_profile(config, skill_roots=skill_roots)
     if name in ROUTED_PROFILES:
-        return routed_profile(config, home=home, request=request, app_tools=app_tools, name=name)
+        return routed_profile(config, home=home, request=request, app_tools=app_tools, name=name, persona=persona)
     raise ValueError('Unknown execution profile')
 
 

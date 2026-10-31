@@ -536,7 +536,9 @@ class ActionGuard:
             # state the checkpoint here, in the user turn, where it is authoritative.
             note += (' Before the first call to each write tool the host holds it once and returns a '
                      '"Held once" notice (nothing is sent): check remembered rules, preferences and '
-                     'commitments for that exact action with memory_search, open relevant fragments in '
+                     'commitments for that exact action with '
+                     + ('fact_search (verified standing facts) and memory_search' if self._facts_visible(state)
+                        else 'memory_search') + ', open relevant fragments in '
                      'context with memory_inspect, then call the tool again.')
         return note
 
@@ -602,11 +604,12 @@ class ActionGuard:
         if self.checkpoint and is_write(name) and name not in state.checkpointed and self._memory_visible(state):
             state.checkpointed.add(name)
             query = recall_query(name, arguments)
+            search = 'fact_search' if self._facts_visible(state) else 'memory_search'
             return Decision('block', 'commit checkpoint: consult remembered constraints once', 'checkpoint:' + name,
                 (name,), 'Held once before an external write (nothing was sent). Check remembered standing '
                 'rules, preferences and commitments that apply to this exact action, and the specific facts '
                 'the request asks for (who, what, outcome, reactions) — for example call '
-                f'memory_search with: "{query}" (standing rules are usually remembered about a kind of activity '
+                f'{search} with: "{query}" (standing rules are usually remembered about a kind of activity '
                 'or day, so search generally, not only for this request). Search results are short fragments: '
                 'open the source of any '
                 'relevant fragment with memory_inspect and read it in context before deciding. Confirm details '
@@ -615,7 +618,10 @@ class ActionGuard:
         return Decision('allow', 'no policy applies')
 
     def _memory_visible(self, state):
-        return any(is_memory_tool(n) for n in state.visible)
+        return any(is_memory_tool(n) for n in state.visible) or self._facts_visible(state)
+
+    def _facts_visible(self, state):
+        return any(n.endswith('__fact_search') for n in state.visible)
 
     def _state(self, session_id):
         if session_id not in self.turns:
@@ -652,4 +658,4 @@ def recall_query(name, arguments):
         if key not in STOPWORDS and key not in seen and len(key) > 2:
             seen.add(key)
             kept.append(word)
-    return ' '.join(kept[:8] + ['standing rule preference usual'])
+    return ' '.join(kept[:8] + ['rule preference'])

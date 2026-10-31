@@ -143,3 +143,24 @@ def test_checkpoint_evidence_requires_one_hold_and_one_search(tmp_path, mutation
         with pytest.raises(ValueError): verify_evidence(tmp_path)
     else:
         assert set(verify_evidence(tmp_path)) == gate.CHECKPOINT_CHECKS
+
+
+def test_facts_profile_stages_store_server_and_profile(tmp_path, monkeypatch):
+    from benchmarks.dolphinbench import execution_profile as ep
+    store = tmp_path / 'morgan.json'
+    store.write_text(json.dumps({'facts': [{'id': 0, 'fact': 'Morgan avoids vendor calls on Fridays.', 'as_of': '2023-01-31',
+                                            'kind': 'rule', 'quote': 'q', 'session': 's'}], 'profile': [0]}))
+    real_lookup = ep.standing_facts_store
+    monkeypatch.setattr(ep, 'standing_facts_store', lambda persona: store)
+    base = {**BASE, 'agent': {'system_prompt': 'ctx'}, 'mcp_servers': {'dolphinbench-apps': {'command': '/py', 'args': []}}}
+    config = apply_profile(ep.FACTS_PROFILE, base, home=tmp_path / 'home', request='Email vendorops a reply.',
+                           app_tools=['send_email'], persona='morgan')
+    prompt = config['agent']['system_prompt']
+    assert prompt.index('AtMem standing profile') < prompt.index('AtMem action routing:')
+    assert 'Morgan avoids vendor calls on Fridays.' in prompt and 'fact_search' in prompt
+    server = config['mcp_servers']['atmem-facts']
+    assert server['command'] == '/py' and server['args'][1].endswith('facts_stdio.py')
+    assert 'atmem-facts' in config['toolsets'] and (tmp_path / 'home/facts/standing_facts.py').is_file()
+    assert gate.checks_for({'profile': ep.FACTS_PROFILE}, 'profile') == gate.FACTS_CHECKS
+    with pytest.raises(ValueError, match='No verified standing-fact store'):
+        real_lookup('nobody')

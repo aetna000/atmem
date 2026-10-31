@@ -8,7 +8,8 @@ import sys
 import threading
 
 from .app_bridge import bridge, stage_client, short_socket
-from .execution_profile import APP, MEMORY, ROUTED_PROFILE, ROUTED_PROFILES, ROUTE_NOTE_MARKER, apply_profile, validate
+from .execution_profile import (APP, MEMORY, PROFILE_MARKER, ROUTED_PROFILE, ROUTED_PROFILES, ROUTE_NOTE_MARKER,
+                                apply_profile, validate)
 
 QUESTION = 'Create a document with synthetic routing qualification text.'
 from .readiness import qualification_sources, save, read, pin
@@ -101,7 +102,7 @@ def qualify(upstream, app_python, runtime_root, output, *, options_path, profile
                     discovery_query='Synthetic qualification', discovery_python=str(runtime.python),
                     application_workflow=True, strict_application_contracts=True, initial_status='authorized')
                 config = apply_profile(profile, read(home / 'config.yaml'), home=home,
-                    request=QUESTION, app_tools=['create_doc'],
+                    request=QUESTION, app_tools=['create_doc'], persona='morgan',
                     skill_roots=(runtime.source / 'skills', Path.home() / '.hermes/skills', runtime.root / 'skills'))
                 config['providers']['custom'].update(request_timeout_seconds=36000, stale_timeout_seconds=36000)
                 config['agent']['api_max_retries'] = 0
@@ -191,7 +192,11 @@ def verify_evidence(output):
         raise ValueError('Commit checkpoint was not held exactly once and stated in the system prompt')
     if checkpoint and not any('[AtMem: still pending' in str(m.get('content')) for m in tool_messages):
         raise ValueError('Pending-action reminder did not reach the model')
+    facts = bool(ROUTED_PROFILES[profile].get('standing_facts'))
+    if facts and (PROFILE_MARKER not in system or 'mcp__atmem_facts__fact_search' not in names):
+        raise ValueError('Standing profile or fact_search missing from the actual native request')
     extra = ('checkpoint_held_once', 'pending_reminder_shown') if checkpoint else ('checkpoint_disabled',)
+    extra += ('standing_profile_in_system_prompt', 'fact_search_visible') if facts else ()
     return {k: True for k in ('ordinary_inventory', 'plugin_loaded', *extra,
                               'user_boundary_unchanged', 'route_note_in_system_prompt',
                               'native_write_state_log_agree', 'local_detour_refused')}

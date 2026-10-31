@@ -190,7 +190,7 @@ class AtMemAdapter:
                     tool_config = Path(request.apps['env']['DOLPHINBENCH_TOOL_CONFIG_PATH'])
                     app_tools = json.loads(tool_config.read_text()).get('active_tools', []) if tool_config.exists() else []
                     config = apply_profile(self.options['execution_profile'], config, home=home,
-                        request=request.dated_message, app_tools=app_tools,
+                        request=request.dated_message, app_tools=app_tools, persona=request.persona,
                         skill_roots=(self.runtime.source / 'skills',
                         Path.home() / '.hermes/skills', self.runtime.root / 'skills'))
                     from .driver import private_json
