@@ -197,3 +197,43 @@ Delivering the route note through the system prompt, or keeping connected app
 tools eagerly visible while local tools remain, is the next measured change.
 One 20-task run per condition is small and post hoc; differences of one or two
 tasks are within run-to-run variation and are not a claim either way.
+
+## Iterations and verified standing facts — 2026-10-31
+
+All runs: same fixed 20 IDs, Luna/high reader, Sol/medium judge, frozen memory
+product, one-task canary before each AtSys submission; independent validation.
+
+| Run | Profile / change | Passed |
+| --- | --- | ---: |
+| Original 600-task run | none | 3/20 |
+| v3 | routed detour refusal | 12/20 |
+| Iteration 1 | eager tools + route note in system prompt (`dolphin-routed-v2`) | 13/20 |
+| Iteration 2 | + commit checkpoint + pending-action reminder (`dolphin-routed-v3`) | 13/20 |
+| **Iteration 3** | **+ verified standing facts (`dolphin-routed-v4`)** | **17/20** |
+| Published Hermes+Luna best (mem0, honcho) | — | 14/20 |
+
+Iteration 3 (AtSys `task-a4560b4a-0fab-4515-aa72-b76713efa446`, completed and
+independently validated): 17/20, 14 recoveries, 0 control regressions, API cost
+USD 0.095708 (judge only). Remaining failures: morgan/085 and morgan/130 (fixture
+limitations), alex/139 (review submitted; content 1/5).
+
+Verified standing facts (`atmem/standing_facts.py`): gpt-5.6-luna, through the
+subscription route, proposed 3,262 durable facts from the three personas' history;
+3,175 were kept because their verbatim quote was found in the source message and
+all 3,175 pass re-verification. Delivery: a ~7 KB profile chosen by fact id, a
+request-time prefetch of matching verified facts, and a read-only `fact_search`
+tool. This fixed morgan/023 (failed by every published system), morgan/129,
+morgan/162 and riley/156.
+
+Accounting reconciliation: one of 123 subscription reader calls failed in
+transport (HTTP 502, no response delivered, receipt: $0 incremental API charge,
+token usage unknown). The frozen accounting treated it as unresolved and blocked
+the report. With owner authorization, `scripts/reconcile_subscription_failures.py`
+preserved the original accounting as `pilot-accounting.unreconciled.json` and
+recorded the reconciliation (cost reconciled, token usage still unknown); the
+frozen code then produced the report and AtSys's independent validator passed.
+No ledger, frozen source or task result was changed.
+
+Limitations: a single post hoc run on 20 tasks selected from earlier failures;
+not a 600-task score. The standing-fact stores were built from the same persona
+history every system ingests; no test request or grader data was used.
