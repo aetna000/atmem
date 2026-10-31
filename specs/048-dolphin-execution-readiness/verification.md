@@ -258,3 +258,26 @@ and a local wrapper check verified versioned artifacts without workload dispatch
 AtSys doctor and exactly one submission follow the commit/push; their persisted
 results belong in the private v2 evidence directory and AtSys durable store.
 This entry records qualification, not completed execution or new benchmark scores.
+
+## Routed fixed20 v2 incomplete attempt and fix — 2026-10-31
+
+AtSys task `task-38c351be-2276-4502-a563-24c38e9dd9ce` (run
+`routed-fixed20-20261031-v2`) saved 7 executions and 7 grades, then stopped at
+morgan/172 during export. With the ordinary inventory, Hermes's deferred
+`tool_call` wrapper rejected two app calls before dispatch (argument validation
+`status: null`, and a multi-entry batch). The exporter treated a refused call as
+an application call and could not match it to the backend log. v2 is closed as
+incomplete; its evidence is retained and never replayed or merged.
+
+Fix: `tool_defaults.normalize_effective_arguments` pairs every call with its
+result and retains, but never matches, calls that Hermes deferred-call validation
+(`tool_call …` errors) or the strict argument proxy provably refused; it also
+expands the single-entry `{"calls": [...]}` form. An unlogged call that was not
+refused still fails closed. Offline reproduction on the retained native data:
+the old exporter fails only morgan/172 (matching the live run) and the new one
+exports all retained v1/v2 interactions; on the 600 published transcripts the
+new exporter fails only morgan/129 (known lost backend log).
+
+A `--canary TASK` option runs one frozen-selection task through the identical
+pilot admission and pipeline into its own output (no pilot receipt, never merged).
+v3 must pass a canary on morgan/172 before any AtSys submission.

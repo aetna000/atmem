@@ -173,7 +173,27 @@ def _regressions(directory):
                   and not all(c['passed'] for c in read(p)['checks']))
 
 
-def run_pilot(condition_path, receipts, options_path, output, env_file, *, stage='pilot', resume_epoch=False):
+def canary_result(output, task):
+    """Saved execution and grade for the single canary task; raises if either is missing."""
+    output = Path(output)
+    execution, grade = output / 'tests' / (task + '.json'), output / 'grades' / (task + '.json')
+    if not execution.exists() or not grade.exists():
+        raise ValueError('Canary did not save both its execution and grade: ' + task)
+    checks = read(grade).get('checks', [])
+    result = {'schema': 'dolphin-canary-result-v1', 'task': task, 'tasks': 1,
+              'checks_passed': sum(bool(c.get('passed')) for c in checks), 'checks_total': len(checks),
+              'passed': int(bool(checks) and all(c.get('passed') for c in checks)), 'regressions': [],
+              'execution': pin(execution), 'grade': pin(grade)}
+    save(output / 'canary-result.json', result)
+    return result
+
+
+def run_pilot(condition_path, receipts, options_path, output, env_file, *, stage='pilot', resume_epoch=False,
+              canary=None):
+    if canary is not None:
+        if resume_epoch or stage != 'pilot':
+            raise ValueError('A canary is one fresh task under the pilot admission')
+        return _run_pilot(condition_path, receipts, options_path, output, env_file, stage=stage, canary=canary)
     if resume_epoch:
         from .pilot_recovery import epoch_lock, verify_epoch
         if stage != 'pilot':
@@ -190,7 +210,8 @@ def run_pilot(condition_path, receipts, options_path, output, env_file, *, stage
     return _run_pilot(condition_path, receipts, options_path, output, env_file, stage=stage)
 
 
-def _run_pilot(condition_path, receipts, options_path, output, env_file, *, stage='pilot', resume_epoch=False):
+def _run_pilot(condition_path, receipts, options_path, output, env_file, *, stage='pilot', resume_epoch=False,
+               canary=None):
     # Admission and immutable input checks precede output creation and provider startup.
     condition = admit(condition_path, receipts, stage)
     if (Path(sys.executable).resolve() != Path(condition['bindings']['product_python']).resolve()
@@ -236,6 +257,12 @@ def _run_pilot(condition_path, receipts, options_path, output, env_file, *, stag
     release = read_release(Path(bindings['upstream_root']))
     selected = (selection(condition) if stage == 'pilot' else
                 {p + '/' + str(s['id']).zfill(3) for p, entry in release.items() for s in entry['tests']})
+    if canary is not None:
+        # One frozen-selection task through the identical admitted pipeline, in its own
+        # output; it issues no pilot receipt and is never merged into pilot results.
+        if canary not in selected:
+            raise ValueError('Canary task must be one of the frozen pilot selection')
+        selected = {canary}
     # Only slice IDs; never add required tool/check information to user inputs.
     sliced = {p: {**entry, 'tests': [s for s in entry['tests'] if p + '/' + str(s['id']).zfill(3) in selected]}
               for p, entry in release.items()}
@@ -324,6 +351,8 @@ def _run_pilot(condition_path, receipts, options_path, output, env_file, *, stag
                     'unresolved_calls': unresolved,
                     'actual_usd': sum(r['actual_usd'] for r in totals.values()),
                     'uncertain_usd': sum(r['reserved_usd'] for r in totals.values()), 'phase_totals': totals})
+            if canary is not None:
+                return canary_result(output, canary)
             if stage == 'pilot':
                 return report(condition_path, output, receipt_output=Path(receipts) / 'pilot.json')
             result = report(condition_path, output, stage='full')
@@ -352,6 +381,7 @@ def main():
     parser.add_argument('--report-only', action='store_true')
     parser.add_argument('--resume-epoch', action='store_true')
     parser.add_argument('--stage', choices=('pilot', 'full'), default='pilot')
+    parser.add_argument('--canary', help='run only this frozen-selection task id into a fresh output')
     args = parser.parse_args()
     if args.report_only:
         result = report(args.condition, args.output, receipt_output=args.receipts / 'pilot.json')
@@ -359,7 +389,7 @@ def main():
         if not args.options or not args.env_file:
             parser.error('Pilot execution requires frozen options and private env-file path')
         result = run_pilot(args.condition, args.receipts, args.options, args.output, args.env_file,
-                           stage=args.stage, resume_epoch=args.resume_epoch)
+                           stage=args.stage, resume_epoch=args.resume_epoch, canary=args.canary)
     print(json.dumps({'tasks': result['tasks'], 'passed': result['passed'], 'regressions': result['regressions']}))
 
 
