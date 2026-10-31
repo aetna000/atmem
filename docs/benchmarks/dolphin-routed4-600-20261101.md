@@ -25,13 +25,21 @@ informed development; this is not an unseen holdout or a learning claim.
 | Traced, zero checks | 84 | 31 | 53 |
 | Traced, partial checks | 43 | 24 | 19 |
 
-Required actions: 95/96 reads and 510/635 writes passed, totaling 605/731 action
-groups. The existing report classifies failed writes as 109 judged-content,
-nine no-call, six wrong-value and one unresolved; one read had no call. A task
-can require multiple actions. The detailed publication must replay saved judge
-responses and show candidate-call/check evidence, rather than infer an atomic
-check failure from a failed group flag. A missing required fact does not by
-itself prove failed retrieval or that a remembered rule was exposed then omitted.
+Offline replay of the unchanged upstream grader with the recorded judge answers
+verified all 600 task verdicts without new model calls. It identifies **727
+required action groups**: **98/100 reads** and **504/627 writes** passed. Four
+separate trace-wide constraints are reported separately (three passed). An action
+passes only when one eligible call satisfies all its checks; task grading also
+retains the upstream distinct-call matching rule.
+
+The 123 failed writes have diagnostic labels: 68 missing required facts, 25
+wrong values, 20 wording or precision failures, eight missing calls, and two
+missing remembered facts. The last two have verified source quotes delivered
+before the dispatched write and a failed saved judge criterion. This is a
+lower bound on observed delivery-to-write failures, not proof of retrieval
+failure for the other cases. Diagnostic labels do not change task verdicts.
+The earlier per-action report used tool-name heuristics and included trace-wide
+constraints as actions; these replay-derived counts supersede that summary.
 
 Paid judging cost was USD 3.905882, with no unresolved charges or reservations,
 against the original USD 20 cap. The final ledger retains 602 judge calls and
