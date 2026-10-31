@@ -78,6 +78,11 @@ STRICT_PROXY_REFUSALS = (
     'Required tool arguments are missing.', 'Describe the tool before invoking it.')
 
 
+# The AtMem action guard's pre_tool_call block directives (atmem/action_guard.py):
+# Hermes returns the message as the tool result and never invokes the tool.
+GUARD_REFUSALS = ('Held once before an external write (nothing was sent).', 'Not run: ')
+
+
 def rejected_before_dispatch(content):
     """Basis string when a tool result proves the call never reached the application."""
     if not isinstance(content, str):
@@ -94,6 +99,8 @@ def rejected_before_dispatch(content):
         return 'Hermes deferred-call validation refused the call before invocation'
     if error.strip() in STRICT_PROXY_REFUSALS:
         return 'strict argument proxy refused the call before forwarding'
+    if set(value) == {'error'} and error.startswith(GUARD_REFUSALS):
+        return 'AtMem action guard pre_tool_call refused the call before invocation'
     return None
 
 

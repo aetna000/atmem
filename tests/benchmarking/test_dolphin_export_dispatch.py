@@ -75,3 +75,13 @@ def test_canary_result_requires_saved_execution_and_grade(tmp_path):
     result = canary_result(tmp_path, 'morgan/172')
     assert (result['checks_passed'], result['checks_total'], result['passed']) == (1, 2, 0)
     assert json.loads((tmp_path / 'canary-result.json').read_text())['task'] == 'morgan/172'
+
+
+def test_action_guard_hold_is_a_pre_dispatch_refusal(source):
+    held = json.dumps({'error': 'Held once before an external write (nothing was sent). Check remembered standing rules.'})
+    assert rejected_before_dispatch(held)
+    assert rejected_before_dispatch(json.dumps({'error': 'Not run: command:memo is a local detour.'}))
+    messages = turn('c1', 'mcp__dolphinbench_apps__post_pr_comment', {'pr_id': 'a#1', 'body': 'x'}, held)
+    messages += turn('c2', 'mcp__dolphinbench_apps__post_pr_comment', {'pr_id': 'a#1', 'body': 'x'}, '{"result": "{\\"ok\\": true}"}')
+    result, info = normalize_effective_arguments(messages, [{'tool': 'post_pr_comment', 'args': {'pr_id': 'a#1', 'body': 'x'}}], source)
+    assert len(info['rejected_before_dispatch']) == 1
