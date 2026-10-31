@@ -3,8 +3,12 @@
 On 1 November 2026 the routed-v4 campaign completed all 600 task executions and
 grades: **479 passed, 121 failed (79.83%)**. The independent local full-run
 validator passed. These are self-tested results, not official leaderboard
-acceptance. Public evidence packaging and its action-level export are being
-prepared separately; the original 390/600 public artifact remains immutable.
+acceptance. The public evidence release includes all task outcomes, action-level checks and
+recorded judge reasons; the original 390/600 public artifact remains immutable.
+
+- [Public dataset](https://huggingface.co/datasets/atmem/dolphinbench-routed-v4-20261101)
+- [Technical article](https://huggingface.co/datasets/atmem/dolphinbench-routed-v4-20261101/blob/main/ARTICLE.md)
+- [Upstream submission review](https://github.com/mem0ai/dolphinbench/pull/10)
 
 | Recorded run | Passed | Total | Score |
 | --- | ---: | ---: | ---: |
