@@ -8,7 +8,7 @@ import sys
 import threading
 
 from .app_bridge import bridge, stage_client, short_socket
-from .execution_profile import ROUTED_PROFILE, ROUTED_SETTINGS, apply_profile, validate
+from .execution_profile import APP, ROUTED_PROFILE, ROUTED_SETTINGS, ROUTE_NOTE_MARKER, apply_profile, validate
 
 QUESTION = 'Create a document with synthetic routing qualification text.'
 from .readiness import qualification_sources, save, read, pin
@@ -40,8 +40,8 @@ def qualify(upstream, app_python, runtime_root, output, *, options_path):
             save(output / f'request-{index:02}.json', body)
             scripted = [
                 ('terminal', {'command': 'memo notes -a'}),
-                ('tool_call', {'calls': [{'name': 'mcp__dolphinbench_apps__create_doc',
-                    'arguments': {'title': 'Synthetic routing qualification', 'body': 'Synthetic durable routing text'}}]}),
+                ('mcp__dolphinbench_apps__create_doc',
+                    {'title': 'Synthetic routing qualification', 'body': 'Synthetic durable routing text'}),
             ]
             message = {'role': 'assistant', 'content': 'Synthetic qualification complete.'}
             finish = 'stop'
@@ -100,6 +100,7 @@ def qualify(upstream, app_python, runtime_root, output, *, options_path):
                     discovery_query='Synthetic qualification', discovery_python=str(runtime.python),
                     application_workflow=True, strict_application_contracts=True, initial_status='authorized')
                 config = apply_profile(ROUTED_PROFILE, read(home / 'config.yaml'), home=home,
+                    request=QUESTION, app_tools=['create_doc'],
                     skill_roots=(runtime.source / 'skills', Path.home() / '.hermes/skills', runtime.root / 'skills'))
                 config['providers']['custom'].update(request_timeout_seconds=36000, stale_timeout_seconds=36000)
                 config['agent']['api_max_retries'] = 0
@@ -149,8 +150,8 @@ def verify_evidence(output):
     names = validate(ROUTED_PROFILE, read(output / 'model-request.json'))
     if (settings != {**ROUTED_SETTINGS}
             or config.get('plugins', {}).get('enabled') != ['atmem-action-guard']
-            or not {'terminal', 'skill_view', 'tool_search', 'tool_call'} <= set(names)
-            or config.get('tools', {}).get('tool_search', {}).get('enabled') == 'off'):
+            or not {'terminal', 'skill_view', APP + 'create_doc'} <= set(names)
+            or config.get('tools', {}).get('tool_search', {}).get('enabled') != 'off'):
         raise ValueError('Routed inventory/plugin/checkpoint mismatch')
     outcomes = [json.loads(line) for line in (output / 'guard-outcomes.jsonl').read_text().splitlines()]
     calls = [json.loads(line) for line in (output / 'calls.jsonl').read_text().splitlines()]
@@ -170,11 +171,16 @@ def verify_evidence(output):
         users = [m.get('content') for m in request.get('messages', []) if m.get('role') == 'user']
         if users != [QUESTION]:
             raise ValueError('Native plugin changed the user boundary: ' + json.dumps(users)[:300])
+    # The request-specific route note must reach the model through the system prompt.
+    system = ' '.join(str(m.get('content', '')) for m in requests[0].get('messages', [])
+                      if m.get('role') in ('system', 'developer'))
+    if ROUTE_NOTE_MARKER not in system or APP + 'create_doc' not in system:
+        raise ValueError('Route note missing from the actual native system prompt')
     # Guard outcome and the next actual request must both witness the refused detour.
     if (not outcomes[0].get('decisions') or outcomes[0].get('memory_query_count') != 0
             or len(requests) != 3 or read(output / 'process.json')['returncode'] != 0):
         raise ValueError('Native plugin did not record a refused local detour')
-    return {k: True for k in ('ordinary_inventory', 'plugin_loaded', 'checkpoint_disabled', 'user_boundary_unchanged',
+    return {k: True for k in ('ordinary_inventory', 'plugin_loaded', 'checkpoint_disabled', 'user_boundary_unchanged', 'route_note_in_system_prompt',
                               'native_write_state_log_agree', 'local_detour_refused')}
 
 

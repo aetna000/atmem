@@ -379,3 +379,10 @@ def test_benchmark_settings_leave_the_user_turn_and_final_answer_untouched(tmp_p
     assert ctx.hooks['transform_llm_output'](response_text='Draft only.', session_id='a', turn_id='t') is None
     record = json.loads((home / '.atmem/action-guard/outcomes.jsonl').read_text())
     assert record['verdict']['status'] == 'not_completed'  # still recorded for the report
+
+
+def test_travel_bookings_have_a_destination():
+    value = guard('[2026-09-14] Check the company travel policy and, if compliant, book flight quote flight_129 and hotel quote hotel_129.',
+                  {APP + 'book_flight', APP + 'book_hotel'})
+    assert 'travel' in g.classify('book the flight and hotel').domains
+    assert value.routed_tools(value.turns['s']) == (APP + 'book_flight', APP + 'book_hotel')

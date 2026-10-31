@@ -392,7 +392,7 @@ def test_routed_requires_own_receipt_checks(routed_condition):
         gate.receipt(path, 'profile', {k: True for k in gate.CHECKS['profile']}, [raw], receipts / 'profile.json')
     for kind in ('profile', 'apps', 'recovery'):
         gate.receipt(path, kind, {k: True for k in gate.checks_for(gate.read(path), kind)}, [raw], receipts / (kind + '.json'))
-    assert gate.admit(path, receipts, 'pilot')['profile'] == 'dolphin-routed-v1'
+    assert gate.admit(path, receipts, 'pilot')['profile'] == gate.ROUTED_PROFILE
 
 
 @pytest.mark.parametrize('mutation', ['expired', 'checkpoint', 'identity', 'source', 'raw'])

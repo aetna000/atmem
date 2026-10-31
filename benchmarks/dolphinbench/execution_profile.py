@@ -68,42 +68,63 @@ def validate_request(body):
     return sorted(names)
 
 
-# Routed profile: the ordinary inventory (terminal, skills, deferred tool search)
-# stays visible and the AtMem action guard plugin refuses detours instead. It is
-# a separate experimental condition with its own qualification receipts.
-ROUTED_PROFILE = 'dolphin-routed-v1'
+# Routed profile: the ordinary inventory (terminal, skills, files) stays visible and
+# the AtMem action guard plugin refuses detours instead of hiding local tools. All
+# tools are eager (tool search off, as in the MCP-only profile), so the only
+# difference from that profile is that local tools remain available. A separate
+# experimental condition with its own qualification receipts.
+ROUTED_PROFILE = 'dolphin-routed-v2'
 PROFILES = (PROFILE, ROUTED_PROFILE)
 ROUTED_SETTINGS = {'checkpoint': False, 'route_context': False, 'completion_notice': False}
+ROUTE_NOTE_MARKER = 'AtMem action routing:'
 
 
-def routed_profile(config, *, home):
-    """Return a fresh config that stages and enables the action guard in ``home``."""
+def _load_repo_module(relative, name):
     # The frozen installed memory product predates this execution-only plugin.
-    # Load its pinned staging code without replacing the installed AtMem package.
+    # Load pinned repository code without replacing the installed AtMem package.
     import importlib.util
-    path = Path(__file__).parents[2] / 'atmem/adapters/hermes/action_guard_plugin.py'
-    spec = importlib.util.spec_from_file_location('dolphin_guard_stage', path)
+    spec = importlib.util.spec_from_file_location(name, Path(__file__).parents[2] / relative)
     module = importlib.util.module_from_spec(spec)
+    import sys
+    sys.modules[name] = module  # dataclasses resolve their module through sys.modules
     spec.loader.exec_module(module)
-    PLUGIN, stage = module.PLUGIN, module.stage
+    return module
+
+
+def route_note(request, app_tools):
+    """Request-specific routing note naming the connected write tools, or ''."""
+    policy = _load_repo_module('atmem/action_guard.py', 'dolphin_guard_policy')
+    guard = policy.ActionGuard(checkpoint=False)
+    guard.begin_turn('profile', request, {APP + t for t in app_tools})
+    return guard.turn_context('profile')
+
+
+def routed_profile(config, *, home, request=None, app_tools=()):
+    """Return a fresh config that stages and enables the action guard in ``home``."""
+    module = _load_repo_module('atmem/adapters/hermes/action_guard_plugin.py', 'dolphin_guard_stage')
     if 'dolphinbench-apps' not in config['toolsets']:
         raise ValueError('Execution profile requires simulated application tools')
     value = deepcopy(config)
     # The harness requires the native user turn to equal the dataset request and
     # grades the agent's own final answer, so the plugin must not inject the route
-    # note or append completion notices here; refusals and outcome records remain.
-    stage(home, settings=ROUTED_SETTINGS)
+    # note or append completion notices; the note goes into the system prompt instead.
+    module.stage(home, settings=ROUTED_SETTINGS)
     plugins = value.setdefault('plugins', {})
-    plugins['enabled'] = sorted(set(plugins.get('enabled', [])) | {PLUGIN})
+    plugins['enabled'] = sorted(set(plugins.get('enabled', [])) | {module.PLUGIN})
+    value.setdefault('tools', {})['tool_search'] = {'enabled': 'off'}
+    note = route_note(request, app_tools) if request else ''
+    if note:
+        agent = value.setdefault('agent', {})
+        agent['system_prompt'] = '\n\n'.join(filter(None, (agent.get('system_prompt', ''), note)))
     value['execution_profile'] = ROUTED_PROFILE
     return value
 
 
-def apply_profile(name, config, *, home, skill_roots=()):
+def apply_profile(name, config, *, home, skill_roots=(), request=None, app_tools=()):
     if name == PROFILE:
         return isolated_profile(config, skill_roots=skill_roots)
     if name == ROUTED_PROFILE:
-        return routed_profile(config, home=home)
+        return routed_profile(config, home=home, request=request, app_tools=app_tools)
     raise ValueError('Unknown execution profile')
 
 

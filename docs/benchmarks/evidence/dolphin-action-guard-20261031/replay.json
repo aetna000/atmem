@@ -984,7 +984,8 @@
      "email"
     ],
     "domains": [
-     "email"
+     "email",
+     "travel"
     ],
     "explicit_local": false,
     "request_sha256": "99fef7eaacb225148e1351a7da6eb92918d31d3e1b335b4e1ec29705995a001f"
@@ -1971,7 +1972,8 @@
      "sms"
     ],
     "domains": [
-     "sms"
+     "sms",
+     "travel"
     ],
     "explicit_local": false,
     "request_sha256": "c07f587b938a2f2b60bb4db787f0d8396c5185dd61ad2f91f93873e802d36725"
@@ -3010,7 +3012,8 @@
     "action": true,
     "destinations": [],
     "domains": [
-     "calendar"
+     "calendar",
+     "travel"
     ],
     "explicit_local": false,
     "request_sha256": "3eab52c1c7de69bdcd03211431d7e7e3a568e7c182c75355d42676afba5251ad"
@@ -5952,7 +5955,8 @@
      "sms"
     ],
     "domains": [
-     "sms"
+     "sms",
+     "travel"
     ],
     "explicit_local": false,
     "request_sha256": "ea06c011fd95a78eb8ba1fc07a7c2f2a06c7f117423b21d9979227210efa4157"
@@ -7944,7 +7948,8 @@
     "action": true,
     "destinations": [],
     "domains": [
-     "docs"
+     "docs",
+     "travel"
     ],
     "explicit_local": false,
     "request_sha256": "98e2cb5f09c36eaa545a910b2c39f666456a8c8f86adaa96fd1513b9d9730fbd"
@@ -8705,7 +8710,8 @@
     "action": true,
     "destinations": [],
     "domains": [
-     "docs"
+     "docs",
+     "travel"
     ],
     "explicit_local": false,
     "request_sha256": "6759e70fec4ce720e0b3a8b3e0bb607d13ba16c9b2086714f3b2414f72317f2c"

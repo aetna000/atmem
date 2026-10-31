@@ -20,8 +20,21 @@ def test_routed_profile_keeps_ordinary_inventory_and_enables_the_staged_guard(tm
     assert config['execution_profile'] == ROUTED_PROFILE and 'plugins' not in BASE
     assert (tmp_path / 'plugins/atmem-action-guard/action_guard.py').is_file()
     assert json.loads((tmp_path / 'plugins/atmem-action-guard/settings.json').read_text())['checkpoint'] is False
+    assert config['tools']['tool_search'] == {'enabled': 'off'}  # all tools eager, as in MCP-only
     with pytest.raises(FileExistsError):
         apply_profile(ROUTED_PROFILE, BASE, home=tmp_path)
+
+
+def test_route_note_goes_to_the_system_prompt_not_the_user_turn(tmp_path):
+    base = {**BASE, 'agent': {'system_prompt': 'governed context'}}
+    config = apply_profile(ROUTED_PROFILE, base, home=tmp_path, request='[2028-01-01] Create a coaching note about Wes.',
+                           app_tools=['create_doc', 'list_docs'])
+    prompt = config['agent']['system_prompt']
+    assert prompt.startswith('governed context\n\nAtMem action routing:') and 'mcp__dolphinbench_apps__create_doc' in prompt
+    assert 'list_docs' not in prompt.split('connected tools for it are:')[1].split('.')[0]
+    question = apply_profile(ROUTED_PROFILE, base, home=tmp_path / 'q', request='What did Hema say about Wes?',
+                             app_tools=['create_doc'])
+    assert question['agent']['system_prompt'] == 'governed context'
 
 
 def test_profiles_dispatch_and_reject_unknown_names(tmp_path):
@@ -50,7 +63,7 @@ def test_profile_checks_are_separate():
     assert gate.CHECKS['profile'] == {'mcp_only', 'eager_tools', 'skills_disabled'}
 
 
-@pytest.mark.parametrize('mutation', [None, 'plugin', 'checkpoint', 'detour', 'state', 'log', 'runtime', 'boundary'])
+@pytest.mark.parametrize('mutation', [None, 'plugin', 'checkpoint', 'detour', 'state', 'log', 'runtime', 'boundary', 'note'])
 def test_routed_raw_evidence_is_recomputed(tmp_path, mutation):
     from pathlib import Path
     from benchmarks.dolphinbench.qualify_routed import QUESTION, verify_evidence
@@ -59,17 +72,20 @@ def test_routed_raw_evidence_is_recomputed(tmp_path, mutation):
     (tmp_path / 'staged-action_guard.py').write_bytes((root / 'atmem/action_guard.py').read_bytes())
     def put(name, value): (tmp_path / name).write_text(json.dumps(value))
     put('staged-settings.json', {'checkpoint': False, 'route_context': False, 'completion_notice': False})
-    put('profile.json', {'plugins': {'enabled': ['atmem-action-guard']}})
-    put('model-request.json', request('terminal', 'skill_view', 'tool_search', 'tool_call'))
+    put('profile.json', {'plugins': {'enabled': ['atmem-action-guard']}, 'tools': {'tool_search': {'enabled': 'off'}}})
+    put('model-request.json', request('terminal', 'skill_view', 'mcp__dolphinbench_apps__create_doc'))
     outcome = {'verdict': {'status': 'completed'}, 'decisions': [{'action': 'block'}], 'memory_query_count': 0}
     (tmp_path / 'guard-outcomes.jsonl').write_text(json.dumps(outcome) + '\n')
     (tmp_path / 'calls.jsonl').write_text(json.dumps({'tool': 'create_doc', 'result': {'ok': True}}) + '\n')
     put('state.json', {'docs': [{'body': 'Synthetic durable routing text'}]})
     user = {'role': 'user', 'content': QUESTION}
-    for i in range(3): put(f'request-{i:02}.json', {'messages': [user, {'role': 'tool', 'content': 'Not run: memo; use create_doc'}]})
+    system = {'role': 'system', 'content': 'ctx\n\nAtMem action routing: ... mcp__dolphinbench_apps__create_doc ...'}
+    for i in range(3): put(f'request-{i:02}.json', {'messages': [system, user, {'role': 'tool', 'content': 'Not run: memo; use create_doc'}]})
     put('process.json', {'returncode': 0})
     if mutation == 'plugin': (tmp_path / 'staged-action_guard.py').write_text('changed')
     if mutation == 'checkpoint': put('staged-settings.json', {'checkpoint': True, 'route_context': False, 'completion_notice': False})
+    if mutation == 'note':
+        put('request-00.json', {'messages': [{'role': 'system', 'content': 'ctx'}, user, {'role': 'tool', 'content': 'Not run: memo; use create_doc'}]})
     if mutation == 'boundary':
         put('request-01.json', {'messages': [{'role': 'user', 'content': QUESTION + '\n\nAtMem action routing: ...'},
                                              {'role': 'tool', 'content': 'Not run: memo; use create_doc'}]})

@@ -35,6 +35,7 @@ DOMAIN_TOOLS = {
     'code_review': re.compile(r'(^|_)(pr|prs|pull|issue|repo|review)(_|$)'),
     'slides': re.compile(r'(^|_)(deck|decks|slide|slides)(_|$)'),
     'crm': re.compile(r'(^|_)(crm)(_|$)'),
+    'travel': re.compile(r'(^|_)(flight|flights|hotel|hotels|trip|travel)(_|$)'),
 }
 WRITE_PREFIX = re.compile(r'^(create|send|post|update|add|review|place|delete|book|schedule|reply|'
                           r'comment|move|archive|assign|close|merge|submit|cancel|upload|set)_')
@@ -81,6 +82,7 @@ DOMAIN_WORDS = {
     'code_review': r'\b(pr|pull request|github|repo)\b|[\w./-]+#\d+',
     'slides': r'\b(deck|slide|slides|presentation)\b',
     'crm': r'\b(crm)\b',
+    'travel': r'\b(flights?|hotels?|travel|trip)\b',
 }
 # Destinations the request names explicitly. Only these are used to decide that an
 # accepted write went to the wrong place; topic words are too noisy for that.
