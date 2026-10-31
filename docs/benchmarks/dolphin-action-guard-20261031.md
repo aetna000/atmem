@@ -176,3 +176,24 @@ retries. The wrapper counts saved executions and grades and writes a Markdown
 terminal report plus a machine outcome, including partial/failure outcomes.
 Independent validation still rejects missing evidence or control regressions.
 Preparation is not submission or a new score. Full600 remains unauthorized.
+
+## Routed fixed20 v3 result — 2026-10-31
+
+AtSys `task-745978af-98a8-455c-b97b-c75e851f6076`, completed and independently
+validated: **12/20 passed, 9 recoveries, 0 control regressions**, API cost
+USD 0.076858 (judge only; reader on subscription). Report:
+`specs/048-dolphin-execution-readiness/atsys/routed-fixed20-v3-report.md`.
+
+Compared with the MCP-only fixed20 pilot (13/20, same IDs, models and memory):
+routed passed morgan/152 and morgan/162 that MCP-only failed, and failed alex/102,
+alex/132 and morgan/129 that MCP-only passed. None of those three involved a
+refused detour; all ended without the required write: alex/102 wrote its PR
+review in the answer without `review_pr`, alex/132 wrote the note in the answer
+without discovering `create_doc` through deferred tool search, and morgan/129 did
+not book after failing to find the travel policy. In this benchmark profile the
+request-specific route note (which names the connected write tool) is disabled to
+keep the user turn byte-identical, and app tools are deferred rather than eager.
+Delivering the route note through the system prompt, or keeping connected app
+tools eagerly visible while local tools remain, is the next measured change.
+One 20-task run per condition is small and post hoc; differences of one or two
+tasks are within run-to-run variation and are not a claim either way.
