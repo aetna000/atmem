@@ -28,10 +28,40 @@ def count(directory):
     return len([p for p in directory.glob('*/*.json') if not p.name.startswith('._')]) if directory.exists() else 0
 
 
+def grade_counts(directory):
+    passed = failed = pending = 0
+    if not directory.exists():
+        return passed, failed, pending
+    for path in directory.glob('*/*.json'):
+        if path.name.startswith('._'):
+            continue
+        try:
+            checks = read(path)['checks']
+            if not isinstance(checks, list) or not checks or any(type(c.get('passed')) is not bool for c in checks):
+                pending += 1
+            elif all(c['passed'] for c in checks):
+                passed += 1
+            else:
+                failed += 1
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            # A grade may be observed while it is still being written. Count it
+            # only after its complete check list is readable on a later poll.
+            pending += 1
+    return passed, failed, pending
+
+
 def observe(output, prefix):
-    executions, grades = count(output / 'tests'), count(output / 'grades')
-    atomic(ARTIFACTS / f'{prefix}-progress.json', {'completed': executions + grades, 'total': 2 * TOTAL,
-                                                   'checkpoint': f'{executions}/{TOTAL} executions, {grades}/{TOTAL} grades'})
+    executions = count(output / 'tests')
+    passed, failed, pending = grade_counts(output / 'grades')
+    graded = passed + failed
+    # AtSys progress totals must equal the number of declared goal stages.
+    stage = 2 if graded == TOTAL else 1
+    checkpoint = (f'{graded}/{TOTAL} graded: {passed} passed, {failed} failed; '
+                  f'{executions}/{TOTAL} executions')
+    if pending:
+        checkpoint += f'; {pending} grade file(s) still being written or unreadable'
+    atomic(ARTIFACTS / f'{prefix}-progress.json', {'completed': stage, 'total': 3,
+                                                   'checkpoint': checkpoint})
 
 
 def summarize(args, prefix, error=None):
