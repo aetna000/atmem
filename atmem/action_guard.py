@@ -195,14 +195,24 @@ WRITE_COMMAND = re.compile(r'\bgh\s+api\b.*(?:-X\s*(?:POST|PATCH|PUT|DELETE)|--m
                            r'\s-[fF]\s|--field|--raw-field)|\s(?:-a|--add|-e|--edit|-d|--delete|-m|--move)\b', re.I)
 
 
+NEUTRAL_COMMAND = re.compile(r'^\s*(?:cd|pwd|echo|printf|export|set|true|ls|cat|head|tail|wc|grep|jq|sort)\b')
+
+
 def is_read_route(name, arguments):
-    """True for a local command that only inspects its destination (help, listings, diffs)."""
-    if name not in TERMINAL_TOOLS:
+    """True only when every component of a local command inspects (help, listings, diffs)."""
+    if name not in TERMINAL_TOOLS or name == 'execute_code':
         return False
-    command = ' '.join(str(arguments.get(k, '')) for k in ('command', 'code', 'cmd'))
-    if WRITE_COMMAND.search(command):
+    command = ' '.join(str(arguments.get(k, '')) for k in ('command', 'cmd'))
+    if not command.strip() or re.search(r'[`]|\$\(', command):
         return False
-    return bool(READ_COMMAND.search(command) or re.search(r'\bgh\s+api\b', command))
+    components = [c for c in re.split(r'&&|\|\||[;|\n]', command) if c.strip()]
+    for component in components:
+        if WRITE_COMMAND.search(component):
+            return False
+        if not (READ_COMMAND.search(component) or re.search(r'\bgh\s+api\b', component)
+                or NEUTRAL_COMMAND.search(component)):
+            return False
+    return any(not NEUTRAL_COMMAND.search(c) for c in components)
 
 
 @dataclass
@@ -264,7 +274,10 @@ class RouteMemory:
         os.replace(temporary, self.path)
 
 
-ACCEPTED, FAILED, UNCONFIRMED = 'accepted', 'failed', 'unconfirmed'
+ACCEPTED, FAILED, UNCONFIRMED, UNDISPATCHED = 'accepted', 'failed', 'unconfirmed', 'undispatched'
+# Hermes deferred-call validation (tools/tool_search_validation.py) rejects a malformed
+# wrapper before dispatch; such a call never reached the application.
+HOST_VALIDATION = re.compile(r'^tool_call\b')
 ERROR_WORDS = re.compile(r'\b(error|errors|cannot|can\'t|failed|failure|denied|invalid|not allowed|refused)\b', re.I)
 ID_KEYS = ('id', 'message_id', 'event_id', 'doc_id', 'comment_id', 'review_id', 'order_id')
 
@@ -316,6 +329,9 @@ def result_status(result):
     layers = _layers(value) if isinstance(value, dict) else []
     if not layers:
         return FAILED if FAILURE_TEXT.search(text) or ERROR_WORDS.search(text) else UNCONFIRMED
+    top = layers[0]
+    if set(top) == {'error'} and isinstance(top['error'], str) and HOST_VALIDATION.match(top['error']):
+        return UNDISPATCHED
     for layer in layers:
         if (layer.get('isError') is True or layer.get('ok') is False or layer.get('success') is False
                 or layer.get('error') or (isinstance(layer.get('exit_code'), int) and layer['exit_code'] != 0)):
@@ -336,8 +352,8 @@ def _per_call_status(result, count):
     items = value.get('results') if isinstance(value, dict) else value
     if isinstance(items, list) and len(items) == count:
         return [result_status(item) for item in items]
-    if count == 1:
-        return [overall]
+    if count == 1 or overall == UNDISPATCHED:
+        return [overall] * count
     return [FAILED if overall == FAILED else UNCONFIRMED] * count
 
 
@@ -345,11 +361,21 @@ TARGET_KEYS = ('to', 'recipient', 'recipients', 'channel', 'user', 'user_id', 'p
                'repo', 'pr', 'pr_number', 'number_id', 'doc_id', 'event_id', 'row_id', 'deck_id', 'slide')
 
 
+IDENTITY_KEYS = ('title', 'name', 'subject', 'summary', 'start', 'date', 'when', 'path', 'filename')
+
+
 def operation_key(name, arguments):
-    """Tool plus its target fields: a retry to the same target clears a failure,
-    a call to a different recipient or record does not."""
-    target = {k: arguments[k] for k in TARGET_KEYS if isinstance(arguments, dict) and arguments.get(k) not in (None, '', [])}
-    return name + ('|' + json.dumps(target, sort_keys=True, default=str) if target else '')
+    """Tool plus the fields that identify what it acts on: a retry to the same
+    target clears a failure; a different recipient, record or created item does not.
+    Free text (bodies, messages) is excluded so a corrected retry still matches."""
+    arguments = arguments if isinstance(arguments, dict) else {}
+    identity = {k: arguments[k] for k in TARGET_KEYS + IDENTITY_KEYS if arguments.get(k) not in (None, '', [])}
+    if not identity:
+        # No identifying field: distinguish by the full arguments rather than merging
+        # every targetless call of this tool into one operation.
+        identity = {'arguments_sha256': hashlib.sha256(json.dumps(arguments, sort_keys=True, default=str)
+                                                       .encode()).hexdigest()}
+    return name + '|' + json.dumps(identity, sort_keys=True, default=str)
 
 
 @dataclass
@@ -361,6 +387,7 @@ class TurnState:
     accepted: list = field(default_factory=list)
     failed: list = field(default_factory=list)
     unconfirmed: list = field(default_factory=list)
+    undispatched: list = field(default_factory=list)
     outcomes: dict = field(default_factory=dict)  # operation key -> (tool, latest status)
     local_accepted: list = field(default_factory=list)
     memory_queries: list = field(default_factory=list)
@@ -420,7 +447,9 @@ class ActionGuard:
                 self.route_memory.record_failure(route[0], result, session_id=session_id)
             if route and status == ACCEPTED:
                 state.local_accepted.append(route[0])
-            if is_write(effective):
+            if is_write(effective) and status == UNDISPATCHED:
+                state.undispatched.append(effective)
+            elif is_write(effective):
                 {ACCEPTED: state.accepted, FAILED: state.failed, UNCONFIRMED: state.unconfirmed}[status].append(effective)
                 key = operation_key(effective, effective_arguments)
                 if state.outcomes.get(key, (None, None))[1] != ACCEPTED:
@@ -456,6 +485,9 @@ class ActionGuard:
         if state.failed:
             return {'status': 'not_completed', 'reason': 'connected application rejected the write',
                     'failed': state.failed}
+        if state.undispatched:
+            return {'status': 'not_completed', 'reason': 'the host rejected the write call before dispatch',
+                    'undispatched': state.undispatched}
         return {'status': 'not_completed', 'reason': 'no connected application write was attempted'}
 
     def record(self, session_id):
@@ -464,6 +496,7 @@ class ActionGuard:
                 'decisions': [d.to_json() for d in state.decisions if d.action == 'block'],
                 'attempted_writes': state.attempts, 'accepted_writes': state.accepted,
                 'failed_writes': state.failed, 'unconfirmed_writes': state.unconfirmed,
+                'undispatched_writes': state.undispatched,
                 'local_accepted': state.local_accepted, 'memory_query_count': len(state.memory_queries)}
 
     # -- text the host shows the model -------------------------------------------

@@ -105,7 +105,13 @@ confirmed three resolved and found four remaining defects: per-target operation
 outcomes (a success to one recipient no longer clears a failure to another),
 destination cues under polite phrasing, prerequisite reads (`gh pr diff`) only
 redirected to a connected read tool, and itemised single-call batches. All four
-were fixed with regression tests; replay numbers are unchanged.
+were fixed with regression tests; replay numbers are unchanged. A third review found
+two more: distinct created items merged into one outcome, and compound commands
+(`gh pr diff && gh pr review --approve`) receiving the read exemption. Created
+items are now keyed by identifying fields (or full arguments), the read exemption
+needs every command component to read, and Hermes wrapper-validation rejections
+(`tool_call …`, never dispatched) are classified `undispatched` rather than as
+failed operations. Replay numbers are unchanged.
 
 ## Limitations
 

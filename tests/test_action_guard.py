@@ -293,3 +293,42 @@ def test_single_call_batch_with_itemised_result_is_accepted():
     call = {'calls': [{'name': APP + 'create_doc', 'arguments': {'title': 't'}}]}
     value.after_call('s', 'tool_call', call, {'results': [{'ok': True, 'id': 'd1'}]})
     assert value.verdict('s')['status'] == 'completed'
+
+
+def test_distinct_created_items_keep_separate_outcomes():
+    value = guard('Create notes for Alice and Bob.', {APP + 'create_doc'})
+    value.after_call('s', APP + 'create_doc', {'title': 'Alice', 'body': 'a'}, {'ok': False})
+    value.after_call('s', APP + 'create_doc', {'title': 'Bob', 'body': 'b'}, {'ok': True, 'id': 'd2'})
+    assert value.verdict('s')['status'] == 'partial'
+    value.after_call('s', APP + 'create_doc', {'title': 'Alice', 'body': 'revised'}, {'ok': True, 'id': 'd3'})
+    assert value.verdict('s')['status'] == 'completed'
+    targetless = guard('Create two notes.', {APP + 'create_doc'})
+    targetless.after_call('s', APP + 'create_doc', {'body': 'one'}, {'ok': False})
+    targetless.after_call('s', APP + 'create_doc', {'body': 'two'}, {'ok': True, 'id': 'd4'})
+    assert targetless.verdict('s')['status'] == 'partial'
+
+
+@pytest.mark.parametrize('command, read', [
+    ('gh pr diff 12', True), ('cd repo && gh pr diff 12', True),
+    ('gh pr diff 12 && gh pr review 12 --approve', False), ('gh pr view 12; gh pr merge 12', False),
+    ('gh pr view $(gh pr merge 12)', False), ('memo notes | cat', True), ('pwd', False),
+])
+def test_read_exemption_requires_every_command_component_to_read(command, read):
+    assert g.is_read_route('terminal', {'command': command}) is read
+
+
+def test_compound_local_write_is_redirected_to_the_connected_writer():
+    value = guard('Inspect repo#12 and review its changes', {APP + 'review_pr'})
+    decision = value.before_call('s', 'terminal', {'command': 'gh pr diff 12 && gh pr review 12 --approve'})
+    assert decision.action == 'block' and decision.routed_tools == (APP + 'review_pr',)
+
+
+def test_host_rejected_wrapper_is_undispatched_not_a_failed_operation():
+    assert g.result_status({"error": "tool_call calls[0] requires a 'name'"}) == g.UNDISPATCHED
+    assert g.result_status({"error": "MCP server 'apps' is not connected"}) == g.FAILED
+    value = guard(NOTES_REQUEST, {APP + 'create_doc'})
+    bad = {'calls': [{'arguments': {'title': 'x'}, 'name': APP + 'create_doc'}, {'name': APP + 'create_doc'}]}
+    value.after_call('s', 'tool_call', bad, '{"error": "tool_call takes exactly one entry for local tools; you sent 2."}')
+    assert value.verdict('s')['reason'] == 'the host rejected the write call before dispatch'
+    value.after_call('s', APP + 'create_doc', {'title': 'Board review'}, {'ok': True, 'id': 'd1'})
+    assert value.verdict('s')['status'] == 'completed'
