@@ -249,7 +249,7 @@ def test_reads_and_unrelated_skills_are_not_redirected_to_write_tools():
     assert guard('Create a note about the Q2 plan', review).before_call(
         's', 'skill_view', {'name': 'google-workspace'}).action == 'allow'
     redirected = guard('Inspect lantern#1602 and review it', review).before_call('s', 'terminal', {'command': 'gh pr view 1602'})
-    assert redirected.routed_tools == (APP + 'review_pr', APP + 'get_pr')
+    assert redirected.routed_tools == (APP + 'get_pr', APP + 'review_pr')
 
 
 def test_finished_and_abandoned_sessions_are_released():
@@ -258,3 +258,38 @@ def test_finished_and_abandoned_sessions_are_released():
         value.begin_turn(f's{index}', NOTES_REQUEST, {APP + 'create_doc'})
     assert list(value.turns) == ['s2', 's3', 's4']
     assert value.finish('s4')['verdict']['status'] == 'not_completed' and 's4' not in value.turns
+
+
+def test_success_to_one_recipient_does_not_clear_a_failure_to_another():
+    value = guard('Email Alice and Bob the update.', {APP + 'send_email'})
+    value.after_call('s', APP + 'send_email', {'to': 'alice@example.com', 'body': 'x'}, {'ok': True, 'id': 'm1'})
+    value.after_call('s', APP + 'send_email', {'to': 'bob@example.com', 'body': 'x'}, {'ok': False})
+    assert value.verdict('s')['status'] == 'partial'
+    value.after_call('s', APP + 'send_email', {'to': 'bob@example.com', 'body': 'fixed'}, {'ok': True, 'id': 'm2'})
+    assert value.verdict('s')['status'] == 'completed'  # retry to the same target clears it
+
+
+@pytest.mark.parametrize('text', ['Could you email Alice the update?', 'Please send this to ops@example.com',
+                                  '[2026-09-14] Can you please email the vendor a reply?'])
+def test_polite_phrasing_keeps_explicit_destinations(text):
+    value = guard(text, {APP + 'create_doc', APP + 'send_email'})
+    assert 'email' in g.classify(text).destinations
+    value.after_call('s', APP + 'create_doc', {}, {'ok': True, 'id': 'd1'})
+    assert value.verdict('s')['status'] == 'not_completed'
+
+
+def test_prerequisite_reads_need_a_connected_read_replacement():
+    only_writer = guard('Inspect repo#12 and review its changes', {APP + 'review_pr'})
+    assert only_writer.before_call('s', 'terminal', {'command': 'gh pr diff 12'}).action == 'allow'
+    assert only_writer.before_call('s', 'skill_view', {'name': 'github'}).action == 'block'
+    with_reader = guard('Inspect repo#12 and review its changes', {APP + 'review_pr', APP + 'get_pr'})
+    assert with_reader.before_call('s', 'terminal', {'command': 'gh pr diff 12'}).routed_tools[0] == APP + 'get_pr'
+    assert g.is_read_route('terminal', {'command': 'memo notes'}) and not g.is_read_route('terminal', {'command': 'memo notes -a'})
+    assert not g.is_read_route('terminal', {'command': 'gh api repos/o/r/pulls/1/reviews -X POST'})
+
+
+def test_single_call_batch_with_itemised_result_is_accepted():
+    value = guard(NOTES_REQUEST, {APP + 'create_doc'})
+    call = {'calls': [{'name': APP + 'create_doc', 'arguments': {'title': 't'}}]}
+    value.after_call('s', 'tool_call', call, {'results': [{'ok': True, 'id': 'd1'}]})
+    assert value.verdict('s')['status'] == 'completed'

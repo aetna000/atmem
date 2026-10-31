@@ -85,12 +85,14 @@ DOMAIN_WORDS = {
 # Destinations the request names explicitly. Only these are used to decide that an
 # accepted write went to the wrong place; topic words are too noisy for that.
 EXPLICIT_DESTINATIONS = {
-    'email': r'^\W*(?:\[[^\]]*\]\s*)?(?:please\s+)?e-?mail\b|\b(?:send|reply|write)\b[^.?!]{0,40}\be-?mail\b',
-    'sms': r'^\W*(?:\[[^\]]*\]\s*)?(?:please\s+)?text\b|\b(?:sms|imessage|text message)\b',
-    'chat': r'\b(?:slack|discord)\b|^\W*(?:\[[^\]]*\]\s*)?(?:please\s+)?dm\b',
+    'email': r'^e-?mail\b|\b(?:send|reply|write|forward)\b[^.?!]{0,60}\b(?:e-?mail|to\s+\S+@\S+\.\w+)',
+    'sms': r'^text\b|\b(?:sms|imessage|text message)\b',
+    'chat': r'\b(?:slack|discord)\b|^dm\b',
     'calendar': r'\bto\s+(?:my|the|our)\s+calendar\b|\bcalendar (?:event|invite|hold)\b',
     'code_review': r'\b(?:pull request|pr)\b|[\w./-]+#\d+',
 }
+REQUEST_PREFIX = re.compile(r'^\s*(?:\[[^\]]*\]\s*)?(?:(?:could|can|would|will)\s+you\s+|please\s+|kindly\s+|'
+                            r'go ahead and\s+|now\s+)*', re.I)
 EXPLICIT_LOCAL = re.compile(r'\b(apple notes|notes app|local file|save (?:it )?(?:to|as) (?:a )?file|'
                             r'on my (?:mac|desktop|disk)|in (?:the )?terminal|with gh|gh cli|memo cli|'
                             r'imessage app|osascript)\b', re.I)
@@ -160,7 +162,8 @@ def classify(request):
     lowered = text.lower()
     domains = frozenset(d for d, pattern in DOMAIN_WORDS.items() if re.search(pattern, lowered))
     action = bool(ACTION_VERB.search(text) or ACTION_ANYWHERE.search(text))
-    destinations = frozenset(d for d, pattern in EXPLICIT_DESTINATIONS.items() if re.search(pattern, text, re.I))
+    core = REQUEST_PREFIX.sub('', text, count=1)
+    destinations = frozenset(d for d, pattern in EXPLICIT_DESTINATIONS.items() if re.search(pattern, core, re.I))
     return Intent(action, domains, bool(EXPLICIT_LOCAL.search(text)),
                   hashlib.sha256(text.encode()).hexdigest(), destinations)
 
@@ -182,6 +185,24 @@ def local_route(name, arguments):
     if name in LOCAL_FILE_TOOLS:
         return 'file:' + name, 'docs'
     return None
+
+
+READ_COMMAND = re.compile(
+    r'\bgh\s+(?:pr|issue|repo|run|release)\s+(?:view|diff|list|checks|status)\b'
+    r'|--help\b|^\s*(?:command\s+-v|which)\b'
+    r'|\bmemo\s+notes\s*(?:$|[;&|]|-f\b|--folder\b|-s\b|--search\b)', re.I)
+WRITE_COMMAND = re.compile(r'\bgh\s+api\b.*(?:-X\s*(?:POST|PATCH|PUT|DELETE)|--method\s+(?:POST|PATCH|PUT|DELETE)|'
+                           r'\s-[fF]\s|--field|--raw-field)|\s(?:-a|--add|-e|--edit|-d|--delete|-m|--move)\b', re.I)
+
+
+def is_read_route(name, arguments):
+    """True for a local command that only inspects its destination (help, listings, diffs)."""
+    if name not in TERMINAL_TOOLS:
+        return False
+    command = ' '.join(str(arguments.get(k, '')) for k in ('command', 'code', 'cmd'))
+    if WRITE_COMMAND.search(command):
+        return False
+    return bool(READ_COMMAND.search(command) or re.search(r'\bgh\s+api\b', command))
 
 
 @dataclass
@@ -310,14 +331,25 @@ def result_status(result):
 def _per_call_status(result, count):
     """Statuses for each call of a wrapper; only an itemised result can confirm several."""
     overall = result_status(result)
-    if count == 1:
-        return [overall]
     text = result if isinstance(result, str) else json.dumps(result, default=str)
     value = result if isinstance(result, (dict, list)) else _decode_result(text)
     items = value.get('results') if isinstance(value, dict) else value
     if isinstance(items, list) and len(items) == count:
         return [result_status(item) for item in items]
+    if count == 1:
+        return [overall]
     return [FAILED if overall == FAILED else UNCONFIRMED] * count
+
+
+TARGET_KEYS = ('to', 'recipient', 'recipients', 'channel', 'user', 'user_id', 'phone', 'number', 'email',
+               'repo', 'pr', 'pr_number', 'number_id', 'doc_id', 'event_id', 'row_id', 'deck_id', 'slide')
+
+
+def operation_key(name, arguments):
+    """Tool plus its target fields: a retry to the same target clears a failure,
+    a call to a different recipient or record does not."""
+    target = {k: arguments[k] for k in TARGET_KEYS if isinstance(arguments, dict) and arguments.get(k) not in (None, '', [])}
+    return name + ('|' + json.dumps(target, sort_keys=True, default=str) if target else '')
 
 
 @dataclass
@@ -329,6 +361,7 @@ class TurnState:
     accepted: list = field(default_factory=list)
     failed: list = field(default_factory=list)
     unconfirmed: list = field(default_factory=list)
+    outcomes: dict = field(default_factory=dict)  # operation key -> (tool, latest status)
     local_accepted: list = field(default_factory=list)
     memory_queries: list = field(default_factory=list)
     checkpointed: set = field(default_factory=set)
@@ -389,6 +422,9 @@ class ActionGuard:
                 state.local_accepted.append(route[0])
             if is_write(effective):
                 {ACCEPTED: state.accepted, FAILED: state.failed, UNCONFIRMED: state.unconfirmed}[status].append(effective)
+                key = operation_key(effective, effective_arguments)
+                if state.outcomes.get(key, (None, None))[1] != ACCEPTED:
+                    state.outcomes[key] = (effective, status)
 
     def verdict(self, session_id):
         state = self._state(session_id)
@@ -406,7 +442,7 @@ class ActionGuard:
 
         matched = [n for n in state.accepted if requested(n)]
         if matched:
-            missing = sorted(set(state.failed + state.unconfirmed) - set(state.accepted))
+            missing = sorted({tool for tool, status in state.outcomes.values() if status != ACCEPTED})
             if missing:
                 return {'status': 'partial', 'accepted': matched, 'missing': missing,
                         'reason': 'not confirmed: ' + ', '.join(missing)}
@@ -477,7 +513,11 @@ class ActionGuard:
                 # Redirect only when a connected application can perform the requested
                 # operation for that destination; reads and unrelated skills stay allowed.
                 domain_tools = [n for n in state.visible if is_connected(n) and tool_domains(n) & targets]
-                if any(is_write(n) for n in domain_tools):
+                if is_read_route(name, arguments):
+                    # A read can only be replaced by a connected read for that destination.
+                    if any(not is_write(n) for n in domain_tools):
+                        candidates = sorted(domain_tools, key=lambda n: (is_write(n), n))
+                elif any(is_write(n) for n in domain_tools):
                     candidates = sorted(domain_tools, key=lambda n: (not is_write(n), n))
             if candidates:
                 return Decision('block', 'connected application covers this destination', signature, tuple(candidates),

@@ -100,7 +100,12 @@ Codex `gpt-6.1-sol` (medium) reviewed the first commit read-only and requested
 changes: affirmative-acceptance tri-state results (P1), destination-matched
 completion and partial reporting (P1), no false warning for explicit local
 actions (P2), no redirect of reads/unrelated skills (P2) and session lifecycle
-bounds (P2). All five were fixed with regression tests and the replay re-run.
+bounds (P2). All five were fixed with regression tests and the replay re-run. A second review
+confirmed three resolved and found four remaining defects: per-target operation
+outcomes (a success to one recipient no longer clears a failure to another),
+destination cues under polite phrasing, prerequisite reads (`gh pr diff`) only
+redirected to a connected read tool, and itemised single-call batches. All four
+were fixed with regression tests; replay numbers are unchanged.
 
 ## Limitations
 

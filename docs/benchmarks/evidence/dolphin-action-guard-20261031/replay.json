@@ -7902,7 +7902,9 @@
    "id": "alex/189",
    "intent": {
     "action": true,
-    "destinations": [],
+    "destinations": [
+     "email"
+    ],
     "domains": [
      "email"
     ],
