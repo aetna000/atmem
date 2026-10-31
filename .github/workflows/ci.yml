@@ -268,7 +268,7 @@ jobs:
       - name: Exercise installed artifact outside checkout
         working-directory: ${{ runner.temp }}
         run: |
-          python -c "import importlib.util; from importlib.metadata import version; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None; assert version('atflows') == '0.1.4'"
+          python -c "import importlib.util; from importlib.metadata import version; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None; assert version('atflows') == '0.1.5b1'"
           python "${{ github.workspace }}/tools/smoke_installed_package.py"
           python "${{ github.workspace }}/tools/smoke_delegated_package.py"
           python "${{ github.workspace }}/tools/smoke_delegated_transport.py"

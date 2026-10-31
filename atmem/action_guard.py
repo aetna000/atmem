@@ -16,9 +16,15 @@ import hashlib
 import json
 import os
 import re
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+
+if __package__:
+    from .private_paths import protect_private_path
+else:  # Benchmark profile loads this file by path, outside a package.
+    from atmem.private_paths import protect_private_path
 
 FORMAT = 'atmem-action-guard-v1'
 MEMORY_SERVERS = ('atmem_discovery', 'atmem-discovery', 'atmem')
@@ -269,11 +275,15 @@ class RouteMemory:
         if not self.path:
             return
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = self.path.with_name(self.path.name + f'.{os.getpid()}.tmp')
-        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(descriptor, 'w') as output:
-            json.dump({'format': FORMAT + '-route-memory', 'entries': list(self.entries.values())}, output)
-        os.replace(temporary, self.path)
+        descriptor, name = tempfile.mkstemp(prefix=self.path.name + '.', suffix='.tmp', dir=self.path.parent)
+        temporary = Path(name)
+        try:
+            with os.fdopen(descriptor, 'w') as output:
+                protect_private_path(temporary)
+                json.dump({'format': FORMAT + '-route-memory', 'entries': list(self.entries.values())}, output)
+            os.replace(temporary, self.path)
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 ACCEPTED, FAILED, UNCONFIRMED, UNDISPATCHED = 'accepted', 'failed', 'unconfirmed', 'undispatched'
@@ -537,7 +547,7 @@ class ActionGuard:
             note += (' Before the first call to each write tool the host holds it once and returns a '
                      '"Held once" notice (nothing is sent): check remembered rules, preferences and '
                      'commitments for that exact action with '
-                     + ('fact_search (verified standing facts) and memory_search' if self._facts_visible(state)
+                     + ('fact_search (source-linked unverified statements) and memory_search' if self._facts_visible(state)
                         else 'memory_search') + ', open relevant fragments in '
                      'context with memory_inspect, then call the tool again.')
         return note

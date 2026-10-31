@@ -1,4 +1,4 @@
-"""Read-only stdio MCP server exposing ``fact_search`` over a verified standing-fact store.
+"""Read-only stdio MCP server exposing ``fact_search`` over source-linked statements.
 
 Standard-library-only so it can be staged beside a native agent:
 ``python -I facts_stdio.py STORE.json`` (``standing_facts.py`` must sit beside it).
@@ -12,9 +12,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import standing_facts  # noqa: E402
 
 TOOL = {'name': 'fact_search',
-        'description': ('Search verified standing facts about the user (rules, preferences, defaults, policies, '
+        'description': ('Search source-linked model-generated statements about the user (rules, preferences, defaults, policies, '
                         'thresholds, commitments, people) distilled from earlier conversations. Each result has a '
-                        'date and the exact source quote. Newer facts take precedence. Use short queries about the '
+                        'date and a source quote; quotation occurrence does not verify the statement. Check the source and current authority. Use short queries about the '
                         'kind of activity, person, place or limit involved.'),
         'inputSchema': {'type': 'object', 'properties': {
             'query': {'type': 'string'}, 'limit': {'type': 'integer', 'minimum': 1, 'maximum': 20}},

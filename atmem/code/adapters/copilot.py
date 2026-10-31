@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import shlex
 import subprocess
+import re
 from atmem.code.adapters.json_hooks import JsonHookAdapter
 from atmem.code.adapters.copilot_events import EVENTS
 
@@ -22,6 +23,14 @@ def copilot_cli_argv():
             raise RuntimeError("Copilot npm launcher is unavailable; repair the Copilot CLI installation")
         return [node, str(loader)]
     return [binary]
+
+
+def copilot_offline_remote_flags(version: str) -> list[str]:
+    """Keep older CLI safeguards; new CLI removed these in offline mode."""
+    match = re.search(r'\b(\d+)\.(\d+)\.(\d+)\b', version)
+    if match and tuple(map(int, match.groups())) >= (1, 0, 103):
+        return []
+    return ['--no-remote', '--no-remote-export']
 
 
 class CopilotAdapter(JsonHookAdapter):

@@ -30,7 +30,7 @@ def verified_adapter(store, *, subject: str, project: str, root: str, host: str)
     command = shlex.join(argv)
     if host == "copilot":
         from atmem.code.adapters.copilot import CopilotAdapter
-        from atmem.code.adapters.copilot_events import QUALIFIED_VERSION, require_workspace_trust
+        from atmem.code.adapters.copilot_events import QUALIFIED_VERSIONS, require_workspace_trust
         require_workspace_trust(root)
         adapter = CopilotAdapter(root, command, argv=argv)
     else:
@@ -41,8 +41,9 @@ def verified_adapter(store, *, subject: str, project: str, root: str, host: str)
     verifier = claude_probe
     if host == "copilot":
         from atmem.code.adapters.copilot_probe import copilot_probe
-        if re.search(r"\b" + re.escape(QUALIFIED_VERSION) + r"\b", initial.version) is None:
-            raise RuntimeError("Copilot version is not qualified; expected " + QUALIFIED_VERSION)
+        qualified = QUALIFIED_VERSIONS if platform.system() == 'Darwin' else ('1.0.98',)
+        if not any(re.search(r"\b" + re.escape(version) + r"\b", initial.version) for version in qualified):
+            raise RuntimeError("Copilot version is not qualified; expected " + ", ".join(qualified))
         verifier = copilot_probe
     adapter.verifier = lambda: verifier(store=store, subject=subject, project=project,
                                             root=Path(root).resolve(), credential=load_existing_key(credential_file), initial=initial,

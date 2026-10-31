@@ -114,7 +114,8 @@ def test_verified_route_failure_is_remembered_across_sessions(tmp_path):
     assert first.before_call('s', 'terminal', command).action == 'allow'
     first.after_call('s', 'terminal', command, {'output': "xcrun: error: unable to load libxcrun (file system "
                                                "sandbox blocked open())", 'exit_code': 1})
-    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    from atmem.private_paths import private_path
+    assert private_path(path)
     later = guard('Create a note about Q3', {'terminal'}, route_memory=g.RouteMemory(path))
     decision = later.before_call('s', 'terminal', command)
     assert decision.action == 'block' and 'xcrun: error' in decision.message
@@ -192,7 +193,8 @@ def test_staged_hermes_plugin_enforces_the_hook_sequence(tmp_path, monkeypatch):
     records = [json.loads(line) for line in (home / '.atmem/action-guard/outcomes.jsonl').read_text().splitlines()]
     assert [r['verdict']['status'] for r in records] == ['not_completed', 'completed']
     assert records[0]['decisions'][0]['route'] == 'skill:apple-notes'
-    assert stat.S_IMODE((home / '.atmem/action-guard/outcomes.jsonl').stat().st_mode) == 0o600
+    from atmem.private_paths import private_path
+    assert private_path(home / '.atmem/action-guard/outcomes.jsonl')
 
 
 @pytest.mark.parametrize('result, status', [
@@ -364,11 +366,11 @@ def test_record_numbers_are_repo_scoped_and_parent_ids_keep_creations_distinct()
     assert slides.verdict('s')['status'] == 'partial'
 
 
-def test_benchmark_settings_leave_the_user_turn_and_final_answer_untouched(tmp_path, monkeypatch):
+def test_opt_out_settings_leave_the_user_turn_and_final_answer_untouched(tmp_path, monkeypatch):
     from atmem.adapters.hermes.action_guard_plugin import stage
-    from benchmarks.dolphinbench.execution_profile import ROUTED_SETTINGS
     home = tmp_path / 'home'
-    directory = stage(home, settings=ROUTED_SETTINGS)
+    directory = stage(home, settings={'checkpoint': False, 'route_context': False,
+                                      'completion_notice': False, 'pending_reminder': False})
     monkeypatch.setenv('HERMES_HOME', str(home))
     module = load_staged(directory)
     monkeypatch.setattr(module, '_visible_tool_names', lambda: {APP + 'create_doc', 'terminal', 'skill_view'})

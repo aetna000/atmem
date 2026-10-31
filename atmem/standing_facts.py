@@ -1,11 +1,10 @@
-"""Verified standing-fact formation: distil durable facts from history with source quotes.
+"""Form source-linked candidate statements from history with source quotes.
 
 A model proposes durable facts (standing rules, preferences, defaults, policies,
 commitments, roles, decisions in force) from dated user messages. Every proposed
 fact must carry a verbatim quote from the message it came from; a fact whose quote
-is not found in that source is dropped, so every stored fact can be traced. The
-current profile is selected from verified facts by id and keeps their wording, so
-the delivered profile contains no unverified paraphrase.
+is not found in that source is dropped, so every stored fact can be traced. This verifies quotation occurrence, not whether a model-generated statement is
+entailed by that quotation. Treat all statements as unverified interpretations.
 
 Standard-library-only; the model is any OpenAI-compatible chat endpoint.
 """
@@ -23,7 +22,7 @@ from pathlib import Path
 FORMAT = 'atmem-standing-facts-v1'
 KINDS = ('rule', 'preference', 'default', 'policy', 'commitment', 'relationship', 'decision', 'profile')
 EXTRACT_PROMPT = (
-    'You are building a verified long-term memory for the person who wrote the dated messages below. '
+    'You are proposing source-linked long-term memory for the person who wrote the dated messages below. '
     'Extract durable facts that should guide future actions taken on their behalf: standing rules and '
     'boundaries, preferences, defaults (for example what a word or request usually means for them), '
     'policies and thresholds, recurring commitments, people and their roles, and decisions that remain '
@@ -33,7 +32,7 @@ EXTRACT_PROMPT = (
     '"as_of": "YYYY-MM-DD", "quote": str}]} with at most 60 facts. "quote" must be copied exactly, '
     'character for character, from one message (at most 200 characters) and must support the fact.')
 SELECT_PROMPT = (
-    'Below are verified facts about one person, each with an id, date and kind. Choose the facts that '
+    'Below are unverified source-linked statements about one person, each with an id, date and kind. Choose the statements that '
     'should be in a compact profile loaded before every future task: standing rules, preferences, '
     'defaults, policies, thresholds and commitments that are still in force as of the latest date. '
     'When facts conflict, prefer the most recent. Prefer facts that change how an action should be '
@@ -123,7 +122,7 @@ def verify(proposals, batch):
 
 
 def extract(messages, endpoint, token, model, *, journal=None, log=print):
-    """Propose and verify facts chunk by chunk; resumable through a JSONL journal."""
+    """Propose statements and check quote occurrence; resumable through a JSONL journal."""
     done = {}
     if journal and Path(journal).exists():
         for line in Path(journal).read_text().splitlines():
@@ -156,7 +155,7 @@ def extract(messages, endpoint, token, model, *, journal=None, log=print):
 
 
 def select_profile(facts, endpoint, token, model, *, limit=45, max_chars=7000, batch_size=350):
-    """Model chooses ids only (wording stays verified); hierarchical for large fact sets."""
+    """Model chooses ids only (wording remains unchanged); hierarchical for large sets."""
     def choose(candidates, count):
         listing = '\n'.join(f"{f['id']}\t{f['as_of']}\t{f['kind']}\t{f['fact']}" for f in candidates)
         answer = ask_json(endpoint, token, model, SELECT_PROMPT.replace('{limit}', str(count)), listing, 'ids')
@@ -184,17 +183,18 @@ def select_profile(facts, endpoint, token, model, *, limit=45, max_chars=7000, b
 def profile_text(store):
     by_id = {f['id']: f for f in store['facts']}
     lines = [f"- ({by_id[i]['as_of']}) {by_id[i]['fact']}" for i in store['profile']]
-    return ('AtMem standing profile (verified facts from earlier conversations, each traceable to a source '
-            'quote; newer facts take precedence; use fact_search for more):\n' + '\n'.join(lines)) if lines else ''
+    return ('AtMem standing profile (source-linked statements from earlier conversations, each traceable to a source '
+            'quote; the generated statements are unverified interpretations and can contradict their sources. '
+            'Check the source quote and current authority before acting; use fact_search for evidence):\n' + '\n'.join(lines)) if lines else ''
 
 
 def prefetch_text(store, request, *, limit=12):
-    """Verified facts matching the request text, like a memory prefetch on turn start."""
+    """Source-linked statements matching the request, like a memory prefetch."""
     query = re.sub(r'^\s*\[[^\]]*\]\s*', '', str(request or ''))
     results = search(store, query, limit=limit) if query.strip() else []
     if not results:
         return ''
-    return ('Verified facts that may be relevant to this request (from earlier conversations; check they '
+    return ('Source-linked model-generated statements that may be relevant (quotation occurrence is checked, but meaning is unverified; check the source and whether they '
             'apply before acting):\n' + '\n'.join(f"- ({r['as_of']}) {r['fact']}" for r in results))
 
 

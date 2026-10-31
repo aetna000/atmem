@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.10",
+  "version": "2.3.11b1",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -11,6 +11,7 @@
     "releases": "Releases"
   },
   "pages": [
+    {"slug": "releases/2.3.11b1", "title": "AtMem 2.3.11b1 — Experimental action routing", "source": "docs/releases/v2.3.11b1.md"},
     {"slug": "releases/2.3.10", "title": "AtMem 2.3.10 — Bounded evidence discovery", "source": "docs/releases/v2.3.10.md"},
     {"slug": "releases/2.3.10b1", "title": "AtMem 2.3.10b1 — Historical beta", "source": "docs/releases/v2.3.10b1.md"},
     {"slug": "reference/release-qualification", "title": "2.3.10 stable promotion qualification", "source": "docs/releases/v2.3.10-qualification.md"},

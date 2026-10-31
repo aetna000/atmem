@@ -67,3 +67,15 @@ use simulated app tools rather than real Notes, GitHub, or Google accounts.
 Do not launch a full scored campaign until the readiness tasks and fresh,
 identity-bound qualification receipts pass. A documented checklist is not an
 implemented launch guard: verify that the actual entry point enforces it.
+
+## Lesson from the failed learning work
+
+The agent mishandled the learning effort: it spent excessive time, disk space,
+and tokens on repeated development runs and code that did not demonstrate a
+reliable improvement over native behavior. This was a failure, not an
+achievement. Never repeat this pattern: establish the real user outcome and
+native baseline first; run a small, controlled, cost-bounded test before
+expanding; stop and reassess approaches that add cost without measured benefit;
+track and clean up temporary artifacts; and report failures, uncertainty, and
+resource use plainly. Never present memory retrieval, lesson exposure, a
+model-generated score, or repeated runs as proof that an agent learned.

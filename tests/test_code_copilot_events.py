@@ -34,6 +34,16 @@ def test_identity_replay_and_distinct_identical_prompts(tmp_path, monkeypatch):
     assert normalize_event(payload)["turn_id"] != first["turn_id"]
 
 
+def test_new_qualified_copilot_journal_and_older_offline_flags(tmp_path, monkeypatch):
+    from atmem.code.adapters.copilot import copilot_offline_remote_flags
+    path, payload, start = journal(tmp_path, monkeypatch)
+    path.write_text(path.read_text().replace('"1.0.98"', '"1.0.103"'))
+    assert normalize_event(payload)["turn_id"] == start["data"]["hookInvocationId"]
+    assert copilot_offline_remote_flags('GitHub Copilot CLI 1.0.103') == []
+    assert copilot_offline_remote_flags('GitHub Copilot CLI 1.0.98') == ['--no-remote', '--no-remote-export']
+    assert copilot_offline_remote_flags('unknown') == ['--no-remote', '--no-remote-export']
+
+
 @pytest.mark.parametrize("change", ["missing", "ambiguous", "wrong_version", "wrong_session", "mismatched_content", "symlink", "no_event", "traversal"])
 def test_unverified_journal_is_refused(tmp_path, monkeypatch, change):
     path, payload, start = journal(tmp_path, monkeypatch)

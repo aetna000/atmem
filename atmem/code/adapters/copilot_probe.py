@@ -12,7 +12,7 @@ import tempfile
 from threading import Thread
 
 from atmem.code.adapters.base import HostProbe
-from atmem.code.adapters.copilot import CopilotAdapter, copilot_cli_argv
+from atmem.code.adapters.copilot import CopilotAdapter, copilot_cli_argv, copilot_offline_remote_flags
 from atmem.code.identity import repository_key
 from atmem.core.canonical import canonical_json
 
@@ -78,7 +78,7 @@ def copilot_probe(*, store, subject, project, root, credential, initial, command
                                COPILOT_PROVIDER_TYPE="openai", COPILOT_PROVIDER_WIRE_API="completions")
             run = subprocess.run([*copilot_cli_argv(), "-p", prompt, "--allow-all-tools", "--disable-builtin-mcps",
                                   "--no-auto-update", "--no-custom-instructions", "--no-ask-user",
-                                  "--no-remote", "--no-remote-export", "--silent"],
+                                  *copilot_offline_remote_flags(initial.version or ''), "--silent"],
                                  cwd=probe_root, env=environment, capture_output=True, text=True, timeout=40)
         receipt = store.code_document(subject, project, "probe", probe_id) or {}
         okay = run.returncode == 0 and bool(observed) and receipt.get("hook_seen") is True

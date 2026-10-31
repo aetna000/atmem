@@ -77,3 +77,18 @@ def test_malformed_model_json_is_retried_then_skipped(monkeypatch):
     assert sf.ask_json('e', 't', 'm', 'p', 'c', 'ids') == {'ids': [2]}
     monkeypatch.setattr(sf, 'chat', lambda *a, **k: 'not json')
     assert sf.ask_json('e', 't', 'm', 'p', 'c', 'ids') == {'ids': []}
+
+
+def test_source_quote_presence_does_not_verify_model_interpretation():
+    batch = [{'session': 's', 'text': 'I cannot attend meetings on Fridays.'}]
+    proposal = [{'fact': 'I always attend meetings on Fridays.', 'quote': batch[0]['text'], 'kind': 'rule', 'as_of': '2026-01-01'}]
+    linked = sf.verify(proposal, batch)
+    assert linked, 'The occurrence check is not a semantic verifier'
+    linked[0]['id'] = 0
+    profile = sf.profile_text({'facts': linked, 'profile': [0]})
+    assert 'unverified interpretations' in profile
+    assert 'can contradict their sources' in profile
+    assert 'verified facts' not in profile
+    assert 'unverified' in sf.SELECT_PROMPT
+    description = facts_stdio.handle({}, {'method': 'tools/list'})['tools'][0]['description']
+    assert 'does not verify' in description

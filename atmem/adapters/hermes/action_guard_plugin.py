@@ -44,6 +44,7 @@ def stage(home, *, settings=None):
     (target / 'plugin.yaml').write_text(MANIFEST)
     shutil.copyfile(__file__, target / '__init__.py')
     shutil.copyfile(Path(__file__).parents[2] / 'action_guard.py', target / 'action_guard.py')
+    shutil.copyfile(Path(__file__).parents[2] / 'private_paths.py', target / 'private_paths.py')
     (target / 'settings.json').write_text(json.dumps({'checkpoint': True, 'route_context': True, 'completion_notice': True,
                                                      'pending_reminder': True,
                                                      **(settings or {})}, sort_keys=True))
@@ -111,6 +112,8 @@ class _Binding:
         record.update(session_id=session_id, turn_id=turn_id)
         try:
             self.records.parent.mkdir(parents=True, exist_ok=True)
+            self.records.touch(mode=0o600, exist_ok=True)
+            self.policy.protect_private_path(self.records)
             descriptor = os.open(self.records, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
             with os.fdopen(descriptor, 'a') as output:
                 output.write(json.dumps(record, sort_keys=True) + '\n')
