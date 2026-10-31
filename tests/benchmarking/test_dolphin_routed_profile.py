@@ -50,25 +50,29 @@ def test_profile_checks_are_separate():
     assert gate.CHECKS['profile'] == {'mcp_only', 'eager_tools', 'skills_disabled'}
 
 
-@pytest.mark.parametrize('mutation', [None, 'plugin', 'checkpoint', 'detour', 'state', 'log', 'runtime'])
+@pytest.mark.parametrize('mutation', [None, 'plugin', 'checkpoint', 'detour', 'state', 'log', 'runtime', 'boundary'])
 def test_routed_raw_evidence_is_recomputed(tmp_path, mutation):
     from pathlib import Path
-    from benchmarks.dolphinbench.qualify_routed import verify_evidence
+    from benchmarks.dolphinbench.qualify_routed import QUESTION, verify_evidence
     root = Path(__file__).parents[2]
     (tmp_path / 'staged-__init__.py').write_bytes((root / 'atmem/adapters/hermes/action_guard_plugin.py').read_bytes())
     (tmp_path / 'staged-action_guard.py').write_bytes((root / 'atmem/action_guard.py').read_bytes())
     def put(name, value): (tmp_path / name).write_text(json.dumps(value))
-    put('staged-settings.json', {'checkpoint': False, 'route_context': True})
+    put('staged-settings.json', {'checkpoint': False, 'route_context': False, 'completion_notice': False})
     put('profile.json', {'plugins': {'enabled': ['atmem-action-guard']}})
     put('model-request.json', request('terminal', 'skill_view', 'tool_search', 'tool_call'))
     outcome = {'verdict': {'status': 'completed'}, 'decisions': [{'action': 'block'}], 'memory_query_count': 0}
     (tmp_path / 'guard-outcomes.jsonl').write_text(json.dumps(outcome) + '\n')
     (tmp_path / 'calls.jsonl').write_text(json.dumps({'tool': 'create_doc', 'result': {'ok': True}}) + '\n')
     put('state.json', {'docs': [{'body': 'Synthetic durable routing text'}]})
-    for i in range(3): put(f'request-{i:02}.json', {'messages': [{'role': 'tool', 'content': 'Not run: memo; use create_doc'}]})
+    user = {'role': 'user', 'content': QUESTION}
+    for i in range(3): put(f'request-{i:02}.json', {'messages': [user, {'role': 'tool', 'content': 'Not run: memo; use create_doc'}]})
     put('process.json', {'returncode': 0})
     if mutation == 'plugin': (tmp_path / 'staged-action_guard.py').write_text('changed')
-    if mutation == 'checkpoint': put('staged-settings.json', {'checkpoint': True, 'route_context': True})
+    if mutation == 'checkpoint': put('staged-settings.json', {'checkpoint': True, 'route_context': False, 'completion_notice': False})
+    if mutation == 'boundary':
+        put('request-01.json', {'messages': [{'role': 'user', 'content': QUESTION + '\n\nAtMem action routing: ...'},
+                                             {'role': 'tool', 'content': 'Not run: memo; use create_doc'}]})
     if mutation == 'detour':
         outcome['decisions'] = []; (tmp_path / 'guard-outcomes.jsonl').write_text(json.dumps(outcome) + '\n')
     if mutation == 'state': put('state.json', {'docs': []})

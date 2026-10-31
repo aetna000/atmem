@@ -73,6 +73,7 @@ def validate_request(body):
 # a separate experimental condition with its own qualification receipts.
 ROUTED_PROFILE = 'dolphin-routed-v1'
 PROFILES = (PROFILE, ROUTED_PROFILE)
+ROUTED_SETTINGS = {'checkpoint': False, 'route_context': False, 'completion_notice': False}
 
 
 def routed_profile(config, *, home):
@@ -88,7 +89,10 @@ def routed_profile(config, *, home):
     if 'dolphinbench-apps' not in config['toolsets']:
         raise ValueError('Execution profile requires simulated application tools')
     value = deepcopy(config)
-    stage(home, settings={'checkpoint': False})
+    # The harness requires the native user turn to equal the dataset request and
+    # grades the agent's own final answer, so the plugin must not inject the route
+    # note or append completion notices here; refusals and outcome records remain.
+    stage(home, settings=ROUTED_SETTINGS)
     plugins = value.setdefault('plugins', {})
     plugins['enabled'] = sorted(set(plugins.get('enabled', [])) | {PLUGIN})
     value['execution_profile'] = ROUTED_PROFILE

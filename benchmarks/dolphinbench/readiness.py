@@ -25,7 +25,7 @@ MEMORY_OPTIONS = {'context_engine_variant': 'source-coherent-v1', 'read_only_dis
     'application_workflow': True, 'strict_application_contracts': True,
     'source_time_frames': False, 'source_bundles': False, 'initial_state_presentation': 'annotated-source'}
 ROUTED_CHECKS = {'ordinary_inventory', 'plugin_loaded', 'checkpoint_disabled',
-                 'native_write_state_log_agree', 'local_detour_refused'}
+                 'native_write_state_log_agree', 'local_detour_refused', 'user_boundary_unchanged'}
 ROUTED_SOURCES = ('atmem/action_guard.py', 'atmem/adapters/hermes/action_guard_plugin.py',
                   'specs/048-dolphin-execution-readiness/atsys/run_routed.py',
                   '.atsys/tasks/dolphin-routed-fixed20.json')

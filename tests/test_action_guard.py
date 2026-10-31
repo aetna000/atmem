@@ -362,3 +362,20 @@ def test_record_numbers_are_repo_scoped_and_parent_ids_keep_creations_distinct()
     slides.after_call('s', APP + 'add_slide', {'deck_id': 'd1', 'title': 'Intro'}, {'ok': False})
     slides.after_call('s', APP + 'add_slide', {'deck_id': 'd1', 'title': 'Results'}, {'ok': True, 'id': 's2'})
     assert slides.verdict('s')['status'] == 'partial'
+
+
+def test_benchmark_settings_leave_the_user_turn_and_final_answer_untouched(tmp_path, monkeypatch):
+    from atmem.adapters.hermes.action_guard_plugin import stage
+    from benchmarks.dolphinbench.execution_profile import ROUTED_SETTINGS
+    home = tmp_path / 'home'
+    directory = stage(home, settings=ROUTED_SETTINGS)
+    monkeypatch.setenv('HERMES_HOME', str(home))
+    module = load_staged(directory)
+    monkeypatch.setattr(module, '_visible_tool_names', lambda: {APP + 'create_doc', 'terminal', 'skill_view'})
+    ctx = FakeContext()
+    module.register(ctx)
+    assert ctx.hooks['pre_llm_call'](session_id='a', user_message=NOTES_REQUEST) is None
+    assert ctx.hooks['pre_tool_call'](tool_name='skill_view', args={'name': 'apple-notes'}, session_id='a')['action'] == 'block'
+    assert ctx.hooks['transform_llm_output'](response_text='Draft only.', session_id='a', turn_id='t') is None
+    record = json.loads((home / '.atmem/action-guard/outcomes.jsonl').read_text())
+    assert record['verdict']['status'] == 'not_completed'  # still recorded for the report

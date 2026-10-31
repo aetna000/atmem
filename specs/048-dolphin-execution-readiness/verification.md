@@ -212,3 +212,21 @@ Raw evidence and receipts: `routed-fixed20-20261031-v1/{profile,apps,receipts}`.
 New output: `/Volumes/MEM/atmem-dolphinbench-20261020/routed-fixed20-20261031-v1`.
 New task config pins that condition/output and the separate routed report/handoff.
 Submission is a separate operation; this entry establishes qualification only.
+
+## Routed fixed20 v1 failed attempt and fix — 2026-10-31
+
+AtSys task `task-9c6556c0-b774-4229-bcf5-fa6287db737f` (run
+`routed-fixed20-20261031-v1`) stopped on its first task. The guard's
+`pre_llm_call` route note was appended to morgan/023's native user turn; the
+adapter's governed user-boundary check (`adapter.py`) correctly refused to save
+the execution. One simulated `send_email` was persisted (it accepts the Friday
+call, i.e. the known content failure); 0 executions and 0 grades were saved.
+The v1 output and app state are retained untouched and are never replayed.
+
+Cause: the zero-model-call native qualification did not compare the actual user
+turn with the request. Fix: the routed profile stages the plugin with
+`route_context=false` and `completion_notice=false` (refusals and outcome records
+remain), and `qualify_routed` now requires every actual native request to carry
+the original user message byte for byte (`user_boundary_unchanged`). A fresh run
+identity (v2) with fresh simulated app state and fresh receipts is required; v1
+receipts are not reused and v1 is reported as a failed attempt, not merged.

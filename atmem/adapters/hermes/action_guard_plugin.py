@@ -4,7 +4,8 @@
 entry plus a copy of ``atmem.action_guard``) so the host needs no AtMem import.
 Enable it with ``plugins.enabled: [atmem-action-guard]``. Hooks used:
 
-- ``pre_llm_call``: classify the request; inject the request-specific route note.
+- ``pre_llm_call``: classify the request; inject the request-specific route note
+  into the user turn (``route_context``; disable where the user turn must stay identical).
 - ``pre_tool_call``: refuse local detours around a configured connected app and,
   once per write tool, hold the write for a remembered-constraints check.
 - ``post_tool_call``: record accepted/failed writes and verified route failures.
@@ -42,7 +43,7 @@ def stage(home, *, settings=None):
     (target / 'plugin.yaml').write_text(MANIFEST)
     shutil.copyfile(__file__, target / '__init__.py')
     shutil.copyfile(Path(__file__).parents[2] / 'action_guard.py', target / 'action_guard.py')
-    (target / 'settings.json').write_text(json.dumps({'checkpoint': True, 'route_context': True,
+    (target / 'settings.json').write_text(json.dumps({'checkpoint': True, 'route_context': True, 'completion_notice': True,
                                                      **(settings or {})}, sort_keys=True))
     return target
 
@@ -71,6 +72,9 @@ class _Binding:
         state = Path(settings.get('state_dir') or home / '.atmem' / 'action-guard')
         self.records = state / 'outcomes.jsonl'
         self.route_context = settings.get('route_context', True)
+        # Hosts that require byte-identical user turns or unmodified final answers
+        # (benchmark exports) disable these two; refusals and outcome records remain.
+        self.notice = settings.get('completion_notice', True)
         self.policy = policy
         self.guard = policy.ActionGuard(route_memory=policy.RouteMemory(settings.get('route_memory')
                                         or state / 'route-memory.json'), checkpoint=settings.get('checkpoint', True))
@@ -103,6 +107,8 @@ class _Binding:
                 output.write(json.dumps(record, sort_keys=True) + '\n')
         except OSError:
             pass
+        if not self.notice:
+            return None
         return (response_text.rstrip() + '\n\n' + notice) if notice and response_text else None
 
 

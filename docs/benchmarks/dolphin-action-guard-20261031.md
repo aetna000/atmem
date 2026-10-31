@@ -121,6 +121,15 @@ repo-scoped issue numbers and parent-scoped creations (`add_slide` in one deck)
 colliding; record ids are now scoped by repository and creations combine parent,
 destination and item identity. Replay unchanged.
 
+## Routed pilot v1 failure
+
+The first routed AtSys attempt stopped on morgan/023: the route note injected into
+the user turn violated the pilot's byte-identical user-boundary check, so nothing
+was saved or graded. In the benchmark profile the plugin now leaves the user turn
+and the final answer untouched (`route_context=false`, `completion_notice=false`);
+qualification checks the boundary on every actual native request. The guard's
+refusals and outcome records are unchanged.
+
 ## Limitations
 
 - **No in-turn retry.** Hermes exposes no stop hook for non-code turns

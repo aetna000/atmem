@@ -8,7 +8,9 @@ import sys
 import threading
 
 from .app_bridge import bridge, stage_client, short_socket
-from .execution_profile import ROUTED_PROFILE, apply_profile, validate
+from .execution_profile import ROUTED_PROFILE, ROUTED_SETTINGS, apply_profile, validate
+
+QUESTION = 'Create a document with synthetic routing qualification text.'
 from .readiness import qualification_sources, save, read, pin
 from .runtime import NativeRuntime
 
@@ -104,7 +106,7 @@ def qualify(upstream, app_python, runtime_root, output, *, options_path):
                 # configure_profile already wrote the private file; replace only the isolated settings.
                 (home / 'config.yaml').write_text(json.dumps(config))
                 save(output / 'profile.json', config)
-                process = runtime.invoke(name, ['chat', '-q', 'Create a document with synthetic routing qualification text.',
+                process = runtime.invoke(name, ['chat', '-q', QUESTION,
                     '-Q', '--yolo', '--format', 'stream-json', '--max-turns', '60'],
                     ports=[server.server_port, host.server.server_port], sockets=[socket], timeout=120,
                     environment={'CUSTOM_API_KEY': 'local-preflight-no-provider'})
@@ -145,7 +147,7 @@ def verify_evidence(output):
     settings = read(output / 'staged-settings.json')
     config = read(output / 'profile.json')
     names = validate(ROUTED_PROFILE, read(output / 'model-request.json'))
-    if (settings != {'checkpoint': False, 'route_context': True}
+    if (settings != {**ROUTED_SETTINGS}
             or config.get('plugins', {}).get('enabled') != ['atmem-action-guard']
             or not {'terminal', 'skill_view', 'tool_search', 'tool_call'} <= set(names)
             or config.get('tools', {}).get('tool_search', {}).get('enabled') == 'off'):
@@ -162,11 +164,17 @@ def verify_evidence(output):
             or state['docs'][0].get('body') != 'Synthetic durable routing text'
             or not any('memo' in json.dumps(m) and 'create_doc' in json.dumps(m) for m in tool_messages)):
         raise ValueError('Native plugin detour/write/state/log qualification failed')
+    # The pilot export requires the native user turn to equal the request byte for byte
+    # (adapter user-boundary check); every actual model request must carry it unchanged.
+    for request in requests:
+        users = [m.get('content') for m in request.get('messages', []) if m.get('role') == 'user']
+        if users != [QUESTION]:
+            raise ValueError('Native plugin changed the user boundary: ' + json.dumps(users)[:300])
     # Guard outcome and the next actual request must both witness the refused detour.
     if (not outcomes[0].get('decisions') or outcomes[0].get('memory_query_count') != 0
             or len(requests) != 3 or read(output / 'process.json')['returncode'] != 0):
         raise ValueError('Native plugin did not record a refused local detour')
-    return {k: True for k in ('ordinary_inventory', 'plugin_loaded', 'checkpoint_disabled',
+    return {k: True for k in ('ordinary_inventory', 'plugin_loaded', 'checkpoint_disabled', 'user_boundary_unchanged',
                               'native_write_state_log_agree', 'local_detour_refused')}
 
 
