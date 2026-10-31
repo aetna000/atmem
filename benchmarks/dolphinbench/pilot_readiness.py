@@ -32,7 +32,12 @@ def report(condition_path, directory, *, receipt_output=None, stage='pilot'):
         raise ValueError('Pilot ran under a different frozen configuration')
     epoch = None
     if (directory / 'epoch-transition.json').exists():
-        from .pilot_recovery import verify_epoch
+        if read(directory / 'epoch-transition.json').get('schema') == 'dolphin-full020-recovery-epoch-v1':
+            if stage != 'full':
+                raise ValueError('Full recovery result requires full reporting')
+            from .full_recovery_020 import verify_epoch
+        else:
+            from .pilot_recovery import verify_epoch
         epoch = verify_epoch(directory, condition_path)
     paths = [p for p in (directory / 'tests').glob('*/*.json') if not p.name.startswith('._')]
     if {p.parent.name + '/' + p.stem for p in paths} != expected or len(paths) != count:
@@ -112,11 +117,12 @@ def report(condition_path, directory, *, receipt_output=None, stage='pilot'):
         raise ValueError('Unreconciled or invalid pilot cost accounting')
     artifacts.append(directory / 'pilot-accounting.json')
     if epoch is not None:
-        from .pilot_recovery import verify_inherited_budget
-        campaign = {**read(condition['inputs']['options']['path'])['campaign_identity'], 'cap_usd': 10}
-        spent = verify_inherited_budget(epoch['inherited_budget']['path'], directory / 'budget.db', campaign)
-        if not math.isclose(accounting['actual_usd'], spent / 1_000_000, abs_tol=1e-9, rel_tol=0):
-            raise ValueError('Report accounting differs from cumulative inherited/new ledger')
+        if stage == 'pilot':
+            from .pilot_recovery import verify_inherited_budget
+            campaign = {**read(condition['inputs']['options']['path'])['campaign_identity'], 'cap_usd': 10}
+            spent = verify_inherited_budget(epoch['inherited_budget']['path'], directory / 'budget.db', campaign)
+            if not math.isclose(accounting['actual_usd'], spent / 1_000_000, abs_tol=1e-9, rel_tol=0):
+                raise ValueError('Report accounting differs from cumulative inherited/new ledger')
     result = {'schema': 'dolphin-fixed-pilot-report-v1' if stage == 'pilot' else 'dolphin-full-report-v1', 'condition_sha256': identity(condition),
               'post_hoc_diagnostic_not_holdout': True, 'tasks': count, 'rows': rows,
               'passed': sum(r['passed'] for r in rows), 'regressions': [r['id'] for r in rows if r['regressed']],
@@ -126,10 +132,11 @@ def report(condition_path, directory, *, receipt_output=None, stage='pilot'):
               'self_tested_unverified': True, 'official_submission': False, 'original_score_unchanged': '390/600'}
     if epoch is not None:
         result['epoch_lineage'] = epoch
+        recovery_file = 'recovery-020.json' if stage == 'full' else 'recovery-129.json'
         result['limitations'] = [epoch['lineage'],
             '390/517 = 75.4% remains conditional, not a full score',
-            read(directory / 'recovery-129.json')['duration_basis']]
-        artifacts.extend([directory / 'epoch-transition.json', directory / 'recovery-129.json'])
+            read(directory / recovery_file)['duration_basis']]
+        artifacts.extend([directory / 'epoch-transition.json', directory / recovery_file])
     report_path = directory / ('pilot-report.json' if stage == 'pilot' else 'full-result.json')
     if report_path.exists():
         if read(report_path) != result:
@@ -210,16 +217,23 @@ def run_pilot(condition_path, receipts, options_path, output, env_file, *, stage
             raise ValueError('A canary is one fresh task under the pilot admission')
         return _run_pilot(condition_path, receipts, options_path, output, env_file, stage=stage, canary=canary)
     if resume_epoch:
-        from .pilot_recovery import epoch_lock, verify_epoch
-        if stage != 'pilot':
-            raise ValueError('Recovery is limited to the fixed20 pilot')
+        from .pilot_recovery import epoch_lock
+        if stage == 'full':
+            from .full_recovery_020 import verify_epoch
+        else:
+            from .pilot_recovery import verify_epoch
         verify_epoch(output, condition_path)
         with epoch_lock(output):
-            condition = admit(condition_path, receipts, 'pilot')
-            expected = selection(condition)
+            condition = admit(condition_path, receipts, stage)
+            if stage == 'full':
+                ledger = Path(__file__).parents[2] / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/task-ledger.jsonl'
+                expected = {json.loads(line)['id'] for line in ledger.read_text().splitlines() if line.strip()}
+            else:
+                expected = selection(condition)
             if all((Path(output) / 'tests' / (k + '.json')).exists() and
                    (Path(output) / 'grades' / (k + '.json')).exists() for k in expected):
-                return report(condition_path, output, receipt_output=Path(receipts) / 'pilot.json')
+                return report(condition_path, output, stage=stage,
+                              receipt_output=Path(receipts) / 'pilot.json' if stage == 'pilot' else None)
             return _run_pilot(condition_path, receipts, options_path, output, env_file,
                               stage=stage, resume_epoch=True)
     return _run_pilot(condition_path, receipts, options_path, output, env_file, stage=stage)
@@ -248,10 +262,15 @@ def _run_pilot(condition_path, receipts, options_path, output, env_file, *, stag
     cap = condition['budget']['caps_usd'][stage]
     options['campaign_identity']['cap_usd'] = cap
     if resume_epoch:
-        from .pilot_recovery import budget_status, verify_epoch, preflight_resume
-        verify_epoch(output, condition_path)
-        budget_status(output / 'budget.db', options['campaign_identity'])
-        preflight_resume(output, condition)
+        if stage == 'full':
+            from .full_recovery_020 import verify_epoch, preflight_resume
+            verify_epoch(output, condition_path)
+            preflight_resume(output)
+        else:
+            from .pilot_recovery import budget_status, verify_epoch, preflight_resume
+            verify_epoch(output, condition_path)
+            budget_status(output / 'budget.db', options['campaign_identity'])
+            preflight_resume(output, condition)
     require_options(options)
     import atmem
     with zipfile.ZipFile(condition['inputs']['wheel']['path']) as archive:
@@ -305,7 +324,10 @@ def _run_pilot(condition_path, receipts, options_path, output, env_file, *, stag
             adapter = AtMemAdapter(options, output)
             configuration = adapter.identity()
             if resume_epoch:
-                from .pilot_recovery import initialize_run_identity
+                if stage == 'full':
+                    from .full_recovery_020 import initialize_run_identity
+                else:
+                    from .pilot_recovery import initialize_run_identity
                 initialize_run_identity(output, condition_path, sliced, configuration)
             runner = protected_runner_class(Runner)(sliced, output, adapter,
                 identity=configuration, release_root=Path(bindings['upstream_root']))
@@ -340,22 +362,34 @@ def _run_pilot(condition_path, receipts, options_path, output, env_file, *, stag
                             raise ValueError('Saved checkpoint differs')
                     else:
                         save(checkpoint_path, checkpoint)
-                judge = Gateway(key=load_key(env_file), output=launch / 'judge-calls', ledger_path=adapter.ledger,
+                judge = Gateway(key=load_key(env_file), output=(output if resume_epoch and stage == 'full' else launch) / 'judge-calls', ledger_path=adapter.ledger,
                     campaign_identity=options['campaign_identity'], cap_usd=cap,
                     phase='judge', model='openai/gpt-5.6-sol', input_per_million=5,
                     output_per_million=30, output_token_cap=8000, readiness_options=options).start()
                 with openrouter_judge(judge):
+                    if resume_epoch and stage == 'full':
+                        from .full_recovery_020 import progress
+                        print(json.dumps({'progress': progress(output)}), flush=True)
                     for persona, entry in sliced.items():
                         for spec in entry['tests']:
                             from .pilot_recovery import execute_once
+                            task_id = persona + '/' + str(spec['id']).zfill(3)
+                            already_graded = (output / 'grades' / (task_id + '.json')).exists()
                             def boundary():
                                 admit(condition_path, receipts, stage)
                                 if resume_epoch:
-                                    verify_epoch(output, condition_path)
-                                    budget_status(output / 'budget.db', options['campaign_identity'])
+                                    if stage == 'full':
+                                        verify_epoch(output, condition_path, inflight_since=lease_value['created_at'])
+                                    else:
+                                        verify_epoch(output, condition_path)
+                                        budget_status(output / 'budget.db', options['campaign_identity'])
                             execute_once(runner, output, persona, spec, boundary=boundary)
                             adapter.verify_checkpoint(persona, read(condition['inputs']['memory:' + persona]['path']))
-                            print(json.dumps({'pilot_completed': persona + '/' + str(spec['id']).zfill(3)}), flush=True)
+                            if resume_epoch and stage == 'full':
+                                if not already_graded:
+                                    print(json.dumps({'completed': task_id, 'progress': progress(output)}), flush=True)
+                            else:
+                                print(json.dumps({'pilot_completed': task_id}), flush=True)
                 book = BudgetLedger(adapter.ledger, cap_usd=cap, identity=options['campaign_identity'])
                 try:
                     totals = book.totals()

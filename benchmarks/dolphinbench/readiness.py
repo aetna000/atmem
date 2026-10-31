@@ -162,8 +162,7 @@ def load_condition(path):
             (Path(__file__).parents[2] / p).resolve() for p in (*TRANSPORT_TESTS,
             'specs/048-dolphin-execution-readiness/atsys/run_full_routed.py',
             'specs/048-dolphin-execution-readiness/atsys/validate_full_routed.py',
-            '.atsys/tasks/dolphin-fresh600-timeout.json',
-            '.atsys/tasks/dolphin-fresh600-scorewatch.json')} <= covered:
+            '.atsys/tasks/dolphin-fresh600-timeout.json')} <= covered:
         raise ValueError('Fresh full transport tests or launch paths are not pinned')
     selection = read(inputs['selection']['path'])
     groups = selection.get('groups', {})
@@ -373,7 +372,9 @@ def freeze(descriptor, output):
             'specs/048-dolphin-execution-readiness/atsys/run_full_routed.py',
             'specs/048-dolphin-execution-readiness/atsys/validate_full_routed.py',
             '.atsys/tasks/dolphin-fresh600-timeout.json',
-            '.atsys/tasks/dolphin-fresh600-scorewatch.json'))
+            '.atsys/tasks/dolphin-fresh600-scorewatch.json',
+            'tests/benchmarking/test_dolphinbench_export.py',
+            'tests/benchmarking/test_dolphin_full_recovery_020.py'))
     hermes = Path.home() / '.hermes/hermes-agent'
     source.extend(hermes / name for name in ['run_agent.py', 'model_tools.py', 'toolsets.py',
         'agent/prompt_builder.py', 'agent/skill_utils.py', 'tools/tool_search.py',
@@ -429,7 +430,12 @@ def require_options(options, *, request=None):
         if epoch_path.exists() or 'recovery_transition' in lease:
             if lease.get('recovery_transition') != pin(epoch_path):
                 raise ValueError('Recovery admission lacks the immutable epoch transition')
-            from .pilot_recovery import verify_epoch
+            if read(epoch_path).get('schema') == 'dolphin-full020-recovery-epoch-v1':
+                if stage != 'full':
+                    raise ValueError('Full recovery epoch requires full admission')
+                from .full_recovery_020 import verify_epoch
+            else:
+                from .pilot_recovery import verify_epoch
             # Startup/between-task checks remain strict. During this admitted
             # process, simultaneous primary/auxiliary reservations are live;
             # retain their full bounds and reject any pre-launch uncertainty.

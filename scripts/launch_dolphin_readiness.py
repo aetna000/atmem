@@ -26,9 +26,10 @@ def main():
         parser.error('A full 600-task campaign requires explicit --confirm-full-run')
     condition = admit(args.condition, args.receipts, args.stage)
     if args.resume_epoch:
-        if args.stage != 'pilot':
-            parser.error('Recovery epochs are limited to pilot20')
-        from benchmarks.dolphinbench.pilot_recovery import verify_epoch
+        if args.stage == 'full':
+            from benchmarks.dolphinbench.full_recovery_020 import verify_epoch
+        else:
+            from benchmarks.dolphinbench.pilot_recovery import verify_epoch
         verify_epoch(args.output, args.condition)
     bindings = condition['bindings']
     root = Path(__file__).resolve().parents[1]
