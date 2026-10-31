@@ -379,7 +379,8 @@ def _run_pilot(condition_path, receipts, options_path, output, env_file, *, stag
                                 admit(condition_path, receipts, stage)
                                 if resume_epoch:
                                     if stage == 'full':
-                                        verify_epoch(output, condition_path, inflight_since=lease_value['created_at'])
+                                        from .full_recovery_020 import require_deadline
+                                        require_deadline(verify_epoch(output, condition_path, inflight_since=lease_value['created_at']))
                                     else:
                                         verify_epoch(output, condition_path)
                                         budget_status(output / 'budget.db', options['campaign_identity'])

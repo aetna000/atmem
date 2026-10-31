@@ -257,6 +257,14 @@ def prepare(parent, output, condition_path, receipts, witness_path):
     condition = admit(condition_path, receipts, 'full')
     old = read(parent / 'execution-condition.json')
     changes = source_transition(old, condition)
+    original_admission = read(parent / 'launch-admission.json')
+    started = original_admission.get('created_at')
+    if (original_admission.get('stage') != 'full' or original_admission.get('condition_sha256') != identity(old)
+            or type(started) not in (int, float) or not math.isfinite(started)):
+        raise ValueError('Original full launch and its deadline must be witnessed')
+    deadline_at = started + 86400
+    if time.time() >= deadline_at:
+        raise ValueError('Original 24-hour campaign deadline expired')
     for entry in old['inputs'].values():
         verify_pin(entry)
     release = read_release(Path(condition['bindings']['upstream_root']))
@@ -326,6 +334,7 @@ def prepare(parent, output, condition_path, receipts, witness_path):
         'imported_ids': sorted(executions), 'imported_grade_ids': sorted(grades),
         'execution_conditions': {k: identity(old) for k in set(executions) | {TASK}},
         'grade_conditions': {k: identity(old) for k in grades},
+        'deadline_at': deadline_at,
         'lineage': 'Full campaign continued after a source-bound exporter repair; original evidence retained.',
         'no_action_replay': True}
     save(output / 'epoch-transition.json', transition)
@@ -343,8 +352,10 @@ def verify_epoch(output, condition_path, *, inflight_since=None):
         raise ValueError('Full recovery epoch identity differs')
     parent = Path(transition['parent']).resolve(strict=True)
     old = read(parent / 'execution-condition.json')
+    original_admission = read(parent / 'launch-admission.json')
     if (identity(old) != transition['old_condition_sha256']
-            or source_transition(old, condition) != transition['source_changes']):
+            or source_transition(old, condition) != transition['source_changes']
+            or transition.get('deadline_at') != original_admission.get('created_at', 0) + 86400):
         raise ValueError('Original scientific or source transition changed')
     for entry in transition['inherited']:
         verify_pin(entry)
@@ -396,6 +407,11 @@ def verify_epoch(output, condition_path, *, inflight_since=None):
     return transition
 
 
+def require_deadline(transition):
+    if type(transition.get('deadline_at')) not in (int, float) or time.time() >= transition['deadline_at']:
+        raise ValueError('Original 24-hour campaign deadline expired; no dispatch permitted')
+
+
 def preflight_resume(output):
     """Refuse uncertain interactions or grading before any provider starts."""
     output = Path(output)
@@ -441,6 +457,7 @@ def progress(output):
 def initialize_run_identity(output, condition_path, release, configuration):
     from harness.runner import digest
     transition = verify_epoch(output, condition_path)
+    require_deadline(transition)
     preflight_resume(output)
     condition = load_condition(condition_path)
     original = read(verify_pin(transition['recovery']))

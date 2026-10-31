@@ -433,14 +433,16 @@ def require_options(options, *, request=None):
             if read(epoch_path).get('schema') == 'dolphin-full020-recovery-epoch-v1':
                 if stage != 'full':
                     raise ValueError('Full recovery epoch requires full admission')
-                from .full_recovery_020 import verify_epoch
+                from .full_recovery_020 import verify_epoch, require_deadline
             else:
                 from .pilot_recovery import verify_epoch
             # Startup/between-task checks remain strict. During this admitted
             # process, simultaneous primary/auxiliary reservations are live;
             # retain their full bounds and reject any pre-launch uncertainty.
-            verify_epoch(lease['run_root'], options['readiness_condition'],
-                         inflight_since=lease['created_at'])
+            verified = verify_epoch(lease['run_root'], options['readiness_condition'],
+                                    inflight_since=lease['created_at'])
+            if verified.get('schema') == 'dolphin-full020-recovery-epoch-v1':
+                require_deadline(verified)
     else:
         condition = admit(options.get('readiness_condition', ''), options.get('readiness_receipts', ''), stage)
     campaign = options.get('campaign_identity', {})

@@ -64,6 +64,12 @@ def test_budget_enforces_original_cap_and_immutable_inherited_rows(tmp_path):
         recovery.check_budget(current, {**campaign, 'cap_usd': 21})
 
 
+def test_original_campaign_deadline_cannot_be_extended():
+    recovery.require_deadline({'deadline_at': time.time() + 60})
+    with pytest.raises(ValueError, match='deadline expired'):
+        recovery.require_deadline({'deadline_at': time.time() - 1})
+
+
 def test_preflight_rejects_unfinished_actions_and_never_resets_workspace(tmp_path, monkeypatch):
     ledger = tmp_path / 'docs/benchmarks/evidence/dolphin-execution-audit-20261025/task-ledger.jsonl'
     ledger.parent.mkdir(parents=True)
@@ -93,6 +99,7 @@ def test_epoch_preserves_completed_rows_and_grades_interrupted_task_without_repl
     monkeypatch.setitem(sys.modules, 'harness.runner', runner)
     old = {'inputs': {}, 'profile': 'fixed'}
     save(parent / 'execution-condition.json', old)
+    save(parent / 'launch-admission.json', {'stage': 'full', 'condition_sha256': recovery.identity(old), 'created_at': time.time()})
     options = tmp_path / 'options.json'; save(options, {'campaign_identity': {'fixture': True}})
     condition = {'inputs': {'options': pin(options)}, 'bindings': {'upstream_root': str(tmp_path)},
                  'budget': {'caps_usd': {'full': 20}}}
