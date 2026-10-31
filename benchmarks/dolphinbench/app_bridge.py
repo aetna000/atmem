@@ -48,8 +48,10 @@ def stage_client(upstream_root, target, socket_path):
 
 @contextmanager
 def short_socket():
-    """Use a private, bounded macOS Unix socket path regardless of run-root length."""
-    with tempfile.TemporaryDirectory(prefix='am-app-', dir='/private/tmp') as directory:
+    """Use a private, short socket path independent of the benchmark run root."""
+    # /private/tmp is macOS-specific; /tmp is short on both macOS and Linux.
+    base = Path('/tmp') if Path('/tmp').is_dir() else Path(tempfile.gettempdir())
+    with tempfile.TemporaryDirectory(prefix='am-app-', dir=base) as directory:
         os.chmod(directory, 0o700)
         path = Path(directory) / 'a.sock'
         if len(os.fsencode(path)) >= 104:
