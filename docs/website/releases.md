@@ -1,5 +1,9 @@
 # Releases and upgrades
 
+## Beta candidate: 2.3.11b1
+
+[AtMem 2.3.11b1](../releases/v2.3.11b1.md) contains experimental, opt-in action-routing research for a future DolphinBench run. The prior 17/20 diagnostic does not qualify the new artifact; verification is separate.
+
 ## Current stable: 2.3.10
 
 [AtMem 2.3.10](../releases/v2.3.10.md) promotes opt-in bounded evidence

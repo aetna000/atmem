@@ -1,7 +1,9 @@
 # AtMem
 
-[![Version 2.3.10](https://img.shields.io/badge/version-2.3.10-blue)](./docs/releases/v2.3.10.md)
+[![Version 2.3.11b1](https://img.shields.io/badge/version-2.3.11b1-orange)](./docs/releases/v2.3.11b1.md)
 
+> **AtMem 2.3.11b1** is an experimental prerelease. Stable remains 2.3.10.
+> See the [prerelease notes](./docs/releases/v2.3.11b1.md) for opt-ins and limitations.
 > **AtMem 2.3.10** adds opt-in, bounded source-evidence discovery.
 > Read the [integration guide](./docs/evidence-discovery.md) and
 > [stable promotion qualification](./docs/releases/v2.3.10-qualification.md).
@@ -33,7 +35,7 @@ authorizes, stores, scopes, injects, corrects, and deletes memory.
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --upgrade atmem==2.3.10
+python -m pip install --upgrade --pre atmem==2.3.11b1
 atmem atbot setup
 atmem atbot doctor
 atmem init
@@ -94,7 +96,7 @@ package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.10
+python -m pip install --upgrade --pre atmem==2.3.11b1
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -117,7 +119,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.3.10'
+python -m pip install --pre 'atmem[pydantic-ai]==2.3.11b1'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -142,7 +144,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.3.10'
+python -m pip install --pre 'atmem[langgraph]==2.3.11b1'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -742,9 +744,9 @@ npm test
 npm run smoke
 ```
 
-This stable source line is **2.3.10**, with OpenClaw bridge **2.3.10**,
-AtBot **0.1.1**, and AtFlows **0.1.4**. All four versions are stable.
-Use the [release note](docs/releases/v2.3.10.md) for install/upgrade commands and
+This prerelease source line is **2.3.11b1**, with OpenClaw bridge **2.3.11-beta.1**,
+AtBot **0.1.1**, and AtFlows **0.1.5b1**. AtMem stable remains **2.3.10**.
+Use the [release note](docs/releases/v2.3.11b1.md) for install/upgrade commands and
 the [qualification report](docs/releases/v2.3.10-qualification.md) for promotion provenance.
 The [600-task DolphinBench result](https://huggingface.co/datasets/atmem/atmem-2.3.10b1-dolphinbench)
 is recorded against the tested **2.3.10b1** artifact: 390/600 (65.0%). Stable

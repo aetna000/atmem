@@ -9,7 +9,7 @@ import re
 from uuid import UUID
 
 
-QUALIFIED_VERSION = "1.0.98"
+QUALIFIED_VERSIONS = ("1.0.98", "1.0.103")
 EVENTS = ("userPromptSubmitted", "postToolUse", "sessionEnd")
 
 
@@ -77,7 +77,7 @@ def normalize_event(payload: dict) -> dict:
         header = json.loads(first)
         if (not isinstance(header, dict) or not isinstance(header.get("data"), dict)
                 or header.get("type") != "session.start" or header.get("data", {}).get("sessionId") != session
-                or header["data"].get("copilotVersion") != QUALIFIED_VERSION):
+                or header["data"].get("copilotVersion") not in QUALIFIED_VERSIONS):
             raise ValueError("unqualified Copilot journal version or session")
         stream.seek(0, 2)
         offset = max(0, stream.tell() - 2_000_000)
