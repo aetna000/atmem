@@ -135,7 +135,7 @@ def test_commit_checkpoint_holds_each_write_tool_once_with_an_action_specific_re
     assert value.before_call('s', APP + 'create_calendar_event', arguments).action == 'allow'
     email = g.recall_query(APP + 'send_email', {'to': 'vendorops@northwind.example', 'subject': 'Re: Scheduling',
                                                'body': 'Friday, September 18 at 2:00 PM works'})
-    assert 'vendorops@northwind.example' in email and 'Friday' in email
+    assert 'vendorops' not in email and 'Friday' in email and 'Scheduling' in email  # general rule search
 
 
 def test_checkpoint_needs_visible_memory_and_block_budget_prevents_loops():
