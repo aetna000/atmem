@@ -1,79 +1,21 @@
-# Releases and upgrades
+# Releases
 
-## Beta candidate: 2.3.11b1
+## Current stable: 2.3.11
 
-[AtMem 2.3.11b1](../releases/v2.3.11b1.md) contains experimental, opt-in action-routing research for a future DolphinBench run. The prior 17/20 diagnostic does not qualify the new artifact; verification is separate.
+[AtMem 2.3.11](../releases/v2.3.11.md) promotes the existing 2.3.11b1 package
+line with stable AtFlows 0.1.5, legacy companion 0.1.1 and OpenClaw bridge 2.3.11.
+Ordinary memory/context defaults are retained. Action-routing and standing-fact
+research remain explicit opt-ins with the limitations stated in the release note.
+The final routed-v4 result is [479/600, self-tested](https://huggingface.co/datasets/atmem/dolphinbench-routed-v4-20261101),
+on its documented frozen research artifact; it is not a new run of this wheel.
 
-## Current stable: 2.3.10
+## Historical releases
 
-[AtMem 2.3.10](../releases/v2.3.10.md) promotes opt-in bounded evidence
-discovery while retaining ordinary memory and Code defaults. AtBot 0.1.1,
-AtFlows 0.1.4 and OpenClaw bridge 2.3.10 are stable versions. See the
-[promotion report](../releases/v2.3.10-qualification.md).
-The [DolphinBench evidence](https://huggingface.co/datasets/atmem/atmem-2.3.10b1-dolphinbench)
-remains identified as the tested 2.3.10b1 artifact: 390/600 (65.0%).
+- [2.3.11b1](../releases/v2.3.11b1.md): historical opt-in research candidate.
+- [2.3.10](../releases/v2.3.10.md): bounded evidence discovery and its
+  [promotion qualification](../releases/v2.3.10-qualification.md).
+- [2.3.9](../releases/v2.3.9.md): shared coding memory.
+- [2.3.8](../releases/v2.3.8.md): governed context and Hermes setup.
 
-## Previous stable release: 2.3.9
-
-[AtMem 2.3.9](../releases/v2.3.9.md) adds optional shared coding memory,
-source-backed structure, inspectable experience and portable project bundles.
-Use the [Code integration guide](../atmem-code.md). Package and website
-publication are verified separately from the source version.
-
-## Previous stable release: 2.3.8
-
-[AtMem 2.3.8](../releases/v2.3.8.md) adds source-linked typed context,
-obligation-aware bounded evidence packing, first-class reversible Hermes setup,
-and stronger AGMI checkpoint verification. The recorded 5% development samples
-are bounded engineering evidence, not official leaderboard results. The package
-was published separately from its website documentation refresh.
-
-## Earlier stable release: 2.3.7
-
-[AtMem 2.3.7](../releases/v2.3.7.md) adds opt-in product-owned continuity:
-reuse saved results, reconcile supported destinations after a lost receipt,
-and stop uncertain actions for confirmation. AtFlows 0.1.3 exposes attempts
-and reported costs, plus grouped event charts with AtMem typography. See the
-release note for evidence, setup and migration requirements.
-
-## Earlier prerelease
-
-[AtMem 2.3.7b2](../releases/v2.3.7b2.md) serializes same-process encrypted
-control-store access and retries transient Windows atomic-replacement failures
-for control and identity data. It includes the 2.3.7b1 Windows Store Python and
-private Bun onboarding corrections. These changes are included in 2.3.7.
-
-## Previous stable release
-[AtMem 2.3.6](../releases/v2.3.6.md) adds canonical secret refusal,
-direct-parent taint propagation, issued procedure-review authority, and
-portable Windows-safe locking. Its candidate passed 400/400 representable
-Memory Integrity Benchmark trials with zero failures or errors; the upstream
-position remains provisional until accepted.
-
-[AtMem 2.3.5](../releases/v2.3.5.md) introduced the one-command companion
-startup path: it installs AtFlows 0.1.2, starts and checks
-the local dashboards and AtBot through `atmem init`, and reports actual URLs
-and startup problems through `atmem status`. AtBot remains 0.1.0. Trace
-collection and the read-only AtFlows review-lead handoff remain explicit.
-
-## Previous release
-[AtMem 2.3.4](../releases/v2.3.4.md) added the separate AtFlows companion and optional shared login.
-
-## Upgrade checklist
-1. Stop writers or create a verified Home snapshot.
-2. Follow the exact install/upgrade commands in the release note.
-3. Upgrade the OpenClaw bridge if connected and restart long-running clients.
-4. Verify the Home and control state before relying on fresh evidence.
-5. Keep the backup until validation finishes.
-
-## Previous releases
-- [2.3.7 beta 1](../releases/v2.3.7b1.md)
-- [2.3.6 beta history](https://github.com/aetna000/atmem/blob/main/docs/releases/v2.3.6b1.md)
-- [2.3.4 beta history](https://github.com/aetna000/atmem/blob/main/docs/releases/v2.3.4b1.md)
-- [2.3.3](../releases/v2.3.3.md)
-- [2.3.2](../releases/v2.3.2.md)
-- [2.3.1](../releases/v2.3.1.md)
-- [2.3.0](../releases/v2.3.0.md)
-- [2.2.6](../releases/v2.2.6.md)
-
-Historical notes describe their own release, not the latest default behavior.
+Historical artifacts retain their original versions and qualification limits.
+Use current stable install commands unless reproducing a named older artifact.

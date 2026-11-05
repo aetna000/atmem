@@ -2,7 +2,7 @@
 
 [AtFlows](https://github.com/aetna000/atflows) records local LLM traces, logs, metrics and cost information in its own database. AtMem stores governed memories and encrypted host evidence. Their roles stay distinct: telemetry can suggest what to inspect, while AtMem authorizes evidence and memory decisions.
 
-AtMem 2.3.10 installs the exact tested stable companion `atflows==0.1.4` alongside
+AtMem 2.3.11 installs the exact tested stable companion `atflows==0.1.5` alongside
 `atmem-atbot==0.1.1`. Installing the package alone does not run a server or
 start collecting telemetry. Bun 1.1+ is needed to run AtFlows. If compatible
 Bun is absent, `atmem init` clearly announces and downloads AtMem's pinned
@@ -10,13 +10,14 @@ official Bun runtime, verifies its release-pinned SHA-256, and stores it
 privately under `~/.atmem/runtime/bun` without changing global `PATH`. Pip
 installation itself does not download or execute Bun.
 
-The opt-in AtMem 2.3.11b1 candidate instead pins the published AtFlows
-`0.1.5b1` prerelease, which protects Windows authentication and integration
-backup state using Windows ACLs. The current stable line remains unchanged.
+AtFlows 0.1.5 protects Windows authentication and integration backup state using
+verified Windows ACLs; POSIX state remains owner-only. Existing state is retained,
+and a protection failure prevents the affected write. Native Hermes integration
+remains unavailable on Windows; use WSL or a supported host for that integration.
 
 ## Start local dashboards
 
-### Current tested companion: 0.1.4
+### Current tested companion: 0.1.5
 
 **Activity → Resume work** shows explicitly instrumented workflow attempts and
 reported costs. Configure its producer token and observer using the
@@ -56,4 +57,4 @@ atmem atflows review RUN_ID --session-id SESSION_ID \
   --base-url http://127.0.0.1:1337
 ```
 
-This is an explicit read-only investigation. AtMem requires authorized evidence access and checks an exact session link in the selected run. A delegated AtFlows dashboard uses the same AtMem account credentials; standalone AtFlows uses its Administrator password. The report contains bounded trace-error leads, not raw trace bodies or a causal claim. The [2.3.9 release note](../releases/v2.3.9.md) describes automatic Bun setup, compatibility and limits. AtFlows 0.1.4 publication requires its separate telemetry-redaction and clean-install release gates.
+This is an explicit read-only investigation. AtMem requires authorized evidence access and checks an exact session link in the selected run. A delegated AtFlows dashboard uses the same AtMem account credentials; standalone AtFlows uses its Administrator password. The report contains bounded trace-error leads, not raw trace bodies or a causal claim. The [2.3.9 release note](../releases/v2.3.9.md) describes automatic Bun setup, compatibility and limits. AtFlows 0.1.5 publication requires its separate telemetry-redaction and clean-install release gates.

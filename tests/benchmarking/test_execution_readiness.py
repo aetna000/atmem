@@ -46,7 +46,9 @@ def condition(tmp_path):
            'budget': {'caps_usd': {'pilot': 10, 'full': 20}, 'uncertain_charges': 'reserve_until_reconciled'},
            'fixture_disposition': 'retain_original_two_unavailable_cases_in_denominator',
            'bindings': {n: str(tmp_path) for n in ['upstream_root', 'runtime_root', 'memory_root', 'atmem_home', 'controller_site']}}
-    cfg['bindings'].update({n: str(Path(sys.executable).resolve()) for n in
+    # Keep the virtualenv entry point: resolving its symlink loses sys.prefix
+    # and makes the interpreter-identity guard reject this synthetic fixture.
+    cfg['bindings'].update({n: str(Path(sys.executable).absolute()) for n in
                             ['subscription_python', 'product_python', 'app_python']})
     path = tmp_path / 'condition.json'
     gate.save(path, cfg)
