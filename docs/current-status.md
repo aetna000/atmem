@@ -1,15 +1,15 @@
 # Current status
 
-**Stable release line:** AtMem `2.3.11`, OpenClaw bridge `2.3.11`, legacy
+**Stable release line:** AtMem `2.3.12`, OpenClaw bridge `2.3.12`, legacy
 AtBot companion `0.1.1`, and pinned AtFlows `0.1.5`. See the
-[2.3.11 release note](releases/v2.3.11.md). Standalone AtBots is a separate
+[2.3.12 release note](releases/v2.3.12.md). Standalone AtBots is a separate
 agent platform; it does not replace the legacy companion.
 
 Evidence discovery and research action routing remain explicit opt-ins;
 ordinary governed memory and context defaults are retained. The final routed-v4
 [DolphinBench run](https://huggingface.co/datasets/atmem/dolphinbench-routed-v4-20261101)
 passed 479/600 tasks (79.83%). It used the documented frozen research source
-with the installed 2.3.10b1 base, not a new benchmark of the stable 2.3.11 wheel.
+with the installed 2.3.10b1 base, not a new benchmark of the stable 2.3.12 wheel.
 The [submission PR](https://github.com/mem0ai/dolphinbench/pull/10) is self-tested,
 not official benchmark certification. Historical artifacts keep their identities.
 

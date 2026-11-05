@@ -1,9 +1,9 @@
 # Releases
 
-## Current stable: 2.3.11
+## Current stable: 2.3.12
 
-[AtMem 2.3.11](../releases/v2.3.11.md) promotes the existing 2.3.11b1 package
-line with stable AtFlows 0.1.5, legacy companion 0.1.1 and OpenClaw bridge 2.3.11.
+[AtMem 2.3.12](../releases/v2.3.12.md) promotes the existing 2.3.11b1 package
+line with stable AtFlows 0.1.5, legacy companion 0.1.1 and OpenClaw bridge 2.3.12.
 Ordinary memory/context defaults are retained. Action-routing and standing-fact
 research remain explicit opt-ins with the limitations stated in the release note.
 The final routed-v4 result is [479/600, self-tested](https://huggingface.co/datasets/atmem/dolphinbench-routed-v4-20261101),
