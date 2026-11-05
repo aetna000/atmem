@@ -746,11 +746,13 @@ npm run smoke
 
 This stable source line is **2.3.11**, with OpenClaw bridge **2.3.11**,
 legacy AtBot companion **0.1.1**, and AtFlows **0.1.5**.
-Use the [release note](docs/releases/v2.3.11.md) for install/upgrade commands and
-the [qualification report](docs/releases/v2.3.10-qualification.md) for promotion provenance.
-The [600-task DolphinBench result](https://huggingface.co/datasets/atmem/atmem-2.3.10b1-dolphinbench)
-is recorded against the tested **2.3.10b1** artifact: 390/600 (65.0%). Stable
-promotion does not rename that evidence or imply independent verification.
+Use the [release note](docs/releases/v2.3.11.md) for install/upgrade commands,
+compatibility, research opt-ins and limits.
+The final [self-tested DolphinBench result](https://huggingface.co/datasets/atmem/dolphinbench-routed-v4-20261101)
+is **479/600 (79.83%)**, against its frozen i3/routed-v4 research artifact and
+installed **2.3.10b1** base. It is not a fresh benchmark of the 2.3.11 wheel or
+an official certification. Per-action outcomes and failing-check evidence are
+published with that dataset. Historical artifacts retain their identities.
 
 ## License
 
