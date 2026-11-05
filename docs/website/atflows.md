@@ -2,7 +2,7 @@
 
 [AtFlows](https://github.com/aetna000/atflows) records local LLM traces, logs, metrics and cost information in its own database. AtMem stores governed memories and encrypted host evidence. Their roles stay distinct: telemetry can suggest what to inspect, while AtMem authorizes evidence and memory decisions.
 
-AtMem 2.3.11 installs the exact tested stable companion `atflows==0.1.5` alongside
+AtMem 2.3.12 installs the exact tested stable companion `atflows==0.1.5` alongside
 `atmem-atbot==0.1.1`. Installing the package alone does not run a server or
 start collecting telemetry. Bun 1.1+ is needed to run AtFlows. If compatible
 Bun is absent, `atmem init` clearly announces and downloads AtMem's pinned

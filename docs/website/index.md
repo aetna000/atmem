@@ -9,12 +9,12 @@ and investigate the evidence a supported host captured.
 without an API key or a model download. Then [connect an agent](integrations.md)
 and review shadow mode before enabling context injection.
 
-## Stable 2.3.11: memory, context and evidence
+## Stable 2.3.12: memory, context and evidence
 
-AtMem 2.3.11 retains source-backed, read-only discovery for explicitly
+AtMem 2.3.12 retains source-backed, read-only discovery for explicitly
 configured SDK/host integrations. Start with the
 [integration guide](../evidence-discovery.md) and
-[release note](../releases/v2.3.11.md).
+[release note](../releases/v2.3.12.md).
 It does not automatically enable agent tools or change ordinary memory defaults.
 
 ## Shared coding memory
