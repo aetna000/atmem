@@ -1,14 +1,17 @@
 # Current status
 
-**Stable release line:** AtMem `2.3.10`, OpenClaw bridge `2.3.10`, AtBot
-`0.1.1`, and pinned AtFlows `0.1.4`. See the
-[2.3.10 release note](releases/v2.3.10.md).
+**Stable release line:** AtMem `2.3.11`, OpenClaw bridge `2.3.11`, legacy
+AtBot companion `0.1.1`, and pinned AtFlows `0.1.5`. See the
+[2.3.11 release note](releases/v2.3.11.md). Standalone AtBots is a separate
+agent platform; it does not replace the legacy companion.
 
-Evidence discovery remains opt-in SDK/host functionality; ordinary memory and
-Code defaults are unchanged. The [completed DolphinBench run](https://huggingface.co/datasets/atmem/atmem-2.3.10b1-dolphinbench)
-passed 390/600 tasks (65.0%) using the tested 2.3.10b1 artifact. Its
-[submission PR](https://github.com/mem0ai/dolphinbench/pull/10) is self-tested and
-awaiting maintainer review. See the [promotion report](releases/v2.3.10-qualification.md).
+Evidence discovery and research action routing remain explicit opt-ins;
+ordinary governed memory and context defaults are retained. The final routed-v4
+[DolphinBench run](https://huggingface.co/datasets/atmem/dolphinbench-routed-v4-20261101)
+passed 479/600 tasks (79.83%). It used the documented frozen research source
+with the installed 2.3.10b1 base, not a new benchmark of the stable 2.3.11 wheel.
+The [submission PR](https://github.com/mem0ai/dolphinbench/pull/10) is self-tested,
+not official benchmark certification. Historical artifacts keep their identities.
 
 **Historical integrity evidence:** the stable 2.3.6 wheel has a checksum-verified 700-trial evidence package in
 [upstream PR #1](https://github.com/iluxu/memory-integrity-benchmark/pull/1):

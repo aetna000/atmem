@@ -55,7 +55,7 @@ atmem atflows review RUN_ID --session-id SESSION_ID \
   --base-url http://127.0.0.1:1337
 ```
 
-AtFlows 0.1.4 is installed with AtMem 2.3.9. `atmem init` starts its local server, while trace collection and review are opt-in.
+AtFlows 0.1.5 is installed with AtMem 2.3.11. `atmem init` starts its local server, while trace collection and review are opt-in.
 Confirm AtFlows is running before reviewing a run. The command
 requires an authorized AtMem evidence token from `ATMEM_EVIDENCE_TOKEN` or an
 interactive prompt. Standalone AtFlows asks for its Administrator password;

@@ -1,13 +1,28 @@
 # AtMem product portfolio
 
-The three open-source packages have separate jobs and repositories.
+The projects have separate responsibilities and installations.
 
 | Product | What it does | Repository |
 | --- | --- | --- |
 | AtMem | Governed, scoped memory and encrypted evidence; final authority for memory and local accounts | [AtMem source](https://github.com/aetna000/atmem) |
-| AtBots / AtBot | Optional model-assisted extraction and retrieval proposals; AtMem validates and decides | [AtBots source](https://github.com/aetna000/atbots) |
-| AtFlows | Local LLM observability, traces and cost data; optional evidence-review leads | [AtFlows source](https://github.com/aetna000/atflows) |
+| AtBots | Standalone Pydantic AI agent platform with private agent memory, workspaces, reusable connections and optional supervision | [AtBots source](https://github.com/aetna000/atbots) |
+| AtFlows | Local LLM observability, traces and reported costs; optional evidence-review leads | [AtFlows source](https://github.com/aetna000/atflows) |
+| AtForma | Local AI stack design, architecture canvas, review, cost estimates and delivery-pack exports; no infrastructure provisioning | [AtForma source](https://github.com/aetna000/atforma) |
+| AtSys | Durable coding-task supervision, bounded recovery and independent acceptance checks | [AtSys source](https://github.com/aetna000/atsys) |
 
-Stable AtMem 2.3.10 pins AtBot 0.1.1 and AtFlows 0.1.4. The 2.3.11b1 prerelease pins AtBot 0.1.1 and AtFlows 0.1.5b1. `atmem init` starts and checks the local companions with AtMem-owned dashboard login. Both remain useful independently: AtFlows can run with standalone accounts, while AtMem works when its server is stopped. AtBot never receives automatic authority to mutate canonical memory.
+Stable AtMem 2.3.11 pins the separate legacy companion `atmem-atbot==0.1.1`
+and `atflows==0.1.5`. The companion provides optional model-assisted memory
+proposals; it is not the standalone `atbots` distribution. AtMem validates
+proposals before changing governed memory. Installing standalone AtBots does
+not replace the companion or grant authority over another agent's memory.
 
-Start with [AtMem's first memory](getting-started.md), [AtBot's intelligence setup](atbot.md), or [AtFlows observability](atflows.md). Review the [integration boundaries](integrations.md) before connecting an agent.
+`atmem init` starts and checks local companions with AtMem-owned dashboard
+login. AtFlows also supports standalone accounts. AtMem's deterministic memory
+path remains usable without a running model service. AtSys runs independently
+of AtMem/AtFlows; AtBots connects its integrations explicitly. Native AtSys
+workspace supervision supports macOS/Linux, not native Windows.
+
+Start with [AtMem's first memory](getting-started.md), the
+[legacy companion setup](atbot.md), [AtFlows observability](atflows.md), or the
+[AtBots platform guide](https://github.com/aetna000/atbots/blob/main/docs/agent-platform.md).
+Review [integration boundaries](integrations.md) before connecting an agent.
