@@ -1,0 +1,54 @@
+{
+  "plugin": "atmem-chatgpt",
+  "version": "0.1.2",
+  "status": "submitted for review (reported by owner; approval not verified)",
+  "submitted_date": "2026-11-07",
+  "timezone": "Australia/Sydney",
+  "zip": "AtMem-ChatGPT-0.1.2.zip",
+  "zip_sha256": "c83392d7d8b9021e681b613f5990eca68792ca9783d68e5bcc680c8e798198d1",
+  "source_repository": "https://github.com/aetna000/atmem",
+  "source_branch": "feat/chatgpt-memory-plugin",
+  "source_commit": "bf326ae8f79dee74f6b8a21faa163aabc612efc6",
+  "zip_matches_source": false,
+  "mcp_url": "https://atmem-chatgpt-nvwvv4d7sa-uc.a.run.app/mcp",
+  "cloud_project": "atmemai",
+  "cloud_region": "us-central1",
+  "cloud_service": "atmem-chatgpt",
+  "build_id": "2827f96a-29dc-4db2-aa5a-6b8fc38a4896",
+  "image_digest": "sha256:38b25cbcd9d9e06770f379940e283ff287541955a4e2e99aa2c0af510f3b886a",
+  "deployment": {
+    "spec": {
+      "template": {
+        "spec": {
+          "containers": [
+            {
+              "image": "us-central1-docker.pkg.dev/atmemai/atmem-chatgpt/mcp@sha256:38b25cbcd9d9e06770f379940e283ff287541955a4e2e99aa2c0af510f3b886a"
+            }
+          ]
+        }
+      }
+    },
+    "status": {
+      "latestReadyRevisionName": "atmem-chatgpt-00009-zb5",
+      "traffic": [
+        {
+          "latestRevision": true,
+          "percent": 100,
+          "revisionName": "atmem-chatgpt-00009-zb5"
+        }
+      ]
+    }
+  },
+  "private_configuration_reference": "Google Secret Manager: atmem-chatgpt-config version 3",
+  "encryption_key_reference": "Google Secret Manager: atmem-chatgpt-master (value must never be exported to Git)",
+  "reviewer_access_reference": "Google Secret Manager: atmem-chatgpt-reviewer-access",
+  "portal_submission_id": null,
+  "walkthrough_public_url": null,
+  "package_source": "package/atmem-chatgpt (exact extraction of submitted ZIP)",
+  "source_note": "Server source is pinned by commit and Cloud Build image. The submitted package differs from development manifests; exact upload is archived without modification.",
+  "walkthrough": {
+    "filename": "AtMem-0.9x.mp4",
+    "sha256": "faa5c909b9a88741203a6b79ef14578c122b7444681554547867149a877d0b4c",
+    "public_url": null
+  }
+}

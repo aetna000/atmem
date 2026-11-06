@@ -55,3 +55,17 @@ integrations/openclaw/*.tgz
 
 # Optional cloud emulator diagnostics (may include local synthetic test state).
 firestore-debug.log
+
+# AtMem cloud operator secrets and private reviewer material
+**/AtMem-reviewer-password.txt
+**/reviewer-access.json
+**/service-account*.json
+**/*service-account-key*.json
+**/firebase-adminsdk-*.json
+**/application_default_credentials.json
+**/.firebase/
+**/firebase-debug.log
+**/*.pem
+**/*.key
+/deploy/chatgpt/config.json
+/deploy/chatgpt/config.*.json

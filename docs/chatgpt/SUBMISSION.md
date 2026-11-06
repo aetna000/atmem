@@ -1,5 +1,9 @@
 # Public release preparation and precise owner steps
 
+> Current submission: see [0.1.2 submission record](submissions/0.1.2/README.md).
+> The owner reported submission on 7 November 2026. The older preparation
+> status below is historical and does not describe the current submission.
+
 Status: implementation and development package preparation plus an owner-approved
 Firebase pilot. See verification.md for actual endpoint status. No ChatGPT account
 installation, draft upload, review submission or approved release exists.

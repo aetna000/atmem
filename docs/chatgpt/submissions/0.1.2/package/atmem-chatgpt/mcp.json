@@ -1,0 +1,27 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "atmem": {
+      "type": "streamable-http",
+      "url": "https://atmem-chatgpt-nvwvv4d7sa-uc.a.run.app/mcp",
+      "extensions": {
+        "com.openai": {
+          "auth": {
+            "type": "oauth",
+            "client": {
+              "mode": "cimd"
+            },
+            "baseScopes": [
+              "memory:read"
+            ],
+            "defaultScopes": [
+              "memory:read",
+              "memory:write",
+              "memory:delete"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
