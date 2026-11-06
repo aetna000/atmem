@@ -105,3 +105,23 @@ No essential workflow relies on hover, motion or JavaScript in consent pages.
 Real local browser tests exercise the sign-in/preview pages, axe accessibility,
 keyboard approval and no-JavaScript form access. Deployed-service and actual
 ChatGPT accessibility/confirmation testing remain separate release gates.
+
+## Registered Firebase accounts
+The default access policy remains invited. `access_policy=registered` enables
+registration only within a live OAuth connection request. Firebase creates the
+account and sends verification; the service does not grant an OAuth code until
+Firebase's trusted sign-in response confirms the email is verified. Registration
+alone never creates memories or connects ChatGPT. Email delivery is throttled
+atomically per normalized address (120 s) using opaque HMAC IDs and per observed
+peer (5 account-email submissions/minute). Firebase quotas also apply. Large public
+launches need measured abuse controls; these pilot limits are not a CAPTCHA.
+
+Passwords pass to Firebase over TLS, never into AtMem. Firebase refresh credentials
+needed to revalidate registered accounts on plugin OAuth refresh are held in the
+encrypted control store, not returned to ChatGPT. Disabled/deleted/changed Firebase
+accounts cannot refresh plugin access. Existing access tokens last at most ten
+minutes; existing independent browser approval sessions at most five minutes.
+Revoke the plugin OAuth grant for immediate invalidation of that grant. Account
+registration, password reset and verification resend never expose memory content.
+The cloud data-flow acknowledgement is required by this registration form; OAuth
+scope consent and per-operation approval are independent server-enforced gates.

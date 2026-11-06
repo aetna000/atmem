@@ -8,10 +8,10 @@ This optional integration is not in the published PyPI 2.3.12 artifact.
 
 | Boundary | Result | Evidence / limit |
 |---|---|---|
-| Source cloud integration | 29 passed, 20.82 s | Real Firebase Auth/Firestore emulators, real HTTP MCP SDK client, real encrypted AtMem engine |
+| Source cloud integration | 30 passed, 19.99 s | Real Firebase Auth/Firestore emulators, real HTTP MCP SDK client, real encrypted AtMem engine |
 | Native memory/MCP/encryption regression | 50 passed, 1 skipped | Windows-only encryption test skipped on macOS; 2.85 s |
 | Wheel and sdist | Built | Local feature build; not a package publication |
-| Installed wheel MCP service | 29 passed, 20.44 s | Server imported from installed wheel outside checkout; real HTTP integration |
+| Installed wheel MCP service | Registration update pending final wheel verification | Previous 29 passed; do not infer latest boundary until rerun |
 | Browser consent | Passed | Real Chromium, keyboard approval, no-JS sign-in, mobile view; axe checks on two pages |
 | Actual ChatGPT Pro 100 account | Not tested | No usable signed-in browser control; entitlement, invocation and confirmation behavior unverified |
 | Natural-language review prompts | Prepared, not host-executed | Exactly 5 positive and 3 negative cases |
@@ -67,3 +67,10 @@ transport projection separately. Full unchanged upstream schema/portal acceptanc
 has not been claimed. `--public` refuses incomplete listing/policy/demo/identity/
 account evidence. No credentials, guessed verification or fake policy URLs occur
 in the package. ChatGPT account testing and public submission remain owner steps.
+
+Registration refinement: real Auth emulator signup, required cloud acknowledgement,
+verified-email gate, verification delivery/action, recovery emails, real OAuth
+linkage and refresh passed. Disabling the registered Firebase user rejected the
+next plugin refresh. Delivery to a real mailbox is not verified by emulator links.
+Active access tokens have a ten-minute bound and browser approval sessions five
+minutes; revoke the plugin grant for immediate grant invalidation.

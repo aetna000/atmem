@@ -58,3 +58,7 @@ plugins/atmem-chatgpt and scripts/package_chatgpt_plugin.py; docs/chatgpt;
 deploy/chatgpt. No core schema change: namespaced adapter/control tables live
 in the engine household and have independent schema versioning. Source licence
 and notices follow current Apache-2.0 files, without legal-clearance claims.
+
+Owner registration refinement: implement verified Firebase email registration within
+OAuth linking, recovery and email throttles. Recheck Firebase account on token
+refresh, keep invited mode for synthetic/closed testing, document expiry windows.

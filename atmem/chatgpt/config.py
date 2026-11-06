@@ -29,9 +29,10 @@ class Settings:
     requests_per_minute: int = 120
     collection: str = "atmem_chatgpt_v1"
     database: str = "(default)"
+    access_policy: str = "invited"
 
     def permits_account(self, uid: str) -> bool:
-        return self.emulator or uid in self.allowed_uids
+        return self.access_policy == "registered" or self.emulator or uid in self.allowed_uids
 
     @property
     def resource(self) -> str:
@@ -111,13 +112,16 @@ class Settings:
                        max_records=int(value.get("max_records", 1000)),
                        requests_per_minute=int(value.get("requests_per_minute", 120)),
                        collection=str(value.get("collection", "atmem_chatgpt_v1")),
-                       database=str(value.get("database", "(default)")))
+                       database=str(value.get("database", "(default)")),
+                       access_policy=str(value.get("access_policy", "invited")))
+        if settings.access_policy not in {"invited", "registered"}:
+            raise ValueError("invalid account access policy")
         if settings.database != "(default)" and not re.fullmatch(r"[a-z][a-z0-9-]{2,61}[a-z0-9]", settings.database):
             raise ValueError("invalid Firestore database ID")
         challenge=settings.openai_domain_challenge
         if challenge is not None and (not isinstance(challenge,str) or not 1<=len(challenge)<=4096 or "\n" in challenge or "\r" in challenge):
             raise ValueError("domain challenge must be the exact single portal token")
-        if not emulator and not settings.allowed_uids:
+        if not emulator and settings.access_policy == "invited" and not settings.allowed_uids:
             raise ValueError("initial cloud pilot requires explicit invited Firebase user IDs")
         if len(settings.allowed_uids)>1000 or any(not isinstance(uid,str) or not uid or len(uid)>128 for uid in settings.allowed_uids):
             raise ValueError("invalid invited user allowlist")

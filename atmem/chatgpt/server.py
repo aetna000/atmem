@@ -14,7 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import Response,JSONResponse
 from starlette.routing import Route
 
-from .auth import OAuthProvider,FirebaseIdentity
+from .auth import OAuthProvider
 from .config import Settings,SCOPES
 from .repository import Repository,Conflict
 from .service import Service,Denied
@@ -102,7 +102,7 @@ def create_app(settings: Settings):
     @tool('list_memory_activity','List at most 30 recent structural audit events for one owned scope and verify its audit chain. Integrity is not proof of factual truth or agent learning.', 'memory:read',read=True)
     def list_memory_activity(scope:Scope,limit:int=10)->Result:return call('memory:read',service.activity,scope,limit)
 
-    install_routes(mcp,settings,repository,provider,FirebaseIdentity(settings),service)
+    install_routes(mcp,settings,repository,provider,provider.identity,service)
     app=mcp.streamable_http_app()
     # MCP SDK 1.30.0 RevocationRequest incorrectly requires a client_secret
     # form field even for token_endpoint_auth_method=none. Keep RFC 7009 public

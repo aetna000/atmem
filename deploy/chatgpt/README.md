@@ -8,7 +8,8 @@ data, Hosting and security rules are preserved. No native memories are imported.
 The deny-all rules supplied here apply only to the demo emulator project.
 **Never deploy them over the website rules.**
 
-This is an invitation-only pilot, not a public plugin listing. The owner approved
+This is a controlled pilot, not a public plugin listing. Registered/verified-email
+access was requested by the owner; closed invited mode remains available. The owner approved
 lightweight hosting; no separate numeric budget was specified. Min instances 0,
 max instances 1 and request billing limit idle compute, not total spending. The
 additional named database has no free-tier allocation. Record actual cost and
@@ -16,8 +17,8 @@ usage before widening access. No paid model calls are part of this integration.
 
 ## Smallest supported Google design
 
-Cloud Run (Python MCP + minimal OAuth/approval pages), Firebase Auth (invited
-synthetic/user accounts), Firestore (encrypted generation snapshots and encrypted
+Cloud Run (Python MCP + minimal OAuth/approval pages), Firebase Auth (registered, verified-email
+accounts or closed invited test accounts), Firestore (encrypted generation snapshots and encrypted
 OAuth control records), Secret Manager (operator-controlled master key/config).
 There is no application dashboard or Firestore browser SDK access. Cloud Run
 scratch disk is explicitly ephemeral; Firestore is the durable commit point.
@@ -35,9 +36,10 @@ pilot configuration values, not measured production capacity or hard spend caps.
 1. Existing project/billing approval is recorded above. Do not change the linked
    billing account, buy domains or broaden this pilot. Establish a numeric
    monthly budget/alert response before general availability.
-2. Inspect the isolated Firestore database and Firebase Auth; choose sign-in/access policy (initial
-   pilot is invitation-only). Create a dedicated synthetic reviewer account.
-   Set its actual UID in allowed_firebase_uids. Reviewers must have no real data.
+2. Inspect the isolated Firestore database and Firebase Auth; choose sign-in/access policy (registration requires
+   verified email; invited policy remains available). Create a dedicated synthetic reviewer account.
+   Set its UID in allowed_firebase_uids for invited mode; registered mode
+   verifies Firebase email before linking. Reviewers must have no real data.
 3. Set server-only Firestore IAM and deny browser access to the namespace.
    Firebase rules do not constrain the server SDK; IAM is essential. Avoid
    running the service as project owner/editor and isolate it from other apps.

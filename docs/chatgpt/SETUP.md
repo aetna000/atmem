@@ -106,3 +106,15 @@ their receipts before removing the connection. Deleting a service/key is not a
 verified forget operation and may prevent recovery. Remove only the dedicated
 synthetic test directory when its data and key are no longer needed. Retention
 in provider backups/ChatGPT copies follows their separate policies.
+
+## Registration sign-in
+For the cloud registration policy, set `access_policy` to `registered`. Enable
+Firebase email/password sign-in and account registration for this project. Use
+Firebase's actual email verification handler; verify actual delivery with a user-
+controlled test mailbox before public launch. Start account linking from ChatGPT,
+choose Register, acknowledge cloud data flow, use a 12+ character password and
+verify the email. Return to sign-in (restart linking if its five-minute request
+expired). Sign in and grant the displayed OAuth scopes. Each memory mutation
+still requires a separately signed-in preview and approval. Verification resend
+and password reset links are on the sign-in page. No separate application UI.
+The invited policy remains available for closed pilots and synthetic reviewers.

@@ -68,6 +68,19 @@ class Repository:
             document["expires_at"]=datetime.fromtimestamp(value["expires_at"],timezone.utc)
         self._doc(kind, key).set(document)
 
+    def claim_email_slot(self, email: str, seconds: int = 120) -> bool:
+        """Atomic per-address delivery throttle; stores no plaintext address."""
+        doc=self._doc('email-limit',email.strip().casefold())
+        @firestore.transactional
+        def claim(transaction):
+            row=doc.get(transaction=transaction,timeout=5,retry=None)
+            now=datetime.now(timezone.utc)
+            if row.exists and row.to_dict()['expires_at']>now:return False
+            from datetime import timedelta
+            transaction.set(doc,{'kind':'email-limit','expires_at':now+timedelta(seconds=seconds)})
+            return True
+        return claim(self.client.transaction(max_attempts=3))
+
     def consume_control(self, kind: str, key: str) -> dict[str, Any] | None:
         doc = self._doc(kind, key)
         @firestore.transactional

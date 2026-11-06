@@ -22,45 +22,105 @@ from .repository import Repository
 
 
 class FirebaseIdentity:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, repository: Repository | None = None):
         self.settings = settings
+        self.repository = repository
 
-    async def sign_in(self, email: str, password: str) -> str:
-        if not 3 <= len(email) <= 254 or not 1 <= len(password) <= 256:
-            raise ValueError("sign_in_rejected")
+    async def _request(self, method: str, payload: dict):
         if self.settings.emulator:
             import os
             base = "http://" + os.environ["FIREBASE_AUTH_EMULATOR_HOST"] + "/identitytoolkit.googleapis.com/v1"
         else:
             base = "https://identitytoolkit.googleapis.com/v1"
         async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
-            response = await client.post(base + "/accounts:signInWithPassword", params={"key":self.settings.firebase_api_key},
-                json={"email":email,"password":password,"returnSecureToken":True})
+            return await client.post(base + "/accounts:" + method,
+                params={"key":self.settings.firebase_api_key}, json=payload)
+
+    def _bound_identity(self, response) -> tuple[str, dict]:
         if response.status_code != 200:
             raise ValueError("sign_in_rejected")
         uid = response.json().get("localId")
         if not isinstance(uid, str) or not uid or len(uid)>128:
             raise ValueError("sign_in_rejected")
-        # This ID token comes directly from Firebase over the configured HTTPS
-        # sign-in response (or explicit loopback emulator), never from the caller.
-        # Check its project/issuer binding so a wrong project's API key cannot
-        # authenticate an identically named UID into this service. This is not
-        # a general verifier for client-supplied Firebase JWTs.
+        # Trusted direct Firebase response, never a client-supplied JWT. This
+        # project binding is not a general-purpose unsigned JWT verifier.
         try:
             encoded=response.json()["idToken"].split(".")[1]
             claims=json.loads(base64.urlsafe_b64decode(encoded+"="*(-len(encoded)%4)))
             if claims.get("aud")!=self.settings.project or claims.get("iss")!="https://securetoken.google.com/"+self.settings.project or claims.get("sub")!=uid or claims.get("exp",0)<=time.time():
                 raise ValueError("identity_project_mismatch")
-        except (KeyError,IndexError,TypeError,ValueError):
+        except (KeyError,IndexError,TypeError,ValueError,AttributeError):
             raise ValueError("sign_in_rejected") from None
+        return uid, claims
+
+    async def sign_in(self, email: str, password: str) -> str:
+        if not 3 <= len(email) <= 254 or not 1 <= len(password) <= 256:
+            raise ValueError("sign_in_rejected")
+        response=await self._request("signInWithPassword", {"email":email,"password":password,"returnSecureToken":True})
+        uid,claims=self._bound_identity(response)
+        if self.settings.access_policy == "registered" and claims.get("email_verified") is not True:
+            raise ValueError("verify_email_before_connecting")
         if not self.settings.permits_account(uid):
             raise ValueError("account_not_invited")
+        if self.repository and self.settings.access_policy == 'registered':
+            self.repository.put_control('firebase-identity',uid,{'refresh_token':response.json()['refreshToken'],'expires_at':time.time()+86400})
         return uid
+
+    async def revalidate(self, account: str) -> None:
+        """Re-check Firebase on registered-account OAuth refresh, not passwords."""
+        if self.settings.access_policy != 'registered':return
+        saved=self.repository.get_control('firebase-identity',account) if self.repository else None
+        if not saved:raise ValueError('firebase_reauthentication_required')
+        if self.settings.emulator:
+            import os
+            url='http://'+os.environ['FIREBASE_AUTH_EMULATOR_HOST']+'/securetoken.googleapis.com/v1/token'
+        else:url='https://securetoken.googleapis.com/v1/token'
+        async with httpx.AsyncClient(timeout=10,follow_redirects=False) as client:
+            response=await client.post(url,params={'key':self.settings.firebase_api_key},data={'grant_type':'refresh_token','refresh_token':saved['refresh_token']})
+        if response.status_code!=200:raise ValueError('firebase_reauthentication_required')
+        value=response.json()
+        # Same trusted-response/project checks as initial sign-in.
+        from types import SimpleNamespace
+        uid,claims=self._bound_identity(SimpleNamespace(status_code=200,json=lambda:{'localId':value.get('user_id'),'idToken':value.get('id_token')}))
+        if uid!=account or claims.get('email_verified') is not True:raise ValueError('firebase_reauthentication_required')
+        self.repository.put_control('firebase-identity',account,{'refresh_token':value['refresh_token'],'expires_at':time.time()+86400})
+
+    async def register(self, email: str, password: str) -> None:
+        if self.settings.access_policy != "registered":
+            raise ValueError("registration_unavailable")
+        if not 3 <= len(email) <= 254 or not 12 <= len(password) <= 256:
+            raise ValueError("registration_rejected")
+        response=await self._request("signUp", {"email":email,"password":password,"returnSecureToken":True})
+        if response.status_code != 200:
+            # Do not reveal whether an address already belongs to an account.
+            if response.json().get("error",{}).get("message") == "EMAIL_EXISTS":
+                return
+            raise ValueError("registration_rejected")
+        self._bound_identity(response)
+        sent=await self._request("sendOobCode", {"requestType":"VERIFY_EMAIL","idToken":response.json()["idToken"]})
+        if sent.status_code != 200:
+            raise ValueError("verification_delivery_failed")
+
+    async def resend_verification(self, email: str, password: str) -> None:
+        if self.settings.access_policy != "registered" or not 3<=len(email)<=254 or not 1<=len(password)<=256:
+            raise ValueError("verification_rejected")
+        response=await self._request("signInWithPassword", {"email":email,"password":password,"returnSecureToken":True})
+        self._bound_identity(response)
+        sent=await self._request("sendOobCode", {"requestType":"VERIFY_EMAIL","idToken":response.json()["idToken"]})
+        if sent.status_code != 200:raise ValueError("verification_delivery_failed")
+
+    async def reset_password(self, email: str) -> None:
+        if self.settings.access_policy != "registered" or not 3<=len(email)<=254:
+            raise ValueError("reset_rejected")
+        response=await self._request("sendOobCode", {"requestType":"PASSWORD_RESET","email":email})
+        if response.status_code != 200 and response.json().get("error",{}).get("message") != "EMAIL_NOT_FOUND":
+            raise ValueError("reset_rejected")
 
 
 class OAuthProvider:
     def __init__(self, settings: Settings, repository: Repository):
         self.settings = settings; self.repository = repository
+        self.identity = FirebaseIdentity(settings,repository)
 
     async def get_client(self, client_id: str):
         callbacks = self.settings.clients.get(client_id)
@@ -154,6 +214,10 @@ class OAuthProvider:
         value=self.repository.consume_control("refresh",refresh_token.token)
         if not value or not set(scopes).issubset(value["scopes"]):
             raise TokenError(error="invalid_grant",error_description="refresh expired, replayed or escalated")
+        try:
+            await self.identity.revalidate(value['subject'])
+        except ValueError:
+            raise TokenError(error='invalid_grant',error_description='Firebase sign-in required again') from None
         return self._issue(value["subject"],client.client_id,scopes,value["resource"],value["grant_id"])
 
     async def revoke_token(self,token):

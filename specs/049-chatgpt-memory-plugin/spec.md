@@ -84,3 +84,11 @@ Use existing atmemai Blaze, with a separate Firestore database and database-boun
 runtime IAM, Cloud Run min 0/max 1, synthetic invited accounts, and no website
 dashboard. Preserve website Hosting, waitlist, security rules and native stores.
 No directory submission/publication is authorized by hosting approval.
+
+## Registration refinement (owner request, 6 November 2026)
+FR-015: Provide Firebase registration/sign-in as the only user access gate, with
+verified email before OAuth linkage, cloud data-flow acknowledgement, verification
+resend/password recovery, per-address/peer email throttles, no credentials stored
+in AtMem memory, and no user-selected tenant identity. Revalidate Firebase accounts
+on OAuth refresh; document bounded active-token and browser-session lifetimes.
+Retain invited policy for closed testing; registration alone grants no memory access.

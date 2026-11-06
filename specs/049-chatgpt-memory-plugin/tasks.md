@@ -24,3 +24,5 @@
 Implementation tasks do not certify actual ChatGPT account invocation, individual
 verification, public policy/demo/reviewer readiness or submission approval. See
 docs/chatgpt/verification.md for measured results and remaining gates.
+
+- [x] T013 Implement Firebase registration/verified-email/recovery and delivery throttles; test real emulator signup, verification, linkage, refresh and disabled-user rejection (FR-015).

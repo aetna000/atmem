@@ -42,3 +42,11 @@ published support page once available. The existing website privacy page mainly
 covers that website; it has not been silently reused as this cloud policy.
 No sale/sharing, lawful-basis, age, residency or response-time promise is made
 without the operator supplying and reviewing the actual policy.
+
+Registration uses Firebase account email/password and email verification. Passwords
+are forwarded to Firebase over TLS, not stored by AtMem. Firebase refresh tokens
+used for account revalidation are encrypted in the auth-control store, separately
+from memory. Delivery throttles hold opaque HMAC address identifiers and expiry,
+not plaintext email. Firebase necessarily retains account identity until account
+deletion; deleting a memory does not delete the Firebase account. Account deletion
+handling and actual email-delivery policy must be verified before general launch.

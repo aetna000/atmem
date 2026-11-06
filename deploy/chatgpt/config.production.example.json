@@ -5,11 +5,16 @@
   "issuer": "https://SET_ACTUAL_OWNED_SERVICE_ORIGIN",
   "firebase_api_key": "SET_FIREBASE_WEB_API_KEY",
   "key_env": "ATMEM_CLOUD_SERVICE_KEY",
-  "allowed_firebase_uids": ["SET_INVITED_REVIEW_USER_UID"],
-  "clients": {"SET_PORTAL_OAUTH_CLIENT_ID": ["SET_EXACT_PORTAL_CALLBACK_URI"]},
+  "allowed_firebase_uids": [],
+  "clients": {
+    "SET_PORTAL_OAUTH_CLIENT_ID": [
+      "SET_EXACT_PORTAL_CALLBACK_URI"
+    ]
+  },
   "max_snapshot_bytes": 8388608,
   "max_records": 1000,
   "requests_per_minute": 120,
   "collection": "atmem_chatgpt_v1",
-  "emulator": false
+  "emulator": false,
+  "access_policy": "registered"
 }

@@ -329,3 +329,60 @@ def test_firebase_identity_is_bound_to_configured_project(cloud):
 def test_unconfigured_domain_challenge_never_claims_ownership(cloud):
     response=httpx.get(cloud.base+'/.well-known/openai-apps-challenge')
     assert response.status_code==404
+
+
+def test_registration_email_verification_and_recovery_are_real_and_gated(cloud):
+    import re
+    from urllib.parse import parse_qs,urlparse
+    from dataclasses import replace
+    from atmem.chatgpt.config import Settings
+    from atmem.chatgpt.auth import FirebaseIdentity
+    original=cloud.config.read_text();config=json.loads(original);config['access_policy']='registered'
+    cloud.config.write_text(json.dumps(config));cloud.restart()
+    email='registered-'+secrets.token_hex(8)+'@example.invalid';password=secrets.token_urlsafe(24)
+    browser=httpx.Client(follow_redirects=False,timeout=20)
+    try:
+        verifier=secrets.token_urlsafe(48);challenge=base64.urlsafe_b64encode(__import__('hashlib').sha256(verifier.encode()).digest()).rstrip(b'=').decode()
+        auth=browser.get(cloud.base+'/authorize',params={'response_type':'code','client_id':'atmem-test-client','redirect_uri':'http://127.0.0.1:9901/callback','scope':'memory:read memory:write','resource':cloud.base+'/mcp','state':'registration-test','code_challenge':challenge,'code_challenge_method':'S256'})
+        assert auth.status_code in (302,303,307)
+        login=browser.get(auth.headers['location']);assert 'Register</a>' in login.text
+        nonce=auth.headers['location'].rsplit('/',1)[1];url=cloud.base+'/register?request='+nonce
+        assert browser.get(cloud.base+'/register?request=forged').status_code==400
+        form=browser.get(url)
+        rejected=browser.post(url,headers={'Origin':cloud.base},data={'csrf':csrf(form),'email':email,'password':password})
+        assert rejected.status_code==400  # cloud data-flow consent is required
+        form=browser.get(url)
+        created=browser.post(url,headers={'Origin':cloud.base},data={'csrf':csrf(form),'email':email,'password':password,'understood':'yes'})
+        assert created.status_code==200 and 'Check your email' in created.text
+        identity=FirebaseIdentity(replace(Settings.load(cloud.config),access_policy='registered'))
+        with pytest.raises(ValueError,match='verify_email_before_connecting'):
+            asyncio.run(identity.sign_in(email,password))
+        form=browser.get(url)
+        assert browser.post(url,headers={'Origin':cloud.base},data={'csrf':csrf(form),'email':email,'password':password,'understood':'yes'}).status_code==429
+        base='http://'+cloud.env['FIREBASE_AUTH_EMULATOR_HOST']
+        codes=httpx.get(base+'/emulator/v1/projects/demo-atmem-plugin/oobCodes').json()['oobCodes']
+        verification=next(c for c in codes if c['email']==email and c['requestType']=='VERIFY_EMAIL')
+        verified=httpx.post(base+'/identitytoolkit.googleapis.com/v1/accounts:update',params={'key':'emulator'},json={'oobCode':verification['oobCode']})
+        assert verified.status_code==200
+        uid=asyncio.run(identity.sign_in(email,password));assert uid
+        login=browser.get(auth.headers['location'])
+        accepted=browser.post(auth.headers['location'],headers={'Origin':cloud.base},data={'csrf':csrf(login),'email':email,'password':password,'decision':'approve'})
+        assert accepted.status_code==303
+        query=parse_qs(urlparse(accepted.headers['location']).query)
+        token=browser.post(cloud.base+'/token',data={'grant_type':'authorization_code','client_id':'atmem-test-client','code':query['code'][0],'redirect_uri':'http://127.0.0.1:9901/callback','code_verifier':verifier,'resource':cloud.base+'/mcp'})
+        assert token.status_code==200
+        user={'uid':uid,**token.json()}
+        assert call(cloud,user,'list_memory_scopes')['ok']
+        renewed=browser.post(cloud.base+'/token',data={'grant_type':'refresh_token','client_id':'atmem-test-client','refresh_token':token.json()['refresh_token'],'scope':'memory:read memory:write','resource':cloud.base+'/mcp'})
+        assert renewed.status_code==200,renewed.text
+        # Recovery methods exercise Firebase's real emulator email endpoints.
+        asyncio.run(identity.resend_verification(email,password))
+        asyncio.run(identity.reset_password(email))
+        codes=httpx.get(base+'/emulator/v1/projects/demo-atmem-plugin/oobCodes').json()['oobCodes']
+        assert any(c['email']==email and c['requestType']=='PASSWORD_RESET' for c in codes)
+        disabled=httpx.post(base+'/identitytoolkit.googleapis.com/v1/projects/demo-atmem-plugin/accounts:update',headers={'Authorization':'Bearer owner'},json={'localId':uid,'disableUser':True})
+        assert disabled.status_code==200,disabled.text
+        rejected=browser.post(cloud.base+'/token',data={'grant_type':'refresh_token','client_id':'atmem-test-client','refresh_token':renewed.json()['refresh_token'],'scope':'memory:read memory:write','resource':cloud.base+'/mcp'})
+        assert rejected.status_code==400 and rejected.json()['error']=='invalid_grant'
+    finally:
+        browser.close();cloud.config.write_text(original);cloud.restart()
