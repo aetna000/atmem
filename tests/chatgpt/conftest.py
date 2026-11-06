@@ -55,7 +55,7 @@ class Harness:
         for _ in range(100):
             if self.process.poll() is not None:raise AssertionError((self.root/'service.log').read_text())
             try:
-                if httpx.get(self.base+'/healthz',timeout=1).status_code==200:return
+                if httpx.get(self.base+'/health',timeout=1).status_code==200:return
             except httpx.HTTPError:pass
             time.sleep(.1)
         raise AssertionError('service did not start')

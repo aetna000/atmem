@@ -87,7 +87,7 @@ def install_routes(mcp,settings,repository,provider,identity,service):
             return PlainTextResponse('Not configured',status_code=404)
         return PlainTextResponse(settings.openai_domain_challenge,headers={'Cache-Control':'no-store'})
 
-    @mcp.custom_route('/healthz',methods=['GET'])
+    @mcp.custom_route('/health',methods=['GET'])
     async def health(request):
         return JSONResponse({'status':'ready','service':'atmem-chatgpt','version':'0.1.0','engine':'2.3.12','mode':'emulator' if settings.emulator else 'cloud'})
 

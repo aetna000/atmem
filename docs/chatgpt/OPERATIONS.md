@@ -11,7 +11,7 @@ the service. Removing a UID requires a config reload/restart and revoking its
 existing grant. Sign-in errors do not disclose whether another user exists.
 
 ## Health and observability
-GET /healthz returns only service/engine versions and operating mode, not
+GET /health returns only service/engine versions and operating mode, not
 account, memory, project config or token values. It is a liveness/config check,
 not a claim Firestore is reachable. Use a scheduled **synthetic** scoped workflow
 for readiness if approved, and clean its data. Observe aggregate HTTP status,
@@ -56,3 +56,7 @@ The approved atmemai pilot uses a separate named database and database-bound IAM
 the demo deny-all rules over the production atmemai project's existing rules.
 See verification.md for provisioned resources and actual deployment/test status.
 The live website, existing default database and native memories are unchanged.
+
+Use `/health` on Cloud Run. `/healthz` is intercepted by its reserved-path
+frontend and can return a Google 404 without reaching the container. See
+https://docs.cloud.google.com/run/docs/known-issues#reserved_url_paths .

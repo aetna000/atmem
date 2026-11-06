@@ -177,7 +177,7 @@ def test_wrong_human_csrf_and_host_fail_closed(cloud):
     preview=a['browser'].get(p['approval_url'])
     rejected=a['browser'].post(p['approval_url'],headers={'Origin':'https://attacker.invalid'},data={'csrf':csrf(preview),'decision':'approve'})
     assert rejected.status_code==403
-    assert httpx.get(cloud.base+'/healthz',headers={'Host':'attacker.invalid'}).status_code==421
+    assert httpx.get(cloud.base+'/health',headers={'Host':'attacker.invalid'}).status_code==421
 
 
 def test_firestore_generation_cas_and_stolen_storage_is_encrypted(cloud):
@@ -251,7 +251,7 @@ def test_lost_commit_reply_retries_without_duplicate_or_deleting_live_chunks(clo
 def test_unavailable_server_is_a_transport_failure_and_can_restart(cloud):
     user=cloud.user();cloud.process.terminate();cloud.process.wait(timeout=10)
     try:
-        with pytest.raises(httpx.TransportError):httpx.get(cloud.base+'/healthz',timeout=1)
+        with pytest.raises(httpx.TransportError):httpx.get(cloud.base+'/health',timeout=1)
     finally:
         cloud.process=cloud.launch(cloud.config,cloud.env,cloud.root/'service.log');cloud.wait_ready()
     assert call(cloud,user,'list_memory_scopes')['ok']

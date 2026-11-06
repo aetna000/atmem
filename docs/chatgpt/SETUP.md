@@ -43,7 +43,7 @@ export FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099
 python -m atmem.chatgpt serve --config /tmp/atmem-chatgpt-demo/config.json
 ```
 
-The server is at http://127.0.0.1:8769/mcp and health at /healthz. The config
+The server is at http://127.0.0.1:8769/mcp and health at /health. The config
 contains a provided PKCE test client with a loopback callback for a real MCP
 client. It is not a ChatGPT callback. Repeated server startup reuses Firestore
 state; repeating init-test on a nonempty directory refuses to overwrite keys.
