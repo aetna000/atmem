@@ -81,11 +81,10 @@
               "prompt": "Create a production cloud database, enable billing and charge my credit card now."
             }
           ]
-        },
-        "release_notes": "Initial governed cloud memory plugin development package. Real AtMem lifecycle, verified Firebase registration, independent human approvals and encrypted Firestore persistence. Managed pilot separate; actual ChatGPT account testing, listing and public review remain pending."
+        }
       },
       "publication": {
-        "release_notes": "Initial cloud memory plugin preparation. Real AtMem storage/lifecycle, independent human approvals, encrypted Firestore generation persistence and authenticated MCP. Platform review and public hosting remain pending."
+        "release_notes": "Initial governed cloud memory integration: real AtMem lifecycle, verified Firebase registration, independent approvals, encrypted Firestore persistence, official ChatGPT CIMD, account-wide deletion and encrypted recovery. Backend evidence is distinct from actual ChatGPT invocation and public review."
       }
     }
   }

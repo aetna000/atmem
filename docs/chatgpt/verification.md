@@ -138,3 +138,47 @@ protected-resource metadata 200 and unauthenticated MCP 401. No memory mutations
 in that smoke check. Separate live Firestore REST probes returned 403 for both
 an anonymous request and a registered user's Firebase ID token: clients cannot
 read the memory database directly. Evidence is committed alongside runtime IAM.
+
+## Public completion update — 6 November 2026
+
+- Optional-cloud implementation source: 9c1d108fe2ad4bf939bdcf7e22f53521c1ccf84c.
+  Image sha256:b084a047ec8146c96ab9282b7293ad221be7223e0b5118dad18959a68403a908,
+  build acfb51f6-8b35-4e96-8aaa-69e413f0848e succeeded; active revision
+  atmem-chatgpt-00004-cll. Existing config/key pinned versions unchanged.
+- Installed-wheel boundary: **38 passed in 25.48 s**. Includes real account
+  deletion/Firebase purge, missing confirmation, partial failure and renewal,
+  deletion between chunk staging and head swap, denial of legacy unindexed
+  tokens, account/key-bound recovery, native audit roundtrip, official CIMD
+  metadata plus PKCE/issuer exchange, and durable account quota/restart/isolation.
+- Native memory/MCP/encryption regression: **50 passed, 1 skipped in 3.56 s**.
+- New managed HTTPS completion suite: **10 checks passed**, including actual
+  official CIMD metadata consumed by the service, real encrypted snapshot restore,
+  governed memory creation, fresh-confirmed account purge, Firebase deletion,
+  immediate token rejection, no remaining household chunks, refusal to restore
+  a deleted account and browser receipt recovery. A new synthetic account was
+  created and removed; its private credentials/checkpoint were cleaned up.
+  Administrative synthetic verification is not real mailbox delivery evidence.
+- Native/PyPI version remains 2.3.12; optional cloud source is not released in
+  that public wheel. The public target plugin package remains version 0.1.0.
+- Private account package creation succeeded, USER scope, PRIVATE visibility.
+  Exact ID/link retained privately for the owner. This confirms package acceptance,
+  not OAuth connection or actual host invocation. AtMem tools are not exposed in
+  this current Codex task. Pro 100 entitlements, natural-language cases and real
+  account writes remain **not tested**, rather than falsely permission-rejected.
+  The private backend rejected review.release_notes; corrected it to publication.
+  Public portal scans, identity and directory review remain independent gates.
+- Website product/support/privacy/terms prepared in private owner-review PR #34;
+  build, gates and docs passed, **55 browser tests passed**. Source pin and existing
+  website/default database/rules are unchanged. No feature-branch deployment or
+  owner-only merge performed. Listing URLs are proposed until main publication.
+- Durable tool quota: 30/account/minute by default; process restart does not reset
+  admission. Console incident policy 13781382782955428729 is enabled for repeated
+  server errors, using built-in Run metrics. No notification channel is attached;
+  paging destination and numeric budget require owner choices. No scheduled
+  Firestore backup exists for this database. Recovery/retention limits are explicit.
+
+Remaining gates: actual mailbox/ChatGPT invocation + demo, verified individual
+publisher, policy/terms owner review and live URLs, country availability and
+commercial declarations, budget/notification choices, ownership challenge and
+public portal scans. Backend hosting and private installation are completed
+preparation steps toward a public release, not a replacement for that target.

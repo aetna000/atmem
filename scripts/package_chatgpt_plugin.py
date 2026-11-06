@@ -51,6 +51,7 @@ def validate(files:dict[str,bytes], *, public=False)->list[str]:
     if not any(p.startswith('skills/') and p.endswith('/SKILL.md') for p in files):errors.append('missing usable skill')
     if '.app.json' in files or extension.get('apps') is not None or manifest.get('apps') is not None:errors.append('public-incompatible app binding')
     if any('hooks/' in p or 'node_modules/' in p or Path(p).name.endswith(('.key','.db')) for p in files):errors.append('unexpected runtime/secret files')
+    if 'release_notes' in extension.get('review',{}):errors.append('release_notes belongs under publication, not review')
     cases=extension.get('review',{}).get('test_cases',{})
     if len(cases.get('positive',[]))!=5 or len(cases.get('negative',[]))!=3:errors.append('review needs exactly five positive and three negative cases')
     for case in cases.get('positive',[]):
