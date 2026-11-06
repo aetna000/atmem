@@ -15,11 +15,27 @@ import time
 from urllib.parse import urlencode
 
 import httpx
+from pydantic import AnyUrl
 from mcp.server.auth.provider import AuthorizationCode, AuthorizationParams, AccessToken, RefreshToken, AuthorizeError, TokenError
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 
 from .config import Settings, SCOPES
 from .repository import Repository,AccountClosed
+
+
+CODEX_CLIENT_ID = "https://chatgpt.com/oauth/codex/client.json"
+CODEX_CALLBACKS = {"http://127.0.0.1/callback", "http://localhost/callback"}
+
+
+class CodexNativeClient(OAuthClientInformationFull):
+    def validate_redirect_uri(self, redirect_uri: AnyUrl | None) -> AnyUrl:
+        # The native client chooses an available listener port at sign-in.
+        # Vary only that port on a callback actually listed by this client.
+        if redirect_uri is not None and redirect_uri.port:
+            match = re.fullmatch(r'(http://(?:127\.0\.0\.1|localhost)):[0-9]+(/callback)', str(redirect_uri))
+            if match and match[1] + match[2] in {str(uri) for uri in self.redirect_uris or []}:
+                return redirect_uri
+        return super().validate_redirect_uri(redirect_uri)
 
 
 class FirebaseIdentity:
@@ -162,8 +178,15 @@ class OAuthProvider:
             callbacks=value.get('redirect_uris')
             methods=value.get('token_endpoint_auth_methods_supported',[value.get('token_endpoint_auth_method')])
             if value.get('client_id')!=client_id or 'none' not in methods or not isinstance(callbacks,list) or not 1<=len(callbacks)<=20:return None
-            if any(not isinstance(uri,str) or not re.fullmatch(r'https://chatgpt\.com/[A-Za-z0-9_/-]{1,512}',uri) for uri in callbacks):return None
-            registered=OAuthClientInformationFull(client_id=client_id,client_secret=None,redirect_uris=callbacks,
+            if client_id == CODEX_CLIENT_ID:
+                if value.get('application_type') != 'native' or any(uri not in CODEX_CALLBACKS for uri in callbacks):
+                    return None
+                client_type = CodexNativeClient
+            else:
+                if any(not isinstance(uri,str) or not re.fullmatch(r'https://chatgpt\.com/[A-Za-z0-9_/-]{1,512}',uri) for uri in callbacks):
+                    return None
+                client_type = OAuthClientInformationFull
+            registered=client_type(client_id=client_id,client_secret=None,redirect_uris=callbacks,
                 token_endpoint_auth_method='none',grant_types=['authorization_code','refresh_token'],response_types=['code'],scope=' '.join(SCOPES))
             if len(self.client_cache)>=128:self.client_cache.pop(next(iter(self.client_cache)))
             self.client_cache[client_id]=(time.monotonic()+300,registered)

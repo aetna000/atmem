@@ -95,3 +95,24 @@ def test_cloud_candidate_uses_real_https_cimd_without_credentials():
     assert client=={'mode':'cimd'}
     client['clientId']='not-allowed-for-cimd';files['mcp.json']=json.dumps(mcp).encode()
     assert any('CIMD' in error for error in package.validate(files))
+
+
+def test_codex_private_archive_passes_unmodified_transport_schema(tmp_path):
+    import zipfile
+    import jsonschema
+
+    original = source_files()
+    metadata = json.loads((ROOT / 'deploy/chatgpt/cloud-package-metadata.json').read_text())
+    original['mcp.json'] = json.dumps(metadata['mcp']).encode()
+    output = tmp_path / 'codex.zip'
+    package.archive(output, package.codex_private_files(original))
+    with zipfile.ZipFile(output) as archive:
+        mcp = json.loads(archive.read('atmem-chatgpt/mcp.json'))
+    schema = json.loads((ROOT / 'tests/fixtures/chatgpt/mcp.schema.json').read_text())
+    jsonschema.Draft202012Validator(schema).validate(mcp)
+    assert mcp['mcpServers']['atmem'] == {
+        'type': 'streamable-http', 'url': metadata['mcp']['mcpServers']['atmem']['url']
+    }
+    assert 'extensions' in json.loads(original['mcp.json'])['mcpServers']['atmem']
+    with pytest.raises(ValueError, match='hosted HTTPS'):
+        package.codex_private_files(source_files())

@@ -79,6 +79,22 @@ def validate(files:dict[str,bytes], *, public=False)->list[str]:
     return errors
 
 
+def codex_private_files(files: dict[str, bytes]) -> dict[str, bytes]:
+    """Emit exactly the transport Codex loads. The hosted service enforces OAuth."""
+    import jsonschema
+
+    mcp = json.loads(files['mcp.json'])
+    server = mcp['mcpServers']['atmem']
+    endpoint = urlparse(server['url'])
+    if endpoint.scheme != 'https' or not endpoint.hostname or endpoint.username or endpoint.password:
+        raise ValueError('Codex private package requires hosted HTTPS metadata')
+    # Only remove the known host-specific OAuth hint, never unknown transport keys.
+    del server['extensions']
+    schema = json.loads((ROOT / 'tests/fixtures/chatgpt/mcp.schema.json').read_text())
+    jsonschema.Draft202012Validator(schema).validate(mcp)
+    return {**files, 'mcp.json': (json.dumps(mcp, indent=2) + '\n').encode()}
+
+
 def archive(output:Path,files:dict[str,bytes]):
     output.parent.mkdir(parents=True,exist_ok=True)
     with zipfile.ZipFile(output,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=9) as z:
@@ -93,7 +109,11 @@ def archive(output:Path,files:dict[str,bytes]):
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--output',type=Path);parser.add_argument('--public',action='store_true');parser.add_argument('--readiness',action='store_true');parser.add_argument('--metadata',type=Path);parser.add_argument('--verification-record',type=Path)
+    parser.add_argument('--codex-private', action='store_true',
+                        help='build a private Codex archive with standard HTTP transport and server-discovered OAuth')
     args=parser.parse_args()
+    if args.codex_private and (args.public or args.readiness or not args.metadata):
+        parser.error('--codex-private requires --metadata and is a separate private build')
     files=load_files()
     # Public metadata must be deliberately supplied, not inferred from the site.
     if args.metadata:
@@ -108,6 +128,8 @@ def main():
         print(json.dumps({'development_contract_valid':not validate(files),'validation_profile':'Strict Agent Plugins 1.0 transport projection plus documented OpenAI extension checks; full portal scan not run','public_ready':False,'public_metadata_complete':not errors,'gaps':errors,
             'dashboard_checks':['verified individual publisher/org/project permissions','owned public endpoint/domain challenge','secure synthetic reviewer login','actual account read/write/invocation checks','required scans and legal attestations','country targeting and billing/retention decisions']},indent=2));return
     if errors:raise SystemExit('\n'.join(errors))
+    if args.codex_private:
+        files = codex_private_files(files)
     if args.public:
         # Validate actual unauthenticated discovery and relevant listing content,
         # never authenticate or read a real memory during package preparation.

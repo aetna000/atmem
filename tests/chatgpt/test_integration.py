@@ -452,14 +452,26 @@ def test_recovery_roundtrip_uses_actual_engine_and_rejects_wrong_key_account_and
     with pytest.raises(Conflict):repo.restore_snapshot(user['uid'],backup,expected_generation=before.generation)
 
 
-def test_official_chatgpt_cimd_metadata_is_supported_with_public_pkce(cloud):
+@pytest.mark.parametrize('client_id, native_callback', [
+    ('https://chatgpt.com/oauth/client.json', None),
+    ('https://chatgpt.com/oauth/codex/client.json', 'http://127.0.0.1:62428/callback'),
+])
+def test_official_chatgpt_cimd_metadata_is_supported_with_public_pkce(cloud, client_id, native_callback):
     from atmem.chatgpt.auth import OAuthProvider
     from atmem.chatgpt.config import Settings
     from atmem.chatgpt.repository import Repository
     settings=Settings.load(cloud.config);provider=OAuthProvider(settings,Repository(settings))
-    official=asyncio.run(provider.get_client('https://chatgpt.com/oauth/client.json'))
+    official=asyncio.run(provider.get_client(client_id))
     assert official and official.token_endpoint_auth_method=='none'
-    assert all(str(uri).startswith('https://chatgpt.com/') for uri in official.redirect_uris)
+    if native_callback:
+        from pydantic import AnyUrl
+        from mcp.shared.auth import InvalidRedirectUriError
+        for invalid in ('http://example.com:62428/callback', 'http://127.0.0.1:62428/other',
+                        'http://127.0.0.1:62428/callback?forward=1', 'http://user@localhost:62428/callback'):
+            with pytest.raises(InvalidRedirectUriError):
+                official.validate_redirect_uri(AnyUrl(invalid))
+    else:
+        assert all(str(uri).startswith('https://chatgpt.com/') for uri in official.redirect_uris)
     assert asyncio.run(provider.get_client('https://127.0.0.1/oauth/client.json')) is None
     assert asyncio.run(provider.get_client('https://chatgpt.com.evil.invalid/oauth/client.json')) is None
     meta=httpx.get(cloud.base+'/.well-known/oauth-authorization-server').json()
@@ -467,7 +479,7 @@ def test_official_chatgpt_cimd_metadata_is_supported_with_public_pkce(cloud):
     assert meta['client_id_metadata_document_supported'] and meta['authorization_response_iss_parameter_supported']
     user=cloud.user();browser=user['browser'];verifier=secrets.token_urlsafe(48)
     challenge=base64.urlsafe_b64encode(__import__('hashlib').sha256(verifier.encode()).digest()).rstrip(b'=').decode()
-    callback=str(official.redirect_uris[0])
+    callback=native_callback or str(official.redirect_uris[0])
     response=browser.get(cloud.base+'/authorize',params={'response_type':'code','client_id':official.client_id,'redirect_uri':callback,'scope':'memory:read','resource':cloud.base+'/mcp','state':'official-cimd-test','code_challenge':challenge,'code_challenge_method':'S256'})
     assert response.status_code in [302,303,307]
     form=browser.get(response.headers['location'])
