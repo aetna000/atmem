@@ -386,3 +386,146 @@ def test_registration_email_verification_and_recovery_are_real_and_gated(cloud):
         assert rejected.status_code==400 and rejected.json()['error']=='invalid_grant'
     finally:
         browser.close();cloud.config.write_text(original);cloud.restart()
+
+
+def test_account_deletion_has_fresh_preview_confirmation_and_real_firebase_purge(cloud):
+    user=cloud.user();other=cloud.user();rid,_=save(cloud,user,'My deletion test colour is turquoise.')
+    browser=user['browser'];url=cloud.base+'/account/delete'
+    form=browser.get(url)
+    assert 'No data is deleted at this step' in form.text
+    bypass=browser.post(url,headers={'Origin':cloud.base},data={'csrf':csrf(form),'decision':'delete','understood':'yes'})
+    assert bypass.status_code==409
+    form=browser.get(url)
+    preview=browser.post(url,headers={'Origin':cloud.base},data={'csrf':csrf(form),'decision':'preview','email':user['email'],'password':user['password']})
+    assert preview.status_code==303
+    confirm=browser.get(url);assert 'every personal and project memory' in confirm.text
+    missing=browser.post(url,headers={'Origin':cloud.base},data={'csrf':csrf(confirm),'decision':'delete'})
+    assert missing.status_code==409
+    assert call(cloud,user,'read_memory',{'scope':'personal','record_id':rid})['ok']
+    confirm=browser.get(url)
+    result=browser.post(url,headers={'Origin':cloud.base},data={'csrf':csrf(confirm),'decision':'delete','understood':'yes'})
+    assert result.status_code==200 and 'Account deleted' in result.text,result.text
+    assert '"household_purged": true' in result.text or '&quot;household_purged&quot;: true' in result.text
+    assert httpx.post(cloud.base+'/mcp',headers={'Authorization':'Bearer '+user['access_token']},json={}).status_code==401
+    assert call(cloud,other,'list_memory_scopes')['ok']
+    from atmem.chatgpt.repository import Repository,AccountClosed
+    from atmem.chatgpt.config import Settings
+    repo=Repository(Settings.load(cloud.config));doc=repo._doc('household',user['uid'])
+    assert not doc.get().exists and not list(doc.collection('chunks').stream())
+    with pytest.raises(AccountClosed):repo.load(user['uid'])
+    auth=httpx.post('http://'+cloud.env['FIREBASE_AUTH_EMULATOR_HOST']+'/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword',params={'key':'emulator'},json={'email':user['email'],'password':user['password'],'returnSecureToken':True})
+    assert auth.status_code!=200
+    assert 'Account deletion receipt' in browser.get(url).text
+
+
+def test_deletion_fence_blocks_late_commit_restore_and_legacy_unindexed_tokens(cloud):
+    user=cloud.user();save(cloud,user,'My fence test editor is Emacs.')
+    from atmem.chatgpt.repository import Repository,AccountClosed
+    from atmem.chatgpt.config import Settings
+    repo=Repository(Settings.load(cloud.config));snapshot=repo.load(user['uid']);backup=repo.export_snapshot(user['uid'])
+    # Represent a pre-migration token whose control document has no account index.
+    row=repo._doc('access',user['access_token']);row.update({'account':__import__('google.cloud.firestore',fromlist=['DELETE_FIELD']).DELETE_FIELD})
+    receipt=repo.purge_account(user['uid'],'synthetic-fence-'+secrets.token_hex(8))
+    assert receipt['household_purged'] and not receipt['backup_deletion_verified']
+    for attempt in [lambda:repo.load(user['uid']),lambda:repo.commit(user['uid'],snapshot,snapshot.payload),lambda:repo.restore_snapshot(user['uid'],backup,expected_generation=0),lambda:repo.put_control('browser','late-'+key(),{'subject':user['uid'],'expires_at':time.time()+60})]:
+        with pytest.raises(AccountClosed):attempt()
+    assert httpx.post(cloud.base+'/mcp',headers={'Authorization':'Bearer '+user['access_token']},json={}).status_code==401
+    assert not list(repo._doc('household',user['uid']).collection('chunks').stream())
+
+
+def test_recovery_roundtrip_uses_actual_engine_and_rejects_wrong_key_account_and_conflicts(cloud):
+    from dataclasses import replace
+    from atmem.chatgpt.repository import Repository,Conflict
+    from atmem.chatgpt.config import Settings
+    from atmem.chatgpt.service import Service
+    user=cloud.user();other=cloud.user();rid,_=save(cloud,user,'My recovery marker is apricot-cedar.')
+    settings=Settings.load(cloud.config);repo=Repository(settings);backup=repo.export_snapshot(user['uid']);before=repo.load(user['uid'])
+    assert b'apricot-cedar' not in backup
+    receipt=repo.restore_snapshot(user['uid'],backup,expected_generation=before.generation);assert receipt['generation']==before.generation+1
+    service=Service(settings,repo)
+    with service.household(user['uid']) as ctx:
+        subject=service._subject(ctx['connection'],user['uid'],'personal')
+        assert ctx['memory'].store.get_record(subject,rid)['content']=='My recovery marker is apricot-cedar.'
+        assert ctx['memory'].verify(subject)['valid']
+    with pytest.raises(__import__('cryptography.exceptions',fromlist=['InvalidTag']).InvalidTag):Repository(replace(settings,key=b'0'*32)).restore_snapshot(user['uid'],backup,expected_generation=before.generation)
+    with pytest.raises(__import__('cryptography.exceptions',fromlist=['InvalidTag']).InvalidTag):repo.restore_snapshot(other['uid'],backup,expected_generation=0)
+    with pytest.raises(Conflict):repo.restore_snapshot(user['uid'],backup,expected_generation=before.generation)
+
+
+def test_official_chatgpt_cimd_metadata_is_supported_with_public_pkce(cloud):
+    from atmem.chatgpt.auth import OAuthProvider
+    from atmem.chatgpt.config import Settings
+    from atmem.chatgpt.repository import Repository
+    settings=Settings.load(cloud.config);provider=OAuthProvider(settings,Repository(settings))
+    official=asyncio.run(provider.get_client('https://chatgpt.com/oauth/client.json'))
+    assert official and official.token_endpoint_auth_method=='none'
+    assert all(str(uri).startswith('https://chatgpt.com/') for uri in official.redirect_uris)
+    assert asyncio.run(provider.get_client('https://127.0.0.1/oauth/client.json')) is None
+    assert asyncio.run(provider.get_client('https://chatgpt.com.evil.invalid/oauth/client.json')) is None
+    meta=httpx.get(cloud.base+'/.well-known/oauth-authorization-server').json()
+    assert meta['token_endpoint_auth_methods_supported']==['none']
+    assert meta['client_id_metadata_document_supported'] and meta['authorization_response_iss_parameter_supported']
+    user=cloud.user();browser=user['browser'];verifier=secrets.token_urlsafe(48)
+    challenge=base64.urlsafe_b64encode(__import__('hashlib').sha256(verifier.encode()).digest()).rstrip(b'=').decode()
+    callback=str(official.redirect_uris[0])
+    response=browser.get(cloud.base+'/authorize',params={'response_type':'code','client_id':official.client_id,'redirect_uri':callback,'scope':'memory:read','resource':cloud.base+'/mcp','state':'official-cimd-test','code_challenge':challenge,'code_challenge_method':'S256'})
+    assert response.status_code in [302,303,307]
+    form=browser.get(response.headers['location'])
+    approved=browser.post(response.headers['location'],headers={'Origin':cloud.base},data={'csrf':csrf(form),'email':user['email'],'password':user['password'],'decision':'approve'})
+    from urllib.parse import parse_qs,urlparse
+    query=parse_qs(urlparse(approved.headers['location']).query)
+    assert query['iss']==[meta['issuer']] and query['state']==['official-cimd-test']
+    token=browser.post(cloud.base+'/token',data={'grant_type':'authorization_code','client_id':official.client_id,'redirect_uri':callback,'code':query['code'][0],'code_verifier':verifier,'resource':cloud.base+'/mcp'})
+    assert token.status_code==200
+    assert call(cloud,dict(user,**token.json()),'list_memory_scopes')['ok']
+
+
+def test_account_deletion_partial_failure_can_retry_without_reopening_access(cloud):
+    user=cloud.user();save(cloud,user,'My partial deletion marker is bluebell.')
+    browser=user['browser'];url=cloud.base+'/account/delete';form=browser.get(url)
+    response=browser.post(url,headers={'Origin':cloud.base},data={'csrf':csrf(form),'decision':'preview','email':user['email'],'password':user['password']})
+    assert response.status_code==303
+    cookie=browser.cookies.get('atmem_human');body=cookie.split('.')[0]
+    proof_id=json.loads(base64.b64decode(body+'='*(-len(body)%4)))['account_deletion']
+    from atmem.chatgpt.config import Settings
+    from atmem.chatgpt.repository import Repository,AccountClosed
+    repo=Repository(Settings.load(cloud.config));proof=repo.get_control('account-deletion',proof_id)
+    proof['id_token']='synthetic-invalid-id-token';repo.put_control('account-deletion',proof_id,proof)
+    form=browser.get(url);failed=browser.post(url,headers={'Origin':cloud.base},data={'csrf':csrf(form),'decision':'delete','understood':'yes'})
+    assert failed.status_code==409
+    assert httpx.post(cloud.base+'/mcp',headers={'Authorization':'Bearer '+user['access_token']},json={}).status_code==401
+    with pytest.raises(AccountClosed):repo.load(user['uid'])
+    assert not repo.deletion_receipt(user['uid'],proof_id)['firebase_account_deleted']
+    retry=browser.post(url,headers={'Origin':cloud.base},data={'csrf':csrf(failed),'decision':'preview','email':user['email'],'password':user['password']})
+    assert retry.status_code==303
+    assert repo.get_control('account-deletion',proof_id,deletion_retry=True)['id_token']!='synthetic-invalid-id-token'
+    form=browser.get(url);complete=browser.post(url,headers={'Origin':cloud.base},data={'csrf':csrf(form),'decision':'delete','understood':'yes'})
+    assert complete.status_code==200 and 'Account deleted' in complete.text
+    assert repo.deletion_receipt(user['uid'],proof_id)['firebase_account_deleted']
+
+
+def test_account_deletion_between_chunk_stage_and_manifest_swap_cannot_resurrect(cloud,monkeypatch):
+    user=cloud.user();save(cloud,user,'My concurrent deletion marker is rosemary.')
+    from atmem.chatgpt.config import Settings
+    from atmem.chatgpt.repository import Repository,AccountClosed
+    repo=Repository(Settings.load(cloud.config));snapshot=repo.load(user['uid']);check=repo.assert_active;calls=0
+    def delete_before_swap(account,transaction=None):
+        nonlocal calls
+        calls+=1
+        if calls==2:repo.purge_account(account,'concurrent-'+secrets.token_hex(8))
+        return check(account,transaction)
+    monkeypatch.setattr(repo,'assert_active',delete_before_swap)
+    with pytest.raises(AccountClosed):repo.commit(user['uid'],snapshot,snapshot.payload)
+    assert not repo._doc('household',user['uid']).get().exists
+    assert not list(repo._doc('household',user['uid']).collection('chunks').stream())
+
+
+def test_durable_account_limit_survives_repository_restart_and_is_user_isolated(cloud):
+    from dataclasses import replace
+    from atmem.chatgpt.config import Settings
+    from atmem.chatgpt.repository import Repository
+    settings=replace(Settings.load(cloud.config),tool_requests_per_minute=1)
+    account='quota-'+secrets.token_hex(12);other='quota-'+secrets.token_hex(12)
+    assert Repository(settings).claim_account_request(account)
+    assert not Repository(settings).claim_account_request(account)
+    assert Repository(settings).claim_account_request(other)

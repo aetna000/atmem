@@ -30,6 +30,7 @@ class Settings:
     collection: str = "atmem_chatgpt_v1"
     database: str = "(default)"
     access_policy: str = "invited"
+    tool_requests_per_minute: int = 30
 
     def permits_account(self, uid: str) -> bool:
         return self.access_policy == "registered" or self.emulator or uid in self.allowed_uids
@@ -113,7 +114,9 @@ class Settings:
                        requests_per_minute=int(value.get("requests_per_minute", 120)),
                        collection=str(value.get("collection", "atmem_chatgpt_v1")),
                        database=str(value.get("database", "(default)")),
-                       access_policy=str(value.get("access_policy", "invited")))
+                       access_policy=str(value.get("access_policy", "invited")),
+                       tool_requests_per_minute=int(value.get('tool_requests_per_minute',30)))
+        if not 1<=settings.tool_requests_per_minute<=300:raise ValueError('account tool limit out of range')
         if settings.access_policy not in {"invited", "registered"}:
             raise ValueError("invalid account access policy")
         if settings.database != "(default)" and not re.fullmatch(r"[a-z][a-z0-9-]{2,61}[a-z0-9]", settings.database):
@@ -125,7 +128,7 @@ class Settings:
             raise ValueError("initial cloud pilot requires explicit invited Firebase user IDs")
         if len(settings.allowed_uids)>1000 or any(not isinstance(uid,str) or not uid or len(uid)>128 for uid in settings.allowed_uids):
             raise ValueError("invalid invited user allowlist")
-        if not 65536 <= settings.max_snapshot_bytes <= 16 * 1024 * 1024 or not 1 <= settings.max_records <= 10000:
+        if not 65536 <= settings.max_snapshot_bytes <= 8 * 1024 * 1024 or not 1 <= settings.max_records <= 10000:
             raise ValueError("cloud quota out of supported range")
         if not 1 <= settings.requests_per_minute <= 1000:
             raise ValueError("request limit out of range")

@@ -85,3 +85,13 @@ def test_named_database_is_selected_and_invalid_paths_rejected(tmp_path,monkeypa
         assert client.call_args.kwargs['database']=='atmem-chatgpt'
     v['database']='../(default)';path.write_text(json.dumps(v))
     with pytest.raises(ValueError,match='database ID'):Settings.load(path)
+
+
+def test_cloud_candidate_uses_real_https_cimd_without_credentials():
+    files=source_files();override=json.loads((ROOT/'deploy/chatgpt/cloud-package-metadata.json').read_text())
+    files['mcp.json']=json.dumps(override['mcp']).encode()
+    assert package.validate(files)==[]
+    mcp=json.loads(files['mcp.json']);client=mcp['mcpServers']['atmem']['extensions']['com.openai']['auth']['client']
+    assert client=={'mode':'cimd'}
+    client['clientId']='not-allowed-for-cimd';files['mcp.json']=json.dumps(mcp).encode()
+    assert any('CIMD' in error for error in package.validate(files))

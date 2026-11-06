@@ -54,6 +54,8 @@ def create_app(settings: Settings):
         if token is None or not token.subject or permission not in token.scopes:
             return Result(ok=False,code='permission_rejected')
         try:
+            if not repository.claim_account_request(token.subject):
+                return Result(ok=False,code='account_rate_limited',data={'retry_after_seconds':60})
             return Result(ok=True,code='ok',data=fn(token.subject,*args,**kwargs))
         except Denied as error:
             return Result(ok=False,code=str(error))
@@ -104,6 +106,15 @@ def create_app(settings: Settings):
 
     install_routes(mcp,settings,repository,provider,provider.identity,service)
     app=mcp.streamable_http_app()
+    async def oauth_metadata(request):
+        return JSONResponse({'issuer':settings.issuer+'/',
+            'authorization_endpoint':settings.issuer+'/authorize','token_endpoint':settings.issuer+'/token',
+            'revocation_endpoint':settings.issuer+'/revoke','scopes_supported':list(SCOPES),
+            'response_types_supported':['code'],'grant_types_supported':['authorization_code','refresh_token'],
+            'code_challenge_methods_supported':['S256'],'token_endpoint_auth_methods_supported':['none'],
+            'revocation_endpoint_auth_methods_supported':['none'],'client_id_metadata_document_supported':True,
+            'authorization_response_iss_parameter_supported':True})
+    app.routes[:]=[Route('/.well-known/oauth-authorization-server',oauth_metadata,methods=['GET']) if getattr(r,'path',None)=='/.well-known/oauth-authorization-server' else r for r in app.routes]
     # MCP SDK 1.30.0 RevocationRequest incorrectly requires a client_secret
     # form field even for token_endpoint_auth_method=none. Keep RFC 7009 public
     # PKCE revocation working without inventing or packaging a client secret.

@@ -30,3 +30,17 @@ docs/chatgpt/verification.md for measured results and remaining gates.
 Managed evidence: 18 checks passed against the real HTTPS pilot, with independent
 engine/audit inspection and synthetic-household cleanup. Actual ChatGPT and
 public-directory gates remain explicitly unverified, not completed by T012.
+
+## Public directory completion
+- [x] T014 Implement account fence, atomic staging and indexed control cleanup; test stale/concurrent writes and legacy token denial (FR-016).
+- [x] T015 Implement fresh Firebase account deletion preview/confirm/retry and accurate receipts; test real Auth/Firestore lifecycle without targeting real users (FR-016).
+- [x] T016 Implement official ChatGPT CIMD and truthful OAuth discovery/issuer; test SSRF/redirect/method/cache bounds plus real official metadata (FR-017).
+- [x] T017 Implement encrypted snapshot recovery and actual engine/audit/wrong-key/deleted-account gates (FR-018).
+- [x] T018 Prepare cloud product/support/privacy/terms in private website PR, with build/gates/browser evidence; owner merge/deployment status separate (FR-019).
+- [ ] T019 Rebuild cloud candidate package and installed artifact, validate/deploy exact source, record managed new-feature evidence and remaining public gates (FR-020).
+- [ ] T020 Complete actual ChatGPT account cases/demo, publisher verification, owner policy/country/commerce decisions and portal scans; submit/publish only within explicit authorized review actions (FR-020).
+
+T018 evidence: private website PR #34, build/gates/docs and 55 browser tests passed;
+owner merge and live publication remain pending, not certified by this task.
+T019 in progress: installed artifact suite 38 passed; native regression 50 passed
+and 1 platform-specific skip. Final cloud deployment/managed checks pending.

@@ -14,6 +14,7 @@ from starlette.responses import HTMLResponse,RedirectResponse,JSONResponse,Plain
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .service import Denied
+from .repository import AccountClosed
 
 STYLE="body{font:16px/1.6 system-ui,sans-serif;max-width:42rem;margin:3rem auto;padding:1rem;color:#101314;background:#F3F6F6}label{display:block;margin-top:1rem}input,button{font:inherit;padding:.6rem;max-width:100%}button{background:#1F777C;color:white;border:0;margin-top:1rem}pre{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#1D7176}"
 
@@ -81,6 +82,57 @@ def install_routes(mcp,settings,repository,provider,identity,service):
     def credentials():
         return '<label>Email <input type="email" name="email" required autocomplete="username" maxlength="254"></label><label>Password <input type="password" name="password" required autocomplete="current-password" maxlength="256"></label>'
 
+    @mcp.custom_route('/account/delete',methods=['GET','POST'])
+    async def delete_account(request:Request):
+        """Fresh human authority only. No MCP tool exposes this operation."""
+        proof_id=request.session.get('account_deletion')
+        proof=repository.get_control('account-deletion',proof_id,deletion_retry=True) if proof_id else None
+        if request.method=='GET':
+            completed=request.session.get('deletion_receipt')
+            if completed:
+                return page('Account deletion receipt','<pre>'+html.escape(json.dumps(completed,indent=2))+'</pre>')
+            if proof:
+                receipt=repository.deletion_receipt(proof['subject'],proof_id)
+                if receipt and receipt['firebase_account_deleted']:
+                    return page('Account deletion receipt','<pre>'+html.escape(json.dumps(receipt,indent=2))+'</pre>')
+                body='<p>Account: <strong>'+html.escape(proof.get('email',''))+'</strong></p><p>This deletes every personal and project memory in this AtMem Cloud account, including corrected versions, sources, audit data and pending actions. All plugin grants will be blocked immediately.</p><p>Your Firebase AtMem account will also be deleted. This does not delete your Google or ChatGPT account. Provider history, logs and ChatGPT copies are outside this deletion receipt. A non-content deletion fence remains to prevent resurrection.</p>'
+                return page('Confirm account deletion',body+'<form method="post">'+csrf_form(request)+'<label><input type="checkbox" name="understood" value="yes" required> Delete my entire AtMem Cloud account and memory.</label><button name="decision" value="delete">Delete this entire account</button><button name="decision" value="cancel">Cancel</button></form>')
+            return page('Delete AtMem Cloud account','<p>Sign in again to preview account-wide deletion. No data is deleted at this step.</p><form method="post">'+csrf_form(request)+credentials()+'<button name="decision" value="preview">Sign in and preview deletion</button></form>')
+        try:
+            form=await request.form();check_csrf(request,form)
+            if form.get('decision')=='preview':
+                identity_proof=await identity.authenticate(str(form.get('email','')),str(form.get('password','')),require_verified=False)
+                current_id=request.session.get('human_session')
+                current=repository.get_control('browser',current_id) if current_id else None
+                if current and current['subject']!=identity_proof['subject']:raise Denied('wrong_account')
+                proof_id=secrets.token_urlsafe(32)
+                marker=repository._doc('account',identity_proof['subject']).get(timeout=5,retry=None)
+                if marker.exists:proof_id=marker.to_dict()['deletion_id']
+                repository.put_control('account-deletion',proof_id,{'subject':identity_proof['subject'],'email':identity_proof['email'],'id_token':identity_proof['id_token'],'expires_at':time.time()+300})
+                request.session['account_deletion']=proof_id
+                return RedirectResponse(settings.issuer+'/account/delete',status_code=303)
+            if not proof:raise Denied('fresh_deletion_preview_required')
+            if form.get('decision')=='cancel':
+                # Once fencing has begun, cancellation must not reopen access.
+                repository.assert_active(proof['subject'])
+                repository._doc('account-deletion',proof_id).delete()
+                request.session.pop('account_deletion',None)
+                return page('Deletion cancelled','No account data was deleted.')
+            if form.get('decision')!='delete' or form.get('understood')!='yes':raise Denied('explicit_account_confirmation_required')
+            receipt=repository.purge_account(proof['subject'],proof_id)
+            if not receipt['firebase_account_deleted']:
+                await identity.delete_account(proof['id_token'])
+            receipt['firebase_account_deleted']=True;receipt['completed_at']=time.time()
+            repository.update_deletion_receipt(proof['subject'],receipt)
+            # This five-minute encrypted proof permits lost-response recovery;
+            # TTL removes it. It cannot reopen the fenced account.
+            request.session.clear();request.session['deletion_receipt']=receipt
+            return page('Account deleted','<p>Active service storage and the Firebase account were deleted. Keep this receipt; provider history and ChatGPT copies are separate.</p><pre>'+html.escape(json.dumps(receipt,indent=2))+'</pre>')
+        except (ValueError,Denied,AccountClosed):
+            partial=repository.deletion_receipt(proof['subject'],proof_id) if proof else None
+            details='<pre>'+html.escape(json.dumps(partial,indent=2))+'</pre>' if partial else ''
+            return page('Deletion not completed','The request was rejected, expired or Firebase deletion is not confirmed. If confirmation already began, account access remains blocked. Retry the same confirmation while it is valid or contact support; no complete deletion is claimed.'+details+'<form method="post">'+csrf_form(request)+credentials()+'<button name="decision" value="preview">Sign in again to retry deletion</button></form>',409)
+
     @mcp.custom_route('/.well-known/openai-apps-challenge',methods=['GET'])
     async def domain_challenge(request):
         if settings.openai_domain_challenge is None:
@@ -98,9 +150,9 @@ def install_routes(mcp,settings,repository,provider,identity,service):
         if pending is None:return page('Connection expired','Start account linking again.',400)
         if request.method=='GET':
             scopes=html.escape(', '.join(pending['params'].get('scopes') or ['memory:read']))
-            links=''
+            links='<p><a href="/account/delete">Delete my AtMem Cloud account</a></p>'
             if settings.access_policy=='registered':
-                links='<p>Create and verify your Firebase account before connecting. <a href="/register?request='+html.escape(nonce,quote=True)+'">Register</a> · <a href="/verify-email?request='+html.escape(nonce,quote=True)+'">Resend verification</a> · <a href="/reset-password?request='+html.escape(nonce,quote=True)+'">Reset password</a></p>'
+                links+='<p>Create and verify your Firebase account before connecting. <a href="/register?request='+html.escape(nonce,quote=True)+'">Register</a> · <a href="/verify-email?request='+html.escape(nonce,quote=True)+'">Resend verification</a> · <a href="/reset-password?request='+html.escape(nonce,quote=True)+'">Reset password</a></p>'
             return page('Connect AtMem',f'<p>Allow the registered ChatGPT client to use these permissions: <strong>{scopes}</strong>.</p><p>Memory is hosted by this service. Each save, correction or deletion still needs your separate approval. No conversation is automatically captured.</p>'+links+'<form method="post">'+csrf_form(request)+credentials()+'<button name="decision" value="approve">Sign in and allow</button> <button name="decision" value="deny">Deny</button></form>')
         try:
             form=await request.form();check_csrf(request,form)

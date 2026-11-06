@@ -10,6 +10,7 @@ import base64
 import json
 import hashlib
 import secrets
+import re
 import time
 from urllib.parse import urlencode
 
@@ -18,7 +19,7 @@ from mcp.server.auth.provider import AuthorizationCode, AuthorizationParams, Acc
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 
 from .config import Settings, SCOPES
-from .repository import Repository
+from .repository import Repository,AccountClosed
 
 
 class FirebaseIdentity:
@@ -53,18 +54,31 @@ class FirebaseIdentity:
             raise ValueError("sign_in_rejected") from None
         return uid, claims
 
-    async def sign_in(self, email: str, password: str) -> str:
+    async def authenticate(self, email: str, password: str, *, require_verified=True) -> dict:
         if not 3 <= len(email) <= 254 or not 1 <= len(password) <= 256:
             raise ValueError("sign_in_rejected")
         response=await self._request("signInWithPassword", {"email":email,"password":password,"returnSecureToken":True})
         uid,claims=self._bound_identity(response)
-        if self.settings.access_policy == "registered" and claims.get("email_verified") is not True:
+        if require_verified and self.settings.access_policy == "registered" and claims.get("email_verified") is not True:
             raise ValueError("verify_email_before_connecting")
         if not self.settings.permits_account(uid):
             raise ValueError("account_not_invited")
+        return {'subject':uid,'email':response.json().get('email',email),'id_token':response.json()['idToken'],'refresh_token':response.json()['refreshToken']}
+
+    async def sign_in(self, email: str, password: str) -> str:
+        identity=await self.authenticate(email,password)
+        uid=identity['subject']
+        if self.repository:
+            try:self.repository.assert_active(uid)
+            except AccountClosed:raise ValueError('account_deleted') from None
         if self.repository and self.settings.access_policy == 'registered':
-            self.repository.put_control('firebase-identity',uid,{'refresh_token':response.json()['refreshToken'],'expires_at':time.time()+86400})
+            self.repository.put_control('firebase-identity',uid,{'refresh_token':identity['refresh_token'],'expires_at':time.time()+86400})
         return uid
+
+    async def delete_account(self, id_token: str) -> None:
+        response=await self._request('delete',{'idToken':id_token})
+        if response.status_code!=200 and response.json().get('error',{}).get('message')!='USER_NOT_FOUND':
+            raise ValueError('firebase_deletion_not_confirmed')
 
     async def revalidate(self, account: str) -> None:
         """Re-check Firebase on registered-account OAuth refresh, not passwords."""
@@ -121,14 +135,40 @@ class OAuthProvider:
     def __init__(self, settings: Settings, repository: Repository):
         self.settings = settings; self.repository = repository
         self.identity = FirebaseIdentity(settings,repository)
+        self.client_cache = {}
 
     async def get_client(self, client_id: str):
         callbacks = self.settings.clients.get(client_id)
         if callbacks is None:
-            return None
+            return await self.cimd_client(client_id)
         return OAuthClientInformationFull(client_id=client_id, client_secret=None,
             redirect_uris=list(callbacks), token_endpoint_auth_method="none",
             grant_types=["authorization_code","refresh_token"], response_types=["code"], scope=" ".join(SCOPES))
+
+    async def cimd_client(self, client_id: str):
+        if not re.fullmatch(r'https://chatgpt\.com/oauth/(?:[A-Za-z0-9_-]{1,128}/)?client\.json',client_id):return None
+        cached=self.client_cache.get(client_id)
+        if cached and cached[0]>time.monotonic():return cached[1]
+        try:
+            async with httpx.AsyncClient(timeout=5,follow_redirects=False) as client:
+                async with client.stream('GET',client_id) as response:
+                    if response.status_code!=200:return None
+                    body=bytearray()
+                    async for piece in response.aiter_bytes():
+                        body.extend(piece)
+                        if len(body)>32768:return None
+            value=json.loads(body)
+            if not isinstance(value,dict):return None
+            callbacks=value.get('redirect_uris')
+            methods=value.get('token_endpoint_auth_methods_supported',[value.get('token_endpoint_auth_method')])
+            if value.get('client_id')!=client_id or 'none' not in methods or not isinstance(callbacks,list) or not 1<=len(callbacks)<=20:return None
+            if any(not isinstance(uri,str) or not re.fullmatch(r'https://chatgpt\.com/[A-Za-z0-9_/-]{1,512}',uri) for uri in callbacks):return None
+            registered=OAuthClientInformationFull(client_id=client_id,client_secret=None,redirect_uris=callbacks,
+                token_endpoint_auth_method='none',grant_types=['authorization_code','refresh_token'],response_types=['code'],scope=' '.join(SCOPES))
+            if len(self.client_cache)>=128:self.client_cache.pop(next(iter(self.client_cache)))
+            self.client_cache[client_id]=(time.monotonic()+300,registered)
+            return registered
+        except (httpx.HTTPError,ValueError,TypeError):return None
 
     async def register_client(self, client_info):
         raise NotImplementedError("dynamic registration is disabled")
@@ -150,6 +190,7 @@ class OAuthProvider:
             raise ValueError("authorization_expired_or_consumed")
         params = AuthorizationParams.model_validate(pending["params"])
         fields = {"state":params.state} if params.state is not None else {}
+        fields['iss']=self.settings.issuer+'/'
         if not approved:
             fields.update({"error":"access_denied"})
         else:

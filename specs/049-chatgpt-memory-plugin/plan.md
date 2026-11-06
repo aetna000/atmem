@@ -62,3 +62,34 @@ and notices follow current Apache-2.0 files, without legal-clearance claims.
 Owner registration refinement: implement verified Firebase email registration within
 OAuth linking, recovery and email throttles. Recheck Firebase account on token
 refresh, keep invited mode for synthetic/closed testing, document expiry windows.
+
+## Public completion design
+Account deletion is a browser-only control, not a memory tool. Fresh Firebase
+password authentication produces a five-minute encrypted deletion proof. The
+user sees all-account scope and confirms the exact operation. A transaction sets
+an irreversible account fence; every household load/stage/swap and account-bound
+control read/write validates it. Chunk staging becomes a guarded transaction
+(maximum packed snapshot 8 MiB, below Firestore's request limit). Purge follows
+fencing, including orphan chunks, then delete Firebase with the fresh user token.
+A retained HMAC-addressed tombstone stores an encrypted structural receipt and
+prevents old tokens, delayed requests or recovery from resurrecting the account.
+Deletion is resumable by the same short-lived confirmed proof; backend failure
+never unblocks the account or claims Firebase deletion. Legacy auth controls not
+indexed by account expire under existing <=24h token TTLs and are denied by fence.
+
+CIMD: fetch only https://chatgpt.com/oauth/client.json or official callback-ID
+client documents, no redirects, 32 KiB cap, short bounded cache. Validate client
+identity, HTTPS chatgpt.com redirects, supported public-client method and exact
+redirects from the document. Publish supported method none and response iss,
+copy the issuer into redirects. No DCR or arbitrary metadata URL support.
+
+Recovery: encrypted export/restore methods enforce account binding, quotas,
+expected generation, format and account fence. Tests load restored data with the
+actual Memory engine and verify contents/audit; wrong key and deleted accounts
+fail. No automatic backup scheduler or unreviewed retention promise.
+
+Website pages contain confirmed implementation facts and clearly label launch
+status. Product is ChatGPT access only; no account dashboard is introduced.
+Authoritative policies and legal decisions still require owner review. Existing
+website data/rules/branding remain intact. Public metadata uses only verified
+live URLs; a candidate archive with remaining gaps is never submission-ready.

@@ -81,7 +81,8 @@ The default local AtMem installation is not silently converted to encryption.
 OAuth uses exact provided clients and callbacks, code+PKCE S256, explicit
 resource binding, hashed credential IDs and encrypted control records, short
 access TTL, rotating single-use refresh and revocation of the grant family.
-CIMD/DCR is deliberately not advertised. SDK compatibility details and package
+Official ChatGPT CIMD is supported with bounded HTTPS metadata fetching; DCR
+is not advertised. Provided clients remain supported. SDK compatibility details and package
 schema discrepancy are recorded in the feature research. User approval must
 not be model-supplied; there is no MCP approve endpoint or approval boolean.
 
@@ -107,7 +108,7 @@ keyboard approval and no-JavaScript form access. Deployed-service and actual
 ChatGPT accessibility/confirmation testing remain separate release gates.
 
 ## Registered Firebase accounts
-The default access policy remains invited. `access_policy=registered` enables
+The source default remains invited; the current cloud configuration uses registered mode. `access_policy=registered` enables
 registration only within a live OAuth connection request. Firebase creates the
 account and sends verification; the service does not grant an OAuth code until
 Firebase's trusted sign-in response confirms the email is verified. Registration
@@ -125,3 +126,18 @@ Revoke the plugin OAuth grant for immediate invalidation of that grant. Account
 registration, password reset and verification resend never expose memory content.
 The cloud data-flow acknowledgement is required by this registration form; OAuth
 scope consent and per-operation approval are independent server-enforced gates.
+
+## Public-release additions
+`/account/delete` is browser-only and freshly authenticated. A permanent account
+fence and structural receipt precede physical purge and Firebase deletion. Fenced
+chunk staging prevents delayed work from recreating even orphan chunks. Old
+account tokens are denied even when their pre-migration control documents lack
+an account index. New indexed controls support scoped physical cleanup. Legacy
+TTL and provider-history retention remain separate, accurately named limits.
+Official ChatGPT CIMD fetches are restricted to chatgpt.com/oauth client documents,
+reject redirects and oversized/nonconforming metadata, and cache at most 128
+clients for five minutes. Exact redirect URIs come from the trusted document;
+no wildcard callbacks or caller-controlled fetch destinations. Discovery reports
+public-client method none and issuer-bound response support. This removes manual
+per-connection registration when the host selects CIMD; actual host testing is
+still required.

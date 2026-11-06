@@ -16,5 +16,6 @@
   "requests_per_minute": 120,
   "collection": "atmem_chatgpt_v1",
   "emulator": false,
-  "access_policy": "registered"
+  "access_policy": "registered",
+  "tool_requests_per_minute": 30
 }

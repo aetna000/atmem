@@ -32,7 +32,9 @@ auth/control records rely on configured TTL/maintenance for physical removal.
 Obsolete generations are cleaned after commit; interrupted cleanup is separate.
 
 Cloud provider backups/PITR, managed platform logs and ChatGPT copies have
-separate retention; their actual values are **not yet selected or verified**.
+separate retention; the current database PITR is disabled with a 3,600-second historical version
+window, and default Cloud Logging retention is verified at 30 days. No scheduled
+Firestore backup is configured for this database.
 Do not promise complete erasure from these systems. Uninstalling/disconnecting
 revokes access but is not a memory deletion. Deleting a key prevents recovery and
 is not a substitute for a verified native forget receipt.
@@ -50,3 +52,14 @@ from memory. Delivery throttles hold opaque HMAC address identifiers and expiry,
 not plaintext email. Firebase necessarily retains account identity until account
 deletion; deleting a memory does not delete the Firebase account. Account deletion
 handling and actual email-delivery policy must be verified before general launch.
+
+Account-wide deletion now has a fresh-authenticated preview/confirmation route.
+It fences access before purging all household data and indexed controls, then
+separately verifies Firebase deletion. Partial failure is blocked and retryable,
+not reported as complete. The non-content deletion fence/structural receipt is
+retained indefinitely; legacy unindexed credentials expire under old bounds
+(up to 24 hours plus asynchronous TTL cleanup). The five-minute encrypted deletion
+proof supports receipt recovery after a lost response. Per-account usage counters
+hold opaque identifiers/minute counts with TTL, not plaintext memory or email.
+The website PR contains complete cloud-specific wording for owner review; it
+has not been silently made live by this document.

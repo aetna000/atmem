@@ -25,7 +25,8 @@ firebase emulators:exec --only auth,firestore \
 On Windows use a Python 3.12 venv's Scripts/python.exe and install the documented
 SQLCipher runtime first. Native Windows execution of this new cloud service has
 not yet been qualified; the emulator harness is qualified on macOS. The planned
-production runtime is Linux/Cloud Run, not yet deployed or load-tested.
+production runtime is Linux/Cloud Run and has a deployed synthetic integration
+check; general production load remains unqualified.
 
 ## Manual local server
 
@@ -53,7 +54,8 @@ The automated tests provision disposable Firebase Auth accounts via its emulator
 REST API and complete OAuth code/PKCE, user approval and MCP tool calls. For manual
 work create a synthetic Auth emulator account using its normal UI/admin API and
 register the exact callback of your actual MCP Inspector/client in config.
-No production signup or account import is performed by this application.
+Production registration is supported in registered mode. No existing account
+or native memory is automatically imported.
 
 ## ChatGPT web: owner's Pro 100 account
 
@@ -65,8 +67,9 @@ remote HTTPS service or supported Secure MCP Tunnel exists:
 2. Open https://chatgpt.com/plugins, use the plus/Add custom MCP server flow if
    available, and record the actual options or exact rejection. Follow current
    official instructions rather than an old developer-mode/settings path.
-3. Configure the real endpoint and OAuth, copying the actual client identifier
-   and callback shown by the flow into the server's provided-client allowlist.
+3. Configure the real endpoint and OAuth with CIMD when available. The service
+   validates ChatGPT's official client metadata and exact published callbacks.
+   Provided-client setup remains possible if the host requires it.
    Read the warning and grant only intended permissions. No static token in ZIP.
 4. Inspect discovered tools. Install/select the plugin in a new chat with @.
 5. Read a seeded synthetic memory, propose a unique save, approve it in the
@@ -118,3 +121,16 @@ expired). Sign in and grant the displayed OAuth scopes. Each memory mutation
 still requires a separately signed-in preview and approval. Verification resend
 and password reset links are on the sign-in page. No separate application UI.
 The invited policy remains available for closed pilots and synthetic reviewers.
+
+## Current cloud connection
+Endpoint: `https://atmem-chatgpt-nvwvv4d7sa-uc.a.run.app/mcp`.
+After the public-completion image is deployed, choose OAuth with CIMD rather than
+manually assigning a test client. The source package remains loopback development;
+use `deploy/chatgpt/cloud-package-metadata.json` for a real-endpoint cloud candidate.
+The four listing URLs in that override are proposed website routes and must be
+verified live after owner review/merge. They are not asserted live by packaging.
+
+Account-wide deletion is available from `/account/delete` on this same service.
+It requires a fresh sign-in and explicit confirmation and does not delete your
+Google or ChatGPT account. Retain the receipt; a failed Firebase step is a pending
+blocked deletion, not a completed one. A fresh sign-in can renew the same deletion.

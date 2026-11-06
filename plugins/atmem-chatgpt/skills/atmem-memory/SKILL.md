@@ -45,3 +45,8 @@ this plugin in a new chat may be necessary; no universal automatic use is promis
 For connection, recovery and uninstall guidance, use the bundled
 [setup guide](../../references/SETUP.md). Privacy and terms reference files are
 explicit drafts, not published policies or a claim of submission readiness.
+
+Account-wide deletion is a separate browser operation at the connected service
+under /account/delete. Direct the user to fresh sign-in and preview; memory tools
+cannot confirm or execute that operation. Never confuse an exact-record receipt
+with account-wide deletion or erasure from provider history or ChatGPT copies.

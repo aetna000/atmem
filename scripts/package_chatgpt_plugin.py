@@ -60,7 +60,11 @@ def validate(files:dict[str,bytes], *, public=False)->list[str]:
         auth=server.get('extensions',{}).get('com.openai',{}).get('auth',{})
         if auth.get('type')!='oauth':errors.append('private memory must use OAuth')
         client=auth.get('client',{})
-        if client.get('mode')!='provided' or not client.get('clientId') or client.get('tokenEndpointAuthMethod')!='none':errors.append('provided PKCE OAuth client metadata missing')
+        if client.get('mode')=='provided':
+            if not client.get('clientId') or client.get('tokenEndpointAuthMethod')!='none':errors.append('provided PKCE OAuth client metadata missing')
+        elif client.get('mode')=='cimd':
+            if set(client)!={'mode'}:errors.append('CIMD must not include client credentials or provided-client fields')
+        else:errors.append('supported PKCE OAuth client metadata missing')
         if 'clientSecret' in auth or 'clientSecret' in client:errors.append('client secret forbidden in package')
     if public:
         for key in ['websiteURL','supportURL','privacyPolicyURL','termsOfServiceURL']:
@@ -100,7 +104,7 @@ def main():
         files['plugin.json']=(json.dumps(manifest,indent=2)+'\n').encode();files['mcp.json']=(json.dumps(mcp,indent=2)+'\n').encode()
     errors=validate(files,public=args.public or args.readiness)
     if args.readiness:
-        print(json.dumps({'development_contract_valid':not validate(files),'validation_profile':'Strict Agent Plugins 1.0 transport projection plus documented OpenAI extension checks; full portal scan not run','public_ready':not errors,'gaps':errors,
+        print(json.dumps({'development_contract_valid':not validate(files),'validation_profile':'Strict Agent Plugins 1.0 transport projection plus documented OpenAI extension checks; full portal scan not run','public_ready':False,'public_metadata_complete':not errors,'gaps':errors,
             'dashboard_checks':['verified individual publisher/org/project permissions','owned public endpoint/domain challenge','secure synthetic reviewer login','actual account read/write/invocation checks','required scans and legal attestations','country targeting and billing/retention decisions']},indent=2));return
     if errors:raise SystemExit('\n'.join(errors))
     if args.public:

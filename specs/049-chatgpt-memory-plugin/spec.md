@@ -92,3 +92,28 @@ resend/password recovery, per-address/peer email throttles, no credentials store
 in AtMem memory, and no user-selected tenant identity. Revalidate Firebase accounts
 on OAuth refresh; document bounded active-token and browser-session lifetimes.
 Retain invited policy for closed testing; registration alone grants no memory access.
+
+## Public release completion (owner authorization, 6 November 2026)
+The intended outcome is public directory availability, not an invitation-only
+product. Technical preparation and existing-project deployment are authorized;
+identity/legal attestations and actual account interaction cannot be invented.
+- FR-016: Support fresh-authenticated, CSRF-protected account-wide deletion with
+  a separate explicit preview/confirmation. Immediately fence every scope, grant,
+  read, write and refresh; physically remove all household generations/chunks and
+  indexed account controls. Concurrent or delayed work cannot resurrect content.
+  Return an accurate resumable receipt, including Firebase account deletion state,
+  legacy expiring auth records, retained non-content tombstone and external copies.
+  No model-callable account deletion or caller-selected target UID.
+- FR-017: Support ChatGPT's official CIMD public-client identity using bounded,
+  HTTPS-only official metadata fetch/validation; never arbitrary URL fetching or
+  wildcard callback allowlists. Advertise actual token authentication methods and
+  authorization response issuer correctly. Preserve provided clients.
+- FR-018: Demonstrate encrypted-snapshot recovery on isolated real AtMem storage,
+  including native content/audit, wrong-key rejection and deletion-fence behavior.
+  A recovery artifact cannot revive a deleted account. No real-user backup import.
+- FR-019: Prepare cloud-specific product/support/privacy/terms website pages and a
+  release package targeting the real HTTPS endpoint. Keep website changes in an
+  owner-review PR and distinguish draft URLs from verified live pages.
+- FR-020: Preserve truthful submission state: actual ChatGPT review cases/demo,
+  verified publisher, country/commerce decisions, policy approval and portal scans
+  remain unverified until performed. Hosting alone is not a directory release.
