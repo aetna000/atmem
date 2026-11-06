@@ -8,6 +8,10 @@
 - Added real engine/emulator/MCP/browser tests, development package, review cases,
   cloud deployment templates and candid publication/account readiness gates.
 
-Not yet released on PyPI, hosted publicly, installed/tested in the user's
+An owner-approved Firebase/Cloud Run pilot is hosted; see verification.md.
+Not yet released on PyPI or installed/tested in the user's
 ChatGPT account, submitted, verified as a publisher or approved by OpenAI.
 The published AtMem 2.3.12 package does not contain this source-only extra.
+
+- Added Firebase registration with verified-email linkage, password recovery,
+  delivery throttles and account revalidation on plugin token refresh.

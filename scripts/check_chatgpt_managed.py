@@ -26,6 +26,7 @@ def login(u,scope='memory:read memory:write memory:delete'):
  b=httpx.Client(follow_redirects=False,timeout=60);u['browser']=b
  proof=b.post('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword',params={'key':config['firebase_api_key']},json={'email':u['email'],'password':u['password'],'returnSecureToken':True})
  assert proof.status_code==200 and proof.json()['localId']==u['uid'], 'synthetic UID must match the authenticated Firebase account before any cleanup'
+ u['verified_synthetic_identity']=True
 
  verifier=secrets.token_urlsafe(48);challenge=base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b'=').decode()
  params={'response_type':'code','client_id':client_id,'redirect_uri':callback,'scope':scope,'resource':base+'/mcp','state':'cloud-test-'+secrets.token_hex(5),'code_challenge':challenge,'code_challenge_method':'S256'}
@@ -100,23 +101,38 @@ try:
  current=call(a,'read_memory',{'scope':'personal','record_id':rid});assert current['ok']
  p=proposal(a,'preview_memory_deletion',{'scope':'personal','record_id':rid,'version':current['data']['record']['version'],'idempotency_key':'delete-'+marker});approve(a,p)
  deleted=call(a,'commit_memory_action',{'scope':'personal','action_id':p['action_id'],'operation':'delete'});assert deleted['ok'] and deleted['data']['deleted'];assert deleted['data']['receipt']['format']=='atmem-exact-record-deletion-receipt-v1';checked('exact deletion receipt')
- assert call(a,'search_memory',{'scope':'personal','query':'corrected-'+marker})['data']['records']==[];checked('deleted memory absent')
+ assert not call(a,'read_memory',{'scope':'personal','record_id':rid})['ok']
+ result=call(a,'search_memory',{'scope':'personal','query':'corrected-'+marker});assert result['ok'] and all(row['id']!=rid for row in result['data']['records']);checked('deleted record absent from detail and recall')
  audit=call(a,'list_memory_activity',{'scope':'personal'});assert audit['ok'];checked('scoped audit activity')
  refreshed=a['browser'].post(base+'/token',data={'grant_type':'refresh_token','client_id':client_id,'refresh_token':a['refresh_token'],'scope':'memory:read memory:write memory:delete','resource':base+'/mcp'});assert refreshed.status_code==200;a.update(refreshed.json());checked('registered Firebase revalidation on refresh')
  # Revoke only this synthetic grant, then confirm the same access token fails.
  r=a['browser'].post(base+'/revoke',data={'client_id':client_id,'token':a['access_token'],'token_type_hint':'access_token'});assert r.status_code==200
  rejected=httpx.post(base+'/mcp',headers={'Authorization':'Bearer '+a['access_token']},json={'jsonrpc':'2.0','id':1,'method':'ping'},timeout=30);assert rejected.status_code==401;checked('grant revocation immediate')
- # Remove only the two synthetic households, including superseded revisions.
- for u in users:
-  doc=repo._doc('household',u['uid']);repo.client.recursive_delete(doc)
-  assert not doc.get().exists and not list(doc.collection('chunks').limit(1).stream())
-  if u.get('access_token'):
-   u['browser'].post(base+'/revoke',data={'client_id':client_id,'token':u['access_token'],'token_type_hint':'access_token'})
- checked('synthetic household cleanup')
- import shutil
- shutil.rmtree(cfg['home'])
- evidence['passed']=True
+ evidence['workflow_completed']=True
 finally:
- for u in users:
-  if u.get('browser'):u['browser'].close()
+ try:
+  if 'repo' in locals():
+   # Only identities independently confirmed by Firebase, never an arbitrary
+   # UID from a supplied file. Remove all synthetic versions/chunks on failure
+   # too, while retaining the secretless test evidence locally.
+   for u in users:
+    if not u.get('verified_synthetic_identity'):continue
+    doc=repo._doc('household',u['uid']);repo.client.recursive_delete(doc)
+    assert not doc.get().exists and not list(doc.collection('chunks').limit(1).stream())
+    repo._doc('firebase-identity',u['uid']).delete()
+   checked('synthetic household cleanup')
+   evidence['cleanup_passed']=True
+   import shutil
+   shutil.rmtree(cfg['home'])
+  for u in users:
+   if u.get('browser') and u.get('access_token'):
+    u['browser'].post(base+'/revoke',data={'client_id':client_id,'token':u['access_token'],'token_type_hint':'access_token'})
+ except Exception as error:
+  evidence['cleanup_passed']=False;evidence['cleanup_error_type']=type(error).__name__
+ finally:
+  for u in users:
+   if u.get('browser'):u['browser'].close()
+ evidence['passed']=evidence.get('workflow_completed',False) and evidence.get('cleanup_passed',False)
  options.evidence.write_text(json.dumps(evidence,indent=2))
+
+assert evidence["passed"], "Managed verification or synthetic cleanup failed; inspect evidence."

@@ -76,7 +76,7 @@ The default local AtMem installation is not silently converted to encryption.
 | commit save/correct/project | OAuth memory:write + read | Same immutable approved operation; current revision |
 | commit delete | OAuth memory:delete + read | Same immutable approved operation; current revision |
 | Server DB access | Dedicated service IAM | No browser/client Firestore access |
-| Reviewer | Dedicated invited synthetic account | No owner/other-user data |
+| Reviewer | Dedicated synthetic account | No owner/other-user data |
 
 OAuth uses exact provided clients and callbacks, code+PKCE S256, explicit
 resource binding, hashed credential IDs and encrypted control records, short
@@ -94,11 +94,11 @@ not be model-supplied; there is no MCP approve endpoint or approval boolean.
 | Forged consent | Human Firebase login, signed HttpOnly session, exact preview, CSRF and origin/expiry checks; user must protect account/session |
 | Concurrent update/replay | Intent hash/idempotency key, record revision, atomic engine+intent state and generation CAS |
 | Stolen database/chunks | SQLCipher + AES-GCM; key custody/recovery is operator responsibility |
-| Revoked/expired auth | Grant validation on each request, immediate OAuth revocation, invited UID gate; Firebase password/account changes must also trigger service grant revocation, not assumed automatic |
+| Revoked/expired auth | Grant validation on each request and immediate OAuth revocation; registered accounts revalidate with Firebase on refresh, with <=10 min active-token and <=5 min browser-session windows |
 | Offline/unknown write outcome | No success before durability, exact-intent retry and persisted receipt; no fallback into native local memory |
-| Quota/abuse | Explicit invited accounts, snapshot/record/scope/pending/body limits and per-peer process rate limiter; upstream Cloud Run/IAM quotas are still needed; these are not spend caps |
+| Quota/abuse | Verified-email registration (or invited policy), email delivery throttles, snapshot/record/scope/pending/body limits and per-peer process rate limiter; upstream Cloud Run/IAM quotas are still needed; these are not spend caps |
 | Leftover data | Lazy draft purge, expired-control TTL/maintenance, obsolete-generation cleanup; provider backups/PITR and external ChatGPT copies remain separate |
-| Logging disclosure | No access URL logs, token/password/content logging; synthetic test traces live outside the plugin ZIP |
+| Logging disclosure | Application access logs disabled; no deliberate token/password/content logs. Cloud Run provider request logs can contain URLs/operation references (30-day default retention verified); bodies/credentials are not deliberately logged. Raw synthetic traces stay outside the ZIP |
 
 All content is readable with semantic HTML, labelled forms and keyboard controls.
 No essential workflow relies on hover, motion or JavaScript in consent pages.

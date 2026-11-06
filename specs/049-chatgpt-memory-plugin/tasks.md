@@ -18,7 +18,7 @@
 - [x] T009 Prepare valid development plugin, skill, logo, metadata, exactly 5 positive/3 negative review cases and reproducible validator/packager (FR-010, SC-004).
 - [x] T010 Write docs/chatgpt architecture/threat/permissions/install/uninstall/runbook/privacy/terms/reviewer/demo and evidence/Pro 100 matrix (FR-011, FR-014).
 - [x] T011 Prepare deploy/chatgpt Firebase/Cloud Run design with durability, secret, quota and billing controls; owner-approved isolated atmemai pilot added (FR-013).
-- [ ] T012 Build/inspect package and real evidence; commit source, report readiness/blockers and exact owner steps; stop before directory submission/publication; record authorized hosting separately (SC-004, SC-006).
+- [x] T012 Build/inspect package and real evidence; commit source, report readiness/blockers and exact owner steps; stop before directory submission/publication; record authorized hosting separately (SC-004, SC-006).
 
 ## Actual platform gates
 Implementation tasks do not certify actual ChatGPT account invocation, individual
@@ -26,3 +26,7 @@ verification, public policy/demo/reviewer readiness or submission approval. See
 docs/chatgpt/verification.md for measured results and remaining gates.
 
 - [x] T013 Implement Firebase registration/verified-email/recovery and delivery throttles; test real emulator signup, verification, linkage, refresh and disabled-user rejection (FR-015).
+
+Managed evidence: 18 checks passed against the real HTTPS pilot, with independent
+engine/audit inspection and synthetic-household cleanup. Actual ChatGPT and
+public-directory gates remain explicitly unverified, not completed by T012.

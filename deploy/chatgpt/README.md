@@ -101,3 +101,22 @@ in approved config to the exact portal token. The service serves only that plain
 text at /.well-known/openai-apps-challenge; without a token the route returns 404.
 Do not invent a token or overwrite another plugin's existing challenge. Verify
 its actual HTTPS hostname/response before completing the portal step.
+
+## Actual synthetic managed check
+After configuring only the private operator test account file, run from this
+feature checkout with cloud extras installed and the intended gcloud operator
+signed in:
+
+```sh
+python scripts/check_chatgpt_managed.py \
+  --private-directory "$HOME/.config/atmem-cloud-pilot" \
+  --evidence /tmp/atmem-managed-evidence.json \
+  --allow-synthetic-writes
+```
+
+This is deliberately an operator tool for the generated example.invalid synthetic
+accounts, not a real-user migration or arbitrary tenant cleanup command. It binds
+each supplied synthetic UID back to Firebase credentials before operator cleanup,
+uses real managed MCP and native AtMem, revokes test grants and removes only those
+synthetic households/chunks. It never prints tokens or passwords. Actual ChatGPT
+host invocation, mailbox delivery and developer verification are separate tests.
