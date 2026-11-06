@@ -10,6 +10,9 @@ complete host execution log. It requires a connected AtMem account and actual
 available tools. Never claim a save, update, deletion or recall without a
 successful tool result. Users can register and verify their email when connecting.
 
+## Connect on first use
+When the user selects AtMem, call the tool for their request. For a bare AtMem mention, call list_memory_scopes. A signed-out call triggers the host's AtMem sign-in action. Ask the user to complete it, then retry their original request. Only say that no memory matched after a successful search. Keep sign-in in the host; never ask for credentials in chat or paste callback or authorization URLs.
+
 ## Read
 1. List available scopes when needed. Use only the scope the user intends.
    Account identity is resolved by the service; do not infer it from memory text.

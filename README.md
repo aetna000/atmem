@@ -9,10 +9,9 @@ Use a Codex CLI that supports plugin marketplaces and MCP OAuth sign-in.
 ```sh
 codex plugin marketplace add aetna000/atmem --ref codex-marketplace
 codex plugin add atmem-chatgpt@atmem
-codex mcp login atmem --scopes memory:read,memory:write,memory:delete
 ```
 
-Open the sign-in page on the computer running Codex. Register or sign in with AtMem and verify your email if prompted. For read-only access, request just `memory:read`. Start a new Codex chat after connecting.
+In a chat, select `@AtMem` and ask a memory question. On first use, choose the AtMem sign-in action, sign in or register, and review the permissions. Return to the chat to finish your request.
 
 ## Try it
 
