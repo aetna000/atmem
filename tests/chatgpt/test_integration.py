@@ -567,4 +567,4 @@ def test_browser_returns_to_desktop_after_sign_in(cloud):
     user = cloud.user()
     result = subprocess.run(['node', str(script)], capture_output=True, text=True, timeout=60,
                             input=json.dumps({'base': cloud.base, 'email': user['email'], 'password': user['password']}))
-    assert result.returncode == 0, 'Chromium failed to return to the native callback and exchange its code'
+    assert result.returncode == 0, result.stderr[-1400:]

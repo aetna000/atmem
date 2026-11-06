@@ -189,7 +189,7 @@ def install_routes(mcp,settings,repository,provider,identity,service):
                     f'<form method="post"{attribute}>'+csrf_form(request)+credentials()
                     +'<div class="controls"><button name="decision" value="approve">Sign in and allow</button>'
                     '<button name="decision" value="deny" formnovalidate>Cancel</button></div></form>'+links+'</section>'
-                    '<p id="feedback" role="alert"></p><p id="progress" role="status" hidden>Waiting for Codex to finish signing in.</p>'
+                    '<p id="feedback" role="alert"></p>'
                     )
             return page('Connect to AtMem',body,validated_callback=pending['params']['redirect_uri'],native=native)
         try:
@@ -201,7 +201,7 @@ def install_routes(mcp,settings,repository,provider,identity,service):
             callback = provider.finish_authorize(nonce,account,approved,connection_receipt=receipt)
             if receipt:
                 request.session['connection_receipt'] = receipt
-                return JSONResponse({'callback':callback, 'status':'/connection/status/'+receipt})
+                return JSONResponse({'callback':callback})
             return RedirectResponse(callback,status_code=303)
         except (ValueError,Denied) as error:
             if str(error)=='verify_email_before_connecting':
@@ -220,8 +220,12 @@ def install_routes(mcp,settings,repository,provider,identity,service):
 
     @mcp.custom_route('/connection/complete',methods=['GET'])
     async def connection_complete(request:Request):
-        if not request.session.get('completed_connection') or request.session.get('completed_connection') != request.session.get('connection_receipt'):
+        receipt = request.session.get('connection_receipt')
+        if not receipt:
             return page('Connection unconfirmed','<p>Return to your chat to connect your AtMem account.</p>',400)
+        if request.session.get('completed_connection') != receipt:
+            return page('Connecting to Codex…',f'<p role="status" data-connection-status="/connection/status/{receipt}">'
+                        'Waiting for Codex to finish signing in.</p>',native=True)
         return page('You’re connected','<div class="mark" aria-hidden="true">✓</div>'
                     '<p>Your AtMem account is connected to Codex.</p>'
                     '<div class="scope">Return to your chat to continue your request. You can close this tab.</div>')
