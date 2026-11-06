@@ -4,8 +4,7 @@
   "public_ready": false,
   "public_metadata_complete": false,
   "gaps": [
-    "actual reviewer-accessible demo recording missing",
-    "intended verified publisher name not supplied"
+    "actual reviewer-accessible demo recording missing"
   ],
   "dashboard_checks": [
     "verified individual publisher/org/project permissions",

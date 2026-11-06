@@ -3,7 +3,8 @@
     "websiteURL": "https://atmem.ai/cloud/",
     "supportURL": "https://atmem.ai/cloud/support/",
     "privacyPolicyURL": "https://atmem.ai/cloud/privacy/",
-    "termsOfServiceURL": "https://atmem.ai/cloud/terms/"
+    "termsOfServiceURL": "https://atmem.ai/cloud/terms/",
+    "developerName": "AtMem.ai"
   },
   "mcp": {
     "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
@@ -31,5 +32,9 @@
         }
       }
     }
+  },
+  "review": {
+    "commerce": false,
+    "commerce_description": "AtMem currently offers no purchases or subscriptions through the plugin."
   }
 }
