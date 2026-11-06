@@ -207,7 +207,7 @@ class OAuthProvider:
             "params":params.model_dump(mode="json"), "expires_at":time.time()+LOGIN_WINDOW_SECONDS})
         return self.settings.issuer + "/connect/" + nonce
 
-    def finish_authorize(self, nonce: str, account: str, approved: bool) -> str:
+    def finish_authorize(self, nonce: str, account: str, approved: bool, *, connection_receipt: str | None = None) -> str:
         pending = self.repository.consume_control("authorize", nonce)
         if pending is None:
             raise ValueError("authorization_expired_or_consumed")
@@ -222,6 +222,8 @@ class OAuthProvider:
                 "client_id":pending["client_id"], "code_challenge":params.code_challenge,
                 "redirect_uri":str(params.redirect_uri), "redirect_uri_provided_explicitly":params.redirect_uri_provided_explicitly,
                 "resource":params.resource, "subject":account}
+            if connection_receipt:
+                payload["connection_receipt"] = connection_receipt
             self.repository.put_control("code", code, payload)
             fields["code"] = code
         redirect = str(params.redirect_uri)
@@ -237,7 +239,10 @@ class OAuthProvider:
         value = self.repository.consume_control("code", authorization_code.code)
         if not value or value["client_id"] != client.client_id:
             raise TokenError(error="invalid_grant", error_description="code expired or already used")
-        return self._issue(value["subject"], client.client_id, value["scopes"], value["resource"])
+        tokens = self._issue(value["subject"], client.client_id, value["scopes"], value["resource"])
+        if receipt := value.get("connection_receipt"):
+            self.repository.put_control("connection-receipt", receipt, {"expires_at":time.time()+180})
+        return tokens
 
     def _issue(self, account, client_id, scopes, resource, grant_id=None):
         if resource != self.settings.resource:

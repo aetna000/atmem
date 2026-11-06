@@ -360,7 +360,7 @@ def test_registration_email_verification_and_recovery_are_real_and_gated(cloud):
         verifier=secrets.token_urlsafe(48);challenge=base64.urlsafe_b64encode(__import__('hashlib').sha256(verifier.encode()).digest()).rstrip(b'=').decode()
         auth=browser.get(cloud.base+'/authorize',params={'response_type':'code','client_id':'atmem-test-client','redirect_uri':'http://127.0.0.1:9901/callback','scope':'memory:read memory:write','resource':cloud.base+'/mcp','state':'registration-test','code_challenge':challenge,'code_challenge_method':'S256'})
         assert auth.status_code in (302,303,307)
-        login=browser.get(auth.headers['location']);assert 'Register</a>' in login.text
+        login=browser.get(auth.headers['location']);assert 'Create account</a>' in login.text
         nonce=auth.headers['location'].rsplit('/',1)[1];url=cloud.base+'/register?request='+nonce
         assert browser.get(cloud.base+'/register?request=forged').status_code==400
         form=browser.get(url)

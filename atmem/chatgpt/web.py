@@ -5,6 +5,7 @@ from collections import defaultdict,deque
 import html
 import json
 import secrets
+from pathlib import Path
 import re
 import time
 from datetime import datetime,timezone
@@ -14,21 +15,35 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse,RedirectResponse,JSONResponse,PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from .auth import CODEX_CLIENT_ID
 from .service import Denied
 from .repository import AccountClosed
 
-STYLE="body{font:16px/1.6 system-ui,sans-serif;max-width:42rem;margin:3rem auto;padding:1rem;color:#101314;background:#F3F6F6}label{display:block;margin-top:1rem}input,button{font:inherit;padding:.6rem;max-width:100%}button{background:#1F777C;color:white;border:0;margin-top:1rem}pre{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#1D7176}"
+ASSETS = Path(__file__).with_name('assets')
+STYLE = (ASSETS / 'account.css').read_text()
+WORDMARK = (ASSETS / 'wordmark.svg').read_text()
+NATIVE_SCRIPT = (ASSETS / 'account.js').read_text()
 
 
-def page(title,body,status=200,*,validated_callback=None):
+def page(title,body,status=200,*,validated_callback=None,native=False):
     form_action = "'self'"
     if validated_callback:
         # Chromium checks form-action on the 303 redirect as well as the form's POST.
         # Only the OAuth consent page gets its SDK-validated callback destination.
         target = urlsplit(validated_callback)
         form_action += f" {target.scheme}://{target.netloc}{quote(target.path, safe='/%')}"
-    response=HTMLResponse(f'<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title><style>{STYLE}</style><main><h1>{html.escape(title)}</h1>{body}</main></html>',status_code=status)
-    response.headers.update({"Cache-Control":"no-store", "Content-Security-Policy":f"default-src 'none'; style-src 'unsafe-inline'; form-action {form_action}; frame-ancestors 'none'; base-uri 'none'", "Referrer-Policy":"same-origin", "X-Content-Type-Options":"nosniff"})
+    script_nonce = secrets.token_urlsafe(24) if native else None
+    script = f'<script nonce="{script_nonce}">{NATIVE_SCRIPT}</script>' if native else ''
+    policy = f"default-src 'none'; style-src 'unsafe-inline'; form-action {form_action}; frame-ancestors 'none'; base-uri 'none'"
+    if native:
+        policy += f"; script-src 'nonce-{script_nonce}'; connect-src 'self'"
+    safe_title = html.escape(title)
+    response = HTMLResponse(f'''<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>{safe_title} · AtMem</title><style>{STYLE}</style></head>
+<body><div class="shell"><main><div class="brand" role="img" aria-label="AtMem">{WORDMARK}</div>
+<h1 tabindex="-1">{safe_title}</h1>{body}</main><footer><a href="https://atmem.ai/cloud/privacy/">Privacy</a>
+<a href="https://atmem.ai/cloud/terms/">Terms</a><a href="https://atmem.ai/cloud/support/">Support</a><a href="/account/delete">Delete account</a></footer></div>{script}</body></html>''', status_code=status)
+    response.headers.update({"Cache-Control":"no-store", "Content-Security-Policy":policy, "Referrer-Policy":"same-origin", "X-Content-Type-Options":"nosniff"})
     return response
 
 
@@ -158,20 +173,58 @@ def install_routes(mcp,settings,repository,provider,identity,service):
             return page('This sign-in request has ended',
                         '<p>Return to the chat that requested AtMem. Ask AtMem again and choose the sign-in or reconnect action to start a fresh request.</p>', 400)
         if request.method=='GET':
-            scopes=html.escape(', '.join(pending['params'].get('scopes') or ['memory:read']))
-            links='<p><a href="/account/delete">Delete my AtMem Cloud account</a></p>'
-            if settings.access_policy=='registered':
-                links+='<p>Create and verify your Firebase account before connecting. <a href="/register?request='+html.escape(nonce,quote=True)+'">Register</a> · <a href="/verify-email?request='+html.escape(nonce,quote=True)+'">Resend verification</a> · <a href="/reset-password?request='+html.escape(nonce,quote=True)+'">Reset password</a></p>'
-            return page('Connect AtMem',f'<p>Allow the registered ChatGPT client to use these permissions: <strong>{scopes}</strong>.</p><p>Memory is hosted by this service. Each save, correction or deletion still needs your separate approval. No conversation is automatically captured.</p>'+links+'<form method="post">'+csrf_form(request)+credentials()+'<button name="decision" value="approve">Sign in and allow</button> <button name="decision" value="deny">Deny</button></form>',validated_callback=pending['params']['redirect_uri'])
+            native = pending['client_id'] == CODEX_CLIENT_ID
+            client = 'Codex' if native else 'your app'
+            labels = {'memory:read':'Read saved memories', 'memory:write':'Propose saves and corrections',
+                      'memory:delete':'Propose deletions'}
+            permissions = ' · '.join(labels[scope] for scope in pending['params'].get('scopes') or ['memory:read'])
+            links = ''
+            if settings.access_policy == 'registered':
+                links = (f'<nav class="links" aria-label="Account help"><a href="/register?request={nonce}">Create account</a>'
+                         f'<a href="/reset-password?request={nonce}">Reset password</a>'
+                         f'<a href="/verify-email?request={nonce}">Verify email</a></nav>')
+            attribute = ' data-native' if native else ''
+            body = (f'<section id="login"><p>Sign in to use your saved memories in {client}.</p>'
+                    f'<div class="scope">{permissions}<br>Each change needs your separate approval.</div>'
+                    f'<form method="post"{attribute}>'+csrf_form(request)+credentials()
+                    +'<div class="controls"><button name="decision" value="approve">Sign in and allow</button>'
+                    '<button name="decision" value="deny" formnovalidate>Cancel</button></div></form>'+links+'</section>'
+                    '<p id="feedback" role="alert"></p><p id="progress" role="status" hidden>Waiting for Codex to finish signing in.</p>'
+                    )
+            return page('Connect to AtMem',body,validated_callback=pending['params']['redirect_uri'],native=native)
         try:
             form=await request.form();check_csrf(request,form)
             approved=form.get('decision')=='approve'
             account=await browser_user(request,form) if approved else ''
-            return RedirectResponse(provider.finish_authorize(nonce,account,approved),status_code=303)
+            enhanced = approved and pending['client_id'] == CODEX_CLIENT_ID and request.headers.get('accept') == 'application/json'
+            receipt = secrets.token_urlsafe(32) if enhanced else None
+            callback = provider.finish_authorize(nonce,account,approved,connection_receipt=receipt)
+            if receipt:
+                request.session['connection_receipt'] = receipt
+                return JSONResponse({'callback':callback, 'status':'/connection/status/'+receipt})
+            return RedirectResponse(callback,status_code=303)
         except (ValueError,Denied) as error:
             if str(error)=='verify_email_before_connecting':
                 return page('Verify your email','Verify your Firebase email address before connecting. Return to the connection page to resend verification if needed.',403)
             return page('Connection rejected','Sign-in failed, consent expired or the request was invalid. Start account linking again.',403)
+
+    @mcp.custom_route('/connection/status/{receipt}',methods=['GET'])
+    async def connection_status(request:Request):
+        receipt = request.path_params['receipt']
+        if not re.fullmatch(r'[A-Za-z0-9_-]{43}', receipt) or not secrets.compare_digest(request.session.get('connection_receipt',''),receipt):
+            return JSONResponse({'error':'unknown_connection'},status_code=404)
+        connected = bool(repository.get_control('connection-receipt',receipt))
+        if connected:
+            request.session['completed_connection'] = receipt
+        return JSONResponse({'connected':connected})
+
+    @mcp.custom_route('/connection/complete',methods=['GET'])
+    async def connection_complete(request:Request):
+        if not request.session.get('completed_connection') or request.session.get('completed_connection') != request.session.get('connection_receipt'):
+            return page('Connection unconfirmed','<p>Return to your chat to connect your AtMem account.</p>',400)
+        return page('You’re connected','<div class="mark" aria-hidden="true">✓</div>'
+                    '<p>Your AtMem account is connected to Codex.</p>'
+                    '<div class="scope">Return to your chat to continue your request. You can close this tab.</div>')
 
     @mcp.custom_route('/register',methods=['GET','POST'])
     @mcp.custom_route('/verify-email',methods=['GET','POST'])

@@ -130,6 +130,7 @@ Documentation = "https://github.com/aetna000/atmem#readme"
 include = ["atmem*"]
 
 [tool.setuptools.package-data]
+"atmem.chatgpt" = ["assets/*.css", "assets/*.svg", "assets/*.js"]
 "atmem.adapters.hermes" = ["assets/*.py"]
 "atmem.control" = ["assets/*.jpg", "assets/*.html", "assets/*.css", "assets/*.js"]
 "atmem.schemas" = ["v1/*.json", "v2/*.json"]
