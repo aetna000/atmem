@@ -2,7 +2,7 @@
 
 [AtFlows](https://github.com/aetna000/atflows) records local LLM traces, logs, metrics and cost information in its own database. AtMem stores governed memories and encrypted host evidence. Their roles stay distinct: telemetry can suggest what to inspect, while AtMem authorizes evidence and memory decisions.
 
-AtMem 2.3.12 installs the exact tested stable companion `atflows==0.1.5` alongside
+AtMem 2.3.13 installs the exact tested stable companion `atflows==0.1.6` alongside
 `atmem-atbot==0.1.1`. Installing the package alone does not run a server or
 start collecting telemetry. Bun 1.1+ is needed to run AtFlows. If compatible
 Bun is absent, `atmem init` clearly announces and downloads AtMem's pinned
@@ -10,14 +10,16 @@ official Bun runtime, verifies its release-pinned SHA-256, and stores it
 privately under `~/.atmem/runtime/bun` without changing global `PATH`. Pip
 installation itself does not download or execute Bun.
 
-AtFlows 0.1.5 protects Windows authentication and integration backup state using
+AtFlows 0.1.6 adopts the AtMem.ai Architecture Canvas dashboard theme and opens
+in light mode; dark mode is a saved choice. Collection, storage and login are
+unchanged. As in 0.1.5, AtFlows protects Windows authentication and integration backup state using
 verified Windows ACLs; POSIX state remains owner-only. Existing state is retained,
 and a protection failure prevents the affected write. Native Hermes integration
 remains unavailable on Windows; use WSL or a supported host for that integration.
 
 ## Start local dashboards
 
-### Current tested companion: 0.1.5
+### Current tested companion: 0.1.6
 
 **Activity → Resume work** shows explicitly instrumented workflow attempts and
 reported costs. Configure its producer token and observer using the
