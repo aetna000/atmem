@@ -19,7 +19,7 @@ from pydantic import AnyUrl
 from mcp.server.auth.provider import AuthorizationCode, AuthorizationParams, AccessToken, RefreshToken, AuthorizeError, TokenError
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 
-from .config import Settings, SCOPES
+from .config import Settings, SCOPES, LOGIN_WINDOW_SECONDS
 from .repository import Repository,AccountClosed
 
 
@@ -204,7 +204,7 @@ class OAuthProvider:
             raise AuthorizeError(error="invalid_scope", error_description="supported explicit memory scopes required")
         nonce = secrets.token_urlsafe(32)
         self.repository.put_control("authorize", nonce, {"client_id":client.client_id,
-            "params":params.model_dump(mode="json"), "expires_at":time.time()+300})
+            "params":params.model_dump(mode="json"), "expires_at":time.time()+LOGIN_WINDOW_SECONDS})
         return self.settings.issuer + "/connect/" + nonce
 
     def finish_authorize(self, nonce: str, account: str, approved: bool) -> str:

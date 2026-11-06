@@ -147,7 +147,9 @@ def install_routes(mcp,settings,repository,provider,identity,service):
     async def connect(request:Request):
         nonce=request.path_params['nonce']
         pending=repository.get_control('authorize',nonce)
-        if pending is None:return page('Connection expired','Start account linking again.',400)
+        if pending is None:
+            return page('This sign-in request has ended',
+                        '<p>Return to the chat that requested AtMem. Ask AtMem again and choose the sign-in or reconnect action to start a fresh request.</p>', 400)
         if request.method=='GET':
             scopes=html.escape(', '.join(pending['params'].get('scopes') or ['memory:read']))
             links='<p><a href="/account/delete">Delete my AtMem Cloud account</a></p>'

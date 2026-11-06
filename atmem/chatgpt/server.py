@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Literal,Annotated
 import logging
+import json
 
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.settings import AuthSettings,ClientRegistrationOptions,RevocationOptions
@@ -13,9 +14,10 @@ from pydantic import BaseModel,Field
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import Response,JSONResponse
 from starlette.routing import Route
+from starlette.requests import Request
 
 from .auth import OAuthProvider
-from .config import Settings,SCOPES
+from .config import Settings,SCOPES,LOGIN_WINDOW_SECONDS
 from .repository import Repository,Conflict
 from .service import Service,Denied
 from .web import install_routes,BoundaryMiddleware
@@ -35,6 +37,50 @@ class Result(BaseModel):
     code: str
     data: dict = Field(default_factory=dict)
     untrusted_data: bool = True
+
+
+class LinkableTransport:
+    """Expose protocol discovery before login without dispatching anonymous tool calls."""
+
+    discovery_methods = frozenset({'initialize', 'notifications/initialized', 'tools/list'})
+
+    def __init__(self, authenticated, discovery, resource):
+        self.authenticated = authenticated
+        self.discovery = discovery
+        self.metadata = resource.rsplit('/', 1)[0] + '/.well-known/oauth-protected-resource/mcp'
+
+    async def __call__(self, scope, receive, send):
+        request = Request(scope, receive)
+        if request.method != 'POST' or 'authorization' in request.headers:
+            await self.authenticated(scope, receive, send)
+            return
+
+        # The outer request-size, origin and host checks still apply here.
+        body = await request.body()
+        try:
+            rpc = json.loads(body)
+        except (ValueError, UnicodeError, RecursionError):
+            rpc = None
+        method = rpc.get('method') if isinstance(rpc, dict) and rpc.get('jsonrpc') == '2.0' else None
+        if method == 'tools/call' and isinstance(rpc.get('id'), (int, str)):
+            challenge = f'Bearer resource_metadata="{self.metadata}", scope="{" ".join(SCOPES)}"'
+            response = JSONResponse({'jsonrpc': '2.0', 'id': rpc['id'], 'result': {
+                'isError': True, '_meta': {'mcp/www_authenticate': [challenge]},
+                'content': [{'type': 'text', 'text': 'Connect your AtMem account to continue, then retry this request.'}],
+            }})
+            await response(scope, receive, send)
+            return
+
+        pending = True
+        async def replay():
+            nonlocal pending
+            if pending:
+                pending = False
+                return {'type': 'http.request', 'body': body, 'more_body': False}
+            return await receive()
+
+        handler = self.discovery if isinstance(method, str) and method in self.discovery_methods else self.authenticated
+        await handler(scope, replay, send)
 
 
 def create_app(settings: Settings):
@@ -106,6 +152,11 @@ def create_app(settings: Settings):
 
     install_routes(mcp,settings,repository,provider,provider.identity,service)
     app=mcp.streamable_http_app()
+    for route in app.routes:
+        if getattr(route, 'path', None) == '/mcp':
+            route.app = LinkableTransport(route.app, mcp.session_manager.handle_request, settings.resource)
+            break
+
     async def oauth_metadata(request):
         return JSONResponse({'issuer':settings.issuer+'/',
             'authorization_endpoint':settings.issuer+'/authorize','token_endpoint':settings.issuer+'/token',
@@ -132,6 +183,6 @@ def create_app(settings: Settings):
         return Response(status_code=200,headers={'Cache-Control':'no-store','Pragma':'no-cache'})
     app.routes[:]=[Route('/revoke',revoke_public_client,methods=['POST']) if getattr(r,'path',None)=='/revoke' else r for r in app.routes]
     app.add_middleware(SessionMiddleware,secret_key=settings.derive('browser-session-v1').hex(),
-        max_age=300,same_site='lax',https_only=not settings.emulator,session_cookie='atmem_human')
+        max_age=LOGIN_WINDOW_SECONDS,same_site='lax',https_only=not settings.emulator,session_cookie='atmem_human')
     app.add_middleware(BoundaryMiddleware,settings=settings)
     return RequestBodyLimitMiddleware(app,max_body_size=32768)

@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 from urllib.parse import urlparse
 
+LOGIN_WINDOW_SECONDS = 15 * 60
 SCOPES = ("memory:read", "memory:write", "memory:delete")
 
 

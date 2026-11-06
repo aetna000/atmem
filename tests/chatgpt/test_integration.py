@@ -58,6 +58,21 @@ def test_real_oauth_discovery_tool_inventory_and_annotations(cloud):
         assert not {'subject_id','tenant_id','user_id'} & tool.inputSchema.get('properties',{}).keys()
 
 
+def test_signed_out_host_can_discover_tools_and_request_login(cloud):
+    async def run():
+        async with streamable_http_client(cloud.base+'/mcp') as (reader, writer, _):
+            async with ClientSession(reader, writer) as session:
+                await session.initialize()
+                tools = await session.list_tools()
+                assert len(tools.tools) == 10
+                for name, args in [('search_memory', {'scope':'personal','query':'sample'}),
+                                   ('commit_memory_action', {'operation':'delete'})]:
+                    result = await session.call_tool(name, args)
+                    assert result.isError and result.structuredContent is None
+                    assert cloud.base+'/.well-known/oauth-protected-resource/mcp' in result.meta['mcp/www_authenticate'][0]
+    asyncio.run(run())
+
+
 def test_real_create_recall_detail_and_persisted_engine_receipt(cloud):
     user=cloud.user();record_id,result=save(cloud,user,'My test project codename is copper-heron.')
     assert result['durable'] and result['cloud_receipt']['generation']>0
