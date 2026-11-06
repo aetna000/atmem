@@ -556,3 +556,15 @@ def test_durable_account_limit_survives_repository_restart_and_is_user_isolated(
     assert Repository(settings).claim_account_request(account)
     assert not Repository(settings).claim_account_request(account)
     assert Repository(settings).claim_account_request(other)
+
+
+def test_browser_returns_to_desktop_after_sign_in(cloud):
+    from pathlib import Path
+    import shutil, subprocess
+    script = Path(__file__).parent / 'browser/login-callback.mjs'
+    if not (script.parent / 'node_modules/@playwright/test').exists() or not shutil.which('node'):
+        pytest.skip('requires the browser test dependencies')
+    user = cloud.user()
+    result = subprocess.run(['node', str(script)], capture_output=True, text=True, timeout=60,
+                            input=json.dumps({'base': cloud.base, 'email': user['email'], 'password': user['password']}))
+    assert result.returncode == 0, 'Chromium failed to return to the native callback and exchange its code'

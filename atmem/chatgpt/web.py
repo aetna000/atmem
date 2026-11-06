@@ -8,6 +8,7 @@ import secrets
 import re
 import time
 from datetime import datetime,timezone
+from urllib.parse import urlsplit, quote
 
 from starlette.requests import Request
 from starlette.responses import HTMLResponse,RedirectResponse,JSONResponse,PlainTextResponse
@@ -19,9 +20,15 @@ from .repository import AccountClosed
 STYLE="body{font:16px/1.6 system-ui,sans-serif;max-width:42rem;margin:3rem auto;padding:1rem;color:#101314;background:#F3F6F6}label{display:block;margin-top:1rem}input,button{font:inherit;padding:.6rem;max-width:100%}button{background:#1F777C;color:white;border:0;margin-top:1rem}pre{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#1D7176}"
 
 
-def page(title,body,status=200):
+def page(title,body,status=200,*,validated_callback=None):
+    form_action = "'self'"
+    if validated_callback:
+        # Chromium checks form-action on the 303 redirect as well as the form's POST.
+        # Only the OAuth consent page gets its SDK-validated callback destination.
+        target = urlsplit(validated_callback)
+        form_action += f" {target.scheme}://{target.netloc}{quote(target.path, safe='/%')}"
     response=HTMLResponse(f'<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title><style>{STYLE}</style><main><h1>{html.escape(title)}</h1>{body}</main></html>',status_code=status)
-    response.headers.update({"Cache-Control":"no-store", "Content-Security-Policy":"default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'", "Referrer-Policy":"same-origin", "X-Content-Type-Options":"nosniff"})
+    response.headers.update({"Cache-Control":"no-store", "Content-Security-Policy":f"default-src 'none'; style-src 'unsafe-inline'; form-action {form_action}; frame-ancestors 'none'; base-uri 'none'", "Referrer-Policy":"same-origin", "X-Content-Type-Options":"nosniff"})
     return response
 
 
@@ -155,7 +162,7 @@ def install_routes(mcp,settings,repository,provider,identity,service):
             links='<p><a href="/account/delete">Delete my AtMem Cloud account</a></p>'
             if settings.access_policy=='registered':
                 links+='<p>Create and verify your Firebase account before connecting. <a href="/register?request='+html.escape(nonce,quote=True)+'">Register</a> · <a href="/verify-email?request='+html.escape(nonce,quote=True)+'">Resend verification</a> · <a href="/reset-password?request='+html.escape(nonce,quote=True)+'">Reset password</a></p>'
-            return page('Connect AtMem',f'<p>Allow the registered ChatGPT client to use these permissions: <strong>{scopes}</strong>.</p><p>Memory is hosted by this service. Each save, correction or deletion still needs your separate approval. No conversation is automatically captured.</p>'+links+'<form method="post">'+csrf_form(request)+credentials()+'<button name="decision" value="approve">Sign in and allow</button> <button name="decision" value="deny">Deny</button></form>')
+            return page('Connect AtMem',f'<p>Allow the registered ChatGPT client to use these permissions: <strong>{scopes}</strong>.</p><p>Memory is hosted by this service. Each save, correction or deletion still needs your separate approval. No conversation is automatically captured.</p>'+links+'<form method="post">'+csrf_form(request)+credentials()+'<button name="decision" value="approve">Sign in and allow</button> <button name="decision" value="deny">Deny</button></form>',validated_callback=pending['params']['redirect_uri'])
         try:
             form=await request.form();check_csrf(request,form)
             approved=form.get('decision')=='approve'
