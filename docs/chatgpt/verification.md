@@ -1,184 +1,144 @@
-# Verification record — 6 November 2026
+# Cloud plugin verification — current status, 6 November 2026
 
-Base: main `22d1d0f311b59958adad2ecfe1b831b13a9cdf69` (AtMem 2.3.12).
-Branch: `feat/chatgpt-memory-plugin`; plugin development version 0.1.0.
-This optional integration is not in the published PyPI 2.3.12 artifact.
+The cloud backend is deployed and a private personal test plugin exists. The
+intended release is public. **No public directory submission, approval or
+publication has occurred.** Actual ChatGPT tool invocation and real mailbox
+verification are not certified by backend tests.
 
-## Real results
+## Source and deployed artifact
 
-| Boundary | Result | Evidence / limit |
+- Base: main 22d1d0f311b59958adad2ecfe1b831b13a9cdf69 (AtMem 2.3.12).
+- Branch: feat/chatgpt-memory-plugin; public source PR:
+  https://github.com/aetna000/atmem/pull/33 (draft pending release gates).
+- Runtime source: 9c1d108fe2ad4bf939bdcf7e22f53521c1ccf84c.
+- Image: sha256:b084a047ec8146c96ab9282b7293ad221be7223e0b5118dad18959a68403a908.
+- Cloud Build: acfb51f6-8b35-4e96-8aaa-69e413f0848e, SUCCESS.
+- Cloud Run revision: atmem-chatgpt-00004-cll, 100% traffic.
+- MCP: https://atmem-chatgpt-nvwvv4d7sa-uc.a.run.app/mcp .
+- Native published version remains 2.3.12. This optional cloud feature is a source
+  build, not an assertion that the existing PyPI wheel contains these changes.
+  Plugin package version: 0.1.0. Source licence: Apache-2.0.
+
+## Measured results
+
+| Boundary | Result | Evidence and limits |
 |---|---|---|
-| Source cloud integration | 30 passed, 20.14 s | Real Firebase Auth/Firestore emulators, real HTTP MCP SDK client, real encrypted AtMem engine |
-| Native memory/MCP/encryption regression | 50 passed, 1 skipped | Windows-only encryption test skipped on macOS; 2.85 s |
-| Wheel and sdist | Built | Local feature build; not a package publication |
-| Installed wheel MCP service | 30 passed, 21.14 s | Final wheel server imported outside checkout; actual HTTP MCP client |
-| Browser consent | Passed | Real Chromium, keyboard approval, no-JS sign-in, mobile view; axe checks on two pages |
-| Actual ChatGPT Pro 100 account | Not tested | No usable signed-in browser control; entitlement, invocation and confirmation behavior unverified |
-| Natural-language review prompts | Prepared, not host-executed | Exactly 5 positive and 3 negative cases |
-| Public directory / individual verification | Not performed | Requires owner's actual account and final review |
+| Final installed-wheel integration | 38 passed, 25.48 s | Real Auth/Firestore emulators, HTTP MCP client, native encrypted engine; server imported outside source checkout |
+| Native memory/MCP/encryption regression | 50 passed, 1 skipped, 3.56 s | Windows-specific encryption case skipped on macOS |
+| Final managed cloud additions | 10 checks passed | Real HTTPS CIMD, encrypted recovery, approval, account/Firebase deletion and independent cleanup verification |
+| Website local validation | Passed; 55 browser tests | Build, existing gates/docs, new policy routes, axe and mobile overflow |
+| Website PR CI | SUCCESS | PR #34 at 633bd1f9f98573f865b03b93c3d198609df1a9ae; workflow 42157350040 |
+| Private account package save | Accepted; USER / PRIVATE | Real Plugin Creator creation and metadata readback; IDs retained privately |
+| Actual ChatGPT read/write invocation | Not run | Tools are not exposed in this current task; not classified as a permission rejection |
+| Actual Pro 100 plan entitlement | Unverified | Private account package creation does not establish subscription/write/publication permissions |
+| Real mailbox verification/reset delivery | Not run | Synthetic identities were admin-verified for backend testing |
+| Public portal scan/review | Not run | Private package acceptance is a different boundary |
 
-The cloud suite covers create, recall, details/provenance, scoped project creation,
-account isolation, correction/versioning, exact deletion, audit verification,
-missing/cancelled consent, wrong human/CSRF/host, stale/conflicting changes,
-read-only grants, revocation, refresh rotation, code replay, resource binding,
-expiry, idempotent retries, lost commit acknowledgement, unavailable service,
-tampered ciphertext, proposal secrets/injection, immutable intent fingerprints,
-Firebase project identity binding and absent ownership challenge. Stored data and
-receipts are independently checked against AtMem and Firestore. Synthetic emulator
-accounts/documents are removed and owned server processes stopped by the fixture.
+Installed cases cover create/recall/provenance, approval/cancellation, scopes,
+account isolation, correction/versioning, exact deletion, audit, stale/conflicting
+changes, read-only grants, expiry/revocation, refresh/code replay, resource binding,
+idempotent retries, lost acknowledgements, offline/restart, tampered ciphertext,
+injection/secret screening, immutable intents, Firebase project identity, verified
+registration/recovery, account-wide deletion and partial retry, deletion fencing
+between staging/swap, legacy unindexed token denial, real native recovery with
+wrong key/account/generation rejection, official CIMD/PKCE/issuer and persistent
+per-account quotas across repository restart. No native store or real personal
+memory was imported or modified. Synthetic emulator data/processes were cleaned.
 
-Initial tests found and fixed public-client revocation schema incompatibility,
-untrusted proposal screening and browser form Origin handling. Final tests preserve
-permission checks; no write tool is misrepresented as a read.
+Final managed checks created one new synthetic Firebase account, completed OAuth
+using official ChatGPT client metadata, saved an approved synthetic memory,
+exported/restored its encrypted snapshot with native audit verification, confirmed
+whole-account deletion with fresh sign-in, observed immediate old-token rejection,
+verified zero remaining household chunks, rejected restore after deletion,
+independently confirmed Firebase account absence and recovered the browser
+receipt. Its private test credentials and local inspection directory were removed.
+This is independent protocol execution, not a conversation in ChatGPT.
 
-Raw synthetic local evidence (not credentials or published user data):
-`/private/tmp/atmem-chatgpt-evidence` and
-`/private/tmp/atmem-chatgpt-installed-evidence`; JUnit/logs in the corresponding
-`/private/tmp/atmem-chatgpt-*` files. Credentials and service keys are not evidence
-artifacts and are never included in the ZIP or source repository.
+An earlier 18-check managed lifecycle suite passed on the prior registration
+image. It remains separately labelled in evidence/managed-checks.json; it is not
+presented as an additional final-image or ChatGPT-host benchmark. Synthetic
+checks establish wiring/security behavior, not retrieval quality or production
+scale/latency. Raw local traces remain outside the plugin ZIP.
 
-## Approved Firebase pilot
+## Production boundaries verified
 
-Owner authorized existing atmemai Blaze. Billing already enabled; linked account
-was not changed. New named native standard Firestore database `atmem-chatgpt`
-(`us-central1`) has deletion protection, PITR disabled, provider version retention
-3600 seconds and **no free-tier allocation**. Existing default nam5 database,
-website Hosting, waitlist and rules are preserved. Runtime identity
-`atmem-chatgpt@atmemai.iam.gserviceaccount.com` has database-conditioned datastore
-access; a separate build identity has repository/source-bucket/log permissions.
-Cloud Run/build/Artifact Registry/Secret Manager/IAM APIs were enabled. Firebase
-Auth was initialized with password sign-in; only synthetic test accounts created.
-The service independently enforces invited UIDs. Hosting is still a pilot, not a
-plugin publication or an invitation to import real personal memories.
+Existing atmemai Blaze was owner-approved. Billing account was not changed.
+The new standard native database atmem-chatgpt in us-central1 is separate from
+the website's default nam5 database. It has no free-tier allocation, deletion
+protection, PITR disabled and 3,600-second provider version history; no scheduled
+backup exists. Control expiry TTL is ACTIVE. Default Cloud Logging retention is
+30 days. Neither memory nor account deletion attests removal from those histories
+or copies held by ChatGPT.
 
-Managed results below are separately measured; emulator results do not certify
-ChatGPT account invocation or public directory permissions. Numeric budget/alert response, operational
-recovery drill, production performance and actual ChatGPT tests remain release
-gates; min 0/max 1 is not a spending cap.
+The runtime identity has database-conditioned datastore access. Real impersonated
+API probes returned 404 for an authorized missing document in atmem-chatgpt and
+403 in the website default database. The temporary impersonation binding was
+removed. Anonymous and registered Firebase users both received 403 for direct
+Firestore memory access. Unauthenticated MCP calls receive 401. Existing website
+Hosting, waitlist, security rules and native stores are unchanged.
 
-## Package boundary
+Keys are operator-held: Secret Manager master version 1 and config version 2,
+with a protected operator recovery copy. SQLCipher plus AES-256-GCM are not E2EE,
+zero knowledge, a FIPS certification or a new post-quantum/Black Box capture
+claim. Privileged operators with keys can decrypt service state.
 
-The development ZIP is reproducible, read back and validated against pinned
-AgentPlugins 1.0 transport schemas plus explicit OpenAI extension checks. The
-versioned upstream MCP schema rejects extension properties despite current OpenAI
-documentation requiring OAuth in extensions; validation therefore checks the
-transport projection separately. Full unchanged upstream schema/portal acceptance
-has not been claimed. `--public` refuses incomplete listing/policy/demo/identity/
-account evidence. No credentials, guessed verification or fake policy URLs occur
-in the package. ChatGPT account testing and public submission remain owner steps.
+Limits: 8 MiB packed snapshot, 1,000 active records/scope, 30 tools/account/minute,
+120 HTTP requests/observed peer/minute and 5 account-email requests/peer/minute,
+with a two-minute address delivery throttle. Account counters survive restart.
+Cloud Run has min 0/max 1, CPU 1, 512 MiB, concurrency 4, timeout 60 s and request
+CPU throttling. These are controls, not a spending cap or production load result.
+Console incident policy 13781382782955428729 is enabled for repeated HTTP 5xx;
+no notification channel is attached. Owner must choose notification and budget.
 
-Registration refinement: real Auth emulator signup, required cloud acknowledgement,
-verified-email gate, verification delivery/action, recovery emails, real OAuth
-linkage and refresh passed. Disabling the registered Firebase user rejected the
-next plugin refresh. Delivery to a real mailbox is not verified by emulator links.
-Active access tokens have a ten-minute bound and browser approval sessions five
-minutes; revoke the plugin grant for immediate grant invalidation.
+Account deletion is browser-only with fresh password, account-labelled preview
+and explicit confirmation. Fenced transactional staging/swap prevents recreation
+by concurrent/late work. All household versions/chunks and indexed controls are
+purged, then Firebase deletion is reported separately. Failure leaves access
+blocked and the same deletion can be renewed with fresh credentials. An
+indefinite non-content fence/encrypted structural receipt prevents resurrection.
+A five-minute encrypted deletion proof permits lost-response receipt recovery;
+legacy unindexed auth controls expire/TTL under their prior <=24h bound, with
+access denied by the fence. Never roll back to pre-fence code or replace these
+markers with an old backup. Automatic key rotation is not implemented.
 
-## Managed HTTPS evidence
+## Package and website status
 
-- Managed endpoint: https://atmem-chatgpt-nvwvv4d7sa-uc.a.run.app/mcp .
-- Independent managed suite: **18 checks passed**; real Firebase Auth, OAuth
-  PKCE, actual MCP SDK client and Firestore/native engine. See committed evidence
-  in specs/049-chatgpt-memory-plugin/evidence/managed-checks.json. This is not
-  ChatGPT-host invocation. Synthetic identities were administratively marked
-  verified for backend testing, not presented as real mailbox-delivery evidence.
-- Runtime IAM: a real impersonated runtime token returned 404 (authorized lookup
-  of a missing synthetic document) in atmem-chatgpt and 403 in website (default).
-  The temporary operator impersonation binding was removed after verification.
-- Original managed lifecycle image: source 32386b48b55a3067a20cc051abbf338b762705dc,
-  digest sha256:91cdacaa213057923aa769f822d13533018f8512857db8bf111502b9e0bbc57d.
-- Health correction image: source b72e5442550936df94614217107bec61164202ff,
-  digest sha256:fedf4560c1b661461a4eb3040157db6ac0a3f6f77f28f065c56374a8c42417aa.
-  The sole runtime diff is /healthz -> /health. Build
-  7f578be9-8a9c-4b45-ac82-2fa22f65ff48 succeeded in us-central1.
-- Three small allowlisted image builds ran (including the pre-registration source
-  build and its approved registration refinement). Each uploaded 391 source files,
-  4.4 MiB before compression. No user state, native memories, history, credentials
-  or benchmarks were uploaded. Build/artifact/Firestore charges may apply; no
-  claim of zero cost or actual billing amount yet.
-- Service: atmem-chatgpt, CPU 1, 512 MiB, concurrency 4, 60 s request timeout,
-  CPU request throttling, min instances 0, max instances 1 (service and revision).
-  Master key version 1 and config version 2 are pinned Secret Manager versions.
-- Firestore control expiry TTL is ACTIVE. PITR disabled, provider database
-  historical version retention 3600 s; Cloud Logging default retention 30 days.
-  Native exact-record forgetting does not attest erasure from those histories or
-  ChatGPT copies. A restore/rotation drill remains untested.
-- Firebase registration enabled with email-enumeration privacy. Registered mode
-  requires a verified email; the service does not accept a caller-supplied UID.
-- Both synthetic households and chunks (including superseded test versions) were
-  deleted after managed testing. Test OAuth grants revoked. Encrypted expiring
-  auth controls are covered by TTL; account credentials remain only in an operator
-  mode-0600 private file for synthetic reviewer preparation, never this repository.
-- GitHub CI has not run: feature commits are local and have not been pushed. This
-  record describes executed local, installed-artifact and managed tests only.
+Source package: plugins/atmem-chatgpt (local loopback development).
+Cloud candidate override: deploy/chatgpt/cloud-package-metadata.json, actual
+HTTPS endpoint and official CIMD; no static credentials. The four listing URLs
+are planned routes in private website PR #34. Live probes currently return 404;
+they are not called published policies. Owner-only merge and validated-main
+Hosting deployment remain required. Local and GitHub website CI passed.
 
-### Failures found during managed verification
-Cloud Run intercepts /healthz with a frontend 404; changed to supported /health.
-The initial independent inspection helper unnecessarily committed its local
-inspection and hit a five-second cross-region SDK timeout; inspection now opens
-an encrypted snapshot read-only. The first deletion assertion expected an empty
-semantic search despite older synthetic facts in the same test account; corrected
-it to verify the exact deleted ID is absent from both detail and recall. No native
-retrieval behavior or deletion checks were weakened. Final cleanup removes all
-synthetic household versions. One partial helper attempt was interrupted while
-correcting an import; partial attempts are not counted as successful managed runs.
+Private account package uses the real cloud endpoint and excludes those unmerged
+listing URLs. Package creation succeeded once after a definitive validation error
+was corrected: release_notes belongs under publication, not review. It was not
+an approval rejection or a public submission. No app account has been connected
+or real user memory written in ChatGPT by that save.
 
-### Remaining public-release gates
-Actual mailbox verification/reset delivery and recovery after expired linking;
-owner's exact Pro 100 plan and tool discovery/invocation across new chats;
-portal-provided OAuth client/callback, verified individual identity/org/project
-rights and ownership challenge; approved plugin-specific policy/support URLs,
-account-wide deletion procedure and retention/backup decisions; numeric budget
-and monitored abuse/load/recovery limits; actual demo, synthetic reviewer access
-and portal validation. No directory upload, submission, OpenAI approval or release
-publication occurred. Development ZIP is not submission-ready.
+Packaging is deterministic, archive-readback checked, with 5 positive/3 negative
+review cases and 7 reference guides. Versioned upstream Agent Plugins transport
+schema lacks the OpenAI extensions documented by OpenAI; local validation checks
+its strict transport projection plus explicit extensions. Private host validation
+accepted the corrected package. Full public portal acceptance remains unverified.
+Public archive generation refuses missing publisher/demo/verification evidence.
 
-Final image smoke: revision `atmem-chatgpt-00003-nh5` returned /health 200,
-protected-resource metadata 200 and unauthenticated MCP 401. No memory mutations
-in that smoke check. Separate live Firestore REST probes returned 403 for both
-an anonymous request and a registered user's Firebase ID token: clients cannot
-read the memory database directly. Evidence is committed alongside runtime IAM.
+## Remaining public release gates
 
-## Public completion update — 6 November 2026
+1. Owner connects the saved test plugin, registers/verifies a real mailbox and
+   executes read/save/new-chat recall/correct/forget plus negative cases. Record
+   tool discovery, calls, platform approvals/errors and exact account surface.
+2. Record and verify the real ChatGPT demo; retain a synthetic reviewer account
+   with no owner data and no reviewer dependency on an inaccessible mailbox/MFA.
+3. Complete verified individual publisher identity, organization/project access,
+   supported countries, commerce/policy attestations and ownership challenge.
+4. Owner reviews/merges website PR #34; deploy only the validated main artifact,
+   then verify the four public URLs before public package metadata is finalized.
+5. Choose a numeric billing budget/notification destination and finish any
+   required public operational qualification without advertising unmeasured scale.
+6. Run portal package/tool scans, submit the selected version within authorization,
+   respond to review, and publish only after approval. These are separate states.
 
-- Optional-cloud implementation source: 9c1d108fe2ad4bf939bdcf7e22f53521c1ccf84c.
-  Image sha256:b084a047ec8146c96ab9282b7293ad221be7223e0b5118dad18959a68403a908,
-  build acfb51f6-8b35-4e96-8aaa-69e413f0848e succeeded; active revision
-  atmem-chatgpt-00004-cll. Existing config/key pinned versions unchanged.
-- Installed-wheel boundary: **38 passed in 25.48 s**. Includes real account
-  deletion/Firebase purge, missing confirmation, partial failure and renewal,
-  deletion between chunk staging and head swap, denial of legacy unindexed
-  tokens, account/key-bound recovery, native audit roundtrip, official CIMD
-  metadata plus PKCE/issuer exchange, and durable account quota/restart/isolation.
-- Native memory/MCP/encryption regression: **50 passed, 1 skipped in 3.56 s**.
-- New managed HTTPS completion suite: **10 checks passed**, including actual
-  official CIMD metadata consumed by the service, real encrypted snapshot restore,
-  governed memory creation, fresh-confirmed account purge, Firebase deletion,
-  immediate token rejection, no remaining household chunks, refusal to restore
-  a deleted account and browser receipt recovery. A new synthetic account was
-  created and removed; its private credentials/checkpoint were cleaned up.
-  Administrative synthetic verification is not real mailbox delivery evidence.
-- Native/PyPI version remains 2.3.12; optional cloud source is not released in
-  that public wheel. The public target plugin package remains version 0.1.0.
-- Private account package creation succeeded, USER scope, PRIVATE visibility.
-  Exact ID/link retained privately for the owner. This confirms package acceptance,
-  not OAuth connection or actual host invocation. AtMem tools are not exposed in
-  this current Codex task. Pro 100 entitlements, natural-language cases and real
-  account writes remain **not tested**, rather than falsely permission-rejected.
-  The private backend rejected review.release_notes; corrected it to publication.
-  Public portal scans, identity and directory review remain independent gates.
-- Website product/support/privacy/terms prepared in private owner-review PR #34;
-  build, gates and docs passed, **55 browser tests passed**. Source pin and existing
-  website/default database/rules are unchanged. No feature-branch deployment or
-  owner-only merge performed. Listing URLs are proposed until main publication.
-- Durable tool quota: 30/account/minute by default; process restart does not reset
-  admission. Console incident policy 13781382782955428729 is enabled for repeated
-  server errors, using built-in Run metrics. No notification channel is attached;
-  paging destination and numeric budget require owner choices. No scheduled
-  Firestore backup exists for this database. Recovery/retention limits are explicit.
-
-Remaining gates: actual mailbox/ChatGPT invocation + demo, verified individual
-publisher, policy/terms owner review and live URLs, country availability and
-commercial declarations, budget/notification choices, ownership challenge and
-public portal scans. Backend hosting and private installation are completed
-preparation steps toward a public release, not a replacement for that target.
+Source CI: push checks were superseded/cancelled when PR checks started. The
+current PR run had no failures at last inspection, with some platform jobs still
+running. No source merge or published native/package tag has been performed.
