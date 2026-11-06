@@ -1,0 +1,31 @@
+import {chromium,expect} from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+let input='';for await(const chunk of process.stdin)input+=chunk;
+const fixture=JSON.parse(input);
+const browser=await chromium.launch();
+try{
+ const context=await browser.newContext({viewport:{width:390,height:900}});
+ const page=await context.newPage();
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(fixture.approval_url);
+ expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations).toEqual([]);
+ await page.getByLabel('Email',{exact:true}).fill(fixture.email);
+ await page.getByLabel('Password',{exact:true}).fill(fixture.password);
+ await page.getByRole('button',{name:'Sign in and preview',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Review AtMem operation'})).toBeVisible();
+ await expect(page.locator('.intent-content')).toContainText(fixture.marker);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations).toEqual([]);
+ await page.screenshot({path:fixture.screenshot,fullPage:true});
+ await page.getByRole('button',{name:'Approve this exact operation'}).focus();
+ await page.keyboard.press('Enter');
+ await expect(page.getByRole('heading',{name:'Operation approved',exact:true})).toBeVisible();
+ expect(errors).toEqual([]);
+ await context.close();
+ const nojs=await browser.newContext({javaScriptEnabled:false,viewport:{width:1440,height:900}});
+ const p=await nojs.newPage();await p.goto(fixture.approval_url);
+ await expect(p.getByRole('heading',{name:'Sign in to review',exact:true})).toBeVisible();
+ await expect(p.getByLabel('Email',{exact:true})).toBeVisible();
+ await nojs.close();
+ console.log(JSON.stringify({passed:true,axe_pages:2,keyboard_approval:true,no_javascript_form:true}));
+}finally{await browser.close();}

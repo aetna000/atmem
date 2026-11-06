@@ -33,6 +33,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+chatgpt = [
+  "mcp==1.30.0",
+  "uvicorn>=0.35,<1",
+  "google-cloud-firestore>=2.21,<3",
+  "itsdangerous>=2.2,<3",
+  "sqlcipher3==0.6.2",
+]
 code = [
   "sqlcipher3==0.6.2",
   "pqcrypto>=1,<2",

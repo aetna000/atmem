@@ -1,0 +1,13 @@
+**
+!atmem/
+!atmem/**
+!pyproject.toml
+!README.md
+!LICENSE
+!third_party/
+!third_party/cognee/
+!third_party/cognee/LICENSE
+!third_party/cognee/NOTICE.md
+!third_party/cognee/import-manifest.json
+**/__pycache__/
+**/*.pyc
