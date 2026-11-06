@@ -1,7 +1,7 @@
 @font-face{font-family:"DM Sans";font-style:normal;font-display:swap;font-weight:100 1000;src:url("/assets/fonts/dm-sans-latin-wght-normal.woff2") format("woff2")}
 @font-face{font-family:Manrope;font-style:normal;font-display:swap;font-weight:200 800;src:url("/assets/fonts/manrope-latin-wght-normal.woff2") format("woff2")}
 :root{
-  color-scheme:light dark;
+  color-scheme:light;
   --bg:light-dark(#fafbf9,#0d1011);--card:light-dark(#fff,#111618);--card-raised:light-dark(#f2f8f6,#151a1c);
   --ink:light-dark(#172033,#f3f7f7);--muted:light-dark(#5f6a7c,#a9babc);--line:light-dark(#e1e7ef,#2c3538);--line-strong:light-dark(#7a8696,#7b8b8d);
   --brand:light-dark(#1f777c,#5fd0d6);--brand-soft:light-dark(#e8f5f2,#12343a);--on-brand:light-dark(#fff,#082729);
@@ -39,8 +39,7 @@ font-size:12px;font-weight:750;background:var(--blue-soft);color:var(--blue)}
 .themebtnicon-sun,.themebtnicon-moon{display:none}
 :root[data-theme="dark"] .themebtnicon-sun{display:block}
 :root[data-theme="light"] .themebtnicon-moon{display:block}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .themebtnicon-sun{display:block}}
-@media(prefers-color-scheme:light){:root:not([data-theme="dark"]) .themebtnicon-moon{display:block}}
+:root:not([data-theme="dark"]) .themebtnicon-moon{display:block}
 .statusbanner{display:flex;gap:17px;align-items:center;padding:20px 22px;border-radius:20px;margin:0 0 22px;
 border:1px solid color-mix(in srgb,var(--good) 30%,var(--line));background:linear-gradient(115deg,var(--good-soft),color-mix(in srgb,var(--card) 94%,var(--good)));box-shadow:var(--shadow-md)}
 .statusbanner.bad{border-color:color-mix(in srgb,var(--bad) 35%,var(--line));background:var(--bad-soft)}
