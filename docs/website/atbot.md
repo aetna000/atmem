@@ -9,7 +9,7 @@ atmem atbot setup
 atmem atbot --help
 ```
 
-AtMem 2.3.12 pins the stable AtBot 0.1.1 package, including explicit source-state
+AtMem 2.3.13 pins the stable AtBot 0.1.1 package, including explicit source-state
 assessment interfaces. It does not activate a provider or remote egress.
 See the [evidence discovery guide](../evidence-discovery.md).
 Choose the model provider deliberately. A remote provider can receive authorized

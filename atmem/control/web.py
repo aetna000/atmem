@@ -81,6 +81,16 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if path in _FONT_ASSETS:
+            body = files("atmem.control").joinpath("assets/fonts/" + _FONT_ASSETS[path]).read_bytes()
+            self.send_response(HTTPStatus.OK)
+            self._security_headers()
+            self.send_header("Content-Type", "font/woff2")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "public, max-age=86400")
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if path == "/api/session":
             self._json(HTTPStatus.OK, {"csrf_token": self.server.csrf_token})
             return
@@ -1540,6 +1550,13 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         )
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
+
+
+# Self-hosted Architecture Canvas fonts (SIL OFL, see assets/fonts/*-OFL.txt); exact names only.
+_FONT_ASSETS = {
+    "/assets/fonts/dm-sans-latin-wght-normal.woff2": "dm-sans-latin-wght-normal.woff2",
+    "/assets/fonts/manrope-latin-wght-normal.woff2": "manrope-latin-wght-normal.woff2",
+}
 
 
 def _canonical_api_path(path: str) -> str:

@@ -247,7 +247,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        source-version: ["2.3.10", "2.3.11b1"]
+        source-version: ["2.3.12", "2.3.11b1"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -298,7 +298,7 @@ jobs:
       - name: Exercise installed artifact outside checkout
         working-directory: ${{ runner.temp }}
         run: |
-          python -c "import importlib.util; from importlib.metadata import version; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None; assert version('atflows') == '0.1.5'"
+          python -c "import importlib.util; from importlib.metadata import version; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None; assert version('atflows') == '0.1.6'"
           python "${{ github.workspace }}/tools/smoke_installed_package.py"
           python "${{ github.workspace }}/tools/smoke_delegated_package.py"
           python "${{ github.workspace }}/tools/smoke_delegated_transport.py"

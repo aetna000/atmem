@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.12",
+  "version": "2.3.13",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -12,9 +12,9 @@
   },
   "pages": [
     {
-      "slug": "releases/2.3.12",
-      "title": "AtMem 2.3.12 \u2014 Stable release",
-      "source": "docs/releases/v2.3.12.md"
+      "slug": "releases/2.3.13",
+      "title": "AtMem 2.3.13 \u2014 Stable release",
+      "source": "docs/releases/v2.3.13.md"
     },
     {
       "slug": "releases/2.3.11b1",
