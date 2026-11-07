@@ -1,0 +1,6 @@
+{
+  "anonymous_firestore_http_status": 403,
+  "registered_firebase_user_direct_firestore_http_status": 403,
+  "direct_access_denied": true,
+  "no_memory_mutations": true
+}

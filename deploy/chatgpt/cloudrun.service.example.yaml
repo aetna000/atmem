@@ -1,0 +1,33 @@
+# Preparation template only. No project, service, API or billing is provisioned.
+# Supply the actual registered HTTPS issuer; do not guess run.app URL hashes.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: atmem-mcp
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: '0'
+        autoscaling.knative.dev/maxScale: '1'
+        run.googleapis.com/startup-cpu-boost: 'false'
+    spec:
+      serviceAccountName: SET_LEAST_PRIVILEGE_SERVICE_ACCOUNT
+      containerConcurrency: 4
+      timeoutSeconds: 60
+      containers:
+        - image: SET_REVIEWED_IMAGE_DIGEST
+          ports: [{containerPort: 8080}]
+          resources:
+            limits: {cpu: '1', memory: 512Mi}
+          env:
+            - name: ATMEM_CLOUD_SERVICE_KEY
+              valueFrom:
+                secretKeyRef: {name: SET_APPROVED_SECRET, key: SET_PINNED_SECRET_VERSION}
+          volumeMounts:
+            - {name: config, mountPath: /run/atmem}
+      volumes:
+        - name: config
+          secret:
+            secretName: SET_CONFIG_SECRET
+            items: [{key: SET_PINNED_CONFIG_VERSION, path: config.json}]

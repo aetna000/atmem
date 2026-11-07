@@ -1,0 +1,42 @@
+{
+  "checked_at": "2026-11-06",
+  "documentation_snapshots": [
+    {
+      "url": "https://developers.openai.com/plugins/deploy/submission.md",
+      "file": "deploy-submission.md",
+      "sha256": "484e56805448ab8c1154998ded4914ec8c3155cda04e7f8bbc876104bd64c278"
+    },
+    {
+      "url": "https://developers.openai.com/plugins/plugin-guidelines.md",
+      "file": "plugin-guidelines.md",
+      "sha256": "3505d28e18309b44d4353f7dd347e5061734bc9b2ba52e61dd12df0348cfb41f"
+    },
+    {
+      "url": "https://developers.openai.com/plugins/deploy/desktop-only.md",
+      "file": "deploy-desktop-only.md",
+      "sha256": "3b0a685108acbf6c95eaa733d09a4dfb104b7b630497d22ed558640ec2431be7"
+    },
+    {
+      "url": "https://developers.openai.com/plugins/build/auth.md",
+      "file": "build-auth.md",
+      "sha256": "c2e577b84eb0b1eb6ce404f4b5a2d3d0c052f2a4bac836c2feee0af86b7d47b0"
+    },
+    {
+      "url": "https://developers.openai.com/plugins/deploy/connect-chatgpt.md",
+      "file": "deploy-connect-chatgpt.md",
+      "sha256": "979f47ad47e83757f8bd9fca5cbd898d7e9a1fb0d534b6021e3031f6207a224a"
+    },
+    {
+      "url": "https://developers.openai.com/plugins/build/plugins.md",
+      "file": "build-plugins.md",
+      "sha256": "b913de64a45a90f14fba0d4b0654444f1f60f4e2d4f79f3dd41332895f79721d"
+    },
+    {
+      "url": "https://developers.openai.com/plugins/build/mcp-server.md",
+      "file": "build-mcp-server.md",
+      "sha256": "7ac78ed1bcd4399a7c152f70238fc6388dfe9089e72f097cb16c4cd6997a5970"
+    }
+  ],
+  "baseline_commit": "22d1d0f311b59958adad2ecfe1b831b13a9cdf69",
+  "mcp_sdk": "1.30.0"
+}
