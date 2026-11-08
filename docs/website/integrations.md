@@ -27,7 +27,7 @@ Provider delegation does not imply that the provider stores every agent session.
 
 ## Compatibility
 Stable AtMem 2.3.14 uses OpenClaw bridge 2.3.14, the legacy AtBot companion
-`atmem-atbot==0.1.1`, and AtFlows 0.1.7. Standalone AtBots is a separate agent
+`atmem-atbot==0.1.1`, and AtFlows 0.1.8. Standalone AtBots is a separate agent
 platform and is not substituted for the companion.
 The locked OpenClaw
 conformance profile uses 2026.8.1, not a promise about every future host.

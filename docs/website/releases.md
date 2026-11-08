@@ -3,7 +3,7 @@
 ## Current stable: 2.3.14
 
 [AtMem 2.3.14](../releases/v2.3.14.md) refreshes the local AtMem dashboard with the
-AtMem.ai pink branding (light by default) and pins stable AtFlows 0.1.7,
+AtMem.ai pink branding (light by default) and pins stable AtFlows 0.1.8,
 legacy companion 0.1.1 and OpenClaw bridge 2.3.14. Memory behavior is unchanged.
 Ordinary memory/context defaults are retained. Action-routing and standing-fact
 research remain explicit opt-ins with the limitations stated in the release note.

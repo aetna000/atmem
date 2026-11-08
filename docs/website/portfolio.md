@@ -11,7 +11,7 @@ The projects have separate responsibilities and installations.
 | AtSys | Durable coding-task supervision, bounded recovery and independent acceptance checks | [AtSys source](https://github.com/aetna000/atsys) |
 
 Stable AtMem 2.3.14 pins the separate legacy companion `atmem-atbot==0.1.1`
-and `atflows==0.1.7`. The companion provides optional model-assisted memory
+and `atflows==0.1.8`. The companion provides optional model-assisted memory
 proposals; it is not the standalone `atbots` distribution. AtMem validates
 proposals before changing governed memory. Installing standalone AtBots does
 not replace the companion or grant authority over another agent's memory.
