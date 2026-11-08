@@ -1,7 +1,7 @@
 # Current status
 
 **Stable release line:** AtMem `2.3.14`, OpenClaw bridge `2.3.14`, legacy
-AtBot companion `0.1.1`, and pinned AtFlows `0.1.7`. See the
+AtBot companion `0.1.1`, and pinned AtFlows `0.1.8`. See the
 [2.3.14 release note](releases/v2.3.14.md). Standalone AtBots is a separate
 agent platform; it does not replace the legacy companion.
 

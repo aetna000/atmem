@@ -745,7 +745,7 @@ npm run smoke
 ```
 
 This stable source line is **2.3.14**, with OpenClaw bridge **2.3.14**,
-legacy AtBot companion **0.1.1**, and AtFlows **0.1.7**.
+legacy AtBot companion **0.1.1**, and AtFlows **0.1.8**.
 Use the [release note](docs/releases/v2.3.14.md) for install/upgrade commands,
 compatibility, research opt-ins and limits.
 The final [self-tested DolphinBench result](https://huggingface.co/datasets/atmem/dolphinbench-routed-v4-20261101)
