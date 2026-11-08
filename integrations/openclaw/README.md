@@ -2,13 +2,13 @@
 
 This npm package is the host bridge for AtMem. It is not a standalone memory engine and should not be installed directly.
 
-This stable source tree targets bridge `2.3.13` for AtMem `2.3.13`.
+This stable source tree targets bridge `2.3.14` for AtMem `2.3.14`.
 Install or upgrade through the matching AtMem Python package.
 
 Use the Python-owned installer:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.13
+python -m pip install --upgrade atmem==2.3.14
 atmem openclaw install
 ```
 

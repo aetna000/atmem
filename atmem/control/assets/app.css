@@ -2,14 +2,14 @@
 @font-face{font-family:Manrope;font-style:normal;font-display:swap;font-weight:200 800;src:url("/assets/fonts/manrope-latin-wght-normal.woff2") format("woff2")}
 :root{
   color-scheme:light;
-  --bg:light-dark(#fafbf9,#0d1011);--card:light-dark(#fff,#111618);--card-raised:light-dark(#f2f8f6,#151a1c);
+  --bg:light-dark(#fafbf9,#0d1011);--card:light-dark(#fff,#111618);--card-raised:light-dark(#fdf4f7,#151a1c);
   --ink:light-dark(#172033,#f3f7f7);--muted:light-dark(#5f6a7c,#a9babc);--line:light-dark(#e1e7ef,#2c3538);--line-strong:light-dark(#7a8696,#7b8b8d);
-  --brand:light-dark(#1f777c,#5fd0d6);--brand-soft:light-dark(#e8f5f2,#12343a);--on-brand:light-dark(#fff,#082729);
-  --blue:light-dark(#1f777c,#8ce2e5);--blue-soft:light-dark(#5fd0d620,#5fd0d626);
+  --brand:light-dark(#8b3650,#F3A2B4);--brand-soft:light-dark(#fcecf1,#38212b);--on-brand:#172033;
+  --blue:light-dark(#8b3650,#f8bdcc);--blue-soft:light-dark(#F3A2B420,#F3A2B426);
   --good:light-dark(#1e8a5c,#3fb27f);--good-soft:light-dark(#1e8a5c1a,#3fb27f1f);
   --warn:light-dark(#9a6a0e,#e0a33e);--warn-soft:light-dark(#c48c1e24,#e0a33e21);
   --bad:light-dark(#c13a2e,#e0574a);--bad-soft:light-dark(#c13a2e1a,#e0574a21);--danger-action:light-dark(#c13a2e,#e0574a);
-  --signal:light-dark(#1f777c,#5fd0d6);--signal-soft:light-dark(#5fd0d620,#5fd0d626);
+  --signal:light-dark(#8b3650,#F3A2B4);--signal-soft:light-dark(#F3A2B420,#F3A2B426);
   --shadow:0 1px 2px rgba(23,32,51,.04),0 8px 24px rgba(23,32,51,.05);--shadow-md:0 2px 4px rgba(23,32,51,.05),0 14px 36px rgba(23,32,51,.07);--shadow-lg:0 2px 4px rgba(23,32,51,.05),0 20px 48px rgba(23,32,51,.09);
   --radius:16px;--radius-sm:10px;
   --icon-check:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4,13 9,18 20,6'/%3E%3C/svg%3E");
@@ -75,7 +75,7 @@ h1{font-size:30px;line-height:1.12;letter-spacing:-.04em;margin:9px 0 8px}
 .hero p{color:var(--muted);margin:0;max-width:66ch}.actions{display:flex;gap:9px;align-items:center}
 .primary,.secondary{border-radius:var(--radius-sm);padding:10px 15px;font-weight:750;white-space:nowrap;
 transition:filter .12s ease,background .12s ease,border-color .12s ease,transform .05s ease}
-.primary{background:var(--brand);border:1px solid var(--brand);color:var(--on-brand);box-shadow:0 1px 2px #0e1f1b1a}
+.primary{background:#F3A2B4;border:1px solid #F3A2B4;color:var(--on-brand);box-shadow:0 1px 2px #0e1f1b1a}
 .primary:hover{filter:brightness(1.07)}.primary:active{transform:translateY(1px)}
 .primary.danger{background:var(--danger-action);border-color:var(--danger-action);color:#fff;box-shadow:0 8px 22px color-mix(in srgb,var(--danger-action) 28%,transparent)}
 .primary.danger:hover{filter:brightness(1.08)}
@@ -545,7 +545,7 @@ body:has(.memorychat.collapsed){padding-bottom:70px}
 @media(max-width:1050px){#viewStatus.active.auditor-open,#viewAudit.active.auditor-open{display:block}#viewStatus.active.auditor-open>.pageworkspace,#viewAudit.auditor-open>.pageworkspace{margin-bottom:16px}}
 .chatresult .chatmessage.user,.memorydeliverycount{color:var(--on-brand)}
 
-/* Architecture Canvas identity: soft floating surfaces, rounded shapes, few edges, functional teal.
+/* Architecture Canvas identity: soft floating surfaces, rounded shapes, few edges, pink accents.
    Surfaces separate by space and gentle shadow instead of outlines; form fields keep a visible
    3:1 boundary so where to type stays obvious. */
 :is(h1,h2,h3,.logo,.tabbtn,.settingsrailtitle,.settingsstagehead,.pageheading,.primary,.secondary){font-family:Manrope,"DM Sans",ui-sans-serif,system-ui,sans-serif;letter-spacing:-.01em}
@@ -606,4 +606,7 @@ pre.jsonlog{max-width:100%;box-sizing:border-box;margin:8px 0;padding:16px;overf
 #codeMemoryCard label:has(input[type="checkbox"]){display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:normal;line-height:1.4;font-size:13px}
 
 /* AtMem.ai lockup shared with the website and the other AtMem.ai apps. */
-.logo{font-weight:800}.atmem-dot{fill:light-dark(#1F777C,#5FD0D6)}.branddivider{color:var(--muted);font-weight:500}.brandproduct{color:var(--ink);white-space:nowrap}
+.logo{font-weight:800}.atmem-dot{fill:#F3A2B4}.branddivider{color:var(--muted);font-weight:500}.brandproduct{color:var(--ink);white-space:nowrap}
+
+.themebtn:hover,.secondary:hover,.tabbtn:hover{background:var(--brand-soft)}
+#codeMemoryCard button.primary{background:#F3A2B4;color:#172033;border-color:#F3A2B4}

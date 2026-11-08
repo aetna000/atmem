@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.13",
+  "version": "2.3.14",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -11,6 +11,11 @@
     "releases": "Releases"
   },
   "pages": [
+    {
+      "slug": "releases/2.3.14",
+      "title": "AtMem 2.3.14 \u2014 Pink branding",
+      "source": "docs/releases/v2.3.14.md"
+    },
     {
       "slug": "releases/2.3.13",
       "title": "AtMem 2.3.13 \u2014 Stable release",

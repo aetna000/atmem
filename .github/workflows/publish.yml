@@ -224,7 +224,7 @@ jobs:
           python -m pip install "${wheel[0]}[atflows]"
           python -m pip check
           cd "$RUNNER_TEMP"
-          python -c "import importlib.util; from importlib.metadata import version; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None; assert version('atflows') == '0.1.6'"
+          python -c "import importlib.util; from importlib.metadata import version; assert importlib.util.find_spec('mem0') is None; assert importlib.util.find_spec('langgraph') is None; assert importlib.util.find_spec('pydantic_ai') is None; assert version('atflows') == '0.1.7'"
           python "$GITHUB_WORKSPACE/tools/smoke_installed_package.py"
           python "$GITHUB_WORKSPACE/tools/smoke_delegated_package.py"
           python "$GITHUB_WORKSPACE/tools/smoke_delegated_transport.py"
@@ -359,7 +359,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        source-version: ["2.1.0", "2.2.3", "2.2.4", "2.2.5", "2.2.6", "2.3.2", "2.3.4b1", "2.3.4", "2.3.5", "2.3.6", "2.3.7", "2.3.8", "2.3.9", "2.3.10b1", "2.3.10", "2.3.11b1"]
+        source-version: ["2.1.0", "2.2.3", "2.2.4", "2.2.5", "2.2.6", "2.3.2", "2.3.4b1", "2.3.4", "2.3.5", "2.3.6", "2.3.7", "2.3.8", "2.3.9", "2.3.10b1", "2.3.10", "2.3.11b1", "2.3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
