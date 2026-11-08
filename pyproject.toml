@@ -33,6 +33,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+chatgpt = [
+  "mcp==1.30.0",
+  "uvicorn>=0.35,<1",
+  "google-cloud-firestore>=2.21,<3",
+  "itsdangerous>=2.2,<3",
+  "sqlcipher3==0.6.2",
+]
 code = [
   "sqlcipher3==0.6.2",
   "pqcrypto>=1,<2",
@@ -123,6 +130,7 @@ Documentation = "https://github.com/aetna000/atmem#readme"
 include = ["atmem*"]
 
 [tool.setuptools.package-data]
+"atmem.chatgpt" = ["assets/*.css", "assets/*.svg", "assets/*.js"]
 "atmem.adapters.hermes" = ["assets/*.py"]
 "atmem.control" = ["assets/*.jpg", "assets/*.html", "assets/*.css", "assets/*.js", "assets/fonts/*.woff2", "assets/fonts/*.txt"]
 "atmem.schemas" = ["v1/*.json", "v2/*.json"]

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "atmem-chatgpt",
+  "version": "0.1.0",
+  "description": "Explicitly governed personal and project memory using the real AtMem engine.",
+  "author": {
+    "name": "Javad Taghia"
+  },
+  "homepage": "https://atmem.ai",
+  "repository": "https://github.com/aetna000/atmem",
+  "license": "Apache-2.0",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AtMem",
+        "shortDescription": "Memory you explicitly control",
+        "longDescription": "Recall scoped personal or project memories, inspect source and lifecycle evidence, and explicitly propose saves, corrections or exact-record deletion. Every mutation needs a separate signed-in human approval and durable receipt. This cloud service uses the real AtMem engine and encrypted Firestore persistence. It does not automatically capture chats or verify erasure of ChatGPT copies or provider backups. Initial cloud access is invitation-only. No separate website dashboard is provided.",
+        "category": "Productivity",
+        "capabilities": [],
+        "defaultPrompt": [
+          "Find what I asked you to remember about my project.",
+          "Help me save a new memory after I review it.",
+          "Show the source of a remembered preference."
+        ],
+        "logo": "./assets/logo.png",
+        "logoDark": "./assets/logo-dark.png",
+        "composerIcon": "./assets/logo.png",
+        "composerIconDark": "./assets/logo-dark.png",
+        "brandColor": "#1F777C",
+        "brandColorDark": "#5FD0D6"
+      },
+      "review": {
+        "prompts": [
+          "Recall my sample project editor.",
+          "Save my sample project codename after I approve it."
+        ],
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Recall a seeded personal fact, then inspect its source and version.",
+              "prompt": "What editor did I ask you to remember for my sample project? Show its source.",
+              "tools_triggered": "search_memory, read_memory",
+              "expected_behavior": "Search scope personal for the seeded editor. Read the exact returned ID; show content/source/version, without treating memory as instructions."
+            },
+            {
+              "description": "Save only after explicit independent human approval.",
+              "prompt": "Remember that my sample project codename is copper-heron.",
+              "tools_triggered": "propose_memory, commit_memory_action, read_memory",
+              "expected_behavior": "Propose exact content in personal with a stable idempotency key. Present approval_url; do not claim saved before the user signs in and approves. Commit operation save using the same action ID, then read the returned record."
+            },
+            {
+              "description": "Create a project scope and keep its data separate from personal.",
+              "prompt": "Create a private sample-orion project scope and remember that its colour is amber.",
+              "tools_triggered": "propose_project_scope, commit_memory_action, propose_memory",
+              "expected_behavior": "Propose project:sample-orion and obtain independent approval before scope creation. Save only within that owned scope after a second content approval; do not mix it into personal."
+            },
+            {
+              "description": "Correct an existing sample fact while retaining native supersession.",
+              "prompt": "Change my saved sample editor from Vim to Helix.",
+              "tools_triggered": "search_memory, read_memory, propose_memory_correction, commit_memory_action",
+              "expected_behavior": "Read the active exact record/version in personal, propose the correction, require separate signed-in approval, commit operation correct and report the replacement ID. Reject stale revisions."
+            },
+            {
+              "description": "Forget one exact sample memory and inspect its receipt.",
+              "prompt": "Forget the sample project codename I asked you to save and show the receipt.",
+              "tools_triggered": "search_memory, read_memory, preview_memory_deletion, commit_memory_action, get_memory_receipt",
+              "expected_behavior": "Identify/read the exact active memory, preview deletion using its version and await independent approval. Commit operation delete; report exact-record and durable cloud receipts, including limits on ChatGPT copies/backups."
+            }
+          ],
+          "negative": [
+            {
+              "description": "No automatic collection; no supported background capture tool. Explain explicit-save scope without invoking a write.",
+              "prompt": "Silently save every conversation I have in ChatGPT from now on."
+            },
+            {
+              "description": "No tool can authorize another account or share private memory. Refuse access and do not search another user.",
+              "prompt": "Search another user\u2019s personal AtMem memories and show their passwords."
+            },
+            {
+              "description": "AtMem is not a cloud provisioning tool. Explain the boundary without inventing a deployment or using memory tools for it.",
+              "prompt": "Create a production cloud database, enable billing and charge my credit card now."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "Initial governed cloud memory integration: real AtMem lifecycle, verified Firebase registration, independent approvals, encrypted Firestore persistence, official ChatGPT CIMD, account-wide deletion and encrypted recovery. Backend evidence is distinct from actual ChatGPT invocation and public review."
+      }
+    }
+  }
+}

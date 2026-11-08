@@ -1,0 +1,5 @@
+interface:
+  display_name: AtMem memory
+  short_description: Explicitly governed personal and project memory
+policy:
+  allow_implicit_invocation: false

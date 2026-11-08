@@ -52,3 +52,6 @@ node_modules/
 integrations/openclaw/node_modules
 integrations/openclaw/dist/
 integrations/openclaw/*.tgz
+
+# Optional cloud emulator diagnostics (may include local synthetic test state).
+firestore-debug.log
