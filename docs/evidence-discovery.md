@@ -1,4 +1,4 @@
-# Evidence discovery in 2.3.13
+# Evidence discovery in 2.3.14
 
 Give an agent a bounded way to look up missing details instead of assuming the
 first memory packet is complete. The new read-only tools return original,
@@ -7,7 +7,7 @@ and chooses its actions; AtMem controls access and memory state.
 
 This is an **opt-in SDK/host integration**, not a change to ordinary
 `remember`/`recall`, Code hooks, OpenClaw setup, or the default retrieval profile.
-See the [stable release note](releases/v2.3.13.md) for upgrade and compatibility.
+See the [stable release note](releases/v2.3.14.md) for upgrade and compatibility.
 
 ## 1. Install in a separate environment
 
@@ -18,7 +18,7 @@ Use Python 3.10–3.13. On macOS/Linux:
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade "atmem[encrypted]==2.3.13"
+python -m pip install --upgrade "atmem[encrypted]==2.3.14"
 atmem --version
 ```
 
@@ -27,7 +27,7 @@ On Windows PowerShell:
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade "atmem[encrypted]==2.3.13"
+python -m pip install --upgrade "atmem[encrypted]==2.3.14"
 atmem --version
 ```
 
@@ -91,7 +91,7 @@ See the [wire/authority contract](contracts/evidence-discovery-v1.md).
 For the explicitly configured native vector backend, add:
 
 ```sh
-python -m pip install "atmem[encrypted,context-retrieval]==2.3.13"
+python -m pip install "atmem[encrypted,context-retrieval]==2.3.14"
 ```
 
 `context-retrieval` pins `sqlite-vec==0.1.9`; it is not an embedding model.
