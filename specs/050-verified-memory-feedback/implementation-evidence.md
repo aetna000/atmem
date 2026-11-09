@@ -327,3 +327,45 @@ already downloads that same published package, so a failure-only diagnostic now
 retains its declaration shape and tarball SHA-512 as a one-day review artifact.
 The job remains failed and native authorization unchanged. This avoids another
 large Mac install or automatically approving an unreviewed upstream host.
+
+## Subsequent hardening and export acceptance (2026-11-10)
+
+The combined regression at `08ed1d2` completed: **440 passed, 5 skipped in
+438.77 seconds**. Four source-only Hermes probes were not selected by environment
+and one platform-specific test requires Windows. The separate explicit original
+Hermes source probes passed four tests; these reproduce the documented original
+limitations, not installed repaired-host conformance. Feature CI run
+`42613494068` passed all **12/12 OS/Python combinations** at that commit. These
+results predate the hardening below and do not certify it. Other installed-code,
+continuity, framework, replay and website-doc workflows at that commit succeeded.
+
+New checks bind a canonical Memory home to a trusted configured tenant, authorize
+even disabled feedback-profile requests, and filter exact source IDs by agent,
+workspace, status, exclusion and remote sensitivity **before loading content**.
+Only explicit local egress permits sensitive source review. Model proposal
+responses contain minimal candidate receipts rather than protected source
+snapshots or human review prose, including legacy cached responses. Evaluation
+attempts reserve their persistent three-attempt budget before computation; a
+crash or timeout cannot reset it, and source cleanup retains the budget counter.
+Future-issued qualification receipts cannot activate or restore a rule.
+
+The latest OpenClaw declaration-only fixture was recovered from failed CI job
+`129149777447`, with its complete packed-tarball SHA-512 matching registry
+integrity. Its hook shapes match 2026.11.1; the added fixture does not expand the
+native tested-version allowlist or claim runtime identity support. The main CI
+Windows provider stop failure motivated a bounded read-only CIM retry and exact
+worker-instance identity check. Uncertain process exit now preserves its PID
+record; no unknown process is killed. The provider/OpenClaw focused selection
+passed **11 tests in 1.26 seconds** locally; actual Windows CI remains required.
+
+Real export HTTP and Chrome journeys passed **2 tests in 52.50 seconds**. They
+used independently read-back synthetic writes in a real encrypted store, scoped
+admin identity, actual recipient/signing key pairs, explicit consent, exact
+preview, human-review checkbox, cancelled confirmation, encrypted download and
+successful recipient decryption. HTTP tests also reject absent CSRF, browser
+signing-secret injection, withdrawn consent and revoked credentials before key
+access. Logout clears plaintext previews and recipient fields. RAG-linked
+examples now recheck scope/source generation/revision/active state on preview,
+export and cached retry. The complete new suite is still being verified; no
+production data, host installation, training, paid inference or DolphinBench
+run was performed.

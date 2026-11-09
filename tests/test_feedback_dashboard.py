@@ -214,3 +214,131 @@ def test_browser_qualification_evidence_cancel_and_revoked_access(dashboard_serv
                 browser.close()
     finally:
         memory.close()
+
+
+def install_export_fixture(server, tmp_path):
+    from dataclasses import replace
+    from atmem.evidence.crypto import generate_recipient_keypair, generate_signing_keypair
+    from test_feedback_verification import verifier_fixture, verify
+    f, original, verifier, reader, _ = verifier_fixture(tmp_path)
+    observation = replace(original.observations[1], arguments={"body":"ten days"})
+    outcome = replace(original, outcome_id="export-ui", required=(original.required[1],), observations=(observation,))
+    f.simulated_write(outcome, observation)
+    f.feedback.report_outcome(f.session, outcome, idempotency_key="export-ui")
+    verify(verifier, reader, outcome, key="verified-export-ui")
+    credential = f.evidence.grant(f.evidence.authenticate(f.owner["token"]), principal_id="administrator",
+                                  role=EvidenceRole.ADMINISTRATOR, scope=f.scope.evidence_scope())
+    f.feedback.grant_agent(f.owner["token"], f.scope, principal_id="administrator", operations=("read",), expires_at=1_700_010_000)
+    session = f.feedback.bind(credential["token"], agent_id="writer", workspace_id="project")
+    signing = generate_signing_keypair()
+    calls = []
+    def signer(identity):
+        calls.append(identity["account"]["username"])
+        return signing
+    server.feedback_dashboard = FeedbackDashboard(f.feedback, session_factory=lambda identity:session, export_signer=signer)
+    public, secret = generate_recipient_keypair()
+    return f, public, secret, signing, calls
+
+
+def test_real_http_export_consent_preview_encryption_withdraw_and_revocation(dashboard_server, tmp_path):
+    import base64
+    from atmem.evidence.crypto import decrypt_export
+    pytest.importorskip("pqcrypto")
+    server, bootstrap, _, _ = dashboard_server
+    f, public, secret, signing, calls = install_export_fixture(server, tmp_path/"export")
+    base = f"http://127.0.0.1:{server.server_port}"
+    opener = build_opener(HTTPCookieProcessor(CookieJar()))
+    def post(body, path="/api/feedback/action", csrf=None):
+        headers = {"Content-Type":"application/json"}
+        if csrf: headers["X-CSRF-Token"] = csrf
+        return json.loads(opener.open(Request(base+path, method="POST", data=json.dumps(body).encode(), headers=headers), timeout=20).read())
+    login = post({"username":"administrator", "password":bootstrap["password"]}, "/api/auth/login")
+    csrf = login["csrf_token"]
+    post({"new_password":"synthetic export password"}, "/api/auth/change-password", csrf)
+    csrf = server.csrf_token  # Feedback uses the existing dashboard request token.
+    args = {"operation":"export_consent", "consent_id":"consent", "purpose":"synthetic example only",
+            "recipient_public_key":base64.b64encode(public).decode(), "outcome_ids":["export-ui"],
+            "expires_at":1_700_000_060, "split":"development"}
+    with pytest.raises(HTTPError) as denied:
+        post(args)
+    assert denied.value.code == 403
+    post(args, csrf=csrf)
+    preview = post({"operation":"export_preview", "consent_id":"consent"}, csrf=csrf)
+    assert len(preview["examples"]) == 1 and not calls
+    confirm = {"operation":"export_confirm", "consent_id":"consent", "recipient_public_key":args["recipient_public_key"],
+               "preview_sha256":preview["preview_sha256"], "confirm_sha256":preview["preview_sha256"]}
+    with pytest.raises(HTTPError):
+        post({**confirm, "signing_secret_key":"browser-controlled-key"}, csrf=csrf)
+    assert not calls
+    result = post(confirm, csrf=csrf)
+    assert json.loads(decrypt_export(result["encrypted_bundle"], secret)) == preview
+    assert calls == ["administrator"]
+    assert not any(key in result for key in ("signing_secret_key", "recipient_secret_key"))
+    post({"operation":"export_withdraw", "consent_id":"consent"}, csrf=csrf)
+    with pytest.raises(HTTPError):
+        post(confirm, csrf=csrf)
+    before = len(calls)
+    f.evidence.revoke(f.evidence.authenticate(f.owner["token"]), principal_id="administrator")
+    with pytest.raises(HTTPError) as denied:
+        post(confirm, csrf=csrf)
+    assert denied.value.code == 403 and len(calls) == before
+
+
+def test_browser_export_explicit_review_download_and_logout_cleanup(dashboard_server, tmp_path):
+    import base64
+    import os
+    from pathlib import Path
+    from atmem.evidence.crypto import decrypt_export
+    if os.environ.get("ATMEM_FEEDBACK_BROWSER") != "1":
+        pytest.skip("explicit actual browser journey")
+    pytest.importorskip("pqcrypto")
+    playwright = pytest.importorskip("playwright.sync_api")
+    chrome = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+    if not chrome.is_file():
+        pytest.skip("requires installed Chrome; never download implicitly")
+    server, bootstrap, _, _ = dashboard_server
+    _, public, secret, _, calls = install_export_fixture(server, tmp_path/"export-browser")
+    with playwright.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(executable_path=str(chrome), headless=True)
+        try:
+            page = browser.new_page(timezone_id="UTC")
+            page.goto(f"http://127.0.0.1:{server.server_port}/")
+            page.locator("#loginUsername").fill("administrator")
+            page.locator("#loginPassword").fill(bootstrap["password"])
+            page.locator("#loginForm button[type=submit]").click()
+            page.locator("#newPassword").fill("synthetic browser export password")
+            page.locator("#repeatPassword").fill("synthetic browser export password")
+            page.locator("#passwordForm button[type=submit]").click()
+            playwright.expect(page.locator("#authGate")).to_be_hidden()
+            page.locator("#navFeedback").click()
+            playwright.expect(page.locator("#feedbackExport")).to_be_visible()
+            page.locator("#feedbackConsentId").fill("consent")
+            page.locator("#feedbackExportPurpose").fill("synthetic example only")
+            page.locator("#feedbackRecipientKey").fill(base64.b64encode(public).decode())
+            page.locator("#feedbackOutcomeIds").fill("export-ui")
+            page.locator("#feedbackExportExpiry").fill("2023-11-14T22:14")
+            page.once("dialog", lambda dialog:dialog.accept())
+            page.get_by_role("button", name="Grant consent and preview").click()
+            playwright.expect(page.locator("#feedbackExportStatus")).to_contain_text("1 eligible examples")
+            confirm = page.locator("#feedbackExportConfirm")
+            playwright.expect(confirm).to_be_disabled()
+            assert not calls
+            page.locator("#feedbackExportReviewed").check()
+            playwright.expect(confirm).to_be_enabled()
+            page.once("dialog", lambda dialog:dialog.dismiss())
+            confirm.click()
+            assert not calls
+            page.once("dialog", lambda dialog:dialog.accept())
+            with page.expect_download() as download:
+                confirm.click()
+            bundle = json.loads(Path(download.value.path()).read_text())
+            plaintext = json.loads(decrypt_export(bundle["encrypted_bundle"], secret))
+            assert plaintext["examples"][0]["outcome"]["outcome_id"] == "export-ui"
+            assert calls == ["administrator"]
+            page.once("dialog", lambda dialog:dialog.accept())
+            page.locator("#logoutButton").click()
+            playwright.expect(page.locator("#feedbackExport")).to_be_hidden()
+            playwright.expect(page.locator("#feedbackExportPreview")).to_be_empty()
+            assert page.locator("#feedbackRecipientKey").input_value() == ""
+        finally:
+            browser.close()

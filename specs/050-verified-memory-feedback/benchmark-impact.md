@@ -53,3 +53,17 @@ system. No new score is available for Spec 050.
   prevention. It is confined to the explicit new dispatcher.
 - Neither new MCP tools, document sources, feedback profiles nor rules are
   connected to DolphinBench. No full or pilot run was launched for these checks.
+- The new feedback profile helper authenticates even in disabled mode and binds
+  a configured canonical tenant. Its selected bytes remain native when allowed;
+  forged/revoked or cross-tenant sessions now deny. The ordinary native context
+  API is unchanged.
+- New canonical-source proposals use the existing bounded SQL authorization and
+  remote sensitivity policy before loading content, with an optional exact-agent
+  predicate. Default native callers do not supply that new predicate, so their
+  query behavior is preserved. The new model-facing proposal response now carries
+  only a receipt, which changes that opt-in tool's visible output.
+- CI exposed a native Windows provider-stop CIM timeout. Process identity reads
+  now have one bounded retry, and an unconfirmed exit retains its ownership PID.
+  This can affect control-plane shutdown/restart availability on future provider
+  campaigns; it changes no recall selection or model/judge retry policy. No live
+  provider or frozen run was modified.

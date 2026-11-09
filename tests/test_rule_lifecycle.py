@@ -45,6 +45,9 @@ def test_rollback_is_a_new_generation_and_rechecks_sources_versions_and_expiry(t
         assert result["generation"] == 4 and result["rollback_of_generation"] == 2
         lifecycle.transition(f.owner["token"], f.scope, artifact_id="rule", state="suspended", expected_generation=4)
         args["expected_generation"] = 5
+        f.feedback.clock = lambda:1_699_999_999
+        with pytest.raises(FeedbackError, match="qualification_not_yet_valid"):
+            lifecycle.rollback(f.owner["token"], f.scope, **args)
         f.feedback.clock = lambda:1_700_000_100
         with pytest.raises(FeedbackError, match="qualification_expired"):
             lifecycle.rollback(f.owner["token"], f.scope, **args)

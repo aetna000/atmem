@@ -9,7 +9,7 @@ from atmem.feedback.store import snapshot
 
 
 class FeedbackDashboard:
-    def __init__(self, feedback, *, session_factory, runtime_versions=None, memory_factory=None):
+    def __init__(self, feedback, *, session_factory, runtime_versions=None, memory_factory=None, export_signer=None):
         if not callable(session_factory):
             raise ValueError("application-owned identity binding required")
         self.feedback = feedback
@@ -18,6 +18,9 @@ class FeedbackDashboard:
         if memory_factory is not None and not callable(memory_factory):
             raise ValueError("application-owned memory factory required")
         self.memory_factory = memory_factory
+        if export_signer is not None and not callable(export_signer):
+            raise ValueError("application-owned export signer required")
+        self.export_signer = export_signer
 
     def _session(self, identity, *, owner=False):
         account = identity["account"]
@@ -51,6 +54,7 @@ class FeedbackDashboard:
                     "qualifications": tx.list("qualification"),
                     "can_review": identity["account"]["role"] in ("administrator", "evidence_collector"),
                     "activation_available": self.runtime_versions is not None,
+                    "export_available": self.export_signer is not None,
                     "runtime_versions": self.runtime_versions,
                     "observed_at": int(self.feedback.clock()),
                     "activation": "requires_accepted_qualification"}
@@ -63,7 +67,8 @@ class FeedbackDashboard:
         memory = self.memory_factory(identity) if self.memory_factory is not None else self.feedback.memory
         from atmem.feedback.service import FeedbackService
         feedback = FeedbackService(self.feedback.evidence, clock=self.feedback.clock, memory=memory,
-                                   observability=self.feedback.observability)
+                                   observability=self.feedback.observability, memory_tenant_id=self.feedback.memory_tenant_id,
+                                   egress_class=self.feedback.egress_class)
         try:
             return self._action(feedback, identity, session, body)
         finally:
@@ -71,6 +76,8 @@ class FeedbackDashboard:
                 memory.close()
 
     def _action(self, feedback, identity, session, body):
+        if type(body) is dict and type(body.get("operation")) is str and body["operation"].startswith("export_"):
+            return self._export_action(feedback, identity, session, body)
         if type(body) is not dict or set(body) - {"operation", "kind", "artifact_id", "candidate_sha256", "reason",
                                                "decision", "state", "expected_generation", "qualification_id", "target_generation"}:
             raise FeedbackError("invalid_arguments")
@@ -102,3 +109,45 @@ class FeedbackDashboard:
                 artifact_id=body["artifact_id"], kind=kind, expected_generation=body["expected_generation"],
                 target_generation=body["target_generation"], versions=self.runtime_versions)
         raise FeedbackError("invalid_arguments")
+
+    def _export_action(self, feedback, identity, session, body):
+        import base64
+        import binascii
+        from atmem.feedback.export import ExampleExportService
+        service = ExampleExportService(feedback)
+        # A dashboard owner role alone does not grant plaintext export. Check
+        # the actual scoped credential before loading any signing key.
+        service._owner(session.credential, session.scope)
+        operation = body.get("operation")
+        fields = {"export_consent": {"consent_id", "purpose", "recipient_public_key", "outcome_ids", "expires_at", "split"},
+                  "export_preview": {"consent_id"}, "export_withdraw": {"consent_id"},
+                  "export_confirm": {"consent_id", "preview_sha256", "confirm_sha256", "recipient_public_key"}}
+        if operation not in fields or set(body) != fields[operation] | {"operation"}:
+            raise FeedbackError("invalid_arguments")
+        if self.export_signer is None:
+            raise FeedbackError("export_unavailable")
+        args = {k:v for k,v in body.items() if k != "operation"}
+        try:
+            if "recipient_public_key" in args:
+                value = args["recipient_public_key"]
+                if type(value) is not str or len(value) > 1600:
+                    raise ValueError("bounded public key required")
+                args["recipient_public_key"] = base64.b64decode(value, validate=True)
+                if len(args["recipient_public_key"]) != 1184:
+                    raise ValueError("ML-KEM-768 public key required")
+            if operation == "export_consent":
+                if type(args["outcome_ids"]) is not list:
+                    raise ValueError("outcome list required")
+                args["outcome_ids"] = tuple(args["outcome_ids"])
+                return service.consent(session.credential, session.scope, **args)
+            if operation == "export_preview":
+                return service.preview(session.credential, session.scope, **args)
+            if operation == "export_withdraw":
+                return service.withdraw(session.credential, session.scope, **args)
+            # The signer is trusted application configuration, never request
+            # data. Keys remain server-side and are not returned to the browser.
+            signing_public, signing_secret = self.export_signer(identity)
+            return service.export(session.credential, session.scope, **args,
+                                  signing_public_key=signing_public, signing_secret_key=signing_secret)
+        except (ValueError, TypeError, binascii.Error):
+            raise FeedbackError("invalid_arguments") from None

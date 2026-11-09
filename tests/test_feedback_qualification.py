@@ -40,3 +40,52 @@ def test_freeze_does_not_accept_a_paid_budget_or_contaminated_split(tmp_path):
         mutate(changed)
         with pytest.raises(BaselineError):
             service.freeze(f.owner["token"], f.scope, changed, artifact_sha256="a"*64)
+
+
+def test_failed_evaluations_are_charged_before_replay_and_same_key_cannot_retry_them(tmp_path, monkeypatch):
+    f, _ = actions_fixture(tmp_path)
+    manifest = json.loads((Path(__file__).parent/"fixtures/feedback/baseline-manifest.json").read_text())
+    manifest["budget"]["seconds"] = 1
+    ticks = [0]
+    def timer():
+        ticks[0] += 2
+        return ticks[0]
+    service = QualificationService(f.feedback, timer=timer)
+    frozen = service.freeze(f.owner["token"], f.scope, manifest, artifact_sha256="a"*64)
+    options = dict(manifest_sha256=frozen["manifest_sha256"], idempotency_key="one")
+    with pytest.raises(FeedbackError, match="time_budget_exhausted"):
+        service.evaluate(f.owner["token"], f.scope, **options)
+    with monkeypatch.context() as patch:
+        patch.setattr(service, "_compute", lambda *a,**k:pytest.fail("failed attempt was replayed"))
+        with pytest.raises(FeedbackError, match="time_budget_exhausted"):
+            service.evaluate(f.owner["token"], f.scope, **options)
+    for key in ("two", "three"):
+        with pytest.raises(FeedbackError, match="time_budget_exhausted"):
+            service.evaluate(f.owner["token"], f.scope, **{**options, "idempotency_key":key})
+    with pytest.raises(FeedbackError, match="attempt_budget_exhausted"):
+        service.evaluate(f.owner["token"], f.scope, **{**options, "idempotency_key":"four"})
+    with f.feedback.store.transaction(f.scope) as tx:
+        assert tx.list("qualification") == []
+        assert tx.list("evaluation_budget") == [{"attempts":3}]
+        assert len(tx.list("evaluation_attempt")) == 3
+        assert all(r["status"] == "failed" for r in tx.list("evaluation_attempt"))
+
+
+def test_process_loss_after_reservation_stays_unknown_and_consumes_attempt_after_restart(tmp_path, monkeypatch):
+    from atmem.feedback.service import FeedbackService
+    f, _ = actions_fixture(tmp_path)
+    manifest = json.loads((Path(__file__).parent/"fixtures/feedback/baseline-manifest.json").read_text())
+    service = QualificationService(f.feedback)
+    frozen = service.freeze(f.owner["token"], f.scope, manifest, artifact_sha256="a"*64)
+    options = dict(manifest_sha256=frozen["manifest_sha256"], idempotency_key="process-loss")
+    def crash(*args, **kwargs):
+        raise KeyboardInterrupt("synthetic process loss after durable admission")
+    monkeypatch.setattr(service, "_compute", crash)
+    with pytest.raises(KeyboardInterrupt):
+        service.evaluate(f.owner["token"], f.scope, **options)
+    restored = QualificationService(FeedbackService(f.evidence, clock=f.feedback.clock))
+    with pytest.raises(FeedbackError, match="evaluation_inflight_or_unknown"):
+        restored.evaluate(f.owner["token"], f.scope, **options)
+    with f.feedback.store.transaction(f.scope) as tx:
+        assert tx.list("evaluation_budget") == [{"attempts":1}]
+        assert tx.list("evaluation_attempt")[0]["status"] == "pending"

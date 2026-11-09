@@ -39,7 +39,8 @@ def prepare_feedback_profile(feedback, session, request, *, profile_id=None, mod
     if feedback.memory is None or request.scope != session.scope.authority_scope():
         raise FeedbackError("denied")
     if mode == "disabled":
-        return feedback.memory.prepare_context_v3(request)
+        with feedback.memory.store.transaction(), feedback._authorized(session, "read"):
+            return feedback.memory.prepare_context_v3(request)
     with feedback.memory.store.transaction(), feedback._authorized(session, "read") as (tx, principal):
         states = RuleLifecycle(feedback).current(tx, kind="profile", versions=versions or {})
         selected = next(((state, profile) for state, profile in states if profile.profile_id == profile_id), None)

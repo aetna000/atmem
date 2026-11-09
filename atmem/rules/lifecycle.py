@@ -48,7 +48,7 @@ class RuleLifecycle:
             if old and old["state"] in ("revoked", "expired") and not stopping and old["candidate_sha256"] == artifact_digest:
                 raise FeedbackError("new_review_required")
             if state in ("shadow", "qualified", "active"):
-                current_sources(self.feedback.memory, candidate)
+                current_sources(self.feedback.memory, candidate, egress_class=self.feedback.egress_class)
                 ensure_sources_not_revoked(tx, candidate.sources)
             if state in ("qualified", "active"):
                 qualification = tx.get("qualification", identifier(qualification_id)) if qualification_id else None
@@ -62,6 +62,8 @@ class RuleLifecycle:
                     raise FeedbackError("qualification_inconclusive")
                 if receipt.expires_at <= self.feedback.clock():
                     raise FeedbackError("qualification_expired")
+                if receipt.issued_at > self.feedback.clock():
+                    raise FeedbackError("qualification_not_yet_valid")
                 if versions is None or receipt.versions != versions:
                     raise FeedbackError("version_changed")
             if state == "active" and (old is None or old["state"] not in ("shadow", "qualified", "suspended")):
@@ -114,7 +116,7 @@ class RuleLifecycle:
             if proposal is None:
                 raise FeedbackError("review_required")
             candidate = (RuleCandidate if kind == "rule" else RetrievalProfileCandidate).from_dict(proposal["candidate"])
-            current_sources(self.feedback.memory, candidate)
+            current_sources(self.feedback.memory, candidate, egress_class=self.feedback.egress_class)
             ensure_sources_not_revoked(tx, candidate.sources)
             qualification_id = target["qualification_id"]
             raw = tx.get("qualification", qualification_id)
@@ -125,6 +127,8 @@ class RuleLifecycle:
                 raise FeedbackError("qualification_inconclusive")
             if receipt.expires_at <= self.feedback.clock():
                 raise FeedbackError("qualification_expired")
+            if receipt.issued_at > self.feedback.clock():
+                raise FeedbackError("qualification_not_yet_valid")
             if receipt.versions != versions or target["versions"] != versions:
                 raise FeedbackError("version_changed")
             if tx.rows[("qualification", qualification_id)]["sequence"] <= current.get("qualification_barrier", 0):
@@ -159,7 +163,7 @@ class RuleLifecycle:
             if kind == "rule" and tool is not None and candidate.tool != tool:
                 continue
             try:
-                current_sources(self.feedback.memory, candidate)
+                current_sources(self.feedback.memory, candidate, egress_class=self.feedback.egress_class)
                 ensure_sources_not_revoked(tx, candidate.sources)
             except FeedbackError:
                 if row["state"] == "shadow":
@@ -168,7 +172,7 @@ class RuleLifecycle:
             if row["state"] == "active":
                 receipt = tx.get("qualification", row["qualification_id"])
                 if (receipt is None or receipt["decision"] != "accept" or receipt["artifact_sha256"] != candidate.content_digest
-                        or receipt["scope"] != candidate.scope.to_dict() or receipt["expires_at"] <= self.feedback.clock()
+                        or receipt["scope"] != candidate.scope.to_dict() or not receipt["issued_at"] <= self.feedback.clock() < receipt["expires_at"]
                         or receipt["versions"] != versions or row["versions"] != versions):
                     raise FeedbackError("qualification_expired")
             result.append((row, candidate))

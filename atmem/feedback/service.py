@@ -30,11 +30,16 @@ class FeedbackSession:
 
 
 class FeedbackService:
-    def __init__(self, evidence, *, clock: Callable[[], float] = time.time, memory=None, observability=None):
+    def __init__(self, evidence, *, clock: Callable[[], float] = time.time, memory=None, observability=None,
+                 memory_tenant_id="local", egress_class="remote"):
         self.evidence = evidence
         self.store = FeedbackStore(evidence)
         self.clock = clock
         self.memory = memory
+        self.memory_tenant_id = identifier(memory_tenant_id)
+        if egress_class not in ("local", "remote"):
+            raise ValueError("explicit supported feedback egress required")
+        self.egress_class = egress_class
         self.observability = observability if observability is not None else FeedbackObservability()
 
     def _principal(self, credential):
@@ -57,9 +62,18 @@ class FeedbackService:
             raise FeedbackError("denied") from None
         return scope
 
+    def _check_memory_tenant(self, scope):
+        # Canonical AuthorityScope has subject/agent/workspace, not tenant.
+        # Its physical home must be bound by trusted application configuration;
+        # a caller's matching subject name cannot choose another tenant's home.
+        if self.memory is not None and scope.tenant_id != self.memory_tenant_id:
+            raise FeedbackError("denied")
+
     def bind(self, credential: str, *, agent_id: str, workspace_id: str) -> FeedbackSession:
         principal = self._principal(credential)
-        session = FeedbackSession(self._scope(principal, agent_id, workspace_id), credential)
+        scope = self._scope(principal, agent_id, workspace_id)
+        self._check_memory_tenant(scope)
+        session = FeedbackSession(scope, credential)
         # Any enabled operation is sufficient to establish the application binding.
         with self._authorized(session, None):
             pass
@@ -69,12 +83,14 @@ class FeedbackService:
     def owner_transaction(self, credential, scope, *, operation=EvidenceOperation.GRANT):
         """Check privileged authority before decryption and again under lock."""
         principal = self._principal(credential)
+        self._check_memory_tenant(scope)
         try:
             principal.authorize(operation, scope.evidence_scope())
         except PermissionError:
             raise FeedbackError("denied") from None
         with self.store.transaction(scope) as tx:
             principal = self._principal(credential)
+            self._check_memory_tenant(scope)
             try:
                 principal.authorize(operation, scope.evidence_scope())
             except PermissionError:
@@ -128,10 +144,12 @@ class FeedbackService:
         scope = self._scope(principal, session.scope.agent_id, session.scope.workspace_id)
         if scope != session.scope:
             raise FeedbackError("denied")
+        self._check_memory_tenant(scope)
         # The authenticated evidence scope is checked before the scoped key is used.
         denied = False
         with self.store.transaction(scope) as tx:
             principal = self._principal(session.credential)
+            self._check_memory_tenant(scope)
             if self._scope(principal, scope.agent_id, scope.workspace_id) != scope:
                 raise FeedbackError("denied")
             grant = tx.get("agent_grant", principal.principal_id)

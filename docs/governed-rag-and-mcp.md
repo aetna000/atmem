@@ -15,6 +15,25 @@ fixed scope, collection, revision and explicit `egress` (`none` or `remote`).
 Pass a trusted application adapter object to `rag.register(owner_token, source,
 adapter)`. Owner tokens stay in application setup; never pass them to a model.
 
+Canonical memory uses subject/agent/workspace scope inside a physical home. An
+application must map each tenant to its own canonical memory home and encryption
+authority. `FeedbackService(..., memory=memory, memory_tenant_id="TENANT")` binds
+that home to one configured tenant; it defaults to `local` for existing local
+homes. A different tenant is denied even with a valid credential and a matching
+subject name. Never derive the home or this binding from model arguments, and
+never map distinct tenants to the same canonical home. A service with no canonical
+memory can still serve its independently scoped encrypted document partitions.
+
+Canonical-source eligibility reuses the core store's bounded authorization query
+before loading record contents, including workspace/agent, active status,
+retrieval exclusions and sensitivity. Feedback defaults to `egress_class="remote"`:
+sensitive/restricted canonical sources are withheld. Only a trusted local-only
+application should explicitly select `egress_class="local"`; stdio transport by
+itself does not prove a caller keeps data on device. Proposal operations return
+closed versioned receipts, not raw canonical sources or human review notes,
+including on legacy cached retries. Full encrypted source snapshots remain
+available through the privileged review surface.
+
 The adapter implements:
 
 ```python
@@ -234,6 +253,13 @@ using historical receipts. The current offline qualification evaluator is
 Test-only trusted-store fixtures exercise consumers of accepted authority and
 are explicitly not qualification or efficacy evidence.
 
+Diagnostic attempts are reserved in protected storage before replay. Failed or
+crashed attempts remain charged; a same-key retry returns the retained failure or
+an explicit in-flight/unknown result rather than re-executing. Content-free
+per-hypothesis attempt counters survive registered-source cleanup. The current
+disk check bounds serialized qualification payloads, not complete filesystem or
+provider consumption; full production resource qualification is still pending.
+
 The existing local dashboard accepts an optional `FeedbackDashboard` with a
 trusted signed-in-identity/session binding and optional per-request memory
 factory. It exposes real scoped quality counts, exact per-action arguments,
@@ -285,9 +311,35 @@ secrets and unrevalidated sources are excluded. Secret detection is not a
 guarantee of anonymization; review the exact authorized preview. Withdrawal
 blocks new exports, not already delivered copies. It starts no training.
 
+For the optional dashboard workflow, the trusted application supplies
+`FeedbackDashboard(..., export_signer=...)`; that callback returns the signing
+public/secret key pair from the application's own protected key custody. The
+browser supplies only the recipient's **public** ML-KEM-768 key, purpose,
+explicit outcome IDs, development/train destination and a consent expiry of at
+most seven days. No signing key or recipient private key is accepted over HTTP.
+The feature remains unavailable without the configured signer. Actual scoped
+export authority is rechecked before signing-key access. Consent precedes an
+exact plaintext preview; a separate reviewed confirmation binds its SHA-256 and
+recipient before downloading a recipient-encrypted JSON bundle. Editing the
+form invalidates its preview; logout clears its content and pending requests.
+Withdrawal prevents future export and does not recall existing copies. Known
+RAG evidence is revalidated against the complete registered source snapshot at
+both preview and export, including cached retries: revocation, revision changes
+and missing receipts exclude the example. No provider fetch occurs during export.
+
+Frozen quality schedules may additionally specify `task_class` and `versions`
+(a bounded map of version names to identifiers). These are owner-supplied before
+observations, never inferred from model text or retroactively overwritten.
+Quality reports include the same denominators per class/version, preserving
+missing tasks; legacy schedules explicitly show unspecified versions/classes.
+The `uncertainty` field uses whole-episode resampling for diagnostic 95% rate
+intervals. Fewer than two observed clusters or a zero denominator is
+inconclusive. These intervals do not establish adequate statistical power,
+production qualification or a measured quality improvement.
+
 Remaining acceptance work includes independent production qualification, complete
-quality/resource qualification gates, the installed Hermes service adapter, full consent/activation
-UI, automatic recovery hooks and actual cross-platform CI results. No existing
+quality/resource qualification gates, the installed Hermes service adapter, complete activation
+acceptance, automatic recovery hooks and final cross-platform CI results. No existing
 DolphinBench score is changed or relabelled by these development features.
 
 An offline diagnostic can measure the pure interpreter with 1,000 applicable

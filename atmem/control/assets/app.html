@@ -118,6 +118,24 @@
       <h3>Reviewed changes</h3>
       <p class="sub">Shadow does not replace delivered context. Activation requires accepted qualification; inconclusive synthetic results cannot activate a change.</p>
       <div id="feedbackProposals"></div>
+      <section id="feedbackExport" hidden aria-labelledby="feedbackExportTitle">
+        <h3 id="feedbackExportTitle">Verified-example export</h3>
+        <p class="sub">Only independently verified examples are eligible. Review the exact plaintext preview for personal or sensitive information before confirming. This does not train a model. Withdrawal blocks future exports; it cannot recall recipient copies or erase trained weights.</p>
+        <form id="feedbackExportForm">
+          <label for="feedbackConsentId">Consent ID</label><input id="feedbackConsentId" required maxlength="256">
+          <label for="feedbackExportPurpose">Purpose</label><input id="feedbackExportPurpose" required maxlength="1024">
+          <label for="feedbackRecipientKey">Recipient ML-KEM-768 public key (base64)</label><textarea id="feedbackRecipientKey" required maxlength="1600"></textarea>
+          <label for="feedbackOutcomeIds">Outcome IDs (one per line, up to 64)</label><textarea id="feedbackOutcomeIds" required></textarea>
+          <label for="feedbackExportSplit">Destination split</label><select id="feedbackExportSplit"><option value="development">Development</option><option value="train">Training examples (export only)</option></select>
+          <label for="feedbackExportExpiry">Consent expiry</label><input id="feedbackExportExpiry" type="datetime-local" required>
+          <button type="submit" class="secondary">Grant consent and preview</button>
+        </form>
+        <p id="feedbackExportStatus" role="status" aria-live="polite"></p>
+        <details><summary>Exact export preview and exclusions</summary><pre id="feedbackExportPreview"></pre></details>
+        <label><input id="feedbackExportReviewed" type="checkbox">I reviewed the exact preview, recipient and purpose, including sensitive data.</label>
+        <button id="feedbackExportConfirm" type="button" class="primary" disabled>Confirm encrypted export</button>
+        <button id="feedbackExportWithdraw" type="button" class="secondary">Withdraw this consent</button>
+      </section>
     </section>
   </div>
   <div class="tabpanel" id="viewSettings">

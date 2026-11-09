@@ -28,6 +28,8 @@ def test_real_v3_disabled_parity_shadow_returns_native_and_unqualified_cannot_ac
         request = ContextRequestV3("context", "request", f.scope.authority_scope(), "Where is the project destination?",
                                    "context-fast", "shadow", current["canonical_generation"])
         baseline = memory.prepare_context_v3(request)
+        with pytest.raises(FeedbackError, match="denied"):
+            prepare_feedback_profile(f.feedback, replace(f.session, credential="invalid-credential"*2), request)
         disabled = prepare_feedback_profile(f.feedback, f.session, request)
         assert disabled.context == baseline.context and disabled.selected_unit_ids == baseline.selected_unit_ids
         profile = RetrievalProfileCandidate("profile", f.scope, rule.sources, candidate_budget=20, context_bytes=1024, balanced_pools=True)

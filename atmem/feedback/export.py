@@ -47,6 +47,8 @@ class ExampleExportService:
             value = {"consent_id": consent_id, "purpose": purpose, "recipient_sha256": sha256(recipient_public_key).hexdigest(),
                      "outcome_ids": list(outcome_ids), "expires_at": expires_at, "split": split,
                      "active": True, "actor_id": principal.principal_id}
+            if tx.get("export_consent", consent_id) == value:
+                return value
             tx.put("export_consent", consent_id, value, expected_revision=tx.revision("export_consent", consent_id))
             tx.audit(principal.principal_id, "export_consent", allowed=True)
             return value
@@ -61,6 +63,35 @@ class ExampleExportService:
             tx.put("export_consent", consent_id, value, expected_revision=tx.revision("export_consent", consent_id))
             tx.audit(principal.principal_id, "withdraw_export", allowed=True)
             return {"status": "withdrawn", "external_copies": "not_recalled"}
+
+    def _rag_lineage_failure(self, tx, outcome):
+        """Revalidate registered document lineage without calling a provider.
+
+        Receipt identifiers are scoped lookups. A lost RAG receipt cannot be
+        silently reclassified as a tool-only example. Whole source snapshots
+        bind generation, revision, collection, scope and egress configuration.
+        """
+        from atmem.feedback.recovery import revocation_key
+        for observation in outcome.observations:
+            key = observation.evidence_id
+            if key is None:
+                continue
+            receipt = tx.get("rag_receipt", key)
+            if receipt is None:
+                if key.startswith("rag-"):
+                    return "source_revalidation_unavailable"
+                continue
+            source = receipt.get("source", {})
+            source_id = source.get("source_id")
+            if receipt.get("scope") != tx.scope.to_dict() or not source_id:
+                return "source_revalidation_unavailable"
+            current = tx.get("rag_source", source_id)
+            if (current is None or not current.get("active")
+                    or tx.get("source_revocation", revocation_key(source_id, "rag")) is not None):
+                return "source_revoked"
+            if current != source:
+                return "source_changed"
+        return None
 
     def _preview(self, tx, consent_id):
         consent = tx.get("export_consent", identifier(consent_id))
@@ -92,6 +123,8 @@ class ExampleExportService:
                         reason = "source_revalidation_unavailable"
                     elif any(tx.get("source_revocation", revocation_key(key)) is not None for key in context["package"].get("record_ids", [])):
                         reason = "source_revoked"
+                if reason is None:
+                    reason = self._rag_lineage_failure(tx, outcome)
             if reason:
                 excluded.append({"outcome_id": outcome_id, "reason": reason})
                 continue

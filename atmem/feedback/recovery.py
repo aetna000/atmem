@@ -13,7 +13,7 @@ from atmem.evidence.models import EvidenceOperation
 from atmem.feedback.store import FeedbackError, snapshot
 
 
-CONTROL_KINDS = frozenset({'audit','agent_grant','proxy_handler','proxy_write_hold','verifier','source_revocation'})
+CONTROL_KINDS = frozenset({'audit','agent_grant','evaluation_budget','proxy_handler','proxy_write_hold','verifier','source_revocation'})
 AUTH_FIELDS = frozenset({'scope','actor_id','principal_id','tenant_id','subject_id','agent_id','workspace_id','verifier_id','recipient_id'})
 IDENTITIES = frozenset({'receipt_id','evidence_id','outcome_id','rule_id','profile_id','activation_id','consent_id','export_id',
                         'candidate_sha256','outcome_sha256','artifact_sha256','manifest_sha256','preview_sha256'})

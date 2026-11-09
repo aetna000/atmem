@@ -4322,6 +4322,7 @@ class SQLiteStore:
         record_ids: list[str],
         *,
         remote: bool = False,
+        agent_id: str | None = None,
     ) -> set[str]:
         """Authorize bounded candidate IDs without enumerating the corpus."""
         ids = list(dict.fromkeys(str(value) for value in record_ids))
@@ -4335,6 +4336,7 @@ class SQLiteStore:
                 "AND r.sensitivity_class NOT IN ('sensitive', 'restricted')"
                 if remote else ""
             )
+            agent_clause = "AND json_extract(r.raw, '$.authority_scope.agent_id') = ?" if agent_id is not None else ""
             rows = self._conn.execute(
                 f"""
                 SELECT r.id FROM records r
@@ -4345,14 +4347,14 @@ class SQLiteStore:
                     OR (r.authority_subject_id = ? AND r.authority_workspace_id = ?)
                     )
                   )
-                  {remote_clause}
+                  {remote_clause} {agent_clause}
                   AND NOT EXISTS (
                     SELECT 1 FROM retrieval_exclusions x
                     WHERE x.subject_id = r.subject_id AND x.record_id = r.id
                   )
                   AND r.id IN ({placeholders})
                 """,
-                (subject_id, subject_id, workspace_id, *batch),
+                (subject_id, subject_id, workspace_id, *([agent_id] if agent_id is not None else []), *batch),
             ).fetchall()
             allowed.update(str(row["id"]) for row in rows)
         return allowed
