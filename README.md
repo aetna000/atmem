@@ -1,8 +1,11 @@
 # AtMem
 
-[![Version 2.3.14](https://img.shields.io/badge/version-2.3.14-blue)](./docs/releases/v2.3.14.md)
+[![Version 2.3.15b1 (beta)](https://img.shields.io/badge/version-2.3.15b1%20beta-orange)](./docs/releases/v2.3.15b1.md)
 
-> **AtMem 2.3.14** is the stable release. Ordinary memory and context defaults remain unchanged.
+> **AtMem 2.3.15b1** is an opt-in beta for governed RAG, generic MCP and independently verified feedback.
+> Install explicitly: `python -m pip install --upgrade "atmem[code]==2.3.15b1"`.
+> Read the [beta limitations and backup requirements](./docs/releases/v2.3.15b1.md). Production qualification and automatic activation are not available.
+> **AtMem 2.3.14** remains the stable release. Ordinary memory and context defaults remain unchanged.
 > See the [release notes](./docs/releases/v2.3.14.md) for compatibility, opt-ins and limitations.
 > **AtMem 2.3.10** adds opt-in, bounded source-evidence discovery.
 > Read the [integration guide](./docs/evidence-discovery.md) and
@@ -32,10 +35,15 @@ authorizes, stores, scopes, injects, corrects, and deletes memory.
 
 ## Start here
 
+These commands explicitly install the **beta candidate**. For the stable line,
+use `python -m pip install --upgrade atmem==2.3.14` and its
+[stable release note](docs/releases/v2.3.14.md). Beta installation does not
+automatically enable the new RAG/feedback services.
+
 ### 1. Install AtMem and choose memory intelligence
 
 ```bash
-python -m pip install --upgrade atmem==2.3.14
+python -m pip install --upgrade atmem==2.3.15b1
 atmem atbot setup
 atmem atbot doctor
 atmem init
@@ -96,7 +104,7 @@ package yourself.
 Already using AtMem 2.1 with OpenClaw? Upgrade in place:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.14
+python -m pip install --upgrade atmem==2.3.15b1
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -119,7 +127,7 @@ selected by `python`, rather than an unrelated `pip` executable on `PATH`.
 #### Pydantic AI — native capability
 
 ```bash
-python -m pip install 'atmem[pydantic-ai]==2.3.14'
+python -m pip install 'atmem[pydantic-ai]==2.3.15b1'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -144,7 +152,7 @@ agent = Agent("openai:gpt-5-mini", capabilities=[memory])
 #### LangChain/LangGraph — native middleware
 
 ```bash
-python -m pip install 'atmem[langgraph]==2.3.14'
+python -m pip install 'atmem[langgraph]==2.3.15b1'
 atmem control shadow --host generic --memory-db ~/.atmem/memories.db
 ```
 
@@ -312,7 +320,7 @@ and restores it exactly.
 ## Installation details
 
 ```bash
-python -m pip install atmem==2.3.14
+python -m pip install atmem==2.3.15b1
 atmem --version
 ```
 
@@ -322,7 +330,7 @@ embedding model, while the semantic extra adds local sentence-transformer
 choices:
 
 ```bash
-python -m pip install 'atmem[semantic]==2.3.14'
+python -m pip install 'atmem[semantic]==2.3.15b1'
 ```
 
 For repository development, install both workspace packages:
@@ -510,7 +518,7 @@ atmem control restore
 Existing 2.1 installations upgrade without starting a new migration:
 
 ```bash
-python -m pip install --upgrade atmem==2.3.14
+python -m pip install --upgrade atmem==2.3.15b1
 atmem openclaw upgrade
 atmem control verify
 ```
@@ -744,13 +752,13 @@ npm test
 npm run smoke
 ```
 
-This stable source line is **2.3.14**, with OpenClaw bridge **2.3.14**,
+This beta source line is **2.3.15b1**, with OpenClaw bridge **2.3.15-beta.1**,
 legacy AtBot companion **0.1.1**, and AtFlows **0.1.8**.
-Use the [release note](docs/releases/v2.3.14.md) for install/upgrade commands,
+Use the [beta release note](docs/releases/v2.3.15b1.md) for install/upgrade commands,
 compatibility, research opt-ins and limits.
 The final [self-tested DolphinBench result](https://huggingface.co/datasets/atmem/dolphinbench-routed-v4-20261101)
 is **479/600 (79.83%)**, against its frozen i3/routed-v4 research artifact and
-installed **2.3.10b1** base. It is not a fresh benchmark of the 2.3.14 wheel or
+installed **2.3.10b1** base. It is not a fresh benchmark of either the 2.3.14 or 2.3.15b1 wheel, or
 an official certification. Per-action outcomes and failing-check evidence are
 published with that dataset. Historical artifacts retain their identities.
 

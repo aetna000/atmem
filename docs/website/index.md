@@ -1,5 +1,9 @@
 # Memory and evidence, under your control
 
+An opt-in [2.3.15b1 beta](../releases/v2.3.15b1.md) adds governed RAG/MCP and verified feedback.
+The stable installation examples below retain 2.3.14. Use the explicit beta pin in the release note to test it.
+
+
 AtMem is a host-neutral Agent Black Box and reversible memory control plane.
 Keep scoped memories useful across sessions, control which context reaches an agent,
 and investigate the evidence a supported host captured.

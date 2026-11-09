@@ -19,7 +19,7 @@ from atmem.evidence.models import CaptureMode
 from atmem.store.sqlite import utc_now
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def _content_descriptor(value: Any) -> dict[str, Any]:
@@ -108,7 +108,7 @@ class EncryptedEvidenceStore:
             if "slot_id" not in columns:
                 self._conn.execute("ALTER TABLE sealed_objects ADD COLUMN slot_id TEXT")
             self._conn.execute("UPDATE vault_meta SET format_version = ?", (2,))
-        elif int(row["format_version"]) not in {2, SCHEMA_VERSION}:
+        elif int(row["format_version"]) not in {2, 3, SCHEMA_VERSION}:
             raise RuntimeError("unsupported encrypted evidence vault version")
         self._conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS sealed_object_nonce_per_slot ON sealed_objects(slot_id, nonce)"
@@ -195,14 +195,24 @@ class EncryptedEvidenceStore:
 
     def enable_continuity_format(self) -> None:
         # Opt-in creation, not ordinary vault open, establishes downgrade refusal.
-        self._conn.execute("UPDATE vault_meta SET format_version = 3")
+        self._conn.execute("UPDATE vault_meta SET format_version = MAX(format_version, 3)")
 
-    def documents(self) -> Iterable[dict[str, Any]]:
+    def enable_feedback_format(self) -> None:
+        """Opt-in downgrade guard: old binaries cannot rotate unknown partitions."""
+        if not self._conn.in_transaction:
+            raise RuntimeError("feedback enablement requires its authority transaction")
+        self._conn.execute("UPDATE vault_meta SET format_version = 4")
+
+    def documents(self, *, partition_id: str | None = None) -> Iterable[dict[str, Any]]:
+        # Application authorization selects a partition before any semantic
+        # ciphertext is decrypted. The lookup tag reveals no scope identifier.
+        restriction = "" if partition_id is None else "WHERE s.lookup_tag = ?"
+        parameters = () if partition_id is None else (self._lookup_tag(partition_id),)
         rows = self._conn.execute(
-            """SELECT o.object_id,o.nonce,o.ciphertext,o.slot_id,
+            f"""SELECT o.object_id,o.nonce,o.ciphertext,o.slot_id,
                       s.wrap_nonce,s.wrapped_key
                  FROM sealed_objects o LEFT JOIN key_slots s ON s.slot_id=o.slot_id
-                 ORDER BY o.sequence"""
+                 {restriction} ORDER BY o.sequence""", parameters
         ).fetchall()
         for row in rows:
             data_key = self.key if row["slot_id"] is None else unwrap_data_key(
@@ -277,6 +287,22 @@ class EncryptedEvidenceStore:
     def raw_blobs(self) -> list[bytes]:
         return [bytes(row[0]) for row in self._conn.execute("SELECT ciphertext FROM sealed_objects")]
 
+    def purge_partition_objects(self, partition_id: str, object_ids: tuple[str, ...]) -> int:
+        """Caller-owned authorized transaction; never delete another partition."""
+        if not self._conn.in_transaction or type(object_ids) is not tuple or len(set(object_ids)) != len(object_ids):
+            raise ValueError("unique objects in an authorized transaction required")
+        self._conn.execute("PRAGMA secure_delete=ON")
+        for start in range(0, len(object_ids), 128):
+            chunk = object_ids[start:start+128]
+            placeholders = ",".join("?" for _ in chunk)
+            rows = self._conn.execute(f"""SELECT o.object_id FROM sealed_objects o JOIN key_slots s ON s.slot_id=o.slot_id
+                WHERE s.lookup_tag=? AND o.object_id IN ({placeholders})""", (self._lookup_tag(partition_id), *chunk)).fetchall()
+            if len(rows) != len(chunk):
+                raise PermissionError("object is not in the authorized partition")
+        self._conn.executemany("DELETE FROM sealed_objects WHERE object_id=?", ((key,) for key in object_ids))
+        self._conn.execute("DELETE FROM key_slots WHERE slot_id NOT IN (SELECT slot_id FROM sealed_objects WHERE slot_id IS NOT NULL)")
+        return len(object_ids)
+
     def delete_run(self, run_id: str) -> dict[str, int]:
         with self.atomic():
             return self._delete_run(run_id)
@@ -321,6 +347,10 @@ class EncryptedEvidenceStore:
             return f"audit:{target.get('run_id') or 'access'}"
         if record_type == "settings":
             return "settings"
+        if record_type == "feedback":
+            from atmem.contracts.feedback import FeedbackScope
+
+            return FeedbackScope.from_dict(document["scope"]).partition
         return "vault"
 
     def rotate_key(self, new_key: bytes) -> dict[str, int]:

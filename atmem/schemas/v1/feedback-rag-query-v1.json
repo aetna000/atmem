@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "atmem-rag-query-v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "atmem-rag-query-v1"
+    },
+    "source_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "query": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740992
+    },
+    "jurisdiction": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 65536
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "as_of": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 65536
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "format",
+    "source_id",
+    "query"
+  ],
+  "additionalProperties": false
+}

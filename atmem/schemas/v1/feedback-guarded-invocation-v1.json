@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "atmem-guarded-invocation-v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "atmem-guarded-invocation-v1"
+    },
+    "tool": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "schema_version": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "arguments": {
+      "type": "object",
+      "maxProperties": 128
+    },
+    "idempotency_key": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "approval_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 65536
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "format",
+    "tool",
+    "schema_version",
+    "arguments",
+    "idempotency_key"
+  ],
+  "additionalProperties": false
+}

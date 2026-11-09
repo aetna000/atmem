@@ -1,0 +1,490 @@
+From 1088e06e448bef2af736122a5d424082a57bf548 Mon Sep 17 00:00:00 2001
+From: Javad Taghia <javad@deegitals.com>
+Date: Mon, 9 Nov 2026 13:44:30 +1100
+Subject: [PATCH] fix: authorize final tool arguments and deny policy dispatch
+ failures
+
+---
+ agent/tool_authorization.py                   |  51 +++++
+ agent/tool_executor.py                        |  23 ++-
+ hermes_cli/plugins.py                         |   2 +-
+ hermes_cli/plugins_dispatch.py                |  15 +-
+ model_tools.py                                |   9 +-
+ tests/agent/test_final_tool_authorization.py  | 174 ++++++++++++++++++
+ website/docs/developer-guide/plugins/index.md |   3 +-
+ website/docs/user-guide/features/hooks.md     |  50 +++++
+ 8 files changed, 313 insertions(+), 14 deletions(-)
+ create mode 100644 agent/tool_authorization.py
+ create mode 100644 tests/agent/test_final_tool_authorization.py
+
+diff --git a/agent/tool_authorization.py b/agent/tool_authorization.py
+new file mode 100644
+index 000000000..972b69173
+--- /dev/null
++++ b/agent/tool_authorization.py
+@@ -0,0 +1,51 @@
++"""Read-only policy admission at the terminal tool-dispatch boundary.
++
++Request hooks may rewrite arguments. Authorization hooks inspect a detached
++snapshot of the final call and can only veto it; a policy failure is a tool
++result, not an exception that aborts the conversation or falls through to I/O.
++"""
++
++from __future__ import annotations
++
++import json
++from typing import Any
++
++
++HOOK = "authorize_tool_call"
++UNAVAILABLE = "Tool not executed: final authorization is unavailable. Retry after the policy service recovers."
++INVALID = "Tool not executed: final authorization returned an invalid or modifying decision."
++
++
++def authorize_tool_call(tool_name: str, args: dict, **ids: Any) -> tuple[str | None, dict]:
++    """Return a veto or the exact detached arguments checked by final policies.
++
++    A final hook is an idempotent authorization check, never a transformation,
++    approval prompt or effect. It may be reached again as a wrapper resolves to
++    a concrete tool. Callers must invoke it after their last transformation and
++    immediately before dispatch; caller-owned mutable input is never executed
++    after a hooked check.
++    """
++    try:
++        from hermes_cli import plugins
++
++        if not plugins.has_hook(HOOK):
++            return None, args
++        encoded = json.dumps(args, sort_keys=True, separators=(",", ":"), allow_nan=False)
++        final_args = json.loads(encoded)
++        observed = json.loads(encoded)
++        results = plugins.invoke_hook(HOOK, tool_name=tool_name, args=observed, **ids)
++        if json.dumps(observed, sort_keys=True, separators=(",", ":"), allow_nan=False) != encoded:
++            return INVALID, final_args
++        for result in results:
++            if not isinstance(result, dict):
++                return INVALID, final_args
++            if set(result) - {"action", "message"} or result.get("action") not in {"allow", "block"}:
++                return INVALID, final_args
++            if result["action"] == "block":
++                message = result.get("message")
++                return (message if isinstance(message, str) and message.strip() else INVALID), final_args
++        return None, final_args
++    except (Exception, SystemExit):
++        # The exception may contain tool arguments or secrets. A bounded,
++        # content-free error is enough to tell the model nothing was executed.
++        return UNAVAILABLE, args
+diff --git a/agent/tool_executor.py b/agent/tool_executor.py
+index 72abc90f7..545157ee5 100644
+--- a/agent/tool_executor.py
++++ b/agent/tool_executor.py
+@@ -662,7 +662,7 @@ def _blocked_tool_result(agent, ref: _ToolCallRef, *, block_body: dict[str, Any]
+ 
+ def _pre_tool_block(agent, ref: _ToolCallRef):
+     """Run ``pre_tool_call`` plugin hooks; returns ``(block_message, final_args)`` with any
+-    hook-modified args applied. Hook failures never block."""
++    hook-modified args applied. Policy-dispatch failures block without ending the turn."""
+     try:
+         from hermes_cli.plugins import _dispatch_pre_tool_call_hooks
+ 
+@@ -673,8 +673,8 @@ def _pre_tool_block(agent, ref: _ToolCallRef):
+             middleware_trace=list(ref.trace),
+         )
+         return block_msg, (ref.args if modified_args is None else modified_args)
+-    except Exception:
+-        return None, ref.args
++    except (Exception, SystemExit):
++        return "Tool not executed: pre-tool policy dispatch failed. Retry after policy recovery.", ref.args
+ 
+ 
+ def _dispatch_authorized_once(
+@@ -743,7 +743,22 @@ def _dispatch_authorized_once(
+     from agent.terminal_approval_batch import prepare_current_terminal
+     prepare_current_terminal(ref)
+     _advance_start_order(lambda: _begin_tool_execution(agent, ref, display_index))
+-    return _run_with_activity_heartbeat(agent, ref.name, lambda: execute(ref.args))
++    def _authorized_execute():
++        from agent.tool_authorization import authorize_tool_call
++
++        block, final_args = authorize_tool_call(
++            ref.name, ref.args, **tool_hook_ids(agent, ref.task_id, ref.call_id),
++        )
++        if block is not None:
++            state.blocked = True
++            return _blocked_tool_result(
++                agent, ref, block_body={"error": block},
++                block_error_type="tool_authorization_denied", guardrail_decision=None,
++            )
++        state.args = ref.args = final_args
++        return execute(final_args)
++
++    return _run_with_activity_heartbeat(agent, ref.name, _authorized_execute)
+ 
+ 
+ def _run_agent_tool_execution_middleware(
+diff --git a/hermes_cli/plugins.py b/hermes_cli/plugins.py
+index bba82a3b4..709e32364 100644
+--- a/hermes_cli/plugins.py
++++ b/hermes_cli/plugins.py
+@@ -106,7 +106,7 @@ def _install_plugin_debug_handler(force: bool = False) -> None:
+ _install_plugin_debug_handler()
+ 
+ VALID_HOOKS: Set[str] = {
+-    "pre_tool_call", "post_tool_call", "transform_terminal_output", "transform_tool_result",
++    "pre_tool_call", "authorize_tool_call", "post_tool_call", "transform_terminal_output", "transform_tool_result",
+     # transform_llm_output: return a replacement string (first non-None wins) or None.
+     "transform_llm_output", "pre_llm_call", "post_llm_call",
+     # Streaming observers (agent.plugin_stream_hooks), off the token path; payloads are immutable
+diff --git a/hermes_cli/plugins_dispatch.py b/hermes_cli/plugins_dispatch.py
+index 78c3927fc..a2404a33c 100644
+--- a/hermes_cli/plugins_dispatch.py
++++ b/hermes_cli/plugins_dispatch.py
+@@ -46,7 +46,7 @@ _HOOK_TIMEOUT_BOUNDED_HOOKS: Set[str] = {
+ }
+ 
+ # Policy hooks: timeout / still-running must fail closed (block the tool).
+-_HOOK_TIMEOUT_FAIL_CLOSED_HOOKS: Set[str] = {"pre_tool_call"}
++_HOOK_TIMEOUT_FAIL_CLOSED_HOOKS: Set[str] = {"pre_tool_call", "authorize_tool_call"}
+ # Documented parent-thread serialization contract — never run on a timeout worker (hooks.md).
+ _HOOK_CALLER_THREAD_HOOKS: Set[str] = {"subagent_stop"}
+ # After a timeout, suppress the same callback this long so a hung hook cannot pile up threads.
+@@ -60,6 +60,8 @@ def _policy_error_block_directive(hook_name: str, cb: Callable, exc: BaseExcepti
+     """Block directive for a fail-closed hook whose callback raised: names the callback and the
+     error (truncated — a hook that embeds tool args in its exception must not grow the tool
+     result) so the operator can tell a crashing guard from a slow one."""
++    if hook_name == "authorize_tool_call":
++        return {"action": "block", "message": "Tool not executed: final authorization callback failed."}
+     callback_name = getattr(cb, "__name__", repr(cb))
+     return {"action": "block",
+             "message": f"{hook_name} plugin callback {callback_name} raised {type(exc).__name__}: {str(exc)[:200]}"}
+@@ -230,7 +232,7 @@ class PluginDispatchMixin:
+                     ret = self._run_hook_callback_bounded(hook_name, cb, kwargs, timeout)
+                     if ret is _HOOK_SKIPPED:
+                         if fail_closed:  # policy hook: fail closed with a block directive
+-                            results.append({"action": "block", "message": _PRE_TOOL_CALL_TIMEOUT_BLOCK_MESSAGE})
++                            results.append({"action": "block", "message": f"{hook_name} plugin callback timed out or is still running"})
+                         continue
+                 else:
+                     ret = self._invoke_hook_callback(cb, kwargs)
+@@ -256,15 +258,16 @@ class PluginDispatchMixin:
+         per call; the set is cleared on unload alongside the timeout-suppression map.
+         """
+         callback_name = getattr(cb, "__name__", repr(cb))
++        detail = "details withheld" if hook_name == "authorize_tool_call" else str(exc)
+         key = (hook_name, getattr(cb, "__module__", ""), getattr(cb, "__qualname__", callback_name),
+-               type(exc).__name__, str(exc)[:200])
++               type(exc).__name__, detail[:200])
+         if key in self._hook_failures_reported:
+-            logger.debug("%s '%s' callback %s raised again: %s", surface, hook_name, callback_name, exc)
++            logger.debug("%s '%s' callback %s raised again: %s", surface, hook_name, callback_name, detail)
+             return
+         self._hook_failures_reported.add(key)
+         logger.warning(
+             "%s '%s' callback %s raised: %s (%s provides: %s; identical failures are logged at DEBUG from now on)",
+-            surface, hook_name, callback_name, exc, surface.lower(), ", ".join(sorted(kwargs)) or "no fields")
++            surface, hook_name, callback_name, detail, surface.lower(), ", ".join(sorted(kwargs)) or "no fields")
+ 
+     def _run_hook_callback_bounded(
+         self, hook_name: str, cb: Callable, kwargs: Dict[str, Any], timeout: float
+@@ -509,7 +512,7 @@ class PluginDispatchMixin:
+             except asyncio.TimeoutError:
+                 logger.warning("Hook '%s' callback %s timed out after %.0fs", hook_name, callback_name, timeout)
+                 if fail_closed:  # policy hook: fail closed with a block directive
+-                    results.append({"action": "block", "message": _PRE_TOOL_CALL_TIMEOUT_BLOCK_MESSAGE})
++                    results.append({"action": "block", "message": f"{hook_name} plugin callback timed out or is still running"})
+             except (Exception, SystemExit) as exc:
+                 # Same isolation + failure contract as the sync path (#111922 warn-once, #109624
+                 # a raising policy guard fails closed).
+diff --git a/model_tools.py b/model_tools.py
+index 9a068d5a1..d0de7a19b 100644
+--- a/model_tools.py
++++ b/model_tools.py
+@@ -781,8 +781,8 @@ def _pre_dispatch_guards(function_name: str, function_args: Dict[str, Any], skip
+             )
+             if modified_args is not None:
+                 function_args = modified_args
+-        except Exception as _hook_err:
+-            logger.debug("pre_tool_call hook error: %s", _hook_err)
++        except (Exception, SystemExit):
++            block_message = "Tool not executed: pre-tool policy dispatch failed. Retry after policy recovery."
+         if block_message is not None:
+             return function_args, (tool_error(block_message), "plugin_block", block_message)
+ 
+@@ -832,7 +832,12 @@ def _execute_tool(function_name: str, function_args: Dict[str, Any], original_ar
+         dispatch_kwargs["user_task"] = user_task
+ 
+     def _dispatch(next_args: Dict[str, Any]) -> Any:
++        from agent.tool_authorization import authorize_tool_call
+         from tools.connectors import dispatch_connector_call, is_connector_name
++
++        block, next_args = authorize_tool_call(function_name, next_args, **ids.hook_kwargs())
++        if block is not None:
++            return tool_error(block, error_type="tool_authorization_denied")
+         if is_connector_name(function_name):
+             return dispatch_connector_call(function_name, next_args, ids.tool_call_id)
+         return registry.dispatch(function_name, next_args, **dispatch_kwargs)
+diff --git a/tests/agent/test_final_tool_authorization.py b/tests/agent/test_final_tool_authorization.py
+new file mode 100644
+index 000000000..62b7dfb8c
+--- /dev/null
++++ b/tests/agent/test_final_tool_authorization.py
+@@ -0,0 +1,174 @@
++"""Actual plugin discovery and dispatch must agree on the final authorized call.
++
++Uses only a temporary local effect file, with no model or external service.
++"""
++
++import json
++from pathlib import Path
++from types import SimpleNamespace
++
++import pytest
++
++
++@pytest.fixture
++def policy(tmp_path, monkeypatch):
++    from hermes_constants import get_hermes_home
++    from hermes_cli import plugins
++
++    home = get_hermes_home()
++    directory = home / "plugins" / "final-policy-probe"
++    directory.mkdir(parents=True)
++    (directory / "plugin.yaml").write_text('''name: final-policy-probe
++version: "1.0.0"
++description: "Isolated dispatch conformance fixture"
++provides_hooks: [pre_tool_call, authorize_tool_call]
++''')
++    (home / "config.yaml").write_text("plugins:\n  enabled: [final-policy-probe]\n")
++    (directory / "__init__.py").write_text('''
++import json
++from pathlib import Path
++import threading
++MODE = "allow"
++SEEN = []
++HOLD = threading.Event()
++EFFECT = Path(__file__).with_name("effect.json")
++CAPTURED = None
++
++def before(tool_name, args, **kwargs):
++    if MODE == "rewrite" and tool_name in {"policy_probe_write", "connectors__fixture__WRITE"}:
++        return {"action": "modify", "args": {"target": "production"}}
++
++def authorize(tool_name, args, **kwargs):
++    global CAPTURED
++    if tool_name not in {"policy_probe_write", "connectors__fixture__WRITE"}:
++        return None
++    SEEN.append(json.loads(json.dumps(args)))
++    CAPTURED = args
++    if MODE == "callback_error":
++        raise RuntimeError("PRIVATE-ARGUMENT-CONTENT")
++    if MODE == "timeout":
++        HOLD.wait(5)
++    if MODE == "invalid":
++        return {"action": "modify", "args": {"target": "staging"}}
++    if MODE == "mutation":
++        args["payload"]["approved"] = False
++    if args.get("target") == "production":
++        return {"action": "block", "message": "Production write requires separate approval."}
++    return {"action": "allow"}
++
++def execution(tool_name, args, next_call, **kwargs):
++    if MODE == "execution_rewrite" and tool_name in {"policy_probe_write", "connectors__fixture__WRITE"}:
++        return next_call({**args, "target": "production"})
++    return next_call(args)
++
++def write(args, **kwargs):
++    # A retained callback argument must not mutate the tool's checked snapshot.
++    if MODE == "late_mutation":
++        CAPTURED["payload"]["approved"] = False
++    EFFECT.write_text(json.dumps(args))
++    return json.dumps({"ok": True})
++
++def register(ctx):
++    ctx.register_hook("pre_tool_call", before)
++    ctx.register_hook("authorize_tool_call", authorize)
++    ctx.register_middleware("tool_execution", execution)
++    ctx.register_tool("policy_probe_write", "policy-probe",
++        {"name": "policy_probe_write", "parameters": {"type": "object"}}, write)
++''')
++    # Load the fixture through the actual profile-scoped directory loader.
++    manager = plugins.PluginManager()
++    monkeypatch.setattr(plugins, "get_plugin_manager", lambda: manager)
++    manager.discover_and_load(force=True)
++    loaded = manager._plugins["final-policy-probe"]
++    assert loaded.enabled and loaded.error is None
++    module = loaded.module
++    from tools.connectors.gateway import bridge, config
++    from tools.registry import invalidate_check_fn_cache
++    monkeypatch.setattr(config, "connectors_available", lambda: True)
++    monkeypatch.setattr(bridge, "connectors_available", lambda: True)
++    invalidate_check_fn_cache()
++
++    class Client:
++        def execute(self, plans):
++            return [{"data": json.loads(module.write(p.arguments)), "error": None} for p in plans]
++
++    monkeypatch.setattr(bridge, "_default_client_factory", Client)
++    try:
++        yield module
++    finally:
++        module.HOLD.set()
++        manager.unload("final-policy-probe")
++
++
++def _invoke(path, policy):
++    args = {"target": "staging", "payload": {"approved": True}}
++    if path == "direct":
++        from model_tools import handle_function_call
++        return handle_function_call("policy_probe_write", args, task_id="policy-task", tool_call_id="call-1")
++    if path in {"connector", "connector_batch"}:
++        from model_tools import handle_function_call
++        name = "connectors__fixture__WRITE"
++        if path == "connector_batch":
++            args = {"calls": [{"name": name, "arguments": args}]}
++            name = "tool_call"
++        result = json.loads(handle_function_call(
++            name, args, task_id="policy-task", tool_call_id="call-1", enabled_toolsets=["connections"],
++        ))
++        if path == "connector_batch":
++            result = result["results"][0]
++        return json.dumps(result.get("response", result))
++    from agent.tool_executor import _run_agent_tool_execution_middleware
++    agent = SimpleNamespace(
++        session_id="policy-session", _current_turn_id="turn-1", _current_api_request_id="request-1",
++        _tool_guardrails=SimpleNamespace(before_call=lambda *a: SimpleNamespace(allows_execution=True)),
++        verbose_logging=False, quiet_mode=True, tool_progress_callback=None, tool_start_callback=None,
++        _touch_activity=lambda *a: None, _checkpoint_mgr=SimpleNamespace(enabled=False),
++    )
++    managed = _run_agent_tool_execution_middleware(
++        agent, function_name="policy_probe_write", function_args=args,
++        effective_task_id="policy-task", tool_call_id="call-1", execute=policy.write,
++    )
++    return managed.result
++
++
++@pytest.mark.parametrize("path", ["direct", "agent", "connector", "connector_batch"])
++@pytest.mark.parametrize("mode", [
++    "allow", "rewrite", "execution_rewrite", "callback_error", "invalid", "mutation", "late_mutation", "timeout",
++])
++def test_final_policy_controls_real_effect_after_rewrites(policy, monkeypatch, caplog, path, mode):
++    policy.MODE = mode
++    monkeypatch.setattr("hermes_cli.plugins._resolve_hook_callback_timeout", lambda: 0.05)
++    result = json.loads(_invoke(path, policy))
++    if mode in {"allow", "late_mutation"}:
++        assert result == {"ok": True}
++        assert json.loads(policy.EFFECT.read_text()) == {"target": "staging", "payload": {"approved": True}}
++    else:
++        assert "error" in result
++        assert "PRIVATE-ARGUMENT-CONTENT" not in json.dumps(result)
++        assert not policy.EFFECT.exists()
++    assert policy.SEEN
++    assert "PRIVATE-ARGUMENT-CONTENT" not in caplog.text
++    if mode in {"rewrite", "execution_rewrite"}:
++        assert policy.SEEN[-1]["target"] == "production"
++
++
++@pytest.mark.parametrize("path", ["direct", "agent", "connector", "connector_batch"])
++@pytest.mark.parametrize("stage", ["pre", "final"])
++def test_outer_hook_dispatch_error_blocks_then_recovers(policy, monkeypatch, path, stage):
++    from hermes_cli import plugins
++    attribute = "_dispatch_pre_tool_call_hooks" if stage == "pre" else "invoke_hook"
++    original = getattr(plugins, attribute)
++
++    def unavailable(*args, **kwargs):
++        if stage == "final" and args[0] != "authorize_tool_call":
++            return original(*args, **kwargs)
++        raise RuntimeError("PRIVATE-ARGUMENT-CONTENT")
++
++    monkeypatch.setattr(plugins, attribute, unavailable)
++    failed = json.loads(_invoke(path, policy))
++    assert "error" in failed and "not executed" in str(failed["error"])
++    assert "PRIVATE-ARGUMENT-CONTENT" not in json.dumps(failed)
++    assert not policy.EFFECT.exists()
++    monkeypatch.setattr(plugins, attribute, original)
++    assert json.loads(_invoke(path, policy)) == {"ok": True}
++    assert policy.EFFECT.exists()
+diff --git a/website/docs/developer-guide/plugins/index.md b/website/docs/developer-guide/plugins/index.md
+index 2833d5e32..507123725 100644
+--- a/website/docs/developer-guide/plugins/index.md
++++ b/website/docs/developer-guide/plugins/index.md
+@@ -1080,6 +1080,7 @@ Each hook is documented in full on the **[Event Hooks reference](../../user-guid
+ | Hook | Fires when | Callback signature | Returns |
+ |------|-----------|-------------------|---------|
+ | [`pre_tool_call`](../../user-guide/features/hooks.md#pre_tool_call) | Before any tool executes | `tool_name: str, args: dict, task_id: str` | optional directive: `{"action": "block", "message": ...}` vetoes the call; `{"action": "approve", "message": ...}` escalates to the human-approval gate |
++| [`authorize_tool_call`](../../user-guide/features/hooks.md#authorize_tool_call) | At final dispatch, after argument transformations | `tool_name: str, args: dict, task_id: str` | read-only `{"action": "allow"}` / `{"action": "block", "message": ...}`; failures block |
+ | [`post_tool_call`](../../user-guide/features/hooks.md#post_tool_call) | After any tool returns | `tool_name: str, args: dict, result: str, task_id: str, duration_ms: int` | ignored |
+ | [`pre_llm_call`](../../user-guide/features/hooks.md#pre_llm_call) | Once per turn, before the tool-calling loop | `session_id: str, user_message: str, conversation_history: list, is_first_turn: bool, model: str, platform: str` | [context injection](#pre_llm_call-context-injection) |
+ | [`post_llm_call`](../../user-guide/features/hooks.md#post_llm_call) | Once per turn, after the tool-calling loop (successful turns only) | `session_id: str, user_message: str, assistant_response: str, conversation_history: list, model: str, platform: str` | ignored |
+@@ -1097,7 +1098,7 @@ Each hook is documented in full on the **[Event Hooks reference](../../user-guid
+ | `kanban_task_completed` | A kanban task completes (worker process) | `task_id, board, assignee, run_id, profile_name, summary: str \| None` | ignored |
+ | `kanban_task_blocked` | A kanban task is blocked (worker process) | `task_id, board, assignee, run_id, profile_name, reason: str \| None` | ignored |
+ 
+-Most hooks are fire-and-forget observers — their return values are ignored. The exceptions are `pre_llm_call`, which can inject context into the conversation, and `pre_tool_call`, which can return a block/approve directive.
++Most hooks are fire-and-forget observers — their return values are ignored. The exceptions include `pre_llm_call`, which can inject context, `pre_tool_call`, which can transform arguments or request approval, and `authorize_tool_call`, which can veto the final call. A policy whose decision depends on exact arguments belongs in the final authorization hook; earlier checks may see arguments that another hook or middleware later changes.
+ 
+ All callbacks should accept `**kwargs` for forward compatibility. If a hook callback crashes, it's logged and skipped. Other hooks and the agent continue normally.
+ 
+diff --git a/website/docs/user-guide/features/hooks.md b/website/docs/user-guide/features/hooks.md
+index 59975d14e..fc92d99d6 100644
+--- a/website/docs/user-guide/features/hooks.md
++++ b/website/docs/user-guide/features/hooks.md
+@@ -619,6 +619,56 @@ def register(ctx):
+ 
+ ---
+ 
++### `authorize_tool_call`
++
++Python plugins can register a **read-only final authorization** check. It runs
++after request hooks, argument rewrites and execution middleware, immediately
++before the agent callback or the registry/connector dispatch. It is intended for
++policies that depend on the exact final target and arguments, including external
++memory-derived policies. `pre_tool_call` keeps its existing single-fire transform
++and human-approval behavior; it cannot authorize arguments that change later.
++
++```python
++def authorize(tool_name, args, task_id="", **ids):
++    # Inspect current authenticated policy and the final arguments here.
++    # Approval must come from trusted authority, never an args["approved"] flag.
++    if policy_denies(tool_name, args, task_id, ids):
++        return {"action": "block", "message": "This exact call is not authorized."}
++    return {"action": "allow"}
++
++def register(ctx):
++    ctx.register_hook("authorize_tool_call", authorize)
++```
++
++The payload includes the same task, session, turn, request and tool-call identity
++fields as the pre-tool hook when available. Wrappers and connector batches also
++check their concrete child tools. Checks are idempotent: a call crossing multiple
++host boundaries can be checked again with the same identity. Do not perform
++side effects, prompt for approval, consume a one-shot approval, or mutate state
++in this hook. Approval issuance and atomic single-use admission require a
++separate authoritative service; this hook alone is not that service.
++
++Return `None` to abstain, `{"action": "allow"}` to allow this policy's check, or
++`{"action": "block", "message": "..."}` to veto. Any veto wins. A final hook
++cannot override an earlier veto. `approve`, `modify`, unrecognized results and
++argument mutation block execution. Arguments are detached JSON snapshots, so a
++callback retaining its input cannot change the checked arguments used by the
++tool after returning. Normal calls without a registered final policy retain
++their existing behavior.
++
++Callback exceptions, timeouts, worker-start errors and final-dispatch failures
++block with an error result and leave the conversation able to retry after
++recovery. Exception details from this hook are withheld from operational logs
++and error results. Policy-provided denial messages should likewise avoid secrets.
++Shell hooks do not implement this final policy contract.
++
++The hook controls the instrumented Hermes paths, not arbitrary code in a plugin,
++direct registry use by trusted application code, or tools invoked outside Hermes.
++It does not itself verify memory truth, authenticate an approval receipt, stop an
++already dispatched call or make remote effects transactional.
++
++---
++
+ ### `post_tool_call`
+ 
+ Fires **immediately after** every tool execution returns.
+-- 
+2.50.1 (Apple Git-155)
+

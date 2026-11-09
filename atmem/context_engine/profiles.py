@@ -20,6 +20,60 @@ CONTEXT_NAVIGATE = EngineProfile("context-navigate", False, True, True)
 PROFILES = {item.profile_id: item for item in (LEGACY_CONTROL, CONTEXT_FAST, CONTEXT_NAVIGATE)}
 
 
+def prepare_feedback_profile(feedback, session, request, *, profile_id=None, mode="disabled", versions=None):
+    """Explicit application extension; ordinary prepare_context_v3 is unchanged.
+
+    Shadow returns native context and retains the alternative only as evidence.
+    Active mode requires a current accepted qualification and fails closed on
+    invalid authority/policy; it never silently widens access or enables a model.
+    """
+    from dataclasses import replace
+    import uuid
+    from atmem.feedback.store import FeedbackError
+    from atmem.rules.lifecycle import RuleLifecycle
+    from atmem.context_engine.formation import FormationManager
+    from atmem.context_engine.service import GovernanceViolation, StoredContextEngine
+
+    if mode not in ("disabled", "shadow", "active"):
+        raise ValueError("explicit supported profile mode required")
+    if feedback.memory is None or request.scope != session.scope.authority_scope():
+        raise FeedbackError("denied")
+    if mode == "disabled":
+        with feedback.memory.store.transaction(), feedback._authorized(session, "read"):
+            return feedback.memory.prepare_context_v3(request)
+    with feedback.memory.store.transaction(), feedback._authorized(session, "read") as (tx, principal):
+        states = RuleLifecycle(feedback).current(tx, kind="profile", versions=versions or {})
+        selected = next(((state, profile) for state, profile in states if profile.profile_id == profile_id), None)
+        if selected is None or selected[0]["state"] != mode:
+            raise FeedbackError("profile_unavailable")
+        state, profile = selected
+        generation = FormationManager(feedback.memory.store).active_generation(request.scope)
+        if generation is None:
+            raise FeedbackError("missing_evidence")
+        bounded = replace(request, budget=replace(request.budget, context_bytes=min(request.budget.context_bytes, profile.context_bytes)))
+        engine = StoredContextEngine(feedback.memory.store, generation_id=generation["generation_id"],
+                                     candidate_budget=profile.candidate_budget, balanced_pools=profile.balanced_pools)
+        candidate = None
+        failure = None
+        try:
+            candidate = feedback.memory.prepare_context_v3(bounded, engine=engine)
+        except GovernanceViolation:
+            # An unauthorized selection or tampered result is not an outage.
+            raise
+        except (OSError, RuntimeError):
+            failure = "profile_engine_unavailable"
+        native = feedback.memory.prepare_context_v3(request if mode == "shadow" else bounded) if mode == "shadow" or failure else None
+        selected = native if native is not None else candidate
+        if failure:
+            selected = replace(selected, reason_codes=selected.reason_codes+("feedback_profile_native_fallback",))
+        tx.put("profile_comparison", "profile-check-"+uuid.uuid4().hex,
+               {"profile_id": profile_id, "candidate_sha256": profile.content_digest, "generation": state["generation"],
+                "mode": mode, "candidate": candidate.to_dict() if candidate else None, "native": native.to_dict() if native else None,
+                "effective":"native_fallback" if failure else mode, "failure":failure,
+                "actor_id": principal.principal_id, "delivery": "not_confirmed"}, expected_revision=0)
+        return selected
+
+
 @dataclass(frozen=True, slots=True)
 class EngineProfileState:
     format: ClassVar[str] = "atmem-context-engine-profile-state-v1"

@@ -19,6 +19,7 @@ def main() -> int:
         environment = dict(os.environ)
         environment.pop("PYTHONPATH", None)
         environment["ATMEM_REQUIRE_INSTALLED_ARTIFACT"] = "1"
+        environment["ATMEM_ENCRYPTION_SOURCE_ROOT"] = str(source.parents[1])
         completed = subprocess.run(
             [
                 sys.executable,

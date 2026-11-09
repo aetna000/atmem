@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "atmem-feedback-outcome-v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "atmem-feedback-outcome-v1"
+    },
+    "outcome_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": "atmem-feedback-scope-v1"
+        },
+        "tenant_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        },
+        "subject_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        },
+        "agent_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        },
+        "workspace_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "format",
+        "tenant_id",
+        "subject_id",
+        "agent_id",
+        "workspace_id"
+      ],
+      "additionalProperties": false
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "turn_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "required": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "const": "atmem-feedback-action-requirement-v1"
+          },
+          "action_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+            "maxLength": 256
+          },
+          "tool": {
+            "type": "string",
+            "maxLength": 65536
+          },
+          "schema_version": {
+            "type": "string",
+            "maxLength": 65536
+          },
+          "kind": {
+            "enum": [
+              "read",
+              "write"
+            ]
+          },
+          "checks": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "type": "string",
+              "maxLength": 65536
+            }
+          }
+        },
+        "required": [
+          "format",
+          "action_id",
+          "tool",
+          "schema_version",
+          "kind",
+          "checks"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "observations": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "const": "atmem-feedback-action-observation-v1"
+          },
+          "action_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+            "maxLength": 256
+          },
+          "invocation_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+            "maxLength": 256
+          },
+          "tool": {
+            "type": "string",
+            "maxLength": 65536
+          },
+          "schema_version": {
+            "type": "string",
+            "maxLength": 65536
+          },
+          "arguments": {
+            "type": "object",
+            "maxProperties": 128
+          },
+          "result": {},
+          "checks": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "type": "object",
+              "properties": {
+                "format": {
+                  "const": "atmem-feedback-action-check-v1"
+                },
+                "check_id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+                  "maxLength": 256
+                },
+                "kind": {
+                  "enum": [
+                    "mechanical",
+                    "judged"
+                  ]
+                },
+                "result": {
+                  "enum": [
+                    "pass",
+                    "fail",
+                    "unknown",
+                    "disputed"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "maxLength": 65536
+                }
+              },
+              "required": [
+                "format",
+                "check_id",
+                "kind",
+                "result",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 65536
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "format",
+          "action_id",
+          "invocation_id",
+          "tool",
+          "schema_version",
+          "arguments",
+          "result",
+          "checks"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "context_receipt_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 65536
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "delivery": {
+      "enum": [
+        "not_captured",
+        "not_delivered",
+        "delivered"
+      ]
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740992
+    },
+    "predecessor_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 65536
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "format",
+    "outcome_id",
+    "scope",
+    "run_id",
+    "turn_id",
+    "required",
+    "observations"
+  ],
+  "additionalProperties": false
+}

@@ -1,5 +1,12 @@
 # Releases
 
+## Current beta: 2.3.15b1
+
+[AtMem 2.3.15b1](../releases/v2.3.15b1.md) adds opt-in governed RAG, generic MCP,
+independent per-action verification and feedback inspection, plus Windows and
+encrypted-restore fixes. Production qualification remains inconclusive; this
+is not a stable promotion or a new benchmark result.
+
 ## Current stable: 2.3.14
 
 [AtMem 2.3.14](../releases/v2.3.14.md) refreshes the local AtMem dashboard with the

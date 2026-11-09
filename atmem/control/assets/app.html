@@ -35,6 +35,7 @@
     <button class="tabbtn" id="navDecisions" type="button" role="tab" aria-selected="false">Decisions<span class="navbadge" id="decisionsBadge" hidden>0</span></button>
     <button class="tabbtn" id="navMemory" type="button" role="tab" aria-selected="false">Memory</button>
     <button class="tabbtn" id="navAudit" type="button" role="tab" aria-selected="false">Audit</button>
+    <button class="tabbtn" id="navFeedback" type="button" role="tab" aria-selected="false" aria-controls="viewFeedback">Feedback</button>
     <button class="tabbtn" id="navSettings" type="button" role="tab" aria-selected="false">Settings</button>
   </div>
   <a class="companionnav" id="atflowsDashboardLink" hidden target="_blank" rel="noopener noreferrer">AtFlows <span aria-hidden="true">↗</span></a>
@@ -102,6 +103,41 @@
     </div>
   </section>
 
+  <div class="tabpanel" id="viewFeedback" role="tabpanel" aria-labelledby="navFeedback">
+    <section class="card" aria-labelledby="feedbackTitle">
+      <h2 id="feedbackTitle">Verified feedback</h2>
+      <p class="sub">Investigate action outcomes, review exact proposals and compare changes in shadow. A retrieved memory or a host success report is not independent proof of success.</p>
+      <p id="feedbackStatus" role="status" aria-live="polite">Open this tab to load the configured scope.</p>
+      <button id="feedbackRefresh" class="secondary" type="button">Refresh feedback</button>
+      <form id="feedbackQualityForm">
+        <label for="feedbackSchedule">Frozen task schedule</label>
+        <select id="feedbackSchedule" required><option value="">Select a schedule</option></select>
+        <button type="submit" class="primary">Show quality and actions</button>
+      </form>
+      <div id="feedbackQuality" aria-live="polite"></div>
+      <h3>Reviewed changes</h3>
+      <p class="sub">Shadow does not replace delivered context. Activation requires accepted qualification; inconclusive synthetic results cannot activate a change.</p>
+      <div id="feedbackProposals"></div>
+      <section id="feedbackExport" hidden aria-labelledby="feedbackExportTitle">
+        <h3 id="feedbackExportTitle">Verified-example export</h3>
+        <p class="sub">Only independently verified examples are eligible. Review the exact plaintext preview for personal or sensitive information before confirming. This does not train a model. Withdrawal blocks future exports; it cannot recall recipient copies or erase trained weights.</p>
+        <form id="feedbackExportForm">
+          <label for="feedbackConsentId">Consent ID</label><input id="feedbackConsentId" required maxlength="256">
+          <label for="feedbackExportPurpose">Purpose</label><input id="feedbackExportPurpose" required maxlength="1024">
+          <label for="feedbackRecipientKey">Recipient ML-KEM-768 public key (base64)</label><textarea id="feedbackRecipientKey" required maxlength="1600"></textarea>
+          <label for="feedbackOutcomeIds">Outcome IDs (one per line, up to 64)</label><textarea id="feedbackOutcomeIds" required></textarea>
+          <label for="feedbackExportSplit">Destination split</label><select id="feedbackExportSplit"><option value="development">Development</option><option value="train">Training examples (export only)</option></select>
+          <label for="feedbackExportExpiry">Consent expiry</label><input id="feedbackExportExpiry" type="datetime-local" required>
+          <button type="submit" class="secondary">Grant consent and preview</button>
+        </form>
+        <p id="feedbackExportStatus" role="status" aria-live="polite"></p>
+        <details><summary>Exact export preview and exclusions</summary><pre id="feedbackExportPreview"></pre></details>
+        <label><input id="feedbackExportReviewed" type="checkbox">I reviewed the exact preview, recipient and purpose, including sensitive data.</label>
+        <button id="feedbackExportConfirm" type="button" class="primary" disabled>Confirm encrypted export</button>
+        <button id="feedbackExportWithdraw" type="button" class="secondary">Withdraw this consent</button>
+      </section>
+    </section>
+  </div>
   <div class="tabpanel" id="viewSettings">
   <div class="pageheading"><div><div class="eyebrow">Configuration</div><h1>Settings</h1><p>Control memory intelligence, governed task state, and optional context providers.</p></div></div>
   <div class="settingsworkspace" id="settingsWorkspace"><nav class="settingsrail" id="settingsRail" aria-label="Settings sections"><div class="settingsrailtitle">Settings</div></nav><main class="settingsstage" id="settingsStage" aria-live="polite"></main></div>
