@@ -43,6 +43,23 @@ class QualificationService:
                  "artifact_sha256": artifact_sha256, "actor_id": principal.principal_id,
                  "execution_authorized": False, "paid_calls_authorized": False}
         with self.feedback.owner_transaction(owner_credential, scope) as (tx, principal):
+            # Pin the actual application-owned verifier generations before any
+            # replay. Re-registering the same declared version is still a change.
+            bindings = []
+            requirements = {(task["verification"]["identity"], action["tool"])
+                            for task in manifest["tasks"] for action in task["actions"]}
+            for (kind, key), row in sorted(tx.rows.items()):
+                if kind != "verifier" or row["deleted"]:
+                    continue
+                registration = row["value"]
+                if ((registration["principal_id"], registration["tool"]) in requirements
+                        and registration["version"] == manifest["versions"]["verifier"]
+                        and registration["active"]
+                        and registration["assurance"] == "independent_readback"
+                        and registration.get("binding") == "effect_receipt"):
+                    bindings.append({"key": key, "revision": row["revision"],
+                                     "registration_sha256": sha256(canonical_json(registration).encode()).hexdigest()})
+            value["verifier_bindings"] = bindings
             old = tx.get("evaluation_manifest", preflight.digest)
             if old is not None:
                 if old != value:
@@ -129,6 +146,13 @@ class QualificationService:
                 raise FeedbackError("evaluation_changed")
             manifest = frozen["manifest"]
             retained = list(tx.iter_kind("verification"))
+            attempts = {r["receipt_id"]:r for r in tx.iter_kind("verification_attempt")
+                        if r.get("status") == "complete" and "receipt_id" in r}
+            readbacks = {key:row["value"] for (kind,key),row in tx.rows.items()
+                         if kind == "readback_evidence" and not row["deleted"]}
+            eligible = {row["key"]:row for row in frozen.get("verifier_bindings", [])}
+            rejected_receipts = 0
+            trial_bindings = []
             pairs, arms, missing = [], {"native": [], "atmem": [], "candidate": []}, []
             # Outcome IDs are frozen by convention rather than supplied result
             # totals: eval:<manifest>:<arm>:<task>. They fit the identifier bound.
@@ -147,10 +171,30 @@ class QualificationService:
                     expected_required = [(r["id"], r["tool"], r["kind"], r["checks"]) for r in task["actions"]]
                     if actual_required != expected_required:
                         raise FeedbackError("task_contract_changed")
-                    actions = action_results(outcome, retained)
-                    if any(a["status"] in ("unknown", "disputed", "no_call") for a in actions):
+                    matching = []
+                    for receipt in retained:
+                        if receipt["outcome_sha256"] != outcome.content_digest:
+                            continue
+                        observation = next((v for v in outcome.observations
+                                            if v.invocation_id == receipt["invocation_id"]), None)
+                        attempt = attempts.get(receipt["receipt_id"])
+                        readback = readbacks.get(receipt["evidence_id"])
+                        if not self._eligible_receipt(tx, scope, manifest_sha256, manifest, task, arm,
+                                                      outcome, observation, receipt, attempt, readback, eligible):
+                            rejected_receipts += 1
+                            continue
+                        matching.append(receipt)
+                    actions = action_results(outcome, matching)
+                    # Never erase contrary retained independent evidence merely
+                    # because it does not match the configured evaluation reader.
+                    all_actions = action_results(outcome, retained)
+                    disputed = any(a["status"] == "disputed" for a in all_actions)
+                    trial_bindings.append({"outcome_id":key, "outcome_sha256":outcome.content_digest,
+                                           "receipt_ids":[r["receipt_id"] for r in matching],
+                                           "disputed":disputed})
+                    if disputed or any(a["status"] in ("unknown", "disputed", "no_call") for a in actions):
                         missing.append(key)
-                    passed = all(a["verified_success"] for a in actions)
+                    passed = not disputed and all(a["verified_success"] for a in actions)
                     before_after[arm] = passed
                     arms[arm].append(passed)
                 pairs.append((task["episode"], before_after["atmem"], before_after["candidate"]))
@@ -158,16 +202,28 @@ class QualificationService:
             elapsed = self.timer()-started
             if elapsed > manifest["budget"]["seconds"]:
                 raise FeedbackError("time_budget_exhausted")
-            metrics = {"arms": {arm: rate(sum(values), len(values)) for arm, values in arms.items()},
+            # Retain every exact binding in individual encrypted rows rather
+            # than truncating an oversized receipt's evidence arrays.
+            trial_bytes = 0
+            for trial in trial_bindings:
+                trial_key = sha256(canonical_json([attempt_id,trial["outcome_id"]]).encode()).hexdigest()
+                value = {"evaluation_attempt_id":attempt_id, **trial}
+                trial_bytes += len(canonical_json(value).encode())
+                tx.put("evaluation_trial", trial_key, value, expected_revision=0)
+            metrics = {"rejected_verification_receipts":rejected_receipts,
+                       "trial_binding_count":len(trial_bindings), "arms": {arm: rate(sum(values), len(values)) for arm, values in arms.items()},
                        "paired_interval": paired,
                        "unknown_items": len(missing), "missing_ids": missing[:128], "model_calls": 0,
                        "tokens": 0, "usd": 0, "elapsed_seconds": elapsed,
                        "claim": "diagnostic_only", "production_gates": "not_qualified",
-                       "attempt_id":attempt_id, "disk_budget_basis":"serialized_qualification_payload_only"}
+                       "attempt_id":attempt_id, "evaluation_attempt_id":attempt_id,
+                       "disk_budget_basis":"serialized_receipt_and_trial_bindings_only",
+                       "trial_binding_bytes":trial_bytes,
+                       "missing_ids_omitted":max(0,len(missing)-128)}
             now = int(self.feedback.clock())
             receipt = QualificationReceipt("qualification-" + uuid.uuid4().hex, scope, frozen["artifact_sha256"],
                 manifest_sha256, manifest["versions"], "inconclusive", now, now+604800, metrics).to_dict()
-            if len(canonical_json(receipt).encode()) > manifest["budget"]["disk_bytes"]:
+            if trial_bytes + len(canonical_json(receipt).encode()) > manifest["budget"]["disk_bytes"]:
                 raise FeedbackError("disk_budget_exhausted")
             def publish():
                 tx.put("qualification", receipt["receipt_id"], receipt, expected_revision=0)
@@ -175,3 +231,48 @@ class QualificationService:
                     "status":"inconclusive"}, expected_revision=tx.revision("evaluation_attempt", attempt_id))
                 return receipt
             return tx.once("evaluate", idempotency_key, payload, publish)
+
+    @staticmethod
+    def _eligible_receipt(tx, scope, manifest_sha256, manifest, task, arm, outcome,
+                          observation, receipt, attempt, readback, frozen_bindings):
+        """Only exact frozen independent readers and original input evidence.
+
+        Trusted readback code must correlate these fields to its independent
+        backend journal. A host/model assertion or a new version of that reader
+        cannot supply evidence for a previously frozen comparison.
+        """
+        from atmem.feedback.verification import VerificationService
+        if (observation is None or attempt is None or readback is None
+                or receipt["scope"] != scope.to_dict()
+                or receipt["outcome_id"] != outcome.outcome_id
+                or receipt["verifier_id"] != task["verification"]["identity"]
+                or receipt["verifier_version"] != manifest["versions"]["verifier"]
+                or receipt["assurance"] != "independent_readback"
+                or receipt.get("binding") != "effect_receipt"):
+            return False
+        key = VerificationService._key(receipt["verifier_id"], observation.tool, observation.schema_version)
+        binding = frozen_bindings.get(key)
+        current = tx.get("verifier", key)
+        if (binding is None or current is None or not current["active"]
+                or tx.revision("verifier", key) != binding["revision"]
+                or sha256(canonical_json(current).encode()).hexdigest() != binding["registration_sha256"]
+                or attempt.get("registry_revision") != binding["revision"]
+                or attempt.get("verifier") != current
+                or attempt.get("actor_id") != receipt["verifier_id"]
+                or attempt.get("outcome_sha256") != outcome.content_digest
+                or attempt.get("invocation_id") != observation.invocation_id
+                or readback.get("outcome_sha256") != outcome.content_digest
+                or readback.get("invocation_id") != observation.invocation_id):
+            return False
+        evidence = readback.get("evidence", {})
+        trial = evidence.get("evaluation")
+        configuration = manifest["candidate"] if arm == "candidate" else manifest["baselines"][arm]
+        expected = {"manifest_sha256":manifest_sha256, "task_id":task["id"], "arm":arm,
+                    "input_sha256":task["input_sha256"],
+                    "configuration_sha256":configuration["configuration_sha256"],
+                    "memory_sha256":configuration["memory_sha256"],
+                    "versions":manifest["versions"], "environment":manifest["environment"],
+                    "evidence_contract":task["verification"]["evidence"]}
+        original = evidence.get("evaluation_input")
+        return (type(original) is str and sha256(original.encode()).hexdigest() == task["input_sha256"]
+                and trial == expected)

@@ -58,13 +58,13 @@ def _references(value, field='', *, source_domain='memory_source', artifact_doma
         for item in value:result.update(_references(item,field,source_domain=source_domain,artifact_domain=artifact_domain))
         return result
     domains={'source_id':source_domain,'record_id':'memory_source','record_ids':'memory_source',
-             'receipt_id':'receipt','evidence_id':'receipt','evidence_ids':'receipt','context_receipt_id':'receipt',
+             'receipt_id':'receipt','receipt_ids':'receipt','evidence_id':'receipt','evidence_ids':'receipt','context_receipt_id':'receipt',
              'rule_id':'rule','rule_ids':'rule','policy':'rule','profile_id':'profile','profile_ids':'profile',
              'artifact_id':artifact_domain,'outcome_id':'outcome','outcome_ids':'outcome','predecessor_id':'outcome',
              'outcome_sha256':'outcome_digest','candidate_sha256':'artifact_digest','artifact_sha256':'artifact_digest',
              'manifest_sha256':'manifest_digest','preview_sha256':'preview_digest',
              'activation_id':'receipt','consent_id':'consent','export_id':'export',
-             'attribution_id':'attribution'}
+             'attribution_id':'attribution','evaluation_attempt_id':'evaluation_attempt'}
     if type(value) is str and field in domains:
         return {(domains[field],value)}
     return set()
@@ -73,7 +73,7 @@ def _references(value, field='', *, source_domain='memory_source', artifact_doma
 def _key_identity(row):
     kind=row['kind']
     domain={'rag_source':'rag_source','outcome':'outcome','outcome_revision':'outcome_digest',
-            'evaluation_manifest':'manifest_digest','export_consent':'consent','example_export':'export','attribution':'attribution',
+            'evaluation_manifest':'manifest_digest','evaluation_attempt':'evaluation_attempt','export_consent':'consent','example_export':'export','attribution':'attribution',
             'rule_proposal':'rule','rule_lifecycle':'rule','profile_proposal':'profile','profile_lifecycle':'profile'}.get(kind)
     if kind in {'context_evidence','rag_receipt','readback_evidence','verification','proxy_execution',
                 'qualification','activation','verification_attempt','rag_attempt','reported_usage',
@@ -91,6 +91,9 @@ def _owned_identities(row):
     if row['kind']=='outcome_revision':
         outcome_id=row['value'].get('outcome',{}).get('outcome_id')
         if type(outcome_id) is str:result.add(('outcome',outcome_id))
+    if row['kind']=='evaluation_trial':
+        attempt_id=row['value'].get('evaluation_attempt_id')
+        if type(attempt_id) is str:result.add(('evaluation_attempt',attempt_id))
     if row['kind']=='attribution_lineage':
         attribution_id=row['value'].get('attribution_id')
         if type(attribution_id) is str:result.add(('attribution',attribution_id))

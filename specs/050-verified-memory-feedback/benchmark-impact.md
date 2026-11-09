@@ -118,3 +118,14 @@ retrieval unchanged. An agent consuming those enriched tools can receive new
 inputs: a future scored campaign enabling this surface must declare a new
 condition and satisfy fresh qualification; do not silently reuse prior receipts.
 No frozen Dolphin package, runtime, data, scoring script or result was modified.
+
+## Frozen qualification readback binding
+
+The opt-in qualification reducer now pins the actual independent reader registry
+generation and requires independently retained original input and exact trial
+provenance. Previously matching action success without that provenance is now
+unknown. New encrypted trial rows retain exact outcome/receipt identities and
+participate in dependent cleanup. This changes only diagnostic qualification;
+no DolphinBench launcher, recall defaults, scorer, published result or frozen
+campaign is changed. Any future use for qualification needs a fresh manifest;
+these checks do not establish production acceptance or benchmark improvement.

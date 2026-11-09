@@ -165,3 +165,30 @@ synthetic tool effects; it never invokes the Hermes CLI/bootstrap. Test-seeded
 accepted receipts exercise consumers only. They are not emitted by the offline
 qualifier and do not establish efficacy, supported production deployment or
 cross-platform Hermes conformance.
+
+### Frozen comparison readback binding (development)
+
+Register the independent action reader before freezing an evaluation. The freeze
+records its exact scoped registry generation and registration digest, not only
+its declared version. Changing or revoking that registration invalidates its
+eligibility for that frozen comparison; reusing the same version string does not
+preserve eligibility. A fresh evaluation needs a fresh frozen manifest identity.
+
+A successful action readback alone is insufficient for an evaluation arm. Trusted
+application readback code must inspect its independent backend journal and retain
+`evaluation_input` (the original text, hashed against the frozen task input) and
+an `evaluation` object with the exact `manifest_sha256`, `task_id`, `arm`,
+`input_sha256`, `configuration_sha256`, `memory_sha256`, `versions`, `environment`
+and `evidence_contract` values from the frozen manifest. It must correlate those
+values with the actual execution, not copy labels supplied by the agent. These
+fields are retained inside encrypted evidence; they are not a model-facing API
+for uploading qualification scores. Missing or mismatched evidence is unknown.
+
+The comparison retains each exact outcome digest and eligible verification
+receipt set as an encrypted `evaluation_trial` row. Contradictory independent
+readbacks remain disputed. Trial rows and the report share a serialized-payload
+budget; this is explicitly **not** a measurement of total database, encryption,
+backup or filesystem consumption. Evaluation budget counters survive cleanup.
+Production power, corpus provenance, resource measurement and acceptance gates
+remain unfinished; the service continues to issue only inconclusive diagnostic
+qualification receipts. These changes do not establish an efficacy result.

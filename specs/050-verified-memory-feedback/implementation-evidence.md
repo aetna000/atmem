@@ -651,3 +651,29 @@ false causal/activation-wire elevation checks **2 passed in 0.35s**; actual new
 classification Chrome journey **1 passed in 23.45s**. Earlier narrower selections
 were 22/9/28/31/59 passes and are not additive or final-source platform evidence.
 Fresh installed-wheel, actual Windows and cross-platform tests are required.
+
+## Qualification input binding follow-up (2026-11-10)
+
+T010 remains open. The reducer now pins real verifier registration generations
+before replay and checks exact principal/version, still-active generation,
+completed readback attempt and original retained input/trial provenance. A host
+success from a different reader, input, arm, configuration, memory snapshot,
+environment or version cannot count as the frozen comparison. Contrary retained
+independent readbacks remain disputed. Exact encrypted trial rows retain the
+outcome digest and receipt set, with aggregate invalidation lineage; diagnostic
+receipt/trial payloads share the declared serialization budget. No production
+power, resource qualification or accepted activation is claimed.
+
+Local Python 3.12 validation: 16 qualification tests passed (147.64s), and 51
+recovery, baseline and report-gate regressions passed (49.81s). One initial new
+fixture used a nonexistent session principal property; it was corrected to use
+authenticated identity, then the qualification suite passed. These are real
+isolated encrypted-store tests with synthetic backend effects, not efficacy runs.
+The Windows run underway tests committed b4aab99; it does not test these later
+uncommitted qualification changes.
+
+Additional final checks: dispute retention and atomic budget failure passed
+(2 tests, 29.61s); a stronger receipt-fits/trial-payload-exceeds budget case
+passed separately (1 test, 21.42s). Counts overlap and must not be summed as
+unique scenarios. Inventory/docs and 67-page website source checks passed using
+the worktree virtual environment. These checks do not cover a production run.
