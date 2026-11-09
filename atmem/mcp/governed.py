@@ -61,6 +61,8 @@ TOOLS = (
      "inputSchema": _schema({"outcome": _OUTCOME, "idempotency_key": _ID}, ("outcome", "idempotency_key"))},
 )
 GUARDED_TOOLS = (
+    {"name": "guarded_tools", "description": "List the schemas and exact versions of application-registered tools in this proxy and scope. Does not discover arbitrary host tools or grant execution permission.",
+     "inputSchema": _schema()},
     {"name": "guarded_execute", "description": "Execute one owner-registered tool under server-side authority, native policy and active rules. May cause a write. An uncertain receipt must be inspected, never blindly retried. Does not control tools outside this proxy.",
      "inputSchema": _schema({"invocation": json_schema(MCPInvocation)}, ("invocation",))},
     {"name": "guarded_inspect", "description": "Inspect a retained proxy intent/result. Handler-reported completion is not independent proof of an effect.",
@@ -168,6 +170,8 @@ class GovernedMCPServer:
                         value = self.dispatcher.execute(self.session, MCPInvocation.from_dict(arguments["invocation"]))
                     elif name == "guarded_inspect":
                         value = self.dispatcher.inspect(self.session, **arguments)
+                    elif name == "guarded_tools":
+                        value = self.dispatcher.tools(self.session)
                     elif name in ("feedback_propose_rule", "feedback_propose_profile"):
                         from atmem.extract.review import ReviewService
                         from atmem.feedback.review import propose

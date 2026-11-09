@@ -30,7 +30,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install only local contract-test requirements, no model extras
-        run: python -m pip install -e . --no-deps pytest==9.2.0 jsonschema==4.26.0 cryptography==48.0.1
+        run: |
+          python -m pip install -e . --no-deps
+          python -m pip install pytest==9.2.0 jsonschema==4.26.0 cryptography==48.0.1
       - name: Install real recipient-crypto test extra on the reference job
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
         run: python -m pip install pqcrypto==1.0.0

@@ -102,6 +102,25 @@ def test_guard_argument_mutation_and_errors_never_bypass_policy(tmp_path):
         f.feedback.memory.close()
 
 
+@pytest.mark.parametrize("schema", [
+    {"type":"object", "properties":{"body":{"type":"array"}}, "additionalProperties":False},
+    {"type":"object", "properties":{"body":{"type":"string", "minimum":1}}, "additionalProperties":False},
+    {"type":"object", "properties":{"body":{"type":"integer", "minimum":True}}, "additionalProperties":False},
+    {"type":"object", "properties":{}, "required":["missing"], "additionalProperties":False},
+    {"type":"object", "properties":{"body":{"type":"string", "enum":[False]}}, "additionalProperties":False},
+])
+def test_unsupported_contract_is_rejected_before_registration(tmp_path, schema):
+    f, dispatcher, path = dispatcher_fixture(tmp_path)
+    try:
+        with pytest.raises(FeedbackError, match="unsupported_schema"):
+            dispatcher.register(f.owner["token"], f.scope, tool="unsupported", schema_version="v1", schema=schema,
+                invoke=lambda args:path.write_text("must not occur"), native_guard=lambda args:True)
+        assert [t["tool"] for t in dispatcher.tools(f.session)["tools"]] == ["fixture.write"]
+        assert not path.exists()
+    finally:
+        f.feedback.memory.close()
+
+
 def test_single_use_approval_binds_exact_actor_arguments_key_and_handler_generation(tmp_path):
     f, dispatcher, path = dispatcher_fixture(tmp_path)
     try:

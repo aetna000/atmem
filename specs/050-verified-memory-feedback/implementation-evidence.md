@@ -217,3 +217,25 @@ do not add them as unique tests. Source-controlled test fixtures seed accepted
 authority only to exercise lifecycle consumers, labelled TEST_FIXTURE_NOT_EFFICACY.
 The production qualifier cannot emit acceptance from those synthetic fixtures.
 No source release, main merge, website change or deployment is implied.
+
+## Review/CI follow-up
+
+Draft source PR: https://github.com/aetna000/atmem/pull/37 . The initial source
+checkpoint is `00a2dae`; it is not approved for merge or release.
+
+- Added authenticated `guarded_tools` schema discovery for application-registered
+  proxy handlers. Unsupported nested schemas, invalid required fields, ignored
+  keywords and mistyped enums are rejected at owner registration, before any
+  client can discover or invoke the handler.
+- Focused changed-path checks: **18 passed in 71.60 seconds** across guarded
+  SDK/client, generic MCP, documentation and the local lifecycle journey. These
+  overlap the 413-test checkpoint and must not be added as unique tests.
+- Separately ran all four pinned Hermes source-contract probes with explicit
+  `HERMES_SOURCE`: **4 passed in 0.44 seconds**. These reproduce the original
+  source behavior, including its known counterexamples; they do not certify the
+  installed AtMem adapter or silently install the separate host repair.
+- The first 12-job contract workflow failed before tests: the install command
+  incorrectly applied `--no-deps` to pytest as well as AtMem, leaving `pluggy`
+  absent. Corrected it to install AtMem without optional companion dependencies
+  and then resolve the bounded test requirements normally. That failed attempt
+  is retained at run 42606699830; fresh cross-platform results remain required.

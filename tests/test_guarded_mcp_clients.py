@@ -61,6 +61,10 @@ m.close()
         clients.append(b)
         tools = a.call("tools/list")["result"]["tools"]
         assert next(t for t in tools if t["name"] == "guarded_execute")["annotations"]["readOnlyHint"] is False
+        inventory = a.tool("guarded_tools")["structuredContent"]
+        assert inventory["total"] == 1 and not inventory["truncated"]
+        assert inventory["tools"][0]["tool"] == "fixture.write"
+        assert inventory["tools"][0]["inputSchema"]["required"] == ["body"]
         invocation = MCPInvocation("fixture.write", "v1", {"body": "once"}, "actor-a")
         result = a.tool("guarded_execute", invocation=invocation.to_dict())["structuredContent"]
         assert result["status"] == "reported_complete" and path.read_text() == "once\n"

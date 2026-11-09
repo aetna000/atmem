@@ -23,6 +23,41 @@ from atmem.rules.evaluator import evaluate
 from atmem.rules.lifecycle import RuleLifecycle
 
 
+def validate_schema(schema, *, depth=0):
+    """Reject unsupported contracts at registration, before discovery/admission."""
+    if type(schema) is not dict or depth > 8:
+        raise FeedbackError("unsupported_schema")
+    kind = schema.get("type")
+    allowed = {"object": {"type", "properties", "required", "additionalProperties", "enum"},
+               "string": {"type", "maxLength", "enum"}, "integer": {"type", "minimum", "maximum", "enum"},
+               "boolean": {"type", "enum"}, "null": {"type", "enum"}}
+    if kind not in allowed or set(schema)-allowed[kind]:
+        raise FeedbackError("unsupported_schema")
+    if kind == "object":
+        props, required = schema.get("properties", {}), schema.get("required", [])
+        if (schema.get("additionalProperties") is not False or type(props) is not dict
+                or type(required) is not list or any(type(k) is not str for k in required)
+                or len(set(required)) != len(required) or set(required)-set(props)
+                or any(type(k) is not str or not 0 < len(k.encode()) <= 256 for k in props)):
+            raise FeedbackError("unsupported_schema")
+        for child in props.values():
+            validate_schema(child, depth=depth+1)
+    if kind == "string" and (type(schema.get("maxLength", 65536)) is not int or not 0 <= schema.get("maxLength", 65536) <= 65536):
+        raise FeedbackError("unsupported_schema")
+    if kind == "integer" and (any(type(schema.get(k, default)) is not int for k, default in (("minimum", -2**53), ("maximum", 2**53)))
+            or not -2**53 <= schema.get("minimum", -2**53) <= schema.get("maximum", 2**53) <= 2**53):
+        raise FeedbackError("unsupported_schema")
+    if "enum" in schema:
+        values = schema["enum"]
+        if type(values) is not list or not 0 < len(values) <= 128:
+            raise FeedbackError("unsupported_schema")
+        for value in values:
+            try:
+                validate_arguments({k:v for k,v in schema.items() if k != "enum"}, value)
+            except FeedbackError:
+                raise FeedbackError("unsupported_schema") from None
+
+
 def validate_arguments(schema, arguments):
     """Small closed JSON schema subset: reject unsupported constructs."""
     if type(schema) is not dict or set(schema) - {"type", "properties", "required", "additionalProperties", "enum", "maxLength", "minimum", "maximum"}:
@@ -111,6 +146,7 @@ class GuardedDispatcher:
         schema = snapshot(schema)
         if type(with_context) is not bool or type(requires_approval) is not bool or not callable(invoke) or not callable(native_guard) or schema.get("type") != "object" or schema.get("additionalProperties") is not False:
             raise ValueError("explicit closed handler and native guard required")
+        validate_schema(schema)
         value = {"tool": tool, "schema_version": schema_version,
                  "schema_sha256": sha256(canonical_json(schema).encode()).hexdigest(), "versions": self.versions,
                  "requires_approval": requires_approval, "with_context": with_context}
@@ -305,3 +341,18 @@ class GuardedDispatcher:
             if result is None:
                 raise FeedbackError("denied")
             return result
+
+    def tools(self, session):
+        with self.feedback._authorized(session, "execute") as (tx, _):
+            result = []
+            for (scope_digest, tool), handler in sorted(self._handlers.items()):
+                if scope_digest != session.scope.content_digest:
+                    continue
+                registered = tx.get("proxy_handler", tool)
+                if (registered is None or registered["schema_version"] != handler.version
+                        or registered["versions"] != self.versions
+                        or registered["schema_sha256"] != sha256(canonical_json(handler.schema).encode()).hexdigest()):
+                    continue
+                result.append({"tool": tool, "schema_version": handler.version,
+                               "inputSchema": snapshot(handler.schema), "requires_approval": handler.requires_approval})
+            return {"tools": result[:128], "total": len(result), "truncated": len(result)>128}

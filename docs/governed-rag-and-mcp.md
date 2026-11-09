@@ -88,6 +88,7 @@ The standard CLI does not register arbitrary handlers):
 | `feedback_quality` | read | Counts for an owner-frozen schedule; undefined rates are null. |
 | `feedback_report_outcome` | report | Append attributable unverified observations; no review or activation. |
 | `guarded_execute` | execute | Optional application-owned dispatch; persists intent before effects and refuses blind retries. |
+| `guarded_tools` | execute | Exact schemas and versions for owner-registered proxy tools in this scope. |
 | `guarded_inspect` | read | Optional inspection of an execution intent/result; not independent verification. |
 | `feedback_propose_rule` | propose | Requires an explicit canonical-memory binding; source-grounded proposal only. |
 | `feedback_propose_profile` | propose | Requires an explicit canonical-memory binding; bounded profile proposal only. |
