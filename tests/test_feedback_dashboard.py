@@ -15,6 +15,32 @@ from atmem.feedback.store import FeedbackError
 from test_feedback_actions import actions_fixture
 
 
+def _installed_feedback_browser():
+    """Opt-in real browser on each OS; no implicit browser installation."""
+    import importlib
+    import os
+    from pathlib import Path
+    import shutil
+    import sys
+    if os.environ.get("ATMEM_FEEDBACK_BROWSER") != "1":
+        pytest.skip("explicit installed-browser journey")
+    playwright = importlib.import_module("playwright.sync_api")
+    explicit = os.environ.get("ATMEM_FEEDBACK_BROWSER_EXECUTABLE")
+    if explicit:
+        candidates = [Path(explicit)]
+    elif sys.platform == "darwin":
+        candidates = [Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")]
+    elif os.name == "nt":
+        candidates = [Path(os.environ.get(name, "C:/Program Files"))/"Google/Chrome/Application/chrome.exe"
+                      for name in ("PROGRAMFILES", "PROGRAMFILES(X86)")]
+    else:
+        candidates = [Path(path) for name in ("google-chrome", "chromium", "chromium-browser")
+                      if (path := shutil.which(name))]
+    chrome = next((path for path in candidates if path.is_absolute() and path.is_file()), None)
+    assert chrome is not None, "Explicit browser test requires an existing Chrome/Chromium executable"
+    return playwright, chrome
+
+
 def test_facade_rechecks_identity_scope_and_role_before_credential_binding(tmp_path):
     f, outcome = actions_fixture(tmp_path)
     identity = {"account": {"username": f.user["principal_id"], "role": "investigator", "scope": f.scope.evidence_scope().to_dict()}}
@@ -175,14 +201,7 @@ def test_real_http_activation_and_rollback_open_canonical_memory_in_request_thre
 
 
 def test_real_browser_keyboard_quality_and_exact_call_evidence(dashboard_server, tmp_path):
-    import os
-    from pathlib import Path
-    if os.environ.get("ATMEM_FEEDBACK_BROWSER") != "1":
-        pytest.skip("explicit local browser journey; no browser download in base tests")
-    playwright = pytest.importorskip("playwright.sync_api")
-    chrome = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
-    if not chrome.is_file():
-        pytest.skip("requires installed Chrome; do not download a browser implicitly")
+    playwright, chrome = _installed_feedback_browser()
     server, bootstrap, _, _ = dashboard_server
     with playwright.sync_playwright() as runtime:
         browser = runtime.chromium.launch(executable_path=str(chrome), headless=True)
@@ -214,14 +233,7 @@ def test_real_browser_keyboard_quality_and_exact_call_evidence(dashboard_server,
 
 
 def test_browser_qualification_evidence_cancel_and_revoked_access(dashboard_server, tmp_path):
-    import os
-    from pathlib import Path
-    if os.environ.get("ATMEM_FEEDBACK_BROWSER") != "1":
-        pytest.skip("explicit real browser journey")
-    playwright = pytest.importorskip("playwright.sync_api")
-    chrome = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
-    if not chrome.is_file():
-        pytest.skip("requires existing Chrome, never an implicit download")
+    playwright, chrome = _installed_feedback_browser()
     from feedback_lifecycle_fixtures import reviewed_shadow, seed_trusted_test_receipt, VERSIONS
     f, memory, rule, _ = reviewed_shadow(tmp_path/"qualified-service")
     server, bootstrap, _, _ = dashboard_server
@@ -341,16 +353,10 @@ def test_real_http_export_consent_preview_encryption_withdraw_and_revocation(das
 
 def test_browser_export_explicit_review_download_and_logout_cleanup(dashboard_server, tmp_path):
     import base64
-    import os
     from pathlib import Path
     from atmem.evidence.crypto import decrypt_export
-    if os.environ.get("ATMEM_FEEDBACK_BROWSER") != "1":
-        pytest.skip("explicit actual browser journey")
+    playwright, chrome = _installed_feedback_browser()
     pytest.importorskip("pqcrypto")
-    playwright = pytest.importorskip("playwright.sync_api")
-    chrome = Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
-    if not chrome.is_file():
-        pytest.skip("requires installed Chrome; never download implicitly")
     server, bootstrap, _, _ = dashboard_server
     _, public, secret, _, calls = install_export_fixture(server, tmp_path/"export-browser")
     with playwright.sync_playwright() as runtime:

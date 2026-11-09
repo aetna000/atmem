@@ -505,3 +505,26 @@ invariants; they do not prove the original Windows failure's root cause.
 The migration/durability/upgrade/storage/feedback-recovery/profile selection passed
 **37 tests, 1 Windows-only skip in 60.47 seconds**, with actual SQLCipher 0.6.2
 installed. JUnit: `/tmp/atmem-spec050-encryption-fix-20261110.xml`.
+
+Owner-provided Windows host was tested directly via SSH using an isolated
+`%TEMP%/atmem-spec050-ef3ffec` venv and synthetic stores; no existing installation
+or user memories were changed. Windows 11 build 26200 / Python 3.12.6 / SQLite
+3.45.3 / SQLCipher module SQLite 3.51.1 loaded the built wheel from venv
+`Lib/site-packages`. Wheel SHA-256:
+`9e3e1a17135eb2412d5d5662f9f49114796b2d198753b04e045ee9c276096a61`.
+Dependency consistency and installed encryption smoke passed. The first installed
+test pass found two test defects: deriving the checkout from the copied test's
+parent accidentally excluded a valid venv under TEMP, and the new corruption
+regression's SQLite context manager left a connection open for explicit retry.
+The gate now receives the actual source root from its runner and verifies the
+exact imported module against installed distribution metadata as well as the
+site-packages boundary. The test closes its integrity connection explicitly.
+After these corrections **all 22 Windows installed encryption tests passed with
+no skips in 9.92 seconds**. macOS encryption selection: 21 passed, 1 Windows-only
+skip. The Windows broader feature/native suite is still running.
+
+Browser journeys now choose an existing OS-native Chrome (or an explicitly
+configured Chromium executable), instead of a macOS-only path. Explicit opt-in
+with missing dependencies/browser fails, rather than silently skipping. No browser
+is downloaded. All **3 actual Chrome journeys passed on macOS in 59.49 seconds**;
+Windows Chrome 156.0.8078.80 was discovered for the pending Windows browser tests.

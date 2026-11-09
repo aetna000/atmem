@@ -27,10 +27,14 @@ def test_installed_encryption_gate_uses_the_installed_artifact() -> None:
     if os.environ.get("ATMEM_REQUIRE_INSTALLED_ARTIFACT") != "1":
         return
     import atmem
+    from importlib.metadata import distribution
 
     module_path = Path(atmem.__file__).resolve()
-    repository = Path(__file__).resolve().parents[1]
+    # This test is copied to a temporary directory; its parent is not the
+    # checkout and may also contain a legitimate installed test environment.
+    repository = Path(os.environ["ATMEM_ENCRYPTION_SOURCE_ROOT"]).resolve()
     assert not module_path.is_relative_to(repository), module_path
+    assert module_path == Path(distribution("atmem").locate_file("atmem/__init__.py")).resolve()
     assert "site-packages" in module_path.parts, module_path
     status = sqlcipher_runtime_status()
     assert status["available"] is True, status
@@ -377,8 +381,11 @@ def test_migration_corrupt_cutover_restores_source_and_allows_explicit_retry(
         migrate_plaintext_household(database)
     assert candidate.exists()
     assert HouseholdPolicy.load(database).state == "migration-prepared"
-    with sqlite3.connect(str(database)) as connection:
+    connection = sqlite3.connect(str(database))
+    try:
         assert connection.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+    finally:
+        connection.close()
     with pytest.raises(RuntimeError, match="runtime access is fail-closed"):
         Memory(database)
     monkeypatch.setattr("atmem.core.keys.os.replace", original_replace)
