@@ -231,8 +231,12 @@ threshold changes. Export only after FR-019 consent and never include held-out e
 Implemented extensions (2026-11-10): the application-owned Home restore/adoption
 binding is rechecked at feedback admission. Scoped owner reconciliation is a
 separate SDK/CLI operation, works without an agent grant and disables restored
-authority before requalification. Arbitrary file-copy/direct canonical restores
-remain explicit operator procedures. The Hermes service bridge verifies the
+authority before requalification. Direct canonical `restore_from` now publishes
+an owner-private content-free pending witness before replacement and completion
+after migration. Feedback binds this generation and refuses pending restores or
+unreconciled changes. SQLCipher snapshots stay encrypted under the active household
+key; restore does not silently import plaintext into an encrypted household.
+Arbitrary file-copy recovery remains an explicit operator procedure. The Hermes service bridge verifies the
 recorded candidate boundary hashes, composes through the existing action-guard
 plugin's optional binding and places one-time approval consumption in the shared
 dispatcher; its final hook stays read-only. Unknown tools/batches deny unless

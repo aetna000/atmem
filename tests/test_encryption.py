@@ -546,3 +546,34 @@ def test_fresh_real_encrypted_household_opens_canonical_and_vector_planes(
     vectors = Path(f"{database}.vectors.db")
     assert vectors.is_file()
     assert not vectors.read_bytes().startswith(b"SQLite format 3\x00")
+
+
+def test_encrypted_canonical_backup_and_restore_preserve_ciphertext_and_native_recall(tmp_path,monkeypatch):
+    pytest.importorskip('sqlcipher3')
+    monkeypatch.setattr('atmem.core.keys.DEFAULT_KEY_PATH',tmp_path/'keys'/'synthetic-db.key')
+    monkeypatch.delenv('ATMEM_DB_KEY',raising=False)
+    database=tmp_path/'encrypted-source.db'
+    initialize_encrypted_household(database)
+    memory=Memory(database,auto_vectors=False)
+    try:
+        marker='SYNTHETIC-ENCRYPTED-RESTORE-9d7e3b'
+        memory.remember('alice',f'My project code is {marker}.',force=True)
+        backup=tmp_path/'encrypted-backup.db'
+        assert memory.store.backup_to(backup)['integrity']=='ok'
+        assert not backup.read_bytes().startswith(b'SQLite format 3')
+        assert marker.encode() not in backup.read_bytes()
+        with pytest.raises(sqlite3.DatabaseError):
+            connection=sqlite3.connect(backup)
+            try:
+                connection.execute('SELECT count(*) FROM sqlite_master').fetchone()
+            finally:
+                connection.close()
+        memory.forget('alice',{'contains':marker})
+        assert not memory.recall('alice',marker)
+        assert memory.store.restore_from(backup)['integrity']=='ok'
+        assert memory.store.restore_state()['state']=='complete'
+        assert any(marker in r['content'] for r in memory.recall('alice',marker))
+        assert marker.encode() not in database.read_bytes()
+        assert not database.read_bytes().startswith(b'SQLite format 3')
+    finally:
+        memory.close()

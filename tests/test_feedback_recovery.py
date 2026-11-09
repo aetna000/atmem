@@ -1,6 +1,8 @@
 """Standalone encrypted-store recovery; no original host/provider required."""
 import shutil
 
+import pytest
+
 from atmem.evidence.service import EvidenceService
 from atmem.feedback.service import FeedbackService
 from atmem.feedback.verification import action_results
@@ -98,6 +100,11 @@ def test_core_forget_invalidates_proposals_and_cannot_revive_them_from_old_core_
         with f.feedback.store.transaction(f.scope) as tx:
             assert tx.get('rule_proposal','rule') is None
         memory.store.restore_from(backup)
+        with pytest.raises(FeedbackError,match='restore_reconciliation_required'):
+            review.propose_feedback_rule(f.feedback,f.session,replace(rule,rule_id='new-rule'),idempotency_key='restored')
+        recovery.reconcile_after_restore(f.owner['token'],f.scope,restore_id='canonical-restored')
+        f.feedback.grant_agent(f.owner['token'],f.scope,principal_id=f.user['principal_id'],
+                               operations=('read','report','propose'),expires_at=1_700_010_000)
         with pytest.raises(FeedbackError,match='source_revoked'):
             review.propose_feedback_rule(f.feedback,f.session,replace(rule,rule_id='new-rule'),idempotency_key='restored')
     finally:
@@ -263,5 +270,107 @@ def test_rag_source_and_canonical_memory_with_same_id_have_distinct_lineage(tmp_
         with f.feedback.store.transaction(f.scope) as tx:
             assert tx.get('rule_lifecycle','rule')['state']=='active'
             assert tx.get('rule_proposal','rule')['candidate_sha256']==rule.content_digest
+    finally:
+        memory.close()
+
+
+@pytest.mark.parametrize('encrypted',[False,True])
+def test_direct_canonical_restore_requires_reconciliation_across_restart(tmp_path,monkeypatch,encrypted):
+    import pytest
+    from atmem import Memory
+    from atmem.feedback.recovery import FeedbackRecovery
+    from atmem.feedback.store import FeedbackError
+    from test_feedback_actions import actions_fixture
+    f,_=actions_fixture(tmp_path)
+    core=tmp_path/'synthetic-core.db'
+    if encrypted:
+        pytest.importorskip('sqlcipher3')
+        from atmem.core.keys import initialize_encrypted_household
+        monkeypatch.setattr('atmem.core.keys.DEFAULT_KEY_PATH',tmp_path/'keys'/'synthetic-db.key')
+        monkeypatch.delenv('ATMEM_DB_KEY',raising=False)
+        initialize_encrypted_household(core)
+    memory=Memory(core,auto_vectors=False)
+    f.feedback.memory=memory
+    try:
+        memory.remember('alice','My city is Sydney.')
+        backup=tmp_path/'synthetic-core-backup.db'
+        memory.store.backup_to(backup)
+        if encrypted:
+            assert not backup.read_bytes().startswith(b'SQLite format 3')
+        assert f.feedback.capabilities(f.session)['scope']==f.scope.to_dict()
+        memory.store.restore_from(backup)
+        assert memory.recall('alice','Sydney')
+        with pytest.raises(FeedbackError,match='restore_reconciliation_required'):
+            f.feedback.capabilities(f.session)
+        memory.close()
+        memory=Memory(core,auto_vectors=False)
+        restarted=FeedbackService(f.evidence,memory=memory,clock=f.feedback.clock)
+        with pytest.raises(FeedbackError,match='restore_reconciliation_required'):
+            restarted.bind(f.user['token'],agent_id='writer',workspace_id='project')
+        recovery=FeedbackRecovery(restarted)
+        result=recovery.reconcile_after_restore(f.owner['token'],f.scope,restore_id='canonical-restore')
+        assert result['disabled']['agent_grant']==1
+        with pytest.raises(FeedbackError,match='denied'):
+            restarted.bind(f.user['token'],agent_id='writer',workspace_id='project')
+        restarted.grant_agent(f.owner['token'],f.scope,principal_id=f.user['principal_id'],
+                              operations=('read',),expires_at=1_700_010_000)
+        session=restarted.bind(f.user['token'],agent_id='writer',workspace_id='project')
+        assert restarted.capabilities(session)['scope']==f.scope.to_dict()
+        # Restoring identical bytes again is still a new restore event; an old
+        # reconciliation/idempotency key cannot silently adopt the new event.
+        memory.store.restore_from(backup)
+        with pytest.raises(FeedbackError,match='restore_reconciliation_required'):
+            restarted.capabilities(session)
+        with pytest.raises(FeedbackError,match='conflicting_retry'):
+            recovery.reconcile_after_restore(f.owner['token'],f.scope,restore_id='canonical-restore')
+    finally:
+        memory.close()
+
+
+@pytest.mark.parametrize('checkpoint',['before_backup','after_backup','before_complete'])
+def test_interrupted_canonical_restore_cannot_reconcile_or_dispatch_until_retried(tmp_path,monkeypatch,checkpoint):
+    from atmem import Memory
+    from atmem.feedback.recovery import FeedbackRecovery
+    from atmem.feedback.store import FeedbackError
+    from atmem.store import restore_state
+    from test_feedback_actions import actions_fixture
+    f,_=actions_fixture(tmp_path)
+    core=tmp_path/'synthetic-core.db'
+    memory=Memory(core,auto_vectors=False)
+    try:
+        memory.remember('alice','My city is Sydney.')
+        backup=tmp_path/'synthetic-core-backup.db'
+        memory.store.backup_to(backup)
+        f.feedback.memory=memory
+        original_write=restore_state.write_restore_state
+        def fail_witness(store,*,restore_id,state):
+            if checkpoint=='before_complete' and state=='complete':
+                raise KeyboardInterrupt('synthetic process loss before completion publication')
+            original_write(store,restore_id=restore_id,state=state)
+            if checkpoint=='before_backup' and state=='pending':
+                raise KeyboardInterrupt('synthetic process loss before canonical replacement')
+        with monkeypatch.context() as patch:
+            patch.setattr(restore_state,'write_restore_state',fail_witness)
+            if checkpoint=='after_backup':
+                def fail_migration():
+                    raise KeyboardInterrupt('synthetic process loss after canonical replacement')
+                patch.setattr(memory.store,'_migrate',fail_migration)
+            with pytest.raises(KeyboardInterrupt):
+                memory.store.restore_from(backup)
+        assert memory.store.restore_state()['state']=='pending'
+        with pytest.raises(FeedbackError,match='canonical_restore_incomplete'):
+            FeedbackRecovery(f.feedback).reconcile_after_restore(f.owner['token'],f.scope,restore_id='too-early')
+        memory.close()
+        memory=Memory(core,auto_vectors=False)
+        restarted=FeedbackService(f.evidence,memory=memory,clock=f.feedback.clock)
+        with pytest.raises(FeedbackError,match='canonical_restore_incomplete'):
+            restarted.bind(f.user['token'],agent_id='writer',workspace_id='project')
+        # Explicit retry from a known-good snapshot completes the restore, but
+        # still does not re-enable restored grants or active policies.
+        memory.store.restore_from(backup)
+        with pytest.raises(FeedbackError,match='restore_reconciliation_required'):
+            restarted.bind(f.user['token'],agent_id='writer',workspace_id='project')
+        FeedbackRecovery(restarted).reconcile_after_restore(f.owner['token'],f.scope,restore_id='retried')
+        assert memory.recall('alice','Sydney')
     finally:
         memory.close()

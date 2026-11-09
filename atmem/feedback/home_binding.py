@@ -1,6 +1,7 @@
 """Content-free Home restore/adoption binding for opt-in feedback authority.
 
-This detects the supported Home workflows, not arbitrary whole-Home rollback.
+This detects supported Home and canonical restore APIs, not arbitrary file copies
+or whole-Home rollback.
 The operating system and trusted owner still control the Home and its keys.
 """
 from hashlib import sha256
@@ -10,7 +11,7 @@ from atmem.core.canonical import canonical_json
 from atmem.feedback.store import FeedbackError
 
 
-def home_restore_binding(feedback):
+def _home_restore_binding(feedback):
     from atmem.home.layout import HomeLayout
     try:
         path = HomeLayout(feedback.evidence.home_root).path("runtime/home-mode.json")
@@ -36,6 +37,24 @@ def home_restore_binding(feedback):
             "mode":value["mode"], "identity":identity, "instance_id":value.get("instance_id")}).encode()).hexdigest()}
     except (ValueError, TypeError, UnicodeError):
         raise FeedbackError("restore_state_unavailable") from None
+
+
+
+def home_restore_binding(feedback):
+    home = _home_restore_binding(feedback)
+    store = getattr(feedback.memory, "store", None)
+    reader = getattr(store, "restore_state", None)
+    try:
+        canonical = reader() if callable(reader) else None
+    except (RuntimeError, OSError, ValueError):
+        raise FeedbackError("restore_state_unavailable") from None
+    if canonical is None:
+        return home
+    if canonical["state"] != "complete":
+        raise FeedbackError("canonical_restore_incomplete")
+    return {"mode":home["mode"] if home else "adopted_writable",
+            "binding_sha256":sha256(canonical_json({"home":home,
+                "canonical_restore":canonical}).encode()).hexdigest()}
 
 
 def check_home_restore_binding(feedback, tx):

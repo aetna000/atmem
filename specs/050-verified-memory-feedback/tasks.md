@@ -95,10 +95,12 @@ the production diagnostic qualifier cannot emit those accepted receipts.
 - T016: eleven real-import Hermes candidate/service cases passed on macOS with
   Python 3.14.7. Full version/schema/OS conformance and derived task-state
   enforcement registration remain pending; the owner runtime is unchanged.
-- T017: supported Home preflight/adoption automatically blocks feedback pending
-  scoped owner reconciliation. Direct canonical database restore and arbitrary
-  file-copy recovery still require operator reconciliation; full crash/deletion
-  coverage outside the Home workflow remains pending.
+- T017: supported Home preflight/adoption and direct canonical `restore_from`
+  automatically block feedback pending scoped owner reconciliation. Direct
+  restores have durable pending/completed witnesses, including interrupted
+  cutover tests; SQLCipher backup/restore uses the active household key and driver.
+  Arbitrary file-copy recovery still requires explicit operator reconciliation.
+  Full in-flight/source-deletion conformance and final OS acceptance remain pending.
 - T021: source `61b64d5` passed 12 feature OS/Python jobs and all 48 main CI
   jobs. Final product source `a2fb7ce` also passed direct owner-Windows installed
   encryption (23 tests), checkpoint/action preflight and broad native/browser

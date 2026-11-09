@@ -192,3 +192,24 @@ backup or filesystem consumption. Evaluation budget counters survive cleanup.
 Production power, corpus provenance, resource measurement and acceptance gates
 remain unfinished; the service continues to issue only inconclusive diagnostic
 qualification receipts. These changes do not establish an efficacy result.
+
+### Direct canonical database restore
+
+The supported SQLiteStore `restore_from` API now records an owner-private,
+content-free restore witness next to the canonical database (or on the in-memory
+store for RAM fixtures). It records `pending` before canonical replacement and
+`complete` only after migration finishes. When FeedbackService is attached to
+that memory store, a pending restore blocks feedback, including reconciliation.
+Retry the restore explicitly from a known-good snapshot. A completed restore
+blocks feedback until the owner uses the existing scoped restore-reconciliation
+SDK/CLI operation. This disables old grants/consents/approvals and quarantines
+active policy; it does not approve reactivation. Native recall remains available.
+
+Canonical SQLCipher backup and restore now use the SQLCipher connection and the
+active household's existing key. The backup remains ciphertext; keep the
+household key and policy with the supported recovery materials. A database-only
+backup is not a complete Home/evidence/account backup, and this API does not
+silently import a plaintext snapshot into an encrypted household. Cross-key
+conversion and arbitrary filesystem replacement require a separate operator
+procedure. Full rollback of the Home, keys, witnesses and feedback evidence has
+no external monotonic witness and is not claimed detectable.

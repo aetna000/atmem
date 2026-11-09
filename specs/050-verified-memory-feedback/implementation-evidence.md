@@ -677,3 +677,30 @@ Additional final checks: dispute retention and atomic budget failure passed
 passed separately (1 test, 21.42s). Counts overlap and must not be summed as
 unique scenarios. Inventory/docs and 67-page website source checks passed using
 the worktree virtual environment. These checks do not cover a production run.
+
+## Direct canonical restore admission and SQLCipher snapshots (2026-11-10)
+
+T017 remains open for the full in-flight/source-deletion matrix and final OS
+acceptance. The supported canonical restore API now records private content-free
+pending/completed witnesses. Feedback checks the canonical witness as well as
+Home adoption at admission, including across service/database restart. A pending
+restore cannot be reconciled; a completed restore requires scoped owner
+reconciliation and fresh grants/requalification. Repeating an identical snapshot
+creates a new event rather than reusing old permission. Arbitrary filesystem
+copies and whole-Home rollback remain explicit limits.
+
+Found and fixed an existing SQLCipher API mismatch: canonical backup/restore used
+plain sqlite3 connections even for a SQLCipher database. They now use the active
+household's configured driver/key. The actual encrypted roundtrip test plants a
+synthetic marker, checks ciphertext/header and plain-sqlite rejection, forgets the
+fact and restores it, then verifies native recall without a plaintext downgrade.
+Only temporary household keys/accounts were used; no real memory was changed.
+
+Local Python 3.12: native storage roundtrip/conformance passed (3 tests, 0.74s).
+Five direct-restore/revocation/interruption cases passed (23.68s). Final combined
+recovery, SQLite lifecycle/conformance and encryption selection passed 40 tests,
+with one Windows-only permission-semantics case skipped on macOS (80.62s).
+The final selection includes a direct restore with both plaintext and SQLCipher
+canonical storage plus encrypted feedback. Initial new fixture errors used a
+list as a dict and a record ID as a substring-forget selector; both were fixed
+before the final pass. This is synthetic recovery evidence, not a benchmark.

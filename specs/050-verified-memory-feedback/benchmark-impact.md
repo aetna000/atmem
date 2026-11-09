@@ -129,3 +129,12 @@ participate in dependent cleanup. This changes only diagnostic qualification;
 no DolphinBench launcher, recall defaults, scorer, published result or frozen
 campaign is changed. Any future use for qualification needs a fresh manifest;
 these checks do not establish production acceptance or benchmark improvement.
+
+## Supported direct canonical restore
+
+The native backup/restore API now uses the configured SQLite/SQLCipher driver
+and key, with a content-free pending/completed restore witness. Attached opt-in
+feedback refuses pending or unreconciled restored authority. Ordinary recall,
+retrieval profiles in normal operation, benchmark launch/scoring and published
+results are unchanged. A benchmark using restored stores and feedback authority
+must reconcile and qualify a fresh condition; old results do not validate it.
