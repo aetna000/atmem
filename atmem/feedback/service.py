@@ -15,6 +15,7 @@ from typing import Callable
 from atmem.contracts.feedback import FeedbackScope, OutcomeRecord, identifier
 from atmem.evidence.models import EvidenceOperation
 from atmem.feedback.store import FeedbackError, FeedbackStore, snapshot
+from atmem.feedback.observability import FeedbackObservability, measured
 
 
 OPERATIONS = frozenset({"read", "report", "propose", "search", "inspect", "execute", "verify"})
@@ -29,11 +30,12 @@ class FeedbackSession:
 
 
 class FeedbackService:
-    def __init__(self, evidence, *, clock: Callable[[], float] = time.time, memory=None):
+    def __init__(self, evidence, *, clock: Callable[[], float] = time.time, memory=None, observability=None):
         self.evidence = evidence
         self.store = FeedbackStore(evidence)
         self.clock = clock
         self.memory = memory
+        self.observability = observability if observability is not None else FeedbackObservability()
 
     def _principal(self, credential):
         if type(credential) is not str or not 16 <= len(credential) <= 512:
@@ -165,6 +167,7 @@ class FeedbackService:
             except PermissionError:
                 raise FeedbackError("denied") from None
 
+    @measured("context.retain")
     def retain_context(self, session, *, confirmation_id: str) -> dict:
         """Copy an actual core exposure and its exact prepared bytes into evidence.
 
@@ -206,6 +209,7 @@ class FeedbackService:
         tx.put("context_evidence", key, value, expected_revision=0)
         return value
 
+    @measured("outcome.report")
     def report_outcome(self, session, outcome: OutcomeRecord, *, idempotency_key: str) -> dict:
         outcome = OutcomeRecord.from_dict(outcome.to_dict())
         identifier(idempotency_key)
@@ -297,4 +301,40 @@ class FeedbackService:
                         if evidence:
                             assessments.extend({"outcome_id": outcome.outcome_id, **item}
                                                for item in evidence.get("assessments", []))
-            return summarize(session.scope, schedule["tasks"], records, assessments=assessments)
+            report = summarize(session.scope, schedule["tasks"], records, assessments=assessments)
+            run_ids = {outcome.run_id for outcome, _ in records}
+            usage = [row for row in tx.iter_kind("reported_usage") if row["run_id"] in run_ids]
+            report["usage"] = {"assurance":"host_report", "status":"partial" if usage else "not_captured",
+                               "receipt_count":len(usage), "complete_billing_verified":False,
+                               **{key:sum(row[key] for row in usage) if usage else None
+                                  for key in ("usd_micros", "input_tokens", "output_tokens", "model_calls")}}
+            return report
+
+    def operational_metrics(self, session):
+        with self._authorized(session, "read"):
+            return self.observability.snapshot(session.scope)
+
+    def record_usage(self, owner_credential, scope, *, receipt_id, run_id, usd_micros, input_tokens, output_tokens, model_calls):
+        """Retain application-reported provider usage, never fabricate billed cost.
+
+        This owner-only SDK records an already observed receipt. It invokes no
+        model and cannot approve a budget, qualify a candidate or verify billing.
+        A provider receipt may not be reassigned to another run on retry.
+        """
+        identifier(receipt_id)
+        identifier(run_id)
+        counts = {"usd_micros":usd_micros, "input_tokens":input_tokens,
+                  "output_tokens":output_tokens, "model_calls":model_calls}
+        if any(type(v) is not int or not 0 <= v <= 2**53 for v in counts.values()):
+            raise ValueError("bounded nonnegative usage counts required")
+        with self.owner_transaction(owner_credential, scope) as (tx, principal):
+            value = {"receipt_id":receipt_id, "run_id":run_id, **counts, "assurance":"host_report",
+                     "actor_id":principal.principal_id}
+            old = tx.get("reported_usage", receipt_id)
+            if old is not None:
+                if old != value:
+                    raise FeedbackError("conflicting_retry")
+                return old
+            tx.put("reported_usage", receipt_id, value, expected_revision=0)
+            tx.audit(principal.principal_id, "record_usage", allowed=True)
+            return value

@@ -5,6 +5,9 @@ on:
       - 'atmem/**'
       - 'tests/**'
       - 'scripts/check_feedback_docs.py'
+      - 'scripts/evaluate_verified_memory_feedback.py'
+      - 'scripts/fetch_feedback_baseline.py'
+      - '.gitattributes'
       - 'docs/governed-rag-and-mcp.md'
       - 'pyproject.toml'
       - '.github/workflows/verified-memory-feedback.yml'
@@ -46,6 +49,8 @@ jobs:
           tests/test_feedback_actions.py tests/test_feedback_authority.py
           tests/test_feedback_baseline.py tests/test_feedback_contracts.py
           tests/test_feedback_docs.py tests/test_feedback_metrics.py
+          tests/test_feedback_observability.py
+          tests/test_feedback_report_gates.py
           tests/test_feedback_cli_mcp.py tests/test_feedback_dashboard.py
           tests/test_feedback_export.py tests/test_feedback_integrity.py tests/test_feedback_recovery.py
           tests/test_feedback_profiles.py tests/test_feedback_qualification.py

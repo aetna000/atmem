@@ -160,7 +160,7 @@ The larger tasks have working components but are not checked complete:
 | Task | Implemented and locally exercised | Remaining acceptance |
 |---|---|---|
 | T007 | Registered independent verifier, retained readbacks, assurance tiers, dispute preservation, proposed failure attribution. State-only observations never prove action completion; positive completion requires a unique correlated effect receipt and all checks on one call. | Evidence-backed verified causal attribution and complete hostile-feedback matrix. |
-| T008 | Owner-frozen schedules, exact denominators, missing/unknown/disputed counts, independent assessment reducers and diagnostic episode bootstrap. | Full content-free operational telemetry, cost/latency reporting and report gates. |
+| T008 | Owner-frozen schedules, exact denominators, missing/unknown/disputed counts, independent assessment reducers, diagnostic episode bootstrap, bounded scoped operational counters/p50/p95 and idempotent owner-reported usage. Missing billing is null; reported billing remains partial/unverified. | Full version/task-class coverage and independent production quality/resource gates. |
 | T010 | Frozen protected manifests, retained three-arm diagnostic replay, task-contract checks, three-attempt cap and zero-model/time/disk bounds. | Production qualification and accepted/rejected receipts with independent power, conformance and resource gates. The implemented evaluator always returns inconclusive. |
 | T011 | Explicit bounded stored-engine candidate budget/context packing/balanced pools; disabled parity and shadow return native context. | Full profile acceptance and qualified activation journey. |
 | T014 | Reviewed lifecycle, fresh source/version/expiry checks, atomic generations, versioned activation receipts and historical rollback revalidation. | Full lifecycle/crash matrix and production qualification. |
@@ -170,7 +170,7 @@ The larger tasks have working components but are not checked complete:
 | T019 | Authenticated HTTP facade; CSRF/origin/identity/scope checks; actual Feedback screen, per-action details, review and shadow/suspend/revoke controls. | Browser consent/export, production activation and rollback journeys. Activation button remains disabled. |
 | T020 | Purpose/recipient/preview-bound owner consent, real ML-KEM/AES-GCM/ML-DSA recipient export, exclusions, consent revision and withdrawal. | Full secret/privacy/split/source-revocation acceptance matrix and product consent flow. |
 | T021 | Pinned 12-job OS/Python CI definition, published-wheel upgrade test and local current-wheel packaging/import checks. | Actual Linux/Windows and all Python matrix results; installed-host combinations. |
-| T022–T024 | Offline baseline validation and diagnostic receipts; setup/limits documented. | Reproducible complete quality/latency gates, separately approved bounded efficacy manifest/run, final acceptance report. No paid calls or efficacy run authorized here. |
+| T022–T024 | Offline baseline validation, diagnostic receipts and bounded 1,000-rule interpreter/resource reporting; setup/limits documented. | Independent complete quality/power/conformance/retrieval-overhead qualification gates, separately approved bounded efficacy manifest/run, final acceptance report. No paid calls or efficacy run authorized here. |
 
 New protected rows use the existing encrypted vault. An encrypted pending/committed
 Home checkpoint detects DB-only rollback/deletion and is required in backups.
@@ -239,3 +239,40 @@ checkpoint is `00a2dae`; it is not approved for merge or release.
   absent. Corrected it to install AtMem without optional companion dependencies
   and then resolve the bounded test requirements normally. That failed attempt
   is retained at run 42606699830; fresh cross-platform results remain required.
+
+## Operational reporting and cross-platform corrections
+
+Added process-local metrics with closed operation/reason buckets, exact scope
+selection, 64-scope bound and the last 256 latency samples per operation. Errors
+cannot turn exception strings into labels; invalid/denied reads cannot obtain
+another scope's counters. Metrics do not change decisions and reset on restart.
+Owner usage recording is receipt/run-bound and idempotent. Scheduled-run quality
+reports and the dashboard distinguish not captured from partial host-reported
+usage; neither is verified complete billing or spending approval.
+
+`scripts/evaluate_verified_memory_feedback.py` is an offline bounded diagnostic:
+it measures the pure evaluator with 1,000 synthetic applicable rules and creates
+one new report file, not a qualification. It rejects invalid/fabricated manifests,
+relaxed gates, non-finite measurements and exhausted budgets. Missing native
+baseline outcomes, power, conformance and retrieval overhead remain explicit
+insufficient evidence. The baseline now rejects task/action/check identifiers
+that cannot be represented by the actual namespaced outcome ledger.
+
+Changed-path results: observability/metrics/dashboard/RAG/dispatch/verification
+selection **39 passed, 1 skipped in 268.06 seconds** (browser opt-in unset for
+that invocation); baseline/qualification/report gates **44 passed in 13.83
+seconds**; recovery/docs **5 passed in 22.03 seconds**. These overlap other
+counts. One actual 20-sample diagnostic completed in 3.15 seconds, with interpreter
+p50 1.73 ms and p95 2.67 ms, zero model calls/tokens/USD. Its decision was
+inconclusive. This is one synthetic allowed-call timing on this Mac, excludes
+compilation/auth/storage/remote time from interpreter latency, and is not a
+general latency or quality qualification.
+
+On corrected CI source `713c886`, all four Linux versions and multiple macOS
+versions passed. Windows exposed two real acceptance-fixture problems: Git CRLF
+conversion changed the exact frozen corpus hash, and `copytree` into a public
+backup root did not preserve private checkpoint DACLs. Added an LF Git attribute
+for the frozen JSON corpus and owner-private backup-root creation **before**
+copying keys/checkpoints. Checkpoint permission/integrity validation remains
+unchanged and fail-closed. These corrections still require fresh Windows CI;
+the failed attempt remains visible, rather than relabelling it as a pass.

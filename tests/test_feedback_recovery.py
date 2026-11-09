@@ -5,6 +5,7 @@ from atmem.evidence.service import EvidenceService
 from atmem.feedback.service import FeedbackService
 from atmem.feedback.verification import action_results
 from atmem.contracts.feedback import OutcomeRecord
+from atmem.private_paths import protect_private_path, private_path
 from test_feedback_verification import verifier_fixture, verify
 
 
@@ -18,10 +19,15 @@ def test_retained_failed_write_is_reconstructable_after_host_and_destination_los
     # records and required key material. A DB without its key is not recoverable.
     backup = tmp_path/"backup"
     backup.mkdir()
+    # Restore into an owner-private root BEFORE copying keys or checkpoints.
+    # copytree does not preserve Windows DACLs; descendants inherit this root's
+    # private ACL. Do not weaken checkpoint validation to accept a public copy.
+    protect_private_path(backup)
     shutil.copytree(live/"control", backup/"control")
     for folder in (".evidence-keys", ".evidence-identity-keys", ".evidence-accounts", ".feedback-checkpoints", "identity"):
         if (live/folder).exists():
             shutil.copytree(live/folder, backup/folder)
+    assert all(private_path(path) for path in (backup/".feedback-checkpoints").rglob("*.json"))
     shutil.rmtree(live)
     recovered = FeedbackService(EvidenceService(backup/"control", vault_id="rag", home_root=backup), clock=lambda:1_700_000_000)
     session = recovered.bind(token, agent_id="writer", workspace_id="project")

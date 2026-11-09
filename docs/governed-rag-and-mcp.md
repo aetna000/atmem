@@ -154,6 +154,12 @@ activation reconciliation remain acceptance work; no universal rollback-proof
 claim is made. Standalone retained-action reconstruction has been tested without
 the original host, destination or canonical memory process.
 
+Create and protect the backup/restore root with AtMem's existing
+`protect_private_path` **before** copying private keys/accounts/checkpoints.
+On Windows a plain `copytree` does not preserve DACLs; copies must inherit an
+owner-private destination or be created with explicit protected DACLs. The reader
+rejects an unprotected checkpoint rather than silently accepting or repairing it.
+
 The development service bounds a scope to 10,000 historical encrypted records
 and 64 MiB of ciphertext. Contract messages are bounded to 256 KiB and stdio
 frames to 1 MiB. Exhaustion fails explicitly, rather than silently discarding
@@ -240,6 +246,22 @@ restore procedure; automatic integration into every restore path remains work.
 Neither operation erases provider originals, backups, recipient exports or
 forensic storage remnants.
 
+`FeedbackService.operational_metrics(session)` returns authenticated, scoped
+process-local counters and p50/p95 over the last 256 calls per closed operation.
+They contain no passages, arguments, tokens, provider exception text or dynamic
+metric labels. Counters reset on restart; 64 scopes are tracked at most and
+telemetry exhaustion cannot discard evidence or block an action. Rule-evaluation
+latency is separate from the full proxy request, verification and provider time;
+these samples do not qualify a performance improvement or the production budget.
+
+An application may use owner-only `record_usage` with an already observed
+provider receipt, run ID, integer USD micro-units, input/output token counts and
+model-call count. Receipt reuse cannot double-count or reassign a run. Quality
+reports aggregate only retained scheduled runs and label these costs as partial
+host reports, never verified billing. Missing capture is null, not zero. This API
+makes no model calls and grants no spending authority. The dashboard displays
+the same missing/partial usage distinction.
+
 `ExampleExportService` is an owner-only SDK using the existing export privilege,
 explicit purpose, recipient public key, bounded record IDs, expiry and exact
 preview confirmation. It uses real recipient encryption and includes lineage
@@ -249,6 +271,22 @@ guarantee of anonymization; review the exact authorized preview. Withdrawal
 blocks new exports, not already delivered copies. It starts no training.
 
 Remaining acceptance work includes independent production qualification, complete
-cost/latency gates, the installed Hermes service adapter, full consent/activation
+quality/resource qualification gates, the installed Hermes service adapter, full consent/activation
 UI, automatic recovery hooks and actual cross-platform CI results. No existing
 DolphinBench score is changed or relabelled by these development features.
+
+An offline diagnostic can measure the pure interpreter with 1,000 applicable
+synthetic rules; it opens no memory store, dispatches no effect and calls no model:
+
+```sh
+python scripts/evaluate_verified_memory_feedback.py \
+  --manifest tests/fixtures/feedback/baseline-manifest.json \
+  --output /path/to/a/new-diagnostic-report.json
+```
+
+The file is created exclusively, never overwritten. The report enforces frozen
+baseline/resource definitions and records actual p50/p95 and elapsed time. Native
+and AtMem quality outcomes, power, independent conformance, false-denial coverage
+and retrieval overhead remain insufficient evidence. Fast synthetic evaluation
+cannot issue qualification, activation or an efficacy claim. Compilation,
+authority/storage and remote time are explicitly outside the pure rule latency.

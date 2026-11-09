@@ -60,7 +60,8 @@ class FeedbackDashboard:
         session = self._session(identity, owner=True)
         memory = self.memory_factory(identity) if self.memory_factory is not None else self.feedback.memory
         from atmem.feedback.service import FeedbackService
-        feedback = FeedbackService(self.feedback.evidence, clock=self.feedback.clock, memory=memory)
+        feedback = FeedbackService(self.feedback.evidence, clock=self.feedback.clock, memory=memory,
+                                   observability=self.feedback.observability)
         try:
             return self._action(feedback, identity, session, body)
         finally:

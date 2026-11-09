@@ -12,6 +12,7 @@ import uuid
 from atmem.contracts.feedback import FeedbackScope, identifier
 from atmem.evidence.models import EvidenceOperation
 from atmem.feedback.store import FeedbackError, snapshot
+from atmem.feedback.observability import measured
 from atmem.knowledge.rag.contracts import RagHit, RagQuery, RagSource
 
 
@@ -139,6 +140,7 @@ class RagService:
             raise FeedbackError("provider_unavailable")
         return value
 
+    @measured("rag.search")
     def search(self, session, query: RagQuery, *, idempotency_key: str) -> dict:
         query = RagQuery.from_dict(query.to_dict())
         identifier(idempotency_key)
@@ -214,6 +216,7 @@ class RagService:
                 return value
             return tx.once("rag_search", idempotency_key, payload, publish)
 
+    @measured("rag.inspect")
     def inspect(self, session, *, receipt_id: str, document_id: str, chunk_id: str) -> dict:
         """Inspect exactly the retained passage, while its source is still authorized."""
         for value in (receipt_id, document_id, chunk_id):

@@ -18,6 +18,7 @@ from atmem.contracts.feedback import MCPInvocation, identifier
 from atmem.core.canonical import canonical_json
 from atmem.evidence.models import EvidenceOperation
 from atmem.feedback.store import FeedbackError, snapshot
+from atmem.feedback.observability import measured
 from atmem.rules.compiler import compile_rule
 from atmem.rules.evaluator import evaluate
 from atmem.rules.lifecycle import RuleLifecycle
@@ -183,6 +184,7 @@ class GuardedDispatcher:
             "rules": list(tx.iter_kind("rule_lifecycle")),
             "proposals": list(tx.iter_kind("rule_proposal"))}).encode()).hexdigest()
 
+    @measured("proxy.execute")
     def execute(self, session, invocation: MCPInvocation):
         invocation = MCPInvocation.from_dict(invocation.to_dict())
         call_wire = invocation.to_dict()
@@ -225,7 +227,8 @@ class GuardedDispatcher:
                                   and approval["idempotency_key"] == invocation.idempotency_key
                                   and approval["binding"] == self._approval_binding(tx, invocation.tool)
                                   and canonical_json(approval["arguments"]) == canonical_json(invocation.arguments))
-            decision = evaluate(compiled, invocation, native_allowed=native_allowed, approval_valid=approval_valid)
+            with self.feedback.observability.measure(session.scope, "rule.evaluate"):
+                decision = evaluate(compiled, invocation, native_allowed=native_allowed, approval_valid=approval_valid)
             if decision.allowed and handler.requires_approval and not approval_valid:
                 return tx.once("proxy_execute", invocation.idempotency_key, payload,
                                lambda: {"status": "blocked", "reason": "approval_required", "effect": "not_dispatched"})

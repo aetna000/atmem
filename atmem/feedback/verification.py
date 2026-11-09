@@ -16,6 +16,7 @@ import uuid
 from atmem.contracts.feedback import ActionCheck, OutcomeRecord, VerificationReceipt, identifier
 from atmem.evidence.models import EvidenceOperation
 from atmem.feedback.store import FeedbackError, snapshot
+from atmem.feedback.observability import measured
 
 FAILURE_CLASSES = frozenset({"source_fact_absent", "retrieval_miss", "authority_withheld", "stale_conflicting_state",
                              "delivered_but_not_applied", "wrong_argument_value", "wording_precision", "no_call",
@@ -126,6 +127,7 @@ class VerificationService:
             raise FeedbackError("verifier_unavailable")
         return result
 
+    @measured("verification.readback")
     def verify(self, session, *, outcome_id, outcome_sha256, invocation_id, idempotency_key):
         for item in (outcome_id, outcome_sha256, invocation_id, idempotency_key):
             identifier(item)

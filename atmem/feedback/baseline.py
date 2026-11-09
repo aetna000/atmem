@@ -13,6 +13,7 @@ import math
 from typing import Any, Mapping
 
 from atmem.core.canonical import canonical_json
+from atmem.contracts.feedback import identifier as wire_identifier
 
 
 FORMAT = "atmem-feedback-baseline-v1"
@@ -158,6 +159,14 @@ def validate_baseline(value: Mapping[str, Any]) -> BaselinePreflight:
         _fields(task, {"id", "episode", "paraphrase_group", "split", "context_cutoff",
                        "evidence_time", "input_sha256", "actions", "verification"}, "task")
         identifier = _identifier(task["id"])
+        try:
+            # A valid frozen manifest must be representable by the actual ledger
+            # and its namespaced outcome IDs, not fail later during execution.
+            wire_identifier("eval:"+"a"*64+":candidate:"+identifier)
+            wire_identifier(task["episode"])
+            wire_identifier(task["paraphrase_group"])
+        except (ValueError, TypeError):
+            raise BaselineError("task identities exceed the ledger contract") from None
         if identifier in seen_ids:
             raise BaselineError("duplicate task ID")
         seen_ids.add(identifier)
@@ -183,6 +192,11 @@ def validate_baseline(value: Mapping[str, Any]) -> BaselinePreflight:
             _fields(action, {"id", "tool", "kind", "checks"}, "action")
             action_id = _identifier(action["id"])
             _identifier(action["tool"])
+            try:
+                wire_identifier(action_id)
+                wire_identifier(action["tool"])
+            except (ValueError, TypeError):
+                raise BaselineError("action identities exceed the ledger contract") from None
             if action_id in action_ids or action["kind"] not in {"read", "write"}:
                 raise BaselineError("invalid action identity or kind")
             action_ids.add(action_id)
@@ -191,6 +205,11 @@ def validate_baseline(value: Mapping[str, Any]) -> BaselinePreflight:
                 raise BaselineError("required checks must be explicit")
             if any(not isinstance(c, str) or not c for c in checks) or len(set(checks)) != len(checks):
                 raise BaselineError("invalid or duplicate check")
+            try:
+                for check in checks:
+                    wire_identifier(check)
+            except (ValueError, TypeError):
+                raise BaselineError("check identities exceed the ledger contract") from None
         verification = _fields(task["verification"], {"identity", "method", "evidence"}, "verification")
         for field in verification.values():
             _identifier(field)
