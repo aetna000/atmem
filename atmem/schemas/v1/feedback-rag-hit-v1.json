@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "atmem-rag-hit-v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "atmem-rag-hit-v1"
+    },
+    "source_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": "atmem-feedback-scope-v1"
+        },
+        "tenant_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        },
+        "subject_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        },
+        "agent_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        },
+        "workspace_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "format",
+        "tenant_id",
+        "subject_id",
+        "agent_id",
+        "workspace_id"
+      ],
+      "additionalProperties": false
+    },
+    "revision": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "document_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "chunk_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "citation": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "locator": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "text_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "jurisdiction": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 65536
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "effective_from": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 65536
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "effective_to": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 65536
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "format",
+    "source_id",
+    "scope",
+    "revision",
+    "document_id",
+    "chunk_id",
+    "title",
+    "citation",
+    "locator",
+    "text",
+    "text_sha256"
+  ],
+  "additionalProperties": false
+}

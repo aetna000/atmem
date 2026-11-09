@@ -758,12 +758,13 @@ async function switchProvider(){
  try{await working("Activating AtMem",state.host==="openclaw"?"Freezing native memory, checking compatibility, restarting OpenClaw, and verifying memory tools. This can take a minute.":"Authorizing the runtime adapter to use only AtMem context explicitly marked for injection.",async function(){await post("/api/mode",{mode:"active",confirm_host:entered});await reload()})}
  catch(error){showError(error)}
 }
-var VIEWS={status:"viewStatus",decisions:"viewDecisions",memory:"viewMemory",audit:"viewAudit",settings:"viewSettings"};
+var VIEWS={status:"viewStatus",decisions:"viewDecisions",memory:"viewMemory",audit:"viewAudit",feedback:"viewFeedback",settings:"viewSettings"};
 function activateView(name){
+ if(name==="feedback")loadFeedback();
  var panelId=VIEWS[name]||VIEWS.status;$("statusBanner").hidden=panelId!=="viewStatus";
  if(name!=="settings"){$("intelligenceConfig").open=false;$("contextAuthorityConfig").open=false}
  document.querySelectorAll(".tabpanel").forEach(function(panel){panel.classList.toggle("active",panel.id===panelId)});
- [["navStatus","status"],["navDecisions","decisions"],["navMemory","memory"],["navAudit","audit"],["navSettings","settings"]].forEach(function(pair){var btn=$(pair[0]);var isActive=(VIEWS[name]?name:"status")===pair[1];btn.classList.toggle("active",isActive);btn.setAttribute("aria-selected",isActive?"true":"false")})
+ [["navStatus","status"],["navDecisions","decisions"],["navMemory","memory"],["navAudit","audit"],["navFeedback","feedback"],["navSettings","settings"]].forEach(function(pair){var btn=$(pair[0]);var isActive=(VIEWS[name]?name:"status")===pair[1];btn.classList.toggle("active",isActive);btn.setAttribute("aria-selected",isActive?"true":"false")})
 }
 function showView(name){if(location.hash!=="#"+name){location.hash=name}else{applyRoute()}}
 function applyRoute(){
@@ -776,12 +777,12 @@ function applyRoute(){
 }
 function accountRoleName(){return roleName(localAuth.account&&localAuth.account.role)}
 function renderRoleLadder(){var box=$("settingsRoleLadder");if(!box)return;box.replaceChildren();[["Viewer","Metadata, hashes and integrity only"],["Investigator","Decrypt, view, play and reconstruct"],["Evidence Collector","Download and export plaintext"],["Administrator","All evidence plus user management"]].forEach(function(row){var item=element("div","rolelevel"+(localAuth.account&&roleName(localAuth.account.role)===row[0]?" current":""));item.append(element("b","",row[0]),element("span","",row[1]));box.appendChild(item)})}
-function renderAuth(){var account=localAuth.account||{},authenticated=!!localAuth.authenticated,forced=authenticated&&!!account.password_change_required,controlsEvidence=account.role==="evidence_collector"||account.role==="administrator";document.body.classList.toggle("auth-required",!authenticated||forced);$("authGate").hidden=authenticated&&!forced;$("loginForm").hidden=authenticated;$("passwordForm").hidden=!forced;$("identityChip").hidden=!authenticated;$("logoutButton").hidden=!authenticated;text("identityName",account.display_name||account.username||"Account");text("identityRole",authenticated?accountRoleName():"");text("myAccountSummary",authenticated?(account.username+" · "+accountRoleName()):"Signed-in identity and password");document.querySelectorAll(".protectionactions button").forEach(function(button){button.hidden=authenticated&&!controlsEvidence});if(forced){text("authTitle","Choose your password");text("authCopy","Choose any non-empty password. You do not need to enter the temporary password again.");$("newPassword").focus()}else if(!authenticated){text("authTitle","Sign in to AtMem");text("authCopy",localAuth.initialized===false?"Run `atmem init` in the terminal first, then sign in with the one-time Administrator password.":"Use your local AtMem username and password. No bearer token is required.")}if(authenticated){text("evidenceRoleSummary",accountRoleName()+" access is active for "+account.username+". Viewer sees hashes and metadata; Investigator opens exact evidence; Evidence Collector exports; Administrator also manages users.");$("usersCard").hidden=account.role!=="administrator";renderRoleLadder()}}
+function renderAuth(){if(!localAuth.authenticated){$("feedbackQuality").replaceChildren();$("feedbackProposals").replaceChildren();text("feedbackStatus","Sign in to inspect feedback.")}var account=localAuth.account||{},authenticated=!!localAuth.authenticated,forced=authenticated&&!!account.password_change_required,controlsEvidence=account.role==="evidence_collector"||account.role==="administrator";document.body.classList.toggle("auth-required",!authenticated||forced);$("authGate").hidden=authenticated&&!forced;$("loginForm").hidden=authenticated;$("passwordForm").hidden=!forced;$("identityChip").hidden=!authenticated;$("logoutButton").hidden=!authenticated;text("identityName",account.display_name||account.username||"Account");text("identityRole",authenticated?accountRoleName():"");text("myAccountSummary",authenticated?(account.username+" · "+accountRoleName()):"Signed-in identity and password");document.querySelectorAll(".protectionactions button").forEach(function(button){button.hidden=authenticated&&!controlsEvidence});if(forced){text("authTitle","Choose your password");text("authCopy","Choose any non-empty password. You do not need to enter the temporary password again.");$("newPassword").focus()}else if(!authenticated){text("authTitle","Sign in to AtMem");text("authCopy",localAuth.initialized===false?"Run `atmem init` in the terminal first, then sign in with the one-time Administrator password.":"Use your local AtMem username and password. No bearer token is required.")}if(authenticated){text("evidenceRoleSummary",accountRoleName()+" access is active for "+account.username+". Viewer sees hashes and metadata; Investigator opens exact evidence; Evidence Collector exports; Administrator also manages users.");$("usersCard").hidden=account.role!=="administrator";renderRoleLadder()}}
 async function refreshAuth(){localAuth=await get("/api/auth/status");renderAuth();return localAuth}
 async function login(event){event.preventDefault();clearError();try{localAuth=await authPost("/api/auth/login",{username:$("loginUsername").value.trim(),password:$("loginPassword").value});$("loginPassword").value="";renderAuth();if(!localAuth.account.password_change_required){if(applicationStarted)loadCompanionLinks();else startApplication()}}catch(error){showError(error)}}
 async function changeOwnPassword(event){event.preventDefault();clearError();var next=$("newPassword").value;if(next!==$("repeatPassword").value){showError(new Error("New passwords do not match."));return}try{localAuth=await authPost("/api/auth/change-password",{new_password:next});$("newPassword").value=$("repeatPassword").value="";renderAuth();if(applicationStarted)loadCompanionLinks();else startApplication()}catch(error){showError(error)}}
 async function changeSignedInPassword(event){event.preventDefault();clearError();var next=$("selfNewPassword").value;if(next!==$("selfRepeatPassword").value){showError(new Error("New passwords do not match."));return}try{localAuth=await authPost("/api/auth/change-password",{current_password:$("selfCurrentPassword").value,new_password:next});event.target.reset();renderAuth();text("myAccountSummary",localAuth.account.username+" · password changed") }catch(error){showError(error)}}
-async function logout(){if(!confirm("Sign out of AtMem?"))return;try{await authPost("/api/auth/logout",{});localAuth={authenticated:false,initialized:true};protectedBlackbox={};protectedReconstruction={};$("atflowsDashboardLink").hidden=true;$("atflowsDashboardLink").removeAttribute("href");renderAuth()}catch(error){showError(error)}}
+async function logout(){if(!confirm("Sign out of AtMem?"))return;try{await authPost("/api/auth/logout",{});localAuth={authenticated:false,initialized:true};protectedBlackbox={};protectedReconstruction={};$("feedbackQuality").replaceChildren();$("feedbackProposals").replaceChildren();$("feedbackSchedule").replaceChildren(new Option("Select a schedule",""));text("feedbackStatus","Sign in to inspect feedback.");$("atflowsDashboardLink").hidden=true;$("atflowsDashboardLink").removeAttribute("href");renderAuth()}catch(error){showError(error)}}
 function renderUsers(value){var box=$("usersList");box.replaceChildren();(value.users||[]).forEach(function(user){var row=element("div","userrow"),copy=element("div"),actions=element("div","useractions"),role=document.createElement("select");copy.append(element("b","",user.display_name||user.username),element("span","",user.username+" · "+roleName(user.role)+(user.enabled?"":" · disabled")+(user.password_change_required?" · password change required":"")));[["viewer","Viewer"],["investigator","Investigator"],["evidence_collector","Evidence Collector"],["administrator","Administrator"]].forEach(function(option){role.appendChild(new Option(option[1],option[0],false,user.role===option[0]))});role.setAttribute("aria-label","Role for "+user.username);role.onchange=async function(){try{await authPost("/api/users/update",{username:user.username,role:role.value});await loadUsers()}catch(error){showError(error)}};var toggle=element("button","secondary",user.enabled?"Disable":"Enable"),reset=element("button","secondary","Reset password");toggle.type=reset.type="button";toggle.onclick=async function(){try{await authPost("/api/users/update",{username:user.username,enabled:!user.enabled});await loadUsers()}catch(error){showError(error)}};reset.onclick=async function(){try{showOneTimeCredential(await authPost("/api/users/reset-password",{username:user.username}))}catch(error){showError(error)}};actions.append(role,toggle,reset);row.append(copy,actions);box.appendChild(row)})}
 function showOneTimeCredential(value){var box=$("oneTimeCredential");box.hidden=false;box.replaceChildren(element("b","","One-time credentials for "+value.username),element("code","",value.temporary_password),element("p","","Copy this now. AtMem stores only its verifier and will not show it again."))}
 async function loadUsers(){if(!localAuth.account||localAuth.account.role!=="administrator")return;try{var values=await Promise.all([get("/api/users"),get("/api/users/audit")]);renderUsers(values[0]);var audit=$("securityAudit");audit.replaceChildren();(values[1].events||[]).slice().reverse().slice(0,25).forEach(function(event){audit.appendChild(element("div","securityauditrow",displayTime(event.recorded_at)+" · "+event.actor+" · "+event.operation+" · "+(event.allowed?"allowed":"denied")))})}catch(error){showError(error)}}
@@ -797,6 +798,9 @@ function consumeBootstrapFragment(){
 consumeBootstrapFragment();window.addEventListener("hashchange",applyRoute);applyRoute();
 document.querySelectorAll("[data-password-toggle]").forEach(function(button){button.addEventListener("click",function(){var input=$(button.dataset.passwordToggle),visible=input.type==="password";input.type=visible?"text":"password";button.textContent=visible?"Hide":"Show";button.setAttribute("aria-label",(visible?"Hide ":"Show ")+input.closest("label").querySelector("span").textContent.toLowerCase());button.setAttribute("aria-pressed",visible?"true":"false")})});
 $("navStatus").onclick=function(){showView("status")};$("navDecisions").onclick=function(){showView("decisions")};$("navMemory").onclick=function(){showView("memory")};$("navAudit").onclick=function(){showView("audit")};
+$("navFeedback").onclick=function(){showView("feedback")};
+$("feedbackRefresh").onclick=loadFeedback;
+$("feedbackQualityForm").onsubmit=loadFeedbackQuality;
 $("navSettings").onclick=function(){showView("settings")};
 $("searchBtn").onclick=search;$("query").addEventListener("keydown",function(event){if(event.key==="Enter")search()});
 ["memoryStatus","memorySource","memoryMethod","memorySort"].forEach(function(id){$(id).onchange=function(){if($("query").value.trim())search()}});
@@ -921,5 +925,51 @@ $("codeKeygen").onclick=codeGuard(async function(){var keys=await codeCall("bund
 $("codeExport").onclick=codeGuard(async function(){var value=await codeCall("bundle-export",{recipient_public_key:await codeFile("codeRecipientPublic"),signing_public_key:await codeFile("codeSigningPublic"),signing_secret_key:await codeFile("codeSigningSecret")});codeDownload("atmem-code-project.json",JSON.stringify(value.bundle));text("codeBundleResult","Encrypted project bundle downloaded.")});
 async function codeImport(action){var body={root:$("codeRoot").value,bundle:JSON.parse(await codeFile("codeBundleFile")),recipient_secret_key:await codeFile("codeRecipientSecret"),trusted_signing_key:await codeFile("codeSigningPublic")};if(action==="bundle-import")body.preview_token=codeImportToken;var value=await codeCall(action,body);codeOutput("codeBundleResult",value);codeImportToken=value.preview_token||null;$("codeImportApply").disabled=!value.can_import;if(value.imported)await codeLoadProjects()}
 $("codeImportPreview").onclick=codeGuard(function(){return codeImport("bundle-preview")});$("codeImportApply").onclick=codeGuard(function(){return codeImport("bundle-import")});
+async function loadFeedback(){
+ var identity=localAuth.account&&localAuth.account.username;
+ if(!localAuth.authenticated||!identity){text("feedbackStatus","Sign in to inspect feedback.");return}
+ try{
+  var value=await get("/api/feedback/status");
+  if(!localAuth.authenticated||!localAuth.account||localAuth.account.username!==identity)return;
+  text("feedbackStatus",value.available?("Scope: "+value.scope.subject_id+" / "+value.scope.agent_id+" / "+value.scope.workspace_id):value.reason);
+  var select=$("feedbackSchedule"),previous=select.value;select.replaceChildren(new Option("Select a schedule",""));
+  (value.schedules||[]).forEach(function(row){select.appendChild(new Option(row.schedule_id+" ("+row.tasks+" tasks)",row.schedule_id))});select.value=previous;
+  var box=$("feedbackProposals");box.replaceChildren();
+  (value.proposals||[]).forEach(function(row){
+   var card=element("div","feedbackproposal"),heading=element("h4","",row.kind+": "+row.artifact_id),state=row.lifecycle?row.lifecycle.state:row.proposal.state;
+   card.append(heading,element("p","","State: "+state));
+   var details=document.createElement("details"),summary=element("summary","","Exact proposal and source evidence"),evidence=element("pre","",JSON.stringify(row.proposal,null,2));details.append(summary,evidence);card.appendChild(details);
+   if(value.can_review){
+    if(row.proposal.state==="proposed"){["approve","reject"].forEach(function(decision){var button=element("button","secondary",decision==="approve"?"Approve exact revision":"Reject");button.type="button";button.onclick=function(){feedbackReview(row,decision)};card.appendChild(button)})}
+    if(row.proposal.state==="reviewed"){
+     ["shadow","suspended","revoked"].forEach(function(next){var button=element("button","secondary",next==="shadow"?"Start shadow":next==="suspended"?"Suspend":"Revoke");button.type="button";button.onclick=function(){feedbackTransition(row,next)};card.appendChild(button)});
+     var activate=element("button","secondary","Activate qualified revision");activate.type="button";activate.disabled=true;activate.title="An accepted, current qualification and tested boundary are required. Use the owner SDK after those gates pass.";card.appendChild(activate);
+    }
+   }
+   box.appendChild(card);
+  });
+  if(value.available&&!(value.proposals||[]).length)box.appendChild(element("p","sub","No behavior proposals in this scope."));
+ }catch(error){text("feedbackStatus",error.message);$("feedbackProposals").replaceChildren();$("feedbackQuality").replaceChildren()}
+}
+async function loadFeedbackQuality(event){
+ if(event)event.preventDefault();
+ var identity=localAuth.account&&localAuth.account.username;
+ if(!localAuth.authenticated||!identity)return;
+ try{var value=await get("/api/feedback/quality?schedule_id="+encodeURIComponent($("feedbackSchedule").value)),box=$("feedbackQuality");if(!localAuth.authenticated||!localAuth.account||localAuth.account.username!==identity)return;box.replaceChildren();
+  var labels={verified_full_task_success:"Verified task completion",coverage:"Answer/action coverage",wrong_answer_rate:"Wrong answers",evidence_precision:"Relevant evidence",false_denial_rate:"False blocks",required_fact_write_failure:"Writes missing a required fact"},units={verified_full_task_success:["verified","scheduled"],coverage:["completed","answerable"],wrong_answer_rate:["wrong","assessed"],evidence_precision:["relevant","assessed"],false_denial_rate:["blocked","legitimate"],required_fact_write_failure:["missing the fact","assessed writes"]},metrics=element("div","feedbackmetrics");
+  Object.keys(labels).forEach(function(name){var metric=value[name],card=element("div","feedbackmetric");card.append(element("span","sub",labels[name]),element("b","",metric.value===null?"Not assessed":(metric.value*100).toFixed(1)+"%"),element("small","",metric.numerator+" "+units[name][0]+" / "+metric.denominator+" "+units[name][1]+(metric.value===null?" · insufficient evidence":"")));metrics.appendChild(card)});box.appendChild(metrics);
+  box.appendChild(element("p","","Unknown: "+value.unknown_tasks+" · disputed: "+value.disputed_tasks+" · missing: "+value.missing_tasks));
+  (value.tasks||[]).forEach(function(task){var details=document.createElement("details");details.append(element("summary","",task.outcome_id+" · "+task.status),element("pre","",JSON.stringify(task.actions,null,2)));box.appendChild(details)});
+ }catch(error){text("feedbackQuality",error.message)}
+}
+async function feedbackReview(row,decision){
+ var reason=prompt("Reason for "+decision+" of exact revision "+row.proposal.candidate_sha256+":");if(!reason)return;
+ try{await post("/api/feedback/action",{operation:"review",kind:row.kind,artifact_id:row.artifact_id,candidate_sha256:row.proposal.candidate_sha256,decision:decision,reason:reason});await loadFeedback()}catch(error){showError(error)}
+}
+async function feedbackTransition(row,next){
+ if(!confirm("Set "+row.artifact_id+" to "+next+" in this scope?"))return;
+ try{await post("/api/feedback/action",{operation:"transition",kind:row.kind,artifact_id:row.artifact_id,candidate_sha256:row.proposal.candidate_sha256,state:next,expected_generation:row.lifecycle?row.lifecycle.generation:0});await loadFeedback()}catch(error){showError(error)}
+}
+
 init()
 })();

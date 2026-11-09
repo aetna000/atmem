@@ -30,6 +30,7 @@ class ControlDashboardServer(ThreadingHTTPServer):
         initial_state_assessor=None,
         allow_remote_initial_assessment=False,
         initial_state_presentation='annotated-source',
+        feedback_dashboard=None,
     ) -> None:
         host, _ = address
         if host not in {"127.0.0.1", "::1", "localhost"}:
@@ -48,6 +49,7 @@ class ControlDashboardServer(ThreadingHTTPServer):
         self.html = html
         self.csrf_token = secrets.token_urlsafe(32)
         self.hermes_requests = BoundedSemaphore(4)
+        self.feedback_dashboard = feedback_dashboard
 
 
 class ControlDashboardHandler(BaseHTTPRequestHandler):
@@ -96,6 +98,24 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/auth/status":
             self._json(HTTPStatus.OK, self.server.application.local_auth_status(self._session_token()))
+            return
+        if path in ("/api/feedback/status", "/api/feedback/quality"):
+            try:
+                identity = self._require_identity_session()
+                dashboard = self.server.feedback_dashboard
+                if dashboard is None:
+                    self._json(HTTPStatus.OK, {"available": False, "reason": "Feedback requires an explicit scoped application binding."})
+                elif path.endswith("/status"):
+                    self._json(HTTPStatus.OK, dashboard.status(identity))
+                else:
+                    params = parse_qs(parsed.query)
+                    if set(params) != {"schedule_id"} or len(params["schedule_id"]) != 1:
+                        raise ValueError("one schedule_id required")
+                    self._json(HTTPStatus.OK, dashboard.quality(identity, schedule_id=params["schedule_id"][0]))
+            except PermissionError:
+                self._json(HTTPStatus.FORBIDDEN, {"error": "Feedback access denied"})
+            except (KeyError, ValueError, OSError, RuntimeError):
+                self._json(HTTPStatus.CONFLICT, {"error": "Feedback unavailable for this account and scope"})
             return
         if path == "/api/code":
             try:
@@ -649,6 +669,12 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
         try:
             body = self._body(maximum=180_000_000 if path == "/api/code" else 1_000_000)
             path = _canonical_api_path(urlparse(self.path).path)
+            if path == "/api/feedback/action":
+                identity = self._require_identity_session()
+                if self.server.feedback_dashboard is None:
+                    raise PermissionError("Feedback is not configured")
+                self._json(HTTPStatus.OK, self.server.feedback_dashboard.action(identity, body))
+                return
             if path == "/api/code":
                 from atmem.code.dashboard import execute
                 self._json(HTTPStatus.OK, execute(self.server.manager, self._require_identity_session(), body))

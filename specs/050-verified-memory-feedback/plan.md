@@ -4,6 +4,10 @@ Status: implementation started; see `implementation-evidence.md` for completed
 work, the tested host-boundary fix and remaining integration. Governing requirements: `spec.md`; source
 review: `research.md`. The implementation remains opt-in and is not released.
 
+Maintain `benchmark-impact.md` and notify the owner before integrating changes
+that can alter DolphinBench inputs, execution or scoring. Distinguish condition
+changes from report-only changes. Benchmark execution is not authorized here.
+
 ## Technical context
 
 Python 3.10–3.13; existing AtMem core authority, SQLite/SQLCipher stores, encrypted
@@ -25,13 +29,19 @@ SDK becomes a base dependency. Linux, Windows and macOS remain supported.
    comparisons, and records accept/reject/inconclusive without changing activation.
 6. **Activate:** the authenticated owner confirms exact revision/scope and qualification.
    Existing authority is rechecked transactionally; derived code cannot rewrite policy.
-7. **Enforce/monitor:** the Hermes hook checks the specific pending invocation; a real
+7. **Enforce/monitor:** the MCP proxy or a qualified adapter checks the specific pending invocation; a real
    blocked-call receipt differs from a would-block observation. Compare regressions,
    suspend/revoke and collect a new outcome without automatic promotion or retraining.
 
 This is a governed feedback loop, not a second memory database and not a training
 service. Built-in `atmem/invariants/` continues to verify product guarantees; runtime
 user policies live in a separate explicit namespace and cannot change those guarantees.
+
+8. **Retrieve documents:** a shared RAG service authorizes a registered provider and
+   fixed scope before search/inspect, applies requested jurisdiction/effective-date
+   filters, validates provenance and scope, and records authorized delivered evidence
+   in the existing encrypted vault. External passages never become instructions or
+   admitted memories merely because they were retrieved.
 
 ## Existing components to extend
 
@@ -54,6 +64,9 @@ Proposed new modules:
 `atmem/adapters/hermes/feedback_guard.py`;
 `atmem/control/feedback.py`; `atmem/cli_feedback.py`;
 `docs/verified-memory-feedback.md`; `docs/benchmarks/verified-memory-feedback.md`.
+Also `atmem/knowledge/rag/{contracts,service,sqlite}.py`,
+`atmem/mcp/governed.py`, `atmem/mcp/guarded.py`,
+`docs/governed-rag-and-mcp.md`, and corresponding real-store/client tests.
 Paths are implementation targets, not claims that they exist today.
 
 ## Data and contract design
@@ -97,6 +110,15 @@ active until required references are verified and its canonical commit completes
 is idempotent; a crash leaves pending/unavailable state, never an implicit allow. Inventory
 and garbage-collect only verified unreferenced staging artifacts under retention policy.
 
+Feedback payloads currently fit inline in the existing vault transaction, so no
+artifact outbox is needed for them. An encrypted per-scope Home checkpoint binds
+the committed ciphertext root and catches row deletion or DB-only rollback. A
+pending/new-root protocol spans SQLite commit and checkpoint publication; real
+effects dispatch only after this context completes. Include checkpoints with
+keys/accounts in supported backups. Whole-Home-and-key rollback has no external
+monotonic witness and must not be advertised as detected. Full activation/restore
+reconciliation remains T017; this checkpoint does not qualify an adapter.
+
 Dependencies between source revisions, rules, profiles, receipts and exports are explicit.
 On supersession/deletion/permission revocation, suspend dependent authority immediately at
 dispatch; asynchronously repair indexes and verify deletion of registered representations.
@@ -111,8 +133,8 @@ required argument exists; typed argument equals a reviewed literal; approval rec
 valid for exact principal/scope/tool/schema/argument digest/expiry and unused nonce.
 Business language that needs unsupported arithmetic or ambiguous semantics cannot compile.
 
-Hermes is the first enforcement surface because it already has a concrete before-tool
-plugin. Pin the supported Hermes version and installed artifact in conformance evidence
+MCP guarded dispatch is the generic enforcement surface; Hermes is an additional
+adapter with a concrete final-tool hook candidate. Pin supported host and installed artifacts in conformance evidence
 before activation becomes available. Intercept real dispatch, wrappers and supported batch
 members. Revalidation and dispatch must share a bound invocation token; source revocation
 or changed arguments invalidates it. Define dispatch as the atomic admission boundary;
@@ -128,6 +150,47 @@ Conformance evidence is keyed by adapter/version/schema/OS. Task capability regi
 is advertised only for the action classes actually supported and tested. Host fixtures
 alone are plumbing; the installed-host journey must demonstrate a tool call really did
 not execute. No real user data or production side effects are needed for this proof.
+
+## Generic RAG and MCP integration
+
+Re-use `EvidenceScope`/`EvidencePrincipal` and current encrypted EvidenceService,
+plus `AuthorityScope` for agent/workspace binding. Authenticate credentials afresh
+at each service operation; keep agent and workspace capability grants in the same
+protected authoritative vault. A model cannot send a role, endpoint, token, tenant
+or alternate scope as a search argument. Owner configuration is separate from MCP.
+
+Use one versioned provider interface: bounded `search(request)` and
+`inspect(document_id, chunk_id, revision, scope)`. A trusted application registers
+the adapter implementation; model tools select only an authorized source ID.
+Adapters can call existing SQL/vector/HTTP/MCP RAG clients using their own scoped
+credentials. The reference adapter stores documents in the existing encrypted SQLite vault
+and builds FTS5 only in RAM within an authorized query. No plaintext disk index
+or SQLCipher dependency is needed for this adapter.
+Retrieve original passages and citation metadata, not an LLM-generated answer.
+
+Each hit includes exact scope/source revision, stable document/chunk identifiers,
+text digest, citation, jurisdiction and nullable effective dates. Validate complete
+results before persistence. Requested date/jurisdiction filters exclude missing
+metadata; intervals are [effective_from, effective_to). Registration revocation
+and policy generation are rechecked after the provider returns. No implicit fetch
+of a citation URL and no user-supplied SQL or dynamically imported adapter code.
+
+Keep stdio local-first. MCP server identity is bound by an application credential
+and fixed agent/workspace; revocation is read each call. The new server must use
+explicit supported legacy protocol revisions (2025-06-18 and 2025-11-25) and a
+documented negotiation error for newer/unknown revisions. Official 2026-07-28 MCP
+was reviewed: it uses per-request metadata and has no initialize handshake. Do not
+claim support for that revision until implemented/tested as a distinct path.
+Retain the legacy server unchanged for existing users; the new governed server
+must not inherit its unrestricted subject override or optimistic version echo.
+
+Expose RAG search/inspect, feedback report/propose, rule preview and guarded-call
+tools only when the service capability is implemented. A proxy handler is chosen
+from owner configuration, never arbitrary code/URLs supplied by a model. Protected
+writes recheck exact final arguments and authority in the server, persist an
+in-flight record before execution, and return an uncertain receipt on transport
+ambiguity. Repeated writes use a payload-bound idempotency key; do not automatically
+retry unknown effects. A pure check tool has no control of external host calls.
 
 ## Metrics, UI and qualification
 
@@ -154,9 +217,11 @@ threshold changes. Export only after FR-019 consent and never include held-out e
 ## Delivery phases and stopping points
 
 1. Contracts, native baseline definition and regression inventory; no side effects.
-2. Encrypted outcome chain, independent verification, diagnosis and per-agent reporting.
+2. Encrypted outcome chain, scope/identity grants, provider registration and document
+   retrieval through generic MCP; independent verification and per-agent reporting.
 3. Versioned profile qualification and review; shadow-only until statistical gates pass.
-4. Typed rules plus Hermes enforcement, explicit activation, revocation and recovery.
+4. Typed rules plus generic MCP proxy enforcement and adapter integration, explicit
+   activation, revocation and recovery. Hermes is never required for core/MCP operation.
 5. Consented example export, dashboard/CLI parity, cross-platform installed-artifact gates.
 6. Review evidence and choose release scope. No training, promotion or publication is
    automatic. A failed gate stops the affected activation, not useful offline diagnosis.

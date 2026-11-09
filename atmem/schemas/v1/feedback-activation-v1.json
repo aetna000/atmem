@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "atmem-feedback-activation-v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "atmem-feedback-activation-v1"
+    },
+    "activation_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": "atmem-feedback-scope-v1"
+        },
+        "tenant_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        },
+        "subject_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        },
+        "agent_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        },
+        "workspace_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "format",
+        "tenant_id",
+        "subject_id",
+        "agent_id",
+        "workspace_id"
+      ],
+      "additionalProperties": false
+    },
+    "artifact_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "qualification_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "actor_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740992
+    },
+    "state": {
+      "enum": [
+        "proposed",
+        "reviewed",
+        "shadow",
+        "qualified",
+        "active",
+        "suspended",
+        "revoked",
+        "expired",
+        "rejected"
+      ]
+    }
+  },
+  "required": [
+    "format",
+    "activation_id",
+    "scope",
+    "artifact_sha256",
+    "qualification_id",
+    "actor_id",
+    "generation",
+    "state"
+  ],
+  "additionalProperties": false
+}

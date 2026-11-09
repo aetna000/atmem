@@ -3,7 +3,26 @@
 Spec: `specs/050-verified-memory-feedback/spec.md`.
 This feature is under development and is not a released memory or enforcement
 feature. Importing `atmem.feedback` enables nothing. Existing recall, stores,
-adapters and authority are unchanged.
+adapters and native authority remain the defaults. The opt-in evidence format
+upgrade and new explicit authority boundaries are documented below.
+
+## Current development surfaces
+
+Host-neutral local stdio MCP and CLI, scoped document retrieval, retained context
+and per-action outcomes, independent readback, exact metric denominators,
+source-grounded review, bounded profiles and typed rules are implemented. The
+local dashboard supports authenticated inspection/review/shadow controls. Owner
+SDKs provide registered-copy deletion, restore quarantine, validated historical
+rollback and recipient-encrypted example export. These are development paths,
+not complete production qualification or a published release.
+
+See [governed RAG and MCP](governed-rag-and-mcp.md) for executable setup, exact
+tools, privacy, format-4 downgrade restrictions and remaining limitations. Readback
+of correct state alone never certifies an action; operation-bound evidence is
+required. The offline qualifier always returns inconclusive. No production
+activation, learning or DolphinBench improvement is established by synthetic
+tests. The live Hermes installation is unchanged and its AtMem service adapter
+is still pending.
 
 ## Implemented foundation
 

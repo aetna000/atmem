@@ -307,6 +307,11 @@ def _run_onboarding(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
+    # The new opt-in path requires an explicit existing evidence store and never
+    # opens the ordinary memory database as a side effect of discovery.
+    if len(sys.argv) > 1 and sys.argv[1] == "rag":
+        from atmem.cli_feedback import main as rag_main
+        raise SystemExit(rag_main(sys.argv[2:]))
     parser = argparse.ArgumentParser(
         prog="atmem",
         description="Governed memory and agent oversight, with optional AtBot intelligence.",
@@ -326,6 +331,9 @@ def main() -> None:
 
   atmem dashboard
       Open the local memory, configuration, provenance, and agent-evidence UI.
+
+  atmem rag --help
+      Connect an explicitly scoped document store, or use the opt-in MCP/feedback tools.
 
 Run `atmem COMMAND --help` for command-specific examples.""",
     )

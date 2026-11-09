@@ -92,10 +92,128 @@ global Python environment, real memory or benchmark was modified. The isolated
 Hermes test environment is 248 MiB and was built by its PM, without model extras.
 
 This completes the T002 version/boundary/OS inventory and prerequisite repair.
-T003–T024 remain unchecked. Installed rule-service conformance, source revocation,
+At that checkpoint T003–T024 remained unchecked; subsequent foundation and RAG completion is recorded below. Installed rule-service conformance, source revocation,
 atomic approval use, Windows/Linux, full outcome/review/export/UI journeys and
 efficacy remain required by their later tasks. No rule activation, deployment,
 release, upstream acceptance or universal enforcement claim is implied.
 
 The owner-requested review of Mem0, LangMem, Letta and LangChain/LangGraph is
 recorded with primary sources and limitations in `memory-system-comparison.md`.
+
+
+## T003–T005 and T025–T026 — foundation and governed RAG
+
+Implemented bounded versioned contracts/schemas, scoped encrypted append-only
+persistence, transactional idempotency, authenticated agent grants/revocation and
+binding to the existing engine's one-use review authorization. Persistence reuses
+the existing vault: evidence and receipts are bounded inline values in one SQLite
+transaction, so no dual-store outbox or canonical-memory schema migration was
+needed at this stage. Logical tombstones do not establish cryptographic deletion;
+full dependent deletion/recovery remains T017.
+
+The RAG service supports owner-configured adapters and a reference provider using
+encrypted stored passages with a transient RAM-only SQLite FTS index. It retains
+exact passages/digests/citations, applies requested jurisdiction/effective-date
+filters, validates scope and source revision, rechecks authority after retrieval,
+and records encrypted requests/results. Provider deadlines and concurrency limits
+are explicit. Revocation can prevent completing an audit update: an existing
+pending request then remains unknown, never an asserted successful delivery.
+Retrieval alone admits no memory and activates no rule. Generic MCP/CLI access
+was still pending at that checkpoint; its subsequent completion is recorded below.
+
+Validation on macOS / Python 3.12.13:
+
+- Contract, store and authority suite: 57 passed.
+- Contract/store/baseline and existing evidence regression selection: 98 passed,
+  3 skipped for unavailable optional post-quantum dependencies.
+- Latest real RAG/provider/authority/store suite: **33 passed in 26.76 seconds**:
+
+```sh
+.venv/bin/python -m pytest -q tests/test_rag_provider.py tests/test_rag_service.py \
+  tests/test_feedback_authority.py tests/test_feedback_store.py
+```
+
+Cases include real FTS passages, no persistent plaintext FTS index, independent
+adapter results, malformed/foreign results, inert injection text, immutable source
+revisions, revocation during retrieval, unavailable/hung providers, scoped
+readback, real credentials, concurrent retries and key rotation. Synthetic
+fictional documents only; no model calls, paid evaluation or real memory mutation.
+These counts overlap and must not be added as unique test cases. Cross-platform,
+full lifecycle, real MCP client, installed-host integration and quality gates
+remain pending. See `benchmark-impact.md` for possible DolphinBench effects;
+existing routing, context selection, action guards and scoring files are unchanged.
+
+## Subsequent implementation checkpoint — actual local service journeys
+
+Worktree `atmem-verified-memory-feedback`, branch `feat/verified-memory-feedback`.
+The original `aetnamem` checkout, live Hermes source/launchers, real user memory
+and benchmark artifacts are untouched. Package metadata remains 2.3.14; these
+development changes are not the published 2.3.14 artifact or a new release.
+
+Completed local tasks now include T006 (actual core exposure receipts and late
+immutable outcome revisions), T009 (canonical-source/HMAC-authorized review),
+T012–T013 (closed typed compiler and deny-wins evaluator), T018 (shared CLI/MCP
+read/report/propose surfaces) and T027 (actual host-neutral stdio clients).
+
+The larger tasks have working components but are not checked complete:
+
+| Task | Implemented and locally exercised | Remaining acceptance |
+|---|---|---|
+| T007 | Registered independent verifier, retained readbacks, assurance tiers, dispute preservation, proposed failure attribution. State-only observations never prove action completion; positive completion requires a unique correlated effect receipt and all checks on one call. | Evidence-backed verified causal attribution and complete hostile-feedback matrix. |
+| T008 | Owner-frozen schedules, exact denominators, missing/unknown/disputed counts, independent assessment reducers and diagnostic episode bootstrap. | Full content-free operational telemetry, cost/latency reporting and report gates. |
+| T010 | Frozen protected manifests, retained three-arm diagnostic replay, task-contract checks, three-attempt cap and zero-model/time/disk bounds. | Production qualification and accepted/rejected receipts with independent power, conformance and resource gates. The implemented evaluator always returns inconclusive. |
+| T011 | Explicit bounded stored-engine candidate budget/context packing/balanced pools; disabled parity and shadow return native context. | Full profile acceptance and qualified activation journey. |
+| T014 | Reviewed lifecycle, fresh source/version/expiry checks, atomic generations, versioned activation receipts and historical rollback revalidation. | Full lifecycle/crash matrix and production qualification. |
+| T028 | Real local handler effects, native veto, exact single-use approvals, encrypted admission before dispatch, same-key idempotency, timeout uncertainty and persistent cross-key/restart holds. Owner reconciliation requires independent terminal-effect evidence. | Complete concurrency/schema/adapter conformance matrix. |
+| T015–T016 | Existing isolated Hermes boundary candidate remains available; generic MCP has actual client/effect tests. | AtMem's installed Hermes service adapter and installed-host qualification. The read-only final hook cannot be used as a one-use approval consumer. |
+| T017 | Owner-previewed dependent-copy purge, source/idempotency revocation anchors, RAG generation fencing, standalone encrypted reconstruction, restore quarantine and rollback checks. | Automatic registered restore/retention integration, full deletion/in-flight/crash matrix. External copies and full-Home rollback remain explicit limitations. |
+| T019 | Authenticated HTTP facade; CSRF/origin/identity/scope checks; actual Feedback screen, per-action details, review and shadow/suspend/revoke controls. | Browser consent/export, production activation and rollback journeys. Activation button remains disabled. |
+| T020 | Purpose/recipient/preview-bound owner consent, real ML-KEM/AES-GCM/ML-DSA recipient export, exclusions, consent revision and withdrawal. | Full secret/privacy/split/source-revocation acceptance matrix and product consent flow. |
+| T021 | Pinned 12-job OS/Python CI definition, published-wheel upgrade test and local current-wheel packaging/import checks. | Actual Linux/Windows and all Python matrix results; installed-host combinations. |
+| T022–T024 | Offline baseline validation and diagnostic receipts; setup/limits documented. | Reproducible complete quality/latency gates, separately approved bounded efficacy manifest/run, final acceptance report. No paid calls or efficacy run authorized here. |
+
+New protected rows use the existing encrypted vault. An encrypted pending/committed
+Home checkpoint detects DB-only rollback/deletion and is required in backups.
+The first opt-in mutation sets format 4; a real published 2.3.14 binary refuses
+the newer format rather than rotating unknown scoped partitions incorrectly.
+Native-only containers retain their old format. Full old-Home/key/anchor rollback
+cannot be detected without external monotonic authority and is not claimed.
+Evidence grant/revoke now serialize against admission using the existing key
+transition lock; authorization is rechecked under that lock before decrypting.
+
+Fresh bounded regression invocation (no model/benchmark calls):
+
+```sh
+ATMEM_FEEDBACK_BASELINE_WHEEL=/tmp/atmem-spec050-baseline-2.3.14.whl \
+ATMEM_FEEDBACK_BROWSER=1 .venv/bin/python -m pytest -q \
+  tests/test_feedback_*.py tests/test_rag_*.py tests/test_governed_mcp.py \
+  tests/test_guarded_mcp*.py tests/test_rule_*.py tests/integration/test_feedback_*.py \
+  tests/test_context_engine_governance.py tests/test_context_engine_contracts.py \
+  tests/test_context_engine_retrieval.py tests/test_task_state_service.py \
+  tests/test_task_state_guards.py tests/test_action_guard.py \
+  tests/test_evidence_protection.py tests/test_continuity_product.py \
+  tests/test_control_evidence.py
+```
+
+Result: **413 passed, 5 skipped in 215.38 seconds** on macOS/Python 3.12.13.
+Four skips require the separately pinned Hermes source; one is Windows-specific
+replace semantics. Existing Chrome was used headlessly; no browser was downloaded.
+The browser test verified displayed counts and exact arguments, not merely that
+a window opened. Real recipient encryption ran with pqcrypto 1.0.0. The isolated
+venv is about 176 MiB including test/browser-driver dependencies, with no model
+weights or training outputs.
+
+`uv build --wheel` succeeded. A separate temporary target install of that wheel
+verified packaged new modules/schemas and the CLI from outside the checkout.
+The pinned actual public upgrade wheel SHA-256 is
+`37597be588817aa2dad921a683b39b6e6417eb5bdf3ec23256655acf13b19a03`;
+`scripts/fetch_feedback_baseline.py` verifies it explicitly. The local development
+wheel has the unchanged version string and must not be confused with or uploaded
+over that published artifact.
+
+`scripts/check_feedback_docs.py`, `node --check atmem/control/assets/app.js` and
+`git diff --check` pass at this checkpoint. Test counts overlap previous runs;
+do not add them as unique tests. Source-controlled test fixtures seed accepted
+authority only to exercise lifecycle consumers, labelled TEST_FIXTURE_NOT_EFFICACY.
+The production qualifier cannot emit acceptance from those synthetic fixtures.
+No source release, main merge, website change or deployment is implied.

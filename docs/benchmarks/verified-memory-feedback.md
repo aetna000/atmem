@@ -75,10 +75,12 @@ the evidence was delivered; do not infer retrieval failure from output alone.
 | SC-001 | Zero unauthorized admissions, disclosures or promotions in scoped, tamper, stale-source, duplicate/retry and injection cases. |
 | SC-002 | Reconstruct a complete read/write/correction/activation/revocation journey from only a restored encrypted store after fixture host destruction. Missing capture remains unknown. |
 | SC-003 | Paired episode-clustered 95% CI lower bound for verified full-task improvement strictly above zero; coverage loss at most 2 percentage points; no new authority violation. Underpowered evidence is inconclusive. |
-| SC-004 | No escaped forbidden calls in the pinned Hermes hostile matrix; exact approval binding; legitimate calls succeed; shadow has no real side effects. Held-out false denial at most 1%, with counts and uncertainty. |
+| SC-004 | No escaped forbidden calls in the generic MCP proxy and qualified adapter hostile matrices; exact approval binding; legitimate calls succeed; shadow has no extra side effects. Held-out false denial at most 1%, with counts and uncertainty. |
 | SC-005 | Identical disabled-mode regression outcomes; active retrieval p95 overhead at most 20%; deterministic rule p95 at most 10 ms with 1,000 applicable rules. Remote verification time reported separately. |
 | SC-006 | Real encrypted-store journey, published-store upgrades, crashes/retries, rollback and dependent deletion on Python 3.10–3.13 and Linux/macOS/Windows. |
 | SC-007 | Dashboard/CLI/API count and state parity, keyboard/browser acceptance, scope non-disclosure and consent/source-verifiable export exclusions. |
+| SC-008 | Real document FTS and independent provider tests: exact cited passages, encrypted replay, date/jurisdiction filters, revocation, failure and zero unauthorized disclosures. |
+| SC-009 | Two MCP identities, actual local proxy effects, zero unauthorized effects/disclosures, no scope override, no Hermes dependency and explicit unsupported-version errors. |
 
 Qualification expires after seven days at most and immediately on a relevant
 source/policy/verifier/compiler/adapter change. A report cannot modify thresholds

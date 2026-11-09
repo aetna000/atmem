@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "atmem-feedback-verification-v1",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "atmem-feedback-verification-v1"
+    },
+    "receipt_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "const": "atmem-feedback-scope-v1"
+        },
+        "tenant_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        },
+        "subject_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        },
+        "agent_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        },
+        "workspace_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "format",
+        "tenant_id",
+        "subject_id",
+        "agent_id",
+        "workspace_id"
+      ],
+      "additionalProperties": false
+    },
+    "outcome_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "outcome_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "invocation_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "verifier_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "verifier_version": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "evidence_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+      "maxLength": 256
+    },
+    "checks": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "properties": {
+          "format": {
+            "const": "atmem-feedback-action-check-v1"
+          },
+          "check_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,255}$",
+            "maxLength": 256
+          },
+          "kind": {
+            "enum": [
+              "mechanical",
+              "judged"
+            ]
+          },
+          "result": {
+            "enum": [
+              "pass",
+              "fail",
+              "unknown",
+              "disputed"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 65536
+          }
+        },
+        "required": [
+          "format",
+          "check_id",
+          "kind",
+          "result",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "assurance": {
+      "enum": [
+        "independent_readback",
+        "human_attestation",
+        "host_report",
+        "model_judgement"
+      ]
+    },
+    "binding": {
+      "enum": [
+        "state_only",
+        "effect_receipt"
+      ]
+    }
+  },
+  "required": [
+    "format",
+    "receipt_id",
+    "scope",
+    "outcome_id",
+    "outcome_sha256",
+    "invocation_id",
+    "verifier_id",
+    "verifier_version",
+    "evidence_id",
+    "checks",
+    "assurance"
+  ],
+  "additionalProperties": false
+}

@@ -31,6 +31,8 @@ GATES = {
     "rule_p95_ms_max": 10,
     "applicable_rules": 1000,
     "qualification_ttl_seconds_max": 604800,
+    "rag_unauthorized_disclosures_max": 0,
+    "mcp_unauthorized_effects_max": 0,
 }
 
 

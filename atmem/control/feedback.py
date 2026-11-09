@@ -1,0 +1,94 @@
+"""Dashboard facade over the same authenticated feedback and review services.
+
+A trusted application supplies the local-identity-to-credential binding. There
+is no browser token field, arbitrary subject selector or global owner credential.
+"""
+from atmem.evidence.models import EvidenceOperation, EvidenceScope
+from atmem.feedback.store import FeedbackError
+from atmem.feedback.store import snapshot
+
+
+class FeedbackDashboard:
+    def __init__(self, feedback, *, session_factory, runtime_versions=None, memory_factory=None):
+        if not callable(session_factory):
+            raise ValueError("application-owned identity binding required")
+        self.feedback = feedback
+        self.session_factory = session_factory
+        self.runtime_versions = snapshot(runtime_versions) if runtime_versions is not None else None
+        if memory_factory is not None and not callable(memory_factory):
+            raise ValueError("application-owned memory factory required")
+        self.memory_factory = memory_factory
+
+    def _session(self, identity, *, owner=False):
+        account = identity["account"]
+        if account.get("password_change_required") or account["role"] == "viewer":
+            raise FeedbackError("denied")
+        if owner and account["role"] not in ("administrator", "evidence_collector"):
+            raise FeedbackError("denied")
+        session = self.session_factory(identity)
+        principal = self.feedback._principal(session.credential)
+        if principal.principal_id != account["username"] or not EvidenceScope(**account["scope"]).permits(session.scope.evidence_scope()):
+            raise FeedbackError("denied")
+        self.feedback.capabilities(session)
+        if owner:
+            try:
+                principal.authorize(EvidenceOperation.GRANT, session.scope.evidence_scope())
+            except PermissionError:
+                raise FeedbackError("denied") from None
+        return session
+
+    def status(self, identity):
+        session = self._session(identity)
+        with self.feedback._authorized(session, "read") as (tx, _):
+            proposals = []
+            for kind in ("rule", "profile"):
+                for value in tx.iter_kind(kind+"_proposal"):
+                    key = value["candidate"][kind+"_id"]
+                    proposals.append({"kind": kind, "artifact_id": key, "proposal": value,
+                                      "lifecycle": tx.get(kind+"_lifecycle", key)})
+            return {"available": True, "scope": session.scope.to_dict(), "proposals": proposals[:128],
+                    "schedules": [{"schedule_id": item["schedule_id"], "tasks": len(item["tasks"])} for item in tx.list("schedule")],
+                    "qualifications": tx.list("qualification"),
+                    "can_review": identity["account"]["role"] in ("administrator", "evidence_collector"),
+                    "activation_available": self.runtime_versions is not None,
+                    "activation": "requires_accepted_qualification"}
+
+    def quality(self, identity, *, schedule_id):
+        return self.feedback.quality(self._session(identity), schedule_id=schedule_id)
+
+    def action(self, identity, body):
+        session = self._session(identity, owner=True)
+        memory = self.memory_factory(identity) if self.memory_factory is not None else self.feedback.memory
+        from atmem.feedback.service import FeedbackService
+        feedback = FeedbackService(self.feedback.evidence, clock=self.feedback.clock, memory=memory)
+        try:
+            return self._action(feedback, identity, session, body)
+        finally:
+            if self.memory_factory is not None and memory is not None:
+                memory.close()
+
+    def _action(self, feedback, identity, session, body):
+        if type(body) is not dict or set(body) - {"operation", "kind", "artifact_id", "candidate_sha256", "reason",
+                                               "decision", "state", "expected_generation", "qualification_id"}:
+            raise FeedbackError("invalid_arguments")
+        kind = body.get("kind")
+        if kind not in ("rule", "profile"):
+            raise FeedbackError("invalid_arguments")
+        if feedback.memory is None:
+            raise FeedbackError("missing_evidence")
+        if body.get("operation") == "review":
+            from atmem.extract.review import ReviewService
+            authorization = feedback.memory.issue_review_authorization(identity["account"]["username"], scopes=("procedure:review",))
+            from atmem.feedback.review import decide
+            return decide(ReviewService(feedback.memory), feedback, session, rule_id=body["artifact_id"],
+                          kind=kind, candidate_sha256=body["candidate_sha256"], decision=body["decision"],
+                          reason=body["reason"], authorization=authorization)
+        if body.get("operation") == "transition":
+            if body.get("state") in ("qualified", "active") and self.runtime_versions is None:
+                raise FeedbackError("enforcement_unavailable")
+            from atmem.rules.lifecycle import RuleLifecycle
+            return RuleLifecycle(feedback).transition(session.credential, session.scope,
+                artifact_id=body["artifact_id"], kind=kind, state=body["state"],
+                expected_generation=body["expected_generation"], qualification_id=body.get("qualification_id"),
+                versions=self.runtime_versions, candidate_sha256=body["candidate_sha256"])
+        raise FeedbackError("invalid_arguments")

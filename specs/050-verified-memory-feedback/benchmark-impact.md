@@ -1,0 +1,55 @@
+# DolphinBench impact register — Spec 050
+
+Owner request, 2026-11-09: flag changes that can affect DolphinBench quality.
+These are possible effects, not measured score improvements. This work has not
+changed a DolphinBench run or its frozen artifacts.
+
+| Change | State | Possible effect | Handling |
+|---|---|---|---|
+| Feedback contracts and schemas | Implemented, offline tests | No intended effect while unused; invalid observations rejected when integrated. | Do not reinterpret historical results as verified outcomes. |
+| Scoped encrypted evidence reads and key rotation | Implemented, real-store tests | Storage compatibility, availability and latency risk; no intended memory-selection change. | Preserve default reads; test existing evidence paths and multi-scope rotation. |
+| Agent capabilities and review binding | Implemented, real-store tests | Once integrated, denied/revoked calls can change completion and refusal rates. | New feedback service only; existing benchmark authority configuration untouched. |
+| External RAG and document FTS | Implemented provider/service/stdio/CLI; local client tests | If enabled, changes evidence, ranking, context length and potentially answers/writes. Extra evidence could help or distract. | Opt-in; not connected to DolphinBench. A future condition must freeze corpus, revisions, filters, settings and delivered bytes. |
+| RAG deadlines and unavailable-provider handling | Implemented, local tests | If integrated, affects coverage, latency and unknown outcomes. | Document-provider deadlines only; no change or fix to DolphinBench model/judge retries. No automatic provider retry/fallback. |
+| Generic MCP tools | Implemented, actual subprocess clients | Names, schemas and descriptions can alter tool selection and token use with identical backing memory. | Qualify actual clients and freeze tool inventory before scored comparison. |
+| Independent action verification and per-action reporting | Implemented reporting/readback components; full attribution acceptance pending | Can change classifications/counts without changing agent behavior. | Separate report-only changes from quality changes; retain original checks, exact calls and unknowns. |
+| Retrieval profiles, thresholds and context packing | Explicit bounded packing helper implemented; full qualification pending | Directly changes memories delivered; may cause recoveries and regressions. | Disabled parity first; compare one frozen candidate to unchanged baselines with memory held fixed. |
+| Typed rules and guarded tool execution | Compiler/evaluator and owned proxy implemented; production activation not qualified | Directly changes allowed writes, approvals and false denials; may affect completion. | Report enforcement separately from recall. No activation from retrieval or synthetic tests alone. |
+| Hermes dispatch-boundary repair | Tested isolated candidate; not installed live | With a policy, can block effects previously allowed by hook errors or post-check argument changes. | Exact host commit and policy are part of the condition. Owner runtime unchanged. |
+| Review, exports and dashboard | Review/owner-export SDK and dashboard components implemented; complete consent UI pending | No intended score change alone; applied corrections change memory, and tuning with held-out examples contaminates evaluation. | Explicit review/activation and split exclusions; no unchanged-condition claim after tuning. |
+
+## Notification and evidence
+
+Before integrating behavior-affecting changes into a benchmark path, notify the
+owner of the component, intended effect, plausible regression and condition
+change. This register does not authorize a run.
+
+Identify source commit, installed artifact, model/provider, prompts/tool schemas,
+memory snapshot, RAG corpus/settings, context packing, policy, retries, verifier
+and scoring version in each future condition. Do not edit pinned files during a
+live run. Follow repository DolphinBench readiness prerequisites before preparing
+or launching a campaign.
+
+Offline tests demonstrate tested contracts only. They do not establish a
+DolphinBench gain, preservation of a previous score or superiority over another
+system. No new score is available for Spec 050.
+
+## Additional compatibility and scoring distinctions
+
+- The first explicit feedback mutation upgrades its evidence container to format
+  4. Published 2.3.14 refuses the opted-in vault; native-only containers keep
+  their old format. Freeze the upgraded storage/runtime identity in any future
+  condition; do not downgrade a live campaign's evidence store.
+- Evidence grant/revoke now use the existing key-transition lock, serializing
+  with new admission checks. This can affect authorization timing/availability,
+  but does not change native memory selection.
+- A state-only readback no longer counts as a completed action in the new
+  reporter. Success requires one independently correlated operation and all
+  checks on that exact invocation. This is a scoring-evidence change, not an
+  agent-quality improvement and not a retroactive alteration of frozen scores.
+- An unknown proxy effect holds further calls to the same tool/scope even when
+  a caller invents a new retry key. Reconciliation requires trusted terminal
+  backend evidence; this may trade completion/availability for duplicate-write
+  prevention. It is confined to the explicit new dispatcher.
+- Neither new MCP tools, document sources, feedback profiles nor rules are
+  connected to DolphinBench. No full or pilot run was launched for these checks.

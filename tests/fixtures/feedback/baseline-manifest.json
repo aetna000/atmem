@@ -254,7 +254,9 @@
     "retrieval_p95_overhead_fraction_max": 0.2,
     "rule_p95_ms_max": 10,
     "applicable_rules": 1000,
-    "qualification_ttl_seconds_max": 604800
+    "qualification_ttl_seconds_max": 604800,
+    "rag_unauthorized_disclosures_max": 0,
+    "mcp_unauthorized_effects_max": 0
   },
   "seed": 50,
   "environment": {

@@ -26,14 +26,22 @@ prevent deployment through unrelated tools or an unintegrated host.
 ## Scope and defaults
 
 V1 includes outcome evidence, per-agent quality reporting, bounded retrieval-profile
-qualification, typed rule promotion, one real enforcement adapter (Hermes), and
-explicit verified-example export. Models may propose; AtMem authorizes.
+qualification, typed rule promotion, governed external document/RAG retrieval,
+host-neutral authenticated MCP access and guarded tool execution, adapter-specific
+integration (including Hermes), and explicit verified-example export. Models may
+propose; AtMem authorizes. The owner expanded this scope on 2026-11-09.
 All new behavior starts disabled, then shadow, then explicitly active by scope.
 No automatic promotion from frequency, praise, confidence or repeated retrieval.
 Existing stores, ordinary memory admission and local offline recall remain usable.
 
+Notify the owner before integrating changes affecting DolphinBench evidence,
+retrieval, context packing, tool behavior, retries or scoring into a benchmark
+path. Record intended effects, regression risks and condition changes in
+`benchmark-impact.md`. Offline contract tests are not benchmark-quality evidence;
+no existing result may be attributed to this implementation.
+
 No model training or hosted inference provisioning, arbitrary executable policy,
-new permission system, phone channel, legal corpus, universal agent interception,
+new permission system, phone channel, a bundled legal corpus, universal agent interception,
 benchmark launch, release or public superiority claim is part of this scope.
 The model-training roadmap is an independently approved feature after outcome
 benefit is demonstrated; v1 prepares only consented evidence exports.
@@ -60,6 +68,17 @@ benefit is demonstrated; v1 prepares only consented evidence exports.
 - **US6 — Export verified examples.** Only explicitly consented and independently
   verified examples enter a previewed export. Another tenant, revoked consent, a
   deleted source or unknown result excludes the example and gives a reason code.
+- **US7 — Connect a RAG.** An owner registers a scoped existing document retriever.
+  An authorized caller searches by question, jurisdiction and effective date,
+  receives exact cited passages with source version and provenance, and can inspect
+  them later from encrypted evidence. Unknown or revoked sources are not queried;
+  another user's results, expired law versions and instructions in retrieved text
+  cannot widen access or activate memory/rules. Connecting does not imply legal accuracy.
+- **US8 — Use any MCP client.** A trusted application binds a credential, agent and
+  workspace to an MCP server. Independent clients can discover/search/inspect/report
+  and use registered guarded tools without importing Hermes. A blocked proxy write
+  never reaches its handler. A check-only tool is labelled advisory and cannot stop
+  a different tool called outside the proxy. Model arguments cannot grant roles.
 
 ## Functional requirements
 
@@ -78,6 +97,9 @@ benefit is demonstrated; v1 prepares only consented evidence exports.
   (e.g. authorized destination readback). Human attestation is a separate tier, as are
   host reports and model judgements. Conflicting verifications are disputed, cannot
   qualify changes, and are resolved by a new attributable revision, never overwritten.
+  Correct destination state alone is state-only evidence, not proof of a call.
+  Completed actions require independent backend operation correlation to the exact
+  outcome/run/turn/invocation/argument digest and a non-reused effect reference.
 - **FR-004 — Failure attribution.** Support evidence-backed labels: source fact absent,
   retrieval miss, authority withheld, stale/conflicting state, delivered-but-not-applied,
   wrong argument/value, wording/precision, no call, execution failure and unknown.
@@ -91,6 +113,9 @@ benefit is demonstrated; v1 prepares only consented evidence exports.
   reject conflicting reuse, preserve late observations as revisions, and tolerate
   retry/restart without duplicate outcomes, approvals or activation. Outcomes bind exact
   action and source revisions rather than silently attaching to the latest revision.
+  Unknown proxy effects retain a scope/tool hold across changed retry keys and
+  restarts. Only owner-authorized independent terminal-effect reconciliation may
+  clear that hold; source cleanup must not accidentally permit re-execution.
 - **FR-007 — Review authority.** Reuse the authenticated review service for proposed
   corrections, profile changes and rules. Require exact digest/revision, actor, scope,
   reason and explicit decision. AtBot/LLM confidence and stored instructions cannot
@@ -124,9 +149,10 @@ benefit is demonstrated; v1 prepares only consented evidence exports.
   denial measurement and independent adapter conformance; zero failures alone on a tiny
   sample is not production evidence. Qualification expires after 7 days by default and
   immediately on source, policy, verifier, compiler or adapter-version changes.
-- **FR-014 — Real boundary enforcement.** Initially integrate the Hermes before-tool
-  boundary with a shared host-neutral evaluator, composing with existing guards by
-  deny-wins. Re-evaluate immediately before the actual call, binding normalized arguments,
+- **FR-014 — Real boundary enforcement.** Use a shared host-neutral evaluator at
+  the AtMem-owned MCP proxy dispatch and at qualified adapter boundaries, including
+  Hermes, composing with existing guards by deny-wins. Re-evaluate immediately before
+  the actual call, binding normalized arguments,
   tool/schema, target, policy/source revision and single-use approval where required.
   Block bypass through registered wrappers/batches, mutated arguments, stale approvals
   and TOCTOU changes; refuse unsupported covered paths. All other hosts say advisory or
@@ -179,6 +205,42 @@ benefit is demonstrated; v1 prepares only consented evidence exports.
   enforcement. Do not claim trained learning, causal memory benefit, universal safety,
   universal host support or competitor superiority from synthetic tests, a chart,
   exposure counts, self-grading or unmatched historical scores.
+- **FR-025 — RAG provider registration.** An authenticated owner registers source ID,
+  provider/collection identity, exact user/agent/workspace scope, immutable revision,
+  allowed operations and explicit local/remote egress. Model tools cannot register
+  endpoints, credentials or sources. Provide a small Python search/inspect adapter
+  contract for existing SQL/vector/document retrievers and a reference local SQLite
+  FTS document adapter; do not require reimplementing their RAG or a hosted model.
+- **FR-026 — Document provenance and temporal filters.** Bound search inputs/outputs;
+  return source/document/chunk/version IDs, exact passage, content digest, title,
+  citation/locator, jurisdiction and effective interval when available. Requested
+  jurisdiction/date filters exclude unknown metadata and nonmatching versions;
+  absence without requested filters remains explicit. No silent current-law claim,
+  uncited generated answer, ranking score as legal certainty or automatic durable memory.
+- **FR-027 — Provider isolation and failure.** Authenticate/authorize before provider
+  egress, pass the fixed server-derived scope, validate every returned hit and
+  revalidate registration before publication. Reject cross-scope or malformed results
+  before persistence/disclosure. Never follow result URLs, execute document content,
+  enumerate inaccessible sources, share cache across scopes or pass credentials in
+  tool arguments/logs. Bound reads by deadline/result budget; unavailable/partial
+  retrieval is reported explicitly and does not disable ordinary local recall.
+- **FR-028 — Host-neutral MCP.** Serve scoped RAG and feedback through one authenticated
+  service shared by CLI/API/MCP. Bind identity and capabilities outside model arguments,
+  recheck revoked grants each call, keep owner review/activation/export out of model
+  tools, use closed bounded schemas, annotations and structured receipts. State exact
+  supported protocol revisions/transports and reject unsupported versions; never
+  echo an arbitrary claimed version. Initially support local stdio without public hosting.
+- **FR-029 — MCP enforcement boundary.** Distinguish advisory check from execution.
+  A guarded proxy may call only owner-registered handlers/schema versions after exact
+  argument/policy/approval checks; enforce in the server even if the client ignores
+  tool annotations. Record pending admission before effects; uncertain writes cannot
+  be blindly retried. Check-only clients or unproxied tools remain advisory. MCP
+  connectivity alone cannot claim to control a host's unrelated tools.
+- **FR-030 — RAG retention and adoption.** Retain authorized requested/delivered
+  passages and provenance in the existing encrypted evidence container, with scoped
+  access audit, idempotent receipts and revocation/deletion dependencies. A retrieved
+  document is untrusted external evidence; existing authenticated review is required
+  to adopt it as an action-bearing memory or rule. No separate memory authority DB.
 
 ## Metric definitions
 
@@ -212,7 +274,7 @@ clusters by source episode when observations are dependent.
   at most 2 percentage points and there is no new scope/authorization violation.
   If the manifest lacks adequate power/sample size, report inconclusive and do not
   activate on an efficacy claim. This gate applies to profiles and rule candidates.
-- **SC-004:** Hermes conformance proves zero escaped forbidden calls in the specified
+- **SC-004:** MCP proxy and qualified adapter conformance prove zero escaped forbidden calls in the specified
   hostile matrix, exact approval binding, successful legitimate calls, and no real
   side effects in shadow. Held-out false-denial rate must not exceed 1%, with counts
   and uncertainty reported; benchmark evidence does not become a universal guarantee.
@@ -226,6 +288,15 @@ clusters by source episode when observations are dependent.
   API, passes keyboard navigation and browser acceptance tests, and cannot reveal another
   scope via rows, counts or errors. Export can be independently verified against source
   and consent revisions; excluded cases stay out.
+- **SC-008:** A real temporary SQLite FTS document corpus plus an independent provider
+  adapter passes scoped search/inspect, exact citation and encrypted replay, requested
+  jurisdiction/as-of filtering, unknown dates, stale/revoked source, injection,
+  provider failure and cross-user/agent/workspace rejection without external calls.
+- **SC-009:** Two distinct MCP client identities exercise discovery/read/report and a
+  local proxy tool with real effect recording. Forged role/scope, revoked credentials,
+  ignored hints, changed arguments, schema drift, replay and denied calls cause zero
+  unauthorized effects/disclosures. Demonstrate advisory-only status for calls outside
+  the proxy; no dependency on Hermes. Unsupported protocol versions fail explicitly.
 
 ## Edge cases
 
