@@ -23,6 +23,15 @@ from atmem.core.storage import HouseholdLock, HouseholdPolicy
 from atmem.evidence.crypto import load_or_create_key
 
 
+def test_database_flush_preserves_binary_image_ending_in_windows_text_eof(tmp_path):
+    from atmem.core.keys import _sync_database_file
+    database = tmp_path / 'binary-image.db'
+    original = bytes(range(256)) * 16 + b'\r\n\x1a'
+    database.write_bytes(original)
+    _sync_database_file(database)
+    assert database.read_bytes() == original
+
+
 def test_installed_encryption_gate_uses_the_installed_artifact() -> None:
     if os.environ.get("ATMEM_REQUIRE_INSTALLED_ARTIFACT") != "1":
         return

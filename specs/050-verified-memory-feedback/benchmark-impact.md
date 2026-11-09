@@ -101,3 +101,9 @@ Direct Windows testing found classic MAX_PATH could prevent creation of opt-in
 feedback anchors. Extended Unicode checkpoint paths and shorter temporary names
 preserve existing anchor identity/layout and access controls without a global OS
 setting. Ordinary native retrieval and frozen benchmark inputs remain unchanged.
+
+The Windows migration root cause was subsequently reproduced: a binary database
+ending in 0x1A can be truncated by the old text-mode `O_RDWR` fsync open. Explicit
+`O_BINARY` now preserves all bytes. This affects explicit encryption migration /
+recovery maintenance and does not change retrieval/scoring. Earlier standalone
+journaling changes alone did not fix the intermittent failure; see evidence log.

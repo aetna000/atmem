@@ -20,6 +20,17 @@ KEYRING_SERVICE = "atmem"
 MINIMUM_CIPHER_INTEGRITY_VERSION = (4, 2, 0)
 
 
+def _sync_database_file(path: Path) -> None:
+    """Flush opaque database bytes without Windows CRT text translation."""
+    flags = os.O_RDWR if os.name == "nt" else os.O_RDONLY
+    flags |= getattr(os, "O_BINARY", 0)
+    descriptor = os.open(path, flags)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 def _require_cipher_integrity_version(value: object) -> tuple[int, int, int]:
     match = re.match(r"^(\d+)\.(\d+)\.(\d+)", str(value or "").strip())
     if match is None:
@@ -376,13 +387,6 @@ def migrate_plaintext_household(
         finally:
             connection.close()
 
-    def sync_file(path: Path) -> None:
-        descriptor = os.open(path, os.O_RDWR if os.name == "nt" else os.O_RDONLY)
-        try:
-            os.fsync(descriptor)
-        finally:
-            os.close(descriptor)
-
     def quiesce(path: Path, *, key: str | None = None) -> None:
         # A WAL is part of its database, not a disposable cache.  Cutover moves
         # single files, so require SQLite itself to fold it into the database
@@ -441,7 +445,7 @@ def migrate_plaintext_household(
             # and restore the verified source, still under a fail-closed policy.
             os.replace(target, candidate)
             os.replace(backup, target)
-            sync_file(target)
+            _sync_database_file(target)
             sync_directory(target.parent)
             HouseholdPolicy.load(target).with_state("migration-prepared").write()
             raise RuntimeError(
@@ -605,14 +609,14 @@ def migrate_plaintext_household(
         quiesce(candidate, key=key)
         if encrypted_inventory(candidate, key) != source_inventory:
             raise RuntimeError("encrypted candidate row counts differ from plaintext source")
-        sync_file(candidate)
+        _sync_database_file(candidate)
 
         prepared.with_state("encrypting").write()
         os.replace(target, backup)
         remove_checkpointed_source_sidecars()
         os.replace(candidate, target)
         sync_directory(target.parent)
-        sync_file(target)
+        _sync_database_file(target)
         verify_cutover(key, source_inventory)
         prepared.with_state("encrypted-finalizing").write()
         backup.unlink(missing_ok=True)

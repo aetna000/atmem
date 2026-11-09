@@ -541,3 +541,22 @@ anchor contents, cleaned temporary files and tamper refusal. Fresh Windows
 installed-wheel and broad tests are required. The broad test launcher also now
 overrides pytest's source `pythonpath` so it genuinely imports the installed
 wheel, preserving only the fixture/test helper path.
+
+The next owner-Windows installed smoke reproduced the intermittent HMAC failure;
+standalone journaling alone was insufficient. A deterministic native probe found
+the cause: opening an existing binary file with `os.O_RDWR` under Windows CRT
+text defaults removed a trailing 0x1A byte (14 bytes became 13 without writing).
+`O_RDWR | O_BINARY` preserved all 14 bytes. The old migration flush helper used
+exactly the unsafe open mode after successful candidate verification. Encrypted
+ciphertext may end with that value, explaining last-page HMAC failures.
+The flush helper now explicitly selects binary mode for candidate, target and
+rollback-source fsync. Its byte-preservation regression includes every byte value,
+CR/LF and a final 0x1A, without depending on chance ciphertext generation.
+Native encryption/checkpoint/durability tests passed **29, with 1 Windows-only
+skip, in 9.49 seconds**. The earlier WAL hardening and exception rollback remain
+valid safeguards but are not presented as the root-cause fix. Direct Windows and
+fresh installed-artifact CI are required after this change.
+Microsoft documents the binary/text distinction and CRT default at
+https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/open-wopen?view=msvc-170
+and https://learn.microsoft.com/en-us/cpp/c-runtime-library/text-and-binary-mode-file-i-o?view=msvc-170 .
+The owner-host probe establishes the actual truncation behavior on Python 3.12.6.
