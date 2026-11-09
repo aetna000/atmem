@@ -274,6 +274,47 @@ class VerificationReceipt(Wire):
 
 
 @dataclass(frozen=True)
+class AttributionVerification(Wire):
+    format = "atmem-feedback-attribution-verification-v1"
+    receipt_id: str
+    scope: FeedbackScope
+    attribution_id: str
+    outcome_sha256: str
+    invocation_id: str | None
+    action_id: str
+    failure_class: Literal["source_fact_absent", "retrieval_miss", "authority_withheld", "stale_conflicting_state",
+                           "delivered_but_not_applied", "wrong_argument_value", "wording_precision", "no_call",
+                           "execution_failure", "unknown"]
+    verifier_id: str
+    verifier_version: str
+    registry_revision: int
+    checks: tuple[ActionCheck, ...]
+    evidence: dict[str, Any]
+    evidence_ids: tuple[str, ...]
+    sources: tuple[dict[str, Any], ...]
+    verification_ids: tuple[str, ...]
+    status: Literal["verified", "inconclusive", "disputed"]
+    supports_classification: bool | None = None
+    assurance: Literal["independent_readback"] = "independent_readback"
+    claim: Literal["bounded_operational_classification"] = "bounded_operational_classification"
+    verified_causality: Literal[False] = False
+    qualifies_policy: Literal[False] = False
+
+    def __post_init__(self):
+        super().__post_init__()
+        if (not self.checks or len({c.check_id for c in self.checks}) != len(self.checks)
+                or any(c.kind != "mechanical" for c in self.checks)):
+            raise ValueError("unique independent mechanical classification checks required")
+        passed = all(c.result == "pass" for c in self.checks)
+        if self.status == "verified" and (self.supports_classification is not True or not passed or self.failure_class == "unknown"):
+            raise ValueError("verified classification requires complete positive proof")
+        if self.supports_classification is True and (not passed or self.failure_class == "unknown"):
+            raise ValueError("classification support conflicts with its checks")
+        if self.supports_classification is False and not any(c.result == "fail" for c in self.checks):
+            raise ValueError("negative classification requires a failed check")
+
+
+@dataclass(frozen=True)
 class RulePredicate(Wire):
     format = "atmem-feedback-rule-predicate-v1"
     operator: Literal["present", "equals", "approval_required"]
@@ -389,7 +430,7 @@ class MCPInvocation(Wire):
             identifier(value)
 
 
-CONTRACTS = (FeedbackScope, SourceRevision, ActionRequirement, ActionCheck, ActionObservation,
+CONTRACTS = (FeedbackScope, SourceRevision, ActionRequirement, ActionCheck, ActionObservation, AttributionVerification,
              OutcomeRecord, VerificationReceipt, RulePredicate, RuleCandidate,
              QualificationReceipt, RetrievalProfileCandidate, ActivationReceipt, ExampleExport, MCPInvocation)
 

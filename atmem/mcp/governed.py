@@ -169,7 +169,7 @@ class GovernedMCPServer:
                     elif name == "rag_inspect":
                         value = self.rag.inspect(self.session, **arguments)
                     elif name == "feedback_outcome":
-                        value = self.feedback.outcome(self.session, **arguments)
+                        value = self.feedback.outcome(self.session, **arguments, include_attributions=True)
                     elif name == "feedback_quality":
                         value = self.feedback.quality(self.session, **arguments)
                     elif name == "feedback_report_outcome":

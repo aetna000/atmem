@@ -48,7 +48,7 @@ jobs:
           ATMEM_FEEDBACK_BASELINE_WHEEL: .feedback-baseline/atmem-2.3.14.whl
         run: >-
           python -m pytest -q
-          tests/test_feedback_actions.py tests/test_feedback_authority.py
+          tests/test_feedback_actions.py tests/test_feedback_attribution.py tests/test_feedback_authority.py
           tests/test_feedback_baseline.py tests/test_feedback_contracts.py
           tests/test_feedback_docs.py tests/test_feedback_metrics.py
           tests/test_feedback_hermes_boundary.py

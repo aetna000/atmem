@@ -232,6 +232,42 @@ def test_real_browser_keyboard_quality_and_exact_call_evidence(dashboard_server,
             browser.close()
 
 
+def test_real_browser_shows_independent_failure_classification_on_write(dashboard_server, tmp_path):
+    playwright, chrome = _installed_feedback_browser()
+    from test_feedback_attribution import scheduled_classification_fixture
+    f, _ = scheduled_classification_fixture(tmp_path/'classified')
+    server, bootstrap, _, _ = dashboard_server
+    credential = f.evidence.grant(f.evidence.authenticate(f.owner['token']), principal_id='administrator',
+                                 role=EvidenceRole.ADMINISTRATOR, scope=f.scope.evidence_scope())
+    f.feedback.grant_agent(f.owner['token'], f.scope, principal_id='administrator',
+                           operations=('read',), expires_at=1_700_010_000)
+    session = f.feedback.bind(credential['token'], agent_id='writer', workspace_id='project')
+    server.feedback_dashboard = FeedbackDashboard(f.feedback, session_factory=lambda identity:session)
+    with playwright.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(executable_path=str(chrome), headless=True)
+        try:
+            page = browser.new_page()
+            page.goto(f'http://127.0.0.1:{server.server_port}/')
+            page.locator('#loginUsername').fill('administrator')
+            page.locator('#loginPassword').fill(bootstrap['password'])
+            page.locator('#loginForm button[type=submit]').click()
+            page.locator('#newPassword').fill('synthetic classification browser password')
+            page.locator('#repeatPassword').fill('synthetic classification browser password')
+            page.locator('#passwordForm button[type=submit]').click()
+            playwright.expect(page.locator('#authGate')).to_be_hidden()
+            page.locator('#navFeedback').click()
+            page.locator('#feedbackSchedule').select_option('classified-quality')
+            page.get_by_role('button', name='Show quality and actions').click()
+            details = page.locator('#feedbackQuality details').filter(has=page.locator('summary',has_text='classified-quality'))
+            details.locator('summary').click()
+            playwright.expect(details).to_contain_text('wrong_argument_value')
+            playwright.expect(details).to_contain_text('"status": "verified"')
+            playwright.expect(details).to_contain_text('"verified_causality": false')
+            page.screenshot(path=str(tmp_path/'feedback-classification-browser.png'),full_page=True)
+        finally:
+            browser.close()
+
+
 def test_browser_qualification_evidence_cancel_and_revoked_access(dashboard_server, tmp_path):
     playwright, chrome = _installed_feedback_browser()
     from feedback_lifecycle_fixtures import reviewed_shadow, seed_trusted_test_receipt, VERSIONS

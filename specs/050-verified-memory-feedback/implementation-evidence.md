@@ -613,3 +613,41 @@ feature-job deadline, with no changes to the 424 packaged AtMem files. Final
 feature-workflow status remains explicitly tracked on PR #37, not inferred from
 these product regression results. Eight feature acceptance/implementation tasks
 remain unchecked; no efficacy or complete-feature claim is made.
+
+### T007 — bounded operational classification (subsequent development)
+
+Added a separate owner-registered, versioned independent classification readback
+path to `VerificationService`. It rejects writer/proposer self-verification,
+model-judgement checks, partial or unbound material, absent delivery receipts,
+uncorrelated/unverified effects, stale/revoked source revisions and changed
+checker registration. Proofs retain actual observed/expected material under
+scope/outcome/invocation binding, not just a label or hash. `AttributionVerification`
+is the eighteenth shipped closed feedback schema. Its causal/activation flags
+are always false and cannot be elevated through wire data. Complete trusted
+checker contracts define bounded operational conditions; they do not establish
+an agent's internal motivation or universal source absence.
+
+Real-store tests compare a frozen complete authorised fictional document corpus
+with independent operation-start capture, actual core context/exposure bytes,
+exact arguments and an actual destination file/backend journal. Complete absence
+is distinguished from partial capture or an existing source fact; delivered but
+unapplied is distinguished from an empty delivered package. Host omission does
+not override an independent operation journal. Original disagreements persist;
+scoped owner resolution is CAS/receipt-set-bound, remains human attestation,
+and states whether the selected proof supports or disproves the proposed label.
+
+Typed defining lineage removes source-dependent proposals/proofs/caches without
+walking back into unrelated outcome history. Model-facing MCP/CLI/quality reports
+return scoped summaries and exact per-action checks; raw proof bodies remain in
+the encrypted vault. No model tool can register/check/resolve a classification.
+The existing dashboard renders these fields on the corresponding read/write
+entry. Missing checker/capture remains unknown, and classification never replaces
+the independently verified task-success denominator or qualifies a policy.
+
+Validation selections overlap: **96 passed in 309.62s** across attribution,
+contracts, readback, recovery, metrics, CLI/MCP and transport during development;
+final closed-wire plus classification selection **62 passed in 146.54s**;
+false causal/activation-wire elevation checks **2 passed in 0.35s**; actual new
+classification Chrome journey **1 passed in 23.45s**. Earlier narrower selections
+were 22/9/28/31/59 passes and are not additive or final-source platform evidence.
+Fresh installed-wheel, actual Windows and cross-platform tests are required.

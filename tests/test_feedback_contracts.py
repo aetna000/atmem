@@ -9,7 +9,7 @@ import jsonschema
 import pytest
 
 from atmem.contracts.feedback import (
-    ActivationReceipt, ActionCheck, ActionObservation, ActionRequirement, CONTRACTS,
+    ActivationReceipt, ActionCheck, ActionObservation, ActionRequirement, AttributionVerification, CONTRACTS,
     ExampleExport, FeedbackScope, MCPInvocation, OutcomeRecord, QualificationReceipt,
     RuleCandidate, RulePredicate, RetrievalProfileCandidate, SourceRevision, VerificationReceipt, json_schema,
 )
@@ -28,6 +28,8 @@ OUTCOME = OutcomeRecord("outcome", SCOPE, "run", "turn",
     (ActionObservation("write", "call", "fixture.write", "v1", {"body": "ten days"},
                        {"accepted": True}, (CHECK,)),))
 SAMPLES = (
+    AttributionVerification('classification',SCOPE,'attribution',OUTCOME.content_digest,'call','write',
+        'wrong_argument_value','reader','v1',1,(CHECK,),{'proof':'synthetic'},('evidence',),(),('verification',),'inconclusive'),
     RetrievalProfileCandidate("profile", SCOPE, (SOURCE,)),
     SCOPE, SOURCE, OUTCOME.required[0], CHECK, OUTCOME.observations[0], OUTCOME,
     VerificationReceipt("verification", SCOPE, "outcome", OUTCOME.content_digest,
@@ -64,6 +66,16 @@ def test_every_contract_roundtrips_under_its_shipped_closed_schema(sample):
         cls.from_dict(wire)
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(wire, schema)
+
+
+@pytest.mark.parametrize('flag', ['verified_causality','qualifies_policy'])
+def test_operational_classification_wire_cannot_claim_causal_or_activation_authority(flag):
+    wire = SAMPLES[0].to_dict()
+    wire[flag] = True
+    with pytest.raises(ValueError):
+        AttributionVerification.from_dict(wire)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(wire,json_schema(AttributionVerification))
 
 
 @pytest.mark.parametrize("mutate", [

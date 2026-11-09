@@ -27,7 +27,7 @@ Referenced new paths are implementation targets. No paid evaluation is authorize
 ## Phase 2b — Outcome verification (after T025–T027)
 
 - [x] [T006] Link real context receipts, exact invocation/check evidence and late/duplicate observations in `atmem/feedback/service.py`; test a read success with a failed write and forbid combining partial calls in `tests/test_feedback_actions.py`. Map FR-002, FR-005, FR-006; SC-002.
-- [ ] [T007] Implement scoped verifier registration, independent readback results, attestation tiers, disputes and evidence-backed failure attribution in `atmem/feedback/verification.py`; cover fabricated success, missing capture, poisoned feedback and delivered-but-not-applied in `tests/test_feedback_verification.py`. Map FR-003, FR-004, FR-005, FR-024; SC-001, SC-002.
+- [x] [T007] Implement scoped verifier registration, independent readback results, attestation tiers, disputes and bounded evidence-backed operational classification in `atmem/feedback/verification.py`; cover fabricated success, missing capture, poisoned feedback, complete pre-turn corpus versus source presence and delivered-but-not-applied in `tests/test_feedback_verification.py` and `tests/test_feedback_attribution.py`. No internal mental causality or policy qualification is claimed. Map FR-003, FR-004, FR-005, FR-024; SC-001, SC-002.
 - [x] [T008] Implement exact metric denominators, zero/unknown handling, episode uncertainty, cost and content-free telemetry in `atmem/feedback/metrics.py`; test abstain-all, unassessed answers, scope leakage and required-fact write failures in `tests/test_feedback_metrics.py`. Map FR-008, FR-023, FR-024; SC-003, SC-007.
 
 ## Phase 3 — Reviewed retrieval adaptation (after T004–T008)
@@ -81,8 +81,13 @@ consumer tests, not a production efficacy result. In particular, active rule and
 profile consumer tests use explicitly labelled trusted-store test receipts;
 the production diagnostic qualifier cannot emit those accepted receipts.
 
-- T007: independent readback, operation binding, disputes and proposed taxonomy
-  exist; complete independently verified causal attribution remains unbuilt.
+- T007: independent operation-bound verification and bounded operational
+  classifications are implemented with original scoped proofs, source revisions,
+  disputes and append-only human resolution. Real source-corpus/exposure/backend
+  tests and a browser consumer pass locally; fresh package/OS gates remain T021.
+  This never claims internal mental causality or qualifies policy. Integrators
+  must provide real independent checker code; missing pre-turn/complete-scope
+  capture cannot be replaced by a trace or model label.
 - T010/T022: frozen offline manifests, persistent attempt budgets, paired replay
   and insufficient-evidence/resource gates exist. Production accept/reject
   qualification and complete independently measured quality/power/resource gates

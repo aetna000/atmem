@@ -105,6 +105,11 @@ benefit is demonstrated; v1 prepares only consented evidence exports.
   wrong argument/value, wording/precision, no call, execution failure and unknown.
   A trace or an LLM label alone cannot establish causality or source absence. Preserve
   proposed versus verified classification and the checks supporting it.
+  A verified class denotes the bounded externally checkable operational condition,
+  not an agent's internal motivation or general causal claim. Original proof
+  material, exact source/effect linkage and complete pre-turn snapshot/capture
+  are required by the registered checker contract; missing evidence remains
+  unknown. Human resolution appends a distinct tier and cannot qualify policy.
 - **FR-005 — One action, all checks.** Report each required action with tool/schema
   identity, read/write kind, one matching invocation, required mechanical and judged
   checks, failed checks/reasons and verifier tier. Several partial calls cannot be

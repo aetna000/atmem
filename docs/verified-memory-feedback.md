@@ -19,7 +19,12 @@ not complete production qualification or a published release.
 See [governed RAG and MCP](governed-rag-and-mcp.md) for executable setup, exact
 tools, privacy, format-4 downgrade restrictions and remaining limitations. Readback
 of correct state alone never certifies an action; operation-bound evidence is
-required. The offline qualifier always returns inconclusive. No production
+required. Registered independent checkers now support bounded operational failure
+classifications with retained original proofs, exact source/effect linkage and
+append-only disputes/human resolution. A diagnosis proposal or trace alone cannot
+certify a source absence or a retrieval failure. No internal mental causality or
+policy qualification is claimed by these classifications. The offline qualifier
+always returns inconclusive. No production
 activation, learning or DolphinBench improvement is established by synthetic
 tests. The live Hermes installation is unchanged. The new opt-in Hermes service
 bridge has been tested against the separate pinned candidate; it is not installed

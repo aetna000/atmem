@@ -268,13 +268,22 @@ class FeedbackService:
                 return value
             return tx.once("report_outcome", idempotency_key, payload, publish)
 
-    def outcome(self, session, outcome_id: str, *, revision_sha256: str | None = None) -> dict:
+    def outcome(self, session, outcome_id: str, *, revision_sha256: str | None = None,
+                include_attributions: bool = False) -> dict:
         identifier(outcome_id)
         with self._authorized(session, "read") as (tx, _):
             value = tx.get("outcome_revision", revision_sha256) if revision_sha256 else tx.get("outcome", outcome_id)
             if value is None or value["outcome"]["outcome_id"] != outcome_id:
                 raise FeedbackError("denied")
-            return value
+        if type(include_attributions) is not bool:
+            raise ValueError("boolean attribution selection required")
+        if include_attributions:
+            from atmem.feedback.verification import VerificationService
+            classifications = VerificationService(self).attributions(session,
+                outcome_sha256=OutcomeRecord.from_dict(value["outcome"]).content_digest)["classifications"]
+            if classifications:
+                value["attributions"] = classifications
+        return value
 
     def schedule(self, owner_credential, scope, *, schedule_id: str, tasks: tuple[dict, ...]) -> dict:
         """Owner freezes eligible tasks before observations; no execution implied."""
@@ -325,6 +334,17 @@ class FeedbackService:
                             assessments.extend({"outcome_id": outcome.outcome_id, **item}
                                                for item in evidence.get("assessments", []))
             report = summarize(session.scope, schedule["tasks"], records, assessments=assessments)
+            from atmem.feedback.verification import VerificationService
+            by_outcome = {record.outcome_id:record for record, _ in records}
+            for task in report["tasks"]:
+                outcome = by_outcome.get(task["outcome_id"])
+                if outcome is None:
+                    continue
+                classifications = VerificationService.attribution_views(tx, outcome.content_digest)
+                for action in task["actions"]:
+                    selected = [v for v in classifications if v["action_id"] == action["action_id"]]
+                    if selected:
+                        action["failure_classifications"] = selected
             run_ids = {outcome.run_id for outcome, _ in records}
             usage = [row for row in tx.iter_kind("reported_usage") if row["run_id"] in run_ids]
             totals, subtotals, unknown, overflow = {}, {}, {}, {}

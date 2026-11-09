@@ -107,3 +107,14 @@ ending in 0x1A can be truncated by the old text-mode `O_RDWR` fsync open. Explic
 `O_BINARY` now preserves all bytes. This affects explicit encryption migration /
 recovery maintenance and does not change retrieval/scoring. Earlier standalone
 journaling changes alone did not fix the intermittent failure; see evidence log.
+
+### T007 operational classification
+
+The opt-in governed MCP `feedback_outcome` and `feedback_quality`, corresponding
+CLI reads and dashboard action details now include scoped classification
+summaries when independently checked diagnoses exist. This is additive report
+metadata and leaves task-success/coverage denominators and native/default memory
+retrieval unchanged. An agent consuming those enriched tools can receive new
+inputs: a future scored campaign enabling this surface must declare a new
+condition and satisfy fresh qualification; do not silently reuse prior receipts.
+No frozen Dolphin package, runtime, data, scoring script or result was modified.

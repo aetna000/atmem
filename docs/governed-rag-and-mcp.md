@@ -111,7 +111,7 @@ The standard CLI does not register arbitrary handlers):
 | `rag_sources` | search | Scoped registered sources. |
 | `rag_search` | search | Original passages and encrypted request/result receipts; no memory admission. |
 | `rag_inspect` | inspect | Retained passage, subject to live source authorization. |
-| `feedback_outcome` | read | Retained observations; host reports remain unverified. |
+| `feedback_outcome` | read | Retained observations and scoped operational classifications; host reports remain unverified. |
 | `feedback_quality` | read | Counts for an owner-frozen schedule; undefined rates are null. |
 | `feedback_report_outcome` | report | Append attributable unverified observations; no review or activation. |
 | `guarded_execute` | execute | Optional application-owned dispatch; persists intent before effects and refuses blind retries. |
@@ -398,3 +398,56 @@ and AtMem quality outcomes, power, independent conformance, false-denial coverag
 and retrieval overhead remain insufficient evidence. Fast synthetic evaluation
 cannot issue qualification, activation or an efficacy claim. Compilation,
 authority/storage and remote time are explicitly outside the pure rule latency.
+
+
+### Independently checked failure classifications
+
+`VerificationService.propose_attribution` retains a proposal without certifying it.
+`register_attribution_verifier` is an owner SDK operation, never an MCP tool.
+A separately authenticated verifier with the scoped `verify` capability calls
+`verify_attribution`. The writer/proposer cannot verify its own diagnosis.
+Registration alone establishes no result: application-owned read-only checker code
+must actually perform the independent checks and retain the supporting material.
+
+`AttributionReadback` names a closed failure class, its exact fixed mechanical
+checks and original supporting data. Evidence binds the scope, outcome digest and
+invocation (nullable only when no invocation is captured), with a `proofs` entry
+for every check containing `method`, `observed` and `expected`. Sources are typed
+`{"kind":"memory","source": SourceRevision.to_dict()}` or
+`{"kind":"rag","source": RagSource.to_dict()}`. Canonical permission, source
+revision/generation and RAG registration are revalidated before committing.
+Partial checks, model judgements, unbound evidence, missing delivery receipts,
+changed verifier registration and unverified effects cannot certify a class.
+
+The supported conditions are source-fact absence, retrieval miss, authority
+withheld, stale/conflicting state, delivered-but-not-applied, wrong argument/value,
+wording/precision, no call, execution failure and unknown. Absence/retrieval checks
+require an actually complete authorised snapshot from before the turn. A search
+returning no hits, a partial corpus, a current snapshot obtained afterwards, or a
+trace alone is insufficient. Missing facts in a write do not establish a retrieval
+failure. A delivered-but-not-applied result requires original core exposure bytes
+and independent operation-bound readback. No-call requires complete independent
+operation capture, rather than an omitted host trace. Integrators must leave a
+condition unknown when their backend cannot supply these proofs.
+
+A verified result is a **bounded operational classification** under the registered
+checker contract. It is not evidence of an agent's internal motivation or universal
+causality: `verified_causality` and `qualifies_policy` are always false. The separate
+`supports_classification` field distinguishes supported, disproved and unknown
+conditions. Conflicting readbacks remain disputed. Scoped owner SDK
+`resolve_attribution` appends an exact receipt-set/generation-bound decision at the
+human-attestation tier, preserving every original; later readbacks invalidate a
+stale resolution. It cannot produce policy qualification.
+
+The existing MCP `feedback_outcome`, CLI `atmem rag outcome`, and quality reports
+include bounded classification summaries when present. The dashboard shows them
+on their exact read/write action, including verifier checks, proposals and disputes.
+Raw proof material stays in the encrypted vault rather than being copied into
+these summaries. No new model-accessible verification, registration or resolution
+tool is exposed. Deleting a declared source removes dependent diagnosis/proof/
+cache records through typed lineage, without deleting unrelated outcome history.
+Unlinked free-text copies remain subject to their own evidence retention.
+
+Reproducible real-store and actual destination/corpus/exposure examples are in
+`tests/test_feedback_attribution.py`. They are synthetic contract tests, not
+production accuracy or causal-learning evidence.

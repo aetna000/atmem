@@ -13,7 +13,7 @@ from atmem.evidence.models import EvidenceOperation
 from atmem.feedback.store import FeedbackError, snapshot
 
 
-CONTROL_KINDS = frozenset({'audit','agent_grant','evaluation_budget','proxy_handler','proxy_write_hold','verifier','source_revocation','restore_binding'})
+CONTROL_KINDS = frozenset({'audit','agent_grant','evaluation_budget','proxy_handler','proxy_write_hold','verifier','attribution_verifier','source_revocation','restore_binding'})
 AUTH_FIELDS = frozenset({'scope','actor_id','principal_id','tenant_id','subject_id','agent_id','workspace_id','verifier_id','recipient_id'})
 
 
@@ -63,7 +63,8 @@ def _references(value, field='', *, source_domain='memory_source', artifact_doma
              'artifact_id':artifact_domain,'outcome_id':'outcome','outcome_ids':'outcome','predecessor_id':'outcome',
              'outcome_sha256':'outcome_digest','candidate_sha256':'artifact_digest','artifact_sha256':'artifact_digest',
              'manifest_sha256':'manifest_digest','preview_sha256':'preview_digest',
-             'activation_id':'receipt','consent_id':'consent','export_id':'export'}
+             'activation_id':'receipt','consent_id':'consent','export_id':'export',
+             'attribution_id':'attribution'}
     if type(value) is str and field in domains:
         return {(domains[field],value)}
     return set()
@@ -72,10 +73,11 @@ def _references(value, field='', *, source_domain='memory_source', artifact_doma
 def _key_identity(row):
     kind=row['kind']
     domain={'rag_source':'rag_source','outcome':'outcome','outcome_revision':'outcome_digest',
-            'evaluation_manifest':'manifest_digest','export_consent':'consent','example_export':'export',
+            'evaluation_manifest':'manifest_digest','export_consent':'consent','example_export':'export','attribution':'attribution',
             'rule_proposal':'rule','rule_lifecycle':'rule','profile_proposal':'profile','profile_lifecycle':'profile'}.get(kind)
     if kind in {'context_evidence','rag_receipt','readback_evidence','verification','proxy_execution',
-                'qualification','activation','verification_attempt','rag_attempt','reported_usage'}:
+                'qualification','activation','verification_attempt','rag_attempt','reported_usage',
+                'attribution_verification','attribution_attempt'}:
         domain='receipt'
     return (domain or 'row:'+kind,row['key'])
 
@@ -89,6 +91,9 @@ def _owned_identities(row):
     if row['kind']=='outcome_revision':
         outcome_id=row['value'].get('outcome',{}).get('outcome_id')
         if type(outcome_id) is str:result.add(('outcome',outcome_id))
+    if row['kind']=='attribution_lineage':
+        attribution_id=row['value'].get('attribution_id')
+        if type(attribution_id) is str:result.add(('attribution',attribution_id))
     return result
 
 

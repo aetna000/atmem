@@ -98,7 +98,7 @@ def main(argv=None):
         elif args.command == "inspect":
             value = rag.inspect(session, receipt_id=args.receipt, document_id=args.document, chunk_id=args.chunk)
         elif args.command == "outcome":
-            value = feedback.outcome(session, args.id)
+            value = feedback.outcome(session, args.id, include_attributions=True)
         elif args.command == "quality":
             value = feedback.quality(session, schedule_id=args.schedule)
         elif args.command in ("report", "propose-rule", "propose-profile"):
