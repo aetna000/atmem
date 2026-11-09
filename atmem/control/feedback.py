@@ -51,6 +51,8 @@ class FeedbackDashboard:
                     "qualifications": tx.list("qualification"),
                     "can_review": identity["account"]["role"] in ("administrator", "evidence_collector"),
                     "activation_available": self.runtime_versions is not None,
+                    "runtime_versions": self.runtime_versions,
+                    "observed_at": int(self.feedback.clock()),
                     "activation": "requires_accepted_qualification"}
 
     def quality(self, identity, *, schedule_id):
@@ -70,7 +72,7 @@ class FeedbackDashboard:
 
     def _action(self, feedback, identity, session, body):
         if type(body) is not dict or set(body) - {"operation", "kind", "artifact_id", "candidate_sha256", "reason",
-                                               "decision", "state", "expected_generation", "qualification_id"}:
+                                               "decision", "state", "expected_generation", "qualification_id", "target_generation"}:
             raise FeedbackError("invalid_arguments")
         kind = body.get("kind")
         if kind not in ("rule", "profile"):
@@ -92,4 +94,11 @@ class FeedbackDashboard:
                 artifact_id=body["artifact_id"], kind=kind, state=body["state"],
                 expected_generation=body["expected_generation"], qualification_id=body.get("qualification_id"),
                 versions=self.runtime_versions, candidate_sha256=body["candidate_sha256"])
+        if body.get("operation") == "rollback":
+            if self.runtime_versions is None:
+                raise FeedbackError("enforcement_unavailable")
+            from atmem.rules.lifecycle import RuleLifecycle
+            return RuleLifecycle(feedback).rollback(session.credential, session.scope,
+                artifact_id=body["artifact_id"], kind=kind, expected_generation=body["expected_generation"],
+                target_generation=body["target_generation"], versions=self.runtime_versions)
         raise FeedbackError("invalid_arguments")

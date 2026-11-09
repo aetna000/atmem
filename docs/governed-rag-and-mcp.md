@@ -74,7 +74,7 @@ no claim of MCP 2026-07-28, Streamable HTTP, OAuth hosting or public availabilit
 See the versioned official sources in Spec 050 `protocol-decisions.md`.
 
 Implemented tool inventory (`guarded_*` requires an explicitly configured
-application dispatcher; `feedback_propose_*` requires canonical memory.
+application dispatcher; execution and `feedback_propose_*` require canonical memory.
 The standard CLI does not register arbitrary handlers):
 
 <!-- governed-tool-inventory:start -->
@@ -183,6 +183,10 @@ prove an agent made the required call. To count a completed action, a verifier
 must use `binding="effect_receipt"` and independently read an operation journal
 binding the outcome, run, turn, invocation, canonical argument digest and a unique
 backend effect reference. One reference cannot prove different invocations.
+The journal must also distinguish succeeded, failed, not-dispatched and unknown
+operations; correct destination state after a failed operation is not success.
+Generic stdio does not itself establish trusted host run/turn IDs: the application
+must retain that correlation independently. A caller's reported IDs are not proof.
 All required checks must pass on one matching invocation; partial calls are never
 combined. Conflicts stay disputed. Proposed failure labels are not certified
 causal diagnoses. Host/model reports never become independent verification.
@@ -205,7 +209,10 @@ Unknown effects are never replayed automatically. The owner SDK's `reconcile`
 requires a retained, independent effect-bound verification of the exact proxy
 execution and a trusted backend-terminal journal receipt. A state snapshot or
 model assertion cannot clear a hold. A still-running local handler, changed
-verifier, disputed result or missing/deleted evidence prevents reconciliation.
+verifier, disputed operation status or missing/deleted evidence prevents reconciliation.
+Conclusive terminal-operation evidence can clear a hold even when task checks
+failed; the retained failed task is not promoted to success. This permits an
+explicit corrected attempt without conflating task quality with effect certainty.
 The application is responsible for the backend's terminal-journal contract; the
 proxy cannot terminate a remote operation or undo a completed effect.
 
@@ -232,8 +239,14 @@ trusted signed-in-identity/session binding and optional per-request memory
 factory. It exposes real scoped quality counts, exact per-action arguments,
 checks, source evidence, proposal review and shadow/suspend/revoke controls.
 Existing login, origin and CSRF checks apply. Without this application binding,
-the screen reports unconfigured. Production activation, rollback and export
-consent browser journeys remain incomplete; the activation button is disabled.
+the screen reports unconfigured. With matching runtime configuration, an owner
+can select an accepted current qualification, inspect its evidence and confirm
+activation, or request rollback to a previous active generation. The server
+rechecks authority and source/version/qualification state; displayed metadata
+does not grant permission. With only the current diagnostic qualifier, activation
+remains unavailable. Export consent UI and production-qualified browser journeys
+remain acceptance work. For threaded HTTP actions, supply a per-request
+`memory_factory`; do not share a thread-bound SQLite connection from setup.
 
 Owner SDK `FeedbackRecovery.preview_forget` / `forget` requires exact preview
 confirmation and privileged deletion authority. It removes registered scoped
@@ -258,7 +271,9 @@ An application may use owner-only `record_usage` with an already observed
 provider receipt, run ID, integer USD micro-units, input/output token counts and
 model-call count. Receipt reuse cannot double-count or reassign a run. Quality
 reports aggregate only retained scheduled runs and label these costs as partial
-host reports, never verified billing. Missing capture is null, not zero. This API
+host reports, never verified billing. Each count/cost may be explicitly unknown;
+known subtotals remain separate and a missing component makes the total null.
+Overflow is explicit as well. Missing capture is null, not zero. This API
 makes no model calls and grants no spending authority. The dashboard displays
 the same missing/partial usage distinction.
 

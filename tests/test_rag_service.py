@@ -95,22 +95,28 @@ def test_unknown_source_does_not_call_provider_and_revoked_source_invalidates_ca
 
 def test_revocation_while_provider_is_running_withholds_the_result(tmp_path):
     env = setup_rag(tmp_path)
+    # This test isolates revocation, not a five-second startup/performance gate.
+    # Real authenticated store admission can be slower on loaded Windows CI.
+    # Separate deadline tests still exercise the short timeout unchanged.
+    env.rag.timeout_seconds = 30
     started, release = threading.Event(), threading.Event()
     source = RagSource("external", env.scope, "custom", "existing-rag", "rev-1", "none")
     def operation(s, q, d):
         started.set()
-        assert release.wait(5)
+        assert release.wait(30)
         return (hit(s),)
     env.rag.register(env.owner["token"], source, IndependentProvider(operation))
     with ThreadPoolExecutor(max_workers=1) as pool:
         future = pool.submit(env.rag.search, env.session, RagQuery("external", "deadline"), idempotency_key="race")
         try:
-            assert started.wait(5)
+            if not started.wait(30):
+                future.result(timeout=1)  # Surface admission errors, not just a missing event.
+                pytest.fail("provider never entered the coordinated race")
             env.rag.revoke(env.owner["token"], env.scope, "external")
         finally:
             release.set()
         with pytest.raises(FeedbackError, match="denied|source_changed"):
-            future.result(timeout=5)
+            future.result(timeout=30)
     with env.feedback.store.transaction(env.scope) as tx:
         assert tx.list("rag_receipt") == []
 

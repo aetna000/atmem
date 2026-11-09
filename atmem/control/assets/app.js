@@ -925,6 +925,12 @@ $("codeKeygen").onclick=codeGuard(async function(){var keys=await codeCall("bund
 $("codeExport").onclick=codeGuard(async function(){var value=await codeCall("bundle-export",{recipient_public_key:await codeFile("codeRecipientPublic"),signing_public_key:await codeFile("codeSigningPublic"),signing_secret_key:await codeFile("codeSigningSecret")});codeDownload("atmem-code-project.json",JSON.stringify(value.bundle));text("codeBundleResult","Encrypted project bundle downloaded.")});
 async function codeImport(action){var body={root:$("codeRoot").value,bundle:JSON.parse(await codeFile("codeBundleFile")),recipient_secret_key:await codeFile("codeRecipientSecret"),trusted_signing_key:await codeFile("codeSigningPublic")};if(action==="bundle-import")body.preview_token=codeImportToken;var value=await codeCall(action,body);codeOutput("codeBundleResult",value);codeImportToken=value.preview_token||null;$("codeImportApply").disabled=!value.can_import;if(value.imported)await codeLoadProjects()}
 $("codeImportPreview").onclick=codeGuard(function(){return codeImport("bundle-preview")});$("codeImportApply").onclick=codeGuard(function(){return codeImport("bundle-import")});
+function feedbackDataEqual(a,b){
+ if(a===b)return true;
+ if(!a||!b||typeof a!=="object"||typeof b!=="object"||Array.isArray(a)!==Array.isArray(b))return false;
+ var keys=Object.keys(a).sort(),other=Object.keys(b).sort();
+ return keys.length===other.length&&keys.every(function(key,i){return key===other[i]&&feedbackDataEqual(a[key],b[key])});
+}
 async function loadFeedback(){
  var identity=localAuth.account&&localAuth.account.username;
  if(!localAuth.authenticated||!identity){text("feedbackStatus","Sign in to inspect feedback.");return}
@@ -943,7 +949,13 @@ async function loadFeedback(){
     if(row.proposal.state==="proposed"){["approve","reject"].forEach(function(decision){var button=element("button","secondary",decision==="approve"?"Approve exact revision":"Reject");button.type="button";button.onclick=function(){feedbackReview(row,decision)};card.appendChild(button)})}
     if(row.proposal.state==="reviewed"){
      ["shadow","suspended","revoked"].forEach(function(next){var button=element("button","secondary",next==="shadow"?"Start shadow":next==="suspended"?"Suspend":"Revoke");button.type="button";button.onclick=function(){feedbackTransition(row,next)};card.appendChild(button)});
-     var activate=element("button","secondary","Activate qualified revision");activate.type="button";activate.disabled=true;activate.title="An accepted, current qualification and tested boundary are required. Use the owner SDK after those gates pass.";card.appendChild(activate);
+     var choices=(value.qualifications||[]).filter(function(q){return q.decision==="accept"&&q.artifact_sha256===row.proposal.candidate_sha256&&q.expires_at>value.observed_at&&feedbackDataEqual(q.scope,value.scope)&&feedbackDataEqual(q.versions,value.runtime_versions)});
+     var selection=document.createElement("select");selection.setAttribute("aria-label","Qualification receipt for "+row.artifact_id);selection.appendChild(new Option("Select accepted qualification",""));choices.forEach(function(q){selection.appendChild(new Option(q.receipt_id,q.receipt_id))});selection.disabled=!value.activation_available||!choices.length;card.appendChild(selection);
+     var proof=document.createElement("details"),proofText=element("pre","","No matching accepted qualification. Diagnostic reports cannot activate behavior.");proof.append(element("summary","","Qualification evidence"),proofText);card.appendChild(proof);
+     var activate=element("button","secondary","Activate qualified revision");activate.type="button";activate.disabled=true;activate.title="Requires an accepted, current qualification, matching runtime and owner confirmation. Checks repeat on submission.";selection.onchange=function(){activate.disabled=!selection.value;var selected=choices.find(function(q){return q.receipt_id===selection.value});proofText.textContent=selected?JSON.stringify(selected,null,2):"No qualification selected."};activate.onclick=function(){feedbackTransition(row,"active",selection.value)};card.appendChild(activate);
+     if(row.lifecycle&&row.lifecycle.previous&&row.lifecycle.previous.state==="active"){
+      var rollback=element("button","secondary","Rollback to generation "+row.lifecycle.previous.generation);rollback.type="button";rollback.disabled=!value.activation_available;rollback.onclick=function(){feedbackRollback(row)};card.appendChild(rollback);
+     }
     }
    }
    box.appendChild(card);
@@ -959,7 +971,7 @@ async function loadFeedbackQuality(event){
   var labels={verified_full_task_success:"Verified task completion",coverage:"Answer/action coverage",wrong_answer_rate:"Wrong answers",evidence_precision:"Relevant evidence",false_denial_rate:"False blocks",required_fact_write_failure:"Writes missing a required fact"},units={verified_full_task_success:["verified","scheduled"],coverage:["completed","answerable"],wrong_answer_rate:["wrong","assessed"],evidence_precision:["relevant","assessed"],false_denial_rate:["blocked","legitimate"],required_fact_write_failure:["missing the fact","assessed writes"]},metrics=element("div","feedbackmetrics");
   Object.keys(labels).forEach(function(name){var metric=value[name],card=element("div","feedbackmetric");card.append(element("span","sub",labels[name]),element("b","",metric.value===null?"Not assessed":(metric.value*100).toFixed(1)+"%"),element("small","",metric.numerator+" "+units[name][0]+" / "+metric.denominator+" "+units[name][1]+(metric.value===null?" · insufficient evidence":"")));metrics.appendChild(card)});box.appendChild(metrics);
   box.appendChild(element("p","","Unknown: "+value.unknown_tasks+" · disputed: "+value.disputed_tasks+" · missing: "+value.missing_tasks));
-  if(value.usage){box.appendChild(element("p","sub",value.usage.status==="not_captured"?"Usage and cost have not been captured.":"Reported usage (partial): $"+(value.usage.usd_micros/1000000).toFixed(6)+" · "+value.usage.model_calls+" model calls · billing is not independently verified."))}
+  if(value.usage){box.appendChild(element("p","sub",value.usage.status==="not_captured"?"Usage and cost have not been captured.":"Reported usage (partial): "+(value.usage.usd_micros===null?"cost unknown":"$"+(value.usage.usd_micros/1000000).toFixed(6))+" · "+(value.usage.model_calls===null?"model-call count unknown":value.usage.model_calls+" model calls")+" · billing is not independently verified."))}
   (value.tasks||[]).forEach(function(task){var details=document.createElement("details");details.append(element("summary","",task.outcome_id+" · "+task.status),element("pre","",JSON.stringify(task.actions,null,2)));box.appendChild(details)});
  }catch(error){text("feedbackQuality",error.message)}
 }
@@ -967,9 +979,15 @@ async function feedbackReview(row,decision){
  var reason=prompt("Reason for "+decision+" of exact revision "+row.proposal.candidate_sha256+":");if(!reason)return;
  try{await post("/api/feedback/action",{operation:"review",kind:row.kind,artifact_id:row.artifact_id,candidate_sha256:row.proposal.candidate_sha256,decision:decision,reason:reason});await loadFeedback()}catch(error){showError(error)}
 }
-async function feedbackTransition(row,next){
- if(!confirm("Set "+row.artifact_id+" to "+next+" in this scope?"))return;
- try{await post("/api/feedback/action",{operation:"transition",kind:row.kind,artifact_id:row.artifact_id,candidate_sha256:row.proposal.candidate_sha256,state:next,expected_generation:row.lifecycle?row.lifecycle.generation:0});await loadFeedback()}catch(error){showError(error)}
+async function feedbackTransition(row,next,qualification){
+ if(!confirm("Set "+row.artifact_id+" to "+next+" in this scope? Revision "+row.proposal.candidate_sha256+(qualification?"; qualification "+qualification:"")+". Current authority and evidence will be checked again."))return;
+ var body={operation:"transition",kind:row.kind,artifact_id:row.artifact_id,candidate_sha256:row.proposal.candidate_sha256,state:next,expected_generation:row.lifecycle?row.lifecycle.generation:0};if(qualification)body.qualification_id=qualification;
+ try{await post("/api/feedback/action",body);await loadFeedback()}catch(error){showError(error)}
+}
+async function feedbackRollback(row){
+ var target=row.lifecycle.previous;
+ if(!confirm("Request rollback of "+row.artifact_id+" to previously active generation "+target.generation+" ("+target.candidate_sha256+")? Sources, qualification, versions and revocation will be checked again. In-flight effects cannot be undone."))return;
+ try{await post("/api/feedback/action",{operation:"rollback",kind:row.kind,artifact_id:row.artifact_id,expected_generation:row.lifecycle.generation,target_generation:target.generation});await loadFeedback()}catch(error){showError(error)}
 }
 
 init()

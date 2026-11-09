@@ -65,3 +65,11 @@ def test_reported_usage_is_idempotent_scoped_partial_and_not_verified_billing(tm
     assert usage["usd_micros"] == 12345 and usage["receipt_count"] == 1
     assert usage["assurance"] == "host_report" and usage["status"] == "partial"
     assert not usage["complete_billing_verified"]
+    # A subscription/provider may report tokens but no attributable invoice.
+    # Keep known subtotals without inventing a zero total for the missing cost.
+    f.feedback.record_usage(f.owner["token"], f.scope, receipt_id="unknown-billing", run_id=outcome.run_id,
+        model_calls=1, input_tokens=30)
+    usage = f.feedback.quality(f.session, schedule_id="schedule")["usage"]
+    assert usage["usd_micros"] is None and usage["reported_subtotals"]["usd_micros"] == 12345
+    assert usage["unknown_receipts"]["usd_micros"] == 1 and usage["model_calls"] == 2
+    assert usage["input_tokens"] == 50 and usage["output_tokens"] is None

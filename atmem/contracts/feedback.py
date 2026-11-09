@@ -270,6 +270,7 @@ class VerificationReceipt(Wire):
     checks: tuple[ActionCheck, ...]
     assurance: Literal["independent_readback", "human_attestation", "host_report", "model_judgement"]
     binding: Literal["state_only", "effect_receipt"] = "state_only"
+    effect_status: Literal["succeeded", "failed", "not_dispatched", "unknown"] = "unknown"
 
 
 @dataclass(frozen=True)

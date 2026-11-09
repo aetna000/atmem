@@ -12,11 +12,12 @@ from test_contracts_v1 import _proposal
 from test_feedback_actions import actions_fixture
 
 
-def review_fixture(tmp_path):
+def review_fixture(tmp_path, *, include_owner=False):
     f, _ = actions_fixture(tmp_path)
-    f.feedback.memory = memory = Memory(":memory:", auto_vectors=False, review_authorities=({
-        "principal_id": f.user["principal_id"], "subject_id": "alice", "agent_id": "writer",
-        "workspace_id": "project", "scopes": ("procedure:review",)},))
+    principals = (f.user["principal_id"], f.owner["principal_id"]) if include_owner else (f.user["principal_id"],)
+    f.feedback.memory = memory = Memory(":memory:", auto_vectors=False, review_authorities=tuple({
+        "principal_id": principal, "subject_id": "alice", "agent_id": "writer",
+        "workspace_id": "project", "scopes": ("procedure:review",)} for principal in principals))
     scope = f.scope.authority_scope()
     captured = memory.capture_source(SourceCaptureRequest("source-1", "capture", scope,
         "The project destination is staging.", session_id="session", turn_id="turn"))

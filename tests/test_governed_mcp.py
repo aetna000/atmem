@@ -26,6 +26,16 @@ def initialize(server, version="2025-11-25"):
     return result
 
 
+def test_server_rejects_mixed_application_authorities_before_discovery(tmp_path):
+    from atmem.mcp.guarded import GuardedDispatcher
+    f = setup_rag(tmp_path)
+    other = FeedbackService(f.evidence, clock=f.feedback.clock)
+    with pytest.raises(ValueError, match="one application-owned feedback authority"):
+        GovernedMCPServer(other, f.rag, f.session)
+    with pytest.raises(ValueError, match="one application-owned feedback authority"):
+        GovernedMCPServer(f.feedback, f.rag, f.session, dispatcher=GuardedDispatcher(other, versions={"adapter":"fixture"}))
+
+
 def test_protocol_scope_and_revocation(tmp_path):
     f = setup_rag(tmp_path)
     server = GovernedMCPServer(f.feedback, f.rag, f.session)

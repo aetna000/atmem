@@ -131,6 +131,14 @@
         "state_only",
         "effect_receipt"
       ]
+    },
+    "effect_status": {
+      "enum": [
+        "succeeded",
+        "failed",
+        "not_dispatched",
+        "unknown"
+      ]
     }
   },
   "required": [

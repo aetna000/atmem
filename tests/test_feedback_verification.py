@@ -26,14 +26,16 @@ def verifier_fixture(tmp_path):
     service = VerificationService(f.feedback)
     destination = tmp_path / "simulated-destination.txt"
     journal = tmp_path / "simulated-backend-journal.json"
-    def simulated_write(record, observation):
-        destination.write_text(observation.arguments["body"])
+    def simulated_write(record, observation, *, effect_status="succeeded"):
+        if effect_status == "succeeded":
+            destination.write_text(observation.arguments["body"])
         journal.write_text(json.dumps({
             "observed_outcome_id": record.outcome_id,
             "observed_invocation_id": observation.invocation_id,
             "observed_run_id": record.run_id, "observed_turn_id": record.turn_id,
             "arguments_sha256": sha256(canonical_json(observation.arguments).encode()).hexdigest(),
             "effect_reference": uuid.uuid4().hex,
+            "effect_status": effect_status,
         }))
     f.simulated_write = simulated_write
     simulated_write(outcome, outcome.observations[1])
@@ -119,6 +121,22 @@ def test_effect_reference_cannot_be_reused_for_a_different_outcome(tmp_path):
     journal.write_text(json.dumps(data))
     with pytest.raises(FeedbackError, match="effect_already_bound"):
         verify(service, reader, other, key="reused-effect")
+
+
+@pytest.mark.parametrize("status", ["failed", "not_dispatched", "unknown"])
+def test_existing_correct_state_does_not_turn_failed_or_pending_operation_into_success(tmp_path, status):
+    f, original, service, reader, destination = verifier_fixture(tmp_path)
+    observation = replace(original.observations[1], arguments={"body":"ten days"})
+    outcome = replace(original, outcome_id="unsuccessful-operation", required=(original.required[1],), observations=(observation,))
+    destination.write_text("ten days")  # Correct state supplied independently before this attempt.
+    f.simulated_write(outcome, observation, effect_status=status)  # Journal only; no destination write.
+    f.feedback.report_outcome(f.session, outcome, idempotency_key="failed-attempt")
+    proof = verify(service, reader, outcome)
+    assert all(check["result"] == "pass" for check in proof["checks"])
+    result = action_results(outcome, [proof])[0]
+    assert not result["verified_success"]
+    assert result["status"] == ("unknown" if status == "unknown" else "fail")
+    assert result["calls"][0]["effect_status"] == status
 
 
 def test_verifier_registration_and_auth_are_not_model_capabilities(tmp_path):

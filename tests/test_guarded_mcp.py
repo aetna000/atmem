@@ -170,7 +170,8 @@ def test_hung_write_returns_uncertain_and_is_not_automatically_reexecuted(tmp_pa
         f.feedback.memory.close()
 
 
-def test_unknown_write_can_only_be_reconciled_with_independent_terminal_effect(tmp_path):
+@pytest.mark.parametrize("body", ["ten days", "five days"])
+def test_unknown_write_can_only_be_reconciled_with_independent_terminal_effect(tmp_path, body):
     from hashlib import sha256
     import json
     from atmem.contracts.feedback import ActionCheck
@@ -185,7 +186,7 @@ def test_unknown_write_can_only_be_reconciled_with_independent_terminal_effect(t
     journal = tmp_path/"operation-journal.json"
     def write(arguments, *, context):
         destination.write_text(arguments["body"])
-        journal.write_text(json.dumps({"proxy_execution_id":context["receipt_id"], "backend_terminal":True,
+        journal.write_text(json.dumps({"proxy_execution_id":context["receipt_id"], "backend_terminal":True, "effect_status":"succeeded",
             "effect_reference":context["receipt_id"], "observed_outcome_id":"proxied",
             "observed_run_id":original.run_id, "observed_turn_id":original.turn_id,
             "observed_invocation_id":"call-write", "arguments_sha256":sha256(canonical_json(arguments).encode()).hexdigest()}))
@@ -193,17 +194,17 @@ def test_unknown_write_can_only_be_reconciled_with_independent_terminal_effect(t
     dispatcher.register(f.owner["token"], f.scope, tool="fixture.write", schema_version="v1", schema=SCHEMA,
         invoke=write, native_guard=lambda args:True, with_context=True)
     try:
-        invocation = MCPInvocation("fixture.write", "v1", {"body":"ten days"}, "lost-ack")
+        invocation = MCPInvocation("fixture.write", "v1", {"body":body}, "lost-ack")
         execution = dispatcher.execute(f.session, invocation)
-        assert execution["status"] == "uncertain" and destination.read_text() == "ten days"
+        assert execution["status"] == "uncertain" and destination.read_text() == body
         observation = replace(original.observations[1], arguments=invocation.arguments, evidence_id=execution["receipt_id"])
         outcome = replace(original, outcome_id="proxied", required=(original.required[1],), observations=(observation,))
         f.feedback.report_outcome(f.session, outcome, idempotency_key="proxied")
         def readback(*args, **kwargs):
             data = json.loads(journal.read_text())
-            assert destination.read_text() == "ten days"
-            return Readback(tuple(ActionCheck(key, "mechanical", "pass", "journal and destination read independently")
-                for key in ("fact", "destination")), data)
+            assert destination.read_text() == body
+            return Readback((ActionCheck("fact", "mechanical", "pass" if body == "ten days" else "fail", "required fact is ten days"),
+                ActionCheck("destination", "mechanical", "pass", "journal and destination read independently")), data)
         verifier.register(f.owner["token"], f.scope, principal_id="destination-reader", version="terminal",
             tool="fixture.write", schema_version="v1", check_ids=("fact", "destination"),
             readback=readback, binding="effect_receipt")
@@ -213,6 +214,9 @@ def test_unknown_write_can_only_be_reconciled_with_independent_terminal_effect(t
             dispatcher.reconcile(f.user["token"], f.scope, **options)
         reconciled = dispatcher.reconcile(f.owner["token"], f.scope, **options)
         assert reconciled["status"] == "verified_complete"
+        assert reconciled["task_success"] == "not_implied"
+        from atmem.feedback.verification import action_results
+        assert action_results(outcome, [proof])[0]["verified_success"] == (body == "ten days")
         assert dispatcher.reconcile(f.owner["token"], f.scope, **options) == reconciled
         assert dispatcher.execute(f.session, invocation) == execution  # never repeats original intent
         with f.feedback.store.transaction(f.scope) as tx:

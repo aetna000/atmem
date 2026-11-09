@@ -291,7 +291,6 @@ class GuardedDispatcher:
         or grant permission for a new call. Missing/deleted evidence stays blocked.
         """
         from atmem.contracts.feedback import OutcomeRecord, VerificationReceipt
-        from atmem.feedback.verification import action_results
         identifier(receipt_id)
         identifier(verification_id)
         with self.feedback.owner_transaction(owner_credential, scope) as (tx, principal):
@@ -315,14 +314,17 @@ class GuardedDispatcher:
             outcome = OutcomeRecord.from_dict(row["outcome"])
             observation = next((v for v in outcome.observations if v.invocation_id == receipt.invocation_id), None)
             invocation = execution["invocation"]
+            statuses = {r.get("effect_status", "unknown") for r in tx.iter_kind("verification")
+                        if r["outcome_sha256"] == receipt.outcome_sha256 and r["invocation_id"] == receipt.invocation_id
+                        and r["assurance"] == "independent_readback" and r.get("binding") == "effect_receipt"
+                        and r.get("effect_status", "unknown") != "unknown"}
             if (receipt.assurance != "independent_readback" or receipt.binding != "effect_receipt"
+                    or receipt.effect_status == "unknown" or len(statuses) != 1
                     or observation is None or observation.evidence_id != receipt_id
                     or observation.tool != invocation["tool"] or observation.schema_version != invocation["schema_version"]
                     or canonical_json(observation.arguments) != canonical_json(invocation["arguments"])
                     or evidence["evidence"].get("proxy_execution_id") != receipt_id
-                    or evidence["evidence"].get("backend_terminal") is not True
-                    or not any(a["verified_success"] for a in action_results(outcome, list(tx.iter_kind("verification")))
-                               if a["action_id"] == observation.action_id)):
+                    or evidence["evidence"].get("backend_terminal") is not True):
                 raise FeedbackError("unverified_effect")
             tool = invocation["tool"]
             with self._lock:
@@ -332,6 +334,7 @@ class GuardedDispatcher:
             if hold != {"receipt_id": receipt_id}:
                 raise FeedbackError("execution_hold_changed")
             final = {**execution, "status": "verified_complete", "effect": "independent_terminal_readback",
+                     "effect_status":receipt.effect_status, "task_success":"not_implied",
                      "verification_id": verification_id}
             tx.put("proxy_execution", receipt_id, final, expected_revision=tx.revision("proxy_execution", receipt_id))
             tx.put("proxy_write_hold", tool, {}, deleted=True, expected_revision=tx.revision("proxy_write_hold", tool))

@@ -100,6 +100,7 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
             self._json(HTTPStatus.OK, self.server.application.local_auth_status(self._session_token()))
             return
         if path in ("/api/feedback/status", "/api/feedback/quality"):
+            from atmem.feedback.store import FeedbackError
             try:
                 identity = self._require_identity_session()
                 dashboard = self.server.feedback_dashboard
@@ -112,6 +113,9 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                     if set(params) != {"schedule_id"} or len(params["schedule_id"]) != 1:
                         raise ValueError("one schedule_id required")
                     self._json(HTTPStatus.OK, dashboard.quality(identity, schedule_id=params["schedule_id"][0]))
+            except FeedbackError as exc:
+                self._json(HTTPStatus.FORBIDDEN if exc.code == "denied" else HTTPStatus.CONFLICT,
+                           {"error": "Feedback request rejected: "+exc.code, "reason": exc.code})
             except PermissionError:
                 self._json(HTTPStatus.FORBIDDEN, {"error": "Feedback access denied"})
             except (KeyError, ValueError, OSError, RuntimeError):
@@ -673,7 +677,12 @@ class ControlDashboardHandler(BaseHTTPRequestHandler):
                 identity = self._require_identity_session()
                 if self.server.feedback_dashboard is None:
                     raise PermissionError("Feedback is not configured")
-                self._json(HTTPStatus.OK, self.server.feedback_dashboard.action(identity, body))
+                from atmem.feedback.store import FeedbackError
+                try:
+                    self._json(HTTPStatus.OK, self.server.feedback_dashboard.action(identity, body))
+                except FeedbackError as exc:
+                    self._json(HTTPStatus.FORBIDDEN if exc.code == "denied" else HTTPStatus.CONFLICT,
+                               {"error": "Feedback request rejected: "+exc.code, "reason": exc.code})
                 return
             if path == "/api/code":
                 from atmem.code.dashboard import execute

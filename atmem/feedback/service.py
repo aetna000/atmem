@@ -304,17 +304,24 @@ class FeedbackService:
             report = summarize(session.scope, schedule["tasks"], records, assessments=assessments)
             run_ids = {outcome.run_id for outcome, _ in records}
             usage = [row for row in tx.iter_kind("reported_usage") if row["run_id"] in run_ids]
+            totals, subtotals, unknown, overflow = {}, {}, {}, {}
+            for key in ("usd_micros", "input_tokens", "output_tokens", "model_calls"):
+                known = [row[key] for row in usage if row[key] is not None]
+                subtotal = sum(known)
+                unknown[key] = len(usage)-len(known)
+                overflow[key] = subtotal > 2**53
+                subtotals[key] = subtotal if known and not overflow[key] else None
+                totals[key] = subtotal if usage and not unknown[key] and not overflow[key] else None
             report["usage"] = {"assurance":"host_report", "status":"partial" if usage else "not_captured",
                                "receipt_count":len(usage), "complete_billing_verified":False,
-                               **{key:sum(row[key] for row in usage) if usage else None
-                                  for key in ("usd_micros", "input_tokens", "output_tokens", "model_calls")}}
+                               **totals, "reported_subtotals":subtotals, "unknown_receipts":unknown, "overflow":overflow}
             return report
 
     def operational_metrics(self, session):
         with self._authorized(session, "read"):
             return self.observability.snapshot(session.scope)
 
-    def record_usage(self, owner_credential, scope, *, receipt_id, run_id, usd_micros, input_tokens, output_tokens, model_calls):
+    def record_usage(self, owner_credential, scope, *, receipt_id, run_id, usd_micros=None, input_tokens=None, output_tokens=None, model_calls=None):
         """Retain application-reported provider usage, never fabricate billed cost.
 
         This owner-only SDK records an already observed receipt. It invokes no
@@ -325,8 +332,8 @@ class FeedbackService:
         identifier(run_id)
         counts = {"usd_micros":usd_micros, "input_tokens":input_tokens,
                   "output_tokens":output_tokens, "model_calls":model_calls}
-        if any(type(v) is not int or not 0 <= v <= 2**53 for v in counts.values()):
-            raise ValueError("bounded nonnegative usage counts required")
+        if any(v is not None and (type(v) is not int or not 0 <= v <= 2**53) for v in counts.values()):
+            raise ValueError("bounded nonnegative usage counts or explicit unknown required")
         with self.owner_transaction(owner_credential, scope) as (tx, principal):
             value = {"receipt_id":receipt_id, "run_id":run_id, **counts, "assurance":"host_report",
                      "actor_id":principal.principal_id}

@@ -81,6 +81,8 @@ PROPOSAL_TOOLS = tuple(PROPOSAL_TOOLS)
 
 class GovernedMCPServer:
     def __init__(self, feedback, rag, session, *, dispatcher=None):
+        if getattr(rag, "feedback", None) is not feedback or (dispatcher is not None and getattr(dispatcher, "feedback", None) is not feedback):
+            raise ValueError("one application-owned feedback authority must bind all services")
         self.feedback, self.rag, self.session = feedback, rag, session
         self.version = None
         self.ready = False

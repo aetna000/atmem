@@ -179,6 +179,7 @@ class VerificationService:
         if not evidence or type(evidence) is not dict:
             raise FeedbackError("missing_evidence")
         effect_key = None
+        effect_status = "unknown"
         if registered["binding"] == "effect_receipt":
             from hashlib import sha256
             from atmem.core.canonical import canonical_json
@@ -186,8 +187,10 @@ class VerificationService:
                         "observed_run_id": outcome.run_id, "observed_turn_id": outcome.turn_id,
                         "arguments_sha256": sha256(canonical_json(observation.arguments).encode()).hexdigest()}
             reference = evidence.get("effect_reference")
+            effect_status = evidence.get("effect_status")
             if (any(evidence.get(k) != value for k, value in expected.items())
-                    or type(reference) is not str or not 0 < len(reference.encode()) <= 2048):
+                    or type(reference) is not str or not 0 < len(reference.encode()) <= 2048
+                    or effect_status not in ("succeeded", "failed", "not_dispatched", "unknown")):
                 raise FeedbackError("invalid_effect_binding")
             effect_key = sha256(canonical_json([registered["effect_namespace"], reference]).encode()).hexdigest()
         if type(readback.assessments) is not tuple or len(readback.assessments) > 128:
@@ -212,7 +215,7 @@ class VerificationService:
                 evidence_id = "readback-" + uuid.uuid4().hex
                 receipt = VerificationReceipt("verification-" + uuid.uuid4().hex, session.scope, outcome_id,
                     outcome_sha256, invocation_id, principal.principal_id, registered["version"], evidence_id,
-                    checks, registered["assurance"], registered["binding"]).to_dict()
+                    checks, registered["assurance"], registered["binding"], effect_status).to_dict()
                 tx.put("readback_evidence", evidence_id, {"evidence": evidence, "actor_id": principal.principal_id,
                        "outcome_sha256": outcome_sha256, "invocation_id": invocation_id,
                        "assessments": assessments}, expected_revision=0)
@@ -298,21 +301,26 @@ def action_results(outcome: OutcomeRecord, receipts: list[dict]) -> list[dict]:
                                "reasons": [v.reason for v in values]})
             correct_tool = observation.tool == requirement.tool and observation.schema_version == requirement.schema_version
             bound = any(r.binding == "effect_receipt" for r in eligible)
+            statuses = {r.effect_status for r in eligible if r.binding == "effect_receipt" and r.effect_status != "unknown"}
+            effect_status = "disputed" if len(statuses)>1 else next(iter(statuses)) if statuses else "unknown"
             complete_receipt = any(r.binding == "effect_receipt"
+                and r.effect_status == "succeeded"
                 and {c.check_id for c in r.checks} == set(requirement.checks)
                 and all(c.result == "pass" for c in r.checks) for r in eligible)
-            passed = correct_tool and complete_receipt and all(v["result"] == "pass" for v in checks)
+            passed = correct_tool and complete_receipt and effect_status == "succeeded" and all(v["result"] == "pass" for v in checks)
             calls.append({"invocation_id": observation.invocation_id, "checks": checks, "verified_success": passed,
                           "schema_matches": correct_tool, "tool": observation.tool, "schema_version": observation.schema_version,
                           "arguments": observation.arguments, "reported_result": observation.result,
                           "reported_checks": [v.to_dict() for v in observation.checks], "evidence_id": observation.evidence_id,
-                          "effect_binding": "effect_receipt" if bound else "state_only" if eligible else "not_captured"})
+                          "effect_binding": "effect_receipt" if bound else "state_only" if eligible else "not_captured",
+                          "effect_status": effect_status})
         successes = [c for c in calls if c["verified_success"]]
         results.append({"action_id": requirement.action_id, "tool": requirement.tool,
                         "schema_version": requirement.schema_version, "kind": requirement.kind,
                         "calls": calls, "verified_success": bool(successes),
                         "satisfying_invocation_id": successes[0]["invocation_id"] if successes else None,
-                        "status": "pass" if successes else "no_call" if not calls else "disputed" if any(
+                        "status": "pass" if successes else "no_call" if not calls else "disputed" if any(c["effect_status"] == "disputed" for c in calls) or any(
                             ch["result"] == "disputed" for c in calls for ch in c["checks"]) else "fail" if any(
-                            ch["result"] == "fail" for c in calls for ch in c["checks"]) else "unknown"})
+                            ch["result"] == "fail" for c in calls for ch in c["checks"]) or any(
+                            c["effect_status"] in ("failed", "not_dispatched") for c in calls) else "unknown"})
     return results

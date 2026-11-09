@@ -167,7 +167,7 @@ The larger tasks have working components but are not checked complete:
 | T028 | Real local handler effects, native veto, exact single-use approvals, encrypted admission before dispatch, same-key idempotency, timeout uncertainty and persistent cross-key/restart holds. Owner reconciliation requires independent terminal-effect evidence. | Complete concurrency/schema/adapter conformance matrix. |
 | T015–T016 | Existing isolated Hermes boundary candidate remains available; generic MCP has actual client/effect tests. | AtMem's installed Hermes service adapter and installed-host qualification. The read-only final hook cannot be used as a one-use approval consumer. |
 | T017 | Owner-previewed dependent-copy purge, source/idempotency revocation anchors, RAG generation fencing, standalone encrypted reconstruction, restore quarantine and rollback checks. | Automatic registered restore/retention integration, full deletion/in-flight/crash matrix. External copies and full-Home rollback remain explicit limitations. |
-| T019 | Authenticated HTTP facade; CSRF/origin/identity/scope checks; actual Feedback screen, per-action details, review and shadow/suspend/revoke controls. | Browser consent/export, production activation and rollback journeys. Activation button remains disabled. |
+| T019 | Authenticated HTTP facade; CSRF/origin/identity/scope checks; actual Feedback screen, per-action details, review/shadow/suspend/revoke, accepted-receipt selection and evidence, owner activation and previous-generation rollback controls. | Browser export consent and production-qualified positive HTTP journeys. Diagnostics alone cannot enable activation. |
 | T020 | Purpose/recipient/preview-bound owner consent, real ML-KEM/AES-GCM/ML-DSA recipient export, exclusions, consent revision and withdrawal. | Full secret/privacy/split/source-revocation acceptance matrix and product consent flow. |
 | T021 | Pinned 12-job OS/Python CI definition, published-wheel upgrade test and local current-wheel packaging/import checks. | Actual Linux/Windows and all Python matrix results; installed-host combinations. |
 | T022–T024 | Offline baseline validation, diagnostic receipts and bounded 1,000-rule interpreter/resource reporting; setup/limits documented. | Independent complete quality/power/conformance/retrieval-overhead qualification gates, separately approved bounded efficacy manifest/run, final acceptance report. No paid calls or efficacy run authorized here. |
@@ -276,3 +276,54 @@ for the frozen JSON corpus and owner-private backup-root creation **before**
 copying keys/checkpoints. Checkpoint permission/integrity validation remains
 unchanged and fail-closed. These corrections still require fresh Windows CI;
 the failed attempt remains visible, rather than relabelling it as a pass.
+
+## Operation status, owner controls and CI follow-through
+
+Effect-bound receipts now explicitly record succeeded, failed, not-dispatched or
+unknown backend operation status. Correct pre-existing destination state cannot
+turn a rejected/pending call into a successful action. Reconciliation concerns
+terminal operation certainty, not task correctness: a conclusive completed-but-
+wrong write can clear its hold for an explicit correction while its task remains
+failed. Reconciled receipts state `task_success: not_implied`. Unknown legacy
+statuses are not backfilled as successes.
+
+The dashboard owner controls submit exact accepted qualification IDs and current
+generation checks. Qualification evidence is displayed before confirmation;
+scope/version object key order does not affect equality. Rollback reuses the real
+lifecycle service. Real Chrome journeys verified keyboard/count/detail display,
+accepted test-fixture receipt selection, cancellation leaving shadow unchanged,
+and revoked credentials returning a typed HTTP 403 without activation. The owner
+facade additionally exercised actual canonical review, missing-qualification
+denial, test-seeded activation, suspension, rollback and deleted-source denial.
+Test-seeded authority remains explicitly NOT_EFFICACY; production qualification
+has not occurred. HTTP callers still require an application-owned per-request
+memory factory for thread-bound SQLite actions.
+
+Provider usage can now retain unknown fields individually, preserving known
+subtotals without presenting missing subscription/provider billing as zero. The
+dashboard labels unknown costs explicitly. Fresh scoped usage/CLI/metric checks:
+**8 passed in 29.01 seconds**. Operation-status/dispatch/export/metric checks:
+**28 passed in 151.99 seconds**. A preceding contracts/readback/dispatch/export/
+recovery selection passed **69 tests**; counts overlap. HTTP/control/lifecycle
+and both real Chrome journeys: **12 passed in 61.72 seconds**. Actual MCP/CLI/docs
+changed-path selection: **7 passed in 30.29 seconds**. Combined regression is
+being rerun on this source; these focused results are not represented as a
+completed cross-platform acceptance run.
+
+At source `aa6d28b`, **11/12** feature OS/Python jobs passed, including Windows
+3.10/3.12/3.13. Windows 3.11 timed out before its provider-start event in the
+revocation test. Its coordination window now uses the supported 30-second bound
+and surfaces an early worker/admission exception directly; the distinct short
+provider-timeout test and production default remain unchanged. The main Python
+CI selection reported **4,236 passed, 189 skipped and one failure**, solely the
+dashboard's endpoint inventory missing the three implemented feedback routes.
+Added those exact routes; the inventory assertion passed locally.
+
+The unrelated latest OpenClaw declaration gate resolved 2026.11.2, for which no
+reviewed fixture exists. It is left failing pending explicit source review; no
+compatibility predicate is weakened. A bounded local tarball probe exceeded its
+100 MB cap and its 99.6 MB partial download was immediately removed. The CI job
+already downloads that same published package, so a failure-only diagnostic now
+retains its declaration shape and tarball SHA-512 as a one-day review artifact.
+The job remains failed and native authorization unchanged. This avoids another
+large Mac install or automatically approving an unreviewed upstream host.
