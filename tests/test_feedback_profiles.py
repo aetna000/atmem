@@ -67,8 +67,13 @@ def test_real_v3_disabled_parity_shadow_returns_native_and_unqualified_cannot_ac
         assert fallback.context == baseline.context and fallback.budget.context_bytes == 1024
         assert "feedback_profile_native_fallback" in fallback.reason_codes
         with f.feedback.store.transaction(f.scope) as tx:
-            failed = tx.list("profile_comparison")[-1]
+            comparisons = tx.list("profile_comparison")
+            assert len(comparisons) == 3
+            failures = [row for row in comparisons if row["effective"] == "native_fallback"]
+            assert len(failures) == 1
+            failed = failures[0]
             assert failed["effective"] == "native_fallback" and failed["candidate"] is None
+            assert failed["profile_id"] == profile.profile_id and failed["failure"] == "profile_engine_unavailable"
             assert "PRIVATE PROFILE CONTENT" not in str(failed)
         def invalid(self, *args):
             raise GovernanceViolation("scope violation")

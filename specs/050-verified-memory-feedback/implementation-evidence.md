@@ -422,3 +422,20 @@ checkboxes are reconciled with demonstrated implementation, leaving causal
 attribution, production qualification, broader conformance/recovery and efficacy
 acceptance explicitly open. No user memory, published package, website deployment
 or frozen benchmark was changed.
+
+The wheel at `99ba8bb` built and imported outside the checkout, including all 17
+feedback schemas, operation-status fields and export assets. Its development
+SHA-256 is `4d59dd46eb46e5121bad4d5ed5413b51b7b5c42522fcde48e5f527a69e85c7c7`;
+it is not a replacement upload for published 2.3.14. The further authority,
+contracts, review, diagnostic qualification and metrics selection passed
+**73 tests in 79.95 seconds**.
+
+Fresh CI at `99ba8bb` found the new profile test incorrectly treating scoped
+receipt enumeration as chronological. Random receipt IDs do not define insertion
+order. The actual bounded fallback assertions passed; the historical-row lookup
+failed on Linux 3.11/3.13. The test now requires exactly one fallback record out
+of the three expected comparisons and checks its identity, cause and payload,
+without relying on enumeration order. The failure is retained here and fresh
+CI is required. A separate exploratory Evidence Collector permission assumption
+was rejected after reading the existing role table; no role/permission change
+was committed.
