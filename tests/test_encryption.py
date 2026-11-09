@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 from pathlib import Path
 import sys
 from types import ModuleType, SimpleNamespace
@@ -339,6 +340,85 @@ def test_plaintext_migration_resumes_before_first_rename(
         assert any("RX-41" in row["content"] for row in reopened.recall("user", "RX-41"))
     finally:
         reopened.close()
+
+
+def test_migration_corrupt_cutover_restores_source_and_allows_explicit_retry(
+    tmp_path: Path, monkeypatch
+) -> None:
+    if not sqlcipher_runtime_status()["available"]:
+        pytest.skip("sqlcipher3 runtime is not installed")
+    database = tmp_path / "corrupt-cutover.db"
+    candidate = database.with_name(f".{database.name}.atmem-encrypted")
+    monkeypatch.setattr("atmem.core.keys.DEFAULT_KEY_PATH", tmp_path / "keys" / "db.key")
+    memory = Memory(database)
+    memory.remember("user", "Corruption recovery preserves CR-44", force=True)
+    memory.close()
+    original_replace = os.replace
+
+    def corrupt_cutover(source, destination):
+        if Path(source) == database and Path(destination).name.endswith(".atmem-plaintext-backup"):
+            source_connection = sqlite3.connect(str(database))
+            try:
+                assert source_connection.execute("PRAGMA journal_mode").fetchone() == ("delete",)
+            finally:
+                source_connection.close()
+        original_replace(source, destination)
+        if Path(source) == candidate and Path(destination) == database:
+            # Damage an authenticated encrypted page only after real export and
+            # candidate integrity checks, exercising the library's actual error.
+            with database.open("r+b") as handle:
+                handle.seek(100)
+                value = handle.read(1)
+                handle.seek(100)
+                handle.write(bytes([value[0] ^ 1]))
+
+    monkeypatch.setattr("atmem.core.keys.os.replace", corrupt_cutover)
+    with pytest.raises(RuntimeError, match="plaintext restored.*fail-closed"):
+        migrate_plaintext_household(database)
+    assert candidate.exists()
+    assert HouseholdPolicy.load(database).state == "migration-prepared"
+    with sqlite3.connect(str(database)) as connection:
+        assert connection.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+    with pytest.raises(RuntimeError, match="runtime access is fail-closed"):
+        Memory(database)
+    monkeypatch.setattr("atmem.core.keys.os.replace", original_replace)
+    assert migrate_plaintext_household(database)["state"] == "encrypted"
+    reopened = Memory(database)
+    try:
+        assert any("CR-44" in row["content"] for row in reopened.recall("user", "CR-44"))
+    finally:
+        reopened.close()
+
+
+def test_migration_busy_wal_reader_stops_before_cutover(tmp_path: Path, monkeypatch) -> None:
+    if not sqlcipher_runtime_status()["available"]:
+        pytest.skip("sqlcipher3 runtime is not installed")
+    database = tmp_path / "busy-wal.db"
+    with sqlite3.connect(str(database)) as connection:
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.execute("CREATE TABLE synthetic (value TEXT)")
+        connection.execute("INSERT INTO synthetic VALUES ('first')")
+    reader = sqlite3.connect(str(database))
+    reader.execute("BEGIN")
+    assert reader.execute("SELECT * FROM synthetic").fetchall() == [("first",)]
+    with sqlite3.connect(str(database)) as writer:
+        writer.execute("INSERT INTO synthetic VALUES ('second')")
+    original_connect = sqlite3.connect
+
+    def immediate_busy(*args, **kwargs):
+        kwargs["timeout"] = 0
+        return original_connect(*args, **kwargs)
+
+    monkeypatch.setattr("atmem.core.keys.sqlite3.connect", immediate_busy)
+    try:
+        with pytest.raises(RuntimeError, match="busy; close all readers"):
+            migrate_plaintext_household(database)
+        assert HouseholdPolicy.load(database).state == "plaintext"
+        assert not database.with_name(f".{database.name}.atmem-plaintext-backup").exists()
+    finally:
+        reader.close()
+    with original_connect(str(database)) as connection:
+        assert connection.execute("SELECT * FROM synthetic").fetchall() == [("first",), ("second",)]
 
 
 def test_encrypted_migration_reconciles_retained_plaintext_backup(

@@ -85,3 +85,14 @@ system. No new score is available for Spec 050.
   to purge active/qualified policy dependencies before explicit revocation. This
   changes only the new owner SDK's cleanup behavior and preserves unrelated data
   and existing guards; it changes no native recall or frozen benchmark scoring.
+
+### Native encryption migration hardening (2026-11-10)
+
+A Windows installed-wheel integrity failure exposed an existing migration
+recovery gap. Explicit plaintext-to-SQLCipher migration now refuses a busy WAL
+checkpoint and requires standalone DELETE journaling before renaming; post-rename
+verification exceptions restore the source but keep runtime fail-closed pending
+explicit retry. This changes the maintenance/migration failure path, not ordinary
+retrieval, scoring or memory contents. No user store was migrated and no frozen
+Dolphin runtime/result was edited. Root cause of the Windows HMAC failure remains
+unproven until platform verification; a passing local test is insufficient.

@@ -473,3 +473,35 @@ seconds** during this hardening, and the three new cases passed **3 tests in
 
 The final recovery/journey selection on the unchanged cleanup source passed
 **10 tests in 56.92 seconds**, including all three new lineage/revocation cases.
+
+Final source `3c9d612` passed the 12-job feature matrix (`42632894547`),
+but main CI `42632894560` found a genuine failure in the Windows installed
+SQLCipher artifact gate: the candidate passed pre-cutover validation and then
+raised an HMAC/integrity error after rename in the finalization recovery test.
+The migration code was unchanged from main; the trigger is not established.
+Local real-SQLCipher baseline tests passed (19 passed, 1 Windows-only skip),
+which does not dismiss the Windows failure.
+
+Migration hardening now requires a successful checkpoint and SQLite-managed
+transition to DELETE journaling before moving either single-file database.
+Busy readers stop migration before cutover. Post-rename verification exceptions,
+including SQLCipher HMAC errors, restore the verified plaintext source and retain
+the rejected encrypted candidate under `migration-prepared`; runtime remains
+fail-closed until explicit migration retry. This also applies to an interrupted
+cutover. The regression damages an actual authenticated encrypted page after
+export/pre-cutover verification, verifies preserved source integrity, denied
+runtime access, and successful explicit retry. A real WAL reader regression
+checks both committed rows survive refused migration. An initial regression-test
+helper incorrectly attempted plaintext inspection during rollback too; its
+predicate was corrected to inspect only the initial plaintext-to-backup rename.
+Fresh native, installed-artifact and cross-platform results are required.
+
+SQLite documents WAL files as persistent database state and warns against
+separating them from their database: https://sqlite.org/wal.html#the_wal_file .
+Checkpoint busy results are documented at https://sqlite.org/pragma.html#pragma_wal_checkpoint .
+SQLCipher's authenticated integrity checks and export API are documented at
+https://www.zetetic.net/sqlcipher/sqlcipher-api/ . These establish the migration
+invariants; they do not prove the original Windows failure's root cause.
+The migration/durability/upgrade/storage/feedback-recovery/profile selection passed
+**37 tests, 1 Windows-only skip in 60.47 seconds**, with actual SQLCipher 0.6.2
+installed. JUnit: `/tmp/atmem-spec050-encryption-fix-20261110.xml`.

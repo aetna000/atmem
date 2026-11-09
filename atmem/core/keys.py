@@ -383,6 +383,24 @@ def migrate_plaintext_household(
         finally:
             os.close(descriptor)
 
+    def quiesce(path: Path, *, key: str | None = None) -> None:
+        # A WAL is part of its database, not a disposable cache.  Cutover moves
+        # single files, so require SQLite itself to fold it into the database
+        # and leave WAL mode before any rename.  Busy readers must stop the
+        # migration instead of permitting an incomplete checkpoint.
+        connection = (sqlcipher if key is not None else sqlite3).connect(str(path))
+        try:
+            if key is not None:
+                connection.execute(f"PRAGMA key = \"x'{key}'\"")
+            checkpoint = connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            if checkpoint is None or checkpoint[0] != 0:
+                raise RuntimeError("migration database is busy; close all readers and retry")
+            mode = connection.execute("PRAGMA journal_mode=DELETE").fetchone()
+            if mode is None or str(mode[0]).casefold() != "delete":
+                raise RuntimeError("migration requires a standalone database before cutover")
+        finally:
+            connection.close()
+
     def sync_directory(path: Path) -> None:
         if os.name == "nt":
             return
@@ -412,6 +430,24 @@ def migrate_plaintext_household(
 
         for suffix in ("-wal", "-shm"):
             Path(f"{target}{suffix}").unlink(missing_ok=True)
+
+    def verify_cutover(key: str, source_inventory: dict[str, int]) -> None:
+        try:
+            if encrypted_inventory(target, key) != source_inventory:
+                raise RuntimeError("encrypted inventory mismatch")
+        except (sqlcipher.DatabaseError, RuntimeError, OSError, ValueError):
+            # Integrity checks can raise (including SQLCipher HMAC errors), not
+            # just return a mismatch.  Keep the failed candidate for inspection
+            # and restore the verified source, still under a fail-closed policy.
+            os.replace(target, candidate)
+            os.replace(backup, target)
+            sync_file(target)
+            sync_directory(target.parent)
+            HouseholdPolicy.load(target).with_state("migration-prepared").write()
+            raise RuntimeError(
+                "post-rename encrypted verification failed; plaintext restored; "
+                "runtime remains fail-closed until migration is retried"
+            ) from None
 
     with HouseholdLock(policy, exclusive=True):
         policy = HouseholdPolicy.load(target)
@@ -455,6 +491,8 @@ def migrate_plaintext_household(
                 and candidate.exists()
                 and not backup.exists()
             ):
+                quiesce(target)
+                quiesce(candidate, key=key)
                 source_inventory = plaintext_inventory(target)
                 if encrypted_inventory(candidate, key) != source_inventory:
                     raise RuntimeError(
@@ -466,6 +504,7 @@ def migrate_plaintext_household(
                 sync_directory(target.parent)
             # Interruption between the two renames.
             if not target.exists() and backup.exists() and candidate.exists():
+                quiesce(candidate, key=key)
                 remove_checkpointed_source_sidecars()
                 os.replace(candidate, target)
                 sync_directory(target.parent)
@@ -477,10 +516,7 @@ def migrate_plaintext_household(
                 and backup.exists()
                 and header(backup) == SQLITE_HEADER
             ):
-                if encrypted_inventory(target, key) != plaintext_inventory(backup):
-                    raise RuntimeError(
-                        "interrupted encrypted database differs from its plaintext source"
-                    )
+                verify_cutover(key, plaintext_inventory(backup))
                 policy.with_state("encrypted-finalizing").write()
                 backup.unlink(missing_ok=True)
                 candidate.unlink(missing_ok=True)
@@ -534,11 +570,7 @@ def migrate_plaintext_household(
         if backup.exists():
             raise RuntimeError(f"migration backup already exists and requires review: {backup}")
 
-        checkpoint = sqlite3.connect(str(target))
-        try:
-            checkpoint.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
-        finally:
-            checkpoint.close()
+        quiesce(target)
         source_inventory = plaintext_inventory(target)
         if policy.backend is None:
             initialize_keys(target, backend=backend)
@@ -570,6 +602,7 @@ def migrate_plaintext_household(
             connection.close()
         if header(candidate) in {b"", SQLITE_HEADER}:
             raise RuntimeError("SQLCipher migration did not create an encrypted candidate")
+        quiesce(candidate, key=key)
         if encrypted_inventory(candidate, key) != source_inventory:
             raise RuntimeError("encrypted candidate row counts differ from plaintext source")
         sync_file(candidate)
@@ -580,13 +613,7 @@ def migrate_plaintext_household(
         os.replace(candidate, target)
         sync_directory(target.parent)
         sync_file(target)
-        if encrypted_inventory(target, key) != source_inventory:
-            # Restore the known-good plaintext source before exposing runtime.
-            os.replace(target, candidate)
-            os.replace(backup, target)
-            sync_directory(target.parent)
-            prepared.write()
-            raise RuntimeError("post-rename encrypted verification failed; plaintext restored")
+        verify_cutover(key, source_inventory)
         prepared.with_state("encrypted-finalizing").write()
         backup.unlink(missing_ok=True)
         sync_directory(target.parent)
