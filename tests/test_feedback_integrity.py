@@ -10,6 +10,26 @@ from atmem.feedback.store import FeedbackError, FeedbackStore
 from test_feedback_store import ALICE, evidence
 
 
+def test_long_home_checkpoint_persists_with_private_permissions_and_detects_tampering(tmp_path):
+    from atmem.evidence.service import EvidenceService
+    from atmem.private_paths import private_path
+    home = tmp_path / ('nested-home-' + 'a' * 70)
+    owner = EvidenceService(home / 'control', vault_id='long-path-test', home_root=home)
+    owner.create_demo_accounts(subject_id=ALICE.subject_id)
+    with FeedbackStore(owner).transaction(ALICE) as tx:
+        tx.put('outcome', 'exact', {'value':'long-path synthetic evidence'}, expected_revision=0)
+    checkpoint = FeedbackCheckpoint(owner, ALICE)
+    assert private_path(checkpoint.path)
+    assert b'long-path synthetic evidence' not in checkpoint.path.read_bytes()
+    with FeedbackStore(owner).transaction(ALICE) as tx:
+        assert tx.get('outcome', 'exact') == {'value':'long-path synthetic evidence'}
+    assert not tuple(checkpoint.path.parent.glob('*.tmp'))
+    checkpoint.path.write_bytes(b'corrupt')
+    with pytest.raises(FeedbackError, match='feedback_checkpoint_unavailable'):
+        with FeedbackStore(owner).transaction(ALICE):
+            pass
+
+
 def test_deleted_policy_row_and_database_only_rollback_fail_closed(evidence,tmp_path):
     service=FeedbackStore(evidence)
     with service.transaction(ALICE) as tx:

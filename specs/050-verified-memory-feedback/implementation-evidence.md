@@ -528,3 +528,16 @@ configured Chromium executable), instead of a macOS-only path. Explicit opt-in
 with missing dependencies/browser fails, rather than silently skipping. No browser
 is downloaded. All **3 actual Chrome journeys passed on macOS in 59.49 seconds**;
 Windows Chrome 156.0.8078.80 was discovered for the pending Windows browser tests.
+
+The owner's broader Windows run exposed a product defect absent on CI runners:
+feedback checkpoint temporary paths exceeded classic MAX_PATH. CI runners'
+long-path configuration had hidden it. The failed broad run was stopped, preserving
+its log; it is not counted as validation. Checkpoints now retain their full
+cryptographic identifiers and existing layout while using the Win32 extended
+Unicode path prefix (including UNC form) and a short random temporary basename.
+No machine-wide registry or permission settings change. A real-store long-Home
+regression checks persistence across reopening, protected ACL/mode, encrypted
+anchor contents, cleaned temporary files and tamper refusal. Fresh Windows
+installed-wheel and broad tests are required. The broad test launcher also now
+overrides pytest's source `pythonpath` so it genuinely imports the installed
+wheel, preserving only the fixture/test helper path.

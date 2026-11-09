@@ -96,3 +96,8 @@ explicit retry. This changes the maintenance/migration failure path, not ordinar
 retrieval, scoring or memory contents. No user store was migrated and no frozen
 Dolphin runtime/result was edited. Root cause of the Windows HMAC failure remains
 unproven until platform verification; a passing local test is insufficient.
+
+Direct Windows testing found classic MAX_PATH could prevent creation of opt-in
+feedback anchors. Extended Unicode checkpoint paths and shorter temporary names
+preserve existing anchor identity/layout and access controls without a global OS
+setting. Ordinary native retrieval and frozen benchmark inputs remain unchanged.

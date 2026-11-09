@@ -31,6 +31,15 @@ class FeedbackCheckpoint:
         self.object_id = 'feedback-head-'+tag
         vault = sha256(evidence.vault_id.encode()).hexdigest()
         self.path = evidence.root.parent/'.feedback-checkpoints'/vault/(tag+'.json')
+        if os.name == 'nt':
+            # Keep the existing cryptographic names and on-disk layout, but use
+            # Win32 extended paths without requiring a machine-wide LongPaths
+            # setting.  The ACL APIs below accept the same Unicode path.
+            absolute = str(self.path.absolute())
+            if not absolute.startswith('\\\\?\\'):
+                absolute = ('\\\\?\\UNC\\' + absolute[2:] if absolute.startswith('\\\\')
+                            else '\\\\?\\' + absolute)
+            self.path = Path(absolute)
 
     def fingerprint(self, store):
         cursor = store._conn.execute('''SELECT o.object_id,o.sequence,o.nonce,o.ciphertext,o.slot_id
@@ -92,7 +101,7 @@ class FeedbackCheckpoint:
         nonce,ciphertext=seal_json(self.key,self.object_id,value)
         wrapper={'format':'atmem-feedback-checkpoint-v1','nonce':base64.b64encode(nonce).decode(),
                  'ciphertext':base64.b64encode(ciphertext).decode()}
-        temporary=self.path.with_name('.'+self.path.name+'.'+uuid.uuid4().hex+'.tmp')
+        temporary=self.path.with_name('.'+uuid.uuid4().hex+'.tmp')
         descriptor=os.open(temporary,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
         try:
             protect_private_path(temporary)
