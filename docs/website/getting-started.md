@@ -1,5 +1,9 @@
 # Your first memory
 
+An opt-in [2.3.15b1 beta](../releases/v2.3.15b1.md) adds governed RAG/MCP and verified feedback.
+The stable installation examples below retain 2.3.14. Use the explicit beta pin in the release note to test it.
+
+
 ## Prerequisites
 Use Python 3.10–3.13 in a virtual environment. This exercise uses synthetic data,
 does not contact a model, and does not enable agent injection.

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "2.3.14",
+  "version": "2.3.15b1",
   "sections": {
     "": "Documentation",
     "portfolio": "Product portfolio",
@@ -11,6 +11,21 @@
     "releases": "Releases"
   },
   "pages": [
+    {
+      "slug": "releases/2.3.15b1",
+      "title": "AtMem 2.3.15b1 \u2014 Governed RAG and verified feedback beta",
+      "source": "docs/releases/v2.3.15b1.md"
+    },
+    {
+      "slug": "integrations/governed-rag",
+      "title": "Governed RAG and MCP (beta)",
+      "source": "docs/governed-rag-and-mcp.md"
+    },
+    {
+      "slug": "reference/verified-feedback",
+      "title": "Verified memory feedback (beta)",
+      "source": "docs/verified-memory-feedback.md"
+    },
     {
       "slug": "releases/2.3.14",
       "title": "AtMem 2.3.14 \u2014 Pink branding",

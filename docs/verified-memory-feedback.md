@@ -1,8 +1,8 @@
 # Verified memory feedback — implementation status
 
 Spec: `specs/050-verified-memory-feedback/spec.md`.
-This feature is under development and is not a released memory or enforcement
-feature. Importing `atmem.feedback` enables nothing. Existing recall, stores,
+This feature is a development preview in the `2.3.15b1` beta candidate,
+not a production-qualified memory or enforcement feature. Importing `atmem.feedback` enables nothing. Existing recall, stores,
 adapters and native authority remain the defaults. The opt-in evidence format
 upgrade and new explicit authority boundaries are documented below.
 
@@ -14,7 +14,7 @@ source-grounded review, bounded profiles and typed rules are implemented. The
 local dashboard supports authenticated inspection, review, shadow, qualification
 selection, rollback and recipient-encrypted export controls. Owner SDKs provide
 registered-copy deletion and restore quarantine. These are development paths,
-not complete production qualification or a published release.
+not complete production qualification or a stable promotion.
 
 See [governed RAG and MCP](governed-rag-and-mcp.md) for executable setup, exact
 tools, privacy, format-4 downgrade restrictions and remaining limitations. Readback

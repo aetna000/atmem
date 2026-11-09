@@ -704,3 +704,20 @@ The final selection includes a direct restore with both plaintext and SQLCipher
 canonical storage plus encrypted feedback. Initial new fixture errors used a
 list as a dict and a record ID as a substring-forget selector; both were fixed
 before the final pass. This is synthetic recovery evidence, not a benchmark.
+
+## Beta publication requested (2026-11-10)
+
+The owner explicitly requested a PyPI beta, retained as beta. Release candidate
+version: AtMem 2.3.15b1 and OpenClaw bridge 2.3.15-beta.1 (npm beta channel).
+AtBot 0.1.1 and AtFlows 0.1.8 remain unchanged; no companion tag is required.
+Both target package versions were absent from their public registries when
+checked. The release note and README retain all incomplete production gates;
+this does not check off T010/T016/T017/T021/T022/T023/T024 or promote stability.
+No tag/publication is implied by these source changes. Website refresh is a
+separate owner-reviewed PR and cannot be self-merged or treated as deployed.
+
+Local beta source checks: 30 AtBot/release metadata cases passed; OpenClaw
+typecheck, build, complete node test sequence and all three Python bridge
+smoke/journey scripts passed. The unchanged dependency tree was reused read-only
+from the original checkout through an ignored worktree symlink, after confirming
+the lock differed only in root package versions; no global install was changed.

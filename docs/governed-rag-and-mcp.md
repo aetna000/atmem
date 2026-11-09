@@ -1,6 +1,6 @@
 # Governed documents and host-neutral MCP — development preview
 
-Spec 050 implementation on `feat/verified-memory-feedback`; not a released
+Spec 050 implementation in the `2.3.15b1` beta candidate; not a released stable
 feature. Existing memory recall, MCP server and DolphinBench routing stay intact.
 The document service is opt-in. It is not a bundled law corpus or a legal-advice
 system and does not claim current-law completeness.
