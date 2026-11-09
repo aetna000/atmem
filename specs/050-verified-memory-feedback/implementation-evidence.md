@@ -439,3 +439,14 @@ without relying on enumeration order. The failure is retained here and fresh
 CI is required. A separate exploratory Evidence Collector permission assumption
 was rejected after reading the existing role table; no role/permission change
 was committed.
+
+A final transport review found that the governed server capped incoming frames
+but not assembled quality responses (especially their structured/text copies).
+It now streams a bounded tool-result size check and rejects oversized replies
+with `result_budget_exhausted`, preserving all evidence and SDK/CLI/API counts.
+RPC IDs have bounded exact integers or valid UTF-8 of at most 256 bytes; malformed
+surrogates fail as invalid requests. Real encrypted-store quality data exercises
+the limit, proving the reply contains no omitted private payload and the original
+outcome remains exact. The prior MCP/CLI/concurrent-client selection passed
+**9 tests in 54.67 seconds**; the final malformed-ID/escaping changes need their
+fresh verification. Native/default MCP and frozen DolphinBench paths are unchanged.

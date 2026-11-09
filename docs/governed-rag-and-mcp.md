@@ -7,6 +7,14 @@ system and does not claim current-law completeness.
 
 ## Connect an existing retriever
 
+The governed stdio transport caps request and response frames at 1 MiB. RPC IDs
+are valid UTF-8 strings of at most 256 bytes or integers within the exact JSON
+number range. A large assembled quality report returns the explicit
+`result_budget_exhausted` tool error; it is never silently truncated or erased.
+Inspect individual outcomes or use the authenticated CLI/API report path for
+the complete retained detail. The response budget does not change task counts,
+evidence retention or whether an effect occurred.
+
 Use `FeedbackService(existing_evidence_service)` and `RagService(feedback)`.
 The authenticated owner grants the application principal explicit `search` and
 `inspect` capabilities for one agent/workspace with an expiry. Identity derives

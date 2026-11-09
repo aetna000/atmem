@@ -64,6 +64,41 @@ def test_malformed_oversized_and_notification_frames(tmp_path):
     assert [r["error"]["code"] for r in responses] == [-32700, -32700, -32700, -32600]
 
 
+def test_quality_reply_budget_preserves_counts_and_never_emits_an_oversized_frame(tmp_path):
+    from dataclasses import replace
+    from test_feedback_actions import actions_fixture
+    f, original = actions_fixture(tmp_path)
+    tasks = tuple({"outcome_id":f"large-{i}", "episode_id":f"episode-{i}", "answerable":True} for i in range(3))
+    f.feedback.schedule(f.owner["token"], f.scope, schedule_id="large", tasks=tasks)
+    for task in tasks:
+        observation = replace(original.observations[1], result={"retained":"PRIVATE-SYNTHETIC-RESULT"+"x"*60000})
+        outcome = replace(original, outcome_id=task["outcome_id"], required=(original.required[1],), observations=(observation,))
+        f.feedback.report_outcome(f.session, outcome, idempotency_key=outcome.outcome_id)
+    full = f.feedback.quality(f.session, schedule_id="large")
+    assert full["verified_full_task_success"]["denominator"] == 3 and len(full["tasks"]) == 3
+    server = GovernedMCPServer(f.feedback, f.rag, f.session)
+    initialize(server)
+    call = request("tools/call", {"name":"feedback_quality", "arguments":{"schedule_id":"large"}})
+    sink = io.StringIO()
+    server.serve(io.BytesIO((json.dumps(call)+"\n").encode()), sink)
+    wire = sink.getvalue()
+    result = json.loads(wire)["result"]
+    assert result["isError"] and result["structuredContent"] == {"error":"result_budget_exhausted"}
+    assert len(wire.encode()) < MAX_MESSAGE_BYTES and "PRIVATE-SYNTHETIC-RESULT" not in wire
+    # The response budget does not truncate or erase retained evidence.
+    retained = f.feedback.outcome(f.session, "large-0")
+    assert retained["outcome"]["observations"][0]["result"] == observation.result
+    for key in ("x"*257, 2**53+1, "\ud800"):
+        rejected = server.handle(request("ping", request_id=key))
+        assert rejected["id"] is None and rejected["error"]["code"] == -32600
+
+
+def test_bounded_reply_allows_worst_case_escaping_without_crossing_the_frame_limit():
+    result = GovernedMCPServer.tool_result({"text":'"\\\n'*30000})
+    frame = {"jsonrpc":"2.0", "id":"\x00"*256, "result":result}
+    assert len((json.dumps(frame, ensure_ascii=False)+"\n").encode()) <= MAX_MESSAGE_BYTES
+
+
 class Client:
     def __init__(self, f, tmp_path, credential, name, *, command=None):
         path = tmp_path / (name + ".token")

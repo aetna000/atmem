@@ -1,6 +1,6 @@
 """Scoped legacy MCP stdio server. No dependency on a particular agent host.
 
-Only implemented read capabilities are exposed. Owner operations, credentials,
+Only implemented capabilities are exposed. Owner operations, credentials,
 scope overrides and arbitrary handler registration are never model tools.
 """
 from __future__ import annotations
@@ -15,6 +15,17 @@ from atmem.knowledge.rag.contracts import RagQuery
 
 VERSIONS = ("2025-06-18", "2025-11-25")
 MAX_MESSAGE_BYTES = 1_048_576
+
+
+def _valid_request_id(value):
+    if type(value) is int:
+        return abs(value) <= 2**53
+    if type(value) is str:
+        try:
+            return len(value.encode("utf-8")) <= 256
+        except UnicodeError:
+            return False
+    return False
 
 
 def _object_pairs(pairs):
@@ -102,7 +113,7 @@ class GovernedMCPServer:
         if (type(request) is not dict or request.get("jsonrpc") != "2.0" or
                 type(request.get("method")) is not str or
                 set(request) - {"jsonrpc", "id", "method", "params"} or
-                "id" in request and type(request_id) not in (str, int)):
+                "id" in request and not _valid_request_id(request_id)):
             return self.error(None, -32600, "Invalid Request")
         params = request.get("params", {})
         if type(params) is not dict:
@@ -206,7 +217,16 @@ class GovernedMCPServer:
 
     @staticmethod
     def tool_result(value, *, error=False):
-        return {"content": [{"type": "text", "text": json.dumps(value, ensure_ascii=False)}],
+        # The result appears as both structured JSON and escaped text. Reserve
+        # room for the bounded RPC ID/envelope and its worst-case escaping.
+        # Stream the size check to avoid materializing an oversized text copy.
+        chunks, size = [], 0
+        for part in json.JSONEncoder(ensure_ascii=False, allow_nan=False).iterencode(value):
+            size += len(part.encode("utf-8"))
+            if size > (MAX_MESSAGE_BYTES-4096)//3:
+                raise FeedbackError("result_budget_exhausted")
+            chunks.append(part)
+        return {"content": [{"type": "text", "text": "".join(chunks)}],
                 "structuredContent": value, "isError": error}
 
     def serve(self, source=None, sink=None):
