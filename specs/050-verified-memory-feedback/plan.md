@@ -1,7 +1,8 @@
 # Implementation plan — Spec 050
 
-Status: design only. Governing requirements: `spec.md`; source review: `research.md`.
-No runtime behavior, release version or user memory changed by this planning work.
+Status: implementation started; see `implementation-evidence.md` for completed
+work and the host-boundary blocker. Governing requirements: `spec.md`; source
+review: `research.md`. The implementation remains opt-in and is not released.
 
 ## Technical context
 

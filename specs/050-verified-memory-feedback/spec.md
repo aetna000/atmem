@@ -1,6 +1,7 @@
 # Spec 050: Verified memory feedback and governed rule promotion
 
-Status: proposed product specification; implementation not started.
+Status: approved for implementation on 2026-11-09; foundation implemented,
+host-boundary prerequisite blocked. See `implementation-evidence.md`.
 Owner confirmed feature directory in conversation on 2026-11-09.
 Baseline: AtMem 2.3.14, upstream commit 1f5c72e.
 Inputs: `research.md`, repository constitution 2.2.0, existing Specs 007, 018,
@@ -236,6 +237,6 @@ consent withdrawn after export; benchmark contamination; small/empty denominator
 
 ## Delivery boundary
 
-This document authorizes specification preparation only. Implementation tasks remain
-unchecked. Separate release qualification and approval precede publication. The owner
+The owner authorized implementation on 2026-11-09. Tasks are checked only on
+completion with evidence. Separate release qualification and approval precede publication. The owner
 receives a native/current-baseline comparison before any costly evaluation expansion.
