@@ -14,13 +14,20 @@ grant itself authority, assert measured success or enable a paid call. The six
 contract scenarios are synthetic metadata, not task results or efficacy evidence.
 See `docs/benchmarks/verified-memory-feedback.md` for definitions and limits.
 
-## Initial host boundary: blocked
+## Initial host boundary and tested remediation
 
 Reviewed Hermes source commit:
 `d0288be5b3330d2442e3907185b8e9d0958297bb`.
 The host package metadata declares `hermes-agent` version `0.0.0`; that version
 alone does not identify a supported runtime, so the source commit is required.
 No installed-host conformance or activation capability is certified.
+
+The two source-contract blockers below are now fixed in the separate candidate
+commit `1088e06e448bef2af736122a5d424082a57bf548`, based on that reviewed source.
+The owner installation remains unchanged. The reproducible patch and manifest
+are in `integrations/hermes/patches/`; that directory's README records the exact
+test coverage and limits. This resolves the design prerequisite for T002; full
+installed-host/rule-service qualification remains T016 and is not complete.
 
 | Boundary | Source contract result | Consequence |
 |---|---|---|
@@ -33,22 +40,24 @@ These probes execute the pinned function bodies with explicit dependency doubles
 and a local effect recorder. They do not import the host runtime, invoke an LLM,
 make external writes or prove a complete host installation. Both unsafe paths
 are positive counterexamples to treating the hook as a sufficient rule boundary.
-The tests passing means those counterexamples reproduced, not that conformance
-passed.
+The original source-probe tests passing means those counterexamples reproduced,
+not that conformance passed. The patched candidate separately passed 467
+regressions, including 40 real-import/plugin-discovery cases at the host's
+instrumented direct, agent, connector and batch boundaries.
 
 | Platform | Pure preflight | Installed Hermes enforcing boundary |
 |---|---|---|
-| macOS / Python 3.12 | Tested locally | Not qualified; source-contract blockers |
+| macOS / Python 3.12 (AtMem), 3.14.7 (Hermes candidate) | Tested locally | Candidate boundary tests pass; full installed rule-service conformance pending |
 | Linux / Python 3.10–3.13 | Not yet exercised | Not qualified |
 | Windows / Python 3.10–3.13 | Not yet exercised | Not qualified |
 
 No claims are made about other Hermes versions or tools outside this boundary.
-The global launcher currently points to an absent interpreter under
-`~/.hermes/hermes-agent/.hermes/bin/hermes`; it was not executed, repaired or
-overwritten. Do not invoke Hermes with a temporary `HERMES_HOME` merely to run
+The earlier absent-interpreter diagnosis was incorrect: the launcher is a shell
+script that uses a present managed Python 3.14 runtime. It was not executed,
+repaired or overwritten. Do not invoke Hermes with a temporary `HERMES_HOME` merely to run
 these probes: bootstrap can rewrite the owner's global launchers.
 
-## Required remediation before continuing the enforcing adapter
+## Remediation contract and remaining qualification
 
 The actual tool invocation must revalidate the final canonical arguments and
 current policy/source generations after all transformations. Policy loading or
@@ -56,8 +65,12 @@ dispatch failure must deny covered writes, including failure outside AtMem's own
 callback. Admission must bind and consume approval exactly once at that boundary,
 preserve existing vetoes, and expose honest scoped/versioned capability.
 
-A reviewed host change, or a separately specified boundary owned end-to-end by
-AtMem, must demonstrate those properties. Neither swallowing an exception inside
+A host change must demonstrate those properties. The candidate adds read-only
+`authorize_tool_call` checks after final transformations and fails closed on
+dispatch/callback failures without ending the conversation. It preserves prior
+vetoes, detaches mutable inputs and blocks modifying final decisions. The final
+hook is not an approval issuer or atomic nonce consumer; those remain required
+in the forthcoming AtMem service. Neither swallowing an exception inside
 AtMem, registering the hook last, adding a prompt instruction, nor checking a
 source hash alone closes both paths. Rerun the hostile matrix and installed-host
 journey with the reviewed artifact before any rule activation. Do not patch the

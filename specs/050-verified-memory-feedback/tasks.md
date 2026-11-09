@@ -1,7 +1,8 @@
 # Implementation tasks — Spec 050
 
-Status: implementation started. T001 complete; T002 blocked by the pinned host
-boundary. See `implementation-evidence.md`; unchecked tasks are not implemented.
+Status: implementation started. T001 and T002 complete; a tested local host
+candidate resolves the boundary prerequisite. See `implementation-evidence.md`;
+unchecked tasks and full installed rule-service qualification are not complete.
 Read `spec.md`, `plan.md`, `research.md` and the constitution before implementation.
 Dependencies are sequential by phase; no delegated agent work is requested here.
 Referenced new paths are implementation targets. No paid evaluation is authorized.
@@ -9,7 +10,7 @@ Referenced new paths are implementation targets. No paid evaluation is authorize
 ## Phase 1 — Baseline and contracts
 
 - [x] [T001] Freeze native/current-AtMem baseline definitions, corpus and verification requirements, cost-zero default, three-attempt cap and all SC thresholds in `docs/benchmarks/verified-memory-feedback.md`; introduce bounded manifest fixtures under `tests/fixtures/feedback/`. Map FR-009, FR-022, FR-024; SC-003, SC-005.
-- [ ] [T002] Pin the initial installed Hermes version, dispatch/wrapper boundary, supported tool schemas and OS capability matrix in `docs/verified-memory-feedback.md`; record existing guard tests and limits before integration. Map FR-014, FR-021, FR-024; SC-004, SC-006.
+- [x] [T002] Pin the initial installed Hermes version, dispatch/wrapper boundary, supported tool schemas and OS capability matrix in `docs/verified-memory-feedback.md`; record existing guard tests and limits before integration. Map FR-014, FR-021, FR-024; SC-004, SC-006.
 - [ ] [T003] Add versioned scope, outcome, verification, rule, qualification, activation and export contracts in `atmem/contracts/feedback.py` and `atmem/schemas/v1/feedback-*.json`; validate bounded inputs and forbidden client-supplied roles in `tests/test_feedback_contracts.py`. Map FR-001, FR-002, FR-003, FR-005, FR-006, FR-011, FR-012, FR-019; SC-001.
 
 ## Phase 2 — Authoritative evidence and outcomes (after T001–T003)

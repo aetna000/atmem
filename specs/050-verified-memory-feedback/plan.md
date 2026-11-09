@@ -1,7 +1,7 @@
 # Implementation plan — Spec 050
 
 Status: implementation started; see `implementation-evidence.md` for completed
-work and the host-boundary blocker. Governing requirements: `spec.md`; source
+work, the tested host-boundary fix and remaining integration. Governing requirements: `spec.md`; source
 review: `research.md`. The implementation remains opt-in and is not released.
 
 ## Technical context
