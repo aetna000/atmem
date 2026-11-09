@@ -560,3 +560,56 @@ Microsoft documents the binary/text distinction and CRT default at
 https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/open-wopen?view=msvc-170
 and https://learn.microsoft.com/en-us/cpp/c-runtime-library/text-and-binary-mode-file-i-o?view=msvc-170 .
 The owner-host probe establishes the actual truncation behavior on Python 3.12.6.
+
+### Direct Windows final-code result — `a2fb7ce`
+
+With the binary flush fix, installed encryption smoke and **all 23 encryption
+regressions passed without skips in 10.85 seconds**. The checkpoint/action
+preflight passed **8 tests in 13.19 seconds**, including the long-Home case, on
+Windows with `LongPathsEnabled=0`. Every one of the installed wheel's **424 AtMem
+files** matched the package bytes. Final development wheel SHA-256:
+`18927602eb239973425124605ae04461de16c709543f99698efb9b61ec8072dd`.
+
+The broader installed selection completed in 779.70 seconds: **410 passed,
+1 POSIX-only permission-path skip, 1 packaging harness failure**. That packaging
+check expects `pyproject.toml` in its working directory. Rerunning it from the
+source directory using isolated Python and only the test-helper import path
+passed **1 test in 0.38 seconds**; no product/test code change was needed.
+The original failed JUnit is preserved rather than relabelled as a clean run.
+No Windows functionality test was skipped. All **3 real Windows Chrome journeys**
+passed in the broad run (14.827 / 17.393 / 27.881 seconds); their quality and export
+screenshots were visually inspected. The synthetic export was actually downloaded
+and decrypted, and logout cleared its preview. Counts overlap.
+
+The separate bounded Windows 1,000-rule interpreter diagnostic measured p50
+0.9289 ms / p95 **1.6311 ms** across 20 samples, with 1.66695 seconds elapsed,
+zero model calls/tokens/USD. It correctly issued no qualification and remained
+inconclusive. This excludes compilation/storage/auth/remote verification and
+cannot establish retrieval latency, efficacy or production resource gates.
+
+Local evidence bundle: `/tmp/atmem-spec050-windows-evidence-a2fb7ce/`, including
+original/rerun JUnit, timing JSON, reviewed screenshots and a plain-language
+README. Owner Windows test root remains isolated under TEMP; credentials/stores
+are synthetic, with no real memory migration or live installation change.
+
+At product source `a2fb7ce`, the feature workflow `42641161702` passed 11 matrix
+jobs but Windows/Python 3.12 reached the job's 15-minute deadline (annotation:
+"The job has exceeded the maximum execution time of 15m0s"), without a recorded
+assertion failure. This is not a 12/12 result. Windows matrix jobs now have a
+bounded 30-minute CI deadline; Linux/macOS retain 15 minutes. No suite, product
+qualification threshold or runtime timeout was relaxed. Fresh workflow results
+are required. The main workflow `42641161789` has 47 successful jobs and one
+queued installed-wheel job at this checkpoint, including a successful Windows
+installed-encryption gate. Final statuses are recorded on PR #37.
+
+Main CI `42641161789` subsequently completed successfully: **all 48 jobs passed
+on product source `a2fb7ce`**, including all Linux/macOS/Windows installed wheels,
+Windows SQLCipher, supported Python versions, upgrades and companion/bridge gates.
+A separate isolated macOS/Python **3.13.14** wheel environment also passed all four
+installed product/delegation/transport/retrieval smoke scripts plus dependency
+consistency; its temporary venv was removed after retaining the log.
+The subsequent commit changes only this evidence/task checkpoint and the Windows
+feature-job deadline, with no changes to the 424 packaged AtMem files. Final
+feature-workflow status remains explicitly tracked on PR #37, not inferred from
+these product regression results. Eight feature acceptance/implementation tasks
+remain unchecked; no efficacy or complete-feature claim is made.

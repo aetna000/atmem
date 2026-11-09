@@ -94,8 +94,15 @@ the production diagnostic qualifier cannot emit those accepted receipts.
   scoped owner reconciliation. Direct canonical database restore and arbitrary
   file-copy recovery still require operator reconciliation; full crash/deletion
   coverage outside the Home workflow remains pending.
-- T021: source `7fd7cfa` passed 12 feature OS/Python jobs and the entire main CI
-  workflow. Newer Home/Hermes/profile/test changes need their own final CI.
+- T021: source `61b64d5` passed 12 feature OS/Python jobs and all 48 main CI
+  jobs. Final product source `a2fb7ce` also passed direct owner-Windows installed
+  encryption (23 tests), checkpoint/action preflight and broad native/browser
+  checks; the lone source-packaging harness path error passed on corrected-CWD
+  rerun. See evidence for the POSIX-only skip and overlapping counts. Its feature
+  matrix passed 11 jobs and hit the 15-minute deadline on Windows/Python 3.12;
+  Windows CI now has a bounded 30-minute allowance with every check retained.
+  Fresh final workflow results are tracked on PR #37. Broader T016/T017 acceptance
+  remains open; these results do not complete the feature-wide acceptance task.
 - T023 requires a separately approved bounded efficacy manifest. No such run,
   paid call, training or DolphinBench campaign was performed.
 - T024: setup/privacy/limits/status documentation is updated; final feature-wide
