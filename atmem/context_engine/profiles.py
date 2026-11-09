@@ -32,7 +32,7 @@ def prepare_feedback_profile(feedback, session, request, *, profile_id=None, mod
     from atmem.feedback.store import FeedbackError
     from atmem.rules.lifecycle import RuleLifecycle
     from atmem.context_engine.formation import FormationManager
-    from atmem.context_engine.service import StoredContextEngine
+    from atmem.context_engine.service import GovernanceViolation, StoredContextEngine
 
     if mode not in ("disabled", "shadow", "active"):
         raise ValueError("explicit supported profile mode required")
@@ -53,13 +53,25 @@ def prepare_feedback_profile(feedback, session, request, *, profile_id=None, mod
         bounded = replace(request, budget=replace(request.budget, context_bytes=min(request.budget.context_bytes, profile.context_bytes)))
         engine = StoredContextEngine(feedback.memory.store, generation_id=generation["generation_id"],
                                      candidate_budget=profile.candidate_budget, balanced_pools=profile.balanced_pools)
-        candidate = feedback.memory.prepare_context_v3(bounded, engine=engine)
-        native = feedback.memory.prepare_context_v3(request) if mode == "shadow" else None
+        candidate = None
+        failure = None
+        try:
+            candidate = feedback.memory.prepare_context_v3(bounded, engine=engine)
+        except GovernanceViolation:
+            # An unauthorized selection or tampered result is not an outage.
+            raise
+        except (OSError, RuntimeError):
+            failure = "profile_engine_unavailable"
+        native = feedback.memory.prepare_context_v3(request if mode == "shadow" else bounded) if mode == "shadow" or failure else None
+        selected = native if native is not None else candidate
+        if failure:
+            selected = replace(selected, reason_codes=selected.reason_codes+("feedback_profile_native_fallback",))
         tx.put("profile_comparison", "profile-check-"+uuid.uuid4().hex,
                {"profile_id": profile_id, "candidate_sha256": profile.content_digest, "generation": state["generation"],
-                "mode": mode, "candidate": candidate.to_dict(), "native": native.to_dict() if native else None,
+                "mode": mode, "candidate": candidate.to_dict() if candidate else None, "native": native.to_dict() if native else None,
+                "effective":"native_fallback" if failure else mode, "failure":failure,
                 "actor_id": principal.principal_id, "delivery": "not_confirmed"}, expected_revision=0)
-        return native if native is not None else candidate
+        return selected
 
 
 @dataclass(frozen=True, slots=True)

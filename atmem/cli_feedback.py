@@ -29,6 +29,9 @@ def main(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     for name in ("serve", "sources", "capabilities"):
         commands.add_parser(name)
+    restore = commands.add_parser("reconcile-restore", help="Owner-only quarantine after Home adoption; does not reactivate anything")
+    restore.add_argument("--restore-id", required=True)
+    restore.add_argument("--confirm", required=True, help="Repeat the restore ID to confirm disabling restored authority")
     search = commands.add_parser("search")
     search.add_argument("--source", required=True)
     search.add_argument("--query", required=True)
@@ -63,6 +66,15 @@ def main(argv=None):
         credential = path.read_text().strip()
         evidence = EvidenceService(root, vault_id=args.vault_id)
         feedback = FeedbackService(evidence)
+        if args.command == "reconcile-restore":
+            if args.confirm != args.restore_id:
+                raise FeedbackError("confirmation_required")
+            from atmem.feedback.recovery import FeedbackRecovery
+            principal = feedback._principal(credential)
+            scope = feedback._scope(principal, args.agent, args.workspace)
+            value = FeedbackRecovery(feedback).reconcile_after_restore(credential, scope, restore_id=args.restore_id)
+            print(json.dumps(value, ensure_ascii=False))
+            return 0
         session = feedback.bind(credential, agent_id=args.agent, workspace_id=args.workspace)
         if args.memory_db:
             if not Path(args.memory_db).is_file():

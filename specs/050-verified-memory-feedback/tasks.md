@@ -28,29 +28,29 @@ Referenced new paths are implementation targets. No paid evaluation is authorize
 
 - [x] [T006] Link real context receipts, exact invocation/check evidence and late/duplicate observations in `atmem/feedback/service.py`; test a read success with a failed write and forbid combining partial calls in `tests/test_feedback_actions.py`. Map FR-002, FR-005, FR-006; SC-002.
 - [ ] [T007] Implement scoped verifier registration, independent readback results, attestation tiers, disputes and evidence-backed failure attribution in `atmem/feedback/verification.py`; cover fabricated success, missing capture, poisoned feedback and delivered-but-not-applied in `tests/test_feedback_verification.py`. Map FR-003, FR-004, FR-005, FR-024; SC-001, SC-002.
-- [ ] [T008] Implement exact metric denominators, zero/unknown handling, episode uncertainty, cost and content-free telemetry in `atmem/feedback/metrics.py`; test abstain-all, unassessed answers, scope leakage and required-fact write failures in `tests/test_feedback_metrics.py`. Map FR-008, FR-023, FR-024; SC-003, SC-007.
+- [x] [T008] Implement exact metric denominators, zero/unknown handling, episode uncertainty, cost and content-free telemetry in `atmem/feedback/metrics.py`; test abstain-all, unassessed answers, scope leakage and required-fact write failures in `tests/test_feedback_metrics.py`. Map FR-008, FR-023, FR-024; SC-003, SC-007.
 
 ## Phase 3 — Reviewed retrieval adaptation (after T004–T008)
 
 - [x] [T009] Extend `atmem/extract/review.py` for revision-bound profile/rule proposals without changing ordinary fact admission; add stale/racing reviewer, injection and owner-versus-model capability tests in `tests/test_feedback_review.py`. Map FR-007, FR-010, FR-011, FR-012; SC-001.
 - [ ] [T010] Implement frozen manifest validation, safe paired replay, bounded attempts, cost stops, independent verifier binding and expiring accept/reject/inconclusive receipts in `atmem/feedback/qualification.py`; test held-out contamination and unknown outcomes in `tests/test_feedback_qualification.py`. Map FR-003, FR-009, FR-010, FR-013, FR-022, FR-024; SC-003, SC-004, SC-005.
-- [ ] [T011] Integrate versioned ranking/threshold/packing profiles with `atmem/context_engine/profiles.py` and `atmem/context_engine/service.py`; prove scope invariance, disabled parity, shadow without mutation, qualified activation and local deterministic fallback in `tests/test_feedback_profiles.py`. Map FR-010, FR-017, FR-021; SC-001, SC-003, SC-005.
+- [x] [T011] Integrate versioned ranking/threshold/packing profiles with `atmem/context_engine/profiles.py` and `atmem/context_engine/service.py`; prove scope invariance, disabled parity, shadow without mutation, qualified activation and local deterministic fallback in `tests/test_feedback_profiles.py`. Map FR-010, FR-017, FR-021; SC-001, SC-003, SC-005.
 
 ## Phase 4 — Rules and real enforcement (after T009–T011)
 
 - [x] [T012] Implement the three-predicate rule representation and non-executable compiler in `atmem/rules/models.py` and `atmem/rules/compiler.py`; test unsupported language, arbitrary code, ambiguous aliases and source grounding in `tests/test_rule_compiler.py`. Map FR-011, FR-016; SC-001.
 - [x] [T013] Implement deterministic evaluation, conflicting predicates, deny-wins and exact single-use approval binding in `atmem/rules/evaluator.py`; test changed arguments, replay, expiry and permission narrowing in `tests/test_rule_evaluator.py`. Map FR-001, FR-014, FR-015, FR-016; SC-001, SC-004.
-- [ ] [T014] Implement shadow/qualified/active/suspended/revoked/expired transitions and atomic revision-bound activation in `atmem/rules/lifecycle.py`; test failed qualification, stale source, duplicate transitions and crash recovery in `tests/test_rule_lifecycle.py`. Map FR-006, FR-007, FR-012, FR-013, FR-017; SC-001, SC-002.
-- [ ] [T028] Implement registered guarded execution in `atmem/mcp/guarded.py` using the shared evaluator/lifecycle and encrypted intent/result receipts; test two independent client identities, exact approval arguments, replay, concurrent duplicate keys, uncertain writes and advisory-only checks in `tests/test_guarded_mcp.py`. No arbitrary endpoints or host tools. Map FR-001, FR-014, FR-015, FR-017, FR-028, FR-029; SC-001, SC-004, SC-009.
-- [ ] [T015] Integrate `atmem/adapters/hermes/feedback_guard.py` with `atmem/adapters/hermes/action_guard_plugin.py` and existing `atmem/action_guard.py`; verify real before-dispatch interception, wrapper/batch coverage and deny-wins in `tests/test_feedback_hermes_boundary.py`. Map FR-014, FR-015, FR-016; SC-004.
+- [x] [T014] Implement shadow/qualified/active/suspended/revoked/expired transitions and atomic revision-bound activation in `atmem/rules/lifecycle.py`; test failed qualification, stale source, duplicate transitions and crash recovery in `tests/test_rule_lifecycle.py`. Map FR-006, FR-007, FR-012, FR-013, FR-017; SC-001, SC-002.
+- [x] [T028] Implement registered guarded execution in `atmem/mcp/guarded.py` using the shared evaluator/lifecycle and encrypted intent/result receipts; test two independent client identities, exact approval arguments, replay, concurrent duplicate keys, uncertain writes and advisory-only checks in `tests/test_guarded_mcp.py`. No arbitrary endpoints or host tools. Map FR-001, FR-014, FR-015, FR-017, FR-028, FR-029; SC-001, SC-004, SC-009.
+- [x] [T015] Integrate `atmem/adapters/hermes/feedback_guard.py` with `atmem/adapters/hermes/action_guard_plugin.py` and existing `atmem/action_guard.py`; verify real before-dispatch interception, wrapper/batch coverage and deny-wins in `tests/test_feedback_hermes_boundary.py`. Map FR-014, FR-015, FR-016; SC-004.
 - [ ] [T016] Derive scoped/versioned enforcement capability and audit receipts using `atmem/task_state/enforcement.py`; implement generic MCP proxy conformance plus installed Hermes adapter conformance in `tests/integration/test_feedback_hermes_installed.py` with a synthetic effect recorder and credential-free local tools. Prove actual blocked/allowed effects, TOCTOU denial, no shadow effects and honest advisory-only status elsewhere. Map FR-014, FR-015, FR-023, FR-024; SC-004, SC-006, SC-009.
 - [ ] [T017] Implement dependent invalidation, revocation, rollback and restore reconciliation in `atmem/rules/lifecycle.py` and `atmem/feedback/store.py`; test source deletion during dispatch, stale caches, in-flight semantics and encrypted-store-only recovery in `tests/test_feedback_recovery.py`. Map FR-015, FR-017, FR-018, FR-021; SC-001, SC-002, SC-006.
 
 ## Phase 5 — Product surfaces and consented export (after T014–T017)
 
 - [x] [T018] Add read/report/propose CLI and MCP contracts in `atmem/cli_feedback.py`, `atmem/cli.py` and the separate `atmem/mcp/governed.py` (existing default server unchanged), with separately authenticated owner operations; test scope, confirmation, sizes and parity in `tests/test_feedback_cli_mcp.py`. Map FR-001, FR-007, FR-020; SC-001, SC-007.
-- [ ] [T019] Add the shared `atmem/control/feedback.py` service routes and Feedback screen in `atmem/control/web.py` (the actual HTTP server) and `atmem/control/assets/{app.html,app.js,app.css}`; show exact receipts, quality counts and explicit activation/rollback controls. Add CSRF/auth, keyboard and browser journey tests in `tests/test_feedback_dashboard.py`. Map FR-008, FR-012, FR-017, FR-020, FR-023; SC-007.
-- [ ] [T020] Implement previewed purpose/recipient-bound verified-example export in `atmem/feedback/export.py`, with lineage and consent; exclude test splits, secrets, disputed/unverified/deleted sources and other users. Test withdrawal, tampered preview and encrypted destination handling in `tests/test_feedback_export.py`. Map FR-001, FR-018, FR-019, FR-020; SC-001, SC-007.
+- [x] [T019] Add the shared `atmem/control/feedback.py` service routes and Feedback screen in `atmem/control/web.py` (the actual HTTP server) and `atmem/control/assets/{app.html,app.js,app.css}`; show exact receipts, quality counts and explicit activation/rollback controls. Add CSRF/auth, keyboard and browser journey tests in `tests/test_feedback_dashboard.py`. Map FR-008, FR-012, FR-017, FR-020, FR-023; SC-007.
+- [x] [T020] Implement previewed purpose/recipient-bound verified-example export in `atmem/feedback/export.py`, with lineage and consent; exclude test splits, secrets, disputed/unverified/deleted sources and other users. Test withdrawal, tampered preview and encrypted destination handling in `tests/test_feedback_export.py`. Map FR-001, FR-018, FR-019, FR-020; SC-001, SC-007.
 
 ## Phase 6 — Evidence gates and documentation (after T018–T020)
 
@@ -72,3 +72,31 @@ No task completion may be inferred from a planned filename, a unit-only mock,
 a retrieved memory, a screenshot, or an agent's self-reported success.
 
 Owner authorized routine implementation decisions without step-by-step supervision on 2026-11-09. Follow the revised dependency order autonomously; keep tests and checked tasks honest. External paid efficacy and publication retain their separate existing gates.
+
+
+## 2026-11-10 implementation checkpoint
+
+Checked tasks reflect implemented paths with real-store/client/browser/host
+consumer tests, not a production efficacy result. In particular, active rule and
+profile consumer tests use explicitly labelled trusted-store test receipts;
+the production diagnostic qualifier cannot emit those accepted receipts.
+
+- T007: independent readback, operation binding, disputes and proposed taxonomy
+  exist; complete independently verified causal attribution remains unbuilt.
+- T010/T022: frozen offline manifests, persistent attempt budgets, paired replay
+  and insufficient-evidence/resource gates exist. Production accept/reject
+  qualification and complete independently measured quality/power/resource gates
+  remain unbuilt. Do not mark these complete because diagnostic reports pass.
+- T016: eleven real-import Hermes candidate/service cases passed on macOS with
+  Python 3.14.7. Full version/schema/OS conformance and derived task-state
+  enforcement registration remain pending; the owner runtime is unchanged.
+- T017: supported Home preflight/adoption automatically blocks feedback pending
+  scoped owner reconciliation. Direct canonical database restore and arbitrary
+  file-copy recovery still require operator reconciliation; full crash/deletion
+  coverage outside the Home workflow remains pending.
+- T021: source `7fd7cfa` passed 12 feature OS/Python jobs and the entire main CI
+  workflow. Newer Home/Hermes/profile/test changes need their own final CI.
+- T023 requires a separately approved bounded efficacy manifest. No such run,
+  paid call, training or DolphinBench campaign was performed.
+- T024: setup/privacy/limits/status documentation is updated; final feature-wide
+  acceptance evidence remains incomplete until the remaining gates are met.

@@ -11,9 +11,9 @@ upgrade and new explicit authority boundaries are documented below.
 Host-neutral local stdio MCP and CLI, scoped document retrieval, retained context
 and per-action outcomes, independent readback, exact metric denominators,
 source-grounded review, bounded profiles and typed rules are implemented. The
-local dashboard supports authenticated inspection/review/shadow controls. Owner
-SDKs provide registered-copy deletion, restore quarantine, validated historical
-rollback and recipient-encrypted example export. These are development paths,
+local dashboard supports authenticated inspection, review, shadow, qualification
+selection, rollback and recipient-encrypted export controls. Owner SDKs provide
+registered-copy deletion and restore quarantine. These are development paths,
 not complete production qualification or a published release.
 
 See [governed RAG and MCP](governed-rag-and-mcp.md) for executable setup, exact
@@ -21,8 +21,9 @@ tools, privacy, format-4 downgrade restrictions and remaining limitations. Readb
 of correct state alone never certifies an action; operation-bound evidence is
 required. The offline qualifier always returns inconclusive. No production
 activation, learning or DolphinBench improvement is established by synthetic
-tests. The live Hermes installation is unchanged and its AtMem service adapter
-is still pending.
+tests. The live Hermes installation is unchanged. The new opt-in Hermes service
+bridge has been tested against the separate pinned candidate; it is not installed
+on the owner's runtime or production-qualified.
 
 ## Implemented foundation
 
@@ -66,9 +67,9 @@ instrumented direct, agent, connector and batch boundaries.
 
 | Platform | Pure preflight | Installed Hermes enforcing boundary |
 |---|---|---|
-| macOS / Python 3.12 (AtMem), 3.14.7 (Hermes candidate) | Tested locally | Candidate boundary tests pass; full installed rule-service conformance pending |
-| Linux / Python 3.10–3.13 | Not yet exercised | Not qualified |
-| Windows / Python 3.10–3.13 | Not yet exercised | Not qualified |
+| macOS / Python 3.10–3.13 (AtMem CI), 3.14.7 (Hermes candidate) | AtMem feature matrix passed at `7fd7cfa` | Eleven real AtMem/Hermes candidate dispatch cases passed locally; production qualification pending |
+| Linux / Python 3.10–3.13 | AtMem feature matrix passed at `7fd7cfa` | Hermes not qualified |
+| Windows / Python 3.10–3.13 | AtMem feature matrix passed at `7fd7cfa` | Hermes not qualified |
 
 No claims are made about other Hermes versions or tools outside this boundary.
 The earlier absent-interpreter diagnosis was incorrect: the launcher is a shell
@@ -88,8 +89,12 @@ A host change must demonstrate those properties. The candidate adds read-only
 `authorize_tool_call` checks after final transformations and fails closed on
 dispatch/callback failures without ending the conversation. It preserves prior
 vetoes, detaches mutable inputs and blocks modifying final decisions. The final
-hook is not an approval issuer or atomic nonce consumer; those remain required
-in the forthcoming AtMem service. Neither swallowing an exception inside
+hook is not an approval issuer or atomic nonce consumer; the shared guarded
+dispatcher now owns atomic nonce consumption and retained dispatch intent.
+`atmem.adapters.hermes.feedback_guard.HermesFeedbackGuard` composes this with
+the existing action-guard plugin through the explicit optional
+`register(ctx, feedback_guard=binding)` argument. The ordinary staged plugin
+passes no binding and retains its previous behavior. Neither swallowing an exception inside
 AtMem, registering the hook last, adding a prompt instruction, nor checking a
 source hash alone closes both paths. Rerun the hostile matrix and installed-host
 journey with the reviewed artifact before any rule activation. Do not patch the
@@ -108,3 +113,50 @@ HERMES_SOURCE=/path/to/reviewed/hermes-agent python -m pytest -q \
 Without `HERMES_SOURCE` the source probes skip explicitly. A different commit or
 modified pinned boundary fails the probe prerequisite. These checks use no user
 memory and no paid calls. Their results are contract evidence only.
+
+## Opt-in Hermes service bridge
+
+The application constructs a `HermesFeedbackGuard` with the same scoped
+`GuardedDispatcher` used by generic MCP, the exact pinned candidate source root
+and a trusted `session_resolver`. That resolver must bind the host's session,
+task, turn and call identities to a scoped application credential; it must not
+return a global owner credential or accept identity overrides in tool arguments.
+Register each covered tool through `binding.register_tool(owner_credential,
+scope, tool=..., schema_version=..., schema=..., native_guard=...)`, then compose
+it using the existing action-guard plugin registration. There is no automatic
+installation, dynamic model-supplied plugin factory or credential capture.
+
+The adapter verifies all five recorded host boundary file digests before
+registration and refuses unsupported hosts. All four host identities must be
+present. Execution middleware uses the shared encrypted intent/idempotency,
+reviewed rules, current sources and approval admission. The final hook is a
+repeatable read-only check of the exact admitted arguments. Changed arguments,
+native vetoes, skipped middleware, unknown tools/batches and outages cause no
+covered effect. Only explicitly owner-declared read-only exceptions bypass the
+proxy; never classify a wrapper or write tool as a read exception. A nested
+protected execution is refused. Calls through an unrelated/unintegrated runtime
+remain outside this guarantee. This does not prevent arbitrary privileged code
+from modifying its own host or bypassing the adapter.
+
+Unknown writes retain the dispatcher hold. A repeated call inspects the latest
+retained receipt instead of executing it again. An optional trusted
+`approval_resolver` may supply an already issued exact approval ID; the adapter
+does not automatically approve. `binding.invocation(...)` exposes the deterministic
+binding for the application-owned approval workflow. `capabilities(session)`
+authenticates afresh and shows only that scope's registered tools, explicitly
+distinguishing registration from qualification. The global task-state
+enforcement flag is not changed by merely constructing this adapter.
+
+In the candidate's own Python environment, set `PYTHONPATH` to this checkout
+and its `tests` directory and run:
+
+```sh
+ATMEM_HERMES_CANDIDATE=/path/to/reviewed/candidate python -m pytest -q \
+  tests/integration/test_feedback_hermes_installed.py
+```
+
+The test imports real host modules and uses real encrypted AtMem state with
+synthetic tool effects; it never invokes the Hermes CLI/bootstrap. Test-seeded
+accepted receipts exercise consumers only. They are not emitted by the offline
+qualifier and do not establish efficacy, supported production deployment or
+cross-platform Hermes conformance.

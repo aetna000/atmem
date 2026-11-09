@@ -120,6 +120,60 @@ def test_real_http_requires_login_csrf_and_matches_service_counts(dashboard_serv
         opener.open(base+"/api/feedback/quality?schedule_id=quality&subject_id=bob",timeout=10)
 
 
+def test_real_http_activation_and_rollback_open_canonical_memory_in_request_thread(dashboard_server, tmp_path):
+    import sqlite3
+    from atmem import Memory
+    from feedback_lifecycle_fixtures import reviewed_shadow, seed_trusted_test_receipt, VERSIONS
+    f, memory, rule, _ = reviewed_shadow(tmp_path/"threaded-service")
+    server, bootstrap, _, _ = dashboard_server
+    credential = f.evidence.grant(f.evidence.authenticate(f.owner["token"]), principal_id="administrator",
+        role=EvidenceRole.ADMINISTRATOR, scope=f.scope.evidence_scope())
+    f.feedback.grant_agent(f.owner["token"], f.scope, principal_id="administrator", operations=("read",), expires_at=1_700_010_000)
+    session = f.feedback.bind(credential["token"], agent_id="writer", workspace_id="project")
+    key = seed_trusted_test_receipt(f, rule)  # Explicit synthetic consumer authority, not efficacy.
+    # A genuine SQLite canonical snapshot remains only in test-process RAM.
+    # Every HTTP request opens and closes its own real Memory connection. The
+    # test never passes a main-thread SQLite connection to an HTTP worker.
+    snapshot = sqlite3.connect(":memory:", check_same_thread=False)
+    snapshot_lock = threading.Lock()
+    memory.store._conn.backup(snapshot)
+    opened = []
+    def factory(identity):
+        value = Memory(":memory:", auto_vectors=False)
+        with snapshot_lock:
+            snapshot.backup(value.store._conn)
+        opened.append(threading.get_ident())
+        return value
+    server.feedback_dashboard = FeedbackDashboard(f.feedback, session_factory=lambda identity:session,
+        runtime_versions=VERSIONS, memory_factory=factory)
+    base = f"http://127.0.0.1:{server.server_port}"
+    opener = build_opener(HTTPCookieProcessor(CookieJar()))
+    def post(path, body, csrf):
+        return json.loads(opener.open(Request(base+path, method="POST", data=json.dumps(body).encode(),
+            headers={"Content-Type":"application/json", "X-CSRF-Token":csrf}), timeout=20).read())
+    try:
+        login = post("/api/auth/login", {"username":"administrator", "password":bootstrap["password"]}, "")
+        post("/api/auth/change-password", {"new_password":"threaded synthetic password"}, login["csrf_token"])
+        args = {"operation":"transition", "kind":"rule", "artifact_id":"rule", "candidate_sha256":rule.content_digest}
+        active = post("/api/feedback/action", {**args, "state":"active", "expected_generation":1,
+            "qualification_id":key}, server.csrf_token)
+        assert active["generation"] == 2
+        post("/api/feedback/action", {**args, "state":"suspended", "expected_generation":2}, server.csrf_token)
+        rollback = {"operation":"rollback", "kind":"rule", "artifact_id":"rule", "target_generation":2, "expected_generation":3}
+        assert post("/api/feedback/action", rollback, server.csrf_token)["generation"] == 4
+        assert opened and all(value != threading.get_ident() for value in opened)
+        memory.forget_record("alice", rule.sources[0].source_id)
+        with snapshot_lock:
+            memory.store._conn.backup(snapshot)
+        post("/api/feedback/action", {**args, "state":"suspended", "expected_generation":4}, server.csrf_token)
+        with pytest.raises(HTTPError) as denied:
+            post("/api/feedback/action", {**rollback, "expected_generation":5}, server.csrf_token)
+        assert denied.value.code == 409 and json.loads(denied.value.read())["reason"] == "stale_source"
+    finally:
+        snapshot.close()
+        memory.close()
+
+
 def test_real_browser_keyboard_quality_and_exact_call_evidence(dashboard_server, tmp_path):
     import os
     from pathlib import Path
@@ -150,9 +204,10 @@ def test_real_browser_keyboard_quality_and_exact_call_evidence(dashboard_server,
             page.locator("#feedbackQualityForm button").focus()
             page.keyboard.press("Enter")
             playwright.expect(page.locator("#feedbackQuality")).to_contain_text("insufficient evidence")
-            page.locator("#feedbackQuality summary").click()
-            playwright.expect(page.locator("#feedbackQuality pre")).to_contain_text('"body": "five days"')
-            playwright.expect(page.locator("#feedbackQuality pre")).to_contain_text('"verified_success": false')
+            task = page.locator("#feedbackQuality > details").filter(has=page.locator("summary", has_text="outcome ·"))
+            task.locator("summary").click()
+            playwright.expect(task.locator("pre")).to_contain_text('"body": "five days"')
+            playwright.expect(task.locator("pre")).to_contain_text('"verified_success": false')
             page.screenshot(path=str(tmp_path/"feedback-browser.png"), full_page=True)
         finally:
             browser.close()
@@ -335,6 +390,7 @@ def test_browser_export_explicit_review_download_and_logout_cleanup(dashboard_se
             plaintext = json.loads(decrypt_export(bundle["encrypted_bundle"], secret))
             assert plaintext["examples"][0]["outcome"]["outcome_id"] == "export-ui"
             assert calls == ["administrator"]
+            page.screenshot(path=str(tmp_path/"feedback-export-browser.png"), full_page=True)
             page.once("dialog", lambda dialog:dialog.accept())
             page.locator("#logoutButton").click()
             playwright.expect(page.locator("#feedbackExport")).to_be_hidden()

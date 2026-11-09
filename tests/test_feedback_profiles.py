@@ -11,7 +11,7 @@ from atmem.rules.lifecycle import RuleLifecycle
 from test_feedback_review import review_fixture
 
 
-def test_real_v3_disabled_parity_shadow_returns_native_and_unqualified_cannot_activate(tmp_path):
+def test_real_v3_disabled_parity_shadow_returns_native_and_unqualified_cannot_activate(tmp_path, monkeypatch):
     f, memory, review, rule = review_fixture(tmp_path)
     try:
         manager = FormationManager(memory.store)
@@ -49,5 +49,35 @@ def test_real_v3_disabled_parity_shadow_returns_native_and_unqualified_cannot_ac
             prepare_feedback_profile(f.feedback, f.session, request, profile_id="profile", mode="active")
         with pytest.raises(FeedbackError, match="denied"):
             prepare_feedback_profile(f.feedback, f.session, replace(request, scope=replace(request.scope, workspace_id="other")))
+        from feedback_lifecycle_fixtures import VERSIONS, seed_trusted_test_receipt
+        from atmem.context_engine.service import GovernanceViolation, StoredContextEngine
+        # This tests a qualification consumer, not an efficacy result.
+        key = seed_trusted_test_receipt(f, profile)
+        RuleLifecycle(f.feedback).transition(f.owner["token"], f.scope, artifact_id="profile", kind="profile",
+            state="active", expected_generation=1, qualification_id=key, versions=VERSIONS)
+        active = prepare_feedback_profile(f.feedback, f.session, request, profile_id="profile", mode="active", versions=VERSIONS)
+        assert active.budget.context_bytes == 1024 and set(active.selected_unit_ids) <= set(baseline.selected_unit_ids)
+        original_select = StoredContextEngine.select
+        def unavailable(self, *args):
+            if self.candidate_budget == 20:
+                raise TimeoutError("PRIVATE PROFILE CONTENT")
+            return original_select(self, *args)
+        monkeypatch.setattr(StoredContextEngine, "select", unavailable)
+        fallback = prepare_feedback_profile(f.feedback, f.session, request, profile_id="profile", mode="active", versions=VERSIONS)
+        assert fallback.context == baseline.context and fallback.budget.context_bytes == 1024
+        assert "feedback_profile_native_fallback" in fallback.reason_codes
+        with f.feedback.store.transaction(f.scope) as tx:
+            failed = tx.list("profile_comparison")[-1]
+            assert failed["effective"] == "native_fallback" and failed["candidate"] is None
+            assert "PRIVATE PROFILE CONTENT" not in str(failed)
+        def invalid(self, *args):
+            raise GovernanceViolation("scope violation")
+        monkeypatch.setattr(StoredContextEngine, "select", invalid)
+        with pytest.raises(GovernanceViolation):
+            prepare_feedback_profile(f.feedback, f.session, request, profile_id="profile", mode="active", versions=VERSIONS)
+        monkeypatch.setattr(StoredContextEngine, "select", original_select)
+        memory.forget_record("alice", profile.sources[0].source_id)
+        with pytest.raises(FeedbackError, match="stale_source"):
+            prepare_feedback_profile(f.feedback, f.session, request, profile_id="profile", mode="active", versions=VERSIONS)
     finally:
         memory.close()

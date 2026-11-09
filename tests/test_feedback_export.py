@@ -99,3 +99,34 @@ def test_export_rechecks_rag_lineage_after_preview_and_on_cached_retry(tmp_path,
     assert not after["examples"] and after["excluded"] == [{"outcome_id":outcome.outcome_id, "reason":reason}]
     with pytest.raises(FeedbackError, match="stale_preview"):
         service.export(f.owner["token"], f.scope, **options)
+
+
+@pytest.mark.parametrize("case,reason", [("secret", "secret_material"), ("held_out", "evaluation_excluded"),
+                                       ("disputed", "not_independently_verified"), ("unverified", "not_independently_verified")])
+def test_real_export_excludes_secrets_held_out_disputed_and_unverified_records(tmp_path, case, reason):
+    pytest.importorskip("pqcrypto")
+    from pathlib import Path
+    from atmem.feedback.qualification import QualificationService
+    f, original, verifier, reader, destination = verifier_fixture(tmp_path)
+    observation = replace(original.observations[1], arguments={"body":"ten days"})
+    if case == "secret":
+        observation = replace(observation, result={"token":"sk-FICTIONALREGRESSIONSECRET123456789"})
+    outcome = replace(original, outcome_id="excluded", required=(original.required[1],), observations=(observation,))
+    if case == "held_out":
+        manifest = json.loads((Path(__file__).parent/"fixtures/feedback/baseline-manifest.json").read_text())
+        QualificationService(f.feedback).freeze(f.owner["token"], f.scope, manifest, artifact_sha256="a"*64)
+        outcome = replace(outcome, turn_id="delivered_not_applied")
+    f.simulated_write(outcome, observation)
+    f.feedback.report_outcome(f.session, outcome, idempotency_key="excluded")
+    if case != "unverified":
+        verify(verifier, reader, outcome, key="verified-example")
+    if case == "disputed":
+        destination.write_text("five days")
+        verify(verifier, reader, outcome, key="disagreement")
+    public, _ = generate_recipient_keypair()
+    service = ExampleExportService(f.feedback)
+    service.consent(f.owner["token"], f.scope, consent_id="consent", purpose="synthetic exclusion test",
+        recipient_public_key=public, outcome_ids=(outcome.outcome_id,), expires_at=1_700_000_060)
+    preview = service.preview(f.owner["token"], f.scope, consent_id="consent")
+    assert not preview["examples"] and preview["excluded"] == [{"outcome_id":"excluded", "reason":reason}]
+    assert "FICTIONALREGRESSIONSECRET" not in json.dumps(preview)

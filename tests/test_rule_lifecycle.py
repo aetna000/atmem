@@ -60,3 +60,32 @@ def test_rollback_is_a_new_generation_and_rechecks_sources_versions_and_expiry(t
             assert len(tx.list("activation")) == 5
     finally:
         memory.close()
+
+
+def test_activation_storage_failure_rolls_back_state_and_receipt_before_retry(tmp_path, monkeypatch):
+    from atmem.feedback.store import FeedbackTransaction
+    from feedback_lifecycle_fixtures import reviewed_shadow, seed_trusted_test_receipt, VERSIONS
+    f, memory, rule, lifecycle = reviewed_shadow(tmp_path)
+    try:
+        key = seed_trusted_test_receipt(f, rule)
+        original = FeedbackTransaction.put
+        def interrupted(self, kind, *args, **kwargs):
+            if kind == "activation":
+                raise OSError("synthetic interruption after lifecycle write")
+            return original(self, kind, *args, **kwargs)
+        args = dict(artifact_id="rule", state="active", expected_generation=1, qualification_id=key, versions=VERSIONS)
+        with monkeypatch.context() as patch:
+            patch.setattr(FeedbackTransaction, "put", interrupted)
+            with pytest.raises(OSError):
+                lifecycle.transition(f.owner["token"], f.scope, **args)
+        with f.feedback.store.transaction(f.scope) as tx:
+            assert tx.get("rule_lifecycle", "rule")["state"] == "shadow"
+            assert tx.get("rule_lifecycle", "rule")["generation"] == 1
+            assert len(tx.list("activation")) == 1
+        assert lifecycle.transition(f.owner["token"], f.scope, **args)["generation"] == 2
+        with pytest.raises(FeedbackError, match="stale_revision"):
+            lifecycle.transition(f.owner["token"], f.scope, **args)
+        with f.feedback.store.transaction(f.scope) as tx:
+            assert len(tx.list("activation")) == 2
+    finally:
+        memory.close()

@@ -1,7 +1,7 @@
 # Spec 050: Verified memory feedback and governed rule promotion
 
-Status: approved for implementation on 2026-11-09; foundation and host-boundary
-candidate tested. Full rule-service integration pending. See `implementation-evidence.md`.
+Status: approved for implementation on 2026-11-09; core services, dashboard and pinned host bridge
+implemented and tested. Production qualification and full acceptance remain pending. See `implementation-evidence.md`.
 Owner confirmed feature directory in conversation on 2026-11-09.
 Baseline: AtMem 2.3.14, upstream commit 1f5c72e.
 Inputs: `research.md`, repository constitution 2.2.0, existing Specs 007, 018,

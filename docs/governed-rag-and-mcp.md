@@ -270,8 +270,9 @@ can select an accepted current qualification, inspect its evidence and confirm
 activation, or request rollback to a previous active generation. The server
 rechecks authority and source/version/qualification state; displayed metadata
 does not grant permission. With only the current diagnostic qualifier, activation
-remains unavailable. Export consent UI and production-qualified browser journeys
-remain acceptance work. For threaded HTTP actions, supply a per-request
+remains unavailable. The export workflow has separate consent, exact preview,
+manual review, confirmation and withdrawal controls. Production qualification
+remains acceptance work. For threaded HTTP actions, supply a per-request
 `memory_factory`; do not share a thread-bound SQLite connection from setup.
 
 Owner SDK `FeedbackRecovery.preview_forget` / `forget` requires exact preview
@@ -280,10 +281,34 @@ source-dependent feedback payloads, retains content-free revocation/idempotency
 anchors, and checks canonical deletion completion. RAG re-registration requires
 a new generation. `reconcile_after_restore` disables restored grants, approvals,
 export consents and RAG sources, and quarantines active/qualified behavior until
-fresh qualification. The application must invoke reconciliation as part of its
-restore procedure; automatic integration into every restore path remains work.
+fresh qualification. The supported Home preflight/adoption workflow now changes
+a content-free machine binding: feedback refuses the read-only restore and then
+requires scoped reconciliation after adoption, including after process restart.
+An old reconciliation ID cannot clear a newer adoption. Corrupt/missing binding
+state fails closed. Ordinary native recall and historical evidence inspection
+are unchanged. A Home cannot be made globally rollback-proof without an external
+monotonic witness; arbitrary file copies or direct canonical database restores
+still require explicit operator reconciliation and remain outside automatic
+restore detection.
 Neither operation erases provider originals, backups, recipient exports or
 forensic storage remnants.
+
+After administrator-approved Home adoption, use a private **owner** credential
+file, not the revoked application grant, to quarantine the exact scope:
+
+```sh
+atmem rag --root /existing/control --vault-id VAULT \
+  --credential-file /private/owner.token --agent AGENT --workspace WORKSPACE \
+  reconcile-restore --restore-id ADOPTION_EVENT --confirm ADOPTION_EVENT
+```
+
+This disables restored grants/approvals/consents/source registrations and
+quarantines covered rules/profiles. It does not restore access, issue a fresh
+qualification or replay an uncertain write. The owner must explicitly regrant
+the required capabilities, reattach/register authorized sources and independently
+requalify behavior before activation. The command is owner-only CLI/SDK; it is
+not exposed to models through MCP. Repeat the same event ID for an idempotent
+retry; use a new ID for a new restore event.
 
 `FeedbackService.operational_metrics(session)` returns authenticated, scoped
 process-local counters and p50/p95 over the last 256 calls per closed operation.
@@ -338,8 +363,8 @@ inconclusive. These intervals do not establish adequate statistical power,
 production qualification or a measured quality improvement.
 
 Remaining acceptance work includes independent production qualification, complete
-quality/resource qualification gates, the installed Hermes service adapter, complete activation
-acceptance, automatic recovery hooks and final cross-platform CI results. No existing
+quality/resource qualification gates, production Hermes conformance, recovery
+coverage outside the supported Home workflow and final cross-platform CI results. No existing
 DolphinBench score is changed or relabelled by these development features.
 
 An offline diagnostic can measure the pure interpreter with 1,000 applicable

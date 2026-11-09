@@ -228,6 +228,21 @@ threshold changes. Export only after FR-019 consent and never include held-out e
 
 ## Verification and release
 
+Implemented extensions (2026-11-10): the application-owned Home restore/adoption
+binding is rechecked at feedback admission. Scoped owner reconciliation is a
+separate SDK/CLI operation, works without an agent grant and disables restored
+authority before requalification. Arbitrary file-copy/direct canonical restores
+remain explicit operator procedures. The Hermes service bridge verifies the
+recorded candidate boundary hashes, composes through the existing action-guard
+plugin's optional binding and places one-time approval consumption in the shared
+dispatcher; its final hook stays read-only. Unknown tools/batches deny unless
+explicitly configured as read-only. This is a pinned development candidate,
+not owner-runtime installation or universal interception. Active-profile engine
+outages use bounded native deterministic context and retain a fallback record;
+governance violations never fall back. Dashboard exports use an application-owned
+signer, explicit consent/preview/review/confirmation and recipient encryption;
+no private key enters an HTTP request or browser state.
+
 Tests use real temporary AtMem stores and synthetic principals; mocks supplement, never
 replace, store and installed-host journeys. Include auth/injection, matched invocation,
 unknown/disputed evidence, retries, TOCTOU, wrapper bypass, rule conflicts, outage,

@@ -13,7 +13,7 @@ from atmem.evidence.models import EvidenceOperation
 from atmem.feedback.store import FeedbackError, snapshot
 
 
-CONTROL_KINDS = frozenset({'audit','agent_grant','evaluation_budget','proxy_handler','proxy_write_hold','verifier','source_revocation'})
+CONTROL_KINDS = frozenset({'audit','agent_grant','evaluation_budget','proxy_handler','proxy_write_hold','verifier','source_revocation','restore_binding'})
 AUTH_FIELDS = frozenset({'scope','actor_id','principal_id','tenant_id','subject_id','agent_id','workspace_id','verifier_id','recipient_id'})
 IDENTITIES = frozenset({'receipt_id','evidence_id','outcome_id','rule_id','profile_id','activation_id','consent_id','export_id',
                         'candidate_sha256','outcome_sha256','artifact_sha256','manifest_sha256','preview_sha256'})
@@ -151,7 +151,11 @@ class FeedbackRecovery:
         """Never infer that restored active authority is still safe to execute."""
         from atmem.contracts.feedback import identifier
         identifier(restore_id)
-        with self.feedback.owner_transaction(owner_credential,scope) as (tx,principal):
+        with self.feedback.owner_transaction(owner_credential,scope,allow_restore=True) as (tx,principal):
+            from atmem.feedback.home_binding import home_restore_binding
+            binding=home_restore_binding(self.feedback)
+            if binding is not None and binding['mode']=='restore_read_only':
+                raise FeedbackError('restore_requires_adoption')
             def reconcile():
                 quarantined=[]
                 barrier=max((row['sequence'] for row in tx.rows.values()),default=0)
@@ -174,7 +178,11 @@ class FeedbackRecovery:
                         if kind=='rag_source':value['generation']+=1
                         tx.put(kind,key,value,expected_revision=tx.revision(kind,key))
                         counts[kind]+=1
+                tx.put('restore_binding','home',{'binding_sha256':binding['binding_sha256'] if binding else None},
+                       expected_revision=tx.revision('restore_binding','home'))
+                if home_restore_binding(self.feedback)!=binding:
+                    raise FeedbackError('restore_state_changed')
                 tx.audit(principal.principal_id,'restore_reconciliation',allowed=True)
                 return {'status':'requalification_required','quarantined':quarantined,'disabled':counts,
                         'restore_id':restore_id,'uncertain_writes':'not_reexecuted','ordinary_core_recall':'unchanged'}
-            return tx.once('restore_reconciliation',restore_id,{'actor_id':principal.principal_id},reconcile)
+            return tx.once('restore_reconciliation',restore_id,{'actor_id':principal.principal_id,'binding':binding},reconcile)

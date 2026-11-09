@@ -37,7 +37,7 @@ jobs:
           python -m pip install -e . --no-deps
           python -m pip install pytest==9.2.0 jsonschema==4.26.0 cryptography==48.0.1
       - name: Install real recipient-crypto test extra on the reference job
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        if: matrix.python == '3.12'
         run: python -m pip install pqcrypto==1.0.0
       - name: Fetch and verify public immutable upgrade baseline
         run: python scripts/fetch_feedback_baseline.py --output .feedback-baseline/atmem-2.3.14.whl
@@ -49,6 +49,7 @@ jobs:
           tests/test_feedback_actions.py tests/test_feedback_authority.py
           tests/test_feedback_baseline.py tests/test_feedback_contracts.py
           tests/test_feedback_docs.py tests/test_feedback_metrics.py
+          tests/test_feedback_hermes_boundary.py
           tests/test_feedback_observability.py
           tests/test_feedback_report_gates.py
           tests/test_feedback_cli_mcp.py tests/test_feedback_dashboard.py
@@ -62,6 +63,7 @@ jobs:
           tests/integration/test_feedback_journey.py tests/integration/test_feedback_published_upgrade.py
           tests/test_context_engine_governance.py tests/test_action_guard.py
           tests/test_evidence_protection.py tests/test_continuity_product.py
+          tests/test_home.py tests/test_provider_lifecycle_timeout.py tests/test_provider_server.py
       - run: python scripts/check_feedback_docs.py
       - name: Remove public upgrade download
         if: always()

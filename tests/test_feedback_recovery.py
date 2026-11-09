@@ -116,3 +116,69 @@ def test_forget_preview_is_invalidated_by_a_new_dependent_passage(tmp_path):
     with pytest.raises(FeedbackError,match='stale_preview'):
         recovery.forget(f.owner['token'],f.scope,source_id='law',source_kind='rag',preview_sha256=preview['preview_sha256'],confirm_sha256=preview['preview_sha256'])
     assert len(f.rag.sources(f.session)['sources'])==1
+
+
+def test_real_home_restore_and_adoption_block_feedback_until_scoped_reconciliation(tmp_path):
+    import pytest
+    from atmem.control.manager import ControlPlaneManager
+    from atmem.feedback.recovery import FeedbackRecovery
+    from atmem.feedback.store import FeedbackError
+    from atmem.home.service import HomeService
+    from rag_fixtures import setup_rag
+    f = setup_rag(tmp_path)
+    home = HomeService(tmp_path)
+    home.initialize()
+    ControlPlaneManager.start(host="generic", state_path=tmp_path/"control-plane.json",
+        control_root=tmp_path/"migrations", memory_db=tmp_path/"native-home.db")
+    assert f.feedback.capabilities(f.session)["scope"] == f.scope.to_dict()
+    recovery = FeedbackRecovery(f.feedback)
+    home.prepare_restore()
+    with pytest.raises(FeedbackError, match="restore_requires_adoption"):
+        f.feedback.capabilities(f.session)
+    with pytest.raises(FeedbackError, match="restore_requires_adoption"):
+        recovery.reconcile_after_restore(f.owner["token"], f.scope, restore_id="too-early")
+    home.adopt(administrator_confirmed=True)
+    restarted = FeedbackService(f.evidence, clock=f.feedback.clock)
+    with pytest.raises(FeedbackError, match="restore_reconciliation_required"):
+        restarted.bind(f.user["token"], agent_id="writer", workspace_id="project")
+    with pytest.raises(FeedbackError, match="restore_reconciliation_required"):
+        restarted.grant_agent(f.owner["token"], f.scope, principal_id=f.user["principal_id"],
+            operations=("read",), expires_at=1_700_010_000)
+    restore = FeedbackRecovery(restarted)
+    result = restore.reconcile_after_restore(f.owner["token"], f.scope, restore_id="adopted")
+    assert result["disabled"]["agent_grant"] == 1 and result["disabled"]["rag_source"] == 1
+    assert restore.reconcile_after_restore(f.owner["token"], f.scope, restore_id="adopted") == result
+    with pytest.raises(FeedbackError, match="denied"):
+        restarted.bind(f.user["token"], agent_id="writer", workspace_id="project")
+    restarted.grant_agent(f.owner["token"], f.scope, principal_id=f.user["principal_id"],
+        operations=("read",), expires_at=1_700_010_000)
+    session = restarted.bind(f.user["token"], agent_id="writer", workspace_id="project")
+    assert restarted.capabilities(session)["scope"] == f.scope.to_dict()
+    # A second adoption is a different generation. Neither old reconciliation
+    # nor a service restart may silently re-enable the copied grant.
+    home.adopt(administrator_confirmed=True)
+    with pytest.raises(FeedbackError, match="restore_reconciliation_required"):
+        restarted.capabilities(session)
+    with pytest.raises(FeedbackError, match="conflicting_retry"):
+        restore.reconcile_after_restore(f.owner["token"], f.scope, restore_id="adopted")
+
+
+def test_corrupt_or_removed_home_restore_binding_fails_closed(tmp_path):
+    import json
+    import pytest
+    from atmem.feedback.recovery import FeedbackRecovery
+    from atmem.feedback.store import FeedbackError
+    from atmem.home.service import _atomic_json
+    from rag_fixtures import setup_rag
+    f = setup_rag(tmp_path)
+    mode = tmp_path/"runtime/home-mode.json"
+    _atomic_json(mode, {"format":"atmem-home-runtime-mode-v1", "mode":"adopted_writable", "binding_id":"synthetic-adoption"})
+    FeedbackRecovery(f.feedback).reconcile_after_restore(f.owner["token"], f.scope, restore_id="adoption")
+    f.feedback.grant_agent(f.owner["token"], f.scope, principal_id=f.user["principal_id"],
+        operations=("read",), expires_at=1_700_010_000)
+    mode.write_text("{}")
+    with pytest.raises(FeedbackError, match="restore_state_unavailable"):
+        f.feedback.capabilities(f.session)
+    mode.unlink()
+    with pytest.raises(FeedbackError, match="restore_reconciliation_required"):
+        f.feedback.capabilities(f.session)

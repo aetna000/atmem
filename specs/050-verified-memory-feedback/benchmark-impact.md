@@ -67,3 +67,17 @@ system. No new score is available for Spec 050.
   This can affect control-plane shutdown/restart availability on future provider
   campaigns; it changes no recall selection or model/judge retry policy. No live
   provider or frozen run was modified.
+- The existing Hermes routing plugin now accepts an optional trusted
+  `feedback_guard` binding. Its default one-argument registration and hooks are
+  unchanged. Opting into the new pinned bridge adds real policy admission,
+  explicit read-only exceptions and denial of unknown tools/batches. This
+  materially changes tool behavior if enabled and must be a separately frozen
+  future benchmark condition; it is not installed in the frozen Dolphin runtime.
+- The feedback-profile helper now falls back to native deterministic retrieval
+  for an engine availability error, within the candidate's configured byte
+  ceiling. It records the fallback explicitly. Governance violations and stale
+  sources still deny; disabled mode and ordinary native retrieval are unchanged.
+- Supported Home restore/adoption changes a machine binding. Opt-in feedback
+  operations refuse copied authority until explicit owner reconciliation and
+  requalification; native recall and historical evidence inspection are
+  unchanged. Direct database/file-copy recovery remains an operator procedure.

@@ -25,6 +25,7 @@ def test_two_stdio_clients_cannot_bypass_native_policy_or_repeat_another_actors_
     # This fixture app is owner configuration, not a model-supplied handler or
     # endpoint. Its one target path is fixed outside the tool arguments.
     script.write_text('''import argparse
+import time
 from pathlib import Path
 from atmem import Memory
 from atmem.evidence.service import EvidenceService
@@ -42,9 +43,16 @@ e=EvidenceService(root,vault_id=a.vault_id)
 m=Memory(':memory:',auto_vectors=False)
 f=FeedbackService(e,memory=m)
 s=f.bind(Path(a.credential_file).read_text(),agent_id=a.agent,workspace_id=a.workspace)
-d=GuardedDispatcher(f,versions={'adapter':'fixture-v1'})
+d=GuardedDispatcher(f,versions={'adapter':'fixture-v1'},timeout_seconds=30)
 schema={'type':'object','properties':{'body':{'type':'string','maxLength':100}},'required':['body'],'additionalProperties':False}
 def write(args):
+    if args['body']=='race':
+        (root.parent/'race-entered').touch()
+        deadline=time.monotonic()+25
+        while not (root.parent/'race-release').exists():
+            if time.monotonic()>deadline:
+                raise TimeoutError('synthetic coordination deadline')
+            time.sleep(.01)
     with (root.parent/'proxy-effects.txt').open('a') as stream:
         stream.write(args['body']+'\\n')
     return {'accepted':True}
@@ -76,6 +84,31 @@ m.close()
         assert b.tool("guarded_inspect", receipt_id=result["receipt_id"])["structuredContent"]["status"] == "reported_complete"
         f.feedback.revoke_agent(f.owner["token"], f.scope, principal_id=second["principal_id"])
         assert b.call("tools/list")["error"]["code"] == -32001
+        # A separate process with the same authenticated actor retries while
+        # the first callback is definitely live. The retained intent must be
+        # returned without starting a second callback or duplicating its effect.
+        from concurrent.futures import ThreadPoolExecutor
+        c = Client(f, tmp_path, f.user["token"], "proxy-c", command=[sys.executable, str(script)])
+        clients.append(c)
+        race = MCPInvocation("fixture.write", "v1", {"body":"race"}, "concurrent-key")
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            running = pool.submit(a.tool, "guarded_execute", invocation=race.to_dict())
+            try:
+                deadline = time.monotonic()+20
+                while not (tmp_path/"race-entered").exists() and time.monotonic()<deadline:
+                    if running.done():
+                        assert not running.result().get("isError"), running.result()
+                        raise AssertionError("first process did not enter its callback")
+                    time.sleep(.01)
+                assert (tmp_path/"race-entered").exists()
+                duplicate = c.tool("guarded_execute", invocation=race.to_dict())["structuredContent"]
+                assert duplicate["status"] == "uncertain" and path.read_text() == "once\n"
+            finally:
+                (tmp_path/"race-release").touch()
+            completed = running.result(timeout=20)["structuredContent"]
+        assert completed["receipt_id"] == duplicate["receipt_id"]
+        assert completed["status"] == "reported_complete" and path.read_text() == "once\nrace\n"
+        assert c.tool("guarded_inspect", receipt_id=duplicate["receipt_id"])["structuredContent"]["status"] == "reported_complete"
     finally:
         for client in clients:
             client.close()

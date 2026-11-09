@@ -80,7 +80,7 @@ class FeedbackService:
         return session
 
     @contextmanager
-    def owner_transaction(self, credential, scope, *, operation=EvidenceOperation.GRANT):
+    def owner_transaction(self, credential, scope, *, operation=EvidenceOperation.GRANT, allow_restore=False):
         """Check privileged authority before decryption and again under lock."""
         principal = self._principal(credential)
         self._check_memory_tenant(scope)
@@ -95,6 +95,9 @@ class FeedbackService:
                 principal.authorize(operation, scope.evidence_scope())
             except PermissionError:
                 raise FeedbackError("denied") from None
+            if not allow_restore:
+                from atmem.feedback.home_binding import check_home_restore_binding
+                check_home_restore_binding(self, tx)
             yield tx, principal
 
     def grant_agent(self, owner_credential: str, scope: FeedbackScope, *,
@@ -152,6 +155,8 @@ class FeedbackService:
             self._check_memory_tenant(scope)
             if self._scope(principal, scope.agent_id, scope.workspace_id) != scope:
                 raise FeedbackError("denied")
+            from atmem.feedback.home_binding import check_home_restore_binding
+            check_home_restore_binding(self, tx)
             grant = tx.get("agent_grant", principal.principal_id)
             if (not grant or not grant["active"] or grant["expires_at"] <= self.clock()
                     or not grant["operations"] or operation is not None and operation not in grant["operations"]):

@@ -369,3 +369,56 @@ examples now recheck scope/source generation/revision/active state on preview,
 export and cached retry. The complete new suite is still being verified; no
 production data, host installation, training, paid inference or DolphinBench
 run was performed.
+
+## Service bridge, Home restore and final regression checkpoint
+
+At source `7fd7cfa`, the expanded combined selection completed **463 passed,
+5 skipped in 544.55 seconds**, including the real Chrome journeys. Both feature
+CI (`42621953286`, **12/12 OS/Python combinations**) and main CI (`42621953053`,
+including native unit, provider, OpenClaw and distribution checks) completed
+successfully. The supporting workflows also passed. These results apply to that
+source; subsequent changes below require their own CI, not a reused green badge.
+
+The pinned Hermes service bridge reuses the shared guarded dispatcher, with
+trusted session/call binding and scoped registration. It composes with the
+existing routing plugin through an optional keyword argument, preserving its
+default hooks. The repeatable final check cannot consume an approval. Real host
+execution middleware performs the single admission and dispatch. Native vetoes,
+late argument rewrites, revoked grants, unavailable policy, deleted sources,
+missing host identity, unknown batches and skipped middleware cause no covered
+effect. Repeated calls inspect the latest retained receipt without reexecution.
+
+In the candidate's actual Python 3.14.7 environment, **11 tests passed in 57.86
+seconds**, using real host imports/registry/agent middleware, real encrypted
+AtMem state, the existing action-guard hooks and synthetic effect files. This is
+local candidate conformance, not production efficacy, other-OS Hermes support,
+the global task-state enforcement capability or an owner-runtime installation.
+The initial real retry check exposed the retained-intent/latest-result mismatch;
+the bridge now inspects that receipt and never retries its effect. The failed
+initial attempt is not counted as a passing test.
+
+The supported Home restore/adoption path now invalidates feedback authority
+through a machine binding, with fail-closed checks after restart. Owner-only
+CLI reconciliation works without a surviving agent grant and disables restored
+grants, approvals, consents and registrations before fresh qualification.
+Direct canonical database restoration and arbitrary copied files remain outside
+automatic detection. A Home/key/binding rollback is not advertised as prevented.
+
+A complete changed-path selection with all three actual Chrome journeys,
+threaded HTTP activation/rollback using per-request real canonical connections,
+Home restore/adoption/reconciliation, profiles, lifecycle, CLI and concurrent
+MCP clients passed **41 tests in 195.55 seconds**. A further privacy matrix passed
+**9 export tests in 82.76 seconds**, including real held-out manifest exclusion,
+detected secrets, conflicting independent readback and unverified outcomes.
+The two-process MCP race holds the first callback open and proves a same-actor
+retry returns the same intent without a second effect; latest receipt inspection
+then reports completion. Active profile consumers now exercise native bounded
+fallback on an actual injected engine outage, never on a governance violation.
+Activation failure after writing the lifecycle row rolls back its receipt and
+state together; retry creates one generation. Test counts overlap prior checks.
+
+All 39 FR/SC identifiers map to the 29 Spec Kit tasks; none are unmapped. Task
+checkboxes are reconciled with demonstrated implementation, leaving causal
+attribution, production qualification, broader conformance/recovery and efficacy
+acceptance explicitly open. No user memory, published package, website deployment
+or frozen benchmark was changed.
