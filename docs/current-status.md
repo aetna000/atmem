@@ -1,5 +1,10 @@
 # Current status
 
+**Beta candidate:** AtMem `2.3.15b1`, bridge `2.3.15-beta.1`.
+See the [beta release note](releases/v2.3.15b1.md) for governed RAG, generic MCP,
+verified feedback and Windows/restore fixes. Production qualification and final
+feature acceptance remain incomplete; the beta does not change benchmark claims.
+
 **Stable release line:** AtMem `2.3.14`, OpenClaw bridge `2.3.14`, legacy
 AtBot companion `0.1.1`, and pinned AtFlows `0.1.8`. See the
 [2.3.14 release note](releases/v2.3.14.md). Standalone AtBots is a separate

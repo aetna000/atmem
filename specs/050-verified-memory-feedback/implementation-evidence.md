@@ -721,3 +721,32 @@ typecheck, build, complete node test sequence and all three Python bridge
 smoke/journey scripts passed. The unchanged dependency tree was reused read-only
 from the original checkout through an ignored worktree symlink, after confirming
 the lock differed only in root package versions; no global install was changed.
+
+## Beta release-gate corrections (2026-11-10)
+
+The first beta CI checkpoint 16f71b0 was not tagged. Full Python 3.10/3.13
+runs each reached 4,314 passing cases with 203 skips, but failed three release
+ documentation checks: README quick starts still pinned the stable line, the
+badge did not carry the required version label, and capabilities.json still
+reported 2.3.14/stable. Corrected the source README to explicit beta examples
+(with a separately labelled stable alternative) and the capability manifest to
+2.3.15b1/prerelease, retaining incomplete feature status. The unchanged checks
+then passed locally: 25 documentation/release/inventory cases (0.47s).
+
+The Code installed gate on macOS/Python 3.13.17 failed one short `Ruff` byte scan
+in an encrypted database after the encrypted export/import round trip succeeded
+(job 129300182993, run 42657598151; 330 passed, 28 skipped, one failure). The raw
+runner database was not retained, so the exact matching bytes cannot now be
+re-examined. Four-byte scans of ciphertext/base64 are collision-prone and do not
+prove plaintext leakage. Strengthened this test to retain/scan a complete planted
+private value, assert exact authorized round-trip content and independently
+require ordinary SQLite to reject both encrypted databases. No encryption runtime,
+threshold or admission check was relaxed. The original failed CI result remains.
+
+The strengthened actual CLI/HTTP cases passed locally (2 tests, 2.89s) and on the
+owner's Windows machine (2 tests, 11.34s). Full macOS/Python 3.13.14 installed Code
+gate then passed 331 cases with 28 explicit optional/host-probe skips (359 total),
+using the beta wheel, isolated synthetic Home and actual SQLCipher/PQ crypto.
+The first attempted local gate used a broken uv Python 3.13.12 ensurepip runtime;
+the existing Homebrew 3.13.14 runtime completed successfully without a download.
+This is installed product compatibility evidence, not an efficacy benchmark.

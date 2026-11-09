@@ -1,8 +1,8 @@
 {
   "product": "memory_control_plane",
-  "version": "2.3.14",
+  "version": "2.3.15b1",
   "development_target": null,
-  "release_status": "stable",
+  "release_status": "prerelease",
   "engine": "model_agnostic",
   "canonical_authority": "atmem_only",
   "intelligence_companion": {
@@ -175,5 +175,20 @@
       },
       "description": "Adapters that register the typed-delta tool with their model. An unregistered tool is invisible to the model and is never claimed here."
     }
+  },
+  "governed_rag": {
+    "status": "beta_preview",
+    "default_enabled": false,
+    "transport": "local_stdio",
+    "owner_registration_required": true,
+    "reference_index": "encrypted_evidence_vault_and_ram_fts"
+  },
+  "verified_memory_feedback": {
+    "status": "beta_preview",
+    "default_enabled": false,
+    "production_qualification": "inconclusive_only",
+    "enforcement_boundary": "registered_owned_proxy_only",
+    "external_host_tools": "advisory",
+    "full_installed_host_conformance": "pending"
   }
 }
